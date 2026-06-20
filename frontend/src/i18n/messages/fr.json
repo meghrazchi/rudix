@@ -2607,6 +2607,8 @@
     "navigationMenu": "Menu de navigation",
     "collapseSidebar": "Réduire la barre latérale",
     "expandSidebar": "Développer la barre latérale",
+    "helpCenter": "Centre d'aide",
+    "keyboardShortcuts": "Raccourcis clavier",
     "loadingSession": "Chargement de la session",
     "loadingSessionDescription": "Vérification de l’accès à votre compte et à votre organisation pour cet espace de travail.",
     "unassigned": "Non attribué",
@@ -2720,6 +2722,76 @@
       "of": "sur",
       "previous": "Précédent",
       "next": "Suivant"
+    }
+  },
+  "help": {
+    "helpCenterTitle": "Centre d'aide",
+    "keyboardShortcutsTitle": "Raccourcis clavier",
+    "keyboardShortcuts": "Raccourcis clavier",
+    "helpCenter": "Centre d'aide",
+    "close": "Fermer",
+    "searchPlaceholder": "Rechercher des sujets d'aide…",
+    "searchAriaLabel": "Rechercher des sujets d'aide",
+    "topicsLabel": "Sujets",
+    "resourcesLabel": "Ressources",
+    "supportLabel": "Support",
+    "noArticles": "Aucun sujet trouvé.",
+    "openHelpForTopic": "Ouvrir l'aide pour ce sujet",
+    "contactSupport": "Contacter le support",
+    "includeDiagnosticInfo": "Inclure les informations de diagnostic",
+    "diagnosticInfoNote": "Inclut le préfixe d'org, le rôle et le navigateur. Aucune donnée privée.",
+    "copyDiagnosticInfo": "Copier les infos de diagnostic",
+    "copied": "Copié !",
+    "shortcuts": {
+      "search": "Ouvrir la recherche globale",
+      "openShortcuts": "Ouvrir les raccourcis clavier",
+      "submitMessage": "Envoyer le message de chat",
+      "closeOverlay": "Fermer la superposition ou le menu",
+      "focusNext": "Déplacer le focus en avant",
+      "focusPrevious": "Déplacer le focus en arrière",
+      "groups": {
+        "navigation": "Navigation",
+        "chat": "Chat",
+        "overlays": "Superpositions et focus"
+      }
+    },
+    "articles": {
+      "upload": {
+        "title": "Téléverser des documents",
+        "description": "Ajoutez des PDF, DOCX et autres fichiers pour les indexer."
+      },
+      "chat": {
+        "title": "Poser des questions",
+        "description": "Utilisez Chat pour obtenir des réponses fondées depuis vos documents."
+      },
+      "citations": {
+        "title": "Vérifier les citations",
+        "description": "Cliquez sur une puce de citation pour prévisualiser le passage source."
+      },
+      "collections": {
+        "title": "Gérer les collections",
+        "description": "Regroupez les documents en bases de connaissances thématiques."
+      },
+      "evaluations": {
+        "title": "Lancer des évaluations",
+        "description": "Mesurez la qualité de récupération et de réponse avec des jeux d'évaluation."
+      },
+      "pipeline": {
+        "title": "Pipeline RAG",
+        "description": "Inspectez les étapes de découpage, récupération et génération."
+      },
+      "connectors": {
+        "title": "Gérer les connecteurs",
+        "description": "Synchronisez du contenu depuis Jira, Confluence, Google Drive et autres."
+      },
+      "agents": {
+        "title": "Espace de travail agents",
+        "description": "Gérez les exécutions d'agents autonomes, les approbations et les politiques d'outils."
+      },
+      "users": {
+        "title": "Gérer les utilisateurs",
+        "description": "Invitez des membres, attribuez des rôles et contrôlez l'accès depuis la Console Admin."
+      }
     }
   }
 }

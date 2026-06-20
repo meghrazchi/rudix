@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
 import { EmptyState } from "@/components/states/EmptyState";
 import type {
   EvaluationRunListItem,
@@ -242,9 +243,12 @@ export function EvaluationsPageHeader({
     <header className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            Track RAG quality before shipping answers
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Track RAG quality before shipping answers
+            </h1>
+            <ContextualHelpLink topic="run-evaluations" />
+          </div>
           <p className="mt-1 text-sm text-gray-500">
             Measure retrieval, grounding, citations, latency, and cost to catch
             weak answers before production.

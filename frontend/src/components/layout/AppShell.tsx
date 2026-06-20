@@ -27,7 +27,13 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
+import { HelpCenterDrawer } from "@/components/help/HelpCenterDrawer";
+import { KeyboardShortcutsModal } from "@/components/help/KeyboardShortcutsModal";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import {
+  HelpCenterContext,
+  type HelpTopic,
+} from "@/lib/help-center-context";
 import { ProfileMenu } from "@/components/layout/ProfileMenu";
 import { ServiceStatusBanner } from "@/components/admin/ServiceStatusBanner";
 import { SkipLink } from "@/components/layout/SkipLink";
@@ -317,6 +323,11 @@ export function AppShell({
     createDefaultOnboardingState,
   );
   const [onboardingVisible, setOnboardingVisible] = useState(false);
+  const [helpCenterOpen, setHelpCenterOpen] = useState(false);
+  const [helpCenterTopic, setHelpCenterTopic] = useState<HelpTopic | null>(
+    null,
+  );
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
 
   useEffect(() => {
     const stored = readOnboardingState(session.userId);
@@ -465,6 +476,27 @@ export function AppShell({
     setCommandMenuOpen(true);
   }, []);
 
+  const openHelpCenter = useCallback((topic?: HelpTopic) => {
+    setOpenMenu(null);
+    setHelpCenterTopic(topic ?? null);
+    setHelpCenterOpen(true);
+  }, []);
+
+  const closeHelpCenter = useCallback(() => {
+    setHelpCenterOpen(false);
+    setHelpCenterTopic(null);
+  }, []);
+
+  const openKeyboardShortcuts = useCallback(() => {
+    setOpenMenu(null);
+    setHelpCenterOpen(false);
+    setShortcutsModalOpen(true);
+  }, []);
+
+  const closeKeyboardShortcuts = useCallback(() => {
+    setShortcutsModalOpen(false);
+  }, []);
+
   useOverlayFocus({
     isOpen: mobileSidebarOpen,
     containerRef: mobileSidebarRef,
@@ -549,6 +581,32 @@ export function AppShell({
       document.removeEventListener("keydown", onGlobalCommandShortcut);
     };
   }, [openCommandMenu]);
+
+  useEffect(() => {
+    function onShortcutsKey(event: KeyboardEvent): void {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey) {
+        return;
+      }
+      if (event.key !== "?") {
+        return;
+      }
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      event.preventDefault();
+      openKeyboardShortcuts();
+    }
+
+    document.addEventListener("keydown", onShortcutsKey);
+    return () => {
+      document.removeEventListener("keydown", onShortcutsKey);
+    };
+  }, [openKeyboardShortcuts]);
 
   useEffect(() => {
     if (!openMenu) {
@@ -1030,6 +1088,49 @@ export function AppShell({
                             type="button"
                             role="menuitem"
                             data-menu-autofocus="true"
+                            onClick={() => {
+                              closeMenu();
+                              openHelpCenter();
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="material-symbols-outlined text-[16px] text-[#3525cd]"
+                            >
+                              menu_book
+                            </span>
+                            {t("helpCenter")}
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              closeMenu();
+                              openKeyboardShortcuts();
+                            }}
+                            className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span
+                                aria-hidden="true"
+                                className="material-symbols-outlined text-[16px] text-[#3525cd]"
+                              >
+                                keyboard
+                              </span>
+                              {helpItemLabel["shortcuts"] ?? t("keyboardShortcuts")}
+                            </span>
+                            <kbd className="rounded border border-[#d3cff0] bg-[#f7f5ff] px-1.5 py-0.5 text-[10px] font-semibold text-[#5d58a8]">
+                              ?
+                            </kbd>
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            role="menuitem"
                             data-onboarding="checklist-trigger"
                             onClick={() => {
                               closeMenu();
@@ -1053,30 +1154,27 @@ export function AppShell({
                             {tNav("gettingStarted")}
                           </button>
                         </li>
-                        {helpItems.map((item, index) => {
-                          const external = isExternalHref(item.href);
-                          return (
-                            <li key={item.id}>
-                              <Link
-                                href={item.href}
-                                role="menuitem"
-                                data-menu-autofocus={
-                                  index === 0 && helpItems.length > 0
-                                    ? undefined
-                                    : undefined
-                                }
-                                onClick={closeMenu}
-                                target={external ? "_blank" : undefined}
-                                rel={
-                                  external ? "noreferrer noopener" : undefined
-                                }
-                                className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
-                              >
-                                {helpItemLabel[item.id] ?? item.label}
-                              </Link>
-                            </li>
-                          );
-                        })}
+                        {helpItems
+                          .filter((item) => item.id !== "shortcuts")
+                          .map((item) => {
+                            const external = isExternalHref(item.href);
+                            return (
+                              <li key={item.id}>
+                                <Link
+                                  href={item.href}
+                                  role="menuitem"
+                                  onClick={closeMenu}
+                                  target={external ? "_blank" : undefined}
+                                  rel={
+                                    external ? "noreferrer noopener" : undefined
+                                  }
+                                  className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
+                                >
+                                  {helpItemLabel[item.id] ?? item.label}
+                                </Link>
+                              </li>
+                            );
+                          })}
                       </ul>
                     </div>
                   ) : null}
@@ -1101,7 +1199,11 @@ export function AppShell({
             tabIndex={-1}
             className={`min-h-0 flex-1 focus:outline-none ${mainOverflowClass}`}
           >
-            {children}
+            <HelpCenterContext.Provider
+              value={{ openHelpCenter, openKeyboardShortcuts }}
+            >
+              {children}
+            </HelpCenterContext.Provider>
           </main>
         </div>
       </div>
@@ -1116,6 +1218,19 @@ export function AppShell({
           />
         </div>
       ) : null}
+
+      <HelpCenterDrawer
+        isOpen={helpCenterOpen}
+        onClose={closeHelpCenter}
+        initialTopic={helpCenterTopic}
+        onOpenShortcuts={openKeyboardShortcuts}
+        session={session}
+      />
+
+      <KeyboardShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={closeKeyboardShortcuts}
+      />
     </div>
   );
 }

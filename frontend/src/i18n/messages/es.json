@@ -2637,6 +2637,8 @@
     "navigationMenu": "Menú de navegación",
     "collapseSidebar": "Colapsar barra lateral",
     "expandSidebar": "Expandir barra lateral",
+    "helpCenter": "Centro de ayuda",
+    "keyboardShortcuts": "Atajos de teclado",
     "loadingSession": "Cargando sesión",
     "loadingSessionDescription": "Comprobando el acceso de tu cuenta y organización para este espacio de trabajo.",
     "unassigned": "Sin asignar",
@@ -2750,6 +2752,76 @@
       "of": "de",
       "previous": "Anterior",
       "next": "Siguiente"
+    }
+  },
+  "help": {
+    "helpCenterTitle": "Centro de ayuda",
+    "keyboardShortcutsTitle": "Atajos de teclado",
+    "keyboardShortcuts": "Atajos de teclado",
+    "helpCenter": "Centro de ayuda",
+    "close": "Cerrar",
+    "searchPlaceholder": "Buscar temas de ayuda…",
+    "searchAriaLabel": "Buscar temas de ayuda",
+    "topicsLabel": "Temas",
+    "resourcesLabel": "Recursos",
+    "supportLabel": "Soporte",
+    "noArticles": "No se encontraron temas.",
+    "openHelpForTopic": "Abrir ayuda para este tema",
+    "contactSupport": "Contactar soporte",
+    "includeDiagnosticInfo": "Incluir información de diagnóstico",
+    "diagnosticInfoNote": "Incluye prefijo de org, rol y navegador. Sin datos privados.",
+    "copyDiagnosticInfo": "Copiar información de diagnóstico",
+    "copied": "¡Copiado!",
+    "shortcuts": {
+      "search": "Abrir búsqueda global",
+      "openShortcuts": "Abrir atajos de teclado",
+      "submitMessage": "Enviar mensaje de chat",
+      "closeOverlay": "Cerrar superposición o menú",
+      "focusNext": "Mover foco adelante",
+      "focusPrevious": "Mover foco atrás",
+      "groups": {
+        "navigation": "Navegación",
+        "chat": "Chat",
+        "overlays": "Superposiciones y foco"
+      }
+    },
+    "articles": {
+      "upload": {
+        "title": "Subir documentos",
+        "description": "Agrega PDFs, DOCX y otros archivos para indexarlos."
+      },
+      "chat": {
+        "title": "Hacer preguntas",
+        "description": "Usa Chat para obtener respuestas fundamentadas de tus documentos."
+      },
+      "citations": {
+        "title": "Verificar citas",
+        "description": "Haz clic en un chip de cita para previsualizar el fragmento fuente."
+      },
+      "collections": {
+        "title": "Gestionar colecciones",
+        "description": "Agrupa documentos en bases de conocimiento temáticas."
+      },
+      "evaluations": {
+        "title": "Ejecutar evaluaciones",
+        "description": "Mide la calidad de recuperación y respuesta con conjuntos de evaluación."
+      },
+      "pipeline": {
+        "title": "Pipeline RAG",
+        "description": "Inspecciona las etapas de fragmentación, recuperación y generación."
+      },
+      "connectors": {
+        "title": "Gestionar conectores",
+        "description": "Sincroniza contenido de Jira, Confluence, Google Drive y otras fuentes."
+      },
+      "agents": {
+        "title": "Espacio de trabajo de agentes",
+        "description": "Administra ejecuciones de agentes, aprobaciones y políticas de herramientas."
+      },
+      "users": {
+        "title": "Gestionar usuarios",
+        "description": "Invita miembros, asigna roles y controla el acceso desde la Consola de administración."
+      }
     }
   }
 }

@@ -2607,6 +2607,8 @@
     "navigationMenu": "Navigationsmenü",
     "collapseSidebar": "Seitenleiste einklappen",
     "expandSidebar": "Seitenleiste ausklappen",
+    "helpCenter": "Hilfezentrum",
+    "keyboardShortcuts": "Tastaturkürzel",
     "loadingSession": "Sitzung wird geladen",
     "loadingSessionDescription": "Ihr Konto und der Organisationszugang für diesen Arbeitsbereich werden überprüft.",
     "unassigned": "Nicht zugewiesen",
@@ -2720,6 +2722,76 @@
       "of": "von",
       "previous": "Zurück",
       "next": "Weiter"
+    }
+  },
+  "help": {
+    "helpCenterTitle": "Hilfezentrum",
+    "keyboardShortcutsTitle": "Tastaturkürzel",
+    "keyboardShortcuts": "Tastaturkürzel",
+    "helpCenter": "Hilfezentrum",
+    "close": "Schließen",
+    "searchPlaceholder": "Hilfethemen suchen…",
+    "searchAriaLabel": "Hilfethemen suchen",
+    "topicsLabel": "Themen",
+    "resourcesLabel": "Ressourcen",
+    "supportLabel": "Support",
+    "noArticles": "Keine Themen gefunden.",
+    "openHelpForTopic": "Hilfe zu diesem Thema öffnen",
+    "contactSupport": "Support kontaktieren",
+    "includeDiagnosticInfo": "Diagnoseinformationen einschließen",
+    "diagnosticInfoNote": "Enthält Org-ID-Präfix, Rolle und Browser. Keine privaten Daten.",
+    "copyDiagnosticInfo": "Diagnoseinfo kopieren",
+    "copied": "Kopiert!",
+    "shortcuts": {
+      "search": "Globale Suche öffnen",
+      "openShortcuts": "Tastaturkürzel öffnen",
+      "submitMessage": "Chatnachricht senden",
+      "closeOverlay": "Overlay oder Menü schließen",
+      "focusNext": "Fokus vorwärts",
+      "focusPrevious": "Fokus rückwärts",
+      "groups": {
+        "navigation": "Navigation",
+        "chat": "Chat",
+        "overlays": "Overlays & Fokus"
+      }
+    },
+    "articles": {
+      "upload": {
+        "title": "Dokumente hochladen",
+        "description": "PDFs, DOCX und andere Dateien hochladen und indizieren."
+      },
+      "chat": {
+        "title": "Fragen stellen",
+        "description": "Mit Chat fundierte Antworten aus indizierten Dokumenten erhalten."
+      },
+      "citations": {
+        "title": "Zitate überprüfen",
+        "description": "Auf einen Zitat-Chip klicken, um die Quellstelle anzuzeigen."
+      },
+      "collections": {
+        "title": "Sammlungen verwalten",
+        "description": "Dokumente in thematische Wissensbasen gruppieren."
+      },
+      "evaluations": {
+        "title": "Evaluierungen durchführen",
+        "description": "Retrieval- und Antwortqualität mit Evaluierungssets messen."
+      },
+      "pipeline": {
+        "title": "RAG-Pipeline",
+        "description": "Chunking-, Retrieval- und Generierungsphasen inspizieren."
+      },
+      "connectors": {
+        "title": "Konnektoren verwalten",
+        "description": "Inhalte aus Jira, Confluence, Google Drive und anderen Quellen synchronisieren."
+      },
+      "agents": {
+        "title": "Agenten-Arbeitsbereich",
+        "description": "Autonome Agenten-Runs, Genehmigungen und Tool-Richtlinien verwalten."
+      },
+      "users": {
+        "title": "Benutzer verwalten",
+        "description": "Mitglieder einladen, Rollen zuweisen und Zugriff steuern."
+      }
     }
   }
 }

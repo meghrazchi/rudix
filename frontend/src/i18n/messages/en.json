@@ -2637,6 +2637,8 @@
     "navigationMenu": "Navigation menu",
     "collapseSidebar": "Collapse sidebar",
     "expandSidebar": "Expand sidebar",
+    "helpCenter": "Help Center",
+    "keyboardShortcuts": "Keyboard shortcuts",
     "loadingSession": "Loading session",
     "loadingSessionDescription": "Checking your account and organization access for this workspace.",
     "unassigned": "Unassigned",
@@ -2750,6 +2752,76 @@
       "of": "of",
       "previous": "Previous",
       "next": "Next"
+    }
+  },
+  "help": {
+    "helpCenterTitle": "Help Center",
+    "keyboardShortcutsTitle": "Keyboard shortcuts",
+    "keyboardShortcuts": "Keyboard shortcuts",
+    "helpCenter": "Help Center",
+    "close": "Close",
+    "searchPlaceholder": "Search help topics…",
+    "searchAriaLabel": "Search help topics",
+    "topicsLabel": "Topics",
+    "resourcesLabel": "Resources",
+    "supportLabel": "Support",
+    "noArticles": "No topics matched your search.",
+    "openHelpForTopic": "Open help for this topic",
+    "contactSupport": "Contact support",
+    "includeDiagnosticInfo": "Include diagnostic info with support request",
+    "diagnosticInfoNote": "Includes your org ID prefix, role, and browser. No private data or tokens.",
+    "copyDiagnosticInfo": "Copy diagnostic info",
+    "copied": "Copied!",
+    "shortcuts": {
+      "search": "Open global search",
+      "openShortcuts": "Open keyboard shortcuts",
+      "submitMessage": "Send chat message",
+      "closeOverlay": "Close overlay or menu",
+      "focusNext": "Move focus forward",
+      "focusPrevious": "Move focus backward",
+      "groups": {
+        "navigation": "Navigation",
+        "chat": "Chat",
+        "overlays": "Overlays & Focus"
+      }
+    },
+    "articles": {
+      "upload": {
+        "title": "Upload documents",
+        "description": "Add PDFs, DOCX, and other files to index them for search and chat."
+      },
+      "chat": {
+        "title": "Ask questions",
+        "description": "Use Chat to get grounded answers from your indexed documents."
+      },
+      "citations": {
+        "title": "Verify citations",
+        "description": "Click any citation chip in a chat answer to preview the source passage."
+      },
+      "collections": {
+        "title": "Manage collections",
+        "description": "Group documents into topic-based knowledge bases and scope chat to them."
+      },
+      "evaluations": {
+        "title": "Run evaluations",
+        "description": "Measure retrieval and answer quality with evaluation sets and automated runs."
+      },
+      "pipeline": {
+        "title": "RAG pipeline",
+        "description": "Inspect chunking, retrieval, and generation stages for any document or query."
+      },
+      "connectors": {
+        "title": "Manage connectors",
+        "description": "Sync content from Jira, Confluence, Google Drive, and other sources."
+      },
+      "agents": {
+        "title": "Agent workspace",
+        "description": "View and manage autonomous agent runs, approvals, and tool policies."
+      },
+      "users": {
+        "title": "Manage users",
+        "description": "Invite team members, assign roles, and manage access from the Admin Console."
+      }
     }
   }
 }

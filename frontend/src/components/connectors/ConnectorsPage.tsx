@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
 import { listProviders } from "@/lib/api/connector-providers";
 import {
   disconnectConnector,
@@ -429,9 +430,12 @@ export function ConnectorsPage() {
     <div className="max-w-[1200px] p-8">
       {/* Page title */}
       <section className="mb-8">
-        <h1 className="mb-1 text-3xl font-semibold tracking-tight text-[#1b1b24]">
-          {tNav("connectors")}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="mb-1 text-3xl font-semibold tracking-tight text-[#1b1b24]">
+            {tNav("connectors")}
+          </h1>
+          <ContextualHelpLink topic="manage-connectors" />
+        </div>
         <p className="text-base text-[#464555]">{t("pageDescription")}</p>
       </section>
 

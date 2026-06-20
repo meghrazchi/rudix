@@ -155,7 +155,7 @@ describe("AppShell top bar menus", () => {
     expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 
-  it("shows configured help menu links", async () => {
+  it("shows help menu with in-app actions and external links", async () => {
     renderShell({
       session: {
         userId: "user-2",
@@ -169,22 +169,131 @@ describe("AppShell top bar menus", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Help" }));
 
+    // In-app buttons
     expect(
-      await screen.findByRole("menuitem", { name: "Documentation" }),
+      await screen.findByRole("menuitem", { name: "Help Center" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /Keyboard shortcuts/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Getting started" }),
+    ).toBeInTheDocument();
+    // External links (shortcuts URL is now in-app so not rendered as link)
+    expect(
+      screen.getByRole("menuitem", { name: "Documentation" }),
     ).toHaveAttribute("href", "https://docs.example.com");
     expect(screen.getByRole("menuitem", { name: "Support" })).toHaveAttribute(
       "href",
       "https://support.example.com",
     );
     expect(
-      screen.getByRole("menuitem", { name: "Keyboard shortcuts" }),
-    ).toHaveAttribute("href", "/shortcuts");
-    expect(
       screen.getByRole("menuitem", { name: "Project README" }),
     ).toHaveAttribute("href", "https://github.com/example/project#readme");
+    // Shortcuts external link is suppressed in favour of in-app modal
     expect(
-      screen.queryByRole("link", { name: "Admin Console" }),
+      screen.queryByRole("link", { name: "Keyboard shortcuts" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens keyboard shortcuts modal from help menu", async () => {
+    renderShell({
+      session: {
+        userId: "user-2b",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-2b",
+      },
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Help" }));
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: /Keyboard shortcuts/i }),
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Navigation")).toBeInTheDocument();
+  });
+
+  it("opens and closes the keyboard shortcuts modal via the ? key", async () => {
+    renderShell({
+      session: {
+        userId: "user-shortcuts",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-shortcuts",
+      },
+    });
+
+    // ? key on document body opens the modal
+    fireEvent.keyDown(document, { key: "?" });
+
+    expect(
+      await screen.findByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeInTheDocument();
+
+    // Escape closes it
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Keyboard shortcuts" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not open shortcuts modal when ? is typed in an input", async () => {
+    renderShell({
+      session: {
+        userId: "user-shortcuts-input",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-shortcuts-input",
+      },
+    });
+
+    // Open the command menu so a real text input is in the DOM
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    const input = await screen.findByPlaceholderText("Search knowledge base...");
+    fireEvent.keyDown(input, { key: "?" });
+
+    expect(
+      screen.queryByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens help center drawer from help menu", async () => {
+    renderShell({
+      session: {
+        userId: "user-hc",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-hc",
+      },
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Help" }));
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Help Center" }),
+    );
+
+    const drawer = await screen.findByRole("dialog", { name: "Help Center" });
+    expect(drawer).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Search help topics…"),
+    ).toBeInTheDocument();
+    // Should show topics
+    expect(screen.getByText("Upload documents")).toBeInTheDocument();
+    expect(screen.getByText("Ask questions")).toBeInTheDocument();
   });
 
   it("opens and closes the mobile navigation drawer with keyboard support", async () => {
@@ -265,8 +374,9 @@ describe("AppShell top bar menus", () => {
       },
     });
 
+    // Two search buttons exist (icon + full bar); click either one
     await userEvent.click(
-      screen.getByRole("button", { name: "Open global search" }),
+      screen.getAllByRole("button", { name: "Open global search" })[0],
     );
     await userEvent.type(
       screen.getByRole("textbox", {
