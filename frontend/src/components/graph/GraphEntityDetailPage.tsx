@@ -396,7 +396,7 @@ export function GraphEntityDetailPage({
             </div>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">
@@ -546,7 +546,7 @@ export function GraphEntityDetailPage({
 
         <article className="rounded-3xl border border-[#d7d4e8] bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-[#2a2640]">Aliases</h2>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">

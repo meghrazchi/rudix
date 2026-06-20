@@ -466,7 +466,7 @@ function RelationshipsTab() {
 
       {items.length > 0 ? (
         <>
-          <div className="overflow-hidden rounded-2xl border border-slate-200">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">
@@ -853,7 +853,7 @@ export function GraphExplorerPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead className="bg-slate-50">
                     <tr className="text-left text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">

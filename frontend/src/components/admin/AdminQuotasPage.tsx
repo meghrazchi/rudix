@@ -308,7 +308,7 @@ export function AdminQuotasPage() {
       </div>
 
       {/* Usage table */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
         <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
@@ -583,7 +583,7 @@ export function AdminQuotasPage() {
         {overrides.length === 0 ? (
           <p className="text-sm text-gray-500">No overrides configured.</p>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>

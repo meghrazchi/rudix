@@ -1925,7 +1925,7 @@ export function ChatPage() {
         <div
           className={`grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-rows-[1fr] ${isKnowledgeHubOpen || activeCitation !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
         >
-          <aside className="hide-scrollbar min-h-0 space-y-4 overflow-y-auto xl:pr-1">
+          <aside className="hide-scrollbar hidden min-h-0 space-y-4 overflow-y-auto xl:block xl:pr-1">
             <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
               <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
                 {tc("sessionsTitle")}

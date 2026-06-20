@@ -546,6 +546,26 @@ npm run test
 npm run test:e2e
 ```
 
+## Responsive / Supported Viewports
+
+Rudix targets the following viewport baseline:
+
+| Tier | Width | Example device |
+|------|-------|----------------|
+| Mobile | 375 px and up | iPhone SE / 13 mini |
+| Tablet | 768 px and up | iPad portrait |
+| Desktop | 1024 px and up | Laptop |
+| Wide desktop | 1280 px and up | Full AppShell with sidebar + chat history |
+
+Key responsive behaviours:
+- **Mobile (< 640 px)**: the global search bar collapses to a search icon; the desktop sidebar is replaced by a "Menu" drawer; the onboarding checklist is clamped to the screen width.
+- **Tablet (< 1024 px)**: the desktop sidebar is hidden; the search bar is shown.
+- **Chat page**: the session-history sidebar is only rendered at ≥ 1280 px (`xl:`); session controls (new chat, search) are always in the chat header.
+- **Tables**: all data tables are wrapped in `overflow-x-auto` so they scroll horizontally rather than clipping on narrow screens.
+- **Public pages**: marketing/landing pages are responsive from 375 px upward using standard `sm:` / `md:` / `lg:` Tailwind breakpoints.
+
+Responsive Playwright tests are in `e2e/responsive.spec.ts` and cover mobile, tablet, and desktop viewports for the main shell, chat, and public landing page.
+
 ## Notes
 
 - `@radix-ui/react-dialog` and `@radix-ui/react-slot` were removed because they are not used in the current code.

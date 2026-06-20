@@ -922,11 +922,26 @@ export function AppShell({
                 </h1>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
+                {/* Icon-only search trigger on small screens */}
                 <button
                   type="button"
                   onClick={openCommandMenu}
                   aria-label={t("openSearch")}
-                  className="relative inline-flex h-11 min-w-[220px] items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] pr-2 pl-10 text-left text-sm font-medium text-[#4a4662] transition outline-none hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:w-80 lg:w-[26rem]"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e3f1] bg-[#f8f7ff] text-[#777587] transition hover:bg-[#f2f0fb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:hidden"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined text-[20px]"
+                  >
+                    search
+                  </span>
+                </button>
+                {/* Full search bar on sm+ screens */}
+                <button
+                  type="button"
+                  onClick={openCommandMenu}
+                  aria-label={t("openSearch")}
+                  className="relative hidden h-11 items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] pr-2 pl-10 text-left text-sm font-medium text-[#4a4662] transition outline-none hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:inline-flex sm:w-72 lg:w-[26rem]"
                 >
                   <span
                     aria-hidden="true"
@@ -937,7 +952,7 @@ export function AppShell({
                   <span className="mr-2 flex-1 truncate">
                     {t("searchKnowledgeBase")}
                   </span>
-                  <span className="ml-2 hidden shrink-0 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#6f6b87] sm:inline">
+                  <span className="ml-2 hidden shrink-0 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#6f6b87] md:inline">
                     ⌘/Ctrl K
                   </span>
                 </button>
@@ -1092,7 +1107,7 @@ export function AppShell({
       </div>
 
       {onboardingVisible ? (
-        <div className="fixed right-5 bottom-5 z-40 w-[340px]">
+        <div className="fixed right-4 bottom-4 z-40 w-[calc(100vw-2rem)] max-w-[340px] sm:right-5 sm:bottom-5">
           <OnboardingChecklist
             session={session}
             state={onboardingState}
