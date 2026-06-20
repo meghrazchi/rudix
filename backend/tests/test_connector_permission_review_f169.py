@@ -2,12 +2,36 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
+os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
+os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
+os.environ.setdefault("QDRANT_COLLECTION", "documents")
+os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
+os.environ.setdefault("MINIO_ACCESS_KEY", "minioadmin")
+os.environ.setdefault("MINIO_SECRET_KEY", "minioadmin")
+os.environ.setdefault("MINIO_BUCKET", "documents")
+os.environ.setdefault("RABBITMQ_URL", "amqp://admin:admin123@localhost:5672//")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("OPENAI_API_KEY", "sk-test")
+os.environ.setdefault("AUTH_PROVIDER", "app")
+os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
+
+from app.auth.dependencies import get_current_principal
+from app.auth.models import AuthenticatedPrincipal
+from app.db.session import get_db_session
+from app.main import app
 from app.domains.connectors.services.permission_review_service import (
     PermissionReviewNotFoundError,
     PermissionReviewService,
@@ -20,6 +44,7 @@ from app.models.connector import (
 )
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.enums import OrganizationRole
 from app.models.user import User
 
 # ---------------------------------------------------------------------------
@@ -384,3 +409,41 @@ class TestPermissionReviewEndpoints:
             connection_id=ctx.connection.id,
         )
         assert is_ok is True
+
+
+@pytest.mark.asyncio
+async def test_confirm_permission_review_endpoint_returns_serializable_review(
+    db_session: AsyncSession,
+) -> None:
+    ctx = await _create_context(db_session, provider_key="confluence")
+
+    principal = AuthenticatedPrincipal(
+        user_id=str(ctx.user_id),
+        organization_id=str(ctx.org_id),
+        roles=[OrganizationRole.admin.value],
+        auth_provider="test",
+    )
+
+    async def _override_db() -> AsyncSession:
+        yield db_session
+
+    app.dependency_overrides[get_current_principal] = lambda: principal
+    app.dependency_overrides[get_db_session] = _override_db
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client:
+            response = await client.post(
+                f"/api/v1/connectors/{ctx.connection.id}/permission-review/confirm",
+            )
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
+        app.dependency_overrides.pop(get_db_session, None)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["connection_id"] == str(ctx.connection.id)
+    assert data["is_confirmed"] is True
+    assert data["updated_at"]

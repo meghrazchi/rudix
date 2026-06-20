@@ -22,6 +22,7 @@ from app.auth.passwords import (
     hash_password,
     verify_password,
 )
+from app.auth.permission_service import PermissionService
 from app.auth.repository import AuthRepository
 from app.auth.session_repository import AuthSessionRepository
 from app.auth.token_codec import (
@@ -58,6 +59,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _REFRESH_COOKIE_NAME = "rudix_refresh_token"
 _repository = AuthRepository()
 _session_repository = AuthSessionRepository()
+_permission_service = PermissionService()
 _audit_log_service = AuditLogService()
 _sso_service = SSOService()
 

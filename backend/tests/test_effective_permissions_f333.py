@@ -198,6 +198,49 @@ async def test_member_permissions(
 
 
 @pytest.mark.asyncio
+async def test_effective_permissions_endpoint_does_not_crash_for_custom_role_context(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_user(db_session, role=OrganizationRole.admin)
+
+    custom_role = CustomRole(
+        organization_id=org.id,
+        name="Docs Reviewer",
+        description="Read-only docs review role",
+        base_role="member",
+    )
+    db_session.add(custom_role)
+    await db_session.flush()
+    db_session.add(
+        CustomRolePermission(
+            custom_role_id=custom_role.id,
+            permission="documents:view",
+        )
+    )
+    await db_session.flush()
+    from sqlalchemy import select
+
+    result = await db_session.execute(
+        select(OrganizationMember).where(
+            OrganizationMember.organization_id == org.id,
+            OrganizationMember.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one()
+    membership.custom_role_id = custom_role.id
+    await db_session.commit()
+
+    token = _token(user, org, OrganizationRole.admin)
+    response = await auth_client.get(_ENDPOINT, headers=_headers(token))
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["custom_role_id"] == str(custom_role.id)
+    assert "documents:view" in data["permissions"]
+
+
+@pytest.mark.asyncio
 async def test_billing_admin_permissions(
     auth_client: AsyncClient,
     db_session: AsyncSession,

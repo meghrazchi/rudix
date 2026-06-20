@@ -517,9 +517,7 @@ async def list_available_connections(
     user_roles = list(principal.roles or [])
     if not frozenset(_ADMIN_ROLES).intersection(user_roles):
         resource_contexts = [
-            build_connector_resource_context(
-                connection=conn, organization_id=organization_id
-            )
+            build_connector_resource_context(connection=conn, organization_id=organization_id)
             for conn in active
         ]
         accessible_ids = {
@@ -856,6 +854,7 @@ async def get_permission_review(
     except PermissionReviewNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await db_session.commit()
+    await db_session.refresh(review)
     return _permission_review_response(review)
 
 
@@ -884,6 +883,7 @@ async def confirm_permission_review(
     except PermissionReviewNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await db_session.commit()
+    await db_session.refresh(review)
     return _permission_review_response(review)
 
 
