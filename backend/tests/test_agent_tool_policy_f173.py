@@ -54,7 +54,6 @@ from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.agents.repositories.agent_policy import AgentToolPolicyRepository
-from app.domains.agents.schemas.agent_policy import ToolPolicyUpsertRequest
 from app.domains.agents.schemas.agent_tools import (
     ToolBudget,
     ToolEffectPolicy,
@@ -99,9 +98,7 @@ async def _seed_admin(
     db_session: AsyncSession,
     role: OrganizationRole = OrganizationRole.admin,
 ) -> tuple[User, Organization]:
-    org = Organization(
-        name=f"Policy Org {uuid4().hex[:6]}", slug=f"pol-org-{uuid4().hex[:8]}"
-    )
+    org = Organization(name=f"Policy Org {uuid4().hex[:6]}", slug=f"pol-org-{uuid4().hex[:8]}")
     db_session.add(org)
     await db_session.flush()
     user = User(
@@ -111,9 +108,7 @@ async def _seed_admin(
     )
     db_session.add(user)
     await db_session.flush()
-    member = OrganizationMember(
-        organization_id=org.id, user_id=user.id, role=role.value
-    )
+    member = OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
     db_session.add(member)
     await db_session.flush()
     return user, org
@@ -470,8 +465,9 @@ def test_policy_service_resolve_uses_spec_defaults() -> None:
 
 
 def test_policy_service_resolve_applies_override() -> None:
-    from app.models.agent_policy import AgentToolPolicyOverride
     from uuid import uuid4
+
+    from app.models.agent_policy import AgentToolPolicyOverride
 
     spec = _spec("search.documents")
     svc = AgentPolicyService(tool_specs=(spec,))
@@ -507,8 +503,9 @@ def test_policy_service_check_tool_allowed_blocked_by_allowlist() -> None:
 
 
 def test_policy_service_check_tool_disabled_by_override() -> None:
-    from app.models.agent_policy import AgentToolPolicyOverride
     from uuid import uuid4
+
+    from app.models.agent_policy import AgentToolPolicyOverride
 
     svc = AgentPolicyService(tool_specs=())
     override = AgentToolPolicyOverride(

@@ -20,7 +20,7 @@ Run:
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -58,7 +58,6 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.usage import UsageEvent
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

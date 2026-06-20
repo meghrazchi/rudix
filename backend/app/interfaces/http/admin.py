@@ -5,6 +5,7 @@ import io
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Annotated, Literal
@@ -39,8 +40,6 @@ from app.domains.admin.schemas.admin import (
     UsageSummaryResponse,
     UsageSummaryTotalsResponse,
 )
-from dataclasses import field as dataclass_field
-
 from app.domains.admin.services.audit_service import sanitize_metadata
 from app.models.document import Document
 from app.models.enums import OrganizationRole

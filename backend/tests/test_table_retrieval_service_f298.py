@@ -31,7 +31,6 @@ from app.domains.chat.services.table_retrieval_service import (
     is_table_query,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fake chunk for testing
 # ---------------------------------------------------------------------------
@@ -205,7 +204,7 @@ def test_apply_table_boost_result_count_unchanged():
         FakeChunk(chunk_id=uuid4(), similarity_score=0.7, chunk_type="text"),
         FakeChunk(chunk_id=uuid4(), similarity_score=0.6, chunk_type="table"),
     ]
-    result_chunks, meta = svc.apply_table_boost(
+    result_chunks, _meta = svc.apply_table_boost(
         chunks=chunks,
         query="Show me the comparison table",
         boost_multiplier=1.25,

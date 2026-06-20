@@ -24,7 +24,7 @@ from app.domains.permissions.services.permissions_service import (
     PermissionsService,
     check_role_permission_safety,
 )
-from app.domains.roles.schemas.roles import BUILTIN_ROLE_META, builtin_roles_response
+from app.domains.roles.schemas.roles import builtin_roles_response
 from app.models.permissions import PERMISSION_CATALOG, ROLE_PERMISSIONS, PermissionType
 
 router = APIRouter(prefix="/admin/permissions", tags=["permissions"])
@@ -40,18 +40,24 @@ _BUILTIN_ROLES = {r["role"] for r in [br.model_dump() for br in builtin_roles_re
 
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
     if principal.organization_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization context")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization context"
+        )
     try:
         return UUID(principal.organization_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid organization context") from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid organization context"
+        ) from exc
 
 
 def _user_id(principal: AuthenticatedPrincipal) -> UUID:
     try:
         return UUID(principal.user_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid principal context") from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid principal context"
+        ) from exc
 
 
 def _request_id(request: Request) -> str | None:
@@ -62,6 +68,7 @@ def _request_id(request: Request) -> str | None:
 
 
 # ── Role matrix ────────────────────────────────────────────────────────────────
+
 
 @router.get("/role-matrix", response_model=RoleMatrixResponse)
 async def get_role_matrix(
@@ -105,7 +112,9 @@ async def update_role_permissions(
         )
 
     # Validate all permissions are known
-    unknown = [p for p in payload.permissions if p not in {e["permission"] for e in PERMISSION_CATALOG}]
+    unknown = [
+        p for p in payload.permissions if p not in {e["permission"] for e in PERMISSION_CATALOG}
+    ]
     if unknown:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -153,6 +162,7 @@ async def update_role_permissions(
 
 
 # ── Resource access grants ─────────────────────────────────────────────────────
+
 
 @router.get("/resource-grants", response_model=ResourceAccessListResponse)
 async def list_resource_grants(
@@ -258,7 +268,9 @@ async def revoke_resource_grant(
     try:
         parsed_id = UUID(grant_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grant not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Grant not found"
+        ) from exc
 
     grant = await _repo.get_grant(db, grant_id=parsed_id, organization_id=organization_id)
     if grant is None:
@@ -290,6 +302,7 @@ async def revoke_resource_grant(
 
 
 # ── Resource access denies ─────────────────────────────────────────────────────
+
 
 @router.get("/resource-denies", response_model=ResourceAccessListResponse)
 async def list_resource_denies(

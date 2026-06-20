@@ -38,10 +38,10 @@ _MAX_RANGE_DAYS = 90
 _usage_repo = UsageRepository()
 
 # SLO thresholds used to generate suggestions
-_SLO_FAILURE_RATE_WARN = 0.05      # 5 %
-_SLO_TIMEOUT_RATE_WARN = 0.02      # 2 %
-_SLO_FALLBACK_RATE_WARN = 0.10     # 10 %
-_SLO_LATENCY_WARN_MS = 5_000.0     # 5 s avg latency
+_SLO_FAILURE_RATE_WARN = 0.05  # 5 %
+_SLO_TIMEOUT_RATE_WARN = 0.02  # 2 %
+_SLO_FALLBACK_RATE_WARN = 0.10  # 10 %
+_SLO_LATENCY_WARN_MS = 5_000.0  # 5 s avg latency
 _SLO_P95_LATENCY_WARN_MS = 10_000.0  # 10 s p95 latency
 
 
@@ -168,12 +168,8 @@ def _build_provider_card(agg: UsageRepository._ProviderAggRow) -> ProviderHealth
     timeout_rate = (agg.timed_out_events / total) if total > 0 else None
     fallback_rate = (agg.fallback_events / total) if total > 0 else None
     retry_rate = (agg.retry_events / total) if total > 0 else None
-    avg_retry = (
-        (agg.total_retry_count / agg.retry_events) if agg.retry_events > 0 else None
-    )
-    avg_lat = (
-        sum(agg.latency_values) / len(agg.latency_values) if agg.latency_values else None
-    )
+    avg_retry = (agg.total_retry_count / agg.retry_events) if agg.retry_events > 0 else None
+    avg_lat = sum(agg.latency_values) / len(agg.latency_values) if agg.latency_values else None
     p95_lat = _percentile(agg.latency_values, 0.95)
 
     slo_suggestions = _build_slo_suggestions(

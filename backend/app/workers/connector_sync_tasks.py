@@ -156,8 +156,10 @@ class ConnectorSyncTask(RudixTask):
             error=str(exc),
         )
         try:
+            from datetime import UTC
+            from datetime import datetime as _dt
+
             from app.workers.email_helper import emit_connector_sync_failure_email
-            from datetime import UTC, datetime as _dt
 
             _org_owner_id = kwargs.get("owner_user_id")
             emit_connector_sync_failure_email(
@@ -194,9 +196,9 @@ def run_connector_sync(
         )
     except ConnectorRateLimitError as exc:
         countdown = exc.retry_after_seconds
-        raise self.retry(exc=exc, countdown=countdown)
+        raise self.retry(exc=exc, countdown=countdown) from exc
     except TransientTaskError as exc:
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 @celery_app.task(

@@ -21,8 +21,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from dataclasses import dataclass, field
-from typing import Any
+from typing import ClassVar
 from unittest.mock import AsyncMock, MagicMock, patch
 
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -66,7 +65,6 @@ from app.auth.source_authorization_adapter import (
     _DefaultDenyAdapter,
 )
 from app.models.permissions import ROLE_PERMISSIONS, PermissionType
-
 
 # ── Fixtures / helpers ────────────────────────────────────────────────────────
 
@@ -611,7 +609,11 @@ class TestFilterAccessibleResources:
         resources = [
             _doc_ctx(doc_id=DOC_1),
             _doc_ctx(doc_id=DOC_2, explicit_deny_user_ids=[USER_1]),
-            _doc_ctx(doc_id="cccccccc-0000-0000-0000-000000000003", connector_id=CONN_1, connector_allowed_user_ids=[USER_2]),
+            _doc_ctx(
+                doc_id="cccccccc-0000-0000-0000-000000000003",
+                connector_id=CONN_1,
+                connector_allowed_user_ids=[USER_2],
+            ),
         ]
         accessible = _engine.filter_accessible_resources(subject, Action.view, resources)
         assert len(accessible) == 3
@@ -654,7 +656,9 @@ class TestAuthorizationServiceAsync:
         resource = _doc_ctx()
         db = AsyncMock()
 
-        with patch.object(AuthorizationService, "_build_subject", new_callable=AsyncMock) as mock_build:
+        with patch.object(
+            AuthorizationService, "_build_subject", new_callable=AsyncMock
+        ) as mock_build:
             mock_build.return_value = SubjectContext(
                 user_id=USER_1,
                 organization_id=ORG_A,
@@ -663,9 +667,7 @@ class TestAuthorizationServiceAsync:
             )
             svc = AuthorizationService()
             with pytest.raises(HTTPException) as exc_info:
-                await svc.authorize_or_raise(
-                    principal, Action.view, resource, db
-                )
+                await svc.authorize_or_raise(principal, Action.view, resource, db)
             assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -676,7 +678,9 @@ class TestAuthorizationServiceAsync:
         resource = _doc_ctx()
         db = AsyncMock()
 
-        with patch.object(AuthorizationService, "_build_subject", new_callable=AsyncMock) as mock_build:
+        with patch.object(
+            AuthorizationService, "_build_subject", new_callable=AsyncMock
+        ) as mock_build:
             mock_build.return_value = SubjectContext(
                 user_id=USER_1,
                 organization_id=ORG_A,
@@ -686,8 +690,7 @@ class TestAuthorizationServiceAsync:
             svc = AuthorizationService()
             with pytest.raises(HTTPException) as exc_info:
                 await svc.authorize_or_raise(
-                    principal, Action.view, resource, db,
-                    deny_status=403, deny_detail="Forbidden"
+                    principal, Action.view, resource, db, deny_status=403, deny_detail="Forbidden"
                 )
             assert exc_info.value.status_code == 403
             assert exc_info.value.detail == "Forbidden"
@@ -740,7 +743,9 @@ class TestSourceAuthorizationAdapterRegistry:
         class MyAdapter(SourceAuthorizationAdapter):
             source_type = "my_test_source"
 
-            async def build_resource_context(self, db_session, *, resource_id, organization_id, subject_accessible_collection_ids):
+            async def build_resource_context(
+                self, db_session, *, resource_id, organization_id, subject_accessible_collection_ids
+            ):
                 return ResourceContext(
                     resource_type=ResourceType.document,
                     resource_id=resource_id,
@@ -757,10 +762,12 @@ class TestSourceAuthorizationAdapterRegistry:
     def test_registered_types_lists_registered_adapters(self):
         class AdapterA(SourceAuthorizationAdapter):
             source_type = "source_a"
+
             async def build_resource_context(self, *args, **kwargs): ...
 
         class AdapterB(SourceAuthorizationAdapter):
             source_type = "source_b"
+
             async def build_resource_context(self, *args, **kwargs): ...
 
         registry = SourceAuthorizationAdapterRegistry()
@@ -797,11 +804,14 @@ class TestSourceAuthorizationAdapterRegistry:
         for role in ["owner", "admin", "member", "viewer"]:
             subject = _subject(role)
             result = _engine.authorize(subject, Action.view, ctx)
-            assert result.result is PermissionResult.deny, f"Role {role!r} should be denied for unknown type"
+            assert result.result is PermissionResult.deny, (
+                f"Role {role!r} should be denied for unknown type"
+            )
 
     def test_base_class_default_deny_context_returns_unknown_type(self):
         class ConcreteAdapter(SourceAuthorizationAdapter):
             source_type = "concrete"
+
             async def build_resource_context(self, *args, **kwargs):
                 return self.default_deny_context(resource_id="r", organization_id=ORG_A)
 
@@ -818,9 +828,20 @@ class TestSourceAuthorizationAdapterRegistry:
 class TestPermissionMatrix:
     """Validate the full matrix of built-in roles against document actions."""
 
-    _ROLES = ["viewer", "reviewer", "developer", "member", "billing_admin", "security_admin", "admin", "owner"]
+    _ROLES: ClassVar[list[str]] = [
+        "viewer",
+        "reviewer",
+        "developer",
+        "member",
+        "billing_admin",
+        "security_admin",
+        "admin",
+        "owner",
+    ]
 
-    @pytest.mark.parametrize("role", ["viewer", "reviewer", "developer", "member", "admin", "owner"])
+    @pytest.mark.parametrize(
+        "role", ["viewer", "reviewer", "developer", "member", "admin", "owner"]
+    )
     def test_can_list_docs(self, role):
         subject = _subject(role)
         result = _engine.authorize(subject, Action.list, _doc_ctx())
@@ -830,7 +851,9 @@ class TestPermissionMatrix:
     def test_cannot_list_docs(self, role):
         subject = _subject(role)
         result = _engine.authorize(subject, Action.list, _doc_ctx())
-        assert result.result is PermissionResult.deny, f"Role {role!r} should NOT be able to list docs"
+        assert result.result is PermissionResult.deny, (
+            f"Role {role!r} should NOT be able to list docs"
+        )
 
     @pytest.mark.parametrize("role", ["admin", "owner"])
     def test_can_delete_docs(self, role):
@@ -838,7 +861,9 @@ class TestPermissionMatrix:
         result = _engine.authorize(subject, Action.delete, _doc_ctx())
         assert result.result is PermissionResult.allow
 
-    @pytest.mark.parametrize("role", ["viewer", "reviewer", "member", "billing_admin", "security_admin"])
+    @pytest.mark.parametrize(
+        "role", ["viewer", "reviewer", "member", "billing_admin", "security_admin"]
+    )
     def test_cannot_delete_docs(self, role):
         subject = _subject(role)
         result = _engine.authorize(subject, Action.delete, _doc_ctx())

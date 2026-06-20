@@ -5,8 +5,7 @@ import json
 import pytest
 
 from app.core.config import settings
-from app.domains.ai.providers.errors import InvalidProviderResponseError
-from app.domains.ai.providers.errors import ProviderTimeoutError
+from app.domains.ai.providers.errors import InvalidProviderResponseError, ProviderTimeoutError
 from app.domains.ai.providers.protocols import ChatCompletionRequest, ChatCompletionResponse
 from app.domains.chat.services.rerank_service import (
     RerankCandidate,

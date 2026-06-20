@@ -16,7 +16,6 @@ from app.domains.documents.services.ocr_language_config import (
     validate_iso_languages,
 )
 
-
 # ---------------------------------------------------------------------------
 # iso_to_tesseract
 # ---------------------------------------------------------------------------

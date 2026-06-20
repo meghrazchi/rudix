@@ -10,7 +10,7 @@ All Cypher is parameterized. Every method requires organization_id.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -39,7 +39,7 @@ class ExtractionRunRepository:
         if driver is None:
             return
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         async def _tx(tx: Any) -> None:
             await tx.run(
@@ -98,7 +98,7 @@ class ExtractionRunRepository:
         if driver is None:
             return
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         async def _tx(tx: Any) -> None:
             await tx.run(

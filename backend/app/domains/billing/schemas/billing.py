@@ -122,4 +122,3 @@ class BillingContactUpdateRequest(BaseModel):
 class BillingPortalSession(BaseModel):
     url: str
     expires_at: datetime | None
-

@@ -22,10 +22,10 @@ try:
 except ImportError:
     _NEO4J_PACKAGE_AVAILABLE = False
 
-_neo4j_driver: "AsyncDriver | None" = None
+_neo4j_driver: AsyncDriver | None = None
 
 
-def get_driver() -> "AsyncDriver | None":
+def get_driver() -> AsyncDriver | None:
     return _neo4j_driver
 
 

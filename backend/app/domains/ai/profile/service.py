@@ -7,6 +7,7 @@ Precedence (lowest → highest):
 
 Secrets (API keys) never flow through this layer.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -16,10 +17,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings as app_settings
+from app.domains.admin.schemas.governance import ProviderSecurityPolicy
 from app.domains.ai.profile.schemas import (
+    ALL_TASK_TYPES,
     EMBEDDING_TASKS,
     JSON_MODE_REQUIRED_TASKS,
-    ALL_TASK_TYPES,
     EffectiveModelPolicyResponse,
     ModelProfileResponse,
     ProfileSource,
@@ -33,7 +35,6 @@ from app.domains.ai.providers.errors import (
     CloudFallbackDisabledError,
     ProviderNotAllowedError,
 )
-from app.domains.admin.schemas.governance import ProviderSecurityPolicy
 from app.models.model_profile import OrgModelProfile, OrgModelProfileChangeLog
 
 _CLOUD_PROVIDER_KEYS = frozenset({"openai"})
@@ -184,9 +185,7 @@ async def upsert_profile(
         existing.base_model = base_model
         existing.context_window = context_window
         existing.max_tokens = max_tokens
-        existing.temperature = (
-            Decimal(str(temperature)) if temperature is not None else None
-        )
+        existing.temperature = Decimal(str(temperature)) if temperature is not None else None
         existing.json_mode = json_mode
         existing.streaming = streaming
         existing.fallback_provider_key = fallback_provider_key
@@ -281,10 +280,7 @@ def check_provider_governance(
             "local_only_mode is enabled for this organisation."
         )
 
-    if (
-        policy.allowed_provider_profiles
-        and provider not in policy.allowed_provider_profiles
-    ):
+    if policy.allowed_provider_profiles and provider not in policy.allowed_provider_profiles:
         allowed = ", ".join(sorted(policy.allowed_provider_profiles))
         raise ProviderNotAllowedError(
             f"provider_not_allowed: provider '{provider}' is not in the org's "
@@ -408,8 +404,7 @@ def validate_profile(request: ValidateProfileRequest) -> ValidateProfileResponse
                     field="is_experimental",
                     code="experimental_task_type_restricted",
                     message=(
-                        "Experimental profiles are only permitted for the "
-                        "'evaluations' task type."
+                        "Experimental profiles are only permitted for the 'evaluations' task type."
                     ),
                 )
             )
@@ -434,10 +429,7 @@ def validate_profile(request: ValidateProfileRequest) -> ValidateProfileResponse
             ProfileValidationIssue(
                 field="fallback_provider_key",
                 code="fallback_disabled",
-                message=(
-                    "Provider fallback is disabled. "
-                    "Enable FEATURE_ENABLE_PROVIDER_FALLBACK."
-                ),
+                message=("Provider fallback is disabled. Enable FEATURE_ENABLE_PROVIDER_FALLBACK."),
             )
         )
 

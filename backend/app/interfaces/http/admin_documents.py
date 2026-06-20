@@ -21,8 +21,7 @@ from app.domains.documents.schemas.documents import (
     RetryDeleteDocumentResponse,
 )
 from app.models.document import Document
-from app.models.enums import DocumentStatus, DocumentTrustStatus, OrganizationRole
-from app.models.enums import OcrQualityStatus
+from app.models.enums import DocumentStatus, DocumentTrustStatus, OcrQualityStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.document_tasks import delete_document as delete_document_task
 from app.workers.document_tasks import reindex_document as reindex_document_task
@@ -483,7 +482,9 @@ async def update_document_trust_status(
 
     now = datetime.now(UTC)
     trusted_at = now if payload.trust_status == DocumentTrustStatus.verified.value else None
-    trusted_by_id = actor_user_id if payload.trust_status == DocumentTrustStatus.verified.value else None
+    trusted_by_id = (
+        actor_user_id if payload.trust_status == DocumentTrustStatus.verified.value else None
+    )
 
     updated = await document_repository.update_document_trust_status(
         db_session,
@@ -515,7 +516,9 @@ async def update_document_trust_status(
             "trust_status": payload.trust_status,
             "version_label": payload.version_label,
             "review_date": payload.review_date.isoformat() if payload.review_date else None,
-            "effective_date": payload.effective_date.isoformat() if payload.effective_date else None,
+            "effective_date": payload.effective_date.isoformat()
+            if payload.effective_date
+            else None,
             "stale_after_days": payload.stale_after_days,
             "superseded_by_document_id": payload.superseded_by_document_id,
         },

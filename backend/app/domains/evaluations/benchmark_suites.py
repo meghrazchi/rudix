@@ -192,9 +192,7 @@ _SUITES: list[BenchmarkSuite] = [
                 source_language="de",
             ),
             BenchmarkCase(
-                question=(
-                    "Was besagt die Haftungsklausel im deutschen Servicevertrag?"
-                ),
+                question=("Was besagt die Haftungsklausel im deutschen Servicevertrag?"),
                 expected_answer=None,
                 difficulty="hard",
                 tags=["multilingual", "de", "contract"],
@@ -238,9 +236,7 @@ _SUITES: list[BenchmarkSuite] = [
                 source_language="fr",
             ),
             BenchmarkCase(
-                question=(
-                    "Résumez les points clés du document de conformité rédigé en français."
-                ),
+                question=("Résumez les points clés du document de conformité rédigé en français."),
                 expected_answer=None,
                 difficulty="hard",
                 tags=["multilingual", "fr", "compliance"],

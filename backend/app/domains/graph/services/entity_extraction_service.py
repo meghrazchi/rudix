@@ -15,6 +15,7 @@ Design:
 - Failures are always recorded in ExtractionBatchResult; callers (document_tasks)
   decide whether to propagate or continue the pipeline.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -254,8 +255,7 @@ class EntityExtractionService:
         result = ExtractionBatchResult(total_chunks=len(chunks))
 
         batches = [
-            chunks[i : i + self._batch_size]
-            for i in range(0, len(chunks), self._batch_size)
+            chunks[i : i + self._batch_size] for i in range(0, len(chunks), self._batch_size)
         ]
         result.batch_count = len(batches)
 
@@ -283,7 +283,7 @@ class EntityExtractionService:
                     )
                     raw_response = response.content
                     break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.warning(
                         "entity_extraction.timeout",
                         attempt=attempt,

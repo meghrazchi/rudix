@@ -32,7 +32,6 @@ Run:
 from __future__ import annotations
 
 import os
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -57,10 +56,9 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from fastapi.testclient import TestClient
 
+import app.clients.neo4j_client as neo4j_module
 from app.core.config import settings
 from app.main import app
-
-import app.clients.neo4j_client as neo4j_module
 
 # ---------------------------------------------------------------------------
 # Helpers

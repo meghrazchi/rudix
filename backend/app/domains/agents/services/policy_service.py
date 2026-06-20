@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.domains.admin.repositories.governance import GovernancePolicyRepository
 from app.domains.agents.repositories.agent_policy import AgentToolPolicyRepository
 from app.domains.agents.schemas.agent_policy import (
     AgentPolicyResponse,
@@ -20,7 +21,6 @@ from app.domains.agents.schemas.agent_policy import (
 )
 from app.domains.agents.schemas.agent_tools import ToolSpec
 from app.domains.agents.services.tool_registry import build_default_tool_specs
-from app.domains.admin.repositories.governance import GovernancePolicyRepository
 from app.models.agent import AgentRun
 from app.models.agent_policy import AgentToolPolicyOverride
 
@@ -101,7 +101,9 @@ class AgentPolicyService:
             for spec in sorted(self._tool_specs, key=lambda s: s.name)
         ]
 
-        snapshot_at_str: str | None = snapshot.get("recorded_at") if isinstance(snapshot, dict) else None
+        snapshot_at_str: str | None = (
+            snapshot.get("recorded_at") if isinstance(snapshot, dict) else None
+        )
         snapshot_at: datetime | None = None
         if snapshot_at_str:
             try:
@@ -205,12 +207,18 @@ class AgentPolicyService:
         run_max_steps: int | None = run.max_steps or budget.get("max_steps")
         effective_max_steps = _min_non_none(run_max_steps, org_max_steps)
         if effective_max_steps is not None and steps_taken >= effective_max_steps:
-            return True, f"Budget exceeded: steps_taken={steps_taken} >= max_steps={effective_max_steps}"
+            return (
+                True,
+                f"Budget exceeded: steps_taken={steps_taken} >= max_steps={effective_max_steps}",
+            )
 
         run_max_tool_calls: int | None = budget.get("max_tool_calls")
         effective_max_tool_calls = _min_non_none(run_max_tool_calls, org_max_tool_calls)
         if effective_max_tool_calls is not None and tool_calls_made >= effective_max_tool_calls:
-            return True, f"Budget exceeded: tool_calls_made={tool_calls_made} >= max_tool_calls={effective_max_tool_calls}"
+            return (
+                True,
+                f"Budget exceeded: tool_calls_made={tool_calls_made} >= max_tool_calls={effective_max_tool_calls}",
+            )
 
         run_max_cost_raw = budget.get("max_total_cost_usd")
         run_max_cost: Decimal | None = None
@@ -221,7 +229,10 @@ class AgentPolicyService:
                 pass
         effective_max_cost = _decimal_min_non_none(run_max_cost, org_max_total_cost_usd)
         if effective_max_cost is not None and total_cost_usd >= effective_max_cost:
-            return True, f"Budget exceeded: total_cost_usd={total_cost_usd} >= max_total_cost_usd={effective_max_cost}"
+            return (
+                True,
+                f"Budget exceeded: total_cost_usd={total_cost_usd} >= max_total_cost_usd={effective_max_cost}",
+            )
 
         return False, ""
 
@@ -305,7 +316,9 @@ def _budget_from_governance(governance: Any) -> OrgBudgetPolicySummary:
         max_tool_output_bytes=governance.max_tool_output_bytes,
         max_tool_retry_attempts=governance.max_tool_retry_attempts,
         max_total_tokens=governance.max_total_tokens,
-        max_total_cost_usd=float(governance.max_total_cost_usd) if governance.max_total_cost_usd is not None else None,
+        max_total_cost_usd=float(governance.max_total_cost_usd)
+        if governance.max_total_cost_usd is not None
+        else None,
     )
 
 
@@ -321,7 +334,9 @@ def _to_org_tool_override(override: AgentToolPolicyOverride) -> OrgToolPolicyOve
         timeout_ms=override.timeout_ms,
         max_retry_attempts=override.max_retry_attempts,
         updated_at=override.updated_at,
-        updated_by_user_id=str(override.updated_by_user_id) if override.updated_by_user_id else None,
+        updated_by_user_id=str(override.updated_by_user_id)
+        if override.updated_by_user_id
+        else None,
     )
 
 

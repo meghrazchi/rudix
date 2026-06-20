@@ -19,7 +19,11 @@ from pydantic import BaseModel
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
-from app.domains.graph.migration_runner import MigrationResult, get_migration_status, run_graph_migrations
+from app.domains.graph.migration_runner import (
+    MigrationResult,
+    get_migration_status,
+    run_graph_migrations,
+)
 from app.models.enums import OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 

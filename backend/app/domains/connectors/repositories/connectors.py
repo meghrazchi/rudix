@@ -740,9 +740,7 @@ class ConnectorRepository:
         )
         if status is not None:
             base_q = base_q.where(SyncConflict.status == status)
-        count_result = await session.execute(
-            select(func.count()).select_from(base_q.subquery())
-        )
+        count_result = await session.execute(select(func.count()).select_from(base_q.subquery()))
         total = count_result.scalar_one()
         result = await session.execute(
             base_q.order_by(SyncConflict.created_at.desc()).limit(limit).offset(offset)
@@ -782,4 +780,3 @@ class ConnectorRepository:
         await session.flush()
         await session.refresh(conflict)
         return conflict
-        return tombstone

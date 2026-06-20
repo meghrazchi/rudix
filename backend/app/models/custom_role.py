@@ -53,6 +53,4 @@ class CustomRolePermission(UUIDPrimaryKeyMixin, Base):
     )
     permission: Mapped[str] = mapped_column(String(64), nullable=False)
 
-    custom_role: Mapped["CustomRole"] = relationship(
-        "CustomRole", back_populates="permissions"
-    )
+    custom_role: Mapped["CustomRole"] = relationship("CustomRole", back_populates="permissions")

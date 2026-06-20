@@ -5,7 +5,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 # ── Conflict severity / status constants ──────────────────────────────────────
 
 # DB uses: low / medium / high / critical
@@ -36,6 +35,7 @@ SEVERITY_LABELS = ("info", "warning", "blocking", "security_risk")
 
 
 # ── Response models ────────────────────────────────────────────────────────────
+
 
 class ConflictResponse(BaseModel):
     id: str
@@ -81,6 +81,7 @@ class ScanResult(BaseModel):
 
 
 # ── Explain-decision models ───────────────────────────────────────────────────
+
 
 class ExplainDecisionRequest(BaseModel):
     subject_user_id: str

@@ -96,9 +96,9 @@ class FeedbackReviewItemResponse(BaseModel):
         feedback: object | None = None,
         message: object | None = None,
     ) -> "FeedbackReviewItemResponse":
+        from app.models.chat import ChatMessage
         from app.models.feedback_review_item import FeedbackReviewItem
         from app.models.message_feedback import MessageFeedback
-        from app.models.chat import ChatMessage
 
         assert isinstance(item, FeedbackReviewItem)
 

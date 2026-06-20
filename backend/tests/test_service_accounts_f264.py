@@ -14,7 +14,7 @@ Covers:
 
 import os
 from datetime import UTC, datetime, timedelta
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -49,7 +49,7 @@ from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
-from app.models.service_account import ServiceAccount, ServiceAccountToken
+from app.models.service_account import ServiceAccountToken
 from app.models.user import User
 
 # ─── fixtures ────────────────────────────────────────────────────────────────
@@ -663,8 +663,12 @@ async def test_cannot_access_other_org_service_account(
     sa_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    owner_a, org_a = await _seed_org_actor(db_session, role=OrganizationRole.admin, org_prefix="org-a")
-    actor_b, org_b = await _seed_org_actor(db_session, role=OrganizationRole.admin, org_prefix="org-b")
+    owner_a, org_a = await _seed_org_actor(
+        db_session, role=OrganizationRole.admin, org_prefix="org-a"
+    )
+    actor_b, org_b = await _seed_org_actor(
+        db_session, role=OrganizationRole.admin, org_prefix="org-b"
+    )
 
     # Create a service account in org A
     create_resp = await sa_client.post(
@@ -710,8 +714,12 @@ async def test_list_service_accounts_scoped_to_own_org(
     sa_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    owner_a, org_a = await _seed_org_actor(db_session, role=OrganizationRole.admin, org_prefix="list-a")
-    actor_b, org_b = await _seed_org_actor(db_session, role=OrganizationRole.admin, org_prefix="list-b")
+    owner_a, org_a = await _seed_org_actor(
+        db_session, role=OrganizationRole.admin, org_prefix="list-a"
+    )
+    actor_b, org_b = await _seed_org_actor(
+        db_session, role=OrganizationRole.admin, org_prefix="list-b"
+    )
 
     await sa_client.post(
         "/api/v1/admin/service-accounts",

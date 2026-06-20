@@ -1,4 +1,5 @@
 """Tests for OpenAICompatibleChatProvider and local LLM factory support — F218."""
+
 from __future__ import annotations
 
 import os
@@ -38,7 +39,6 @@ from app.domains.ai.providers.errors import (
 from app.domains.ai.providers.local.adapter import OpenAICompatibleChatProvider
 from app.domains.ai.providers.protocols import ChatCompletionRequest
 
-
 # ── Fake client infrastructure ───────────────────────────────────────────────
 
 
@@ -62,7 +62,7 @@ class FakeChatClient:
         self.completions = FakeChatEndpoint(responses)
 
     @property
-    def chat(self) -> "FakeChatClient":
+    def chat(self) -> FakeChatClient:
         return self
 
 
@@ -114,7 +114,8 @@ async def test_vllm_like_success_response_with_usage() -> None:
         [_response('{"answer": "vllm answer"}', model="mistralai/Mistral-7B-v0.1", total_tokens=22)]
     )
     provider = OpenAICompatibleChatProvider(
-        client=client, model_name="mistralai/Mistral-7B-v0.1"  # type: ignore[arg-type]
+        client=client,
+        model_name="mistralai/Mistral-7B-v0.1",  # type: ignore[arg-type]
     )
     result = await provider.complete(ChatCompletionRequest(prompt="test"))
     assert result.content == '{"answer": "vllm answer"}'
@@ -139,11 +140,10 @@ async def test_localai_like_success_response_without_usage() -> None:
 @pytest.mark.asyncio
 async def test_litellm_like_success_response_proxied_model_name() -> None:
     """LiteLLM proxy may return a different resolved model name in the response."""
-    client = FakeChatClient(
-        [_response('{"answer": "ok"}', model="openai/gpt-4o-mini")]
-    )
+    client = FakeChatClient([_response('{"answer": "ok"}', model="openai/gpt-4o-mini")])
     provider = OpenAICompatibleChatProvider(
-        client=client, model_name="gpt-4o-mini"  # type: ignore[arg-type]
+        client=client,
+        model_name="gpt-4o-mini",  # type: ignore[arg-type]
     )
     result = await provider.complete(ChatCompletionRequest(prompt="test"))
     assert result.model == "openai/gpt-4o-mini"
@@ -156,7 +156,9 @@ async def test_litellm_like_success_response_proxied_model_name() -> None:
 async def test_json_mode_enabled_sends_response_format() -> None:
     client = FakeChatClient([_response("ok")])
     provider = OpenAICompatibleChatProvider(
-        client=client, model_name="m", json_mode_enabled=True  # type: ignore[arg-type]
+        client=client,
+        model_name="m",
+        json_mode_enabled=True,  # type: ignore[arg-type]
     )
     await provider.complete(ChatCompletionRequest(prompt="hi", json_mode=True))
     assert client.completions.calls[0]["response_format"] == {"type": "json_object"}
@@ -167,7 +169,9 @@ async def test_json_mode_disabled_at_class_level_omits_response_format() -> None
     """When the provider is configured with json_mode_enabled=False, response_format is never sent."""
     client = FakeChatClient([_response("ok")])
     provider = OpenAICompatibleChatProvider(
-        client=client, model_name="m", json_mode_enabled=False  # type: ignore[arg-type]
+        client=client,
+        model_name="m",
+        json_mode_enabled=False,  # type: ignore[arg-type]
     )
     await provider.complete(ChatCompletionRequest(prompt="hi", json_mode=True))
     assert "response_format" not in client.completions.calls[0]
@@ -177,7 +181,9 @@ async def test_json_mode_disabled_at_class_level_omits_response_format() -> None
 async def test_json_mode_false_on_request_omits_response_format() -> None:
     client = FakeChatClient([_response("ok")])
     provider = OpenAICompatibleChatProvider(
-        client=client, model_name="m", json_mode_enabled=True  # type: ignore[arg-type]
+        client=client,
+        model_name="m",
+        json_mode_enabled=True,  # type: ignore[arg-type]
     )
     await provider.complete(ChatCompletionRequest(prompt="hi", json_mode=False))
     assert "response_format" not in client.completions.calls[0]

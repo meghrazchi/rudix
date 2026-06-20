@@ -45,7 +45,7 @@ jobs:
       QUALITY_GATE_DRY_RUN: ${{ github.event.inputs.dry_run }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate accuracy eval inputs
         run: |
@@ -68,4 +68,3 @@ jobs:
             artifacts/accuracy-eval-report.json
             artifacts/accuracy-eval-junit.xml
           if-no-files-found: ignore
-

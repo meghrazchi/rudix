@@ -31,8 +31,8 @@ from app.auth.policy_engine import (
     SubjectContext,
 )
 from app.auth.resource_context_builder import (
-    batch_get_explicit_grants,
     batch_get_explicit_denies,
+    batch_get_explicit_grants,
     get_collection_ids_for_document,
     get_subject_accessible_collection_ids,
 )
@@ -214,7 +214,9 @@ def _remediation_from_decision(
             "The user is not in the connector ACL. Re-sync the connector or update ACL in the source system."
         )
     elif deny_reason == DenyReason.feature_not_entitled:
-        suggestions.append("The feature is disabled for this organisation. Enable it in feature flags.")
+        suggestions.append(
+            "The feature is disabled for this organisation. Enable it in feature flags."
+        )
     elif deny_reason == DenyReason.collection_not_accessible:
         suggestions.append(
             "The resource is only accessible through a collection the user cannot access."
@@ -223,7 +225,9 @@ def _remediation_from_decision(
     elif deny_reason == DenyReason.no_organization_context:
         suggestions.append("The user must be a member of an organisation to access this resource.")
     elif deny_reason == DenyReason.tenant_boundary:
-        suggestions.append("This resource belongs to a different organisation — cross-tenant access is blocked.")
+        suggestions.append(
+            "This resource belongs to a different organisation — cross-tenant access is blocked."
+        )
     else:
         suggestions.append("Review the user's role and any explicit grants or denies.")
     return suggestions
@@ -290,15 +294,11 @@ def _troubleshooting_links(
     if resource_id:
         if resource_type == "document":
             links.append(
-                TroubleshootingLink(
-                    label="View document details", href=f"/documents/{resource_id}"
-                )
+                TroubleshootingLink(label="View document details", href=f"/documents/{resource_id}")
             )
         elif resource_type == "collection":
             links.append(
-                TroubleshootingLink(
-                    label="View collection", href=f"/collections/{resource_id}"
-                )
+                TroubleshootingLink(label="View collection", href=f"/collections/{resource_id}")
             )
         elif resource_type in ("connector", "connector_source_item"):
             links.append(
@@ -459,9 +459,7 @@ async def simulate_access(
             resource_uuid = None
 
         if resource_uuid and rt == ResourceType.document:
-            collection_ids = await get_collection_ids_for_document(
-                db, document_id=resource_uuid
-            )
+            collection_ids = await get_collection_ids_for_document(db, document_id=resource_uuid)
 
         # Load explicit grants / denies for this specific resource
         grants_map = await batch_get_explicit_grants(

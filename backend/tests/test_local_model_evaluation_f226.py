@@ -8,9 +8,10 @@ Covers:
   U–W  Release gate recommendation logic (unit)
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+
+import pytest
 
 from app.domains.evaluations.benchmark_suites import (
     get_benchmark_suite,
@@ -18,16 +19,14 @@ from app.domains.evaluations.benchmark_suites import (
 )
 from app.domains.evaluations.schemas.evaluations import (
     LocalModelMetrics,
-    ModelProfileComparisonReport,
     ProviderProfileSummary,
     _build_release_gate_recommendation,
-    _DEFAULT_GATE_THRESHOLDS,
 )
-
 
 # ---------------------------------------------------------------------------
 # A–F: Benchmark suite catalog
 # ---------------------------------------------------------------------------
+
 
 class TestBenchmarkSuiteCatalog:
     def test_a_list_returns_all_suites(self):
@@ -69,6 +68,7 @@ class TestBenchmarkSuiteCatalog:
 # ---------------------------------------------------------------------------
 # G–K: Provider comparison aggregation (unit tests, no DB)
 # ---------------------------------------------------------------------------
+
 
 def _make_run(provider_profile: str, provider_type: str = "openai", **summary_overrides):
     """Build a minimal mock EvaluationRun with embedded metrics_summary."""
@@ -139,9 +139,7 @@ class TestProviderComparisonAggregation:
 
         cloud_run = _make_run("cloud_baseline", retrieval_hit_rate=0.90)
         local_run = _make_run("local_profile", retrieval_hit_rate=0.70)
-        summary = _aggregate_provider_profile_summary(
-            [cloud_run, local_run], "cloud_baseline"
-        )
+        summary = _aggregate_provider_profile_summary([cloud_run, local_run], "cloud_baseline")
         assert summary.run_count == 1
         assert summary.retrieval_hit_rate == pytest.approx(0.90)
 
@@ -149,6 +147,7 @@ class TestProviderComparisonAggregation:
 # ---------------------------------------------------------------------------
 # L–Q: Model-profile comparison report HTTP endpoint
 # ---------------------------------------------------------------------------
+
 
 class TestModelProfileReportEndpoint:
     @pytest.fixture
@@ -159,20 +158,21 @@ class TestModelProfileReportEndpoint:
         return principal
 
     @pytest.mark.asyncio
-    async def test_l_empty_runs_returns_baseline_and_local_profiles(
-        self, mock_principal
-    ):
+    async def test_l_empty_runs_returns_baseline_and_local_profiles(self, mock_principal):
         """Report always includes cloud_baseline and local_profile even when no runs exist."""
         from app.interfaces.http.evaluations import get_model_profile_comparison_report
 
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations.evaluation_repository"
-            ".list_runs_by_provider_profile_for_org",
-            new=AsyncMock(return_value=[]),
-        ), patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository"
+                ".list_runs_by_provider_profile_for_org",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             report = await get_model_profile_comparison_report(
                 mock_principal, db, evaluation_set_id=None
@@ -183,9 +183,7 @@ class TestModelProfileReportEndpoint:
         assert "local_profile" in profile_labels
 
     @pytest.mark.asyncio
-    async def test_m_report_includes_release_gate_recommendations(
-        self, mock_principal
-    ):
+    async def test_m_report_includes_release_gate_recommendations(self, mock_principal):
         from app.interfaces.http.evaluations import get_model_profile_comparison_report
 
         local_run = _make_run(
@@ -198,40 +196,48 @@ class TestModelProfileReportEndpoint:
             not_found_rate=0.10,
         )
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations.evaluation_repository"
-            ".list_runs_by_provider_profile_for_org",
-            new=AsyncMock(return_value=[local_run]),
-        ), patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository"
+                ".list_runs_by_provider_profile_for_org",
+                new=AsyncMock(return_value=[local_run]),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             report = await get_model_profile_comparison_report(
                 mock_principal, db, evaluation_set_id=None
             )
         assert len(report.release_gate_recommendations) >= 1
         local_rec = next(
-            (r for r in report.release_gate_recommendations if r.provider_profile == "local_profile"),
+            (
+                r
+                for r in report.release_gate_recommendations
+                if r.provider_profile == "local_profile"
+            ),
             None,
         )
         assert local_rec is not None
         assert isinstance(local_rec.is_ready, bool)
 
     @pytest.mark.asyncio
-    async def test_n_fallback_profile_included_when_runs_exist(
-        self, mock_principal
-    ):
+    async def test_n_fallback_profile_included_when_runs_exist(self, mock_principal):
         from app.interfaces.http.evaluations import get_model_profile_comparison_report
 
         fallback_run = _make_run("fallback_profile", "openai")
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations.evaluation_repository"
-            ".list_runs_by_provider_profile_for_org",
-            new=AsyncMock(return_value=[fallback_run]),
-        ), patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository"
+                ".list_runs_by_provider_profile_for_org",
+                new=AsyncMock(return_value=[fallback_run]),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             report = await get_model_profile_comparison_report(
                 mock_principal, db, evaluation_set_id=None
@@ -244,13 +250,16 @@ class TestModelProfileReportEndpoint:
         from app.interfaces.http.evaluations import get_model_profile_comparison_report
 
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations.evaluation_repository"
-            ".list_runs_by_provider_profile_for_org",
-            new=AsyncMock(return_value=[]),
-        ), patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository"
+                ".list_runs_by_provider_profile_for_org",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             report = await get_model_profile_comparison_report(
                 mock_principal, db, evaluation_set_id=None
@@ -262,13 +271,16 @@ class TestModelProfileReportEndpoint:
         from app.interfaces.http.evaluations import get_model_profile_comparison_report
 
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations.evaluation_repository"
-            ".list_runs_by_provider_profile_for_org",
-            new=AsyncMock(return_value=[]),
-        ), patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository"
+                ".list_runs_by_provider_profile_for_org",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             report = await get_model_profile_comparison_report(
                 mock_principal, db, evaluation_set_id=None
@@ -282,13 +294,16 @@ class TestModelProfileReportEndpoint:
         from app.interfaces.http.evaluations import get_model_profile_comparison_report
 
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations.evaluation_repository"
-            ".list_runs_by_provider_profile_for_org",
-            new=AsyncMock(return_value=[]),
-        ), patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository"
+                ".list_runs_by_provider_profile_for_org",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             report = await get_model_profile_comparison_report(
                 mock_principal, db, evaluation_set_id=None
@@ -300,11 +315,12 @@ class TestModelProfileReportEndpoint:
 # R–T: Benchmark run trigger endpoint
 # ---------------------------------------------------------------------------
 
+
 class TestBenchmarkRunTrigger:
     @pytest.mark.asyncio
     async def test_r_trigger_creates_run_for_valid_suite(self):
-        from app.interfaces.http.evaluations import trigger_benchmark_run
         from app.domains.evaluations.schemas.evaluations import TriggerBenchmarkRunRequest
+        from app.interfaces.http.evaluations import trigger_benchmark_run
 
         principal = MagicMock()
         principal.organization_id = str(uuid4())
@@ -319,26 +335,34 @@ class TestBenchmarkRunTrigger:
         mock_run.provider_profile = None
 
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_set",
-            new=AsyncMock(return_value=mock_eval_set),
-        ), patch(
-            "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_question",
-            new=AsyncMock(),
-        ), patch(
-            "app.interfaces.http.evaluations.evaluation_repository.count_active_runs_for_set",
-            new=AsyncMock(return_value=0),
-        ), patch(
-            "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_run",
-            new=AsyncMock(return_value=mock_run),
-        ), patch(
-            "app.interfaces.http.evaluations.run_evaluation_task.delay",
-        ), patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
-        ), patch(
-            "app.interfaces.http.evaluations._user_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_set",
+                new=AsyncMock(return_value=mock_eval_set),
+            ),
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_question",
+                new=AsyncMock(),
+            ),
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository.count_active_runs_for_set",
+                new=AsyncMock(return_value=0),
+            ),
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_run",
+                new=AsyncMock(return_value=mock_run),
+            ),
+            patch(
+                "app.interfaces.http.evaluations.run_evaluation_task.delay",
+            ),
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._user_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             response = await trigger_benchmark_run(
                 "qa_basic", payload, request, principal, None, db
@@ -350,8 +374,9 @@ class TestBenchmarkRunTrigger:
     @pytest.mark.asyncio
     async def test_s_trigger_unknown_suite_returns_404(self):
         from fastapi import HTTPException
-        from app.interfaces.http.evaluations import trigger_benchmark_run
+
         from app.domains.evaluations.schemas.evaluations import TriggerBenchmarkRunRequest
+        from app.interfaces.http.evaluations import trigger_benchmark_run
 
         principal = MagicMock()
         principal.organization_id = str(uuid4())
@@ -361,24 +386,26 @@ class TestBenchmarkRunTrigger:
             suite_id="nonexistent", provider_profile="local_profile"
         )
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
-        ), patch(
-            "app.interfaces.http.evaluations._user_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._user_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await trigger_benchmark_run(
-                    "nonexistent", payload, request, principal, None, db
-                )
+                await trigger_benchmark_run("nonexistent", payload, request, principal, None, db)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_t_trigger_409_when_active_run_exists(self):
         from fastapi import HTTPException
-        from app.interfaces.http.evaluations import trigger_benchmark_run
+
         from app.domains.evaluations.schemas.evaluations import TriggerBenchmarkRunRequest
+        from app.interfaces.http.evaluations import trigger_benchmark_run
 
         principal = MagicMock()
         principal.organization_id = str(uuid4())
@@ -389,32 +416,37 @@ class TestBenchmarkRunTrigger:
         mock_eval_set = MagicMock()
         mock_eval_set.id = uuid4()
         db = AsyncMock()
-        with patch(
-            "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_set",
-            new=AsyncMock(return_value=mock_eval_set),
-        ), patch(
-            "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_question",
-            new=AsyncMock(),
-        ), patch(
-            "app.interfaces.http.evaluations.evaluation_repository.count_active_runs_for_set",
-            new=AsyncMock(return_value=1),
-        ), patch(
-            "app.interfaces.http.evaluations._organization_id_from_principal",
-            return_value=uuid4(),
-        ), patch(
-            "app.interfaces.http.evaluations._user_id_from_principal",
-            return_value=uuid4(),
+        with (
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_set",
+                new=AsyncMock(return_value=mock_eval_set),
+            ),
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository.create_evaluation_question",
+                new=AsyncMock(),
+            ),
+            patch(
+                "app.interfaces.http.evaluations.evaluation_repository.count_active_runs_for_set",
+                new=AsyncMock(return_value=1),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._organization_id_from_principal",
+                return_value=uuid4(),
+            ),
+            patch(
+                "app.interfaces.http.evaluations._user_id_from_principal",
+                return_value=uuid4(),
+            ),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await trigger_benchmark_run(
-                    "qa_basic", payload, request, principal, None, db
-                )
+                await trigger_benchmark_run("qa_basic", payload, request, principal, None, db)
         assert exc_info.value.status_code == 409
 
 
 # ---------------------------------------------------------------------------
 # U–W: Release gate recommendation logic (unit)
 # ---------------------------------------------------------------------------
+
 
 class TestReleaseGateRecommendation:
     def _make_summary(self, **overrides) -> ProviderProfileSummary:

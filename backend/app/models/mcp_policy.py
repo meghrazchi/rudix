@@ -24,15 +24,9 @@ class OrgMCPPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "org_mcp_policies"
     __table_args__ = (
         UniqueConstraint("organization_id", name="uq_org_mcp_policies_org"),
-        CheckConstraint(
-            "rate_limit_requests >= 1", name="mcp_policy_rate_limit_requests_min"
-        ),
-        CheckConstraint(
-            "rate_limit_requests <= 10000", name="mcp_policy_rate_limit_requests_max"
-        ),
-        CheckConstraint(
-            "rate_limit_window_seconds >= 1", name="mcp_policy_rate_limit_window_min"
-        ),
+        CheckConstraint("rate_limit_requests >= 1", name="mcp_policy_rate_limit_requests_min"),
+        CheckConstraint("rate_limit_requests <= 10000", name="mcp_policy_rate_limit_requests_max"),
+        CheckConstraint("rate_limit_window_seconds >= 1", name="mcp_policy_rate_limit_window_min"),
         CheckConstraint(
             "rate_limit_window_seconds <= 3600", name="mcp_policy_rate_limit_window_max"
         ),

@@ -116,6 +116,7 @@ async def _seed_webhook(
 
 # ─── List ────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_webhooks_empty_for_new_org(
     admin_client: AsyncClient,
@@ -173,6 +174,7 @@ async def test_list_webhooks_forbidden_for_viewer(
 
 
 # ─── Create ──────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_create_webhook_returns_raw_secret(
@@ -264,6 +266,7 @@ async def test_create_webhook_forbidden_for_developer_without_create(
 
 # ─── Get ─────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_webhook_returns_correct_item(
     admin_client: AsyncClient,
@@ -302,6 +305,7 @@ async def test_get_webhook_404_for_other_org(
 
 # ─── Update ──────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_update_webhook_name_and_status(
     admin_client: AsyncClient,
@@ -324,6 +328,7 @@ async def test_update_webhook_name_and_status(
 
 
 # ─── Delete ──────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_delete_webhook_returns_204(
@@ -367,6 +372,7 @@ async def test_delete_webhook_not_found(
 
 # ─── Rotate secret ───────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_rotate_secret_returns_new_raw_secret(
     admin_client: AsyncClient,
@@ -389,6 +395,7 @@ async def test_rotate_secret_returns_new_raw_secret(
 
 # ─── Deliveries ──────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_deliveries_empty_initially(
     admin_client: AsyncClient,
@@ -409,11 +416,13 @@ async def test_list_deliveries_empty_initially(
 
 # ─── Signing service unit tests ───────────────────────────────────────────────
 
+
 def test_sign_payload_produces_deterministic_hmac() -> None:
     from app.domains.webhooks.services.webhooks_service import WebhooksService
+
     secret = WebhooksService.generate_raw_secret()
     body = b'{"event":"document.indexed"}'
-    sig1, ts = WebhooksService.sign_payload(secret, body, timestamp=1234567890)
+    sig1, _ts = WebhooksService.sign_payload(secret, body, timestamp=1234567890)
     sig2, _ = WebhooksService.sign_payload(secret, body, timestamp=1234567890)
     assert sig1 == sig2
     assert len(sig1) == 64  # SHA-256 hex
@@ -421,6 +430,7 @@ def test_sign_payload_produces_deterministic_hmac() -> None:
 
 def test_sign_payload_different_for_different_secrets() -> None:
     from app.domains.webhooks.services.webhooks_service import WebhooksService
+
     s1 = WebhooksService.generate_raw_secret()
     s2 = WebhooksService.generate_raw_secret()
     body = b'{"event":"test"}'
@@ -431,6 +441,7 @@ def test_sign_payload_different_for_different_secrets() -> None:
 
 def test_hash_secret_is_sha256_hex() -> None:
     from app.domains.webhooks.services.webhooks_service import WebhooksService
+
     raw = "whsec_test"
     h = WebhooksService.hash_secret(raw)
     assert len(h) == 64
@@ -439,6 +450,7 @@ def test_hash_secret_is_sha256_hex() -> None:
 
 def test_ssrf_validation_rejects_private_ips() -> None:
     from app.domains.webhooks.schemas.webhooks import _is_ssrf_risk
+
     assert _is_ssrf_risk("http://localhost/hook") is True
     assert _is_ssrf_risk("http://127.0.0.1/hook") is True
     assert _is_ssrf_risk("http://192.168.0.1/hook") is True
@@ -450,6 +462,7 @@ def test_ssrf_validation_rejects_private_ips() -> None:
 
 def test_ssrf_validation_allows_public_urls() -> None:
     from app.domains.webhooks.schemas.webhooks import _is_ssrf_risk
+
     assert _is_ssrf_risk("https://example.com/hook") is False
     assert _is_ssrf_risk("https://my-service.io/api/webhook") is False
     assert _is_ssrf_risk("http://external.example.org/events") is False

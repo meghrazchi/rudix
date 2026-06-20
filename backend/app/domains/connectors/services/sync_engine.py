@@ -920,7 +920,11 @@ class ConnectorSyncEngine:
 
             # Detect rename (title changed) or move (parent_id changed).
             new_parent = getattr(norm_item, "provider_parent_id", None)
-            if existing.provider_parent_id and new_parent and new_parent != existing.provider_parent_id:
+            if (
+                existing.provider_parent_id
+                and new_parent
+                and new_parent != existing.provider_parent_id
+            ):
                 await self._record_conflict(
                     session,
                     run=run,
@@ -1333,7 +1337,6 @@ class ConnectorSyncEngine:
         conflict_type: str,
         detail: dict,
     ) -> None:
-        from app.core.logging import get_logger
 
         conflict = await self.repository.record_conflict(
             session,

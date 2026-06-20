@@ -22,10 +22,10 @@ from app.domains.model_provider.schemas.model_provider import (
     UpdateModelProviderSettingsRequest,
 )
 from app.domains.model_provider.services.model_provider_service import (
+    _llm_key_configured,
     build_effective_policy,
     delete_settings_with_log,
     upsert_settings_with_log,
-    _llm_key_configured,
 )
 from app.models.enums import OrganizationRole
 from app.models.model_provider_settings import OrgModelProviderChangeLog, OrgModelProviderSettings

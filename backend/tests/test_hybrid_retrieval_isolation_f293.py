@@ -36,7 +36,6 @@ from app.domains.chat.services.hybrid_retrieval_service import HybridRetrievalSe
 from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.query_retrieval_service import RetrievedCandidate
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

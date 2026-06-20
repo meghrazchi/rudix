@@ -40,10 +40,9 @@ from app.domains.email.repositories.email_delivery import EmailDeliveryRepositor
 from app.domains.email.repositories.notification_preferences import (
     NotificationPreferencesRepository,
 )
-from app.domains.email.services.email_service import EmailService, _MANDATORY_EVENT_TYPES
+from app.domains.email.services.email_service import EmailService
 from app.domains.email.services.template_service import render_email_template
 from app.main import app
-from app.models.email import EmailDeliveryLog, UserNotificationPreference
 from app.models.enums import (
     EmailDeliveryStatus,
     EmailEventType,
@@ -747,7 +746,11 @@ async def test_test_send_blocked_in_production(
     # In production env, test-send is blocked
     assert resp.status_code == 403
     # Reset environment to test after this check
-    monkeypatch.setattr(settings, "environment", __import__("app.core.config", fromlist=["Environment"]).Environment.test)
+    monkeypatch.setattr(
+        settings,
+        "environment",
+        __import__("app.core.config", fromlist=["Environment"]).Environment.test,
+    )
 
 
 @pytest.mark.asyncio
@@ -866,8 +869,8 @@ async def test_preview_requires_auth(email_client: AsyncClient) -> None:
 
 def test_factory_returns_console_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "email_provider", "console")
-    from app.domains.email.providers.factory import build_email_provider
     from app.domains.email.providers.console import ConsoleEmailProvider
+    from app.domains.email.providers.factory import build_email_provider
 
     provider = build_email_provider()
     assert isinstance(provider, ConsoleEmailProvider)

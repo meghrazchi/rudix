@@ -58,19 +58,18 @@ from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.ab_testing.repositories.ab_testing import AbTestingRepository
+from app.domains.ab_testing.schemas.ab_testing import VariantRunSummary
 from app.domains.ab_testing.services.ab_testing_service import (
     build_comparison_report,
     build_variant_summaries,
     compute_variant_deltas,
     extract_metrics_from_eval_config,
 )
-from app.domains.ab_testing.schemas.ab_testing import VariantRunSummary
 from app.main import app
 from app.models.enums import AbExperimentStatus, AbVariantApprovalStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -154,9 +153,7 @@ async def async_client(db: AsyncSession):
         yield db
 
     app.dependency_overrides[get_db_session] = _override
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
     app.dependency_overrides.pop(get_db_session, None)
 
@@ -306,7 +303,9 @@ def test_extract_metrics_from_eval_config_missing_key():
 
 
 @pytest.mark.asyncio
-async def test_repo_create_and_get_experiment(db: AsyncSession, org: Organization, admin_user: User):
+async def test_repo_create_and_get_experiment(
+    db: AsyncSession, org: Organization, admin_user: User
+):
     from app.models.evaluation import EvaluationSet
 
     eval_set = EvaluationSet(organization_id=org.id, name="DS1")
@@ -357,7 +356,9 @@ async def test_repo_experiment_org_isolation(db: AsyncSession, org: Organization
 
 
 @pytest.mark.asyncio
-async def test_repo_list_and_count_experiments(db: AsyncSession, org: Organization, admin_user: User):
+async def test_repo_list_and_count_experiments(
+    db: AsyncSession, org: Organization, admin_user: User
+):
     from app.models.evaluation import EvaluationSet
 
     ds = EvaluationSet(organization_id=org.id, name="DS3")
@@ -389,7 +390,9 @@ async def test_repo_list_and_count_experiments(db: AsyncSession, org: Organizati
 
 
 @pytest.mark.asyncio
-async def test_repo_create_and_delete_variant(db: AsyncSession, org: Organization, admin_user: User):
+async def test_repo_create_and_delete_variant(
+    db: AsyncSession, org: Organization, admin_user: User
+):
     from app.models.evaluation import EvaluationSet
 
     ds = EvaluationSet(organization_id=org.id, name="DS4")
@@ -442,8 +445,7 @@ async def test_repo_create_and_delete_variant(db: AsyncSession, org: Organizatio
 async def test_http_create_experiment(async_client, org, admin_user):
     from app.models.evaluation import EvaluationSet
 
-    ds = EvaluationSet(organization_id=org.id, name="DS-http")
-    async_client.app.dependency_overrides  # already set up
+    EvaluationSet(organization_id=org.id, name="DS-http")
     # Need the db session — inject via the already-mocked db_session
     # Access through the fixture chain
     # We'll use the repository via the HTTP endpoint

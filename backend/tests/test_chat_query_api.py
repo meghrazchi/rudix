@@ -745,7 +745,7 @@ async def test_post_chat_falls_back_when_graph_never_available(
 
     response = await chat_query_client.post(
         "/api/v1/chat",
-        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        headers=_auth_headers(token=_token, organization_id=str(organization.id)),
         json={
             "question": "What does annual leave mean?",
             "document_ids": [str(document.id)],
@@ -1021,7 +1021,7 @@ async def test_websocket_chat_completes_when_rerank_provider_returns_invalid_jso
         text="Employees receive twenty days of annual leave.",
     )
 
-    token = create_app_access_token(
+    create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(organization.id),
         expires_in_seconds=600,

@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk, DocumentPage
-from app.models.enums import DocumentStatus, DocumentTrustStatus
+from app.models.enums import DocumentStatus
 
 
 class DocumentRepository:
@@ -280,8 +280,7 @@ class DocumentRepository:
     ) -> dict[int, float]:
         """Return {page_number: ocr_confidence} for pages that have OCR confidence data."""
         result = await session.execute(
-            select(DocumentPage.page_number, DocumentPage.ocr_confidence)
-            .where(
+            select(DocumentPage.page_number, DocumentPage.ocr_confidence).where(
                 DocumentPage.document_id == document_id,
                 DocumentPage.ocr_confidence.isnot(None),
             )

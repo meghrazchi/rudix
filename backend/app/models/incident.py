@@ -41,19 +41,13 @@ class Incident(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="investigating"
-    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="investigating")
     severity: Mapped[str] = mapped_column(String(32), nullable=False, default="medium")
-    affected_services: Mapped[list] = mapped_column(
-        JSON, nullable=False, default=list
-    )
+    affected_services: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),

@@ -137,9 +137,7 @@ def normalize_drive_item(
 
     permissions_snapshot = _item_permissions(item, item_permissions)
     visibility = (
-        ExternalItemVisibility.restricted
-        if item_permissions
-        else ExternalItemVisibility.org_wide
+        ExternalItemVisibility.restricted if item_permissions else ExternalItemVisibility.org_wide
     )
     return NormalizedExternalItem(
         organization_id=organization_id,

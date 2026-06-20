@@ -91,6 +91,7 @@ def _auth_headers(*, token: str, organization_id: str) -> dict[str, str]:
 
 # ─── GET /admin/mcp/policy ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_mcp_policy_returns_defaults_for_new_org(
     admin_client: AsyncClient,
@@ -131,6 +132,7 @@ async def test_get_mcp_policy_forbidden_for_non_admin(
 
 
 # ─── PATCH /admin/mcp/policy ─────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_update_mcp_policy_enabled(
@@ -281,6 +283,7 @@ async def test_update_mcp_policy_org_isolation(
 
 # ─── GET /admin/mcp/status ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_mcp_status_returns_expected_shape(
     admin_client: AsyncClient,
@@ -321,6 +324,7 @@ async def test_get_mcp_status_forbidden_for_member(
 
 # ─── GET /admin/mcp/tools ────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_mcp_tools_returns_list(
     admin_client: AsyncClient,
@@ -360,6 +364,7 @@ async def test_list_mcp_tools_forbidden_for_member(
 
 
 # ─── GET /admin/mcp/audit-events ─────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_list_mcp_audit_events_empty(

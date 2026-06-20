@@ -12,6 +12,7 @@ Design constraints:
 - The original user question is always returned unchanged in `original_query` and
   must be used for the final LLM answer prompt (intent preservation).
 """
+
 from __future__ import annotations
 
 import json
@@ -20,7 +21,7 @@ from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Literal
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import settings
 from app.domains.ai.providers.protocols import ChatCompletionRequest
@@ -213,7 +214,7 @@ class QueryRewritingService:
                     primary_query=question,
                     sub_queries=[],
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("query_rewriting failed, using original query: %s", exc)
             return self._fallback(question)
 

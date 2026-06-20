@@ -1,14 +1,14 @@
 """Pydantic schemas for model profiles (F220)."""
+
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from typing import Literal
+from enum import StrEnum
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-class TaskType(str, Enum):
+class TaskType(StrEnum):
     chat = "chat"
     summarization = "summarization"
     comparison = "comparison"
@@ -28,7 +28,7 @@ JSON_MODE_REQUIRED_TASKS: frozenset[TaskType] = frozenset(
 EMBEDDING_TASKS: frozenset[TaskType] = frozenset({TaskType.embeddings})
 
 
-class ProfileSource(str, Enum):
+class ProfileSource(StrEnum):
     env_default = "env_default"
     org_profile = "org_profile"
     request_override = "request_override"
@@ -86,7 +86,7 @@ class UpsertModelProfileRequest(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def _fallback_differs_from_provider(self) -> "UpsertModelProfileRequest":
+    def _fallback_differs_from_provider(self) -> UpsertModelProfileRequest:
         if (
             self.fallback_provider_key is not None
             and self.fallback_provider_key == self.provider_type

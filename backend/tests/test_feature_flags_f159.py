@@ -14,6 +14,7 @@ Covers:
 from __future__ import annotations
 
 import os
+from typing import Annotated
 from uuid import uuid4
 
 import pytest
@@ -46,9 +47,9 @@ from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.admin.schemas.feature_flags import ALL_FLAG_NAMES
 from app.domains.admin.services.feature_flag_service import (
+    _SETTINGS_ATTR,
     FeatureFlagService,
     _env_default,
-    _SETTINGS_ATTR,
 )
 from app.main import app
 from app.models.enums import OrganizationRole
@@ -57,7 +58,6 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Unit tests: flag resolution
@@ -249,6 +249,7 @@ async def test_set_flag_creates_override_and_audits(
 
     # Verify DB row created
     from sqlalchemy import select
+
     override = (
         await db_session.execute(
             select(OrgFeatureFlagOverride).where(
@@ -262,13 +263,18 @@ async def test_set_flag_creates_override_and_audits(
 
     # Verify audit log
     from sqlalchemy import select
+
     audit = (
-        await db_session.execute(
-            select(AuditLog)
-            .where(AuditLog.organization_id == org.id)
-            .order_by(AuditLog.created_at.desc())
+        (
+            await db_session.execute(
+                select(AuditLog)
+                .where(AuditLog.organization_id == org.id)
+                .order_by(AuditLog.created_at.desc())
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     assert audit is not None
     assert audit.action == "admin.feature_flag.override.set"
 
@@ -351,6 +357,7 @@ async def test_clear_flag_reverts_to_env_default_and_audits(
 
     # Verify no override row remains
     from sqlalchemy import select
+
     override = (
         await db_session.execute(
             select(OrgFeatureFlagOverride).where(
@@ -363,16 +370,21 @@ async def test_clear_flag_reverts_to_env_default_and_audits(
 
     # Verify audit log for clear
     from sqlalchemy import select
+
     audit = (
-        await db_session.execute(
-            select(AuditLog)
-            .where(
-                AuditLog.organization_id == org.id,
-                AuditLog.action == "admin.feature_flag.override.cleared",
+        (
+            await db_session.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.organization_id == org.id,
+                    AuditLog.action == "admin.feature_flag.override.cleared",
+                )
+                .order_by(AuditLog.created_at.desc())
             )
-            .order_by(AuditLog.created_at.desc())
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     assert audit is not None
 
 
@@ -463,8 +475,9 @@ async def test_require_feature_blocks_request_when_flag_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A protected endpoint must return 403 when its flag is disabled for the org."""
-    from fastapi import Depends, APIRouter
-    from app.auth.dependencies import require_feature, get_current_principal
+    from fastapi import APIRouter, Depends
+
+    from app.auth.dependencies import get_current_principal, require_feature
     from app.auth.models import AuthenticatedPrincipal
 
     # Temporarily mount a test endpoint that requires the "evaluations" flag
@@ -472,8 +485,8 @@ async def test_require_feature_blocks_request_when_flag_disabled(
 
     @test_router.get("/test-require-feature-evaluations")
     async def _guarded(
-        _flag: None = Depends(require_feature("evaluations")),
-        principal: AuthenticatedPrincipal = Depends(get_current_principal),
+        _flag: Annotated[None, Depends(require_feature("evaluations"))],
+        principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     ) -> dict:
         return {"ok": True}
 
@@ -592,7 +605,10 @@ async def test_service_clear_flag_restores_env_default(
         reason="Test",
         overridden_by_user_id=user.id,
     )
-    assert await service.is_enabled(db_session, organization_id=org.id, flag_name="pipeline_explorer") is False
+    assert (
+        await service.is_enabled(db_session, organization_id=org.id, flag_name="pipeline_explorer")
+        is False
+    )
 
     # Clear override → env default (True) wins
     result = await service.clear_flag(
@@ -602,7 +618,10 @@ async def test_service_clear_flag_restores_env_default(
     )
     assert result.env_default is True
     assert result.reverted_to_env_default is True
-    assert await service.is_enabled(db_session, organization_id=org.id, flag_name="pipeline_explorer") is True
+    assert (
+        await service.is_enabled(db_session, organization_id=org.id, flag_name="pipeline_explorer")
+        is True
+    )
 
 
 @pytest.mark.asyncio
@@ -664,6 +683,10 @@ async def test_flag_override_is_org_scoped(
         overridden_by_user_id=user_a.id,
     )
 
-    assert await service.is_enabled(db_session, organization_id=org_a.id, flag_name="agents") is True
+    assert (
+        await service.is_enabled(db_session, organization_id=org_a.id, flag_name="agents") is True
+    )
     # org_b must still see env default (False)
-    assert await service.is_enabled(db_session, organization_id=org_b.id, flag_name="agents") is False
+    assert (
+        await service.is_enabled(db_session, organization_id=org_b.id, flag_name="agents") is False
+    )

@@ -18,7 +18,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import ConnectorSyncJobStatus, ConnectorSyncRunStatus, SyncConflictStatus, SyncConflictType
+from app.models.enums import (
+    ConnectorSyncJobStatus,
+    ConnectorSyncRunStatus,
+    SyncConflictStatus,
+    SyncConflictType,
+)
 
 
 class ConnectorSyncJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -153,7 +158,12 @@ class SyncConflict(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "status IN ('open', 'resolved', 'dismissed')",
             name="connector_sync_conflicts_status_allowed",
         ),
-        Index("idx_connector_sync_conflicts_org_conn_status", "organization_id", "connection_id", "status"),
+        Index(
+            "idx_connector_sync_conflicts_org_conn_status",
+            "organization_id",
+            "connection_id",
+            "status",
+        ),
         Index("idx_connector_sync_conflicts_external_item", "external_item_id"),
         Index("idx_connector_sync_conflicts_created", "organization_id", "created_at"),
     )

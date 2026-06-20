@@ -9,12 +9,12 @@ from fastapi import FastAPI
 from app.clients.clamav_client import close_clamav, init_clamav
 from app.clients.minio_client import close_minio, init_minio
 from app.clients.neo4j_client import close_neo4j, init_neo4j
-from app.domains.graph.migration_runner import run_graph_migrations
 from app.clients.qdrant_client import close_qdrant, init_qdrant
 from app.clients.rabbitmq_client import close_rabbitmq, init_rabbitmq
 from app.clients.redis_client import close_redis, init_redis
 from app.core.langfuse_tracer import init_langfuse, shutdown_langfuse
 from app.core.sentry import init_sentry
+from app.domains.graph.migration_runner import run_graph_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +22,11 @@ logger = logging.getLogger(__name__)
 async def _tcp_reachable(host: str, port: int, timeout: float = 2.0) -> bool:
     """Return True if a TCP connection to host:port succeeds within timeout."""
     try:
-        _, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), timeout=timeout
-        )
+        _, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=timeout)
         writer.close()
         await writer.wait_closed()
         return True
-    except (OSError, asyncio.TimeoutError):
+    except (TimeoutError, OSError):
         return False
 
 

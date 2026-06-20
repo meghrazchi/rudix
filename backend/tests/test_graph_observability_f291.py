@@ -30,7 +30,7 @@ Run:
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -66,8 +66,7 @@ from app.models.document import Document
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
-from app.models.usage import AuditLog
-from app.models.usage import UsageEvent
+from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
 
 API_PREFIX = settings.api_prefix

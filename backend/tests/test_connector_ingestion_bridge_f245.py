@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import os
 from dataclasses import dataclass
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,8 +34,8 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from app.domains.connectors.services.ingestion_bridge import (
     ConnectorIngestionBridge,
     IngestionResult,
-    _safe_filename,
     _build_storage_key,
+    _safe_filename,
 )
 from app.domains.documents.services.malware_scan import MalwareScanResult, MalwareScanService
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
@@ -49,9 +46,9 @@ from app.models.enums import (
     ConnectorConnectionStatus,
     DocumentIngestionSource,
     DocumentStatus,
-    GraphExtractionStatus,
     ExternalItemType,
     ExternalItemVisibility,
+    GraphExtractionStatus,
 )
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
@@ -745,8 +742,8 @@ def test_google_drive_download_returns_none_for_none_mime() -> None:
 # Re-ingest update path (pure unit, fully patched)
 # ---------------------------------------------------------------------------
 
-import hashlib as _hashlib
-from types import SimpleNamespace as _NS
+import hashlib as _hashlib  # noqa: E402
+from types import SimpleNamespace as _NS  # noqa: E402
 
 
 def _mock_src_doc(*, ext_item_id: UUID, doc_id: UUID, checksum: str) -> _NS:

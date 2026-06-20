@@ -69,6 +69,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from fastapi.testclient import TestClient
 
+import app.clients.neo4j_client as neo4j_module
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
@@ -76,8 +77,6 @@ from app.domains.graph.repositories.evidence_repository import EvidenceRepositor
 from app.domains.graph.repositories.graphrag_repository import GraphRAGRepository
 from app.domains.graph.services.graph_service import GraphService
 from app.main import app
-
-import app.clients.neo4j_client as neo4j_module
 
 _ORG = "org-test-f282"
 _WS = "ws-test-f282"
@@ -154,9 +153,11 @@ async def test_a_link_evidence_no_citation_raises():
 @pytest.mark.asyncio
 async def test_b_link_evidence_evidence_text_valid():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await EvidenceRepository().link_evidence(
             organization_id=_ORG,
             entity_id=_ENTITY,
@@ -176,9 +177,11 @@ async def test_b_link_evidence_evidence_text_valid():
 @pytest.mark.asyncio
 async def test_c_link_evidence_citation_text_valid():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await EvidenceRepository().link_evidence(
             organization_id=_ORG,
             entity_id=_ENTITY,
@@ -198,9 +201,11 @@ async def test_c_link_evidence_citation_text_valid():
 @pytest.mark.asyncio
 async def test_d_link_evidence_citation_reference_valid():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await EvidenceRepository().link_evidence(
             organization_id=_ORG,
             entity_id=_ENTITY,
@@ -220,9 +225,11 @@ async def test_d_link_evidence_citation_reference_valid():
 @pytest.mark.asyncio
 async def test_e_link_evidence_full_provenance():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await EvidenceRepository().link_evidence(
             organization_id=_ORG,
             entity_id=_ENTITY,
@@ -250,9 +257,11 @@ async def test_e_link_evidence_full_provenance():
 @pytest.mark.asyncio
 async def test_f_link_evidence_all_fields_passed_to_cypher():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await EvidenceRepository().link_evidence(
             organization_id=_ORG,
             entity_id=_ENTITY,
@@ -342,10 +351,11 @@ async def test_h_get_entity_evidence_full_fields():
         }
     ]
     driver = _mock_driver(records=ev_records)
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         results = await EvidenceRepository().get_entity_evidence(
             organization_id=_ORG, entity_id=_ENTITY
@@ -424,10 +434,11 @@ async def test_j_get_document_provenance_returns_list():
         },
     ]
     driver = _mock_driver(records=prov_records)
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         results = await EvidenceRepository().get_document_provenance(
             organization_id=_ORG, document_id=_DOC
@@ -462,14 +473,13 @@ async def test_k_get_document_provenance_driver_none():
 @pytest.mark.asyncio
 async def test_l_get_document_provenance_org_scoped():
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
-        await EvidenceRepository().get_document_provenance(
-            organization_id=_ORG, document_id=_DOC
-        )
+        await EvidenceRepository().get_document_provenance(organization_id=_ORG, document_id=_DOC)
         session = driver.session.return_value.__aenter__.return_value
         call_kwargs = session.run.call_args[1]
         assert call_kwargs["organization_id"] == _ORG
@@ -503,10 +513,11 @@ async def test_m_graphrag_evidence_returns_provenance_fields():
         }
     ]
     driver = _mock_driver(records=ev_records)
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         results = await GraphRAGRepository().get_evidence_for_entities(
             organization_id=_ORG, entity_ids=[_ENTITY]
@@ -528,10 +539,11 @@ async def test_m_graphrag_evidence_returns_provenance_fields():
 @pytest.mark.asyncio
 async def test_n_graphrag_cypher_includes_citation_text():
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         await GraphRAGRepository().get_evidence_for_entities(
             organization_id=_ORG, entity_ids=[_ENTITY]
@@ -613,6 +625,7 @@ def _svc_mock(**overrides: Any) -> MagicMock:
 
 # Q. POST /admin/graph/evidence — graph disabled → 503
 
+
 def test_q_create_evidence_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", False)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
@@ -636,6 +649,7 @@ def test_q_create_evidence_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # R. POST /admin/graph/evidence — member role → 403
 
+
 def test_r_create_evidence_member_forbidden(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
@@ -657,6 +671,7 @@ def test_r_create_evidence_member_forbidden(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 # S. POST /admin/graph/evidence — missing citation → 422
+
 
 def test_s_create_evidence_no_citation_422(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
@@ -682,6 +697,7 @@ def test_s_create_evidence_no_citation_422(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 # T. POST /admin/graph/evidence — valid full provenance → 201
+
 
 def test_t_create_evidence_full_provenance_201(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.interfaces.http.admin_graph_provenance as prov_module
@@ -722,6 +738,7 @@ def test_t_create_evidence_full_provenance_201(monkeypatch: pytest.MonkeyPatch) 
 
 # U. POST /admin/graph/evidence — only citation_reference → 201
 
+
 def test_u_create_evidence_only_citation_reference(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.interfaces.http.admin_graph_provenance as prov_module
 
@@ -749,6 +766,7 @@ def test_u_create_evidence_only_citation_reference(monkeypatch: pytest.MonkeyPat
 
 # V. GET /admin/graph/documents/{id}/provenance — graph disabled → 503
 
+
 def test_v_document_provenance_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", False)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
@@ -762,6 +780,7 @@ def test_v_document_provenance_disabled(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 # W. GET /admin/graph/documents/{id}/provenance — returns provenance list
+
 
 def test_w_document_provenance_returns_list(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.interfaces.http.admin_graph_provenance as prov_module
@@ -809,6 +828,7 @@ def test_w_document_provenance_returns_list(monkeypatch: pytest.MonkeyPatch) -> 
 
 # X. GET /admin/graph/documents/{id}/provenance — member role → 403
 
+
 def test_x_document_provenance_member_forbidden(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
@@ -823,6 +843,7 @@ def test_x_document_provenance_member_forbidden(monkeypatch: pytest.MonkeyPatch)
 
 # Y. GET /admin/graph/entities/{id}/citations — graph disabled → 503
 
+
 def test_y_entity_citations_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", False)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
@@ -836,6 +857,7 @@ def test_y_entity_citations_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # Z. GET /admin/graph/entities/{id}/citations — returns citation DTOs
+
 
 def test_z_entity_citations_returns_dtos(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.interfaces.http.admin_graph_provenance as prov_module
@@ -882,6 +904,7 @@ def test_z_entity_citations_returns_dtos(monkeypatch: pytest.MonkeyPatch) -> Non
 
 # AA. GET /admin/graph/entities/{id}/citations — citation_text falls back to evidence_text
 
+
 def test_aa_citations_fallback_to_evidence_text(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.interfaces.http.admin_graph_provenance as prov_module
 
@@ -926,14 +949,13 @@ def test_aa_citations_fallback_to_evidence_text(monkeypatch: pytest.MonkeyPatch)
 async def test_ab_document_provenance_org_always_bound():
     """get_document_provenance Cypher always binds organization_id."""
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
-        await EvidenceRepository().get_document_provenance(
-            organization_id=_ORG, document_id=_DOC
-        )
+        await EvidenceRepository().get_document_provenance(organization_id=_ORG, document_id=_DOC)
         session = driver.session.return_value.__aenter__.return_value
         call_kwargs = session.run.call_args[1]
         assert "organization_id" in call_kwargs
@@ -946,9 +968,11 @@ async def test_ab_document_provenance_org_always_bound():
 async def test_ac_link_evidence_validation_fires_before_driver():
     """ValueError from validation fires before any Neo4j call — no injection path."""
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         with pytest.raises(ValueError, match="provenance_required"):
             await EvidenceRepository().link_evidence(
                 organization_id=_ORG,
@@ -965,14 +989,13 @@ async def test_ac_link_evidence_validation_fires_before_driver():
 async def test_ad_get_entity_evidence_cypher_includes_org():
     """get_entity_evidence Cypher always includes organization_id in WHERE."""
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
-        await EvidenceRepository().get_entity_evidence(
-            organization_id=_ORG, entity_id=_ENTITY
-        )
+        await EvidenceRepository().get_entity_evidence(organization_id=_ORG, entity_id=_ENTITY)
         session = driver.session.return_value.__aenter__.return_value
         call_kwargs = session.run.call_args[1]
         assert call_kwargs["organization_id"] == _ORG

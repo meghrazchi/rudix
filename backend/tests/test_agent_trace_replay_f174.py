@@ -40,10 +40,9 @@ from app.domains.agents import AgentRunRepository
 from app.domains.agents.services.trace_service import (
     AgentTraceService,
     RetentionPolicySnapshot,
-    build_trace_timeline,
 )
 from app.main import app
-from app.models.agent import AgentTraceRetentionPolicy, AgentTraceShareToken
+from app.models.agent import AgentTraceShareToken
 from app.models.enums import AgentRunStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
@@ -254,7 +253,7 @@ def test_sensitive_key_redaction_in_tool_call_arguments() -> None:
     policy = RetentionPolicySnapshot(redact_tool_arguments=False)
     from app.domains.agents.services.trace_service import _redact_tool_call
 
-    args, output = _redact_tool_call(
+    args, _output = _redact_tool_call(
         {"query": "revenue", "api_key": "sk-secret-value", "token": "tok-abc"},
         {"hits": 3},
         policy,
@@ -366,9 +365,7 @@ async def test_trace_is_org_scoped(
 ) -> None:
     user_a, org_a = await _seed_org_user(db_session)
     user_b, org_b = await _seed_org_user(db_session)
-    run_id = await _seed_run_with_steps(
-        db_session, organization_id=org_a.id, user_id=user_a.id
-    )
+    run_id = await _seed_run_with_steps(db_session, organization_id=org_a.id, user_id=user_a.id)
     token_b = create_app_access_token(
         subject=user_b.external_auth_id,
         organization_id=str(org_b.id),
@@ -448,7 +445,7 @@ async def test_shared_trace_accessible_without_auth(
 
     # Directly create a share token
     run_uuid = UUID(run_id)
-    share_token_obj, raw_token = await _trace_service.create_share_token(
+    _share_token_obj, raw_token = await _trace_service.create_share_token(
         db_session,
         organization_id=org.id,
         run_id=run_uuid,

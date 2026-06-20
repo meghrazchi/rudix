@@ -29,15 +29,9 @@ class ApiKey(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # SHA-256 hex digest of the full raw key — only value stored long-term.
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     scopes: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="active"
-    )
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_used_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_by_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),

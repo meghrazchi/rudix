@@ -50,7 +50,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import uuid
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -77,11 +76,9 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from pydantic import ValidationError
 
 from app.domains.graph.services.entity_extraction_service import (
-    ExtractionBatchResult,
-    ExtractionBatchSchema,
-    ExtractedEntityItem,
-    ExtractedEntitySchema,
     EntityExtractionService,
+    ExtractedEntitySchema,
+    ExtractionBatchSchema,
     _entity_uuid,
     _parse_and_validate,
 )
@@ -316,9 +313,7 @@ def test_r_english_vendor_name_preserved():
             evidence_span="Microsoft Corporation provides cloud services.",
         )
     )
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -346,9 +341,7 @@ def test_s_german_vendor_original_name_preserved():
             evidence_span="Volkswagen AG ist ein deutscher Automobilhersteller.",
         )
     )
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -375,9 +368,7 @@ def test_t_french_customer_original_name_preserved():
             evidence_span="Société Générale est une banque française.",
         )
     )
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -404,9 +395,7 @@ def test_u_spanish_contract_original_name_preserved():
             evidence_span="Banco Santander firmó el contrato el 15 de enero.",
         )
     )
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -430,9 +419,7 @@ def test_u_spanish_contract_original_name_preserved():
 def test_v_single_batch_returns_entities():
     svc = _make_service(batch_size=10)
     provider = _mock_provider(_VALID_BATCH_JSON)
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -449,9 +436,7 @@ def test_v_single_batch_returns_entities():
 def test_w_chunks_exceed_batch_size_triggers_two_calls():
     svc = _make_service(batch_size=2)
     provider = _mock_provider(json.dumps({"entities": []}))
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -467,9 +452,7 @@ def test_x_provider_raises_increments_llm_errors():
     svc = _make_service()
     provider = MagicMock()
     provider.complete = AsyncMock(side_effect=RuntimeError("provider error"))
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -489,9 +472,7 @@ def test_y_provider_times_out_increments_llm_errors():
         await asyncio.sleep(1.0)
 
     provider.complete = _slow
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -506,9 +487,7 @@ def test_y_provider_times_out_increments_llm_errors():
 def test_z_invalid_json_increments_validation_errors():
     svc = _make_service()
     provider = _mock_provider("{not json}")
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -534,9 +513,7 @@ def test_aa_source_chunk_index_out_of_range_clamped():
         }
     )
     provider = _mock_provider(response)
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result = _run(
             svc.extract_from_chunks(
@@ -552,9 +529,7 @@ def test_aa_source_chunk_index_out_of_range_clamped():
 def test_ab_entity_id_is_deterministic_across_calls():
     svc = _make_service()
     provider = _mock_provider(_VALID_BATCH_JSON)
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result1 = _run(
             svc.extract_from_chunks(
@@ -573,9 +548,7 @@ def test_ab_entity_id_is_deterministic_across_calls():
             latency_ms=100,
         )
     )
-    with patch(
-        "app.domains.ai.providers.factory.default_provider_factory"
-    ) as mock_factory:
+    with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
         mock_factory.get_chat_provider.return_value = provider
         result2 = _run(
             svc.extract_from_chunks(
@@ -611,9 +584,7 @@ def test_ac_extraction_failure_non_strict_does_not_raise():
 
     async def _pipeline() -> str:
         nonlocal pipeline_continued
-        with patch(
-            "app.domains.ai.providers.factory.default_provider_factory"
-        ) as mock_factory:
+        with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
             mock_factory.get_chat_provider.return_value = provider
             try:
                 result = await svc.extract_from_chunks(
@@ -642,9 +613,7 @@ def test_ad_extraction_failure_strict_mode_raises():
     strict_mode = True
 
     async def _pipeline_strict() -> str:
-        with patch(
-            "app.domains.ai.providers.factory.default_provider_factory"
-        ) as mock_factory:
+        with patch("app.domains.ai.providers.factory.default_provider_factory") as mock_factory:
             mock_factory.get_chat_provider.return_value = provider
             result = await svc.extract_from_chunks(
                 chunks=[(0, "important contract text")],

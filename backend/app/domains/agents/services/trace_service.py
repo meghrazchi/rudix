@@ -107,7 +107,7 @@ class RetentionPolicySnapshot:
             self.redact_tool_arguments = redact_tool_arguments
 
     @classmethod
-    def from_model(cls, model: AgentTraceRetentionPolicy) -> "RetentionPolicySnapshot":
+    def from_model(cls, model: AgentTraceRetentionPolicy) -> RetentionPolicySnapshot:
         return cls(
             retain_days=model.retain_days,
             redact_prompts=model.redact_prompts,
@@ -116,11 +116,11 @@ class RetentionPolicySnapshot:
         )
 
     @classmethod
-    def default(cls) -> "RetentionPolicySnapshot":
+    def default(cls) -> RetentionPolicySnapshot:
         return cls()
 
     @classmethod
-    def full_redact_policy(cls) -> "RetentionPolicySnapshot":
+    def full_redact_policy(cls) -> RetentionPolicySnapshot:
         return cls(full_redact=True)
 
     def is_any_redaction_active(self) -> bool:
@@ -208,9 +208,7 @@ def build_trace_timeline(run: Any, policy: RetentionPolicySnapshot) -> list[dict
                             "metrics": step.metrics_json or {},
                             "observation": step.observation_json or {},
                             "error_message": step.error_message,
-                            "error_details": _scrub_sensitive_keys(
-                                step.error_details_json or {}
-                            ),
+                            "error_details": _scrub_sensitive_keys(step.error_details_json or {}),
                         },
                     },
                 )
@@ -275,9 +273,7 @@ def build_trace_timeline(run: Any, policy: RetentionPolicySnapshot) -> list[dict
                     "event_type": "approval_requested",
                     "run_id": str(run.id),
                     "step_id": str(approval.agent_step_id) if approval.agent_step_id else None,
-                    "tool_call_id": str(approval.tool_call_id)
-                    if approval.tool_call_id
-                    else None,
+                    "tool_call_id": str(approval.tool_call_id) if approval.tool_call_id else None,
                     "approval_id": str(approval.id),
                     "timestamp": _ts(approval.created_at),
                     "data": {
@@ -391,9 +387,7 @@ class AgentTraceService:
         await db.flush()
         return row
 
-    def build_trace(
-        self, run: Any, policy: RetentionPolicySnapshot
-    ) -> dict[str, Any]:
+    def build_trace(self, run: Any, policy: RetentionPolicySnapshot) -> dict[str, Any]:
         timeline = build_trace_timeline(run, policy)
         return {
             "run_id": str(run.id),
@@ -419,7 +413,7 @@ class AgentTraceService:
 
     def build_export(self, run: Any) -> dict[str, Any]:
         """Safe metadata export — no raw content, no tool arguments, no prompts."""
-        policy = RetentionPolicySnapshot.full_redact_policy()
+        RetentionPolicySnapshot.full_redact_policy()
         steps_summary = [
             {
                 "sequence": s.sequence,

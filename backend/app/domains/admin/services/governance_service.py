@@ -293,7 +293,9 @@ class GovernancePolicyService:
             enabling_cloud_fallback = (
                 not current_ps.cloud_fallback_allowed and ps_in.cloud_fallback_allowed
             )
-            if (turning_off_local_only or enabling_cloud_fallback) and not payload.cloud_fallback_warning_acknowledged:
+            if (
+                turning_off_local_only or enabling_cloud_fallback
+            ) and not payload.cloud_fallback_warning_acknowledged:
                 raise ValueError(
                     "cloud_fallback_warning_acknowledged must be true when enabling cloud "
                     "provider access from a local-only deployment."

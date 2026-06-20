@@ -1,6 +1,5 @@
-from uuid import UUID
-
 from datetime import date, datetime
+from uuid import UUID
 
 from sqlalchemy import (
     JSON,
@@ -23,11 +22,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import (
-    DocumentIngestionSource,
     DocumentStatus,
     DocumentTrustStatus,
     GraphExtractionStatus,
-    OcrQualityStatus,
 )
 
 

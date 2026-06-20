@@ -8,23 +8,23 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
 
-WEBHOOK_EVENT_TYPES = frozenset({
-    "document.indexed",
-    "document.failed",
-    "document.deleted",
-    "evaluation.completed",
-    "evaluation.failed",
-    "feedback.created",
-    "connector.sync_failed",
-    "quota.reached",
-})
+WEBHOOK_EVENT_TYPES = frozenset(
+    {
+        "document.indexed",
+        "document.failed",
+        "document.deleted",
+        "evaluation.completed",
+        "evaluation.failed",
+        "feedback.created",
+        "connector.sync_failed",
+        "quota.reached",
+    }
+)
 
 
 class Webhook(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "webhooks"
-    __table_args__ = (
-        Index("idx_webhooks_org_id", "organization_id"),
-    )
+    __table_args__ = (Index("idx_webhooks_org_id", "organization_id"),)
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -81,9 +81,7 @@ class WebhookDelivery(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     http_status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     response_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    next_retry_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     webhook = relationship("Webhook", back_populates="deliveries")

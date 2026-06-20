@@ -53,7 +53,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
-from app.auth.factory import get_auth_provider
+import app.core.langfuse_tracer as tracer_module
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, LangfuseRedactionMode, settings
 from app.core.langfuse_tracer import (
@@ -64,12 +64,8 @@ from app.core.langfuse_tracer import (
     shutdown_langfuse,
     trace_chat_query,
 )
-from app.db.session import get_db_session
 from app.main import app
 from app.models.enums import OrganizationRole
-
-import app.core.langfuse_tracer as tracer_module
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -157,7 +153,9 @@ def test_init_langfuse_disabled_missing_base_url() -> None:
     with (
         patch.object(settings, "langfuse_enabled", True),
         patch.object(settings, "langfuse_public_key", "pk-test"),
-        patch.object(settings, "langfuse_secret_key", MagicMock(get_secret_value=lambda: "sk-test")),
+        patch.object(
+            settings, "langfuse_secret_key", MagicMock(get_secret_value=lambda: "sk-test")
+        ),
         patch.object(settings, "langfuse_base_url", None),
     ):
         result = init_langfuse(runtime="api")
@@ -175,7 +173,9 @@ def test_init_langfuse_handles_import_error() -> None:
     with (
         patch.object(settings, "langfuse_enabled", True),
         patch.object(settings, "langfuse_public_key", "pk-test"),
-        patch.object(settings, "langfuse_secret_key", MagicMock(get_secret_value=lambda: "sk-test")),
+        patch.object(
+            settings, "langfuse_secret_key", MagicMock(get_secret_value=lambda: "sk-test")
+        ),
         patch.object(settings, "langfuse_base_url", "http://localhost:3030"),
         patch("builtins.__import__", side_effect=ImportError("langfuse not installed")),
     ):
@@ -196,7 +196,9 @@ def test_init_langfuse_success() -> None:
     with (
         patch.object(settings, "langfuse_enabled", True),
         patch.object(settings, "langfuse_public_key", "pk-live"),
-        patch.object(settings, "langfuse_secret_key", MagicMock(get_secret_value=lambda: "sk-live")),
+        patch.object(
+            settings, "langfuse_secret_key", MagicMock(get_secret_value=lambda: "sk-live")
+        ),
         patch.object(settings, "langfuse_base_url", "http://langfuse:3030"),
         patch.dict("sys.modules", {"langfuse": MagicMock(Langfuse=mock_langfuse_class)}),
     ):
@@ -496,9 +498,7 @@ def _member_token() -> str:
 async def test_langfuse_status_member_gets_403(_member_token: str) -> None:
     from httpx import ASGITransport, AsyncClient
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(
             "/api/v1/admin/langfuse/status",
             headers={"Authorization": f"Bearer {_member_token}"},
@@ -512,18 +512,18 @@ async def test_langfuse_status_admin_sees_status(_admin_token: str) -> None:
 
     with patch(
         "app.core.langfuse_tracer.check_langfuse_health",
-        AsyncMock(return_value={
-            "enabled": False,
-            "base_url_configured": False,
-            "keys_configured": False,
-            "client_initialized": False,
-            "reachable": False,
-            "last_error": None,
-        }),
+        AsyncMock(
+            return_value={
+                "enabled": False,
+                "base_url_configured": False,
+                "keys_configured": False,
+                "client_initialized": False,
+                "reachable": False,
+                "last_error": None,
+            }
+        ),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(
                 "/api/v1/admin/langfuse/status",
                 headers={"Authorization": f"Bearer {_admin_token}"},

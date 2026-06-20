@@ -32,7 +32,6 @@ from app.domains.chat.services.keyword_retrieval_service import (
     _has_exact_match,
 )
 
-
 # ---------------------------------------------------------------------------
 # Exact-match token detection
 # ---------------------------------------------------------------------------
@@ -137,7 +136,6 @@ def _make_session(rows: list[dict]) -> AsyncMock:
 
 
 class TestKeywordRetrievalService:
-
     @pytest.mark.asyncio
     async def test_empty_query_returns_no_results(self) -> None:
         service = KeywordRetrievalService()
@@ -195,7 +193,14 @@ class TestKeywordRetrievalService:
         org_id = uuid4()
         doc_id = uuid4()
         chunk_id = uuid4()
-        rows = [_make_row(chunk_id=chunk_id, document_id=doc_id, text="GDPR article 5 applies here", rank_score=0.5)]
+        rows = [
+            _make_row(
+                chunk_id=chunk_id,
+                document_id=doc_id,
+                text="GDPR article 5 applies here",
+                rank_score=0.5,
+            )
+        ]
 
         service = KeywordRetrievalService()
         session = _make_session(rows)

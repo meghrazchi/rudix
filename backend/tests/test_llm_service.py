@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 from decimal import Decimal
 
 import pytest
@@ -137,7 +136,9 @@ async def test_generate_answer_retries_invalid_json_then_succeeds(
 
     monkeypatch.setattr("app.domains.chat.services.llm_service.asyncio.sleep", _fake_sleep)
 
-    service = LLMService(retry_max_attempts=2, retry_base_seconds=0.1, retry_max_seconds=1.0, provider=provider)
+    service = LLMService(
+        retry_max_attempts=2, retry_base_seconds=0.1, retry_max_seconds=1.0, provider=provider
+    )
 
     result = await service.generate_answer(prompt="test prompt")
 
@@ -171,7 +172,9 @@ async def test_generate_answer_disables_json_mode_when_unsupported() -> None:
 async def test_generate_answer_uses_fallback_parser_on_final_attempt() -> None:
     provider = FakeChatProvider(
         responses=[
-            _response(content='prefix {"answer":"Recovered","not_found":false,"citations":[]} suffix')
+            _response(
+                content='prefix {"answer":"Recovered","not_found":false,"citations":[]} suffix'
+            )
         ]
     )
     service = LLMService(retry_max_attempts=1, provider=provider)
@@ -190,7 +193,9 @@ async def test_generate_answer_retries_transient_provider_error(
     provider = FakeChatProvider(
         responses=[
             ProviderUnavailableError("temporary network failure"),
-            _response(content='{"answer":"Recovered after retry","not_found":false,"citations":[]}'),
+            _response(
+                content='{"answer":"Recovered after retry","not_found":false,"citations":[]}'
+            ),
         ]
     )
     sleep_calls: list[float] = []
@@ -199,7 +204,9 @@ async def test_generate_answer_retries_transient_provider_error(
         sleep_calls.append(seconds)
 
     monkeypatch.setattr("app.domains.chat.services.llm_service.asyncio.sleep", _fake_sleep)
-    service = LLMService(retry_max_attempts=2, retry_base_seconds=0.2, retry_max_seconds=1.0, provider=provider)
+    service = LLMService(
+        retry_max_attempts=2, retry_base_seconds=0.2, retry_max_seconds=1.0, provider=provider
+    )
 
     result = await service.generate_answer(prompt="test prompt")
 
@@ -239,7 +246,9 @@ async def test_generate_answer_raises_after_transient_retry_exhaustion(
         sleep_calls.append(seconds)
 
     monkeypatch.setattr("app.domains.chat.services.llm_service.asyncio.sleep", _fake_sleep)
-    service = LLMService(retry_max_attempts=2, retry_base_seconds=0.3, retry_max_seconds=1.0, provider=provider)
+    service = LLMService(
+        retry_max_attempts=2, retry_base_seconds=0.3, retry_max_seconds=1.0, provider=provider
+    )
 
     with pytest.raises(TransientLLMServiceError):
         await service.generate_answer(prompt="test prompt")

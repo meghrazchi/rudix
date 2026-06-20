@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import ClassVar
 from uuid import uuid4
 
 import pytest
@@ -31,7 +32,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from app.auth.token_codec import create_app_access_token
 from app.db.session import get_db_session
 from app.domains.documents.repositories.documents import DocumentRepository
-from app.domains.documents.services.ocr_service import OcrDocumentResult, OcrPageResult, run_ocr
+from app.domains.documents.services.ocr_service import OcrDocumentResult, OcrPageResult
 from app.main import app
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
@@ -276,7 +277,7 @@ async def test_member_cannot_set_ocr_language(member_client, db_session: AsyncSe
 async def test_ocr_config_for_other_org_document_returns_404(
     admin_client, db_session: AsyncSession
 ) -> None:
-    client, org_id, user_id = admin_client
+    client, _org_id, _user_id = admin_client
 
     other_org = Organization(id=uuid4(), name="Other", slug=f"other2-{uuid4()}")
     other_user = User(id=uuid4(), email=f"o2-{uuid4()}@example.com", hashed_password="x")
@@ -334,7 +335,7 @@ async def test_reindex_with_ocr_languages_stores_override(
 
     # Stub the task so it doesn't actually run.
     class FakeTask:
-        called_with: list = []
+        called_with: ClassVar[list] = []
 
         def delay(self, *args, **kwargs) -> object:
             FakeTask.called_with.append((args, kwargs))

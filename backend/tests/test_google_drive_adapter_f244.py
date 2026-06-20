@@ -31,7 +31,6 @@ Covers:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
@@ -44,7 +43,6 @@ from app.domains.connectors.providers.google_drive.adapter import (
 )
 from app.domains.connectors.providers.google_drive.normalizer import (
     NATIVE_EXPORT_MIME,
-    UNSUPPORTED_MIME_TYPES,
     _file_content_hash,
     _folder_content_hash,
     is_google_folder,
@@ -58,7 +56,6 @@ from app.domains.connectors.services.provider_adapter import (
     ConnectorAuthError,
     ConnectorProviderUnavailableError,
     ConnectorRateLimitError,
-    DeltaItem,
     ItemPage,
 )
 from app.models.enums import ExternalItemType, ExternalItemVisibility
@@ -1165,8 +1162,8 @@ async def test_google_drive_adapter_passes_contract_suite() -> None:
 
 
 def test_google_drive_adapter_is_registered() -> None:
-    from app.domains.connectors.services.provider_adapter import default_sync_adapter_registry
     import app.domains.connectors.providers  # noqa: F401
+    from app.domains.connectors.services.provider_adapter import default_sync_adapter_registry
 
     adapter = default_sync_adapter_registry.get("google_drive")
     assert adapter is not None

@@ -147,9 +147,7 @@ class GovernancePolicyState(BaseModel):
     allowed_tool_names: list[str] = Field(default_factory=list)
     budgets: GovernanceBudgetConfig
     external_mcp_servers: list[ExternalMCPServerPolicy] = Field(default_factory=list)
-    provider_security: ProviderSecurityPolicy = Field(
-        default_factory=ProviderSecurityPolicy
-    )
+    provider_security: ProviderSecurityPolicy = Field(default_factory=ProviderSecurityPolicy)
 
 
 class GovernanceMCPStatus(BaseModel):

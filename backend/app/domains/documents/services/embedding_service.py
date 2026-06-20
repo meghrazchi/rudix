@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from decimal import Decimal
-from time import perf_counter
 from typing import Protocol
 from uuid import UUID
 
@@ -83,8 +82,7 @@ class EmbeddingService:
         self.retry_max_seconds = retry_max_seconds or settings.embedding_retry_max_seconds
         self.cost_per_million_tokens_usd = Decimal(
             str(
-                cost_per_million_tokens_usd
-                or settings.openai_embedding_cost_per_million_tokens_usd
+                cost_per_million_tokens_usd or settings.openai_embedding_cost_per_million_tokens_usd
             )
         )
         self._provider = provider

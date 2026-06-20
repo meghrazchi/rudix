@@ -1020,11 +1020,7 @@ class GraphService:
         entities: list[dict] = list(entity_result.get("items") or [])
         entity_count: int = int(entity_result.get("total") or 0)
 
-        confidences = [
-            float(e["confidence"])
-            for e in entities
-            if e.get("confidence") is not None
-        ]
+        confidences = [float(e["confidence"]) for e in entities if e.get("confidence") is not None]
         avg_confidence: float | None = (
             round(sum(confidences) / len(confidences), 4) if confidences else None
         )
@@ -1053,7 +1049,9 @@ class GraphService:
 
         last_run_at: str | None = None
         if extraction_runs:
-            last_run_at = str(extraction_runs[0].get("updated_at") or extraction_runs[0].get("created_at") or "")
+            last_run_at = str(
+                extraction_runs[0].get("updated_at") or extraction_runs[0].get("created_at") or ""
+            )
 
         return {
             "entity_count": entity_count,
@@ -1138,7 +1136,9 @@ class GraphService:
         """
         from app.domains.graph.repositories import metrics_repository
 
-        org_uuid = UUID(str(organization_id)) if not isinstance(organization_id, UUID) else organization_id
+        org_uuid = (
+            UUID(str(organization_id)) if not isinstance(organization_id, UUID) else organization_id
+        )
 
         if not self.is_available():
             return {

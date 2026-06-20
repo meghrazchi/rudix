@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.domains.documents.services.language_detection_service import (
     LanguageDetectionResult,
     confidence_bucket,
     detect_language_from_text,
 )
-
 
 # ---------------------------------------------------------------------------
 # detect_language_from_text

@@ -75,9 +75,7 @@ async def list_webhooks(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> WebhookListResponse:
     organization_id = _org_id(principal)
-    webhooks = await webhooks_repository.list_webhooks(
-        db_session, organization_id=organization_id
-    )
+    webhooks = await webhooks_repository.list_webhooks(db_session, organization_id=organization_id)
     items = [webhooks_service.to_webhook_response(w) for w in webhooks]
     return WebhookListResponse(items=items, total=len(items))
 
@@ -164,9 +162,7 @@ async def get_webhook(
         db_session, webhook_id=parsed_id, organization_id=organization_id
     )
     if webhook is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
     return webhooks_service.to_webhook_response(webhook)
 
 
@@ -196,9 +192,7 @@ async def update_webhook(
         db_session, webhook_id=parsed_id, organization_id=organization_id
     )
     if webhook is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
 
     webhook = await webhooks_repository.update_webhook(
         db_session,
@@ -256,9 +250,7 @@ async def delete_webhook(
         db_session, webhook_id=parsed_id, organization_id=organization_id
     )
     if webhook is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
 
     webhook_name = webhook.name
     await webhooks_repository.delete_webhook(db_session, webhook=webhook)
@@ -312,9 +304,7 @@ async def rotate_webhook_secret(
         db_session, webhook_id=parsed_id, organization_id=organization_id
     )
     if webhook is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
 
     raw_secret = WebhooksService.generate_raw_secret()
     secret_hash = WebhooksService.hash_secret(raw_secret)
@@ -382,9 +372,7 @@ async def test_webhook(
         db_session, webhook_id=parsed_id, organization_id=organization_id
     )
     if webhook is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
     if webhook.status == "disabled":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Cannot test a disabled webhook"
@@ -409,6 +397,7 @@ async def test_webhook(
     # generate a one-time nonce signature so the receiver can verify the header
     # format, but the hash won't match without the raw secret.
     import time as _time
+
     ts = int(_time.time())
     headers = {
         "Content-Type": "application/json",
@@ -423,7 +412,9 @@ async def test_webhook(
     final_status = "failed"
 
     try:
-        async with httpx.AsyncClient(timeout=_TEST_DELIVERY_TIMEOUT, follow_redirects=False) as client:
+        async with httpx.AsyncClient(
+            timeout=_TEST_DELIVERY_TIMEOUT, follow_redirects=False
+        ) as client:
             resp = await client.post(webhook.url, content=body_bytes, headers=headers)
             http_status_code = resp.status_code
             response_body = resp.text[:4096]
@@ -480,9 +471,7 @@ async def list_webhook_deliveries(
         db_session, webhook_id=parsed_id, organization_id=organization_id
     )
     if webhook is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
 
     deliveries = await webhooks_repository.list_deliveries(
         db_session, webhook_id=parsed_id, organization_id=organization_id

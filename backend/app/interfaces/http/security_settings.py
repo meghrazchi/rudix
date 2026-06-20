@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
@@ -46,6 +46,7 @@ _ADMIN_ROLES = ("owner", "admin")
 
 
 # ── Response schemas ──────────────────────────────────────────────────────────
+
 
 class SessionItem(BaseModel):
     id: str
@@ -101,6 +102,7 @@ class AuditEventList(BaseModel):
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
+
 def _parse_device(user_agent: str | None) -> str:
     if not user_agent:
         return "Unknown device"
@@ -153,9 +155,7 @@ def _audit_summary(action: str, resource_type: str) -> str:
 
 
 async def _load_sso(db: AsyncSession, org_uuid: UUID) -> OrgSSOConfig | None:
-    result = await db.execute(
-        select(OrgSSOConfig).where(OrgSSOConfig.organization_id == org_uuid)
-    )
+    result = await db.execute(select(OrgSSOConfig).where(OrgSSOConfig.organization_id == org_uuid))
     return result.scalar_one_or_none()
 
 
@@ -176,6 +176,7 @@ def _policy_from_sso(sso: OrgSSOConfig | None) -> LoginPolicy:
 
 
 # ── GET /security/sessions ────────────────────────────────────────────────────
+
 
 @router.get("/sessions", response_model=SessionList)
 async def get_sessions(
@@ -202,6 +203,7 @@ async def get_sessions(
 
 # ── DELETE /security/sessions/{session_id} ────────────────────────────────────
 
+
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_session(
     session_id: str,
@@ -217,6 +219,7 @@ async def revoke_session(
 
 # ── POST /security/sessions/revoke-all ───────────────────────────────────────
 
+
 @router.post("/sessions/revoke-all")
 async def revoke_all_other_sessions(
     _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
@@ -225,6 +228,7 @@ async def revoke_all_other_sessions(
 
 
 # ── GET /security/login-policy ────────────────────────────────────────────────
+
 
 @router.get("/login-policy", response_model=LoginPolicy)
 async def get_login_policy(
@@ -238,6 +242,7 @@ async def get_login_policy(
 
 
 # ── PATCH /security/login-policy ─────────────────────────────────────────────
+
 
 @router.patch("/login-policy", response_model=LoginPolicy)
 async def update_login_policy(
@@ -258,6 +263,7 @@ async def update_login_policy(
 
 
 # ── GET /security/posture ─────────────────────────────────────────────────────
+
 
 @router.get("/posture", response_model=SecurityPosture)
 async def get_security_posture(
@@ -300,6 +306,7 @@ async def get_security_posture(
 
 
 # ── GET /security/audit-events ────────────────────────────────────────────────
+
 
 @router.get("/audit-events", response_model=AuditEventList)
 async def get_audit_events(

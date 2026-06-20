@@ -34,7 +34,6 @@ import pytest
 
 from app.domains.connectors.providers.notion.adapter import NotionConnectorAdapter
 from app.domains.connectors.providers.notion.normalizer import (
-    NOTION_FILE_BLOCK_TYPES,
     extract_database_title,
     extract_page_title,
     extract_parent_id,
@@ -664,7 +663,9 @@ class TestListItemsFullScan:
         assert page.has_more is False
 
     @pytest.mark.asyncio
-    async def test_includes_databases_as_folder_items(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_includes_databases_as_folder_items(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         resp = _json_response(_SEARCH_RESPONSE_WITH_DB, url="https://api.notion.com/v1/search")
         _patch_notion_client(monkeypatch, [resp])
         adapter = NotionConnectorAdapter()
@@ -719,9 +720,7 @@ class TestListItemsFullScan:
         assert page.next_cursor == {"start_cursor": "cursor-abc"}
 
     @pytest.mark.asyncio
-    async def test_include_comments_fetches_comments(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_include_comments_fetches_comments(self, monkeypatch: pytest.MonkeyPatch) -> None:
         search_resp = _json_response(
             _SEARCH_RESPONSE_SINGLE, url="https://api.notion.com/v1/search"
         )
@@ -760,7 +759,9 @@ class TestListItemsFullScan:
 class TestListItemsScoped:
     @pytest.mark.asyncio
     async def test_scoped_to_page_ids(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        page_resp = _json_response(_SAMPLE_PAGE, url=f"https://api.notion.com/v1/pages/{_SAMPLE_PAGE_ID}")
+        page_resp = _json_response(
+            _SAMPLE_PAGE, url=f"https://api.notion.com/v1/pages/{_SAMPLE_PAGE_ID}"
+        )
         page_resp = httpx.Response(
             status_code=200,
             headers={"content-type": "application/json"},
@@ -1001,9 +1002,7 @@ class TestDownloadFileContent:
         empty_resp = httpx.Response(
             status_code=200,
             headers={"content-type": "application/json"},
-            content=json.dumps(
-                {"object": "list", "results": [], "has_more": False}
-            ).encode(),
+            content=json.dumps({"object": "list", "results": [], "has_more": False}).encode(),
             request=httpx.Request(
                 "GET",
                 f"https://api.notion.com/v1/blocks/{_SAMPLE_PAGE_ID}/children",
@@ -1024,9 +1023,7 @@ class TestDownloadFileContent:
             status_code=200,
             headers={"content-type": "application/json"},
             content=json.dumps(_SAMPLE_FILE_BLOCK).encode(),
-            request=httpx.Request(
-                "GET", "https://api.notion.com/v1/blocks/block-file-0001"
-            ),
+            request=httpx.Request("GET", "https://api.notion.com/v1/blocks/block-file-0001"),
         )
         file_bytes = b"%PDF-1.4 fake content"
         file_resp = httpx.Response(
@@ -1045,7 +1042,7 @@ class TestDownloadFileContent:
             decrypted_credential=_BASE_CRED,
         )
         assert result is not None
-        content, filename, mime_type = result
+        content, _filename, mime_type = result
         assert mime_type == "application/pdf"
         assert content == file_bytes
 

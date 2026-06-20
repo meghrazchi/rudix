@@ -579,31 +579,6 @@ class RelationRepository:
             )
             return 0
 
-        async def _tx(tx: Any) -> int:
-            result = await tx.run(
-                cypher,
-                org=str(organization_id),
-                relation_id=str(relation_id),
-            )
-            records = await result.data()
-            return records[0]["cnt"] if records else 0
-
-        try:
-            async with driver.session(database=settings.neo4j_database) as session:
-                cnt = await session.execute_write(_tx)
-                if asyncio.iscoroutine(cnt):
-                    cnt = await cnt
-            return cnt > 0
-        except Exception as exc:
-            logger.warning(
-                "graph.relation.delete_by_id_error",
-                organization_id=str(organization_id),
-                relation_id=str(relation_id),
-                error=exc.__class__.__name__,
-                detail=str(exc),
-            )
-            return False
-
     # ------------------------------------------------------------------
     # Legacy get/delete by entity pair (F281 — kept for compatibility)
     # ------------------------------------------------------------------

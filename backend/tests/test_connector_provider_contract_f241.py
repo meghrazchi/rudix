@@ -253,6 +253,7 @@ async def test_contract_suite_passes_for_valid_adapter() -> None:
 @pytest.mark.asyncio
 async def test_contract_catches_bad_content_hash() -> None:
     from unittest.mock import AsyncMock, patch
+
     from app.domains.connectors.services.provider_adapter import ItemPage
 
     item = _make_item(organization_id=_ORG_ID)
@@ -276,6 +277,7 @@ async def test_contract_catches_bad_content_hash() -> None:
 @pytest.mark.asyncio
 async def test_contract_catches_has_more_without_cursor() -> None:
     from unittest.mock import AsyncMock, patch
+
     from app.domains.connectors.services.provider_adapter import ItemPage
 
     adapter = FakeProviderAdapter()
@@ -296,6 +298,7 @@ async def test_contract_catches_has_more_without_cursor() -> None:
 @pytest.mark.asyncio
 async def test_contract_catches_cursor_with_has_more_false() -> None:
     from unittest.mock import AsyncMock, patch
+
     from app.domains.connectors.services.provider_adapter import ItemPage
 
     adapter = FakeProviderAdapter()
@@ -315,6 +318,7 @@ async def test_contract_catches_cursor_with_has_more_false() -> None:
 
 def test_normalized_item_rejects_comment_without_parent_id() -> None:
     from uuid import UUID
+
     from pydantic import ValidationError
 
     # NormalizedExternalItem raises at construction time for comments without parent
@@ -337,6 +341,7 @@ def test_normalized_item_rejects_comment_without_parent_id() -> None:
 @pytest.mark.asyncio
 async def test_contract_catches_delta_item_without_item_when_not_deleted() -> None:
     from unittest.mock import AsyncMock, patch
+
     from app.domains.connectors.services.provider_adapter import DeltaPage
 
     item = _make_item(organization_id=_ORG_ID)
@@ -365,9 +370,10 @@ async def test_contract_catches_delta_item_without_item_when_not_deleted() -> No
 def provider_client():
     """TestClient with get_current_principal stubbed to admin."""
     from fastapi.testclient import TestClient
-    from app.main import app
+
     from app.auth.dependencies import get_current_principal
     from app.auth.models import AuthenticatedPrincipal
+    from app.main import app
     from app.models.enums import OrganizationRole
 
     principal = AuthenticatedPrincipal(

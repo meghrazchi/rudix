@@ -5,8 +5,6 @@ per-case comparison, filters (difficulty, tags, case_status, failure_type),
 CSV/JSON export, org isolation, and role guards.
 """
 
-import csv
-import io
 import json
 import os
 from uuid import uuid4
@@ -42,7 +40,7 @@ from app.db.session import get_db_session
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.main import app
 from app.models.enums import EvaluationRunStatus, OrganizationRole
-from app.models.evaluation import EvaluationResult, EvaluationRun
+from app.models.evaluation import EvaluationRun
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
@@ -833,7 +831,7 @@ async def test_list_all_results_for_run_returns_all_rows(
 
     rows = await repo.list_all_evaluation_results_for_run(db_session, evaluation_run_id=run.id)
     assert len(rows) == 5
-    for result, question in rows:
+    for result, _question in rows:
         assert result.evaluation_run_id == run.id
 
 

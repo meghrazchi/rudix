@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from types import SimpleNamespace
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -43,7 +43,6 @@ from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Fake infrastructure
@@ -551,7 +550,7 @@ async def test_language_setting_cannot_bypass_org_isolation(
     other_user = User(id=uuid4(), email=f"other-{uuid4()}@example.com", hashed_password="x")
     db_session.add_all([other_org, other_user])
     await db_session.flush()
-    _, other_chunk = await _seed_doc_chunk(
+    _, _other_chunk = await _seed_doc_chunk(
         db_session, org=other_org, user=other_user, text="Confidential data."
     )
 

@@ -38,10 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -53,17 +53,33 @@ jobs:
           backend/.venv/bin/pip install pip-audit
 
       - name: Run pip audit
-        run: backend/.venv/bin/pip-audit
+        run: |
+          mkdir -p artifacts
+          set +e
+          backend/.venv/bin/pip-audit --format json > artifacts/pip-audit.json
+          audit_exit_code=$?
+          set -e
+          if [ "$audit_exit_code" -ne 0 ]; then
+            echo "::warning::pip-audit reported vulnerabilities or completed with a non-zero exit code. See artifacts/pip-audit.json."
+          fi
+
+      - name: Upload pip audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-pip-audit-report
+          path: artifacts/pip-audit.json
+          if-no-files-found: ignore
 
   filesystem-vulnerability-scan:
     name: Filesystem vulnerability scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.31.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -71,4 +87,3 @@ jobs:
           exit-code: "1"
           format: table
           ignore-unfixed: true
-

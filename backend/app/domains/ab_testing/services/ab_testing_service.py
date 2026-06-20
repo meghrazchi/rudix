@@ -7,13 +7,13 @@ and evaluation run metric extraction.  Does not run the evaluation engine itself
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.domains.ab_testing.schemas.ab_testing import (
     VariantMetricDelta,
     VariantRunSummary,
 )
-from app.models.ab_experiment import AbExperimentRun, AbExperimentVariantRun
+from app.models.ab_experiment import AbExperimentVariantRun
 
 # Ordered list of metrics used in comparison reports (higher-is-better)
 _QUALITY_METRICS: list[tuple[str, str]] = [
@@ -149,7 +149,7 @@ def build_comparison_report(
         "experiment_id": experiment_id,
         "experiment_name": experiment_name,
         "evaluation_set_id": evaluation_set_id,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "note": note,
         "variant_count": len(variant_summaries),
         "completed_variant_count": len(completed),

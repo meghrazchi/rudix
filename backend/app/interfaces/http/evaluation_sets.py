@@ -1,3 +1,4 @@
+from datetime import UTC
 from typing import Annotated
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.evaluations.schemas.evaluations import (
+    _MIN_COVERAGE_WARNING_THRESHOLD,
     ConvertFeedbackToCasesRequest,
     ConvertFeedbackToCasesResponse,
     CreateEvaluationQuestionRequest,
@@ -31,7 +33,6 @@ from app.domains.evaluations.schemas.evaluations import (
     UpdateEvaluationQuestionRequest,
     UpdateEvaluationSetRequest,
     ValidateDatasetResponse,
-    _MIN_COVERAGE_WARNING_THRESHOLD,
 )
 from app.models.enums import OrganizationRole
 from app.models.evaluation import EvaluationDatasetVersion, EvaluationQuestion, EvaluationSet
@@ -802,7 +803,6 @@ async def convert_feedback_to_cases(
 
         # Auto-update associated review item to eval_created
         from datetime import datetime as _dt
-        from datetime import timezone as _tz
 
         review_result = await db_session.execute(
             _select(_ReviewItem).where(_ReviewItem.feedback_id == fid)
@@ -811,7 +811,7 @@ async def convert_feedback_to_cases(
         if review_item is not None and review_item.status not in ("fixed", "rejected", "duplicate"):
             review_item.status = "eval_created"
             review_item.linked_eval_question_id = question.id
-            review_item.resolved_at = _dt.now(tz=_tz.utc)
+            review_item.resolved_at = _dt.now(tz=UTC)
             db_session.add(review_item)
 
     if created > 0:

@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_roles
@@ -179,7 +179,9 @@ async def get_effective_policy_for_run(
     try:
         run_uuid = UUID(run_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found"
+        ) from exc
 
     run = await _agent_run_repo.get_agent_run(
         db_session, agent_run_id=run_uuid, organization_id=organization_id

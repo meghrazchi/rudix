@@ -105,9 +105,7 @@ class OpenAICompatibleChatProvider:
                 f"Local LLM rate limit exceeded: {_redact(str(exc))}"
             ) from exc
         except APITimeoutError as exc:
-            raise ProviderTimeoutError(
-                f"Local LLM request timed out: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderTimeoutError(f"Local LLM request timed out: {_redact(str(exc))}") from exc
         except APIConnectionError as exc:
             raise ProviderUnavailableError(
                 f"Local LLM is unreachable: {_redact(str(exc))}"
@@ -126,17 +124,13 @@ class OpenAICompatibleChatProvider:
                 f"Local LLM bad request: {_redact(str(exc))}"
             ) from exc
         except InternalServerError as exc:
-            raise ProviderInternalError(
-                f"Local LLM internal error: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderInternalError(f"Local LLM internal error: {_redact(str(exc))}") from exc
         except OSError as exc:
             raise ProviderUnavailableError(
                 f"Network error reaching local LLM: {_redact(str(exc))}"
             ) from exc
         except Exception as exc:
-            raise ProviderInternalError(
-                f"Unexpected local LLM error: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderInternalError(f"Unexpected local LLM error: {_redact(str(exc))}") from exc
 
         latency_ms = int((perf_counter() - started) * 1000)
         choices = getattr(response, "choices", None) or []

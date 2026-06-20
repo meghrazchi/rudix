@@ -6,7 +6,6 @@ from uuid import UUID
 from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievedCandidate
 from app.domains.chat.services.query_retrieval_service import RetrievedCandidate
 
-
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
@@ -79,9 +78,7 @@ def merge_with_rrf(
     keyword_penalty = len(keyword_candidates) + 1
 
     # Index data from each source.
-    vector_data: dict[str, RetrievedCandidate] = {
-        str(c.chunk_id): c for c in vector_candidates
-    }
+    vector_data: dict[str, RetrievedCandidate] = {str(c.chunk_id): c for c in vector_candidates}
     keyword_data: dict[str, KeywordRetrievedCandidate] = {
         str(c.chunk_id): c for c in keyword_candidates
     }
@@ -93,9 +90,8 @@ def merge_with_rrf(
         v_rank = vector_rank_map.get(chunk_id_str, vector_penalty)
         kw_rank = keyword_rank_map.get(chunk_id_str, keyword_penalty)
 
-        rrf = (
-            vector_weight * _rrf_score(v_rank, rrf_k)
-            + keyword_weight * _rrf_score(kw_rank, rrf_k)
+        rrf = vector_weight * _rrf_score(v_rank, rrf_k) + keyword_weight * _rrf_score(
+            kw_rank, rrf_k
         )
 
         # Pull metadata from whichever source has this chunk.

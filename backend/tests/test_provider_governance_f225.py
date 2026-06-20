@@ -66,7 +66,6 @@ from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog
 from app.models.user import User
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -513,9 +512,7 @@ async def test_O_audit_log_recorded_on_provider_security_update(
         },
     )
 
-    result = await db_session.execute(
-        select(AuditLog).where(AuditLog.organization_id == org.id)
-    )
+    result = await db_session.execute(select(AuditLog).where(AuditLog.organization_id == org.id))
     logs = result.scalars().all()
     assert len(logs) >= 1
     actions = [log.action for log in logs]

@@ -116,7 +116,7 @@ async def list_users(
     authorization: Annotated[str | None, Header()] = None,
     startIndex: int = 1,
     count: int = 100,
-    filter: str | None = None,  # noqa: A002
+    filter: str | None = None,
 ) -> JSONResponse:
     config = await _authenticate(authorization, db_session)
 

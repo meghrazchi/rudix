@@ -11,7 +11,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.core.logging import get_logger
 
@@ -90,7 +90,7 @@ async def seed_graph() -> None:
     params = {
         "org_id": _ORG_ID,
         "workspace_id": _WORKSPACE_ID,
-        "now": datetime.now(timezone.utc).isoformat(),
+        "now": datetime.now(UTC).isoformat(),
     }
 
     async with driver.session(database=settings.neo4j_database) as session:

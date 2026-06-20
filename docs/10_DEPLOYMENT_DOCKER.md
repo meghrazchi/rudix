@@ -170,7 +170,6 @@ qdrant-client
 pymupdf
 python-docx
 openai
-ragas
 sentry-sdk
 python-multipart
 tenacity

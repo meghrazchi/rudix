@@ -1,3 +1,4 @@
+from app.domains.documents.extraction.extraction_service import extract_document
 from app.domains.documents.extraction.models import (
     BoundingBox,
     DocumentProfile,
@@ -8,7 +9,6 @@ from app.domains.documents.extraction.models import (
     TableCell,
     TextBlock,
 )
-from app.domains.documents.extraction.extraction_service import extract_document
 
 __all__ = [
     "BoundingBox",

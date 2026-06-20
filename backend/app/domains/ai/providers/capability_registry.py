@@ -38,27 +38,19 @@ class ModelCapabilityRegistry:
     def assert_supports_tool_calling(self, provider: str, model_name: str) -> None:
         cap = self.get(provider, model_name)
         if cap is not None and not cap.supports_tool_calling:
-            raise UnsupportedCapabilityError(
-                f"Model '{model_name}' does not support tool calling"
-            )
+            raise UnsupportedCapabilityError(f"Model '{model_name}' does not support tool calling")
 
     def assert_is_embedding_model(self, provider: str, model_name: str) -> None:
         cap = self.get(provider, model_name)
         if cap is not None and not cap.is_embedding_model:
-            raise UnsupportedCapabilityError(
-                f"Model '{model_name}' is not an embedding model"
-            )
+            raise UnsupportedCapabilityError(f"Model '{model_name}' is not an embedding model")
 
     def assert_is_chat_model(self, provider: str, model_name: str) -> None:
         cap = self.get(provider, model_name)
         if cap is not None and not cap.is_chat_model:
-            raise UnsupportedCapabilityError(
-                f"Model '{model_name}' is not a chat model"
-            )
+            raise UnsupportedCapabilityError(f"Model '{model_name}' is not a chat model")
 
-    def assert_embedding_dimension(
-        self, provider: str, model_name: str, expected_dim: int
-    ) -> None:
+    def assert_embedding_dimension(self, provider: str, model_name: str, expected_dim: int) -> None:
         cap = self.get(provider, model_name)
         if cap is not None and cap.embedding_dimension is not None:
             if cap.embedding_dimension != expected_dim:

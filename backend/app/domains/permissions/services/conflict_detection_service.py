@@ -43,7 +43,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.permissions.repositories.conflicts import ConflictsRepository
 from app.domains.permissions.schemas.conflicts import ScanResult
 from app.models.authorization import (
-    AuthorizationConflict,
     ResourceAccessDeny,
     ResourceAccessGrant,
     SourceAclMapping,
@@ -102,6 +101,7 @@ def remediation_for(conflict_type: str) -> list[str]:
 
 # ── Scan result container ──────────────────────────────────────────────────────
 
+
 @dataclass
 class _ScanStats:
     conflicts_detected: int = 0
@@ -128,9 +128,7 @@ class ConflictDetectionService:
             ResourceAccessGrant.organization_id == organization_id,
             ResourceAccessGrant.status == "active",
         )
-        grants: list[ResourceAccessGrant] = list(
-            (await db.execute(grants_q)).scalars().all()
-        )
+        grants: list[ResourceAccessGrant] = list((await db.execute(grants_q)).scalars().all())
         stats.grants_scanned = len(grants)
 
         # Load all active denies
@@ -138,9 +136,7 @@ class ConflictDetectionService:
             ResourceAccessDeny.organization_id == organization_id,
             ResourceAccessDeny.status == "active",
         )
-        denies: list[ResourceAccessDeny] = list(
-            (await db.execute(denies_q)).scalars().all()
-        )
+        denies: list[ResourceAccessDeny] = list((await db.execute(denies_q)).scalars().all())
         stats.denies_scanned = len(denies)
 
         # Load ACL mappings
@@ -148,15 +144,12 @@ class ConflictDetectionService:
             SourceAclMapping.organization_id == organization_id,
             SourceAclMapping.is_active.is_(True),
         )
-        acls: list[SourceAclMapping] = list(
-            (await db.execute(acl_q)).scalars().all()
-        )
+        acls: list[SourceAclMapping] = list((await db.execute(acl_q)).scalars().all())
         stats.acl_scanned = len(acls)
 
         # ── 1. role_allow_resource_deny ──────────────────────────────────────
         deny_index: dict[tuple[str, str, str | None, str], ResourceAccessDeny] = {
-            (d.principal_type, d.principal_value, d.resource_id, d.action): d
-            for d in denies
+            (d.principal_type, d.principal_value, d.resource_id, d.action): d for d in denies
         }
         for grant in grants:
             key = (grant.principal_type, grant.principal_value, grant.resource_id, grant.action)
@@ -193,8 +186,9 @@ class ConflictDetectionService:
         active_connector_ids: set[str] = set()
         try:
             result = await db.execute(
-                text("SELECT id::text FROM connector_connections WHERE organization_id = :org_id")
-                .bindparams(org_id=str(organization_id))
+                text(
+                    "SELECT id::text FROM connector_connections WHERE organization_id = :org_id"
+                ).bindparams(org_id=str(organization_id))
             )
             active_connector_ids = {row[0] for row in result.fetchall()}
         except Exception:
@@ -260,7 +254,9 @@ class ConflictDetectionService:
             g for g in grants if g.resource_type == "document" and g.resource_id is not None
         ]
         if document_grants:
-            doc_ids = [UUID(g.resource_id) for g in document_grants if _is_valid_uuid(g.resource_id)]
+            doc_ids = [
+                UUID(g.resource_id) for g in document_grants if _is_valid_uuid(g.resource_id)
+            ]
             if doc_ids:
                 try:
                     result = await db.execute(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any
 
 
@@ -30,11 +31,11 @@ def parse_retry_after(headers: dict[str, str] | Any, *, default_seconds: int = 6
         pass
 
     try:
+        from datetime import datetime
         from email.utils import parsedate_to_datetime
-        from datetime import datetime, timezone
 
         retry_at = parsedate_to_datetime(raw)
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         delay = int((retry_at - now).total_seconds())
         return max(1, delay)
     except Exception:

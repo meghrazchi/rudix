@@ -11,11 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.authorization_service import AuthorizationService
-from app.auth.dependencies import get_current_principal, require_permission, require_roles
+from app.auth.dependencies import require_permission, require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.policy_engine import Action
 from app.auth.resource_context_builder import build_connector_resource_context
-from app.models.permissions import PermissionType
 from app.core.config import settings
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import sanitize_metadata
@@ -45,6 +44,7 @@ from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
 from app.models.connector import ConnectorConnection, ExternalItem
 from app.models.document import Document
 from app.models.enums import ConnectorAuthType, OrganizationRole
+from app.models.permissions import PermissionType
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 public_router = APIRouter(prefix="/connectors", tags=["connectors"])

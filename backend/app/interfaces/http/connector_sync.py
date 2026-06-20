@@ -526,9 +526,9 @@ async def resolve_sync_conflict(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SyncConflictResponse:
     org_id = _org_id(principal)
+    from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
     from app.domains.connectors.audit import ConnectorAuditAction
     from app.domains.connectors.repositories.connectors import ConnectorRepository
-    from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
 
     repo = ConnectorRepository()
     conflict = await repo.get_conflict(db_session, organization_id=org_id, conflict_id=conflict_id)

@@ -1,4 +1,5 @@
 """Tests for ModelCapabilityRegistry — F217."""
+
 from __future__ import annotations
 
 import os
@@ -136,7 +137,7 @@ def test_assert_embedding_dimension_passes_when_match() -> None:
 def test_assert_embedding_dimension_raises_on_mismatch() -> None:
     registry = ModelCapabilityRegistry()
     registry.register(_embedding_model(embedding_dimension=1536))
-    with pytest.raises(UnsupportedCapabilityError, match="1536.*3072"):
+    with pytest.raises(UnsupportedCapabilityError, match=r"1536.*3072"):
         registry.assert_embedding_dimension("openai", "text-embedding-test", 3072)
 
 

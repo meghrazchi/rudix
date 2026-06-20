@@ -105,7 +105,7 @@ def test_validate_upload_rejects_oversized_file() -> None:
 def test_validate_upload_rejects_pdf_with_wrong_magic_bytes() -> None:
     # A file that claims to be a PDF but starts with ZIP magic bytes (DOCX content).
     content = b"PK\x03\x04" + b"\x00" * 20 + b"fake pdf"
-    with pytest.raises(ValueError, match="file content does not match expected format for .pdf"):
+    with pytest.raises(ValueError, match=r"file content does not match expected format for \.pdf"):
         validate_upload(
             filename="evil.pdf",
             content_type="application/pdf",
@@ -117,7 +117,7 @@ def test_validate_upload_rejects_pdf_with_wrong_magic_bytes() -> None:
 def test_validate_upload_rejects_docx_with_wrong_magic_bytes() -> None:
     # A file that claims to be a DOCX but starts with PDF magic bytes.
     content = b"%PDF-1.4" + b"\x00" * 20 + b"fake docx"
-    with pytest.raises(ValueError, match="file content does not match expected format for .docx"):
+    with pytest.raises(ValueError, match=r"file content does not match expected format for \.docx"):
         validate_upload(
             filename="evil.docx",
             content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

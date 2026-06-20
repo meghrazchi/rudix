@@ -1,2 +1,1 @@
 """Billing domain helpers."""
-

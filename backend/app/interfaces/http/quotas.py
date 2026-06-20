@@ -41,7 +41,6 @@ from app.domains.quota.schemas.quota_schemas import (
 )
 from app.domains.quota.services.quota_service import (
     delete_policy_with_log,
-    get_effective_limits,
     get_quota_dashboard,
     upsert_policy_with_log,
 )

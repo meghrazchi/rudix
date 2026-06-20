@@ -81,10 +81,10 @@ def _policy_to_response(policy, organization_id: UUID) -> OrgMCPPolicyResponse:
         max_chunk_chars=getattr(policy, "max_chunk_chars", None),
         max_request_bytes=getattr(policy, "max_request_bytes", None),
         max_response_bytes=getattr(policy, "max_response_bytes", None),
-        updated_by_user_id=(
-            str(policy.updated_by_user_id) if policy.updated_by_user_id else None
-        ),
-        updated_at=policy.updated_at if hasattr(policy, "updated_at") and policy.updated_at else datetime.now(tz=UTC),
+        updated_by_user_id=(str(policy.updated_by_user_id) if policy.updated_by_user_id else None),
+        updated_at=policy.updated_at
+        if hasattr(policy, "updated_at") and policy.updated_at
+        else datetime.now(tz=UTC),
     )
 
 
@@ -117,8 +117,6 @@ async def update_mcp_policy(
     """Update MCP policy fields. Only fields present in the request body are changed."""
     organization_id, user_id = _org_and_user(principal)
     rid = _request_id(request)
-
-    from app.domains.mcp.repository import _UNSET
 
     upsert_kwargs: dict = {
         "organization_id": organization_id,
@@ -195,7 +193,7 @@ async def get_mcp_status(
     """Return the current MCP server status: feature flags, dependencies, transport config."""
     sdk_ok = True
     try:
-        from app.mcp.dependencies import MCPSDKUnavailableError, load_fastmcp_class
+        from app.mcp.dependencies import load_fastmcp_class
 
         load_fastmcp_class()
     except Exception:

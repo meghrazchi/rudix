@@ -73,9 +73,7 @@ async def sec_client(
     app.dependency_overrides.clear()
 
 
-async def _seed(
-    db: AsyncSession, *, role: OrganizationRole
-) -> tuple[User, Organization]:
+async def _seed(db: AsyncSession, *, role: OrganizationRole) -> tuple[User, Organization]:
     org = Organization(
         name=f"sec-{uuid4().hex[:8]}",
         slug=f"sec-{uuid4().hex[:8]}",

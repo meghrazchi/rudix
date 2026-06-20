@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from urllib.parse import urlparse, urlunparse, urlencode
+from urllib.parse import urlencode, urlparse, urlunparse
 
 
 def normalize_url(url: str) -> str:

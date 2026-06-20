@@ -8,7 +8,7 @@ configured on the gate.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.domains.quality_gates.schemas.quality_gates import (
     BaselineMetricDelta,
@@ -227,7 +227,7 @@ def build_gate_report(
         "quality_gate_id": quality_gate_id,
         "quality_gate_name": quality_gate_name,
         "verdict": verdict,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "evaluation_run_id": evaluation_run_id,
         "safety_eval_run_id": safety_eval_run_id,
         "thresholds_applied": thresholds.model_dump(exclude_none=True),

@@ -197,11 +197,15 @@ async def test_list_approval_queue_status_filter(
         expires_in_seconds=600,
     )
     await _seed_run_with_approval(
-        db_session, organization_id=org.id, user_id=user.id,
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
         approval_status=AgentApprovalStatus.pending.value,
     )
     await _seed_run_with_approval(
-        db_session, organization_id=org.id, user_id=user.id,
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
         approval_status=AgentApprovalStatus.approved.value,
     )
 
@@ -418,7 +422,9 @@ async def test_decision_already_approved_returns_409(
         expires_in_seconds=600,
     )
     run_id, approval_id = await _seed_run_with_approval(
-        db_session, organization_id=org.id, user_id=user.id,
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
         approval_status=AgentApprovalStatus.approved.value,
     )
 
@@ -470,7 +476,9 @@ async def test_decision_on_expired_approval_returns_409(
     )
     past = datetime.now(tz=UTC) - timedelta(seconds=1)
     run_id, approval_id = await _seed_run_with_approval(
-        db_session, organization_id=org.id, user_id=user.id,
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
         expires_at=past,
     )
 
@@ -722,8 +730,10 @@ async def test_expired_approvals_fail_associated_runs(
     await db_session.flush()
 
     assert failed >= 1
-    from app.models.agent import AgentRun
     from sqlalchemy import select
+
+    from app.models.agent import AgentRun
+
     run = await db_session.scalar(select(AgentRun).where(AgentRun.id == UUID(run_id)))
     assert run is not None
     assert run.status == "failed"
@@ -747,8 +757,10 @@ async def test_fail_runs_does_not_touch_run_with_still_pending_approval(
 
     failed = await _repo.fail_runs_for_expired_approvals(db_session)
 
-    from app.models.agent import AgentRun
     from sqlalchemy import select
+
+    from app.models.agent import AgentRun
+
     run = await db_session.scalar(select(AgentRun).where(AgentRun.id == UUID(run_id)))
     assert run is not None
     assert run.status == "waiting_approval"

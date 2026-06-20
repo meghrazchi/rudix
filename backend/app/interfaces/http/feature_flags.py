@@ -39,6 +39,4 @@ async def get_public_feature_flags(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PublicFeatureFlagsResponse:
     organization_id = _org_id(principal)
-    return await _feature_flag_service.get_public_flags(
-        db_session, organization_id=organization_id
-    )
+    return await _feature_flag_service.get_public_flags(db_session, organization_id=organization_id)

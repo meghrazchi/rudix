@@ -202,7 +202,7 @@ async def test_member_cannot_override_language(member_client, db_session: AsyncS
 async def test_admin_override_for_other_org_document_returns_404(
     admin_client, db_session: AsyncSession
 ) -> None:
-    client, org_id, user_id = admin_client
+    client, _org_id, _user_id = admin_client
 
     app.dependency_overrides[get_db_session] = lambda: db_session
 

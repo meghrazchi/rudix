@@ -20,7 +20,6 @@ Covers:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
@@ -28,8 +27,8 @@ import httpx
 import pytest
 
 from app.domains.connectors.providers.confluence.adapter import (
-    ConfluenceConnectorAdapter,
     _ATLASSIAN_API_BASE,
+    ConfluenceConnectorAdapter,
     _build_cql,
     _resolve_space_keys,
 )
@@ -1077,7 +1076,10 @@ async def test_confluence_adapter_passes_contract_suite() -> None:
 async def test_download_file_content_uses_cache_no_http_call() -> None:
     """Normal production path: body already in cache from list_items, no HTTP call."""
     adapter = ConfluenceConnectorAdapter()
-    adapter._page_body_cache["123456"] = ("Welcome to the platform. Read carefully.", "Getting Started Guide")
+    adapter._page_body_cache["123456"] = (
+        "Welcome to the platform. Read carefully.",
+        "Getting Started Guide",
+    )
 
     http_called = False
 
@@ -1225,8 +1227,8 @@ async def test_download_file_content_401_raises_auth_error() -> None:
 
 
 def test_confluence_adapter_is_registered() -> None:
-    from app.domains.connectors.services.provider_adapter import default_sync_adapter_registry
     import app.domains.connectors  # noqa: F401 – ensures registration
+    from app.domains.connectors.services.provider_adapter import default_sync_adapter_registry
 
     adapter = default_sync_adapter_registry.get("confluence")
     assert adapter is not None

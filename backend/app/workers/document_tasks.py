@@ -43,8 +43,8 @@ from app.domains.documents.services.ocr_detection import detect_ocr_need
 from app.domains.documents.services.ocr_language_config import resolve_ocr_tesseract_string
 from app.domains.documents.services.ocr_quality_service import OcrQualityService
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
-from app.domains.documents.services.table_chunking_service import build_table_chunk
 from app.domains.documents.services.qdrant_service import QdrantService
+from app.domains.documents.services.table_chunking_service import build_table_chunk
 from app.domains.documents.services.text_extraction import (
     extract_pdf_pages_native,
     extract_text_sections,
@@ -1436,11 +1436,11 @@ async def _extract_and_store_document_pages_async(
                         if not _page_result.table_blocks:
                             continue
                         _section_text = " ".join(
-                            b.text.strip()
-                            for b in _page_result.text_blocks
-                            if b.text.strip()
+                            b.text.strip() for b in _page_result.text_blocks if b.text.strip()
                         )
-                        _section_context: str | None = _section_text[:300] if _section_text else None
+                        _section_context: str | None = (
+                            _section_text[:300] if _section_text else None
+                        )
                         for _table_block in _page_result.table_blocks:
                             _table_result = build_table_chunk(
                                 _table_block, section_context=_section_context

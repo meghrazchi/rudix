@@ -5,7 +5,7 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,8 +17,8 @@ from app.domains.admin.schemas.failed_jobs import (
     BulkRetryResponse,
     FailedJobAuditEntry,
     FailedJobDetail,
-    FailedJobSummary,
     FailedJobsListResponse,
+    FailedJobSummary,
 )
 from app.models.enums import OrganizationRole
 from app.models.failed_job import FailedJob, FailedJobAuditLog

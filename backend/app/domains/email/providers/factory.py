@@ -15,9 +15,7 @@ def build_email_provider() -> AbstractEmailProvider:
     provider_type = settings.email_provider
 
     if provider_type == "smtp":
-        password = (
-            settings.smtp_password.get_secret_value() if settings.smtp_password else None
-        )
+        password = settings.smtp_password.get_secret_value() if settings.smtp_password else None
         return SMTPEmailProvider(
             host=settings.smtp_host,
             port=settings.smtp_port,
@@ -34,11 +32,7 @@ def build_email_provider() -> AbstractEmailProvider:
 
     if provider_type == "postmark":
         if settings.postmark_server_token is None:
-            raise ValueError(
-                "postmark_server_token is required when email_provider=postmark"
-            )
-        return PostmarkEmailProvider(
-            server_token=settings.postmark_server_token.get_secret_value()
-        )
+            raise ValueError("postmark_server_token is required when email_provider=postmark")
+        return PostmarkEmailProvider(server_token=settings.postmark_server_token.get_secret_value())
 
     return ConsoleEmailProvider()

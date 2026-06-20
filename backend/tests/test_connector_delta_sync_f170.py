@@ -177,16 +177,14 @@ async def test_permission_revoked_tombstones_item(db_session: AsyncSession) -> N
     delta = DeltaItem(provider_item_id=norm.provider_item_id, permission_revoked=True)
     engine2 = _engine(StubAdapter(delta_items=[delta]))
     # Simulate cursor being set so incremental path is used
-    job_result = await db_session.execute(
+    await db_session.execute(
         select(engine2.repository.__class__.__mro__[0])  # access via query
     )
     # Re-fetch job and set cursor
     from app.models.connector_sync import ConnectorSyncJob
 
     job_row = (
-        await db_session.execute(
-            select(ConnectorSyncJob).where(ConnectorSyncJob.id == job.id)
-        )
+        await db_session.execute(select(ConnectorSyncJob).where(ConnectorSyncJob.id == job.id))
     ).scalar_one()
     job_row.cursor_json = {"page": "2"}
     await db_session.flush()
@@ -256,15 +254,21 @@ async def test_permission_revoked_records_conflict(db_session: AsyncSession) -> 
     await db_session.commit()
 
     conflicts = (
-        await db_session.execute(
-            select(SyncConflict).where(
-                SyncConflict.organization_id == ctx.org_id,
-                SyncConflict.connection_id == ctx.connection.id,
+        (
+            await db_session.execute(
+                select(SyncConflict).where(
+                    SyncConflict.organization_id == ctx.org_id,
+                    SyncConflict.connection_id == ctx.connection.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(conflicts) >= 1
-    perm_conflicts = [c for c in conflicts if c.conflict_type == SyncConflictType.permission_revoked]
+    perm_conflicts = [
+        c for c in conflicts if c.conflict_type == SyncConflictType.permission_revoked
+    ]
     assert len(perm_conflicts) == 1
     assert perm_conflicts[0].status == SyncConflictStatus.open
 
@@ -301,13 +305,17 @@ async def test_acl_change_records_conflict(db_session: AsyncSession) -> None:
     await db_session.commit()
 
     conflicts = (
-        await db_session.execute(
-            select(SyncConflict).where(
-                SyncConflict.organization_id == ctx.org_id,
-                SyncConflict.conflict_type == SyncConflictType.acl_changed,
+        (
+            await db_session.execute(
+                select(SyncConflict).where(
+                    SyncConflict.organization_id == ctx.org_id,
+                    SyncConflict.conflict_type == SyncConflictType.acl_changed,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(conflicts) >= 1
     assert conflicts[0].status == SyncConflictStatus.open
 
@@ -343,13 +351,17 @@ async def test_rename_records_conflict(db_session: AsyncSession) -> None:
     await db_session.commit()
 
     conflicts = (
-        await db_session.execute(
-            select(SyncConflict).where(
-                SyncConflict.organization_id == ctx.org_id,
-                SyncConflict.conflict_type == SyncConflictType.renamed,
+        (
+            await db_session.execute(
+                select(SyncConflict).where(
+                    SyncConflict.organization_id == ctx.org_id,
+                    SyncConflict.conflict_type == SyncConflictType.renamed,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(conflicts) >= 1
     assert conflicts[0].conflict_detail_json.get("new_title") == "New Title"
 
@@ -385,13 +397,17 @@ async def test_move_records_conflict(db_session: AsyncSession) -> None:
     await db_session.commit()
 
     conflicts = (
-        await db_session.execute(
-            select(SyncConflict).where(
-                SyncConflict.organization_id == ctx.org_id,
-                SyncConflict.conflict_type == SyncConflictType.moved,
+        (
+            await db_session.execute(
+                select(SyncConflict).where(
+                    SyncConflict.organization_id == ctx.org_id,
+                    SyncConflict.conflict_type == SyncConflictType.moved,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(conflicts) >= 1
     assert conflicts[0].conflict_detail_json.get("new_parent_id") == "folder-b"
 
@@ -650,9 +666,7 @@ async def test_content_unchanged_no_new_upsert(db_session: AsyncSession) -> None
         db_session, organization_id=ctx.org_id, connection_id=ctx.connection.id
     )
     await db_session.commit()
-    result1 = await engine.run_sync(
-        db_session, sync_run_id=run1.id, organization_id=ctx.org_id
-    )
+    result1 = await engine.run_sync(db_session, sync_run_id=run1.id, organization_id=ctx.org_id)
     await db_session.commit()
     assert result1.items_upserted == 1
 
@@ -662,21 +676,23 @@ async def test_content_unchanged_no_new_upsert(db_session: AsyncSession) -> None
         db_session, organization_id=ctx.org_id, connection_id=ctx.connection.id, job_id=job.id
     )
     await db_session.commit()
-    result2 = await engine2.run_sync(
-        db_session, sync_run_id=run2.id, organization_id=ctx.org_id
-    )
+    await engine2.run_sync(db_session, sync_run_id=run2.id, organization_id=ctx.org_id)
     await db_session.commit()
 
     # No new ingestion for unchanged content (SourceDocument does not exist yet
     # for stub, so upserted=1 is still expected, but ExternalItem is the same row)
     items = (
-        await db_session.execute(
-            select(ExternalItem).where(
-                ExternalItem.organization_id == ctx.org_id,
-                ExternalItem.provider_item_id == norm.provider_item_id,
+        (
+            await db_session.execute(
+                select(ExternalItem).where(
+                    ExternalItem.organization_id == ctx.org_id,
+                    ExternalItem.provider_item_id == norm.provider_item_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(items) == 1, "Must not create duplicate ExternalItem rows"
 
 

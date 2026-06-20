@@ -95,13 +95,9 @@ class OpenAIChatProvider:
                 f"OpenAI rate limit exceeded: {_redact(str(exc))}"
             ) from exc
         except APITimeoutError as exc:
-            raise ProviderTimeoutError(
-                f"OpenAI request timed out: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderTimeoutError(f"OpenAI request timed out: {_redact(str(exc))}") from exc
         except APIConnectionError as exc:
-            raise ProviderUnavailableError(
-                f"OpenAI is unreachable: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderUnavailableError(f"OpenAI is unreachable: {_redact(str(exc))}") from exc
         except (AuthenticationError, PermissionDeniedError) as exc:
             raise ProviderPolicyBlockedError(
                 f"OpenAI rejected the request: {_redact(str(exc))}"
@@ -112,21 +108,15 @@ class OpenAIChatProvider:
                 raise UnsupportedCapabilityError(
                     "Model does not support JSON response_format"
                 ) from exc
-            raise InvalidProviderResponseError(
-                f"OpenAI bad request: {_redact(str(exc))}"
-            ) from exc
+            raise InvalidProviderResponseError(f"OpenAI bad request: {_redact(str(exc))}") from exc
         except InternalServerError as exc:
-            raise ProviderInternalError(
-                f"OpenAI internal error: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderInternalError(f"OpenAI internal error: {_redact(str(exc))}") from exc
         except OSError as exc:
             raise ProviderUnavailableError(
                 f"Network error reaching OpenAI: {_redact(str(exc))}"
             ) from exc
         except Exception as exc:
-            raise ProviderInternalError(
-                f"Unexpected OpenAI error: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderInternalError(f"Unexpected OpenAI error: {_redact(str(exc))}") from exc
 
         latency_ms = int((perf_counter() - started) * 1000)
         choices = getattr(response, "choices", None) or []
@@ -172,17 +162,13 @@ class OpenAIEmbeddingProvider:
         model = request.model or self._model_name
         started = perf_counter()
         try:
-            response = await self._client.embeddings.create(
-                model=model, input=request.texts
-            )
+            response = await self._client.embeddings.create(model=model, input=request.texts)
         except RateLimitError as exc:
             raise ProviderQuotaExceededError(
                 f"OpenAI rate limit exceeded: {_redact(str(exc))}"
             ) from exc
         except APITimeoutError as exc:
-            raise ProviderTimeoutError(
-                f"OpenAI embedding timed out: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderTimeoutError(f"OpenAI embedding timed out: {_redact(str(exc))}") from exc
         except APIConnectionError as exc:
             raise ProviderUnavailableError(
                 f"OpenAI embeddings unreachable: {_redact(str(exc))}"
@@ -216,13 +202,15 @@ class OpenAIEmbeddingProvider:
             vectors[index] = [float(v) for v in item.embedding]
 
         if any(v is None for v in vectors):
-            raise InvalidProviderResponseError(
-                "OpenAI embedding response is missing vectors"
-            )
+            raise InvalidProviderResponseError("OpenAI embedding response is missing vectors")
 
         usage = getattr(response, "usage", None)
         prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
-        total_tokens = int(getattr(usage, "total_tokens", prompt_tokens)) if usage is not None else prompt_tokens
+        total_tokens = (
+            int(getattr(usage, "total_tokens", prompt_tokens))
+            if usage is not None
+            else prompt_tokens
+        )
 
         return EmbeddingResponse(
             vectors=[v for v in vectors if v is not None],

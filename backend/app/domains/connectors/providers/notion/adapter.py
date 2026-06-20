@@ -32,7 +32,6 @@ import httpx
 
 from app.domains.connectors.providers.notion.normalizer import (
     NOTION_FILE_BLOCK_TYPES,
-    extract_page_title,
     normalize_comment,
     normalize_database,
     normalize_file_block,
@@ -303,7 +302,7 @@ class NotionConnectorAdapter(ConnectorProviderAdapter):
 
         # Attachment block download: provider_item_id = "block:<block_id>"
         if provider_item_id.startswith("block:"):
-            block_id = provider_item_id[len("block:"):]
+            block_id = provider_item_id[len("block:") :]
             return await self._download_block_file(
                 access_token=access_token,
                 block_id=block_id,
@@ -565,9 +564,7 @@ class NotionConnectorAdapter(ConnectorProviderAdapter):
                 path=f"/blocks/{block_id}/children",
                 params={"page_size": _MAX_PAGE_SIZE, "start_cursor": next_cursor},
             )
-            blocks.extend(
-                b for b in (extra_data.get("results") or []) if isinstance(b, dict)
-            )
+            blocks.extend(b for b in (extra_data.get("results") or []) if isinstance(b, dict))
             has_more = bool(extra_data.get("has_more"))
             next_cursor = extra_data.get("next_cursor")
 
@@ -637,7 +634,9 @@ class NotionConnectorAdapter(ConnectorProviderAdapter):
                 _raise_for_status(response)
                 data = response.json()
                 if not isinstance(data, dict):
-                    raise ConnectorProviderUnavailableError("Notion API returned an invalid payload")
+                    raise ConnectorProviderUnavailableError(
+                        "Notion API returned an invalid payload"
+                    )
                 return data
             except (ConnectorRateLimitError, ConnectorAuthError, ConnectorContentError):
                 raise
@@ -672,7 +671,9 @@ class NotionConnectorAdapter(ConnectorProviderAdapter):
                 _raise_for_status(response)
                 data = response.json()
                 if not isinstance(data, dict):
-                    raise ConnectorProviderUnavailableError("Notion API returned an invalid payload")
+                    raise ConnectorProviderUnavailableError(
+                        "Notion API returned an invalid payload"
+                    )
                 return data
             except (ConnectorRateLimitError, ConnectorAuthError, ConnectorContentError):
                 raise
@@ -689,7 +690,6 @@ class NotionConnectorAdapter(ConnectorProviderAdapter):
         raise ConnectorProviderUnavailableError("Notion API GET request failed")
 
     async def _download_bytes(self, url: str) -> bytes:
-        last_exc: Exception | None = None
         for attempt in range(self._max_retries + 1):
             try:
                 async with httpx.AsyncClient(
@@ -706,8 +706,7 @@ class NotionConnectorAdapter(ConnectorProviderAdapter):
                 return response.content
             except ConnectorRateLimitError:
                 raise
-            except (httpx.TimeoutException, httpx.HTTPStatusError) as exc:
-                last_exc = exc
+            except (httpx.TimeoutException, httpx.HTTPStatusError):
                 if attempt < self._max_retries:
                     await asyncio.sleep(min(2**attempt, 4))
         raise ConnectorProviderUnavailableError("Notion file download failed")

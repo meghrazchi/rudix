@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -57,25 +57,33 @@ _READ_ROLES = (
 
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
     if principal.organization_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization context")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization context"
+        )
     try:
         return UUID(principal.organization_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid organization context") from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid organization context"
+        ) from exc
 
 
 def _user_id(principal: AuthenticatedPrincipal) -> UUID:
     try:
         return UUID(principal.user_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid user context") from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid user context"
+        ) from exc
 
 
 def _parse_uuid(value: str, label: str) -> UUID:
     try:
         return UUID(value)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{label} not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"{label} not found"
+        ) from exc
 
 
 def _request_id(request: Request) -> str | None:
@@ -163,7 +171,9 @@ async def create_ab_experiment(
         db, evaluation_set_id=eval_set_uuid, organization_id=org_id
     )
     if eval_set is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found"
+        )
 
     exp = await _repo.create_experiment(
         db,
@@ -199,7 +209,9 @@ async def list_ab_experiments(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AbExperimentListResponse:
     org_id = _org_id(principal)
-    experiments = await _repo.list_experiments(db, organization_id=org_id, limit=limit, offset=offset)
+    experiments = await _repo.list_experiments(
+        db, organization_id=org_id, limit=limit, offset=offset
+    )
     total = await _repo.count_experiments(db, organization_id=org_id)
     return AbExperimentListResponse(
         items=[_experiment_to_response(e) for e in experiments],
@@ -336,7 +348,9 @@ async def add_variant(
     rag_profile_uuid: UUID | None = None
     if payload.rag_profile_id:
         rag_profile_uuid = _parse_uuid(payload.rag_profile_id, "RAG profile")
-        profile = await _rag_repo.get_profile(db, profile_id=rag_profile_uuid, organization_id=org_id)
+        profile = await _rag_repo.get_profile(
+            db, profile_id=rag_profile_uuid, organization_id=org_id
+        )
         if profile is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="RAG profile not found"
@@ -456,7 +470,7 @@ async def start_experiment_run(
             detail="Experiment is already running",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     exp_run = await _repo.create_experiment_run(
         db,
         experiment_id=exp_uuid,
@@ -523,9 +537,7 @@ async def list_experiment_runs(
         limit=limit,
         offset=offset,
     )
-    total = await _repo.count_experiment_runs(
-        db, experiment_id=exp_uuid, organization_id=org_id
-    )
+    total = await _repo.count_experiment_runs(db, experiment_id=exp_uuid, organization_id=org_id)
     return AbExperimentRunListResponse(
         items=[_run_to_response(r, exp.name) for r in runs],
         total=total,
@@ -546,7 +558,9 @@ async def get_experiment_run(
     run_uuid = _parse_uuid(run_id, "Experiment run")
     run = await _repo.get_experiment_run(db, run_id=run_uuid, organization_id=org_id)
     if run is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Experiment run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Experiment run not found"
+        )
     return _run_to_response(run)
 
 
@@ -577,7 +591,9 @@ async def finalize_experiment_run(
 
     run = await _repo.get_experiment_run(db, run_id=run_uuid, organization_id=org_id)
     if run is None or run.experiment_id != exp_uuid:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Experiment run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Experiment run not found"
+        )
     if run.status == AbExperimentStatus.completed.value:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Experiment run already finalized"
@@ -617,7 +633,7 @@ async def finalize_experiment_run(
         variant_summaries=summaries,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await _repo.update_experiment_run(
         db,
         refreshed_run,
@@ -691,7 +707,7 @@ async def approve_variant(
             status_code=status.HTTP_409_CONFLICT, detail="Variant is already approved"
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await _repo.set_variant_approval(
         db,
         variant,
@@ -707,7 +723,9 @@ async def approve_variant(
             db, profile_id=variant.rag_profile_id, organization_id=org_id
         )
         if rag_profile is not None and not rag_profile.is_default:
-            await _rag_repo.clear_default_flag(db, organization_id=org_id, exclude_id=rag_profile.id)
+            await _rag_repo.clear_default_flag(
+                db, organization_id=org_id, exclude_id=rag_profile.id
+            )
             await _rag_repo.update_profile(db, rag_profile, is_default=True)
 
     await db.commit()
@@ -769,7 +787,7 @@ async def reject_variant(
             detail="Cannot reject an already-approved variant",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await _repo.set_variant_approval(
         db,
         variant,

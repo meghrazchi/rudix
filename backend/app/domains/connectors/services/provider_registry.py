@@ -343,9 +343,7 @@ def _notion_provider() -> ProviderRegistration:
                     ConnectorCapability.rate_limits,
                 }
             ),
-            rate_limits=(
-                ProviderRateLimit(name="notion_api", max_requests=3, window_seconds=1),
-            ),
+            rate_limits=(ProviderRateLimit(name="notion_api", max_requests=3, window_seconds=1),),
             max_page_size=100,
             notes=(
                 "Connect a Notion workspace and index pages, databases, and database items. "

@@ -19,7 +19,6 @@ from app.domains.service_accounts.schemas.service_accounts import (
     ServiceAccountResponse,
     ServiceAccountTokenCreatedResponse,
     ServiceAccountTokenListResponse,
-    ServiceAccountTokenResponse,
     UpdateServiceAccountRequest,
 )
 from app.domains.service_accounts.services.service_accounts_service import ServiceAccountsService
@@ -68,10 +67,13 @@ def _parse_uuid(value: str, label: str) -> UUID:
     try:
         return UUID(value)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{label} not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"{label} not found"
+        ) from exc
 
 
 # ── Service account CRUD ──────────────────────────────────────────────────────
+
 
 @router.get("", response_model=ServiceAccountListResponse)
 async def list_service_accounts(
@@ -118,7 +120,11 @@ async def create_service_account(
         resource_type="service_account",
         resource_id=account.id,
         request_id=request_id,
-        metadata={"name": account.name, "environment": account.environment, "scopes": account.scopes},
+        metadata={
+            "name": account.name,
+            "environment": account.environment,
+            "scopes": account.scopes,
+        },
     )
     await db_session.commit()
 
@@ -143,9 +149,13 @@ async def get_service_account(
 ) -> ServiceAccountResponse:
     org_id = _org_id(principal)
     parsed_id = _parse_uuid(account_id, "Service account")
-    account = await _repo.get_service_account(db_session, account_id=parsed_id, organization_id=org_id)
+    account = await _repo.get_service_account(
+        db_session, account_id=parsed_id, organization_id=org_id
+    )
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found"
+        )
     return _service.to_service_account_response(account)
 
 
@@ -165,9 +175,13 @@ async def update_service_account(
     request_id = _request_id(request)
     parsed_id = _parse_uuid(account_id, "Service account")
 
-    account = await _repo.get_service_account(db_session, account_id=parsed_id, organization_id=org_id)
+    account = await _repo.get_service_account(
+        db_session, account_id=parsed_id, organization_id=org_id
+    )
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found"
+        )
 
     account = await _repo.update_service_account(
         db_session,
@@ -213,11 +227,17 @@ async def deactivate_service_account(
     request_id = _request_id(request)
     parsed_id = _parse_uuid(account_id, "Service account")
 
-    account = await _repo.get_service_account(db_session, account_id=parsed_id, organization_id=org_id)
+    account = await _repo.get_service_account(
+        db_session, account_id=parsed_id, organization_id=org_id
+    )
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found"
+        )
     if not account.is_active:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Service account is already inactive")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Service account is already inactive"
+        )
 
     account = await _repo.deactivate_service_account(db_session, account=account)
     await _audit.record(
@@ -257,11 +277,17 @@ async def reactivate_service_account(
     request_id = _request_id(request)
     parsed_id = _parse_uuid(account_id, "Service account")
 
-    account = await _repo.get_service_account(db_session, account_id=parsed_id, organization_id=org_id)
+    account = await _repo.get_service_account(
+        db_session, account_id=parsed_id, organization_id=org_id
+    )
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found"
+        )
     if account.is_active:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Service account is already active")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Service account is already active"
+        )
 
     account = await _repo.reactivate_service_account(db_session, account=account)
     await _audit.record(
@@ -288,6 +314,7 @@ async def reactivate_service_account(
 
 # ── Token management ──────────────────────────────────────────────────────────
 
+
 @router.get("/{account_id}/tokens", response_model=ServiceAccountTokenListResponse)
 async def list_tokens(
     account_id: str,
@@ -300,11 +327,17 @@ async def list_tokens(
     org_id = _org_id(principal)
     parsed_id = _parse_uuid(account_id, "Service account")
 
-    account = await _repo.get_service_account(db_session, account_id=parsed_id, organization_id=org_id)
+    account = await _repo.get_service_account(
+        db_session, account_id=parsed_id, organization_id=org_id
+    )
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found"
+        )
 
-    tokens = await _repo.list_tokens(db_session, service_account_id=parsed_id, organization_id=org_id)
+    tokens = await _repo.list_tokens(
+        db_session, service_account_id=parsed_id, organization_id=org_id
+    )
     items = [_service.to_token_response(t) for t in tokens]
     return ServiceAccountTokenListResponse(items=items, total=len(items))
 
@@ -329,9 +362,13 @@ async def create_token(
     request_id = _request_id(request)
     parsed_id = _parse_uuid(account_id, "Service account")
 
-    account = await _repo.get_service_account(db_session, account_id=parsed_id, organization_id=org_id)
+    account = await _repo.get_service_account(
+        db_session, account_id=parsed_id, organization_id=org_id
+    )
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found"
+        )
     if not account.is_active:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -394,9 +431,13 @@ async def revoke_token(
     parsed_account_id = _parse_uuid(account_id, "Service account")
     parsed_token_id = _parse_uuid(token_id, "Token")
 
-    account = await _repo.get_service_account(db_session, account_id=parsed_account_id, organization_id=org_id)
+    account = await _repo.get_service_account(
+        db_session, account_id=parsed_account_id, organization_id=org_id
+    )
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found"
+        )
 
     token = await _repo.get_token(
         db_session,
@@ -453,9 +494,13 @@ async def rotate_token(
     parsed_account_id = _parse_uuid(account_id, "Service account")
     parsed_token_id = _parse_uuid(token_id, "Token")
 
-    account = await _repo.get_service_account(db_session, account_id=parsed_account_id, organization_id=org_id)
+    account = await _repo.get_service_account(
+        db_session, account_id=parsed_account_id, organization_id=org_id
+    )
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Service account not found"
+        )
     if not account.is_active:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -471,7 +516,9 @@ async def rotate_token(
     if old_token is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
     if old_token.status == "revoked":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot rotate a revoked token")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Cannot rotate a revoked token"
+        )
 
     await _repo.revoke_token(db_session, token=old_token)
 

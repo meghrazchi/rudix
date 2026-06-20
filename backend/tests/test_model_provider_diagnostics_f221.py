@@ -54,10 +54,10 @@ from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.ai.providers.capability_registry import default_capability_registry
 from app.domains.ai.providers.errors import ProviderUnavailableError
 from app.domains.ai.providers.protocols import ChatCompletionResponse, EmbeddingResponse
 from app.domains.ai.providers.schemas import CostBehavior, ModelCapability
-from app.domains.ai.providers.capability_registry import default_capability_registry
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
@@ -310,7 +310,11 @@ async def test_task_assignments(diag_client, admin_ctx) -> None:
     assert r.status_code == 200
     providers = {p["provider_key"]: p for p in r.json()["providers"]}
     assert set(providers["chat"]["task_assignments"]) == {
-        "chat", "summarization", "comparison", "evaluations", "agentic"
+        "chat",
+        "summarization",
+        "comparison",
+        "evaluations",
+        "agentic",
     }
     assert providers["embeddings"]["task_assignments"] == ["embeddings"]
 
@@ -357,9 +361,7 @@ async def test_probe_chat_ok(diag_client, admin_ctx, monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.asyncio
-async def test_probe_embeddings_ok(
-    diag_client, admin_ctx, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_probe_embeddings_ok(diag_client, admin_ctx, monkeypatch: pytest.MonkeyPatch) -> None:
     mock_response = EmbeddingResponse(
         vectors=[[0.1, 0.2]],
         model="text-embedding-3-small",

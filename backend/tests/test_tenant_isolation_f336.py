@@ -13,8 +13,6 @@ import os
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
@@ -34,10 +32,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
-from app.auth.models import AuthenticatedPrincipal
 from app.auth.policy_engine import (
     Action,
-    AuthorizationResult,
     DenyReason,
     PermissionResult,
     PolicyEngine,

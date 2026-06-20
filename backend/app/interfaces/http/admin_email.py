@@ -44,7 +44,9 @@ class EmailPreviewResponse(BaseModel):
 
 
 class TestSendRequest(BaseModel):
-    recipient_email: str = Field(min_length=5, max_length=255, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    recipient_email: str = Field(
+        min_length=5, max_length=255, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    )
     event_type: EmailEventType
     template_name: str = Field(
         min_length=1,
@@ -99,7 +101,7 @@ async def preview_email_template(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Template render error: {exc}",
-        )
+        ) from exc
     return EmailPreviewResponse(html=html, template_name=payload.template_name)
 
 
@@ -122,8 +124,8 @@ async def test_send_email(
             detail="test-send is not available in production",
         )
 
-    from app.domains.email.providers.factory import build_email_provider
     from app.domains.email.providers.base import EmailMessage
+    from app.domains.email.providers.factory import build_email_provider
 
     organization_id = UUID(principal.organization_id)  # type: ignore[arg-type]
     user_id = UUID(principal.user_id)
@@ -140,7 +142,7 @@ async def test_send_email(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Template render error: {exc}",
-        )
+        ) from exc
 
     provider = build_email_provider()
     message = EmailMessage(
@@ -237,7 +239,9 @@ async def list_delivery_logs(
     summary="Get current user's email notification preferences",
 )
 async def get_my_preferences(
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*[r for r in OrganizationRole]))],
+    principal: Annotated[
+        AuthenticatedPrincipal, Depends(require_roles(*[r for r in OrganizationRole]))
+    ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> NotificationPreferencesResponse:
     organization_id = UUID(principal.organization_id)  # type: ignore[arg-type]
@@ -265,7 +269,9 @@ async def get_my_preferences(
 )
 async def update_my_preference(
     payload: UpdatePreferenceRequest,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*[r for r in OrganizationRole]))],
+    principal: Annotated[
+        AuthenticatedPrincipal, Depends(require_roles(*[r for r in OrganizationRole]))
+    ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> NotificationPreferenceItem:
     from app.domains.email.services.email_service import _MANDATORY_EVENT_TYPES

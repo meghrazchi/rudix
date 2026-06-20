@@ -42,13 +42,12 @@ from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.permissions.repositories.conflicts import ConflictsRepository
+from app.interfaces.http.admin_conflicts import _parse_trace
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-from app.interfaces.http.admin_conflicts import _parse_trace
-
 
 # ─── fixtures ─────────────────────────────────────────────────────────────────
 
@@ -76,9 +75,7 @@ async def conflict_client(
     app.dependency_overrides.clear()
 
 
-async def _seed(
-    db_session: AsyncSession, *, role: OrganizationRole
-) -> tuple[User, Organization]:
+async def _seed(db_session: AsyncSession, *, role: OrganizationRole) -> tuple[User, Organization]:
     org = Organization(
         name=f"conflict-test-{uuid4().hex[:8]}",
         slug=f"conflict-test-{uuid4().hex[:8]}",

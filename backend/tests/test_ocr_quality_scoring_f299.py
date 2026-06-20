@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import ClassVar
 from uuid import uuid4
 
 import pytest
@@ -445,7 +446,7 @@ async def test_admin_can_retry_ocr_for_low_quality_document(
     )
 
     class FakeTask:
-        called: list = []
+        called: ClassVar[list] = []
 
         def delay(self, *args, **kwargs):
             FakeTask.called.append(kwargs)
@@ -548,7 +549,7 @@ async def test_member_cannot_retry_ocr(member_client, db_session: AsyncSession) 
 async def test_ocr_retry_for_other_org_document_returns_404(
     admin_client, db_session: AsyncSession
 ) -> None:
-    client, org_id, user_id = admin_client
+    client, _org_id, _user_id = admin_client
 
     other_org = Organization(id=uuid4(), name="Other Org", slug=f"other-{uuid4()}")
     other_user = User(id=uuid4(), email=f"other-{uuid4()}@example.com", hashed_password="x")

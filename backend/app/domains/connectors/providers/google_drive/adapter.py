@@ -42,7 +42,6 @@ from app.domains.connectors.services.provider_adapter import (
     ConnectorAuthError,
     ConnectorProviderAdapter,
     ConnectorProviderUnavailableError,
-    ConnectorRateLimitError,
     DeltaItem,
     DeltaPage,
     ItemPage,

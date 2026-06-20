@@ -103,7 +103,7 @@ def _parse_task_type(raw: str) -> TaskType:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid task_type '{raw}'. Valid values: {valid}",
-        )
+        ) from None
 
 
 # ---------------------------------------------------------------------------

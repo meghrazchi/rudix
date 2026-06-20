@@ -17,6 +17,7 @@ Design constraints:
 - Trust status from F297 influences preferred-source resolution; verified >
   current > draft > stale overrides LLM advisory preference.
 """
+
 from __future__ import annotations
 
 import json
@@ -240,9 +241,7 @@ class ConflictDetectionService:
     """
 
     def __init__(self, *, timeout_seconds: float | None = None) -> None:
-        self._timeout_seconds = (
-            timeout_seconds or settings.conflict_detection_timeout_seconds
-        )
+        self._timeout_seconds = timeout_seconds or settings.conflict_detection_timeout_seconds
 
     def _resolve_provider(self):  # type: ignore[return]
         from app.domains.ai.providers.factory import default_provider_factory
@@ -288,9 +287,7 @@ class ConflictDetectionService:
                 return len(_TRUST_PREFERENCE_ORDER)
 
         llm_preferred_ids = [
-            label_to_doc_id[label]
-            for label in llm_preferred_labels
-            if label in label_to_doc_id
+            label_to_doc_id[label] for label in llm_preferred_labels if label in label_to_doc_id
         ]
 
         # Rank all conflicting docs by trust, then by LLM preference as tiebreak.
@@ -348,10 +345,7 @@ class ConflictDetectionService:
         for idx, doc_id in enumerate(doc_ids_ordered, 1):
             label = f"DOC_{idx}"
             label_to_doc_id[label] = doc_id
-            doc_groups[label] = [
-                chunk.text[:_MAX_CHUNK_CHARS]
-                for chunk in chunks_by_doc[doc_id]
-            ]
+            doc_groups[label] = [chunk.text[:_MAX_CHUNK_CHARS] for chunk in chunks_by_doc[doc_id]]
 
         # LLM call.
         started = perf_counter()
@@ -367,7 +361,7 @@ class ConflictDetectionService:
             response = await provider.complete(request)
             raw_text = response.content or ""
             parsed = self._parse_output(raw_text)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("conflict_detection failed, using safe fallback: %s", exc)
             return self._fallback()
 

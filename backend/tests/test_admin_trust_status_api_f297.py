@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import os
 from datetime import date
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
@@ -32,7 +30,6 @@ from app.interfaces.http.admin_documents import (
     AdminTrustStatusRequest,
     AdminTrustStatusResponse,
 )
-
 
 # ---------------------------------------------------------------------------
 # AdminTrustStatusRequest validation

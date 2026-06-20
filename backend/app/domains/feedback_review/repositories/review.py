@@ -1,9 +1,9 @@
 import csv
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import FeedbackReviewStatus
@@ -148,7 +148,7 @@ class FeedbackReviewRepository:
                 FeedbackReviewStatus.duplicate,
             }
             if FeedbackReviewStatus(status) in _terminal and item.resolved_at is None:
-                item.resolved_at = datetime.now(tz=timezone.utc)
+                item.resolved_at = datetime.now(tz=UTC)
             elif FeedbackReviewStatus(status) not in _terminal:
                 item.resolved_at = None
 

@@ -58,7 +58,6 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -212,7 +211,7 @@ def test_evaluate_gate_not_found_rate_max_fails():
     thresholds = QualityGateThresholds(not_found_rate_max=0.05)
     eval_summary = {"not_found_rate": 0.15}
 
-    verdict, passed, failed = evaluate_gate(thresholds, eval_summary, None)
+    verdict, _passed, failed = evaluate_gate(thresholds, eval_summary, None)
 
     assert verdict == QualityGateVerdict.failed.value
     assert any(c.metric == "not_found_rate_max" for c in failed)
@@ -226,7 +225,7 @@ def test_evaluate_gate_missing_metric_fails():
     thresholds = QualityGateThresholds(faithfulness_score_min=0.8)
     eval_summary = {}
 
-    verdict, passed, failed = evaluate_gate(thresholds, eval_summary, None)
+    verdict, _passed, failed = evaluate_gate(thresholds, eval_summary, None)
 
     assert verdict == QualityGateVerdict.failed.value
     assert failed[0].actual is None
@@ -237,7 +236,7 @@ def test_evaluate_gate_safety_pass_rate_fails():
     thresholds = QualityGateThresholds(safety_pass_rate_min=0.95)
     safety_summary = {"pass_rate": 0.80}
 
-    verdict, passed, failed = evaluate_gate(thresholds, None, safety_summary)
+    verdict, _passed, failed = evaluate_gate(thresholds, None, safety_summary)
 
     assert verdict == QualityGateVerdict.failed.value
     assert any(c.metric == "safety_pass_rate_min" for c in failed)

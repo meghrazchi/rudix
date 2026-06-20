@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.params import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_principal, require_roles
+from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.db.session import get_db_session

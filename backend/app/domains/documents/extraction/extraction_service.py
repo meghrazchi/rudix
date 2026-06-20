@@ -9,7 +9,7 @@ from app.domains.documents.extraction.models import (
     TextBlock,
 )
 from app.domains.documents.extraction.pdf_engine import extract_pdf
-from app.domains.documents.services.text_extraction import ExtractedSection, extract_text_sections
+from app.domains.documents.services.text_extraction import extract_text_sections
 
 
 def extract_document(

@@ -64,7 +64,6 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -162,7 +161,7 @@ def test_refusal_accuracy_fails_when_below_threshold():
     thresholds = QualityGateThresholds(refusal_accuracy_score_min=0.90)
     eval_summary = {"refusal_accuracy_score": 0.70}
 
-    verdict, passed, failed = evaluate_gate(thresholds, eval_summary, None)
+    verdict, _passed, failed = evaluate_gate(thresholds, eval_summary, None)
 
     assert verdict == QualityGateVerdict.failed.value
     check = next(c for c in failed if c.metric == "refusal_accuracy_score_min")
@@ -175,7 +174,7 @@ def test_refusal_accuracy_missing_metric_fails():
     thresholds = QualityGateThresholds(refusal_accuracy_score_min=0.80)
     eval_summary = {}  # metric absent
 
-    verdict, passed, failed = evaluate_gate(thresholds, eval_summary, None)
+    verdict, _passed, failed = evaluate_gate(thresholds, eval_summary, None)
 
     assert verdict == QualityGateVerdict.failed.value
     check = next(c for c in failed if c.metric == "refusal_accuracy_score_min")
@@ -381,6 +380,7 @@ async def test_gate_run_with_baseline_regression_fails(
 
     # Update the gate's baseline_evaluation_run_id
     from uuid import UUID
+
     gate.baseline_evaluation_run_id = UUID(baseline_run_id)
     await db_session.commit()
 
@@ -429,6 +429,7 @@ async def test_gate_run_with_baseline_no_regression_passes(
     await db_session.commit()
 
     from uuid import UUID
+
     gate.baseline_evaluation_run_id = UUID(baseline_run_id)
     await db_session.commit()
 
@@ -482,6 +483,7 @@ async def test_gate_report_has_baseline_comparison(
     await db_session.commit()
 
     from uuid import UUID
+
     gate.baseline_evaluation_run_id = UUID(baseline_run_id)
     await db_session.commit()
 
@@ -643,7 +645,9 @@ def test_threshold_schema_model_dump_excludes_none():
 def test_junit_xml_has_failures_for_failed_checks(tmp_path):
     import sys
 
-    sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent.parent / "ci" / "scripts"))
+    sys.path.insert(
+        0, str(__import__("pathlib").Path(__file__).parent.parent.parent / "ci" / "scripts")
+    )
     from accuracy_eval_runner import _write_junit_xml
 
     report = {
@@ -654,7 +658,12 @@ def test_junit_xml_has_failures_for_failed_checks(tmp_path):
         "pass_count": 1,
         "fail_count": 1,
         "passed_checks": [
-            {"metric": "faithfulness_score_min", "label": "Faithfulness Score", "actual": 0.85, "threshold": 0.80}
+            {
+                "metric": "faithfulness_score_min",
+                "label": "Faithfulness Score",
+                "actual": 0.85,
+                "threshold": 0.80,
+            }
         ],
         "failed_checks": [
             {
@@ -687,7 +696,9 @@ def test_junit_xml_has_failures_for_failed_checks(tmp_path):
 def test_junit_xml_passed_gate_has_no_failures(tmp_path):
     import sys
 
-    sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent.parent / "ci" / "scripts"))
+    sys.path.insert(
+        0, str(__import__("pathlib").Path(__file__).parent.parent.parent / "ci" / "scripts")
+    )
     from accuracy_eval_runner import _write_junit_xml
 
     report = {
@@ -698,7 +709,12 @@ def test_junit_xml_passed_gate_has_no_failures(tmp_path):
         "pass_count": 1,
         "fail_count": 0,
         "passed_checks": [
-            {"metric": "retrieval_hit_rate_min", "label": "Retrieval Hit Rate", "actual": 0.90, "threshold": 0.80}
+            {
+                "metric": "retrieval_hit_rate_min",
+                "label": "Retrieval Hit Rate",
+                "actual": 0.90,
+                "threshold": 0.80,
+            }
         ],
         "failed_checks": [],
     }
@@ -709,14 +725,18 @@ def test_junit_xml_passed_gate_has_no_failures(tmp_path):
     tree = ET.parse(xml_path)
     suite = tree.getroot()
     assert suite.attrib["failures"] == "0"
-    failures = [tc.find("failure") for tc in suite.findall("testcase") if tc.find("failure") is not None]
+    failures = [
+        tc.find("failure") for tc in suite.findall("testcase") if tc.find("failure") is not None
+    ]
     assert failures == []
 
 
 def test_junit_xml_includes_baseline_comparison_summary(tmp_path):
     import sys
 
-    sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent.parent / "ci" / "scripts"))
+    sys.path.insert(
+        0, str(__import__("pathlib").Path(__file__).parent.parent.parent / "ci" / "scripts")
+    )
     from accuracy_eval_runner import _write_junit_xml
 
     report = {
@@ -729,7 +749,14 @@ def test_junit_xml_includes_baseline_comparison_summary(tmp_path):
         "passed_checks": [],
         "failed_checks": [],
         "baseline_comparison": [
-            {"metric": "retrieval_hit_rate", "label": "Retrieval Hit Rate", "baseline": 0.85, "current": 0.83, "delta": -0.02, "regressed": False}
+            {
+                "metric": "retrieval_hit_rate",
+                "label": "Retrieval Hit Rate",
+                "baseline": 0.85,
+                "current": 0.83,
+                "delta": -0.02,
+                "regressed": False,
+            }
         ],
     }
 

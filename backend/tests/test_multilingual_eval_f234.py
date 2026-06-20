@@ -10,29 +10,28 @@ Covers:
   U–X   Language breakdown endpoint (HTTP mock)
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import pytest
+
+from app.domains.evaluations.benchmark_suites import get_benchmark_suite
+from app.domains.evaluations.schemas.evaluations import (
+    _MIN_COVERAGE_WARNING_THRESHOLD,
+    CreateEvaluationQuestionRequest,
+    UpdateEvaluationQuestionRequest,
+)
 from app.domains.evaluations.services.evaluation_metrics_service import (
     detect_language_heuristic,
     score_language_adherence,
 )
-from app.domains.evaluations.schemas.evaluations import (
-    CreateEvaluationQuestionRequest,
-    UpdateEvaluationQuestionRequest,
-    LanguageBreakdownItem,
-    LanguageCoverageItem,
-    _MIN_COVERAGE_WARNING_THRESHOLD,
-)
-from app.domains.evaluations.benchmark_suites import get_benchmark_suite
 from app.domains.quality_gates.schemas.quality_gates import QualityGateThresholds
 from app.domains.quality_gates.services.quality_gate_service import evaluate_gate
-
 
 # ---------------------------------------------------------------------------
 # A–D: Language heuristic detection
 # ---------------------------------------------------------------------------
+
 
 class TestDetectLanguageHeuristic:
     def test_a_english_ascii_dominant(self):
@@ -44,7 +43,9 @@ class TestDetectLanguageHeuristic:
         assert detect_language_heuristic(text) == "de"
 
     def test_c_spanish_special_chars(self):
-        text = "¿Cuáles son los requisitos de seguridad descritos en la especificación del producto?"
+        text = (
+            "¿Cuáles son los requisitos de seguridad descritos en la especificación del producto?"
+        )
         assert detect_language_heuristic(text) == "es"
 
     def test_d_short_text_returns_none(self):
@@ -58,6 +59,7 @@ class TestDetectLanguageHeuristic:
 # ---------------------------------------------------------------------------
 # E–G: Language adherence scoring
 # ---------------------------------------------------------------------------
+
 
 class TestScoreLanguageAdherence:
     def test_e_matching_language_returns_1(self):
@@ -88,6 +90,7 @@ class TestScoreLanguageAdherence:
 # H–J: Schema layer — language fields on EvaluationQuestion
 # ---------------------------------------------------------------------------
 
+
 class TestEvaluationQuestionLanguageSchema:
     def test_h_create_request_accepts_language_fields(self):
         req = CreateEvaluationQuestionRequest(
@@ -116,7 +119,7 @@ class TestEvaluationQuestionLanguageSchema:
         assert req.expected_answer_language == "fr"
 
     def test_j2_invalid_language_code_rejected(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             CreateEvaluationQuestionRequest(
                 question="Test question here?",
                 question_language="zz",  # unsupported code
@@ -126,6 +129,7 @@ class TestEvaluationQuestionLanguageSchema:
 # ---------------------------------------------------------------------------
 # K–M: Benchmark suite multilingual cases
 # ---------------------------------------------------------------------------
+
 
 class TestMultilingualBenchmarkSuite:
     def setup_method(self):
@@ -144,8 +148,10 @@ class TestMultilingualBenchmarkSuite:
 
     def test_m_cross_language_case_present(self):
         cross = [
-            c for c in self.suite.cases
-            if c.question_language and c.source_language
+            c
+            for c in self.suite.cases
+            if c.question_language
+            and c.source_language
             and c.question_language != c.source_language
         ]
         assert len(cross) >= 1, "Expected at least one cross-language case"
@@ -159,6 +165,7 @@ class TestMultilingualBenchmarkSuite:
 # ---------------------------------------------------------------------------
 # N–P: Quality gate language adherence threshold
 # ---------------------------------------------------------------------------
+
 
 class TestQualityGateLanguageAdherence:
     def test_n_threshold_accepted_in_schema(self):
@@ -176,7 +183,7 @@ class TestQualityGateLanguageAdherence:
     def test_p_gate_fails_when_metric_below_threshold(self):
         thresholds = QualityGateThresholds(language_adherence_score_min=0.80)
         eval_summary = {"language_adherence_score": 0.60}
-        verdict, passed, failed = evaluate_gate(thresholds, eval_summary, None)
+        verdict, _passed, failed = evaluate_gate(thresholds, eval_summary, None)
         assert verdict == "failed"
         assert any(c.metric == "language_adherence_score_min" for c in failed)
 
@@ -192,6 +199,7 @@ class TestQualityGateLanguageAdherence:
 # Q–T: Language coverage endpoint (HTTP mock)
 # ---------------------------------------------------------------------------
 
+
 class TestLanguageCoverageEndpoint:
     @pytest.fixture
     def _principal(self):
@@ -203,6 +211,7 @@ class TestLanguageCoverageEndpoint:
     @pytest.fixture
     def _org_id(self, _principal):
         from uuid import UUID
+
         return UUID(_principal.organization_id)
 
     @pytest.mark.asyncio
@@ -224,6 +233,7 @@ class TestLanguageCoverageEndpoint:
         mock_repo.get_language_coverage_for_set.return_value = rows
 
         import app.interfaces.http.evaluation_sets as sets_module
+
         original_repo = sets_module.evaluation_repository
 
         try:
@@ -269,6 +279,7 @@ class TestLanguageCoverageEndpoint:
         mock_repo.get_language_coverage_for_set.return_value = rows
 
         import app.interfaces.http.evaluation_sets as sets_module
+
         original_repo = sets_module.evaluation_repository
 
         try:
@@ -309,6 +320,7 @@ class TestLanguageCoverageEndpoint:
         mock_repo.get_language_coverage_for_set.return_value = []
 
         import app.interfaces.http.evaluation_sets as sets_module
+
         original_repo = sets_module.evaluation_repository
 
         try:
@@ -344,6 +356,7 @@ class TestLanguageCoverageEndpoint:
 # U–X: Language breakdown endpoint (HTTP mock)
 # ---------------------------------------------------------------------------
 
+
 class TestLanguageBreakdownEndpoint:
     @pytest.fixture
     def _principal(self):
@@ -355,11 +368,21 @@ class TestLanguageBreakdownEndpoint:
     @pytest.fixture
     def _org_id(self, _principal):
         from uuid import UUID
+
         return UUID(_principal.organization_id)
 
-    def _make_result(self, *, question_language, expected_answer_language=None,
-                     retrieval=0.9, faithfulness=0.85, answer_relevance=0.80,
-                     latency_ms=120, not_found=False, generated_answer=None):
+    def _make_result(
+        self,
+        *,
+        question_language,
+        expected_answer_language=None,
+        retrieval=0.9,
+        faithfulness=0.85,
+        answer_relevance=0.80,
+        latency_ms=120,
+        not_found=False,
+        generated_answer=None,
+    ):
         result = MagicMock()
         result.retrieval_score = retrieval
         result.citation_accuracy_score = 0.88
@@ -388,8 +411,10 @@ class TestLanguageBreakdownEndpoint:
         pairs = [
             self._make_result(question_language="en"),
             self._make_result(question_language="en"),
-            self._make_result(question_language="de",
-                              generated_answer="Welche Punkte enthält das Compliance-Dokument?"),
+            self._make_result(
+                question_language="de",
+                generated_answer="Welche Punkte enthält das Compliance-Dokument?",
+            ),
         ]
 
         mock_repo = AsyncMock()
@@ -397,6 +422,7 @@ class TestLanguageBreakdownEndpoint:
         mock_repo.get_results_with_questions_for_run.return_value = pairs
 
         import app.interfaces.http.evaluations as eval_module
+
         original_repo = eval_module.evaluation_repository
 
         try:
@@ -442,6 +468,7 @@ class TestLanguageBreakdownEndpoint:
         mock_repo.get_results_with_questions_for_run.return_value = pairs
 
         import app.interfaces.http.evaluations as eval_module
+
         original_repo = eval_module.evaluation_repository
 
         try:
@@ -488,6 +515,7 @@ class TestLanguageBreakdownEndpoint:
         mock_repo.get_results_with_questions_for_run.return_value = pairs
 
         import app.interfaces.http.evaluations as eval_module
+
         original_repo = eval_module.evaluation_repository
 
         try:
@@ -528,6 +556,7 @@ class TestLanguageBreakdownEndpoint:
         mock_repo.get_results_with_questions_for_run.return_value = pairs
 
         import app.interfaces.http.evaluations as eval_module
+
         original_repo = eval_module.evaluation_repository
 
         try:

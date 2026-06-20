@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from app.domains.api_keys.services.api_keys_service import SCOPE_TO_PERMISSIONS
 from app.domains.service_accounts.schemas.service_accounts import (
     ServiceAccountResponse,
     ServiceAccountTokenCreatedResponse,
     ServiceAccountTokenResponse,
 )
-from app.domains.api_keys.services.api_keys_service import SCOPE_TO_PERMISSIONS
 from app.models.service_account import ServiceAccount, ServiceAccountToken
 
 _TOKEN_PREFIX = "svc_"
@@ -35,7 +35,7 @@ class ServiceAccountsService:
     def is_expired(token: ServiceAccountToken) -> bool:
         if token.expires_at is None:
             return False
-        return datetime.now(tz=timezone.utc) > token.expires_at.replace(tzinfo=timezone.utc)
+        return datetime.now(tz=UTC) > token.expires_at.replace(tzinfo=UTC)
 
     @staticmethod
     def scopes_to_permissions(scopes: list[str]) -> frozenset[str]:

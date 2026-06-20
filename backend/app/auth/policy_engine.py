@@ -21,12 +21,11 @@ before calling authorize().
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Sequence
 
 from app.models.permissions import PermissionType
-
 
 # ── Enumerations ─────────────────────────────────────────────────────────────
 
@@ -196,7 +195,9 @@ _RESOURCE_ACTION_PERMISSIONS: dict[tuple[ResourceType, Action], frozenset[str]] 
     # Graph evidence
     (ResourceType.graph_evidence, Action.view): frozenset({PermissionType.graph_view}),
     (ResourceType.graph_evidence, Action.cite): frozenset({PermissionType.graph_view}),
-    (ResourceType.graph_evidence, Action.manage): frozenset({PermissionType.graph_relations_manage}),
+    (ResourceType.graph_evidence, Action.manage): frozenset(
+        {PermissionType.graph_relations_manage}
+    ),
     # Evaluation
     (ResourceType.evaluation, Action.view): frozenset({PermissionType.evaluations_view}),
     (ResourceType.evaluation, Action.list): frozenset({PermissionType.evaluations_view}),
@@ -225,12 +226,14 @@ _RESOURCE_ACTION_PERMISSIONS: dict[tuple[ResourceType, Action], frozenset[str]] 
 }
 
 # Resource types where collection-based allow is evaluated.
-_COLLECTION_ELIGIBLE_TYPES: frozenset[ResourceType] = frozenset({
-    ResourceType.document,
-    ResourceType.connector_source_item,
-    ResourceType.citation,
-    ResourceType.graph_evidence,
-})
+_COLLECTION_ELIGIBLE_TYPES: frozenset[ResourceType] = frozenset(
+    {
+        ResourceType.document,
+        ResourceType.connector_source_item,
+        ResourceType.citation,
+        ResourceType.graph_evidence,
+    }
+)
 
 _ADMIN_ROLES: frozenset[str] = frozenset({"owner", "admin"})
 
@@ -365,9 +368,7 @@ class PolicyEngine:
 
         # ── Rule 11: Role / permission default ──────────────────────────────
         rule = "role_permission"
-        required = _RESOURCE_ACTION_PERMISSIONS.get(
-            (resource.resource_type, action), frozenset()
-        )
+        required = _RESOURCE_ACTION_PERMISSIONS.get((resource.resource_type, action), frozenset())
         if required:
             if required.issubset(subject.resolved_permissions):
                 return _allow(rule)
@@ -392,8 +393,7 @@ class PolicyEngine:
         return [
             r
             for r in resources
-            if self.authorize(subject, action, r, request_id=rid).result
-            is PermissionResult.allow
+            if self.authorize(subject, action, r, request_id=rid).result is PermissionResult.allow
         ]
 
     def explain_decision(self, result: AuthorizationResult) -> str:

@@ -7,17 +7,16 @@ the policy engine can consume without further I/O.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.policy_engine import ResourceContext, ResourceType
 from app.models.authorization import ResourceAccessDeny, ResourceAccessGrant, SourceAclMapping
 from app.models.collection import CollectionDocument
 from app.models.connector import ExternalItem
-
 
 # ── Collection membership ─────────────────────────────────────────────────────
 
@@ -81,7 +80,9 @@ async def batch_get_collection_ids_for_documents(
 
 # ── Explicit grants / denies ──────────────────────────────────────────────────
 
-_NOW_UTC = lambda: datetime.now(tz=timezone.utc)
+
+def _NOW_UTC():
+    return datetime.now(tz=UTC)
 
 
 async def batch_get_explicit_grants(
@@ -236,9 +237,7 @@ async def build_document_resource_context(
     use build_document_resource_contexts_batch() to avoid N+1 queries.
     """
     doc_id_str = str(document.id)
-    collection_ids = await get_collection_ids_for_document(
-        db_session, document_id=document.id
-    )
+    collection_ids = await get_collection_ids_for_document(db_session, document_id=document.id)
 
     grants = await batch_get_explicit_grants(
         db_session,
@@ -318,9 +317,7 @@ async def build_document_resource_contexts_batch(
 
     # Batch: connector ACL for connector-backed documents
     ext_item_ids = [
-        d.connector_external_item_id
-        for d in documents
-        if d.connector_external_item_id is not None
+        d.connector_external_item_id for d in documents if d.connector_external_item_id is not None
     ]
     ext_to_conn: dict[str, str] = {}
     conn_acl_by_conn: dict[str, list[str]] = {}

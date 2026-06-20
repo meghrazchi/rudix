@@ -10,11 +10,10 @@ Covers:
 """
 
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -44,7 +43,6 @@ from app.domains.permissions.schemas.conflicts import (
 )
 from app.domains.permissions.services.conflict_detection_service import ConflictDetectionService
 from app.models.authorization import ResourceAccessDeny, ResourceAccessGrant
-
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -183,9 +181,7 @@ class TestConflictsRepository:
             )
         await db_session.flush()
 
-        items, total = await repo.list_conflicts(
-            db_session, organization_id=org_id, status="open"
-        )
+        items, total = await repo.list_conflicts(db_session, organization_id=org_id, status="open")
         assert total == 2
         assert all(c.status == "open" for c in items)
 

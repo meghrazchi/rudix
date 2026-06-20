@@ -16,7 +16,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_principal
@@ -26,7 +26,6 @@ from app.clients.minio_client import get_minio_client
 from app.core.config import settings
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
-from app.models.auth_session import AuthRefreshSession
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
 
@@ -91,12 +90,7 @@ def _user_display_name(user: User) -> str:
     if user.display_name:
         return user.display_name
     local = user.email.split("@")[0] if user.email and "@" in user.email else ""
-    return (
-        " ".join(p.capitalize() for p in local.split(".") if p)
-        or local
-        or user.email
-        or ""
-    )
+    return " ".join(p.capitalize() for p in local.split(".") if p) or local or user.email or ""
 
 
 def _build_user_response(user: User) -> dict:
@@ -202,7 +196,7 @@ async def update_me(
 async def upload_avatar(
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-    file: UploadFile = File(...),
+    file: Annotated[UploadFile, File(...)],
 ) -> UserProfileResponse:
     content_type = (file.content_type or "").lower()
     if content_type not in _AVATAR_ALLOWED_CONTENT_TYPES:
@@ -254,6 +248,7 @@ async def upload_avatar(
 
     object_key = f"{_AVATAR_OBJECT_PREFIX}/{principal.user_id}/{uuid.uuid4()}.{ext}"
     import io
+
     client.put_object(
         Bucket=settings.minio_bucket,
         Key=object_key,
@@ -346,7 +341,7 @@ async def update_my_preferences(
     user = await _get_user(db, principal=principal)
     prefs = _parse_preferences(user)
 
-    patch = body.model_dump(exclude_none=True)
+    body.model_dump(exclude_none=True)
     if body.language is not None:
         prefs["language"] = body.language
     if body.timezone is not None:
@@ -479,9 +474,7 @@ async def delete_personal_account(
 
     # Clean up avatar from object storage.
     avatar_key = user.avatar_url
-    if avatar_key and not (
-        avatar_key.startswith("http://") or avatar_key.startswith("https://")
-    ):
+    if avatar_key and not (avatar_key.startswith("http://") or avatar_key.startswith("https://")):
         client = get_minio_client(lazy_init=False)
         if client is not None:
             try:

@@ -1,8 +1,8 @@
 """Tests for OpenAIChatProvider and OpenAIEmbeddingProvider — F217."""
+
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 from types import SimpleNamespace
 
 import pytest
@@ -26,15 +26,12 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from openai import (
-    APIConnectionError,
     APITimeoutError,
-    AuthenticationError,
     RateLimitError,
 )
 
 from app.domains.ai.providers.errors import (
     InvalidProviderResponseError,
-    ProviderPolicyBlockedError,
     ProviderQuotaExceededError,
     ProviderTimeoutError,
     ProviderUnavailableError,
@@ -42,7 +39,6 @@ from app.domains.ai.providers.errors import (
 )
 from app.domains.ai.providers.openai.adapter import OpenAIChatProvider, OpenAIEmbeddingProvider
 from app.domains.ai.providers.protocols import ChatCompletionRequest, EmbeddingRequest
-
 
 # ── Fake OpenAI clients ──────────────────────────────────────────────────────
 
@@ -67,7 +63,7 @@ class FakeChatClient:
         self.completions = FakeChatEndpoint(responses)
 
     @property
-    def chat(self) -> "FakeChatClient":
+    def chat(self) -> FakeChatClient:
         return self
 
 
@@ -101,10 +97,7 @@ def _chat_response(content: str, model: str = "gpt-test") -> SimpleNamespace:
 
 def _embed_response(vectors: list[list[float]]) -> SimpleNamespace:
     return SimpleNamespace(
-        data=[
-            SimpleNamespace(index=i, embedding=v)
-            for i, v in enumerate(vectors)
-        ],
+        data=[SimpleNamespace(index=i, embedding=v) for i, v in enumerate(vectors)],
         usage=SimpleNamespace(prompt_tokens=20, total_tokens=20),
     )
 
@@ -116,9 +109,7 @@ def _embed_response(vectors: list[list[float]]) -> SimpleNamespace:
 async def test_chat_provider_returns_parsed_response() -> None:
     client = FakeChatClient([_chat_response('{"answer": "hello"}', model="gpt-test")])
     provider = OpenAIChatProvider(client=client, model_name="gpt-test")  # type: ignore[arg-type]
-    response = await provider.complete(
-        ChatCompletionRequest(prompt="say hello", model="gpt-test")
-    )
+    response = await provider.complete(ChatCompletionRequest(prompt="say hello", model="gpt-test"))
     assert response.content == '{"answer": "hello"}'
     assert response.model == "gpt-test"
     assert response.prompt_tokens == 10

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import os
 
-import pytest
-
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
@@ -26,7 +24,6 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.domains.documents.extraction.models import BoundingBox, TableBlock, TableCell
 from app.domains.documents.services.table_chunking_service import (
-    TableChunkResult,
     build_docx_table_chunk,
     build_table_chunk,
 )
@@ -72,7 +69,11 @@ def _make_table(
 
 def test_build_table_chunk_valid_structure():
     table = _make_table(
-        rows=[["Product", "Price", "Stock"], ["Widget A", "9.99", "100"], ["Widget B", "14.99", "50"]],
+        rows=[
+            ["Product", "Price", "Stock"],
+            ["Widget A", "9.99", "100"],
+            ["Widget B", "14.99", "50"],
+        ],
         page_number=3,
         caption="Product catalog",
     )
@@ -175,7 +176,9 @@ def test_build_table_chunk_no_section_context_in_metadata():
 
 def test_build_docx_table_chunk_valid():
     rows = [["Quarter", "Revenue", "Profit"], ["Q1", "1M", "200K"], ["Q2", "1.2M", "250K"]]
-    result = build_docx_table_chunk(rows, table_index=0, page_number=2, section_context="Financials")
+    result = build_docx_table_chunk(
+        rows, table_index=0, page_number=2, section_context="Financials"
+    )
 
     assert result.is_valid is True
     assert "[Table 1 on page 2]" in result.text
@@ -222,7 +225,7 @@ def test_table_chunk_markdown_separator_row():
     table = _make_table(rows=[["H1", "H2"], ["r1", "r2"]])
     result = build_table_chunk(table)
     lines = result.text.split("\n")
-    separator_lines = [l for l in lines if "---" in l]
+    separator_lines = [line for line in lines if "---" in line]
     assert len(separator_lines) == 1
     assert "| --- | --- |" in separator_lines[0]
 
@@ -230,6 +233,6 @@ def test_table_chunk_markdown_separator_row():
 def test_table_chunk_header_row_is_first():
     table = _make_table(rows=[["Name", "Age"], ["Alice", "30"]])
     result = build_table_chunk(table)
-    first_pipe_line = next(l for l in result.text.split("\n") if "|" in l)
+    first_pipe_line = next(line for line in result.text.split("\n") if "|" in line)
     assert "Name" in first_pipe_line
     assert "Age" in first_pipe_line

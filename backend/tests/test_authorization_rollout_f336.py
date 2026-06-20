@@ -11,13 +11,10 @@ Covers:
 
 from __future__ import annotations
 
-import logging
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 import pytest
-import structlog
 
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
@@ -57,7 +54,10 @@ class TestFeatureFlagCatalogue:
         from app.domains.admin.services.feature_flag_service import _SETTINGS_ATTR
 
         assert "authorization_enforcement" in _SETTINGS_ATTR
-        assert _SETTINGS_ATTR["authorization_enforcement"] == "feature_enable_authorization_enforcement"
+        assert (
+            _SETTINGS_ATTR["authorization_enforcement"]
+            == "feature_enable_authorization_enforcement"
+        )
 
     def test_settings_has_feature_enable_authorization_enforcement(self) -> None:
         from app.core.config import settings
@@ -187,7 +187,6 @@ class TestSoftModeRollout:
     async def test_soft_mode_returns_document_on_deny(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from unittest.mock import AsyncMock, MagicMock, patch
         from uuid import UUID
 
         from app.auth.policy_engine import (
@@ -273,10 +272,7 @@ class TestSoftModeRollout:
         assert doc is fake_doc, "Soft mode should return the document even on deny"
 
     @pytest.mark.asyncio
-    async def test_strict_mode_raises_on_deny(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        from unittest.mock import AsyncMock, MagicMock, patch
+    async def test_strict_mode_raises_on_deny(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from uuid import UUID
 
         from fastapi import HTTPException
@@ -399,7 +395,6 @@ class TestSchemaAndSeedIntegrity:
         assert "org_feature_flag_overrides" in table_names
 
     def test_authorization_conflict_model_has_severity_constraint(self) -> None:
-        from sqlalchemy import inspect as sa_inspect
 
         from app.db.base import Base
 
@@ -407,9 +402,7 @@ class TestSchemaAndSeedIntegrity:
         assert table is not None
         constraint_names = {c.name for c in table.constraints}
         # The severity check constraint was created in the F331 migration
-        severity_constraints = [
-            c for c in constraint_names if "severity" in (c or "").lower()
-        ]
+        severity_constraints = [c for c in constraint_names if "severity" in (c or "").lower()]
         assert len(severity_constraints) >= 1 or any(
             "check" in type(c).__name__.lower() for c in table.constraints
         )

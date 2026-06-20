@@ -169,7 +169,9 @@ async def test_list_items_normalizes_file_metadata_and_permissions(
     assert item.provider_key == "microsoft-sharepoint-onedrive"
     assert item.provider_item_id == "item:drive-1:file-1"
     assert item.item_type == ExternalItemType.cloud_file
-    assert item.mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    assert (
+        item.mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
     assert item.permissions["entries"][0]["id"] == "perm-1"
     assert item.acl_hash is not None
     assert len(item.content_hash) == 64

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import base64
-import hashlib
-import urllib.request
 import urllib.error
+import urllib.request
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 from xml.etree import ElementTree
@@ -13,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.org_sso_config import OrgSSOConfig
-
 
 _SAML_NS = "urn:oasis:names:tc:SAML:2.0:metadata"
 _DS_NS = "http://www.w3.org/2000/09/xmldsig#"
@@ -33,7 +31,7 @@ def _sp_acs_url_for_org(organization_id: str) -> str:
 def _parse_saml_metadata(xml_bytes: bytes) -> dict:
     """Extract SSO URL, entity ID, and signing cert from IdP SAML metadata XML."""
     try:
-        root = ElementTree.fromstring(xml_bytes)  # noqa: S314
+        root = ElementTree.fromstring(xml_bytes)
     except ElementTree.ParseError as exc:
         raise ValueError(f"Invalid XML in IdP metadata: {exc}") from exc
 
@@ -52,13 +50,13 @@ def _parse_saml_metadata(xml_bytes: bytes) -> dict:
 
     sso_elem = root.find(".//md:IDPSSODescriptor/md:SingleSignOnService", ns)
     if sso_elem is None:
-        sso_elem = root.find(".//{%s}SingleSignOnService" % _SAML_NS)
+        sso_elem = root.find(f".//{{{_SAML_NS}}}SingleSignOnService")
     if sso_elem is not None:
         sso_url = sso_elem.get("Location")
 
     cert_elem = root.find(".//ds:X509Certificate", ns)
     if cert_elem is None:
-        cert_elem = root.find(".//{%s}X509Certificate" % _DS_NS)
+        cert_elem = root.find(f".//{{{_DS_NS}}}X509Certificate")
     if cert_elem is not None and cert_elem.text:
         certificate = cert_elem.text.strip()
 
@@ -71,9 +69,9 @@ def _parse_saml_metadata(xml_bytes: bytes) -> dict:
 
 def _fetch_metadata_url(url: str) -> bytes:
     """Fetch IdP metadata XML from a URL. Raises ValueError on failure."""
-    req = urllib.request.Request(url, headers={"User-Agent": "Rudix-SSO/1.0"})  # noqa: S310
+    req = urllib.request.Request(url, headers={"User-Agent": "Rudix-SSO/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS) as resp:
             content_bytes = resp.read(_MAX_METADATA_BYTES + 1)
     except urllib.error.URLError as exc:
         raise ValueError(f"Could not reach IdP metadata URL: {exc.reason}") from exc
@@ -116,7 +114,7 @@ def _build_authn_request(sp_entity_id: str, idp_sso_url: str, relay_state: str) 
 def _extract_name_id_from_saml_response(xml_bytes: bytes) -> str | None:
     """Parse a SAML Response and extract the NameID."""
     try:
-        root = ElementTree.fromstring(xml_bytes)  # noqa: S314
+        root = ElementTree.fromstring(xml_bytes)
     except ElementTree.ParseError:
         return None
 
@@ -125,7 +123,7 @@ def _extract_name_id_from_saml_response(xml_bytes: bytes) -> str | None:
         "urn:oasis:names:tc:SAML:2.0:assertion",
         "urn:oasis:names:tc:SAML:1.0:assertion",
     ):
-        elem = root.find(".//{%s}NameID" % ns_uri)
+        elem = root.find(f".//{{{ns_uri}}}NameID")
         if elem is not None and elem.text:
             return elem.text.strip()
     return None
@@ -135,7 +133,7 @@ def _extract_attributes_from_saml_response(xml_bytes: bytes) -> dict[str, str]:
     """Extract SAML attribute values as a flat name→value dict."""
     attrs: dict[str, str] = {}
     try:
-        root = ElementTree.fromstring(xml_bytes)  # noqa: S314
+        root = ElementTree.fromstring(xml_bytes)
     except ElementTree.ParseError:
         return attrs
 
@@ -143,9 +141,9 @@ def _extract_attributes_from_saml_response(xml_bytes: bytes) -> dict[str, str]:
         "urn:oasis:names:tc:SAML:2.0:assertion",
         "urn:oasis:names:tc:SAML:1.0:assertion",
     ):
-        for attr_elem in root.findall(".//{%s}Attribute" % ns_uri):
+        for attr_elem in root.findall(f".//{{{ns_uri}}}Attribute"):
             name = attr_elem.get("Name") or attr_elem.get("AttributeName") or ""
-            value_elem = attr_elem.find("{%s}AttributeValue" % ns_uri)
+            value_elem = attr_elem.find(f"{{{ns_uri}}}AttributeValue")
             if name and value_elem is not None and value_elem.text:
                 attrs[name] = value_elem.text.strip()
     return attrs
@@ -264,11 +262,11 @@ class SSOService:
                 success = True
             elif idp_sso_url:
                 # Minimal reachability: try a HEAD/GET to the SSO URL
-                req = urllib.request.Request(  # noqa: S310
+                req = urllib.request.Request(
                     idp_sso_url, method="HEAD", headers={"User-Agent": "Rudix-SSO/1.0"}
                 )
                 try:
-                    urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS)  # noqa: S310
+                    urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS)
                     detail = "IdP SSO URL is reachable."
                     success = True
                 except urllib.error.HTTPError as http_err:

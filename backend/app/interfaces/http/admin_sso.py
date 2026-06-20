@@ -128,9 +128,7 @@ async def delete_sso_config(
 ) -> None:
     organization_id = _principal_organization_id(principal)
     user_id = _principal_user_id(principal)
-    removed = await _sso_service.delete_config(
-        db_session, organization_id=organization_id
-    )
+    removed = await _sso_service.delete_config(db_session, organization_id=organization_id)
     if not removed:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -44,7 +44,7 @@ from __future__ import annotations
 import os
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -67,7 +67,10 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
-from app.auth.dependencies import get_current_principal, require_permission
+import app.interfaces.http.admin_graph_entities as entities_http
+import app.interfaces.http.admin_graph_relations as relations_http
+import app.interfaces.http.graph_explorer as explorer_http
+from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.db.session import get_db_session
@@ -75,9 +78,6 @@ from app.domains.admin.services.audit_service import sanitize_metadata
 from app.domains.chat.services.graph_retrieval_service import GraphRetrievalService
 from app.main import app
 from app.models.permissions import ROLE_PERMISSIONS, PermissionType
-import app.interfaces.http.admin_graph_entities as entities_http
-import app.interfaces.http.admin_graph_relations as relations_http
-import app.interfaces.http.graph_explorer as explorer_http
 
 pytestmark = pytest.mark.governance
 
@@ -107,8 +107,10 @@ def _make_principal(
 
 def _principal_override(role: str, org_id: str = _ORG_A):
     """FastAPI dependency override that returns a fixed principal."""
+
     async def _dep() -> AuthenticatedPrincipal:
         return _make_principal(role=role, org_id=org_id)
+
     return _dep
 
 
@@ -137,7 +139,14 @@ def _empty_graph_service() -> SimpleNamespace:
             }
         ),
         list_entities=AsyncMock(return_value=[]),
-        get_entity=AsyncMock(return_value={"entity_id": "e-1", "entity_type": "Person", "canonical_name": "Alice", "organization_id": _ORG_A}),
+        get_entity=AsyncMock(
+            return_value={
+                "entity_id": "e-1",
+                "entity_type": "Person",
+                "canonical_name": "Alice",
+                "organization_id": _ORG_A,
+            }
+        ),
         upsert_entity=AsyncMock(),
         delete_entity=AsyncMock(return_value=True),
         list_entity_aliases=AsyncMock(return_value=[]),
@@ -170,6 +179,7 @@ def _reset_overrides() -> Any:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _setup_graph_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
@@ -188,6 +198,7 @@ def _setup_db_override() -> AsyncMock:
 # ===========================================================================
 # A-D: Tenant isolation
 # ===========================================================================
+
 
 def test_tenant_isolation_search_entities_uses_caller_org(
     monkeypatch: pytest.MonkeyPatch,
@@ -270,6 +281,7 @@ def test_tenant_isolation_document_insights_uses_caller_org(
 # E-P: RBAC
 # ===========================================================================
 
+
 def test_rbac_viewer_can_access_graph_explorer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -324,7 +336,7 @@ def test_rbac_admin_can_upsert_entity(
     _setup_graph_enabled(monkeypatch)
     fake_svc = _empty_graph_service()
     app.dependency_overrides[get_current_principal] = _principal_override("admin")
-    mock_session = _setup_db_override()
+    _setup_db_override()
     monkeypatch.setattr(entities_http, "_graph_service", lambda: fake_svc)
     monkeypatch.setattr(entities_http._audit_log_service, "record", AsyncMock())
 
@@ -485,6 +497,7 @@ def test_rbac_security_admin_forbidden_on_graph_explorer(
 # ===========================================================================
 # Q-W: Audit logging
 # ===========================================================================
+
 
 def test_audit_entity_upsert_logged(monkeypatch: pytest.MonkeyPatch) -> None:
     """Q: entity upsert triggers GRAPH_ENTITY_CREATED audit log."""
@@ -675,6 +688,7 @@ def test_audit_relation_delete_logged(monkeypatch: pytest.MonkeyPatch) -> None:
 # X-Z: GraphRAG permission filtering
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_graphrag_allowed_document_ids_passed_to_service() -> None:
     """X: allowed_document_ids are forwarded to all graph retrieval service calls."""
@@ -764,6 +778,7 @@ async def test_graphrag_org_id_propagated_to_all_calls() -> None:
 # AA-AE: Permission matrix assertions
 # ===========================================================================
 
+
 def test_permission_graph_view_granted_to_standard_roles() -> None:
     """AA: graph_view is in viewer, reviewer, member, developer, admin, owner."""
     roles_with_graph_view = {"viewer", "reviewer", "member", "developer", "admin", "owner"}
@@ -778,7 +793,14 @@ def test_permission_graph_entities_manage_restricted_to_admin_owner() -> None:
     assert PermissionType.graph_entities_manage in ROLE_PERMISSIONS["admin"]
     assert PermissionType.graph_entities_manage in ROLE_PERMISSIONS["owner"]
 
-    non_admin_roles = {"viewer", "reviewer", "member", "developer", "billing_admin", "security_admin"}
+    non_admin_roles = {
+        "viewer",
+        "reviewer",
+        "member",
+        "developer",
+        "billing_admin",
+        "security_admin",
+    }
     for role in non_admin_roles:
         assert PermissionType.graph_entities_manage not in ROLE_PERMISSIONS[role], (
             f"graph_entities_manage should NOT be in {role}"
@@ -790,7 +812,14 @@ def test_permission_graph_relations_manage_restricted_to_admin_owner() -> None:
     assert PermissionType.graph_relations_manage in ROLE_PERMISSIONS["admin"]
     assert PermissionType.graph_relations_manage in ROLE_PERMISSIONS["owner"]
 
-    non_admin_roles = {"viewer", "reviewer", "member", "developer", "billing_admin", "security_admin"}
+    non_admin_roles = {
+        "viewer",
+        "reviewer",
+        "member",
+        "developer",
+        "billing_admin",
+        "security_admin",
+    }
     for role in non_admin_roles:
         assert PermissionType.graph_relations_manage not in ROLE_PERMISSIONS[role], (
             f"graph_relations_manage should NOT be in {role}"
@@ -823,6 +852,7 @@ def test_permission_billing_admin_has_no_graph_permissions() -> None:
 # ===========================================================================
 # AF-AH: Redaction
 # ===========================================================================
+
 
 def test_redaction_neo4j_password_is_sanitized() -> None:
     """AF: neo4j_password key value is replaced with *** in audit metadata."""

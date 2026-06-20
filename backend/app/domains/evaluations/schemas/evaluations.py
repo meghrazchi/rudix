@@ -543,23 +543,31 @@ class LocalModelMetrics(BaseModel):
     """Local-provider-specific quality indicators stored in config metrics_summary."""
 
     invalid_json_rate: float | None = Field(
-        default=None, ge=0.0, le=1.0,
+        default=None,
+        ge=0.0,
+        le=1.0,
         description="Fraction of responses that failed JSON parsing (evaluations task)",
     )
     timeout_rate: float | None = Field(
-        default=None, ge=0.0, le=1.0,
+        default=None,
+        ge=0.0,
+        le=1.0,
         description="Fraction of inference calls that exceeded the configured timeout",
     )
     fallback_frequency: float | None = Field(
-        default=None, ge=0.0, le=1.0,
+        default=None,
+        ge=0.0,
+        le=1.0,
         description="Fraction of calls that fell back to the fallback provider",
     )
     estimated_compute_latency_ms: float | None = Field(
-        default=None, ge=0.0,
+        default=None,
+        ge=0.0,
         description="Median end-to-end latency in ms (estimated from result latency_ms values)",
     )
     tokens_per_second: float | None = Field(
-        default=None, ge=0.0,
+        default=None,
+        ge=0.0,
         description="Estimated token throughput when reported by the local provider",
     )
 
@@ -679,8 +687,7 @@ def _build_release_gate_recommendation(
         ),
         (
             f"not_found_rate ≤ {t['not_found_rate_max']:.0%}",
-            summary.not_found_rate is None
-            or summary.not_found_rate <= t["not_found_rate_max"],
+            summary.not_found_rate is None or summary.not_found_rate <= t["not_found_rate_max"],
         ),
         (
             f"invalid_json_rate ≤ {t['invalid_json_rate_max']:.0%}",
@@ -689,8 +696,7 @@ def _build_release_gate_recommendation(
         ),
         (
             f"timeout_rate ≤ {t['timeout_rate_max']:.0%}",
-            local.timeout_rate is None
-            or local.timeout_rate <= t["timeout_rate_max"],
+            local.timeout_rate is None or local.timeout_rate <= t["timeout_rate_max"],
         ),
         (
             f"fallback_frequency ≤ {t['fallback_frequency_max']:.0%}",

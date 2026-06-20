@@ -173,17 +173,13 @@ async def get_custom_role(
     try:
         parsed_id = UUID(role_id)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found") from exc
 
     role = await roles_repository.get_custom_role(
         db_session, role_id=parsed_id, organization_id=organization_id
     )
     if role is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
     return roles_service.to_custom_role_response(role)
 
 
@@ -205,17 +201,13 @@ async def update_custom_role(
     try:
         parsed_id = UUID(role_id)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found") from exc
 
     role = await roles_repository.get_custom_role(
         db_session, role_id=parsed_id, organization_id=organization_id
     )
     if role is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
 
     if payload.name is not None and payload.name != role.name:
         conflict = await roles_repository.get_custom_role_by_name(
@@ -276,17 +268,13 @@ async def delete_custom_role(
     try:
         parsed_id = UUID(role_id)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found") from exc
 
     role = await roles_repository.get_custom_role(
         db_session, role_id=parsed_id, organization_id=organization_id
     )
     if role is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
 
     await roles_repository.delete_custom_role(db_session, role=role)
     await audit_log_service.record(

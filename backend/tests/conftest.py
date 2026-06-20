@@ -1,8 +1,7 @@
 import pytest_asyncio
-from sqlalchemy import event
 from fastapi.testclient import TestClient
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy import event
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.pool import StaticPool

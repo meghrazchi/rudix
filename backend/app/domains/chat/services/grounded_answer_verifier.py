@@ -13,6 +13,7 @@ Design constraints:
 - All chunk context is org-scoped; no cross-org data can reach the verifier.
 - removed_claims contains short excerpts from the ANSWER only, not from sources.
 """
+
 from __future__ import annotations
 
 import json
@@ -65,11 +66,9 @@ class _VerifierOutput(BaseModel):
     def _clean_removed(cls, v: object) -> list[str]:
         if not isinstance(v, list):
             return []
-        return [
-            str(item).strip()[:_MAX_REMOVED_CLAIM_CHARS]
-            for item in v
-            if str(item).strip()
-        ][:10]
+        return [str(item).strip()[:_MAX_REMOVED_CLAIM_CHARS] for item in v if str(item).strip()][
+            :10
+        ]
 
     @field_validator("reason_codes", mode="before")
     @classmethod
@@ -177,9 +176,7 @@ def _build_verifier_prompt(answer: str, chunks: list[VerifierChunk]) -> str:
     )
     answer_block = answer[:_MAX_ANSWER_CHARS].strip()
     return (
-        f"{_SYSTEM_PROMPT}\n\n"
-        f"SOURCE CHUNKS:\n{chunk_sections}\n\n"
-        f"GENERATED ANSWER:\n{answer_block}"
+        f"{_SYSTEM_PROMPT}\n\nSOURCE CHUNKS:\n{chunk_sections}\n\nGENERATED ANSWER:\n{answer_block}"
     )
 
 
@@ -201,9 +198,7 @@ class GroundedAnswerVerifier:
     """
 
     def __init__(self, *, timeout_seconds: float | None = None) -> None:
-        self._timeout_seconds = (
-            timeout_seconds or settings.grounded_verification_timeout_seconds
-        )
+        self._timeout_seconds = timeout_seconds or settings.grounded_verification_timeout_seconds
 
     def _resolve_provider(self):  # type: ignore[return]
         from app.domains.ai.providers.factory import default_provider_factory
@@ -273,7 +268,7 @@ class GroundedAnswerVerifier:
             response = await provider.complete(request)
             raw_text = response.content or ""
             parsed = self._parse_output(raw_text)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("grounded_verifier failed, using original answer: %s", exc)
             return self._fallback(answer)
 

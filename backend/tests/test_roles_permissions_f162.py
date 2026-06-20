@@ -48,7 +48,6 @@ from app.models.organization_member import OrganizationMember
 from app.models.permissions import PERMISSION_CATALOG, ROLE_PERMISSIONS, PermissionType
 from app.models.user import User
 
-
 # ─── fixtures ────────────────────────────────────────────────────────────────
 
 
@@ -190,20 +189,14 @@ class TestPermissionMatrix:
 
 class TestPermissionService:
     @pytest.mark.asyncio
-    async def test_builtin_role_permissions_resolved(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_builtin_role_permissions_resolved(self, db_session: AsyncSession) -> None:
         svc = PermissionService()
-        perms = await svc.get_user_permissions(
-            db_session, roles=["admin"], custom_role_id=None
-        )
+        perms = await svc.get_user_permissions(db_session, roles=["admin"], custom_role_id=None)
         assert PermissionType.team_manage in perms
         assert PermissionType.billing_manage not in perms
 
     @pytest.mark.asyncio
-    async def test_custom_role_permissions_merged(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_custom_role_permissions_merged(self, db_session: AsyncSession) -> None:
         org = Organization(name=f"perm-svc-{uuid4().hex[:8]}", slug=f"ps-{uuid4().hex[:8]}")
         db_session.add(org)
         await db_session.flush()
@@ -583,9 +576,7 @@ async def test_security_admin_can_view_roles_but_not_manage(
     roles_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    actor, org = await _seed_org_actor(
-        db_session, role=OrganizationRole.security_admin
-    )
+    actor, org = await _seed_org_actor(db_session, role=OrganizationRole.security_admin)
     token = _token(actor, org)
     headers = _auth_headers(token=token, organization_id=str(org.id))
 

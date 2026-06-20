@@ -1566,9 +1566,10 @@ async def query_chat(
         # For decompose: use primary_query + each sub_query for parallel retrieval.
         # For original (or no rewriting): use the user's question unchanged.
         if query_rewrite_result is not None and query_rewrite_result.decomposition_applied:
-            _retrieval_queries = [query_rewrite_result.primary_query] + list(
-                query_rewrite_result.sub_queries
-            )
+            _retrieval_queries = [
+                query_rewrite_result.primary_query,
+                *list(query_rewrite_result.sub_queries),
+            ]
         elif query_rewrite_result is not None and query_rewrite_result.rewriting_applied:
             _retrieval_queries = [query_rewrite_result.primary_query]
         else:
@@ -1607,7 +1608,9 @@ async def query_chat(
             _merged_chunks: dict[str, RetrievedChunk] = {}
             _primary_query_for_kw = _retrieval_queries[0]
 
-            for (query_vector, _), retrieval_q in zip(embed_results, _retrieval_queries):
+            for (query_vector, _), retrieval_q in zip(
+                embed_results, _retrieval_queries, strict=False
+            ):
                 retrieved_candidates = _query_retrieval_service.retrieve_candidates(
                     query_vector=query_vector,
                     organization_id=organization_id,
@@ -3836,8 +3839,8 @@ async def _run_ws_chat_pipeline(
                             chunks=_build_conflict_detection_chunks(
                                 chunks=selected_chunks,
                                 parent_context_map=None,
-                                trust_map=_freshness_trust_map,
-                                org_stale_threshold_days=_freshness_stale_threshold_days,
+                                trust_map={},
+                                org_stale_threshold_days=None,
                             ),
                             min_source_docs=_conflict_min_docs,
                         )

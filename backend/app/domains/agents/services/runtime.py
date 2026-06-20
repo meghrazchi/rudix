@@ -530,9 +530,7 @@ class AgentRuntime:
         outcome = self._build_outcome(context=context)
         # Capture provider metadata from the last tool's debug output.
         _last_debug = (
-            context.latest_output.get("debug")
-            if isinstance(context.latest_output, dict)
-            else None
+            context.latest_output.get("debug") if isinstance(context.latest_output, dict) else None
         )
         _run_provider_key = None
         _run_provider_type = None

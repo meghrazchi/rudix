@@ -388,9 +388,8 @@ class EvaluationRepository:
         offset: int = 0,
         question_language: str | None = None,
     ) -> list[EvaluationQuestion]:
-        query = (
-            select(EvaluationQuestion)
-            .where(EvaluationQuestion.evaluation_set_id == evaluation_set_id)
+        query = select(EvaluationQuestion).where(
+            EvaluationQuestion.evaluation_set_id == evaluation_set_id
         )
         if question_language is not None:
             query = query.where(EvaluationQuestion.question_language == question_language)

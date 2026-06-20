@@ -310,9 +310,7 @@ def test_graph_stats_returns_overview(monkeypatch: pytest.MonkeyPatch) -> None:
     assert body["graph_available"] is True
     assert len(body["entities_by_type"]) == 2
     assert body["entities_by_type"][0]["entity_type"] == "Vendor"
-    fake_service.get_graph_stats.assert_awaited_once_with(
-        organization_id="org-graph"
-    )
+    fake_service.get_graph_stats.assert_awaited_once_with(organization_id="org-graph")
 
 
 def test_graph_stats_returns_safe_zero_when_neo4j_unavailable(

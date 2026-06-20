@@ -4,14 +4,16 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-VALID_SCOPES = frozenset({
-    "documents:read",
-    "documents:write",
-    "chat:write",
-    "evaluations:run",
-    "webhooks:manage",
-    "connectors:manage",
-})
+VALID_SCOPES = frozenset(
+    {
+        "documents:read",
+        "documents:write",
+        "chat:write",
+        "evaluations:run",
+        "webhooks:manage",
+        "connectors:manage",
+    }
+)
 
 
 class CreateApiKeyRequest(BaseModel):
@@ -69,6 +71,7 @@ class ApiKeyResponse(BaseModel):
 
 class ApiKeyCreatedResponse(ApiKeyResponse):
     """Returned only at creation time — contains the raw key shown exactly once."""
+
     raw_key: str
 
 

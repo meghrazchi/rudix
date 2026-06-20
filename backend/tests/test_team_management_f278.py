@@ -31,12 +31,12 @@ from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.quota.services.quota_service import upsert_policy_with_log
 from app.domains.team.services.invitation_service import (
     generate_invite_token,
     hash_invite_token,
     invite_expires_at,
 )
-from app.domains.quota.services.quota_service import upsert_policy_with_log
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
@@ -173,11 +173,11 @@ async def test_list_members_with_search(
     db_session: AsyncSession,
 ) -> None:
     org = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org)
-    user_a, _ = await _seed_member(
+    _actor, token = await _actor_token(db_session, org=org)
+    _user_a, _ = await _seed_member(
         db_session, org=org, role=OrganizationRole.member, email_prefix="alice"
     )
-    user_b, _ = await _seed_member(
+    _user_b, _ = await _seed_member(
         db_session, org=org, role=OrganizationRole.viewer, email_prefix="bob"
     )
 
@@ -198,7 +198,7 @@ async def test_list_members_role_filter(
     db_session: AsyncSession,
 ) -> None:
     org = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org)
+    _actor, token = await _actor_token(db_session, org=org)
     await _seed_member(db_session, org=org, role=OrganizationRole.member)
     await _seed_member(db_session, org=org, role=OrganizationRole.viewer)
 
@@ -221,7 +221,7 @@ async def test_get_member_detail(
     db_session: AsyncSession,
 ) -> None:
     org = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org)
+    _actor, token = await _actor_token(db_session, org=org)
     target_user, target_member = await _seed_member(
         db_session, org=org, role=OrganizationRole.member
     )
@@ -245,7 +245,7 @@ async def test_get_member_detail_tenant_isolation(
 ) -> None:
     org_a = await _seed_org(db_session)
     org_b = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org_a)
+    _actor, token = await _actor_token(db_session, org=org_a)
     _, other_member = await _seed_member(db_session, org=org_b, role=OrganizationRole.member)
 
     resp = await team_client.get(
@@ -342,7 +342,7 @@ async def test_deactivate_member(
     db_session: AsyncSession,
 ) -> None:
     org = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org, role=OrganizationRole.admin)
+    _actor, token = await _actor_token(db_session, org=org, role=OrganizationRole.admin)
     target_user, target_member = await _seed_member(
         db_session, org=org, role=OrganizationRole.member
     )
@@ -402,7 +402,7 @@ async def test_list_invitations_tenant_isolation(
 ) -> None:
     org_a = await _seed_org(db_session)
     org_b = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org_a)
+    _actor, token = await _actor_token(db_session, org=org_a)
     await _seed_invitation(db_session, org=org_b, email="other@example.com")
 
     resp = await team_client.get(
@@ -447,7 +447,7 @@ async def test_revoke_already_revoked_invitation_returns_409(
     db_session: AsyncSession,
 ) -> None:
     org = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org)
+    _actor, token = await _actor_token(db_session, org=org)
     _, inv = await _seed_invitation(db_session, org=org, email="target2@example.com")
     inv.status = "revoked"
     await db_session.commit()
@@ -468,7 +468,7 @@ async def test_resend_invitation_updates_token_hash(
     db_session: AsyncSession,
 ) -> None:
     org = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org)
+    _actor, token = await _actor_token(db_session, org=org)
     _, inv = await _seed_invitation(db_session, org=org, email="resend@example.com")
     original_hash = inv.token_hash
 
@@ -571,7 +571,7 @@ async def test_invitation_list_does_not_expose_token_hash(
     db_session: AsyncSession,
 ) -> None:
     org = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org)
+    _actor, token = await _actor_token(db_session, org=org)
     raw_token = generate_invite_token()
     _, inv = await _seed_invitation(db_session, org=org, email="sec@example.com", token=raw_token)
 
@@ -594,7 +594,7 @@ async def test_invite_endpoint_creates_invitation_record(
     db_session: AsyncSession,
 ) -> None:
     org = await _seed_org(db_session)
-    actor, token = await _actor_token(db_session, org=org, role=OrganizationRole.owner)
+    _actor, token = await _actor_token(db_session, org=org, role=OrganizationRole.owner)
 
     from unittest.mock import patch
 
@@ -672,7 +672,7 @@ async def test_member_cannot_deactivate_members(
 ) -> None:
     org = await _seed_org(db_session)
     actor, _ = await _seed_member(db_session, org=org, role=OrganizationRole.member)
-    target, target_member = await _seed_member(db_session, org=org, role=OrganizationRole.viewer)
+    _target, target_member = await _seed_member(db_session, org=org, role=OrganizationRole.viewer)
     token = create_app_access_token(
         subject=actor.external_auth_id,
         organization_id=str(org.id),

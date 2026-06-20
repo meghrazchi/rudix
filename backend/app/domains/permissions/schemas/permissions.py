@@ -15,6 +15,7 @@ _VALID_GRANT_STATUSES = set(GRANT_STATUSES)
 
 # ── Role matrix ────────────────────────────────────────────────────────────────
 
+
 class RoleMatrixEntry(BaseModel):
     role: str
     label: str
@@ -40,6 +41,7 @@ class UpdateRolePermissionsResponse(BaseModel):
 
 
 # ── Resource access grants / denies ───────────────────────────────────────────
+
 
 class ResourceAccessEntryResponse(BaseModel):
     id: str

@@ -25,7 +25,6 @@ from app.auth.permission_service import PermissionService
 from app.auth.policy_engine import (
     Action,
     DenyReason,
-    PermissionResult,
     PolicyEngine,
     ResourceContext,
     ResourceType,
@@ -40,19 +39,18 @@ from app.domains.permissions.schemas.conflicts import (
     SEVERITY_TO_DB,
     ConflictListResponse,
     ConflictResponse,
-    ExplainDecisionRequest,
     ExplainDecisionResponse,
     ScanResult,
     TraceStep,
     UpdateConflictStatusRequest,
 )
-from app.domains.permissions.services.conflict_detection_service import remediation_for
 from app.domains.permissions.services.conflict_detection_service import (
     ConflictDetectionService,
+    remediation_for,
 )
 from app.models.authorization import AuthorizationConflict
 from app.models.organization_member import OrganizationMember
-from app.models.permissions import ROLE_PERMISSIONS, PermissionType
+from app.models.permissions import PermissionType
 
 router = APIRouter(prefix="/admin/permissions", tags=["permissions"])
 
@@ -164,7 +162,9 @@ def _remediation_from_decision(
             "The user is not in the connector ACL. Re-sync the connector or update ACL in the source system."
         )
     elif deny_reason == DenyReason.feature_not_entitled:
-        suggestions.append("The feature is disabled for this organisation. Enable it in feature flags.")
+        suggestions.append(
+            "The feature is disabled for this organisation. Enable it in feature flags."
+        )
     elif deny_reason == DenyReason.collection_not_accessible:
         suggestions.append(
             "The resource is only accessible through a collection the user cannot access."
@@ -173,7 +173,9 @@ def _remediation_from_decision(
     elif deny_reason == DenyReason.no_organization_context:
         suggestions.append("The user must be a member of an organisation to access this resource.")
     elif deny_reason == DenyReason.tenant_boundary:
-        suggestions.append("This resource belongs to a different organisation — cross-tenant access is blocked.")
+        suggestions.append(
+            "This resource belongs to a different organisation — cross-tenant access is blocked."
+        )
     else:
         suggestions.append("Review the user's role and any explicit grants or denies.")
     return suggestions
@@ -232,7 +234,9 @@ async def get_conflict(
     try:
         parsed_id = UUID(conflict_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conflict not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Conflict not found"
+        ) from exc
 
     conflict = await _repo.get_conflict(db, conflict_id=parsed_id, organization_id=organization_id)
     if conflict is None:
@@ -262,7 +266,9 @@ async def update_conflict_status(
     try:
         parsed_id = UUID(conflict_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conflict not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Conflict not found"
+        ) from exc
 
     conflict = await _repo.get_conflict(db, conflict_id=parsed_id, organization_id=organization_id)
     if conflict is None:

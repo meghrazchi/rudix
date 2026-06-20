@@ -299,9 +299,7 @@ class AgentTraceRetentionPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "agent_trace_retention_policies"
     __table_args__ = (
         CheckConstraint("retain_days >= 1", name="trace_retention_retain_days_positive"),
-        CheckConstraint(
-            "retain_days <= 3650", name="trace_retention_retain_days_max_ten_years"
-        ),
+        CheckConstraint("retain_days <= 3650", name="trace_retention_retain_days_max_ten_years"),
         Index("idx_trace_retention_org", "organization_id"),
     )
 
@@ -317,9 +315,7 @@ class AgentTraceRetentionPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
     )
     retain_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
-    redact_prompts: Mapped[bool] = mapped_column(
-        "redact_prompts", default=False, nullable=False
-    )
+    redact_prompts: Mapped[bool] = mapped_column("redact_prompts", default=False, nullable=False)
     redact_raw_content: Mapped[bool] = mapped_column(
         "redact_raw_content", default=False, nullable=False
     )

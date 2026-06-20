@@ -101,7 +101,7 @@ jobs:
       frontend_image: ${{ steps.image-refs.outputs.frontend_image }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -206,11 +206,9 @@ jobs:
       RUDIX_API_IMAGE: ${{ needs.build-images.outputs.api_image }}
       RUDIX_WORKER_IMAGE: ${{ needs.build-images.outputs.worker_image }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'ci-placeholder-key' }}
-      REGISTRY: ${{ env.REGISTRY }}
-      IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Docker Compose prerequisites
         run: |
@@ -333,10 +331,9 @@ jobs:
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'staging')
     environment:
       name: staging
-      url: ${{ secrets.STAGING_ENV_URL }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate staging secrets
         run: |
@@ -449,10 +446,9 @@ jobs:
     if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'production')
     environment:
       name: production
-      url: ${{ secrets.PRODUCTION_ENV_URL }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate production secrets
         run: |
@@ -585,7 +581,7 @@ jobs:
       name: production
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate rollback inputs
         env:

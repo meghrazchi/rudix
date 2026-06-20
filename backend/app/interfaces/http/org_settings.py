@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from uuid import UUID
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -18,6 +18,7 @@ router = APIRouter(prefix="/organization", tags=["organization"])
 
 # ── Response schema ───────────────────────────────────────────────────────────
 
+
 class OrganizationProfile(BaseModel):
     id: str
     name: str
@@ -31,6 +32,7 @@ class OrganizationProfile(BaseModel):
 
 
 # ── GET /organization ─────────────────────────────────────────────────────────
+
 
 @router.get("", response_model=OrganizationProfile)
 async def get_organization(
@@ -64,6 +66,7 @@ async def get_organization(
 
 # ── PATCH /organization ───────────────────────────────────────────────────────
 
+
 class OrganizationPatch(BaseModel):
     name: str | None = None
     slug: str | None = None
@@ -76,7 +79,9 @@ async def update_organization(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OrganizationProfile:
     if not principal.organization_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No organization context.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No organization context."
+        )
 
     org_uuid = UUID(principal.organization_id)
     row = await db.execute(select(Organization).where(Organization.id == org_uuid))
@@ -106,6 +111,7 @@ async def update_organization(
 
 
 # ── GET /organization/settings ────────────────────────────────────────────────
+
 
 class OrgSettings(BaseModel):
     default_member_role: str
@@ -140,6 +146,7 @@ async def get_organization_settings(
 
 # ── PATCH /organization/settings ──────────────────────────────────────────────
 
+
 @router.patch("/settings", response_model=OrgSettings)
 async def update_organization_settings(
     _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
@@ -159,6 +166,7 @@ async def update_organization_settings(
 
 
 # ── GET /organization/ingestion ───────────────────────────────────────────────
+
 
 class IngestionDefaults(BaseModel):
     allowed_file_types: list[str]
@@ -188,6 +196,7 @@ async def get_ingestion_defaults(
 
 
 # ── PATCH /organization/ingestion ─────────────────────────────────────────────
+
 
 @router.patch("/ingestion", response_model=IngestionDefaults)
 async def update_ingestion_defaults(

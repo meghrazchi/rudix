@@ -35,8 +35,6 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.domains.chat.services.hybrid_retrieval_service import (
-    HybridCandidate,
-    HybridRetrievalService,
     merge_with_rrf,
 )
 from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievedCandidate
@@ -46,7 +44,6 @@ from app.domains.chat.services.parent_context_expansion_service import (
     _truncate_to_budget,
 )
 from app.domains.chat.services.query_retrieval_service import RetrievedCandidate
-
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -280,8 +277,8 @@ class TestParentContextExpansionService:
         """Parent text comes from the same document as the child; org isolation
         is enforced at the retrieval layer so expansion is inherently safe."""
         svc = self._svc()
-        doc_a = uuid4()
-        doc_b = uuid4()
+        uuid4()
+        uuid4()
         chunk_a = _MockChunk(chunk_level=1, parent_text="doc A parent")
         chunk_a_child = _MockChunk(chunk_level=1, parent_text=None)
         # chunk_b has parent_text from a different document but that can't happen in
@@ -513,9 +510,7 @@ class TestExpansionContextMapPromptIntegration:
 
     def test_multiple_children_all_in_map(self) -> None:
         svc = ParentContextExpansionService()
-        chunks = [
-            _MockChunk(chunk_level=1, parent_text=f"parent {i}") for i in range(5)
-        ]
+        chunks = [_MockChunk(chunk_level=1, parent_text=f"parent {i}") for i in range(5)]
         result = svc.expand(chunks=chunks)
         assert len(result.context_map) == 5
         for chunk in chunks:
@@ -538,9 +533,7 @@ class TestExpansionContextMapPromptIntegration:
 class TestTokenBudget:
     def test_multiple_chunks_tokens_summed(self) -> None:
         svc = ParentContextExpansionService()
-        chunks = [
-            _MockChunk(chunk_level=1, parent_text="a" * 40) for _ in range(3)
-        ]
+        chunks = [_MockChunk(chunk_level=1, parent_text="a" * 40) for _ in range(3)]
         result = svc.expand(chunks=chunks, max_tokens_per_chunk=512)
         assert result.tokens_used > 0
         # Each 40-char text = 10 estimated tokens; 3 chunks = 30 tokens
@@ -552,9 +545,7 @@ class TestTokenBudget:
         svc = ParentContextExpansionService()
         long_chunk = _MockChunk(chunk_level=1, parent_text="word " * 400)
         short_chunk = _MockChunk(chunk_level=1, parent_text="short text")
-        result = svc.expand(
-            chunks=[long_chunk, short_chunk], max_tokens_per_chunk=64
-        )
+        result = svc.expand(chunks=[long_chunk, short_chunk], max_tokens_per_chunk=64)
         # short chunk should be unexpanded (within budget)
         assert result.context_map[str(short_chunk.chunk_id)] == "short text"
         # long chunk should be truncated

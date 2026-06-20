@@ -592,9 +592,7 @@ class AgentRunRepository:
         limit: int = 20,
         offset: int = 0,
     ) -> list[AgentApproval]:
-        statement = select(AgentApproval).where(
-            AgentApproval.organization_id == organization_id
-        )
+        statement = select(AgentApproval).where(AgentApproval.organization_id == organization_id)
         if status is not None:
             normalized = _validate_value(
                 status,
@@ -662,10 +660,8 @@ class AgentRunRepository:
         Called immediately after expire_pending_approvals() so runs do not stay
         stuck waiting once every approval has reached a terminal state.
         """
-        pending_run_ids_subq = (
-            select(AgentApproval.agent_run_id).where(
-                AgentApproval.status == AgentApprovalStatus.pending.value
-            )
+        pending_run_ids_subq = select(AgentApproval.agent_run_id).where(
+            AgentApproval.status == AgentApprovalStatus.pending.value
         )
         statement = (
             update(AgentRun)

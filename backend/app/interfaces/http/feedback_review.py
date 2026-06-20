@@ -1,10 +1,11 @@
+from datetime import UTC
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_principal, require_roles
+from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
@@ -67,7 +68,7 @@ async def list_feedback_review_items(
     reviewer_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewListResponse:
     _user_id, org_id = _require_admin(principal)
@@ -88,9 +89,10 @@ async def list_feedback_review_items(
         offset=offset,
     )
 
-    from app.models.message_feedback import MessageFeedback
-    from app.models.chat import ChatMessage
     from sqlalchemy import select
+
+    from app.models.chat import ChatMessage
+    from app.models.message_feedback import MessageFeedback
 
     feedback_ids = [item.feedback_id for item in items]
     fb_map: dict[UUID, MessageFeedback] = {}
@@ -131,7 +133,7 @@ async def export_feedback_review_csv(
     severity: str | None = Query(default=None),
     rating: str | None = Query(default=None),
     reason: str | None = Query(default=None),
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> Response:
     _user_id, org_id = _require_admin(principal)
@@ -153,7 +155,7 @@ async def export_feedback_review_csv(
 @router.get("/{review_id}", response_model=FeedbackReviewItemResponse)
 async def get_feedback_review_item(
     review_id: str,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     _user_id, org_id = _require_admin(principal)
@@ -165,9 +167,10 @@ async def get_feedback_review_item(
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review item not found")
 
-    from app.models.message_feedback import MessageFeedback
-    from app.models.chat import ChatMessage
     from sqlalchemy import select
+
+    from app.models.chat import ChatMessage
+    from app.models.message_feedback import MessageFeedback
 
     fb_result = await db.execute(
         select(MessageFeedback).where(MessageFeedback.id == item.feedback_id)
@@ -191,14 +194,15 @@ async def triage_feedback(
     feedback_id: str,
     payload: TriageFeedbackRequest,
     request: Request,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     user_id, org_id = _require_admin(principal)
     feedback_uuid = _parse_uuid(feedback_id, "feedback_id")
 
-    from app.models.message_feedback import MessageFeedback
     from sqlalchemy import select
+
+    from app.models.message_feedback import MessageFeedback
 
     fb_result = await db.execute(
         select(MessageFeedback).where(
@@ -248,7 +252,7 @@ async def update_feedback_review_item(
     review_id: str,
     payload: UpdateReviewItemRequest,
     request: Request,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     user_id, org_id = _require_admin(principal)
@@ -291,9 +295,10 @@ async def update_feedback_review_item(
     await db.commit()
     await db.refresh(item)
 
-    from app.models.message_feedback import MessageFeedback
-    from app.models.chat import ChatMessage
     from sqlalchemy import select
+
+    from app.models.chat import ChatMessage
+    from app.models.message_feedback import MessageFeedback
 
     fb_result = await db.execute(
         select(MessageFeedback).where(MessageFeedback.id == item.feedback_id)
@@ -316,7 +321,7 @@ async def convert_review_item_to_eval_case(
     review_id: str,
     payload: ConvertToEvalCaseRequest,
     request: Request,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> ConvertToEvalCaseResponse:
     from uuid import UUID as _UUID
@@ -364,9 +369,7 @@ async def convert_review_item_to_eval_case(
             status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found"
         )
 
-    fb_result = await db.execute(
-        _select(_MsgFeedback).where(_MsgFeedback.id == item.feedback_id)
-    )
+    fb_result = await db.execute(_select(_MsgFeedback).where(_MsgFeedback.id == item.feedback_id))
     fb = fb_result.scalar_one_or_none()
     if fb is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedback not found")
@@ -376,9 +379,7 @@ async def convert_review_item_to_eval_case(
     if not question_text:
         from app.models.chat import ChatMessage as _ChatMsg
 
-        msg_result = await db.execute(
-            _select(_ChatMsg).where(_ChatMsg.id == fb.message_id)
-        )
+        msg_result = await db.execute(_select(_ChatMsg).where(_ChatMsg.id == fb.message_id))
         msg = msg_result.scalar_one_or_none()
         if msg and msg.content:
             question_text = str(msg.content).strip()
@@ -394,8 +395,9 @@ async def convert_review_item_to_eval_case(
     already_existed = question_text.lower() in existing_texts
 
     if already_existed:
-        from app.models.evaluation import EvaluationQuestion as _EvalQ
         from sqlalchemy import func as _func
+
+        from app.models.evaluation import EvaluationQuestion as _EvalQ
 
         existing_result = await db.execute(
             _select(_EvalQ).where(
@@ -430,18 +432,15 @@ async def convert_review_item_to_eval_case(
         eval_question_id = str(question.id)
 
         fb_repo = _FeedbackRepo()
-        await fb_repo.mark_converted(
-            db, feedback_id=item.feedback_id, eval_question_id=question.id
-        )
+        await fb_repo.mark_converted(db, feedback_id=item.feedback_id, eval_question_id=question.id)
 
     from datetime import datetime as _dt
-    from datetime import timezone as _tz
     from uuid import UUID as _UUID2
 
     eval_q_uuid = _UUID2(eval_question_id) if eval_question_id else None
     item.status = "eval_created"
     item.linked_eval_question_id = eval_q_uuid
-    item.resolved_at = _dt.now(tz=_tz.utc)
+    item.resolved_at = _dt.now(tz=UTC)
     if payload.reviewer_notes:
         item.reviewer_notes = payload.reviewer_notes
     db.add(item)
@@ -475,7 +474,7 @@ async def convert_review_item_to_eval_case(
 async def redact_feedback_diagnostics(
     feedback_id: str,
     request: Request,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     from sqlalchemy import select as _select
@@ -512,9 +511,7 @@ async def redact_feedback_diagnostics(
 
     msg: _ChatMsg | None = None
     if item is not None:
-        msg_result = await db.execute(
-            _select(_ChatMsg).where(_ChatMsg.id == fb.message_id)
-        )
+        msg_result = await db.execute(_select(_ChatMsg).where(_ChatMsg.id == fb.message_id))
         msg = msg_result.scalar_one_or_none()
 
     if item is None:

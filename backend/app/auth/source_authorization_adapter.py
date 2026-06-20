@@ -110,9 +110,7 @@ class _DefaultDenyAdapter(SourceAuthorizationAdapter):
         organization_id: str,
         subject_accessible_collection_ids: list[str],
     ) -> ResourceContext:
-        return self.default_deny_context(
-            resource_id=resource_id, organization_id=organization_id
-        )
+        return self.default_deny_context(resource_id=resource_id, organization_id=organization_id)
 
 
 # Global registry — adapters register themselves at import time.

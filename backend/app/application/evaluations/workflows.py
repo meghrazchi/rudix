@@ -12,10 +12,10 @@ from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.admin.services.chunking_profile_service import ChunkingProfileService
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.evaluations.schemas.evaluations import RunEvaluationRequest, RunEvaluationResponse
-from app.domains.quota.schemas.quota_schemas import QuotaType
-from app.domains.quota.services.plan_enforcement_service import PlanEnforcementService
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.plan_enforcement_service import PlanEnforcementService
 from app.models.enums import PromptTemplateKey
 
 _chunking_profile_service = ChunkingProfileService()

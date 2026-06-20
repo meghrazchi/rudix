@@ -47,7 +47,6 @@ from app.domains.chat.services.grounded_answer_verifier import (
     _VerifierOutput,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -331,9 +330,7 @@ class TestVerifyHappyPaths:
         svc = _make_service()
         provider = _mock_provider(_PARTIALLY_SUPPORTED_JSON)
         with patch.object(svc, "_resolve_provider", return_value=provider):
-            result = await svc.verify(
-                answer="Any answer", chunks=_make_chunks()
-            )
+            result = await svc.verify(answer="Any answer", chunks=_make_chunks())
 
         # 1 supported / 2 total claims = 0.5
         assert result.verification_score == 0.5
@@ -457,9 +454,7 @@ class TestSecurityNoSourceTextLeak:
         not quote raw source document text."""
         svc = _make_service()
         secret_text = "CONFIDENTIAL_INTERNAL_POLICY_TEXT_12345"
-        chunks = [
-            VerifierChunk(chunk_id="c1", text=f"Source: {secret_text}", similarity_score=0.9)
-        ]
+        chunks = [VerifierChunk(chunk_id="c1", text=f"Source: {secret_text}", similarity_score=0.9)]
         # LLM properly returns only a claim summary, not raw source text
         provider = _mock_provider(
             '{"verdict": "partially_supported", "revised_answer": "Short answer.", '
@@ -488,13 +483,10 @@ class TestSecurityNoSourceTextLeak:
 
         # Inspect result fields — none should contain the chunk's raw text
         import dataclasses
-        result_values = [
-            str(getattr(result, f.name)) for f in dataclasses.fields(result)
-        ]
+
+        result_values = [str(getattr(result, f.name)) for f in dataclasses.fields(result)]
         for value in result_values:
-            assert secret not in value, (
-                f"Raw chunk text found in verifier result field: {value!r}"
-            )
+            assert secret not in value, f"Raw chunk text found in verifier result field: {value!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -592,9 +584,7 @@ class TestFaithfulnessEvaluation:
         provider = _mock_provider(_UNSUPPORTED_JSON)
         original = "The CEO earns $10M annually according to our policy."
         with patch.object(svc, "_resolve_provider", return_value=provider):
-            result = await svc.verify(
-                answer=original, chunks=_make_chunks(), mode="strict"
-            )
+            result = await svc.verify(answer=original, chunks=_make_chunks(), mode="strict")
 
         assert result.final_answer == ""
         assert original not in result.final_answer
@@ -611,9 +601,7 @@ class TestEdgeCases:
         svc = _make_service()
         provider = _mock_provider(_SUPPORTED_JSON)
         with patch.object(svc, "_resolve_provider", return_value=provider):
-            result = await svc.verify(
-                answer="Supported answer.", chunks=_make_chunks(1)
-            )
+            result = await svc.verify(answer="Supported answer.", chunks=_make_chunks(1))
 
         assert result.applied is True
         assert result.verdict == "supported"

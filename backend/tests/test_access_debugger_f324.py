@@ -47,7 +47,6 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
 
-
 # ─── fixtures ─────────────────────────────────────────────────────────────────
 
 
@@ -90,9 +89,7 @@ async def _seed_org(
     )
     db_session.add(user)
     await db_session.flush()
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value))
     await db_session.commit()
     return user, org
 
@@ -114,9 +111,7 @@ async def _add_member(
     )
     db_session.add(member)
     await db_session.flush()
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=member.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=member.id, role=role.value))
     await db_session.commit()
     return member
 
@@ -295,11 +290,23 @@ class TestSimulateAccess:
         assert resp.status_code == 200
         data = resp.json()
         for field in (
-            "decision", "extended_status", "matched_rule", "deny_reason",
-            "subject_user_id", "subject_display_name", "subject_email", "subject_role",
-            "resource_type", "resource_id", "action",
-            "trace", "reason_chain", "effective_permissions",
-            "remediation", "troubleshooting_links", "request_id",
+            "decision",
+            "extended_status",
+            "matched_rule",
+            "deny_reason",
+            "subject_user_id",
+            "subject_display_name",
+            "subject_email",
+            "subject_role",
+            "resource_type",
+            "resource_id",
+            "action",
+            "trace",
+            "reason_chain",
+            "effective_permissions",
+            "remediation",
+            "troubleshooting_links",
+            "request_id",
         ):
             assert field in data, f"Missing field: {field}"
 
@@ -340,7 +347,7 @@ class TestSimulateAccess:
         )
         links = resp.json()["troubleshooting_links"]
         assert len(links) >= 2
-        hrefs = [l["href"] for l in links]
+        hrefs = [link["href"] for link in links]
         assert any("/admin/audit-logs" in h for h in hrefs)
         assert any("/admin/permissions" in h for h in hrefs)
 
@@ -362,7 +369,7 @@ class TestSimulateAccess:
             headers=_headers(admin_user, org),
         )
         assert resp.status_code == 200
-        hrefs = [l["href"] for l in resp.json()["troubleshooting_links"]]
+        hrefs = [link["href"] for link in resp.json()["troubleshooting_links"]]
         assert any(doc_id in h for h in hrefs)
 
     async def test_reason_chain_non_empty(
@@ -471,8 +478,8 @@ class TestSimulateAccess:
         body = resp.text
         # Response must not include content-like fields
         assert "chunk" not in body
-        assert "\"text\"" not in body
-        assert "\"content\"" not in body.replace("conflict_context", "")
+        assert '"text"' not in body
+        assert '"content"' not in body.replace("conflict_context", "")
 
 
 # ─── Tenant isolation ─────────────────────────────────────────────────────────
@@ -545,6 +552,7 @@ class TestAuditLogging:
         self, debugger_client: AsyncClient, db_session: AsyncSession
     ) -> None:
         from sqlalchemy import select
+
         from app.models.usage import AuditLog
 
         admin_user, org = await _seed_org(db_session, role=OrganizationRole.admin)
@@ -562,13 +570,17 @@ class TestAuditLogging:
         assert resp.status_code == 200
 
         audit_rows = (
-            await db_session.execute(
-                select(AuditLog).where(
-                    AuditLog.organization_id == org.id,
-                    AuditLog.action == "access_debugger.simulate",
+            (
+                await db_session.execute(
+                    select(AuditLog).where(
+                        AuditLog.organization_id == org.id,
+                        AuditLog.action == "access_debugger.simulate",
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(audit_rows) >= 1
         row = audit_rows[0]
         assert row.metadata_json is not None
@@ -586,7 +598,13 @@ class TestSimulatorMatchesRealAccess:
         self, debugger_client: AsyncClient, db_session: AsyncSession
     ) -> None:
         """Simulator returning 'allow' for admin matches what PolicyEngine produces."""
-        from app.auth.policy_engine import PolicyEngine, SubjectContext, ResourceContext, ResourceType, Action
+        from app.auth.policy_engine import (
+            Action,
+            PolicyEngine,
+            ResourceContext,
+            ResourceType,
+            SubjectContext,
+        )
         from app.models.permissions import ROLE_PERMISSIONS
 
         admin_user, org = await _seed_org(db_session, role=OrganizationRole.admin)

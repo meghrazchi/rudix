@@ -3,8 +3,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.domains.chat.schemas.chat import ChatCitationResponse
-
 AnswerShareAccessMode = Literal["org_only", "specific_users"]
 
 

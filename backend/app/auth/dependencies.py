@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -14,7 +14,7 @@ from app.auth.errors import AuthenticationError, AuthorizationError
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.permission_service import PermissionService
-from app.auth.policy_engine import Action, ResourceContext, ResourceType
+from app.auth.policy_engine import Action
 from app.auth.resource_context_builder import (
     build_document_resource_context,
     get_subject_accessible_collection_ids,
@@ -103,7 +103,7 @@ async def _authenticate_api_key(
     await repo.record_usage(
         db_session,
         key_id=api_key.id,
-        used_at=datetime.now(tz=timezone.utc),
+        used_at=datetime.now(tz=UTC),
         ip_address=client_ip,
     )
 
@@ -127,7 +127,9 @@ async def _authenticate_service_account_token(
 ) -> AuthenticatedPrincipal:
     """Authenticate a request using a service account bearer token."""
     from app.domains.service_accounts.repositories.service_accounts import ServiceAccountsRepository
-    from app.domains.service_accounts.services.service_accounts_service import ServiceAccountsService
+    from app.domains.service_accounts.services.service_accounts_service import (
+        ServiceAccountsService,
+    )
 
     token_hash = ServiceAccountsService.hash_token(raw_token)
     repo = ServiceAccountsRepository()
@@ -141,7 +143,9 @@ async def _authenticate_service_account_token(
 
     # Verify the owning service account is still active.
     from sqlalchemy import select
+
     from app.models.service_account import ServiceAccount
+
     result = await db_session.execute(
         select(ServiceAccount).where(ServiceAccount.id == token.service_account_id)
     )
@@ -156,7 +160,7 @@ async def _authenticate_service_account_token(
     elif request.client:
         client_ip = request.client.host
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     await repo.record_token_usage(
         db_session,
         token_id=token.id,
@@ -440,9 +444,7 @@ def require_document_policy_access(
             organization_id=organization_id,
         )
         if document is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
         # Skip full policy evaluation for admins — rule 5 always grants them access.
         if principal.roles and _ADMIN_ROLES.intersection(principal.roles):
@@ -479,7 +481,9 @@ def require_document_policy_access(
             db_session,
         )
         log_authorization_event(
-            event="authorization_denied" if result.result.value == "deny" else "authorization_granted",
+            event="authorization_denied"
+            if result.result.value == "deny"
+            else "authorization_granted",
             organization_id=str(organization_id),
             user_id=principal.user_id,
             resource_type="document",

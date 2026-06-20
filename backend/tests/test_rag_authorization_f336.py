@@ -17,8 +17,6 @@ from __future__ import annotations
 import os
 from uuid import uuid4
 
-import pytest
-
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
@@ -92,9 +90,7 @@ def _doc_resource(
 class TestRetrievalFiltering:
     def test_uncollected_document_allowed_for_member_via_role(self) -> None:
         org = _org()
-        result = _engine.authorize(
-            _member(org), Action.view, _doc_resource(org)
-        )
+        result = _engine.authorize(_member(org), Action.view, _doc_resource(org))
         assert result.result is PermissionResult.allow
 
     def test_member_denied_when_explicit_deny_exists(self) -> None:
@@ -106,9 +102,7 @@ class TestRetrievalFiltering:
             organization_id=org,
             roles=frozenset({"member"}),
             resource_grants=[],
-            resource_denies=[
-                (grant_id, ResourceType.document, "doc-abc", Action.view)
-            ],
+            resource_denies=[(grant_id, ResourceType.document, "doc-abc", Action.view)],
             accessible_collection_ids=frozenset(),
             connector_acl_item_ids=frozenset(),
             resolved_permissions=frozenset(),

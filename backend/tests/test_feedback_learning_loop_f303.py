@@ -27,6 +27,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from datetime import UTC
+
 from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
@@ -88,9 +90,7 @@ async def _seed_admin(
     db_session.add(user)
     await db_session.flush()
 
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value))
     await db_session.commit()
     return user, org
 
@@ -477,7 +477,10 @@ async def test_redact_feedback_clears_diagnostic_fields(
     payload = response.json()
     fb = payload.get("feedback") or payload
     # The feedback summary in the response should show redacted_at set
-    assert fb.get("redacted_at") is not None or payload.get("feedback", {}).get("redacted_at") is not None
+    assert (
+        fb.get("redacted_at") is not None
+        or payload.get("feedback", {}).get("redacted_at") is not None
+    )
 
     # Verify DB directly
     await db_session.refresh(feedback)
@@ -565,6 +568,7 @@ async def test_from_feedback_uses_question_text_for_eval_case(
 
     # Verify the eval question uses question_text as question
     from sqlalchemy import select
+
     from app.models.evaluation import EvaluationQuestion
 
     result = await db_session.execute(
@@ -633,6 +637,7 @@ async def test_from_feedback_stores_diagnostics_in_metadata(
     )
 
     from sqlalchemy import select
+
     from app.models.evaluation import EvaluationQuestion
 
     result = await db_session.execute(
@@ -656,9 +661,7 @@ async def test_from_feedback_org_isolation(
     user_a, org_a = await _seed_admin(db_session)
     user_b, org_b = await _seed_admin(db_session)
 
-    feedback_a, _msg = await _seed_feedback_with_diagnostics(
-        db_session, org=org_a, user=user_a
-    )
+    feedback_a, _msg = await _seed_feedback_with_diagnostics(db_session, org=org_a, user=user_a)
     eval_set_b = await _seed_eval_set(db_session, org=org_b, user=user_b)
 
     token_b = create_app_access_token(
@@ -694,7 +697,7 @@ async def test_feedback_sets_retain_until_on_creation(
     feedback, _msg = await _seed_feedback_with_diagnostics(db_session, org=org, user=user)
     assert feedback.retain_until is not None
     # Should be ~90 days from now
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    diff = (feedback.retain_until - datetime.now(tz=timezone.utc)).days
+    diff = (feedback.retain_until - datetime.now(tz=UTC)).days
     assert 88 <= diff <= 91

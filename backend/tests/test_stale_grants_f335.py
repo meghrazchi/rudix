@@ -9,7 +9,7 @@ Covers:
 """
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -39,7 +39,6 @@ from app.domains.permissions.services.conflict_detection_service import (
     _is_valid_uuid,
 )
 from app.models.authorization import ResourceAccessGrant, SourceAclMapping
-
 
 # ─── helper ───────────────────────────────────────────────────────────────────
 
@@ -117,9 +116,7 @@ class TestStaleGrantRemovedConnector:
     ) -> None:
         org_id = uuid4()
         dead_connector_id = str(uuid4())
-        await _seed_connector_grant(
-            db_session, org_id=org_id, connector_id=dead_connector_id
-        )
+        await _seed_connector_grant(db_session, org_id=org_id, connector_id=dead_connector_id)
         await db_session.flush()
 
         svc = ConflictDetectionService()
@@ -134,9 +131,7 @@ class TestStaleGrantRemovedConnector:
         # will be empty, so the connector grant IS flagged as stale.
         assert result.scanned_grants == 1
 
-    async def test_revoked_connector_grant_not_flagged(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_revoked_connector_grant_not_flagged(self, db_session: AsyncSession) -> None:
         org_id = uuid4()
         dead_connector_id = str(uuid4())
         g = ResourceAccessGrant(
@@ -168,9 +163,7 @@ class TestOrphanedAclMapping:
     ) -> None:
         org_id = uuid4()
         dead_connector_id = uuid4()
-        await _seed_acl_mapping(
-            db_session, org_id=org_id, connector_id=dead_connector_id
-        )
+        await _seed_acl_mapping(db_session, org_id=org_id, connector_id=dead_connector_id)
         await db_session.flush()
 
         svc = ConflictDetectionService()
@@ -210,9 +203,7 @@ class TestOrphanedAclMapping:
 
 @pytest.mark.asyncio
 class TestDismissedConflictRedetection:
-    async def test_dismissed_conflict_can_be_recreated(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_dismissed_conflict_can_be_recreated(self, db_session: AsyncSession) -> None:
         repo = ConflictsRepository()
         org_id = uuid4()
 
@@ -232,9 +223,7 @@ class TestDismissedConflictRedetection:
             conflict_summary="dismissed conflict",
         )
         await db_session.flush()
-        await repo.update_conflict_status(
-            db_session, conflict=conflict, new_status="dismissed"
-        )
+        await repo.update_conflict_status(db_session, conflict=conflict, new_status="dismissed")
         await db_session.flush()
 
         # Now _upsert_conflict should create a new one since existing is dismissed
@@ -255,9 +244,7 @@ class TestDismissedConflictRedetection:
         )
         assert created is True
 
-    async def test_open_conflict_blocks_duplicate_creation(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_open_conflict_blocks_duplicate_creation(self, db_session: AsyncSession) -> None:
         repo = ConflictsRepository()
         org_id = uuid4()
 

@@ -91,9 +91,7 @@ async def _seed_principal(
     )
     db_session.add(user)
     await db_session.flush()
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value))
     await db_session.commit()
     return user, org
 
@@ -136,6 +134,7 @@ def _make_policy(**overrides: object) -> OrgMCPPolicy:
 
 
 # ─── API: new trust fields in PATCH/GET ──────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_patch_policy_trust_fields_saved(
@@ -314,6 +313,7 @@ async def test_patch_trust_policy_org_isolation(
 
 
 # ─── MCPTrustService unit tests ───────────────────────────────────────────────
+
 
 def test_trust_check_tool_null_allowlist_permits_all() -> None:
     svc = MCPTrustService()

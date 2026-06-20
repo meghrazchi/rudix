@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from dataclasses import dataclass
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
@@ -12,7 +12,7 @@ _PAGE_KEY = "page"
 
 
 @dataclass
-class CursorPage(Generic[T]):
+class CursorPage[T]:
     """A single page of results with pagination metadata."""
 
     items: list[T]
@@ -21,7 +21,7 @@ class CursorPage(Generic[T]):
     total_count: int | None = None
 
 
-def paginate_list(
+def paginate_list[T](
     items: list[T],
     *,
     cursor: dict[str, Any],

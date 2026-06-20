@@ -17,8 +17,9 @@ import asyncio
 import time
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
@@ -35,7 +36,6 @@ from app.domains.ai.providers.factory import UnknownProviderError, default_provi
 from app.domains.ai.providers.protocols import ChatCompletionRequest, EmbeddingRequest
 from app.models.enums import OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/admin/model-providers", tags=["admin-model-providers"])
 _audit = AuditLogService()
@@ -111,9 +111,7 @@ def _build_chat_card() -> ProviderCard:
         is_configured = settings.openai_api_key is not None
     elif provider_type == "local":
         model_name = settings.local_llm_model
-        is_configured = (
-            settings.local_llm_base_url is not None and bool(model_name.strip())
-        )
+        is_configured = settings.local_llm_base_url is not None and bool(model_name.strip())
     else:
         model_name = ""
         is_configured = False
@@ -151,9 +149,7 @@ def _build_embeddings_card() -> ProviderCard:
         is_configured = settings.openai_api_key is not None
     elif provider_type == "local":
         model_name = settings.local_embedding_model
-        is_configured = (
-            settings.local_embedding_base_url is not None and bool(model_name.strip())
-        )
+        is_configured = settings.local_embedding_base_url is not None and bool(model_name.strip())
     else:
         model_name = ""
         is_configured = False
@@ -255,8 +251,9 @@ async def test_provider_connection(
     Auth: owner or admin.
     Rate-limited to the admin bucket.
     """
-    from app.core.config import settings
     from uuid import UUID
+
+    from app.core.config import settings
 
     def _org_id() -> UUID | None:
         try:
@@ -275,9 +272,7 @@ async def test_provider_connection(
     if payload.provider_key == "chat":
         provider_type = settings.llm_default_provider
         model_name = (
-            settings.openai_llm_model
-            if provider_type == "openai"
-            else settings.local_llm_model
+            settings.openai_llm_model if provider_type == "openai" else settings.local_llm_model
         )
 
         start = time.monotonic()
@@ -300,7 +295,7 @@ async def test_provider_connection(
                 status="ok",
                 latency_ms=latency_ms,
             )
-        except (ProviderError, UnknownProviderError, asyncio.TimeoutError, Exception) as exc:
+        except (TimeoutError, ProviderError, UnknownProviderError, Exception) as exc:
             latency_ms = int((time.monotonic() - start) * 1000)
             error_code, error_message = _classify_probe_error(exc)
             response = TestProviderResponse(
@@ -334,7 +329,7 @@ async def test_provider_connection(
                 status="ok",
                 latency_ms=latency_ms,
             )
-        except (ProviderError, UnknownProviderError, asyncio.TimeoutError, Exception) as exc:
+        except (TimeoutError, ProviderError, UnknownProviderError, Exception) as exc:
             latency_ms = int((time.monotonic() - start) * 1000)
             error_code, error_message = _classify_probe_error(exc)
             response = TestProviderResponse(

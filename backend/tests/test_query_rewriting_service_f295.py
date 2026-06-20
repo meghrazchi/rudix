@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -43,7 +43,6 @@ from app.domains.chat.services.query_rewriting_service import (
     QueryRewritingService,
     _RewritingOutput,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -77,7 +76,11 @@ def _mock_provider(response_json: str) -> AsyncMock:
 class TestRewritingOutputSchema:
     def test_original_strategy_parses(self) -> None:
         out = _RewritingOutput.model_validate(
-            {"strategy": "original", "primary_query": "What is the refund policy?", "sub_queries": []}
+            {
+                "strategy": "original",
+                "primary_query": "What is the refund policy?",
+                "sub_queries": [],
+            }
         )
         assert out.strategy == "original"
         assert out.sub_queries == []
@@ -427,9 +430,7 @@ class TestScopePreservation:
             }"""
         )
         with patch.object(svc, "_resolve_provider", return_value=provider):
-            result = await svc.rewrite(
-                "What are our compliance and audit requirements?"
-            )
+            result = await svc.rewrite("What are our compliance and audit requirements?")
 
         import re
 

@@ -60,7 +60,9 @@ class FakeEmbeddingProvider:
         return item
 
 
-def _response(vectors: list[list[float]], prompt_tokens: int = 100, total_tokens: int = 100) -> EmbeddingResponse:
+def _response(
+    vectors: list[list[float]], prompt_tokens: int = 100, total_tokens: int = 100
+) -> EmbeddingResponse:
     return EmbeddingResponse(
         vectors=vectors,
         model="text-embedding-3-small",

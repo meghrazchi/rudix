@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -439,7 +439,9 @@ async def trigger_quality_gate_run(
             baseline_raw = raw_baseline.get("metrics_summary")
             baseline_summary = dict(baseline_raw) if isinstance(baseline_raw, dict) else None
 
-    regression_failed, baseline_deltas = evaluate_regression(thresholds, eval_summary, baseline_summary)
+    regression_failed, baseline_deltas = evaluate_regression(
+        thresholds, eval_summary, baseline_summary
+    )
     if regression_failed:
         failed_checks.extend(regression_failed)
         if verdict == QualityGateVerdict.passed.value:
@@ -608,9 +610,7 @@ async def get_quality_gate_report(
 
     raw_deltas = report.get("baseline_comparison")
     baseline_comparison = (
-        [BaselineMetricDelta(**d) for d in raw_deltas]
-        if isinstance(raw_deltas, list)
-        else None
+        [BaselineMetricDelta(**d) for d in raw_deltas] if isinstance(raw_deltas, list) else None
     )
 
     ci_exit_code = (
@@ -632,7 +632,7 @@ async def get_quality_gate_report(
         quality_gate_id=str(gate.id),
         quality_gate_name=gate.name,
         verdict=gate_run.verdict,
-        generated_at=report.get("generated_at", datetime.now(timezone.utc).isoformat()),
+        generated_at=report.get("generated_at", datetime.now(UTC).isoformat()),
         evaluation_run_id=(str(gate_run.evaluation_run_id) if gate_run.evaluation_run_id else None),
         safety_eval_run_id=(
             str(gate_run.safety_eval_run_id) if gate_run.safety_eval_run_id else None
@@ -726,7 +726,7 @@ async def override_quality_gate_run(
             detail="Gate run is already overridden",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     gate_run = await _gate_repo.apply_override(
         db_session,
         gate_run,

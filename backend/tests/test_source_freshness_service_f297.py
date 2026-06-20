@@ -33,7 +33,6 @@ from app.domains.chat.services.source_freshness_service import (
     SourceFreshnessService,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

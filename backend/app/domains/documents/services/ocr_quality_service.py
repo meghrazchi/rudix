@@ -31,9 +31,7 @@ OCR_QUALITY_SCORE_MULTIPLIERS: dict[str, float] = {
 }
 
 # Quality statuses that should surface a warning in chat citations.
-LOW_QUALITY_STATUSES: frozenset[str] = frozenset(
-    {OcrQualityStatus.low, OcrQualityStatus.failed}
-)
+LOW_QUALITY_STATUSES: frozenset[str] = frozenset({OcrQualityStatus.low, OcrQualityStatus.failed})
 
 
 # ---------------------------------------------------------------------------

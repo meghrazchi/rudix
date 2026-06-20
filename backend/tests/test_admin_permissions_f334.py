@@ -50,7 +50,6 @@ from app.models.organization_member import OrganizationMember
 from app.models.permissions import ROLE_PERMISSIONS, PermissionType
 from app.models.user import User
 
-
 # ─── fixtures ─────────────────────────────────────────────────────────────────
 
 
@@ -77,9 +76,7 @@ async def perm_client(
     app.dependency_overrides.clear()
 
 
-async def _seed(
-    db_session: AsyncSession, *, role: OrganizationRole
-) -> tuple[User, Organization]:
+async def _seed(db_session: AsyncSession, *, role: OrganizationRole) -> tuple[User, Organization]:
     org = Organization(
         name=f"perm-test-{uuid4().hex[:8]}",
         slug=f"perm-test-{uuid4().hex[:8]}",
@@ -124,9 +121,7 @@ def _headers(user: User, org: Organization) -> dict[str, str]:
 class TestRolePermissionSafetyChecks:
     def test_removing_owner_required_permissions_is_blocked(self) -> None:
         current = {r: ROLE_PERMISSIONS.get(r, frozenset()) for r in ["owner", "admin"]}
-        error = check_role_permission_safety(
-            "owner", [], all_roles_current=current
-        )
+        error = check_role_permission_safety("owner", [], all_roles_current=current)
         assert error is not None
         assert "roles:manage" in error
 
@@ -160,9 +155,7 @@ class TestRolePermissionSafetyChecks:
     def test_owner_retains_required_perms_passes(self) -> None:
         current = {r: ROLE_PERMISSIONS.get(r, frozenset()) for r in ["owner", "admin"]}
         new_perms = list(ROLE_PERMISSIONS["owner"])
-        error = check_role_permission_safety(
-            "owner", new_perms, all_roles_current=current
-        )
+        error = check_role_permission_safety("owner", new_perms, all_roles_current=current)
         assert error is None
 
 

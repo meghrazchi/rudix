@@ -7,19 +7,20 @@ from app.domains.permissions.schemas.permissions import (
 )
 from app.domains.roles.schemas.roles import BUILTIN_ROLE_META
 from app.models.authorization import ResourceAccessDeny, ResourceAccessGrant
-from app.models.permissions import PERMISSION_CATALOG, ROLE_PERMISSIONS
-
+from app.models.permissions import ROLE_PERMISSIONS
 
 _SAFE_ADMIN_PERMISSIONS = frozenset({"roles:manage", "roles:view"})
 _OWNER_ROLE = "owner"
 
 # Permissions that must never be removed from the owner role.
-_OWNER_REQUIRED_PERMISSIONS = frozenset({
-    "roles:manage",
-    "roles:view",
-    "team:manage",
-    "team:view",
-})
+_OWNER_REQUIRED_PERMISSIONS = frozenset(
+    {
+        "roles:manage",
+        "roles:view",
+        "team:manage",
+        "team:view",
+    }
+)
 
 
 def _canonical_permissions(role_name: str) -> frozenset[str]:
@@ -47,9 +48,7 @@ def check_role_permission_safety(
     # can never lock themselves out.
     privileged_roles = {"owner", "admin"}
     updated = {**all_roles_current, role_name: new_set}
-    can_manage_roles = any(
-        "roles:manage" in updated.get(r, frozenset()) for r in privileged_roles
-    )
+    can_manage_roles = any("roles:manage" in updated.get(r, frozenset()) for r in privileged_roles)
     if not can_manage_roles:
         return (
             "Unsafe change: no privileged role (owner/admin) would retain 'roles:manage'. "
@@ -129,9 +128,7 @@ class PermissionsService:
             status=deny.status,
             expires_at=deny.expires_at,
             reason=deny.reason,
-            created_by_user_id=(
-                str(deny.created_by_user_id) if deny.created_by_user_id else None
-            ),
+            created_by_user_id=(str(deny.created_by_user_id) if deny.created_by_user_id else None),
             created_at=deny.created_at,
             updated_at=deny.updated_at,
             kind="deny",

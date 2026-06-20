@@ -9,13 +9,15 @@ from app.models.webhook import WEBHOOK_EVENT_TYPES
 DEFAULT_RETRY_POLICY = {"max_attempts": 5, "backoff_seconds": 60}
 
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
-_BLOCKED_HOSTS = frozenset({
-    "localhost",
-    "localhost.",
-    "0.0.0.0",
-    "::1",
-    "[::1]",
-})
+_BLOCKED_HOSTS = frozenset(
+    {
+        "localhost",
+        "localhost.",
+        "0.0.0.0",
+        "::1",
+        "[::1]",
+    }
+)
 _BLOCKED_HOST_PREFIXES = (
     "127.",
     "10.",
@@ -27,6 +29,7 @@ _BLOCKED_HOST_RANGES_172 = range(16, 32)
 
 def _is_ssrf_risk(url: str) -> bool:
     from urllib.parse import urlparse
+
     try:
         parsed = urlparse(url)
     except Exception:
@@ -177,6 +180,7 @@ class WebhookResponse(BaseModel):
 
 class WebhookCreatedResponse(WebhookResponse):
     """Returned only at creation / secret rotation — raw secret shown exactly once."""
+
     raw_secret: str
 
 

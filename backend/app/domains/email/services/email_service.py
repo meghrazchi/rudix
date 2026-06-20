@@ -101,9 +101,7 @@ class EmailService:
         await self._delivery_repo.update_status(
             session,
             log_id=log_id,
-            status=(
-                EmailDeliveryStatus.sent if result.success else EmailDeliveryStatus.failed
-            ),
+            status=(EmailDeliveryStatus.sent if result.success else EmailDeliveryStatus.failed),
             provider_message_id=result.provider_message_id,
             error_detail=result.error_detail,
         )

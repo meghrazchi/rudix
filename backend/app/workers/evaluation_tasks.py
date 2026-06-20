@@ -1113,7 +1113,11 @@ async def _evaluate_question_pipeline_async(
     if retrieval_score is None:
         retrieval_score = retrieved_chunks[0].similarity_score if retrieved_chunks else None
 
-    provider_key = resolved_profile.provider_type if resolved_profile is not None else settings.llm_default_provider
+    provider_key = (
+        resolved_profile.provider_type
+        if resolved_profile is not None
+        else settings.llm_default_provider
+    )
     details: dict[str, Any] = {
         "status": "completed",
         "question": question_text,
@@ -1135,7 +1139,9 @@ async def _evaluate_question_pipeline_async(
         "llm_model": llm_model,
         "provider_key": provider_key,
         "provider_type": resolved_profile.provider_type if resolved_profile is not None else None,
-        "base_model": resolved_profile.base_model if resolved_profile is not None else config.model_name,
+        "base_model": resolved_profile.base_model
+        if resolved_profile is not None
+        else config.model_name,
         "token_input_count": embedding_prompt_tokens + llm_prompt_tokens,
         "token_output_count": llm_completion_tokens,
         "cost_usd": float(total_cost_usd),

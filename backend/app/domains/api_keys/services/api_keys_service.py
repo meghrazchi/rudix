@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from app.models.api_key import ApiKey
 from app.domains.api_keys.schemas.api_keys import ApiKeyCreatedResponse, ApiKeyResponse
+from app.models.api_key import ApiKey
 from app.models.permissions import PermissionType
 
 _KEY_PREFIX = "rudix_"
@@ -14,27 +14,35 @@ _PREFIX_DISPLAY_LENGTH = 16
 
 SCOPE_TO_PERMISSIONS: dict[str, frozenset[str]] = {
     "documents:read": frozenset({PermissionType.documents_view}),
-    "documents:write": frozenset({
-        PermissionType.documents_view,
-        PermissionType.documents_upload,
-        PermissionType.documents_delete,
-        PermissionType.documents_manage,
-    }),
-    "chat:write": frozenset({
-        PermissionType.chat_use,
-        PermissionType.chat_use_collections,
-        PermissionType.chat_manage_sessions,
-    }),
-    "evaluations:run": frozenset({
-        PermissionType.evaluations_view,
-        PermissionType.evaluations_create,
-        PermissionType.evaluations_run,
-    }),
-    "webhooks:manage": frozenset({
-        PermissionType.webhooks_list,
-        PermissionType.webhooks_create,
-        PermissionType.webhooks_delete,
-    }),
+    "documents:write": frozenset(
+        {
+            PermissionType.documents_view,
+            PermissionType.documents_upload,
+            PermissionType.documents_delete,
+            PermissionType.documents_manage,
+        }
+    ),
+    "chat:write": frozenset(
+        {
+            PermissionType.chat_use,
+            PermissionType.chat_use_collections,
+            PermissionType.chat_manage_sessions,
+        }
+    ),
+    "evaluations:run": frozenset(
+        {
+            PermissionType.evaluations_view,
+            PermissionType.evaluations_create,
+            PermissionType.evaluations_run,
+        }
+    ),
+    "webhooks:manage": frozenset(
+        {
+            PermissionType.webhooks_list,
+            PermissionType.webhooks_create,
+            PermissionType.webhooks_delete,
+        }
+    ),
     "connectors:manage": frozenset(),
 }
 
@@ -57,9 +65,7 @@ class ApiKeysService:
     def is_expired(api_key: ApiKey) -> bool:
         if api_key.expires_at is None:
             return False
-        return datetime.now(tz=timezone.utc) > api_key.expires_at.replace(
-            tzinfo=timezone.utc
-        )
+        return datetime.now(tz=UTC) > api_key.expires_at.replace(tzinfo=UTC)
 
     @staticmethod
     def scopes_to_permissions(scopes: list[str]) -> frozenset[str]:
@@ -86,8 +92,6 @@ class ApiKeysService:
         )
 
     @classmethod
-    def to_api_key_created_response(
-        cls, key: ApiKey, raw_key: str
-    ) -> ApiKeyCreatedResponse:
+    def to_api_key_created_response(cls, key: ApiKey, raw_key: str) -> ApiKeyCreatedResponse:
         base = cls.to_api_key_response(key)
         return ApiKeyCreatedResponse(**base.model_dump(), raw_key=raw_key)

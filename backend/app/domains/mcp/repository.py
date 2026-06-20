@@ -16,17 +16,13 @@ _UNSET = _Unset()
 
 
 class MCPPolicyRepository:
-    async def get(
-        self, session: AsyncSession, *, organization_id: UUID
-    ) -> OrgMCPPolicy | None:
+    async def get(self, session: AsyncSession, *, organization_id: UUID) -> OrgMCPPolicy | None:
         result = await session.execute(
             select(OrgMCPPolicy).where(OrgMCPPolicy.organization_id == organization_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_or_default(
-        self, session: AsyncSession, *, organization_id: UUID
-    ) -> OrgMCPPolicy:
+    async def get_or_default(self, session: AsyncSession, *, organization_id: UUID) -> OrgMCPPolicy:
         policy = await self.get(session, organization_id=organization_id)
         if policy is not None:
             return policy

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.clients.neo4j_client import get_driver
@@ -100,7 +100,9 @@ async def get_migration_status() -> list[dict[str, str]]:
     if driver is None:
         return []
     try:
-        return await _get_migration_records(driver, settings.neo4j_database, settings.neo4j_query_timeout_seconds)
+        return await _get_migration_records(
+            driver, settings.neo4j_database, settings.neo4j_query_timeout_seconds
+        )
     except Exception as exc:
         logger.warning("graph.migration.status_error", error=str(exc))
         return []
@@ -109,14 +111,18 @@ async def get_migration_status() -> list[dict[str, str]]:
 async def _get_applied_versions(driver: Any, database: str, timeout: float) -> set[str]:
     async with driver.session(database=database) as session:
         result = await asyncio.wait_for(
-            session.run("MATCH (m:__GraphMigration) RETURN m.version AS version ORDER BY m.version"),
+            session.run(
+                "MATCH (m:__GraphMigration) RETURN m.version AS version ORDER BY m.version"
+            ),
             timeout=timeout,
         )
         records = await result.data()
     return {r["version"] for r in records if r.get("version")}
 
 
-async def _get_migration_records(driver: Any, database: str, timeout: float) -> list[dict[str, str]]:
+async def _get_migration_records(
+    driver: Any, database: str, timeout: float
+) -> list[dict[str, str]]:
     async with driver.session(database=database) as session:
         result = await asyncio.wait_for(
             session.run(
@@ -162,7 +168,7 @@ async def _apply_migration(
             """,
             version=migration.version,
             description=migration.description,
-            applied_at=datetime.now(timezone.utc).isoformat(),
+            applied_at=datetime.now(UTC).isoformat(),
         )
 
     async with driver.session(database=database) as data_session:

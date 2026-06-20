@@ -445,7 +445,7 @@ class UsageRepository:
         from_created_at: datetime | None = None,
         to_created_at: datetime | None = None,
         limit: int = 10,
-    ) -> list["UsageRepository._UserAggRow"]:
+    ) -> list[UsageRepository._UserAggRow]:
         statement = (
             select(
                 cast(UsageEvent.user_id, String).label("user_id"),
@@ -492,7 +492,7 @@ class UsageRepository:
         from_created_at: datetime | None = None,
         to_created_at: datetime | None = None,
         limit: int = 10,
-    ) -> list["UsageRepository._ModelAggRow"]:
+    ) -> list[UsageRepository._ModelAggRow]:
         statement = (
             select(
                 UsageEvent.model_name,
@@ -568,7 +568,7 @@ class UsageRepository:
         organization_id: UUID,
         from_created_at: datetime | None = None,
         to_created_at: datetime | None = None,
-    ) -> list["UsageRepository._ProviderAggRow"]:
+    ) -> list[UsageRepository._ProviderAggRow]:
         """Aggregate usage events by provider_key for health monitoring.
 
         Only returns rows where provider_key is set (F228 events).

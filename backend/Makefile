@@ -1,4 +1,4 @@
-.PHONY: install venv lint test run-api run-worker run-mcp-http run-mcp-stdio format migrate downgrade seed-dev
+.PHONY: install venv lint test audit run-api run-worker run-mcp-http run-mcp-stdio format migrate downgrade seed-dev
 
 PYTHON := python3
 VENV_DIR := .venv
@@ -7,6 +7,7 @@ PIP := $(VENV_BIN)/pip
 RUFF := $(VENV_BIN)/ruff
 MYPY := $(VENV_BIN)/mypy
 PYTEST := $(VENV_BIN)/pytest
+PIP_AUDIT := $(VENV_BIN)/pip-audit
 UVICORN := $(VENV_BIN)/uvicorn
 CELERY := $(VENV_BIN)/celery
 ALEMBIC := $(VENV_BIN)/alembic
@@ -25,6 +26,9 @@ lint:
 
 test:
 	$(PYTEST)
+
+audit:
+	$(PIP_AUDIT)
 
 run-api:
 	$(UVICORN) app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log

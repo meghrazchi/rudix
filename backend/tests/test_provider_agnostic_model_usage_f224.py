@@ -32,13 +32,11 @@ from app.domains.ai.profile.schemas import ProfileSource, ResolvedTaskProfile, T
 from app.domains.ai.profile.service import _profile_to_resolved, get_profile_by_id
 from app.domains.chat.services.llm_service import ParsedCitation
 from app.models.model_profile import OrgModelProfile
-from app.workers import evaluation_tasks
 from app.workers.evaluation_tasks import (
     EvaluationRunConfig,
     PermanentTaskError,
     _parse_run_config,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -225,9 +223,7 @@ class TestGetProfileById:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        result = await get_profile_by_id(
-            mock_session, profile_id=uuid4(), organization_id=uuid4()
-        )
+        result = await get_profile_by_id(mock_session, profile_id=uuid4(), organization_id=uuid4())
         assert result is None
 
 
@@ -241,9 +237,7 @@ class TestEvaluateQuestionPipelineProfileThreading:
 
     @pytest.mark.asyncio
     async def test_resolved_profile_forwarded_to_llm_generate_answer(self):
-        resolved = _make_resolved_profile(
-            provider_type="local", base_model="llama3"
-        )
+        resolved = _make_resolved_profile(provider_type="local", base_model="llama3")
 
         fake_llm = MagicMock()
         captured: list[dict] = []
@@ -254,9 +248,6 @@ class TestEvaluateQuestionPipelineProfileThreading:
 
         fake_llm.generate_answer = mock_generate
 
-        from app.domains.evaluations.repositories.evaluations import (
-            EvaluationRepository,
-        )
         from app.workers.evaluation_tasks import _evaluate_question_pipeline_async
 
         fake_retrieval = MagicMock()
@@ -396,9 +387,7 @@ class TestMetricsSummaryModelProfile:
     """The model_profile key in metrics_summary is populated correctly."""
 
     def test_resolved_profile_openai_populates_block(self):
-        resolved = _make_resolved_profile(
-            provider_type="openai", base_model="gpt-4o", version=2
-        )
+        resolved = _make_resolved_profile(provider_type="openai", base_model="gpt-4o", version=2)
         block = {
             "provider_type": resolved.provider_type,
             "base_model": resolved.base_model,
@@ -415,16 +404,12 @@ class TestMetricsSummaryModelProfile:
         assert block["is_local"] is False
 
     def test_local_provider_sets_is_local_true(self):
-        resolved = _make_resolved_profile(
-            provider_type="local", base_model="llama3:70b"
-        )
+        resolved = _make_resolved_profile(provider_type="local", base_model="llama3:70b")
         is_local = resolved.provider_type == "local"
         assert is_local is True
 
     def test_env_default_source_reflected(self):
-        resolved = _make_resolved_profile(
-            source=ProfileSource.env_default
-        )
+        resolved = _make_resolved_profile(source=ProfileSource.env_default)
         assert resolved.source == ProfileSource.env_default
         assert resolved.source.value == "env_default"
 
@@ -449,9 +434,7 @@ class TestEvaluateWithLLMJudgeProfileRouting:
     async def test_judge_uses_resolved_profile_provider(self):
         from app.workers.evaluation_tasks import _evaluate_with_llm_judge_async
 
-        resolved = _make_resolved_profile(
-            provider_type="local", base_model="llama3"
-        )
+        resolved = _make_resolved_profile(provider_type="local", base_model="llama3")
 
         fake_provider = AsyncMock()
         fake_provider.complete = AsyncMock(
@@ -473,7 +456,7 @@ class TestEvaluateWithLLMJudgeProfileRouting:
             fake_factory,
         ):
             try:
-                result = await _evaluate_with_llm_judge_async(
+                await _evaluate_with_llm_judge_async(
                     model_name="llama3",
                     question="How many days?",
                     expected_answer="Twenty days.",
@@ -482,7 +465,7 @@ class TestEvaluateWithLLMJudgeProfileRouting:
                     resolved_profile=resolved,
                 )
             except Exception:
-                result = None
+                pass
 
         # When resolved_profile is set, get_chat_provider is called with its provider_type
         fake_factory.get_chat_provider.assert_called_with(resolved.provider_type)
@@ -552,7 +535,10 @@ class TestAgentRuntimeProviderMetadata:
         metadata: dict = {}
         if provider_type is not None:
             metadata["provider_type"] = provider_type
-        return {"provider_key": provider_key, "provider_type_in_meta": metadata.get("provider_type")}
+        return {
+            "provider_key": provider_key,
+            "provider_type_in_meta": metadata.get("provider_type"),
+        }
 
     def test_provider_key_extracted_from_debug(self):
         output = {"debug": {"provider_key": "local", "provider_type": "local"}}
@@ -724,7 +710,7 @@ class TestDocumentIntelligenceToolsAgenticProfile:
             svc._query_retrieval_service.embed_query = fake_embed
 
             try:
-                result = await svc._run_grounded_answer(
+                await svc._run_grounded_answer(
                     session=AsyncMock(),
                     organization_id=uuid4(),
                     user_id=uuid4(),
@@ -734,7 +720,7 @@ class TestDocumentIntelligenceToolsAgenticProfile:
                     rerank=False,
                 )
             except Exception:
-                result = None
+                pass
 
             # generate_answer should still be attempted with None profile
             if mock_llm_service.generate_answer.called:
@@ -752,12 +738,8 @@ class TestToolPolicyIndependenceOfProvider:
 
     def test_resolved_profile_has_no_bypass_field(self):
         """ResolvedTaskProfile must not expose any governance bypass knob."""
-        local_profile = _make_resolved_profile(
-            task_type=TaskType.agentic, provider_type="local"
-        )
-        openai_profile = _make_resolved_profile(
-            task_type=TaskType.agentic, provider_type="openai"
-        )
+        local_profile = _make_resolved_profile(task_type=TaskType.agentic, provider_type="local")
+        openai_profile = _make_resolved_profile(task_type=TaskType.agentic, provider_type="openai")
         for profile in (local_profile, openai_profile):
             assert not hasattr(profile, "bypass_tool_policy")
             assert not hasattr(profile, "skip_budget_check")
@@ -772,8 +754,9 @@ class TestToolPolicyIndependenceOfProvider:
 
     def test_budget_check_method_ignores_provider_type(self):
         """_check_budget_before_step signature takes budget and context, not a profile."""
-        from app.domains.agents.services.runtime import AgentRuntime
         import inspect
+
+        from app.domains.agents.services.runtime import AgentRuntime
 
         sig = inspect.signature(AgentRuntime._check_budget_before_step)
         param_names = set(sig.parameters.keys())
@@ -783,8 +766,9 @@ class TestToolPolicyIndependenceOfProvider:
 
     def test_agentic_profile_resolution_does_not_change_budget_path(self):
         """The code path that resolves the agentic profile is separate from budget enforcement."""
-        from app.domains.agents.services.runtime import AgentRuntime
         import inspect
+
+        from app.domains.agents.services.runtime import AgentRuntime
 
         # _check_budget_before_step must not reference resolved_profile
         src = inspect.getsource(AgentRuntime._check_budget_before_step)

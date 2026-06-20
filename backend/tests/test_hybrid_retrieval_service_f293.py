@@ -32,7 +32,6 @@ from app.domains.chat.services.hybrid_retrieval_service import (
 from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievedCandidate
 from app.domains.chat.services.query_retrieval_service import RetrievedCandidate
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -184,7 +183,7 @@ class TestMergeWithRRF:
         kc_exact = _keyword_candidate(
             chunk_id=chunk_id, document_id=doc_id, text="GDPR article 5", exact_match_hit=True
         )
-        kc_plain = _keyword_candidate(text="general data text")
+        _keyword_candidate(text="general data text")
 
         result_boosted = merge_with_rrf(
             vector_candidates=[],
@@ -209,7 +208,11 @@ class TestMergeWithRRF:
         shared_id = uuid4()
         doc_id = uuid4()
         vc = _vector_candidate(
-            chunk_id=shared_id, document_id=doc_id, filename="vector.pdf", text="vector text", similarity_score=0.95
+            chunk_id=shared_id,
+            document_id=doc_id,
+            filename="vector.pdf",
+            text="vector text",
+            similarity_score=0.95,
         )
         kc = _keyword_candidate(
             chunk_id=shared_id, document_id=doc_id, filename="keyword.pdf", text="keyword text"

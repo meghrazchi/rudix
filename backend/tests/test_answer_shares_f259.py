@@ -66,7 +66,6 @@ from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog
 from app.models.user import User
 
-
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
 
@@ -198,7 +197,9 @@ async def test_create_answer_share_org_only(client: AsyncClient, db_session: Asy
 
 
 @pytest.mark.asyncio
-async def test_create_answer_share_with_expiry(client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_create_answer_share_with_expiry(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
     org, user, _ = await _create_org_member(db_session)
     _, _, assistant_msg = await _create_session_and_messages(
         db_session, org_id=org.id, user_id=user.id
@@ -216,7 +217,9 @@ async def test_create_answer_share_with_expiry(client: AsyncClient, db_session: 
 
 
 @pytest.mark.asyncio
-async def test_create_answer_share_with_password(client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_create_answer_share_with_password(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
     org, user, _ = await _create_org_member(db_session)
     _, _, assistant_msg = await _create_session_and_messages(
         db_session, org_id=org.id, user_id=user.id
@@ -234,7 +237,9 @@ async def test_create_answer_share_with_password(client: AsyncClient, db_session
 
 
 @pytest.mark.asyncio
-async def test_create_answer_share_specific_users(client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_create_answer_share_specific_users(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
     org, user, _ = await _create_org_member(db_session)
     _, _, assistant_msg = await _create_session_and_messages(
         db_session, org_id=org.id, user_id=user.id
@@ -496,7 +501,7 @@ async def test_view_shared_answer_expired_returns_404(
 
     token = _make_token(str(user.id), str(org.id))
     view_resp = await client.get(
-        f"/chat/answer-shared/expired-token-abc123",
+        "/chat/answer-shared/expired-token-abc123",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 404
@@ -682,9 +687,7 @@ async def test_share_user_message_returns_404(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     org, user, _ = await _create_org_member(db_session)
-    _, user_msg, _ = await _create_session_and_messages(
-        db_session, org_id=org.id, user_id=user.id
-    )
+    _, user_msg, _ = await _create_session_and_messages(db_session, org_id=org.id, user_id=user.id)
     await db_session.commit()
 
     token = _make_token(str(user.id), str(org.id))

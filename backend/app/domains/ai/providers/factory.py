@@ -52,9 +52,7 @@ class ProviderFactory:
         from app.domains.ai.providers.openai.adapter import OpenAIChatProvider
 
         if settings.openai_api_key is None:
-            raise ProviderUnavailableError(
-                "OpenAI API key is not configured (OPENAI_API_KEY)"
-            )
+            raise ProviderUnavailableError("OpenAI API key is not configured (OPENAI_API_KEY)")
         timeout = max(
             float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
         )
@@ -72,9 +70,7 @@ class ProviderFactory:
         from app.domains.ai.providers.openai.adapter import OpenAIEmbeddingProvider
 
         if settings.openai_api_key is None:
-            raise ProviderUnavailableError(
-                "OpenAI API key is not configured (OPENAI_API_KEY)"
-            )
+            raise ProviderUnavailableError("OpenAI API key is not configured (OPENAI_API_KEY)")
         timeout = max(
             float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
         )
@@ -83,9 +79,7 @@ class ProviderFactory:
             timeout=timeout,
             max_retries=0,
         )
-        return OpenAIEmbeddingProvider(
-            client=client, model_name=settings.openai_embedding_model
-        )
+        return OpenAIEmbeddingProvider(client=client, model_name=settings.openai_embedding_model)
 
     def _build_local_embedding_provider(self) -> EmbeddingProvider:
         from openai import AsyncOpenAI

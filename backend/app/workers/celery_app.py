@@ -120,6 +120,7 @@ configure_logging(
 @worker_process_init.connect
 def _initialize_worker(*_: object, **__: object) -> None:
     import app.models  # noqa: F401 — ensure all SQLAlchemy mappers are registered
+
     init_sentry(runtime="worker")
     from app.workers.async_runtime import run_async
 

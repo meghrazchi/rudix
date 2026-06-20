@@ -22,12 +22,16 @@ if TYPE_CHECKING:
 _TABLE_QUERY_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\b(table|chart|matrix|grid|spreadsheet|rows?|columns?|cell)\b", re.IGNORECASE),
     re.compile(r"\b(compare|comparison|versus|vs\.?|side[- ]by[- ]side)\b", re.IGNORECASE),
+    re.compile(r"\b(breakdown|summary|overview|list of|summary of|breakdown of)\b", re.IGNORECASE),
     re.compile(
-        r"\b(breakdown|summary|overview|list of|summary of|breakdown of)\b", re.IGNORECASE
+        r"\b(how much|how many|what (is|are) the (value|amount|number|count|total|rate|price|cost|fee|percentage|ratio))\b",
+        re.IGNORECASE,
     ),
-    re.compile(r"\b(how much|how many|what (is|are) the (value|amount|number|count|total|rate|price|cost|fee|percentage|ratio))\b", re.IGNORECASE),
     re.compile(r"\b(highest|lowest|maximum|minimum|average|total|sum)\b", re.IGNORECASE),
-    re.compile(r"\b(between \w+ and \w+|in (q[1-4]|\d{4}|january|february|march|april|may|june|july|august|september|october|november|december))\b", re.IGNORECASE),
+    re.compile(
+        r"\b(between \w+ and \w+|in (q[1-4]|\d{4}|january|february|march|april|may|june|july|august|september|october|november|december))\b",
+        re.IGNORECASE,
+    ),
 ]
 
 # Minimum number of pattern matches to classify as a table query.
@@ -82,7 +86,12 @@ class TableRetrievalService:
         """
         table_chunk_count = sum(1 for c in chunks if getattr(c, "chunk_type", "text") == "table")
 
-        if not enabled or boost_multiplier <= 1.0 or not is_table_query(query) or table_chunk_count == 0:
+        if (
+            not enabled
+            or boost_multiplier <= 1.0
+            or not is_table_query(query)
+            or table_chunk_count == 0
+        ):
             return chunks, TableBoostResult(
                 boosted_count=0,
                 table_chunk_count=table_chunk_count,
@@ -95,6 +104,7 @@ class TableRetrievalService:
             if getattr(chunk, "chunk_type", "text") == "table":
                 new_score = chunk.similarity_score * boost_multiplier
                 from dataclasses import replace as _replace
+
                 try:
                     updated.append(_replace(chunk, similarity_score=new_score))
                 except TypeError:

@@ -9,9 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.authorization_service import AuthorizationService
 from app.auth.dependencies import get_current_principal, require_permission, require_roles
 from app.auth.models import AuthenticatedPrincipal
-from app.auth.policy_engine import Action, ResourceType
+from app.auth.policy_engine import Action
 from app.auth.resource_context_builder import build_collection_resource_context
-from app.models.permissions import PermissionType
 from app.core.logging import get_logger
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
@@ -48,6 +47,7 @@ from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.collection import Collection
 from app.models.document import Document
 from app.models.enums import OrganizationRole
+from app.models.permissions import PermissionType
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
@@ -230,7 +230,9 @@ async def create_collection(
         try:
             _dynamic_rule_service.validate(payload.rule_schema.model_dump())
         except DynamicRuleValidationError as exc:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            ) from exc
         rule_schema_dict = payload.rule_schema.model_dump()
 
     collection = await _collection_repo.create(
@@ -746,7 +748,9 @@ async def set_collection_rules(
     try:
         _dynamic_rule_service.validate(rule_dict)
     except DynamicRuleValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
     await _collection_repo.set_rules(db, collection=collection, rule_schema=rule_dict)
     matched_count = await _dynamic_rule_service.refresh_membership(db, collection=collection)
@@ -804,7 +808,9 @@ async def preview_collection_rules(
     try:
         _dynamic_rule_service.validate(rule_dict)
     except DynamicRuleValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
     docs, total = await _dynamic_rule_service.preview(
         db,

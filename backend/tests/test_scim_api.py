@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import secrets
 from unittest.mock import patch
@@ -39,7 +38,6 @@ from app.db.session import get_db_session
 from app.domains.scim.services.scim_service import _hash_token
 from app.main import app
 from app.models.enums import OrganizationRole
-from app.models.org_domain_verification import OrgDomainVerification
 from app.models.org_scim_config import OrgSCIMConfig
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
@@ -172,7 +170,7 @@ async def test_enable_scim_creates_config_and_returns_token(
 async def test_enable_scim_requires_owner_role(
     scim_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    user, org = await _seed_owner(db_session)
+    _user, org = await _seed_owner(db_session)
     member = await _seed_member(db_session, org)
     resp = await scim_client.post(
         "/api/v1/admin/scim/enable",
@@ -589,7 +587,7 @@ async def test_deprovisioned_user_cannot_authenticate(
     scim_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """Users deprovisioned via SCIM DELETE should not be able to make API calls."""
-    owner, org = await _seed_owner(db_session)
+    _owner, org = await _seed_owner(db_session)
     _, raw_token = await _seed_scim_config(db_session, org)
 
     # Provision a user via SCIM
@@ -606,6 +604,7 @@ async def test_deprovisioned_user_cannot_authenticate(
 
     # Fetch the DB user to get their external_auth_id for token minting
     from sqlalchemy import select
+
     from app.models.user import User as UserModel
 
     result = await db_session.execute(

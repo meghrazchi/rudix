@@ -52,7 +52,7 @@ Jobs:
 
 Runs:
 
-- `pip-audit` against the backend virtual environment
+- `pip-audit` against the backend virtual environment, publishing a report artifact and warning on findings
 - Trivy filesystem scanning with a high/critical severity gate
 
 ### `codeql.yml`

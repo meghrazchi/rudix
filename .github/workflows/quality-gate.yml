@@ -37,7 +37,7 @@ jobs:
       QUALITY_GATE_DRY_RUN: ${{ github.event.inputs.dry_run }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate quality gate inputs
         run: |
@@ -62,4 +62,3 @@ jobs:
           name: quality-gate-report
           path: artifacts/quality-gate-report.json
           if-no-files-found: ignore
-

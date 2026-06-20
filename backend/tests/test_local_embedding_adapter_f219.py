@@ -1,9 +1,9 @@
 """Tests for F219: local embedding provider adapter and vector-dimension safety."""
+
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
@@ -33,12 +33,9 @@ from app.domains.ai.providers.errors import (
 from app.domains.ai.providers.local.embedding_adapter import OpenAICompatibleEmbeddingProvider
 from app.domains.ai.providers.protocols import EmbeddingRequest, EmbeddingResponse
 from app.domains.documents.services.embedding_service import (
-    EmbeddingResult,
     EmbeddingService,
-    PermanentEmbeddingError,
     TransientEmbeddingError,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -116,7 +113,9 @@ async def test_local_embedding_normalizes_response() -> None:
     client = _FakeEmbeddingClient([_make_api_response(vectors, prompt_tokens=20, total_tokens=20)])
     provider = OpenAICompatibleEmbeddingProvider(client=client, model_name="nomic-embed-text")
 
-    resp = await provider.embed(EmbeddingRequest(texts=["hello", "world"], model="nomic-embed-text"))
+    resp = await provider.embed(
+        EmbeddingRequest(texts=["hello", "world"], model="nomic-embed-text")
+    )
 
     assert resp.vectors == vectors
     assert resp.model == "nomic-embed-text"

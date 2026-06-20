@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from app.models.custom_role import CustomRole
 from app.domains.roles.schemas.roles import CustomRoleResponse
+from app.models.custom_role import CustomRole
 
 
 class RolesService:

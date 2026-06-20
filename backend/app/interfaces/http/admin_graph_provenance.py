@@ -80,7 +80,7 @@ class CreateEvidenceRequest(BaseModel):
     citation_reference: str | None = None
 
     @model_validator(mode="after")
-    def require_citation_backing(self) -> "CreateEvidenceRequest":
+    def require_citation_backing(self) -> CreateEvidenceRequest:
         if not any([self.evidence_text, self.citation_text, self.citation_reference]):
             raise ValueError(
                 "provenance_required: at least one of evidence_text, citation_text, "

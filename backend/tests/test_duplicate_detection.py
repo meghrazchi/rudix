@@ -1,10 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
 from app.domains.documents.services.duplicate_detection import (
-    DuplicateDetectionResult,
     check_for_duplicate,
 )
 

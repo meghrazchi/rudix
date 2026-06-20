@@ -46,8 +46,7 @@ from app.auth.policy_engine import (
     ResourceType,
     SubjectContext,
 )
-from app.models.permissions import PermissionType, ROLE_PERMISSIONS
-
+from app.models.permissions import ROLE_PERMISSIONS, PermissionType
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

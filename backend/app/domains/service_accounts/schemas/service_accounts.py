@@ -4,14 +4,16 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-VALID_SCOPES = frozenset({
-    "documents:read",
-    "documents:write",
-    "chat:write",
-    "evaluations:run",
-    "webhooks:manage",
-    "connectors:manage",
-})
+VALID_SCOPES = frozenset(
+    {
+        "documents:read",
+        "documents:write",
+        "chat:write",
+        "evaluations:run",
+        "webhooks:manage",
+        "connectors:manage",
+    }
+)
 
 VALID_ENVIRONMENTS = frozenset({"production", "staging", "ci", "development"})
 
@@ -92,6 +94,7 @@ class ServiceAccountListResponse(BaseModel):
 
 # ── Token schemas ─────────────────────────────────────────────────────────────
 
+
 class CreateServiceAccountTokenRequest(BaseModel):
     name: str = Field(min_length=1, max_length=256)
     expires_at: datetime | None = None
@@ -120,6 +123,7 @@ class ServiceAccountTokenResponse(BaseModel):
 
 class ServiceAccountTokenCreatedResponse(ServiceAccountTokenResponse):
     """Returned only at token-creation time — raw token shown exactly once."""
+
     raw_token: str
 
 

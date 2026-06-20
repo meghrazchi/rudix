@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from datetime import date
 from uuid import UUID
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -73,9 +72,7 @@ class SourceFreshnessService:
     All methods are synchronous and side-effect free.
     """
 
-    def build_trust_map(
-        self, documents: list[object]
-    ) -> dict[str, DocumentTrustData]:
+    def build_trust_map(self, documents: list[object]) -> dict[str, DocumentTrustData]:
         """Build a document_id → DocumentTrustData index from ORM Document objects."""
         trust_map: dict[str, DocumentTrustData] = {}
         for doc in documents:
@@ -83,7 +80,7 @@ class SourceFreshnessService:
             if not doc_id:
                 continue
             trust_map[doc_id] = DocumentTrustData(
-                document_id=getattr(doc, "id"),
+                document_id=doc.id,
                 trust_status=getattr(doc, "trust_status", "current") or "current",
                 version_label=getattr(doc, "version_label", None),
                 review_date=getattr(doc, "review_date", None),

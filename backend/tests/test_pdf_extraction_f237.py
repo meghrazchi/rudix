@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import io
-import struct
 import zlib
 
 import pytest
 
+from app.domains.documents.extraction.extraction_service import extract_document
 from app.domains.documents.extraction.models import (
     DocumentProfile,
     ExtractionResult,
@@ -18,8 +17,6 @@ from app.domains.documents.extraction.models import (
     TextBlock,
 )
 from app.domains.documents.extraction.pdf_classifier import classify_document_profile
-from app.domains.documents.extraction.extraction_service import extract_document
-
 
 # ---------------------------------------------------------------------------
 # Minimal PDF builder helpers
@@ -29,7 +26,6 @@ from app.domains.documents.extraction.extraction_service import extract_document
 def _make_minimal_pdf(pages: list[str]) -> bytes:
     """Build a minimal valid multi-page PDF with one text block per page."""
     objects: list[bytes] = []
-    offsets: list[int] = []
 
     def add_obj(content: bytes) -> int:
         obj_id = len(objects) + 1

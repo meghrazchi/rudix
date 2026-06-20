@@ -49,8 +49,7 @@ class RolesRepository:
         organization_id: UUID,
     ) -> CustomRole | None:
         result = await db_session.execute(
-            select(CustomRole)
-            .where(
+            select(CustomRole).where(
                 CustomRole.name == name,
                 CustomRole.organization_id == organization_id,
             )
@@ -79,9 +78,7 @@ class RolesRepository:
         await db_session.flush()
 
         for perm in permissions:
-            db_session.add(
-                CustomRolePermission(custom_role_id=role.id, permission=perm)
-            )
+            db_session.add(CustomRolePermission(custom_role_id=role.id, permission=perm))
         await db_session.flush()
         await db_session.refresh(role, ["permissions"])
         return role
@@ -109,9 +106,7 @@ class RolesRepository:
             await db_session.flush()
 
             for perm in permissions:
-                db_session.add(
-                    CustomRolePermission(custom_role_id=role.id, permission=perm)
-                )
+                db_session.add(CustomRolePermission(custom_role_id=role.id, permission=perm))
 
         await db_session.flush()
         await db_session.refresh(role, ["permissions"])

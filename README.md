@@ -322,7 +322,7 @@ make lint         # Run lint and type checks
 Rudix uses GitHub Actions for repository automation:
 
 - `ci.yml` runs configuration validation, backend checks, frontend checks, API type verification, build validation, and Playwright e2e
-- `security.yml` runs dependency and filesystem vulnerability scans
+- `security.yml` runs dependency and filesystem vulnerability scans and publishes the backend dependency audit report as an artifact
 - `codeql.yml` runs Python and TypeScript CodeQL analysis
 - `release.yml` builds and publishes images, runs integration smoke tests, deploys staging, deploys production with environment approval, and supports rollback
 - `quality-gate.yml` runs the evaluation quality gate on demand

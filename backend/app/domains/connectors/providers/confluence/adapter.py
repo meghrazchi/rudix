@@ -38,18 +38,16 @@ from app.domains.connectors.providers.confluence.normalizer import (
     normalize_comment,
     normalize_page,
 )
-from app.domains.connectors.sdk.rate_limits import parse_retry_after, raise_for_rate_limit
+from app.domains.connectors.schemas.connectors import NormalizedExternalItem
+from app.domains.connectors.sdk.rate_limits import raise_for_rate_limit
 from app.domains.connectors.services.provider_adapter import (
     ConnectorAuthError,
-    ConnectorContentError,
     ConnectorProviderAdapter,
     ConnectorProviderUnavailableError,
-    ConnectorRateLimitError,
     DeltaItem,
     DeltaPage,
     ItemPage,
 )
-from app.domains.connectors.schemas.connectors import NormalizedExternalItem
 
 _ATLASSIAN_API_BASE = "https://api.atlassian.com/ex/confluence"
 _CONFLUENCE_EXPAND = "body.storage,version,space,ancestors,metadata.labels,history"

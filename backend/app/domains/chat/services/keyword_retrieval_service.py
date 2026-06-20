@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk
 
-
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
@@ -44,11 +43,11 @@ class KeywordRetrievalResult:
 # ---------------------------------------------------------------------------
 
 _EXACT_MATCH_PATTERNS = [
-    re.compile(r"\b[A-Z]{2,}(?:[_-][A-Z0-9]+)+\b"),   # POLICY-001, SOC-2
-    re.compile(r"\b[A-Z]{2,10}-\d{1,6}\b"),             # JIRA-123, PROJ-9
-    re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),               # 2024-01-15 dates
-    re.compile(r"\b[A-Z]{3,8}\d{1,6}\b"),               # SOC2, ISO27001
-    re.compile(r"\b[A-Z]{2,8}\b"),                       # acronyms: GDPR, HIPAA
+    re.compile(r"\b[A-Z]{2,}(?:[_-][A-Z0-9]+)+\b"),  # POLICY-001, SOC-2
+    re.compile(r"\b[A-Z]{2,10}-\d{1,6}\b"),  # JIRA-123, PROJ-9
+    re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),  # 2024-01-15 dates
+    re.compile(r"\b[A-Z]{3,8}\d{1,6}\b"),  # SOC2, ISO27001
+    re.compile(r"\b[A-Z]{2,8}\b"),  # acronyms: GDPR, HIPAA
 ]
 
 
@@ -135,7 +134,8 @@ class KeywordRetrievalService:
             section_path = str(row["section_path"] or "") or None
             raw_score = float(row["rank_score"] or 0.0)
             exact_hit = bool(
-                exact_match_tokens and _has_exact_match(chunk_text, section_path, exact_match_tokens)
+                exact_match_tokens
+                and _has_exact_match(chunk_text, section_path, exact_match_tokens)
             )
             score = raw_score * exact_match_boost if exact_hit else raw_score
 

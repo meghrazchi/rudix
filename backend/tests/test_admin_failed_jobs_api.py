@@ -33,7 +33,7 @@ from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.main import app
 from app.models.enums import OrganizationRole
-from app.models.failed_job import FailedJob, FailedJobAuditLog
+from app.models.failed_job import FailedJob
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User

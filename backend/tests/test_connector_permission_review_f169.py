@@ -31,20 +31,20 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
-from app.main import app
 from app.domains.connectors.services.permission_review_service import (
     PermissionReviewNotFoundError,
     PermissionReviewService,
     ScopeWarning,
     analyze_scopes,
 )
+from app.main import app
 from app.models.connector import (
     ConnectorConnection,
     ConnectorProvider,
 )
+from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
-from app.models.enums import OrganizationRole
 from app.models.user import User
 
 # ---------------------------------------------------------------------------

@@ -65,7 +65,6 @@ class EmailDeliveryRepository:
         *,
         log_id: UUID,
     ) -> None:
-        from sqlalchemy import text
 
         await session.execute(
             update(EmailDeliveryLog)

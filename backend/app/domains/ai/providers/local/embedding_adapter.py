@@ -58,17 +58,13 @@ class OpenAICompatibleEmbeddingProvider:
         model = request.model or self._model_name
         started = perf_counter()
         try:
-            response = await self._client.embeddings.create(
-                model=model, input=request.texts
-            )
+            response = await self._client.embeddings.create(model=model, input=request.texts)
         except RateLimitError as exc:
             raise ProviderQuotaExceededError(
                 f"Local embedding rate limit exceeded: {_redact(str(exc))}"
             ) from exc
         except APITimeoutError as exc:
-            raise ProviderTimeoutError(
-                f"Local embedding timed out: {_redact(str(exc))}"
-            ) from exc
+            raise ProviderTimeoutError(f"Local embedding timed out: {_redact(str(exc))}") from exc
         except APIConnectionError as exc:
             raise ProviderUnavailableError(
                 f"Local embedding endpoint unreachable: {_redact(str(exc))}"
@@ -102,14 +98,14 @@ class OpenAICompatibleEmbeddingProvider:
             vectors[index] = [float(v) for v in item.embedding]
 
         if any(v is None for v in vectors):
-            raise InvalidProviderResponseError(
-                "Local embedding response is missing vectors"
-            )
+            raise InvalidProviderResponseError("Local embedding response is missing vectors")
 
         # Local endpoints may omit usage entirely; fall back to 0 rather than failing.
         usage = getattr(response, "usage", None)
         prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
-        total_tokens = int(getattr(usage, "total_tokens", prompt_tokens)) if usage is not None else 0
+        total_tokens = (
+            int(getattr(usage, "total_tokens", prompt_tokens)) if usage is not None else 0
+        )
 
         return EmbeddingResponse(
             vectors=[v for v in vectors if v is not None],

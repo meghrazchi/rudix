@@ -17,8 +17,8 @@ from app.domains.admin.schemas.incidents import (
     CreateIncidentRequest,
     IncidentDetail,
     IncidentNoteEntry,
-    IncidentSummary,
     IncidentsListResponse,
+    IncidentSummary,
     ServiceStatusBanner,
     ServiceStatusSnapshot,
     UpdateIncidentRequest,
@@ -69,9 +69,7 @@ def _to_summary(incident: Incident) -> IncidentSummary:
         status=incident.status,
         severity=incident.severity,
         affected_services=(
-            incident.affected_services
-            if isinstance(incident.affected_services, list)
-            else []
+            incident.affected_services if isinstance(incident.affected_services, list) else []
         ),
         message=incident.message,
         is_public=incident.is_public,
@@ -126,6 +124,7 @@ def _build_banner(
 # GET /admin/status  — full snapshot (admin only)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/admin/status", response_model=ServiceStatusSnapshot)
 async def get_status_snapshot(
     principal: Annotated[
@@ -139,24 +138,35 @@ async def get_status_snapshot(
     now = datetime.now(tz=UTC)
     lookback = now - timedelta(hours=_RESOLVED_LOOKBACK_HOURS)
 
-    active_stmt = select(Incident).where(
-        Incident.organization_id == org_id,
-        Incident.status.in_(list(_ACTIVE_STATUSES)),
-    ).order_by(Incident.started_at.desc())
+    active_stmt = (
+        select(Incident)
+        .where(
+            Incident.organization_id == org_id,
+            Incident.status.in_(list(_ACTIVE_STATUSES)),
+        )
+        .order_by(Incident.started_at.desc())
+    )
     active_incidents = list((await db.execute(active_stmt)).scalars().all())
 
-    resolved_stmt = select(Incident).where(
-        Incident.organization_id == org_id,
-        Incident.status == "resolved",
-        Incident.resolved_at >= lookback,
-    ).order_by(Incident.resolved_at.desc()).limit(10)
+    resolved_stmt = (
+        select(Incident)
+        .where(
+            Incident.organization_id == org_id,
+            Incident.status == "resolved",
+            Incident.resolved_at >= lookback,
+        )
+        .order_by(Incident.resolved_at.desc())
+        .limit(10)
+    )
     recently_resolved = list((await db.execute(resolved_stmt)).scalars().all())
 
     failed_count_stmt = select(func.count()).select_from(
-        select(FailedJob).where(
+        select(FailedJob)
+        .where(
             FailedJob.organization_id == org_id,
             FailedJob.status == "failed",
-        ).subquery()
+        )
+        .subquery()
     )
     open_failed = int((await db.execute(failed_count_stmt)).scalar_one() or 0)
 
@@ -177,6 +187,7 @@ async def get_status_snapshot(
 # GET /status/banner  — public banner check (any authenticated user)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/status/banner", response_model=ServiceStatusBanner)
 async def get_status_banner(
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
@@ -185,11 +196,15 @@ async def get_status_banner(
 ) -> ServiceStatusBanner:
     org_id = _org_id(principal)
 
-    stmt = select(Incident).where(
-        Incident.organization_id == org_id,
-        Incident.status.in_(list(_ACTIVE_STATUSES)),
-        Incident.is_public.is_(True),
-    ).order_by(Incident.started_at.desc())
+    stmt = (
+        select(Incident)
+        .where(
+            Incident.organization_id == org_id,
+            Incident.status.in_(list(_ACTIVE_STATUSES)),
+            Incident.is_public.is_(True),
+        )
+        .order_by(Incident.started_at.desc())
+    )
     active = list((await db.execute(stmt)).scalars().all())
 
     maintenance = [i for i in active if i.title.lower().startswith("maintenance")]
@@ -201,6 +216,7 @@ async def get_status_banner(
 # ---------------------------------------------------------------------------
 # GET /admin/incidents  — list incidents
 # ---------------------------------------------------------------------------
+
 
 @router.get("/admin/incidents", response_model=IncidentsListResponse)
 async def list_incidents(
@@ -230,9 +246,7 @@ async def list_incidents(
     total = int((await db.execute(count_stmt)).scalar_one() or 0)
 
     items_stmt = (
-        base.order_by(Incident.started_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        base.order_by(Incident.started_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     items = list((await db.execute(items_stmt)).scalars().all())
 
@@ -247,6 +261,7 @@ async def list_incidents(
 # ---------------------------------------------------------------------------
 # POST /admin/incidents  — create incident
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/admin/incidents",
@@ -296,11 +311,7 @@ async def create_incident(
     await db.commit()
     await db.refresh(incident)
 
-    stmt = (
-        select(Incident)
-        .where(Incident.id == incident.id)
-        .options(selectinload(Incident.notes))
-    )
+    stmt = select(Incident).where(Incident.id == incident.id).options(selectinload(Incident.notes))
     incident = (await db.execute(stmt)).scalar_one()
     return _to_detail(incident)
 
@@ -308,6 +319,7 @@ async def create_incident(
 # ---------------------------------------------------------------------------
 # GET /admin/incidents/{incident_id}  — incident detail
 # ---------------------------------------------------------------------------
+
 
 @router.get("/admin/incidents/{incident_id}", response_model=IncidentDetail)
 async def get_incident(
@@ -327,15 +339,14 @@ async def get_incident(
     )
     incident = (await db.execute(stmt)).scalar_one_or_none()
     if incident is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
     return _to_detail(incident)
 
 
 # ---------------------------------------------------------------------------
 # PATCH /admin/incidents/{incident_id}  — update incident
 # ---------------------------------------------------------------------------
+
 
 @router.patch("/admin/incidents/{incident_id}", response_model=IncidentDetail)
 async def update_incident(
@@ -358,9 +369,7 @@ async def update_incident(
     )
     incident = (await db.execute(stmt)).scalar_one_or_none()
     if incident is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
 
     now = datetime.now(tz=UTC)
     old_status = incident.status
@@ -399,11 +408,7 @@ async def update_incident(
     await db.commit()
     await db.refresh(incident)
 
-    stmt = (
-        select(Incident)
-        .where(Incident.id == incident.id)
-        .options(selectinload(Incident.notes))
-    )
+    stmt = select(Incident).where(Incident.id == incident.id).options(selectinload(Incident.notes))
     incident = (await db.execute(stmt)).scalar_one()
     return _to_detail(incident)
 
@@ -411,6 +416,7 @@ async def update_incident(
 # ---------------------------------------------------------------------------
 # POST /admin/incidents/{incident_id}/notes  — add note
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/admin/incidents/{incident_id}/notes",
@@ -437,9 +443,7 @@ async def add_incident_note(
     )
     incident = (await db.execute(stmt)).scalar_one_or_none()
     if incident is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
 
     now = datetime.now(tz=UTC)
     note = IncidentNote(
@@ -461,10 +465,6 @@ async def add_incident_note(
 
     await db.commit()
 
-    stmt = (
-        select(Incident)
-        .where(Incident.id == incident.id)
-        .options(selectinload(Incident.notes))
-    )
+    stmt = select(Incident).where(Incident.id == incident.id).options(selectinload(Incident.notes))
     incident = (await db.execute(stmt)).scalar_one()
     return _to_detail(incident)

@@ -109,9 +109,7 @@ class HttpOAuthTokenClient:
                     f"accessible-resources endpoint returned HTTP {exc.response.status_code}"
                 ) from exc
             except httpx.RequestError as exc:
-                raise OAuthLifecycleError(
-                    "accessible-resources endpoint is unreachable"
-                ) from exc
+                raise OAuthLifecycleError("accessible-resources endpoint is unreachable") from exc
         data = response.json()
         if not isinstance(data, list):
             raise OAuthLifecycleError(

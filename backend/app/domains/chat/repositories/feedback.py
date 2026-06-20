@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -56,7 +56,7 @@ class FeedbackRepository:
             await session.refresh(existing)
             return existing
 
-        retain_until = datetime.now(tz=timezone.utc) + timedelta(days=_DEFAULT_RETENTION_DAYS)
+        retain_until = datetime.now(tz=UTC) + timedelta(days=_DEFAULT_RETENTION_DAYS)
         feedback = MessageFeedback(
             message_id=message_id,
             user_id=user_id,
@@ -127,7 +127,7 @@ class FeedbackRepository:
         feedback.citations_json = None
         feedback.retrieval_diagnostics_json = None
         feedback.comment = None
-        feedback.redacted_at = datetime.now(tz=timezone.utc)
+        feedback.redacted_at = datetime.now(tz=UTC)
         session.add(feedback)
         await session.flush()
         await session.refresh(feedback)

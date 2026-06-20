@@ -1,6 +1,4 @@
-import pytest
-
-from app.domains.documents.services.dlp_service import DlpFinding, DlpScanResult, scan_text_for_dlp
+from app.domains.documents.services.dlp_service import scan_text_for_dlp
 
 
 def test_scan_empty_text_returns_allow() -> None:

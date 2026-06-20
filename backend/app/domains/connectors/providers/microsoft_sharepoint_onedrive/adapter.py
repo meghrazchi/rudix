@@ -325,7 +325,9 @@ class MicrosoftSharePointOneDriveConnectorAdapter(ConnectorProviderAdapter):
         if size and size > max_size:
             return None
 
-        export_mime = "application/pdf" if resolved_mime not in {"application/pdf"} else resolved_mime
+        export_mime = (
+            "application/pdf" if resolved_mime not in {"application/pdf"} else resolved_mime
+        )
         if not _type_allowed(
             allowed_types=allowed_types,
             original_mime=resolved_mime,
@@ -555,7 +557,9 @@ class MicrosoftSharePointOneDriveConnectorAdapter(ConnectorProviderAdapter):
 
         collected: list[NormalizedExternalItem] = []
         while drive_index < len(drive_queue) and len(collected) < page_size:
-            drive_scope = _Scope(kind="drive", drive_id=_split_composite_id(drive_queue[drive_index])[1][0])
+            drive_scope = _Scope(
+                kind="drive", drive_id=_split_composite_id(drive_queue[drive_index])[1][0]
+            )
             drive_page = await self._page_for_drive(
                 drive_id=drive_scope.drive_id or "",
                 access_token=access_token,
@@ -1000,12 +1004,12 @@ class MicrosoftSharePointOneDriveConnectorAdapter(ConnectorProviderAdapter):
                 last_error = exc
                 if attempt >= self._max_retries:
                     break
-                await asyncio.sleep(min(2 ** attempt, 4))
+                await asyncio.sleep(min(2**attempt, 4))
             except httpx.HTTPStatusError as exc:
                 last_error = exc
                 if attempt >= self._max_retries:
                     break
-                await asyncio.sleep(min(2 ** attempt, 4))
+                await asyncio.sleep(min(2**attempt, 4))
         if isinstance(last_error, ConnectorProviderUnavailableError):
             raise last_error
         if isinstance(last_error, ConnectorContentError):

@@ -59,16 +59,14 @@ from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
-from app.domains.ai.profile.schemas import TaskType
+from app.domains.ai.profile.schemas import TaskType, ValidateProfileRequest
 from app.domains.ai.profile.service import validate_profile
-from app.domains.ai.profile.schemas import ValidateProfileRequest
 from app.main import app
 from app.models.enums import OrganizationRole
-from app.models.model_profile import OrgModelProfile, OrgModelProfileChangeLog
+from app.models.model_profile import OrgModelProfileChangeLog
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -221,9 +219,7 @@ async def test_put_creates_chat_profile(mp_client, admin_ctx) -> None:
 
 @pytest.mark.asyncio
 async def test_get_chat_profile(mp_client, admin_ctx) -> None:
-    await mp_client.put(
-        f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"])
-    )
+    await mp_client.put(f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"]))
     r = await mp_client.get(f"{BASE}/chat", headers=_auth(admin_ctx["token"]))
     assert r.status_code == 200
     assert r.json()["task_type"] == "chat"
@@ -236,13 +232,9 @@ async def test_get_chat_profile(mp_client, admin_ctx) -> None:
 
 @pytest.mark.asyncio
 async def test_put_update_bumps_version(mp_client, admin_ctx) -> None:
-    await mp_client.put(
-        f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"])
-    )
+    await mp_client.put(f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"]))
     updated = {**_VALID_CHAT_PAYLOAD, "base_model": "gpt-4o-mini", "profile_name": "Updated"}
-    r = await mp_client.put(
-        f"{BASE}/chat", json=updated, headers=_auth(admin_ctx["token"])
-    )
+    r = await mp_client.put(f"{BASE}/chat", json=updated, headers=_auth(admin_ctx["token"]))
     assert r.status_code == 200
     assert r.json()["version"] == 2
     assert r.json()["base_model"] == "gpt-4o-mini"
@@ -255,9 +247,7 @@ async def test_put_update_bumps_version(mp_client, admin_ctx) -> None:
 
 @pytest.mark.asyncio
 async def test_delete_profile(mp_client, admin_ctx) -> None:
-    await mp_client.put(
-        f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"])
-    )
+    await mp_client.put(f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"]))
     r = await mp_client.delete(f"{BASE}/chat", headers=_auth(admin_ctx["token"]))
     assert r.status_code == 204
     r2 = await mp_client.get(f"{BASE}/chat", headers=_auth(admin_ctx["token"]))
@@ -285,9 +275,7 @@ async def test_effective_policy_all_env_default(mp_client, admin_ctx) -> None:
 
 @pytest.mark.asyncio
 async def test_effective_policy_org_profile_source(mp_client, admin_ctx) -> None:
-    await mp_client.put(
-        f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"])
-    )
+    await mp_client.put(f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"]))
     r = await mp_client.get(f"{BASE}/effective", headers=_auth(admin_ctx["token"]))
     body = r.json()
     chat = next(p for p in body["profiles"] if p["task_type"] == "chat")
@@ -344,9 +332,7 @@ async def test_validate_json_mode_required_for_evaluations(mp_client, admin_ctx)
 
 
 @pytest.mark.asyncio
-async def test_validate_local_llm_blocked_when_flag_off(
-    monkeypatch, mp_client, admin_ctx
-) -> None:
+async def test_validate_local_llm_blocked_when_flag_off(monkeypatch, mp_client, admin_ctx) -> None:
     monkeypatch.setattr(settings, "feature_enable_local_llm_profiles", False)
     r = await mp_client.post(
         f"{BASE}/validate",
@@ -397,9 +383,7 @@ async def test_put_rejects_invalid_profile(mp_client, admin_ctx) -> None:
         "base_model": "gpt-4o",
         "json_mode": False,  # evaluations requires json_mode=True
     }
-    r = await mp_client.put(
-        f"{BASE}/evaluations", json=payload, headers=_auth(admin_ctx["token"])
-    )
+    r = await mp_client.put(f"{BASE}/evaluations", json=payload, headers=_auth(admin_ctx["token"]))
     assert r.status_code == 422
 
 
@@ -434,9 +418,7 @@ async def test_org_isolation(mp_client, admin_ctx, db_session) -> None:
     other_org = Organization(name="Other Org", slug=f"other-{uuid4().hex[:8]}")
     db_session.add(other_org)
     await db_session.flush()
-    other_user = User(
-        email=f"other-{uuid4().hex[:6]}@test.com", display_name="Other"
-    )
+    other_user = User(email=f"other-{uuid4().hex[:6]}@test.com", display_name="Other")
     db_session.add(other_user)
     await db_session.flush()
     db_session.add(
@@ -450,9 +432,7 @@ async def test_org_isolation(mp_client, admin_ctx, db_session) -> None:
     other_token = _make_token(str(other_user.id), str(other_org.id))
 
     # Create profile in org A
-    await mp_client.put(
-        f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"])
-    )
+    await mp_client.put(f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"]))
 
     # Org B should see empty list
     r = await mp_client.get(BASE, headers=_auth(other_token))
@@ -469,13 +449,9 @@ async def test_org_isolation(mp_client, admin_ctx, db_session) -> None:
 async def test_change_log_written_on_create(mp_client, admin_ctx, db_session) -> None:
     from sqlalchemy import select
 
-    await mp_client.put(
-        f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"])
-    )
+    await mp_client.put(f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"]))
     result = await db_session.execute(
-        select(OrgModelProfileChangeLog).where(
-            OrgModelProfileChangeLog.task_type == "chat"
-        )
+        select(OrgModelProfileChangeLog).where(OrgModelProfileChangeLog.task_type == "chat")
     )
     entries = result.scalars().all()
     assert len(entries) == 1
@@ -491,14 +467,10 @@ async def test_change_log_written_on_create(mp_client, admin_ctx, db_session) ->
 async def test_change_log_written_on_delete(mp_client, admin_ctx, db_session) -> None:
     from sqlalchemy import select
 
-    await mp_client.put(
-        f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"])
-    )
+    await mp_client.put(f"{BASE}/chat", json=_VALID_CHAT_PAYLOAD, headers=_auth(admin_ctx["token"]))
     await mp_client.delete(f"{BASE}/chat", headers=_auth(admin_ctx["token"]))
     result = await db_session.execute(
-        select(OrgModelProfileChangeLog).where(
-            OrgModelProfileChangeLog.task_type == "chat"
-        )
+        select(OrgModelProfileChangeLog).where(OrgModelProfileChangeLog.task_type == "chat")
     )
     entries = result.scalars().all()
     # Create + delete = 2 entries
@@ -514,6 +486,7 @@ async def test_change_log_written_on_delete(mp_client, admin_ctx, db_session) ->
 
 def test_upsert_request_fallback_same_as_provider_rejected() -> None:
     from pydantic import ValidationError
+
     from app.domains.ai.profile.schemas import UpsertModelProfileRequest
 
     with pytest.raises(ValidationError, match="fallback_provider_key must differ"):
@@ -549,9 +522,7 @@ def test_validate_json_mode_invalid_for_embeddings() -> None:
 
 
 @pytest.mark.asyncio
-async def test_effective_policy_exposes_feature_flags(
-    monkeypatch, mp_client, admin_ctx
-) -> None:
+async def test_effective_policy_exposes_feature_flags(monkeypatch, mp_client, admin_ctx) -> None:
     monkeypatch.setattr(settings, "feature_enable_local_llm_profiles", True)
     monkeypatch.setattr(settings, "feature_enable_provider_fallback", True)
     r = await mp_client.get(f"{BASE}/effective", headers=_auth(admin_ctx["token"]))

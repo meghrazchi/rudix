@@ -209,7 +209,9 @@ class GraphNeighborItem(BaseModel):
 
 
 RelationshipDirection = Literal["out", "in", "both"]
-_Principal = Annotated[AuthenticatedPrincipal, Depends(require_permission(PermissionType.graph_view))]
+_Principal = Annotated[
+    AuthenticatedPrincipal, Depends(require_permission(PermissionType.graph_view))
+]
 _RateLimit = Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))]
 
 
@@ -377,9 +379,7 @@ async def get_graph_stats(
         total_relations=data["total_relations"],
         avg_confidence=data.get("avg_confidence"),
         low_confidence_count=data["low_confidence_count"],
-        entities_by_type=[
-            GraphEntityTypeCountItem(**item) for item in data["entities_by_type"]
-        ],
+        entities_by_type=[GraphEntityTypeCountItem(**item) for item in data["entities_by_type"]],
         graph_available=data["graph_available"],
     )
 

@@ -17,7 +17,7 @@ from app.domains.ai.providers.errors import (
     ProviderUnavailableError,
     UnsupportedCapabilityError,
 )
-from app.domains.ai.providers.protocols import ChatCompletionRequest, ChatCompletionProvider
+from app.domains.ai.providers.protocols import ChatCompletionProvider, ChatCompletionRequest
 
 if TYPE_CHECKING:
     from app.domains.ai.profile.schemas import ResolvedTaskProfile
@@ -160,7 +160,7 @@ class LLMService:
         provider: ChatCompletionProvider,
         model_name: str,
         max_attempts: int,
-    ) -> tuple["ChatCompletionResponse", ParsedLLMOutput, bool, int]:
+    ) -> tuple[ChatCompletionResponse, ParsedLLMOutput, bool, int]:
         """Run a completion with retry loop.
 
         Returns (raw_response, parsed_output, used_fallback_parser, retry_count).
@@ -187,13 +187,11 @@ class LLMService:
                     continue
                 raise PermanentLLMServiceError(
                     "LLM does not support JSON mode and fallback failed"
-                )
+                ) from None
             except _TRANSIENT_PROVIDER_ERRORS as exc:
                 last_error = exc
                 if attempt >= max_attempts:
-                    raise TransientLLMServiceError(
-                        "LLM request failed after retries"
-                    ) from exc
+                    raise TransientLLMServiceError("LLM request failed after retries") from exc
                 retries += 1
                 backoff = min(
                     self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds
@@ -253,7 +251,7 @@ class LLMService:
     def _build_result(
         self,
         *,
-        response: "ChatCompletionResponse",
+        response: ChatCompletionResponse,
         parsed: ParsedLLMOutput,
         used_fallback_parser: bool,
         retry_count: int,
@@ -291,7 +289,7 @@ class LLMService:
         self,
         *,
         prompt: str,
-        resolved_profile: "ResolvedTaskProfile | None" = None,
+        resolved_profile: ResolvedTaskProfile | None = None,
     ) -> LLMAnswerResult:
         if not settings.feature_enable_llm:
             raise PermanentLLMServiceError("LLM feature is disabled")
@@ -331,13 +329,15 @@ class LLMService:
             if not fallback_key:
                 raise
 
-            fallback_reason = type(primary_exc.__cause__).__name__ if primary_exc.__cause__ else type(primary_exc).__name__
+            fallback_reason = (
+                type(primary_exc.__cause__).__name__
+                if primary_exc.__cause__
+                else type(primary_exc).__name__
+            )
             fallback_provider = self._resolve_provider(fallback_key)
 
             # Use the fallback provider's configured model name when available.
-            fb_model = (
-                getattr(fallback_provider, "_model_name", None) or primary_model
-            )
+            fb_model = getattr(fallback_provider, "_model_name", None) or primary_model
 
             try:
                 # Retry with original (untruncated) prompt: fallback likely has larger context.

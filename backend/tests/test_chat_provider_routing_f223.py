@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from decimal import Decimal
 
 import pytest
 
@@ -30,10 +29,8 @@ from app.domains.ai.providers.errors import ProviderUnavailableError
 from app.domains.ai.providers.protocols import ChatCompletionRequest, ChatCompletionResponse
 from app.domains.chat.services.llm_service import (
     LLMService,
-    PermanentLLMServiceError,
     TransientLLMServiceError,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -67,9 +64,7 @@ def _ok_response(
     answer: str = "Answer text.",
     model: str = "local-model",
 ) -> ChatCompletionResponse:
-    payload = (
-        f'{{"answer":"{answer}","not_found":false,"citations":[]}}'
-    )
+    payload = f'{{"answer":"{answer}","not_found":false,"citations":[]}}'
     return ChatCompletionResponse(
         content=payload,
         model=model,
@@ -113,11 +108,10 @@ async def test_profile_routes_to_local_provider(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(service, "_provider", None)
 
     from app.domains.ai.providers.factory import ProviderFactory
+
     factory = ProviderFactory()
     factory._chat_providers["local"] = local_provider
-    monkeypatch.setattr(
-        "app.domains.ai.providers.factory.default_provider_factory", factory
-    )
+    monkeypatch.setattr("app.domains.ai.providers.factory.default_provider_factory", factory)
 
     profile = _make_profile(provider_type="local", base_model="local-model")
     result = await service.generate_answer(prompt="What is the policy?", resolved_profile=profile)
@@ -136,11 +130,10 @@ async def test_profile_passes_base_model_to_request(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(service, "_provider", None)
 
     from app.domains.ai.providers.factory import ProviderFactory
+
     factory = ProviderFactory()
     factory._chat_providers["local"] = provider
-    monkeypatch.setattr(
-        "app.domains.ai.providers.factory.default_provider_factory", factory
-    )
+    monkeypatch.setattr("app.domains.ai.providers.factory.default_provider_factory", factory)
 
     profile = _make_profile(provider_type="local", base_model="custom-llama-3")
     await service.generate_answer(prompt="Question?", resolved_profile=profile)
@@ -171,11 +164,10 @@ async def test_fallback_disabled_local_outage_raises_transient_error(
     monkeypatch.setattr(service, "_provider", None)
 
     from app.domains.ai.providers.factory import ProviderFactory
+
     factory = ProviderFactory()
     factory._chat_providers["local"] = local_provider
-    monkeypatch.setattr(
-        "app.domains.ai.providers.factory.default_provider_factory", factory
-    )
+    monkeypatch.setattr("app.domains.ai.providers.factory.default_provider_factory", factory)
 
     # Profile has fallback configured but feature flag is off.
     profile = _make_profile(
@@ -217,12 +209,11 @@ async def test_fallback_enabled_local_outage_routes_to_fallback(
     monkeypatch.setattr(service, "_provider", None)
 
     from app.domains.ai.providers.factory import ProviderFactory
+
     factory = ProviderFactory()
     factory._chat_providers["local"] = local_provider
     factory._chat_providers["openai"] = cloud_provider
-    monkeypatch.setattr(
-        "app.domains.ai.providers.factory.default_provider_factory", factory
-    )
+    monkeypatch.setattr("app.domains.ai.providers.factory.default_provider_factory", factory)
 
     profile = _make_profile(
         provider_type="local",
@@ -257,12 +248,11 @@ async def test_fallback_records_sanitised_metadata(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(service, "_provider", None)
 
     from app.domains.ai.providers.factory import ProviderFactory
+
     factory = ProviderFactory()
     factory._chat_providers["local"] = local_provider
     factory._chat_providers["openai"] = cloud_provider
-    monkeypatch.setattr(
-        "app.domains.ai.providers.factory.default_provider_factory", factory
-    )
+    monkeypatch.setattr("app.domains.ai.providers.factory.default_provider_factory", factory)
 
     profile = _make_profile(provider_type="local", fallback_provider_key="openai")
     result = await service.generate_answer(prompt="Question?", resolved_profile=profile)
@@ -295,12 +285,11 @@ async def test_fallback_and_primary_both_fail_raises_transient(
     monkeypatch.setattr(service, "_provider", None)
 
     from app.domains.ai.providers.factory import ProviderFactory
+
     factory = ProviderFactory()
     factory._chat_providers["local"] = local_provider
     factory._chat_providers["openai"] = cloud_provider
-    monkeypatch.setattr(
-        "app.domains.ai.providers.factory.default_provider_factory", factory
-    )
+    monkeypatch.setattr("app.domains.ai.providers.factory.default_provider_factory", factory)
 
     profile = _make_profile(provider_type="local", fallback_provider_key="openai")
 
@@ -314,7 +303,7 @@ async def test_fallback_and_primary_both_fail_raises_transient(
 
 
 def test_apply_context_window_truncates_over_budget() -> None:
-    service = LLMService()
+    LLMService()
     # context_window=100 tokens → budget = 85 tokens → max 340 chars
     long_prompt = "x" * 400
     result = LLMService._apply_context_window(long_prompt, context_window=100)
@@ -323,7 +312,7 @@ def test_apply_context_window_truncates_over_budget() -> None:
 
 
 def test_apply_context_window_no_op_when_within_budget() -> None:
-    service = LLMService()
+    LLMService()
     prompt = "Short prompt that fits."
     result = LLMService._apply_context_window(prompt, context_window=10000)
     assert result == prompt
@@ -346,11 +335,10 @@ async def test_profile_with_small_context_window_truncates_prompt(
     monkeypatch.setattr(service, "_provider", None)
 
     from app.domains.ai.providers.factory import ProviderFactory
+
     factory = ProviderFactory()
     factory._chat_providers["local"] = provider
-    monkeypatch.setattr(
-        "app.domains.ai.providers.factory.default_provider_factory", factory
-    )
+    monkeypatch.setattr("app.domains.ai.providers.factory.default_provider_factory", factory)
 
     # context_window=50 → budget = 42 tokens → 170 chars max
     profile = _make_profile(provider_type="local", context_window=50)

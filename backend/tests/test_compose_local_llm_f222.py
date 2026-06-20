@@ -2,6 +2,7 @@
 
 CI does NOT download model weights; all tests use mocks or static config parsing.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -81,9 +82,7 @@ def test_core_services_have_no_profiles() -> None:
     always_on = {"api", "worker", "postgres", "qdrant", "minio", "rabbitmq", "redis"}
     for name in always_on:
         assert name in services
-        assert "profiles" not in services[name], (
-            f"Service '{name}' should not be profile-gated"
-        )
+        assert "profiles" not in services[name], f"Service '{name}' should not be profile-gated"
 
 
 # ── No host-port exposure for model services ─────────────────────────────────
@@ -250,9 +249,11 @@ async def test_probe_skips_when_provider_not_local(caplog: pytest.LogCaptureFixt
     mock_settings.llm_default_provider = "openai"
     mock_settings.embedding_default_provider = "openai"
 
-    with patch("app.core.lifespan.probe_local_providers.__module__"), \
-         patch("app.core.config.settings", mock_settings), \
-         caplog.at_level("WARNING"):
+    with (
+        patch("app.core.lifespan.probe_local_providers.__module__"),
+        patch("app.core.config.settings", mock_settings),
+        caplog.at_level("WARNING"),
+    ):
         await probe_local_providers()
 
     assert "[local-llm]" not in caplog.text
@@ -267,8 +268,10 @@ async def test_probe_warns_when_local_llm_url_not_set(caplog: pytest.LogCaptureF
     mock_settings.local_llm_base_url = None
     mock_settings.embedding_default_provider = "openai"
 
-    with patch("app.core.config.settings", mock_settings), \
-         caplog.at_level("WARNING", logger="app.core.lifespan"):
+    with (
+        patch("app.core.config.settings", mock_settings),
+        caplog.at_level("WARNING", logger="app.core.lifespan"),
+    ):
         await probe_local_providers()
 
     assert "base URL is not configured" in caplog.text
@@ -284,9 +287,11 @@ async def test_probe_warns_when_local_llm_unreachable(caplog: pytest.LogCaptureF
     mock_settings.local_llm_base_url.__str__ = lambda _: "http://ollama:11434/v1"
     mock_settings.embedding_default_provider = "openai"
 
-    with patch("app.core.config.settings", mock_settings), \
-         patch("app.core.lifespan._tcp_reachable", new_callable=AsyncMock, return_value=False), \
-         caplog.at_level("WARNING", logger="app.core.lifespan"):
+    with (
+        patch("app.core.config.settings", mock_settings),
+        patch("app.core.lifespan._tcp_reachable", new_callable=AsyncMock, return_value=False),
+        caplog.at_level("WARNING", logger="app.core.lifespan"),
+    ):
         await probe_local_providers()
 
     assert "not reachable" in caplog.text
@@ -303,9 +308,11 @@ async def test_probe_logs_info_when_local_llm_reachable(caplog: pytest.LogCaptur
     mock_settings.local_llm_base_url.__str__ = lambda _: "http://ollama:11434/v1"
     mock_settings.embedding_default_provider = "openai"
 
-    with patch("app.core.config.settings", mock_settings), \
-         patch("app.core.lifespan._tcp_reachable", new_callable=AsyncMock, return_value=True), \
-         caplog.at_level("INFO", logger="app.core.lifespan"):
+    with (
+        patch("app.core.config.settings", mock_settings),
+        patch("app.core.lifespan._tcp_reachable", new_callable=AsyncMock, return_value=True),
+        caplog.at_level("INFO", logger="app.core.lifespan"),
+    ):
         await probe_local_providers()
 
     assert "is reachable" in caplog.text
@@ -329,9 +336,11 @@ async def test_probe_checks_both_llm_and_embedding(caplog: pytest.LogCaptureFixt
         calls.append((host, port))
         return True
 
-    with patch("app.core.config.settings", mock_settings), \
-         patch("app.core.lifespan._tcp_reachable", side_effect=_fake_probe), \
-         caplog.at_level("INFO", logger="app.core.lifespan"):
+    with (
+        patch("app.core.config.settings", mock_settings),
+        patch("app.core.lifespan._tcp_reachable", side_effect=_fake_probe),
+        caplog.at_level("INFO", logger="app.core.lifespan"),
+    ):
         await probe_local_providers()
 
     assert len(calls) == 2
@@ -346,8 +355,10 @@ async def test_probe_warns_when_embedding_url_not_set(caplog: pytest.LogCaptureF
     mock_settings.embedding_default_provider = "local"
     mock_settings.local_embedding_base_url = None
 
-    with patch("app.core.config.settings", mock_settings), \
-         caplog.at_level("WARNING", logger="app.core.lifespan"):
+    with (
+        patch("app.core.config.settings", mock_settings),
+        caplog.at_level("WARNING", logger="app.core.lifespan"),
+    ):
         await probe_local_providers()
 
     assert "base URL is not configured" in caplog.text
@@ -359,11 +370,7 @@ async def test_probe_warns_when_embedding_url_not_set(caplog: pytest.LogCaptureF
 def test_default_services_exclude_local_model_containers() -> None:
     """Services without a profiles key start by default; model containers must be opt-in."""
     compose = _load_compose()
-    default_services = [
-        name
-        for name, svc in compose["services"].items()
-        if "profiles" not in svc
-    ]
+    default_services = [name for name, svc in compose["services"].items() if "profiles" not in svc]
     for local_svc in ("ollama", "vllm", "litellm"):
         assert local_svc not in default_services, (
             f"'{local_svc}' must require an explicit profile to start"

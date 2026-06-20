@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -20,8 +19,9 @@ def _parse_optional_uuid(value: str | None) -> UUID | None:
 
 
 async def _lookup_user_email_async(user_id: UUID) -> str | None:
-    from app.db.session import SessionLocal
     from sqlalchemy import select
+
+    from app.db.session import SessionLocal
     from app.models.user import User
 
     async with SessionLocal() as session:
@@ -30,8 +30,9 @@ async def _lookup_user_email_async(user_id: UUID) -> str | None:
 
 
 async def _lookup_document_name_async(document_id: str) -> str | None:
-    from app.db.session import SessionLocal
     from sqlalchemy import select
+
+    from app.db.session import SessionLocal
     from app.models.document import Document
 
     try:
@@ -129,9 +130,7 @@ def emit_connector_sync_failure_email(
     if not recipient_email:
         return
 
-    connector_url = (
-        f"{str(settings.frontend_base_url).rstrip('/')}/admin/connectors"
-    )
+    connector_url = f"{str(settings.frontend_base_url).rstrip('/')}/admin/connectors"
 
     dispatch_email(
         organization_id=str(org_uuid),

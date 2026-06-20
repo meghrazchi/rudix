@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -130,9 +130,7 @@ class DynamicRuleService:
         rule_schema: dict,
     ) -> list[UUID]:
         where = _build_where_clause(rule_schema, organization_id)
-        result = await session.execute(
-            select(Document.id).where(where)
-        )
+        result = await session.execute(select(Document.id).where(where))
         return list(result.scalars().all())
 
     async def preview(
@@ -146,9 +144,7 @@ class DynamicRuleService:
         limit = min(limit, _MAX_PREVIEW_LIMIT)
         where = _build_where_clause(rule_schema, organization_id)
 
-        count_result = await session.execute(
-            select(Document.id).where(where)
-        )
+        count_result = await session.execute(select(Document.id).where(where))
         all_ids = list(count_result.scalars().all())
         total = len(all_ids)
 
@@ -178,14 +174,12 @@ class DynamicRuleService:
 
         # Replace membership: delete all current, insert matching
         await session.execute(
-            delete(CollectionDocument).where(
-                CollectionDocument.collection_id == collection.id
-            )
+            delete(CollectionDocument).where(CollectionDocument.collection_id == collection.id)
         )
         for doc_id in matching_ids:
             session.add(CollectionDocument(collection_id=collection.id, document_id=doc_id))
 
-        collection.last_rule_evaluated_at = datetime.now(timezone.utc)
+        collection.last_rule_evaluated_at = datetime.now(UTC)
         await session.flush()
 
         _logger.info(

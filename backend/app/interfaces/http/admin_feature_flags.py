@@ -13,9 +13,9 @@ from app.domains.admin import audit_events
 from app.domains.admin.schemas.feature_flags import (
     ALL_FLAG_NAMES,
     FeatureFlagDeleteResponse,
-    FeatureFlagsResponse,
     FeatureFlagSetRequest,
     FeatureFlagSetResponse,
+    FeatureFlagsResponse,
 )
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.admin.services.feature_flag_service import FeatureFlagService
@@ -109,7 +109,9 @@ async def set_feature_flag(
             overridden_by_user_id=user_id,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
     await _audit_service.record(
         db_session,
@@ -152,7 +154,9 @@ async def clear_feature_flag(
             flag_name=flag_name,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
     await _audit_service.record(
         db_session,

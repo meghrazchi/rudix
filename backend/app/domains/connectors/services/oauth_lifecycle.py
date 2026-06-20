@@ -797,7 +797,9 @@ class ConnectorOAuthLifecycleService:
         endpoint = provider.oauth.accessible_resources_endpoint
         if not endpoint:
             return {}
-        if self.token_client is None or not hasattr(self.token_client, "fetch_accessible_resources"):
+        if self.token_client is None or not hasattr(
+            self.token_client, "fetch_accessible_resources"
+        ):
             return {}
         try:
             resources: list[dict] = await self.token_client.fetch_accessible_resources(  # type: ignore[attr-defined]

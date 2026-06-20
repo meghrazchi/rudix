@@ -27,12 +27,11 @@ Usage (FastAPI route):
 from __future__ import annotations
 
 import uuid
-from typing import Sequence
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from collections.abc import Sequence
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.permission_service import PermissionService

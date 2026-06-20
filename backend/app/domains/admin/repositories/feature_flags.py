@@ -47,9 +47,7 @@ class FeatureFlagRepository:
         reason: str | None,
         overridden_by_user_id: UUID | None,
     ) -> OrgFeatureFlagOverride:
-        existing = await self.get(
-            session, organization_id=organization_id, flag_name=flag_name
-        )
+        existing = await self.get(session, organization_id=organization_id, flag_name=flag_name)
         if existing is None:
             override = OrgFeatureFlagOverride(
                 organization_id=organization_id,

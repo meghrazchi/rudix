@@ -11,9 +11,7 @@ from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
 
 class ServiceAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "service_accounts"
-    __table_args__ = (
-        Index("idx_service_accounts_org_id", "organization_id"),
-    )
+    __table_args__ = (Index("idx_service_accounts_org_id", "organization_id"),)
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -26,9 +24,7 @@ class ServiceAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     environment: Mapped[str] = mapped_column(String(32), nullable=False, default="production")
     scopes: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -70,12 +66,8 @@ class ServiceAccountToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # SHA-256 hex digest of the full raw token.
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_used_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_by_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),

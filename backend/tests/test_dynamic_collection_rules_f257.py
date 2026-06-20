@@ -61,7 +61,6 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
 
-
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
 
@@ -246,8 +245,12 @@ async def db_session():
 @pytest.mark.asyncio
 async def test_evaluate_and_logic(db_session: AsyncSession):
     org, user, _ = await _seed_org(db_session)
-    pdf_en = await _seed_doc(db_session, org_id=org.id, user_id=user.id, file_type="pdf", language="en")
-    pdf_de = await _seed_doc(db_session, org_id=org.id, user_id=user.id, file_type="pdf", language="de")
+    pdf_en = await _seed_doc(
+        db_session, org_id=org.id, user_id=user.id, file_type="pdf", language="en"
+    )
+    pdf_de = await _seed_doc(
+        db_session, org_id=org.id, user_id=user.id, file_type="pdf", language="de"
+    )
     await _seed_doc(db_session, org_id=org.id, user_id=user.id, file_type="txt", language="en")
 
     svc = DynamicRuleService()
@@ -321,6 +324,7 @@ async def test_refresh_membership_populates(db_session: AsyncSession):
     assert col.last_rule_evaluated_at is not None
 
     from sqlalchemy import select
+
     result = await db_session.execute(
         select(CollectionDocument).where(CollectionDocument.collection_id == col.id)
     )
@@ -353,6 +357,7 @@ async def test_refresh_membership_clears_stale(db_session: AsyncSession):
     assert count == 1
 
     from sqlalchemy import select
+
     result = await db_session.execute(
         select(CollectionDocument).where(CollectionDocument.collection_id == col.id)
     )
@@ -367,16 +372,12 @@ async def test_refresh_membership_clears_stale(db_session: AsyncSession):
 
 @pytest_asyncio.fixture
 async def http_client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
 @pytest.mark.asyncio
-async def test_put_rules_sets_and_refreshes(
-    http_client: AsyncClient, db_session: AsyncSession
-):
+async def test_put_rules_sets_and_refreshes(http_client: AsyncClient, db_session: AsyncSession):
     org, user, _ = await _seed_org(db_session, role=OrganizationRole.owner.value)
     await _seed_doc(db_session, org_id=org.id, user_id=user.id, file_type="pdf")
     col = await _seed_collection(db_session, org_id=org.id, owner_id=user.id)
@@ -401,9 +402,7 @@ async def test_put_rules_sets_and_refreshes(
 
 
 @pytest.mark.asyncio
-async def test_put_rules_invalid_schema_422(
-    http_client: AsyncClient, db_session: AsyncSession
-):
+async def test_put_rules_invalid_schema_422(http_client: AsyncClient, db_session: AsyncSession):
     org, user, _ = await _seed_org(db_session, role=OrganizationRole.owner.value)
     col = await _seed_collection(db_session, org_id=org.id, owner_id=user.id)
     await db_session.commit()
@@ -423,9 +422,7 @@ async def test_put_rules_invalid_schema_422(
 
 
 @pytest.mark.asyncio
-async def test_preview_rules_returns_docs(
-    http_client: AsyncClient, db_session: AsyncSession
-):
+async def test_preview_rules_returns_docs(http_client: AsyncClient, db_session: AsyncSession):
     org, user, _ = await _seed_org(db_session)
     await _seed_doc(db_session, org_id=org.id, user_id=user.id, file_type="pdf")
     await _seed_doc(db_session, org_id=org.id, user_id=user.id, file_type="txt")
@@ -452,9 +449,7 @@ async def test_preview_rules_returns_docs(
 
 
 @pytest.mark.asyncio
-async def test_preview_rules_invalid_422(
-    http_client: AsyncClient, db_session: AsyncSession
-):
+async def test_preview_rules_invalid_422(http_client: AsyncClient, db_session: AsyncSession):
     org, user, _ = await _seed_org(db_session)
     col = await _seed_collection(db_session, org_id=org.id, owner_id=user.id)
     await db_session.commit()
@@ -472,9 +467,7 @@ async def test_preview_rules_invalid_422(
 
 
 @pytest.mark.asyncio
-async def test_refresh_rules_endpoint(
-    http_client: AsyncClient, db_session: AsyncSession
-):
+async def test_refresh_rules_endpoint(http_client: AsyncClient, db_session: AsyncSession):
     org, user, _ = await _seed_org(db_session, role=OrganizationRole.admin.value)
     await _seed_doc(db_session, org_id=org.id, user_id=user.id, file_type="docx")
     rule = {
@@ -497,9 +490,7 @@ async def test_refresh_rules_endpoint(
 
 
 @pytest.mark.asyncio
-async def test_refresh_rules_non_dynamic_422(
-    http_client: AsyncClient, db_session: AsyncSession
-):
+async def test_refresh_rules_non_dynamic_422(http_client: AsyncClient, db_session: AsyncSession):
     org, user, _ = await _seed_org(db_session, role=OrganizationRole.admin.value)
     col = await _seed_collection(db_session, org_id=org.id, owner_id=user.id, is_dynamic=False)
     await db_session.commit()

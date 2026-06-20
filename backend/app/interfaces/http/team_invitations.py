@@ -98,10 +98,7 @@ def _request_id(request: Request) -> str | None:
 def _to_response(inv: OrganizationInvitation) -> OrganizationInvitationResponse:
     invited_by_name: str | None = None
     if inv.invited_by is not None:
-        invited_by_name = (
-            inv.invited_by.display_name
-            or inv.invited_by.email
-        )
+        invited_by_name = inv.invited_by.display_name or inv.invited_by.email
     return OrganizationInvitationResponse(
         invitation_id=str(inv.id),
         organization_id=str(inv.organization_id),
@@ -234,8 +231,7 @@ async def resend_invitation(
             "inviter_name": None,
             "role": inv.role,
             "accept_url": (
-                str(settings.frontend_base_url).rstrip("/")
-                + f"/accept-invite?token={new_token}"
+                str(settings.frontend_base_url).rstrip("/") + f"/accept-invite?token={new_token}"
             ),
             "recipient_name": inv.email.split("@")[0],
             "expiry_hours": 168,
