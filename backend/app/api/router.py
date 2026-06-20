@@ -13,6 +13,11 @@ from app.interfaces.http import (
     admin_email,
     admin_feature_flags,
     admin_governance,
+    admin_graph_entities,
+    admin_graph_observability,
+    admin_graph_provenance,
+    admin_graph_relations,
+    admin_graph_schema,
     admin_mcp,
     admin_permissions,
     admin_roles,
@@ -37,13 +42,8 @@ from app.interfaces.http import (
     failed_jobs,
     feature_flags,
     feedback_review,
-    admin_graph_entities,
-    admin_graph_observability,
-    admin_graph_provenance,
-    admin_graph_relations,
-    admin_graph_schema,
-    graph_health,
     graph_explorer,
+    graph_health,
     langfuse_diagnostics,
     model_profiles,
     model_provider_diagnostics,
@@ -55,6 +55,7 @@ from app.interfaces.http import (
     profile,
     prompt_templates,
     provider_observability,
+    public_status,
     quality_gates,
     quotas,
     rag_profiles,
@@ -84,6 +85,7 @@ protected_router.include_router(collections.documents_router)
 api_router.include_router(connectors.public_router)
 api_router.include_router(team_invitations.public_router)
 api_router.include_router(agent_runs.public_trace_router)
+api_router.include_router(public_status.router)
 protected_router.include_router(connector_platform.router)
 protected_router.include_router(connector_discovery.router)
 protected_router.include_router(connectors.router)

@@ -127,6 +127,9 @@ When agent/tool execution is enabled, enforce the same security boundary as API 
 7. Do not allow MCP adapters to bypass domain policy gates.
 8. For external MCP connectors, keep allowlist-only exposure and require authenticated
    upstream transport in staging/production.
+9. Public status endpoints must expose only org-agnostic, public-safe summary
+   data and must not reveal internal hostnames, logs, dependency names, or
+   tenant identifiers.
 
 If user selects documents, add:
 

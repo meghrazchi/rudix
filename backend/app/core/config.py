@@ -264,6 +264,11 @@ class Settings(BaseSettings):
     api_prefix: str = Field(default="/api/v1", pattern=r"^/[a-zA-Z0-9/_-]*$")
     api_base_url: AnyHttpUrl
     frontend_base_url: AnyHttpUrl
+    public_status_organization_slug: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+    )
     cors_origins: Annotated[list[AnyHttpUrl], NoDecode] = Field(default_factory=list)
 
     database_url: PostgresDsn
@@ -1059,13 +1064,9 @@ class Settings(BaseSettings):
             raise ValueError("rerank_mmr_candidate_count must be >= retrieval_final_top_k")
 
         if self.rerank_default_input_candidates < self.retrieval_final_top_k:
-            raise ValueError(
-                "rerank_default_input_candidates must be >= retrieval_final_top_k"
-            )
+            raise ValueError("rerank_default_input_candidates must be >= retrieval_final_top_k")
         if self.rerank_default_batch_size > self.rerank_default_input_candidates:
-            raise ValueError(
-                "rerank_default_batch_size must be <= rerank_default_input_candidates"
-            )
+            raise ValueError("rerank_default_batch_size must be <= rerank_default_input_candidates")
 
         if self.confidence_high_threshold < self.confidence_medium_threshold:
             raise ValueError("confidence_high_threshold must be >= confidence_medium_threshold")

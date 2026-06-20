@@ -92,6 +92,42 @@ Response:
 }
 ```
 
+### GET `/status`
+
+Returns the public Rudix service status snapshot used by the public `/status`
+marketing page.
+
+- Does not require authentication.
+- Returns public-safe component, incident, maintenance, and recent-history data.
+- Omits tenant identifiers, internal hostnames, logs, and dependency details.
+- Can source incident data from the organization named by
+  `PUBLIC_STATUS_ORGANIZATION_SLUG` when configured.
+
+Response:
+
+```json
+{
+  "generated_at": "2026-06-20T10:00:00Z",
+  "overall_status": "operational",
+  "headline": "All systems operational",
+  "summary": "Rudix services are operating normally.",
+  "components": [
+    {
+      "key": "api",
+      "label": "API",
+      "status": "operational",
+      "summary": "Rudix services are operating normally.",
+      "affected_services": [],
+      "updated_at": null
+    }
+  ],
+  "current_incidents": [],
+  "scheduled_maintenance": [],
+  "recent_history": [],
+  "uptime_notice": "Status updates are published for transparency and do not imply an SLA unless one is explicitly contracted."
+}
+```
+
 ### GET `/ready`
 
 Checks PostgreSQL, Redis, RabbitMQ, MinIO, Qdrant, and OpenAI configuration.

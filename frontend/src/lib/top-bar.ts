@@ -1,9 +1,10 @@
 import { getSupportAction } from "@/lib/forbidden";
+import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 import type { AppRole } from "@/lib/auth-session";
 import type { TopBarNotification } from "@/lib/api/notifications";
 
 export type HelpMenuItem = {
-  id: "docs" | "changelog" | "support" | "shortcuts" | "readme";
+  id: "docs" | "changelog" | "status" | "support" | "shortcuts" | "readme";
   label: string;
   href: string;
 };
@@ -25,6 +26,7 @@ export function resolveHelpMenuItems(): HelpMenuItem[] {
   const changelogUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_CHANGELOG_URL);
   const shortcutsUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_SHORTCUTS_URL);
   const readmeUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_README_URL);
+  const statusUrl = resolvePublicSiteLinks().status;
   const supportOverride = trimToNull(process.env.NEXT_PUBLIC_HELP_SUPPORT_URL);
   const supportAction = supportOverride
     ? { href: supportOverride, label: "Support" }
@@ -40,6 +42,12 @@ export function resolveHelpMenuItems(): HelpMenuItem[] {
     id: "changelog",
     label: "Changelog",
     href: changelogUrl ?? "/changelog",
+  });
+
+  items.push({
+    id: "status",
+    label: "Status",
+    href: statusUrl,
   });
 
   if (supportAction?.href) {

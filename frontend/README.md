@@ -21,11 +21,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/product`
   - `/solutions`
   - `/security`
-  - `/pricing` (configurable/contact-placeholder packaging)
-  - `/contact` (validated contact/demo form)
-  - `/demo` (alias redirect to `/contact`)
-  - `/status`
-  - `/changelog`
+- `/pricing` (configurable/contact-placeholder packaging)
+- `/contact` (validated contact/demo form)
+- `/demo` (alias redirect to `/contact`)
+- `/status` public service-status page backed by the public status API and linked from the footer/help menu
+- `/changelog`
 - `/login` credential-based sign-in form with auth-provider entry points
 - `/signup` account creation form with workspace create/join entry points
 - `/organization-onboarding` authenticated workspace setup flow (workspace, domain allowlist, access defaults, invites)

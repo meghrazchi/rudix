@@ -37,6 +37,7 @@ describe("top-bar helpers", () => {
         label: "Changelog",
         href: "https://changelog.example.com",
       },
+      { id: "status", label: "Status", href: "/status" },
       { id: "support", label: "Support", href: "https://support.example.com" },
       { id: "shortcuts", label: "Keyboard shortcuts", href: "/shortcuts" },
       {
@@ -59,6 +60,7 @@ describe("top-bar helpers", () => {
     const items = resolveHelpMenuItems();
     expect(items).toEqual([
       { id: "changelog", label: "Changelog", href: "/changelog" },
+      { id: "status", label: "Status", href: "/status" },
       {
         id: "support",
         label: "Email support",
