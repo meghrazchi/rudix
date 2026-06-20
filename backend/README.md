@@ -61,6 +61,7 @@ make seed-dev
 - `clerk` auth provider is implemented with JWKS-based JWT verification (signature, issuer, audience, expiry, subject).
 - `supabase` provider wiring exists and uses the same JWKS verifier contract, but requires provider-specific JWT settings and full integration validation.
 - Dependency clients are initialized through centralized factories (`app/clients/factory.py`) for consistent timeout/retry handling.
+- Language-aware RAG is enabled by default (`FEATURE_ENABLE_LANGUAGE_AWARE_RAG=true`) and supports `en`, `de`, `es`, and `fr` for question detection, answer language selection, and document language metadata.
 - Startup bootstraps MinIO bucket and Qdrant collection idempotently when enabled (`MINIO_BOOTSTRAP_BUCKET`, `QDRANT_BOOTSTRAP_COLLECTION`).
 - Qdrant collection bootstrap validates vector schema (`QDRANT_VECTOR_SIZE`, `QDRANT_DISTANCE`) and fails fast on mismatch.
 - Celery uses explicit queues/routes for document processing, deletion, re-indexing, and evaluations.
@@ -583,6 +584,7 @@ Notes:
 - Worker normalization removes null/control characters, normalizes whitespace/blank lines, and records `cleaning_*` stats in processing logs.
 - Worker chunking stores `document_chunks` with deterministic `chunk_index`, `token_count`, `embedding_model`, and `index_version`; current-version chunks are replaced idempotently on reprocessing.
 - Chunking strategy is configurable per deployment via `CHUNKING_STRATEGY`. The `adaptive_hybrid` strategy automatically selects `page_aware` (OCR/multi-page PDFs), `heading_aware` (DOCX/Markdown/structured text), `paragraph_recursive` (short articles), or `token_recursive` (fallback) based on document signals. The selected strategy and reason codes are stored in `documents.chunking_config_snapshot` for debugging.
+- OCR language overrides accept `en`, `de`, `es`, and `fr` and are stored per document as Tesseract codes after validation.
 - Reranking is configurable via `RERANK_DEFAULT_PROVIDER`, `RERANK_DEFAULT_MODEL_NAME`, `RERANK_DEFAULT_TIMEOUT_SECONDS`, `RERANK_DEFAULT_BATCH_SIZE`, `RERANK_DEFAULT_INPUT_CANDIDATES`, `RERANK_DEFAULT_CANDIDATE_CHARS`, `RERANK_DEFAULT_FALLBACK_BEHAVIOR`, `RERANK_INPUT_COST_PER_MILLION_TOKENS_USD`, and `RERANK_OUTPUT_COST_PER_MILLION_TOKENS_USD`. RAG profiles can override the active rerank provider, model, timeout, batch size, candidate limits, and fallback behavior per organization.
 - Conflict detection and source-agreement scoring are gated by `FEATURE_ENABLE_CONFLICT_DETECTION` and can be overridden per RAG profile with `conflict_detection_enabled`. When enabled, chat responses expose conflict diagnostics and per-citation conflict status so the UI can warn users when sources disagree.
 - Admins can force a specific strategy for all documents by setting `CHUNKING_STRATEGY=<name>`, or for individual documents by passing `force_strategy` in `strategy_options` when using `adaptive_hybrid`.

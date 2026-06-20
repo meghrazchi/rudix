@@ -59,6 +59,11 @@ const MESSAGES = {
         title: "Ask questions",
         description: "Get grounded answers.",
       },
+      multilingual: {
+        title: "Multilingual settings",
+        description:
+          "Review display language, OCR language, and answer language behavior.",
+      },
       citations: {
         title: "Verify citations",
         description: "Preview source passages.",
@@ -145,6 +150,7 @@ describe("HelpCenterDrawer", () => {
 
     expect(screen.getByText("Upload documents")).toBeInTheDocument();
     expect(screen.getByText("Ask questions")).toBeInTheDocument();
+    expect(screen.getByText("Multilingual settings")).toBeInTheDocument();
     expect(screen.getByText("Verify citations")).toBeInTheDocument();
     expect(screen.getByText("Run evaluations")).toBeInTheDocument();
     expect(screen.getByText("RAG pipeline")).toBeInTheDocument();

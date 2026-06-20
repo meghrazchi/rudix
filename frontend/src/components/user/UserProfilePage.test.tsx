@@ -242,6 +242,15 @@ describe("UserProfilePage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows multilingual help link next to display language", async () => {
+    renderTab();
+
+    await screen.findByRole("region", { name: "Account identity section" });
+    expect(
+      screen.getByRole("button", { name: "Open help for this topic" }),
+    ).toBeInTheDocument();
+  });
+
   it("never renders access token or refresh token values", async () => {
     renderTab();
 

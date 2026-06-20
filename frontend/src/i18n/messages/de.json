@@ -2836,6 +2836,10 @@
         "title": "Fragen stellen",
         "description": "Mit Chat fundierte Antworten aus indizierten Dokumenten erhalten."
       },
+      "multilingual": {
+        "title": "Mehrsprachige Einstellungen",
+        "description": "Sprache für die Oberfläche, OCR-Sprache und Antwortsprache für EN, DE, ES und FR prüfen."
+      },
       "citations": {
         "title": "Zitate überprüfen",
         "description": "Auf einen Zitat-Chip klicken, um die Quellstelle anzuzeigen."

@@ -102,6 +102,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - agentic mode calls `/agent/runs` with typed payloads and renders final cited answer in-thread
   - context panel includes safe agent timeline (status, budgets, stop reason, and step durations)
   - step-level raw payloads are intentionally hidden from UI to avoid sensitive data exposure
+  - answer language selector supports `en`, `de`, `es`, `fr`, plus auto and match-question modes
+  - contextual help links surface multilingual guidance from the chat composer, profile language setting, and document language/OCR sections
 - Evaluations page behavior:
   - modular dashboard layout with header/actions, KPI cards, run filters, run list, run detail, and case-inspection sections
   - primary CTA for starting a run and secondary CTA for evaluation set creation (owner/admin visibility)
@@ -113,6 +115,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Settings page behavior:
   - four tabs: Profile, Organization, Security, and Billing — navigated via `?tab=<id>` query param, defaulting to `profile`
   - Profile tab: display name and email from `/me`, personal preferences from `/me/preferences`, sign-out-all-devices, and account deletion; each action shows an unavailable state when its endpoint is not configured
+  - Profile language setting updates the browser locale and links to multilingual help content
   - Organization tab: org profile and workspace defaults from `/organization` and `/organization/settings`, ingestion config from `/organization/ingestion`, team member management from `/team/members*`, chunking profile catalog (admin-only, preview stats without raw chunk text), and danger-zone actions when endpoint URLs are configured
   - Security tab: active sessions from `/security/sessions` with per-session revoke actions; login policy from `/security/login-policy` (owner/admin); security posture from `/security/posture`; recent audit events from `/security/audit-events` (owner/admin); role capability summary
   - Billing tab: plan info, usage, quotas, invoices, and billing contact from `/billing/*`; portal redirect for card/subscription management; restricted to billing admins and owners
@@ -123,6 +126,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Document detail behavior:
   - overview panel shows safe chunk diagnostics including applied strategy, OCR flag, language, token distribution, reason codes, and profile-aware re-index controls
   - chunk preview search matches preview text plus safe metadata (`section_path`, page, language, offsets) and keeps full chunk text permission-gated
+  - document language and OCR panels expose admin overrides plus multilingual help links for troubleshooting
 - Admin page behavior:
   - usage summary cards for events, tokens, cost, confidence, and latency
   - usage trend table sourced from `/admin/usage` with date-range filters

@@ -2866,6 +2866,10 @@
         "title": "Hacer preguntas",
         "description": "Usa Chat para obtener respuestas fundamentadas de tus documentos."
       },
+      "multilingual": {
+        "title": "Ajustes multilingües",
+        "description": "Revisa el idioma de la interfaz, el OCR y las respuestas para EN, DE, ES y FR."
+      },
       "citations": {
         "title": "Verificar citas",
         "description": "Haz clic en un chip de cita para previsualizar el fragmento fuente."

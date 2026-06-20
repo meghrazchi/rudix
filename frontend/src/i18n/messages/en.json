@@ -2868,6 +2868,10 @@
         "title": "Ask questions",
         "description": "Use Chat to get grounded answers from your indexed documents."
       },
+      "multilingual": {
+        "title": "Multilingual settings",
+        "description": "Review display language, OCR language, and answer language behavior for EN, DE, ES, and FR."
+      },
       "citations": {
         "title": "Verify citations",
         "description": "Click any citation chip in a chat answer to preview the source passage."

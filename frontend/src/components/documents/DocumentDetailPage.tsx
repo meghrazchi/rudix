@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -1454,9 +1455,12 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
                         {ocrMetadata && detail.file_type === "pdf" ? (
                           <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                            <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                              {td("ocrExtraction")}
-                            </h4>
+                            <div className="mb-3 flex items-center gap-2">
+                              <h4 className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                                {td("ocrExtraction")}
+                              </h4>
+                              <ContextualHelpLink topic="multilingual" />
+                            </div>
                             <div className="space-y-2 text-sm text-[#2a2640]">
                               <div className="flex items-center justify-between gap-3">
                                 <span className="text-[#69637f]">
@@ -1709,9 +1713,12 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         ) : null}
 
                         <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                          <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            {td("languageSection")}
-                          </h4>
+                          <div className="mb-3 flex items-center gap-2">
+                            <h4 className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              {td("languageSection")}
+                            </h4>
+                            <ContextualHelpLink topic="multilingual" />
+                          </div>
                           <div className="space-y-2 text-sm text-[#2a2640]">
                             <div className="flex items-center justify-between gap-3">
                               <span className="text-[#69637f]">

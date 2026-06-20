@@ -2836,6 +2836,10 @@
         "title": "Poser des questions",
         "description": "Utilisez Chat pour obtenir des réponses fondées depuis vos documents."
       },
+      "multilingual": {
+        "title": "Paramètres multilingues",
+        "description": "Vérifiez la langue de l’interface, de l’OCR et des réponses pour EN, DE, ES et FR."
+      },
       "citations": {
         "title": "Vérifier les citations",
         "description": "Cliquez sur une puce de citation pour prévisualiser le passage source."

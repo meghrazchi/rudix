@@ -231,6 +231,18 @@ Recommended limits:
 | Manage prompt templates | Admin only   |
 | Delete documents        | 30/hour/user |
 
+## Multilingual rollout safety
+
+When language-aware RAG is enabled:
+
+- Keep `FEATURE_ENABLE_LANGUAGE_AWARE_RAG` on only after the locale bundles and
+  OCR language packs are validated.
+- Treat language codes, confidence values, and OCR status as safe operational
+  metadata; do not log raw document text, prompts, or translated answers.
+- Restrict document language and OCR overrides to owner/admin roles.
+- Validate the supported language list (`en`, `de`, `es`, `fr`) before adding
+  new languages to production.
+
 ## Secrets
 
 Never commit:

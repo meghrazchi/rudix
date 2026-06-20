@@ -206,6 +206,45 @@ Rules:
 - Use the same embedding model for user queries.
 - Re-index when embedding model changes.
 
+## Multilingual behavior
+
+Rudix currently supports English, German, Spanish, and French across the
+language-aware ingestion and query path.
+
+### Document language detection
+
+- Ingestion runs a lightweight detector on extracted text.
+- The detected ISO 639-1 code is stored on the document record.
+- Low-signal or short documents may remain unlabeled until re-indexed or
+  overridden by an admin.
+
+### OCR language selection
+
+- PDF OCR resolves language in this order: document override, detected document
+  language, then the workspace default OCR language.
+- OCR languages are validated before use and mapped to Tesseract codes.
+- Admins can override OCR languages per document when scanned text is noisy or
+  the detector chooses the wrong language.
+
+### Query language and answer language
+
+- Chat detects the question language when `FEATURE_ENABLE_LANGUAGE_AWARE_RAG=true`.
+- Chat request payloads can force `answer_language` to `en`, `de`, `es`, or
+  `fr`.
+- `auto` keeps the model free to answer without a hard language instruction.
+- `same_as_question` uses the detected question language or falls back to the
+  workspace default.
+- Citations stay anchored to the original chunk text and page metadata even
+  when the answer language changes.
+
+### Retrieval guidance
+
+- Retrieval quality still depends on chunk quality, OCR quality, and source
+  coverage.
+- Translation does not create evidence where the source text is missing.
+- For mixed-language documents, admins should set the document and OCR language
+  explicitly before re-indexing.
+
 ## Graph lifecycle
 
 When Enterprise Graph is enabled, graph extraction runs after chunking and

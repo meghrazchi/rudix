@@ -72,6 +72,7 @@ Supported document types include:
 - Question answering with OpenAI models
 - Source-grounded responses
 - Citations and confidence scoring
+- Multilingual UI locales plus language-aware chat, OCR, and document controls
 - Slack and Microsoft Teams bot ask interface with mapped-user permissions
 - Audit logs for upload/delete/query/evaluation/admin actions (with sensitive metadata redaction)
 - Standalone MCP server mode for read-only context tools (disabled by default)

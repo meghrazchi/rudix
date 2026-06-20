@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { z } from "zod";
 
+import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -843,12 +844,15 @@ export function UserProfilePage() {
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="space-y-1">
-                <label
-                  htmlFor="language"
-                  className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
-                >
-                  {t("displayLanguage")}
-                </label>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="language"
+                    className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
+                  >
+                    {t("displayLanguage")}
+                  </label>
+                  <ContextualHelpLink topic="multilingual" />
+                </div>
                 <select
                   id="language"
                   {...personalForm.register("language")}

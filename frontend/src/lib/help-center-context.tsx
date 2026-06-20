@@ -5,6 +5,7 @@ import { createContext, useContext } from "react";
 export type HelpTopic =
   | "upload-documents"
   | "chat-ask"
+  | "multilingual"
   | "verify-citations"
   | "manage-collections"
   | "run-evaluations"

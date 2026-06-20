@@ -10,6 +10,8 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 
+import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
+
 type ChatScopeMode = "all" | "collection" | "documents" | "connectors" | "none";
 type AnswerLanguageMode =
   | "auto"
@@ -870,12 +872,15 @@ export function ChatComposer({
                   </div>
 
                   <div className="rounded-xl border border-[#ece8f7] bg-[#faf9ff] p-3">
-                    <label
-                      htmlFor="answer-language"
-                      className="mb-2 block text-[10px] font-bold tracking-widest text-[#464555] uppercase"
-                    >
-                      {t("answerLabel")}
-                    </label>
+                    <div className="mb-2 flex items-center gap-2">
+                      <label
+                        htmlFor="answer-language"
+                        className="block text-[10px] font-bold tracking-widest text-[#464555] uppercase"
+                      >
+                        {t("answerLabel")}
+                      </label>
+                      <ContextualHelpLink topic="multilingual" />
+                    </div>
                     <select
                       id="answer-language"
                       value={answerLanguage}

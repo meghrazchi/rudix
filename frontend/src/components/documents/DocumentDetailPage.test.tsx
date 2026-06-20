@@ -779,6 +779,10 @@ describe("DocumentDetailPage", () => {
     expect(screen.getByText("German")).toBeInTheDocument();
     expect(screen.getByText("85%")).toBeInTheDocument();
     expect(screen.getByText("auto detected")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Open help for this topic" })
+        .length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("shows language panel with dash when no language detected", async () => {

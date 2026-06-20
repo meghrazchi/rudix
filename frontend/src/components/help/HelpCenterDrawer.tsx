@@ -71,6 +71,13 @@ export function HelpCenterDrawer({
         href: "/chat",
       },
       {
+        id: "multilingual",
+        topic: "multilingual",
+        title: t("articles.multilingual.title"),
+        description: t("articles.multilingual.description"),
+        href: "/user/profile",
+      },
+      {
         id: "citations",
         topic: "verify-citations",
         title: t("articles.citations.title"),

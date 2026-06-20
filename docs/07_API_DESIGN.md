@@ -192,6 +192,7 @@ Request:
 ```http
 multipart/form-data
 file=<PDF|TXT|DOCX>
+language=<en|de|es|fr>
 ```
 
 Response:
@@ -409,6 +410,44 @@ Notes:
 
 - `chunking_diagnostics` is nullable for documents indexed before diagnostics were recorded.
 - The diagnostics payload is safe for UI display: it contains strategy metadata, heuristics, and aggregate counts only.
+- `language`, `language_source`, `language_confidence`, `ocr_languages_override`, and `ocr_quality_snapshot` power the multilingual troubleshooting UI and should remain safe for display.
+
+### PATCH `/admin/documents/{document_id}/language`
+
+Override the detected document language for admin troubleshooting.
+
+Request:
+
+```json
+{
+  "language": "fr"
+}
+```
+
+Notes:
+
+- Restricted to `owner` and `admin` roles.
+- Accepts `en`, `de`, `es`, `fr`, or `null` to clear the override.
+- Updates `language_source` to `admin_override`.
+
+### PATCH `/admin/documents/{document_id}/ocr-config`
+
+Override OCR language selection for a document.
+
+Request:
+
+```json
+{
+  "ocr_languages": ["fr", "en"]
+}
+```
+
+Notes:
+
+- Restricted to `owner` and `admin` roles.
+- Accepts `en`, `de`, `es`, `fr`, or `null` to clear the override.
+- Languages are validated before being converted to the internal Tesseract
+  code string.
 
 ### GET `/documents/{document_id}/status`
 
@@ -678,7 +717,8 @@ Request:
   "chat_session_id": "uuid-optional",
   "document_ids": ["uuid"],
   "top_k": 5,
-  "rerank": true
+  "rerank": true,
+  "answer_language": "auto"
 }
 ```
 
@@ -701,6 +741,9 @@ Notes:
 - When `FEATURE_ENABLE_CONFLICT_DETECTION=true` or the active RAG profile sets
   `conflict_detection_enabled=true`, the backend compares retrieved sources
   before generation and returns conflict metadata when evidence disagrees.
+- When `FEATURE_ENABLE_LANGUAGE_AWARE_RAG=true`, the backend detects the
+  question language, resolves the answer language, and records both values in
+  chat debug metadata.
 - The chat response payload includes `agreement_level`, `conflict_detected`,
   `conflict_summary`, `conflicting_document_ids`, `preferred_document_ids`, and
   per-citation `conflict_status` metadata so the UI can warn about conflicts and
@@ -708,6 +751,8 @@ Notes:
 - Debug telemetry includes conflict-detection latency and the preferred versus
   conflicting document sets for admin-visible diagnostics.
 - Prompt builder enforces grounded-only behavior: no outside knowledge, no fake citations, and explicit treatment of retrieved document text as untrusted input.
+- Answer language instructions must not rewrite citation text; citations always
+  refer back to source chunk text exactly as stored.
 - The active `answer_generation` prompt template version is resolved per organization and persisted on assistant chat messages for rollback/evaluation traceability.
 - Prompt context blocks include source metadata (`document_id`, `chunk_id`, `filename`, `page_number`) plus retrieval metadata (`similarity_score`, `original_rank`, `rerank_score`, `rerank_rank`, `final_rank`) and an explicit allowed chunk ID list for citation validation.
 - LLM is instructed to return strict JSON (`answer`, `not_found`, `citations`) for deterministic downstream parsing.
@@ -794,6 +839,8 @@ Response:
     "rerank_completion_tokens": 48,
     "rerank_total_tokens": 1288,
     "rerank_cost_usd": 0.0,
+    "detected_language": "de",
+    "answer_language_used": "de",
     "embedding_model": "text-embedding-3-small",
     "llm_model": "gpt-5.4-mini",
     "prompt_template_key": "answer_generation",
@@ -828,6 +875,7 @@ Request:
 {
   "message": "What is the leave policy?",
   "document_ids": ["uuid"],
+  "answer_language": "auto",
   "stream": false
 }
 ```
