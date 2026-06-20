@@ -222,7 +222,19 @@ async def get_current_principal(
 def require_roles(
     *allowed_roles: str,
 ) -> Callable[[AuthenticatedPrincipal], Awaitable[AuthenticatedPrincipal]]:
-    normalized_allowed_roles = {role.strip() for role in allowed_roles if role.strip()}
+    normalized_allowed_roles: set[str] = set()
+    for role in allowed_roles:
+        if isinstance(role, (list, tuple, set, frozenset)):
+            role_values = role
+        else:
+            role_values = (role,)
+        for value in role_values:
+            normalized_value = getattr(value, "value", value)
+            if not isinstance(normalized_value, str):
+                continue
+            stripped = normalized_value.strip()
+            if stripped:
+                normalized_allowed_roles.add(stripped)
 
     async def dependency(
         principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],

@@ -137,7 +137,8 @@ async def test_status_snapshot_returns_active_incidents(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.get(
-        "/admin/status", headers=_auth_headers(token=token, organization_id=str(org.id))
+        f"{settings.api_prefix}/admin/status",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -157,7 +158,8 @@ async def test_status_snapshot_no_incidents(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.get(
-        "/admin/status", headers=_auth_headers(token=token, organization_id=str(org.id))
+        f"{settings.api_prefix}/admin/status",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -178,7 +180,8 @@ async def test_status_snapshot_member_forbidden(
         role=OrganizationRole.member.value,
     )
     resp = await admin_client.get(
-        "/admin/status", headers=_auth_headers(token=token, organization_id=str(org.id))
+        f"{settings.api_prefix}/admin/status",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 403
 
@@ -201,7 +204,7 @@ async def test_banner_returns_false_when_no_public_incidents(
         role=OrganizationRole.member.value,
     )
     resp = await admin_client.get(
-        "/status/banner",
+        f"{settings.api_prefix}/status/banner",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
@@ -228,7 +231,7 @@ async def test_banner_returns_true_for_public_incident(
         role=OrganizationRole.member.value,
     )
     resp = await admin_client.get(
-        "/status/banner",
+        f"{settings.api_prefix}/status/banner",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
@@ -253,7 +256,7 @@ async def test_list_incidents_empty(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.get(
-        "/admin/incidents",
+        f"{settings.api_prefix}/admin/incidents",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
@@ -277,7 +280,7 @@ async def test_list_incidents_scoped_to_org(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.get(
-        "/admin/incidents",
+        f"{settings.api_prefix}/admin/incidents",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
@@ -304,7 +307,7 @@ async def test_list_incidents_filter_active_only(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.get(
-        "/admin/incidents?active_only=true",
+        f"{settings.api_prefix}/admin/incidents?active_only=true",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
@@ -328,7 +331,7 @@ async def test_create_incident_sets_defaults(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.post(
-        "/admin/incidents",
+        f"{settings.api_prefix}/admin/incidents",
         json={"title": "API outage", "severity": "high", "is_public": True},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -354,7 +357,7 @@ async def test_create_incident_member_forbidden(
         role=OrganizationRole.member.value,
     )
     resp = await admin_client.post(
-        "/admin/incidents",
+        f"{settings.api_prefix}/admin/incidents",
         json={"title": "Test"},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -388,7 +391,7 @@ async def test_get_incident_returns_detail_with_notes(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.get(
-        f"/admin/incidents/{incident.id}",
+        f"{settings.api_prefix}/admin/incidents/{incident.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
@@ -412,7 +415,7 @@ async def test_get_incident_404_for_wrong_org(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.get(
-        f"/admin/incidents/{incident.id}",
+        f"{settings.api_prefix}/admin/incidents/{incident.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 404
@@ -434,7 +437,7 @@ async def test_update_incident_status_creates_audit_note(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.patch(
-        f"/admin/incidents/{incident.id}",
+        f"{settings.api_prefix}/admin/incidents/{incident.id}",
         json={"status": "identified"},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -458,7 +461,7 @@ async def test_update_incident_resolved_sets_resolved_at(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.patch(
-        f"/admin/incidents/{incident.id}",
+        f"{settings.api_prefix}/admin/incidents/{incident.id}",
         json={"status": "resolved"},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -484,7 +487,7 @@ async def test_add_note_without_status_change(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.post(
-        f"/admin/incidents/{incident.id}/notes",
+        f"{settings.api_prefix}/admin/incidents/{incident.id}/notes",
         json={"note": "Engineers are on-call and investigating."},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -508,7 +511,7 @@ async def test_add_note_with_status_change_updates_incident(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.post(
-        f"/admin/incidents/{incident.id}/notes",
+        f"{settings.api_prefix}/admin/incidents/{incident.id}/notes",
         json={"note": "Root cause identified.", "status_change": "identified"},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -533,7 +536,7 @@ async def test_add_note_404_for_wrong_org(
         role=OrganizationRole.admin.value,
     )
     resp = await admin_client.post(
-        f"/admin/incidents/{incident.id}/notes",
+        f"{settings.api_prefix}/admin/incidents/{incident.id}/notes",
         json={"note": "Should not work."},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
