@@ -2600,6 +2600,10 @@
       "viewer": "Lecteur"
     },
     "enterpriseRag": "RAG d’entreprise",
+    "skipToMainContent": "Aller au contenu principal",
+    "primaryNav": "Navigation principale",
+    "notificationsUnread": "{count} notifications non lues",
+    "navigatedTo": "Navigué vers {page}",
     "navigationMenu": "Menu de navigation",
     "collapseSidebar": "Réduire la barre latérale",
     "expandSidebar": "Développer la barre latérale",

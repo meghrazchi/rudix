@@ -2600,6 +2600,10 @@
       "viewer": "Betrachter"
     },
     "enterpriseRag": "Enterprise RAG",
+    "skipToMainContent": "Zum Hauptinhalt springen",
+    "primaryNav": "Primäre Navigation",
+    "notificationsUnread": "{count} ungelesene Benachrichtigungen",
+    "navigatedTo": "Navigiert zu {page}",
     "navigationMenu": "Navigationsmenü",
     "collapseSidebar": "Seitenleiste einklappen",
     "expandSidebar": "Seitenleiste ausklappen",

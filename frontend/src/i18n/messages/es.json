@@ -2630,6 +2630,10 @@
       "viewer": "Visualizador"
     },
     "enterpriseRag": "RAG empresarial",
+    "skipToMainContent": "Saltar al contenido principal",
+    "primaryNav": "Navegación principal",
+    "notificationsUnread": "{count} notificaciones no leídas",
+    "navigatedTo": "Navegado a {page}",
     "navigationMenu": "Menú de navegación",
     "collapseSidebar": "Colapsar barra lateral",
     "expandSidebar": "Expandir barra lateral",

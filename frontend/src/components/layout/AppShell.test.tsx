@@ -199,13 +199,17 @@ describe("AppShell top bar menus", () => {
       },
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
     const drawer = await screen.findByRole("dialog", {
       name: "Navigation menu",
     });
     expect(drawer).toBeInTheDocument();
 
-    const closeButton = screen.getByRole("button", { name: "Close" });
+    const closeButton = screen.getByRole("button", {
+      name: "Close navigation menu",
+    });
     await waitFor(() => {
       expect(closeButton).toHaveFocus();
     });

@@ -278,7 +278,7 @@ export function DocumentPreviewModal({
             onClick={onClose}
             data-overlay-autofocus="true"
             aria-label="Close preview"
-            className="ml-2 shrink-0 cursor-pointer rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
+            className="ml-2 shrink-0 cursor-pointer rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
           >
             <span
               className="material-symbols-outlined text-[20px]"

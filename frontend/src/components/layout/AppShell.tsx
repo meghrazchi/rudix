@@ -30,6 +30,7 @@ import { useTranslations } from "next-intl";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import { ProfileMenu } from "@/components/layout/ProfileMenu";
 import { ServiceStatusBanner } from "@/components/admin/ServiceStatusBanner";
+import { SkipLink } from "@/components/layout/SkipLink";
 import { WorkspaceSwitcherCard } from "@/components/workspace/WorkspaceSwitcherCard";
 import {
   type OnboardingState,
@@ -230,15 +231,17 @@ function NavList({
   navItems,
   onNavigate,
   collapsed = false,
+  ariaLabel,
 }: {
   navItems: AppNavigationItem[];
   onNavigate?: () => void;
   collapsed?: boolean;
+  ariaLabel?: string;
 }) {
   const getDisabledReason = useRouteDisabledReason();
   const navLabel = useNavLabelMap();
   return (
-    <nav className="grid gap-1">
+    <nav aria-label={ariaLabel} className="grid gap-1">
       {navItems
         .filter((item) => !item.hidden)
         .map((item) => {
@@ -247,17 +250,20 @@ function NavList({
             return (
               <div
                 key={item.key}
+                role="link"
+                tabIndex={0}
                 aria-disabled="true"
+                aria-label={`${label} — ${getDisabledReason(item.disabledReason)}`}
                 title={getDisabledReason(item.disabledReason)}
                 className={
                   collapsed
-                    ? "flex justify-center rounded-lg border border-dashed border-slate-300 bg-slate-100/70 py-2 text-slate-500"
-                    : "rounded-lg border border-dashed border-slate-300 bg-slate-100/70 px-3 py-2 text-sm font-semibold text-slate-500"
+                    ? "flex cursor-not-allowed justify-center rounded-lg border border-dashed border-slate-300 bg-slate-100/70 py-2 text-slate-500"
+                    : "cursor-not-allowed rounded-lg border border-dashed border-slate-300 bg-slate-100/70 px-3 py-2 text-sm font-semibold text-slate-500"
                 }
               >
                 <span className={collapsed ? "" : "flex items-center gap-2"}>
                   <NavigationIcon routeKey={item.key} />
-                  {!collapsed && <span>{label}</span>}
+                  {!collapsed && <span aria-hidden="true">{label}</span>}
                 </span>
               </div>
             );
@@ -269,15 +275,16 @@ function NavList({
               href={item.href}
               onClick={onNavigate}
               title={collapsed ? label : undefined}
+              aria-current={item.isActive ? "page" : undefined}
               data-onboarding={`nav-${item.key}`}
               className={
                 collapsed
                   ? item.isActive
-                    ? "flex justify-center rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] py-2 text-[#3525cd]"
-                    : "flex justify-center rounded-lg py-2 text-[#56536a] transition hover:bg-[#eceaf8]"
+                    ? "flex justify-center rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] py-2 text-[#3525cd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                    : "flex justify-center rounded-lg py-2 text-[#56536a] transition hover:bg-[#eceaf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
                   : item.isActive
-                    ? "rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd]"
-                    : "rounded-lg px-3 py-2 text-sm font-semibold text-[#56536a] transition hover:bg-[#eceaf8]"
+                    ? "rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                    : "rounded-lg px-3 py-2 text-sm font-semibold text-[#56536a] transition hover:bg-[#eceaf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
               }
             >
               <span className={collapsed ? "" : "flex items-center gap-2"}>
@@ -471,6 +478,18 @@ export function AppShell({
     autofocusSelector: "[data-command-autofocus='true']",
   });
 
+  // Announce route changes to screen readers.
+  useEffect(() => {
+    const announcer = document.getElementById("a11y-announcer");
+    if (!announcer) return;
+    const pageName = navLabel[activeRoute.key] ?? activeRoute.label;
+    announcer.textContent = "";
+    const rafId = requestAnimationFrame(() => {
+      announcer.textContent = t("navigatedTo", { page: pageName });
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [activeRoute, navLabel, t]);
+
   useEffect(() => {
     if (!openMenu) {
       return;
@@ -563,11 +582,30 @@ export function AppShell({
   const commandSectionLabelFor = (section: CommandResultSection): string =>
     getCommandSectionLabel(section);
 
+  const sidebarNavId = "sidebar-nav-heading";
+
   return (
     <div
       className="h-screen overflow-hidden bg-[#f5f4ff] text-[#1b1b24]"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
+      <SkipLink />
+      {/* Polite live region for route change announcements */}
+      <div
+        id="a11y-announcer"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      />
+      {/* Assertive live region for urgent announcements */}
+      <div
+        id="a11y-announcer-assertive"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+        className="sr-only"
+      />
       <div className="flex h-full w-full">
         <aside
           className={`relative hidden shrink-0 flex-col border-r border-[#d7d4e7] bg-[#f7f5ff] py-6 transition-all duration-200 lg:flex ${sidebarCollapsed ? "w-14 px-2" : "w-64 px-5"}`}
@@ -580,7 +618,7 @@ export function AppShell({
               sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")
             }
             title={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
-            className="absolute top-6 -right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#d7d4e7] bg-white text-[#56536a] shadow-sm transition hover:bg-[#eceaf8] hover:text-[#3525cd]"
+            className="absolute top-6 -right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#d7d4e7] bg-white text-[#56536a] shadow-sm transition hover:bg-[#eceaf8] hover:text-[#3525cd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
           >
             <span className="material-symbols-outlined text-[16px]">
               {sidebarCollapsed ? "chevron_right" : "chevron_left"}
@@ -621,7 +659,11 @@ export function AppShell({
           </div>
 
           <div className="flex-1 overflow-hidden">
-            <NavList navItems={navItems} collapsed={sidebarCollapsed} />
+            <NavList
+              navItems={navItems}
+              collapsed={sidebarCollapsed}
+              ariaLabel={t("primaryNav")}
+            />
           </div>
 
           {!sidebarCollapsed && <WorkspaceSwitcherCard session={session} />}
@@ -633,6 +675,7 @@ export function AppShell({
             onClick={closeMobileSidebar}
           >
             <aside
+              id="mobile-sidebar"
               ref={mobileSidebarRef}
               role="dialog"
               aria-modal="true"
@@ -661,8 +704,9 @@ export function AppShell({
                 <button
                   type="button"
                   data-overlay-autofocus="true"
+                  aria-label={t("closeMenu")}
                   onClick={closeMobileSidebar}
-                  className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700"
+                  className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
                 >
                   {t("close")}
                 </button>
@@ -731,8 +775,11 @@ export function AppShell({
                 ) : hasCommandResults ? (
                   <div className="space-y-4">
                     {navigationResults.length > 0 ? (
-                      <section>
-                        <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
+                      <section aria-labelledby="cmd-section-nav">
+                        <p
+                          id="cmd-section-nav"
+                          className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase"
+                        >
                           {commandSectionLabelFor("navigation")}
                         </p>
                         <ul className="space-y-1">
@@ -741,7 +788,7 @@ export function AppShell({
                               <Link
                                 href={item.href}
                                 onClick={closeCommandMenu}
-                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff]"
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
                               >
                                 <span>
                                   <span className="block text-sm font-semibold text-[#2f2a46]">
@@ -763,8 +810,11 @@ export function AppShell({
                     ) : null}
 
                     {documentResults.length > 0 ? (
-                      <section>
-                        <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
+                      <section aria-labelledby="cmd-section-docs">
+                        <p
+                          id="cmd-section-docs"
+                          className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase"
+                        >
                           {hasCommandQuery
                             ? commandSectionLabelFor("documents")
                             : t("recentDocuments")}
@@ -775,7 +825,7 @@ export function AppShell({
                               <Link
                                 href={`/documents/${encodeURIComponent(document.document_id)}`}
                                 onClick={closeCommandMenu}
-                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff]"
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
                               >
                                 <span className="min-w-0">
                                   <span className="block truncate text-sm font-semibold text-[#2f2a46]">
@@ -802,8 +852,11 @@ export function AppShell({
                     ) : null}
 
                     {chatResults.length > 0 ? (
-                      <section>
-                        <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
+                      <section aria-labelledby="cmd-section-chat">
+                        <p
+                          id="cmd-section-chat"
+                          className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase"
+                        >
                           {hasCommandQuery
                             ? commandSectionLabelFor("chat")
                             : t("recentChats")}
@@ -814,7 +867,7 @@ export function AppShell({
                               <Link
                                 href={`/chat?session_id=${encodeURIComponent(sessionItem.session_id)}`}
                                 onClick={closeCommandMenu}
-                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff]"
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
                               >
                                 <span className="min-w-0">
                                   <span className="block truncate text-sm font-semibold text-[#2f2a46]">
@@ -857,7 +910,10 @@ export function AppShell({
                 <button
                   type="button"
                   onClick={() => setMobileSidebarOpen(true)}
-                  className="rounded border border-slate-300 px-2 py-1 text-sm font-semibold text-slate-700 lg:hidden"
+                  aria-label={t("openMenu")}
+                  aria-expanded={mobileSidebarOpen}
+                  aria-controls="mobile-sidebar"
+                  className="rounded border border-slate-300 px-2 py-1 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd] lg:hidden"
                 >
                   {t("menu")}
                 </button>
@@ -892,8 +948,14 @@ export function AppShell({
                     onClick={() => toggleMenu("notifications")}
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "notifications"}
-                    aria-label={t("notifications")}
-                    className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
+                    aria-label={
+                      unreadNotificationCount > 0
+                        ? t("notificationsUnread", {
+                            count: unreadNotificationCount,
+                          })
+                        : t("notifications")
+                    }
+                    className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
                   >
                     <span
                       aria-hidden="true"
@@ -902,7 +964,10 @@ export function AppShell({
                       notifications
                     </span>
                     {unreadNotificationCount > 0 ? (
-                      <span className="absolute -top-1 -right-1 inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <span
+                        aria-hidden="true"
+                        className="absolute -top-1 -right-1 inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                      >
                         {unreadNotificationCount > 99
                           ? "99+"
                           : unreadNotificationCount}
@@ -925,7 +990,7 @@ export function AppShell({
                     aria-expanded={openMenu === "help"}
                     aria-label={t("help")}
                     data-onboarding="help-button"
-                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
+                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
                   >
                     <span
                       aria-hidden="true"
@@ -1016,7 +1081,11 @@ export function AppShell({
             </div>
           </header>
           <ServiceStatusBanner />
-          <main className={`min-h-0 flex-1 ${mainOverflowClass}`}>
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className={`min-h-0 flex-1 focus:outline-none ${mainOverflowClass}`}
+          >
             {children}
           </main>
         </div>
