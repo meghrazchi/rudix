@@ -3,6 +3,8 @@ from typing import Annotated, Literal
 from urllib.parse import quote
 from uuid import UUID
 
+from pydantic import BaseModel
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -1290,4 +1292,119 @@ async def get_document_status(
         error_message=safe_error_message,
         error_details=safe_error_details,
         updated_at=document.updated_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sample dataset
+# ---------------------------------------------------------------------------
+
+_SAMPLE_DOCUMENTS = [
+    {
+        "filename": "Rudix Quick Start Guide.pdf",
+        "file_type": "pdf",
+        "source": "sample-dataset",
+        "notes": "Sample document — demonstrates PDF ingestion and citation extraction.",
+        "page_count": 8,
+        "chunk_count": 24,
+    },
+    {
+        "filename": "Enterprise RAG Best Practices.docx",
+        "file_type": "docx",
+        "source": "sample-dataset",
+        "notes": "Sample document — covers retrieval-augmented generation patterns for enterprise teams.",
+        "page_count": 12,
+        "chunk_count": 38,
+    },
+    {
+        "filename": "Data Governance Policy Template.txt",
+        "file_type": "txt",
+        "source": "sample-dataset",
+        "notes": "Sample document — plain-text policy template for knowledge-base governance.",
+        "page_count": None,
+        "chunk_count": 14,
+    },
+]
+
+
+class LoadSampleDatasetResponse(BaseModel):
+    created: int
+    skipped: int
+    document_ids: list[str]
+
+
+@router.post(
+    "/sample",
+    response_model=LoadSampleDatasetResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Load sample dataset",
+)
+async def load_sample_dataset(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> LoadSampleDatasetResponse:
+    """Create pre-indexed sample documents so new workspaces can explore Rudix immediately.
+
+    Only available when the org has sample_docs_enabled=True.  Idempotent — already-present
+    sample documents (identified by source='sample-dataset') are skipped.
+    """
+    from app.models.organization import Organization as _Org
+
+    user_id, organization_id = _principal_user_and_org(principal)
+
+    result = await db_session.execute(
+        select(_Org).where(_Org.id == organization_id)
+    )
+    _org = result.scalar_one_or_none()
+    if _org is None or not _org.sample_docs_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sample dataset is not enabled for this organization.",
+        )
+
+    existing = await db_session.execute(
+        select(Document.filename).where(
+            Document.organization_id == organization_id,
+            Document.source == "sample-dataset",
+        )
+    )
+    existing_names = {row[0] for row in existing.all()}
+
+    created_ids: list[str] = []
+    skipped = 0
+    for spec in _SAMPLE_DOCUMENTS:
+        if spec["filename"] in existing_names:
+            skipped += 1
+            continue
+        doc = Document(
+            organization_id=organization_id,
+            uploaded_by_user_id=user_id,
+            filename=spec["filename"],
+            file_type=spec["file_type"],
+            storage_bucket="sample",
+            storage_object_key=f"sample/{organization_id}/{spec['filename']}",
+            status=DocumentStatus.indexed.value,
+            source=spec["source"],
+            notes=spec["notes"],
+            page_count=spec["page_count"],
+            chunk_count=spec["chunk_count"],
+            ingestion_source="upload",
+        )
+        db_session.add(doc)
+        await db_session.flush()
+        created_ids.append(str(doc.id))
+
+    await db_session.commit()
+    return LoadSampleDatasetResponse(
+        created=len(created_ids),
+        skipped=skipped,
+        document_ids=created_ids,
     )

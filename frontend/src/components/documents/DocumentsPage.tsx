@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
+import { OnboardingCtaBanner } from "@/components/onboarding/OnboardingCtaBanner";
 import type {
   DocumentDetailResponse,
   DocumentFileType,
@@ -1506,6 +1507,22 @@ export function DocumentsPage() {
               )
             }
           />
+        ) : null}
+
+        {!documentsQuery.isLoading &&
+        !documentsQuery.isError &&
+        documents.length === 0 &&
+        !debouncedFilenameSearch ? (
+          <div className="mt-4">
+            <OnboardingCtaBanner
+              title="New to Rudix?"
+              description="Follow the Getting Started checklist to upload your first document, wait for indexing, and ask your first question — all in a few minutes."
+              actionLabel="Open Getting Started"
+              actionHref="/chat"
+              secondaryLabel="Go to Chat"
+              secondaryHref="/chat"
+            />
+          </div>
         ) : null}
 
         {!documentsQuery.isLoading &&

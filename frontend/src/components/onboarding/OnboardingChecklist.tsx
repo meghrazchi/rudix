@@ -1,21 +1,28 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { listChatSessions } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
+import {
+  getOnboardingConfig,
+  loadSampleDataset,
+} from "@/lib/api/onboarding";
 import { queryKeys } from "@/lib/api/query";
 import type { AuthenticatedSession } from "@/lib/auth-session";
 import {
   type AutoDetectedCompletions,
   type OnboardingState,
   type OnboardingStepId,
+  ONBOARDING_QUERY_KEY,
+  applyServerReset,
   isStepComplete,
   resolveVisibleSteps,
   writeOnboardingState,
 } from "@/lib/onboarding";
+import { trackOnboardingEvent } from "@/lib/analytics";
 
 type OnboardingChecklistProps = {
   session: AuthenticatedSession;
@@ -32,6 +39,29 @@ export function OnboardingChecklist({
 }: OnboardingChecklistProps) {
   const [expanded, setExpanded] = useState(true);
   const [tourRunning, setTourRunning] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  const configQuery = useQuery({
+    queryKey: ONBOARDING_QUERY_KEY,
+    queryFn: getOnboardingConfig,
+    staleTime: 5 * 60_000,
+    enabled: session.role === "owner" || session.role === "admin",
+  });
+
+  // Apply server reset when admin has triggered one after client last saw it.
+  useEffect(() => {
+    if (!configQuery.data) return;
+    const resetAt = configQuery.data.reset_at;
+    const next = applyServerReset(state, resetAt);
+    if (next === state) return;
+    onStateChange(next);
+    writeOnboardingState(session.userId, next);
+  }, [configQuery.data, state, onStateChange, session.userId]);
+
+  const sampleDocsEnabled =
+    (session.role === "owner" || session.role === "admin") &&
+    (configQuery.data?.sample_docs_enabled ?? false);
 
   const documentsQuery = useQuery({
     queryKey: queryKeys.documents.list({ scope: "onboarding", limit: 200 }),
@@ -77,6 +107,18 @@ export function OnboardingChecklist({
       ? Math.round((completedCount / visibleSteps.length) * 100)
       : 0;
 
+  const sampleMutation = useMutation({
+    mutationFn: loadSampleDataset,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.list({ scope: "onboarding", limit: 200 }),
+      });
+      trackOnboardingEvent("onboarding_sample_docs_loaded", {
+        organization_id: session.organizationId ?? "",
+      });
+    },
+  });
+
   function markManualDone(stepId: OnboardingStepId) {
     const next: OnboardingState = {
       ...state,
@@ -87,6 +129,10 @@ export function OnboardingChecklist({
     };
     onStateChange(next);
     writeOnboardingState(session.userId, next);
+    trackOnboardingEvent("onboarding_step_complete", {
+      step_id: stepId,
+      method: "manual",
+    });
   }
 
   function handleDismiss() {
@@ -94,6 +140,11 @@ export function OnboardingChecklist({
     onStateChange(next);
     writeOnboardingState(session.userId, next);
     onDismiss();
+    trackOnboardingEvent("onboarding_dismissed", {
+      progress_pct: progress,
+      completed_steps: completedCount,
+      total_steps: visibleSteps.length,
+    });
   }
 
   const launchTour = useCallback(async () => {
@@ -101,6 +152,7 @@ export function OnboardingChecklist({
 
     try {
       setTourRunning(true);
+      trackOnboardingEvent("onboarding_tour_started");
       const { default: introJs } = await import("intro.js");
 
       const tour = introJs.tour();
@@ -165,6 +217,7 @@ export function OnboardingChecklist({
         onStateChange(next);
         writeOnboardingState(session.userId, next);
         setTourRunning(false);
+        trackOnboardingEvent("onboarding_tour_completed");
       });
 
       tour.onExit(() => {
@@ -176,6 +229,8 @@ export function OnboardingChecklist({
       setTourRunning(false);
     }
   }, [tourRunning, state, onStateChange, session.userId]);
+
+  const hasNoDocuments = (documentsQuery.data?.total ?? 0) === 0;
 
   if (!expanded) {
     return (
@@ -261,6 +316,12 @@ export function OnboardingChecklist({
             state.manuallyCompleted,
           );
 
+          const showSampleDocs =
+            step.id === "upload_document" &&
+            !done &&
+            sampleDocsEnabled &&
+            hasNoDocuments;
+
           return (
             <li
               key={step.id}
@@ -288,7 +349,7 @@ export function OnboardingChecklist({
                   {step.description}
                 </p>
                 {!done ? (
-                  <div className="mt-1.5 flex items-center gap-3">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-3">
                     {step.href ? (
                       <Link
                         href={step.href}
@@ -296,6 +357,18 @@ export function OnboardingChecklist({
                       >
                         {step.actionLabel} →
                       </Link>
+                    ) : null}
+                    {showSampleDocs ? (
+                      <button
+                        type="button"
+                        onClick={() => sampleMutation.mutate()}
+                        disabled={sampleMutation.isPending}
+                        className="text-xs font-semibold text-[#7c3aed] hover:underline disabled:opacity-50"
+                      >
+                        {sampleMutation.isPending
+                          ? "Loading…"
+                          : "Load sample dataset"}
+                      </button>
                     ) : null}
                     {!step.autoDetectable ? (
                       <button

@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { EmptyState } from "@/components/states/EmptyState";
+import { OnboardingCtaBanner } from "@/components/onboarding/OnboardingCtaBanner";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { isForbiddenError } from "@/lib/forbidden";
 import { useAuthSession } from "@/lib/use-auth-session";
@@ -777,6 +778,15 @@ export function AdminTeamPage() {
           </button>
         )}
       </div>
+
+      {capabilities.inviteEnabled && membersTotal <= 1 && !searchQuery ? (
+        <OnboardingCtaBanner
+          title="Invite your team"
+          description="Collaborating with others is more powerful. Invite teammates so they can access the knowledge base, chat, and contribute documents."
+          actionLabel="Send an invite"
+          onAction={() => setShowInviteDialog(true)}
+        />
+      ) : null}
 
       {/* Toast */}
       {toast && (

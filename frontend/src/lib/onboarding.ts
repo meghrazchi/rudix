@@ -9,6 +9,8 @@ export type OnboardingStepId =
   | "inspect_citations"
   | "review_security";
 
+export const ONBOARDING_QUERY_KEY = ["admin", "onboarding", "config"] as const;
+
 export type OnboardingStep = {
   id: OnboardingStepId;
   title: string;
@@ -91,6 +93,8 @@ export type OnboardingState = {
   dismissed: boolean;
   manuallyCompleted: OnboardingStepId[];
   tourSeen: boolean;
+  /** ISO timestamp of the last server-side reset this client has acknowledged. */
+  acknowledgedResetAt: string | null;
 };
 
 export type AutoDetectedCompletions = {
@@ -112,6 +116,24 @@ export function createDefaultOnboardingState(): OnboardingState {
     dismissed: false,
     manuallyCompleted: [],
     tourSeen: false,
+    acknowledgedResetAt: null,
+  };
+}
+
+/**
+ * Returns a fresh default state if the server-side reset_at is newer than what
+ * the client last acknowledged. Experienced users who had already dismissed the
+ * checklist will see it again after an admin reset.
+ */
+export function applyServerReset(
+  state: OnboardingState,
+  serverResetAt: string | null,
+): OnboardingState {
+  if (!serverResetAt) return state;
+  if (state.acknowledgedResetAt === serverResetAt) return state;
+  return {
+    ...createDefaultOnboardingState(),
+    acknowledgedResetAt: serverResetAt,
   };
 }
 
@@ -126,6 +148,13 @@ function isValidOnboardingState(value: unknown): value is OnboardingState {
   );
 }
 
+function migrateOnboardingState(raw: OnboardingState): OnboardingState {
+  if (!("acknowledgedResetAt" in raw)) {
+    return { ...raw, acknowledgedResetAt: null };
+  }
+  return raw;
+}
+
 export function readOnboardingState(userId: string): OnboardingState {
   if (typeof window === "undefined") return createDefaultOnboardingState();
   try {
@@ -133,7 +162,7 @@ export function readOnboardingState(userId: string): OnboardingState {
     if (!raw) return createDefaultOnboardingState();
     const parsed = JSON.parse(raw) as unknown;
     if (!isValidOnboardingState(parsed)) return createDefaultOnboardingState();
-    return parsed;
+    return migrateOnboardingState(parsed);
   } catch {
     return createDefaultOnboardingState();
   }

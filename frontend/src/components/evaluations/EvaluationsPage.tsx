@@ -52,6 +52,7 @@ import {
 } from "@/components/evaluations/evaluation-ui";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
+import { OnboardingCtaBanner } from "@/components/onboarding/OnboardingCtaBanner";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import {
   createEvaluationQuestion,
@@ -1165,11 +1166,21 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
             onRetry={() => void setsQuery.refetch()}
           />
         ) : filteredRuns.length === 0 ? (
-          <EmptyState
-            compact
-            title="No evaluation runs yet"
-            description="Start your first run once a dataset has test cases."
-          />
+          <div className="space-y-3">
+            <EmptyState
+              compact
+              title="No evaluation runs yet"
+              description="Start your first run once a dataset has test cases."
+            />
+            <OnboardingCtaBanner
+              title="Build your knowledge base first"
+              description="Upload and index documents, then chat with them before setting up evaluations. The Getting Started checklist walks you through each step."
+              actionLabel="Upload documents"
+              actionHref="/documents"
+              secondaryLabel="Go to Chat"
+              secondaryHref="/chat"
+            />
+          </div>
         ) : (
           <EvaluationRunsTable
             runs={filteredRuns}

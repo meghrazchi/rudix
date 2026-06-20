@@ -28,6 +28,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
+import { OnboardingCtaBanner } from "@/components/onboarding/OnboardingCtaBanner";
 import {
   createAgentRun,
   decideAgentRunApproval,
@@ -2061,14 +2062,26 @@ export function ChatPage() {
                   ) : null}
                 </>
               ) : (
-                <EmptyState
-                  compact
-                  title={
-                    debouncedSearchQuery
-                      ? tc("noSessionsSearch", { query: debouncedSearchQuery })
-                      : tc("noSessionsYet")
-                  }
-                />
+                <>
+                  <EmptyState
+                    compact
+                    title={
+                      debouncedSearchQuery
+                        ? tc("noSessionsSearch", { query: debouncedSearchQuery })
+                        : tc("noSessionsYet")
+                    }
+                  />
+                  {!debouncedSearchQuery ? (
+                    <div className="mt-3 px-1">
+                      <OnboardingCtaBanner
+                        title="Start by uploading a document"
+                        description="Add a PDF, DOCX, or text file to your knowledge base first, then ask questions here."
+                        actionLabel="Go to Documents"
+                        actionHref="/documents"
+                      />
+                    </div>
+                  ) : null}
+                </>
               )}
             </section>
           </aside>

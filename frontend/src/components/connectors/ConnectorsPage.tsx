@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
+import { OnboardingCtaBanner } from "@/components/onboarding/OnboardingCtaBanner";
 import { listProviders } from "@/lib/api/connector-providers";
 import {
   disconnectConnector,
@@ -518,8 +519,8 @@ export function ConnectorsPage() {
             <tbody className="divide-y divide-[#e4e1ee]">
               {connectionRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center gap-3">
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <div className="flex flex-col items-center gap-4">
                       <span className="material-symbols-outlined text-[40px] text-[#c7c4d8]">
                         cloud_off
                       </span>
@@ -533,6 +534,14 @@ export function ConnectorsPage() {
                       >
                         {t("table.browseCatalog")}
                       </button>
+                      <div className="w-full max-w-sm text-left">
+                        <OnboardingCtaBanner
+                          title="Connectors are optional"
+                          description="You can also upload documents directly. Connectors sync from Jira, Confluence, Google Drive, and more automatically."
+                          actionLabel="Upload documents instead"
+                          actionHref="/documents"
+                        />
+                      </div>
                     </div>
                   </td>
                 </tr>
