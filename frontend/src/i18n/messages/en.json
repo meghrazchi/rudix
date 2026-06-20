@@ -67,6 +67,7 @@
     },
     "helpItems": {
       "docs": "Documentation",
+      "changelog": "Changelog",
       "support": "Support",
       "shortcuts": "Keyboard shortcuts",
       "readme": "Project README"
@@ -142,6 +143,7 @@
         "productOverview": "Product Overview",
         "pipelineExplorer": "Pipeline Explorer",
         "documentation": "Documentation",
+        "changelog": "Changelog",
         "useCases": "Use Cases",
         "security": "Security",
         "pricing": "Pricing",

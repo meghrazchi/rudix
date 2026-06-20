@@ -30,10 +30,7 @@ import { useTranslations } from "next-intl";
 import { HelpCenterDrawer } from "@/components/help/HelpCenterDrawer";
 import { KeyboardShortcutsModal } from "@/components/help/KeyboardShortcutsModal";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
-import {
-  HelpCenterContext,
-  type HelpTopic,
-} from "@/lib/help-center-context";
+import { HelpCenterContext, type HelpTopic } from "@/lib/help-center-context";
 import { ProfileMenu } from "@/components/layout/ProfileMenu";
 import { ServiceStatusBanner } from "@/components/admin/ServiceStatusBanner";
 import { SkipLink } from "@/components/layout/SkipLink";
@@ -76,14 +73,14 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-
 function useRouteDisabledReason() {
   const t = useTranslations("navigation");
   return function routeDisabledReason(
     reason: AppNavigationItem["disabledReason"],
   ): string {
     if (reason === "insufficient_role") return t("insufficientRole");
-    if (reason === "insufficient_permission") return t("insufficientPermission");
+    if (reason === "insufficient_permission")
+      return t("insufficientPermission");
     if (reason === "unauthenticated") return t("authRequired");
     return t("sectionUnavailable");
   };
@@ -225,6 +222,7 @@ function useHelpItemLabelMap(): Record<HelpMenuItem["id"], string> {
   return useMemo(
     () => ({
       docs: tNav("helpItems.docs"),
+      changelog: tNav("helpItems.changelog"),
       support: tNav("helpItems.support"),
       shortcuts: tNav("helpItems.shortcuts"),
       readme: tNav("helpItems.readme"),
@@ -286,11 +284,11 @@ function NavList({
               className={
                 collapsed
                   ? item.isActive
-                    ? "flex justify-center rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] py-2 text-[#3525cd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
-                    : "flex justify-center rounded-lg py-2 text-[#56536a] transition hover:bg-[#eceaf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                    ? "flex justify-center rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] py-2 text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
+                    : "flex justify-center rounded-lg py-2 text-[#56536a] transition hover:bg-[#eceaf8] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                   : item.isActive
-                    ? "rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
-                    : "rounded-lg px-3 py-2 text-sm font-semibold text-[#56536a] transition hover:bg-[#eceaf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                    ? "rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
+                    : "rounded-lg px-3 py-2 text-sm font-semibold text-[#56536a] transition hover:bg-[#eceaf8] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
               }
             >
               <span className={collapsed ? "" : "flex items-center gap-2"}>
@@ -676,7 +674,7 @@ export function AppShell({
               sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")
             }
             title={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
-            className="absolute top-6 -right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#d7d4e7] bg-white text-[#56536a] shadow-sm transition hover:bg-[#eceaf8] hover:text-[#3525cd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+            className="absolute top-6 -right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#d7d4e7] bg-white text-[#56536a] shadow-sm transition hover:bg-[#eceaf8] hover:text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
           >
             <span className="material-symbols-outlined text-[16px]">
               {sidebarCollapsed ? "chevron_right" : "chevron_left"}
@@ -764,7 +762,7 @@ export function AppShell({
                   data-overlay-autofocus="true"
                   aria-label={t("closeMenu")}
                   onClick={closeMobileSidebar}
-                  className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                  className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                 >
                   {t("close")}
                 </button>
@@ -846,7 +844,7 @@ export function AppShell({
                               <Link
                                 href={item.href}
                                 onClick={closeCommandMenu}
-                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                               >
                                 <span>
                                   <span className="block text-sm font-semibold text-[#2f2a46]">
@@ -883,7 +881,7 @@ export function AppShell({
                               <Link
                                 href={`/documents/${encodeURIComponent(document.document_id)}`}
                                 onClick={closeCommandMenu}
-                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                               >
                                 <span className="min-w-0">
                                   <span className="block truncate text-sm font-semibold text-[#2f2a46]">
@@ -925,7 +923,7 @@ export function AppShell({
                               <Link
                                 href={`/chat?session_id=${encodeURIComponent(sessionItem.session_id)}`}
                                 onClick={closeCommandMenu}
-                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                               >
                                 <span className="min-w-0">
                                   <span className="block truncate text-sm font-semibold text-[#2f2a46]">
@@ -971,7 +969,7 @@ export function AppShell({
                   aria-label={t("openMenu")}
                   aria-expanded={mobileSidebarOpen}
                   aria-controls="mobile-sidebar"
-                  className="rounded border border-slate-300 px-2 py-1 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd] lg:hidden"
+                  className="rounded border border-slate-300 px-2 py-1 text-sm font-semibold text-slate-700 focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none lg:hidden"
                 >
                   {t("menu")}
                 </button>
@@ -985,7 +983,7 @@ export function AppShell({
                   type="button"
                   onClick={openCommandMenu}
                   aria-label={t("openSearch")}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e3f1] bg-[#f8f7ff] text-[#777587] transition hover:bg-[#f2f0fb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:hidden"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e3f1] bg-[#f8f7ff] text-[#777587] transition hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 focus-visible:outline-none sm:hidden"
                 >
                   <span
                     aria-hidden="true"
@@ -1028,7 +1026,7 @@ export function AppShell({
                           })
                         : t("notifications")
                     }
-                    className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                    className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                   >
                     <span
                       aria-hidden="true"
@@ -1063,7 +1061,7 @@ export function AppShell({
                     aria-expanded={openMenu === "help"}
                     aria-label={t("help")}
                     data-onboarding="help-button"
-                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                   >
                     <span
                       aria-hidden="true"
@@ -1120,7 +1118,8 @@ export function AppShell({
                               >
                                 keyboard
                               </span>
-                              {helpItemLabel["shortcuts"] ?? t("keyboardShortcuts")}
+                              {helpItemLabel["shortcuts"] ??
+                                t("keyboardShortcuts")}
                             </span>
                             <kbd className="rounded border border-[#d3cff0] bg-[#f7f5ff] px-1.5 py-0.5 text-[10px] font-semibold text-[#5d58a8]">
                               ?

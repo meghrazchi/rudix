@@ -3,7 +3,7 @@ import type { AppRole } from "@/lib/auth-session";
 import type { TopBarNotification } from "@/lib/api/notifications";
 
 export type HelpMenuItem = {
-  id: "docs" | "support" | "shortcuts" | "readme";
+  id: "docs" | "changelog" | "support" | "shortcuts" | "readme";
   label: string;
   href: string;
 };
@@ -22,6 +22,7 @@ export function isAdminLikeRole(role: AppRole | null | undefined): boolean {
 
 export function resolveHelpMenuItems(): HelpMenuItem[] {
   const docsUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_DOCS_URL);
+  const changelogUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_CHANGELOG_URL);
   const shortcutsUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_SHORTCUTS_URL);
   const readmeUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_README_URL);
   const supportOverride = trimToNull(process.env.NEXT_PUBLIC_HELP_SUPPORT_URL);
@@ -34,6 +35,12 @@ export function resolveHelpMenuItems(): HelpMenuItem[] {
   if (docsUrl) {
     items.push({ id: "docs", label: "Documentation", href: docsUrl });
   }
+
+  items.push({
+    id: "changelog",
+    label: "Changelog",
+    href: changelogUrl ?? "/changelog",
+  });
 
   if (supportAction?.href) {
     items.push({

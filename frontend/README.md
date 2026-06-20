@@ -25,6 +25,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/contact` (validated contact/demo form)
   - `/demo` (alias redirect to `/contact`)
   - `/status`
+  - `/changelog`
 - `/login` credential-based sign-in form with auth-provider entry points
 - `/signup` account creation form with workspace create/join entry points
 - `/organization-onboarding` authenticated workspace setup flow (workspace, domain allowlist, access defaults, invites)
@@ -150,6 +151,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - centralized public link resolution with environment-driven overrides
   - shared public SEO metadata helper (title, description, canonical, Open Graph, social cards)
   - skip-to-content link and semantic landmarks for accessibility
+  - typed public changelog source data in `src/lib/public-site/changelog.ts`
+  - release notes should be curated from release tags and milestones, then stripped of private issue details before publication
 
 ## Dashboard Design Sample
 
@@ -550,14 +553,15 @@ npm run test:e2e
 
 Rudix targets the following viewport baseline:
 
-| Tier | Width | Example device |
-|------|-------|----------------|
-| Mobile | 375 px and up | iPhone SE / 13 mini |
-| Tablet | 768 px and up | iPad portrait |
-| Desktop | 1024 px and up | Laptop |
+| Tier         | Width          | Example device                            |
+| ------------ | -------------- | ----------------------------------------- |
+| Mobile       | 375 px and up  | iPhone SE / 13 mini                       |
+| Tablet       | 768 px and up  | iPad portrait                             |
+| Desktop      | 1024 px and up | Laptop                                    |
 | Wide desktop | 1280 px and up | Full AppShell with sidebar + chat history |
 
 Key responsive behaviours:
+
 - **Mobile (< 640 px)**: the global search bar collapses to a search icon; the desktop sidebar is replaced by a "Menu" drawer; the onboarding checklist is clamped to the screen width.
 - **Tablet (< 1024 px)**: the desktop sidebar is hidden; the search bar is shown.
 - **Chat page**: the session-history sidebar is only rendered at ≥ 1280 px (`xl:`); session controls (new chat, search) are always in the chat header.

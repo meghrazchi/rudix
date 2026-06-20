@@ -71,6 +71,7 @@ describe("AppShell top bar menus", () => {
     process.env = {
       ...originalEnv,
       NEXT_PUBLIC_HELP_DOCS_URL: "https://docs.example.com",
+      NEXT_PUBLIC_HELP_CHANGELOG_URL: "https://changelog.example.com",
       NEXT_PUBLIC_HELP_SUPPORT_URL: "https://support.example.com",
       NEXT_PUBLIC_HELP_SHORTCUTS_URL: "/shortcuts",
       NEXT_PUBLIC_HELP_README_URL: "https://github.com/example/project#readme",
@@ -183,6 +184,10 @@ describe("AppShell top bar menus", () => {
     expect(
       screen.getByRole("menuitem", { name: "Documentation" }),
     ).toHaveAttribute("href", "https://docs.example.com");
+    expect(screen.getByRole("menuitem", { name: "Changelog" })).toHaveAttribute(
+      "href",
+      "https://changelog.example.com",
+    );
     expect(screen.getByRole("menuitem", { name: "Support" })).toHaveAttribute(
       "href",
       "https://support.example.com",
@@ -261,7 +266,9 @@ describe("AppShell top bar menus", () => {
 
     // Open the command menu so a real text input is in the DOM
     fireEvent.keyDown(document, { key: "k", ctrlKey: true });
-    const input = await screen.findByPlaceholderText("Search knowledge base...");
+    const input = await screen.findByPlaceholderText(
+      "Search knowledge base...",
+    );
     fireEvent.keyDown(input, { key: "?" });
 
     expect(

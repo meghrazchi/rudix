@@ -26,6 +26,7 @@ describe("public site links", () => {
     expect(links.solutions).toBe(PUBLIC_ROUTE_PATHS.solutions);
     expect(links.security).toBe(PUBLIC_ROUTE_PATHS.security);
     expect(links.pricing).toBe(PUBLIC_ROUTE_PATHS.pricing);
+    expect(links.changelog).toBe(PUBLIC_ROUTE_PATHS.changelog);
     expect(links.contact).toBe(PUBLIC_ROUTE_PATHS.contact);
     expect(links.securityContact).toBe(PUBLIC_ROUTE_PATHS.contact);
     expect(links.status).toBe(PUBLIC_ROUTE_PATHS.status);
@@ -40,12 +41,16 @@ describe("public site links", () => {
     expect(links.dpa).toBe(PUBLIC_ROUTE_PATHS.dpa);
     expect(links.subprocessors).toBe(PUBLIC_ROUTE_PATHS.subprocessors);
     expect(links.acceptableUse).toBe(PUBLIC_ROUTE_PATHS.acceptableUse);
-    expect(links.securityDisclosure).toBe(PUBLIC_ROUTE_PATHS.securityDisclosure);
+    expect(links.securityDisclosure).toBe(
+      PUBLIC_ROUTE_PATHS.securityDisclosure,
+    );
   });
 
   it("accepts env-driven legal link overrides", () => {
-    process.env.NEXT_PUBLIC_PUBLIC_PRIVACY_URL = "https://legal.example.com/privacy";
-    process.env.NEXT_PUBLIC_PUBLIC_TERMS_URL = "https://legal.example.com/terms";
+    process.env.NEXT_PUBLIC_PUBLIC_PRIVACY_URL =
+      "https://legal.example.com/privacy";
+    process.env.NEXT_PUBLIC_PUBLIC_TERMS_URL =
+      "https://legal.example.com/terms";
     process.env.NEXT_PUBLIC_PUBLIC_SECURITY_DISCLOSURE_URL =
       "https://legal.example.com/security";
 
@@ -93,5 +98,8 @@ describe("public site links", () => {
     expect(footerGroups[0]?.heading).toBe("Product");
     expect(footerGroups[1]?.heading).toBe("Solutions");
     expect(footerGroups[2]?.heading).toBe("Company & Support");
+    expect(footerGroups[0]?.items.map((item) => item.label)).toContain(
+      "Changelog",
+    );
   });
 });

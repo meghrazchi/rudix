@@ -6,6 +6,7 @@ export const PUBLIC_ROUTE_PATHS = {
   solutions: "/solutions",
   security: "/security",
   pricing: "/pricing",
+  changelog: "/changelog",
   contact: "/contact",
   status: "/status",
   privacy: "/legal/privacy",
@@ -25,6 +26,7 @@ export type PublicSiteLinks = {
   solutions: string;
   security: string;
   pricing: string;
+  changelog: string;
   login: string;
   requestDemo: string;
   startTrial: string;
@@ -100,6 +102,9 @@ export function resolvePublicSiteLinks(): PublicSiteLinks {
     PUBLIC_ROUTE_PATHS.security;
   const pricing =
     resolveEnv("NEXT_PUBLIC_PUBLIC_PRICING_URL") ?? PUBLIC_ROUTE_PATHS.pricing;
+  const changelog =
+    resolveEnv("NEXT_PUBLIC_PUBLIC_CHANGELOG_URL") ??
+    PUBLIC_ROUTE_PATHS.changelog;
   const login = resolveEnv("NEXT_PUBLIC_PUBLIC_LOGIN_URL") ?? "/login";
   const requestDemo =
     resolveEnv("NEXT_PUBLIC_PUBLIC_DEMO_URL") ?? PUBLIC_ROUTE_PATHS.contact;
@@ -143,6 +148,7 @@ export function resolvePublicSiteLinks(): PublicSiteLinks {
     solutions,
     security,
     pricing,
+    changelog,
     login,
     requestDemo,
     startTrial,
@@ -181,6 +187,7 @@ export function buildFooterLinkGroups(links: PublicSiteLinks): Array<{
         { label: "Product Overview", href: links.product },
         { label: "Pipeline Explorer", href: links.app },
         { label: "Documentation", href: links.docs },
+        { label: "Changelog", href: links.changelog },
       ],
     },
     {

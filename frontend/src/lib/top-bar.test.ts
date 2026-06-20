@@ -20,6 +20,8 @@ describe("top-bar helpers", () => {
 
   it("builds help menu links from configured environment values", () => {
     process.env.NEXT_PUBLIC_HELP_DOCS_URL = "https://docs.example.com";
+    process.env.NEXT_PUBLIC_HELP_CHANGELOG_URL =
+      "https://changelog.example.com";
     process.env.NEXT_PUBLIC_HELP_SHORTCUTS_URL = "/shortcuts";
     process.env.NEXT_PUBLIC_HELP_README_URL =
       "https://github.com/example/project#readme";
@@ -30,6 +32,11 @@ describe("top-bar helpers", () => {
     const items = resolveHelpMenuItems();
     expect(items).toEqual([
       { id: "docs", label: "Documentation", href: "https://docs.example.com" },
+      {
+        id: "changelog",
+        label: "Changelog",
+        href: "https://changelog.example.com",
+      },
       { id: "support", label: "Support", href: "https://support.example.com" },
       { id: "shortcuts", label: "Keyboard shortcuts", href: "/shortcuts" },
       {
@@ -42,6 +49,7 @@ describe("top-bar helpers", () => {
 
   it("falls back to support url/email when help support override is not set", () => {
     process.env.NEXT_PUBLIC_HELP_DOCS_URL = "";
+    process.env.NEXT_PUBLIC_HELP_CHANGELOG_URL = "";
     process.env.NEXT_PUBLIC_HELP_SHORTCUTS_URL = "";
     process.env.NEXT_PUBLIC_HELP_README_URL = "";
     process.env.NEXT_PUBLIC_HELP_SUPPORT_URL = "";
@@ -50,6 +58,7 @@ describe("top-bar helpers", () => {
 
     const items = resolveHelpMenuItems();
     expect(items).toEqual([
+      { id: "changelog", label: "Changelog", href: "/changelog" },
       {
         id: "support",
         label: "Email support",

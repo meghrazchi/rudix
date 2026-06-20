@@ -20,6 +20,7 @@ export function PublicFooter({ links }: PublicFooterProps) {
         { label: t("links.productOverview"), href: links.product },
         { label: t("links.pipelineExplorer"), href: links.app },
         { label: t("links.documentation"), href: links.docs },
+        { label: t("links.changelog"), href: links.changelog },
       ],
     },
     {
