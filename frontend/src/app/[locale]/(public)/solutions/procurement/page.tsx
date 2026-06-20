@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { ProcurementSolutionPage } from "@/components/public/pages/ProcurementSolutionPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Procurement Solution | Rudix",
-  description:
-    "Accelerate vendor due diligence and procurement policy review with citation-backed answers from SOC2 reports, vendor contracts, RFP responses, and security questionnaires.",
-  path: "/solutions/procurement",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "procurement",
+    path: "/solutions/procurement",
+  });
+}
 
 export default function ProcurementSolutionRoute() {
   return (

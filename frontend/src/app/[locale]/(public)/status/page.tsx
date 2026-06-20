@@ -1,16 +1,23 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { StatusPage } from "@/components/public/pages/StatusPage";
 import { getPublicStatusSnapshot } from "@/lib/api/public-status";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
+
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
 
 export const dynamic = "force-dynamic";
 
-export const metadata = buildPublicMetadata({
-  title: "Status | Rudix",
-  description:
-    "View the public Rudix service status, active incidents, scheduled maintenance, and recent history.",
-  path: "/status",
-});
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "status",
+    path: "/status",
+  });
+}
 
 export default async function StatusRoute() {
   let snapshot = null;

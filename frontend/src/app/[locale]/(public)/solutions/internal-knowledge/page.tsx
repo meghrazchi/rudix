@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { InternalKnowledgeSolutionPage } from "@/components/public/pages/InternalKnowledgeSolutionPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Internal Knowledge Solution | Rudix",
-  description:
-    "Turn scattered SOPs, handbooks, and playbooks into a trusted AI Q&A experience. Employees get citation-backed answers instantly with role-aware access control.",
-  path: "/solutions/internal-knowledge",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "internalKnowledge",
+    path: "/solutions/internal-knowledge",
+  });
+}
 
 export default function InternalKnowledgeSolutionRoute() {
   return (

@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { SecurityDisclosurePage } from "@/components/public/pages/legal/SecurityDisclosurePage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Security Disclosure Policy | Rudix",
-  description:
-    "How to responsibly disclose security vulnerabilities in the Rudix platform, in-scope targets, response timelines, and researcher recognition.",
-  path: "/legal/security-disclosure",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "securityDisclosure",
+    path: "/legal/security-disclosure",
+  });
+}
 
 export default function SecurityDisclosureRoute() {
   return (

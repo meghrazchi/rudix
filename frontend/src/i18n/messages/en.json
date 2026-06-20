@@ -233,6 +233,42 @@
       "clientPortal": {
         "title": "Client Portal | Rudix",
         "description": "Give clients instant answers from your approved documentation with scoped AI Q&A."
+      },
+      "changelog": {
+        "title": "Changelog | Rudix",
+        "description": "Browse public Rudix release notes, product improvements, fixes, and status updates."
+      },
+      "status": {
+        "title": "Status | Rudix",
+        "description": "Check the public Rudix service status, active incidents, maintenance windows, and recent history."
+      },
+      "privacy": {
+        "title": "Privacy Policy | Rudix",
+        "description": "Learn how Rudix collects, stores, and protects your data, including uploaded documents, AI queries, audit logs, and user accounts."
+      },
+      "terms": {
+        "title": "Terms of Service | Rudix",
+        "description": "Read the Rudix Terms of Service covering permitted use, restrictions, content ownership, service availability, and liability."
+      },
+      "cookies": {
+        "title": "Cookie Policy | Rudix",
+        "description": "Rudix uses only essential session cookies and browser localStorage for preferences. No third-party tracking."
+      },
+      "dpa": {
+        "title": "Data Processing Addendum | Rudix",
+        "description": "Rudix DPA covering processor obligations, sub-processors, data subject rights, security measures, and breach notification."
+      },
+      "subprocessors": {
+        "title": "Subprocessors | Rudix",
+        "description": "List of Rudix sub-processors including AI model providers, vector storage, object storage, and optional email and observability services."
+      },
+      "acceptableUse": {
+        "title": "Acceptable Use Policy | Rudix",
+        "description": "Rudix Acceptable Use Policy covering permitted document indexing and query uses and prohibited activities including circumvention, abuse, and illegal content."
+      },
+      "securityDisclosure": {
+        "title": "Security Disclosure Policy | Rudix",
+        "description": "How to responsibly disclose security vulnerabilities in the Rudix platform, in-scope targets, response timelines, and researcher recognition."
       }
     },
     "landing": {

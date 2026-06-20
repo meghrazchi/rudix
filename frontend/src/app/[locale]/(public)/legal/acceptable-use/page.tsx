@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { AcceptableUsePolicyPage } from "@/components/public/pages/legal/AcceptableUsePolicyPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Acceptable Use Policy | Rudix",
-  description:
-    "Rudix Acceptable Use Policy covering permitted document indexing and query uses and prohibited activities including circumvention, abuse, and illegal content.",
-  path: "/legal/acceptable-use",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "acceptableUse",
+    path: "/legal/acceptable-use",
+  });
+}
 
 export default function AcceptableUsePage() {
   return (

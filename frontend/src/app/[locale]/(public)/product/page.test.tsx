@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import ProductPage, { metadata } from "./page";
+import ProductPage, { generateMetadata } from "./page";
 
 describe("Product public page", () => {
   it("renders core product-overview sections and CTA links", () => {
@@ -50,11 +50,20 @@ describe("Product public page", () => {
     ).toBeInTheDocument();
   });
 
-  it("defines unique SEO metadata for the /product route", () => {
-    expect(metadata.title).toBe("Product Overview | Rudix");
-    expect(metadata.description).toBe(
-      "See how Rudix turns documents into indexed, citation-backed answers with evaluations, pipeline visibility, and governance-ready operations.",
-    );
-    expect(metadata.alternates?.canonical).toBe("/product");
-  });
+  it.each([
+    ["en", "Product Overview | Rudix", "/en/product"],
+    ["de", "Produktübersicht | Rudix", "/de/product"],
+    ["es", "Resumen del producto | Rudix", "/es/product"],
+    ["fr", "Présentation du produit | Rudix", "/fr/product"],
+  ] as const)(
+    "defines locale-aware SEO metadata for the /product route (%s)",
+    async (locale, expectedTitle, expectedCanonicalSuffix) => {
+      const metadata = await generateMetadata({
+        params: Promise.resolve({ locale }),
+      });
+
+      expect(metadata.title).toBe(expectedTitle);
+      expect(metadata.alternates?.canonical).toContain(expectedCanonicalSuffix);
+    },
+  );
 });

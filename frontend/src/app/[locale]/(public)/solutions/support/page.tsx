@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { SupportSolutionPage } from "@/components/public/pages/SupportSolutionPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Support Solution | Rudix",
-  description:
-    "Help support teams resolve tickets faster with cited answers from approved help-center articles, troubleshooting guides, escalation playbooks, and SLA policies.",
-  path: "/solutions/support",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "support",
+    path: "/solutions/support",
+  });
+}
 
 export default function SupportSolutionRoute() {
   return (

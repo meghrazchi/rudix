@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { HRSolutionPage } from "@/components/public/pages/HRSolutionPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "HR Solution | Rudix",
-  description:
-    "Help HR teams deliver consistent, citation-backed answers from handbooks, benefits guides, leave policies, and onboarding documents.",
-  path: "/solutions/hr",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "hr",
+    path: "/solutions/hr",
+  });
+}
 
 export default function HRSolutionRoute() {
   return (

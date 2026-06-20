@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { LegalSolutionPage } from "@/components/public/pages/LegalSolutionPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Legal Solution | Rudix",
-  description:
-    "Search contracts, legal policies, vendor agreements, renewal terms, and obligations with cited, source-backed answers. Enterprise RAG for legal and contract teams.",
-  path: "/solutions/legal",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "legal",
+    path: "/solutions/legal",
+  });
+}
 
 export default function LegalSolutionRoute() {
   return (

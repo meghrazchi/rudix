@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import PricingPage, { metadata } from "./page";
+import PricingPage, { generateMetadata } from "./page";
 
 describe("Pricing public page", () => {
   it("renders pricing sections, plan cards, and CTA links", () => {
@@ -53,11 +53,12 @@ describe("Pricing public page", () => {
     ).toBe(true);
   });
 
-  it("defines unique SEO metadata for /pricing", () => {
-    expect(metadata.title).toBe("Pricing | Rudix");
-    expect(metadata.description).toBe(
-      "Compare Rudix plans for document AI, RAG chat, evaluations, and governance with configurable packaging guidance.",
-    );
-    expect(metadata.alternates?.canonical).toBe("/pricing");
+  it("defines localized SEO metadata for /pricing", async () => {
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ locale: "de" }),
+    });
+
+    expect(metadata.title).toBe("Preise | Rudix");
+    expect(metadata.alternates?.canonical).toContain("/de/pricing");
   });
 });

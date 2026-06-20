@@ -94,6 +94,29 @@ test("public landing page scrolls on the document", async ({ page }) => {
     .toBeGreaterThan(0);
 });
 
+test.describe("localized public layout smoke checks", () => {
+  for (const [path, label] of [
+    ["/de", "German landing page"],
+    ["/fr/contact", "French contact page"],
+  ] as const) {
+    test(`does not introduce horizontal overflow on the ${label}`, async ({
+      page,
+    }) => {
+      await page.goto(path);
+
+      await expect(page.locator("h1").first()).toBeVisible();
+
+      const hasHorizontalOverflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth >
+          document.documentElement.clientWidth + 1,
+      );
+
+      expect(hasHorizontalOverflow).toBe(false);
+    });
+  }
+});
+
 test("chat route does not scroll the document or app main container", async ({
   page,
 }) => {

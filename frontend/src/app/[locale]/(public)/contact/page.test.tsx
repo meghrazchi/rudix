@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import ContactPage, { metadata } from "./page";
+import ContactPage, { generateMetadata } from "./page";
 
 describe("Contact public page", () => {
   it("renders contact hero, form, and contact resource cards", () => {
@@ -13,14 +13,16 @@ describe("Contact public page", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Book a demo" }),
+      screen.getByRole("heading", { name: "Request a Demo" }),
     ).toBeInTheDocument();
 
-    expect(screen.getByLabelText("Full name")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/First name\s+Last name/i),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Work email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Company")).toBeInTheDocument();
+    expect(screen.getByLabelText("Company name")).toBeInTheDocument();
     expect(screen.getByLabelText("Team size")).toBeInTheDocument();
-    expect(screen.getByLabelText("Role / title")).toBeInTheDocument();
+    expect(screen.getByLabelText("Your role")).toBeInTheDocument();
     expect(screen.getByLabelText("Primary use case")).toBeInTheDocument();
     expect(screen.getByLabelText("Message")).toBeInTheDocument();
 
@@ -49,11 +51,12 @@ describe("Contact public page", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
-  it("defines unique SEO metadata for /contact", () => {
-    expect(metadata.title).toBe("Contact & Demo | Rudix");
-    expect(metadata.description).toBe(
-      "Request a Rudix demo or contact the team to discuss document AI workflows, governance needs, and rollout planning.",
-    );
-    expect(metadata.alternates?.canonical).toBe("/contact");
+  it("defines localized SEO metadata for /contact", async () => {
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ locale: "fr" }),
+    });
+
+    expect(metadata.title).toBe("Contact et démo | Rudix");
+    expect(metadata.alternates?.canonical).toContain("/fr/contact");
   });
 });

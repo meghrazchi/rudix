@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { OperationsSolutionPage } from "@/components/public/pages/OperationsSolutionPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Operations Solution | Rudix",
-  description:
-    "Help operations, IT, DevOps, and SRE teams instantly retrieve incident steps, runbooks, SOPs, and troubleshooting procedures with cited, source-backed answers.",
-  path: "/solutions/operations",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "operations",
+    path: "/solutions/operations",
+  });
+}
 
 export default function OperationsSolutionRoute() {
   return (

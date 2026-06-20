@@ -231,6 +231,42 @@
       "clientPortal": {
         "title": "Portail client | Rudix",
         "description": "Donnez aux clients des réponses instantanées depuis votre documentation approuvée avec une Q&R IA limitée au périmètre choisi."
+      },
+      "changelog": {
+        "title": "Journal des modifications | Rudix",
+        "description": "Consultez les notes de version publiques de Rudix, les améliorations produit, les corrections et les mises à jour de statut."
+      },
+      "status": {
+        "title": "Statut | Rudix",
+        "description": "Consultez l’état public du service Rudix, les incidents en cours, les fenêtres de maintenance et l’historique récent."
+      },
+      "privacy": {
+        "title": "Politique de confidentialité | Rudix",
+        "description": "Découvrez comment Rudix collecte, stocke et protège vos données, y compris les documents téléversés, les requêtes IA, les journaux d’audit et les comptes utilisateurs."
+      },
+      "terms": {
+        "title": "Conditions d’utilisation | Rudix",
+        "description": "Lisez les conditions d’utilisation de Rudix concernant l’usage autorisé, les restrictions, la propriété du contenu, la disponibilité du service et la responsabilité."
+      },
+      "cookies": {
+        "title": "Politique de cookies | Rudix",
+        "description": "Rudix utilise uniquement des cookies de session essentiels et le localStorage du navigateur pour les préférences. Aucun suivi tiers."
+      },
+      "dpa": {
+        "title": "Avenant relatif au traitement des données | Rudix",
+        "description": "DPA Rudix couvrant les obligations du sous-traitant, les sous-traitants ultérieurs, les droits des personnes concernées, les mesures de sécurité et la notification des incidents."
+      },
+      "subprocessors": {
+        "title": "Sous-traitants ultérieurs | Rudix",
+        "description": "Liste des sous-traitants ultérieurs de Rudix, notamment les fournisseurs de modèles IA, le stockage vectoriel, le stockage d’objets et les services optionnels d’e-mail et d’observabilité."
+      },
+      "acceptableUse": {
+        "title": "Politique d’utilisation acceptable | Rudix",
+        "description": "Politique d’utilisation acceptable de Rudix sur les indexations et requêtes autorisées, ainsi que les activités interdites comme le contournement, les abus et les contenus illégaux."
+      },
+      "securityDisclosure": {
+        "title": "Politique de divulgation de sécurité | Rudix",
+        "description": "Comment divulguer de manière responsable les vulnérabilités de sécurité de la plateforme Rudix, les cibles incluses, les délais de réponse et la reconnaissance des chercheurs."
       }
     },
     "landing": {

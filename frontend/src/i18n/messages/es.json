@@ -231,6 +231,42 @@
       "clientPortal": {
         "title": "Portal de clientes | Rudix",
         "description": "Da a tus clientes respuestas instantáneas desde tu documentación aprobada con Q&A de IA con alcance definido."
+      },
+      "changelog": {
+        "title": "Registro de cambios | Rudix",
+        "description": "Explora las notas de lanzamiento públicas de Rudix, mejoras del producto, correcciones y actualizaciones de estado."
+      },
+      "status": {
+        "title": "Estado | Rudix",
+        "description": "Consulta el estado público del servicio de Rudix, incidentes activos, ventanas de mantenimiento e historial reciente."
+      },
+      "privacy": {
+        "title": "Política de privacidad | Rudix",
+        "description": "Conoce cómo Rudix recopila, almacena y protege tus datos, incluidos documentos cargados, consultas de IA, registros de auditoría y cuentas de usuario."
+      },
+      "terms": {
+        "title": "Términos del servicio | Rudix",
+        "description": "Lee los términos del servicio de Rudix sobre uso permitido, restricciones, propiedad del contenido, disponibilidad del servicio y responsabilidad."
+      },
+      "cookies": {
+        "title": "Política de cookies | Rudix",
+        "description": "Rudix solo utiliza cookies de sesión esenciales y localStorage del navegador para preferencias. Sin seguimiento de terceros."
+      },
+      "dpa": {
+        "title": "Adenda de tratamiento de datos | Rudix",
+        "description": "DPA de Rudix sobre obligaciones del encargado, subencargados, derechos de los interesados, medidas de seguridad y notificación de incidentes."
+      },
+      "subprocessors": {
+        "title": "Subencargados | Rudix",
+        "description": "Lista de subencargados de Rudix, incluidos proveedores de modelos de IA, almacenamiento vectorial, almacenamiento de objetos y servicios opcionales de correo y observabilidad."
+      },
+      "acceptableUse": {
+        "title": "Política de uso aceptable | Rudix",
+        "description": "Política de uso aceptable de Rudix sobre indexación y consultas permitidas, y actividades prohibidas como evasión, abuso y contenido ilegal."
+      },
+      "securityDisclosure": {
+        "title": "Política de divulgación de seguridad | Rudix",
+        "description": "Cómo divulgar responsablemente vulnerabilidades de seguridad en la plataforma Rudix, objetivos incluidos, tiempos de respuesta y reconocimiento a investigadores."
       }
     },
     "landing": {

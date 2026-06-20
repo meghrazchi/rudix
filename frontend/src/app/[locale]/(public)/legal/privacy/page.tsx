@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { PrivacyPolicyPage } from "@/components/public/pages/legal/PrivacyPolicyPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Privacy Policy | Rudix",
-  description:
-    "Learn how Rudix collects, stores, and protects your data, including uploaded documents, AI queries, audit logs, and user accounts.",
-  path: "/legal/privacy",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "privacy",
+    path: "/legal/privacy",
+  });
+}
 
 export default function PrivacyPage() {
   return (

@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
+import { createElement, forwardRef, type AnchorHTMLAttributes } from "react";
 import { afterEach, vi } from "vitest";
 
 // Default stub for next/navigation. Individual test files may override this.
@@ -21,6 +22,48 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
   notFound: vi.fn(),
 }));
+
+vi.mock("next-intl/navigation", () => {
+  const Link = forwardRef<
+    HTMLAnchorElement,
+    AnchorHTMLAttributes<HTMLAnchorElement>
+  >(function MockNavigationLink({ children, ...props }, ref) {
+    return createElement("a", { ...props, ref }, children);
+  });
+
+  function createNavigation() {
+    return {
+      Link,
+      useRouter: () => ({
+        push: vi.fn(),
+        replace: vi.fn(),
+        prefetch: vi.fn(),
+        back: vi.fn(),
+        forward: vi.fn(),
+        refresh: vi.fn(),
+      }),
+      usePathname: () => "/",
+      redirect: vi.fn(),
+      permanentRedirect: vi.fn(),
+    };
+  }
+
+  return {
+    Link,
+    createNavigation,
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      prefetch: vi.fn(),
+      back: vi.fn(),
+      forward: vi.fn(),
+      refresh: vi.fn(),
+    }),
+    usePathname: () => "/",
+    redirect: vi.fn(),
+    permanentRedirect: vi.fn(),
+  };
+});
 
 afterEach(() => {
   cleanup();

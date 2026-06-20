@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { ContactDemoPage } from "@/components/public/pages/ContactDemoPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Contact & Demo | Rudix",
-  description:
-    "Request a Rudix demo or contact the team to discuss document AI workflows, governance needs, and rollout planning.",
-  path: "/contact",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "contact",
+    path: "/contact",
+  });
+}
 
 export default function ContactPage() {
   return (

@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { ClientPortalSolutionPage } from "@/components/public/pages/ClientPortalSolutionPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Client Portal Solution | Rudix",
-  description:
-    "Deploy a scoped AI Q&A layer over your client-facing documentation. Give customers citation-backed answers to onboarding, implementation, and support questions without overloading your team.",
-  path: "/solutions/client-portal",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "clientPortal",
+    path: "/solutions/client-portal",
+  });
+}
 
 export default function ClientPortalSolutionRoute() {
   return (

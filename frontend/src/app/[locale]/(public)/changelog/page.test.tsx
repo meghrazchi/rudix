@@ -33,7 +33,7 @@ vi.mock("@/components/public/PublicMarketingLayout", () => ({
   ),
 }));
 
-import ChangelogRoutePage, { metadata } from "./page";
+import ChangelogRoutePage, { generateMetadata } from "./page";
 
 describe("Changelog public page", () => {
   it("renders current and historical release notes", () => {
@@ -65,11 +65,12 @@ describe("Changelog public page", () => {
     ).toBe(true);
   });
 
-  it("defines unique SEO metadata for /changelog", () => {
+  it("defines localized SEO metadata for /changelog", async () => {
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ locale: "en" }),
+    });
+
     expect(metadata.title).toBe("Changelog | Rudix");
-    expect(metadata.description).toBe(
-      "Browse public Rudix release notes, product improvements, fixes, and safe links to supporting documentation.",
-    );
-    expect(metadata.alternates?.canonical).toBe("/changelog");
+    expect(metadata.alternates?.canonical).toContain("/en/changelog");
   });
 });

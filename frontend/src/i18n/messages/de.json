@@ -231,6 +231,42 @@
       "clientPortal": {
         "title": "Kundenportal | Rudix",
         "description": "Geben Sie Kunden sofortige Antworten aus Ihrer freigegebenen Dokumentation mit bereichsspezifischer KI-Frage-und-Antwort."
+      },
+      "changelog": {
+        "title": "Änderungsprotokoll | Rudix",
+        "description": "Öffentliche Rudix-Release-Notes, Produktverbesserungen, Fehlerbehebungen und Statusaktualisierungen durchsuchen."
+      },
+      "status": {
+        "title": "Status | Rudix",
+        "description": "Prüfen Sie den öffentlichen Rudix-Dienststatus, aktive Vorfälle, Wartungsfenster und den aktuellen Verlauf."
+      },
+      "privacy": {
+        "title": "Datenschutzrichtlinie | Rudix",
+        "description": "Erfahren Sie, wie Rudix Ihre Daten erhebt, speichert und schützt, einschließlich hochgeladener Dokumente, KI-Anfragen, Prüfprotokolle und Benutzerkonten."
+      },
+      "terms": {
+        "title": "Nutzungsbedingungen | Rudix",
+        "description": "Lesen Sie die Rudix-Nutzungsbedingungen zu zulässiger Nutzung, Einschränkungen, Inhaltsrechten, Verfügbarkeit und Haftung."
+      },
+      "cookies": {
+        "title": "Cookie-Richtlinie | Rudix",
+        "description": "Rudix verwendet nur essenzielle Sitzungscookies und browserseitigen localStorage für Einstellungen. Kein Tracking durch Dritte."
+      },
+      "dpa": {
+        "title": "Auftragsverarbeitungsvertrag | Rudix",
+        "description": "Rudix DPA zu Pflichten des Auftragsverarbeiters, Unterauftragsverarbeitern, Betroffenenrechten, Sicherheitsmaßnahmen und Meldung von Vorfällen."
+      },
+      "subprocessors": {
+        "title": "Unterauftragsverarbeiter | Rudix",
+        "description": "Liste der Rudix-Unterauftragsverarbeiter, einschließlich KI-Modellanbietern, Vektorspeicher, Objektspeicher sowie optionalen E-Mail- und Observability-Diensten."
+      },
+      "acceptableUse": {
+        "title": "Nutzungsrichtlinien | Rudix",
+        "description": "Rudix-Richtlinie zur zulässigen Nutzung mit erlaubter Dokumentenindexierung und Abfragen sowie verbotenen Aktivitäten wie Umgehung, Missbrauch und illegalen Inhalten."
+      },
+      "securityDisclosure": {
+        "title": "Sicherheitsoffenlegung | Rudix",
+        "description": "So melden Sie Sicherheitslücken in der Rudix-Plattform verantwortungsvoll, inklusive Umfang, Reaktionszeiten und Anerkennung für Forschende."
       }
     },
     "landing": {

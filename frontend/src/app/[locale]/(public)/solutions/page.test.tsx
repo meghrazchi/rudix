@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import SolutionsPage, { metadata } from "./page";
+import SolutionsPage, { generateMetadata } from "./page";
 
 describe("Solutions public page", () => {
   it("renders six audience cards and key overview sections", () => {
@@ -88,11 +88,12 @@ describe("Solutions public page", () => {
     ).toBeInTheDocument();
   });
 
-  it("defines unique SEO metadata for /solutions", () => {
-    expect(metadata.title).toBe("Solutions Overview | Rudix");
-    expect(metadata.description).toBe(
-      "Discover department-focused Rudix solutions for HR, Support, Legal, Compliance, Operations, and Research teams.",
-    );
-    expect(metadata.alternates?.canonical).toBe("/solutions");
+  it("defines localized SEO metadata for /solutions", async () => {
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ locale: "fr" }),
+    });
+
+    expect(metadata.title).toBe("Solutions | Rudix");
+    expect(metadata.alternates?.canonical).toContain("/fr/solutions");
   });
 });

@@ -2,13 +2,16 @@ import { notFound } from "next/navigation";
 
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { SolutionDetailPage } from "@/components/public/pages/SolutionDetailPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import {
+  buildLocalizedPublicMetadata,
+  type PublicSeoKey,
+} from "@/lib/public-site/seo";
 import {
   getSolutionAudienceBySlug,
   SOLUTION_AUDIENCES,
   type SolutionSlug,
 } from "@/lib/public-site/solutions";
-import { SUPPORTED_LOCALES } from "@/i18n/routing";
+import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n/routing";
 
 type SolutionDetailRouteProps = {
   params: Promise<{ locale: string; solutionSlug: string }>;
@@ -28,17 +31,17 @@ export async function generateMetadata({ params }: SolutionDetailRouteProps) {
   const solution = getSolutionAudienceBySlug(resolvedParams.solutionSlug);
 
   if (!solution) {
-    return buildPublicMetadata({
-      title: "Solution | Rudix",
-      description: "Department solution details for Rudix workflows.",
+    return buildLocalizedPublicMetadata({
+      locale: resolvedParams.locale as SupportedLocale,
+      seoKey: "solutions",
       path: "/solutions",
       noIndex: true,
     });
   }
 
-  return buildPublicMetadata({
-    title: `${solution.shortLabel} Solution | Rudix`,
-    description: solution.summary,
+  return buildLocalizedPublicMetadata({
+    locale: resolvedParams.locale as SupportedLocale,
+    seoKey: solution.slug as PublicSeoKey,
     path: solution.routePath,
   });
 }

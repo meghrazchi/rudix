@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { PricingOverviewPage } from "@/components/public/pages/PricingOverviewPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Pricing | Rudix",
-  description:
-    "Compare Rudix plans for document AI, RAG chat, evaluations, and governance with configurable packaging guidance.",
-  path: "/pricing",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "pricing",
+    path: "/pricing",
+  });
+}
 
 export default function PricingPage() {
   return (

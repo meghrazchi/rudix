@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { DataProcessingAddendumPage } from "@/components/public/pages/legal/DataProcessingAddendumPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Data Processing Addendum | Rudix",
-  description:
-    "Rudix DPA covering processor obligations, sub-processors, data subject rights, security measures, and breach notification.",
-  path: "/legal/dpa",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "dpa",
+    path: "/legal/dpa",
+  });
+}
 
 export default function DpaPage() {
   return (

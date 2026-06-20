@@ -149,10 +149,20 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Public marketing foundation:
   - reusable marketing header, mobile navigation, footer, and CTA components
   - centralized public link resolution with environment-driven overrides
-  - shared public SEO metadata helper (title, description, canonical, Open Graph, social cards)
+  - shared public SEO metadata helper (title, description, canonical, hreflang, Open Graph, social cards)
+  - locale-aware public metadata for `en`, `de`, `es`, and `fr`
+  - sitemap and robots generation for localized public routes
   - skip-to-content link and semantic landmarks for accessibility
   - typed public changelog source data in `src/lib/public-site/changelog.ts`
   - release notes should be curated from release tags and milestones, then stripped of private issue details before publication
+
+### Localized public SEO conventions
+
+- Use `buildLocalizedPublicMetadata()` for public pages so canonical URLs, Open Graph locale tags, and hreflang alternates stay aligned.
+- Add new public pages to `src/lib/public-site/sitemap.ts` so they are emitted for every supported locale.
+- Keep localized SEO copy in `src/i18n/messages/*.json` under `public.seo`.
+- Prefer locale-prefixed public URLs in metadata and sitemap output, with `x-default` reserved for the default locale.
+- When adding new public routes, check the layout for long German and French copy before shipping.
 
 ## Dashboard Design Sample
 

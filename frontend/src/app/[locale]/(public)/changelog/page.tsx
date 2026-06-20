@@ -1,13 +1,20 @@
 import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout";
 import { ChangelogPage } from "@/components/public/pages/ChangelogPage";
-import { buildPublicMetadata } from "@/lib/public-site/seo";
+import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
+import type { SupportedLocale } from "@/i18n/routing";
 
-export const metadata = buildPublicMetadata({
-  title: "Changelog | Rudix",
-  description:
-    "Browse public Rudix release notes, product improvements, fixes, and safe links to supporting documentation.",
-  path: "/changelog",
-});
+type PublicRouteParams = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PublicRouteParams) {
+  const { locale } = await params;
+  return buildLocalizedPublicMetadata({
+    locale: locale as SupportedLocale,
+    seoKey: "changelog",
+    path: "/changelog",
+  });
+}
 
 export default function ChangelogRoutePage() {
   return (
