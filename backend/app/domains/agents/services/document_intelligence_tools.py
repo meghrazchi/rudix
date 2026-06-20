@@ -572,6 +572,7 @@ class DocumentIntelligenceToolService:
     async def _rerank_chunks(
         self,
         *,
+        query: str,
         chunks: list[_RetrievedChunk],
         enabled: bool,
         final_top_k: int,
@@ -588,14 +589,15 @@ class DocumentIntelligenceToolService:
             )
             for chunk in chunks
         ]
-        rerank_results = await self._rerank_service.rerank(
+        rerank_result = await self._rerank_service.rerank(
+            query=query,
             candidates=rerank_inputs,
             enabled=enabled,
             final_top_k=final_top_k,
         )
 
         selected: list[_RetrievedChunk] = []
-        for reranked in rerank_results:
+        for reranked in rerank_result.candidates:
             source = chunk_by_key.get(reranked.key)
             if source is None:
                 continue
@@ -649,7 +651,10 @@ class DocumentIntelligenceToolService:
             _to_retrieved_chunk(candidate) for candidate in retrieval_result.candidates
         ]
         selected_chunks = await self._rerank_chunks(
-            chunks=retrieved_chunks, enabled=rerank, final_top_k=top_k
+            query=question,
+            chunks=retrieved_chunks,
+            enabled=rerank,
+            final_top_k=top_k,
         )
         embedding_tokens = retrieval_result.embedding_prompt_tokens
         embedding_cost_usd = (
@@ -695,8 +700,12 @@ class DocumentIntelligenceToolService:
                     "rerank_applied": rerank,
                     "embedding_model": retrieval_result.embedding_model,
                     "llm_model": None,
-                    "provider_key": agentic_profile.provider_type if agentic_profile is not None else None,
-                    "provider_type": agentic_profile.provider_type if agentic_profile is not None else None,
+                    "provider_key": agentic_profile.provider_type
+                    if agentic_profile is not None
+                    else None,
+                    "provider_type": agentic_profile.provider_type
+                    if agentic_profile is not None
+                    else None,
                     "usage": {
                         "embedding_prompt_tokens": embedding_tokens,
                         "llm_prompt_tokens": 0,
@@ -763,7 +772,9 @@ class DocumentIntelligenceToolService:
                     "embedding_model": retrieval_result.embedding_model,
                     "llm_model": llm_result.model_name,
                     "provider_key": llm_result.provider_key,
-                    "provider_type": agentic_profile.provider_type if agentic_profile is not None else None,
+                    "provider_type": agentic_profile.provider_type
+                    if agentic_profile is not None
+                    else None,
                     "usage": {
                         "embedding_prompt_tokens": embedding_tokens,
                         "llm_prompt_tokens": llm_result.prompt_tokens,
@@ -832,7 +843,9 @@ class DocumentIntelligenceToolService:
                 "embedding_model": retrieval_result.embedding_model,
                 "llm_model": llm_result.model_name,
                 "provider_key": llm_result.provider_key,
-                "provider_type": agentic_profile.provider_type if agentic_profile is not None else None,
+                "provider_type": agentic_profile.provider_type
+                if agentic_profile is not None
+                else None,
                 "citation_validation_score": citation_result.validation_score,
                 "usage": {
                     "embedding_prompt_tokens": embedding_tokens,

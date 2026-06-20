@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
 import pytest_asyncio
+from unittest.mock import AsyncMock
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import AuthenticatedPrincipal
@@ -283,6 +285,27 @@ class _FailingRetrievalService:
         raise RuntimeError("token=super-secret")
 
 
+class _RecordingRerankService:
+    candidate_count = 5
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    async def rerank(self, **kwargs):  # type: ignore[no-untyped-def]
+        self.calls.append(kwargs)
+        candidates = kwargs["candidates"]
+        return SimpleNamespace(
+            candidates=[
+                SimpleNamespace(
+                    key=candidate.key,
+                    rerank_score=0.99,
+                    rerank_rank=index + 1,
+                )
+                for index, candidate in enumerate(candidates[: kwargs["final_top_k"]])
+            ]
+        )
+
+
 @pytest.mark.asyncio
 async def test_document_intelligence_safe_error_redaction(
     db_session: AsyncSession,
@@ -323,3 +346,82 @@ async def test_document_intelligence_safe_error_redaction(
     assert result.error.code.value == "internal_error"
     assert result.error.safe_message == "Tool execution failed unexpectedly."
     assert result.error.details["error"] == "RuntimeError"
+
+
+@pytest.mark.asyncio
+async def test_answer_from_context_passes_query_to_rerank_service(
+    db_session: AsyncSession,
+    seeded_documents: dict[str, UUID],
+) -> None:
+    rerank_service = _RecordingRerankService()
+
+    class _StubRetrievalService:
+        embedding_model = "text-embedding-3-small"
+
+        async def embed_and_retrieve(self, **kwargs):  # type: ignore[no-untyped-def]
+            del kwargs
+            return SimpleNamespace(
+                embedding_prompt_tokens=0,
+                embedding_model="text-embedding-3-small",
+                candidates=[
+                    SimpleNamespace(
+                        document_id=seeded_documents["doc_a_id"],
+                        chunk_id=seeded_documents["doc_a_id"],
+                        filename="Policy Handbook.pdf",
+                        page_number=1,
+                        text="Policy handbook chunk for org A.",
+                        similarity_score=0.9,
+                    )
+                ],
+            )
+
+    service = DocumentIntelligenceToolService(
+        session_factory=_session_factory(db_session),
+        query_retrieval_service=_StubRetrievalService(),  # type: ignore[arg-type]
+    )
+    service._rerank_service = rerank_service  # type: ignore[attr-defined]
+    service._llm_service.generate_answer = AsyncMock(  # type: ignore[assignment]
+        return_value=SimpleNamespace(
+            answer="The policy handbook says yes.",
+            not_found=False,
+            citations=[],
+            model_name="gpt-4o",
+            provider_key="openai",
+            prompt_tokens=10,
+            completion_tokens=5,
+            total_tokens=15,
+            approximate_cost_usd=0.0,
+            latency_ms=1,
+            retry_count=0,
+            used_fallback_parser=False,
+        )
+    )
+    executor = _build_executor(db_session=db_session, service=service)
+    repository = AgentRunRepository()
+    run = await repository.create_agent_run(
+        db_session,
+        organization_id=seeded_documents["org_a_id"],
+        user_id=seeded_documents["user_a_id"],
+        status=AgentRunStatus.running.value,
+    )
+    principal = _principal(
+        user_id=seeded_documents["user_a_id"],
+        organization_id=seeded_documents["org_a_id"],
+    )
+
+    call = ToolCall(
+        run_id=str(run.id),
+        tool_name="answer_from_context",
+        organization_id=str(seeded_documents["org_a_id"]),
+        user_id=str(seeded_documents["user_a_id"]),
+        arguments={
+            "question": "What is in the policy handbook?",
+            "document_ids": [str(seeded_documents["doc_a_id"])],
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+    result = await executor.execute(session=db_session, call=call, principal=principal)
+    assert result.success is True
+    assert rerank_service.calls
+    assert rerank_service.calls[0]["query"] == "What is in the policy handbook?"
