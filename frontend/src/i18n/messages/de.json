@@ -147,7 +147,14 @@
         "pricing": "Preise",
         "contact": "Kontakt",
         "status": "Status",
-        "login": "Anmelden"
+        "login": "Anmelden",
+        "privacy": "Datenschutzrichtlinie",
+        "terms": "Nutzungsbedingungen",
+        "cookies": "Cookie-Richtlinie",
+        "dpa": "Auftragsverarbeitungsvertrag",
+        "subprocessors": "Unterauftragsverarbeiter",
+        "acceptableUse": "Nutzungsrichtlinien",
+        "securityDisclosure": "Sicherheitsoffenlegung"
       }
     },
     "home": "Startseite",

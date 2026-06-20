@@ -147,7 +147,14 @@
         "pricing": "Precios",
         "contact": "Contacto",
         "status": "Estado",
-        "login": "Iniciar sesión"
+        "login": "Iniciar sesión",
+        "privacy": "Política de privacidad",
+        "terms": "Términos de servicio",
+        "cookies": "Política de cookies",
+        "dpa": "DPA",
+        "subprocessors": "Subprocesadores",
+        "acceptableUse": "Uso aceptable",
+        "securityDisclosure": "Divulgación de seguridad"
       }
     },
     "home": "Inicio",

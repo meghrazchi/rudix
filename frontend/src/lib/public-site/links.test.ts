@@ -31,6 +31,31 @@ describe("public site links", () => {
     expect(links.status).toBe(PUBLIC_ROUTE_PATHS.status);
   });
 
+  it("uses internal legal route defaults when no env overrides are set", () => {
+    const links = resolvePublicSiteLinks();
+
+    expect(links.privacy).toBe(PUBLIC_ROUTE_PATHS.privacy);
+    expect(links.terms).toBe(PUBLIC_ROUTE_PATHS.terms);
+    expect(links.cookies).toBe(PUBLIC_ROUTE_PATHS.cookies);
+    expect(links.dpa).toBe(PUBLIC_ROUTE_PATHS.dpa);
+    expect(links.subprocessors).toBe(PUBLIC_ROUTE_PATHS.subprocessors);
+    expect(links.acceptableUse).toBe(PUBLIC_ROUTE_PATHS.acceptableUse);
+    expect(links.securityDisclosure).toBe(PUBLIC_ROUTE_PATHS.securityDisclosure);
+  });
+
+  it("accepts env-driven legal link overrides", () => {
+    process.env.NEXT_PUBLIC_PUBLIC_PRIVACY_URL = "https://legal.example.com/privacy";
+    process.env.NEXT_PUBLIC_PUBLIC_TERMS_URL = "https://legal.example.com/terms";
+    process.env.NEXT_PUBLIC_PUBLIC_SECURITY_DISCLOSURE_URL =
+      "https://legal.example.com/security";
+
+    const links = resolvePublicSiteLinks();
+
+    expect(links.privacy).toBe("https://legal.example.com/privacy");
+    expect(links.terms).toBe("https://legal.example.com/terms");
+    expect(links.securityDisclosure).toBe("https://legal.example.com/security");
+  });
+
   it("prefers new NEXT_PUBLIC_PUBLIC_* overrides", () => {
     process.env.NEXT_PUBLIC_PUBLIC_PRODUCT_URL = "/product-custom";
     process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL = "https://demo.example.com";

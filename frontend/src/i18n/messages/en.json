@@ -147,7 +147,14 @@
         "pricing": "Pricing",
         "contact": "Contact",
         "status": "Status",
-        "login": "Login"
+        "login": "Login",
+        "privacy": "Privacy Policy",
+        "terms": "Terms of Service",
+        "cookies": "Cookie Policy",
+        "dpa": "DPA",
+        "subprocessors": "Subprocessors",
+        "acceptableUse": "Acceptable Use",
+        "securityDisclosure": "Security Disclosure"
       }
     },
     "home": "Home",

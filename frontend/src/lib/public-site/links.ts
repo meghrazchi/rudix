@@ -8,6 +8,13 @@ export const PUBLIC_ROUTE_PATHS = {
   pricing: "/pricing",
   contact: "/contact",
   status: "/status",
+  privacy: "/legal/privacy",
+  terms: "/legal/terms",
+  cookies: "/legal/cookies",
+  dpa: "/legal/dpa",
+  subprocessors: "/legal/subprocessors",
+  acceptableUse: "/legal/acceptable-use",
+  securityDisclosure: "/legal/security-disclosure",
 } as const;
 
 export type PublicRouteKey = keyof typeof PUBLIC_ROUTE_PATHS;
@@ -26,6 +33,13 @@ export type PublicSiteLinks = {
   securityContact: string;
   status: string;
   app: string;
+  privacy: string;
+  terms: string;
+  cookies: string;
+  dpa: string;
+  subprocessors: string;
+  acceptableUse: string;
+  securityDisclosure: string;
 };
 
 export type PublicNavItem = {
@@ -105,6 +119,24 @@ export function resolvePublicSiteLinks(): PublicSiteLinks {
     resolveEnv("NEXT_PUBLIC_PUBLIC_STATUS_URL") ?? PUBLIC_ROUTE_PATHS.status;
   const app = resolveEnv("NEXT_PUBLIC_PUBLIC_APP_URL") ?? "/dashboard";
 
+  const privacy =
+    resolveEnv("NEXT_PUBLIC_PUBLIC_PRIVACY_URL") ?? PUBLIC_ROUTE_PATHS.privacy;
+  const terms =
+    resolveEnv("NEXT_PUBLIC_PUBLIC_TERMS_URL") ?? PUBLIC_ROUTE_PATHS.terms;
+  const cookies =
+    resolveEnv("NEXT_PUBLIC_PUBLIC_COOKIES_URL") ?? PUBLIC_ROUTE_PATHS.cookies;
+  const dpa =
+    resolveEnv("NEXT_PUBLIC_PUBLIC_DPA_URL") ?? PUBLIC_ROUTE_PATHS.dpa;
+  const subprocessors =
+    resolveEnv("NEXT_PUBLIC_PUBLIC_SUBPROCESSORS_URL") ??
+    PUBLIC_ROUTE_PATHS.subprocessors;
+  const acceptableUse =
+    resolveEnv("NEXT_PUBLIC_PUBLIC_ACCEPTABLE_USE_URL") ??
+    PUBLIC_ROUTE_PATHS.acceptableUse;
+  const securityDisclosure =
+    resolveEnv("NEXT_PUBLIC_PUBLIC_SECURITY_DISCLOSURE_URL") ??
+    PUBLIC_ROUTE_PATHS.securityDisclosure;
+
   return {
     home: PUBLIC_ROUTE_PATHS.home,
     product,
@@ -119,6 +151,13 @@ export function resolvePublicSiteLinks(): PublicSiteLinks {
     securityContact: normalizeContactHref(securityContactRaw),
     status,
     app,
+    privacy,
+    terms,
+    cookies,
+    dpa,
+    subprocessors,
+    acceptableUse,
+    securityDisclosure,
   };
 }
 

@@ -147,7 +147,14 @@
         "pricing": "Tarifs",
         "contact": "Contact",
         "status": "Statut",
-        "login": "Connexion"
+        "login": "Connexion",
+        "privacy": "Politique de confidentialité",
+        "terms": "Conditions d’utilisation",
+        "cookies": "Politique de cookies",
+        "dpa": "DPA",
+        "subprocessors": "Sous-traitants",
+        "acceptableUse": "Utilisation acceptable",
+        "securityDisclosure": "Divulgation de sécurité"
       }
     },
     "home": "Accueil",

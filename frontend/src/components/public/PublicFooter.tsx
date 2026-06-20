@@ -40,6 +40,14 @@ export function PublicFooter({ links }: PublicFooterProps) {
     },
   ];
 
+  const legalLinks = [
+    { label: t("links.privacy"), href: links.privacy },
+    { label: t("links.terms"), href: links.terms },
+    { label: t("links.cookies"), href: links.cookies },
+    { label: t("links.acceptableUse"), href: links.acceptableUse },
+    { label: t("links.securityDisclosure"), href: links.securityDisclosure },
+  ];
+
   return (
     <footer
       className="border-t border-[#d8dbe5] bg-[#f2f3f6]"
@@ -85,6 +93,20 @@ export function PublicFooter({ links }: PublicFooterProps) {
             </ul>
           </div>
         ))}
+      </div>
+
+      <div className="border-t border-[#d8dbe5] px-4 py-4 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap gap-x-5 gap-y-2">
+          {legalLinks.map((item) => (
+            <PublicActionLink
+              key={item.label}
+              href={item.href}
+              className="text-xs text-[#7c8194] transition hover:text-[#25283a]"
+            >
+              {item.label}
+            </PublicActionLink>
+          ))}
+        </div>
       </div>
     </footer>
   );
