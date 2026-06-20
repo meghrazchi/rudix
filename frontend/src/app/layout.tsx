@@ -4,6 +4,8 @@ import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 
 import { AppQueryProvider } from "@/components/providers/AppQueryProvider";
+import { ConsentProvider } from "@/components/consent/ConsentProvider";
+import { CookieConsentBanner } from "@/components/consent/CookieConsentBanner";
 import { getFrontendRuntimeConfigErrors } from "@/lib/runtime-config";
 import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
@@ -58,7 +60,12 @@ export default async function RootLayout({
           {runtimeConfigErrors.length > 0 ? (
             <ConfigErrorBanner errors={runtimeConfigErrors} />
           ) : (
-            <AppQueryProvider>{children}</AppQueryProvider>
+            <AppQueryProvider>
+              <ConsentProvider>
+                {children}
+                <CookieConsentBanner />
+              </ConsentProvider>
+            </AppQueryProvider>
           )}
         </NextIntlClientProvider>
       </body>

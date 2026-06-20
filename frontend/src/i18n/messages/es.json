@@ -2830,5 +2830,32 @@
         "description": "Invita miembros, asigna roles y controla el acceso desde la Consola de administración."
       }
     }
+  },
+  "cookieConsent": {
+    "bannerLabel": "Consentimiento de cookies",
+    "title": "Usamos cookies",
+    "description": "Usamos cookies y almacenamiento similar para mantener el servicio en funcionamiento y, cuando está habilitado, medir el uso. Consulta nuestra",
+    "cookiePolicyLink": "Política de cookies",
+    "acceptAll": "Aceptar todo",
+    "rejectNonEssential": "Rechazar no esenciales",
+    "customize": "Personalizar",
+    "savePreferences": "Guardar preferencias",
+    "close": "Cerrar",
+    "preferencesTitle": "Preferencias de cookies",
+    "preferencesDescription": "Elige qué categorías de cookies permites. Las cookies necesarias no se pueden deshabilitar. Consulta nuestra",
+    "categories": {
+      "necessary": {
+        "title": "Necesarias",
+        "description": "Requeridas para el inicio de sesión, la seguridad de la sesión y la protección CSRF. Estas cookies no se pueden deshabilitar."
+      },
+      "functional": {
+        "title": "Funcionales",
+        "description": "Almacena tus preferencias de idioma y alcance de chat entre sesiones. No contiene datos personales."
+      },
+      "analytics": {
+        "title": "Analíticas",
+        "description": "Nos ayuda a entender cómo se usa la aplicación para poder mejorarla. No se comparten datos con redes publicitarias."
+      }
+    }
   }
 }

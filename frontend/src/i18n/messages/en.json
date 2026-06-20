@@ -2830,5 +2830,32 @@
         "description": "Invite team members, assign roles, and manage access from the Admin Console."
       }
     }
+  },
+  "cookieConsent": {
+    "bannerLabel": "Cookie consent",
+    "title": "We use cookies",
+    "description": "We use cookies and similar storage to keep the service running and, when enabled, to measure usage. See our",
+    "cookiePolicyLink": "Cookie Policy",
+    "acceptAll": "Accept all",
+    "rejectNonEssential": "Reject non-essential",
+    "customize": "Customize",
+    "savePreferences": "Save preferences",
+    "close": "Close",
+    "preferencesTitle": "Cookie preferences",
+    "preferencesDescription": "Choose which categories of cookies you allow. Necessary cookies cannot be disabled. See our",
+    "categories": {
+      "necessary": {
+        "title": "Necessary",
+        "description": "Required for login, session security, and CSRF protection. These cookies cannot be disabled."
+      },
+      "functional": {
+        "title": "Functional",
+        "description": "Stores your language and chat scope preferences across sessions. Contains no personal data."
+      },
+      "analytics": {
+        "title": "Analytics",
+        "description": "Helps us understand how the application is used so we can improve it. No data is shared with advertising networks."
+      }
+    }
   }
 }

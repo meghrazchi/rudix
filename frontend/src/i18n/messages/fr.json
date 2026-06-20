@@ -2800,5 +2800,32 @@
         "description": "Invitez des membres, attribuez des rôles et contrôlez l'accès depuis la Console Admin."
       }
     }
+  },
+  "cookieConsent": {
+    "bannerLabel": "Consentement aux cookies",
+    "title": "Nous utilisons des cookies",
+    "description": "Nous utilisons des cookies et un stockage similaire pour faire fonctionner le service et, lorsque cela est activé, mesurer l'utilisation. Consultez notre",
+    "cookiePolicyLink": "Politique de cookies",
+    "acceptAll": "Tout accepter",
+    "rejectNonEssential": "Refuser les non-essentiels",
+    "customize": "Personnaliser",
+    "savePreferences": "Enregistrer les préférences",
+    "close": "Fermer",
+    "preferencesTitle": "Préférences de cookies",
+    "preferencesDescription": "Choisissez les catégories de cookies que vous autorisez. Les cookies nécessaires ne peuvent pas être désactivés. Consultez notre",
+    "categories": {
+      "necessary": {
+        "title": "Nécessaires",
+        "description": "Requis pour la connexion, la sécurité des sessions et la protection CSRF. Ces cookies ne peuvent pas être désactivés."
+      },
+      "functional": {
+        "title": "Fonctionnels",
+        "description": "Mémorise vos préférences de langue et de portée de chat entre les sessions. Ne contient aucune donnée personnelle."
+      },
+      "analytics": {
+        "title": "Analytique",
+        "description": "Nous aide à comprendre comment l'application est utilisée afin de l'améliorer. Aucune donnée n'est partagée avec des réseaux publicitaires."
+      }
+    }
   }
 }

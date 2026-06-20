@@ -2800,5 +2800,32 @@
         "description": "Mitglieder einladen, Rollen zuweisen und Zugriff steuern."
       }
     }
+  },
+  "cookieConsent": {
+    "bannerLabel": "Cookie-Zustimmung",
+    "title": "Wir verwenden Cookies",
+    "description": "Wir verwenden Cookies und ähnliche Speicher, um den Dienst zu betreiben und, wenn aktiviert, die Nutzung zu messen. Siehe unsere",
+    "cookiePolicyLink": "Cookie-Richtlinie",
+    "acceptAll": "Alle akzeptieren",
+    "rejectNonEssential": "Nicht notwendige ablehnen",
+    "customize": "Anpassen",
+    "savePreferences": "Einstellungen speichern",
+    "close": "Schließen",
+    "preferencesTitle": "Cookie-Einstellungen",
+    "preferencesDescription": "Wählen Sie, welche Cookie-Kategorien Sie zulassen möchten. Notwendige Cookies können nicht deaktiviert werden. Siehe unsere",
+    "categories": {
+      "necessary": {
+        "title": "Notwendig",
+        "description": "Erforderlich für Login, Sitzungssicherheit und CSRF-Schutz. Diese Cookies können nicht deaktiviert werden."
+      },
+      "functional": {
+        "title": "Funktional",
+        "description": "Speichert Ihre Sprach- und Chat-Scope-Einstellungen sitzungsübergreifend. Enthält keine persönlichen Daten."
+      },
+      "analytics": {
+        "title": "Analytik",
+        "description": "Hilft uns zu verstehen, wie die Anwendung genutzt wird, damit wir sie verbessern können. Keine Daten werden an Werbenetzwerke weitergegeben."
+      }
+    }
   }
 }
