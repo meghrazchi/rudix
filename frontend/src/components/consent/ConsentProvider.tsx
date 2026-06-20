@@ -60,11 +60,13 @@ export function ConsentProvider({ children }: ConsentProviderProps) {
 
   useEffect(() => {
     const record = readConsentRecord();
-    if (record && record.policyVersion === CONSENT_POLICY_VERSION) {
-      setHasResponded(true);
-      setDecisions(record.decisions);
-    }
-    setIsLoaded(true);
+    queueMicrotask(() => {
+      if (record && record.policyVersion === CONSENT_POLICY_VERSION) {
+        setHasResponded(true);
+        setDecisions(record.decisions);
+      }
+      setIsLoaded(true);
+    });
   }, []);
 
   const persist = useCallback((d: ConsentDecisions) => {

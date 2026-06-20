@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -25,8 +26,6 @@ function SSOCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setAuthenticatedSession } = useAuthSession();
-  const [status, setStatus] = useState<CallbackStatus>("loading");
-  const [message, setMessage] = useState<string | null>(null);
   const ran = useRef(false);
 
   const accessToken = searchParams.get("access_token");
@@ -36,16 +35,23 @@ function SSOCallbackContent() {
   const organizationId = searchParams.get("organization_id");
   const organizationName = searchParams.get("organization_name");
   const next = searchParams.get("next") || "/dashboard";
+  const missingToken = !accessToken || !userId || !email;
+  const initialState = missingToken
+    ? {
+        status: "error_missing_token" as CallbackStatus,
+        message:
+          "SSO authentication did not return the expected session data. Please try again or contact your administrator.",
+      }
+    : { status: "loading" as CallbackStatus, message: null as string | null };
+
+  const [status, setStatus] = useState<CallbackStatus>(initialState.status);
+  const [message, setMessage] = useState<string | null>(initialState.message);
 
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
 
-    if (!accessToken || !userId || !email) {
-      setStatus("error_missing_token");
-      setMessage(
-        "SSO authentication did not return the expected session data. Please try again or contact your administrator.",
-      );
+    if (missingToken) {
       return;
     }
 
@@ -81,12 +87,15 @@ function SSOCallbackContent() {
     accessToken,
     userId,
     email,
+    missingToken,
     role,
     organizationId,
     organizationName,
     next,
     router,
     setAuthenticatedSession,
+    setMessage,
+    setStatus,
   ]);
 
   return <SSOCallbackShell status={status} message={message} />;
@@ -135,12 +144,12 @@ function SSOCallbackShell({
             <p className="text-sm text-[#68647b]">
               {message ?? "An error occurred. Please try again."}
             </p>
-            <a
+            <Link
               href="/login"
               className="mt-5 inline-block rounded-lg bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
             >
               Back to sign-in
-            </a>
+            </Link>
           </>
         )}
       </main>

@@ -1357,31 +1357,35 @@ export function ChatPage() {
       response: toTurnResponseFromQuery(response, pending.scopeLabel),
     };
 
-    setThreadsBySession((previous) => {
-      const sourceThread = previous[previousThreadKey] ?? [];
-      const merged = [...sourceThread, nextTurn];
-      const next = { ...previous, [nextSessionId]: merged };
-      if (previousThreadKey !== nextSessionId) {
-        delete next[previousThreadKey];
-      }
-      return next;
-    });
-
-    setActiveSessionId(resolvedSessionId ?? null);
-    setSelectedResponseMessageId(nextTurn.response.message_id);
-    replaceSessionParamInUrl(resolvedSessionId ?? null);
-    setSubmitRequestId(null);
-    setPendingQuestion(null);
     wsPendingRef.current = null;
-    void invalidateAfterMutation(queryClient, "chat.query");
+    queueMicrotask(() => {
+      setThreadsBySession((previous) => {
+        const sourceThread = previous[previousThreadKey] ?? [];
+        const merged = [...sourceThread, nextTurn];
+        const next = { ...previous, [nextSessionId]: merged };
+        if (previousThreadKey !== nextSessionId) {
+          delete next[previousThreadKey];
+        }
+        return next;
+      });
+
+      setActiveSessionId(resolvedSessionId ?? null);
+      setSelectedResponseMessageId(nextTurn.response.message_id);
+      replaceSessionParamInUrl(resolvedSessionId ?? null);
+      setSubmitRequestId(null);
+      setPendingQuestion(null);
+      void invalidateAfterMutation(queryClient, "chat.query");
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsChat.phase, wsChat.finalResponse]);
 
   useEffect(() => {
     if (!CHAT_WEBSOCKET_ENABLED) return;
     if (wsChat.phase !== "error" && wsChat.phase !== "cancelled") return;
-    setPendingQuestion(null);
     wsPendingRef.current = null;
+    queueMicrotask(() => {
+      setPendingQuestion(null);
+    });
   }, [wsChat.phase]);
   // ── End WebSocket ────────────────────────────────────────────────────────
 

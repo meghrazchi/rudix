@@ -168,7 +168,7 @@ export function ConfluenceConnectorSetupForm({
         </label>
         <p className="mt-0.5 text-xs text-gray-500">
           Additional CQL predicate applied to every sync, e.g.{" "}
-          <span className="font-mono">label = "docs"</span>
+          <span className="font-mono">label = &quot;docs&quot;</span>
         </p>
         <input
           id="confluence-cql-filter"

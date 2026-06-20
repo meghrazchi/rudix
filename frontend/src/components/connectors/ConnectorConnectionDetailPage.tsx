@@ -610,7 +610,9 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
     }
 
     if (newEntries.length > 0) {
-      setEntries((prev) => [...prev, ...newEntries].slice(-200));
+      queueMicrotask(() => {
+        setEntries((prev) => [...prev, ...newEntries].slice(-200));
+      });
     }
 
     prevRunIdRef.current = run.id;

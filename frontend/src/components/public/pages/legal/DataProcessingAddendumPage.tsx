@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { LegalPageLayout } from "./LegalPageLayout";
 
 export function DataProcessingAddendumPage() {
@@ -41,9 +43,9 @@ export function DataProcessingAddendumPage() {
                 <strong>Sub-processor</strong> means a third party engaged by
                 Rudix to carry out processing activities on behalf of the
                 Controller. See our{" "}
-                <a href="/legal/subprocessors" className="underline">
+                <Link href="/legal/subprocessors" className="underline">
                   Subprocessors page
-                </a>{" "}
+                </Link>{" "}
                 for the current list.
               </p>
             </>
@@ -93,9 +95,9 @@ export function DataProcessingAddendumPage() {
                 <li>
                   implement appropriate technical and organizational security
                   measures as described in the{" "}
-                  <a href="/security" className="underline">
+                  <Link href="/security" className="underline">
                     Security &amp; Trust page
-                  </a>
+                  </Link>
                   ;
                 </li>
                 <li>
@@ -119,9 +121,9 @@ export function DataProcessingAddendumPage() {
           body: (
             <p>
               Rudix uses the sub-processors listed at{" "}
-              <a href="/legal/subprocessors" className="underline">
+              <Link href="/legal/subprocessors" className="underline">
                 /legal/subprocessors
-              </a>
+              </Link>
               . We will provide notice of changes to the sub-processor list to
               allow the Controller to object. [LEGAL REVIEW REQUIRED: define
               objection period and process.]

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { LegalPageLayout } from "./LegalPageLayout";
 
 export function AcceptableUsePolicyPage() {
@@ -67,9 +69,9 @@ export function AcceptableUsePolicyPage() {
                 <li>
                   attempts to probe, scan, or exploit vulnerabilities in the
                   platform (see our{" "}
-                  <a href="/legal/security-disclosure" className="underline">
+                  <Link href="/legal/security-disclosure" className="underline">
                     Security Disclosure Policy
-                  </a>{" "}
+                  </Link>{" "}
                   for authorized research);
                 </li>
                 <li>

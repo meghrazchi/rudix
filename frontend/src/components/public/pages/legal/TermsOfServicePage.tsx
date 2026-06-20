@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { LegalPageLayout } from "./LegalPageLayout";
 
 export function TermsOfServicePage() {
@@ -83,9 +85,9 @@ export function TermsOfServicePage() {
               </ul>
               <p>
                 See our{" "}
-                <a href="/legal/acceptable-use" className="underline">
+                <Link href="/legal/acceptable-use" className="underline">
                   Acceptable Use Policy
-                </a>{" "}
+                </Link>{" "}
                 for the complete list of prohibited activities.
               </p>
             </>
@@ -112,9 +114,9 @@ export function TermsOfServicePage() {
               uninterrupted availability. The Service is provided &ldquo;as
               is&rdquo; for the current release. Planned maintenance is
               communicated in advance via the status page at{" "}
-              <a href="/status" className="underline">
+              <Link href="/status" className="underline">
                 /status
-              </a>
+              </Link>
               . [LEGAL REVIEW REQUIRED: add SLA terms when applicable.]
             </p>
           ),

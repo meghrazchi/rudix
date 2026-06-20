@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { LegalPageLayout } from "./LegalPageLayout";
 
 export function PrivacyPolicyPage() {
@@ -95,9 +97,9 @@ export function PrivacyPolicyPage() {
               Rudix routes queries to third-party AI model providers
               (sub-processors) to generate answers. Relevant document chunks are
               included in prompts sent to these providers. See our{" "}
-              <a href="/legal/subprocessors" className="underline">
+              <Link href="/legal/subprocessors" className="underline">
                 Subprocessors page
-              </a>{" "}
+              </Link>{" "}
               for the current list of AI providers and their data processing
               locations. You can configure which model provider your
               organization uses from the Admin Console.
@@ -164,9 +166,9 @@ export function PrivacyPolicyPage() {
             <p>
               We use session cookies and browser-local storage to maintain
               authentication state and user preferences. See our{" "}
-              <a href="/legal/cookies" className="underline">
+              <Link href="/legal/cookies" className="underline">
                 Cookie Policy
-              </a>{" "}
+              </Link>{" "}
               for details.
             </p>
           ),

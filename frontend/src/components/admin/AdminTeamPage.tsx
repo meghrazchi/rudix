@@ -509,14 +509,29 @@ function RoleChangeRow({
   isDisabled: boolean;
   onRoleChange: (memberId: string, role: TeamInviteRole) => void;
 }) {
+  return (
+    <RoleChangeRowEditor
+      key={`${member.member_id}:${member.role}`}
+      member={member}
+      isDisabled={isDisabled}
+      onRoleChange={onRoleChange}
+    />
+  );
+}
+
+function RoleChangeRowEditor({
+  member,
+  isDisabled,
+  onRoleChange,
+}: {
+  member: TeamMember;
+  isDisabled: boolean;
+  onRoleChange: (memberId: string, role: TeamInviteRole) => void;
+}) {
   const [draft, setDraft] = useState<TeamInviteRole>(
     member.role as TeamInviteRole,
   );
   const changed = draft !== member.role;
-
-  useEffect(() => {
-    setDraft(member.role as TeamInviteRole);
-  }, [member.role]);
 
   if (member.role === "owner") {
     return <span className={roleBadgeClass(member.role)}>{member.role}</span>;

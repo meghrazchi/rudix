@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldValues } from "react-hook-form";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -26,7 +26,10 @@ import {
   setDefaultRagProfile,
   unarchiveRagProfile,
   updateRagProfile,
+  type CreateRagProfileRequest,
+  type RagProfileConfig,
   type RagProfileResponse,
+  type UpdateRagProfileRequest,
 } from "@/lib/api/rag-profiles";
 import { queryKeys } from "@/lib/api/query";
 import {
@@ -36,6 +39,14 @@ import {
   type RollbackRagProfileRequest,
 } from "@/lib/schemas/rag-profiles";
 import { useAuthSession } from "@/lib/use-auth-session";
+
+type RagProfileFormValues = {
+  name?: string;
+  description?: string;
+  set_as_default?: boolean;
+  change_note?: string;
+  config?: RagProfileConfig | null;
+} & FieldValues;
 
 type FeedbackState = { tone: "success" | "error"; message: string } | null;
 
@@ -60,15 +71,15 @@ function ProfileForm({
   isSaving,
 }: {
   initial?: RagProfileResponse | null;
-  onSave: (data: any) => void;
+  onSave: (data: RagProfileFormValues) => void;
   onCancel: () => void;
   isSaving: boolean;
 }) {
   const schema = initial
     ? ragProfileUpdateRequestSchema
     : ragProfileCreateRequestSchema;
-  const form = useForm<any>({
-    resolver: zodResolver(schema) as any,
+  const form = useForm<FieldValues>({
+    resolver: zodResolver(schema),
     defaultValues: {
       name: initial?.name ?? "",
       description: initial?.description ?? "",
@@ -98,7 +109,7 @@ function ProfileForm({
     mode: "onSubmit",
   });
 
-  const rerankEnabled = form.watch("config.rerank_enabled");
+  const rerankEnabled = Boolean(form.watch("config.rerank_enabled"));
 
   return (
     <form
@@ -106,7 +117,7 @@ function ProfileForm({
       onSubmit={(e) => {
         e.preventDefault();
         void form.handleSubmit((values) => {
-          onSave(values as any);
+          onSave(values);
         })(e);
       }}
     >
@@ -763,7 +774,7 @@ export function RagProfilesSection() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: any) => createRagProfile(payload),
+    mutationFn: (payload: CreateRagProfileRequest) => createRagProfile(payload),
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "RAG profile created." });
       setShowForm(false);
@@ -776,8 +787,13 @@ export function RagProfilesSection() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
-      updateRagProfile(id, payload),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: UpdateRagProfileRequest;
+    }) => updateRagProfile(id, payload),
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "RAG profile updated." });
       setEditingProfile(null);
@@ -789,14 +805,35 @@ export function RagProfilesSection() {
       setFeedback({ tone: "error", message: getApiErrorMessage(error) }),
   });
 
-  const handleSave = (data: any) => {
+  const handleSave = (data: RagProfileFormValues) => {
+    const values = data as {
+      name?: string;
+      description?: string;
+      set_as_default?: boolean;
+      change_note?: string;
+      config?: RagProfileConfig | null;
+    };
     if (editingProfile) {
+      const payload: UpdateRagProfileRequest = {
+        name: values.name?.trim() ? values.name : null,
+        description: values.description?.trim() ? values.description : null,
+        config: values.config ?? null,
+        set_as_default: values.set_as_default ?? null,
+        change_note: values.change_note?.trim() ? values.change_note : null,
+      };
       void updateMutation.mutateAsync({
         id: editingProfile.profile_id,
-        payload: data as any,
+        payload,
       });
     } else {
-      void createMutation.mutateAsync(data as any);
+      const payload: CreateRagProfileRequest = {
+        name: values.name?.trim() ?? "",
+        description: values.description?.trim() ? values.description : null,
+        config: values.config ?? undefined,
+        set_as_default: values.set_as_default ?? false,
+        change_note: values.change_note?.trim() ? values.change_note : null,
+      };
+      void createMutation.mutateAsync(payload);
     }
   };
 

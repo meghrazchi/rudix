@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -44,9 +44,23 @@ function RiskBadge({ level }: { level: string | null }) {
   );
 }
 
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return now;
+}
+
 function ExpiryCountdown({ expiresAt }: { expiresAt: string | null }) {
+  const now = useNow();
   if (!expiresAt) return null;
-  const diff = new Date(expiresAt).getTime() - Date.now();
+  const diff = new Date(expiresAt).getTime() - now;
   if (diff <= 0) {
     return (
       <span className="text-[11px] font-semibold text-rose-600">Expired</span>

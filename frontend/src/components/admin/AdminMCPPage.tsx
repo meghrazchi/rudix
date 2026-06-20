@@ -827,8 +827,8 @@ function PolicyForm({
           Role capabilities
         </h2>
         <p className="mb-4 text-sm text-[#68647b]">
-          Define which MCP capabilities each role may use. "Use server default"
-          applies the value from the server environment variables.
+          Define which MCP capabilities each role may use. &quot;Use server
+          default&quot; applies the value from the server environment variables.
         </p>
         <div className="space-y-3">
           <CapabilitiesEditor

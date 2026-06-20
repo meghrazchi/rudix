@@ -210,14 +210,6 @@ function ManageCollectionDocumentsDialog({
     () => new Set(initialDocumentIds),
   );
 
-  useEffect(() => {
-    setSelectedDocumentIds(new Set(initialDocumentIds));
-  }, [initialDocumentIds]);
-
-  useEffect(() => {
-    setPageOffset(0);
-  }, [searchQuery]);
-
   const documentsQuery = useQuery({
     queryKey: [
       ...queryKeys.documents.all,
@@ -316,7 +308,10 @@ function ManageCollectionDocumentsDialog({
             <input
               type="search"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setPageOffset(0);
+              }}
               placeholder={tc("manageDocumentsSearchPlaceholder")}
               className="h-10 w-full rounded-xl border border-[#d2cee6] bg-white pr-3 pl-10 text-sm text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
             />
@@ -1574,6 +1569,7 @@ function CollectionDetailDrawer({
 
       {isDocumentPickerOpen && detail ? (
         <ManageCollectionDocumentsDialog
+          key={`${detail.collection_id}:${existingDocumentIds.join(",")}`}
           collectionName={detail.name}
           initialDocumentIds={existingDocumentIds}
           saving={manageDocumentsMutation.isPending}

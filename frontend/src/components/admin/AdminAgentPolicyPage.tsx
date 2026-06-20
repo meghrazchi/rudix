@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 
 import {
   deleteToolPolicy,
@@ -90,9 +91,9 @@ export function AdminAgentPolicyPage() {
           Control which tools agents can use, set per-tool role and approval
           requirements, and define budget limits. Org-level budget limits are
           managed in{" "}
-          <a href="/admin/governance" className="text-[#6c63e0] underline">
+          <Link href="/admin/governance" className="text-[#6c63e0] underline">
             Governance settings
-          </a>
+          </Link>
           .
         </p>
       </div>
@@ -157,9 +158,9 @@ function OrgBudgetSummarySection({
       </h2>
       <p className="mt-1 text-sm text-[#6a6780]">
         Active limits inherited from governance settings. Edit them in{" "}
-        <a href="/admin/governance" className="text-[#6c63e0] underline">
+        <Link href="/admin/governance" className="text-[#6c63e0] underline">
           Governance
-        </a>
+        </Link>
         .
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -911,7 +911,9 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export function AgentWorkspacePage() {
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [explicitSelectedRunId, setExplicitSelectedRunId] = useState<
+    string | null
+  >(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
   const runsQuery = useQuery({
@@ -921,19 +923,14 @@ export function AgentWorkspacePage() {
   });
 
   const handleRunCreated = useCallback((runId: string) => {
-    setSelectedRunId(runId);
+    setExplicitSelectedRunId(runId);
     setTimeout(() => {
       detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   }, []);
 
   const runs = runsQuery.data?.runs ?? [];
-
-  useEffect(() => {
-    if (selectedRunId === null && runs.length > 0) {
-      setSelectedRunId(runs[0]!.run_id);
-    }
-  }, [runs, selectedRunId]);
+  const selectedRunId = explicitSelectedRunId ?? runs[0]?.run_id ?? null;
 
   return (
     <div className="flex min-h-0 flex-col gap-4 px-4 py-6 sm:px-6">
@@ -999,7 +996,7 @@ export function AgentWorkspacePage() {
                     key={run.run_id}
                     run={run}
                     isSelected={selectedRunId === run.run_id}
-                    onSelect={() => setSelectedRunId(run.run_id)}
+                    onSelect={() => setExplicitSelectedRunId(run.run_id)}
                   />
                 ))}
               </div>
