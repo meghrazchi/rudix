@@ -184,7 +184,7 @@ This page is designed for debugging pipeline behavior, validating processing pro
 ### 1. Clone the Repository
 
 ```bash
-git clone https://gitlab.com/benza-group/rudix.git
+git clone <repository-url>
 cd rudix
 ```
 
@@ -319,16 +319,18 @@ make lint         # Run lint and type checks
 
 ## Deployment and CI/CD
 
-Rudix uses GitLab CI/CD as a release gate:
+Rudix uses GitHub Actions for repository automation:
 
-- `validate` -> `test` -> `build` -> `security` -> `integration` -> `deploy_staging` -> `deploy_production` -> `rollback`
-- Staging deploy is automatic on protected default-branch pipelines when `ENABLE_STAGING_DEPLOY=true`
-- Production deploy is manual on protected refs
-- Rollback is manual and image-based (`ROLLBACK_API_IMAGE`, `ROLLBACK_WORKER_IMAGE`, `ROLLBACK_FRONTEND_IMAGE`)
+- `ci.yml` runs configuration validation, backend checks, frontend checks, API type verification, build validation, and Playwright e2e
+- `security.yml` runs dependency and filesystem vulnerability scans
+- `codeql.yml` runs Python and TypeScript CodeQL analysis
+- `release.yml` builds and publishes images, runs integration smoke tests, deploys staging, deploys production with environment approval, and supports rollback
+- `quality-gate.yml` runs the evaluation quality gate on demand
+- `accuracy-eval.yml` runs the accuracy evaluation gate on a nightly schedule and on demand
 
-For required CI variables and environment rules, see:
+For workflow details, see:
 
-- [`docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md`](docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md)
+- [`docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`](docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md)
 
 ---
 
@@ -383,7 +385,7 @@ Start here:
 - [`docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`](docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md) — Security checklist
 - [`docs/12_EVALUATION_AND_MONITORING.md`](docs/12_EVALUATION_AND_MONITORING.md) — Evaluation and monitoring
 - [`docs/13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md`](docs/13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md) — Agentic architecture and capability model
-- [`docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md`](docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md) — GitLab CI/CD and release flow
+- [`docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`](docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md) — GitHub Actions CI and security flow
 - [`docs/15_MCP_SERVER_DEPLOYMENT_MODE.md`](docs/15_MCP_SERVER_DEPLOYMENT_MODE.md) — MCP architecture (Mermaid), tools/resources/prompts, deployment
 - [`docs/18_LANGFUSE_OBSERVABILITY.md`](docs/18_LANGFUSE_OBSERVABILITY.md) — Langfuse LLM observability: traces, redaction, sampling, production setup
 - [`docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md`](docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md) — Local LLM providers: Ollama/vLLM/LiteLLM setup, security, evaluation, runbooks

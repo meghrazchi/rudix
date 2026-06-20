@@ -1,0 +1,65 @@
+name: Quality Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      evaluation_run_id:
+        description: "Evaluation run ID"
+        required: false
+        type: string
+      safety_eval_run_id:
+        description: "Safety evaluation run ID"
+        required: false
+        type: string
+      dry_run:
+        description: "Do not block on gate failure"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  run-quality-gate:
+    name: Run quality gate
+    runs-on: ubuntu-latest
+    env:
+      RUDIX_API_BASE_URL: ${{ secrets.RUDIX_API_BASE_URL }}
+      RUDIX_API_TOKEN: ${{ secrets.RUDIX_API_TOKEN }}
+      QUALITY_GATE_ID: ${{ secrets.QUALITY_GATE_ID }}
+      EVALUATION_RUN_ID: ${{ github.event.inputs.evaluation_run_id }}
+      SAFETY_EVAL_RUN_ID: ${{ github.event.inputs.safety_eval_run_id }}
+      QUALITY_GATE_DRY_RUN: ${{ github.event.inputs.dry_run }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate quality gate inputs
+        run: |
+          for var_name in RUDIX_API_BASE_URL RUDIX_API_TOKEN QUALITY_GATE_ID; do
+            if [ -z "${!var_name:-}" ]; then
+              echo "Missing required secret: ${var_name}"
+              exit 1
+            fi
+          done
+          if [ -z "${EVALUATION_RUN_ID:-}" ] && [ -z "${SAFETY_EVAL_RUN_ID:-}" ]; then
+            echo "Set at least one of evaluation_run_id or safety_eval_run_id."
+            exit 1
+          fi
+
+      - name: Run quality gate script
+        run: python3 ci/scripts/quality_gate_runner.py
+
+      - name: Upload quality gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-report
+          path: artifacts/quality-gate-report.json
+          if-no-files-found: ignore
+

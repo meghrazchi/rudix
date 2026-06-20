@@ -1,0 +1,71 @@
+name: Accuracy Evaluation
+
+on:
+  schedule:
+    - cron: "21 3 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Evaluation mode"
+        required: true
+        type: choice
+        options:
+          - smoke
+          - nightly
+        default: nightly
+      question_limit:
+        description: "Smoke mode question limit"
+        required: false
+        type: number
+        default: 20
+      dry_run:
+        description: "Do not block on gate failure"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  run-accuracy-eval:
+    name: Run accuracy eval
+    runs-on: ubuntu-latest
+    env:
+      RUDIX_API_BASE_URL: ${{ secrets.RUDIX_API_BASE_URL }}
+      RUDIX_API_TOKEN: ${{ secrets.RUDIX_API_TOKEN }}
+      ACCURACY_EVAL_SET_ID: ${{ secrets.ACCURACY_EVAL_SET_ID }}
+      QUALITY_GATE_ID: ${{ secrets.QUALITY_GATE_ID }}
+      EVAL_MODE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode || 'nightly' }}
+      QUESTION_LIMIT: ${{ github.event.inputs.question_limit || '20' }}
+      QUALITY_GATE_DRY_RUN: ${{ github.event.inputs.dry_run }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate accuracy eval inputs
+        run: |
+          for var_name in RUDIX_API_BASE_URL RUDIX_API_TOKEN ACCURACY_EVAL_SET_ID QUALITY_GATE_ID; do
+            if [ -z "${!var_name:-}" ]; then
+              echo "Missing required secret: ${var_name}"
+              exit 1
+            fi
+          done
+
+      - name: Run accuracy eval script
+        run: python3 ci/scripts/accuracy_eval_runner.py
+
+      - name: Upload accuracy eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-eval-report
+          path: |
+            artifacts/accuracy-eval-report.json
+            artifacts/accuracy-eval-junit.xml
+          if-no-files-found: ignore
+

@@ -1,0 +1,633 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "ci/**"
+      - "deploy/**"
+      - ".github/workflows/release.yml"
+      - ".env.example"
+      - "Makefile"
+      - "backend/Makefile"
+      - "backend/pyproject.toml"
+      - "backend/Dockerfile"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "frontend/Dockerfile"
+      - "docker-compose.yml"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Release target"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+          - rollback
+        default: staging
+      rollback_api_image:
+        description: "API image to roll back to"
+        required: false
+        type: string
+      rollback_worker_image:
+        description: "Worker image to roll back to"
+        required: false
+        type: string
+      rollback_frontend_image:
+        description: "Frontend image to roll back to"
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.target || 'auto' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository }}
+  NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_PUBLIC_AUTH_PROVIDER: app
+  NEXT_PUBLIC_AUTH_LOCAL_FALLBACK: "true"
+  NEXT_PUBLIC_AUTH_LOCAL_PASSWORD: "123123123"
+  NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN: ci-access-token
+  NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_ID: 00000000-0000-0000-0000-000000000001
+  NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME: Rudix CI
+  NEXT_PUBLIC_AUTH_DEFAULT_ROLE: admin
+  NEXT_PUBLIC_FEATURE_DEVELOPER_MODE: "false"
+  NEXT_PUBLIC_FEATURE_EXPORTS_ENABLED: "true"
+  NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS: "true"
+  NEXT_PUBLIC_FEATURE_COLLECTIONS_ENABLED: "true"
+  NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED: "true"
+  NEXT_PUBLIC_CHAT_AGENTIC_ENABLED: "true"
+  NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT: "false"
+  NEXT_PUBLIC_CHAT_STREAMING_ENABLED: "true"
+  NEXT_PUBLIC_PUBLIC_SITE_URL: http://localhost:3000
+  NEXT_PUBLIC_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_PUBLIC_PUBLIC_PRODUCT_URL: /product
+  NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL: /solutions
+  NEXT_PUBLIC_PUBLIC_SECURITY_URL: /security
+  NEXT_PUBLIC_PUBLIC_PRICING_URL: /pricing
+  NEXT_PUBLIC_PUBLIC_DOCS_URL: /docs
+  NEXT_PUBLIC_PUBLIC_TRIAL_URL: /signup
+  NEXT_PUBLIC_PUBLIC_DEMO_URL: /contact
+  NEXT_PUBLIC_PUBLIC_CONTACT_URL: /contact
+  NEXT_PUBLIC_PUBLIC_STATUS_URL: /status
+  NEXT_PUBLIC_PUBLIC_LOGIN_URL: /login
+
+jobs:
+  build-images:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.target != 'rollback'
+    outputs:
+      api_image: ${{ steps.image-refs.outputs.api_image }}
+      worker_image: ${{ steps.image-refs.outputs.worker_image }}
+      frontend_image: ${{ steps.image-refs.outputs.frontend_image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build and push backend images
+        env:
+          IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
+        run: |
+          tags=(
+            --tag "${IMAGE_BASE}/api:${GITHUB_SHA}"
+            --tag "${IMAGE_BASE}/worker:${GITHUB_SHA}"
+          )
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            tags+=(
+              --tag "${IMAGE_BASE}/api:staging"
+              --tag "${IMAGE_BASE}/api:latest"
+              --tag "${IMAGE_BASE}/worker:staging"
+              --tag "${IMAGE_BASE}/worker:latest"
+            )
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tags+=(
+              --tag "${IMAGE_BASE}/api:${GITHUB_REF_NAME}"
+              --tag "${IMAGE_BASE}/worker:${GITHUB_REF_NAME}"
+            )
+          fi
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            "${tags[@]}" \
+            -f backend/Dockerfile \
+            backend
+
+      - name: Build and push frontend image
+        env:
+          IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
+        run: |
+          tags=(
+            --tag "${IMAGE_BASE}/frontend:${GITHUB_SHA}"
+          )
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            tags+=(
+              --tag "${IMAGE_BASE}/frontend:staging"
+              --tag "${IMAGE_BASE}/frontend:latest"
+            )
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tags+=(
+              --tag "${IMAGE_BASE}/frontend:${GITHUB_REF_NAME}"
+            )
+          fi
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            --build-arg NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
+            --build-arg NEXT_PUBLIC_APP_URL="${NEXT_PUBLIC_APP_URL}" \
+            "${tags[@]}" \
+            -f frontend/Dockerfile \
+            frontend
+
+      - name: Resolve pushed image digests
+        id: image-refs
+        env:
+          IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
+        run: |
+          docker pull "${IMAGE_BASE}/api:${GITHUB_SHA}"
+          docker pull "${IMAGE_BASE}/worker:${GITHUB_SHA}"
+          docker pull "${IMAGE_BASE}/frontend:${GITHUB_SHA}"
+          echo "api_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/api:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
+          echo "worker_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/worker:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/frontend:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload image digest references
+        if: always()
+        run: |
+          mkdir -p artifacts/image-digests
+          printf '%s\n' "${{ steps.image-refs.outputs.api_image }}" > artifacts/image-digests/api.txt
+          printf '%s\n' "${{ steps.image-refs.outputs.worker_image }}" > artifacts/image-digests/worker.txt
+          printf '%s\n' "${{ steps.image-refs.outputs.frontend_image }}" > artifacts/image-digests/frontend.txt
+
+      - name: Upload image digest artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-digests
+          path: artifacts/image-digests
+          if-no-files-found: error
+
+  integration-smoke:
+    name: Integration smoke
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.target != 'rollback'
+    env:
+      RUDIX_API_IMAGE: ${{ needs.build-images.outputs.api_image }}
+      RUDIX_WORKER_IMAGE: ${{ needs.build-images.outputs.worker_image }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'ci-placeholder-key' }}
+      REGISTRY: ${{ env.REGISTRY }}
+      IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Docker Compose prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+
+      - name: Create integration env file
+        run: |
+          cat > .env.ci.integration <<EOF
+          ENVIRONMENT=test
+          API_BASE_URL=http://api:8000
+          FRONTEND_BASE_URL=http://frontend:3000
+          CORS_ORIGINS=http://frontend:3000
+          RUDIX_API_IMAGE=${RUDIX_API_IMAGE}
+          RUDIX_WORKER_IMAGE=${RUDIX_WORKER_IMAGE}
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/rag_app
+          POSTGRES_DB=rag_app
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          QDRANT_URL=http://qdrant:6333
+          QDRANT_COLLECTION=documents
+          QDRANT_VECTOR_SIZE=1536
+          QDRANT_BOOTSTRAP_COLLECTION=true
+          MINIO_ENDPOINT=http://minio:9000
+          MINIO_ROOT_USER=minioadmin
+          MINIO_ROOT_PASSWORD=minioadmin
+          MINIO_ACCESS_KEY=minioadmin
+          MINIO_SECRET_KEY=minioadmin
+          MINIO_BUCKET=documents
+          MINIO_BOOTSTRAP_BUCKET=true
+          RABBITMQ_DEFAULT_USER=admin
+          RABBITMQ_DEFAULT_PASS=admin123
+          RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672//
+          REDIS_URL=redis://redis:6379/0
+          OPENAI_API_KEY=${OPENAI_API_KEY}
+          OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+          OPENAI_LLM_MODEL=gpt-5.4-mini
+          AUTH_PROVIDER=app
+          APP_AUTH_SECRET=ci-local-secret
+          APP_AUTH_ISSUER=rudix-app
+          APP_AUTH_AUDIENCE=rudix-api
+          FEATURE_ENABLE_AGENTS=true
+          EOF
+
+      - name: Start integration stack
+        run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration up -d --remove-orphans
+
+      - name: Run migrations
+        run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration run --rm migrate
+
+      - name: Wait for API health
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/api/v1/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps || true
+          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color api worker || true
+          exit 1
+
+      - name: Check readiness and auth boundary
+        run: |
+          curl -fsS http://localhost:8000/api/v1/ready >/dev/null
+          auth_status="$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/documents)"
+          test "${auth_status}" = "401"
+
+      - name: Check preflight requests
+        run: |
+          upload_preflight_status="$(
+            curl -s -o /dev/null -w "%{http_code}" \
+              -X OPTIONS \
+              -H "Origin: http://frontend:3000" \
+              -H "Access-Control-Request-Method: POST" \
+              http://localhost:8000/api/v1/documents/upload
+          )"
+          if [ "${upload_preflight_status}" != "200" ] && [ "${upload_preflight_status}" != "204" ]; then
+            echo "Unexpected upload preflight status: ${upload_preflight_status}"
+            exit 1
+          fi
+
+          chat_preflight_status="$(
+            curl -s -o /dev/null -w "%{http_code}" \
+              -X OPTIONS \
+              -H "Origin: http://frontend:3000" \
+              -H "Access-Control-Request-Method: POST" \
+              http://localhost:8000/api/v1/chat
+          )"
+          if [ "${chat_preflight_status}" != "200" ] && [ "${chat_preflight_status}" != "204" ]; then
+            echo "Unexpected chat preflight status: ${chat_preflight_status}"
+            exit 1
+          fi
+
+      - name: Verify worker is running
+        run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running worker | grep -q worker
+
+      - name: Collect integration logs
+        if: always()
+        run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color > artifacts/integration-compose.log || true
+
+      - name: Tear down integration stack
+        if: always()
+        run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration down -v || true
+
+      - name: Upload integration logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-logs
+          path: artifacts/integration-compose.log
+          if-no-files-found: ignore
+
+  deploy-staging:
+    name: Deploy staging
+    runs-on: ubuntu-latest
+    needs:
+      - build-images
+      - integration-smoke
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'staging')
+    environment:
+      name: staging
+      url: ${{ secrets.STAGING_ENV_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate staging secrets
+        run: |
+          for var_name in \
+            STAGING_SSH_HOST \
+            STAGING_SSH_USER \
+            STAGING_SSH_PRIVATE_KEY \
+            STAGING_APP_PATH \
+            STAGING_ENV_FILE \
+            STAGING_ENV_URL \
+            GHCR_USERNAME \
+            GHCR_TOKEN
+          do
+            if [ -z "${!var_name:-}" ]; then
+              echo "Missing required staging secret: ${var_name}"
+              exit 1
+            fi
+          done
+        env:
+          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          STAGING_SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          STAGING_APP_PATH: ${{ secrets.STAGING_APP_PATH }}
+          STAGING_ENV_FILE: ${{ secrets.STAGING_ENV_FILE }}
+          STAGING_ENV_URL: ${{ secrets.STAGING_ENV_URL }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Deploy staging with Terraform
+        working-directory: deploy/terraform
+        env:
+          TF_IN_AUTOMATION: "true"
+          TF_INPUT: "false"
+          TF_VAR_environment_name: staging
+          TF_VAR_compose_file_path: ../compose/docker-compose.staging.yml
+          TF_VAR_ssh_host: ${{ secrets.STAGING_SSH_HOST }}
+          TF_VAR_ssh_port: ${{ secrets.STAGING_SSH_PORT || '22' }}
+          TF_VAR_ssh_user: ${{ secrets.STAGING_SSH_USER }}
+          TF_VAR_ssh_private_key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          TF_VAR_app_path: ${{ secrets.STAGING_APP_PATH }}
+          TF_VAR_registry: ${{ env.REGISTRY }}
+          TF_VAR_registry_user: ${{ secrets.GHCR_USERNAME }}
+          TF_VAR_registry_password: ${{ secrets.GHCR_TOKEN }}
+          TF_VAR_env_file_content: ${{ secrets.STAGING_ENV_FILE }}
+          TF_VAR_api_image: ${{ needs.build-images.outputs.api_image }}
+          TF_VAR_worker_image: ${{ needs.build-images.outputs.worker_image }}
+          TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_image }}
+          TF_VAR_backup_check_enabled: "false"
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve -input=false
+
+      - name: Write staging deployment metadata
+        env:
+          DEPLOY_API_IMAGE: ${{ needs.build-images.outputs.api_image }}
+          DEPLOY_WORKER_IMAGE: ${{ needs.build-images.outputs.worker_image }}
+          DEPLOY_FRONTEND_IMAGE: ${{ needs.build-images.outputs.frontend_image }}
+          STAGING_ENV_URL: ${{ secrets.STAGING_ENV_URL }}
+        run: |
+          mkdir -p artifacts/deployment
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "environment": "staging",
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "images": {
+                  "api": os.environ["DEPLOY_API_IMAGE"],
+                  "worker": os.environ["DEPLOY_WORKER_IMAGE"],
+                  "frontend": os.environ["DEPLOY_FRONTEND_IMAGE"],
+              },
+              "pipeline_url": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "deploy_user": os.environ["GITHUB_ACTOR"],
+              "app_url": os.environ["STAGING_ENV_URL"],
+              "smoke_test_result": "passed",
+          }
+          Path("artifacts/deployment/staging-metadata.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True)
+          )
+          PY
+
+      - name: Tag Sentry release for staging
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: ci/scripts/tag_sentry_release.sh staging "${GITHUB_SHA}"
+
+      - name: Upload staging deployment metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-deployment-metadata
+          path: artifacts/deployment/staging-metadata.json
+          if-no-files-found: error
+
+  deploy-production:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    needs:
+      - build-images
+      - integration-smoke
+    if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'production')
+    environment:
+      name: production
+      url: ${{ secrets.PRODUCTION_ENV_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate production secrets
+        run: |
+          for var_name in \
+            PRODUCTION_SSH_HOST \
+            PRODUCTION_SSH_USER \
+            PRODUCTION_SSH_PRIVATE_KEY \
+            PRODUCTION_APP_PATH \
+            PRODUCTION_ENV_FILE \
+            PRODUCTION_ENV_URL \
+            PRODUCTION_POSTGRES_BACKUP_PATH \
+            PRODUCTION_MINIO_BACKUP_PATH \
+            PRODUCTION_QDRANT_BACKUP_PATH \
+            GHCR_USERNAME \
+            GHCR_TOKEN \
+            PRODUCTION_BACKUP_CHECK_OK
+          do
+            if [ -z "${!var_name:-}" ]; then
+              echo "Missing required production secret: ${var_name}"
+              exit 1
+            fi
+          done
+        env:
+          PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          PRODUCTION_APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+          PRODUCTION_ENV_URL: ${{ secrets.PRODUCTION_ENV_URL }}
+          PRODUCTION_POSTGRES_BACKUP_PATH: ${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}
+          PRODUCTION_MINIO_BACKUP_PATH: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
+          PRODUCTION_QDRANT_BACKUP_PATH: ${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          PRODUCTION_BACKUP_CHECK_OK: ${{ secrets.PRODUCTION_BACKUP_CHECK_OK }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Check remote backup artifacts
+        run: |
+          DEPLOY_SSH_HOST="${{ secrets.PRODUCTION_SSH_HOST }}" \
+          DEPLOY_SSH_USER="${{ secrets.PRODUCTION_SSH_USER }}" \
+          DEPLOY_SSH_PRIVATE_KEY="${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" \
+          DEPLOY_POSTGRES_BACKUP_PATH="${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}" \
+          DEPLOY_MINIO_BACKUP_PATH="${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}" \
+          DEPLOY_QDRANT_BACKUP_PATH="${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}" \
+          deploy/scripts/check_remote_backups.sh
+
+      - name: Deploy production with Terraform
+        working-directory: deploy/terraform
+        env:
+          TF_IN_AUTOMATION: "true"
+          TF_INPUT: "false"
+          TF_VAR_environment_name: production
+          TF_VAR_compose_file_path: ../compose/docker-compose.production.yml
+          TF_VAR_ssh_host: ${{ secrets.PRODUCTION_SSH_HOST }}
+          TF_VAR_ssh_port: ${{ secrets.PRODUCTION_SSH_PORT || '22' }}
+          TF_VAR_ssh_user: ${{ secrets.PRODUCTION_SSH_USER }}
+          TF_VAR_ssh_private_key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          TF_VAR_app_path: ${{ secrets.PRODUCTION_APP_PATH }}
+          TF_VAR_registry: ${{ env.REGISTRY }}
+          TF_VAR_registry_user: ${{ secrets.GHCR_USERNAME }}
+          TF_VAR_registry_password: ${{ secrets.GHCR_TOKEN }}
+          TF_VAR_env_file_content: ${{ secrets.PRODUCTION_ENV_FILE }}
+          TF_VAR_api_image: ${{ needs.build-images.outputs.api_image }}
+          TF_VAR_worker_image: ${{ needs.build-images.outputs.worker_image }}
+          TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_image }}
+          TF_VAR_backup_check_enabled: "true"
+          TF_VAR_postgres_backup_path: ${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}
+          TF_VAR_minio_backup_path: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
+          TF_VAR_qdrant_backup_path: ${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve -input=false
+
+      - name: Write production deployment metadata
+        env:
+          DEPLOY_API_IMAGE: ${{ needs.build-images.outputs.api_image }}
+          DEPLOY_WORKER_IMAGE: ${{ needs.build-images.outputs.worker_image }}
+          DEPLOY_FRONTEND_IMAGE: ${{ needs.build-images.outputs.frontend_image }}
+          PRODUCTION_ENV_URL: ${{ secrets.PRODUCTION_ENV_URL }}
+        run: |
+          mkdir -p artifacts/deployment
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "environment": "production",
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "images": {
+                  "api": os.environ["DEPLOY_API_IMAGE"],
+                  "worker": os.environ["DEPLOY_WORKER_IMAGE"],
+                  "frontend": os.environ["DEPLOY_FRONTEND_IMAGE"],
+              },
+              "pipeline_url": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "deploy_user": os.environ["GITHUB_ACTOR"],
+              "app_url": os.environ["PRODUCTION_ENV_URL"],
+              "smoke_test_result": "passed",
+          }
+          Path("artifacts/deployment/production-metadata.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True)
+          )
+          PY
+
+      - name: Tag Sentry release for production
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: ci/scripts/tag_sentry_release.sh production "${GITHUB_SHA}"
+
+      - name: Upload production deployment metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-deployment-metadata
+          path: artifacts/deployment/production-metadata.json
+          if-no-files-found: error
+
+  rollback-production:
+    name: Roll back production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'rollback'
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate rollback inputs
+        env:
+          ROLLBACK_API_IMAGE: ${{ github.event.inputs.rollback_api_image }}
+          ROLLBACK_WORKER_IMAGE: ${{ github.event.inputs.rollback_worker_image }}
+          ROLLBACK_FRONTEND_IMAGE: ${{ github.event.inputs.rollback_frontend_image }}
+          DEPLOY_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          DEPLOY_APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
+          DEPLOY_REGISTRY: ${{ env.REGISTRY }}
+          DEPLOY_REGISTRY_USER: ${{ secrets.GHCR_USERNAME }}
+          DEPLOY_REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          for var_name in \
+            ROLLBACK_API_IMAGE \
+            ROLLBACK_WORKER_IMAGE \
+            ROLLBACK_FRONTEND_IMAGE \
+            DEPLOY_SSH_HOST \
+            DEPLOY_SSH_USER \
+            DEPLOY_SSH_PRIVATE_KEY \
+            DEPLOY_APP_PATH \
+            DEPLOY_REGISTRY \
+            DEPLOY_REGISTRY_USER \
+            DEPLOY_REGISTRY_PASSWORD
+          do
+            if [ -z "${!var_name:-}" ]; then
+              echo "Missing required rollback value: ${var_name}"
+              exit 1
+            fi
+          done
+
+      - name: Roll back production compose deployment
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          DEPLOY_APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
+          DEPLOY_REGISTRY: ${{ env.REGISTRY }}
+          DEPLOY_REGISTRY_USER: ${{ secrets.GHCR_USERNAME }}
+          DEPLOY_REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
+          ROLLBACK_API_IMAGE: ${{ github.event.inputs.rollback_api_image }}
+          ROLLBACK_WORKER_IMAGE: ${{ github.event.inputs.rollback_worker_image }}
+          ROLLBACK_FRONTEND_IMAGE: ${{ github.event.inputs.rollback_frontend_image }}
+        run: deploy/scripts/rollback_compose_remote.sh

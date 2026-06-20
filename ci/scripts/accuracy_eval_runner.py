@@ -118,7 +118,7 @@ def _write_json(report: dict, report_path: Path) -> None:
 
 
 def _write_junit_xml(report: dict, xml_path: Path) -> None:
-    """Generate a JUnit-compatible XML from the gate report for GitLab MR widget."""
+    """Generate a JUnit-compatible XML from the gate report for CI consumers."""
     xml_path.parent.mkdir(parents=True, exist_ok=True)
 
     gate_name = report.get("quality_gate_name", "Accuracy Gate")
