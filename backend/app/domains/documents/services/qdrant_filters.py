@@ -66,4 +66,4 @@ def build_organization_filter(
             )
         )
 
-    return Filter(must=conditions)
+    return Filter(must=conditions)  # type: ignore[arg-type]

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 
-import fitz
+import fitz  # type: ignore[import-untyped]
 from docx import Document as DocxDocument
 from docx.table import Table
 from docx.text.paragraph import Paragraph

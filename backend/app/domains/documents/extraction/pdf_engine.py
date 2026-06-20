@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-import fitz
+import fitz  # type: ignore[import-untyped]
 
 from app.domains.documents.extraction.models import (
     BoundingBox,

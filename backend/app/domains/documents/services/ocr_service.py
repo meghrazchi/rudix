@@ -4,7 +4,7 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-import fitz
+import fitz  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from app.domains.documents.services.text_extraction import ExtractedSection

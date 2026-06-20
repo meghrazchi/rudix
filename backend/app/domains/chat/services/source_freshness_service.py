@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from collections.abc import Sequence
+from typing import Protocol, cast
 from uuid import UUID
 
 # ---------------------------------------------------------------------------
@@ -61,6 +63,16 @@ class FreshnessFilterResult:
     stale_document_ids: frozenset[str]
 
 
+class _DocumentTrustSource(Protocol):
+    id: UUID
+    trust_status: str | None
+    version_label: str | None
+    review_date: date | None
+    effective_date: date | None
+    stale_after_days: int | None
+    superseded_by_document_id: UUID | None
+
+
 # ---------------------------------------------------------------------------
 # Service
 # ---------------------------------------------------------------------------
@@ -72,21 +84,23 @@ class SourceFreshnessService:
     All methods are synchronous and side-effect free.
     """
 
-    def build_trust_map(self, documents: list[object]) -> dict[str, DocumentTrustData]:
+    def build_trust_map(
+        self, documents: Sequence[_DocumentTrustSource]
+    ) -> dict[str, DocumentTrustData]:
         """Build a document_id → DocumentTrustData index from ORM Document objects."""
         trust_map: dict[str, DocumentTrustData] = {}
         for doc in documents:
-            doc_id = str(getattr(doc, "id", None) or "")
+            doc_id = str(doc.id)
             if not doc_id:
                 continue
             trust_map[doc_id] = DocumentTrustData(
-                document_id=doc.id,
-                trust_status=getattr(doc, "trust_status", "current") or "current",
-                version_label=getattr(doc, "version_label", None),
-                review_date=getattr(doc, "review_date", None),
-                effective_date=getattr(doc, "effective_date", None),
-                stale_after_days=getattr(doc, "stale_after_days", None),
-                superseded_by_document_id=getattr(doc, "superseded_by_document_id", None),
+                document_id=cast(UUID, doc.id),
+                trust_status=doc.trust_status or "current",
+                version_label=doc.version_label,
+                review_date=doc.review_date,
+                effective_date=doc.effective_date,
+                stale_after_days=doc.stale_after_days,
+                superseded_by_document_id=doc.superseded_by_document_id,
             )
         return trust_map
 

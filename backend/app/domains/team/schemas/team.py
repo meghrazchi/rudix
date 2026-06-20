@@ -8,13 +8,13 @@ from pydantic import BaseModel, Field, field_validator
 from app.models.enums import OrganizationRole
 
 TeamInviteRole = Literal[
-    OrganizationRole.admin.value,
-    OrganizationRole.member.value,
-    OrganizationRole.viewer.value,
-    OrganizationRole.reviewer.value,
-    OrganizationRole.developer.value,
-    OrganizationRole.security_admin.value,
-    OrganizationRole.billing_admin.value,
+    "admin",
+    "member",
+    "viewer",
+    "reviewer",
+    "developer",
+    "security_admin",
+    "billing_admin",
 ]
 TeamMemberStatus = Literal["active", "invited", "disabled", "suspended", "unknown"]
 
@@ -45,7 +45,7 @@ class TeamMemberListResponse(BaseModel):
 
 class InviteTeamMemberRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
-    role: TeamInviteRole = OrganizationRole.member.value
+    role: TeamInviteRole = "member"
     name: str | None = Field(default=None, max_length=255)
 
     @field_validator("email")

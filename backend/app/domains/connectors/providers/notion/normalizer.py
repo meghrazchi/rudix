@@ -54,12 +54,12 @@ def extract_page_title(page: dict[str, Any]) -> str:
             text = _rich_text_to_plain(prop.get("title"))
             if text.strip():
                 return text.strip()
-    return page.get("id", "Untitled")
+    return str(page.get("id", "Untitled"))
 
 
 def extract_database_title(database: dict[str, Any]) -> str:
     """Return the plain-text title of a Notion database."""
-    return _rich_text_to_plain(database.get("title")) or database.get("id", "Untitled")
+    return _rich_text_to_plain(database.get("title")) or str(database.get("id", "Untitled"))
 
 
 def extract_parent_id(parent: dict[str, Any] | None) -> str | None:
