@@ -14,6 +14,7 @@ import { DocumentChunkingDiagnosticsPanel } from "@/components/documents/Documen
 import { DocumentExtractionDiagnosticsPanel } from "@/components/documents/DocumentExtractionDiagnosticsPanel";
 import { DocumentGraphInsightsPanel } from "@/components/documents/DocumentGraphInsightsPanel";
 import { DocumentVersionHistoryPanel } from "@/components/documents/DocumentVersionHistoryPanel";
+import { DocumentMetadataPanel } from "@/components/documents/DocumentMetadataPanel";
 import type {
   DocumentDetailResponse,
   DocumentLifecycleTimelineStepResponse,
@@ -71,7 +72,7 @@ type TimelineStep = {
   outputs: Record<string, unknown> | null;
 };
 
-type DetailTab = "overview" | "chunks" | "errors" | "versions";
+type DetailTab = "overview" | "chunks" | "errors" | "versions" | "metadata";
 type MetadataCopyField = "document-id" | "checksum";
 
 type ErrorRow = {
@@ -1331,7 +1332,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
                 <section className="rounded-xl border border-[#e4e1f2] bg-white shadow-sm">
                   <div className="flex flex-wrap items-center border-b border-[#e9e6f5] px-4">
-                    {(["overview", "chunks", "errors", "versions"] as const).map(
+                    {(["overview", "chunks", "errors", "versions", "metadata"] as const).map(
                       (tabKey) => (
                         <button
                           key={tabKey}
@@ -1351,7 +1352,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                               ? td("tabChunks")
                               : tabKey === "versions"
                                 ? "Versions"
-                                : td("tabErrors")}
+                                : tabKey === "metadata"
+                                  ? "Metadata"
+                                  : td("tabErrors")}
                           {tabKey === "errors" ? (
                             <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
                               {errorRows.length}
@@ -2284,6 +2287,17 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             is what the vector index currently serves.
                           </p>
                           <DocumentVersionHistoryPanel documentId={documentId} />
+                        </div>
+                      </section>
+                    ) : null}
+
+                    {activeTab === "metadata" ? (
+                      <section className="space-y-3">
+                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                          <DocumentMetadataPanel
+                            documentId={documentId}
+                            canEdit={capabilities.canDelete}
+                          />
                         </div>
                       </section>
                     ) : null}

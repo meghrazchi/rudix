@@ -46,6 +46,7 @@ from app.models.failed_job import FailedJob, FailedJobAuditLog
 from app.models.feature_flags import OrgFeatureFlagOverride
 from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.governance import OrganizationGovernancePolicy
+from app.models.metadata import DocumentMetadata, MetadataAuditLog, MetadataField
 from app.models.incident import Incident, IncidentNote
 from app.models.mcp_policy import OrgMCPPolicy
 from app.models.message_feedback import MessageFeedback
@@ -119,6 +120,9 @@ __all__ = [
     "Incident",
     "IncidentNote",
     "MessageFeedback",
+    "MetadataField",
+    "DocumentMetadata",
+    "MetadataAuditLog",
     "Notification",
     "OrgDomainVerification",
     "OrgFeatureFlagOverride",

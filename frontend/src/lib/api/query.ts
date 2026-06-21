@@ -304,6 +304,16 @@ export const queryKeys = {
     invoices: ["billing", "invoices"] as const,
     contact: ["billing", "contact"] as const,
   },
+  metadata: {
+    all: ["metadata"] as const,
+    fields: (includeInactive?: boolean) =>
+      ["metadata", "fields", { includeInactive: includeInactive ?? false }] as const,
+    field: (fieldId: string) => ["metadata", "field", fieldId] as const,
+    documentValues: (documentId: string) =>
+      ["metadata", "document", documentId] as const,
+    audit: (documentId: string) =>
+      ["metadata", "audit", documentId] as const,
+  },
   connectorConnections: ["connectors", "connections"] as const,
   connectorConnection: (connectionId: string) =>
     ["connectors", "connections", connectionId] as const,
@@ -398,7 +408,12 @@ export type FrontendMutationKind =
   | "webhook.rotate-secret"
   | "webhook.test"
   | "mcp.policy.update"
-  | "permission.refresh";
+  | "permission.refresh"
+  | "metadata.field.create"
+  | "metadata.field.update"
+  | "metadata.field.delete"
+  | "metadata.document.set"
+  | "metadata.bulk-set";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -613,6 +628,21 @@ export async function invalidateAfterMutation(
     await queryClient.invalidateQueries({
       queryKey: queryKeys.auth.effectivePermissions,
     });
+    return;
+  }
+
+  if (
+    kind === "metadata.field.create" ||
+    kind === "metadata.field.update" ||
+    kind === "metadata.field.delete"
+  ) {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.metadata.all });
+    return;
+  }
+
+  if (kind === "metadata.document.set" || kind === "metadata.bulk-set") {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.metadata.all });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
     return;
   }
 
