@@ -697,7 +697,7 @@ export function AdminAIResponsePolicyPage() {
 
   if (policiesError) {
     if (isForbiddenError(policiesError)) return <ForbiddenState />;
-    return <ErrorState message={getApiErrorMessage(policiesError)} />;
+    return <ErrorState error={policiesError} />;
   }
 
   // ---------------------------------------------------------------------------
@@ -947,7 +947,7 @@ export function AdminAIResponsePolicyPage() {
         <div>
           {isLogsLoading && <LoadingState />}
           {logsError && (
-            <ErrorState message={getApiErrorMessage(logsError)} />
+            <ErrorState error={logsError} />
           )}
           {!isLogsLoading && !logsError && (
             <>

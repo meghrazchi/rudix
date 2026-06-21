@@ -260,7 +260,7 @@ export function AdminTaxonomyPage() {
   const [showInactive, setShowInactive] = useState(false);
 
   const queryClient = useQueryClient();
-  const { isAdmin } = usePermissions();
+  const { role } = usePermissions();
 
   const { data, isLoading, error } = useQuery({
     queryKey: QUERY_KEY_FIELDS,
@@ -308,14 +308,14 @@ export function AdminTaxonomyPage() {
     },
   });
 
-  if (!isAdmin) return <ForbiddenState />;
+  if (role !== "owner" && role !== "admin") return <ForbiddenState />;
   if (isLoading) return <LoadingState />;
   if (error) {
     if (isForbiddenError(error))
       return (
         <ForbiddenState requestId={extractRequestIdFromError(error) ?? undefined} />
       );
-    return <ErrorState message={getApiErrorMessage(error)} />;
+    return <ErrorState error={error} />;
   }
 
   const fields = data?.items ?? [];

@@ -266,7 +266,7 @@ export function AdminFreshnessThresholdPage() {
 
   if (isLoading) return <LoadingState />;
   if (isForbiddenError(error)) return <ForbiddenState />;
-  if (error || !data) return <ErrorState message={getApiErrorMessage(error) ?? undefined} />;
+  if (error || !data) return <ErrorState error={error} />;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">

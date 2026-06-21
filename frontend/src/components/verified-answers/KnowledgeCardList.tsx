@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { KnowledgeCard } from "@/components/verified-answers/KnowledgeCard";
 import { NetworkErrorState } from "@/components/states/NetworkErrorState";
 import { SkeletonBlock } from "@/components/states/SkeletonBlock";
-import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   listVerifiedAnswers,
   type VerifiedAnswerStatus,
@@ -58,7 +57,7 @@ export function KnowledgeCardList({
   });
 
   if (error) {
-    return <NetworkErrorState message={getApiErrorMessage(error)} />;
+    return <NetworkErrorState />;
   }
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0;
