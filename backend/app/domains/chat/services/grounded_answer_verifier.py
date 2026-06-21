@@ -30,6 +30,7 @@ from app.domains.ai.providers.protocols import ChatCompletionRequest
 logger = logging.getLogger("chat.grounded_verifier")
 
 _MAX_CHUNK_CHARS = 1200
+_MAX_CITATION_SNIPPET_CHARS = 400
 _MAX_ANSWER_CHARS = 4000
 _MAX_REMOVED_CLAIM_CHARS = 200
 _MAX_REASON_CODE_CHARS = 64
@@ -59,7 +60,9 @@ class _VerifierOutput(BaseModel):
     reason_codes: list[str] = Field(default_factory=list)
     claim_count: int = Field(default=0, ge=0)
     supported_claim_count: int = Field(default=0, ge=0)
+    partially_supported_claim_count: int = Field(default=0, ge=0)
     unsupported_claim_count: int = Field(default=0, ge=0)
+    unverifiable_claim_count: int = Field(default=0, ge=0)
 
     @field_validator("removed_claims", mode="before")
     @classmethod
@@ -101,6 +104,18 @@ class VerifierChunk:
 
 
 @dataclass(frozen=True)
+class VerifierCitation:
+    """Validated citation evidence passed to the grounded verifier."""
+
+    document_id: str
+    chunk_id: str
+    filename: str
+    page_number: int | None
+    text_snippet: str
+    score: float = 0.0
+
+
+@dataclass(frozen=True)
 class GroundedVerifierResult:
     """Output of one grounded-answer verification pass.
 
@@ -115,13 +130,17 @@ class GroundedVerifierResult:
     verification_score: float  # fraction of claims that are supported (0–1)
     claim_count: int
     supported_claim_count: int
+    partially_supported_claim_count: int
     unsupported_claim_count: int
+    unverifiable_claim_count: int
     removed_claims: list[str] = field(default_factory=list)  # answer excerpts only
     reason_codes: list[str] = field(default_factory=list)
     final_answer: str = ""
     model_name: str = ""
     provider_key: str = ""
     latency_ms: int = 0
+    mode: str = "standard"
+    threshold: float = 0.7
 
 
 # ---------------------------------------------------------------------------
@@ -154,29 +173,52 @@ Steps:
     Maximum 200 characters each, maximum 10 items.
     NEVER quote raw source text here — only summarise what was removed.
 
+  "claim_count": integer — total factual claims identified.
+  "supported_claim_count": integer — claims with direct source support.
+  "partially_supported_claim_count": integer — claims with some support but
+    needing rewrite.
+  "unsupported_claim_count": integer — claims with no source support.
+  "unverifiable_claim_count": integer — claims the sources do not let you verify.
+
   "reason_codes": list of reason codes from this set only:
     ["no_source", "contradicts_context", "out_of_scope",
      "low_coverage", "hallucinated_detail", "ambiguous"]
 
-  "claim_count": integer — total factual claims identified.
-  "supported_claim_count": integer — claims with source support.
-  "unsupported_claim_count": integer — claims without source support.
-
 Constraints:
 - Return ONLY valid JSON — no markdown fences, no explanation outside the JSON.
 - Never reveal, quote, or embed raw SOURCE CHUNK text in removed_claims.
-- claim_count = supported_claim_count + unsupported_claim_count.
+- claim_count = supported_claim_count + partially_supported_claim_count +
+  unsupported_claim_count + unverifiable_claim_count.
 """
 
 
-def _build_verifier_prompt(answer: str, chunks: list[VerifierChunk]) -> str:
+def _build_verifier_prompt(
+    answer: str,
+    chunks: list[VerifierChunk],
+    citations: list[VerifierCitation],
+) -> str:
     chunk_sections = "\n\n".join(
         f"[SOURCE {i}]\n{chunk.text[:_MAX_CHUNK_CHARS].strip()}"
         for i, chunk in enumerate(chunks, 1)
     )
+    citation_sections = "\n\n".join(
+        f"[CITATION {i}]\n"
+        f"document_id={citation.document_id}\n"
+        f"chunk_id={citation.chunk_id}\n"
+        f"filename={citation.filename}\n"
+        f"page_number={citation.page_number}\n"
+        f"score={citation.score}\n"
+        f"text_snippet={citation.text_snippet[:_MAX_CITATION_SNIPPET_CHARS].strip()}"
+        for i, citation in enumerate(citations, 1)
+    )
     answer_block = answer[:_MAX_ANSWER_CHARS].strip()
     return (
         f"{_SYSTEM_PROMPT}\n\nSOURCE CHUNKS:\n{chunk_sections}\n\nGENERATED ANSWER:\n{answer_block}"
+        + (
+            f"\n\nVALIDATED CITATIONS:\n{citation_sections}"
+            if citation_sections
+            else "\n\nVALIDATED CITATIONS:\n<none>"
+        )
     )
 
 
@@ -214,20 +256,29 @@ class GroundedAnswerVerifier:
         return _VerifierOutput.model_validate(json.loads(raw[start : end + 1]))
 
     @staticmethod
-    def _fallback(answer: str) -> GroundedVerifierResult:
+    def _fallback(
+        answer: str,
+        *,
+        mode: str = "standard",
+        threshold: float = 0.7,
+    ) -> GroundedVerifierResult:
         return GroundedVerifierResult(
             applied=False,
             verdict="supported",
             verification_score=1.0,
             claim_count=0,
             supported_claim_count=0,
+            partially_supported_claim_count=0,
             unsupported_claim_count=0,
+            unverifiable_claim_count=0,
             removed_claims=[],
             reason_codes=[],
             final_answer=answer,
             model_name="",
             provider_key="",
             latency_ms=0,
+            mode=mode,
+            threshold=threshold,
         )
 
     async def verify(
@@ -235,6 +286,7 @@ class GroundedAnswerVerifier:
         *,
         answer: str,
         chunks: list[VerifierChunk],
+        citations: list[VerifierCitation] | None = None,
         mode: Literal["strict", "standard"] = "standard",
         threshold: float = 0.7,
     ) -> GroundedVerifierResult:
@@ -253,12 +305,12 @@ class GroundedAnswerVerifier:
                        (informational — caller decides how to use it).
         """
         if not answer.strip() or not chunks:
-            return self._fallback(answer)
+            return self._fallback(answer, mode=mode, threshold=threshold)
 
         started = perf_counter()
         try:
             provider = self._resolve_provider()
-            prompt = _build_verifier_prompt(answer, chunks)
+            prompt = _build_verifier_prompt(answer, chunks, citations or [])
             request = ChatCompletionRequest(
                 prompt=prompt,
                 model=settings.openai_llm_model,
@@ -270,20 +322,36 @@ class GroundedAnswerVerifier:
             parsed = self._parse_output(raw_text)
         except Exception as exc:
             logger.warning("grounded_verifier failed, using original answer: %s", exc)
-            return self._fallback(answer)
+            return self._fallback(answer, mode=mode, threshold=threshold)
 
         latency_ms = int((perf_counter() - started) * 1000)
 
-        total = max(1, parsed.claim_count)
-        verification_score = round(parsed.supported_claim_count / total, 4)
+        counted_claims = (
+            parsed.supported_claim_count
+            + parsed.partially_supported_claim_count
+            + parsed.unsupported_claim_count
+            + parsed.unverifiable_claim_count
+        )
+        total = max(1, parsed.claim_count or counted_claims)
+        if counted_claims and counted_claims != parsed.claim_count:
+            total = counted_claims
+        weighted_supported = parsed.supported_claim_count + (
+            0.5 * parsed.partially_supported_claim_count
+        )
+        verification_score = round(weighted_supported / total, 4)
 
-        # Use revised_answer when non-empty; otherwise fall back to the original
-        # so the caller never receives an empty answer unexpectedly.
-        final_answer = parsed.revised_answer.strip() or answer
+        final_answer = parsed.revised_answer.strip()
+        if not final_answer and parsed.verdict == "supported":
+            final_answer = answer
+        if parsed.verdict == "unsupported":
+            final_answer = ""
 
-        # In strict mode, a fully unsupported answer is blanked so the caller
-        # can substitute a not_found response.
-        if mode == "strict" and parsed.verdict == "unsupported":
+        # In strict mode, insufficient evidence is treated as not_found so the
+        # caller can safely refuse rather than showing a thin answer.
+        strict_refusal = mode == "strict" and (
+            parsed.verdict == "unsupported" or verification_score < threshold
+        )
+        if strict_refusal:
             final_answer = ""
 
         logger.debug(
@@ -301,11 +369,15 @@ class GroundedAnswerVerifier:
             verification_score=verification_score,
             claim_count=parsed.claim_count,
             supported_claim_count=parsed.supported_claim_count,
+            partially_supported_claim_count=parsed.partially_supported_claim_count,
             unsupported_claim_count=parsed.unsupported_claim_count,
+            unverifiable_claim_count=parsed.unverifiable_claim_count,
             removed_claims=list(parsed.removed_claims),
             reason_codes=list(parsed.reason_codes),
             final_answer=final_answer,
             model_name=settings.openai_llm_model,
             provider_key=settings.llm_default_provider,
             latency_ms=latency_ms,
+            mode=mode,
+            threshold=threshold,
         )

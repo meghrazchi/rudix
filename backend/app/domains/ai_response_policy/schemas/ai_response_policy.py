@@ -7,7 +7,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Shared types
 # ---------------------------------------------------------------------------
@@ -16,6 +15,7 @@ CitationMode = Literal["required", "recommended", "disabled"]
 NoAnswerBehavior = Literal["refuse", "warn", "allow"]
 StaleSourceBehavior = Literal["warn", "refuse", "ignore"]
 DisclaimerPosition = Literal["prepend", "append"]
+GroundedVerificationMode = Literal["off", "standard", "strict"]
 PolicyOutcome = Literal["allowed", "blocked", "warned"]
 PolicySource = Literal["org", "collection", "none"]
 
@@ -31,6 +31,8 @@ class CreateAiResponsePolicyRequest(BaseModel):
     citation_mode: CitationMode = "recommended"
     min_confidence_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     no_answer_behavior: NoAnswerBehavior = "warn"
+    grounded_verification_mode: GroundedVerificationMode = "off"
+    grounded_verification_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     stale_source_behavior: StaleSourceBehavior = "warn"
     blocked_topics: list[str] = Field(default_factory=list)
     allowed_topics: list[str] | None = None
@@ -46,6 +48,8 @@ class UpdateAiResponsePolicyRequest(BaseModel):
     citation_mode: CitationMode | None = None
     min_confidence_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     no_answer_behavior: NoAnswerBehavior | None = None
+    grounded_verification_mode: GroundedVerificationMode | None = None
+    grounded_verification_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     stale_source_behavior: StaleSourceBehavior | None = None
     blocked_topics: list[str] | None = None
     allowed_topics: list[str] | None = None
@@ -65,6 +69,8 @@ class AiResponsePolicyResponse(BaseModel):
     citation_mode: CitationMode
     min_confidence_threshold: float | None
     no_answer_behavior: NoAnswerBehavior
+    grounded_verification_mode: GroundedVerificationMode
+    grounded_verification_threshold: float | None
     stale_source_behavior: StaleSourceBehavior
     blocked_topics: list[str]
     allowed_topics: list[str] | None
@@ -92,6 +98,8 @@ class UpsertCollectionPolicyOverrideRequest(BaseModel):
     citation_mode: CitationMode | None = None
     min_confidence_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     no_answer_behavior: NoAnswerBehavior | None = None
+    grounded_verification_mode: GroundedVerificationMode | None = None
+    grounded_verification_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     stale_source_behavior: StaleSourceBehavior | None = None
     blocked_topics: list[str] | None = None
     allowed_topics: list[str] | None = None
@@ -107,6 +115,8 @@ class CollectionPolicyOverrideResponse(BaseModel):
     citation_mode: CitationMode | None
     min_confidence_threshold: float | None
     no_answer_behavior: NoAnswerBehavior | None
+    grounded_verification_mode: GroundedVerificationMode | None
+    grounded_verification_threshold: float | None
     stale_source_behavior: StaleSourceBehavior | None
     blocked_topics: list[str] | None
     allowed_topics: list[str] | None

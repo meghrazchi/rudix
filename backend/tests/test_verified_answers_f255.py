@@ -83,9 +83,7 @@ async def db(db_session: AsyncSession) -> AsyncSession:
 
 def _make_token(user_id: str, org_id: str, role: str) -> str:
     settings.auth_provider = AuthProvider.app
-    return create_app_access_token(
-        user_id=user_id, organization_id=org_id, role=role
-    )
+    return create_app_access_token(user_id=user_id, organization_id=org_id, role=role)
 
 
 @pytest_asyncio.fixture
@@ -178,9 +176,7 @@ async def client(db: AsyncSession) -> AsyncClient:
         yield db
 
     app.dependency_overrides[get_db_session] = _override
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -362,7 +358,15 @@ async def test_repo_replace_citations(db: AsyncSession, org: Organization, admin
     await _repo.replace_citations(
         db,
         answer,
-        [{"document_id": str(doc.id), "chunk_id": None, "text_snippet": "snippet", "page_number": 1, "citation_order": 0}],
+        [
+            {
+                "document_id": str(doc.id),
+                "chunk_id": None,
+                "text_snippet": "snippet",
+                "page_number": 1,
+                "citation_order": 0,
+            }
+        ],
     )
     await db.flush()
 
@@ -467,9 +471,7 @@ async def test_repo_find_published_match(db: AsyncSession, org: Organization, ad
     await _repo.publish(db, answer)
     await db.flush()
 
-    matches = await _repo.find_published_match(
-        db, organization_id=org.id, query="vacation days"
-    )
+    matches = await _repo.find_published_match(db, organization_id=org.id, query="vacation days")
     assert any(m.id == answer.id for m in matches)
 
 
@@ -493,9 +495,7 @@ async def test_repo_no_match_for_draft(db: AsyncSession, org: Organization, admi
     )
     await db.flush()
 
-    matches = await _repo.find_published_match(
-        db, organization_id=org.id, query="vacation days"
-    )
+    matches = await _repo.find_published_match(db, organization_id=org.id, query="vacation days")
     assert len(matches) == 0
 
 
@@ -505,7 +505,9 @@ async def test_repo_no_match_for_draft(db: AsyncSession, org: Organization, admi
 
 
 @pytest.mark.asyncio
-async def test_repo_org_isolation(db: AsyncSession, org: Organization, org2: Organization, admin_user):
+async def test_repo_org_isolation(
+    db: AsyncSession, org: Organization, org2: Organization, admin_user
+):
     user, _ = admin_user
     answer = await _repo.create(
         db,
@@ -578,7 +580,12 @@ async def test_http_list_with_filter(client: AsyncClient, org: Organization, adm
     _, token = admin_user
     await client.post(
         "/verified-answers",
-        json={"title": "Draft1", "question": "Q?", "answer_text": "A.", "requires_citations": False},
+        json={
+            "title": "Draft1",
+            "question": "Q?",
+            "answer_text": "A.",
+            "requires_citations": False,
+        },
         headers={"Authorization": f"Bearer {token}"},
     )
     resp = await client.get(
@@ -638,8 +645,12 @@ async def test_http_patch_reverts_approved_to_draft(
     aid = resp.json()["answer_id"]
 
     # draft → pending_review → approved
-    await client.post(f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"})
-    await client.post(f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"})
+    await client.post(
+        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+    )
+    await client.post(
+        f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"}
+    )
 
     patch_resp = await client.patch(
         f"/verified-answers/{aid}",
@@ -692,8 +703,12 @@ async def test_http_submit_requires_draft(client: AsyncClient, org: Organization
     )
     aid = resp.json()["answer_id"]
 
-    await client.post(f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"})
-    second = await client.post(f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"})
+    await client.post(
+        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+    )
+    second = await client.post(
+        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+    )
     assert second.status_code == 409
 
 
@@ -709,7 +724,12 @@ async def test_http_submit_blocked_without_citations(
     _, token = admin_user
     resp = await client.post(
         "/verified-answers",
-        json={"title": "No citations", "question": "Q?", "answer_text": "A.", "requires_citations": True},
+        json={
+            "title": "No citations",
+            "question": "Q?",
+            "answer_text": "A.",
+            "requires_citations": True,
+        },
         headers={"Authorization": f"Bearer {token}"},
     )
     aid = resp.json()["answer_id"]
@@ -753,7 +773,9 @@ async def test_http_approve_requires_pending_review(
 
 
 @pytest.mark.asyncio
-async def test_http_reject_sets_note(client: AsyncClient, org: Organization, admin_user, reviewer_user):
+async def test_http_reject_sets_note(
+    client: AsyncClient, org: Organization, admin_user, reviewer_user
+):
     _, admin_token = admin_user
     _, rev_token = reviewer_user
 
@@ -763,7 +785,10 @@ async def test_http_reject_sets_note(client: AsyncClient, org: Organization, adm
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     aid = resp.json()["answer_id"]
-    await client.post(f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {admin_token}"})
+    await client.post(
+        f"/verified-answers/{aid}/submit-for-review",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
 
     reject_resp = await client.post(
         f"/verified-answers/{aid}/reject",
@@ -782,9 +807,7 @@ async def test_http_reject_sets_note(client: AsyncClient, org: Organization, adm
 
 
 @pytest.mark.asyncio
-async def test_http_publish_requires_approved(
-    client: AsyncClient, org: Organization, admin_user
-):
+async def test_http_publish_requires_approved(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     resp = await client.post(
         "/verified-answers",
@@ -810,9 +833,15 @@ async def test_http_full_publish_flow(client: AsyncClient, org: Organization, ad
     )
     aid = resp.json()["answer_id"]
 
-    await client.post(f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"})
-    await client.post(f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"})
-    pub_resp = await client.post(f"/verified-answers/{aid}/publish", headers={"Authorization": f"Bearer {token}"})
+    await client.post(
+        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+    )
+    await client.post(
+        f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"}
+    )
+    pub_resp = await client.post(
+        f"/verified-answers/{aid}/publish", headers={"Authorization": f"Bearer {token}"}
+    )
     assert pub_resp.status_code == 200
     assert pub_resp.json()["status"] == "published"
     assert pub_resp.json()["published_at"] is not None
@@ -895,9 +924,15 @@ async def test_http_search_match(client: AsyncClient, org: Organization, admin_u
         headers={"Authorization": f"Bearer {token}"},
     )
     aid = resp.json()["answer_id"]
-    await client.post(f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"})
-    await client.post(f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"})
-    await client.post(f"/verified-answers/{aid}/publish", headers={"Authorization": f"Bearer {token}"})
+    await client.post(
+        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+    )
+    await client.post(
+        f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"}
+    )
+    await client.post(
+        f"/verified-answers/{aid}/publish", headers={"Authorization": f"Bearer {token}"}
+    )
 
     search_resp = await client.get(
         "/verified-answers/search/match",
@@ -942,7 +977,10 @@ async def test_http_member_cannot_approve(
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     aid = resp.json()["answer_id"]
-    await client.post(f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {admin_token}"})
+    await client.post(
+        f"/verified-answers/{aid}/submit-for-review",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
 
     approve_resp = await client.post(
         f"/verified-answers/{aid}/approve",
@@ -969,7 +1007,12 @@ async def test_http_org_isolation(
 
     resp = await client.post(
         "/verified-answers",
-        json={"title": "Private", "question": "Q?", "answer_text": "A.", "requires_citations": False},
+        json={
+            "title": "Private",
+            "question": "Q?",
+            "answer_text": "A.",
+            "requires_citations": False,
+        },
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     aid = resp.json()["answer_id"]

@@ -53,6 +53,15 @@ from app.domains.ai.providers.protocols import (
     EmbeddingRequest,
     EmbeddingResponse,
 )
+from app.domains.ai_response_policy.repositories.ai_response_policy import (
+    AiResponsePolicyRepository,
+)
+from app.domains.ai_response_policy.services.policy_engine import (
+    AiResponsePolicyEngine,
+)
+from app.domains.ai_response_policy.services.policy_engine import (
+    PolicyEvaluationResult as AiPolicyEvaluationResult,
+)
 from app.domains.chat.repositories.answer_share import AnswerShareRepository
 from app.domains.chat.repositories.chat import ChatRepository
 from app.domains.chat.repositories.feedback import FeedbackRepository
@@ -81,17 +90,6 @@ from app.domains.chat.schemas.chat import (
     CreateChatSessionRequest,
     UpdateChatSessionRequest,
 )
-from app.domains.chat.schemas.trust_metadata import (
-    AnswerTrustMetadataResponse,
-    CitationTrustRecord,
-    ConfidenceTrustRecord,
-    ConflictStatusRecord,
-    GroundedVerificationRecord,
-    ModelMetadataRecord,
-    PolicyEnforcementRecord,
-    RetrievalDiagnosticsRecord,
-    SourceFreshnessRecord,
-)
 from app.domains.chat.schemas.chat_ws import ChatWSInboundMessage, ChatWSOutboundEvent
 from app.domains.chat.schemas.feedback import (
     MessageFeedbackResponse,
@@ -103,6 +101,17 @@ from app.domains.chat.schemas.share import (
     ChatShareResponse,
     CreateChatShareRequest,
     SharedSessionResponse,
+)
+from app.domains.chat.schemas.trust_metadata import (
+    AnswerTrustMetadataResponse,
+    CitationTrustRecord,
+    ConfidenceTrustRecord,
+    ConflictStatusRecord,
+    GroundedVerificationRecord,
+    ModelMetadataRecord,
+    PolicyEnforcementRecord,
+    RetrievalDiagnosticsRecord,
+    SourceFreshnessRecord,
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
@@ -120,6 +129,7 @@ from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
     GroundedVerifierResult,
     VerifierChunk,
+    VerifierCitation,
 )
 from app.domains.chat.services.hybrid_retrieval_service import (
     HybridCandidate,
@@ -159,13 +169,6 @@ from app.domains.chat.services.source_scope_service import SourceScopeService
 from app.domains.chat.services.table_retrieval_service import (
     TableBoostResult,
     TableRetrievalService,
-)
-from app.domains.ai_response_policy.repositories.ai_response_policy import (
-    AiResponsePolicyRepository,
-)
-from app.domains.ai_response_policy.services.policy_engine import (
-    AiResponsePolicyEngine,
-    PolicyEvaluationResult as AiPolicyEvaluationResult,
 )
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.repositories.documents import DocumentRepository as _DocumentRepository
@@ -309,6 +312,55 @@ def _resolve_chat_completion_provider(self: LLMService, provider_key: str | None
     from app.domains.ai.providers.factory import default_provider_factory
 
     return default_provider_factory.get_chat_provider(provider_key)
+
+
+def _resolve_grounded_verification_controls(
+    *,
+    effective_policy: Any,
+    rag_profile: RagProfileConfig | None,
+) -> tuple[bool, str, float]:
+    """Resolve grounded-verification activation and strictness.
+
+    Collection/org policy can elevate verification for sensitive workspaces.
+    When no policy override is set, fall back to the RAG profile config.
+    """
+
+    enabled = settings.feature_enable_grounded_answer_verification
+    mode: str = "standard"
+    threshold = 0.7
+
+    if rag_profile is not None:
+        enabled = rag_profile.grounded_answer_verification_enabled
+        mode = rag_profile.grounded_answer_verification_mode
+        threshold = rag_profile.grounded_answer_verification_threshold
+
+    policy_mode = getattr(effective_policy, "grounded_verification_mode", "off")
+    if policy_mode != "off":
+        enabled = True
+        mode = policy_mode
+        policy_threshold = getattr(effective_policy, "grounded_verification_threshold", None)
+        if policy_threshold is not None:
+            threshold = policy_threshold
+
+    return enabled, mode, threshold
+
+
+def _build_verifier_citations(citations: list[ChatCitationResponse]) -> list[VerifierCitation]:
+    verifier_citations: list[VerifierCitation] = []
+    for citation in citations:
+        if not citation.document_id or not citation.chunk_id:
+            continue
+        verifier_citations.append(
+            VerifierCitation(
+                document_id=citation.document_id,
+                chunk_id=citation.chunk_id,
+                filename=citation.filename or "",
+                page_number=citation.page_number,
+                text_snippet=(citation.text_snippet or "")[:400],
+                score=citation.score or 0.0,
+            )
+        )
+    return verifier_citations
 
 
 _query_retrieval_service._resolve_embedding_provider = MethodType(
@@ -1126,17 +1178,17 @@ def _build_trust_metadata(
         prompt_ver = getattr(answer_prompt_version, "version_number", None)
 
     gv_applied = grounded_verifier_result is not None and grounded_verifier_result.applied
-    qr_applied = (
-        query_rewrite_result is not None
-        and getattr(query_rewrite_result, "rewriting_applied", False)
+    qr_applied = query_rewrite_result is not None and getattr(
+        query_rewrite_result, "rewriting_applied", False
     )
-    qr_decomposed = (
-        query_rewrite_result is not None
-        and getattr(query_rewrite_result, "decomposition_applied", False)
+    qr_decomposed = query_rewrite_result is not None and getattr(
+        query_rewrite_result, "decomposition_applied", False
     )
-    sub_query_count = len(
-        getattr(query_rewrite_result, "sub_queries", []) or []
-    ) if query_rewrite_result is not None else 0
+    sub_query_count = (
+        len(getattr(query_rewrite_result, "sub_queries", []) or [])
+        if query_rewrite_result is not None
+        else 0
+    )
 
     return AnswerTrustMetadataResponse(
         schema_version="1",
@@ -1191,7 +1243,13 @@ def _build_trust_metadata(
             supported_count=grounded_verifier_result.supported_claim_count
             if grounded_verifier_result is not None
             else 0,
+            partially_supported_count=grounded_verifier_result.partially_supported_claim_count
+            if grounded_verifier_result is not None
+            else 0,
             unsupported_count=grounded_verifier_result.unsupported_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            unverifiable_count=grounded_verifier_result.unverifiable_claim_count
             if grounded_verifier_result is not None
             else 0,
             removed_count=len(grounded_verifier_result.removed_claims)
@@ -1200,6 +1258,10 @@ def _build_trust_metadata(
             reason_codes=list(grounded_verifier_result.reason_codes)
             if grounded_verifier_result is not None
             else [],
+            mode=grounded_verifier_result.mode if grounded_verifier_result is not None else None,
+            threshold=grounded_verifier_result.threshold
+            if grounded_verifier_result is not None
+            else None,
         ),
         model=ModelMetadataRecord(
             llm_model=llm_model,
@@ -1219,9 +1281,7 @@ def _build_trust_metadata(
             conflicting_document_ids=_list_or_empty(
                 conflict_detection_result.conflicting_document_ids
             ),
-            preferred_document_ids=_list_or_empty(
-                conflict_detection_result.preferred_document_ids
-            ),
+            preferred_document_ids=_list_or_empty(conflict_detection_result.preferred_document_ids),
             conflict_summary=conflict_detection_result.conflict_summary
             if conflict_detection_result.conflict_detected
             else None,
@@ -1721,9 +1781,7 @@ async def query_chat(
         )
 
     # AI response policy pre-generation check — topic blocking (F268).
-    _ai_org_policy = await _ai_policy_repo.get_active(
-        db_session, organization_id=organization_id
-    )
+    _ai_org_policy = await _ai_policy_repo.get_active(db_session, organization_id=organization_id)
     # Resolve collection override when the query is scoped to a single collection.
     _ai_collection_override = None
     _ai_policy_collection_id: UUID | None = None
@@ -1816,6 +1874,9 @@ async def query_chat(
     conflict_detection_applied = False
     conflict_detection_latency_ms = 0
     rerank_applied = False
+    grounded_verification_enabled = False
+    grounded_verification_mode: str | None = None
+    grounded_verification_threshold: float | None = None
     conflict_detection_result = ConflictDetectionResult(
         conflict_detected=False,
         agreement_level="full",
@@ -2549,69 +2610,82 @@ async def query_chat(
                         invalid_chunk_id_count=citation_result.invalid_chunk_id_count,
                     )
 
-                # Grounded-answer verification (F296).
-                # Verifies that each factual claim in the answer is supported by the
-                # retrieved chunks. In strict mode a fully unsupported answer becomes
-                # not_found. Raw chunk text is never stored in the verifier result.
-                if settings.feature_enable_grounded_answer_verification:
-                    _gv_enabled = True
-                    _gv_mode: str = "standard"
-                    _gv_threshold: float = 0.7
-                    if rag_profile is not None:
-                        _gv_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
-                        _gv_enabled = _gv_cfg.grounded_answer_verification_enabled
-                        _gv_mode = _gv_cfg.grounded_answer_verification_mode
-                        _gv_threshold = _gv_cfg.grounded_answer_verification_threshold
-                    if _gv_enabled:
-                        _gv_started = perf_counter()
-                        grounded_verifier_result = await _grounded_verifier.verify(
-                            answer=answer,
-                            chunks=[
-                                VerifierChunk(
-                                    chunk_id=str(chunk.chunk_id),
-                                    text=chunk.text,
-                                    similarity_score=chunk.similarity_score,
-                                )
-                                for chunk in selected_chunks
-                            ],
+                # Grounded-answer verification (F296/F309).
+                # Verifies each factual claim against retrieved chunks plus validated
+                # citation evidence. Strict mode refuses answers when evidence is
+                # insufficient, even if some claims were rewritten away.
+                _gv_enabled, _gv_mode, _gv_threshold = _resolve_grounded_verification_controls(
+                    effective_policy=_ai_effective_policy,
+                    rag_profile=RagProfileConfig.model_validate(dict(rag_profile.config))
+                    if rag_profile is not None
+                    else None,
+                )
+                grounded_verification_enabled = _gv_enabled
+                grounded_verification_mode = _gv_mode
+                grounded_verification_threshold = _gv_threshold
+                if _gv_enabled:
+                    _gv_started = perf_counter()
+                    grounded_verifier_result = await _grounded_verifier.verify(
+                        answer=answer,
+                        chunks=[
+                            VerifierChunk(
+                                chunk_id=str(chunk.chunk_id),
+                                text=chunk.text,
+                                similarity_score=chunk.similarity_score,
+                            )
+                            for chunk in selected_chunks
+                        ],
+                        citations=_build_verifier_citations(citations),
+                        mode=_gv_mode,
+                        threshold=_gv_threshold,
+                    )
+                    latencies_ms["grounded_verification"] = int(
+                        (perf_counter() - _gv_started) * 1000
+                    )
+                    if grounded_verifier_result.applied:
+                        answer = grounded_verifier_result.final_answer
+                        if not answer.strip():
+                            not_found = True
+                            verification_failed = True
+                        elif (
+                            _gv_mode == "strict"
+                            and grounded_verifier_result.verification_score < _gv_threshold
+                        ):
+                            not_found = True
+                            verification_failed = True
+                        elif grounded_verifier_result.unsupported_claim_count > 0:
+                            verification_failed = True
+                        if not_found:
+                            answer = _NOT_FOUND_ANSWER
+                        log_query_event(
+                            event="query.grounded_verification.completed",
+                            organization_id=principal.organization_id,
+                            user_id=principal.user_id,
+                            job_id=str(chat_session.id),
+                            verdict=grounded_verifier_result.verdict,
+                            verification_score=grounded_verifier_result.verification_score,
+                            claim_count=grounded_verifier_result.claim_count,
+                            supported_count=grounded_verifier_result.supported_claim_count,
+                            partial_count=grounded_verifier_result.partially_supported_claim_count,
+                            unsupported_count=grounded_verifier_result.unsupported_claim_count,
+                            unverifiable_count=grounded_verifier_result.unverifiable_claim_count,
+                            removed_count=len(grounded_verifier_result.removed_claims),
                             mode=_gv_mode,
                             threshold=_gv_threshold,
+                            latency_ms=grounded_verifier_result.latency_ms,
                         )
-                        latencies_ms["grounded_verification"] = int(
-                            (perf_counter() - _gv_started) * 1000
-                        )
-                        if grounded_verifier_result.applied:
-                            answer = grounded_verifier_result.final_answer
-                            if not answer.strip():
-                                not_found = True
-                                verification_failed = True
-                            elif grounded_verifier_result.verdict in (
-                                "partially_supported",
-                                "unsupported",
-                            ):
-                                verification_failed = True
+                        if verification_failed:
                             log_query_event(
-                                event="query.grounded_verification.completed",
+                                event="query.grounded_verification.failed",
                                 organization_id=principal.organization_id,
                                 user_id=principal.user_id,
                                 job_id=str(chat_session.id),
                                 verdict=grounded_verifier_result.verdict,
-                                verification_score=grounded_verifier_result.verification_score,
-                                claim_count=grounded_verifier_result.claim_count,
-                                unsupported_count=grounded_verifier_result.unsupported_claim_count,
                                 removed_count=len(grounded_verifier_result.removed_claims),
-                                latency_ms=grounded_verifier_result.latency_ms,
+                                reason_codes=grounded_verifier_result.reason_codes,
+                                mode=_gv_mode,
+                                threshold=_gv_threshold,
                             )
-                            if verification_failed:
-                                log_query_event(
-                                    event="query.grounded_verification.failed",
-                                    organization_id=principal.organization_id,
-                                    user_id=principal.user_id,
-                                    job_id=str(chat_session.id),
-                                    verdict=grounded_verifier_result.verdict,
-                                    removed_count=len(grounded_verifier_result.removed_claims),
-                                    reason_codes=grounded_verifier_result.reason_codes,
-                                )
 
             if not_found:
                 confidence_result = _confidence_service.score(
@@ -3159,7 +3233,7 @@ async def query_chat(
             query_rewriting_latency_ms=query_rewrite_result.latency_ms
             if query_rewrite_result is not None
             else 0,
-            grounded_verification_enabled=settings.feature_enable_grounded_answer_verification,
+            grounded_verification_enabled=grounded_verification_enabled,
             grounded_verification_applied=grounded_verifier_result.applied
             if grounded_verifier_result is not None
             else False,
@@ -3175,7 +3249,13 @@ async def query_chat(
             grounded_verification_supported_count=grounded_verifier_result.supported_claim_count
             if grounded_verifier_result is not None
             else 0,
+            grounded_verification_partially_supported_count=grounded_verifier_result.partially_supported_claim_count
+            if grounded_verifier_result is not None
+            else 0,
             grounded_verification_unsupported_count=grounded_verifier_result.unsupported_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            grounded_verification_unverifiable_count=grounded_verifier_result.unverifiable_claim_count
             if grounded_verifier_result is not None
             else 0,
             grounded_verification_removed_count=len(grounded_verifier_result.removed_claims)
@@ -3184,6 +3264,12 @@ async def query_chat(
             grounded_verification_reason_codes=list(grounded_verifier_result.reason_codes)
             if grounded_verifier_result is not None
             else [],
+            grounded_verification_mode=grounded_verifier_result.mode
+            if grounded_verifier_result is not None
+            else grounded_verification_mode,
+            grounded_verification_threshold=grounded_verifier_result.threshold
+            if grounded_verifier_result is not None
+            else grounded_verification_threshold,
             grounded_verification_model=grounded_verifier_result.model_name
             if grounded_verifier_result is not None and grounded_verifier_result.applied
             else None,

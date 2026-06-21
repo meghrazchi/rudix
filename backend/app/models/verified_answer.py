@@ -172,9 +172,7 @@ class VerifiedAnswerVersion(UUIDPrimaryKeyMixin, Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     verified_answer: Mapped[VerifiedAnswer] = relationship(
         "VerifiedAnswer", back_populates="versions"

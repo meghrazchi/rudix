@@ -43,6 +43,9 @@ from app.domains.ai.providers.protocols import (
     EmbeddingRequest,
     EmbeddingResponse,
 )
+from app.domains.ai_response_policy.repositories.ai_response_policy import (
+    AiResponsePolicyRepository,
+)
 from app.domains.chat.services.rerank_service import RerankService
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.quota.services.quota_service import upsert_policy_with_log
@@ -1512,6 +1515,106 @@ async def test_post_chat_not_found_response_omits_citations_even_if_model_includ
     payload = response.json()
     assert payload["not_found"] is True
     assert payload["citations"] == []
+
+
+@pytest.mark.asyncio
+async def test_post_chat_strict_grounded_verification_refuses_low_support_answer(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+
+    policy_repo = AiResponsePolicyRepository()
+    policy = await policy_repo.create(
+        db_session,
+        organization_id=organization.id,
+        policy_name="Strict grounded verification",
+        grounded_verification_mode="strict",
+        grounded_verification_threshold=0.8,
+    )
+    await policy_repo.activate(db_session, organization_id=organization.id, policy=policy)
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.93,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    _inject_providers(
+        monkeypatch,
+        answer=(
+            '{"answer":"Employees receive twenty days of annual leave. '
+            'Parking is free.","not_found":false,"citations":[]}'
+        ),
+    )
+    verifier_provider = AsyncMock()
+    verifier_provider.complete.return_value = ChatCompletionResponse(
+        content=(
+            "{"
+            '"verdict":"partially_supported",'
+            '"revised_answer":"Employees receive twenty days of annual leave.",'
+            '"removed_claims":["Parking is free."],'
+            '"reason_codes":["no_source"],'
+            '"claim_count":2,'
+            '"supported_claim_count":1,'
+            '"partially_supported_claim_count":0,'
+            '"unsupported_claim_count":1,'
+            '"unverifiable_claim_count":0'
+            "}"
+        ),
+        model=settings.openai_llm_model,
+        prompt_tokens=13,
+        completion_tokens=9,
+        total_tokens=22,
+        latency_ms=4,
+    )
+    monkeypatch.setattr(chat_api._grounded_verifier, "_resolve_provider", lambda: verifier_provider)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "How much annual leave is provided?",
+            "document_ids": [str(document.id)],
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is True
+    assert payload["answer"] == "I could not find this information in the uploaded documents."
+    assert payload["citations"] == []
+    assert payload["verification_failed"] is True
+    assert payload["trust_metadata"]["grounded_verification"]["mode"] == "strict"
+    assert payload["trust_metadata"]["grounded_verification"]["threshold"] == 0.8
+    assert payload["trust_metadata"]["grounded_verification"]["supported_count"] == 1
+    assert payload["trust_metadata"]["grounded_verification"]["unsupported_count"] == 1
 
 
 @pytest.mark.asyncio

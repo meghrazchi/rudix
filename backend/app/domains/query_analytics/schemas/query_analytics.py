@@ -8,12 +8,14 @@ from pydantic import BaseModel, Field
 
 # ── Date range helpers ─────────────────────────────────────────────────────────
 
+
 class QueryAnalyticsDateRange(BaseModel):
     from_date: date
     to_date: date
 
 
 # ── Trend data ─────────────────────────────────────────────────────────────────
+
 
 class QueryTrendPoint(BaseModel):
     date: date
@@ -32,6 +34,7 @@ class QueryTrendsResponse(BaseModel):
 
 
 # ── Dashboard summary ──────────────────────────────────────────────────────────
+
 
 class FeedbackCategoryCount(BaseModel):
     category: str
@@ -61,6 +64,7 @@ class QueryAnalyticsSummaryResponse(BaseModel):
 
 # ── Knowledge gaps ─────────────────────────────────────────────────────────────
 
+
 class KnowledgeGapResponse(BaseModel):
     gap_id: str
     organization_id: str
@@ -89,14 +93,19 @@ class KnowledgeGapListResponse(BaseModel):
 
 
 class CreateKnowledgeGapRequest(BaseModel):
-    gap_type: str = Field(..., pattern="^(no_answer|low_confidence|bad_feedback|stale_citation|missing_source)$")
+    gap_type: str = Field(
+        ..., pattern="^(no_answer|low_confidence|bad_feedback|stale_citation|missing_source)$"
+    )
     topic_label: str = Field(..., min_length=1, max_length=256)
     description: str | None = Field(default=None, max_length=4096)
     occurrence_count: int = Field(default=1, ge=1)
     avg_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     example_query: str | None = Field(default=None, max_length=4096)
     collection_id: str | None = None
-    gap_source: str = Field(default="admin", pattern="^(admin|low_confidence_analysis|feedback_analysis|no_answer_analysis)$")
+    gap_source: str = Field(
+        default="admin",
+        pattern="^(admin|low_confidence_analysis|feedback_analysis|no_answer_analysis)$",
+    )
 
 
 class UpdateKnowledgeGapRequest(BaseModel):
@@ -120,6 +129,7 @@ class ConvertKnowledgeGapResponse(BaseModel):
 
 
 # ── Auto-detect gaps ───────────────────────────────────────────────────────────
+
 
 class DetectGapsRequest(BaseModel):
     from_date: date | None = None

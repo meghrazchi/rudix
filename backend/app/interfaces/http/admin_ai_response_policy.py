@@ -87,9 +87,13 @@ def _to_response(policy) -> AiResponsePolicyResponse:
         citation_mode=policy.citation_mode,  # type: ignore[arg-type]
         min_confidence_threshold=policy.min_confidence_threshold,
         no_answer_behavior=policy.no_answer_behavior,  # type: ignore[arg-type]
+        grounded_verification_mode=policy.grounded_verification_mode,  # type: ignore[arg-type]
+        grounded_verification_threshold=policy.grounded_verification_threshold,
         stale_source_behavior=policy.stale_source_behavior,  # type: ignore[arg-type]
         blocked_topics=list(policy.blocked_topics_json or []),
-        allowed_topics=list(policy.allowed_topics_json) if policy.allowed_topics_json is not None else None,
+        allowed_topics=list(policy.allowed_topics_json)
+        if policy.allowed_topics_json is not None
+        else None,
         min_sources_required=policy.min_sources_required,
         disclaimer_text=policy.disclaimer_text,
         disclaimer_position=policy.disclaimer_position,  # type: ignore[arg-type]
@@ -109,9 +113,15 @@ def _to_override_response(override) -> CollectionPolicyOverrideResponse:
         citation_mode=override.citation_mode,  # type: ignore[arg-type]
         min_confidence_threshold=override.min_confidence_threshold,
         no_answer_behavior=override.no_answer_behavior,  # type: ignore[arg-type]
+        grounded_verification_mode=override.grounded_verification_mode,  # type: ignore[arg-type]
+        grounded_verification_threshold=override.grounded_verification_threshold,
         stale_source_behavior=override.stale_source_behavior,  # type: ignore[arg-type]
-        blocked_topics=list(override.blocked_topics_json) if override.blocked_topics_json is not None else None,
-        allowed_topics=list(override.allowed_topics_json) if override.allowed_topics_json is not None else None,
+        blocked_topics=list(override.blocked_topics_json)
+        if override.blocked_topics_json is not None
+        else None,
+        allowed_topics=list(override.allowed_topics_json)
+        if override.allowed_topics_json is not None
+        else None,
         min_sources_required=override.min_sources_required,
         disclaimer_text=override.disclaimer_text,
         refusal_message=override.refusal_message,
@@ -166,6 +176,8 @@ async def create_policy(
         citation_mode=payload.citation_mode,
         min_confidence_threshold=payload.min_confidence_threshold,
         no_answer_behavior=payload.no_answer_behavior,
+        grounded_verification_mode=payload.grounded_verification_mode,
+        grounded_verification_threshold=payload.grounded_verification_threshold,
         stale_source_behavior=payload.stale_source_behavior,
         blocked_topics=payload.blocked_topics,
         allowed_topics=payload.allowed_topics,
@@ -218,6 +230,27 @@ async def get_active_policy(
     return _to_response(policy) if policy else None
 
 
+@router.get("/logs", response_model=PolicyEvaluationLogListResponse)
+async def list_eval_logs(
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    outcome: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> PolicyEvaluationLogListResponse:
+    org_id = _org_id(principal)
+    items = await _repo.list_eval_logs(
+        db, organization_id=org_id, outcome=outcome, limit=limit, offset=offset
+    )
+    total = await _repo.count_eval_logs(db, organization_id=org_id, outcome=outcome)
+    return PolicyEvaluationLogListResponse(
+        items=[_to_log_response(log) for log in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
 @router.get("/{policy_id}", response_model=AiResponsePolicyResponse)
 async def get_policy(
     policy_id: str,
@@ -266,6 +299,8 @@ async def update_policy(
         citation_mode=payload.citation_mode,
         min_confidence_threshold=payload.min_confidence_threshold,
         no_answer_behavior=payload.no_answer_behavior,
+        grounded_verification_mode=payload.grounded_verification_mode,
+        grounded_verification_threshold=payload.grounded_verification_threshold,
         stale_source_behavior=payload.stale_source_behavior,
         blocked_topics=payload.blocked_topics,
         allowed_topics=payload.allowed_topics,
@@ -409,7 +444,9 @@ async def deactivate_policy(
 # ---------------------------------------------------------------------------
 
 
-@router.put("/{policy_id}/collections/{collection_id}", response_model=CollectionPolicyOverrideResponse)
+@router.put(
+    "/{policy_id}/collections/{collection_id}", response_model=CollectionPolicyOverrideResponse
+)
 async def upsert_collection_override(
     policy_id: str,
     collection_id: str,
@@ -599,30 +636,4 @@ async def preview_policy(
         refusal_message=effective_refusal if blocked else None,
         disclaimer_text=effective.disclaimer_text,
         disclaimer_position=effective.disclaimer_position,  # type: ignore[arg-type]
-    )
-
-
-# ---------------------------------------------------------------------------
-# Evaluation logs (audit trail)
-# ---------------------------------------------------------------------------
-
-
-@router.get("/logs", response_model=PolicyEvaluationLogListResponse)
-async def list_eval_logs(
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
-    outcome: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-) -> PolicyEvaluationLogListResponse:
-    org_id = _org_id(principal)
-    items = await _repo.list_eval_logs(
-        db, organization_id=org_id, outcome=outcome, limit=limit, offset=offset
-    )
-    total = await _repo.count_eval_logs(db, organization_id=org_id, outcome=outcome)
-    return PolicyEvaluationLogListResponse(
-        items=[_to_log_response(log) for log in items],
-        total=total,
-        limit=limit,
-        offset=offset,
     )

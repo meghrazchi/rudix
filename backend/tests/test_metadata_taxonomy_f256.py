@@ -89,9 +89,7 @@ async def db(db_session: AsyncSession) -> AsyncSession:
 
 def _make_token(user_id: str, org_id: str, role: str) -> str:
     settings.auth_provider = AuthProvider.app
-    return create_app_access_token(
-        user_id=user_id, organization_id=org_id, role=role
-    )
+    return create_app_access_token(user_id=user_id, organization_id=org_id, role=role)
 
 
 @pytest_asyncio.fixture
@@ -180,9 +178,7 @@ async def client(db: AsyncSession) -> AsyncClient:
         yield db
 
     app.dependency_overrides[get_db_session] = _override
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -266,9 +262,15 @@ async def test_a_list_fields_only_active(
 ) -> None:
     repo = MetadataFieldRepository()
     await repo.update(
-        db, text_field, display_name=None, allowed_values=None,
-        is_required=None, is_filterable=None, description=None,
-        sort_order=None, is_active=False,
+        db,
+        text_field,
+        display_name=None,
+        allowed_values=None,
+        is_required=None,
+        is_filterable=None,
+        description=None,
+        sort_order=None,
+        is_active=False,
     )
     active = await repo.list(db, organization_id=org.id)
     assert all(f.is_active for f in active)
@@ -374,9 +376,7 @@ async def test_d_audit_written_on_upsert(
         changed_by_id=user.id,
     )
     repo = DocumentMetadataRepository()
-    logs = await repo.list_audit(
-        db, document_id=sample_document.id, organization_id=org.id
-    )
+    logs = await repo.list_audit(db, document_id=sample_document.id, organization_id=org.id)
     assert len(logs) >= 1
     assert logs[0].new_value == "HR"
     assert logs[0].changed_by_id == user.id
@@ -394,22 +394,41 @@ async def test_e_filter_documents_by_metadata(
     svc = MetadataService()
     repo = DocumentMetadataRepository()
 
-    doc_a = Document(organization_id=org.id, filename="a.pdf", file_type="pdf", status="indexed", file_size_bytes=1)
-    doc_b = Document(organization_id=org.id, filename="b.pdf", file_type="pdf", status="indexed", file_size_bytes=1)
+    doc_a = Document(
+        organization_id=org.id,
+        filename="a.pdf",
+        file_type="pdf",
+        status="indexed",
+        file_size_bytes=1,
+    )
+    doc_b = Document(
+        organization_id=org.id,
+        filename="b.pdf",
+        file_type="pdf",
+        status="indexed",
+        file_size_bytes=1,
+    )
     db.add_all([doc_a, doc_b])
     await db.flush()
 
     await svc.validate_and_save_document_values(
-        db, document_id=doc_a.id, organization_id=org.id,
-        values=[{"field_id": str(select_field.id), "value": "EMEA"}], changed_by_id=None,
+        db,
+        document_id=doc_a.id,
+        organization_id=org.id,
+        values=[{"field_id": str(select_field.id), "value": "EMEA"}],
+        changed_by_id=None,
     )
     await svc.validate_and_save_document_values(
-        db, document_id=doc_b.id, organization_id=org.id,
-        values=[{"field_id": str(select_field.id), "value": "APAC"}], changed_by_id=None,
+        db,
+        document_id=doc_b.id,
+        organization_id=org.id,
+        values=[{"field_id": str(select_field.id), "value": "APAC"}],
+        changed_by_id=None,
     )
 
     ids = await repo.list_documents_by_metadata(
-        db, organization_id=org.id,
+        db,
+        organization_id=org.id,
         filters=[{"field_id": str(select_field.id), "value": "EMEA"}],
     )
     assert doc_a.id in ids
@@ -487,18 +506,34 @@ async def test_j_service_boolean_serialization(
 ) -> None:
     repo = MetadataFieldRepository()
     field = await repo.create(
-        db, organization_id=org.id, name="is_public", display_name="Public",
-        field_type="boolean", allowed_values=None, is_required=False,
-        is_filterable=False, description=None, sort_order=0,
+        db,
+        organization_id=org.id,
+        name="is_public",
+        display_name="Public",
+        field_type="boolean",
+        allowed_values=None,
+        is_required=False,
+        is_filterable=False,
+        description=None,
+        sort_order=0,
     )
     svc = MetadataService()
-    doc = Document(organization_id=org.id, filename="b.pdf", file_type="pdf", status="indexed", file_size_bytes=1)
+    doc = Document(
+        organization_id=org.id,
+        filename="b.pdf",
+        file_type="pdf",
+        status="indexed",
+        file_size_bytes=1,
+    )
     db.add(doc)
     await db.flush()
 
     await svc.validate_and_save_document_values(
-        db, document_id=doc.id, organization_id=org.id,
-        values=[{"field_id": str(field.id), "value": True}], changed_by_id=None,
+        db,
+        document_id=doc.id,
+        organization_id=org.id,
+        values=[{"field_id": str(field.id), "value": True}],
+        changed_by_id=None,
     )
     doc_repo = DocumentMetadataRepository()
     rows = await doc_repo.get_document_metadata(db, document_id=doc.id, organization_id=org.id)
@@ -516,6 +551,7 @@ async def test_k_invalid_select_value(
     sample_document: Document,
 ) -> None:
     from fastapi import HTTPException
+
     svc = MetadataService()
     with pytest.raises(HTTPException) as exc_info:
         await svc.validate_and_save_document_values(
@@ -541,9 +577,7 @@ def test_l_tag_suggestions(select_field: MetadataField) -> None:
 
 
 @pytest.mark.asyncio
-async def test_m_http_create_field(
-    client: AsyncClient, admin_user: tuple[User, str]
-) -> None:
+async def test_m_http_create_field(client: AsyncClient, admin_user: tuple[User, str]) -> None:
     _, token = admin_user
     resp = await client.post(
         "/api/admin/metadata/fields",
@@ -629,11 +663,7 @@ async def test_q_http_set_document_metadata(
     _, token = admin_user
     resp = await client.put(
         f"/api/documents/{sample_document.id}/metadata",
-        json={
-            "values": [
-                {"field_id": str(text_field.id), "value": "Sales"}
-            ]
-        },
+        json={"values": [{"field_id": str(text_field.id), "value": "Sales"}]},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -681,8 +711,20 @@ async def test_s_http_bulk_set(
     text_field: MetadataField,
 ) -> None:
     _, token = admin_user
-    doc1 = Document(organization_id=org.id, filename="d1.pdf", file_type="pdf", status="indexed", file_size_bytes=1)
-    doc2 = Document(organization_id=org.id, filename="d2.pdf", file_type="pdf", status="indexed", file_size_bytes=1)
+    doc1 = Document(
+        organization_id=org.id,
+        filename="d1.pdf",
+        file_type="pdf",
+        status="indexed",
+        file_size_bytes=1,
+    )
+    doc2 = Document(
+        organization_id=org.id,
+        filename="d2.pdf",
+        file_type="pdf",
+        status="indexed",
+        file_size_bytes=1,
+    )
     db.add_all([doc1, doc2])
     await db.flush()
 

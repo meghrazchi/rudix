@@ -74,6 +74,7 @@ from app.domains.ai_response_policy.repositories.ai_response_policy import (
 from app.domains.ai_response_policy.services.policy_engine import (
     AiResponsePolicyEngine,
     EffectivePolicy,
+    PolicyEvaluationResult,
 )
 from app.main import app
 from app.models.ai_response_policy import OrgAiResponsePolicy
@@ -94,9 +95,7 @@ async def db(db_session: AsyncSession) -> AsyncSession:
 
 def _make_token(user_id: str, org_id: str, role: str) -> str:
     settings.auth_provider = AuthProvider.app
-    return create_app_access_token(
-        user_id=user_id, organization_id=org_id, role=role
-    )
+    return create_app_access_token(user_id=user_id, organization_id=org_id, role=role)
 
 
 @pytest_asyncio.fixture
@@ -172,9 +171,7 @@ async def client(db: AsyncSession) -> AsyncClient:
         yield db
 
     app.dependency_overrides[get_db_session] = _override
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -206,6 +203,8 @@ async def test_engine_resolve_org_policy() -> None:
         citation_mode="required",
         min_confidence_threshold=0.5,
         no_answer_behavior="refuse",
+        grounded_verification_mode="strict",
+        grounded_verification_threshold=0.8,
         stale_source_behavior="warn",
         blocked_topics_json=["politics"],
         allowed_topics_json=None,
@@ -217,6 +216,8 @@ async def test_engine_resolve_org_policy() -> None:
     ep = _engine.resolve(policy)
     assert ep.source == "org"
     assert ep.citation_mode == "required"
+    assert ep.grounded_verification_mode == "strict"
+    assert ep.grounded_verification_threshold == 0.8
     assert ep.blocked_topics == ["politics"]
     assert ep.min_sources_required == 2
 
@@ -233,6 +234,7 @@ async def test_engine_resolve_inactive_policy() -> None:
         citation_mode="required",
         min_confidence_threshold=0.5,
         no_answer_behavior="refuse",
+        grounded_verification_mode="off",
         stale_source_behavior="warn",
         blocked_topics_json=[],
         allowed_topics_json=None,
@@ -257,6 +259,8 @@ def _basic_ep(**kwargs) -> EffectivePolicy:
         "citation_mode": "recommended",
         "min_confidence_threshold": None,
         "no_answer_behavior": "warn",
+        "grounded_verification_mode": "off",
+        "grounded_verification_threshold": None,
         "stale_source_behavior": "warn",
         "blocked_topics": [],
         "allowed_topics": None,
@@ -408,9 +412,6 @@ async def test_engine_post_gen_not_found_refuses() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_disclaimer_prepend() -> None:
-    import dataclasses
-    from app.domains.ai_response_policy.services.policy_engine import PolicyEvaluationResult
-
     result = PolicyEvaluationResult(
         disclaimer_text="AI can make mistakes.",
         disclaimer_position="prepend",
@@ -422,8 +423,6 @@ async def test_engine_disclaimer_prepend() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_disclaimer_append() -> None:
-    from app.domains.ai_response_policy.services.policy_engine import PolicyEvaluationResult
-
     result = PolicyEvaluationResult(
         disclaimer_text="AI can make mistakes.",
         disclaimer_position="append",
@@ -435,8 +434,6 @@ async def test_engine_disclaimer_append() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_disclaimer_not_applied_when_blocked() -> None:
-    from app.domains.ai_response_policy.services.policy_engine import PolicyEvaluationResult
-
     result = PolicyEvaluationResult(
         blocked=True,
         disclaimer_text="AI can make mistakes.",
@@ -459,6 +456,8 @@ async def test_repo_create_get(db: AsyncSession, org: Organization) -> None:
         policy_name="Safety Policy",
         citation_mode="required",
         no_answer_behavior="refuse",
+        grounded_verification_mode="strict",
+        grounded_verification_threshold=0.85,
     )
     await db.flush()
 
@@ -466,13 +465,12 @@ async def test_repo_create_get(db: AsyncSession, org: Organization) -> None:
     assert fetched is not None
     assert fetched.policy_name == "Safety Policy"
     assert fetched.citation_mode == "required"
+    assert fetched.grounded_verification_mode == "strict"
     assert fetched.is_active is False
 
 
 @pytest.mark.asyncio
-async def test_repo_activate_deactivates_previous(
-    db: AsyncSession, org: Organization
-) -> None:
+async def test_repo_activate_deactivates_previous(db: AsyncSession, org: Organization) -> None:
     p1 = await _repo.create(db, organization_id=org.id, policy_name="P1")
     p2 = await _repo.create(db, organization_id=org.id, policy_name="P2")
     await db.flush()
@@ -506,30 +504,29 @@ async def test_repo_list_count(db: AsyncSession, org: Organization) -> None:
 
 
 @pytest.mark.asyncio
-async def test_repo_collection_override_upsert_get(
-    db: AsyncSession, org: Organization
-) -> None:
+async def test_repo_collection_override_upsert_get(db: AsyncSession, org: Organization) -> None:
     from uuid import uuid4 as _uuid4
 
     policy = await _repo.create(db, organization_id=org.id, policy_name="P")
     await db.flush()
 
     col_id = _uuid4()
-    override = await _repo.upsert_collection_override(
+    await _repo.upsert_collection_override(
         db,
         org_policy_id=policy.id,
         collection_id=col_id,
         citation_mode="required",
         no_answer_behavior="refuse",
+        grounded_verification_mode="standard",
+        grounded_verification_threshold=0.65,
     )
     await db.flush()
 
-    fetched = await _repo.get_collection_override(
-        db, org_policy_id=policy.id, collection_id=col_id
-    )
+    fetched = await _repo.get_collection_override(db, org_policy_id=policy.id, collection_id=col_id)
     assert fetched is not None
     assert fetched.citation_mode == "required"
     assert fetched.no_answer_behavior == "refuse"
+    assert fetched.grounded_verification_mode == "standard"
 
     # Upsert again — should update existing row
     await _repo.upsert_collection_override(
@@ -537,6 +534,7 @@ async def test_repo_collection_override_upsert_get(
         org_policy_id=policy.id,
         collection_id=col_id,
         citation_mode="disabled",
+        grounded_verification_mode="strict",
     )
     await db.flush()
     fetched2 = await _repo.get_collection_override(
@@ -544,11 +542,12 @@ async def test_repo_collection_override_upsert_get(
     )
     assert fetched2 is not None
     assert fetched2.citation_mode == "disabled"
+    assert fetched2.grounded_verification_mode == "strict"
 
 
 @pytest.mark.asyncio
 async def test_repo_eval_log(db: AsyncSession, org: Organization) -> None:
-    log = await _repo.create_eval_log(
+    await _repo.create_eval_log(
         db,
         organization_id=org.id,
         user_id=None,
@@ -593,6 +592,8 @@ async def test_http_create_policy(
             "policy_name": "HTTP Test Policy",
             "citation_mode": "required",
             "no_answer_behavior": "refuse",
+            "grounded_verification_mode": "strict",
+            "grounded_verification_threshold": 0.8,
         },
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -600,6 +601,7 @@ async def test_http_create_policy(
     data = resp.json()
     assert data["policy_name"] == "HTTP Test Policy"
     assert data["citation_mode"] == "required"
+    assert data["grounded_verification_mode"] == "strict"
     assert data["is_active"] is False
 
 
@@ -687,12 +689,18 @@ async def test_http_update_policy(
 
     resp = await client.patch(
         f"/admin/ai-response-policy/{policy.id}",
-        json={"policy_name": "Updated Name", "citation_mode": "required"},
+        json={
+            "policy_name": "Updated Name",
+            "citation_mode": "required",
+            "grounded_verification_mode": "strict",
+            "grounded_verification_threshold": 0.8,
+        },
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
     assert resp.json()["policy_name"] == "Updated Name"
     assert resp.json()["citation_mode"] == "required"
+    assert resp.json()["grounded_verification_mode"] == "strict"
 
 
 @pytest.mark.asyncio
@@ -745,7 +753,7 @@ async def test_http_preview_policy(
         organization_id=org.id,
         policy_name="Preview",
         citation_mode="required",
-        blocked_topics_json=["gambling"],
+        blocked_topics=["gambling"],
     )
     await db.commit()
 

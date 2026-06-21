@@ -52,7 +52,9 @@ class VerifiedAnswerRepository:
         db.add(answer)
         await db.flush()
         # Create initial version snapshot.
-        await self._snapshot_version(db, answer, change_reason="created", changed_by_id=created_by_id)
+        await self._snapshot_version(
+            db, answer, change_reason="created", changed_by_id=created_by_id
+        )
         return answer
 
     async def get(
@@ -122,8 +124,10 @@ class VerifiedAnswerRepository:
         owner_id: UUID | None = None,
         query: str | None = None,
     ) -> int:
-        stmt = select(func.count()).select_from(VerifiedAnswer).where(
-            VerifiedAnswer.organization_id == organization_id
+        stmt = (
+            select(func.count())
+            .select_from(VerifiedAnswer)
+            .where(VerifiedAnswer.organization_id == organization_id)
         )
         if status:
             stmt = stmt.where(VerifiedAnswer.status == status)
@@ -176,7 +180,9 @@ class VerifiedAnswerRepository:
         if expiry_date is not None:
             answer.expiry_date = expiry_date
         await db.flush()
-        await self._snapshot_version(db, answer, change_reason=change_reason, changed_by_id=changed_by_id)
+        await self._snapshot_version(
+            db, answer, change_reason=change_reason, changed_by_id=changed_by_id
+        )
 
     async def set_status(
         self,
@@ -332,8 +338,10 @@ class VerifiedAnswerRepository:
         change_reason: str,
         changed_by_id: UUID | None,
     ) -> None:
-        count_stmt = select(func.count()).select_from(VerifiedAnswerVersion).where(
-            VerifiedAnswerVersion.verified_answer_id == answer.id
+        count_stmt = (
+            select(func.count())
+            .select_from(VerifiedAnswerVersion)
+            .where(VerifiedAnswerVersion.verified_answer_id == answer.id)
         )
         result = await db.execute(count_stmt)
         next_version = (result.scalar_one() or 0) + 1

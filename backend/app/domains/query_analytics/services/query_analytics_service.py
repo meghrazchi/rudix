@@ -57,7 +57,9 @@ def _gap_to_response(gap: KnowledgeGap) -> KnowledgeGapResponse:
         remediation_json=gap.remediation_json,
         collection_id=str(gap.collection_id) if gap.collection_id else None,
         linked_document_id=str(gap.linked_document_id) if gap.linked_document_id else None,
-        linked_eval_question_id=str(gap.linked_eval_question_id) if gap.linked_eval_question_id else None,
+        linked_eval_question_id=str(gap.linked_eval_question_id)
+        if gap.linked_eval_question_id
+        else None,
         converted_to=gap.converted_to,
         converted_at=gap.converted_at,
         reviewer_notes=gap.reviewer_notes,
@@ -125,12 +127,16 @@ class QueryAnalyticsService:
 
         unanswered = sum(1 for m in messages if m.confidence_score is None)
         low_confidence = sum(
-            1 for m in messages if m.confidence_score is not None and m.confidence_score < _LOW_CONFIDENCE_THRESHOLD
+            1
+            for m in messages
+            if m.confidence_score is not None and m.confidence_score < _LOW_CONFIDENCE_THRESHOLD
         )
         answered = len(messages) - unanswered
 
         confidence_values = [m.confidence_score for m in messages if m.confidence_score is not None]
-        avg_confidence = (sum(confidence_values) / len(confidence_values)) if confidence_values else None
+        avg_confidence = (
+            (sum(confidence_values) / len(confidence_values)) if confidence_values else None
+        )
 
         negative = [f for f in feedback_items if f.rating == "down"]
         negative_count = len(negative)
@@ -348,7 +354,9 @@ class QueryAnalyticsService:
             gap_id=str(gap.id),
             converted_to=target,
             converted_at=now,
-            linked_eval_question_id=str(gap.linked_eval_question_id) if gap.linked_eval_question_id else None,
+            linked_eval_question_id=str(gap.linked_eval_question_id)
+            if gap.linked_eval_question_id
+            else None,
         )
 
     async def detect_gaps(
@@ -373,7 +381,8 @@ class QueryAnalyticsService:
 
         # Detect low-confidence pattern
         low_conf_messages = [
-            m for m in messages
+            m
+            for m in messages
             if m.confidence_score is not None and m.confidence_score < low_confidence_threshold
         ]
         no_answer_messages = [m for m in messages if m.confidence_score is None]
@@ -401,9 +410,15 @@ class QueryAnalyticsService:
             if exists:
                 skipped += 1
             else:
-                conf_vals = [m.confidence_score for m in low_conf_messages if m.confidence_score is not None]
+                conf_vals = [
+                    m.confidence_score for m in low_conf_messages if m.confidence_score is not None
+                ]
                 avg_conf = sum(conf_vals) / len(conf_vals) if conf_vals else None
-                example = self._redact_text(low_conf_messages[0].content[:200]) if low_conf_messages else None
+                example = (
+                    self._redact_text(low_conf_messages[0].content[:200])
+                    if low_conf_messages
+                    else None
+                )
                 await self._repo.create_gap(
                     session,
                     organization_id=organization_id,
@@ -483,14 +498,25 @@ class QueryAnalyticsService:
         )
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["date", "total_queries", "unanswered", "low_confidence", "negative_feedback", "avg_confidence"])
+        writer.writerow(
+            [
+                "date",
+                "total_queries",
+                "unanswered",
+                "low_confidence",
+                "negative_feedback",
+                "avg_confidence",
+            ]
+        )
         for point in trends.points:
-            writer.writerow([
-                point.date.isoformat(),
-                point.total_queries,
-                point.unanswered,
-                point.low_confidence,
-                point.negative_feedback,
-                f"{point.avg_confidence:.4f}" if point.avg_confidence is not None else "",
-            ])
+            writer.writerow(
+                [
+                    point.date.isoformat(),
+                    point.total_queries,
+                    point.unanswered,
+                    point.low_confidence,
+                    point.negative_feedback,
+                    f"{point.avg_confidence:.4f}" if point.avg_confidence is not None else "",
+                ]
+            )
         return output.getvalue()

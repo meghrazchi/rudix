@@ -18,9 +18,7 @@ from app.models.ai_response_policy import (
     OrgAiResponsePolicy,
 )
 
-_DEFAULT_REFUSAL = (
-    "I'm unable to provide an answer due to your organization's content policy."
-)
+_DEFAULT_REFUSAL = "I'm unable to provide an answer due to your organization's content policy."
 
 
 @dataclass
@@ -32,6 +30,8 @@ class EffectivePolicy:
     citation_mode: str = "recommended"
     min_confidence_threshold: float | None = None
     no_answer_behavior: str = "warn"
+    grounded_verification_mode: str = "off"
+    grounded_verification_threshold: float | None = None
     stale_source_behavior: str = "warn"
     blocked_topics: list[str] = field(default_factory=list)
     allowed_topics: list[str] | None = None
@@ -88,6 +88,8 @@ class AiResponsePolicyEngine:
             citation_mode=org_policy.citation_mode,
             min_confidence_threshold=org_policy.min_confidence_threshold,
             no_answer_behavior=org_policy.no_answer_behavior,
+            grounded_verification_mode=org_policy.grounded_verification_mode,
+            grounded_verification_threshold=org_policy.grounded_verification_threshold,
             stale_source_behavior=org_policy.stale_source_behavior,
             blocked_topics=list(org_policy.blocked_topics_json or []),
             allowed_topics=list(org_policy.allowed_topics_json)
@@ -107,6 +109,12 @@ class AiResponsePolicyEngine:
                 ep.min_confidence_threshold = collection_override.min_confidence_threshold
             if collection_override.no_answer_behavior is not None:
                 ep.no_answer_behavior = collection_override.no_answer_behavior
+            if collection_override.grounded_verification_mode is not None:
+                ep.grounded_verification_mode = collection_override.grounded_verification_mode
+            if collection_override.grounded_verification_threshold is not None:
+                ep.grounded_verification_threshold = (
+                    collection_override.grounded_verification_threshold
+                )
             if collection_override.stale_source_behavior is not None:
                 ep.stale_source_behavior = collection_override.stale_source_behavior
             if collection_override.blocked_topics_json is not None:
@@ -158,8 +166,7 @@ class AiResponsePolicyEngine:
         # Allowed topic check — if set and no match → refuse
         if not result.blocked and effective_policy.allowed_topics is not None:
             if not any(
-                t.strip().lower() in question_lower
-                for t in effective_policy.allowed_topics
+                t.strip().lower() in question_lower for t in effective_policy.allowed_topics
             ):
                 result.blocked = True
                 result.violated_rules.append("topic_not_in_allowed_list")
@@ -212,9 +219,7 @@ class AiResponsePolicyEngine:
             and confidence_score is not None
             and confidence_score < effective_policy.min_confidence_threshold
         ):
-            rule = (
-                f"confidence_below_threshold:{effective_policy.min_confidence_threshold:.2f}"
-            )
+            rule = f"confidence_below_threshold:{effective_policy.min_confidence_threshold:.2f}"
             if effective_policy.no_answer_behavior == "refuse" or not_found:
                 result.violated_rules.append(rule)
                 result.blocked = True
@@ -235,14 +240,10 @@ class AiResponsePolicyEngine:
         # Stale source enforcement
         if stale_source_count > 0:
             if effective_policy.stale_source_behavior == "refuse":
-                result.violated_rules.append(
-                    f"stale_sources:{stale_source_count}"
-                )
+                result.violated_rules.append(f"stale_sources:{stale_source_count}")
                 result.blocked = True
             elif effective_policy.stale_source_behavior == "warn":
-                result.warning_flags.append(
-                    f"stale_sources_warning:{stale_source_count}"
-                )
+                result.warning_flags.append(f"stale_sources_warning:{stale_source_count}")
                 if not result.blocked:
                     result.warned = True
 

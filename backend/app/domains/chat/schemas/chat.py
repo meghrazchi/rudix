@@ -301,9 +301,13 @@ class ChatDebugResponse(BaseModel):
     grounded_verification_score: float | None = None
     grounded_verification_claim_count: int = 0
     grounded_verification_supported_count: int = 0
+    grounded_verification_partially_supported_count: int = 0
     grounded_verification_unsupported_count: int = 0
+    grounded_verification_unverifiable_count: int = 0
     grounded_verification_removed_count: int = 0
     grounded_verification_reason_codes: list[str] = Field(default_factory=list)
+    grounded_verification_mode: str | None = None
+    grounded_verification_threshold: float | None = None
     grounded_verification_model: str | None = None
     grounded_verification_latency_ms: int = 0
     freshness_filter_enabled: bool = False

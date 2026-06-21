@@ -128,6 +128,4 @@ class MetadataAuditLog(UUIDPrimaryKeyMixin, Base):
     old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     action: Mapped[str] = mapped_column(String(32), nullable=False, default="set")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

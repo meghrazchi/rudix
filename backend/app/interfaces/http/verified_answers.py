@@ -161,7 +161,7 @@ def _guard_citations(answer: VerifiedAnswer) -> None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="This knowledge card requires at least one citation. "
-                   "Add a citation or have an admin waive the requirement.",
+            "Add a citation or have an admin waive the requirement.",
         )
 
 
@@ -201,9 +201,7 @@ async def create_verified_answer(
     )
 
     if payload.citations:
-        await _repo.replace_citations(
-            db, answer, [c.model_dump() for c in payload.citations]
-        )
+        await _repo.replace_citations(db, answer, [c.model_dump() for c in payload.citations])
         await db.refresh(answer)
 
     await db.commit()
@@ -321,9 +319,7 @@ async def update_verified_answer(
     )
 
     if payload.citations is not None:
-        await _repo.replace_citations(
-            db, answer, [c.model_dump() for c in payload.citations]
-        )
+        await _repo.replace_citations(db, answer, [c.model_dump() for c in payload.citations])
 
     # If card was previously approved/published, revert to draft on edit.
     if answer.status in ("approved", "published"):
@@ -565,9 +561,7 @@ async def list_versions(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Verified answer not found"
         )
-    versions = await _repo.list_versions(
-        db, answer_id=answer_uuid, organization_id=org_id
-    )
+    versions = await _repo.list_versions(db, answer_id=answer_uuid, organization_id=org_id)
     return VerifiedAnswerVersionListResponse(
         items=[_version_to_response(v) for v in versions],
         total=len(versions),
@@ -608,21 +602,16 @@ async def create_from_chat_message(
 
     # Load the chat message within this org context.
     from sqlalchemy import select as sa_select
-    msg_result = await db.execute(
-        sa_select(ChatMessage).where(ChatMessage.id == msg_uuid)
-    )
+
+    msg_result = await db.execute(sa_select(ChatMessage).where(ChatMessage.id == msg_uuid))
     msg = msg_result.scalar_one_or_none()
     if msg is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Chat message not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat message not found")
 
     answer_text: str = getattr(msg, "content", "") or ""
 
     # Load citations attached to this message.
-    cit_result = await db.execute(
-        sa_select(Citation).where(Citation.chat_message_id == msg_uuid)
-    )
+    cit_result = await db.execute(sa_select(Citation).where(Citation.chat_message_id == msg_uuid))
     raw_citations = list(cit_result.scalars().all())
 
     answer = await _repo.create(

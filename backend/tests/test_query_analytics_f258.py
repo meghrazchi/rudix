@@ -100,9 +100,16 @@ async def other_org(db: AsyncSession) -> Organization:
 
 @pytest_asyncio.fixture
 async def admin_user(db: AsyncSession, org: Organization) -> tuple[User, str]:
-    u = User(id=uuid4(), email=f"admin-{uuid4().hex[:6]}@test.com", hashed_password="x", organization_id=org.id)
+    u = User(
+        id=uuid4(),
+        email=f"admin-{uuid4().hex[:6]}@test.com",
+        hashed_password="x",
+        organization_id=org.id,
+    )
     db.add(u)
-    member = OrganizationMember(organization_id=org.id, user_id=u.id, role=OrganizationRole.admin.value)
+    member = OrganizationMember(
+        organization_id=org.id, user_id=u.id, role=OrganizationRole.admin.value
+    )
     db.add(member)
     await db.flush()
     token = _token(str(u.id), str(org.id), OrganizationRole.admin.value)
@@ -111,9 +118,16 @@ async def admin_user(db: AsyncSession, org: Organization) -> tuple[User, str]:
 
 @pytest_asyncio.fixture
 async def viewer_user(db: AsyncSession, org: Organization) -> tuple[User, str]:
-    u = User(id=uuid4(), email=f"viewer-{uuid4().hex[:6]}@test.com", hashed_password="x", organization_id=org.id)
+    u = User(
+        id=uuid4(),
+        email=f"viewer-{uuid4().hex[:6]}@test.com",
+        hashed_password="x",
+        organization_id=org.id,
+    )
     db.add(u)
-    member = OrganizationMember(organization_id=org.id, user_id=u.id, role=OrganizationRole.viewer.value)
+    member = OrganizationMember(
+        organization_id=org.id, user_id=u.id, role=OrganizationRole.viewer.value
+    )
     db.add(member)
     await db.flush()
     token = _token(str(u.id), str(org.id), OrganizationRole.viewer.value)
@@ -154,6 +168,7 @@ async def client(db: AsyncSession) -> AsyncClient:
 
 
 # ── Service unit tests ─────────────────────────────────────────────────────────
+
 
 class TestSummaryService:
     @pytest.mark.asyncio
@@ -199,10 +214,16 @@ class TestSummaryService:
     ) -> None:
         user, _ = admin_user
         cs = await _make_session_with_messages(
-            db, org, user,
+            db,
+            org,
+            user,
             [{"role": "assistant", "confidence_score": 0.8}],
         )
-        msg_result = await db.execute(__import__("sqlalchemy", fromlist=["select"]).select(ChatMessage).where(ChatMessage.chat_session_id == cs.id))
+        msg_result = await db.execute(
+            __import__("sqlalchemy", fromlist=["select"])
+            .select(ChatMessage)
+            .where(ChatMessage.chat_session_id == cs.id)
+        )
         msg = msg_result.scalar_one()
         fb = MessageFeedback(
             message_id=msg.id,
@@ -220,7 +241,9 @@ class TestSummaryService:
         assert any(c.category == "missing_document" for c in result.top_feedback_categories)
 
     @pytest.mark.asyncio
-    async def test_d_summary_disabled_when_flag_off(self, db: AsyncSession, org: Organization) -> None:
+    async def test_d_summary_disabled_when_flag_off(
+        self, db: AsyncSession, org: Organization
+    ) -> None:
         original = settings.feature_enable_query_analytics
         settings.feature_enable_query_analytics = False
         try:
@@ -279,9 +302,7 @@ class TestGapService:
             [{"role": "assistant", "confidence_score": 0.2}] * 5,
         )
         service = QueryAnalyticsService()
-        result = await service.detect_gaps(
-            db, organization_id=org.id, min_occurrences=3
-        )
+        result = await service.detect_gaps(db, organization_id=org.id, min_occurrences=3)
         await db.flush()
         assert result.created >= 1
         gaps_result = await service.list_gaps(db, organization_id=org.id)
@@ -294,7 +315,9 @@ class TestGapService:
     ) -> None:
         user, _ = admin_user
         await _make_session_with_messages(
-            db, org, user,
+            db,
+            org,
+            user,
             [{"role": "assistant", "confidence_score": 0.1}] * 5,
         )
         service = QueryAnalyticsService()
@@ -336,6 +359,7 @@ class TestGapService:
 
 # ── HTTP endpoint tests ────────────────────────────────────────────────────────
 
+
 class TestQueryAnalyticsHTTP:
     @pytest.mark.asyncio
     async def test_j_summary_requires_admin(
@@ -371,8 +395,12 @@ class TestQueryAnalyticsHTTP:
         _, token = admin_user
         # Create two gaps
         service = QueryAnalyticsService()
-        await service.create_gap(db, organization_id=org.id, gap_type="no_answer", topic_label="Gap A")
-        await service.create_gap(db, organization_id=org.id, gap_type="low_confidence", topic_label="Gap B")
+        await service.create_gap(
+            db, organization_id=org.id, gap_type="no_answer", topic_label="Gap A"
+        )
+        await service.create_gap(
+            db, organization_id=org.id, gap_type="low_confidence", topic_label="Gap B"
+        )
         await db.flush()
 
         resp = await client.get(
@@ -452,7 +480,12 @@ class TestQueryAnalyticsHTTP:
 
     @pytest.mark.asyncio
     async def test_tenant_isolation_gaps(
-        self, client: AsyncClient, db: AsyncSession, org: Organization, other_org: Organization, admin_user: tuple[User, str]
+        self,
+        client: AsyncClient,
+        db: AsyncSession,
+        org: Organization,
+        other_org: Organization,
+        admin_user: tuple[User, str],
     ) -> None:
         """Gaps from other_org must not appear in org's list."""
         _, token = admin_user

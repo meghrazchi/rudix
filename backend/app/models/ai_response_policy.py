@@ -14,6 +14,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,7 +42,8 @@ class OrgAiResponsePolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "uq_org_ai_policy_one_active",
             "organization_id",
             unique=True,
-            postgresql_where="is_active IS TRUE",
+            postgresql_where=text("is_active IS TRUE"),
+            sqlite_where=text("is_active IS 1"),
         ),
         CheckConstraint(
             "citation_mode IN ('required', 'recommended', 'disabled')",
@@ -91,22 +93,18 @@ class OrgAiResponsePolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Citation rules
-    citation_mode: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="recommended"
-    )
+    citation_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="recommended")
 
     # Confidence threshold enforcement
-    min_confidence_threshold: Mapped[float | None] = mapped_column(
-        Float, nullable=True
+    min_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
+    no_answer_behavior: Mapped[str] = mapped_column(String(32), nullable=False, default="warn")
+    grounded_verification_mode: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="off"
     )
-    no_answer_behavior: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="warn"
-    )
+    grounded_verification_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Source freshness
-    stale_source_behavior: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="warn"
-    )
+    stale_source_behavior: Mapped[str] = mapped_column(String(32), nullable=False, default="warn")
 
     # Topic controls — stored as JSON arrays
     blocked_topics_json: Mapped[list[str] | None] = mapped_column(
@@ -121,9 +119,7 @@ class OrgAiResponsePolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # Disclaimer injection
     disclaimer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    disclaimer_position: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="prepend"
-    )
+    disclaimer_position: Mapped[str] = mapped_column(String(16), nullable=False, default="prepend")
 
     # Custom refusal message shown to end users
     refusal_message: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -190,6 +186,8 @@ class CollectionAiResponsePolicyOverride(UUIDPrimaryKeyMixin, TimestampMixin, Ba
     citation_mode: Mapped[str | None] = mapped_column(String(32), nullable=True)
     min_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
     no_answer_behavior: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    grounded_verification_mode: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    grounded_verification_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
     stale_source_behavior: Mapped[str | None] = mapped_column(String(32), nullable=True)
     blocked_topics_json: Mapped[list[str] | None] = mapped_column(
         "blocked_topics", JSON, nullable=True
@@ -201,9 +199,7 @@ class CollectionAiResponsePolicyOverride(UUIDPrimaryKeyMixin, TimestampMixin, Ba
     disclaimer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     refusal_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    org_policy = relationship(
-        "OrgAiResponsePolicy", back_populates="collection_overrides"
-    )
+    org_policy = relationship("OrgAiResponsePolicy", back_populates="collection_overrides")
 
 
 class PolicyEvaluationLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):

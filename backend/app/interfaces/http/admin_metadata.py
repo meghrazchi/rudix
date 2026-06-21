@@ -163,7 +163,9 @@ async def get_metadata_field(
     org_id = _org_id(principal)
     field = await _field_repo.get(db, field_id=field_id, organization_id=org_id)
     if not field:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metadata field not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Metadata field not found"
+        )
     return _field_to_response(field)
 
 
@@ -180,11 +182,10 @@ async def update_metadata_field(
     org_id = _org_id(principal)
     field = await _field_repo.get(db, field_id=field_id, organization_id=org_id)
     if not field:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metadata field not found")
-    if (
-        payload.allowed_values is not None
-        and field.field_type not in ("select", "multi_select")
-    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Metadata field not found"
+        )
+    if payload.allowed_values is not None and field.field_type not in ("select", "multi_select"):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="allowed_values is only valid for select/multi_select fields",
@@ -217,7 +218,9 @@ async def delete_metadata_field(
     org_id = _org_id(principal)
     field = await _field_repo.get(db, field_id=field_id, organization_id=org_id)
     if not field:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metadata field not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Metadata field not found"
+        )
     await _field_repo.delete(db, field)
     await db.commit()
 
@@ -238,7 +241,9 @@ async def suggest_tag_values(
     org_id = _org_id(principal)
     field = await _field_repo.get(db, field_id=field_id, organization_id=org_id)
     if not field or not field.is_active:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metadata field not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Metadata field not found"
+        )
     suggestions = _svc.build_tag_suggestions(field, prefix)
     return TagSuggestionResponse(
         field_id=str(field_id),
@@ -396,9 +401,7 @@ async def filter_documents_by_metadata(
         parsed.append({"field_id": field_id_str.strip(), "value": value})
     if not parsed:
         return {"document_ids": []}
-    doc_ids = await _doc_repo.list_documents_by_metadata(
-        db, organization_id=org_id, filters=parsed
-    )
+    doc_ids = await _doc_repo.list_documents_by_metadata(db, organization_id=org_id, filters=parsed)
     return {"document_ids": [str(d) for d in doc_ids]}
 
 
@@ -422,9 +425,7 @@ async def get_metadata_audit(
     logs = await _doc_repo.list_audit(
         db, document_id=document_id, organization_id=org_id, limit=limit, offset=offset
     )
-    total = await _doc_repo.count_audit(
-        db, document_id=document_id, organization_id=org_id
-    )
+    total = await _doc_repo.count_audit(db, document_id=document_id, organization_id=org_id)
     return MetadataAuditListResponse(
         items=[
             MetadataAuditEntryResponse(

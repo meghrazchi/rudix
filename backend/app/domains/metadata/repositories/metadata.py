@@ -14,7 +14,6 @@ from app.models.metadata import DocumentMetadata, MetadataAuditLog, MetadataFiel
 
 
 class MetadataFieldRepository:
-
     async def create(
         self,
         db: AsyncSession,
@@ -79,9 +78,7 @@ class MetadataFieldRepository:
         organization_id: UUID,
         include_inactive: bool = False,
     ) -> list[MetadataField]:
-        stmt = select(MetadataField).where(
-            MetadataField.organization_id == organization_id
-        )
+        stmt = select(MetadataField).where(MetadataField.organization_id == organization_id)
         if not include_inactive:
             stmt = stmt.where(MetadataField.is_active.is_(True))
         stmt = stmt.order_by(MetadataField.sort_order, MetadataField.name)
@@ -95,8 +92,10 @@ class MetadataFieldRepository:
         organization_id: UUID,
         include_inactive: bool = False,
     ) -> int:
-        stmt = select(func.count()).select_from(MetadataField).where(
-            MetadataField.organization_id == organization_id
+        stmt = (
+            select(func.count())
+            .select_from(MetadataField)
+            .where(MetadataField.organization_id == organization_id)
         )
         if not include_inactive:
             stmt = stmt.where(MetadataField.is_active.is_(True))
@@ -138,7 +137,6 @@ class MetadataFieldRepository:
 
 
 class DocumentMetadataRepository:
-
     async def get_document_metadata(
         self,
         db: AsyncSession,
@@ -303,9 +301,13 @@ class DocumentMetadataRepository:
         document_id: UUID,
         organization_id: UUID,
     ) -> int:
-        stmt = select(func.count()).select_from(MetadataAuditLog).where(
-            MetadataAuditLog.document_id == document_id,
-            MetadataAuditLog.organization_id == organization_id,
+        stmt = (
+            select(func.count())
+            .select_from(MetadataAuditLog)
+            .where(
+                MetadataAuditLog.document_id == document_id,
+                MetadataAuditLog.organization_id == organization_id,
+            )
         )
         result = await db.execute(stmt)
         return result.scalar_one()

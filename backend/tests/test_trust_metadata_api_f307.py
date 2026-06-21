@@ -12,7 +12,7 @@ Covers:
 import json
 import os
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -66,13 +66,12 @@ from app.domains.chat.schemas.trust_metadata import (
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.interfaces.http import chat as chat_api
 from app.main import app
-from app.models.chat import ChatMessage, ChatSession
+from app.models.chat import ChatMessage
 from app.models.document import DocumentChunk
-from app.models.enums import ChatRole, OrganizationRole
+from app.models.enums import ChatRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Helpers reused from test_chat_query_api
@@ -196,9 +195,7 @@ async def _seed_principal(db_session: AsyncSession) -> tuple[User, Organization]
     )
     db_session.add(user)
     await db_session.flush()
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role="member")
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role="member"))
     await db_session.commit()
     return user, org
 
@@ -375,6 +372,10 @@ def test_grounded_verification_defaults_to_not_applied() -> None:
     assert record.applied is False
     assert record.removed_count == 0
     assert record.reason_codes == []
+    assert record.partially_supported_count == 0
+    assert record.unverifiable_count == 0
+    assert record.mode is None
+    assert record.threshold is None
 
 
 def test_policy_enforcement_defaults_to_not_applied() -> None:
@@ -711,9 +712,7 @@ async def test_get_trust_metadata_returns_404_for_message_without_snapshot(
     )
 
     repo = ChatRepository()
-    session = await repo.create_chat_session(
-        db_session, organization_id=org.id, user_id=user.id
-    )
+    session = await repo.create_chat_session(db_session, organization_id=org.id, user_id=user.id)
     msg = await repo.create_chat_message(
         db_session,
         chat_session_id=session.id,
@@ -744,9 +743,7 @@ async def test_get_trust_metadata_returns_404_for_user_role_message(
     )
 
     repo = ChatRepository()
-    session = await repo.create_chat_session(
-        db_session, organization_id=org.id, user_id=user.id
-    )
+    session = await repo.create_chat_session(db_session, organization_id=org.id, user_id=user.id)
     user_msg = await repo.create_chat_message(
         db_session,
         chat_session_id=session.id,

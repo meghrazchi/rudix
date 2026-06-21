@@ -32,11 +32,15 @@ _service = QueryAnalyticsService()
 
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
     if not principal.organization_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization context")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization context"
+        )
     try:
         return UUID(principal.organization_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid organization context") from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid organization context"
+        ) from exc
 
 
 _AdminRoles = Annotated[

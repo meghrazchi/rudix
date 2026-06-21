@@ -95,7 +95,6 @@ def _validate_allowed(field: MetadataField, value: str) -> None:
 
 
 class MetadataService:
-
     async def validate_and_save_document_values(
         self,
         db: AsyncSession,
@@ -124,9 +123,7 @@ class MetadataService:
                 )
 
             # Fetch old value for audit
-            existing = await _doc_repo.get_value(
-                db, document_id=document_id, field_id=field_id
-            )
+            existing = await _doc_repo.get_value(db, document_id=document_id, field_id=field_id)
             old_text = existing.value_text if existing else None
             old_json = existing.value_json if existing else None
 
@@ -142,12 +139,8 @@ class MetadataService:
             )
             results.append(row)
 
-            old_repr = (
-                json.dumps(old_json) if old_json is not None else old_text
-            )
-            new_repr = (
-                json.dumps(value_json) if value_json is not None else value_text
-            )
+            old_repr = json.dumps(old_json) if old_json is not None else old_text
+            new_repr = json.dumps(value_json) if value_json is not None else value_text
             await _doc_repo.write_audit(
                 db,
                 document_id=document_id,
@@ -184,9 +177,7 @@ class MetadataService:
         if field.field_type not in ("select", "multi_select") or not field.allowed_values:
             return []
         prefix_lower = prefix.lower()
-        return [
-            v for v in field.allowed_values if v.lower().startswith(prefix_lower)
-        ][:limit]
+        return [v for v in field.allowed_values if v.lower().startswith(prefix_lower)][:limit]
 
     def deserialize(self, row: DocumentMetadata) -> object:
         return _deserialize_value(row)

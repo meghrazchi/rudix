@@ -30,6 +30,8 @@ class AiResponsePolicyRepository:
         citation_mode: str = "recommended",
         min_confidence_threshold: float | None = None,
         no_answer_behavior: str = "warn",
+        grounded_verification_mode: str = "off",
+        grounded_verification_threshold: float | None = None,
         stale_source_behavior: str = "warn",
         blocked_topics: list[str] | None = None,
         allowed_topics: list[str] | None = None,
@@ -50,6 +52,8 @@ class AiResponsePolicyRepository:
             citation_mode=citation_mode,
             min_confidence_threshold=min_confidence_threshold,
             no_answer_behavior=no_answer_behavior,
+            grounded_verification_mode=grounded_verification_mode,
+            grounded_verification_threshold=grounded_verification_threshold,
             stale_source_behavior=stale_source_behavior,
             blocked_topics_json=blocked_topics or [],
             allowed_topics_json=allowed_topics,
@@ -121,9 +125,7 @@ class AiResponsePolicyRepository:
         organization_id: UUID,
     ) -> int:
         result = await db.execute(
-            select(func.count()).where(
-                OrgAiResponsePolicy.organization_id == organization_id
-            )
+            select(func.count()).where(OrgAiResponsePolicy.organization_id == organization_id)
         )
         return result.scalar_one()
 
@@ -137,6 +139,8 @@ class AiResponsePolicyRepository:
         citation_mode: str | None = None,
         min_confidence_threshold: float | None = None,
         no_answer_behavior: str | None = None,
+        grounded_verification_mode: str | None = None,
+        grounded_verification_threshold: float | None = None,
         stale_source_behavior: str | None = None,
         blocked_topics: list[str] | None = None,
         allowed_topics: list[str] | None = None,
@@ -156,6 +160,10 @@ class AiResponsePolicyRepository:
             policy.min_confidence_threshold = min_confidence_threshold
         if no_answer_behavior is not None:
             policy.no_answer_behavior = no_answer_behavior
+        if grounded_verification_mode is not None:
+            policy.grounded_verification_mode = grounded_verification_mode
+        if grounded_verification_threshold is not None:
+            policy.grounded_verification_threshold = grounded_verification_threshold
         if stale_source_behavior is not None:
             policy.stale_source_behavior = stale_source_behavior
         if blocked_topics is not None:
@@ -186,6 +194,7 @@ class AiResponsePolicyRepository:
         existing = await self.get_active(db, organization_id=organization_id)
         if existing and existing.id != policy.id:
             existing.is_active = False
+            await db.flush()
         policy.is_active = True
         await db.flush()
         return policy
@@ -232,6 +241,8 @@ class AiResponsePolicyRepository:
         citation_mode: str | None = None,
         min_confidence_threshold: float | None = None,
         no_answer_behavior: str | None = None,
+        grounded_verification_mode: str | None = None,
+        grounded_verification_threshold: float | None = None,
         stale_source_behavior: str | None = None,
         blocked_topics: list[str] | None = None,
         allowed_topics: list[str] | None = None,
@@ -256,6 +267,8 @@ class AiResponsePolicyRepository:
         override.citation_mode = citation_mode
         override.min_confidence_threshold = min_confidence_threshold
         override.no_answer_behavior = no_answer_behavior
+        override.grounded_verification_mode = grounded_verification_mode
+        override.grounded_verification_threshold = grounded_verification_threshold
         override.stale_source_behavior = stale_source_behavior
         override.blocked_topics_json = blocked_topics
         override.allowed_topics_json = allowed_topics

@@ -108,9 +108,13 @@ class GroundedVerificationRecord(BaseModel):
     score: float | None = None
     claim_count: int = 0
     supported_count: int = 0
+    partially_supported_count: int = 0
     unsupported_count: int = 0
+    unverifiable_count: int = 0
     removed_count: int = 0
     reason_codes: list[str] = Field(default_factory=list)
+    mode: str | None = None
+    threshold: float | None = None
 
 
 class ModelMetadataRecord(BaseModel):

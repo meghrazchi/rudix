@@ -285,12 +285,14 @@ class TestVerifyHappyPaths:
         assert result.verdict == "partially_supported"
         assert result.final_answer == "Refunds are processed within 30 days."
         assert result.unsupported_claim_count == 1
+        assert result.partially_supported_claim_count == 0
+        assert result.unverifiable_claim_count == 0
         assert "no_source" in result.reason_codes
         assert len(result.removed_claims) == 1
 
     @pytest.mark.asyncio
-    async def test_unsupported_verdict_standard_mode_preserves_fallback_answer(self) -> None:
-        """Standard mode: unsupported verdict still returns a final_answer (revised or original)."""
+    async def test_unsupported_verdict_standard_mode_returns_empty_answer(self) -> None:
+        """Standard mode: unsupported verdict returns the verifier's rewritten answer, which may be empty."""
         svc = _make_service()
         provider = _mock_provider(_UNSUPPORTED_JSON)
         answer = "The policy requires a 6-month waiting period."
@@ -298,8 +300,7 @@ class TestVerifyHappyPaths:
             result = await svc.verify(answer=answer, chunks=_make_chunks(), mode="standard")
 
         assert result.verdict == "unsupported"
-        # revised_answer is "", so we fall back to the original answer
-        assert result.final_answer == answer
+        assert result.final_answer == ""
 
     @pytest.mark.asyncio
     async def test_unsupported_verdict_strict_mode_blanks_answer(self) -> None:
@@ -315,7 +316,7 @@ class TestVerifyHappyPaths:
 
     @pytest.mark.asyncio
     async def test_partially_supported_strict_mode_keeps_revised_answer(self) -> None:
-        """In strict mode, partially_supported still returns the revised answer (not blanked)."""
+        """Strict mode blanks answers that do not meet the support threshold."""
         svc = _make_service()
         provider = _mock_provider(_PARTIALLY_SUPPORTED_JSON)
         answer = "Refunds are processed within 30 days. Processing takes 14 days."
@@ -323,7 +324,7 @@ class TestVerifyHappyPaths:
             result = await svc.verify(answer=answer, chunks=_make_chunks(), mode="strict")
 
         assert result.verdict == "partially_supported"
-        assert result.final_answer == "Refunds are processed within 30 days."
+        assert result.final_answer == ""
 
     @pytest.mark.asyncio
     async def test_verification_score_computed_from_claim_counts(self) -> None:
@@ -663,8 +664,8 @@ class TestEdgeCases:
         assert result.applied is True
 
     @pytest.mark.asyncio
-    async def test_revised_answer_empty_falls_back_to_original_in_standard_mode(self) -> None:
-        """If LLM returns empty revised_answer in standard mode, use the original answer."""
+    async def test_revised_answer_empty_stays_empty_when_not_supported(self) -> None:
+        """If the verifier cannot keep any claims, the final answer remains empty."""
         svc = _make_service()
         provider = _mock_provider(
             '{"verdict": "partially_supported", "revised_answer": "", '
@@ -675,8 +676,7 @@ class TestEdgeCases:
         with patch.object(svc, "_resolve_provider", return_value=provider):
             result = await svc.verify(answer=original, chunks=_make_chunks(), mode="standard")
 
-        # empty revised_answer → fall back to original in standard mode
-        assert result.final_answer == original
+        assert result.final_answer == ""
 
     @pytest.mark.asyncio
     async def test_latency_zero_on_fallback_from_exception(self) -> None:
