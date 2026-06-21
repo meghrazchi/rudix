@@ -236,7 +236,7 @@ async def list_verified_answers(
     col_uuid = _parse_uuid(collection_id, "Collection") if collection_id else None
     owner_uuid = _parse_uuid(owner_id, "User") if owner_id else None
 
-    items = await _repo.list(
+    items = await _repo.list_all(
         db,
         organization_id=org_id,
         status=status_filter,

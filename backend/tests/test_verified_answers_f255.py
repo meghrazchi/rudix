@@ -252,8 +252,8 @@ async def test_repo_list_with_status_filter(db: AsyncSession, org: Organization,
     )
     await db.flush()
 
-    published = await _repo.list(db, organization_id=org.id, status="published")
-    drafts = await _repo.list(db, organization_id=org.id, status="draft")
+    published = await _repo.list_all(db, organization_id=org.id, status="published")
+    drafts = await _repo.list_all(db, organization_id=org.id, status="draft")
     assert any(a.id == a1.id for a in published)
     assert all(a.status == "draft" for a in drafts)
 

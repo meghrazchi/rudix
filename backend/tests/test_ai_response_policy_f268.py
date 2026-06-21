@@ -497,7 +497,7 @@ async def test_repo_list_count(db: AsyncSession, org: Organization) -> None:
         await _repo.create(db, organization_id=org.id, policy_name=f"P{i}")
     await db.flush()
 
-    items = await _repo.list(db, organization_id=org.id)
+    items = await _repo.list_all(db, organization_id=org.id)
     total = await _repo.count(db, organization_id=org.id)
     assert len(items) == 3
     assert total == 3

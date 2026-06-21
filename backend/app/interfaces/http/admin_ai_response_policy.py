@@ -212,7 +212,7 @@ async def list_policies(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AiResponsePolicyListResponse:
     org_id = _org_id(principal)
-    items = await _repo.list(db, organization_id=org_id, limit=limit, offset=offset)
+    items = await _repo.list_all(db, organization_id=org_id, limit=limit, offset=offset)
     total = await _repo.count(db, organization_id=org_id)
     return AiResponsePolicyListResponse(
         items=[_to_response(p) for p in items],

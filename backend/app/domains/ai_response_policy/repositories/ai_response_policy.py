@@ -101,7 +101,7 @@ class AiResponsePolicyRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list(
+    async def list_all(
         self,
         db: AsyncSession,
         *,

@@ -166,7 +166,7 @@ class AnalyticsService:
         if not policy.enabled:
             return AnalyticsSummaryResponse(
                 organization_id=str(organization_id),
-                range=AnalyticsDateRange(from_date=resolved_from, to_date=resolved_to),
+                range=AnalyticsDateRange.model_validate({"from": resolved_from, "to": resolved_to}),
                 generated_at=datetime.now(tz=UTC),
                 enabled=False,
                 disabled_reason=policy.disabled_reason,
@@ -228,7 +228,7 @@ class AnalyticsService:
 
         return AnalyticsSummaryResponse(
             organization_id=str(organization_id),
-            range=AnalyticsDateRange(from_date=resolved_from, to_date=resolved_to),
+            range=AnalyticsDateRange.model_validate({"from": resolved_from, "to": resolved_to}),
             generated_at=datetime.now(tz=UTC),
             enabled=policy.enabled,
             disabled_reason=policy.disabled_reason,

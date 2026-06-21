@@ -110,7 +110,7 @@ async def list_metadata_fields(
     include_inactive: bool = Query(default=False),
 ) -> MetadataFieldListResponse:
     org_id = _org_id(principal)
-    fields = await _field_repo.list(db, organization_id=org_id, include_inactive=include_inactive)
+    fields = await _field_repo.list_all(db, organization_id=org_id, include_inactive=include_inactive)
     total = await _field_repo.count(db, organization_id=org_id, include_inactive=include_inactive)
     return MetadataFieldListResponse(
         items=[_field_to_response(f) for f in fields],
@@ -423,7 +423,7 @@ async def get_metadata_audit(
     org_id = _org_id(principal)
 
     # Fetch field names for display
-    fields = await _field_repo.list(db, organization_id=org_id, include_inactive=True)
+    fields = await _field_repo.list_all(db, organization_id=org_id, include_inactive=True)
     field_name_map = {f.id: f.name for f in fields}
 
     logs = await _doc_repo.list_audit(

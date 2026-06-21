@@ -272,9 +272,9 @@ async def test_a_list_fields_only_active(
         sort_order=None,
         is_active=False,
     )
-    active = await repo.list(db, organization_id=org.id)
+    active = await repo.list_all(db, organization_id=org.id)
     assert all(f.is_active for f in active)
-    inactive = await repo.list(db, organization_id=org.id, include_inactive=True)
+    inactive = await repo.list_all(db, organization_id=org.id, include_inactive=True)
     assert any(not f.is_active for f in inactive)
 
 
