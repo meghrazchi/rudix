@@ -378,3 +378,11 @@ class DocumentVersionChangeReason(StrEnum):
     connector_sync = "connector_sync"
     reindex = "reindex"
     tombstone = "tombstone"
+
+
+class VerifiedAnswerStatus(StrEnum):
+    draft = "draft"
+    pending_review = "pending_review"
+    approved = "approved"
+    published = "published"
+    archived = "archived"
