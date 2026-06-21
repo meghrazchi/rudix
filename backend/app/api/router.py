@@ -60,6 +60,7 @@ from app.interfaces.http import (
     provider_observability,
     public_status,
     quality_gates,
+    query_analytics,
     quotas,
     rag_profiles,
     safety_evals,
@@ -105,6 +106,7 @@ protected_router.include_router(prompt_templates.router)
 protected_router.include_router(notifications.router)
 protected_router.include_router(feedback_review.router)
 protected_router.include_router(quality_gates.router)
+protected_router.include_router(query_analytics.router)
 protected_router.include_router(model_provider_settings.router)
 protected_router.include_router(model_profiles.router)
 protected_router.include_router(model_provider_diagnostics.router)

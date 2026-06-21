@@ -339,6 +339,8 @@ class Settings(BaseSettings):
     evaluation_prevent_duplicate_active_runs: bool = True
     feature_enable_product_analytics: bool = True
     analytics_dedupe_window_seconds: int = Field(default=86400, ge=60, le=604800)
+    feature_enable_query_analytics: bool = True
+    query_analytics_redact_query_text: bool = False
 
     dependency_connect_timeout_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
     dependency_read_timeout_seconds: float = Field(default=1.0, ge=0.1, le=120.0)

@@ -104,3 +104,6 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    knowledge_gaps = relationship(
+        "KnowledgeGap", back_populates="organization", cascade="all, delete-orphan"
+    )

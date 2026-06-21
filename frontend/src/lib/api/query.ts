@@ -330,6 +330,15 @@ export const queryKeys = {
   auth: {
     effectivePermissions: ["auth", "effective-permissions"] as const,
   },
+  queryAnalytics: {
+    all: ["query-analytics"] as const,
+    summary: (params?: Record<string, unknown>) =>
+      ["query-analytics", "summary", params ?? {}] as const,
+    trends: (params?: Record<string, unknown>) =>
+      ["query-analytics", "trends", params ?? {}] as const,
+    gaps: (params?: Record<string, unknown>) =>
+      ["query-analytics", "gaps", params ?? {}] as const,
+  },
   connectorProviders: ["connectors", "providers"] as const,
   connectorProvider: (key: string) => ["connectors", "providers", key] as const,
   connectorDiscovery: (
