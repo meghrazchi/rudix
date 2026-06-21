@@ -18,7 +18,6 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   buildQueryAnalyticsExportUrl,
   convertKnowledgeGap,
-  createKnowledgeGap,
   detectKnowledgeGaps,
   getQueryAnalyticsSummary,
   getQueryAnalyticsTrends,

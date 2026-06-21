@@ -1,23 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { KnowledgeCardList } from "@/components/verified-answers/KnowledgeCardList";
 import { CreateVerifiedAnswerModal } from "@/components/verified-answers/CreateVerifiedAnswerModal";
 import { VerifiedAnswerBadge } from "@/components/verified-answers/VerifiedAnswerBadge";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
-import { getApiErrorMessage } from "@/lib/api/errors";
-import {
-  listVerifiedAnswers,
-  listVerifiedAnswerVersions,
-  type VerifiedAnswerResponse,
-} from "@/lib/api/verified-answers";
+import { listVerifiedAnswers } from "@/lib/api/verified-answers";
 import { usePermissions } from "@/lib/use-permissions";
 
 const PENDING_KEY = ["verified-answers", { status: "pending_review" }];
-const STALE_KEY = ["verified-answers", { status: "published", query: "" }];
 
 type Tab = "pending" | "all" | "stale";
 
@@ -25,18 +19,16 @@ export function AdminVerifiedAnswersPage() {
   const { hasPermission } = usePermissions();
   const [activeTab, setActiveTab] = useState<Tab>("pending");
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] =
-    useState<VerifiedAnswerResponse | null>(null);
-
-  if (!hasPermission("knowledge_card:manage")) {
-    return <ForbiddenState />;
-  }
 
   const { data: pendingData } = useQuery({
     queryKey: PENDING_KEY,
     queryFn: () =>
       listVerifiedAnswers({ status: "pending_review", limit: 100 }),
   });
+
+  if (!hasPermission("knowledge_card:manage")) {
+    return <ForbiddenState />;
+  }
 
   const pendingCount = pendingData?.total ?? 0;
 

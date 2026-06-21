@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -11,7 +11,6 @@ import {
   suggestTagValues,
   type DocumentMetadataValueResponse,
   type MetadataFieldResponse,
-  type MetadataFieldType,
   type MetadataValueIn,
 } from "@/lib/api/metadata";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -125,6 +124,7 @@ function FieldEditor({
   onChange: (v: FieldEditorValue) => void;
 }) {
   const [suggestPrefix, setSuggestPrefix] = useState("");
+  const [inputVal, setInputVal] = useState("");
 
   if (field.field_type === "boolean") {
     return (
@@ -191,7 +191,6 @@ function FieldEditor({
   }
 
   if (field.field_type === "multi_select") {
-    const [inputVal, setInputVal] = useState("");
     const selected =
       editorValue.kind === "multi_select" ? editorValue.value : [];
     return (
@@ -326,7 +325,7 @@ export function DocumentMetadataPanel({ documentId, canEdit }: Props) {
     queryFn: () => listMetadataFields(false),
   });
 
-  const { data: metaData, isLoading } = useQuery({
+  const { data: metaData } = useQuery({
     queryKey: queryKeys.metadata.documentValues(documentId),
     queryFn: () => getDocumentMetadata(documentId),
   });

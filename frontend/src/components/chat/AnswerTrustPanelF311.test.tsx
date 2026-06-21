@@ -19,7 +19,6 @@ import { AnswerTrustPanel } from "@/components/chat/AnswerTrustPanel";
 import type {
   ChatCitationResponse,
   ChatConfidenceExplanationResponse,
-  ChatDebugResponse,
 } from "@/lib/api/chat";
 import type {
   AnswerTrustMetadataResponse,
