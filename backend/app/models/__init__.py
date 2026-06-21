@@ -9,7 +9,8 @@ from app.models.ab_experiment import (
     AbExperimentVariant,
     AbExperimentVariantRun,
 )
-from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
+from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall, AgentTraceRetentionPolicy, AgentTraceShareToken
+from app.models.api_key import ApiKey
 from app.models.agent_policy import AgentToolPolicyOverride
 from app.models.answer_share import AnswerShare
 from app.models.auth_session import AuthRefreshSession
@@ -27,18 +28,20 @@ from app.models.chat import ChatMessage, ChatSession
 from app.models.chat_share import ChatShare
 from app.models.chunking_profile import OrganizationChunkingProfile
 from app.models.citation import Citation
-from app.models.collection import Collection, CollectionDocument
+from app.models.collection import Collection, CollectionDocument, CollectionAccessGrant
 from app.models.connector import (
     ConnectorConnection,
+    ConnectorPermissionReview,
     ConnectorProvider,
     ExternalItem,
     ExternalSource,
 )
 from app.models.connector_credential import ConnectorCredential, ConnectorOAuthState
 from app.models.connector_source import ExternalItemTombstone, SourceDocument, SourceReference
-from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
+from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun, SyncConflict
 from app.models.custom_role import CustomRole, CustomRolePermission
 from app.models.document import Document, DocumentChunk, DocumentPage
+from app.models.document_version import DocumentVersion
 from app.models.email import EmailDeliveryLog, UserNotificationPreference
 from app.models.evaluation import (
     EvaluationDatasetVersion,
@@ -51,10 +54,12 @@ from app.models.failed_job import FailedJob, FailedJobAuditLog
 from app.models.feature_flags import OrgFeatureFlagOverride
 from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.governance import OrganizationGovernancePolicy
+from app.models.org_freshness_policy import OrgFreshnessPolicy
 from app.models.metadata import DocumentMetadata, MetadataAuditLog, MetadataField
 from app.models.incident import Incident, IncidentNote
 from app.models.mcp_policy import OrgMCPPolicy
 from app.models.message_feedback import MessageFeedback
+from app.models.model_profile import OrgModelProfile, OrgModelProfileChangeLog
 from app.models.model_provider_settings import (
     OrgModelProviderChangeLog,
     OrgModelProviderSettings,
@@ -69,11 +74,15 @@ from app.models.organization_member import OrganizationMember
 from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.prompt_template import PromptTemplate, PromptTemplateVersion
 from app.models.quality_gate import QualityGate, QualityGateRun
+from app.models.query_analytics import KnowledgeGap
+from app.models.quotas import OrgQuotaChangeLog, OrgQuotaOverride, OrgQuotaPolicy, OrgQuotaUsage
 from app.models.rag_profile import RagProfile, RagProfileCollectionOverride, RagProfileVersion
 from app.models.safety_eval import SafetyEvalCase, SafetyEvalResult, SafetyEvalRun
 from app.models.service_account import ServiceAccount, ServiceAccountToken
 from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
+from app.models.verified_answer import VerifiedAnswer, VerifiedAnswerCitation, VerifiedAnswerVersion
+from app.models.webhook import Webhook, WebhookDelivery
 
 __all__ = [
     "AbExperiment",
@@ -85,7 +94,10 @@ __all__ = [
     "AgentStep",
     "AgentToolCall",
     "AgentToolPolicyOverride",
+    "AgentTraceRetentionPolicy",
+    "AgentTraceShareToken",
     "AnswerShare",
+    "ApiKey",
     "CollectionAiResponsePolicyOverride",
     "OrgAiResponsePolicy",
     "PolicyEvaluationLog",
@@ -100,18 +112,22 @@ __all__ = [
     "ChatShare",
     "Citation",
     "Collection",
+    "CollectionAccessGrant",
     "CollectionDocument",
     "ConnectorConnection",
+    "ConnectorPermissionReview",
     "ConnectorCredential",
     "ConnectorOAuthState",
     "ConnectorProvider",
     "ConnectorSyncJob",
     "ConnectorSyncRun",
     "CustomRole",
+    "SyncConflict",
     "CustomRolePermission",
     "Document",
     "DocumentChunk",
     "DocumentPage",
+    "DocumentVersion",
     "EmailDeliveryLog",
     "EvaluationDatasetVersion",
     "EvaluationQuestion",
@@ -126,6 +142,7 @@ __all__ = [
     "FeaturePermission",
     "FeedbackReviewItem",
     "Incident",
+    "KnowledgeGap",
     "IncidentNote",
     "MessageFeedback",
     "MetadataField",
@@ -134,9 +151,16 @@ __all__ = [
     "Notification",
     "OrgDomainVerification",
     "OrgFeatureFlagOverride",
+    "OrgFreshnessPolicy",
     "OrgMCPPolicy",
+    "OrgModelProfile",
+    "OrgModelProfileChangeLog",
     "OrgModelProviderChangeLog",
     "OrgModelProviderSettings",
+    "OrgQuotaChangeLog",
+    "OrgQuotaOverride",
+    "OrgQuotaPolicy",
+    "OrgQuotaUsage",
     "OrgSCIMConfig",
     "OrgSSOConfig",
     "Organization",
@@ -167,4 +191,9 @@ __all__ = [
     "UsageEvent",
     "User",
     "UserNotificationPreference",
+    "VerifiedAnswer",
+    "VerifiedAnswerCitation",
+    "VerifiedAnswerVersion",
+    "Webhook",
+    "WebhookDelivery",
 ]
