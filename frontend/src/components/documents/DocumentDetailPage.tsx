@@ -15,6 +15,7 @@ import { DocumentExtractionDiagnosticsPanel } from "@/components/documents/Docum
 import { DocumentGraphInsightsPanel } from "@/components/documents/DocumentGraphInsightsPanel";
 import { DocumentVersionHistoryPanel } from "@/components/documents/DocumentVersionHistoryPanel";
 import { DocumentMetadataPanel } from "@/components/documents/DocumentMetadataPanel";
+import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import type {
   DocumentDetailResponse,
   DocumentLifecycleTimelineStepResponse,
@@ -36,6 +37,7 @@ import {
   OCR_LANGUAGES,
   UPLOAD_LANGUAGES,
 } from "@/lib/api/documents";
+import type { ChatCitationResponse } from "@/lib/api/chat";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import {
@@ -559,6 +561,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const [langOverrideOpen, setLangOverrideOpen] = useState(false);
   const [ocrLangOverrideValue, setOcrLangOverrideValue] = useState<string>("");
   const [ocrLangOverrideOpen, setOcrLangOverrideOpen] = useState(false);
+  const [previewCitationSet, setPreviewCitationSet] = useState<{
+    citations: ChatCitationResponse[];
+    initialIndex: number;
+  } | null>(null);
   const copyFadeTimeoutRef = useRef<number | null>(null);
   const copyClearTimeoutRef = useRef<number | null>(null);
   const lastLifecycleSyncAttemptRef = useRef<number | null>(null);
@@ -828,6 +834,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const graphStatus = detail?.graph_extraction_status ?? null;
   const chunkStatus = currentStatus ?? detail?.status ?? null;
   const selectedChunks = chunksQuery.data;
+  const highlightedChunk =
+    selectedChunks?.items.find(
+      (chunk) => chunk.chunk_id === highlightedChunkId,
+    ) ?? null;
   const lifecycle = useMemo(
     () =>
       detail && currentStatus
@@ -1261,6 +1271,36 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                 >
                   Chunk: {highlightedChunkId.slice(0, 16)}&hellip;
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!detail || !highlightedChunkId) return;
+                    setPreviewCitationSet({
+                      citations: [
+                        {
+                          document_id: detail.document_id,
+                          chunk_id: highlightedChunkId,
+                          filename: detail.filename,
+                          page_number: highlightedChunk?.page_number ?? null,
+                          text_snippet: highlightedSnippet ?? null,
+                          score: null,
+                          similarity_score: null,
+                          rerank_score: null,
+                        },
+                      ],
+                      initialIndex: 0,
+                    });
+                  }}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-[#d2cee6] bg-white px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                >
+                  <span
+                    className="material-symbols-outlined text-[15px]"
+                    aria-hidden="true"
+                  >
+                    visibility
+                  </span>
+                  Preview citation
+                </button>
                 {activeTab !== "chunks" ? (
                   <button
                     type="button"
@@ -1280,9 +1320,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   detail.review_status,
                 ) ? (
                   <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    This document is marked {detail.review_status.replaceAll("_", " ")}.
-                    Freshness metadata is used to warn readers and can exclude
-                    the document from retrieval.
+                    This document is marked{" "}
+                    {detail.review_status.replaceAll("_", " ")}. Freshness
+                    metadata is used to warn readers and can exclude the
+                    document from retrieval.
                   </p>
                 ) : null}
 
@@ -1332,37 +1373,43 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
                 <section className="rounded-xl border border-[#e4e1f2] bg-white shadow-sm">
                   <div className="flex flex-wrap items-center border-b border-[#e9e6f5] px-4">
-                    {(["overview", "chunks", "errors", "versions", "metadata"] as const).map(
-                      (tabKey) => (
-                        <button
-                          key={tabKey}
-                          type="button"
-                          role="tab"
-                          aria-selected={activeTab === tabKey}
-                          onClick={() => setActiveTab(tabKey)}
-                          className={`px-4 py-3 text-sm font-semibold capitalize transition-colors ${
-                            activeTab === tabKey
-                              ? "border-b-2 border-[#3525cd] text-[#3525cd]"
-                              : "text-[#69637f] hover:text-[#2a2640]"
-                          }`}
-                        >
-                          {tabKey === "overview"
-                            ? td("tabOverview")
-                            : tabKey === "chunks"
-                              ? td("tabChunks")
-                              : tabKey === "versions"
-                                ? "Versions"
-                                : tabKey === "metadata"
-                                  ? "Metadata"
-                                  : td("tabErrors")}
-                          {tabKey === "errors" ? (
-                            <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
-                              {errorRows.length}
-                            </span>
-                          ) : null}
-                        </button>
-                      ),
-                    )}
+                    {(
+                      [
+                        "overview",
+                        "chunks",
+                        "errors",
+                        "versions",
+                        "metadata",
+                      ] as const
+                    ).map((tabKey) => (
+                      <button
+                        key={tabKey}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === tabKey}
+                        onClick={() => setActiveTab(tabKey)}
+                        className={`px-4 py-3 text-sm font-semibold capitalize transition-colors ${
+                          activeTab === tabKey
+                            ? "border-b-2 border-[#3525cd] text-[#3525cd]"
+                            : "text-[#69637f] hover:text-[#2a2640]"
+                        }`}
+                      >
+                        {tabKey === "overview"
+                          ? td("tabOverview")
+                          : tabKey === "chunks"
+                            ? td("tabChunks")
+                            : tabKey === "versions"
+                              ? "Versions"
+                              : tabKey === "metadata"
+                                ? "Metadata"
+                                : td("tabErrors")}
+                        {tabKey === "errors" ? (
+                          <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                            {errorRows.length}
+                          </span>
+                        ) : null}
+                      </button>
+                    ))}
                   </div>
 
                   <div className="space-y-4 p-4">
@@ -2282,11 +2329,16 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             Version history
                           </h3>
                           <p className="mb-4 text-xs text-[#69637f]">
-                            A new version is recorded on every upload and re-index. The{" "}
-                            <span className="font-semibold text-emerald-700">active</span> version
-                            is what the vector index currently serves.
+                            A new version is recorded on every upload and
+                            re-index. The{" "}
+                            <span className="font-semibold text-emerald-700">
+                              active
+                            </span>{" "}
+                            version is what the vector index currently serves.
                           </p>
-                          <DocumentVersionHistoryPanel documentId={documentId} />
+                          <DocumentVersionHistoryPanel
+                            documentId={documentId}
+                          />
                         </div>
                       </section>
                     ) : null}
@@ -2392,6 +2444,13 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
               </div>
             </section>
           </div>
+        ) : null}
+        {previewCitationSet ? (
+          <CitationPreviewDrawer
+            citations={previewCitationSet.citations}
+            initialIndex={previewCitationSet.initialIndex}
+            onClose={() => setPreviewCitationSet(null)}
+          />
         ) : null}
       </section>
     </section>

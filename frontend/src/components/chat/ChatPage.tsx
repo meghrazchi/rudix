@@ -13,7 +13,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
+import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import { FeedbackModal } from "@/components/chat/FeedbackModal";
 import { ChatResponseLoadingState } from "@/components/chat/ChatResponseLoadingState";
 import { ShareModal } from "@/components/chat/ShareModal";
@@ -747,9 +747,9 @@ function citationFreshnessLabel(
         "rounded-full bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 uppercase",
     };
   }
-  if (citation.doc_review_status || citation.doc_trust_status) {
+  if (citation.doc_review_status || citation.source_trust_status) {
     return {
-      label: (status ?? citation.doc_trust_status ?? "Current").replaceAll(
+      label: (status ?? citation.source_trust_status ?? "Current").replaceAll(
         "_",
         " ",
       ),
@@ -859,8 +859,6 @@ export function ChatPage() {
   const [feedbackModalMessageId, setFeedbackModalMessageId] = useState<
     string | null
   >(null);
-  const [activeCitation, setActiveCitation] =
-    useState<ChatCitationResponse | null>(null);
   const [previewCitationSet, setPreviewCitationSet] = useState<{
     citations: ChatCitationResponse[];
     initialIndex: number;
@@ -2079,7 +2077,7 @@ export function ChatPage() {
         </header>
 
         <div
-          className={`grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-rows-[1fr] ${isKnowledgeHubOpen || activeCitation !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
+          className={`grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-rows-[1fr] ${isKnowledgeHubOpen || previewCitationSet !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
         >
           <aside className="hide-scrollbar hidden min-h-0 space-y-4 overflow-y-auto xl:block xl:pr-1">
             <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
@@ -2479,7 +2477,8 @@ export function ChatPage() {
                                     citation.doc_is_excluded_status,
                                 ) ? (
                                   <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                    Some citations come from stale, expired, or archived sources.
+                                    Some citations come from stale, expired, or
+                                    archived sources.
                                   </p>
                                 ) : null}
 
@@ -2520,13 +2519,30 @@ export function ChatPage() {
                                                 <button
                                                   type="button"
                                                   onClick={() => {
+                                                    const siblings =
+                                                      turn.response.citations.filter(
+                                                        (c) =>
+                                                          c.document_id ===
+                                                          citation.document_id,
+                                                      );
                                                     setSelectedResponseMessageId(
                                                       turn.response.message_id,
                                                     );
                                                     setIsKnowledgeHubOpen(
                                                       false,
                                                     );
-                                                    setActiveCitation(citation);
+                                                    setPreviewCitationSet({
+                                                      citations:
+                                                        siblings.length > 0
+                                                          ? siblings
+                                                          : [citation],
+                                                      initialIndex: Math.max(
+                                                        0,
+                                                        siblings.indexOf(
+                                                          citation,
+                                                        ),
+                                                      ),
+                                                    });
                                                   }}
                                                   title={label}
                                                   className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden px-2.5 py-2 text-left"
@@ -2543,7 +2559,7 @@ export function ChatPage() {
                                                     <span
                                                       className={`block text-[10px] font-bold uppercase ${getFileTypeColorClass(citation.filename)}`}
                                                     >
-                                                    {citationProviderLabel(
+                                                      {citationProviderLabel(
                                                         citation,
                                                       )?.toUpperCase() ?? ext}
                                                     </span>
@@ -2615,7 +2631,6 @@ export function ChatPage() {
                                           setSelectedResponseMessageId(
                                             turn.response.message_id,
                                           );
-                                          setActiveCitation(null);
                                           setIsKnowledgeHubOpen(true);
                                         }}
                                         className="mt-3 w-full cursor-pointer rounded-r border-l-4 border-[#3525cd] bg-white px-3 py-2 text-left text-sm text-[#464555] italic shadow-sm transition-colors hover:bg-[#f5f2ff]"
@@ -2660,7 +2675,8 @@ export function ChatPage() {
                                     turn.response.source_freshness_warning
                                   }
                                   sourceFreshnessWarningReason={
-                                    turn.response.source_freshness_warning_reason
+                                    turn.response
+                                      .source_freshness_warning_reason
                                   }
                                   policyApplied={turn.response.policy_applied}
                                   policyOutcome={turn.response.policy_outcome}
@@ -2676,11 +2692,26 @@ export function ChatPage() {
                                   citations={turn.response.citations}
                                   debug={turn.response.debug}
                                   onOpenCitation={(citation) => {
+                                    const siblings =
+                                      turn.response.citations.filter(
+                                        (c) =>
+                                          c.document_id ===
+                                          citation.document_id,
+                                      );
                                     setSelectedResponseMessageId(
                                       turn.response.message_id,
                                     );
                                     setIsKnowledgeHubOpen(false);
-                                    setActiveCitation(citation);
+                                    setPreviewCitationSet({
+                                      citations:
+                                        siblings.length > 0
+                                          ? siblings
+                                          : [citation],
+                                      initialIndex: Math.max(
+                                        0,
+                                        siblings.indexOf(citation),
+                                      ),
+                                    });
                                   }}
                                 />
                               )}
@@ -2994,7 +3025,7 @@ export function ChatPage() {
           </section>
 
           <aside
-            className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm ${isKnowledgeHubOpen || activeCitation !== null ? "" : "hidden"}`}
+            className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm ${isKnowledgeHubOpen || previewCitationSet !== null ? "" : "hidden"}`}
           >
             {/* ── Header ── */}
             <div className="flex items-center justify-between border-b border-[#e4e1ee] p-4">
@@ -3139,7 +3170,21 @@ export function ChatPage() {
                                 key={`preferred:${citation.document_id}:${citation.chunk_id}:${ci}`}
                                 type="button"
                                 onClick={() => {
-                                  setActiveCitation(citation);
+                                  const siblings =
+                                    selectedCitationTurn.response.citations.filter(
+                                      (c) =>
+                                        c.document_id === citation.document_id,
+                                    );
+                                  setPreviewCitationSet({
+                                    citations:
+                                      siblings.length > 0
+                                        ? siblings
+                                        : [citation],
+                                    initialIndex: Math.max(
+                                      0,
+                                      siblings.indexOf(citation),
+                                    ),
+                                  });
                                   setIsKnowledgeHubOpen(false);
                                 }}
                                 className="group w-full rounded-lg border border-emerald-200 bg-white p-3 text-left transition-all hover:border-emerald-400"
@@ -3187,7 +3232,21 @@ export function ChatPage() {
                                 key={`conflicting:${citation.document_id}:${citation.chunk_id}:${ci}`}
                                 type="button"
                                 onClick={() => {
-                                  setActiveCitation(citation);
+                                  const siblings =
+                                    selectedCitationTurn.response.citations.filter(
+                                      (c) =>
+                                        c.document_id === citation.document_id,
+                                    );
+                                  setPreviewCitationSet({
+                                    citations:
+                                      siblings.length > 0
+                                        ? siblings
+                                        : [citation],
+                                    initialIndex: Math.max(
+                                      0,
+                                      siblings.indexOf(citation),
+                                    ),
+                                  });
                                   setIsKnowledgeHubOpen(false);
                                 }}
                                 className="group w-full rounded-lg border border-rose-200 bg-white p-3 text-left transition-all hover:border-rose-400"
@@ -3237,7 +3296,18 @@ export function ChatPage() {
                           key={`hub:${citation.document_id}:${citation.chunk_id}:${ci}`}
                           type="button"
                           onClick={() => {
-                            setActiveCitation(citation);
+                            const siblings =
+                              selectedCitationTurn.response.citations.filter(
+                                (c) => c.document_id === citation.document_id,
+                              );
+                            setPreviewCitationSet({
+                              citations:
+                                siblings.length > 0 ? siblings : [citation],
+                              initialIndex: Math.max(
+                                0,
+                                siblings.indexOf(citation),
+                              ),
+                            });
                             setIsKnowledgeHubOpen(false);
                           }}
                           className="group w-full rounded-lg border border-[#c7c4d8] bg-white p-3 text-left transition-all hover:border-[#3525cd]"
@@ -3508,195 +3578,12 @@ export function ChatPage() {
               </div>
             </div>
 
-            {/* ── Citation Detail overlay ── */}
-            {activeCitation ? (
-              <div className="absolute inset-0 z-50 flex flex-col bg-white">
-                <div className="flex items-center gap-2 border-b border-[#e4e1ee] p-4">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-base font-semibold text-[#1b1b24]">
-                      {tc("citationDetailsTitle")}
-                    </h2>
-                    <p className="flex items-center gap-1 font-mono text-xs text-[#464555]">
-                      <span
-                        className="truncate"
-                        title={
-                          activeCitation.filename ?? tc("documentFallback")
-                        }
-                      >
-                        {activeCitation.filename ?? tc("documentFallback")}
-                      </span>
-                      {activeCitation.page_number ? (
-                        <span className="shrink-0">
-                          {tc("citationPage", {
-                            page: activeCitation.page_number,
-                          })}
-                        </span>
-                      ) : null}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveCitation(null)}
-                    aria-label="Close citation detail"
-                    className="shrink-0 cursor-pointer rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
-                  >
-                    <span
-                      className="material-symbols-outlined text-[20px]"
-                      aria-hidden="true"
-                    >
-                      close
-                    </span>
-                  </button>
-                </div>
-
-                <div className="hide-scrollbar flex-1 overflow-y-auto bg-[#f5f2ff] p-4">
-                  <div className="min-h-[300px] rounded-lg border border-[#c7c4d8] bg-white p-5 font-serif text-sm leading-relaxed text-[#1b1b24] shadow-md">
-                    <div className="mb-4 flex items-end justify-between border-b pb-2 font-sans text-xs text-[#464555] italic">
-                      <span
-                        className="max-w-[70%] truncate"
-                        title={
-                          activeCitation.source_title ??
-                          activeCitation.filename ??
-                          "DOCUMENT"
-                        }
-                      >
-                        {activeCitation.source_title ??
-                          activeCitation.filename ??
-                          "DOCUMENT"}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        {citationProviderLabel(activeCitation) ? (
-                          <span className="rounded-full bg-[#f0ecf9] px-2 py-1 text-[10px] font-semibold text-[#5d58a8] uppercase">
-                            {citationProviderLabel(activeCitation)}
-                          </span>
-                        ) : null}
-                        {activeCitation.source_trust_status ? (
-                          <span className="rounded-full bg-[#e8f6ee] px-2 py-1 text-[10px] font-semibold text-emerald-800 uppercase">
-                            {activeCitation.source_trust_status}
-                          </span>
-                        ) : null}
-                        {citationFreshnessLabel(activeCitation) ? (
-                          <span
-                            className={
-                              citationFreshnessLabel(activeCitation)!.className
-                            }
-                          >
-                            {citationFreshnessLabel(activeCitation)!.label}
-                          </span>
-                        ) : null}
-                        {activeCitation.page_number ? (
-                          <span>PAGE {activeCitation.page_number}</span>
-                        ) : null}
-                      </span>
-                    </div>
-                    {activeCitation.doc_stale_warning ||
-                    activeCitation.doc_expired_warning ||
-                    activeCitation.doc_is_excluded_status ? (
-                      <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        This citation references a stale, expired, or archived source.
-                      </p>
-                    ) : null}
-                    <p className="mb-3 text-xs leading-relaxed opacity-40">
-                      {tc("citationPassage")}
-                    </p>
-                    {activeCitation.source_section ||
-                    activeCitation.source_last_synced_at ? (
-                      <p className="mb-2 text-[11px] text-[#6a6780]">
-                        {activeCitation.source_section ? (
-                          <span>
-                            {tc("citationSection", {
-                              section: activeCitation.source_section,
-                            })}
-                          </span>
-                        ) : null}
-                        {activeCitation.source_section &&
-                        activeCitation.source_last_synced_at ? (
-                          <span> | </span>
-                        ) : null}
-                        {activeCitation.source_last_synced_at ? (
-                          <span>
-                            {tc("citationSynced", {
-                              date: formatDate(
-                                activeCitation.source_last_synced_at,
-                              ),
-                            })}
-                          </span>
-                        ) : null}
-                      </p>
-                    ) : null}
-                    {activeCitation.text_snippet ? (
-                      <div className="my-3 rounded-r border-l-4 border-[#3525cd] bg-[#e2dfff]/30 p-3">
-                        <span className="mr-1 rounded bg-[#3525cd]/10 px-1 font-sans text-xs font-bold text-[#3525cd]">
-                          CIT
-                        </span>
-                        <span className="font-bold">
-                          {activeCitation.text_snippet}
-                        </span>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-[#464555] italic">
-                        {tc("snippetUnavailable")}
-                      </p>
-                    )}
-                    <p className="mt-3 text-xs leading-relaxed opacity-40">
-                      {tc("retrievalScore", {
-                        score: formatScore(
-                          activeCitation.rerank_score ??
-                            activeCitation.similarity_score ??
-                            activeCitation.score,
-                        ),
-                      })}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="border-t border-[#e4e1ee] bg-white p-4">
-                  {activeCitation.source_deep_link ? (
-                    <a
-                      href={activeCitation.source_deep_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff]"
-                    >
-                      <span
-                        className="material-symbols-outlined text-[18px]"
-                        aria-hidden="true"
-                      >
-                        open_in_new
-                      </span>
-                      {tc("openConnectedSource")}
-                    </a>
-                  ) : null}
-                  {activeCitation.document_id ? (
-                    <Link
-                      href={
-                        `/documents/${encodeURIComponent(activeCitation.document_id)}` +
-                        `?chunk_id=${encodeURIComponent(activeCitation.chunk_id)}` +
-                        (activeCitation.text_snippet
-                          ? `&snippet=${encodeURIComponent(activeCitation.text_snippet)}`
-                          : "") +
-                        (activeCitation.page_number != null
-                          ? `&page=${encodeURIComponent(String(activeCitation.page_number))}`
-                          : "") +
-                        `&back=${encodeURIComponent("/chat")}`
-                      }
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
-                    >
-                      <span
-                        className="material-symbols-outlined text-[18px]"
-                        aria-hidden="true"
-                      >
-                        open_in_new
-                      </span>
-                      {tc("jumpToSource")}
-                    </Link>
-                  ) : (
-                    <p className="text-center text-xs text-[#777587]">
-                      {tc("documentLinkUnavailable")}
-                    </p>
-                  )}
-                </div>
-              </div>
+            {previewCitationSet ? (
+              <CitationPreviewDrawer
+                citations={previewCitationSet.citations}
+                initialIndex={previewCitationSet.initialIndex}
+                onClose={() => setPreviewCitationSet(null)}
+              />
             ) : null}
           </aside>
         </div>
@@ -4125,14 +4012,6 @@ export function ChatPage() {
             </div>
           </div>
         </div>
-      ) : null}
-
-      {previewCitationSet ? (
-        <DocumentPreviewModal
-          citations={previewCitationSet.citations}
-          initialIndex={previewCitationSet.initialIndex}
-          onClose={() => setPreviewCitationSet(null)}
-        />
       ) : null}
 
       {isShareModalOpen && activeSessionId ? (

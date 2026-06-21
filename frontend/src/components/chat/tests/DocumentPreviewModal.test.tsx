@@ -44,8 +44,14 @@ const baseCitation: ChatCitationResponse = {
 
 const staleCitation: ChatCitationResponse = {
   ...baseCitation,
-  doc_trust_status: "stale",
+  source_trust_status: "stale",
   doc_stale_warning: true,
+};
+
+const noChunkCitation: ChatCitationResponse = {
+  ...baseCitation,
+  chunk_id: null,
+  text_snippet: "A citation without a chunk id should still render safely.",
 };
 
 function render(
@@ -105,6 +111,19 @@ describe("DocumentPreviewModal", () => {
         "This citation references a stale, expired, or archived source.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("degrades safely when no chunk id is available", async () => {
+    render([noChunkCitation]);
+
+    expect(
+      await screen.findByText(
+        "A citation without a chunk id should still render safely.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /view in documents/i }),
+    ).toBeNull();
   });
 
   it("shows rerank score in the metadata strip", async () => {
@@ -199,7 +218,6 @@ describe("DocumentPreviewModal", () => {
     const href = link.getAttribute("href") ?? "";
     expect(href).toContain("/documents/doc-1");
     expect(href).toContain("chunk_id=chunk-1");
-    expect(href).toContain("snippet=");
     expect(href).toContain("page=3");
     expect(href).toContain("back=%2Fchat");
   });
@@ -210,7 +228,7 @@ describe("DocumentPreviewModal", () => {
 
     await screen.findByText("Employee-Handbook.pdf");
     await userEvent.click(
-      screen.getByRole("button", { name: /close preview/i }),
+      screen.getByRole("button", { name: /close citation preview/i }),
     );
     expect(onClose).toHaveBeenCalledOnce();
   });

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { VerifiedAnswerBadge } from "@/components/verified-answers/VerifiedAnswerBadge";
+import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   archiveVerifiedAnswer,
@@ -12,6 +13,7 @@ import {
   approveVerifiedAnswer,
   rejectVerifiedAnswer,
   publishVerifiedAnswer,
+  type CitationResponse,
   type VerifiedAnswerResponse,
 } from "@/lib/api/verified-answers";
 import { usePermissions } from "@/lib/use-permissions";
@@ -27,6 +29,10 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
   const { role } = usePermissions();
   const [rejectNote, setRejectNote] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [previewCitationSet, setPreviewCitationSet] = useState<{
+    citations: CitationResponse[];
+    initialIndex: number;
+  } | null>(null);
 
   const isAdmin = role === "owner" || role === "admin";
   const isReviewer = isAdmin || role === "reviewer";
@@ -74,7 +80,10 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
     archiveMutation.error;
 
   const tags = answer.tags
-    ? answer.tags.split(",").map((t) => t.trim()).filter(Boolean)
+    ? answer.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
     : [];
 
   return (
@@ -84,7 +93,10 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <VerifiedAnswerBadge status={answer.status} isStale={answer.is_stale} />
+          <VerifiedAnswerBadge
+            status={answer.status}
+            isStale={answer.is_stale}
+          />
           {tags.map((tag) => (
             <span
               key={tag}
@@ -104,7 +116,9 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
         )}
       </div>
 
-      <h2 className="mb-1 text-base font-semibold text-gray-900">{answer.title}</h2>
+      <h2 className="mb-1 text-base font-semibold text-gray-900">
+        {answer.title}
+      </h2>
 
       <p className="mb-3 text-sm text-gray-500 italic">{answer.question}</p>
 
@@ -123,19 +137,35 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
                 <span className="mt-0.5 font-medium text-gray-400">
                   [{cit.citation_order + 1}]
                 </span>
-                <span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const siblings = answer.citations.filter(
+                      (item) => item.document_id === cit.document_id,
+                    );
+                    setPreviewCitationSet({
+                      citations: siblings.length > 0 ? siblings : [cit],
+                      initialIndex: Math.max(0, siblings.indexOf(cit)),
+                    });
+                  }}
+                  className="text-left"
+                >
                   {cit.text_snippet ? (
                     <>
                       &ldquo;{cit.text_snippet.slice(0, 120)}
                       {cit.text_snippet.length > 120 ? "…" : ""}&rdquo;
                     </>
                   ) : (
-                    <span className="text-gray-400">Document {cit.document_id.slice(0, 8)}…</span>
+                    <span className="text-gray-400">
+                      Document {cit.document_id.slice(0, 8)}…
+                    </span>
                   )}
                   {cit.page_number && (
-                    <span className="ml-1 text-gray-400">p. {cit.page_number}</span>
+                    <span className="ml-1 text-gray-400">
+                      p. {cit.page_number}
+                    </span>
                   )}
-                </span>
+                </button>
               </li>
             ))}
           </ol>
@@ -221,7 +251,7 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
             value={rejectNote}
             onChange={(e) => setRejectNote(e.target.value)}
             rows={3}
-            className="w-full rounded border border-red-200 p-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-400"
+            className="w-full rounded border border-red-200 p-2 text-xs focus:ring-1 focus:ring-red-400 focus:outline-none"
           />
           <div className="mt-2 flex gap-2">
             <button
@@ -240,6 +270,14 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
           </div>
         </div>
       )}
+
+      {previewCitationSet ? (
+        <CitationPreviewDrawer
+          citations={previewCitationSet.citations}
+          initialIndex={previewCitationSet.initialIndex}
+          onClose={() => setPreviewCitationSet(null)}
+        />
+      ) : null}
     </article>
   );
 }

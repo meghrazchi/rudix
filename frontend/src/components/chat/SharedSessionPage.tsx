@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getSharedSession } from "@/lib/api/shares";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { isForbiddenError } from "@/lib/forbidden";
+import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import { LoadingState } from "@/components/states/LoadingState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -51,31 +52,37 @@ function freshnessLabel(
   if (!trust) {
     return null;
   }
-  if (trust === "expired") {
-    return {
-      label: "Expired",
-      className:
-        "rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
-    };
-  }
-  if (trust === "archived") {
-    return {
-      label: "Archived",
-      className:
-        "rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 uppercase",
-    };
-  }
-  if (trust === "stale" || trust === "revoked" || trust === "deleted") {
+  if (trust === "stale") {
     return {
       label: "Stale",
       className:
         "rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
     };
   }
+  if (trust === "revoked") {
+    return {
+      label: "Revoked",
+      className:
+        "rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
+    };
+  }
+  if (trust === "deleted") {
+    return {
+      label: "Deleted",
+      className:
+        "rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 uppercase",
+    };
+  }
   return null;
 }
 
-function CitationCard({ citation }: { citation: ChatCitationResponse }) {
+function CitationCard({
+  citation,
+  onClick,
+}: {
+  citation: ChatCitationResponse;
+  onClick?: () => void;
+}) {
   const providerLabel =
     citation.source_provider_label ?? citation.source_provider ?? null;
   const sourceTitle = citation.source_title ?? citation.filename ?? "Document";
@@ -83,7 +90,12 @@ function CitationCard({ citation }: { citation: ChatCitationResponse }) {
   const trustStatus = citation.source_trust_status ?? null;
   const freshness = freshnessLabel(citation);
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className="flex w-full items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2 text-left transition-colors hover:bg-[#f5f2ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:cursor-default disabled:hover:bg-white"
+    >
       <div className="min-w-0 overflow-hidden">
         <div className="mb-0.5 flex flex-wrap items-center gap-1">
           <p
@@ -135,11 +147,15 @@ function CitationCard({ citation }: { citation: ChatCitationResponse }) {
           </p>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
 export function SharedSessionPage({ token }: Props) {
+  const [previewCitationSet, setPreviewCitationSet] = useState<{
+    citations: ChatCitationResponse[];
+    initialIndex: number;
+  } | null>(null);
   const sharedQuery = useQuery({
     queryKey: ["chat", "shared", token],
     queryFn: () => getSharedSession(token),
@@ -265,8 +281,8 @@ export function SharedSessionPage({ token }: Props) {
             ),
           ) ? (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Some citations in this shared session come from stale, expired,
-              or archived sources.
+              Some citations in this shared session come from stale, revoked, or
+              deleted sources.
             </div>
           ) : null}
 
@@ -320,6 +336,19 @@ export function SharedSessionPage({ token }: Props) {
                             <CitationCard
                               key={`${citation.document_id}:${citation.chunk_id}:${ci}`}
                               citation={citation}
+                              onClick={() => {
+                                const siblings = turn.citations.filter(
+                                  (c) => c.document_id === citation.document_id,
+                                );
+                                setPreviewCitationSet({
+                                  citations:
+                                    siblings.length > 0 ? siblings : [citation],
+                                  initialIndex: Math.max(
+                                    0,
+                                    siblings.indexOf(citation),
+                                  ),
+                                });
+                              }}
                             />
                           ))}
                         </div>
@@ -332,6 +361,13 @@ export function SharedSessionPage({ token }: Props) {
           )}
         </div>
       </div>
+      {previewCitationSet ? (
+        <CitationPreviewDrawer
+          citations={previewCitationSet.citations}
+          initialIndex={previewCitationSet.initialIndex}
+          onClose={() => setPreviewCitationSet(null)}
+        />
+      ) : null}
     </section>
   );
 }
