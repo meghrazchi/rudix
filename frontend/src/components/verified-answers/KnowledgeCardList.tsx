@@ -74,7 +74,7 @@ export function KnowledgeCardList({
             setSearchQuery(e.target.value);
             setOffset(0);
           }}
-          className="min-w-[220px] flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="min-w-[220px] flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           aria-label="Search knowledge cards"
         />
         {showStatusFilter && (
@@ -84,7 +84,7 @@ export function KnowledgeCardList({
               setStatus(e.target.value as VerifiedAnswerStatus | "");
               setOffset(0);
             }}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             aria-label="Filter by status"
           >
             {STATUS_OPTIONS.map((opt) => (
@@ -104,11 +104,7 @@ export function KnowledgeCardList({
         </div>
       ) : data && data.items.length > 0 ? (
         <>
-          <div
-            className="space-y-4"
-            role="list"
-            aria-label="Knowledge cards"
-          >
+          <div className="space-y-4" role="list" aria-label="Knowledge cards">
             {data.items.map((answer) => (
               <div key={answer.answer_id} role="listitem">
                 <KnowledgeCard answer={answer} queryKey={queryKey} />

@@ -3,7 +3,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminTaxonomyPage } from "@/components/admin/AdminTaxonomyPage";
-import type { MetadataFieldListResponse, MetadataFieldResponse } from "@/lib/api/metadata";
+import type {
+  MetadataFieldListResponse,
+  MetadataFieldResponse,
+} from "@/lib/api/metadata";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -56,7 +59,9 @@ vi.mock("@/lib/api/query", async (importOriginal) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeField(overrides: Partial<MetadataFieldResponse> = {}): MetadataFieldResponse {
+function makeField(
+  overrides: Partial<MetadataFieldResponse> = {},
+): MetadataFieldResponse {
   return {
     field_id: "field-1",
     organization_id: "org-1",
@@ -75,7 +80,9 @@ function makeField(overrides: Partial<MetadataFieldResponse> = {}): MetadataFiel
   };
 }
 
-function makeList(fields: MetadataFieldResponse[] = []): MetadataFieldListResponse {
+function makeList(
+  fields: MetadataFieldResponse[] = [],
+): MetadataFieldListResponse {
   return { items: fields, total: fields.length };
 }
 
@@ -122,7 +129,13 @@ describe("AdminTaxonomyPage", () => {
 
   it("shows FieldTypeChip for field type", async () => {
     mockApi.listMetadataFields.mockResolvedValue(
-      makeList([makeField({ field_type: "select", name: "region", display_name: "Region" })]),
+      makeList([
+        makeField({
+          field_type: "select",
+          name: "region",
+          display_name: "Region",
+        }),
+      ]),
     );
     renderPage();
     await waitFor(() => {
@@ -138,9 +151,7 @@ describe("AdminTaxonomyPage", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /add field/i }));
     expect(screen.getByText("New metadata field")).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(/e.g. department/i),
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/e.g. department/i)).toBeInTheDocument();
   });
 
   it("submits create form and shows new field", async () => {
@@ -164,7 +175,10 @@ describe("AdminTaxonomyPage", () => {
 
     await waitFor(() => {
       expect(mockApi.createMetadataField).toHaveBeenCalledWith(
-        expect.objectContaining({ name: "department", display_name: "Department" }),
+        expect.objectContaining({
+          name: "department",
+          display_name: "Department",
+        }),
       );
     });
   });
@@ -176,7 +190,9 @@ describe("AdminTaxonomyPage", () => {
       expect(screen.getByText("Department")).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
-    const input = screen.getByPlaceholderText(/e.g. Department/i) as HTMLInputElement;
+    const input = screen.getByPlaceholderText(
+      /e.g. Department/i,
+    ) as HTMLInputElement;
     expect(input.value).toBe("Department");
   });
 
@@ -223,7 +239,10 @@ describe("AdminTaxonomyPage", () => {
       expect(screen.getByText("Department")).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
-    const confirmBtn = screen.getByRole("button", { name: /^delete$/i, hidden: false });
+    const confirmBtn = screen.getByRole("button", {
+      name: /^delete$/i,
+      hidden: false,
+    });
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {

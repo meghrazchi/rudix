@@ -91,9 +91,7 @@ function makeFieldList(
   return { items: fields, total: fields.length };
 }
 
-function makeDocMeta(
-  documentId = "doc-1",
-): DocumentMetadataResponse {
+function makeDocMeta(documentId = "doc-1"): DocumentMetadataResponse {
   return {
     document_id: documentId,
     values: [
@@ -178,7 +176,9 @@ describe("DocumentMetadataPanel", () => {
     mockApi.getDocumentMetadata.mockResolvedValue(makeDocMeta());
     renderPanel(true);
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^edit$/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /^edit$/i }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -202,7 +202,9 @@ describe("DocumentMetadataPanel", () => {
     mockApi.getDocumentMetadata.mockResolvedValue(makeDocMeta());
     renderPanel(true);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^edit$/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /^edit$/i }),
+      ).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
     const inputs = screen.getAllByRole("textbox");
@@ -216,12 +218,16 @@ describe("DocumentMetadataPanel", () => {
     mockApi.getDocumentMetadata.mockResolvedValue(makeDocMeta());
     renderPanel(true);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^edit$/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /^edit$/i }),
+      ).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^edit$/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /^edit$/i }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -235,7 +241,9 @@ describe("DocumentMetadataPanel", () => {
     mockApi.setDocumentMetadata.mockResolvedValue(makeDocMeta());
     renderPanel(true);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^edit$/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /^edit$/i }),
+      ).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
 
@@ -266,7 +274,9 @@ describe("DocumentMetadataPanel", () => {
     });
     renderPanel(true);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^edit$/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /^edit$/i }),
+      ).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
     await waitFor(() => {

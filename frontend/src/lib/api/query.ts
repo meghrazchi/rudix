@@ -307,12 +307,15 @@ export const queryKeys = {
   metadata: {
     all: ["metadata"] as const,
     fields: (includeInactive?: boolean) =>
-      ["metadata", "fields", { includeInactive: includeInactive ?? false }] as const,
+      [
+        "metadata",
+        "fields",
+        { includeInactive: includeInactive ?? false },
+      ] as const,
     field: (fieldId: string) => ["metadata", "field", fieldId] as const,
     documentValues: (documentId: string) =>
       ["metadata", "document", documentId] as const,
-    audit: (documentId: string) =>
-      ["metadata", "audit", documentId] as const,
+    audit: (documentId: string) => ["metadata", "audit", documentId] as const,
   },
   connectorConnections: ["connectors", "connections"] as const,
   connectorConnection: (connectionId: string) =>

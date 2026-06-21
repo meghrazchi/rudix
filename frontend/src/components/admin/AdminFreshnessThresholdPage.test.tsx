@@ -72,7 +72,9 @@ describe("AdminFreshnessThresholdPage", () => {
   });
 
   it("shows error state on generic failure", async () => {
-    mockApi.getFreshnessThresholds.mockRejectedValue(new Error("network error"));
+    mockApi.getFreshnessThresholds.mockRejectedValue(
+      new Error("network error"),
+    );
     renderPage();
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
   });
@@ -91,9 +93,7 @@ describe("AdminFreshnessThresholdPage", () => {
       updated_at: "2026-05-01T10:00:00Z",
     });
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText(/last updated/i)).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText(/last updated/i)).toBeTruthy());
   });
 
   it("save button is disabled when form has not changed", async () => {
@@ -153,29 +153,29 @@ describe("AdminFreshnessThresholdPage", () => {
     await waitFor(() => screen.getByLabelText(/warn stale after/i));
     await user.type(screen.getByLabelText(/warn stale after/i), "30");
     await user.click(screen.getByTestId("save-freshness-thresholds"));
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
   });
 
   it("shows error message on save failure", async () => {
     const user = userEvent.setup();
     mockApi.getFreshnessThresholds.mockResolvedValue(defaultPolicy);
-    mockApi.patchFreshnessThresholds.mockRejectedValue(new Error("server error"));
+    mockApi.patchFreshnessThresholds.mockRejectedValue(
+      new Error("server error"),
+    );
     renderPage();
     await waitFor(() => screen.getByLabelText(/warn stale after/i));
     await user.type(screen.getByLabelText(/warn stale after/i), "45");
     await user.click(screen.getByTestId("save-freshness-thresholds"));
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
   });
 
   it("renders auto_exclude_deprecated toggle as checked by default", async () => {
     mockApi.getFreshnessThresholds.mockResolvedValue(defaultPolicy);
     renderPage();
     await waitFor(() =>
-      expect(screen.getByRole("switch", { name: /exclude deprecated/i })).toBeTruthy(),
+      expect(
+        screen.getByRole("switch", { name: /exclude deprecated/i }),
+      ).toBeTruthy(),
     );
     const toggle = screen.getByRole("switch", { name: /exclude deprecated/i });
     expect(toggle.getAttribute("aria-checked")).toBe("true");
@@ -200,7 +200,9 @@ describe("AdminFreshnessThresholdPage", () => {
     });
     renderPage();
     await waitFor(() => screen.getByLabelText(/warn unreviewed after/i));
-    const input = screen.getByLabelText(/warn unreviewed after/i) as HTMLInputElement;
+    const input = screen.getByLabelText(
+      /warn unreviewed after/i,
+    ) as HTMLInputElement;
     expect(input.value).toBe("120");
   });
 
@@ -208,8 +210,12 @@ describe("AdminFreshnessThresholdPage", () => {
     mockApi.getFreshnessThresholds.mockResolvedValue(defaultPolicy);
     renderPage();
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: /freshness thresholds/i })).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { name: /freshness thresholds/i }),
+      ).toBeTruthy(),
     );
-    expect(screen.getByText(/configure when answer trust panels/i)).toBeTruthy();
+    expect(
+      screen.getByText(/configure when answer trust panels/i),
+    ).toBeTruthy();
   });
 });

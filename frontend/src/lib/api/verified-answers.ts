@@ -235,11 +235,14 @@ export async function searchVerifiedAnswers(
   query: string,
   options: { collection_id?: string; limit?: number } = {},
 ): Promise<VerifiedAnswerListResponse> {
-  return apiRequest<VerifiedAnswerListResponse>("/verified-answers/search/match", {
-    query: {
-      query,
-      collection_id: options.collection_id,
-      limit: options.limit,
+  return apiRequest<VerifiedAnswerListResponse>(
+    "/verified-answers/search/match",
+    {
+      query: {
+        query,
+        collection_id: options.collection_id,
+        limit: options.limit,
+      },
     },
-  });
+  );
 }

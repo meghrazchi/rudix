@@ -212,10 +212,10 @@ export type DetectGapsResponse = {
 export async function detectKnowledgeGaps(
   payload: DetectGapsRequest = {},
 ): Promise<DetectGapsResponse> {
-  return apiRequest<DetectGapsResponse>(
-    "/admin/query-analytics/gaps/detect",
-    { method: "POST", json: payload },
-  );
+  return apiRequest<DetectGapsResponse>("/admin/query-analytics/gaps/detect", {
+    method: "POST",
+    json: payload,
+  });
 }
 
 // ── Export ─────────────────────────────────────────────────────────────────────

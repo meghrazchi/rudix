@@ -1,6 +1,12 @@
 "use client";
 
-import React, { forwardRef, useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -130,193 +136,204 @@ type GapPanelProps = {
   gap: KnowledgeGapResponse;
   onClose: () => void;
   onUpdate: (gapId: string, status: GapStatus, notes: string | null) => void;
-  onConvert: (gapId: string, target: "eval_case" | "doc_request" | "review_task") => void;
+  onConvert: (
+    gapId: string,
+    target: "eval_case" | "doc_request" | "review_task",
+  ) => void;
   isUpdating: boolean;
 };
 
 const GapDetailPanel = forwardRef<HTMLElement, GapPanelProps>(
-  function GapDetailPanel({ gap, onClose, onUpdate, onConvert, isUpdating }, ref) {
-  const [statusInput, setStatusInput] = useState<GapStatus>(gap.status);
-  const [notesInput, setNotesInput] = useState(gap.reviewer_notes ?? "");
+  function GapDetailPanel(
+    { gap, onClose, onUpdate, onConvert, isUpdating },
+    ref,
+  ) {
+    const [statusInput, setStatusInput] = useState<GapStatus>(gap.status);
+    const [notesInput, setNotesInput] = useState(gap.reviewer_notes ?? "");
 
-  return (
-    <aside
-      ref={ref as React.RefObject<HTMLElement>}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="gap-detail-title"
-      className="absolute top-3 right-0 z-20 max-h-[min(85vh,760px)] w-full max-w-[420px] overflow-y-auto rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-2xl"
-    >
-      <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e4e1ee] pb-3">
-        <div>
-          <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Knowledge gap
-          </p>
-          <h3
-            id="gap-detail-title"
-            className="mt-1 text-base font-semibold text-[#1b1b24]"
+    return (
+      <aside
+        ref={ref as React.RefObject<HTMLElement>}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gap-detail-title"
+        className="absolute top-3 right-0 z-20 max-h-[min(85vh,760px)] w-full max-w-[420px] overflow-y-auto rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-2xl"
+      >
+        <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e4e1ee] pb-3">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Knowledge gap
+            </p>
+            <h3
+              id="gap-detail-title"
+              className="mt-1 text-base font-semibold text-[#1b1b24]"
+            >
+              {gap.topic_label}
+            </h3>
+          </div>
+          <button
+            type="button"
+            data-overlay-autofocus="true"
+            onClick={onClose}
+            className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#38485d] hover:bg-[#f5f2ff]"
           >
-            {gap.topic_label}
-          </h3>
+            Close
+          </button>
         </div>
-        <button
-          type="button"
-          data-overlay-autofocus="true"
-          onClick={onClose}
-          className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#38485d] hover:bg-[#f5f2ff]"
-        >
-          Close
-        </button>
-      </div>
 
-      <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3 text-sm">
-        <dl className="grid gap-2">
-          <div className="flex gap-2">
-            <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Type
-            </dt>
-            <dd>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${gapTypePillClass(gap.gap_type)}`}>
-                {gapTypeLabel(gap.gap_type)}
-              </span>
-            </dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Occurrences
-            </dt>
-            <dd className="font-mono text-sm font-semibold text-[#302f39]">
-              {gap.occurrence_count}
-            </dd>
-          </div>
-          {gap.avg_confidence != null ? (
+        <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3 text-sm">
+          <dl className="grid gap-2">
             <div className="flex gap-2">
               <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Avg confidence
+                Type
+              </dt>
+              <dd>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${gapTypePillClass(gap.gap_type)}`}
+                >
+                  {gapTypeLabel(gap.gap_type)}
+                </span>
+              </dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                Occurrences
+              </dt>
+              <dd className="font-mono text-sm font-semibold text-[#302f39]">
+                {gap.occurrence_count}
+              </dd>
+            </div>
+            {gap.avg_confidence != null ? (
+              <div className="flex gap-2">
+                <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                  Avg confidence
+                </dt>
+                <dd className="text-sm text-[#302f39]">
+                  {formatConf(gap.avg_confidence)}
+                </dd>
+              </div>
+            ) : null}
+            <div className="flex gap-2">
+              <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                Source
               </dt>
               <dd className="text-sm text-[#302f39]">
-                {formatConf(gap.avg_confidence)}
+                {gap.gap_source.replace(/_/g, " ")}
               </dd>
             </div>
-          ) : null}
-          <div className="flex gap-2">
-            <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Source
-            </dt>
-            <dd className="text-sm text-[#302f39]">
-              {gap.gap_source.replace(/_/g, " ")}
-            </dd>
+            {gap.converted_to ? (
+              <div className="flex gap-2">
+                <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                  Converted to
+                </dt>
+                <dd className="text-sm text-violet-700">
+                  {gap.converted_to.replace(/_/g, " ")}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
+
+        {gap.description ? (
+          <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
+            <h4 className="mb-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Description
+            </h4>
+            <p className="text-sm text-[#302f39]">{gap.description}</p>
+          </section>
+        ) : null}
+
+        {gap.example_query ? (
+          <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
+            <h4 className="mb-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Example query
+            </h4>
+            <p className="text-sm text-[#464555] italic">{gap.example_query}</p>
+          </section>
+        ) : null}
+
+        {!gap.converted_to ? (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onConvert(gap.gap_id, "eval_case")}
+              className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+            >
+              Convert to eval case
+            </button>
+            <button
+              type="button"
+              onClick={() => onConvert(gap.gap_id, "doc_request")}
+              className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+            >
+              Request document
+            </button>
+            <button
+              type="button"
+              onClick={() => onConvert(gap.gap_id, "review_task")}
+              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+            >
+              Create review task
+            </button>
           </div>
-          {gap.converted_to ? (
-            <div className="flex gap-2">
-              <dt className="w-28 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Converted to
-              </dt>
-              <dd className="text-sm text-violet-700">
-                {gap.converted_to.replace(/_/g, " ")}
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-      </section>
+        ) : null}
 
-      {gap.description ? (
-        <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
-          <h4 className="mb-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Description
-          </h4>
-          <p className="text-sm text-[#302f39]">{gap.description}</p>
+        <section className="space-y-3">
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Status
+            </span>
+            <select
+              value={statusInput}
+              onChange={(e) => setStatusInput(e.target.value as GapStatus)}
+              className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            >
+              <option value="open">Open</option>
+              <option value="in_review">In review</option>
+              <option value="resolved">Resolved</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Reviewer notes
+            </span>
+            <textarea
+              value={notesInput}
+              onChange={(e) => setNotesInput(e.target.value)}
+              rows={3}
+              maxLength={4000}
+              className="w-full resize-none rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={() =>
+              onUpdate(gap.gap_id, statusInput, notesInput.trim() || null)
+            }
+            disabled={isUpdating}
+            className="w-full rounded-lg bg-[#3525cd] px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isUpdating ? "Saving…" : "Save changes"}
+          </button>
+
+          <div className="rounded-lg border border-[#e4e1ee] bg-[#faf9ff] px-3 py-2 text-xs text-[#777587]">
+            <p>
+              <span className="font-semibold">Gap ID:</span>{" "}
+              <span className="font-mono">{gap.gap_id}</span>
+            </p>
+            <p>
+              <span className="font-semibold">Created:</span>{" "}
+              {new Date(gap.created_at).toLocaleString()}
+            </p>
+          </div>
         </section>
-      ) : null}
-
-      {gap.example_query ? (
-        <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
-          <h4 className="mb-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Example query
-          </h4>
-          <p className="text-sm italic text-[#464555]">{gap.example_query}</p>
-        </section>
-      ) : null}
-
-      {!gap.converted_to ? (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onConvert(gap.gap_id, "eval_case")}
-            className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-          >
-            Convert to eval case
-          </button>
-          <button
-            type="button"
-            onClick={() => onConvert(gap.gap_id, "doc_request")}
-            className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
-          >
-            Request document
-          </button>
-          <button
-            type="button"
-            onClick={() => onConvert(gap.gap_id, "review_task")}
-            className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-          >
-            Create review task
-          </button>
-        </div>
-      ) : null}
-
-      <section className="space-y-3">
-        <label className="block space-y-1">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Status
-          </span>
-          <select
-            value={statusInput}
-            onChange={(e) => setStatusInput(e.target.value as GapStatus)}
-            className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
-          >
-            <option value="open">Open</option>
-            <option value="in_review">In review</option>
-            <option value="resolved">Resolved</option>
-            <option value="dismissed">Dismissed</option>
-          </select>
-        </label>
-
-        <label className="block space-y-1">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Reviewer notes
-          </span>
-          <textarea
-            value={notesInput}
-            onChange={(e) => setNotesInput(e.target.value)}
-            rows={3}
-            maxLength={4000}
-            className="w-full resize-none rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-sm text-[#1b1b24]"
-          />
-        </label>
-
-        <button
-          type="button"
-          onClick={() => onUpdate(gap.gap_id, statusInput, notesInput.trim() || null)}
-          disabled={isUpdating}
-          className="w-full rounded-lg bg-[#3525cd] px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isUpdating ? "Saving…" : "Save changes"}
-        </button>
-
-        <div className="rounded-lg border border-[#e4e1ee] bg-[#faf9ff] px-3 py-2 text-xs text-[#777587]">
-          <p>
-            <span className="font-semibold">Gap ID:</span>{" "}
-            <span className="font-mono">{gap.gap_id}</span>
-          </p>
-          <p>
-            <span className="font-semibold">Created:</span>{" "}
-            {new Date(gap.created_at).toLocaleString()}
-          </p>
-        </div>
-      </section>
-    </aside>
-  );
-});
+      </aside>
+    );
+  },
+);
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
@@ -333,7 +350,9 @@ export function AdminQueryAnalyticsPage() {
   const [gapTypeFilter, setGapTypeFilter] = useState<GapType | "">("");
   const [gapOffset, setGapOffset] = useState(0);
 
-  const [selectedGap, setSelectedGap] = useState<KnowledgeGapResponse | null>(null);
+  const [selectedGap, setSelectedGap] = useState<KnowledgeGapResponse | null>(
+    null,
+  );
   const [detectError, setDetectError] = useState<string | null>(null);
   const [detectSuccess, setDetectSuccess] = useState<string | null>(null);
 
@@ -348,14 +367,20 @@ export function AdminQueryAnalyticsPage() {
   });
 
   const summaryQuery = useQuery({
-    queryKey: queryKeys.queryAnalytics.summary(dateRange as Record<string, unknown>),
-    queryFn: () => getQueryAnalyticsSummary({ from: dateRange.from, to: dateRange.to }),
+    queryKey: queryKeys.queryAnalytics.summary(
+      dateRange as Record<string, unknown>,
+    ),
+    queryFn: () =>
+      getQueryAnalyticsSummary({ from: dateRange.from, to: dateRange.to }),
     enabled: isAdminUser,
   });
 
   const trendsQuery = useQuery({
-    queryKey: queryKeys.queryAnalytics.trends(dateRange as Record<string, unknown>),
-    queryFn: () => getQueryAnalyticsTrends({ from: dateRange.from, to: dateRange.to }),
+    queryKey: queryKeys.queryAnalytics.trends(
+      dateRange as Record<string, unknown>,
+    ),
+    queryFn: () =>
+      getQueryAnalyticsTrends({ from: dateRange.from, to: dateRange.to }),
     enabled: isAdminUser,
   });
 
@@ -370,25 +395,43 @@ export function AdminQueryAnalyticsPage() {
   );
 
   const gapsQuery = useQuery({
-    queryKey: queryKeys.queryAnalytics.gaps(gapParams as Record<string, unknown>),
+    queryKey: queryKeys.queryAnalytics.gaps(
+      gapParams as Record<string, unknown>,
+    ),
     queryFn: () => listKnowledgeGaps(gapParams),
     enabled: isAdminUser,
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ gapId, status, notes }: { gapId: string; status: GapStatus; notes: string | null }) =>
-      updateKnowledgeGap(gapId, { status, reviewer_notes: notes }),
+    mutationFn: ({
+      gapId,
+      status,
+      notes,
+    }: {
+      gapId: string;
+      status: GapStatus;
+      notes: string | null;
+    }) => updateKnowledgeGap(gapId, { status, reviewer_notes: notes }),
     onSuccess: (updated) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.queryAnalytics.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.queryAnalytics.all,
+      });
       setSelectedGap(updated);
     },
   });
 
   const convertMutation = useMutation({
-    mutationFn: ({ gapId, target }: { gapId: string; target: "eval_case" | "doc_request" | "review_task" }) =>
-      convertKnowledgeGap(gapId, { target }),
+    mutationFn: ({
+      gapId,
+      target,
+    }: {
+      gapId: string;
+      target: "eval_case" | "doc_request" | "review_task";
+    }) => convertKnowledgeGap(gapId, { target }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.queryAnalytics.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.queryAnalytics.all,
+      });
       setSelectedGap(null);
     },
   });
@@ -397,9 +440,13 @@ export function AdminQueryAnalyticsPage() {
     mutationFn: () =>
       detectKnowledgeGaps({ from_date: dateRange.from, to_date: dateRange.to }),
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.queryAnalytics.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.queryAnalytics.all,
+      });
       setDetectError(null);
-      setDetectSuccess(`Detected ${result.detected} patterns — ${result.created} new gap(s) created, ${result.skipped_duplicates} duplicate(s) skipped.`);
+      setDetectSuccess(
+        `Detected ${result.detected} patterns — ${result.created} new gap(s) created, ${result.skipped_duplicates} duplicate(s) skipped.`,
+      );
     },
     onError: (err) => {
       setDetectError(getApiErrorMessage(err));
@@ -444,9 +491,13 @@ export function AdminQueryAnalyticsPage() {
   const hasPreviousPage = gapOffset > 0;
   const hasNextPage = gapOffset + PAGE_LIMIT < gapTotal;
   const pageStart = gapTotal === 0 ? 0 : gapOffset + 1;
-  const pageEnd = gapTotal === 0 ? 0 : Math.min(gapOffset + PAGE_LIMIT, gapTotal);
+  const pageEnd =
+    gapTotal === 0 ? 0 : Math.min(gapOffset + PAGE_LIMIT, gapTotal);
 
-  const exportUrl = buildQueryAnalyticsExportUrl({ from: dateRange.from, to: dateRange.to });
+  const exportUrl = buildQueryAnalyticsExportUrl({
+    from: dateRange.from,
+    to: dateRange.to,
+  });
 
   // Trend sparkline data (last 14 days max for compact display)
   const sparkPoints = trends?.points.slice(-14) ?? [];
@@ -464,8 +515,9 @@ export function AdminQueryAnalyticsPage() {
               Query analytics
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-[#464555]">
-              Identify frequent unanswered questions, low-confidence answers, and missing
-              knowledge sources. Convert gaps into evaluation cases or document requests.
+              Identify frequent unanswered questions, low-confidence answers,
+              and missing knowledge sources. Convert gaps into evaluation cases
+              or document requests.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -500,7 +552,11 @@ export function AdminQueryAnalyticsPage() {
 
       {/* Summary metrics */}
       {summaryQuery.isLoading ? (
-        <LoadingState compact className="rounded-xl border border-[#e4e1f2] bg-white p-4" title="Loading metrics…" />
+        <LoadingState
+          compact
+          className="rounded-xl border border-[#e4e1f2] bg-white p-4"
+          title="Loading metrics…"
+        />
       ) : summaryQuery.isError ? (
         <ErrorState
           compact
@@ -510,7 +566,8 @@ export function AdminQueryAnalyticsPage() {
         />
       ) : summary && !summary.enabled ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-sm text-amber-800">
-          Query analytics is disabled. Reason: {summary.disabled_reason ?? "unknown"}.
+          Query analytics is disabled. Reason:{" "}
+          {summary.disabled_reason ?? "unknown"}.
         </div>
       ) : summary ? (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -568,11 +625,11 @@ export function AdminQueryAnalyticsPage() {
             <table className="min-w-full text-xs text-[#464555]">
               <thead>
                 <tr className="border-b border-[#e4e1ee] text-left text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                  <th className="pb-2 pr-4">Date</th>
-                  <th className="pb-2 pr-4 text-right">Queries</th>
-                  <th className="pb-2 pr-4 text-right">Unanswered</th>
-                  <th className="pb-2 pr-4 text-right">Low confidence</th>
-                  <th className="pb-2 pr-4 text-right">Neg. feedback</th>
+                  <th className="pr-4 pb-2">Date</th>
+                  <th className="pr-4 pb-2 text-right">Queries</th>
+                  <th className="pr-4 pb-2 text-right">Unanswered</th>
+                  <th className="pr-4 pb-2 text-right">Low confidence</th>
+                  <th className="pr-4 pb-2 text-right">Neg. feedback</th>
                   <th className="pb-2 text-right">Avg confidence</th>
                 </tr>
               </thead>
@@ -580,11 +637,21 @@ export function AdminQueryAnalyticsPage() {
                 {sparkPoints.map((pt) => (
                   <tr key={pt.date}>
                     <td className="py-1.5 pr-4 font-mono">{pt.date}</td>
-                    <td className="py-1.5 pr-4 text-right font-mono">{pt.total_queries}</td>
-                    <td className="py-1.5 pr-4 text-right font-mono text-rose-700">{pt.unanswered}</td>
-                    <td className="py-1.5 pr-4 text-right font-mono text-amber-700">{pt.low_confidence}</td>
-                    <td className="py-1.5 pr-4 text-right font-mono text-orange-700">{pt.negative_feedback}</td>
-                    <td className="py-1.5 text-right font-mono">{formatConf(pt.avg_confidence)}</td>
+                    <td className="py-1.5 pr-4 text-right font-mono">
+                      {pt.total_queries}
+                    </td>
+                    <td className="py-1.5 pr-4 text-right font-mono text-rose-700">
+                      {pt.unanswered}
+                    </td>
+                    <td className="py-1.5 pr-4 text-right font-mono text-amber-700">
+                      {pt.low_confidence}
+                    </td>
+                    <td className="py-1.5 pr-4 text-right font-mono text-orange-700">
+                      {pt.negative_feedback}
+                    </td>
+                    <td className="py-1.5 text-right font-mono">
+                      {formatConf(pt.avg_confidence)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -618,7 +685,9 @@ export function AdminQueryAnalyticsPage() {
       {/* Knowledge gaps section */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold text-[#1b1b24]">Knowledge gaps</h2>
+          <h2 className="text-xl font-semibold text-[#1b1b24]">
+            Knowledge gaps
+          </h2>
           <button
             type="button"
             onClick={() => {
@@ -700,7 +769,9 @@ export function AdminQueryAnalyticsPage() {
         <div ref={tableHostRef} className="relative">
           <section className="overflow-hidden rounded-xl border border-[#c7c4d8] bg-white shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e4e1ee] bg-[#f5f2ff] px-4 py-3">
-              <h3 className="text-base font-semibold text-[#1b1b24]">Gap records</h3>
+              <h3 className="text-base font-semibold text-[#1b1b24]">
+                Gap records
+              </h3>
               {gapsQuery.isSuccess ? (
                 <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
                   Showing {pageStart}–{pageEnd} of {gapTotal}
@@ -709,7 +780,11 @@ export function AdminQueryAnalyticsPage() {
             </div>
 
             {gapsQuery.isLoading ? (
-              <LoadingState compact className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading gaps…" />
+              <LoadingState
+                compact
+                className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+                title="Loading gaps…"
+              />
             ) : null}
 
             {gapsQuery.isError ? (
@@ -766,7 +841,9 @@ export function AdminQueryAnalyticsPage() {
                               ) : null}
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${gapTypePillClass(gap.gap_type)}`}>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${gapTypePillClass(gap.gap_type)}`}
+                              >
                                 {gapTypeLabel(gap.gap_type)}
                               </span>
                             </td>
@@ -777,7 +854,9 @@ export function AdminQueryAnalyticsPage() {
                               {formatConf(gap.avg_confidence)}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${gapStatusPillClass(gap.status)}`}>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${gapStatusPillClass(gap.status)}`}
+                              >
                                 {gap.status.replace(/_/g, " ")}
                               </span>
                             </td>
@@ -810,7 +889,9 @@ export function AdminQueryAnalyticsPage() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setGapOffset((p) => Math.max(0, p - PAGE_LIMIT))}
+                      onClick={() =>
+                        setGapOffset((p) => Math.max(0, p - PAGE_LIMIT))
+                      }
                       disabled={!hasPreviousPage || gapsQuery.isFetching}
                       className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                     >

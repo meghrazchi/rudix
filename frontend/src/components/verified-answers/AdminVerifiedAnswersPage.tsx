@@ -25,7 +25,8 @@ export function AdminVerifiedAnswersPage() {
   const { hasPermission } = usePermissions();
   const [activeTab, setActiveTab] = useState<Tab>("pending");
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] = useState<VerifiedAnswerResponse | null>(null);
+  const [selectedAnswer, setSelectedAnswer] =
+    useState<VerifiedAnswerResponse | null>(null);
 
   if (!hasPermission("knowledge_card:manage")) {
     return <ForbiddenState />;
@@ -33,7 +34,8 @@ export function AdminVerifiedAnswersPage() {
 
   const { data: pendingData } = useQuery({
     queryKey: PENDING_KEY,
-    queryFn: () => listVerifiedAnswers({ status: "pending_review", limit: 100 }),
+    queryFn: () =>
+      listVerifiedAnswers({ status: "pending_review", limit: 100 }),
   });
 
   const pendingCount = pendingData?.total ?? 0;
@@ -48,7 +50,9 @@ export function AdminVerifiedAnswersPage() {
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Knowledge cards</h1>
+          <h1 className="text-xl font-semibold text-gray-900">
+            Knowledge cards
+          </h1>
           <p className="mt-1 text-sm text-gray-500">
             Manage verified answers that are surfaced above generated results.
           </p>
@@ -87,14 +91,13 @@ export function AdminVerifiedAnswersPage() {
       </div>
 
       {activeTab === "pending" && (
-        <KnowledgeCardList defaultStatus="pending_review" showStatusFilter={false} />
+        <KnowledgeCardList
+          defaultStatus="pending_review"
+          showStatusFilter={false}
+        />
       )}
-      {activeTab === "all" && (
-        <KnowledgeCardList showStatusFilter />
-      )}
-      {activeTab === "stale" && (
-        <StaleCardsPanel />
-      )}
+      {activeTab === "all" && <KnowledgeCardList showStatusFilter />}
+      {activeTab === "stale" && <StaleCardsPanel />}
 
       {showCreate && (
         <CreateVerifiedAnswerModal
@@ -106,7 +109,6 @@ export function AdminVerifiedAnswersPage() {
     </div>
   );
 }
-
 
 function StaleCardsPanel() {
   const { data, isLoading } = useQuery({
@@ -131,8 +133,9 @@ function StaleCardsPanel() {
   return (
     <div>
       <p className="mb-4 text-sm text-amber-700">
-        {staleItems.length} published card{staleItems.length !== 1 ? "s are" : " is"} past
-        their review or expiry date.
+        {staleItems.length} published card
+        {staleItems.length !== 1 ? "s are" : " is"} past their review or expiry
+        date.
       </p>
       <div className="space-y-4">
         {staleItems.map((answer) => (
@@ -143,7 +146,9 @@ function StaleCardsPanel() {
             <div>
               <div className="flex items-center gap-2">
                 <VerifiedAnswerBadge status={answer.status} isStale />
-                <span className="text-sm font-medium text-gray-800">{answer.title}</span>
+                <span className="text-sm font-medium text-gray-800">
+                  {answer.title}
+                </span>
               </div>
               <p className="mt-0.5 text-xs text-gray-500">
                 {answer.expiry_date && (

@@ -43,7 +43,10 @@ function initEditorValue(
     return { kind: "boolean", value: current?.value === true };
   }
   if (ft === "select") {
-    return { kind: "select", value: typeof current?.value === "string" ? current.value : "" };
+    return {
+      kind: "select",
+      value: typeof current?.value === "string" ? current.value : "",
+    };
   }
   if (ft === "number") {
     const v = current?.value;
@@ -53,15 +56,24 @@ function initEditorValue(
     };
   }
   if (ft === "date") {
-    return { kind: "date", value: typeof current?.value === "string" ? current.value : "" };
+    return {
+      kind: "date",
+      value: typeof current?.value === "string" ? current.value : "",
+    };
   }
-  return { kind: "text", value: typeof current?.value === "string" ? current.value : "" };
+  return {
+    kind: "text",
+    value: typeof current?.value === "string" ? current.value : "",
+  };
 }
 
-function editorValueToApiValue(ev: FieldEditorValue): string | string[] | boolean | number | null {
+function editorValueToApiValue(
+  ev: FieldEditorValue,
+): string | string[] | boolean | number | null {
   if (ev.kind === "multi_select") return ev.value;
   if (ev.kind === "boolean") return ev.value;
-  if (ev.kind === "number") return ev.value === "" ? null : parseFloat(ev.value);
+  if (ev.kind === "number")
+    return ev.value === "" ? null : parseFloat(ev.value);
   if (ev.kind === "text" || ev.kind === "select" || ev.kind === "date") {
     return ev.value === "" ? null : ev.value;
   }
@@ -121,7 +133,9 @@ function FieldEditor({
           type="checkbox"
           className="h-4 w-4 accent-[#3525cd]"
           checked={editorValue.kind === "boolean" ? editorValue.value : false}
-          onChange={(e) => onChange({ kind: "boolean", value: e.target.checked })}
+          onChange={(e) =>
+            onChange({ kind: "boolean", value: e.target.checked })
+          }
         />
         {editorValue.kind === "boolean" && editorValue.value ? "True" : "False"}
       </label>
@@ -146,7 +160,8 @@ function FieldEditor({
   }
 
   if (field.field_type === "multi_select" && field.allowed_values) {
-    const selected = editorValue.kind === "multi_select" ? editorValue.value : [];
+    const selected =
+      editorValue.kind === "multi_select" ? editorValue.value : [];
     return (
       <div className="flex flex-wrap gap-1">
         {field.allowed_values.map((v) => {
@@ -177,7 +192,8 @@ function FieldEditor({
 
   if (field.field_type === "multi_select") {
     const [inputVal, setInputVal] = useState("");
-    const selected = editorValue.kind === "multi_select" ? editorValue.value : [];
+    const selected =
+      editorValue.kind === "multi_select" ? editorValue.value : [];
     return (
       <div className="flex flex-col gap-1">
         <div className="relative">
@@ -229,7 +245,7 @@ function FieldEditor({
                       value: selected.filter((s) => s !== tag),
                     })
                   }
-                  className="ml-0.5 font-bold leading-none hover:text-red-500"
+                  className="ml-0.5 leading-none font-bold hover:text-red-500"
                 >
                   ×
                 </button>
@@ -341,7 +357,10 @@ export function DocumentMetadataPanel({ documentId, canEdit }: Props) {
   function startEditing() {
     const initial: Record<string, FieldEditorValue> = {};
     for (const field of fields) {
-      initial[field.field_id] = initEditorValue(field, valueByFieldId[field.field_id]);
+      initial[field.field_id] = initEditorValue(
+        field,
+        valueByFieldId[field.field_id],
+      );
     }
     setEditorValues(initial);
     setEditing(true);
@@ -351,7 +370,9 @@ export function DocumentMetadataPanel({ documentId, canEdit }: Props) {
   function handleSave() {
     const values: MetadataValueIn[] = fields.map((field) => ({
       field_id: field.field_id,
-      value: editorValueToApiValue(editorValues[field.field_id] ?? initEditorValue(field, undefined)),
+      value: editorValueToApiValue(
+        editorValues[field.field_id] ?? initEditorValue(field, undefined),
+      ),
     }));
     saveMutation.mutate(values);
   }
@@ -368,9 +389,7 @@ export function DocumentMetadataPanel({ documentId, canEdit }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[#2a2640]">
-          Metadata
-        </h3>
+        <h3 className="text-sm font-semibold text-[#2a2640]">Metadata</h3>
         {canEdit && !editing && (
           <button
             onClick={startEditing}
@@ -479,7 +498,7 @@ export function DocumentMetadataPanel({ documentId, canEdit }: Props) {
                     <tr key={entry.audit_id}>
                       <td className="py-1 font-mono">{entry.field_name}</td>
                       <td className="py-1">{entry.action}</td>
-                      <td className="py-1 max-w-[120px] truncate">
+                      <td className="max-w-[120px] truncate py-1">
                         {entry.new_value ?? "—"}
                       </td>
                       <td className="py-1 text-[#a09db8]">

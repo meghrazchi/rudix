@@ -34,7 +34,10 @@ function DaysInput({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-semibold text-[#2a2640]" htmlFor={id}>
+      <label
+        className="mb-1 block text-sm font-semibold text-[#2a2640]"
+        htmlFor={id}
+      >
         {label}
       </label>
       <p className="mb-2 text-xs text-[#6b6895]">{description}</p>
@@ -96,7 +99,10 @@ function Toggle({
         />
       </button>
       <div>
-        <label htmlFor={id} className="block text-sm font-semibold text-[#2a2640] cursor-pointer">
+        <label
+          htmlFor={id}
+          className="block cursor-pointer text-sm font-semibold text-[#2a2640]"
+        >
           {label}
         </label>
         <p className="text-xs text-[#6b6895]">{description}</p>
@@ -117,9 +123,9 @@ function PolicyForm({
   const [warnStaleAfterDays, setWarnStaleAfterDays] = useState<number | null>(
     initial.warn_stale_after_days,
   );
-  const [warnUnreviewedAfterDays, setWarnUnreviewedAfterDays] = useState<number | null>(
-    initial.warn_unreviewed_after_days,
-  );
+  const [warnUnreviewedAfterDays, setWarnUnreviewedAfterDays] = useState<
+    number | null
+  >(initial.warn_unreviewed_after_days);
   const [autoExcludeDeprecated, setAutoExcludeDeprecated] = useState(
     initial.auto_exclude_deprecated,
   );
@@ -173,7 +179,9 @@ function PolicyForm({
     >
       {/* Stale warning threshold */}
       <section className="space-y-4 rounded-xl border border-[#d7d4e8] bg-white p-5">
-        <h2 className="text-sm font-bold text-[#2a2640]">Staleness thresholds</h2>
+        <h2 className="text-sm font-bold text-[#2a2640]">
+          Staleness thresholds
+        </h2>
         <DaysInput
           id="warn-stale-days"
           label="Warn stale after (days)"
@@ -194,7 +202,9 @@ function PolicyForm({
 
       {/* Exclusion policy */}
       <section className="space-y-4 rounded-xl border border-[#d7d4e8] bg-white p-5">
-        <h2 className="text-sm font-bold text-[#2a2640]">Retrieval exclusion policy</h2>
+        <h2 className="text-sm font-bold text-[#2a2640]">
+          Retrieval exclusion policy
+        </h2>
         <Toggle
           id="auto-exclude-deprecated"
           label="Exclude deprecated sources from retrieval"
@@ -250,7 +260,9 @@ function PolicyForm({
             })}
           </span>
         ) : (
-          <span className="text-xs text-[#9d98b5]">No overrides set — using defaults</span>
+          <span className="text-xs text-[#9d98b5]">
+            No overrides set — using defaults
+          </span>
         )}
       </div>
     </form>
@@ -271,17 +283,21 @@ export function AdminFreshnessThresholdPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#1b1b24]">Source Freshness Thresholds</h1>
+        <h1 className="text-2xl font-bold text-[#1b1b24]">
+          Source Freshness Thresholds
+        </h1>
         <p className="mt-1 text-sm text-[#6b6895]">
-          Configure when answer trust panels show freshness warnings and which sources are
-          excluded from retrieval by default. These settings apply to all answers in your
-          organisation and override per-document thresholds where set.
+          Configure when answer trust panels show freshness warnings and which
+          sources are excluded from retrieval by default. These settings apply
+          to all answers in your organisation and override per-document
+          thresholds where set.
         </p>
       </div>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <strong>Note:</strong> Changes take effect immediately for new chat answers. Existing
-        saved trust-metadata snapshots are not retroactively updated.
+        <strong>Note:</strong> Changes take effect immediately for new chat
+        answers. Existing saved trust-metadata snapshots are not retroactively
+        updated.
       </div>
 
       <PolicyForm initial={data} onSaved={() => {}} />

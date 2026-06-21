@@ -291,7 +291,9 @@ export function SharedAnswerPage({ token }: Props) {
             This answer is AI-generated and grounded in cited source excerpts.
             Verify against original documents before acting on it.
           </div>
-          {data.citations.some((citation) => citation.source_freshness_warning) ? (
+          {data.citations.some(
+            (citation) => citation.source_freshness_warning,
+          ) ? (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               Some citations come from stale, expired, or archived sources.
             </div>

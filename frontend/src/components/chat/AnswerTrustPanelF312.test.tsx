@@ -75,7 +75,7 @@ const baseConfidence: ConfidenceTrustRecord = {
   trust_level: "warning" as const,
   freshness_multiplier: 1.0,
   ocr_quality_multiplier: 1.0,
-  conflict_multiplier: 0.80,
+  conflict_multiplier: 0.8,
   graph_evidence_boost: 0.0,
   verification_support_score: null,
   reasons: [],
@@ -132,7 +132,11 @@ function makeTrustMetadata(
       reason_codes: [],
       claims: [],
     },
-    model: { llm_model: "gpt-4o", llm_provider: "openai", fallback_used: false },
+    model: {
+      llm_model: "gpt-4o",
+      llm_provider: "openai",
+      fallback_used: false,
+    },
     conflict: {
       detected: true,
       agreement_level: "conflicting",
@@ -158,7 +162,9 @@ function makeTrustMetadata(
   };
 }
 
-function renderPanel(overrides: Partial<Parameters<typeof AnswerTrustPanel>[0]> = {}) {
+function renderPanel(
+  overrides: Partial<Parameters<typeof AnswerTrustPanel>[0]> = {},
+) {
   const props = {
     messageId: "msg-f312",
     confidenceScore: 0.72,
@@ -197,9 +203,7 @@ describe("AnswerTrustPanel — F312 Source Conflict", () => {
   it("shows the conflict summary text", () => {
     renderPanel();
     expect(
-      screen.getByText(
-        "Two policy documents disagree on the leave allowance.",
-      ),
+      screen.getByText("Two policy documents disagree on the leave allowance."),
     ).toBeInTheDocument();
   });
 
@@ -234,9 +238,7 @@ describe("AnswerTrustPanel — F312 Source Conflict", () => {
       }),
     });
     expect(
-      screen.getByText(
-        /No preferred source could be determined/i,
-      ),
+      screen.getByText(/No preferred source could be determined/i),
     ).toBeInTheDocument();
   });
 
@@ -293,9 +295,7 @@ describe("AnswerTrustPanel — F312 Source Conflict", () => {
         },
       }),
     });
-    expect(
-      screen.getByText(/Sources partially disagree/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Sources partially disagree/i)).toBeInTheDocument();
   });
 
   it("does NOT render the Source Conflict section when agreement is full", () => {
@@ -310,7 +310,9 @@ describe("AnswerTrustPanel — F312 Source Conflict", () => {
         },
       }),
     });
-    expect(screen.queryByTestId("source-conflict-section")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("source-conflict-section"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Source Conflict")).not.toBeInTheDocument();
   });
 
@@ -328,7 +330,9 @@ describe("AnswerTrustPanel — F312 Source Conflict", () => {
     });
     expect(screen.queryByText(/Source conflict:/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Sources disagree/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Sources partially disagree/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Sources partially disagree/i),
+    ).not.toBeInTheDocument();
   });
 
   it("shows Preferred badge for preferred citations", () => {

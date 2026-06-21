@@ -39,15 +39,17 @@ type Props = {
   className?: string;
 };
 
-export function VerifiedAnswerBadge({ status, isStale, className = "" }: Props) {
+export function VerifiedAnswerBadge({
+  status,
+  isStale,
+  className = "",
+}: Props) {
   const config = STATUS_CONFIG[status];
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${config.bg} ${config.color} ${className}`}
     >
-      {status === "published" && (
-        <span aria-hidden="true">✓</span>
-      )}
+      {status === "published" && <span aria-hidden="true">✓</span>}
       {config.label}
       {isStale && (
         <span

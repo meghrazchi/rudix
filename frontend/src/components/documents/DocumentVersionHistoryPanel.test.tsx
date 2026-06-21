@@ -6,10 +6,9 @@ import { DocumentVersionHistoryPanel } from "@/components/documents/DocumentVers
 import { getDocumentVersions } from "@/lib/api/documents";
 
 vi.mock("@/lib/api/documents", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/lib/api/documents")>(
-      "@/lib/api/documents",
-    );
+  const actual = await vi.importActual<typeof import("@/lib/api/documents")>(
+    "@/lib/api/documents",
+  );
   return {
     ...actual,
     getDocumentVersions: vi.fn(),
@@ -119,9 +118,21 @@ describe("DocumentVersionHistoryPanel", () => {
 
   it("renders multiple versions newest first", async () => {
     const versions = [
-      makeVersion({ version_number: 3, change_reason: "reindex", is_current: true }),
-      makeVersion({ version_number: 2, change_reason: "connector_sync", is_current: false }),
-      makeVersion({ version_number: 1, change_reason: "initial_upload", is_current: false }),
+      makeVersion({
+        version_number: 3,
+        change_reason: "reindex",
+        is_current: true,
+      }),
+      makeVersion({
+        version_number: 2,
+        change_reason: "connector_sync",
+        is_current: false,
+      }),
+      makeVersion({
+        version_number: 1,
+        change_reason: "initial_upload",
+        is_current: false,
+      }),
     ];
     mockedGetVersions.mockResolvedValue(makeListResponse(versions));
     renderPanel();
@@ -170,7 +181,11 @@ describe("DocumentVersionHistoryPanel", () => {
   it("renders connector_sync change reason label", async () => {
     mockedGetVersions.mockResolvedValue(
       makeListResponse([
-        makeVersion({ version_number: 1, change_reason: "connector_sync", is_current: true }),
+        makeVersion({
+          version_number: 1,
+          change_reason: "connector_sync",
+          is_current: true,
+        }),
       ]),
     );
     renderPanel();
@@ -182,7 +197,11 @@ describe("DocumentVersionHistoryPanel", () => {
   it("renders reindex change reason label", async () => {
     mockedGetVersions.mockResolvedValue(
       makeListResponse([
-        makeVersion({ version_number: 2, change_reason: "reindex", is_current: true }),
+        makeVersion({
+          version_number: 2,
+          change_reason: "reindex",
+          is_current: true,
+        }),
       ]),
     );
     renderPanel();
@@ -194,7 +213,11 @@ describe("DocumentVersionHistoryPanel", () => {
   it("shows short content hash", async () => {
     mockedGetVersions.mockResolvedValue(
       makeListResponse([
-        makeVersion({ version_number: 1, content_hash: "abc123def456abc123", is_current: true }),
+        makeVersion({
+          version_number: 1,
+          content_hash: "abc123def456abc123",
+          is_current: true,
+        }),
       ]),
     );
     renderPanel();
@@ -207,7 +230,11 @@ describe("DocumentVersionHistoryPanel", () => {
   it("omits content hash section when hash is null", async () => {
     mockedGetVersions.mockResolvedValue(
       makeListResponse([
-        makeVersion({ version_number: 1, content_hash: null, is_current: true }),
+        makeVersion({
+          version_number: 1,
+          content_hash: null,
+          is_current: true,
+        }),
       ]),
     );
     renderPanel();
@@ -299,7 +326,12 @@ describe("DocumentVersionHistoryPanel", () => {
   it("tombstone version shows not-current", async () => {
     mockedGetVersions.mockResolvedValue(
       makeListResponse([
-        makeVersion({ version_number: 1, change_reason: "tombstone", status: "deleted", is_current: false }),
+        makeVersion({
+          version_number: 1,
+          change_reason: "tombstone",
+          status: "deleted",
+          is_current: false,
+        }),
       ]),
     );
     renderPanel();

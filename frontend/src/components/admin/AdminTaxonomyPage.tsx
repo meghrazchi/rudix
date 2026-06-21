@@ -83,8 +83,7 @@ function FieldForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [sortOrder, setSortOrder] = useState(String(initial?.sort_order ?? 0));
 
-  const needsAllowed =
-    fieldType === "select" || fieldType === "multi_select";
+  const needsAllowed = fieldType === "select" || fieldType === "multi_select";
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -161,7 +160,9 @@ function FieldForm({
           ))}
         </select>
         {isEdit && (
-          <span className="text-xs text-[#a09db8]">Field type cannot be changed after creation.</span>
+          <span className="text-xs text-[#a09db8]">
+            Field type cannot be changed after creation.
+          </span>
         )}
       </div>
 
@@ -177,7 +178,9 @@ function FieldForm({
             value={allowedValuesRaw}
             onChange={(e) => setAllowedValuesRaw(e.target.value)}
           />
-          <span className="text-xs text-[#a09db8]">Comma-separated list of allowed values.</span>
+          <span className="text-xs text-[#a09db8]">
+            Comma-separated list of allowed values.
+          </span>
         </div>
       )}
 
@@ -313,7 +316,9 @@ export function AdminTaxonomyPage() {
   if (error) {
     if (isForbiddenError(error))
       return (
-        <ForbiddenState requestId={extractRequestIdFromError(error) ?? undefined} />
+        <ForbiddenState
+          requestId={extractRequestIdFromError(error) ?? undefined}
+        />
       );
     return <ErrorState error={error} />;
   }
@@ -328,7 +333,10 @@ export function AdminTaxonomyPage() {
     createMutation.mutate(values);
   }
 
-  function handleUpdate(field: MetadataFieldResponse, values: CreateMetadataFieldRequest) {
+  function handleUpdate(
+    field: MetadataFieldResponse,
+    values: CreateMetadataFieldRequest,
+  ) {
     setFormError(null);
     updateMutation.mutate({
       fieldId: field.field_id,

@@ -65,7 +65,11 @@ function confidenceBadgeClass(category: "low" | "medium" | "high"): string {
 
 type TrustLevel = "high" | "medium" | "low" | "warning" | "not_found";
 
-function trustLevelBadge(level: TrustLevel): { label: string; cls: string; icon: string } {
+function trustLevelBadge(level: TrustLevel): {
+  label: string;
+  cls: string;
+  icon: string;
+} {
   if (level === "high")
     return {
       label: "High",
@@ -170,7 +174,8 @@ function freshnessBadge(
           : deprecatedWarn
             ? "deprecated"
             : null);
-  if (!effective || effective === "current" || effective === "unknown") return null;
+  if (!effective || effective === "current" || effective === "unknown")
+    return null;
   if (effective === "stale")
     return {
       label: "Stale",
@@ -306,7 +311,11 @@ function WarningBanner({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SourceConflictSection({ conflict }: { conflict: ConflictStatusRecord }) {
+function SourceConflictSection({
+  conflict,
+}: {
+  conflict: ConflictStatusRecord;
+}) {
   return (
     <div className="space-y-2" data-testid="source-conflict-section">
       <SectionHeader icon="warning" label="Source Conflict" />
@@ -316,7 +325,8 @@ function SourceConflictSection({ conflict }: { conflict: ConflictStatusRecord })
         </span>
         {conflict.conflict_count > 0 && (
           <span className="text-[11px] text-[#6a6780]">
-            {conflict.conflict_count} conflict pair{conflict.conflict_count !== 1 ? "s" : ""}
+            {conflict.conflict_count} conflict pair
+            {conflict.conflict_count !== 1 ? "s" : ""}
           </span>
         )}
       </div>
@@ -340,7 +350,8 @@ function SourceConflictSection({ conflict }: { conflict: ConflictStatusRecord })
         )}
         {conflict.preferred_document_ids.length === 0 && conflict.detected && (
           <div className="col-span-2 text-[11px] text-[#9d98b5]">
-            No preferred source could be determined — treat all sources with equal caution.
+            No preferred source could be determined — treat all sources with
+            equal caution.
           </div>
         )}
       </div>
@@ -394,11 +405,15 @@ export function AnswerTrustPanel({
     );
   if (sourceFreshnessWarning) {
     const freshnessRecord = trustMetadata?.freshness;
-    if (freshnessRecord?.warning_reasons && freshnessRecord.warning_reasons.length > 0) {
+    if (
+      freshnessRecord?.warning_reasons &&
+      freshnessRecord.warning_reasons.length > 0
+    ) {
       freshnessRecord.warning_reasons.forEach((r) => warnings.push(r));
     } else {
       warnings.push(
-        sourceFreshnessWarningReason ?? "One or more sources may be stale or unreviewed.",
+        sourceFreshnessWarningReason ??
+          "One or more sources may be stale or unreviewed.",
       );
     }
     if (freshnessRecord?.all_excluded_fallback)
@@ -408,9 +423,17 @@ export function AnswerTrustPanel({
   }
   if (trustCitations.some((c) => c.doc_stale_warning || c.doc_expired_warning))
     warnings.push("One or more cited sources are stale or expired.");
-  if (trustCitations.some((c) => (c as { doc_unreviewed_warning?: boolean }).doc_unreviewed_warning))
+  if (
+    trustCitations.some(
+      (c) => (c as { doc_unreviewed_warning?: boolean }).doc_unreviewed_warning,
+    )
+  )
     warnings.push("One or more cited sources are pending review.");
-  if (trustCitations.some((c) => (c as { doc_deprecated_warning?: boolean }).doc_deprecated_warning))
+  if (
+    trustCitations.some(
+      (c) => (c as { doc_deprecated_warning?: boolean }).doc_deprecated_warning,
+    )
+  )
     warnings.push("One or more cited sources are deprecated or archived.");
   if (trustCitations.some((c) => c.doc_ocr_low_confidence_warning))
     warnings.push(
@@ -540,10 +563,7 @@ export function AnswerTrustPanel({
                 (reason: ConfidenceReasonRecord) => {
                   const { icon, cls } = reasonImpactIcon(reason.impact);
                   return (
-                    <div
-                      key={reason.code}
-                      className="flex items-start gap-1.5"
-                    >
+                    <div key={reason.code} className="flex items-start gap-1.5">
                       <span
                         className={`material-symbols-outlined mt-0.5 shrink-0 text-[12px] ${cls}`}
                         aria-hidden="true"
@@ -814,7 +834,7 @@ export function AnswerTrustPanel({
                         <span className={conflict.cls}>{conflict.label}</span>
                       ) : null}
                     </div>
-                    {(lastUpdated || lastSynced) ? (
+                    {lastUpdated || lastSynced ? (
                       <p className="mt-0.5 text-[10px] text-[#9d98b5]">
                         {lastUpdated ? `Updated ${lastUpdated}` : null}
                         {lastUpdated && lastSynced ? " · " : null}
@@ -932,19 +952,28 @@ export function AnswerTrustPanel({
                     value={debug!.freshness_stale_count}
                   />
                 ) : null}
-                {((debug as { freshness_unreviewed_count?: number }).freshness_unreviewed_count ?? 0) > 0 ? (
+                {((debug as { freshness_unreviewed_count?: number })
+                  .freshness_unreviewed_count ?? 0) > 0 ? (
                   <StatRow
                     label="Unreviewed sources"
-                    value={(debug as { freshness_unreviewed_count?: number }).freshness_unreviewed_count}
+                    value={
+                      (debug as { freshness_unreviewed_count?: number })
+                        .freshness_unreviewed_count
+                    }
                   />
                 ) : null}
-                {((debug as { freshness_deprecated_count?: number }).freshness_deprecated_count ?? 0) > 0 ? (
+                {((debug as { freshness_deprecated_count?: number })
+                  .freshness_deprecated_count ?? 0) > 0 ? (
                   <StatRow
                     label="Deprecated sources"
-                    value={(debug as { freshness_deprecated_count?: number }).freshness_deprecated_count}
+                    value={
+                      (debug as { freshness_deprecated_count?: number })
+                        .freshness_deprecated_count
+                    }
                   />
                 ) : null}
-                {(debug as { freshness_all_excluded_fallback?: boolean }).freshness_all_excluded_fallback ? (
+                {(debug as { freshness_all_excluded_fallback?: boolean })
+                  .freshness_all_excluded_fallback ? (
                   <StatRow label="All-excluded fallback" value="Yes" />
                 ) : null}
               </>

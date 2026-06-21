@@ -263,7 +263,9 @@ describe("AdminAIResponsePolicyPage", () => {
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByText("Inactive")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Inactive")).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /activate/i }));
     await waitFor(() => {
       expect(mockApi.activateAiResponsePolicy).toHaveBeenCalledWith("policy-1");
@@ -282,7 +284,9 @@ describe("AdminAIResponsePolicyPage", () => {
     await waitFor(() => expect(screen.getByText("Active")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /deactivate/i }));
     await waitFor(() => {
-      expect(mockApi.deactivateAiResponsePolicy).toHaveBeenCalledWith("policy-1");
+      expect(mockApi.deactivateAiResponsePolicy).toHaveBeenCalledWith(
+        "policy-1",
+      );
     });
   });
 
@@ -306,7 +310,9 @@ describe("AdminAIResponsePolicyPage", () => {
     mockApi.deleteAiResponsePolicy.mockResolvedValue(undefined);
 
     renderPage();
-    await waitFor(() => expect(screen.getByText("Inactive")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Inactive")).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /delete/i }));
     await waitFor(() => {
       expect(mockApi.deleteAiResponsePolicy).toHaveBeenCalledWith("policy-1");

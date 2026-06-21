@@ -29,14 +29,19 @@ vi.mock("@/lib/use-permissions", () => ({
 }));
 
 vi.mock("@/lib/api/verified-answers", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/verified-answers")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/api/verified-answers")>();
   return {
     ...actual,
     submitForReview: (...args: unknown[]) => mockApi.submitForReview(...args),
-    approveVerifiedAnswer: (...args: unknown[]) => mockApi.approveVerifiedAnswer(...args),
-    rejectVerifiedAnswer: (...args: unknown[]) => mockApi.rejectVerifiedAnswer(...args),
-    publishVerifiedAnswer: (...args: unknown[]) => mockApi.publishVerifiedAnswer(...args),
-    archiveVerifiedAnswer: (...args: unknown[]) => mockApi.archiveVerifiedAnswer(...args),
+    approveVerifiedAnswer: (...args: unknown[]) =>
+      mockApi.approveVerifiedAnswer(...args),
+    rejectVerifiedAnswer: (...args: unknown[]) =>
+      mockApi.rejectVerifiedAnswer(...args),
+    publishVerifiedAnswer: (...args: unknown[]) =>
+      mockApi.publishVerifiedAnswer(...args),
+    archiveVerifiedAnswer: (...args: unknown[]) =>
+      mockApi.archiveVerifiedAnswer(...args),
   };
 });
 
@@ -83,14 +88,23 @@ describe("KnowledgeCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPermissions.role = "admin";
-    mockApi.submitForReview.mockResolvedValue({ ...makeAnswer(), status: "pending_review" });
-    mockApi.approveVerifiedAnswer.mockResolvedValue({ ...makeAnswer(), status: "approved" });
+    mockApi.submitForReview.mockResolvedValue({
+      ...makeAnswer(),
+      status: "pending_review",
+    });
+    mockApi.approveVerifiedAnswer.mockResolvedValue({
+      ...makeAnswer(),
+      status: "approved",
+    });
     mockApi.rejectVerifiedAnswer.mockResolvedValue({
       ...makeAnswer(),
       status: "draft",
       rejection_note: "Needs work",
     });
-    mockApi.publishVerifiedAnswer.mockResolvedValue({ ...makeAnswer(), status: "published" });
+    mockApi.publishVerifiedAnswer.mockResolvedValue({
+      ...makeAnswer(),
+      status: "published",
+    });
     mockApi.archiveVerifiedAnswer.mockResolvedValue(undefined);
   });
 
@@ -124,24 +138,50 @@ describe("KnowledgeCard", () => {
   });
 
   it("shows stale warning banner", () => {
-    wrap(<KnowledgeCard answer={makeAnswer({ is_stale: true })} queryKey={["va"]} />);
+    wrap(
+      <KnowledgeCard
+        answer={makeAnswer({ is_stale: true })}
+        queryKey={["va"]}
+      />,
+    );
     expect(screen.getByText(/past its review or expiry date/)).toBeDefined();
   });
 
   it("shows Submit for review button for draft card (admin)", () => {
-    wrap(<KnowledgeCard answer={makeAnswer({ status: "draft" })} queryKey={["va"]} />);
-    expect(screen.getByRole("button", { name: /submit for review/i })).toBeDefined();
+    wrap(
+      <KnowledgeCard
+        answer={makeAnswer({ status: "draft" })}
+        queryKey={["va"]}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: /submit for review/i }),
+    ).toBeDefined();
   });
 
   it("calls submitForReview on button click", async () => {
-    wrap(<KnowledgeCard answer={makeAnswer({ status: "draft" })} queryKey={["va"]} />);
-    await userEvent.click(screen.getByRole("button", { name: /submit for review/i }));
-    await waitFor(() => expect(mockApi.submitForReview).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001"));
+    wrap(
+      <KnowledgeCard
+        answer={makeAnswer({ status: "draft" })}
+        queryKey={["va"]}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /submit for review/i }),
+    );
+    await waitFor(() =>
+      expect(mockApi.submitForReview).toHaveBeenCalledWith(
+        "00000000-0000-0000-0000-000000000001",
+      ),
+    );
   });
 
   it("shows Approve and Reject buttons for pending_review card (admin)", () => {
     wrap(
-      <KnowledgeCard answer={makeAnswer({ status: "pending_review" })} queryKey={["va"]} />,
+      <KnowledgeCard
+        answer={makeAnswer({ status: "pending_review" })}
+        queryKey={["va"]}
+      />,
     );
     expect(screen.getByRole("button", { name: /approve/i })).toBeDefined();
     expect(screen.getByRole("button", { name: /reject/i })).toBeDefined();
@@ -149,7 +189,10 @@ describe("KnowledgeCard", () => {
 
   it("shows rejection form when Reject is clicked", async () => {
     wrap(
-      <KnowledgeCard answer={makeAnswer({ status: "pending_review" })} queryKey={["va"]} />,
+      <KnowledgeCard
+        answer={makeAnswer({ status: "pending_review" })}
+        queryKey={["va"]}
+      />,
     );
     await userEvent.click(screen.getByRole("button", { name: /reject/i }));
     expect(screen.getByLabelText(/rejection reason/i)).toBeDefined();
@@ -157,11 +200,19 @@ describe("KnowledgeCard", () => {
 
   it("calls rejectVerifiedAnswer with note", async () => {
     wrap(
-      <KnowledgeCard answer={makeAnswer({ status: "pending_review" })} queryKey={["va"]} />,
+      <KnowledgeCard
+        answer={makeAnswer({ status: "pending_review" })}
+        queryKey={["va"]}
+      />,
     );
     await userEvent.click(screen.getByRole("button", { name: /reject/i }));
-    await userEvent.type(screen.getByLabelText(/rejection reason/i), "Needs work");
-    await userEvent.click(screen.getByRole("button", { name: /confirm rejection/i }));
+    await userEvent.type(
+      screen.getByLabelText(/rejection reason/i),
+      "Needs work",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /confirm rejection/i }),
+    );
     await waitFor(() =>
       expect(mockApi.rejectVerifiedAnswer).toHaveBeenCalledWith(
         "00000000-0000-0000-0000-000000000001",
@@ -172,31 +223,50 @@ describe("KnowledgeCard", () => {
 
   it("shows Publish button for approved card (admin)", () => {
     wrap(
-      <KnowledgeCard answer={makeAnswer({ status: "approved" })} queryKey={["va"]} />,
+      <KnowledgeCard
+        answer={makeAnswer({ status: "approved" })}
+        queryKey={["va"]}
+      />,
     );
     expect(screen.getByRole("button", { name: /publish/i })).toBeDefined();
   });
 
   it("calls publishVerifiedAnswer on publish click", async () => {
     wrap(
-      <KnowledgeCard answer={makeAnswer({ status: "approved" })} queryKey={["va"]} />,
+      <KnowledgeCard
+        answer={makeAnswer({ status: "approved" })}
+        queryKey={["va"]}
+      />,
     );
     await userEvent.click(screen.getByRole("button", { name: /publish/i }));
-    await waitFor(() => expect(mockApi.publishVerifiedAnswer).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockApi.publishVerifiedAnswer).toHaveBeenCalled(),
+    );
   });
 
   it("hides actions when showActions is false", () => {
     wrap(
-      <KnowledgeCard answer={makeAnswer()} queryKey={["va"]} showActions={false} />,
+      <KnowledgeCard
+        answer={makeAnswer()}
+        queryKey={["va"]}
+        showActions={false}
+      />,
     );
-    expect(screen.queryByRole("button", { name: /submit for review/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /submit for review/i }),
+    ).toBeNull();
   });
 
   it("hides action buttons for archived card", () => {
     wrap(
-      <KnowledgeCard answer={makeAnswer({ status: "archived" })} queryKey={["va"]} />,
+      <KnowledgeCard
+        answer={makeAnswer({ status: "archived" })}
+        queryKey={["va"]}
+      />,
     );
-    expect(screen.queryByRole("button", { name: /submit for review/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /submit for review/i }),
+    ).toBeNull();
     expect(screen.queryByRole("button", { name: /archive/i })).toBeNull();
   });
 

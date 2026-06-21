@@ -14,10 +14,12 @@ const mockApi = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/api/verified-answers", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/verified-answers")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/api/verified-answers")>();
   return {
     ...actual,
-    createVerifiedAnswer: (...args: unknown[]) => mockApi.createVerifiedAnswer(...args),
+    createVerifiedAnswer: (...args: unknown[]) =>
+      mockApi.createVerifiedAnswer(...args),
     createVerifiedAnswerFromMessage: (...args: unknown[]) =>
       mockApi.createVerifiedAnswerFromMessage(...args),
   };
@@ -70,10 +72,7 @@ describe("CreateVerifiedAnswerModal — manual mode", () => {
 
   it("renders dialog with required fields", () => {
     wrap(
-      <CreateVerifiedAnswerModal
-        mode={{ kind: "manual" }}
-        onClose={onClose}
-      />,
+      <CreateVerifiedAnswerModal mode={{ kind: "manual" }} onClose={onClose} />,
     );
     expect(screen.getByRole("dialog")).toBeDefined();
     expect(screen.getByLabelText(/title/i)).toBeDefined();
@@ -83,10 +82,7 @@ describe("CreateVerifiedAnswerModal — manual mode", () => {
 
   it("Create draft button is disabled when fields are empty", () => {
     wrap(
-      <CreateVerifiedAnswerModal
-        mode={{ kind: "manual" }}
-        onClose={onClose}
-      />,
+      <CreateVerifiedAnswerModal mode={{ kind: "manual" }} onClose={onClose} />,
     );
     const btn = screen.getByRole("button", { name: /create draft/i });
     expect(btn).toHaveProperty("disabled", true);
@@ -94,10 +90,7 @@ describe("CreateVerifiedAnswerModal — manual mode", () => {
 
   it("enables Create draft when required fields are filled", async () => {
     wrap(
-      <CreateVerifiedAnswerModal
-        mode={{ kind: "manual" }}
-        onClose={onClose}
-      />,
+      <CreateVerifiedAnswerModal mode={{ kind: "manual" }} onClose={onClose} />,
     );
     await userEvent.type(screen.getByLabelText(/title/i), "My card");
     await userEvent.type(screen.getByLabelText(/canonical question/i), "Why?");
@@ -118,11 +111,19 @@ describe("CreateVerifiedAnswerModal — manual mode", () => {
     await userEvent.type(screen.getByLabelText(/title/i), "My card");
     await userEvent.type(screen.getByLabelText(/canonical question/i), "Why?");
     await userEvent.type(screen.getByLabelText(/answer/i), "Because.");
-    await userEvent.click(screen.getByRole("button", { name: /create draft/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /create draft/i }),
+    );
 
-    await waitFor(() => expect(mockApi.createVerifiedAnswer).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "My card", question: "Why?", answer_text: "Because." }),
-    ));
+    await waitFor(() =>
+      expect(mockApi.createVerifiedAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "My card",
+          question: "Why?",
+          answer_text: "Because.",
+        }),
+      ),
+    );
   });
 
   it("calls onCreated with answer_id after success", async () => {
@@ -136,16 +137,17 @@ describe("CreateVerifiedAnswerModal — manual mode", () => {
     await userEvent.type(screen.getByLabelText(/title/i), "My card");
     await userEvent.type(screen.getByLabelText(/canonical question/i), "Why?");
     await userEvent.type(screen.getByLabelText(/answer/i), "Because.");
-    await userEvent.click(screen.getByRole("button", { name: /create draft/i }));
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("new-answer-id"));
+    await userEvent.click(
+      screen.getByRole("button", { name: /create draft/i }),
+    );
+    await waitFor(() =>
+      expect(onCreated).toHaveBeenCalledWith("new-answer-id"),
+    );
   });
 
   it("calls onClose when Cancel is clicked", async () => {
     wrap(
-      <CreateVerifiedAnswerModal
-        mode={{ kind: "manual" }}
-        onClose={onClose}
-      />,
+      <CreateVerifiedAnswerModal mode={{ kind: "manual" }} onClose={onClose} />,
     );
     await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(onClose).toHaveBeenCalled();
@@ -157,18 +159,26 @@ describe("CreateVerifiedAnswerModal — from-message mode", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApi.createVerifiedAnswerFromMessage.mockResolvedValue(makeCreatedAnswer());
+    mockApi.createVerifiedAnswerFromMessage.mockResolvedValue(
+      makeCreatedAnswer(),
+    );
   });
 
   it("shows from-message info banner", () => {
     wrap(
       <CreateVerifiedAnswerModal
-        mode={{ kind: "from-message", messageId: "msg-123", prefillAnswerText: "Prefilled." }}
+        mode={{
+          kind: "from-message",
+          messageId: "msg-123",
+          prefillAnswerText: "Prefilled.",
+        }}
         onClose={onClose}
       />,
     );
     expect(screen.getByText(/promote to knowledge card/i)).toBeDefined();
-    expect(screen.getByText(/draft knowledge card from the selected answer/i)).toBeDefined();
+    expect(
+      screen.getByText(/draft knowledge card from the selected answer/i),
+    ).toBeDefined();
   });
 
   it("Title is required, question is optional override", () => {
@@ -192,7 +202,9 @@ describe("CreateVerifiedAnswerModal — from-message mode", () => {
       />,
     );
     await userEvent.type(screen.getByLabelText(/title/i), "From chat card");
-    await userEvent.click(screen.getByRole("button", { name: /create draft/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /create draft/i }),
+    );
     await waitFor(() =>
       expect(mockApi.createVerifiedAnswerFromMessage).toHaveBeenCalledWith(
         "msg-123",

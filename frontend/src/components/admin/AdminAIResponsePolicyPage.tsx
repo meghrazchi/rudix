@@ -176,9 +176,7 @@ function PolicyStatusBadge({ isActive }: { isActive: boolean }) {
   return (
     <span
       className={`rounded px-2 py-0.5 text-xs font-medium ${
-        isActive
-          ? "bg-green-100 text-green-800"
-          : "bg-gray-100 text-gray-600"
+        isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"
       }`}
     >
       {isActive ? "Active" : "Inactive"}
@@ -232,7 +230,7 @@ function PolicyForm({
           onChange={handleChange}
           required
           maxLength={128}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           placeholder="e.g. Enterprise Safety Policy"
         />
       </div>
@@ -247,7 +245,7 @@ function PolicyForm({
           onChange={handleChange}
           rows={2}
           maxLength={1024}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           placeholder="Optional description"
         />
       </div>
@@ -261,7 +259,7 @@ function PolicyForm({
             name="citation_mode"
             value={form.citation_mode}
             onChange={handleChange}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             {(["required", "recommended", "disabled"] as CitationMode[]).map(
               (m) => (
@@ -281,7 +279,7 @@ function PolicyForm({
             name="no_answer_behavior"
             value={form.no_answer_behavior}
             onChange={handleChange}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             {(["refuse", "warn", "allow"] as NoAnswerBehavior[]).map((b) => (
               <option key={b} value={b}>
@@ -303,7 +301,7 @@ function PolicyForm({
             step="0.01"
             min="0"
             max="1"
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             placeholder="e.g. 0.4 (leave blank to skip)"
           />
         </div>
@@ -316,7 +314,7 @@ function PolicyForm({
             name="stale_source_behavior"
             value={form.stale_source_behavior}
             onChange={handleChange}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             {(["warn", "refuse", "ignore"] as StaleSourceBehavior[]).map(
               (b) => (
@@ -338,7 +336,7 @@ function PolicyForm({
             onChange={handleChange}
             type="number"
             min="0"
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             placeholder="e.g. 1 (leave blank to skip)"
           />
         </div>
@@ -351,7 +349,7 @@ function PolicyForm({
             name="disclaimer_position"
             value={form.disclaimer_position}
             onChange={handleChange}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             <option value="prepend">Before answer</option>
             <option value="append">After answer</option>
@@ -368,7 +366,7 @@ function PolicyForm({
           name="blocked_topics"
           value={form.blocked_topics}
           onChange={handleChange}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           placeholder="e.g. politics, gambling, medical advice"
         />
       </div>
@@ -384,7 +382,7 @@ function PolicyForm({
           name="allowed_topics"
           value={form.allowed_topics}
           onChange={handleChange}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           placeholder="e.g. product support, billing"
         />
       </div>
@@ -399,7 +397,7 @@ function PolicyForm({
           onChange={handleChange}
           rows={2}
           maxLength={2048}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           placeholder="Text shown before or after every answer"
         />
       </div>
@@ -414,7 +412,7 @@ function PolicyForm({
           onChange={handleChange}
           rows={2}
           maxLength={1024}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           placeholder="Message shown when a policy rule blocks an answer"
         />
       </div>
@@ -485,7 +483,7 @@ function PolicyPreviewPanel({ policy }: { policy: AiResponsePolicyResponse }) {
             onChange={(e) => setQuestion(e.target.value)}
             required
             maxLength={1024}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             placeholder="e.g. What are the payment options?"
           />
         </div>
@@ -794,7 +792,9 @@ export function AdminAIResponsePolicyPage() {
           {panel.kind === "edit" && (
             <PolicyForm
               initial={policyToForm(panel.policy)}
-              onSubmit={(form) => handleEditSubmit(panel.policy.policy_id, form)}
+              onSubmit={(form) =>
+                handleEditSubmit(panel.policy.policy_id, form)
+              }
               onCancel={() => setPanel({ kind: "idle" })}
               isPending={updateMutation.isPending}
               error={formError}
@@ -946,9 +946,7 @@ export function AdminAIResponsePolicyPage() {
       {activeTab === "logs" && (
         <div>
           {isLogsLoading && <LoadingState />}
-          {logsError && (
-            <ErrorState error={logsError} />
-          )}
+          {logsError && <ErrorState error={logsError} />}
           {!isLogsLoading && !logsError && (
             <>
               {(logsData?.items ?? []).length === 0 ? (
@@ -984,7 +982,7 @@ export function AdminAIResponsePolicyPage() {
                     <tbody className="divide-y divide-gray-100 bg-white">
                       {logsData!.items.map((log) => (
                         <tr key={log.log_id}>
-                          <td className="whitespace-nowrap px-4 py-3 text-gray-500">
+                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">
                             {new Date(log.created_at).toLocaleString()}
                           </td>
                           <td className="px-4 py-3">

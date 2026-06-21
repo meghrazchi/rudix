@@ -54,7 +54,7 @@ function shortHash(hash: string | null | undefined): string | null {
 function VersionBadge({ isCurrent }: { isCurrent: boolean }) {
   if (!isCurrent) return null;
   return (
-    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-800 uppercase">
       active
     </span>
   );
@@ -70,7 +70,9 @@ function VersionStatusChip({ status }: { status: string }) {
           ? "bg-rose-100 text-rose-800"
           : "bg-slate-100 text-slate-600";
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${color}`}>
+    <span
+      className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${color}`}
+    >
       {status}
     </span>
   );
@@ -138,21 +140,28 @@ function VersionCard({ version }: { version: DocumentVersionResponse }) {
         {version.page_count != null ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="text-[#69637f]">Pages</dt>
-            <dd className="font-semibold text-[#2a2640]">{version.page_count}</dd>
+            <dd className="font-semibold text-[#2a2640]">
+              {version.page_count}
+            </dd>
           </div>
         ) : null}
 
         {version.chunk_count != null ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="text-[#69637f]">Chunks</dt>
-            <dd className="font-semibold text-[#2a2640]">{version.chunk_count}</dd>
+            <dd className="font-semibold text-[#2a2640]">
+              {version.chunk_count}
+            </dd>
           </div>
         ) : null}
 
         {hash ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="text-[#69637f]">Content hash</dt>
-            <dd className="font-mono text-[10px] text-[#5c5874]" title={version.content_hash ?? undefined}>
+            <dd
+              className="font-mono text-[10px] text-[#5c5874]"
+              title={version.content_hash ?? undefined}
+            >
               {hash}&hellip;
             </dd>
           </div>
@@ -161,14 +170,18 @@ function VersionCard({ version }: { version: DocumentVersionResponse }) {
         {version.embedding_model ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="text-[#69637f]">Embedding model</dt>
-            <dd className="font-semibold text-[#2a2640]">{version.embedding_model}</dd>
+            <dd className="font-semibold text-[#2a2640]">
+              {version.embedding_model}
+            </dd>
           </div>
         ) : null}
 
         {version.index_version ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="text-[#69637f]">Index version</dt>
-            <dd className="font-semibold text-[#2a2640]">{version.index_version}</dd>
+            <dd className="font-semibold text-[#2a2640]">
+              {version.index_version}
+            </dd>
           </div>
         ) : null}
 

@@ -206,27 +206,43 @@ describe("freshness state badges", () => {
 
   it("renders Stale badge when freshness_state is stale", () => {
     renderPanel({ freshness_state: "stale", doc_stale_warning: true });
-    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(/stale/i);
+    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(
+      /stale/i,
+    );
   });
 
   it("renders Expired badge when freshness_state is expired", () => {
     renderPanel({ freshness_state: "expired", doc_expired_warning: true });
-    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(/expired/i);
+    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(
+      /expired/i,
+    );
   });
 
   it("renders Deprecated badge when freshness_state is deprecated", () => {
-    renderPanel({ freshness_state: "deprecated", doc_deprecated_warning: true });
-    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(/deprecated/i);
+    renderPanel({
+      freshness_state: "deprecated",
+      doc_deprecated_warning: true,
+    });
+    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(
+      /deprecated/i,
+    );
   });
 
   it("renders Draft badge when freshness_state is draft", () => {
     renderPanel({ freshness_state: "draft" });
-    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(/draft/i);
+    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(
+      /draft/i,
+    );
   });
 
   it("renders Unreviewed badge when freshness_state is unreviewed", () => {
-    renderPanel({ freshness_state: "unreviewed", doc_unreviewed_warning: true });
-    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(/unreviewed/i);
+    renderPanel({
+      freshness_state: "unreviewed",
+      doc_unreviewed_warning: true,
+    });
+    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(
+      /unreviewed/i,
+    );
   });
 
   it("does not render badge when freshness_state is unknown", () => {
@@ -236,12 +252,16 @@ describe("freshness state badges", () => {
 
   it("falls back to stale badge from doc_stale_warning when freshness_state is null", () => {
     renderPanel({ freshness_state: null, doc_stale_warning: true });
-    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(/stale/i);
+    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(
+      /stale/i,
+    );
   });
 
   it("falls back to expired badge from doc_expired_warning when freshness_state is null", () => {
     renderPanel({ freshness_state: null, doc_expired_warning: true });
-    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(/expired/i);
+    expect(screen.getByTestId("freshness-state-badge").textContent).toMatch(
+      /expired/i,
+    );
   });
 });
 
@@ -301,7 +321,10 @@ describe("structured freshness warning_reasons", () => {
       {},
       {
         warning: true,
-        warning_reasons: ["2 sources may be outdated", "1 source pending review"],
+        warning_reasons: [
+          "2 sources may be outdated",
+          "1 source pending review",
+        ],
       },
       { sourceFreshnessWarning: true, sourceFreshnessWarningReason: null },
     );
@@ -333,20 +356,19 @@ describe("all_excluded_fallback warning", () => {
       { warning: true, all_excluded_fallback: true, warning_reasons: [] },
       { sourceFreshnessWarning: true },
     );
-    expect(
-      screen.getByText(/all trusted sources were excluded/i),
-    ).toBeTruthy();
+    expect(screen.getByText(/all trusted sources were excluded/i)).toBeTruthy();
   });
 
   it("does not show fallback warning when all_excluded_fallback is false", () => {
     renderPanel(
       {},
       { warning: true, all_excluded_fallback: false, warning_reasons: [] },
-      { sourceFreshnessWarning: true, sourceFreshnessWarningReason: "Stale sources" },
+      {
+        sourceFreshnessWarning: true,
+        sourceFreshnessWarningReason: "Stale sources",
+      },
     );
-    expect(
-      screen.queryByText(/all trusted sources were excluded/i),
-    ).toBeNull();
+    expect(screen.queryByText(/all trusted sources were excluded/i)).toBeNull();
   });
 });
 
@@ -360,9 +382,7 @@ describe("unreviewed and deprecated citation warnings", () => {
       doc_unreviewed_warning: true,
       freshness_state: "unreviewed",
     });
-    expect(
-      screen.getByText(/pending review/i),
-    ).toBeTruthy();
+    expect(screen.getByText(/pending review/i)).toBeTruthy();
   });
 
   it("shows deprecated warning when citation has doc_deprecated_warning true", () => {
@@ -370,9 +390,7 @@ describe("unreviewed and deprecated citation warnings", () => {
       doc_deprecated_warning: true,
       freshness_state: "deprecated",
     });
-    expect(
-      screen.getByText(/deprecated or archived/i),
-    ).toBeTruthy();
+    expect(screen.getByText(/deprecated or archived/i)).toBeTruthy();
   });
 
   it("shows stale/expired warning from existing doc_stale_warning", () => {

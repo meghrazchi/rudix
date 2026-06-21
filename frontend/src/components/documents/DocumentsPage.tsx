@@ -354,16 +354,18 @@ export function DocumentsPage() {
     { value: "deleted", label: tp("statusDeleted") },
     { value: "retained_by_policy", label: tp("statusRetainedByPolicy") },
   ];
-  const freshnessFilterOptions: Array<{ value: FreshnessFilter; label: string }> =
-    [
-      { value: "all", label: "All freshness" },
-      { value: "current", label: "Current" },
-      { value: "trusted", label: "Trusted" },
-      { value: "needs_review", label: "Needs review" },
-      { value: "stale", label: "Stale" },
-      { value: "expired", label: "Expired" },
-      { value: "archived", label: "Archived" },
-    ];
+  const freshnessFilterOptions: Array<{
+    value: FreshnessFilter;
+    label: string;
+  }> = [
+    { value: "all", label: "All freshness" },
+    { value: "current", label: "Current" },
+    { value: "trusted", label: "Trusted" },
+    { value: "needs_review", label: "Needs review" },
+    { value: "stale", label: "Stale" },
+    { value: "expired", label: "Expired" },
+    { value: "archived", label: "Archived" },
+  ];
 
   const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
     { value: "created_at", label: tp("sortCreated") },
@@ -446,8 +448,7 @@ export function DocumentsPage() {
       limit: DOCUMENT_PAGE_SIZE,
       offset,
       status: statusFilter === "all" ? undefined : statusFilter,
-      freshness:
-        freshnessFilter === "all" ? undefined : freshnessFilter,
+      freshness: freshnessFilter === "all" ? undefined : freshnessFilter,
       file_type: fileTypeFilter === "all" ? undefined : fileTypeFilter,
       sort_by: sortBy,
       sort_order: sortOrder,
@@ -1813,7 +1814,9 @@ export function DocumentsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={freshnessBadge(document.review_status)}>
+                          <span
+                            className={freshnessBadge(document.review_status)}
+                          >
                             {document.review_status ?? "current"}
                           </span>
                         </td>
@@ -2106,8 +2109,9 @@ export function DocumentsPage() {
                 selectedDetail.review_status,
               ) ? (
                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  This document is marked {selectedDetail.review_status.replaceAll("_", " ")}.
-                  Review status affects retrieval and answer trust.
+                  This document is marked{" "}
+                  {selectedDetail.review_status.replaceAll("_", " ")}. Review
+                  status affects retrieval and answer trust.
                 </p>
               ) : null}
 

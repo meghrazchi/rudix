@@ -105,7 +105,10 @@ export function CreateVerifiedAnswerModal({
           </button>
         </div>
 
-        <div className="space-y-4 overflow-y-auto px-6 py-5" style={{ maxHeight: "70vh" }}>
+        <div
+          className="space-y-4 overflow-y-auto px-6 py-5"
+          style={{ maxHeight: "70vh" }}
+        >
           {mode.kind === "from-message" && (
             <div className="rounded-md bg-indigo-50 p-3 text-sm text-indigo-700">
               This will create a draft knowledge card from the selected answer.
@@ -126,7 +129,7 @@ export function CreateVerifiedAnswerModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={512}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               placeholder="Short descriptive title"
             />
           </div>
@@ -145,7 +148,7 @@ export function CreateVerifiedAnswerModal({
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 maxLength={2000}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 placeholder="What question does this card answer?"
               />
             </div>
@@ -164,7 +167,7 @@ export function CreateVerifiedAnswerModal({
                 value={answerText}
                 onChange={(e) => setAnswerText(e.target.value)}
                 rows={8}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 placeholder="Write the verified answer here…"
               />
             </div>
@@ -184,7 +187,7 @@ export function CreateVerifiedAnswerModal({
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 maxLength={2000}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 placeholder="Leave blank to use the first 200 characters of the answer"
               />
             </div>
@@ -202,7 +205,7 @@ export function CreateVerifiedAnswerModal({
               type="text"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               placeholder="Comma-separated tags"
             />
           </div>
@@ -220,7 +223,7 @@ export function CreateVerifiedAnswerModal({
                 type="date"
                 value={reviewDate}
                 onChange={(e) => setReviewDate(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
             <div>
@@ -235,7 +238,7 @@ export function CreateVerifiedAnswerModal({
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
           </div>

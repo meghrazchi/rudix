@@ -136,7 +136,14 @@ export type DocumentListItemResponse = Schemas["DocumentListItemResponse"] & {
   review_due_date?: string | null;
   expiry_date?: string | null;
   trust_level?: string | null;
-  trust_status?: "draft" | "current" | "verified" | "stale" | "deprecated" | "superseded" | "expired";
+  trust_status?:
+    | "draft"
+    | "current"
+    | "verified"
+    | "stale"
+    | "deprecated"
+    | "superseded"
+    | "expired";
   version_label?: string | null;
   review_date?: string | null;
 };
@@ -187,7 +194,14 @@ export type DocumentDetailResponse = Omit<
   review_due_date?: string | null;
   expiry_date?: string | null;
   trust_level?: string | null;
-  trust_status?: "draft" | "current" | "verified" | "stale" | "deprecated" | "superseded" | "expired";
+  trust_status?:
+    | "draft"
+    | "current"
+    | "verified"
+    | "stale"
+    | "deprecated"
+    | "superseded"
+    | "expired";
   version_label?: string | null;
   review_date?: string | null;
   effective_date?: string | null;
