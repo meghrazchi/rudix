@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
@@ -61,6 +62,7 @@ import {
   NotificationCenter,
   useNotificationUnreadCount,
 } from "@/components/layout/NotificationCenter";
+import { trackPageView } from "@/lib/analytics";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 
 const BRAND_LOGO_SRC = "/brand/rudix-mark.svg";
@@ -103,6 +105,41 @@ const NAV_ICONS: Partial<
 function NavigationIcon({ routeKey }: { routeKey: AppNavigationItem["key"] }) {
   const Icon = NAV_ICONS[routeKey] ?? Shield;
   return <Icon className="h-4 w-4 shrink-0" strokeWidth={1.9} aria-hidden />;
+}
+
+function routeKeyToFeatureArea(
+  routeKey: AppNavigationItem["key"],
+):
+  | "dashboard"
+  | "documents"
+  | "chat"
+  | "evaluations"
+  | "settings"
+  | "connectors" {
+  if (routeKey === "chat" || routeKey === "agent-workspace") {
+    return "chat";
+  }
+  if (routeKey === "evaluations") {
+    return "evaluations";
+  }
+  if (routeKey === "connectors") {
+    return "connectors";
+  }
+  if (
+    routeKey === "settings" ||
+    routeKey === "user-profile" ||
+    routeKey === "admin"
+  ) {
+    return "settings";
+  }
+  if (
+    routeKey === "documents" ||
+    routeKey === "collections" ||
+    routeKey === "graph"
+  ) {
+    return "documents";
+  }
+  return "dashboard";
 }
 
 type TopBarMenuKey = "notifications" | "help" | "profile";
@@ -314,6 +351,7 @@ export function AppShell({
   onSignOut,
   children,
 }: AppShellProps) {
+  const pathname = usePathname();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -524,6 +562,15 @@ export function AppShell({
     });
     return () => cancelAnimationFrame(rafId);
   }, [activeRoute, navLabel, t]);
+
+  useEffect(() => {
+    void trackPageView({
+      pageKey: activeRoute.key,
+      route: pathname ?? activeRoute.href ?? "",
+      surface: "app",
+      featureArea: routeKeyToFeatureArea(activeRoute.key),
+    });
+  }, [activeRoute, pathname]);
 
   useEffect(() => {
     if (!openMenu) {

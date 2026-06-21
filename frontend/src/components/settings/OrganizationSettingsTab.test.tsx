@@ -228,6 +228,7 @@ const SETTINGS_FIXTURE: OrganizationSettings = {
   evaluation_access: true,
   agentic_access: false,
   mcp_access: false,
+  analytics_enabled: true,
 };
 
 const INGESTION_FIXTURE: IngestionDefaults = {
@@ -986,13 +987,13 @@ describe("OrganizationSettingsTab", () => {
     ).toBeInTheDocument();
   });
 
-  // ── Team management section ───────────────────────────────────────────────
+  // ── Workspace defaults section ────────────────────────────────────────────
 
-  it("renders team management section", async () => {
+  it("renders workspace defaults section", async () => {
     renderTab();
 
     expect(
-      await screen.findByRole("region", { name: "Team management section" }),
+      await screen.findByRole("region", { name: "Workspace defaults section" }),
     ).toBeInTheDocument();
   });
 });

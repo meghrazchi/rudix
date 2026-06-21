@@ -40,6 +40,7 @@ export type OrganizationSettings = {
   evaluation_access: boolean;
   agentic_access: boolean;
   mcp_access: boolean;
+  analytics_enabled: boolean;
 };
 
 export type IngestionDefaults = {
@@ -205,6 +206,7 @@ function normalizeSettings(payload: unknown): OrganizationSettings {
     evaluation_access: asBoolean(r.evaluation_access, false),
     agentic_access: asBoolean(r.agentic_access, false),
     mcp_access: asBoolean(r.mcp_access, false),
+    analytics_enabled: asBoolean(r.analytics_enabled, true),
   };
 }
 

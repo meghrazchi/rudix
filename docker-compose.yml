@@ -229,6 +229,46 @@ services:
       timeout: 5s
       retries: 5
 
+  matomo-db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: ${MATOMO_DATABASE_DBNAME:-matomo}
+      MARIADB_USER: ${MATOMO_DATABASE_USERNAME:-matomo}
+      MARIADB_PASSWORD: ${MATOMO_DATABASE_PASSWORD:-matomo}
+      MARIADB_ROOT_PASSWORD: ${MATOMO_DATABASE_ROOT_PASSWORD:-matomo-root}
+    volumes:
+      - matomo_db_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mariadb-admin ping -h 127.0.0.1 -u ${MATOMO_DATABASE_USERNAME:-matomo} -p${MATOMO_DATABASE_PASSWORD:-matomo}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  matomo:
+    image: matomo:5-apache
+    depends_on:
+      matomo-db:
+        condition: service_healthy
+    environment:
+      MATOMO_DATABASE_HOST: matomo-db
+      MATOMO_DATABASE_ADAPTER: mysqli
+      MATOMO_DATABASE_TABLES_PREFIX: matomo_
+      MATOMO_DATABASE_USERNAME: ${MATOMO_DATABASE_USERNAME:-matomo}
+      MATOMO_DATABASE_PASSWORD: ${MATOMO_DATABASE_PASSWORD:-matomo}
+      MATOMO_DATABASE_DBNAME: ${MATOMO_DATABASE_DBNAME:-matomo}
+      MATOMO_FIRST_SUPERUSER_USERNAME: ${MATOMO_FIRST_SUPERUSER_USERNAME:-admin}
+      MATOMO_FIRST_SUPERUSER_PASSWORD: ${MATOMO_FIRST_SUPERUSER_PASSWORD:-change-me-please}
+      MATOMO_FIRST_SUPERUSER_EMAIL: ${MATOMO_FIRST_SUPERUSER_EMAIL:-admin@example.com}
+      MATOMO_INSTALL_FORCE: "1"
+    ports:
+      - "8081:80"
+    volumes:
+      - matomo_data:/var/www/html
+
   # ── Local model profiles ──────────────────────────────────────────────────
   # Start with:  make up-ollama | make up-vllm | make up-litellm
   # These services are bound to the internal Docker network only (no host
@@ -353,6 +393,8 @@ volumes:
   qdrant_data:
   minio_data:
   clamav_data:
+  matomo_db_data:
+  matomo_data:
   ollama_data:
   vllm_cache:
   neo4j_data:

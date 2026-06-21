@@ -100,6 +100,7 @@ const workspaceDefaultsSchema = z.object({
   evaluationAccess: z.boolean(),
   agenticAccess: z.boolean(),
   mcpAccess: z.boolean(),
+  analyticsEnabled: z.boolean(),
 });
 
 type WorkspaceDefaultsFormValues = z.infer<typeof workspaceDefaultsSchema>;
@@ -187,6 +188,7 @@ function settingsToForm(s: OrganizationSettings): WorkspaceDefaultsFormValues {
     evaluationAccess: s.evaluation_access,
     agenticAccess: s.agentic_access,
     mcpAccess: s.mcp_access,
+    analyticsEnabled: s.analytics_enabled,
   };
 }
 
@@ -449,6 +451,7 @@ export function OrganizationSettingsTab() {
     evaluationAccess: false,
     agenticAccess: false,
     mcpAccess: false,
+    analyticsEnabled: true,
   };
 
   const workspaceForm = useForm<WorkspaceDefaultsFormValues>({
@@ -484,6 +487,7 @@ export function OrganizationSettingsTab() {
         evaluation_access: values.evaluationAccess,
         agentic_access: values.agenticAccess,
         mcp_access: values.mcpAccess,
+        analytics_enabled: values.analyticsEnabled,
       }),
     onSuccess: (updated) => {
       const values = settingsToForm(updated);
@@ -662,6 +666,7 @@ export function OrganizationSettingsTab() {
   const watchedEvalAccess = workspaceForm.watch("evaluationAccess");
   const watchedAgenticAccess = workspaceForm.watch("agenticAccess");
   const watchedMcpAccess = workspaceForm.watch("mcpAccess");
+  const watchedAnalyticsEnabled = workspaceForm.watch("analyticsEnabled");
   const watchedAutoIndex = ingestionForm.watch("autoIndex");
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -1185,6 +1190,30 @@ export function OrganizationSettingsTab() {
                   checked={watchedMcpAccess}
                   onChange={(v) =>
                     workspaceForm.setValue("mcpAccess", v, {
+                      shouldDirty: true,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] p-4">
+                <div>
+                  <label
+                    htmlFor="ws-analytics-enabled"
+                    className="text-sm font-semibold text-[#1b1b24]"
+                  >
+                    Analytics enabled
+                  </label>
+                  <p className="text-xs text-[#464555]">
+                    Allow privacy-aware product analytics for activation and
+                    feature usage summaries.
+                  </p>
+                </div>
+                <ToggleSwitch
+                  id="ws-analytics-enabled"
+                  checked={watchedAnalyticsEnabled}
+                  onChange={(v) =>
+                    workspaceForm.setValue("analyticsEnabled", v, {
                       shouldDirty: true,
                     })
                   }

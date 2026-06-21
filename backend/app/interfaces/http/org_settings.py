@@ -124,12 +124,37 @@ class OrgSettings(BaseModel):
     evaluation_access: bool
     agentic_access: bool
     mcp_access: bool
+    analytics_enabled: bool
+
+
+class OrgSettingsPatch(BaseModel):
+    analytics_enabled: bool | None = None
+
+
+async def _load_org(
+    db: AsyncSession,
+    principal: AuthenticatedPrincipal,
+) -> Organization:
+    if not principal.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No organization context for this principal.",
+        )
+
+    org_uuid = UUID(principal.organization_id)
+    row = await db.execute(select(Organization).where(Organization.id == org_uuid))
+    org = row.scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found.")
+    return org
 
 
 @router.get("/settings", response_model=OrgSettings)
 async def get_organization_settings(
-    _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OrgSettings:
+    org = await _load_org(db, principal)
     return OrgSettings(
         default_member_role="member",
         invite_only=False,
@@ -141,6 +166,7 @@ async def get_organization_settings(
         evaluation_access=True,
         agentic_access=False,
         mcp_access=False,
+        analytics_enabled=org.analytics_enabled,
     )
 
 
@@ -149,8 +175,15 @@ async def get_organization_settings(
 
 @router.patch("/settings", response_model=OrgSettings)
 async def update_organization_settings(
-    _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    body: OrgSettingsPatch,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OrgSettings:
+    org = await _load_org(db, principal)
+    if body.analytics_enabled is not None:
+        org.analytics_enabled = body.analytics_enabled
+    await db.commit()
+    await db.refresh(org)
     return OrgSettings(
         default_member_role="member",
         invite_only=False,
@@ -162,6 +195,7 @@ async def update_organization_settings(
         evaluation_access=True,
         agentic_access=False,
         mcp_access=False,
+        analytics_enabled=org.analytics_enabled,
     )
 
 

@@ -9,6 +9,12 @@ export type FrontendFeatureFlags = {
   exports: boolean;
   unavailableBackendEndpoints: boolean;
   collectionsEnabled: boolean;
+  analyticsEnabled: boolean;
+};
+
+export type FrontendAnalyticsConfig = {
+  matomoUrl: string | null;
+  matomoSiteId: string | null;
 };
 
 export type FrontendRuntimeConfig = {
@@ -16,6 +22,7 @@ export type FrontendRuntimeConfig = {
   appUrl: string;
   authProvider: FrontendAuthProvider;
   authProviderRaw: string;
+  analytics: FrontendAnalyticsConfig;
   features: FrontendFeatureFlags;
 };
 
@@ -152,6 +159,14 @@ export function parseFrontendRuntimeConfig(
           env.NEXT_PUBLIC_FEATURE_COLLECTIONS_ENABLED,
           true,
         ),
+        analyticsEnabled: parseBooleanFlag(
+          env.NEXT_PUBLIC_ANALYTICS_ENABLED,
+          true,
+        ),
+      },
+      analytics: {
+        matomoUrl: trimToNull(env.NEXT_PUBLIC_MATOMO_URL),
+        matomoSiteId: trimToNull(env.NEXT_PUBLIC_MATOMO_SITE_ID),
       },
     },
     errors,

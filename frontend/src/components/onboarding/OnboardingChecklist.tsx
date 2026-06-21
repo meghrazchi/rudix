@@ -6,10 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { listChatSessions } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
-import {
-  getOnboardingConfig,
-  loadSampleDataset,
-} from "@/lib/api/onboarding";
+import { getOnboardingConfig, loadSampleDataset } from "@/lib/api/onboarding";
 import { queryKeys } from "@/lib/api/query";
 import type { AuthenticatedSession } from "@/lib/auth-session";
 import {

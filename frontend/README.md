@@ -97,6 +97,10 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - admin-only usage window selector (7d / 30d / 90d) for `/admin/usage` aggregation when enabled
   - explicit loading/error states with retry actions for each KPI card
   - empty state with document/chat call-to-actions when no activity exists
+- Product analytics behavior:
+  - privacy-aware consent-gated tracking for activation and feature usage
+  - optional Matomo script loading when `NEXT_PUBLIC_ANALYTICS_ENABLED=true` and Matomo env vars are configured
+  - admin-safe summary cards for activation funnel and feature usage without raw document text or prompt data
 - Chat page behavior:
   - supports one-shot RAG mode and explicit agentic mode toggle for plan-act-observe execution
   - agentic mode calls `/agent/runs` with typed payloads and renders final cited answer in-thread
@@ -371,6 +375,9 @@ NEXT_PUBLIC_AUTH_PROVIDER=app
 NEXT_PUBLIC_FEATURE_DEVELOPER_MODE=false
 NEXT_PUBLIC_FEATURE_EXPORTS_ENABLED=true
 NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS=true
+NEXT_PUBLIC_ANALYTICS_ENABLED=true
+NEXT_PUBLIC_MATOMO_URL=http://localhost:8081
+NEXT_PUBLIC_MATOMO_SITE_ID=1
 NEXT_PUBLIC_AUTH_LOGIN_URL=
 NEXT_PUBLIC_AUTH_SSO_URL=
 NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL=

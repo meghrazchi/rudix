@@ -60,8 +60,13 @@ describe("runtime config parsing", () => {
       collectionsEnabled: true,
       developerMode: true,
       feedback: true,
+      analyticsEnabled: true,
       exports: false,
       unavailableBackendEndpoints: false,
+    });
+    expect(config.analytics).toEqual({
+      matomoUrl: null,
+      matomoSiteId: null,
     });
   });
 

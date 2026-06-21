@@ -131,6 +131,7 @@ const ORG_SETTINGS_FIXTURE: OrganizationSettings = {
   evaluation_access: true,
   agentic_access: true,
   mcp_access: true,
+  analytics_enabled: true,
 };
 
 const ORG_PROFILE_FIXTURE: OrganizationProfile = {

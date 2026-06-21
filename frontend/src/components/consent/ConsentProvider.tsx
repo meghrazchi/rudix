@@ -18,6 +18,7 @@ import {
   readConsentRecord,
   writeConsentRecord,
 } from "@/lib/consent";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 type ConsentContextValue = {
   isLoaded: boolean;
@@ -44,6 +45,14 @@ export function useConsentContext(): ConsentContextValue {
 function getGaId(): string | null {
   const id = process.env.NEXT_PUBLIC_GA_ID;
   return id && id.trim().length > 0 ? id.trim() : null;
+}
+
+function getMatomoConfig(): { url: string; siteId: string } | null {
+  const config = getFrontendRuntimeConfig().analytics;
+  if (!config.matomoUrl || !config.matomoSiteId) {
+    return null;
+  }
+  return { url: config.matomoUrl, siteId: config.matomoSiteId };
 }
 
 type ConsentProviderProps = {
@@ -102,7 +111,18 @@ export function ConsentProvider({ children }: ConsentProviderProps) {
   const closePreferences = useCallback(() => setPreferencesOpen(false), []);
 
   const gaId = getGaId();
-  const loadAnalytics = isLoaded && decisions.analytics && gaId !== null;
+  const runtimeConfig = getFrontendRuntimeConfig();
+  const matomo = getMatomoConfig();
+  const loadAnalytics =
+    isLoaded &&
+    decisions.analytics &&
+    gaId !== null &&
+    runtimeConfig.features.analyticsEnabled;
+  const loadMatomo =
+    isLoaded &&
+    decisions.analytics &&
+    matomo !== null &&
+    runtimeConfig.features.analyticsEnabled;
 
   return (
     <ConsentContext.Provider
@@ -129,6 +149,13 @@ export function ConsentProvider({ children }: ConsentProviderProps) {
           </Script>
         </>
       )}
+      {loadMatomo && matomo ? (
+        <>
+          <Script id="rudix-matomo-init" strategy="afterInteractive">
+            {`window._paq=window._paq||[];_paq.push(['trackPageView']);_paq.push(['enableLinkTracking']);(function(){var u='${matomo.url.replace(/\/$/, "")}/';_paq.push(['setTrackerUrl',u+'matomo.php']);_paq.push(['setSiteId','${matomo.siteId}']);var d=document,g=d.createElement('script'),s=d.getElementsByTagName('script')[0];g.async=true;g.src=u+'matomo.js';s.parentNode.insertBefore(g,s);})();`}
+          </Script>
+        </>
+      ) : null}
       {children}
     </ConsentContext.Provider>
   );

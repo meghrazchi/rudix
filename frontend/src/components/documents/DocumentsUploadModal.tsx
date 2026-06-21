@@ -128,7 +128,6 @@ function fileIconName(fileName: string): "picture_as_pdf" | "description" {
   return "description";
 }
 
-
 export function DocumentsUploadModal({
   isOpen,
   canUpload,

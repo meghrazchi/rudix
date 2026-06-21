@@ -148,9 +148,17 @@ function isValidOnboardingState(value: unknown): value is OnboardingState {
   );
 }
 
-function migrateOnboardingState(raw: OnboardingState): OnboardingState {
-  if (!("acknowledgedResetAt" in raw)) {
-    return { ...raw, acknowledgedResetAt: null };
+function migrateOnboardingState(
+  raw: OnboardingState & { acknowledgedResetAt?: string | null },
+): OnboardingState {
+  if (raw.acknowledgedResetAt === undefined) {
+    return {
+      version: raw.version,
+      dismissed: raw.dismissed,
+      manuallyCompleted: raw.manuallyCompleted,
+      tourSeen: raw.tourSeen,
+      acknowledgedResetAt: null,
+    };
   }
   return raw;
 }

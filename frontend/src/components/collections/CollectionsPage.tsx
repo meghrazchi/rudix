@@ -889,7 +889,11 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
                 onChange={() => {
                   setRoleGrants((prev) => {
                     const n = new Set(prev);
-                    if (n.has(value)) { n.delete(value); } else { n.add(value); }
+                    if (n.has(value)) {
+                      n.delete(value);
+                    } else {
+                      n.add(value);
+                    }
                     return n;
                   });
                   setIsDirty(true);
@@ -1838,7 +1842,11 @@ export function AssignCollectionsDialog({
   function toggle(id: string) {
     setSelected((prev) => {
       const n = new Set(prev);
-      if (n.has(id)) { n.delete(id); } else { n.add(id); }
+      if (n.has(id)) {
+        n.delete(id);
+      } else {
+        n.add(id);
+      }
       return n;
     });
   }

@@ -1,5 +1,11 @@
+"use client";
+
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { PublicHeader } from "@/components/public/PublicHeader";
+import { trackPageView } from "@/lib/analytics";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 type PublicMarketingLayoutProps = {
@@ -12,6 +18,16 @@ export function PublicMarketingLayout({
   pageLabel = "Public marketing content",
 }: PublicMarketingLayoutProps) {
   const links = resolvePublicSiteLinks();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    void trackPageView({
+      pageKey: pathname ?? pageLabel,
+      route: pathname ?? "/",
+      surface: "public",
+      featureArea: "public",
+    });
+  }, [pageLabel, pathname]);
 
   return (
     <div className="min-h-screen bg-[#f2f3f6] text-[#13141a]">

@@ -337,6 +337,8 @@ class Settings(BaseSettings):
     rate_limit_auth_logout_requests: int = Field(default=30, ge=1, le=10000)
     rate_limit_auth_password_requests: int = Field(default=10, ge=1, le=10000)
     evaluation_prevent_duplicate_active_runs: bool = True
+    feature_enable_product_analytics: bool = True
+    analytics_dedupe_window_seconds: int = Field(default=86400, ge=60, le=604800)
 
     dependency_connect_timeout_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
     dependency_read_timeout_seconds: float = Field(default=1.0, ge=0.1, le=120.0)
@@ -413,6 +415,10 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float | None = Field(default=None, ge=0.0, le=1.0)
     sentry_profiles_sample_rate: float | None = Field(default=None, ge=0.0, le=1.0)
     sentry_test_event_enabled: bool | None = None
+
+    # Product analytics transport and admin-safe summaries.
+    # Frontend pages emit safe events to the backend; Matomo is optional and
+    # configured on the client side for browser-side pageview tracking.
 
     # Transactional email (F251)
     email_enabled: bool = False

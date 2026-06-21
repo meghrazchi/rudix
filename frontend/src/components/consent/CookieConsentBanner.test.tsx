@@ -3,10 +3,7 @@ import { screen, fireEvent } from "@testing-library/react";
 
 import { CookieConsentBanner } from "@/components/consent/CookieConsentBanner";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
-import {
-  CONSENT_POLICY_VERSION,
-  writeConsentRecord,
-} from "@/lib/consent";
+import { CONSENT_POLICY_VERSION, writeConsentRecord } from "@/lib/consent";
 import { renderWithProviders } from "@/test/render";
 
 function renderBanner() {
@@ -27,10 +24,10 @@ describe("CookieConsentBanner", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the banner when no consent record exists", () => {
+  it("renders the banner when no consent record exists", async () => {
     renderBanner();
     expect(
-      screen.getByRole("dialog", { name: /cookie consent/i }),
+      await screen.findByRole("dialog", { name: /cookie consent/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /accept all/i }),
@@ -55,7 +52,7 @@ describe("CookieConsentBanner", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows banner when consent record has an old policy version", () => {
+  it("shows banner when consent record has an old policy version", async () => {
     writeConsentRecord({
       policyVersion: "0.1",
       timestamp: Date.now(),
@@ -63,13 +60,13 @@ describe("CookieConsentBanner", () => {
     });
     renderBanner();
     expect(
-      screen.getByRole("dialog", { name: /cookie consent/i }),
+      await screen.findByRole("dialog", { name: /cookie consent/i }),
     ).toBeInTheDocument();
   });
 
-  it("accepts all and hides the banner", () => {
+  it("accepts all and hides the banner", async () => {
     renderBanner();
-    fireEvent.click(screen.getByRole("button", { name: /accept all/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /accept all/i }));
     expect(
       screen.queryByRole("dialog", { name: /cookie consent/i }),
     ).not.toBeInTheDocument();
@@ -81,10 +78,10 @@ describe("CookieConsentBanner", () => {
     expect(record.decisions.functional).toBe(true);
   });
 
-  it("rejects non-essential and hides the banner", () => {
+  it("rejects non-essential and hides the banner", async () => {
     renderBanner();
     fireEvent.click(
-      screen.getByRole("button", { name: /reject non-essential/i }),
+      await screen.findByRole("button", { name: /reject non-essential/i }),
     );
     expect(
       screen.queryByRole("dialog", { name: /cookie consent/i }),
@@ -97,17 +94,17 @@ describe("CookieConsentBanner", () => {
     expect(record.decisions.functional).toBe(false);
   });
 
-  it("opens the preferences modal when customize is clicked", () => {
+  it("opens the preferences modal when customize is clicked", async () => {
     renderBanner();
-    fireEvent.click(screen.getByRole("button", { name: /customize/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /customize/i }));
     expect(
-      screen.getByRole("dialog", { name: /cookie preferences/i }),
+      await screen.findByRole("dialog", { name: /cookie preferences/i }),
     ).toBeInTheDocument();
   });
 
-  it("includes a link to the cookie policy", () => {
+  it("includes a link to the cookie policy", async () => {
     renderBanner();
-    const link = screen.getByRole("link", { name: /cookie policy/i });
+    const link = await screen.findByRole("link", { name: /cookie policy/i });
     expect(link).toHaveAttribute("href", "/legal/cookies");
   });
 });

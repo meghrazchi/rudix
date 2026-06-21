@@ -17,6 +17,7 @@ import {
 } from "@/lib/auth-signup";
 import { resolveAuthenticatedNavigationTarget } from "@/lib/app-routes";
 import type { AuthenticatedSession } from "@/lib/auth-session";
+import { trackActivationEvent } from "@/lib/analytics";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 function safeErrorMessage(error: unknown): string {
@@ -119,6 +120,13 @@ function SignupPageContent() {
 
     try {
       const result = await startSignupSession(values);
+      void trackActivationEvent("activation.signup_completed", {
+        surface: "public",
+        route: "/signup",
+        pageKey: "signup",
+        featureArea: "public",
+        source: values.workspaceMode,
+      });
       setAuthenticatedSession(result.session);
       router.replace(
         resolvePostSignupTarget(nextPath, result.nextStep, result.session),

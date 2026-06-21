@@ -11,6 +11,7 @@ const mockState = vi.hoisted(() => ({
 }));
 
 const mockApi = vi.hoisted(() => ({
+  getAnalyticsSummary: vi.fn(),
   getUsageSummary: vi.fn(),
   listAuditLogs: vi.fn(),
 }));
@@ -26,6 +27,10 @@ vi.mock("@/lib/use-auth-session", () => ({
 vi.mock("@/lib/api/admin-usage", () => ({
   getUsageSummary: (query?: unknown) => mockApi.getUsageSummary(query),
   listAuditLogs: (query?: unknown) => mockApi.listAuditLogs(query),
+}));
+
+vi.mock("@/lib/api/analytics", () => ({
+  getAnalyticsSummary: (query?: unknown) => mockApi.getAnalyticsSummary(query),
 }));
 
 function renderPage() {
@@ -46,6 +51,7 @@ function renderPage() {
 describe("AdminPage", () => {
   beforeEach(() => {
     mockApi.getUsageSummary.mockReset();
+    mockApi.getAnalyticsSummary.mockReset();
     mockApi.listAuditLogs.mockReset();
 
     mockApi.getUsageSummary.mockResolvedValue({
@@ -72,6 +78,32 @@ describe("AdminPage", () => {
           avg_latency_ms: 250,
         },
       ],
+    });
+
+    mockApi.getAnalyticsSummary.mockResolvedValue({
+      organization_id: "org-1",
+      range: { from: "2026-05-01", to: "2026-05-30" },
+      generated_at: "2026-05-30T12:00:00Z",
+      enabled: true,
+      disabled_reason: null,
+      total_events: 18,
+      active_users: 5,
+      activation: {
+        signup_completed: 1,
+        organization_created: 1,
+        first_upload: 1,
+        first_indexed_document: 1,
+        first_question: 1,
+        first_cited_answer: 1,
+        funnel_completion_rate: 1,
+      },
+      feature_usage: {
+        documents: 7,
+        chat: 8,
+        settings: 3,
+      },
+      page_usage: {},
+      event_counts: {},
     });
 
     mockApi.listAuditLogs.mockResolvedValue({
@@ -111,9 +143,11 @@ describe("AdminPage", () => {
     renderPage();
 
     await screen.findByText("Usage and audit analytics");
+    await screen.findByText("Privacy-aware product analytics");
     await waitFor(() => {
       expect(screen.getByText("8")).toBeInTheDocument();
       expect(screen.getByText("$4.50")).toBeInTheDocument();
+      expect(screen.getByText("18")).toBeInTheDocument();
       expect(screen.getByText("chat.query.completed")).toBeInTheDocument();
       expect(screen.getByText("Trace ID:")).toBeInTheDocument();
     });

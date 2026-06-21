@@ -10,6 +10,7 @@ This folder contains a production-ready backend skeleton for the AI Document Q&A
 - SQLAlchemy async database foundation and Alembic scaffold.
 - Celery worker scaffold with RabbitMQ/Redis wiring.
 - Client scaffolds for Qdrant, MinIO, and ClamAV.
+- Privacy-aware product analytics ingestion plus organization-level opt-out and admin-safe summaries.
 - Dockerfile for API and worker images.
 
 ## Does not include

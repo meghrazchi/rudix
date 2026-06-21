@@ -88,6 +88,7 @@ import {
   type PipelineRunType,
 } from "@/lib/pipeline-links";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { trackActivationEvent, trackFeatureEvent } from "@/lib/analytics";
 import { loadSettingsPreferences } from "@/lib/settings-preferences";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { useChatWebSocket } from "@/lib/use-chat-websocket";
@@ -1369,6 +1370,38 @@ export function ChatPage() {
       replaceSessionParamInUrl(resolvedSessionId ?? null);
       setSubmitRequestId(null);
       setPendingQuestion(null);
+      void trackFeatureEvent("feature.chat.question_submitted", {
+        surface: "app",
+        route: "/chat",
+        pageKey: "chat",
+        featureArea: "chat",
+        count: 1,
+      });
+      void trackFeatureEvent("feature.chat.answer_rendered", {
+        surface: "app",
+        route: "/chat",
+        pageKey: "chat",
+        featureArea: "chat",
+        citationCount: nextTurn.response.citations.length,
+        hasCitations: nextTurn.response.citations.length > 0,
+      });
+      void trackActivationEvent("activation.first_question", {
+        surface: "app",
+        route: "/chat",
+        pageKey: "chat",
+        featureArea: "chat",
+        count: 1,
+      });
+      if (nextTurn.response.citations.length > 0) {
+        void trackActivationEvent("activation.first_cited_answer", {
+          surface: "app",
+          route: "/chat",
+          pageKey: "chat",
+          featureArea: "chat",
+          citationCount: nextTurn.response.citations.length,
+          hasCitations: true,
+        });
+      }
       void invalidateAfterMutation(queryClient, "chat.query");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1417,6 +1450,38 @@ export function ChatPage() {
       replaceSessionParamInUrl(resolvedSessionId ?? null);
       setSubmitRequestId(null);
       setPendingQuestion(null);
+      void trackFeatureEvent("feature.chat.question_submitted", {
+        surface: "app",
+        route: "/chat",
+        pageKey: "chat",
+        featureArea: "chat",
+        count: 1,
+      });
+      void trackFeatureEvent("feature.chat.answer_rendered", {
+        surface: "app",
+        route: "/chat",
+        pageKey: "chat",
+        featureArea: "chat",
+        citationCount: nextTurn.response.citations.length,
+        hasCitations: nextTurn.response.citations.length > 0,
+      });
+      void trackActivationEvent("activation.first_question", {
+        surface: "app",
+        route: "/chat",
+        pageKey: "chat",
+        featureArea: "chat",
+        count: 1,
+      });
+      if (nextTurn.response.citations.length > 0) {
+        void trackActivationEvent("activation.first_cited_answer", {
+          surface: "app",
+          route: "/chat",
+          pageKey: "chat",
+          featureArea: "chat",
+          citationCount: nextTurn.response.citations.length,
+          hasCitations: true,
+        });
+      }
       await invalidateAfterMutation(queryClient, "chat.query");
     },
     onError: (error) => {
@@ -2067,7 +2132,9 @@ export function ChatPage() {
                     compact
                     title={
                       debouncedSearchQuery
-                        ? tc("noSessionsSearch", { query: debouncedSearchQuery })
+                        ? tc("noSessionsSearch", {
+                            query: debouncedSearchQuery,
+                          })
                         : tc("noSessionsYet")
                     }
                   />

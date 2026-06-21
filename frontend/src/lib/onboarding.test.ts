@@ -68,7 +68,11 @@ describe("isStepComplete", () => {
   it("marks wait_for_indexing complete when indexed docs exist", () => {
     expect(isStepComplete("wait_for_indexing", ALL_DETECTED, [])).toBe(true);
     expect(
-      isStepComplete("wait_for_indexing", { ...NONE_DETECTED, hasDocuments: true }, []),
+      isStepComplete(
+        "wait_for_indexing",
+        { ...NONE_DETECTED, hasDocuments: true },
+        [],
+      ),
     ).toBe(false);
   });
 
@@ -78,8 +82,12 @@ describe("isStepComplete", () => {
   });
 
   it("marks non-auto-detectable step complete when manually completed", () => {
-    expect(isStepComplete("invite_team", NONE_DETECTED, ["invite_team"])).toBe(true);
-    expect(isStepComplete("inspect_citations", NONE_DETECTED, ["inspect_citations"])).toBe(true);
+    expect(isStepComplete("invite_team", NONE_DETECTED, ["invite_team"])).toBe(
+      true,
+    );
+    expect(
+      isStepComplete("inspect_citations", NONE_DETECTED, ["inspect_citations"]),
+    ).toBe(true);
     expect(isStepComplete("review_security", NONE_DETECTED, [])).toBe(false);
   });
 });

@@ -99,6 +99,7 @@ Supported document types include:
 - 🔬 **Research and analyst workspace**: Explore reports and technical docs with citations and confidence indicators.
 - 🧩 **Multi-tenant knowledge portals**: Offer organization-isolated document Q&A with role-based access control.
 - 📊 **AI operations visibility**: Monitor ingestion, indexing, failures, latency, confidence, and usage/cost trends.
+- 📈 **Privacy-aware product analytics**: Optional Matomo tracking plus admin-safe activation and feature-usage summaries.
 
 ---
 
@@ -214,7 +215,7 @@ Or:
 make up
 ```
 
-This starts the API, worker, PostgreSQL, Qdrant, MinIO, RabbitMQ, and Redis.
+This starts the API, worker, PostgreSQL, Qdrant, MinIO, RabbitMQ, Redis, and the optional Matomo analytics stack.
 
 ### 4. Run Database Migrations
 

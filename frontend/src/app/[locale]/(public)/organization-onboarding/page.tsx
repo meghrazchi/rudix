@@ -18,6 +18,7 @@ import {
   type OrganizationOnboardingError,
   type OrganizationOnboardingFormValues,
 } from "@/lib/organization-onboarding";
+import { trackActivationEvent } from "@/lib/analytics";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const stepLabels = ["Workspace", "Access", "Invites", "Review"] as const;
@@ -164,6 +165,13 @@ export default function OrganizationOnboardingPage() {
 
     try {
       const result = await completeOrganizationOnboarding(values);
+      void trackActivationEvent("activation.organization_created", {
+        surface: "public",
+        route: "/organization-onboarding",
+        pageKey: "organization-onboarding",
+        featureArea: "settings",
+        source: values.defaultAccessRole,
+      });
       if (!state.session) {
         router.replace("/dashboard");
         return;

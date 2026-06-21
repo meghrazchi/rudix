@@ -131,9 +131,7 @@ export function AdminOnboardingPage() {
           new cohort or enabling new features.
         </p>
         {resetAt ? (
-          <p className="mb-4 text-xs text-[#8b88a0]">
-            Last reset: {resetAt}
-          </p>
+          <p className="mb-4 text-xs text-[#8b88a0]">Last reset: {resetAt}</p>
         ) : null}
         <button
           type="button"
@@ -141,7 +139,9 @@ export function AdminOnboardingPage() {
           disabled={resetMutation.isPending}
           className="rounded-lg border border-[#d7d4e8] bg-white px-4 py-2 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {resetMutation.isPending ? "Resetting…" : "Reset onboarding for all users"}
+          {resetMutation.isPending
+            ? "Resetting…"
+            : "Reset onboarding for all users"}
         </button>
         {resetMutation.isError ? (
           <p className="mt-2 text-xs text-rose-600">

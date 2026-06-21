@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
+import { getAnalyticsSummary } from "@/lib/api/analytics";
 import {
   getUsageSummary,
   listAuditLogs,
@@ -58,6 +59,17 @@ function eventCaption(item: AuditLogListItemResponse): string {
   return `${item.resource_type}${resourceId}`;
 }
 
+function SummaryPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#e1dced] bg-[#faf9ff] px-4 py-3">
+      <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-bold text-[#2a2640]">{value}</p>
+    </div>
+  );
+}
+
 export function AdminPage() {
   const { state } = useAuthSession();
   const role = state.session?.role;
@@ -89,6 +101,16 @@ export function AdminPage() {
         to: usageRange.to,
         granularity: "day",
         user_id: appliedFilters.userId ?? undefined,
+      }),
+    enabled: isAdminUser,
+  });
+
+  const analyticsQuery = useQuery({
+    queryKey: ["admin", "analytics-summary", usageRange.from, usageRange.to],
+    queryFn: () =>
+      getAnalyticsSummary({
+        from: usageRange.from,
+        to: usageRange.to,
       }),
     enabled: isAdminUser,
   });
@@ -207,6 +229,112 @@ export function AdminPage() {
           </label>
         </div>
       </header>
+
+      <section
+        className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+        aria-label="Product analytics summary"
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+              Activation funnel
+            </p>
+            <h2 className="text-lg font-semibold text-[#2a2640]">
+              Privacy-aware product analytics
+            </h2>
+          </div>
+          {analyticsQuery.data ? (
+            <p className="text-xs text-[#68647b]">
+              {analyticsQuery.data.enabled
+                ? `Updated ${new Date(analyticsQuery.data.generated_at).toLocaleString()}`
+                : (analyticsQuery.data.disabled_reason ?? "Analytics disabled")}
+            </p>
+          ) : null}
+        </div>
+
+        {analyticsQuery.isLoading ? (
+          <LoadingState compact title="Loading product analytics" />
+        ) : analyticsQuery.isError ? (
+          <ErrorState
+            compact
+            error={analyticsQuery.error}
+            description={getApiErrorMessage(analyticsQuery.error)}
+          />
+        ) : analyticsQuery.data ? (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <SummaryPill
+                label="Events"
+                value={formatInteger(analyticsQuery.data.total_events)}
+              />
+              <SummaryPill
+                label="Active users"
+                value={formatInteger(analyticsQuery.data.active_users)}
+              />
+              <SummaryPill
+                label="Signup completed"
+                value={formatInteger(
+                  analyticsQuery.data.activation.signup_completed,
+                )}
+              />
+              <SummaryPill
+                label="Workspace created"
+                value={formatInteger(
+                  analyticsQuery.data.activation.organization_created,
+                )}
+              />
+              <SummaryPill
+                label="First upload"
+                value={formatInteger(
+                  analyticsQuery.data.activation.first_upload,
+                )}
+              />
+              <SummaryPill
+                label="First cited answer"
+                value={formatInteger(
+                  analyticsQuery.data.activation.first_cited_answer,
+                )}
+              />
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-[#e1dced] bg-[#faf9ff] p-4">
+                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Funnel completion
+                </p>
+                <p className="mt-2 text-2xl font-bold text-[#2a2640]">
+                  {analyticsQuery.data.activation.funnel_completion_rate == null
+                    ? "N/A"
+                    : `${(analyticsQuery.data.activation.funnel_completion_rate * 100).toFixed(1)}%`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#e1dced] bg-[#faf9ff] p-4">
+                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Top usage areas
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {Object.entries(analyticsQuery.data.feature_usage)
+                    .slice(0, 6)
+                    .map(([key, value]) => (
+                      <span
+                        key={key}
+                        className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#3f3b58] shadow-sm"
+                      >
+                        {key}: {formatInteger(value)}
+                      </span>
+                    ))}
+                  {Object.keys(analyticsQuery.data.feature_usage).length ===
+                  0 ? (
+                    <span className="text-sm text-[#68647b]">
+                      No usage data yet.
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </section>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <form

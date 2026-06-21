@@ -198,7 +198,51 @@ services:
       timeout: 5s
       retries: 10
 
+  matomo-db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${MATOMO_DATABASE_DBNAME}
+      MARIADB_USER: ${MATOMO_DATABASE_USERNAME}
+      MARIADB_PASSWORD: ${MATOMO_DATABASE_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MATOMO_DATABASE_ROOT_PASSWORD}
+    volumes:
+      - matomo_db_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mariadb-admin ping -h 127.0.0.1 -u ${MATOMO_DATABASE_USERNAME} -p${MATOMO_DATABASE_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  matomo:
+    image: matomo:5-apache
+    restart: unless-stopped
+    depends_on:
+      matomo-db:
+        condition: service_healthy
+    environment:
+      MATOMO_DATABASE_HOST: matomo-db
+      MATOMO_DATABASE_ADAPTER: mysqli
+      MATOMO_DATABASE_TABLES_PREFIX: matomo_
+      MATOMO_DATABASE_USERNAME: ${MATOMO_DATABASE_USERNAME}
+      MATOMO_DATABASE_PASSWORD: ${MATOMO_DATABASE_PASSWORD}
+      MATOMO_DATABASE_DBNAME: ${MATOMO_DATABASE_DBNAME}
+      MATOMO_FIRST_SUPERUSER_USERNAME: ${MATOMO_FIRST_SUPERUSER_USERNAME}
+      MATOMO_FIRST_SUPERUSER_PASSWORD: ${MATOMO_FIRST_SUPERUSER_PASSWORD}
+      MATOMO_FIRST_SUPERUSER_EMAIL: ${MATOMO_FIRST_SUPERUSER_EMAIL}
+      MATOMO_INSTALL_FORCE: "1"
+    ports:
+      - "8081:80"
+    volumes:
+      - matomo_data:/var/www/html
+
 volumes:
   postgres_data:
   qdrant_data:
   minio_data:
+  matomo_db_data:
+  matomo_data:

@@ -42,6 +42,7 @@ import {
 } from "@/lib/api/documents";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
+import { trackActivationEvent, trackFeatureEvent } from "@/lib/analytics";
 import {
   canDeleteDocument,
   canReindexDocument,
@@ -1061,6 +1062,13 @@ export function DocumentsPage() {
     cancelAllUploadsRequestedRef.current = false;
 
     if (successCount > 0) {
+      void trackActivationEvent("activation.first_upload", {
+        surface: "app",
+        route: "/documents",
+        pageKey: "documents",
+        featureArea: "documents",
+        count: successCount,
+      });
       setSelectedDocumentId(latestSuccessDocumentId);
       setChunksOffset(0);
       await invalidateAfterMutation(queryClient, "document.upload");
@@ -1231,6 +1239,38 @@ export function DocumentsPage() {
           100,
           Math.round((indexedStatusCount / allDocumentsStatusCount) * 100),
         );
+
+  useEffect(() => {
+    if (uploadedStatusCount > 0) {
+      void trackFeatureEvent("feature.documents.uploaded", {
+        surface: "app",
+        route: "/documents",
+        pageKey: "documents",
+        featureArea: "documents",
+        count: uploadedStatusCount,
+      });
+    }
+  }, [uploadedStatusCount]);
+
+  useEffect(() => {
+    if (indexedStatusCount > 0) {
+      void trackFeatureEvent("feature.documents.indexed", {
+        surface: "app",
+        route: "/documents",
+        pageKey: "documents",
+        featureArea: "documents",
+        count: indexedStatusCount,
+      });
+      void trackActivationEvent("activation.first_indexed_document", {
+        surface: "app",
+        route: "/documents",
+        pageKey: "documents",
+        featureArea: "documents",
+        count: indexedStatusCount,
+      });
+    }
+  }, [indexedStatusCount]);
+
   const currentPage = Math.floor(offset / DOCUMENT_PAGE_SIZE) + 1;
   const totalPages = Math.max(
     1,

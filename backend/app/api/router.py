@@ -4,6 +4,7 @@ from app.auth.dependencies import get_current_principal
 from app.interfaces.http import (
     ab_testing,
     admin,
+    analytics,
     admin_access_debugger,
     admin_agent_policy,
     admin_api_keys,
@@ -110,6 +111,7 @@ protected_router.include_router(quotas.user_router)
 protected_router.include_router(rag_profiles.router)
 protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)
+protected_router.include_router(analytics.router)
 protected_router.include_router(observability.router)
 protected_router.include_router(provider_observability.router)
 protected_router.include_router(langfuse_diagnostics.router)

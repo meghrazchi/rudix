@@ -679,6 +679,7 @@ export const mockOrganizationSettings: OrganizationSettings = {
   evaluation_access: true,
   agentic_access: false,
   mcp_access: false,
+  analytics_enabled: true,
 };
 
 export const mockIngestionDefaults: IngestionDefaults = {
