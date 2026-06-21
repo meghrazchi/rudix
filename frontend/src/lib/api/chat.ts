@@ -81,6 +81,52 @@ export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
   fallback_from?: string | null;
   fallback_to?: string | null;
   fallback_reason?: string | null;
+  // Reranking details
+  rerank_enabled?: boolean;
+  rerank_provider?: string | null;
+  rerank_model?: string | null;
+  rerank_fallback_used?: boolean;
+  rerank_fallback_reason?: string | null;
+  rerank_input_count?: number;
+  // Hybrid retrieval (F293)
+  hybrid_retrieval_enabled?: boolean;
+  hybrid_vector_hit_count?: number;
+  hybrid_keyword_hit_count?: number;
+  // Query rewriting (F295)
+  query_rewriting_enabled?: boolean;
+  query_rewriting_applied?: boolean;
+  query_decomposed?: boolean;
+  original_query?: string | null;
+  rewritten_query?: string | null;
+  sub_queries?: string[];
+  // Grounded verification (F296)
+  grounded_verification_enabled?: boolean;
+  grounded_verification_applied?: boolean;
+  grounded_verification_verdict?: string | null;
+  grounded_verification_score?: number | null;
+  grounded_verification_claim_count?: number;
+  grounded_verification_supported_count?: number;
+  grounded_verification_unsupported_count?: number;
+  grounded_verification_removed_count?: number;
+  grounded_verification_reason_codes?: string[];
+  grounded_verification_model?: string | null;
+  // Source freshness (F297)
+  freshness_filter_enabled?: boolean;
+  freshness_excluded_count?: number;
+  freshness_boosted_count?: number;
+  freshness_stale_count?: number;
+  // OCR quality (F299)
+  ocr_quality_downranking_enabled?: boolean;
+  ocr_low_confidence_chunk_count?: number;
+  // Parent context expansion (F300)
+  parent_context_expansion_enabled?: boolean;
+  parent_context_child_hit_count?: number;
+  parent_context_expanded_count?: number;
+  parent_context_tokens_used?: number;
+  // Prompt template
+  prompt_template_key?: string | null;
+  prompt_template_version?: number | null;
+  // Graph context (F283)
   graph_context_enabled?: boolean;
   graph_context_used?: boolean;
   graph_context_unavailable?: boolean;
@@ -113,6 +159,12 @@ export type ChatQueryResponse = Omit<Schemas["ChatQueryResponse"], "debug"> & {
   conflict_pairs?: ChatConflictPairResponse[];
   source_freshness_warning?: boolean;
   source_freshness_warning_reason?: string | null;
+  verification_failed?: boolean;
+  policy_applied?: boolean;
+  policy_outcome?: string | null;
+  policy_violated_rules?: string[];
+  policy_warning_flags?: string[];
+  policy_disclaimer?: string | null;
 };
 export type ChatMessageResponse = Schemas["ChatMessageResponse"];
 export type ChatSessionMessageResponse = Schemas["ChatSessionMessageResponse"];

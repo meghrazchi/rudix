@@ -46,12 +46,14 @@ import {
   listChatSessions,
   queryChat,
   type ChatCitationResponse,
+  type ChatConfidenceExplanationResponse,
   type ChatConflictPairResponse,
   type ChatDebugResponse,
   type ChatSessionMessageResponse,
   type ChatQueryRequest,
   type ChatQueryResponse,
 } from "@/lib/api/chat";
+import { AnswerTrustPanel } from "@/components/chat/AnswerTrustPanel";
 import {
   listDocuments,
   type DocumentListItemResponse,
@@ -181,14 +183,23 @@ type ChatTurn = {
     answer: string;
     confidence_score: number;
     confidence_category: "low" | "medium" | "high";
+    confidence_explanation: ChatConfidenceExplanationResponse | null;
     not_found: boolean;
     citation_validation_failed: boolean;
+    verification_failed: boolean;
     agreement_level: "full" | "partial" | "conflicting";
     conflict_detected: boolean;
     conflict_summary: string | null;
     conflicting_document_ids: string[];
     preferred_document_ids: string[];
     conflict_pairs: ChatConflictPairResponse[];
+    source_freshness_warning: boolean;
+    source_freshness_warning_reason: string | null;
+    policy_applied: boolean;
+    policy_outcome: string | null;
+    policy_violated_rules: string[];
+    policy_warning_flags: string[];
+    policy_disclaimer: string | null;
     debug: ChatDebugResponse | null;
     citations: ChatCitationResponse[];
     created_at: string;
@@ -386,14 +397,24 @@ function toTurnResponseFromQuery(
     answer: response.answer,
     confidence_score: response.confidence_score,
     confidence_category: response.confidence_category,
+    confidence_explanation: response.confidence_explanation ?? null,
     not_found: response.not_found,
     citation_validation_failed: response.citation_validation_failed ?? false,
+    verification_failed: response.verification_failed ?? false,
     agreement_level: response.agreement_level ?? "full",
     conflict_detected: response.conflict_detected ?? false,
     conflict_summary: response.conflict_summary ?? null,
     conflicting_document_ids: response.conflicting_document_ids ?? [],
     preferred_document_ids: response.preferred_document_ids ?? [],
     conflict_pairs: response.conflict_pairs ?? [],
+    source_freshness_warning: response.source_freshness_warning ?? false,
+    source_freshness_warning_reason:
+      response.source_freshness_warning_reason ?? null,
+    policy_applied: response.policy_applied ?? false,
+    policy_outcome: response.policy_outcome ?? null,
+    policy_violated_rules: response.policy_violated_rules ?? [],
+    policy_warning_flags: response.policy_warning_flags ?? [],
+    policy_disclaimer: response.policy_disclaimer ?? null,
     debug: response.debug ?? null,
     citations: response.citations ?? [],
     created_at: response.created_at,
@@ -476,14 +497,23 @@ export function toTurnResponseFromHistoryMessage(
         ? message.confidence_score
         : 0,
     confidence_category: message.confidence_category ?? "low",
+    confidence_explanation: null,
     not_found: false,
     citation_validation_failed: false,
+    verification_failed: false,
     agreement_level: agreementLevel,
     conflict_detected: conflictDetected,
     conflict_summary: conflictSummary,
     conflicting_document_ids: conflictDetected ? conflictingDocumentIds : [],
     preferred_document_ids: conflictDetected ? preferredDocumentIds : [],
     conflict_pairs: conflictDetected ? conflictPairs : [],
+    source_freshness_warning: false,
+    source_freshness_warning_reason: null,
+    policy_applied: false,
+    policy_outcome: null,
+    policy_violated_rules: [],
+    policy_warning_flags: [],
+    policy_disclaimer: null,
     debug: null,
     citations: message.citations ?? [],
     created_at: message.created_at,
@@ -517,14 +547,23 @@ function toTurnResponseFromAgentRun(
     answer,
     confidence_score: score,
     confidence_category: toConfidenceCategory(confidence.category, score),
+    confidence_explanation: null,
     not_found: Boolean(outcome?.not_found),
     citation_validation_failed: false,
+    verification_failed: false,
     agreement_level: "full",
     conflict_detected: false,
     conflict_summary: null,
     conflicting_document_ids: [],
     preferred_document_ids: [],
     conflict_pairs: [],
+    source_freshness_warning: false,
+    source_freshness_warning_reason: null,
+    policy_applied: false,
+    policy_outcome: null,
+    policy_violated_rules: [],
+    policy_warning_flags: [],
+    policy_disclaimer: null,
     debug: null,
     citations,
     created_at: new Date().toISOString(),
@@ -850,6 +889,9 @@ export function ChatPage() {
     string | null
   >(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [openTrustPanelMessageId, setOpenTrustPanelMessageId] = useState<
+    string | null
+  >(null);
 
   const activeOrgId = state.session?.organizationId ?? null;
   const prevOrgIdRef = useRef<string | null>(null);
@@ -2595,7 +2637,92 @@ export function ChatPage() {
                                   </p>
                                 ) : null}
                               </article>
+                              {openTrustPanelMessageId ===
+                                turn.response.message_id && (
+                                <AnswerTrustPanel
+                                  messageId={turn.response.message_id}
+                                  confidenceScore={
+                                    turn.response.confidence_score
+                                  }
+                                  confidenceCategory={
+                                    turn.response.confidence_category
+                                  }
+                                  confidenceExplanation={
+                                    turn.response.confidence_explanation
+                                  }
+                                  citationValidationFailed={
+                                    turn.response.citation_validation_failed
+                                  }
+                                  verificationFailed={
+                                    turn.response.verification_failed
+                                  }
+                                  sourceFreshnessWarning={
+                                    turn.response.source_freshness_warning
+                                  }
+                                  sourceFreshnessWarningReason={
+                                    turn.response.source_freshness_warning_reason
+                                  }
+                                  policyApplied={turn.response.policy_applied}
+                                  policyOutcome={turn.response.policy_outcome}
+                                  policyViolatedRules={
+                                    turn.response.policy_violated_rules
+                                  }
+                                  policyWarningFlags={
+                                    turn.response.policy_warning_flags
+                                  }
+                                  policyDisclaimer={
+                                    turn.response.policy_disclaimer
+                                  }
+                                  citations={turn.response.citations}
+                                  debug={turn.response.debug}
+                                  onOpenCitation={(citation) => {
+                                    setSelectedResponseMessageId(
+                                      turn.response.message_id,
+                                    );
+                                    setIsKnowledgeHubOpen(false);
+                                    setActiveCitation(citation);
+                                  }}
+                                />
+                              )}
                               <div className="mt-1 flex items-center gap-0.5 px-1">
+                                {!turn.response.not_found ? (
+                                  <div className="group/trust relative">
+                                    <button
+                                      type="button"
+                                      aria-label="Explain this answer"
+                                      aria-expanded={
+                                        openTrustPanelMessageId ===
+                                        turn.response.message_id
+                                      }
+                                      onClick={() =>
+                                        setOpenTrustPanelMessageId(
+                                          openTrustPanelMessageId ===
+                                            turn.response.message_id
+                                            ? null
+                                            : turn.response.message_id,
+                                        )
+                                      }
+                                      className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${openTrustPanelMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                    >
+                                      <span
+                                        className="material-symbols-outlined text-[13px]"
+                                        aria-hidden="true"
+                                        style={{
+                                          fontVariationSettings:
+                                            openTrustPanelMessageId ===
+                                            turn.response.message_id
+                                              ? "'FILL' 1"
+                                              : "'FILL' 0",
+                                        }}
+                                      >
+                                        shield_check
+                                      </span>
+                                    </button>
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/trust:opacity-100">
+                                      Explain answer
+                                    </span>
+                                  </div>
+                                ) : null}
                                 {!turn.response.not_found ? (
                                   <div className="group/copy relative">
                                     <button
