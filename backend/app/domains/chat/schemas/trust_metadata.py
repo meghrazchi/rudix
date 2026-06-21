@@ -59,11 +59,21 @@ class CitationTrustRecord(BaseModel):
     doc_ocr_low_confidence_warning: bool = False
 
 
+class ConfidenceReasonRecord(BaseModel):
+    """Single explainable signal that contributed to the confidence score (F310)."""
+
+    code: str
+    label: str
+    impact: Literal["positive", "negative", "neutral"]
+    magnitude: float = Field(ge=0.0, le=1.0)
+
+
 class ConfidenceTrustRecord(BaseModel):
     """Confidence score breakdown for the answer."""
 
     score: float = Field(ge=0.0, le=1.0)
     category: Literal["low", "medium", "high"]
+    trust_level: Literal["high", "medium", "low", "warning", "not_found"] = "low"
     citation_support_score: float = Field(ge=0.0, le=1.0)
     citation_validation_score: float = Field(ge=0.0, le=1.0)
     citation_coverage_score: float = Field(ge=0.0, le=1.0)
@@ -74,8 +84,14 @@ class ConfidenceTrustRecord(BaseModel):
     raw_score: float = Field(ge=0.0, le=1.0)
     citation_validation_multiplier: float = Field(ge=0.0, le=1.0)
     not_found_penalty_multiplier: float = Field(ge=0.0, le=1.0)
+    freshness_multiplier: float = Field(ge=0.0, le=1.0, default=1.0)
+    ocr_quality_multiplier: float = Field(ge=0.0, le=1.0, default=1.0)
+    conflict_multiplier: float = Field(ge=0.0, le=1.0, default=1.0)
+    graph_evidence_boost: float = Field(ge=0.0, le=1.0, default=0.0)
+    verification_support_score: float | None = None
     not_found_signal: bool
     no_context: bool
+    reasons: list[ConfidenceReasonRecord] = Field(default_factory=list)
 
 
 class RetrievalDiagnosticsRecord(BaseModel):
@@ -207,4 +223,5 @@ class AnswerTrustMetadataResponse(BaseModel):
 
 
 GroundedVerificationRecord.model_rebuild()
+ConfidenceTrustRecord.model_rebuild()
 AnswerTrustMetadataResponse.model_rebuild()

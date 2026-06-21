@@ -61,9 +61,19 @@ export type CitationTrustRecord = {
   doc_ocr_low_confidence_warning: boolean;
 };
 
+/** Single explainable signal that contributed to the confidence score (F310). */
+export type ConfidenceReasonRecord = {
+  code: string;
+  label: string;
+  impact: "positive" | "negative" | "neutral";
+  magnitude: number;
+};
+
 export type ConfidenceTrustRecord = {
   score: number;
   category: "low" | "medium" | "high";
+  /** Calibrated trust level including quality-signal degradation (F310). */
+  trust_level: "high" | "medium" | "low" | "warning" | "not_found";
   citation_support_score: number;
   citation_validation_score: number;
   citation_coverage_score: number;
@@ -74,8 +84,14 @@ export type ConfidenceTrustRecord = {
   raw_score: number;
   citation_validation_multiplier: number;
   not_found_penalty_multiplier: number;
+  freshness_multiplier: number;
+  ocr_quality_multiplier: number;
+  conflict_multiplier: number;
+  graph_evidence_boost: number;
+  verification_support_score?: number | null;
   not_found_signal: boolean;
   no_context: boolean;
+  reasons: ConfidenceReasonRecord[];
 };
 
 export type ClaimSupportRecord = {

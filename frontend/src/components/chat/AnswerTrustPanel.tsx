@@ -8,6 +8,7 @@ import type {
 import type {
   AnswerTrustMetadataResponse,
   CitationTrustRecord,
+  ConfidenceReasonRecord,
 } from "@/lib/api/trust_metadata";
 
 type TrustPanelCitation = ChatCitationResponse | CitationTrustRecord;
@@ -55,6 +56,51 @@ function confidenceBadgeClass(category: "low" | "medium" | "high"): string {
   if (category === "medium")
     return "inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800";
   return "inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-800";
+}
+
+type TrustLevel = "high" | "medium" | "low" | "warning" | "not_found";
+
+function trustLevelBadge(level: TrustLevel): { label: string; cls: string; icon: string } {
+  if (level === "high")
+    return {
+      label: "High",
+      icon: "verified",
+      cls: "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800",
+    };
+  if (level === "medium")
+    return {
+      label: "Medium",
+      icon: "check_circle",
+      cls: "inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800",
+    };
+  if (level === "warning")
+    return {
+      label: "Warning",
+      icon: "warning",
+      cls: "inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-800",
+    };
+  if (level === "not_found")
+    return {
+      label: "Not Found",
+      icon: "search_off",
+      cls: "inline-flex items-center gap-1 rounded-full border border-[#e0dced] bg-[#faf9ff] px-2 py-0.5 text-[10px] font-bold uppercase text-[#6a6780]",
+    };
+  return {
+    label: "Low",
+    icon: "error",
+    cls: "inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-800",
+  };
+}
+
+function reasonImpactIcon(impact: "positive" | "negative" | "neutral"): {
+  icon: string;
+  cls: string;
+} {
+  if (impact === "positive")
+    return { icon: "arrow_upward", cls: "text-emerald-600" };
+  if (impact === "negative")
+    return { icon: "arrow_downward", cls: "text-rose-500" };
+  return { icon: "remove", cls: "text-[#9d98b5]" };
 }
 
 function trustStatusBadge(
@@ -327,10 +373,59 @@ export function AnswerTrustPanel({
           <span className="w-12 text-right text-sm font-bold text-[#2f2a46] tabular-nums">
             {pct(confidenceScore)}
           </span>
-          <span className={confidenceBadgeClass(confidenceCategory)}>
-            {confidenceCategory}
-          </span>
+          {trustMetadata?.confidence.trust_level ? (
+            (() => {
+              const badge = trustLevelBadge(
+                trustMetadata.confidence.trust_level as TrustLevel,
+              );
+              return (
+                <span className={badge.cls} data-testid="trust-level-badge">
+                  <span
+                    className="material-symbols-outlined text-[10px]"
+                    aria-hidden="true"
+                  >
+                    {badge.icon}
+                  </span>
+                  {badge.label}
+                </span>
+              );
+            })()
+          ) : (
+            <span className={confidenceBadgeClass(confidenceCategory)}>
+              {confidenceCategory}
+            </span>
+          )}
         </div>
+        {trustMetadata?.confidence.reasons &&
+          trustMetadata.confidence.reasons.length > 0 && (
+            <div
+              className="space-y-1"
+              data-testid="confidence-reasons"
+              aria-label="Confidence signals"
+            >
+              {trustMetadata.confidence.reasons.map(
+                (reason: ConfidenceReasonRecord) => {
+                  const { icon, cls } = reasonImpactIcon(reason.impact);
+                  return (
+                    <div
+                      key={reason.code}
+                      className="flex items-start gap-1.5"
+                    >
+                      <span
+                        className={`material-symbols-outlined mt-0.5 shrink-0 text-[12px] ${cls}`}
+                        aria-hidden="true"
+                      >
+                        {icon}
+                      </span>
+                      <span className="text-[11px] text-[#6a6780]">
+                        {reason.label}
+                      </span>
+                    </div>
+                  );
+                },
+              )}
+            </div>
+          )}
         {confidenceExplanation && (
           <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
             <StatRow
@@ -357,6 +452,34 @@ export function AnswerTrustPanel({
               label="Source agreement"
               value={score(confidenceExplanation.retrieval_agreement_score)}
             />
+            {trustMetadata?.confidence.freshness_multiplier != null &&
+              trustMetadata.confidence.freshness_multiplier < 1.0 && (
+                <StatRow
+                  label="Freshness factor"
+                  value={pct(trustMetadata.confidence.freshness_multiplier)}
+                />
+              )}
+            {trustMetadata?.confidence.ocr_quality_multiplier != null &&
+              trustMetadata.confidence.ocr_quality_multiplier < 1.0 && (
+                <StatRow
+                  label="OCR quality factor"
+                  value={pct(trustMetadata.confidence.ocr_quality_multiplier)}
+                />
+              )}
+            {trustMetadata?.confidence.conflict_multiplier != null &&
+              trustMetadata.confidence.conflict_multiplier < 1.0 && (
+                <StatRow
+                  label="Conflict factor"
+                  value={pct(trustMetadata.confidence.conflict_multiplier)}
+                />
+              )}
+            {trustMetadata?.confidence.graph_evidence_boost != null &&
+              trustMetadata.confidence.graph_evidence_boost > 0 && (
+                <StatRow
+                  label="Graph boost"
+                  value={`+${pct(trustMetadata.confidence.graph_evidence_boost)}`}
+                />
+              )}
           </div>
         )}
       </div>

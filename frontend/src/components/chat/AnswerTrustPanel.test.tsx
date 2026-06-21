@@ -72,6 +72,13 @@ const baseTrustConfidence: ConfidenceTrustRecord = {
   ...baseExplanation,
   score: 0.87,
   category: "high" as const,
+  trust_level: "high" as const,
+  freshness_multiplier: 1.0,
+  ocr_quality_multiplier: 1.0,
+  conflict_multiplier: 1.0,
+  graph_evidence_boost: 0.0,
+  verification_support_score: null,
+  reasons: [],
 };
 
 const baseTrustMetadata: AnswerTrustMetadataResponse = {

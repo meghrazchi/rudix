@@ -106,6 +106,7 @@ from app.domains.chat.schemas.trust_metadata import (
     AnswerTrustMetadataResponse,
     CitationTrustRecord,
     ClaimSupportRecord,
+    ConfidenceReasonRecord,
     ConfidenceTrustRecord,
     ConflictStatusRecord,
     GroundedVerificationRecord,
@@ -1061,6 +1062,41 @@ def _confidence_category_from_score(score: float | None) -> str | None:
     return "low"
 
 
+def _compute_freshness_multiplier(stale_count: int, total_count: int) -> float:
+    """Map stale-source fraction to a [0.70, 1.0] confidence multiplier."""
+    if total_count == 0 or stale_count == 0:
+        return 1.0
+    stale_fraction = stale_count / total_count
+    return max(0.70, 1.0 - stale_fraction * settings.confidence_freshness_stale_penalty)
+
+
+def _compute_ocr_quality_multiplier(citations: list) -> float:
+    """Average OCR-quality multiplier across all citations that carry OCR status."""
+    _ocr_map: dict[str, float] = {
+        "high": 1.0,
+        "not_required": 1.0,
+        "medium": settings.confidence_ocr_medium_multiplier,
+        "low": settings.confidence_ocr_low_multiplier,
+        "failed": settings.confidence_ocr_failed_multiplier,
+    }
+    multipliers = [
+        _ocr_map[q]
+        for c in citations
+        if (q := getattr(c, "doc_ocr_quality_status", None)) in _ocr_map
+    ]
+    return round(sum(multipliers) / len(multipliers), 4) if multipliers else 1.0
+
+
+def _compute_conflict_multiplier(conflict_result: ConflictDetectionResult) -> float:
+    """Map conflict agreement_level to a confidence multiplier."""
+    level = conflict_result.agreement_level
+    if level == "conflicting":
+        return max(0.0, 1.0 - settings.confidence_conflict_penalty_conflicting)
+    if level == "partial":
+        return max(0.0, 1.0 - settings.confidence_conflict_penalty_partial)
+    return 1.0
+
+
 async def _resolve_graph_rag_enabled(
     db_session: AsyncSession,
     *,
@@ -1233,6 +1269,7 @@ def _build_trust_metadata(
         confidence=ConfidenceTrustRecord(
             score=confidence_score,
             category=confidence_category,
+            trust_level=expl.trust_level,
             citation_support_score=expl.citation_support_score,
             citation_validation_score=expl.citation_validation_score,
             citation_coverage_score=expl.citation_coverage_score,
@@ -1243,8 +1280,22 @@ def _build_trust_metadata(
             raw_score=expl.raw_score,
             citation_validation_multiplier=expl.citation_validation_multiplier,
             not_found_penalty_multiplier=expl.not_found_penalty_multiplier,
+            freshness_multiplier=expl.freshness_multiplier,
+            ocr_quality_multiplier=expl.ocr_quality_multiplier,
+            conflict_multiplier=expl.conflict_multiplier,
+            graph_evidence_boost=expl.graph_evidence_boost,
+            verification_support_score=expl.verification_support_score,
             not_found_signal=expl.not_found_signal,
             no_context=expl.no_context,
+            reasons=[
+                ConfidenceReasonRecord(
+                    code=r.code,
+                    label=r.label,
+                    impact=r.impact,
+                    magnitude=r.magnitude,
+                )
+                for r in expl.reasons
+            ],
         ),
         citations=citation_records,
         retrieval=RetrievalDiagnosticsRecord(
@@ -1920,6 +1971,10 @@ async def query_chat(
         conflict_detected=False,
         agreement_level="full",
     )
+    # Calibration multipliers (F310) — updated after freshness/OCR/conflict data is available
+    _freshness_multiplier: float = 1.0
+    _ocr_quality_multiplier: float = 1.0
+    _conflict_multiplier: float = 1.0
     # AI response policy state (F268)
     _ai_policy_result: AiPolicyEvaluationResult = AiPolicyEvaluationResult()
 
@@ -2407,11 +2462,15 @@ async def query_chat(
         confidence_signals = _to_confidence_signals(
             chunks=selected_chunks, rerank_applied=rerank_applied
         )
+        _pre_freshness_multiplier = _compute_freshness_multiplier(
+            freshness_stale_count, len(selected_chunks)
+        )
         confidence_result = _confidence_service.score(
             chunks=confidence_signals,
             citation_count=0,
             citation_validation_score=1.0,
             not_found_signal=False,
+            freshness_multiplier=_pre_freshness_multiplier,
         )
         confidence_score = confidence_result.score
         confidence_category = confidence_result.category
@@ -2426,6 +2485,7 @@ async def query_chat(
                 citation_count=0,
                 citation_validation_score=1.0,
                 not_found_signal=True,
+                freshness_multiplier=_pre_freshness_multiplier,
             )
             confidence_score = confidence_result.score
             confidence_category = confidence_result.category
@@ -2618,11 +2678,20 @@ async def query_chat(
                         )
                     )
                 citation_validation_failed = citation_result.invalid_chunk_id_count > 0
+                _freshness_multiplier = _compute_freshness_multiplier(
+                    freshness_stale_count, len(citations)
+                )
+                _ocr_quality_multiplier = _compute_ocr_quality_multiplier(citations)
+                _conflict_multiplier = _compute_conflict_multiplier(conflict_detection_result)
                 confidence_result = _confidence_service.score(
                     chunks=confidence_signals,
                     citation_count=len(citations),
                     citation_validation_score=citation_result.validation_score,
                     not_found_signal=False,
+                    freshness_multiplier=_freshness_multiplier,
+                    ocr_quality_multiplier=_ocr_quality_multiplier,
+                    conflict_multiplier=_conflict_multiplier,
+                    graph_context_used=graph_context_result.graph_context_used,
                 )
                 confidence_score = confidence_result.score
                 confidence_category = confidence_result.category
@@ -2732,6 +2801,11 @@ async def query_chat(
                                 citation_validation_score=citation_result.validation_score,
                                 citation_support_score_override=grounded_verifier_result.aggregate_support_score,
                                 not_found_signal=False,
+                                freshness_multiplier=_freshness_multiplier,
+                                ocr_quality_multiplier=_ocr_quality_multiplier,
+                                conflict_multiplier=_conflict_multiplier,
+                                graph_context_used=graph_context_result.graph_context_used,
+                                verification_support_score=grounded_verifier_result.aggregate_support_score,
                             )
                             confidence_score = confidence_result.score
                             confidence_category = confidence_result.category
@@ -2743,6 +2817,9 @@ async def query_chat(
                     citation_count=0,
                     citation_validation_score=1.0,
                     not_found_signal=True,
+                    freshness_multiplier=_freshness_multiplier,
+                    ocr_quality_multiplier=_ocr_quality_multiplier,
+                    conflict_multiplier=_conflict_multiplier,
                 )
                 confidence_score = confidence_result.score
                 confidence_category = confidence_result.category
@@ -4536,6 +4613,7 @@ async def _run_ws_chat_pipeline(
                     confidence_score = confidence_result.score
                     confidence_category = confidence_result.category
                     confidence_explanation = confidence_result.explanation
+                _stream_conflict_multiplier: float = 1.0
 
                 if selected_chunks and not not_found:
                     _conflict_enabled = settings.feature_enable_conflict_detection
@@ -4560,6 +4638,9 @@ async def _run_ws_chat_pipeline(
                             (perf_counter() - _conflict_started) * 1000
                         )
                         latencies_ms["conflict_detection"] = conflict_detection_latency_ms
+                        _stream_conflict_multiplier = _compute_conflict_multiplier(
+                            conflict_detection_result
+                        )
                         if conflict_detection_applied:
                             await send(
                                 "conflict_detection.completed",
@@ -4669,6 +4750,7 @@ async def _run_ws_chat_pipeline(
                             citation_count=len(citations),
                             citation_validation_score=citation_result.validation_score,
                             not_found_signal=False,
+                            conflict_multiplier=_stream_conflict_multiplier,
                         )
                         confidence_score = confidence_result.score
                         confidence_category = confidence_result.category
@@ -4684,6 +4766,7 @@ async def _run_ws_chat_pipeline(
                             citation_count=0,
                             citation_validation_score=1.0,
                             not_found_signal=True,
+                            conflict_multiplier=_stream_conflict_multiplier,
                         )
                         confidence_score = confidence_result.score
                         confidence_category = confidence_result.category

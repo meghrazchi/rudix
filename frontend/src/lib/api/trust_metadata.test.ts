@@ -52,6 +52,7 @@ function buildTrustMetadata(
     confidence: {
       score: 0.87,
       category: "high",
+      trust_level: "high" as const,
       citation_support_score: 0.9,
       citation_validation_score: 0.95,
       citation_coverage_score: 0.85,
@@ -62,8 +63,14 @@ function buildTrustMetadata(
       raw_score: 0.87,
       citation_validation_multiplier: 0.98,
       not_found_penalty_multiplier: 1.0,
+      freshness_multiplier: 1.0,
+      ocr_quality_multiplier: 1.0,
+      conflict_multiplier: 1.0,
+      graph_evidence_boost: 0.0,
+      verification_support_score: null,
       not_found_signal: false,
       no_context: false,
+      reasons: [],
     },
     citations: [],
     retrieval: {
@@ -160,6 +167,7 @@ describe("getAnswerTrustMetadata", () => {
       confidence: {
         score: 0.05,
         category: "low",
+        trust_level: "not_found" as const,
         citation_support_score: 0.0,
         citation_validation_score: 0.0,
         citation_coverage_score: 0.0,
@@ -170,8 +178,14 @@ describe("getAnswerTrustMetadata", () => {
         raw_score: 0.05,
         citation_validation_multiplier: 0.0,
         not_found_penalty_multiplier: 0.0,
+        freshness_multiplier: 1.0,
+        ocr_quality_multiplier: 1.0,
+        conflict_multiplier: 1.0,
+        graph_evidence_boost: 0.0,
+        verification_support_score: null,
         not_found_signal: true,
         no_context: true,
+        reasons: [],
       },
     });
     fetchMock.mockResolvedValueOnce(jsonResponse(data));
