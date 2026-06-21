@@ -9,7 +9,12 @@ import type {
   AnswerTrustMetadataResponse,
   CitationTrustRecord,
   ConfidenceReasonRecord,
+  ConflictStatusRecord,
 } from "@/lib/api/trust_metadata";
+import {
+  agreementLevelClass,
+  agreementLevelLabel,
+} from "@/components/chat/ConflictIndicators";
 
 type TrustPanelCitation = ChatCitationResponse | CitationTrustRecord;
 
@@ -301,6 +306,48 @@ function WarningBanner({ children }: { children: React.ReactNode }) {
   );
 }
 
+function SourceConflictSection({ conflict }: { conflict: ConflictStatusRecord }) {
+  return (
+    <div className="space-y-2" data-testid="source-conflict-section">
+      <SectionHeader icon="warning" label="Source Conflict" />
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={agreementLevelClass(conflict.agreement_level)}>
+          {agreementLevelLabel(conflict.agreement_level)}
+        </span>
+        {conflict.conflict_count > 0 && (
+          <span className="text-[11px] text-[#6a6780]">
+            {conflict.conflict_count} conflict pair{conflict.conflict_count !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+      {conflict.conflict_summary ? (
+        <p className="text-[11px] leading-snug text-[#6a6780]">
+          {conflict.conflict_summary}
+        </p>
+      ) : null}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+        {conflict.conflicting_document_ids.length > 0 && (
+          <StatRow
+            label="Sources in conflict"
+            value={conflict.conflicting_document_ids.length}
+          />
+        )}
+        {conflict.preferred_document_ids.length > 0 && (
+          <StatRow
+            label="Preferred source count"
+            value={conflict.preferred_document_ids.length}
+          />
+        )}
+        {conflict.preferred_document_ids.length === 0 && conflict.detected && (
+          <div className="col-span-2 text-[11px] text-[#9d98b5]">
+            No preferred source could be determined — treat all sources with equal caution.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AnswerTrustPanel({
   messageId,
   confidenceScore,
@@ -388,6 +435,18 @@ export function AnswerTrustPanel({
   ) {
     warnings.push(
       `${groundedVerification.unsupported_count}/${groundedVerification.claim_count} claim(s) are not supported by citations.`,
+    );
+  }
+  const conflictRecord = trustMetadata?.conflict ?? null;
+  if (conflictRecord?.detected) {
+    warnings.push(
+      conflictRecord.conflict_summary
+        ? `Source conflict: ${conflictRecord.conflict_summary}`
+        : "Sources disagree on one or more claims. Prefer the marked source.",
+    );
+  } else if (conflictRecord?.agreement_level === "partial") {
+    warnings.push(
+      "Sources partially disagree. Verify claims against cited sources.",
     );
   }
 
@@ -557,6 +616,11 @@ export function AnswerTrustPanel({
           </div>
         )}
       </div>
+
+      {/* Source Conflict */}
+      {conflictRecord && conflictRecord.agreement_level !== "full" && (
+        <SourceConflictSection conflict={conflictRecord} />
+      )}
 
       {/* Claim support */}
       {groundedVerification && groundedVerification.claim_count > 0 && (

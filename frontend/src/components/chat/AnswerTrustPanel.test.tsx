@@ -240,9 +240,10 @@ describe("AnswerTrustPanel", () => {
     expect(screen.getByText("87.0%")).toBeInTheDocument();
   });
 
-  it("shows the confidence category badge", () => {
+  it("shows the trust level badge when trust_level is present", () => {
     renderPanel();
-    expect(screen.getByText("high")).toBeInTheDocument();
+    expect(screen.getByTestId("trust-level-badge")).toBeInTheDocument();
+    expect(screen.getByText("High")).toBeInTheDocument();
   });
 
   it("shows claim support summary and mapped citations", () => {
