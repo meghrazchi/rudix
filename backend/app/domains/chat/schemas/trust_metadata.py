@@ -19,6 +19,13 @@ class CitationTrustRecord(BaseModel):
 
     Omits source_acl_snapshot (internal ACL details) and keeps only
     user-facing provenance and freshness fields.
+
+    F311 additions:
+      freshness_state      — normalized display state for the trust panel
+      doc_last_updated_at  — when the document was last modified
+      doc_review_owner_id  — who is responsible for reviewing this document
+      doc_unreviewed_warning — True when the source is pending review
+      doc_deprecated_warning — True when the source is deprecated/archived/superseded
     """
 
     document_id: str
@@ -57,6 +64,15 @@ class CitationTrustRecord(BaseModel):
     table_headers: list[str] = Field(default_factory=list)
     doc_ocr_quality_status: str | None = None
     doc_ocr_low_confidence_warning: bool = False
+    # F311 — normalized freshness state + provenance display fields
+    freshness_state: (
+        Literal["current", "stale", "expired", "deprecated", "draft", "unreviewed", "unknown"]
+        | None
+    ) = None
+    doc_last_updated_at: datetime | None = None
+    doc_review_owner_id: str | None = None
+    doc_unreviewed_warning: bool = False
+    doc_deprecated_warning: bool = False
 
 
 class ConfidenceReasonRecord(BaseModel):
@@ -188,13 +204,17 @@ class PolicyEnforcementRecord(BaseModel):
 
 
 class SourceFreshnessRecord(BaseModel):
-    """Source freshness warning summary (F297)."""
+    """Source freshness warning summary (F297/F311)."""
 
     warning: bool = False
     warning_reason: str | None = None
+    warning_reasons: list[str] = Field(default_factory=list)
     stale_count: int = 0
     excluded_count: int = 0
     boosted_count: int = 0
+    unreviewed_count: int = 0
+    deprecated_count: int = 0
+    all_excluded_fallback: bool = False
 
 
 class AnswerTrustMetadataResponse(BaseModel):

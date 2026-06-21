@@ -7,6 +7,7 @@ from app.interfaces.http import (
     analytics,
     admin_access_debugger,
     admin_ai_response_policy,
+    admin_freshness,
     admin_metadata,
     admin_agent_policy,
     admin_api_keys,
@@ -157,5 +158,6 @@ protected_router.include_router(feature_flags.router)
 protected_router.include_router(verified_answers.router)
 protected_router.include_router(admin_metadata.router)
 protected_router.include_router(admin_ai_response_policy.router)
+protected_router.include_router(admin_freshness.router)
 
 api_router.include_router(protected_router)

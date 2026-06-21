@@ -623,11 +623,18 @@ def _with_freshness(
     trust_map: dict[str, DocumentTrustData],
     stale_document_ids: frozenset[str],
 ) -> ChatCitationResponse:
-    """Annotate a citation with document trust/freshness metadata."""
+    """Annotate a citation with document trust/freshness metadata (F297/F311)."""
     trust = trust_map.get(citation.document_id)
     if trust is None:
         return citation
     effective_status = _source_freshness_service.compute_effective_trust_status(trust)
+    freshness_state = _source_freshness_service.derive_freshness_state(trust)
+    is_stale = citation.document_id in stale_document_ids or effective_status in {
+        "stale",
+        "needs_review",
+    }
+    is_unreviewed = effective_status == "needs_review"
+    is_deprecated = effective_status in {"archived", "deprecated", "superseded"}
     return ChatCitationResponse(
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
@@ -660,13 +667,14 @@ def _with_freshness(
         doc_version_label=trust.version_label,
         doc_review_date=trust.review_date,
         doc_effective_date=trust.effective_date,
-        doc_stale_warning=(
-            citation.document_id in stale_document_ids
-            or effective_status in {"stale", "needs_review"}
-        ),
+        doc_stale_warning=is_stale,
         doc_expired_warning=effective_status == "expired",
         doc_is_excluded_status=effective_status
         in {"archived", "deprecated", "superseded", "expired"},
+        freshness_state=freshness_state,
+        doc_last_updated_at=trust.last_updated_at,
+        doc_unreviewed_warning=is_unreviewed,
+        doc_deprecated_warning=is_deprecated,
     )
 
 
@@ -1172,6 +1180,9 @@ def _build_trust_metadata(
     freshness_excluded_count: int,
     freshness_boosted_count: int,
     freshness_stale_count: int,
+    freshness_unreviewed_count: int,
+    freshness_deprecated_count: int,
+    freshness_all_excluded_fallback: bool,
     grounded_verifier_result: GroundedVerifierResult | None,
     llm_model: str | None,
     llm_provider: str | None,
@@ -1193,11 +1204,16 @@ def _build_trust_metadata(
     """
     expl = confidence_explanation
 
-    source_freshness_warning = any(
-        getattr(c, "doc_stale_warning", False)
-        or getattr(c, "doc_expired_warning", False)
-        or getattr(c, "doc_is_excluded_status", False)
-        for c in citations
+    source_freshness_warning = (
+        freshness_all_excluded_fallback
+        or any(
+            getattr(c, "doc_stale_warning", False)
+            or getattr(c, "doc_expired_warning", False)
+            or getattr(c, "doc_is_excluded_status", False)
+            or getattr(c, "doc_unreviewed_warning", False)
+            or getattr(c, "doc_deprecated_warning", False)
+            for c in citations
+        )
     )
 
     citation_records = [
@@ -1236,6 +1252,11 @@ def _build_trust_metadata(
             table_headers=list(c.table_headers),
             doc_ocr_quality_status=c.doc_ocr_quality_status,
             doc_ocr_low_confidence_warning=c.doc_ocr_low_confidence_warning,
+            freshness_state=getattr(c, "freshness_state", None),
+            doc_last_updated_at=getattr(c, "doc_last_updated_at", None),
+            doc_review_owner_id=getattr(c, "doc_review_owner_id", None),
+            doc_unreviewed_warning=getattr(c, "doc_unreviewed_warning", False),
+            doc_deprecated_warning=getattr(c, "doc_deprecated_warning", False),
         )
         for c in ([] if not_found else citations)
     ]
@@ -1387,12 +1408,22 @@ def _build_trust_metadata(
         ),
         freshness=SourceFreshnessRecord(
             warning=source_freshness_warning,
-            warning_reason="One or more citations come from stale, expired, or archived sources."
+            warning_reason="One or more citations come from stale, unreviewed, deprecated, or archived sources."
             if source_freshness_warning
             else None,
+            warning_reasons=_source_freshness_service.build_warning_reasons(
+                stale_count=freshness_stale_count,
+                excluded_count=freshness_excluded_count,
+                unreviewed_count=freshness_unreviewed_count,
+                deprecated_count=freshness_deprecated_count,
+                all_excluded_fallback=freshness_all_excluded_fallback,
+            ),
             stale_count=freshness_stale_count,
             excluded_count=freshness_excluded_count,
             boosted_count=freshness_boosted_count,
+            unreviewed_count=freshness_unreviewed_count,
+            deprecated_count=freshness_deprecated_count,
+            all_excluded_fallback=freshness_all_excluded_fallback,
         ),
         generated_at=generated_at,
     )
@@ -1945,6 +1976,9 @@ async def query_chat(
     freshness_excluded_count = 0
     freshness_boosted_count = 0
     freshness_stale_count = 0
+    freshness_unreviewed_count = 0
+    freshness_deprecated_count = 0
+    freshness_all_excluded_fallback = False
     table_boost_enabled = False
     table_boost_applied = False
     table_boost_count = 0
@@ -2309,11 +2343,21 @@ async def query_chat(
                     _freshness_stale_ids = _filter_result.stale_document_ids
                     freshness_stale_count = len(_freshness_stale_ids)
                     if _filter_result.excluded_document_ids:
-                        retrieved_chunks = [
+                        _pre_exclusion_chunks = retrieved_chunks
+                        _after_exclusion = [
                             c
                             for c in retrieved_chunks
                             if str(c.document_id) not in _filter_result.excluded_document_ids
                         ]
+                        # F311: if exclusion empties the context, fall back to
+                        # using excluded chunks with a warning.
+                        retrieved_chunks, freshness_all_excluded_fallback = (
+                            _source_freshness_service.apply_exclusion_fallback(
+                                after_filter=_after_exclusion,
+                                before_filter=_pre_exclusion_chunks,
+                                excluded_ids=_filter_result.excluded_document_ids,
+                            )
+                        )
 
                 if _freshness_boost_enabled and _freshness_trust_map:
                     adjusted: list[RetrievedChunk] = []
@@ -2678,6 +2722,13 @@ async def query_chat(
                         )
                     )
                 citation_validation_failed = citation_result.invalid_chunk_id_count > 0
+                # F311: compute per-freshness-state citation counts from annotated citations.
+                freshness_unreviewed_count = sum(
+                    1 for c in citations if getattr(c, "doc_unreviewed_warning", False)
+                )
+                freshness_deprecated_count = sum(
+                    1 for c in citations if getattr(c, "doc_deprecated_warning", False)
+                )
                 _freshness_multiplier = _compute_freshness_multiplier(
                     freshness_stale_count, len(citations)
                 )
@@ -2909,6 +2960,9 @@ async def query_chat(
             freshness_excluded_count=freshness_excluded_count,
             freshness_boosted_count=freshness_boosted_count,
             freshness_stale_count=freshness_stale_count,
+            freshness_unreviewed_count=freshness_unreviewed_count,
+            freshness_deprecated_count=freshness_deprecated_count,
+            freshness_all_excluded_fallback=freshness_all_excluded_fallback,
             grounded_verifier_result=grounded_verifier_result,
             llm_model=llm_model,
             llm_provider=llm_provider,
@@ -3407,6 +3461,9 @@ async def query_chat(
             freshness_excluded_count=freshness_excluded_count,
             freshness_boosted_count=freshness_boosted_count,
             freshness_stale_count=freshness_stale_count,
+            freshness_unreviewed_count=freshness_unreviewed_count,
+            freshness_deprecated_count=freshness_deprecated_count,
+            freshness_all_excluded_fallback=freshness_all_excluded_fallback,
             table_boost_enabled=table_boost_enabled,
             table_boost_applied=table_boost_applied,
             table_boost_count=table_boost_count,

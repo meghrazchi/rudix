@@ -212,7 +212,7 @@ class ChatCitationResponse(BaseModel):
     ) = None
     source_acl_snapshot: dict[str, Any] = Field(default_factory=dict)
     conflict_status: Literal["preferred", "conflicting", "neutral"] | None = None
-    # Source freshness fields (F297): populated from document trust metadata.
+    # Source freshness fields (F297/F311): populated from document trust metadata.
     doc_trust_status: str | None = None
     doc_review_status: str | None = None
     doc_review_owner_id: str | None = None
@@ -224,6 +224,11 @@ class ChatCitationResponse(BaseModel):
     doc_stale_warning: bool = False
     doc_expired_warning: bool = False
     doc_is_excluded_status: bool = False
+    # F311 — normalized freshness state + additional provenance display
+    freshness_state: str | None = None
+    doc_last_updated_at: datetime | None = None
+    doc_unreviewed_warning: bool = False
+    doc_deprecated_warning: bool = False
     # Table-aware retrieval (F298): populated when the cited chunk is a table.
     is_table_chunk: bool = False
     table_caption: str | None = None
@@ -314,6 +319,9 @@ class ChatDebugResponse(BaseModel):
     freshness_excluded_count: int = 0
     freshness_boosted_count: int = 0
     freshness_stale_count: int = 0
+    freshness_unreviewed_count: int = 0
+    freshness_deprecated_count: int = 0
+    freshness_all_excluded_fallback: bool = False
     # Table-aware retrieval (F298).
     table_boost_enabled: bool = False
     table_boost_applied: bool = False

@@ -1,4 +1,4 @@
-"""Source freshness and trust-status scoring for RAG retrieval (F297).
+"""Source freshness and trust-status scoring for RAG retrieval (F297/F311).
 
 Documents are classified with a trust_status that describes their lifecycle:
   verified  → peer-reviewed/approved; gets a retrieval boost
@@ -9,6 +9,13 @@ Documents are classified with a trust_status that describes their lifecycle:
   superseded → replaced by a newer version; excluded by default
   expired    → past effective lifetime; excluded by default
 
+F311 adds:
+  - derive_freshness_state(): maps effective status to a normalized display enum
+    (current / stale / expired / deprecated / draft / unreviewed / unknown)
+  - Exclusion fallback: when all chunks are excluded, re-include them with a
+    warning rather than returning an empty context window
+  - preferred_source_bump(): micro-boost for tie-breaking toward trusted sources
+
 The service is stateless and pure — it takes a list of retrieved chunks and
 a pre-built trust map (indexed by document_id string) and returns adjusted
 candidates.  The caller is responsible for fetching the trust map from the DB.
@@ -18,9 +25,26 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
-from typing import Protocol, cast
+from datetime import date, datetime
+from typing import Literal, Protocol, cast
 from uuid import UUID
+
+# Normalized single-value state for UI display (F311).
+FreshnessState = Literal[
+    "current",
+    "stale",
+    "expired",
+    "deprecated",
+    "draft",
+    "unreviewed",
+    "unknown",
+]
+
+# Micro-boost added on top of the trust-score multiplier to break ties in
+# favour of preferred sources when two chunks score identically after the
+# multiplier is applied.  Kept small enough (< 1 % of score) that it never
+# overrides a genuine relevance difference.
+PREFERRED_SOURCE_BUMP: float = 0.005
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -62,6 +86,7 @@ class DocumentTrustData:
     stale_after_days: int | None = None
     superseded_by_document_id: UUID | None = None
     trust_level: str | None = None
+    last_updated_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +109,7 @@ class _DocumentTrustSource(Protocol):
     stale_after_days: int | None
     superseded_by_document_id: UUID | None
     trust_level: str | None
+    updated_at: datetime | None
 
 
 # ---------------------------------------------------------------------------
@@ -121,8 +147,53 @@ class SourceFreshnessService:
                 stale_after_days=doc.stale_after_days,
                 superseded_by_document_id=doc.superseded_by_document_id,
                 trust_level=doc.trust_level,
+                last_updated_at=getattr(doc, "updated_at", None),
             )
         return trust_map
+
+    def derive_freshness_state(
+        self,
+        trust_data: DocumentTrustData | None,
+        *,
+        today: date | None = None,
+        org_stale_threshold_days: int | None = None,
+    ) -> FreshnessState:
+        """Map a document's trust data to a normalized UI freshness state (F311).
+
+        The returned value is one of the FreshnessState literals:
+          current   → trusted/verified/current with no staleness signals
+          stale     → past review_date or stale_after_days threshold
+          expired   → past expiry_date
+          deprecated → archived, deprecated, or superseded
+          draft     → work-in-progress with no review cycle started
+          unreviewed → needs_review or long-pending without review
+          unknown   → no trust metadata available
+        """
+        if trust_data is None:
+            return "unknown"
+
+        effective = self.compute_effective_trust_status(
+            trust_data,
+            today=today,
+            org_stale_threshold_days=org_stale_threshold_days,
+        )
+
+        if effective in {"archived", "deprecated", "superseded"}:
+            return "deprecated"
+        if effective == "expired":
+            return "expired"
+        if effective == "stale":
+            return "stale"
+        if effective == "needs_review":
+            return "unreviewed"
+
+        raw_status = (trust_data.trust_status or "current").lower()
+        if raw_status == "draft":
+            return "draft"
+        if raw_status in {"verified", "trusted", "current"}:
+            return "current"
+
+        return "unknown"
 
     def compute_effective_trust_status(
         self,
@@ -198,7 +269,11 @@ class SourceFreshnessService:
         today: date | None = None,
         org_stale_threshold_days: int | None = None,
     ) -> float:
-        """Adjust a retrieval score by the trust-status multiplier for a document."""
+        """Adjust a retrieval score by the trust-status multiplier for a document.
+
+        Also applies PREFERRED_SOURCE_BUMP (F311) for verified/trusted sources to
+        break ties in favour of higher-trust content when relevance is comparable.
+        """
         trust = trust_map.get(document_id)
         if trust is None:
             return score
@@ -208,4 +283,68 @@ class SourceFreshnessService:
             org_stale_threshold_days=org_stale_threshold_days,
         )
         multiplier = TRUST_SCORE_MULTIPLIERS.get(effective, 1.0)
-        return score * multiplier
+        adjusted = score * multiplier
+        if effective in {"verified", "trusted"}:
+            adjusted = min(1.0, adjusted + PREFERRED_SOURCE_BUMP)
+        return adjusted
+
+    def apply_exclusion_fallback(
+        self,
+        after_filter: list,
+        before_filter: list,
+        excluded_ids: frozenset[str],
+    ) -> tuple[list, bool]:
+        """Return a (chunks, fallback_used) pair for the exclusion-fallback rule (F311).
+
+        When freshness filtering removes ALL chunks and leaves the context window
+        empty, re-include the originally excluded chunks so the LLM can still
+        attempt an answer.  A warning must be surfaced to the user in this case.
+
+        Parameters
+        ----------
+        after_filter:  chunks remaining after exclusion (may be empty)
+        before_filter: full pre-exclusion chunk list
+        excluded_ids:  document_ids that were excluded
+
+        Returns the effective chunk list and whether the fallback was triggered.
+        """
+        if after_filter or not excluded_ids:
+            return after_filter, False
+        return before_filter, True
+
+    def build_warning_reasons(
+        self,
+        *,
+        stale_count: int,
+        excluded_count: int,
+        unreviewed_count: int,
+        deprecated_count: int,
+        all_excluded_fallback: bool,
+    ) -> list[str]:
+        """Build a structured list of specific freshness warning messages (F311)."""
+        reasons: list[str] = []
+        if all_excluded_fallback:
+            reasons.append(
+                "All preferred sources were excluded; answer uses deprecated or expired content."
+            )
+        if stale_count:
+            reasons.append(
+                f"{stale_count} cited source{'s' if stale_count > 1 else ''} "
+                "may be outdated — content has not been reviewed recently."
+            )
+        if unreviewed_count:
+            reasons.append(
+                f"{unreviewed_count} source{'s' if unreviewed_count > 1 else ''} "
+                "pending review — accuracy is not yet confirmed."
+            )
+        if deprecated_count:
+            reasons.append(
+                f"{deprecated_count} deprecated or archived source{'s were' if deprecated_count > 1 else ' was'} "
+                "used because no current alternative was available."
+            )
+        if excluded_count and not all_excluded_fallback:
+            reasons.append(
+                f"{excluded_count} source{'s' if excluded_count > 1 else ''} "
+                "excluded from retrieval due to deprecated or expired status."
+            )
+        return reasons

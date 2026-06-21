@@ -11,6 +11,16 @@
 
 import { apiRequest } from "@/lib/api/request";
 
+/** Normalized freshness state for UI display (F311). */
+export type FreshnessState =
+  | "current"
+  | "stale"
+  | "expired"
+  | "deprecated"
+  | "draft"
+  | "unreviewed"
+  | "unknown";
+
 export type CitationTrustRecord = {
   document_id: string;
   chunk_id: string;
@@ -59,6 +69,16 @@ export type CitationTrustRecord = {
     | "not_required"
     | null;
   doc_ocr_low_confidence_warning: boolean;
+  /** F311 — normalized freshness state for the trust panel badge. */
+  freshness_state?: FreshnessState | null;
+  /** F311 — ISO timestamp of when the source document was last modified. */
+  doc_last_updated_at?: string | null;
+  /** F311 — user ID of the review owner for this document. */
+  doc_review_owner_id?: string | null;
+  /** F311 — true when the source is pending review (needs_review status). */
+  doc_unreviewed_warning: boolean;
+  /** F311 — true when the source is deprecated, archived, or superseded. */
+  doc_deprecated_warning: boolean;
 };
 
 /** Single explainable signal that contributed to the confidence score (F310). */
@@ -177,9 +197,17 @@ export type PolicyEnforcementRecord = {
 export type SourceFreshnessRecord = {
   warning: boolean;
   warning_reason?: string | null;
+  /** F311 — structured list of specific freshness warning messages. */
+  warning_reasons: string[];
   stale_count: number;
   excluded_count: number;
   boosted_count: number;
+  /** F311 — number of cited sources pending review. */
+  unreviewed_count: number;
+  /** F311 — number of cited sources that are deprecated, archived, or superseded. */
+  deprecated_count: number;
+  /** F311 — true when all sources were excluded and the fallback re-included them. */
+  all_excluded_fallback: boolean;
 };
 
 /** Versioned, organization-scoped answer trust metadata. schema_version "1" is current. */

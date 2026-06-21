@@ -147,6 +147,66 @@ function ocrBadge(
   return null;
 }
 
+function freshnessBadge(
+  state: string | null | undefined,
+  staleWarn: boolean | undefined,
+  expiredWarn: boolean | undefined,
+  unreviewedWarn: boolean | undefined,
+  deprecatedWarn: boolean | undefined,
+): { label: string; cls: string } | null {
+  const effective =
+    state ??
+    (expiredWarn
+      ? "expired"
+      : staleWarn
+        ? "stale"
+        : unreviewedWarn
+          ? "unreviewed"
+          : deprecatedWarn
+            ? "deprecated"
+            : null);
+  if (!effective || effective === "current" || effective === "unknown") return null;
+  if (effective === "stale")
+    return {
+      label: "Stale",
+      cls: "rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
+    };
+  if (effective === "expired")
+    return {
+      label: "Expired",
+      cls: "rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
+    };
+  if (effective === "deprecated")
+    return {
+      label: "Deprecated",
+      cls: "rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[9px] font-semibold text-orange-800 uppercase",
+    };
+  if (effective === "draft")
+    return {
+      label: "Draft",
+      cls: "rounded-full border border-[#e0dced] bg-[#faf9ff] px-1.5 py-0.5 text-[9px] font-semibold text-[#6a6780] uppercase",
+    };
+  if (effective === "unreviewed")
+    return {
+      label: "Unreviewed",
+      cls: "rounded-full border border-yellow-200 bg-yellow-50 px-1.5 py-0.5 text-[9px] font-semibold text-yellow-800 uppercase",
+    };
+  return null;
+}
+
+function fmtDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
 function conflictBadge(
   status: "preferred" | "conflicting" | "neutral" | null | undefined,
 ): { label: string; cls: string } | null {
@@ -285,12 +345,26 @@ export function AnswerTrustPanel({
     warnings.push(
       "Answer verification failed — claims may not be fully grounded.",
     );
-  if (sourceFreshnessWarning)
-    warnings.push(
-      sourceFreshnessWarningReason ?? "One or more sources may be stale.",
-    );
+  if (sourceFreshnessWarning) {
+    const freshnessRecord = trustMetadata?.freshness;
+    if (freshnessRecord?.warning_reasons && freshnessRecord.warning_reasons.length > 0) {
+      freshnessRecord.warning_reasons.forEach((r) => warnings.push(r));
+    } else {
+      warnings.push(
+        sourceFreshnessWarningReason ?? "One or more sources may be stale or unreviewed.",
+      );
+    }
+    if (freshnessRecord?.all_excluded_fallback)
+      warnings.push(
+        "All trusted sources were excluded. The answer uses deprecated or expired content.",
+      );
+  }
   if (trustCitations.some((c) => c.doc_stale_warning || c.doc_expired_warning))
     warnings.push("One or more cited sources are stale or expired.");
+  if (trustCitations.some((c) => (c as { doc_unreviewed_warning?: boolean }).doc_unreviewed_warning))
+    warnings.push("One or more cited sources are pending review.");
+  if (trustCitations.some((c) => (c as { doc_deprecated_warning?: boolean }).doc_deprecated_warning))
+    warnings.push("One or more cited sources are deprecated or archived.");
   if (trustCitations.some((c) => c.doc_ocr_low_confidence_warning))
     warnings.push(
       "One or more sources have low OCR confidence — text accuracy may be reduced.",
@@ -619,14 +693,38 @@ export function AnswerTrustPanel({
               const pageRef = citation.page_number
                 ? `p. ${citation.page_number}`
                 : (citation.source_section ?? null);
+              const citExt = citation as {
+                freshness_state?: string | null;
+                doc_last_updated_at?: string | null;
+                doc_unreviewed_warning?: boolean;
+                doc_deprecated_warning?: boolean;
+                doc_version_label?: string | null;
+                source_last_synced_at?: string | null;
+              };
+              const freshness = freshnessBadge(
+                citExt.freshness_state,
+                citation.doc_stale_warning,
+                citation.doc_expired_warning,
+                citExt.doc_unreviewed_warning,
+                citExt.doc_deprecated_warning,
+              );
+              const lastUpdated = fmtDate(citExt.doc_last_updated_at);
+              const lastSynced = fmtDate(citExt.source_last_synced_at);
+              const versionLabel = citExt.doc_version_label;
               return (
                 <div
                   key={`tp:${citation.document_id}:${citation.chunk_id}:${ci}`}
                   className="flex items-start justify-between gap-2 rounded-lg border border-[#e2dff1] bg-white px-3 py-2"
+                  data-freshness-state={citExt.freshness_state ?? undefined}
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[11px] font-medium text-[#1b1b24]">
                       {title}
+                      {versionLabel ? (
+                        <span className="ml-1 text-[10px] font-normal text-[#9d98b5]">
+                          v{versionLabel}
+                        </span>
+                      ) : null}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-1">
                       {pageRef ? (
@@ -637,19 +735,28 @@ export function AnswerTrustPanel({
                       {trust ? (
                         <span className={trust.cls}>{trust.label}</span>
                       ) : null}
+                      {freshness ? (
+                        <span
+                          className={freshness.cls}
+                          data-testid="freshness-state-badge"
+                        >
+                          {freshness.label}
+                        </span>
+                      ) : null}
                       {ocr ? (
                         <span className={ocr.cls}>{ocr.label}</span>
                       ) : null}
                       {conflict ? (
                         <span className={conflict.cls}>{conflict.label}</span>
                       ) : null}
-                      {citation.doc_stale_warning ||
-                      citation.doc_expired_warning ? (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase">
-                          {citation.doc_expired_warning ? "Expired" : "Stale"}
-                        </span>
-                      ) : null}
                     </div>
+                    {(lastUpdated || lastSynced) ? (
+                      <p className="mt-0.5 text-[10px] text-[#9d98b5]">
+                        {lastUpdated ? `Updated ${lastUpdated}` : null}
+                        {lastUpdated && lastSynced ? " · " : null}
+                        {lastSynced ? `Synced ${lastSynced}` : null}
+                      </p>
+                    ) : null}
                     {typeof citation.score === "number" ? (
                       <p className="mt-0.5 text-[10px] text-[#9d98b5]">
                         Score {score(citation.score)}
@@ -751,9 +858,30 @@ export function AnswerTrustPanel({
                 ) : null}
                 {(debug!.freshness_excluded_count ?? 0) > 0 ? (
                   <StatRow
-                    label="Stale excluded"
+                    label="Excluded (deprecated/expired)"
                     value={debug!.freshness_excluded_count}
                   />
+                ) : null}
+                {(debug!.freshness_stale_count ?? 0) > 0 ? (
+                  <StatRow
+                    label="Stale sources"
+                    value={debug!.freshness_stale_count}
+                  />
+                ) : null}
+                {((debug as { freshness_unreviewed_count?: number }).freshness_unreviewed_count ?? 0) > 0 ? (
+                  <StatRow
+                    label="Unreviewed sources"
+                    value={(debug as { freshness_unreviewed_count?: number }).freshness_unreviewed_count}
+                  />
+                ) : null}
+                {((debug as { freshness_deprecated_count?: number }).freshness_deprecated_count ?? 0) > 0 ? (
+                  <StatRow
+                    label="Deprecated sources"
+                    value={(debug as { freshness_deprecated_count?: number }).freshness_deprecated_count}
+                  />
+                ) : null}
+                {(debug as { freshness_all_excluded_fallback?: boolean }).freshness_all_excluded_fallback ? (
+                  <StatRow label="All-excluded fallback" value="Yes" />
                 ) : null}
               </>
             ) : null}
