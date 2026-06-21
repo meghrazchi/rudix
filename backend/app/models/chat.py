@@ -2,6 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text, Uuid
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -73,6 +74,8 @@ class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("prompt_template_versions.id", ondelete="SET NULL"),
         nullable=True,
     )
+
+    trust_metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     session = relationship("ChatSession", back_populates="messages")
     prompt_template_version = relationship("PromptTemplateVersion", back_populates="chat_messages")

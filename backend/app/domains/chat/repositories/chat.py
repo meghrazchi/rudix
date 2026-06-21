@@ -206,6 +206,7 @@ class ChatRepository:
         token_output_count: int | None = None,
         cost_usd: Decimal | None = None,
         prompt_template_version_id: UUID | None = None,
+        trust_metadata_json: dict | None = None,
     ) -> ChatMessage:
         message = ChatMessage(
             chat_session_id=chat_session_id,
@@ -218,11 +219,31 @@ class ChatRepository:
             token_output_count=token_output_count,
             cost_usd=cost_usd,
             prompt_template_version_id=prompt_template_version_id,
+            trust_metadata_json=trust_metadata_json,
         )
         session.add(message)
         await session.flush()
         await session.refresh(message)
         return message
+
+    async def get_message_for_user(
+        self,
+        session: AsyncSession,
+        *,
+        message_id: UUID,
+        organization_id: UUID,
+        user_id: UUID,
+    ) -> ChatMessage | None:
+        result = await session.execute(
+            select(ChatMessage)
+            .join(ChatSession, ChatSession.id == ChatMessage.chat_session_id)
+            .where(
+                ChatMessage.id == message_id,
+                ChatSession.organization_id == organization_id,
+                ChatSession.user_id == user_id,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def create_citation(
         self,

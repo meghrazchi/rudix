@@ -37,10 +37,10 @@ class OrgAiResponsePolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "org_ai_response_policies"
     __table_args__ = (
-        UniqueConstraint(
+        Index(
+            "uq_org_ai_policy_one_active",
             "organization_id",
-            "is_active",
-            name="uq_org_ai_policy_one_active",
+            unique=True,
             postgresql_where="is_active IS TRUE",
         ),
         CheckConstraint(

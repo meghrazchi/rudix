@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/request";
 import type { components } from "@/lib/api/generated/schema";
+import type { AnswerTrustMetadataResponse } from "@/lib/api/trust_metadata";
 
 type Schemas = components["schemas"];
 
@@ -165,6 +166,8 @@ export type ChatQueryResponse = Omit<Schemas["ChatQueryResponse"], "debug"> & {
   policy_violated_rules?: string[];
   policy_warning_flags?: string[];
   policy_disclaimer?: string | null;
+  /** Versioned trust metadata snapshot — present for answers generated after F307. */
+  trust_metadata?: AnswerTrustMetadataResponse | null;
 };
 export type ChatMessageResponse = Schemas["ChatMessageResponse"];
 export type ChatSessionMessageResponse = Schemas["ChatSessionMessageResponse"];

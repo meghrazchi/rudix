@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.domains.chat.schemas.trust_metadata import AnswerTrustMetadataResponse
+
 AnswerLanguageMode = Literal[
     "auto", "same_as_question", "workspace_default", "en", "de", "es", "fr"
 ]
@@ -367,4 +369,5 @@ class ChatQueryResponse(BaseModel):
     policy_warning_flags: list[str] = Field(default_factory=list)
     policy_disclaimer: str | None = None
     debug: ChatDebugResponse
+    trust_metadata: AnswerTrustMetadataResponse | None = None
     created_at: datetime

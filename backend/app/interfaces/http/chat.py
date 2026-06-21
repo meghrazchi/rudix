@@ -81,6 +81,17 @@ from app.domains.chat.schemas.chat import (
     CreateChatSessionRequest,
     UpdateChatSessionRequest,
 )
+from app.domains.chat.schemas.trust_metadata import (
+    AnswerTrustMetadataResponse,
+    CitationTrustRecord,
+    ConfidenceTrustRecord,
+    ConflictStatusRecord,
+    GroundedVerificationRecord,
+    ModelMetadataRecord,
+    PolicyEnforcementRecord,
+    RetrievalDiagnosticsRecord,
+    SourceFreshnessRecord,
+)
 from app.domains.chat.schemas.chat_ws import ChatWSInboundMessage, ChatWSOutboundEvent
 from app.domains.chat.schemas.feedback import (
     MessageFeedbackResponse,
@@ -1015,6 +1026,226 @@ async def _augment_retrieval_with_graph_context(
 
     graph_chunks = [_to_graph_retrieved_chunk(chunk) for chunk in graph_result.chunks]
     return _merge_retrieved_chunks(vector_chunks, graph_chunks), graph_result
+
+
+def _build_trust_metadata(
+    *,
+    organization_id: UUID,
+    message_id: str,
+    not_found: bool,
+    citation_validation_failed: bool,
+    verification_failed: bool,
+    confidence_score: float,
+    confidence_category: str,
+    confidence_explanation: object,
+    citations: list[ChatCitationResponse],
+    retrieved_chunks: list,
+    selected_chunks: list,
+    rerank_applied: bool,
+    rerank_diagnostics: object | None,
+    hybrid_vector_hit_count: int,
+    hybrid_keyword_hit_count: int,
+    query_rewrite_result: object | None,
+    parent_context_expanded_count: int,
+    graph_context_result: GraphRetrievalResult,
+    freshness_excluded_count: int,
+    freshness_boosted_count: int,
+    freshness_stale_count: int,
+    grounded_verifier_result: GroundedVerifierResult | None,
+    llm_model: str | None,
+    llm_provider: str | None,
+    embedding_model: str | None,
+    llm_fallback_used: bool,
+    llm_fallback_from: str | None,
+    llm_fallback_to: str | None,
+    llm_fallback_reason: str | None,
+    answer_prompt_version: object | None,
+    conflict_detection_result: ConflictDetectionResult,
+    ai_policy_applied: bool,
+    ai_policy_result: object,
+    generated_at: datetime,
+) -> AnswerTrustMetadataResponse:
+    """Build the versioned trust metadata contract from pipeline state.
+
+    Never includes raw prompts, chain-of-thought, ACL snapshots, or internal
+    version UUIDs — only user-facing fields that the trust panel needs.
+    """
+    expl = confidence_explanation
+
+    source_freshness_warning = any(
+        getattr(c, "doc_stale_warning", False)
+        or getattr(c, "doc_expired_warning", False)
+        or getattr(c, "doc_is_excluded_status", False)
+        for c in citations
+    )
+
+    citation_records = [
+        CitationTrustRecord(
+            document_id=c.document_id,
+            chunk_id=c.chunk_id,
+            filename=c.filename,
+            page_number=c.page_number,
+            score=c.score,
+            similarity_score=c.similarity_score,
+            rerank_score=c.rerank_score,
+            original_rank=c.original_rank,
+            final_rank=c.final_rank,
+            text_snippet=c.text_snippet,
+            source_provider=c.source_provider,
+            source_provider_label=c.source_provider_label,
+            source_title=c.source_title,
+            source_key=c.source_key,
+            source_section=c.source_section,
+            source_deep_link=c.source_deep_link,
+            source_last_synced_at=c.source_last_synced_at,
+            source_trust_status=c.source_trust_status,
+            conflict_status=c.conflict_status,
+            doc_trust_status=c.doc_trust_status,
+            doc_review_status=c.doc_review_status,
+            doc_version_label=c.doc_version_label,
+            doc_review_due_date=c.doc_review_due_date,
+            doc_expiry_date=c.doc_expiry_date,
+            doc_stale_warning=c.doc_stale_warning,
+            doc_expired_warning=c.doc_expired_warning,
+            doc_is_excluded_status=c.doc_is_excluded_status,
+            is_table_chunk=c.is_table_chunk,
+            table_caption=c.table_caption,
+            table_row_count=c.table_row_count,
+            table_col_count=c.table_col_count,
+            table_headers=list(c.table_headers),
+            doc_ocr_quality_status=c.doc_ocr_quality_status,
+            doc_ocr_low_confidence_warning=c.doc_ocr_low_confidence_warning,
+        )
+        for c in ([] if not_found else citations)
+    ]
+
+    prompt_key: str | None = None
+    prompt_ver: int | None = None
+    if answer_prompt_version is not None:
+        prompt_key = PromptTemplateKey.answer_generation.value
+        prompt_ver = getattr(answer_prompt_version, "version_number", None)
+
+    gv_applied = grounded_verifier_result is not None and grounded_verifier_result.applied
+    qr_applied = (
+        query_rewrite_result is not None
+        and getattr(query_rewrite_result, "rewriting_applied", False)
+    )
+    qr_decomposed = (
+        query_rewrite_result is not None
+        and getattr(query_rewrite_result, "decomposition_applied", False)
+    )
+    sub_query_count = len(
+        getattr(query_rewrite_result, "sub_queries", []) or []
+    ) if query_rewrite_result is not None else 0
+
+    return AnswerTrustMetadataResponse(
+        schema_version="1",
+        organization_id=str(organization_id),
+        message_id=message_id,
+        not_found=not_found,
+        citation_validation_failed=citation_validation_failed,
+        verification_failed=verification_failed,
+        confidence=ConfidenceTrustRecord(
+            score=confidence_score,
+            category=confidence_category,
+            citation_support_score=expl.citation_support_score,
+            citation_validation_score=expl.citation_validation_score,
+            citation_coverage_score=expl.citation_coverage_score,
+            retrieval_agreement_score=expl.retrieval_agreement_score,
+            top_similarity=expl.top_similarity,
+            average_similarity=expl.average_similarity,
+            top_rerank_score=expl.top_rerank_score,
+            raw_score=expl.raw_score,
+            citation_validation_multiplier=expl.citation_validation_multiplier,
+            not_found_penalty_multiplier=expl.not_found_penalty_multiplier,
+            not_found_signal=expl.not_found_signal,
+            no_context=expl.no_context,
+        ),
+        citations=citation_records,
+        retrieval=RetrievalDiagnosticsRecord(
+            retrieval_count=len(retrieved_chunks),
+            selected_count=len(selected_chunks),
+            rerank_applied=rerank_applied,
+            rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
+            rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
+            hybrid_retrieval_enabled=settings.feature_enable_hybrid_retrieval,
+            hybrid_vector_hit_count=hybrid_vector_hit_count,
+            hybrid_keyword_hit_count=hybrid_keyword_hit_count,
+            query_rewriting_applied=qr_applied,
+            query_decomposed=qr_decomposed,
+            sub_query_count=sub_query_count,
+            parent_context_expanded_count=parent_context_expanded_count,
+            graph_context_used=graph_context_result.graph_context_used,
+            graph_context_unavailable=graph_context_result.graph_context_unavailable,
+            graph_chunk_count=graph_context_result.graph_chunk_count,
+            freshness_excluded_count=freshness_excluded_count,
+            freshness_boosted_count=freshness_boosted_count,
+        ),
+        grounded_verification=GroundedVerificationRecord(
+            applied=gv_applied,
+            verdict=grounded_verifier_result.verdict if gv_applied else None,
+            score=grounded_verifier_result.verification_score if gv_applied else None,
+            claim_count=grounded_verifier_result.claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            supported_count=grounded_verifier_result.supported_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            unsupported_count=grounded_verifier_result.unsupported_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            removed_count=len(grounded_verifier_result.removed_claims)
+            if grounded_verifier_result is not None
+            else 0,
+            reason_codes=list(grounded_verifier_result.reason_codes)
+            if grounded_verifier_result is not None
+            else [],
+        ),
+        model=ModelMetadataRecord(
+            llm_model=llm_model,
+            llm_provider=llm_provider,
+            embedding_model=embedding_model,
+            fallback_used=llm_fallback_used,
+            fallback_from=llm_fallback_from,
+            fallback_to=llm_fallback_to,
+            fallback_reason=llm_fallback_reason,
+            prompt_template_key=prompt_key,
+            prompt_template_version=prompt_ver,
+        ),
+        conflict=ConflictStatusRecord(
+            detected=conflict_detection_result.conflict_detected,
+            agreement_level=conflict_detection_result.agreement_level,
+            conflict_count=len(conflict_detection_result.conflict_pairs),
+            conflicting_document_ids=_list_or_empty(
+                conflict_detection_result.conflicting_document_ids
+            ),
+            preferred_document_ids=_list_or_empty(
+                conflict_detection_result.preferred_document_ids
+            ),
+            conflict_summary=conflict_detection_result.conflict_summary
+            if conflict_detection_result.conflict_detected
+            else None,
+        ),
+        policy=PolicyEnforcementRecord(
+            applied=ai_policy_applied,
+            outcome=getattr(ai_policy_result, "outcome", None) if ai_policy_applied else None,
+            violated_rules=list(getattr(ai_policy_result, "violated_rules", []) or []),
+            warning_flags=list(getattr(ai_policy_result, "warning_flags", []) or []),
+            has_disclaimer=bool(getattr(ai_policy_result, "disclaimer_text", None))
+            if ai_policy_applied
+            else False,
+        ),
+        freshness=SourceFreshnessRecord(
+            warning=source_freshness_warning,
+            warning_reason="One or more citations come from stale, expired, or archived sources."
+            if source_freshness_warning
+            else None,
+            stale_count=freshness_stale_count,
+            excluded_count=freshness_excluded_count,
+            boosted_count=freshness_boosted_count,
+        ),
+        generated_at=generated_at,
+    )
 
 
 @router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -2455,6 +2686,46 @@ async def query_chat(
             else None,
         )
 
+        trust_metadata = _build_trust_metadata(
+            organization_id=organization_id,
+            message_id=str(assistant_message.id),
+            not_found=not_found,
+            citation_validation_failed=citation_validation_failed,
+            verification_failed=verification_failed,
+            confidence_score=confidence_score,
+            confidence_category=confidence_category,
+            confidence_explanation=confidence_explanation,
+            citations=citations,
+            retrieved_chunks=retrieved_chunks,
+            selected_chunks=selected_chunks,
+            rerank_applied=rerank_applied,
+            rerank_diagnostics=rerank_diagnostics,
+            hybrid_vector_hit_count=hybrid_vector_hit_count,
+            hybrid_keyword_hit_count=hybrid_keyword_hit_count,
+            query_rewrite_result=query_rewrite_result,
+            parent_context_expanded_count=parent_context_expanded_count,
+            graph_context_result=graph_context_result,
+            freshness_excluded_count=freshness_excluded_count,
+            freshness_boosted_count=freshness_boosted_count,
+            freshness_stale_count=freshness_stale_count,
+            grounded_verifier_result=grounded_verifier_result,
+            llm_model=llm_model,
+            llm_provider=llm_provider,
+            embedding_model=embedding_model,
+            llm_fallback_used=llm_fallback_used,
+            llm_fallback_from=llm_fallback_from,
+            llm_fallback_to=llm_fallback_to,
+            llm_fallback_reason=llm_fallback_reason,
+            answer_prompt_version=answer_prompt_version,
+            conflict_detection_result=conflict_detection_result,
+            ai_policy_applied=_ai_effective_policy.source != "none",
+            ai_policy_result=_ai_policy_result,
+            generated_at=assistant_message.created_at,
+        )
+        assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
+        db_session.add(assistant_message)
+        await db_session.flush()
+
         for citation in citations:
             document_uuid = _parse_uuid_or_none(citation.document_id)
             chunk_uuid = _parse_uuid_or_none(citation.chunk_id)
@@ -2935,8 +3206,68 @@ async def query_chat(
             parent_context_expanded_count=parent_context_expanded_count,
             parent_context_tokens_used=parent_context_tokens_used,
         ),
+        trust_metadata=trust_metadata,
         created_at=assistant_message.created_at,
     )
+
+
+@router.get(
+    "/messages/{message_id}/trust-metadata",
+    response_model=AnswerTrustMetadataResponse,
+    summary="Get answer trust metadata for a saved message",
+    description=(
+        "Returns the versioned trust metadata snapshot for a saved assistant message. "
+        "Available after chat completion. Never returns raw prompts, chain-of-thought, "
+        "ACL snapshots, or internal UUIDs. Organization-scoped and user-filtered."
+    ),
+)
+async def get_message_trust_metadata(
+    message_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AnswerTrustMetadataResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+
+    try:
+        message_uuid = UUID(message_id)
+    except ValueError as exc:
+        raise _safe_http_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="message_not_found",
+            message="Message not found",
+        ) from exc
+
+    message = await chat_repository.get_message_for_user(
+        db_session,
+        message_id=message_uuid,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if message is None or message.role != ChatRole.assistant.value:
+        raise _safe_http_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="message_not_found",
+            message="Message not found",
+        )
+
+    if message.trust_metadata_json is None:
+        raise _safe_http_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="trust_metadata_not_available",
+            message="Trust metadata is not available for this message",
+        )
+
+    return AnswerTrustMetadataResponse.model_validate(message.trust_metadata_json)
 
 
 @router.patch("/sessions/{session_id}", response_model=ChatSessionResponse)
