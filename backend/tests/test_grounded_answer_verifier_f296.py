@@ -44,6 +44,7 @@ from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
     GroundedVerifierResult,
     VerifierChunk,
+    VerifierCitation,
     _VerifierOutput,
 )
 
@@ -89,7 +90,14 @@ _SUPPORTED_JSON = """{
     "reason_codes": [],
     "claim_count": 1,
     "supported_claim_count": 1,
-    "unsupported_claim_count": 0
+    "unsupported_claim_count": 0,
+    "claims": [
+        {
+            "claim_text": "Refunds are processed within 30 days.",
+            "support_status": "supported",
+            "citation_indices": [{"citation_index": 1}, {"citation_index": 2}]
+        }
+    ]
 }"""
 
 _PARTIALLY_SUPPORTED_JSON = """{
@@ -99,7 +107,19 @@ _PARTIALLY_SUPPORTED_JSON = """{
     "reason_codes": ["no_source"],
     "claim_count": 2,
     "supported_claim_count": 1,
-    "unsupported_claim_count": 1
+    "unsupported_claim_count": 1,
+    "claims": [
+        {
+            "claim_text": "Refunds are processed within 30 days.",
+            "support_status": "supported",
+            "citation_indices": [{"citation_index": 1}]
+        },
+        {
+            "claim_text": "Processing takes 14 days.",
+            "support_status": "unsupported",
+            "citation_indices": []
+        }
+    ]
 }"""
 
 _UNSUPPORTED_JSON = """{
@@ -109,7 +129,14 @@ _UNSUPPORTED_JSON = """{
     "reason_codes": ["no_source", "hallucinated_detail"],
     "claim_count": 2,
     "supported_claim_count": 0,
-    "unsupported_claim_count": 2
+    "unsupported_claim_count": 2,
+    "claims": [
+        {
+            "claim_text": "The policy requires a 6-month waiting period.",
+            "support_status": "unsupported",
+            "citation_indices": []
+        }
+    ]
 }"""
 
 
@@ -261,8 +288,38 @@ class TestVerifyHappyPaths:
         svc = _make_service()
         provider = _mock_provider(_SUPPORTED_JSON)
         answer = "Refunds are processed within 30 days."
+        citations = [
+            VerifierCitation(
+                document_id="doc-1",
+                chunk_id="chunk-1",
+                filename="policy.pdf",
+                page_number=1,
+                text_snippet="Refunds are processed within 30 days.",
+                score=0.96,
+                similarity_score=0.94,
+                rerank_score=0.95,
+                source_trust_status="trusted",
+                doc_ocr_quality_status="high",
+            ),
+            VerifierCitation(
+                document_id="doc-2",
+                chunk_id="chunk-2",
+                filename="policy.pdf",
+                page_number=2,
+                text_snippet="Refund window details.",
+                score=0.85,
+                similarity_score=0.82,
+                rerank_score=0.83,
+                source_trust_status="trusted",
+                doc_ocr_quality_status="high",
+            ),
+        ]
         with patch.object(svc, "_resolve_provider", return_value=provider):
-            result = await svc.verify(answer=answer, chunks=_make_chunks())
+            result = await svc.verify(
+                answer=answer,
+                chunks=_make_chunks(),
+                citations=citations,
+            )
 
         assert result.applied is True
         assert result.verdict == "supported"
@@ -272,6 +329,50 @@ class TestVerifyHappyPaths:
         assert result.supported_claim_count == 1
         assert result.unsupported_claim_count == 0
         assert result.removed_claims == []
+        assert len(result.claims) == 1
+        assert result.claims[0].citation_indices == [1, 2]
+        assert result.aggregate_support_score > 0.0
+
+    @pytest.mark.asyncio
+    async def test_claim_support_score_uses_citation_metadata(self) -> None:
+        svc = _make_service()
+        provider = _mock_provider(_SUPPORTED_JSON)
+        answer = "Refunds are processed within 30 days."
+        citations = [
+            VerifierCitation(
+                document_id="doc-1",
+                chunk_id="chunk-1",
+                filename="policy.pdf",
+                page_number=1,
+                text_snippet="Refunds are processed within 30 days.",
+                score=0.96,
+                similarity_score=0.94,
+                rerank_score=0.95,
+                source_trust_status="trusted",
+                doc_ocr_quality_status="high",
+            ),
+            VerifierCitation(
+                document_id="doc-2",
+                chunk_id="chunk-2",
+                filename="policy-archive.pdf",
+                page_number=2,
+                text_snippet="Older guidance",
+                score=0.33,
+                similarity_score=0.35,
+                rerank_score=0.31,
+                source_trust_status="stale",
+                doc_ocr_quality_status="low",
+                doc_ocr_low_confidence_warning=True,
+                doc_stale_warning=True,
+            ),
+        ]
+        with patch.object(svc, "_resolve_provider", return_value=provider):
+            result = await svc.verify(answer=answer, chunks=_make_chunks(), citations=citations)
+
+        assert len(result.claims) == 1
+        assert result.claims[0].support_score < 1.0
+        assert result.claims[0].source_quality_score < 1.0
+        assert result.aggregate_support_score == result.claims[0].support_score
 
     @pytest.mark.asyncio
     async def test_partially_supported_verdict_uses_revised_answer(self) -> None:
@@ -289,6 +390,9 @@ class TestVerifyHappyPaths:
         assert result.unverifiable_claim_count == 0
         assert "no_source" in result.reason_codes
         assert len(result.removed_claims) == 1
+        assert len(result.claims) == 2
+        assert result.claims[0].support_status == "supported"
+        assert result.claims[1].support_status == "unsupported"
 
     @pytest.mark.asyncio
     async def test_unsupported_verdict_standard_mode_returns_empty_answer(self) -> None:

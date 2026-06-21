@@ -78,6 +78,22 @@ export type ConfidenceTrustRecord = {
   no_context: boolean;
 };
 
+export type ClaimSupportRecord = {
+  claim_index: number;
+  claim_text: string;
+  support_status:
+    | "supported"
+    | "partially_supported"
+    | "unsupported"
+    | "unverifiable";
+  support_score: number;
+  evidence_match_score: number;
+  source_quality_score: number;
+  rerank_score: number;
+  chunk_coverage_score: number;
+  citation_indices: number[];
+};
+
 export type RetrievalDiagnosticsRecord = {
   retrieval_count: number;
   selected_count: number;
@@ -102,11 +118,15 @@ export type GroundedVerificationRecord = {
   applied: boolean;
   verdict?: string | null;
   score?: number | null;
+  aggregate_support_score: number;
   claim_count: number;
   supported_count: number;
+  partially_supported_count: number;
   unsupported_count: number;
+  unverifiable_count: number;
   removed_count: number;
   reason_codes: string[];
+  claims: ClaimSupportRecord[];
 };
 
 export type ModelMetadataRecord = {

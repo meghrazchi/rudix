@@ -105,6 +105,7 @@ from app.domains.chat.schemas.share import (
 from app.domains.chat.schemas.trust_metadata import (
     AnswerTrustMetadataResponse,
     CitationTrustRecord,
+    ClaimSupportRecord,
     ConfidenceTrustRecord,
     ConflictStatusRecord,
     GroundedVerificationRecord,
@@ -358,9 +359,41 @@ def _build_verifier_citations(citations: list[ChatCitationResponse]) -> list[Ver
                 page_number=citation.page_number,
                 text_snippet=(citation.text_snippet or "")[:400],
                 score=citation.score or 0.0,
+                similarity_score=citation.similarity_score or 0.0,
+                rerank_score=citation.rerank_score,
+                source_trust_status=citation.source_trust_status,
+                doc_ocr_quality_status=citation.doc_ocr_quality_status,
+                doc_ocr_low_confidence_warning=citation.doc_ocr_low_confidence_warning,
+                doc_stale_warning=citation.doc_stale_warning,
+                doc_expired_warning=citation.doc_expired_warning,
+                doc_is_excluded_status=citation.doc_is_excluded_status,
             )
         )
     return verifier_citations
+
+
+def _build_claim_support_records(
+    *,
+    grounded_verifier_result: GroundedVerifierResult | None,
+) -> list[ClaimSupportRecord]:
+    if grounded_verifier_result is None:
+        return []
+    records: list[ClaimSupportRecord] = []
+    for claim_index, claim in enumerate(grounded_verifier_result.claims, start=1):
+        records.append(
+            ClaimSupportRecord(
+                claim_index=claim_index,
+                claim_text=claim.claim_text,
+                support_status=claim.support_status,
+                support_score=claim.support_score,
+                evidence_match_score=claim.evidence_match_score,
+                source_quality_score=claim.source_quality_score,
+                rerank_score=claim.rerank_score,
+                chunk_coverage_score=claim.chunk_coverage_score,
+                citation_indices=list(claim.citation_indices),
+            )
+        )
+    return records
 
 
 _query_retrieval_service._resolve_embedding_provider = MethodType(
@@ -1237,6 +1270,9 @@ def _build_trust_metadata(
             applied=gv_applied,
             verdict=grounded_verifier_result.verdict if gv_applied else None,
             score=grounded_verifier_result.verification_score if gv_applied else None,
+            aggregate_support_score=grounded_verifier_result.aggregate_support_score
+            if grounded_verifier_result is not None
+            else 0.0,
             claim_count=grounded_verifier_result.claim_count
             if grounded_verifier_result is not None
             else 0,
@@ -1258,6 +1294,9 @@ def _build_trust_metadata(
             reason_codes=list(grounded_verifier_result.reason_codes)
             if grounded_verifier_result is not None
             else [],
+            claims=_build_claim_support_records(
+                grounded_verifier_result=grounded_verifier_result if gv_applied else None
+            ),
             mode=grounded_verifier_result.mode if grounded_verifier_result is not None else None,
             threshold=grounded_verifier_result.threshold
             if grounded_verifier_result is not None
@@ -2686,6 +2725,17 @@ async def query_chat(
                                 mode=_gv_mode,
                                 threshold=_gv_threshold,
                             )
+                        elif citations:
+                            confidence_result = _confidence_service.score(
+                                chunks=confidence_signals,
+                                citation_count=len(citations),
+                                citation_validation_score=citation_result.validation_score,
+                                citation_support_score_override=grounded_verifier_result.aggregate_support_score,
+                                not_found_signal=False,
+                            )
+                            confidence_score = confidence_result.score
+                            confidence_category = confidence_result.category
+                            confidence_explanation = confidence_result.explanation
 
             if not_found:
                 confidence_result = _confidence_service.score(

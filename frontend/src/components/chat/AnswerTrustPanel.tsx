@@ -5,6 +5,12 @@ import type {
   ChatConfidenceExplanationResponse,
   ChatDebugResponse,
 } from "@/lib/api/chat";
+import type {
+  AnswerTrustMetadataResponse,
+  CitationTrustRecord,
+} from "@/lib/api/trust_metadata";
+
+type TrustPanelCitation = ChatCitationResponse | CitationTrustRecord;
 
 // Minimum props the trust panel needs — a deliberate subset of ChatTurn["response"].
 export type TrustPanelProps = {
@@ -21,9 +27,10 @@ export type TrustPanelProps = {
   policyViolatedRules: string[];
   policyWarningFlags: string[];
   policyDisclaimer: string | null;
-  citations: ChatCitationResponse[];
+  citations: TrustPanelCitation[];
   debug: ChatDebugResponse | null;
-  onOpenCitation: (citation: ChatCitationResponse) => void;
+  trustMetadata?: AnswerTrustMetadataResponse | null;
+  onOpenCitation: (citation: TrustPanelCitation) => void;
 };
 
 function pct(v: number | null | undefined): string {
@@ -110,16 +117,40 @@ function conflictBadge(
   return null;
 }
 
+function claimSupportBadge(
+  status: "supported" | "partially_supported" | "unsupported" | "unverifiable",
+): { label: string; cls: string } {
+  if (status === "supported")
+    return {
+      label: "Supported",
+      cls: "rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-800 uppercase",
+    };
+  if (status === "partially_supported")
+    return {
+      label: "Partial",
+      cls: "rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
+    };
+  if (status === "unverifiable")
+    return {
+      label: "Unverifiable",
+      cls: "rounded-full border border-[#e0dced] bg-[#faf9ff] px-1.5 py-0.5 text-[9px] font-semibold text-[#6a6780] uppercase",
+    };
+  return {
+    label: "Unsupported",
+    cls: "rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
+  };
+}
+
 function SectionHeader({ icon, label }: { icon: string; label: string }) {
   return (
-    <div className="flex items-center gap-1.5 pb-1.5 border-b border-[#ece9f5]">
+    <div className="flex items-center gap-1.5 border-b border-[#ece9f5] pb-1.5">
       <span
         className="material-symbols-outlined text-[15px] text-[#3525cd]"
         aria-hidden="true"
       >
         {icon}
       </span>
-      <span className="text-[10px] font-bold tracking-widest uppercase text-[#3525cd]">
+      <span className="text-[10px] font-bold tracking-widest text-[#3525cd] uppercase">
         {label}
       </span>
     </div>
@@ -180,34 +211,65 @@ export function AnswerTrustPanel({
   policyDisclaimer,
   citations,
   debug,
+  trustMetadata,
   onOpenCitation,
 }: TrustPanelProps) {
   const barWidth = `${Math.round(confidenceScore * 100)}%`;
   const graphUsed = debug?.graph_context_used ?? false;
   const graphEnabled = debug?.graph_context_enabled ?? false;
-  const verificationApplied = debug?.grounded_verification_applied ?? false;
+  const groundedVerification = trustMetadata?.grounded_verification ?? null;
+  const trustCitations = trustMetadata?.citations ?? citations;
+  const verificationApplied =
+    groundedVerification?.applied ??
+    debug?.grounded_verification_applied ??
+    false;
+  const claimSupportRecords = groundedVerification?.claims ?? [];
 
   // Compute warnings list
   const warnings: string[] = [];
   if (confidenceCategory === "low")
-    warnings.push("Low confidence — validate this answer against cited sources.");
+    warnings.push(
+      "Low confidence — validate this answer against cited sources.",
+    );
   if (citationValidationFailed)
-    warnings.push("Citation validation failed — some citations could not be verified.");
+    warnings.push(
+      "Citation validation failed — some citations could not be verified.",
+    );
   if (verificationFailed)
-    warnings.push("Answer verification failed — claims may not be fully grounded.");
+    warnings.push(
+      "Answer verification failed — claims may not be fully grounded.",
+    );
   if (sourceFreshnessWarning)
     warnings.push(
       sourceFreshnessWarningReason ?? "One or more sources may be stale.",
     );
-  if (citations.some((c) => c.doc_stale_warning || c.doc_expired_warning))
+  if (trustCitations.some((c) => c.doc_stale_warning || c.doc_expired_warning))
     warnings.push("One or more cited sources are stale or expired.");
-  if (citations.some((c) => c.doc_ocr_low_confidence_warning))
-    warnings.push("One or more sources have low OCR confidence — text accuracy may be reduced.");
+  if (trustCitations.some((c) => c.doc_ocr_low_confidence_warning))
+    warnings.push(
+      "One or more sources have low OCR confidence — text accuracy may be reduced.",
+    );
   if (policyDisclaimer) warnings.push(policyDisclaimer);
   if ((debug?.grounded_verification_removed_count ?? 0) > 0)
     warnings.push(
       `${debug!.grounded_verification_removed_count} unsupported claim(s) were removed from the answer.`,
     );
+  if (
+    groundedVerification &&
+    groundedVerification.claim_count > 0 &&
+    groundedVerification.aggregate_support_score < 0.6
+  ) {
+    warnings.push("Citation support is weak — review the mapped claims.");
+  }
+  if (
+    groundedVerification &&
+    groundedVerification.unsupported_count > 0 &&
+    groundedVerification.claim_count > 0
+  ) {
+    warnings.push(
+      `${groundedVerification.unsupported_count}/${groundedVerification.claim_count} claim(s) are not supported by citations.`,
+    );
+  }
 
   const showRetrievalSection =
     debug &&
@@ -221,7 +283,7 @@ export function AnswerTrustPanel({
   return (
     <div
       data-testid={`trust-panel-${messageId}`}
-      className="mt-2 rounded-xl border border-[#d7d4e8] bg-[#faf9ff] p-4 space-y-5 text-[#2f2a46]"
+      className="mt-2 space-y-5 rounded-xl border border-[#d7d4e8] bg-[#faf9ff] p-4 text-[#2f2a46]"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -251,7 +313,7 @@ export function AnswerTrustPanel({
       <div className="space-y-3">
         <SectionHeader icon="verified" label="Trust Score" />
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-2 rounded-full bg-[#e8e5f5] overflow-hidden">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8e5f5]">
             <div
               className={`h-full rounded-full transition-all ${confidenceBarClass(confidenceCategory)}`}
               style={{ width: barWidth }}
@@ -262,7 +324,7 @@ export function AnswerTrustPanel({
               aria-label="Confidence score"
             />
           </div>
-          <span className="text-sm font-bold text-[#2f2a46] tabular-nums w-12 text-right">
+          <span className="w-12 text-right text-sm font-bold text-[#2f2a46] tabular-nums">
             {pct(confidenceScore)}
           </span>
           <span className={confidenceBadgeClass(confidenceCategory)}>
@@ -299,15 +361,128 @@ export function AnswerTrustPanel({
         )}
       </div>
 
+      {/* Claim support */}
+      {groundedVerification && groundedVerification.claim_count > 0 && (
+        <div className="space-y-2">
+          <SectionHeader
+            icon="fact_check"
+            label={`Claim Support (${groundedVerification.supported_count}/${groundedVerification.claim_count})`}
+          />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+            <StatRow
+              label="Aggregate support"
+              value={pct(groundedVerification.aggregate_support_score)}
+            />
+            <StatRow
+              label="Verification score"
+              value={pct(groundedVerification.score)}
+            />
+            <StatRow
+              label="Supported claims"
+              value={groundedVerification.supported_count}
+            />
+            <StatRow
+              label="Partial claims"
+              value={groundedVerification.partially_supported_count}
+            />
+            <StatRow
+              label="Unsupported claims"
+              value={groundedVerification.unsupported_count}
+            />
+            <StatRow
+              label="Unverifiable claims"
+              value={groundedVerification.unverifiable_count}
+            />
+          </div>
+          <div className="space-y-1.5">
+            {claimSupportRecords.length > 0 ? (
+              claimSupportRecords.map((claim) => {
+                const badge = claimSupportBadge(claim.support_status);
+                const mappedCitations = claim.citation_indices
+                  .map((index) => ({
+                    index,
+                    citation: trustCitations[index - 1],
+                  }))
+                  .filter(
+                    (
+                      item,
+                    ): item is {
+                      index: number;
+                      citation: ChatCitationResponse;
+                    } => Boolean(item.citation),
+                  );
+                return (
+                  <div
+                    key={`claim-${claim.claim_index}-${claim.claim_text}`}
+                    className="rounded-lg border border-[#e2dff1] bg-white px-3 py-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] leading-4 font-medium text-[#1b1b24]">
+                          {claim.claim_text}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          <span className={badge.cls}>{badge.label}</span>
+                          <span className="text-[10px] text-[#9d98b5]">
+                            Claim {claim.claim_index}
+                          </span>
+                          <span className="text-[10px] text-[#9d98b5]">
+                            Support {pct(claim.support_score)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {mappedCitations.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {mappedCitations.map(({ index, citation }) => {
+                          const title =
+                            citation.source_title ??
+                            citation.filename ??
+                            "Source";
+                          return (
+                            <button
+                              type="button"
+                              key={`${claim.claim_index}-${index}-${citation.document_id}-${citation.chunk_id}`}
+                              onClick={() => onOpenCitation(citation)}
+                              className="rounded-full border border-[#d7d4e8] bg-[#faf9ff] px-2 py-0.5 text-[10px] font-medium text-[#3525cd] transition-colors hover:bg-[#ede9f9]"
+                              aria-label={`Preview source ${index} for claim ${claim.claim_index}`}
+                              title={title}
+                            >
+                              Source {index}
+                              {citation.page_number
+                                ? ` · p. ${citation.page_number}`
+                                : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[10px] text-[#9d98b5]">
+                        No validated citations mapped to this claim.
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="rounded-lg border border-dashed border-[#d7d4e8] bg-white px-3 py-2 text-[11px] text-[#6a6780]">
+                Claim-level citation mapping is not available for this answer
+                snapshot.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Citations */}
-      {citations.length > 0 && (
+      {trustCitations.length > 0 && (
         <div className="space-y-2">
           <SectionHeader
             icon="source"
-            label={`Sources (${citations.length})`}
+            label={`Sources (${trustCitations.length})`}
           />
           <div className="space-y-1.5">
-            {citations.map((citation, ci) => {
+            {trustCitations.map((citation, ci) => {
               const title =
                 citation.source_title ??
                 citation.filename ??
@@ -320,7 +495,7 @@ export function AnswerTrustPanel({
               const conflict = conflictBadge(citation.conflict_status);
               const pageRef = citation.page_number
                 ? `p. ${citation.page_number}`
-                : citation.source_section ?? null;
+                : (citation.source_section ?? null);
               return (
                 <div
                   key={`tp:${citation.document_id}:${citation.chunk_id}:${ci}`}
@@ -345,8 +520,8 @@ export function AnswerTrustPanel({
                       {conflict ? (
                         <span className={conflict.cls}>{conflict.label}</span>
                       ) : null}
-                      {(citation.doc_stale_warning ||
-                        citation.doc_expired_warning) ? (
+                      {citation.doc_stale_warning ||
+                      citation.doc_expired_warning ? (
                         <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase">
                           {citation.doc_expired_warning ? "Expired" : "Stale"}
                         </span>
@@ -412,9 +587,7 @@ export function AnswerTrustPanel({
                 <StatRow
                   label="Reranker"
                   value={
-                    debug!.rerank_model ??
-                    debug!.rerank_provider ??
-                    "Enabled"
+                    debug!.rerank_model ?? debug!.rerank_provider ?? "Enabled"
                   }
                 />
                 {debug!.rerank_input_count ? (
@@ -480,10 +653,7 @@ export function AnswerTrustPanel({
             ) : null}
             {debug!.query_decomposed &&
             (debug!.sub_queries?.length ?? 0) > 0 ? (
-              <StatRow
-                label="Sub-queries"
-                value={debug!.sub_queries!.length}
-              />
+              <StatRow label="Sub-queries" value={debug!.sub_queries!.length} />
             ) : null}
           </div>
         </div>
@@ -521,12 +691,18 @@ export function AnswerTrustPanel({
                   value={debug!.fallback_to ?? null}
                 />
                 {debug!.fallback_reason ? (
-                  <StatRow label="Fallback reason" value={debug!.fallback_reason} />
+                  <StatRow
+                    label="Fallback reason"
+                    value={debug!.fallback_reason}
+                  />
                 ) : null}
               </>
             ) : null}
             {debug!.detected_language ? (
-              <StatRow label="Detected language" value={debug!.detected_language} />
+              <StatRow
+                label="Detected language"
+                value={debug!.detected_language}
+              />
             ) : null}
             {debug!.answer_language_used ? (
               <StatRow
@@ -646,10 +822,7 @@ export function AnswerTrustPanel({
               />
             ) : null}
             {policyWarningFlags.length > 0 ? (
-              <StatRow
-                label="Warnings"
-                value={policyWarningFlags.join(", ")}
-              />
+              <StatRow label="Warnings" value={policyWarningFlags.join(", ")} />
             ) : null}
           </div>
         </div>

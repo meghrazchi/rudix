@@ -169,8 +169,13 @@ export type ChatQueryResponse = Omit<Schemas["ChatQueryResponse"], "debug"> & {
   /** Versioned trust metadata snapshot — present for answers generated after F307. */
   trust_metadata?: AnswerTrustMetadataResponse | null;
 };
-export type ChatMessageResponse = Schemas["ChatMessageResponse"];
-export type ChatSessionMessageResponse = Schemas["ChatSessionMessageResponse"];
+export type ChatMessageResponse = Schemas["ChatMessageResponse"] & {
+  trust_metadata?: AnswerTrustMetadataResponse | null;
+};
+export type ChatSessionMessageResponse =
+  Schemas["ChatSessionMessageResponse"] & {
+    trust_metadata?: AnswerTrustMetadataResponse | null;
+  };
 export type ChatSessionMessageListResponse =
   Schemas["ChatSessionMessageListResponse"];
 export type ChatQueryRequest = Omit<

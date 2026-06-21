@@ -55,6 +55,7 @@ from app.domains.chat.repositories.chat import ChatRepository
 from app.domains.chat.schemas.trust_metadata import (
     AnswerTrustMetadataResponse,
     CitationTrustRecord,
+    ClaimSupportRecord,
     ConfidenceTrustRecord,
     ConflictStatusRecord,
     GroundedVerificationRecord,
@@ -272,7 +273,10 @@ def test_answer_trust_metadata_schema_version_is_one() -> None:
         ),
         citations=[],
         retrieval=RetrievalDiagnosticsRecord(),
-        grounded_verification=GroundedVerificationRecord(),
+        grounded_verification=GroundedVerificationRecord(
+            aggregate_support_score=0.0,
+            claims=[],
+        ),
         model=ModelMetadataRecord(llm_model="gpt-4o", llm_provider="openai"),
         conflict=ConflictStatusRecord(),
         policy=PolicyEnforcementRecord(),
@@ -311,7 +315,24 @@ def test_answer_trust_metadata_round_trips_json() -> None:
         citations=[],
         retrieval=RetrievalDiagnosticsRecord(retrieval_count=5, selected_count=0),
         grounded_verification=GroundedVerificationRecord(
-            applied=True, verdict="unsupported", claim_count=3, removed_count=3
+            applied=True,
+            verdict="unsupported",
+            aggregate_support_score=0.12,
+            claim_count=3,
+            removed_count=3,
+            claims=[
+                ClaimSupportRecord(
+                    claim_index=1,
+                    claim_text="Employees get 25 days of leave.",
+                    support_status="supported",
+                    support_score=0.91,
+                    evidence_match_score=1.0,
+                    source_quality_score=0.95,
+                    rerank_score=0.9,
+                    chunk_coverage_score=0.5,
+                    citation_indices=[1, 2],
+                )
+            ],
         ),
         model=ModelMetadataRecord(llm_model="gpt-4o-mini", prompt_template_version=2),
         conflict=ConflictStatusRecord(detected=True, conflict_count=1),
@@ -323,6 +344,7 @@ def test_answer_trust_metadata_round_trips_json() -> None:
     restored = AnswerTrustMetadataResponse.model_validate(dumped)
     assert restored.not_found is True
     assert restored.grounded_verification.removed_count == 3
+    assert restored.grounded_verification.aggregate_support_score == pytest.approx(0.12)
     assert restored.conflict.conflict_count == 1
     assert restored.freshness.stale_count == 2
 

@@ -53,6 +53,7 @@ import {
   type ChatQueryRequest,
   type ChatQueryResponse,
 } from "@/lib/api/chat";
+import type { AnswerTrustMetadataResponse } from "@/lib/api/trust_metadata";
 import { AnswerTrustPanel } from "@/components/chat/AnswerTrustPanel";
 import {
   listDocuments,
@@ -202,6 +203,7 @@ type ChatTurn = {
     policy_disclaimer: string | null;
     debug: ChatDebugResponse | null;
     citations: ChatCitationResponse[];
+    trust_metadata?: AnswerTrustMetadataResponse | null;
     created_at: string;
     agent_run_id: string | null;
     agent_run_status: string | null;
@@ -2691,7 +2693,10 @@ export function ChatPage() {
                                   }
                                   citations={turn.response.citations}
                                   debug={turn.response.debug}
+                                  trustMetadata={turn.response.trust_metadata}
                                   onOpenCitation={(citation) => {
+                                    const previewCitation =
+                                      citation as ChatCitationResponse;
                                     const siblings =
                                       turn.response.citations.filter(
                                         (c) =>
@@ -2706,10 +2711,10 @@ export function ChatPage() {
                                       citations:
                                         siblings.length > 0
                                           ? siblings
-                                          : [citation],
+                                          : [previewCitation],
                                       initialIndex: Math.max(
                                         0,
-                                        siblings.indexOf(citation),
+                                        siblings.indexOf(previewCitation),
                                       ),
                                     });
                                   }}

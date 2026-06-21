@@ -7,6 +7,11 @@ import type {
   ChatConfidenceExplanationResponse,
   ChatDebugResponse,
 } from "@/lib/api/chat";
+import type {
+  AnswerTrustMetadataResponse,
+  CitationTrustRecord,
+  ConfidenceTrustRecord,
+} from "@/lib/api/trust_metadata";
 
 const baseExplanation: ChatConfidenceExplanationResponse = {
   top_similarity: 0.921,
@@ -53,6 +58,114 @@ const baseCitation: ChatCitationResponse = {
   table_headers: [],
 } as unknown as ChatCitationResponse;
 
+const baseTrustCitation: CitationTrustRecord = {
+  ...baseCitation,
+  doc_stale_warning: false,
+  doc_expired_warning: false,
+  doc_is_excluded_status: false,
+  doc_ocr_low_confidence_warning: false,
+  is_table_chunk: false,
+  table_headers: [],
+};
+
+const baseTrustConfidence: ConfidenceTrustRecord = {
+  ...baseExplanation,
+  score: 0.87,
+  category: "high" as const,
+};
+
+const baseTrustMetadata: AnswerTrustMetadataResponse = {
+  schema_version: "1",
+  organization_id: "org-1",
+  message_id: "msg-1",
+  not_found: false,
+  citation_validation_failed: false,
+  verification_failed: false,
+  confidence: baseTrustConfidence,
+  citations: [baseTrustCitation],
+  retrieval: {
+    retrieval_count: 8,
+    selected_count: 4,
+    rerank_applied: true,
+    hybrid_retrieval_enabled: false,
+    hybrid_vector_hit_count: 0,
+    hybrid_keyword_hit_count: 0,
+    query_rewriting_applied: false,
+    query_decomposed: false,
+    sub_query_count: 0,
+    parent_context_expanded_count: 0,
+    graph_context_used: false,
+    graph_context_unavailable: false,
+    graph_chunk_count: 0,
+    freshness_excluded_count: 0,
+    freshness_boosted_count: 0,
+  },
+  grounded_verification: {
+    applied: true,
+    verdict: "partially_supported",
+    score: 0.5,
+    aggregate_support_score: 0.72,
+    claim_count: 2,
+    supported_count: 1,
+    partially_supported_count: 0,
+    unsupported_count: 1,
+    unverifiable_count: 0,
+    removed_count: 1,
+    reason_codes: ["no_source"],
+    claims: [
+      {
+        claim_index: 1,
+        claim_text: "Employees receive 20 days of annual leave.",
+        support_status: "supported",
+        support_score: 0.92,
+        evidence_match_score: 1.0,
+        source_quality_score: 0.9,
+        rerank_score: 0.88,
+        chunk_coverage_score: 0.5,
+        citation_indices: [1],
+      },
+      {
+        claim_index: 2,
+        claim_text: "Parking is free.",
+        support_status: "unsupported",
+        support_score: 0.12,
+        evidence_match_score: 0.0,
+        source_quality_score: 0.2,
+        rerank_score: 0.15,
+        chunk_coverage_score: 0.0,
+        citation_indices: [],
+      },
+    ],
+  },
+  model: {
+    llm_model: "gpt-4o",
+    llm_provider: "openai",
+    fallback_used: false,
+    prompt_template_key: "answer_generation",
+    prompt_template_version: 3,
+  },
+  conflict: {
+    detected: false,
+    agreement_level: "full",
+    conflict_count: 0,
+    conflicting_document_ids: [],
+    preferred_document_ids: [],
+  },
+  policy: {
+    applied: false,
+    violated_rules: [],
+    warning_flags: [],
+    has_disclaimer: false,
+  },
+  freshness: {
+    warning: false,
+    stale_count: 0,
+    excluded_count: 0,
+    boosted_count: 0,
+  },
+  generated_at: "2026-06-26T10:00:00Z",
+};
+
 const noopOpen = vi.fn();
 
 function renderPanel(
@@ -77,7 +190,31 @@ function renderPanel(
     onOpenCitation: noopOpen,
     ...overrides,
   };
-  return render(<AnswerTrustPanel {...props} />);
+  const trustMetadata =
+    overrides.trustMetadata ??
+    ({
+      ...baseTrustMetadata,
+      citations: props.citations.map((citation) => ({
+        ...citation,
+        doc_stale_warning: citation.doc_stale_warning ?? false,
+        doc_expired_warning: citation.doc_expired_warning ?? false,
+        doc_is_excluded_status: citation.doc_is_excluded_status ?? false,
+        doc_ocr_low_confidence_warning:
+          citation.doc_ocr_low_confidence_warning ?? false,
+        is_table_chunk: citation.is_table_chunk ?? false,
+        table_headers: citation.table_headers ?? [],
+      })),
+      grounded_verification: {
+        ...baseTrustMetadata.grounded_verification,
+        claims: baseTrustMetadata.grounded_verification.claims.map((claim) => {
+          const citationIndices = claim.citation_indices.filter(
+            (index) => index <= props.citations.length,
+          );
+          return { ...claim, citation_indices: citationIndices };
+        }),
+      },
+    } satisfies AnswerTrustMetadataResponse);
+  return render(<AnswerTrustPanel {...props} trustMetadata={trustMetadata} />);
 }
 
 describe("AnswerTrustPanel", () => {
@@ -99,6 +236,20 @@ describe("AnswerTrustPanel", () => {
   it("shows the confidence category badge", () => {
     renderPanel();
     expect(screen.getByText("high")).toBeInTheDocument();
+  });
+
+  it("shows claim support summary and mapped citations", () => {
+    renderPanel();
+    expect(screen.getByText(/claim support/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1\/2 claim\(s\) are not supported by citations/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Employees receive 20 days of annual leave."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /preview source 1 for claim 1/i }),
+    ).toBeInTheDocument();
   });
 
   it("renders a confidence progress bar with correct aria attributes", () => {
@@ -150,7 +301,7 @@ describe("AnswerTrustPanel", () => {
       doc_expired_warning: false,
     } as unknown as ChatCitationResponse;
     renderPanel({ citations: [staleCitation] });
-    expect(screen.getByText("Stale")).toBeInTheDocument();
+    expect(screen.getByText(/^Stale$/)).toBeInTheDocument();
   });
 
   it("shows Expired badge for expired citation", () => {
@@ -160,7 +311,7 @@ describe("AnswerTrustPanel", () => {
       doc_stale_warning: false,
     } as unknown as ChatCitationResponse;
     renderPanel({ citations: [expiredCitation] });
-    expect(screen.getByText("Expired")).toBeInTheDocument();
+    expect(screen.getByText(/^Expired$/)).toBeInTheDocument();
   });
 
   it("shows OCR low confidence badge when warned", () => {
@@ -170,14 +321,23 @@ describe("AnswerTrustPanel", () => {
       doc_ocr_low_confidence_warning: true,
     } as unknown as ChatCitationResponse;
     renderPanel({ citations: [ocrCitation] });
-    expect(screen.getByText("OCR low confidence")).toBeInTheDocument();
+    expect(screen.getByText(/OCR low confidence/i)).toBeInTheDocument();
   });
 
   it("calls onOpenCitation when citation preview button is clicked", () => {
     const handler = vi.fn();
     renderPanel({ onOpenCitation: handler });
-    fireEvent.click(screen.getByRole("button", { name: /preview policy\.pdf/i }));
-    expect(handler).toHaveBeenCalledWith(baseCitation);
+    fireEvent.click(
+      screen.getByRole("button", { name: /preview policy\.pdf/i }),
+    );
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        document_id: baseCitation.document_id,
+        chunk_id: baseCitation.chunk_id,
+        filename: baseCitation.filename,
+        page_number: baseCitation.page_number,
+      }),
+    );
   });
 
   it("renders the Retrieval section with chunk counts", () => {
@@ -289,7 +449,16 @@ describe("AnswerTrustPanel", () => {
   });
 
   it("does not render Verification section when not applied", () => {
-    renderPanel({ debug: { ...baseDebug, grounded_verification_applied: false } });
+    renderPanel({
+      debug: { ...baseDebug, grounded_verification_applied: false },
+      trustMetadata: {
+        ...baseTrustMetadata,
+        grounded_verification: {
+          ...baseTrustMetadata.grounded_verification,
+          applied: false,
+        },
+      },
+    });
     expect(screen.queryByText("Verification")).not.toBeInTheDocument();
   });
 
@@ -321,9 +490,7 @@ describe("AnswerTrustPanel", () => {
 
   it("shows citation validation failed warning", () => {
     renderPanel({ citationValidationFailed: true });
-    expect(
-      screen.getByText(/Citation validation failed/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Citation validation failed/i)).toBeInTheDocument();
   });
 
   it("shows source freshness warning when set", () => {
@@ -351,9 +518,7 @@ describe("AnswerTrustPanel", () => {
       doc_ocr_low_confidence_warning: true,
     } as unknown as ChatCitationResponse;
     renderPanel({ citations: [ocrCitation] });
-    expect(
-      screen.getByText(/low OCR confidence/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/low OCR confidence/i)).toBeInTheDocument();
   });
 
   it("shows removed claims warning banner", () => {
@@ -438,7 +603,7 @@ describe("AnswerTrustPanel", () => {
       score: 0.8,
     } as unknown as ChatCitationResponse;
     renderPanel({ citations: [tableCitation] });
-    expect(screen.getByText(/Table/)).toBeInTheDocument();
+    expect(screen.getByText(/table/i)).toBeInTheDocument();
   });
 
   it("renders without citations gracefully", () => {

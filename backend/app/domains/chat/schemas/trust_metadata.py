@@ -106,6 +106,7 @@ class GroundedVerificationRecord(BaseModel):
     applied: bool = False
     verdict: str | None = None
     score: float | None = None
+    aggregate_support_score: float = Field(ge=0.0, le=1.0, default=0.0)
     claim_count: int = 0
     supported_count: int = 0
     partially_supported_count: int = 0
@@ -113,8 +114,23 @@ class GroundedVerificationRecord(BaseModel):
     unverifiable_count: int = 0
     removed_count: int = 0
     reason_codes: list[str] = Field(default_factory=list)
+    claims: list[ClaimSupportRecord] = Field(default_factory=list)
     mode: str | None = None
     threshold: float | None = None
+
+
+class ClaimSupportRecord(BaseModel):
+    """Claim-level support details with citation mapping."""
+
+    claim_index: int = Field(ge=1)
+    claim_text: str
+    support_status: Literal["supported", "partially_supported", "unsupported", "unverifiable"]
+    support_score: float = Field(ge=0.0, le=1.0)
+    evidence_match_score: float = Field(ge=0.0, le=1.0)
+    source_quality_score: float = Field(ge=0.0, le=1.0)
+    rerank_score: float = Field(ge=0.0, le=1.0)
+    chunk_coverage_score: float = Field(ge=0.0, le=1.0)
+    citation_indices: list[int] = Field(default_factory=list)
 
 
 class ModelMetadataRecord(BaseModel):
@@ -188,3 +204,7 @@ class AnswerTrustMetadataResponse(BaseModel):
     policy: PolicyEnforcementRecord
     freshness: SourceFreshnessRecord
     generated_at: datetime
+
+
+GroundedVerificationRecord.model_rebuild()
+AnswerTrustMetadataResponse.model_rebuild()

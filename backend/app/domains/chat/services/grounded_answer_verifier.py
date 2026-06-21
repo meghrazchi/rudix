@@ -63,6 +63,7 @@ class _VerifierOutput(BaseModel):
     partially_supported_claim_count: int = Field(default=0, ge=0)
     unsupported_claim_count: int = Field(default=0, ge=0)
     unverifiable_claim_count: int = Field(default=0, ge=0)
+    claims: list[_VerifierClaimOutput] = Field(default_factory=list)
 
     @field_validator("removed_claims", mode="before")
     @classmethod
@@ -83,6 +84,48 @@ class _VerifierOutput(BaseModel):
             for item in v
             if str(item).strip() in _ALLOWED_REASON_CODES
         ][:6]
+
+
+class _VerifierClaimCitationRef(BaseModel):
+    """A 1-based citation index returned by the verifier."""
+
+    citation_index: int = Field(ge=1)
+
+
+class _VerifierClaimOutput(BaseModel):
+    """Structured claim-level evidence returned by the verifier."""
+
+    claim_text: str = Field(min_length=1, max_length=600)
+    support_status: Literal[
+        "supported",
+        "partially_supported",
+        "unsupported",
+        "unverifiable",
+    ]
+    citation_indices: list[_VerifierClaimCitationRef] = Field(default_factory=list)
+
+    @field_validator("citation_indices", mode="before")
+    @classmethod
+    def _clean_citation_indices(cls, value: object) -> list[dict[str, int]]:
+        if not isinstance(value, list):
+            return []
+        cleaned: list[dict[str, int]] = []
+        seen: set[int] = set()
+        for item in value:
+            try:
+                citation_index = (
+                    int(item["citation_index"]) if isinstance(item, dict) else int(item)
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+            if citation_index < 1 or citation_index in seen:
+                continue
+            seen.add(citation_index)
+            cleaned.append({"citation_index": citation_index})
+        return cleaned
+
+
+_VerifierOutput.model_rebuild()
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +156,14 @@ class VerifierCitation:
     page_number: int | None
     text_snippet: str
     score: float = 0.0
+    similarity_score: float = 0.0
+    rerank_score: float | None = None
+    source_trust_status: str | None = None
+    doc_ocr_quality_status: str | None = None
+    doc_ocr_low_confidence_warning: bool = False
+    doc_stale_warning: bool = False
+    doc_expired_warning: bool = False
+    doc_is_excluded_status: bool = False
 
 
 @dataclass(frozen=True)
@@ -135,12 +186,28 @@ class GroundedVerifierResult:
     unverifiable_claim_count: int
     removed_claims: list[str] = field(default_factory=list)  # answer excerpts only
     reason_codes: list[str] = field(default_factory=list)
+    claims: list[GroundedClaimResult] = field(default_factory=list)
+    aggregate_support_score: float = 0.0
     final_answer: str = ""
     model_name: str = ""
     provider_key: str = ""
     latency_ms: int = 0
     mode: str = "standard"
     threshold: float = 0.7
+
+
+@dataclass(frozen=True)
+class GroundedClaimResult:
+    """Claim-level evidence mapping returned by the verifier."""
+
+    claim_text: str
+    support_status: Literal["supported", "partially_supported", "unsupported", "unverifiable"]
+    support_score: float
+    evidence_match_score: float
+    source_quality_score: float
+    rerank_score: float
+    chunk_coverage_score: float
+    citation_indices: list[int] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +246,11 @@ Steps:
     needing rewrite.
   "unsupported_claim_count": integer — claims with no source support.
   "unverifiable_claim_count": integer — claims the sources do not let you verify.
+  "claims": list of claim objects. Each claim object must include:
+    - claim_text: a short excerpt or normalized sentence from the answer
+    - support_status: supported | partially_supported | unsupported | unverifiable
+    - citation_indices: 1-based indices into VALIDATED CITATIONS
+      A claim may reference multiple citations when several chunks support it.
 
   "reason_codes": list of reason codes from this set only:
     ["no_source", "contradicts_context", "out_of_scope",
@@ -190,6 +262,96 @@ Constraints:
 - claim_count = supported_claim_count + partially_supported_claim_count +
   unsupported_claim_count + unverifiable_claim_count.
 """
+
+
+def _evidence_match_score(status: str) -> float:
+    if status == "supported":
+        return 1.0
+    if status == "partially_supported":
+        return 0.65
+    if status == "unverifiable":
+        return 0.3
+    return 0.0
+
+
+def _source_trust_score(status: str | None) -> float:
+    if status == "trusted":
+        return 1.0
+    if status == "uploaded":
+        return 0.9
+    if status in {"unknown", None}:
+        return 0.75
+    if status == "stale":
+        return 0.55
+    if status == "revoked":
+        return 0.2
+    if status == "deleted":
+        return 0.0
+    return 0.75
+
+
+def _ocr_quality_multiplier(quality: str | None, low_confidence_warning: bool) -> float:
+    if low_confidence_warning:
+        return 0.82
+    if quality == "high" or quality == "not_required" or quality is None:
+        return 1.0
+    if quality == "medium":
+        return 0.92
+    if quality == "low":
+        return 0.75
+    if quality == "failed":
+        return 0.5
+    return 0.9
+
+
+def _citation_support_quality(citation: VerifierCitation) -> float:
+    trust_score = _source_trust_score(citation.source_trust_status)
+    quality_multiplier = _ocr_quality_multiplier(
+        citation.doc_ocr_quality_status,
+        citation.doc_ocr_low_confidence_warning,
+    )
+    freshness_multiplier = 1.0
+    if citation.doc_is_excluded_status:
+        freshness_multiplier *= 0.1
+    if citation.doc_expired_warning:
+        freshness_multiplier *= 0.45
+    elif citation.doc_stale_warning:
+        freshness_multiplier *= 0.75
+    return max(0.0, min(1.0, round(trust_score * quality_multiplier * freshness_multiplier, 4)))
+
+
+def _claim_support_score(
+    *,
+    status: str,
+    citation_indices: list[int],
+    citations: list[VerifierCitation],
+) -> tuple[float, float, float, float]:
+    evidence_match_score = _evidence_match_score(status)
+    valid_indices = [idx for idx in citation_indices if 1 <= idx <= len(citations)]
+    if not valid_indices:
+        return evidence_match_score, 0.0, 0.0, 0.0
+
+    referenced_citations = [citations[idx - 1] for idx in valid_indices]
+    source_quality_score = sum(_citation_support_quality(c) for c in referenced_citations) / len(
+        referenced_citations
+    )
+    rerank_values = [
+        c.rerank_score if c.rerank_score is not None else c.score for c in referenced_citations
+    ]
+    rerank_score = sum(max(0.0, min(1.0, value)) for value in rerank_values) / len(rerank_values)
+    chunk_coverage_score = min(1.0, len({c.chunk_id for c in referenced_citations}) / 2.0)
+    support_score = (
+        (0.45 * evidence_match_score)
+        + (0.25 * source_quality_score)
+        + (0.2 * rerank_score)
+        + (0.1 * chunk_coverage_score)
+    )
+    return (
+        round(max(0.0, min(1.0, support_score)), 4),
+        round(source_quality_score, 4),
+        round(rerank_score, 4),
+        round(chunk_coverage_score, 4),
+    )
 
 
 def _build_verifier_prompt(
@@ -346,6 +508,43 @@ class GroundedAnswerVerifier:
         if parsed.verdict == "unsupported":
             final_answer = ""
 
+        grounded_claims: list[GroundedClaimResult] = []
+        for claim in list(parsed.claims)[:50]:
+            citation_indices = [ref.citation_index for ref in claim.citation_indices]
+            (
+                support_score,
+                source_quality_score,
+                rerank_score,
+                chunk_coverage_score,
+            ) = _claim_support_score(
+                status=claim.support_status,
+                citation_indices=citation_indices,
+                citations=list(citations or []),
+            )
+            grounded_claims.append(
+                GroundedClaimResult(
+                    claim_text=claim.claim_text.strip()[:600],
+                    support_status=claim.support_status,
+                    support_score=support_score,
+                    evidence_match_score=_evidence_match_score(claim.support_status),
+                    source_quality_score=source_quality_score,
+                    rerank_score=rerank_score,
+                    chunk_coverage_score=chunk_coverage_score,
+                    citation_indices=[
+                        idx for idx in citation_indices if 1 <= idx <= len(citations or [])
+                    ],
+                )
+            )
+
+        aggregate_support_score = (
+            round(
+                sum(claim.support_score for claim in grounded_claims) / len(grounded_claims),
+                4,
+            )
+            if grounded_claims
+            else verification_score
+        )
+
         # In strict mode, insufficient evidence is treated as not_found so the
         # caller can safely refuse rather than showing a thin answer.
         strict_refusal = mode == "strict" and (
@@ -374,6 +573,8 @@ class GroundedAnswerVerifier:
             unverifiable_claim_count=parsed.unverifiable_claim_count,
             removed_claims=list(parsed.removed_claims),
             reason_codes=list(parsed.reason_codes),
+            claims=grounded_claims,
+            aggregate_support_score=aggregate_support_score,
             final_answer=final_answer,
             model_name=settings.openai_llm_model,
             provider_key=settings.llm_default_provider,

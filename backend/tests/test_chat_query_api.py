@@ -1613,6 +1613,8 @@ async def test_post_chat_strict_grounded_verification_refuses_low_support_answer
     assert payload["verification_failed"] is True
     assert payload["trust_metadata"]["grounded_verification"]["mode"] == "strict"
     assert payload["trust_metadata"]["grounded_verification"]["threshold"] == 0.8
+    assert "aggregate_support_score" in payload["trust_metadata"]["grounded_verification"]
+    assert isinstance(payload["trust_metadata"]["grounded_verification"].get("claims", []), list)
     assert payload["trust_metadata"]["grounded_verification"]["supported_count"] == 1
     assert payload["trust_metadata"]["grounded_verification"]["unsupported_count"] == 1
 

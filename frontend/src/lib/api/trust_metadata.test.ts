@@ -15,14 +15,9 @@ import { ApiClientError } from "@/lib/api/errors";
 import {
   getAnswerTrustMetadata,
   type AnswerTrustMetadataResponse,
+  type ClaimSupportRecord,
   type CitationTrustRecord,
-  type ConfidenceTrustRecord,
   type ModelMetadataRecord,
-  type RetrievalDiagnosticsRecord,
-  type GroundedVerificationRecord,
-  type ConflictStatusRecord,
-  type PolicyEnforcementRecord,
-  type SourceFreshnessRecord,
 } from "@/lib/api/trust_metadata";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -90,11 +85,15 @@ function buildTrustMetadata(
     },
     grounded_verification: {
       applied: false,
+      aggregate_support_score: 0.0,
       claim_count: 0,
       supported_count: 0,
+      partially_supported_count: 0,
       unsupported_count: 0,
+      unverifiable_count: 0,
       removed_count: 0,
       reason_codes: [],
+      claims: [],
     },
     model: {
       llm_model: "gpt-4o",
@@ -196,9 +195,7 @@ describe("getAnswerTrustMetadata", () => {
   });
 
   it("throws ApiClientError on 403", async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ detail: "Forbidden" }, 403),
-    );
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: "Forbidden" }, 403));
 
     await expect(getAnswerTrustMetadata("msg-forbidden")).rejects.toThrow(
       ApiClientError,
@@ -211,11 +208,27 @@ describe("getAnswerTrustMetadata", () => {
         applied: true,
         verdict: "partially_supported",
         score: 0.7,
+        aggregate_support_score: 0.72,
         claim_count: 5,
         supported_count: 3,
+        partially_supported_count: 1,
         unsupported_count: 2,
+        unverifiable_count: 0,
         removed_count: 1,
         reason_codes: ["low_overlap"],
+        claims: [
+          {
+            claim_index: 1,
+            claim_text: "Employees receive 20 days of annual leave.",
+            support_status: "supported",
+            support_score: 0.92,
+            evidence_match_score: 1.0,
+            source_quality_score: 0.92,
+            rerank_score: 0.9,
+            chunk_coverage_score: 0.5,
+            citation_indices: [1, 2],
+          } satisfies ClaimSupportRecord,
+        ],
       },
     });
     fetchMock.mockResolvedValueOnce(jsonResponse(data));
@@ -270,7 +283,8 @@ describe("getAnswerTrustMetadata", () => {
     const data = buildTrustMetadata({
       freshness: {
         warning: true,
-        warning_reason: "One or more citations come from stale, expired, or archived sources.",
+        warning_reason:
+          "One or more citations come from stale, expired, or archived sources.",
         stale_count: 2,
         excluded_count: 1,
         boosted_count: 0,

@@ -1,3 +1,5 @@
+import pytest
+
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 
 
@@ -93,3 +95,30 @@ def test_confidence_service_penalizes_invalid_citations() -> None:
 
     assert invalid_citations.score < strong_retrieval.score
     assert invalid_citations.category in {"low", "medium"}
+
+
+def test_confidence_service_accepts_citation_support_override() -> None:
+    service = ConfidenceService()
+
+    baseline = service.score(
+        chunks=[
+            ConfidenceChunkSignal(similarity_score=0.92, rerank_score=0.9),
+            ConfidenceChunkSignal(similarity_score=0.9, rerank_score=0.88),
+        ],
+        citation_count=2,
+        citation_validation_score=1.0,
+        not_found_signal=False,
+    )
+    overridden = service.score(
+        chunks=[
+            ConfidenceChunkSignal(similarity_score=0.92, rerank_score=0.9),
+            ConfidenceChunkSignal(similarity_score=0.9, rerank_score=0.88),
+        ],
+        citation_count=2,
+        citation_validation_score=1.0,
+        not_found_signal=False,
+        citation_support_score_override=0.2,
+    )
+
+    assert overridden.score < baseline.score
+    assert overridden.explanation.citation_support_score == pytest.approx(0.2)

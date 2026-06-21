@@ -141,6 +141,7 @@ class ConfidenceService:
         citation_count: int,
         citation_validation_score: float,
         not_found_signal: bool,
+        citation_support_score_override: float | None = None,
     ) -> ConfidenceResult:
         if not chunks:
             explanation = ConfidenceExplanation(
@@ -178,7 +179,12 @@ class ConfidenceService:
         citation_validation = self._clamp(citation_validation_score)
         coverage_denominator = max(1, min(self.citation_coverage_target, len(chunks)))
         citation_coverage_score = self._clamp(citation_count / coverage_denominator)
-        citation_support_score = self._clamp((citation_validation + citation_coverage_score) / 2)
+        if citation_support_score_override is None:
+            citation_support_score = self._clamp(
+                (citation_validation + citation_coverage_score) / 2
+            )
+        else:
+            citation_support_score = self._clamp(citation_support_score_override)
 
         raw_score = (
             (self.weights.top_similarity * top_similarity)
