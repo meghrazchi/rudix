@@ -507,7 +507,12 @@ class ConfidenceService:
         citation_validation_multiplier = citation_validation
         penalty_multiplier = self.not_found_penalty_multiplier if not_found_signal else 1.0
         score = self._clamp(
-            raw_score * freshness_m * ocr_m * conflict_m * citation_validation_multiplier * penalty_multiplier
+            raw_score
+            * freshness_m
+            * ocr_m
+            * conflict_m
+            * citation_validation_multiplier
+            * penalty_multiplier
         )
 
         trust_level = _resolve_trust_level(score)

@@ -1204,16 +1204,13 @@ def _build_trust_metadata(
     """
     expl = confidence_explanation
 
-    source_freshness_warning = (
-        freshness_all_excluded_fallback
-        or any(
-            getattr(c, "doc_stale_warning", False)
-            or getattr(c, "doc_expired_warning", False)
-            or getattr(c, "doc_is_excluded_status", False)
-            or getattr(c, "doc_unreviewed_warning", False)
-            or getattr(c, "doc_deprecated_warning", False)
-            for c in citations
-        )
+    source_freshness_warning = freshness_all_excluded_fallback or any(
+        getattr(c, "doc_stale_warning", False)
+        or getattr(c, "doc_expired_warning", False)
+        or getattr(c, "doc_is_excluded_status", False)
+        or getattr(c, "doc_unreviewed_warning", False)
+        or getattr(c, "doc_deprecated_warning", False)
+        for c in citations
     )
 
     citation_records = [

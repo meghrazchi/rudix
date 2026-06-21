@@ -209,7 +209,9 @@ def test_graph_evidence_boosts_confidence() -> None:
     )
 
     assert with_graph.score > no_graph.score
-    assert with_graph.explanation.graph_evidence_boost == pytest.approx(service.graph_evidence_boost)
+    assert with_graph.explanation.graph_evidence_boost == pytest.approx(
+        service.graph_evidence_boost
+    )
 
 
 def test_graph_evidence_boost_zero_when_not_used() -> None:

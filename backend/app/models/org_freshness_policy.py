@@ -26,10 +26,22 @@ class OrgFreshnessPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "org_freshness_policies"
     __table_args__ = (
         UniqueConstraint("organization_id", name="uq_org_freshness_policy_org"),
-        CheckConstraint("warn_stale_after_days IS NULL OR warn_stale_after_days >= 1", name="ck_ofp_stale_days_min"),
-        CheckConstraint("warn_stale_after_days IS NULL OR warn_stale_after_days <= 3650", name="ck_ofp_stale_days_max"),
-        CheckConstraint("warn_unreviewed_after_days IS NULL OR warn_unreviewed_after_days >= 1", name="ck_ofp_unreviewed_days_min"),
-        CheckConstraint("warn_unreviewed_after_days IS NULL OR warn_unreviewed_after_days <= 3650", name="ck_ofp_unreviewed_days_max"),
+        CheckConstraint(
+            "warn_stale_after_days IS NULL OR warn_stale_after_days >= 1",
+            name="ck_ofp_stale_days_min",
+        ),
+        CheckConstraint(
+            "warn_stale_after_days IS NULL OR warn_stale_after_days <= 3650",
+            name="ck_ofp_stale_days_max",
+        ),
+        CheckConstraint(
+            "warn_unreviewed_after_days IS NULL OR warn_unreviewed_after_days >= 1",
+            name="ck_ofp_unreviewed_days_min",
+        ),
+        CheckConstraint(
+            "warn_unreviewed_after_days IS NULL OR warn_unreviewed_after_days <= 3650",
+            name="ck_ofp_unreviewed_days_max",
+        ),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -48,10 +60,14 @@ class OrgFreshnessPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # Whether deprecated/superseded/archived sources are excluded from
     # retrieval by default.  When False, they are included with a warning.
-    auto_exclude_deprecated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    auto_exclude_deprecated: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
 
     # Whether expired sources are excluded from retrieval by default.
-    auto_exclude_expired: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    auto_exclude_expired: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
 
     # Optional label for this policy config (admin notes only).
     label: Mapped[str | None] = mapped_column(String(255), nullable=True)

@@ -110,7 +110,9 @@ async def list_metadata_fields(
     include_inactive: bool = Query(default=False),
 ) -> MetadataFieldListResponse:
     org_id = _org_id(principal)
-    fields = await _field_repo.list_all(db, organization_id=org_id, include_inactive=include_inactive)
+    fields = await _field_repo.list_all(
+        db, organization_id=org_id, include_inactive=include_inactive
+    )
     total = await _field_repo.count(db, organization_id=org_id, include_inactive=include_inactive)
     return MetadataFieldListResponse(
         items=[_field_to_response(f) for f in fields],
@@ -387,7 +389,7 @@ async def filter_documents_by_metadata(
             description="Repeated param: field_id:value",
             max_length=50,
         ),
-    ]
+    ],
 ) -> dict:
     """Return document IDs that satisfy ALL provided metadata filters.
 

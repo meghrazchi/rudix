@@ -497,6 +497,10 @@ def test_full_scenario_mixed_states() -> None:
     assert svc.derive_freshness_state(trust_map[str(current_doc.id)], today=_TODAY) == "current"
     assert svc.derive_freshness_state(trust_map[str(stale_doc.id)], today=_TODAY) == "stale"
     assert svc.derive_freshness_state(trust_map[str(expired_doc.id)], today=_TODAY) == "expired"
-    assert svc.derive_freshness_state(trust_map[str(deprecated_doc.id)], today=_TODAY) == "deprecated"
-    assert svc.derive_freshness_state(trust_map[str(unreviewed_doc.id)], today=_TODAY) == "unreviewed"
+    assert (
+        svc.derive_freshness_state(trust_map[str(deprecated_doc.id)], today=_TODAY) == "deprecated"
+    )
+    assert (
+        svc.derive_freshness_state(trust_map[str(unreviewed_doc.id)], today=_TODAY) == "unreviewed"
+    )
     assert svc.derive_freshness_state(trust_map[str(draft_doc.id)], today=_TODAY) == "draft"

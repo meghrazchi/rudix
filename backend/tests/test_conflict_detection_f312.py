@@ -82,6 +82,7 @@ def _make_citation(
 # ConflictDetectionService — additional edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestConflictDetectionServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_partial_agreement_level_returned(self) -> None:
@@ -92,12 +93,16 @@ class TestConflictDetectionServiceEdgeCases:
         )
         chunks = [
             ConflictDetectionChunk(
-                chunk_id="c1", document_id="doc-a",
-                text="Leave is 20 days.", trust_status="current",
+                chunk_id="c1",
+                document_id="doc-a",
+                text="Leave is 20 days.",
+                trust_status="current",
             ),
             ConflictDetectionChunk(
-                chunk_id="c2", document_id="doc-b",
-                text="Annual leave is approximately 20 days.", trust_status="current",
+                chunk_id="c2",
+                document_id="doc-b",
+                text="Annual leave is approximately 20 days.",
+                trust_status="current",
             ),
         ]
         with patch(
@@ -120,12 +125,16 @@ class TestConflictDetectionServiceEdgeCases:
         )
         chunks = [
             ConflictDetectionChunk(
-                chunk_id="c1", document_id="doc-a",
-                text="Policy A.", trust_status="current",
+                chunk_id="c1",
+                document_id="doc-a",
+                text="Policy A.",
+                trust_status="current",
             ),
             ConflictDetectionChunk(
-                chunk_id="c2", document_id="doc-b",
-                text="Policy B.", trust_status="current",
+                chunk_id="c2",
+                document_id="doc-b",
+                text="Policy B.",
+                trust_status="current",
             ),
         ]
         with patch(
@@ -153,12 +162,16 @@ class TestConflictDetectionServiceEdgeCases:
         )
         chunks = [
             ConflictDetectionChunk(
-                chunk_id="c1", document_id="doc-a",
-                text="Effective from May 1.", trust_status="current",
+                chunk_id="c1",
+                document_id="doc-a",
+                text="Effective from May 1.",
+                trust_status="current",
             ),
             ConflictDetectionChunk(
-                chunk_id="c2", document_id="doc-b",
-                text="Effective from June 1.", trust_status="current",
+                chunk_id="c2",
+                document_id="doc-b",
+                text="Effective from June 1.",
+                trust_status="current",
             ),
         ]
         with patch(
@@ -182,12 +195,16 @@ class TestConflictDetectionServiceEdgeCases:
         )
         chunks = [
             ConflictDetectionChunk(
-                chunk_id="c1", document_id="doc-a",
-                text="Price is 100.", trust_status="current",
+                chunk_id="c1",
+                document_id="doc-a",
+                text="Price is 100.",
+                trust_status="current",
             ),
             ConflictDetectionChunk(
-                chunk_id="c2", document_id="doc-b",
-                text="Price is 200.", trust_status="current",
+                chunk_id="c2",
+                document_id="doc-b",
+                text="Price is 200.",
+                trust_status="current",
             ),
         ]
         with patch(
@@ -211,12 +228,16 @@ class TestConflictDetectionServiceEdgeCases:
         )
         chunks = [
             ConflictDetectionChunk(
-                chunk_id="c1", document_id="doc-stale",
-                text="Old policy.", trust_status="stale",
+                chunk_id="c1",
+                document_id="doc-stale",
+                text="Old policy.",
+                trust_status="stale",
             ),
             ConflictDetectionChunk(
-                chunk_id="c2", document_id="doc-verified",
-                text="New policy.", trust_status="verified",
+                chunk_id="c2",
+                document_id="doc-verified",
+                text="New policy.",
+                trust_status="verified",
             ),
         ]
         with patch(
@@ -232,12 +253,16 @@ class TestConflictDetectionServiceEdgeCases:
         svc = _make_service()
         chunks = [
             ConflictDetectionChunk(
-                chunk_id="c1", document_id="doc-only",
-                text="Single document.", trust_status="current",
+                chunk_id="c1",
+                document_id="doc-only",
+                text="Single document.",
+                trust_status="current",
             ),
             ConflictDetectionChunk(
-                chunk_id="c2", document_id="doc-only",
-                text="Same document, second chunk.", trust_status="current",
+                chunk_id="c2",
+                document_id="doc-only",
+                text="Same document, second chunk.",
+                trust_status="current",
             ),
         ]
         result = await svc.detect(chunks=chunks, min_source_docs=2)
@@ -253,12 +278,16 @@ class TestConflictDetectionServiceEdgeCases:
         )
         chunks = [
             ConflictDetectionChunk(
-                chunk_id="c1", document_id="doc-a",
-                text="Leave is 20 days.", trust_status="current",
+                chunk_id="c1",
+                document_id="doc-a",
+                text="Leave is 20 days.",
+                trust_status="current",
             ),
             ConflictDetectionChunk(
-                chunk_id="c2", document_id="doc-b",
-                text="Employees have 20 leave days.", trust_status="current",
+                chunk_id="c2",
+                document_id="doc-b",
+                text="Employees have 20 leave days.",
+                trust_status="current",
             ),
         ]
         with patch(
@@ -284,12 +313,16 @@ class TestConflictDetectionServiceEdgeCases:
         )
         chunks = [
             ConflictDetectionChunk(
-                chunk_id="c1", document_id="doc-a",
-                text="Rate 5%.", trust_status="current",
+                chunk_id="c1",
+                document_id="doc-a",
+                text="Rate 5%.",
+                trust_status="current",
             ),
             ConflictDetectionChunk(
-                chunk_id="c2", document_id="doc-b",
-                text="Rate 7%.", trust_status="current",
+                chunk_id="c2",
+                document_id="doc-b",
+                text="Rate 7%.",
+                trust_status="current",
             ),
         ]
         with patch(
@@ -305,6 +338,7 @@ class TestConflictDetectionServiceEdgeCases:
 # ---------------------------------------------------------------------------
 # _compute_conflict_multiplier
 # ---------------------------------------------------------------------------
+
 
 class TestComputeConflictMultiplier:
     def test_full_agreement_returns_one(self) -> None:
@@ -331,7 +365,9 @@ class TestComputeConflictMultiplier:
             conflict_detected=True,
             agreement_level="conflicting",
         )
-        assert _compute_conflict_multiplier(conflicting_result) <= _compute_conflict_multiplier(partial_result)
+        assert _compute_conflict_multiplier(conflicting_result) <= _compute_conflict_multiplier(
+            partial_result
+        )
 
     def test_result_clamped_to_zero_or_above(self) -> None:
         result = ConflictDetectionResult(
@@ -352,6 +388,7 @@ class TestComputeConflictMultiplier:
 # ---------------------------------------------------------------------------
 # _with_conflict_status
 # ---------------------------------------------------------------------------
+
 
 class TestWithConflictStatus:
     def test_preferred_citation_gets_preferred_status(self) -> None:
@@ -414,6 +451,7 @@ class TestWithConflictStatus:
 # ---------------------------------------------------------------------------
 # _build_conflict_context
 # ---------------------------------------------------------------------------
+
 
 class TestBuildConflictContext:
     def test_full_agreement_returns_empty_string(self) -> None:
@@ -501,6 +539,7 @@ class TestBuildConflictContext:
 # ---------------------------------------------------------------------------
 # ConflictStatusRecord trust metadata DTO
 # ---------------------------------------------------------------------------
+
 
 class TestConflictStatusRecord:
     def test_defaults_to_full_no_conflict(self) -> None:

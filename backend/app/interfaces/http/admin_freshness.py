@@ -122,9 +122,7 @@ async def get_freshness_thresholds(
 ) -> FreshnessThresholdsResponse:
     organization_id = _org_id(principal)
     result = await db_session.execute(
-        select(OrgFreshnessPolicy).where(
-            OrgFreshnessPolicy.organization_id == organization_id
-        )
+        select(OrgFreshnessPolicy).where(OrgFreshnessPolicy.organization_id == organization_id)
     )
     policy = result.scalar_one_or_none()
     return _policy_to_response(policy, organization_id)
@@ -151,9 +149,7 @@ async def patch_freshness_thresholds(
 ) -> FreshnessThresholdsResponse:
     organization_id = _org_id(principal)
     result = await db_session.execute(
-        select(OrgFreshnessPolicy).where(
-            OrgFreshnessPolicy.organization_id == organization_id
-        )
+        select(OrgFreshnessPolicy).where(OrgFreshnessPolicy.organization_id == organization_id)
     )
     policy = result.scalar_one_or_none()
 
