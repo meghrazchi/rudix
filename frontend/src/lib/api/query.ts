@@ -339,6 +339,16 @@ export const queryKeys = {
     gaps: (params?: Record<string, unknown>) =>
       ["query-analytics", "gaps", params ?? {}] as const,
   },
+  aiResponsePolicy: {
+    all: ["admin", "ai-response-policy"] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["admin", "ai-response-policy", "list", params ?? {}] as const,
+    active: ["admin", "ai-response-policy", "active"] as const,
+    detail: (policyId: string) =>
+      ["admin", "ai-response-policy", "detail", policyId] as const,
+    logs: (params?: Record<string, unknown>) =>
+      ["admin", "ai-response-policy", "logs", params ?? {}] as const,
+  },
   connectorProviders: ["connectors", "providers"] as const,
   connectorProvider: (key: string) => ["connectors", "providers", key] as const,
   connectorDiscovery: (
@@ -422,7 +432,14 @@ export type FrontendMutationKind =
   | "metadata.field.update"
   | "metadata.field.delete"
   | "metadata.document.set"
-  | "metadata.bulk-set";
+  | "metadata.bulk-set"
+  | "ai-response-policy.create"
+  | "ai-response-policy.update"
+  | "ai-response-policy.delete"
+  | "ai-response-policy.activate"
+  | "ai-response-policy.deactivate"
+  | "ai-response-policy.collection-override.upsert"
+  | "ai-response-policy.collection-override.delete";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -667,6 +684,21 @@ export async function invalidateAfterMutation(
         Array.isArray(query.queryKey) &&
         query.queryKey[0] === "rag-profiles" &&
         query.queryKey[1] === "resolve",
+    });
+    return;
+  }
+
+  if (
+    kind === "ai-response-policy.create" ||
+    kind === "ai-response-policy.update" ||
+    kind === "ai-response-policy.delete" ||
+    kind === "ai-response-policy.activate" ||
+    kind === "ai-response-policy.deactivate" ||
+    kind === "ai-response-policy.collection-override.upsert" ||
+    kind === "ai-response-policy.collection-override.delete"
+  ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.aiResponsePolicy.all,
     });
     return;
   }

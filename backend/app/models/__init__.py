@@ -1,3 +1,8 @@
+from app.models.ai_response_policy import (
+    CollectionAiResponsePolicyOverride,
+    OrgAiResponsePolicy,
+    PolicyEvaluationLog,
+)
 from app.models.ab_experiment import (
     AbExperiment,
     AbExperimentRun,
@@ -81,6 +86,9 @@ __all__ = [
     "AgentToolCall",
     "AgentToolPolicyOverride",
     "AnswerShare",
+    "CollectionAiResponsePolicyOverride",
+    "OrgAiResponsePolicy",
+    "PolicyEvaluationLog",
     "AuditLog",
     "AuthRefreshSession",
     "AuthorizationConflict",

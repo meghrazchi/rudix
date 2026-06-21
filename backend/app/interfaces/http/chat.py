@@ -149,6 +149,13 @@ from app.domains.chat.services.table_retrieval_service import (
     TableBoostResult,
     TableRetrievalService,
 )
+from app.domains.ai_response_policy.repositories.ai_response_policy import (
+    AiResponsePolicyRepository,
+)
+from app.domains.ai_response_policy.services.policy_engine import (
+    AiResponsePolicyEngine,
+    PolicyEvaluationResult as AiPolicyEvaluationResult,
+)
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.repositories.documents import DocumentRepository as _DocumentRepository
 from app.domains.documents.services.ocr_quality_service import OcrQualityService
@@ -267,6 +274,8 @@ _table_retrieval_service = TableRetrievalService()
 _ocr_quality_service = OcrQualityService()
 _parent_context_expansion_service = ParentContextExpansionService()
 _document_repository_for_trust = _DocumentRepository()
+_ai_policy_repo = AiResponsePolicyRepository()
+_ai_policy_engine = AiResponsePolicyEngine()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 _query_retrieval_service._embedding_provider = _EmbeddingProviderProxy()
 
@@ -1480,6 +1489,38 @@ async def query_chat(
             reasons=injection_check.reasons,
         )
 
+    # AI response policy pre-generation check — topic blocking (F268).
+    _ai_org_policy = await _ai_policy_repo.get_active(
+        db_session, organization_id=organization_id
+    )
+    # Resolve collection override when the query is scoped to a single collection.
+    _ai_collection_override = None
+    _ai_policy_collection_id: UUID | None = None
+    if _ai_org_policy is not None and payload.source_scope is not None:
+        # source_scope may be a collection-id string when scoping to one collection.
+        try:
+            _ai_policy_collection_id = UUID(str(payload.source_scope))
+            _ai_collection_override = await _ai_policy_repo.get_collection_override(
+                db_session,
+                org_policy_id=_ai_org_policy.id,
+                collection_id=_ai_policy_collection_id,
+            )
+        except (ValueError, AttributeError):
+            pass
+    _ai_effective_policy = _ai_policy_engine.resolve(_ai_org_policy, _ai_collection_override)
+    _ai_pre_result = _ai_policy_engine.evaluate_pre_generation(
+        payload.question, _ai_effective_policy
+    )
+    if _ai_pre_result.blocked and not injection_check.blocked:
+        log_query_event(
+            event="query.rejected.policy_topic_blocked",
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            job_id=str(chat_session.id),
+            status_code=status.HTTP_200_OK,
+            violated_rules=_ai_pre_result.violated_rules,
+        )
+
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
     embedding_model = _query_retrieval_service.embedding_model
@@ -1512,7 +1553,7 @@ async def query_chat(
     llm_latency_ms = 0
     answer = _NOT_FOUND_ANSWER
     citations: list[ChatCitationResponse] = []
-    not_found = injection_check.blocked
+    not_found = injection_check.blocked or _ai_pre_result.blocked
     citation_validation_failed = False
     verification_failed = False
     grounded_verifier_result: GroundedVerifierResult | None = None
@@ -1548,6 +1589,8 @@ async def query_chat(
         conflict_detected=False,
         agreement_level="full",
     )
+    # AI response policy state (F268)
+    _ai_policy_result: AiPolicyEvaluationResult = AiPolicyEvaluationResult()
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -1605,9 +1648,12 @@ async def query_chat(
                 sub_query_count=len(query_rewrite_result.sub_queries),
             )
 
-    if injection_check.blocked:
-        # Question matched injection heuristics: return safe not-found without LLM call.
+    if injection_check.blocked or _ai_pre_result.blocked:
+        # Question blocked by injection heuristics or AI response policy topic check.
         embedding_model = None
+        if _ai_pre_result.blocked and not injection_check.blocked:
+            _ai_policy_result = _ai_pre_result
+            answer = _ai_pre_result.refusal_message or _NOT_FOUND_ANSWER
         confidence_signals = _to_confidence_signals(chunks=[], rerank_applied=False)
         confidence_result = _confidence_service.score(
             chunks=confidence_signals,
@@ -2348,6 +2394,37 @@ async def query_chat(
                 confidence_explanation = confidence_result.explanation
 
     latencies_ms["llm"] = llm_latency_ms
+
+    # AI response policy post-generation check (F268) — citation, confidence, stale sources.
+    # Only run when the pre-generation check did not already block the response.
+    if not _ai_pre_result.blocked and not injection_check.blocked:
+        _ai_post_result = _ai_policy_engine.evaluate_post_generation(
+            confidence_score=confidence_score,
+            citation_count=len(citations),
+            stale_source_count=freshness_stale_count,
+            not_found=not_found,
+            effective_policy=_ai_effective_policy,
+        )
+        if _ai_post_result.blocked:
+            _ai_policy_result = _ai_post_result
+            answer = _ai_post_result.refusal_message or _NOT_FOUND_ANSWER
+            not_found = True
+            citations = []
+            log_query_event(
+                event="query.rejected.policy_post_generation",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                job_id=str(chat_session.id),
+                status_code=status.HTTP_200_OK,
+                violated_rules=_ai_post_result.violated_rules,
+            )
+        elif _ai_post_result.warned:
+            _ai_policy_result = _ai_post_result
+
+    # Apply disclaimer to the answer when policy is active and answer is not blocked.
+    if not not_found and _ai_effective_policy.source != "none":
+        answer = _ai_policy_engine.apply_disclaimer(answer, _ai_policy_result)
+
     answer_latency_ms = int((perf_counter() - total_started) * 1000)
     rerank_diagnostics = rerank_result.diagnostics if rerank_result is not None else None
 
@@ -2528,6 +2605,29 @@ async def query_chat(
             },
         )
 
+        # Persist policy evaluation log for audit / observability (F268).
+        if _ai_effective_policy.source != "none":
+            await _ai_policy_repo.create_eval_log(
+                db_session,
+                organization_id=organization_id,
+                user_id=user_id,
+                org_policy_id=UUID(_ai_effective_policy.policy_id)
+                if _ai_effective_policy.policy_id
+                else None,
+                collection_id=_ai_policy_collection_id,
+                chat_session_id=chat_session.id,
+                chat_message_id=assistant_message.id,
+                outcome=_ai_policy_result.outcome,
+                policy_source=_ai_policy_result.policy_source,
+                violated_rules=_ai_policy_result.violated_rules,
+                warning_flags=_ai_policy_result.warning_flags,
+                question_preview=payload.question[:256],
+                confidence_score=confidence_score,
+                citation_count=len(citations),
+                stale_source_count=freshness_stale_count,
+                is_preview_run=False,
+            )
+
         await plan_enforcement_service.record_usage(
             db_session,
             organization_id=organization_id,
@@ -2690,6 +2790,13 @@ async def query_chat(
             )
             else None
         ),
+        policy_applied=_ai_effective_policy.source != "none",
+        policy_outcome=_ai_policy_result.outcome if _ai_effective_policy.source != "none" else None,
+        policy_violated_rules=_ai_policy_result.violated_rules,
+        policy_warning_flags=_ai_policy_result.warning_flags,
+        policy_disclaimer=_ai_policy_result.disclaimer_text
+        if not _ai_policy_result.blocked
+        else None,
         debug=ChatDebugResponse(
             latencies_ms=latencies_ms,
             retrieval_count=len(retrieved_chunks),

@@ -360,5 +360,11 @@ class ChatQueryResponse(BaseModel):
     conflict_pairs: list[ChatConflictPairResponse] = Field(default_factory=list)
     source_freshness_warning: bool = False
     source_freshness_warning_reason: str | None = None
+    # AI response policy (F268)
+    policy_applied: bool = False
+    policy_outcome: str | None = None  # "allowed" | "blocked" | "warned"
+    policy_violated_rules: list[str] = Field(default_factory=list)
+    policy_warning_flags: list[str] = Field(default_factory=list)
+    policy_disclaimer: str | None = None
     debug: ChatDebugResponse
     created_at: datetime

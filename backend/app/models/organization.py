@@ -107,3 +107,8 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     knowledge_gaps = relationship(
         "KnowledgeGap", back_populates="organization", cascade="all, delete-orphan"
     )
+    ai_response_policies = relationship(
+        "OrgAiResponsePolicy",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
