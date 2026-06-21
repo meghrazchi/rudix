@@ -360,3 +360,12 @@ class AbVariantApprovalStatus(StrEnum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
+
+
+class DocumentVersionChangeReason(StrEnum):
+    initial_upload = "initial_upload"
+    content_update = "content_update"
+    metadata_update = "metadata_update"
+    connector_sync = "connector_sync"
+    reindex = "reindex"
+    tombstone = "tombstone"

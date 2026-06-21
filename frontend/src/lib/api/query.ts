@@ -101,6 +101,8 @@ export const queryKeys = {
       ["documents", "status", documentId] as const,
     chunks: (documentId: string, params?: Record<string, unknown>) =>
       ["documents", "chunks", documentId, params ?? {}] as const,
+    versions: (documentId: string) =>
+      ["documents", "versions", documentId] as const,
   },
   chat: {
     sessions: ["chat", "sessions"] as const,

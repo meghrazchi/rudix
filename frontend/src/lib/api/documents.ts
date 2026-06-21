@@ -526,6 +526,52 @@ export async function configureDocumentOcr(
   );
 }
 
+// ---------------------------------------------------------------------------
+// Document versioning (F253)
+// ---------------------------------------------------------------------------
+
+export type DocumentVersionResponse = {
+  version_id: string;
+  document_id: string;
+  version_number: number;
+  change_reason:
+    | "initial_upload"
+    | "content_update"
+    | "metadata_update"
+    | "connector_sync"
+    | "reindex"
+    | "tombstone";
+  content_hash?: string | null;
+  extraction_hash?: string | null;
+  chunking_profile_snapshot?: Record<string, unknown> | null;
+  embedding_model?: string | null;
+  embedding_vector_dimension?: number | null;
+  index_version?: string | null;
+  filename: string;
+  page_count?: number | null;
+  chunk_count?: number | null;
+  status: string;
+  indexed_at?: string | null;
+  is_current: boolean;
+  source_updated_at?: string | null;
+  created_by_user_id?: string | null;
+  created_at: string;
+};
+
+export type DocumentVersionListResponse = {
+  document_id: string;
+  items: DocumentVersionResponse[];
+  total: number;
+};
+
+export async function getDocumentVersions(
+  documentId: string,
+): Promise<DocumentVersionListResponse> {
+  return apiRequest<DocumentVersionListResponse>(
+    `/documents/${encodeURIComponent(documentId)}/versions`,
+  );
+}
+
 export const OCR_LANGUAGES: ReadonlyArray<{
   code: string;
   label: string;

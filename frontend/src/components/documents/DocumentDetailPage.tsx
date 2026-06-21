@@ -13,6 +13,7 @@ import { LoadingState } from "@/components/states/LoadingState";
 import { DocumentChunkingDiagnosticsPanel } from "@/components/documents/DocumentChunkingDiagnosticsPanel";
 import { DocumentExtractionDiagnosticsPanel } from "@/components/documents/DocumentExtractionDiagnosticsPanel";
 import { DocumentGraphInsightsPanel } from "@/components/documents/DocumentGraphInsightsPanel";
+import { DocumentVersionHistoryPanel } from "@/components/documents/DocumentVersionHistoryPanel";
 import type {
   DocumentDetailResponse,
   DocumentLifecycleTimelineStepResponse,
@@ -70,7 +71,7 @@ type TimelineStep = {
   outputs: Record<string, unknown> | null;
 };
 
-type DetailTab = "overview" | "chunks" | "errors";
+type DetailTab = "overview" | "chunks" | "errors" | "versions";
 type MetadataCopyField = "document-id" | "checksum";
 
 type ErrorRow = {
@@ -1272,7 +1273,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
                 <section className="rounded-xl border border-[#e4e1f2] bg-white shadow-sm">
                   <div className="flex flex-wrap items-center border-b border-[#e9e6f5] px-4">
-                    {(["overview", "chunks", "errors"] as const).map(
+                    {(["overview", "chunks", "errors", "versions"] as const).map(
                       (tabKey) => (
                         <button
                           key={tabKey}
@@ -1290,7 +1291,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             ? td("tabOverview")
                             : tabKey === "chunks"
                               ? td("tabChunks")
-                              : td("tabErrors")}
+                              : tabKey === "versions"
+                                ? "Versions"
+                                : td("tabErrors")}
                           {tabKey === "errors" ? (
                             <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
                               {errorRows.length}
@@ -2207,6 +2210,22 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                               <li key={item}>{item}</li>
                             ))}
                           </ul>
+                        </div>
+                      </section>
+                    ) : null}
+
+                    {activeTab === "versions" ? (
+                      <section className="space-y-3">
+                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                          <h3 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Version history
+                          </h3>
+                          <p className="mb-4 text-xs text-[#69637f]">
+                            A new version is recorded on every upload and re-index. The{" "}
+                            <span className="font-semibold text-emerald-700">active</span> version
+                            is what the vector index currently serves.
+                          </p>
+                          <DocumentVersionHistoryPanel documentId={documentId} />
                         </div>
                       </section>
                     ) : null}

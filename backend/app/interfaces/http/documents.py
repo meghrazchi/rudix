@@ -67,6 +67,8 @@ from app.domains.documents.schemas.documents import (
     DocumentListResponse,
     DocumentSortBy,
     DocumentStatusResponse,
+    DocumentVersionListResponse,
+    DocumentVersionResponse,
     ReindexDocumentGraphResponse,
     ReindexDocumentResponse,
     SortOrder,
@@ -74,6 +76,7 @@ from app.domains.documents.schemas.documents import (
     UploadDocumentResponse,
     _parse_tags_string,
 )
+from app.domains.documents.services.version_service import get_document_versions
 from app.domains.documents.services.malware_scan import MalwareScanService
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_graph_service import (
@@ -1292,6 +1295,68 @@ async def get_document_status(
         error_message=safe_error_message,
         error_details=safe_error_details,
         updated_at=document.updated_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Document version history (F253)
+# ---------------------------------------------------------------------------
+
+
+def _version_response(ver: object) -> DocumentVersionResponse:
+    from app.models.document_version import DocumentVersion as _DV
+
+    v: _DV = ver  # type: ignore[assignment]
+    return DocumentVersionResponse(
+        version_id=str(v.id),
+        document_id=str(v.document_id),
+        version_number=v.version_number,
+        change_reason=v.change_reason,
+        content_hash=v.content_hash,
+        extraction_hash=v.extraction_hash,
+        chunking_profile_snapshot=v.chunking_profile_snapshot,
+        embedding_model=v.embedding_model,
+        embedding_vector_dimension=v.embedding_vector_dimension,
+        index_version=v.index_version,
+        filename=v.filename,
+        page_count=v.page_count,
+        chunk_count=v.chunk_count,
+        status=v.status,
+        indexed_at=v.indexed_at,
+        is_current=v.is_current,
+        source_updated_at=v.source_updated_at,
+        created_by_user_id=str(v.created_by_user_id) if v.created_by_user_id else None,
+        created_at=v.created_at,
+    )
+
+
+@router.get(
+    "/{document_id}/versions",
+    response_model=DocumentVersionListResponse,
+    summary="List document version history",
+)
+async def list_document_versions(
+    document_id: str,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.view))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> DocumentVersionListResponse:
+    """Return the full version history for a document, newest version first.
+
+    Versions are scoped to the calling user's organization so cross-org leakage
+    is impossible even if document_id is guessed.
+    """
+    del document_id
+    _user_id, organization_id = _principal_user_and_org(principal)
+    versions = await get_document_versions(
+        db_session,
+        document_id=document.id,
+        organization_id=organization_id,
+    )
+    return DocumentVersionListResponse(
+        document_id=str(document.id),
+        items=[_version_response(v) for v in versions],
+        total=len(versions),
     )
 
 

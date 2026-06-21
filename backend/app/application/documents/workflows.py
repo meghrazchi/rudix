@@ -24,6 +24,8 @@ from app.domains.documents.schemas.documents import (
 from app.domains.documents.services.duplicate_detection import check_for_duplicate
 from app.domains.documents.services.malware_scan import MalwareScanResult, MalwareScanService
 from app.domains.documents.services.upload_validation import validate_upload
+from app.domains.documents.services.version_service import create_document_version
+from app.models.enums import DocumentVersionChangeReason
 from app.domains.quota.schemas.quota_schemas import QuotaType
 from app.domains.quota.services.plan_enforcement_service import PlanEnforcementService
 from app.models.collection import Collection, CollectionDocument
@@ -394,6 +396,13 @@ async def upload_document_workflow(
                 if duplicate_result.existing_document_id
                 else None,
             },
+        )
+        await create_document_version(
+            db_session,
+            document=document,
+            change_reason=DocumentVersionChangeReason.initial_upload,
+            content_hash=validated.checksum_sha256,
+            created_by_user_id=user_id,
         )
         await db_session.commit()
         await db_session.refresh(document)
@@ -997,6 +1006,13 @@ async def reindex_document_workflow(
             else None,
             "force": force,
         },
+    )
+    await create_document_version(
+        db_session,
+        document=document,
+        change_reason=DocumentVersionChangeReason.reindex,
+        created_by_user_id=actor_user_id,
+        chunking_profile_snapshot=chunking_profile_config,
     )
     await db_session.commit()
 

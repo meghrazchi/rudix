@@ -365,3 +365,31 @@ class DocumentChunksResponse(BaseModel):
     limit: int
     offset: int
     include_full_text: bool = False
+
+
+class DocumentVersionResponse(BaseModel):
+    version_id: str
+    document_id: str
+    version_number: int
+    change_reason: str
+    content_hash: str | None = None
+    extraction_hash: str | None = None
+    chunking_profile_snapshot: dict | None = None
+    embedding_model: str | None = None
+    embedding_vector_dimension: int | None = None
+    index_version: str | None = None
+    filename: str
+    page_count: int | None = None
+    chunk_count: int | None = None
+    status: str
+    indexed_at: datetime | None = None
+    is_current: bool
+    source_updated_at: datetime | None = None
+    created_by_user_id: str | None = None
+    created_at: datetime
+
+
+class DocumentVersionListResponse(BaseModel):
+    document_id: str
+    items: list[DocumentVersionResponse]
+    total: int

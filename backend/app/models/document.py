@@ -27,6 +27,8 @@ from app.models.enums import (
     GraphExtractionStatus,
 )
 
+# DocumentVersion is imported at the bottom to avoid the circular FK reference.
+
 
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "documents"
@@ -180,6 +182,13 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
     )
     stale_after_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Document versioning (F253): FK to the DocumentVersion row that is currently
+    # active in the vector index. NULL until first successful indexing cycle.
+    current_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("document_versions.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+    )
 
     organization = relationship("Organization", back_populates="documents")
     uploader = relationship(
@@ -194,6 +203,13 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     pipeline_runs = relationship("PipelineRun", back_populates="document")
     collection_memberships = relationship(
         "CollectionDocument", back_populates="document", cascade="all, delete-orphan"
+    )
+    versions = relationship(
+        "DocumentVersion",
+        back_populates="document",
+        foreign_keys="DocumentVersion.document_id",
+        order_by="DocumentVersion.version_number",
+        cascade="all, delete-orphan",
     )
 
     def __init__(self, **kwargs: object) -> None:
