@@ -3,8 +3,6 @@ from typing import Annotated, Literal
 from urllib.parse import quote
 from uuid import UUID
 
-from pydantic import BaseModel
-
 from fastapi import (
     APIRouter,
     Depends,
@@ -17,6 +15,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,8 +75,8 @@ from app.domains.documents.schemas.documents import (
     UploadDocumentResponse,
     _parse_tags_string,
 )
-from app.domains.documents.services.version_service import get_document_versions
 from app.domains.documents.services.malware_scan import MalwareScanService
+from app.domains.documents.services.version_service import get_document_versions
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_graph_service import (
     canonical_pipeline_type,
@@ -90,7 +89,7 @@ from app.models.collection import Collection, CollectionDocument
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
 from app.models.connector_source import SourceDocument
 from app.models.document import Document
-from app.models.enums import DocumentStatus, OrganizationRole
+from app.models.enums import DocumentReviewStatus, DocumentStatus, OrganizationRole
 from app.models.pipeline import PipelineEvent, PipelineRun
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.document_tasks import (
@@ -673,6 +672,7 @@ async def list_documents(
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     status_filter: Annotated[DocumentStatus | None, Query(alias="status")] = None,
+    freshness_filter: Annotated[DocumentReviewStatus | None, Query(alias="freshness")] = None,
     sort_by: DocumentSortBy = "created_at",
     sort_order: SortOrder = "desc",
     filename_query: Annotated[str | None, Query(max_length=255)] = None,
@@ -686,6 +686,7 @@ async def list_documents(
         db_session,
         organization_id=organization_id,
         status=status_filter.value if status_filter is not None else None,
+        review_status=freshness_filter.value if freshness_filter is not None else None,
         file_type=file_type,
         filename_query=filename_query,
         language=language,
@@ -698,6 +699,7 @@ async def list_documents(
         db_session,
         organization_id=organization_id,
         status=status_filter.value if status_filter is not None else None,
+        review_status=freshness_filter.value if freshness_filter is not None else None,
         file_type=file_type,
         filename_query=filename_query,
         language=language,
@@ -783,6 +785,16 @@ async def list_documents(
                 notes=document.notes,
                 tags=_parse_tags_string(document.tags),
                 collections=collections_by_doc.get(document.id, []),
+                review_status=document.review_status,
+                review_owner_id=str(document.review_owner_id)
+                if document.review_owner_id is not None
+                else None,
+                review_due_date=document.review_due_date,
+                expiry_date=document.expiry_date,
+                trust_level=document.trust_level,
+                trust_status=document.trust_status,
+                version_label=document.version_label,
+                review_date=document.review_date,
                 created_at=document.created_at,
                 updated_at=document.updated_at,
             )
@@ -798,6 +810,7 @@ async def list_documents(
         limit=limit,
         offset=offset,
         status_filter=status_filter.value if status_filter is not None else None,
+        freshness_filter=(freshness_filter.value if freshness_filter is not None else None),
         sort_by=sort_by,
         sort_order=sort_order,
     )
@@ -807,6 +820,7 @@ async def list_documents(
         limit=limit,
         offset=offset,
         status=status_filter,
+        freshness=freshness_filter,
         sort_by=sort_by,
         sort_order=sort_order,
     )
@@ -893,6 +907,7 @@ async def get_document(
     filename = document.filename
     file_type = document.file_type
     document_status = document.status
+    graph_extraction_status = document.graph_extraction_status
     page_count = document.page_count
     checksum = document.checksum
     created_at = document.created_at
@@ -918,6 +933,17 @@ async def get_document(
     doc_extraction_snapshot = document.extraction_snapshot
     doc_embedding_provider_type = document.embedding_provider_type
     doc_embedding_vector_dimension = document.embedding_vector_dimension
+    doc_review_status = document.review_status
+    doc_review_owner_id = document.review_owner_id
+    doc_review_due_date = document.review_due_date
+    doc_expiry_date = document.expiry_date
+    doc_trust_level = document.trust_level
+    doc_trust_status = document.trust_status
+    doc_version_label = document.version_label
+    doc_review_date = document.review_date
+    doc_effective_date = document.effective_date
+    doc_trusted_at = document.trusted_at
+    doc_stale_after_days = document.stale_after_days
 
     safe_error_message, safe_error_details = _safe_error_payload(document)
     chunk_count = await document_repository.count_document_chunks(
@@ -981,7 +1007,7 @@ async def get_document(
         filename=filename,
         file_type=file_type,
         status=document_status,
-        graph_extraction_status=document.graph_extraction_status,
+        graph_extraction_status=graph_extraction_status,
         page_count=page_count,
         chunk_count=chunk_count,
         checksum=checksum,
@@ -1001,6 +1027,17 @@ async def get_document(
         retention_class=doc_retention_class,
         notes=doc_notes,
         tags=doc_tags,
+        review_status=doc_review_status,
+        review_owner_id=str(doc_review_owner_id) if doc_review_owner_id is not None else None,
+        review_due_date=doc_review_due_date,
+        expiry_date=doc_expiry_date,
+        trust_level=doc_trust_level,
+        trust_status=doc_trust_status,
+        version_label=doc_version_label,
+        review_date=doc_review_date,
+        effective_date=doc_effective_date,
+        trusted_at=doc_trusted_at,
+        stale_after_days=doc_stale_after_days,
         chunking_diagnostics=_build_chunking_diagnostics(
             file_type=file_type,
             chunking_strategy=chunking_strategy,
@@ -1425,9 +1462,7 @@ async def load_sample_dataset(
 
     user_id, organization_id = _principal_user_and_org(principal)
 
-    result = await db_session.execute(
-        select(_Org).where(_Org.id == organization_id)
-    )
+    result = await db_session.execute(select(_Org).where(_Org.id == organization_id))
     _org = result.scalar_one_or_none()
     if _org is None or not _org.sample_docs_enabled:
         raise HTTPException(

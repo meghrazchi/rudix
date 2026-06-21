@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import os
 from datetime import date
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
@@ -26,10 +29,114 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from app.auth.token_codec import create_app_access_token
+from app.db.session import get_db_session
+from app.domains.documents.repositories.documents import DocumentRepository
 from app.interfaces.http.admin_documents import (
     AdminTrustStatusRequest,
     AdminTrustStatusResponse,
 )
+from app.main import app
+from app.models.document import Document
+from app.models.enums import DocumentStatus, OrganizationRole
+from app.models.organization import Organization
+from app.models.organization_member import OrganizationMember
+from app.models.user import User
+
+document_repository = DocumentRepository()
+
+
+def _make_token(user_id: str, org_id: str, role: str) -> str:
+    return create_app_access_token(
+        user_id=user_id,
+        organization_id=org_id,
+        roles=[role],
+        secret="test-secret",
+        issuer="rudix-app",
+        audience="rudix-api",
+        ttl_seconds=3600,
+    )
+
+
+@pytest_asyncio.fixture
+async def admin_client(db_session: AsyncSession):
+    org_id = uuid4()
+    user_id = uuid4()
+
+    org = Organization(id=org_id, name="Admin Org", slug=f"admin-{org_id}")
+    user = User(
+        id=user_id,
+        organization_id=org_id,
+        email=f"admin-{user_id}@example.com",
+        hashed_password="x",
+    )
+    member = OrganizationMember(
+        organization_id=org_id,
+        user_id=user_id,
+        role=OrganizationRole.admin.value,
+    )
+    db_session.add_all([org, user, member])
+    await db_session.flush()
+
+    token = _make_token(str(user_id), str(org_id), OrganizationRole.admin.value)
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as client:
+        yield client, org_id, user_id
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def member_client(db_session: AsyncSession):
+    org_id = uuid4()
+    user_id = uuid4()
+
+    org = Organization(id=org_id, name="Member Org", slug=f"member-{org_id}")
+    user = User(
+        id=user_id,
+        organization_id=org_id,
+        email=f"member-{user_id}@example.com",
+        hashed_password="x",
+    )
+    member = OrganizationMember(
+        organization_id=org_id,
+        user_id=user_id,
+        role=OrganizationRole.member.value,
+    )
+    db_session.add_all([org, user, member])
+    await db_session.flush()
+
+    token = _make_token(str(user_id), str(org_id), OrganizationRole.member.value)
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as client:
+        yield client, org_id, user_id
+    app.dependency_overrides.clear()
+
+
+async def _seed_document(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    uploaded_by_user_id: UUID,
+) -> Document:
+    document = await document_repository.create_document(
+        db_session,
+        organization_id=organization_id,
+        uploaded_by_user_id=uploaded_by_user_id,
+        filename="admin-trust.pdf",
+        file_type="pdf",
+        storage_bucket="documents",
+        storage_object_key=f"admin-trust/{uuid4()}.pdf",
+        status=DocumentStatus.indexed.value,
+    )
+    await db_session.flush()
+    return document
+
 
 # ---------------------------------------------------------------------------
 # AdminTrustStatusRequest validation
@@ -114,6 +221,11 @@ def _make_response(trust_status: str = "current") -> AdminTrustStatusResponse:
     return AdminTrustStatusResponse(
         document_id=str(uuid4()),
         trust_status=trust_status,
+        review_status="current",
+        review_owner_id=None,
+        review_due_date=None,
+        expiry_date=None,
+        trust_level=None,
         version_label=None,
         review_date=None,
         effective_date=None,
@@ -137,6 +249,11 @@ def test_response_includes_review_date() -> None:
     resp = AdminTrustStatusResponse(
         document_id=str(uuid4()),
         trust_status="stale",
+        review_status="stale",
+        review_owner_id=None,
+        review_due_date=None,
+        expiry_date=None,
+        trust_level=None,
         version_label="v1",
         review_date=date(2026, 3, 1),
         effective_date=None,
@@ -148,6 +265,80 @@ def test_response_includes_review_date() -> None:
     data = resp.model_dump()
     assert data["review_date"] == date(2026, 3, 1)
     assert data["stale_after_days"] == 30
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_review_status(
+    admin_client: tuple[AsyncClient, UUID, UUID],
+    db_session: AsyncSession,
+) -> None:
+    client, org_id, user_id = admin_client
+    app.dependency_overrides[get_db_session] = lambda: db_session
+
+    reviewer = User(
+        organization_id=org_id,
+        external_auth_id=f"reviewer-{uuid4().hex[:8]}",
+        email=f"reviewer-{uuid4().hex[:8]}@example.com",
+        display_name="Reviewer",
+    )
+    db_session.add(reviewer)
+    await db_session.flush()
+    db_session.add(
+        OrganizationMember(
+            organization_id=org_id,
+            user_id=reviewer.id,
+            role=OrganizationRole.member.value,
+        )
+    )
+    document = await _seed_document(
+        db_session,
+        organization_id=org_id,
+        uploaded_by_user_id=user_id,
+    )
+    await db_session.commit()
+
+    response = await client.patch(
+        f"/api/v1/admin/documents/{document.id}/trust-status",
+        json={
+            "trust_status": "current",
+            "review_status": "needs_review",
+            "review_owner_id": str(reviewer.id),
+            "review_due_date": "2026-07-01",
+            "expiry_date": "2026-08-01",
+            "trust_level": "gold",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["review_status"] == "needs_review"
+    assert data["review_owner_id"] == str(reviewer.id)
+    assert data["review_due_date"] == "2026-07-01"
+    assert data["expiry_date"] == "2026-08-01"
+    assert data["trust_level"] == "gold"
+
+
+@pytest.mark.asyncio
+async def test_member_cannot_update_review_status(
+    member_client: tuple[AsyncClient, UUID, UUID],
+    db_session: AsyncSession,
+) -> None:
+    client, org_id, user_id = member_client
+    app.dependency_overrides[get_db_session] = lambda: db_session
+
+    document = await _seed_document(
+        db_session,
+        organization_id=org_id,
+        uploaded_by_user_id=user_id,
+    )
+    await db_session.commit()
+
+    response = await client.patch(
+        f"/api/v1/admin/documents/{document.id}/trust-status",
+        json={"trust_status": "current", "review_status": "archived"},
+    )
+
+    assert response.status_code == 403
 
 
 # ---------------------------------------------------------------------------

@@ -44,12 +44,44 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
   return "text-[#464555]";
 }
 
+function freshnessLabel(
+  citation: ChatCitationResponse,
+): { label: string; className: string } | null {
+  const trust = citation.source_trust_status ?? null;
+  if (!trust) {
+    return null;
+  }
+  if (trust === "expired") {
+    return {
+      label: "Expired",
+      className:
+        "rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
+    };
+  }
+  if (trust === "archived") {
+    return {
+      label: "Archived",
+      className:
+        "rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 uppercase",
+    };
+  }
+  if (trust === "stale" || trust === "revoked" || trust === "deleted") {
+    return {
+      label: "Stale",
+      className:
+        "rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
+    };
+  }
+  return null;
+}
+
 function CitationCard({ citation }: { citation: ChatCitationResponse }) {
   const providerLabel =
     citation.source_provider_label ?? citation.source_provider ?? null;
   const sourceTitle = citation.source_title ?? citation.filename ?? "Document";
   const sourceSection = citation.source_section ?? null;
   const trustStatus = citation.source_trust_status ?? null;
+  const freshness = freshnessLabel(citation);
   return (
     <div className="flex items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2">
       <div className="min-w-0 overflow-hidden">
@@ -65,6 +97,9 @@ function CitationCard({ citation }: { citation: ChatCitationResponse }) {
             <span className="rounded-full bg-[#f0ecf9] px-1.5 py-0.5 text-[9px] font-semibold text-[#5d58a8] uppercase">
               {trustStatus}
             </span>
+          ) : null}
+          {freshness ? (
+            <span className={freshness.className}>{freshness.label}</span>
           ) : null}
         </div>
         <p
@@ -221,6 +256,19 @@ export function SharedSessionPage({ token }: Props) {
             Answers are AI-generated and grounded in cited source evidence.
             Verify against source documents before acting on them.
           </div>
+          {turns.some((turn) =>
+            turn.citations.some(
+              (citation) =>
+                citation.doc_stale_warning ||
+                citation.doc_expired_warning ||
+                citation.doc_is_excluded_status,
+            ),
+          ) ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Some citations in this shared session come from stale, expired,
+              or archived sources.
+            </div>
+          ) : null}
 
           {turns.length === 0 ? (
             <EmptyState compact title="No messages in this shared session." />

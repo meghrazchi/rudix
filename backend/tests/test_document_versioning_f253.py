@@ -141,7 +141,14 @@ def test_change_reason_enum_values() -> None:
 
 @pytest.mark.parametrize(
     "reason",
-    ["initial_upload", "content_update", "metadata_update", "connector_sync", "reindex", "tombstone"],
+    [
+        "initial_upload",
+        "content_update",
+        "metadata_update",
+        "connector_sync",
+        "reindex",
+        "tombstone",
+    ],
 )
 def test_all_change_reasons_have_enum_member(reason: str) -> None:
     from app.models.enums import DocumentVersionChangeReason
@@ -370,9 +377,7 @@ async def test_get_versions_query_includes_org_filter() -> None:
 
     session.execute.side_effect = capturing_execute
 
-    await version_service.get_document_versions(
-        session, document_id=doc_id, organization_id=org_id
-    )
+    await version_service.get_document_versions(session, document_id=doc_id, organization_id=org_id)
 
     assert len(called_with) == 1
     # Verify org_id and doc_id both appear as bound params in the compiled WHERE.

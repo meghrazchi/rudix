@@ -98,14 +98,14 @@ async function openSessionMenu(sessionTitle: string) {
 
 async function openContextSelector() {
   await userEvent.click(
-    await screen.findByRole("button", { name: /Context/i }),
+    await screen.findByRole("button", { name: /Select scope/i }),
   );
-  return screen.findByRole("dialog", { name: /Select context/i });
+  return screen.findByRole("menu", { name: /Select scope/i });
 }
 
 async function openAdditionalSettings() {
   await userEvent.click(
-    await screen.findByRole("button", { name: /Additional settings/i }),
+    await screen.findByRole("button", { name: /Advanced settings/i }),
   );
 }
 
@@ -364,7 +364,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
@@ -422,7 +422,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
@@ -531,7 +531,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "check debug visibility",
@@ -620,7 +620,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "show debug",
@@ -1262,7 +1262,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await openAdditionalSettings();
     await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
@@ -1337,7 +1337,7 @@ describe("ChatPage", () => {
     );
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await openAdditionalSettings();
     await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
@@ -1433,7 +1433,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await openAdditionalSettings();
     await userEvent.type(
@@ -1571,7 +1571,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await openAdditionalSettings();
     await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
@@ -1657,7 +1657,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "hello",
@@ -1737,7 +1737,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
     const textarea = screen.getByPlaceholderText(
       "Type a message or use '/' for commands...",
     );
@@ -2115,7 +2115,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "unknown question",
@@ -2202,7 +2202,7 @@ describe("ChatPage", () => {
       .mockRejectedValueOnce(new Error("Temporary failure"));
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
@@ -2323,7 +2323,7 @@ describe("ChatPage", () => {
       });
 
     renderPage();
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
@@ -3029,7 +3029,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
 
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),

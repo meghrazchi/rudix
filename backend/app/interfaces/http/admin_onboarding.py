@@ -29,7 +29,10 @@ class PatchOnboardingConfigRequest(BaseModel):
 
 @router.get("/config", response_model=OnboardingConfigResponse)
 async def get_onboarding_config(
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles([OrganizationRole.owner, OrganizationRole.admin]))],
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles([OrganizationRole.owner, OrganizationRole.admin])),
+    ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OnboardingConfigResponse:
     org = await _get_org(db, principal.organization_id)
@@ -42,7 +45,10 @@ async def get_onboarding_config(
 @router.patch("/config", response_model=OnboardingConfigResponse)
 async def patch_onboarding_config(
     body: PatchOnboardingConfigRequest,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles([OrganizationRole.owner, OrganizationRole.admin]))],
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles([OrganizationRole.owner, OrganizationRole.admin])),
+    ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OnboardingConfigResponse:
     org = await _get_org(db, principal.organization_id)
@@ -58,7 +64,10 @@ async def patch_onboarding_config(
 
 @router.post("/reset", response_model=OnboardingConfigResponse)
 async def reset_onboarding(
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles([OrganizationRole.owner, OrganizationRole.admin]))],
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles([OrganizationRole.owner, OrganizationRole.admin])),
+    ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OnboardingConfigResponse:
     """Set reset_at to now so all org users re-show the onboarding checklist."""

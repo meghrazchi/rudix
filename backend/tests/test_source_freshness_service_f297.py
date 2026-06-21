@@ -46,19 +46,29 @@ class _FakeDoc:
         *,
         doc_id: UUID | None = None,
         trust_status: str = "current",
+        review_status: str | None = None,
+        review_owner_id: UUID | None = None,
+        review_due_date: date | None = None,
+        expiry_date: date | None = None,
         version_label: str | None = None,
         review_date: date | None = None,
         effective_date: date | None = None,
         stale_after_days: int | None = None,
         superseded_by_document_id: UUID | None = None,
+        trust_level: str | None = None,
     ) -> None:
         self.id = doc_id or uuid4()
         self.trust_status = trust_status
+        self.review_status = review_status
+        self.review_owner_id = review_owner_id
+        self.review_due_date = review_due_date
+        self.expiry_date = expiry_date
         self.version_label = version_label
         self.review_date = review_date
         self.effective_date = effective_date
         self.stale_after_days = stale_after_days
         self.superseded_by_document_id = superseded_by_document_id
+        self.trust_level = trust_level
 
 
 _TODAY = date(2026, 6, 15)
@@ -86,11 +96,16 @@ def test_build_trust_map_skips_missing_id() -> None:
     class BadDoc:
         id = None
         trust_status = "current"
+        review_status = None
+        review_owner_id = None
+        review_due_date = None
+        expiry_date = None
         version_label = None
         review_date = None
         effective_date = None
         stale_after_days = None
         superseded_by_document_id = None
+        trust_level = None
 
     trust_map = svc.build_trust_map([BadDoc()])
     assert trust_map == {}
@@ -132,6 +147,35 @@ def test_effective_status_verified_becomes_stale_past_review() -> None:
         review_date=_YESTERDAY,
     )
     assert svc.compute_effective_trust_status(trust, today=_TODAY) == "stale"
+
+
+def test_effective_status_prefers_review_status() -> None:
+    trust = DocumentTrustData(
+        document_id=uuid4(),
+        trust_status="current",
+        review_status="archived",
+        review_date=_YESTERDAY,
+        expiry_date=_YESTERDAY,
+    )
+    assert svc.compute_effective_trust_status(trust, today=_TODAY) == "archived"
+
+
+def test_effective_status_becomes_needs_review_after_due_date() -> None:
+    trust = DocumentTrustData(
+        document_id=uuid4(),
+        trust_status="current",
+        review_due_date=_YESTERDAY,
+    )
+    assert svc.compute_effective_trust_status(trust, today=_TODAY) == "needs_review"
+
+
+def test_effective_status_becomes_expired_after_expiry_date() -> None:
+    trust = DocumentTrustData(
+        document_id=uuid4(),
+        trust_status="current",
+        expiry_date=_YESTERDAY,
+    )
+    assert svc.compute_effective_trust_status(trust, today=_TODAY) == "expired"
 
 
 def test_effective_status_deprecated_unchanged() -> None:
@@ -199,6 +243,20 @@ def test_filter_excludes_expired() -> None:
         today=_TODAY,
     )
     assert str(doc.id) in result.excluded_document_ids
+
+
+def test_filter_marks_expired_as_stale_when_not_excluding_expired() -> None:
+    doc = _FakeDoc(trust_status="expired")
+    trust_map = svc.build_trust_map([doc])
+    result = svc.filter_excluded(
+        chunk_document_ids=[str(doc.id)],
+        trust_map=trust_map,
+        exclude_deprecated=True,
+        exclude_expired=False,
+        today=_TODAY,
+    )
+    assert str(doc.id) not in result.excluded_document_ids
+    assert str(doc.id) in result.stale_document_ids
 
 
 def test_filter_keeps_current() -> None:
@@ -350,7 +408,7 @@ def test_multiplier_draft_slightly_reduced() -> None:
 def test_excluded_by_default_set() -> None:
     assert "deprecated" in EXCLUDED_BY_DEFAULT
     assert "superseded" in EXCLUDED_BY_DEFAULT
-    assert "expired" in EXCLUDED_BY_DEFAULT
+    assert "expired" not in EXCLUDED_BY_DEFAULT
     assert "current" not in EXCLUDED_BY_DEFAULT
     assert "verified" not in EXCLUDED_BY_DEFAULT
 

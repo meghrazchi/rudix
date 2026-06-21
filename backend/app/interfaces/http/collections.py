@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.authorization_service import AuthorizationService
@@ -46,8 +47,9 @@ from app.domains.collections.services.dynamic_rule_service import (
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.collection import Collection
 from app.models.document import Document
-from app.models.enums import OrganizationRole
+from app.models.enums import DocumentReviewStatus, OrganizationRole
 from app.models.permissions import PermissionType
+from app.models.user import User
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
@@ -96,6 +98,35 @@ def _parse_uuid(value: str, label: str) -> UUID:
         ) from exc
 
 
+async def _resolve_reviewer_id(
+    db: AsyncSession,
+    *,
+    organization_id: UUID,
+    reviewer_id: str | None,
+) -> UUID | None:
+    if reviewer_id is None:
+        return None
+    try:
+        parsed = UUID(reviewer_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid review_owner_id format",
+        ) from exc
+    result = await db.execute(
+        select(User.id).where(
+            User.id == parsed,
+            User.organization_id == organization_id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="review_owner_id must reference a user in the active organization",
+        )
+    return parsed
+
+
 def _request_id(request: Request) -> str | None:
     rid = getattr(request.state, "request_id", None)
     if isinstance(rid, str) and rid.strip():
@@ -124,6 +155,13 @@ def _collection_to_list_item(
         access_policy=collection.access_policy,  # type: ignore[arg-type]
         is_dynamic=collection.is_dynamic,
         last_rule_evaluated_at=collection.last_rule_evaluated_at,
+        review_status=collection.review_status,
+        review_owner_id=str(collection.review_owner_id)
+        if collection.review_owner_id is not None
+        else None,
+        review_due_date=collection.review_due_date,
+        expiry_date=collection.expiry_date,
+        trust_level=collection.trust_level,
         created_at=collection.created_at,
         updated_at=collection.updated_at,
     )
@@ -153,6 +191,13 @@ def _collection_to_detail(
         access_policy=collection.access_policy,  # type: ignore[arg-type]
         is_dynamic=collection.is_dynamic,
         last_rule_evaluated_at=collection.last_rule_evaluated_at,
+        review_status=collection.review_status,
+        review_owner_id=str(collection.review_owner_id)
+        if collection.review_owner_id is not None
+        else None,
+        review_due_date=collection.review_due_date,
+        expiry_date=collection.expiry_date,
+        trust_level=collection.trust_level,
         rule_schema=rule_schema,
         created_at=collection.created_at,
         updated_at=collection.updated_at,
@@ -165,6 +210,11 @@ def _doc_to_item(doc: Document) -> CollectionDocumentItem:
         filename=doc.filename,
         file_type=doc.file_type,
         status=doc.status,
+        review_status=doc.review_status,
+        review_owner_id=str(doc.review_owner_id) if doc.review_owner_id is not None else None,
+        review_due_date=doc.review_due_date,
+        expiry_date=doc.expiry_date,
+        trust_level=doc.trust_level,
         updated_at=doc.updated_at,
     )
 
@@ -176,6 +226,7 @@ async def list_collections(
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     name_query: Annotated[str | None, Query(max_length=120)] = None,
+    freshness_filter: Annotated[DocumentReviewStatus | None, Query(alias="freshness")] = None,
 ) -> CollectionListResponse:
     organization_id = _org_id(principal)
     user_id = _user_id(principal)
@@ -185,6 +236,7 @@ async def list_collections(
         user_id=user_id,
         user_roles=principal.roles,
         name_query=name_query,
+        review_status=freshness_filter.value if freshness_filter is not None else None,
         limit=limit,
         offset=offset,
     )
@@ -194,6 +246,7 @@ async def list_collections(
         user_id=user_id,
         user_roles=principal.roles,
         name_query=name_query,
+        review_status=freshness_filter.value if freshness_filter is not None else None,
     )
     items = []
     for col in collections:
@@ -208,7 +261,7 @@ async def list_collections(
         total=total,
         returned=len(items),
     )
-    return CollectionListResponse(items=items, total=total)
+    return CollectionListResponse(items=items, total=total, freshness=freshness_filter)
 
 
 @router.post("", response_model=CollectionDetailResponse, status_code=status.HTTP_201_CREATED)
@@ -350,12 +403,23 @@ async def update_collection(
             detail="Only the collection owner or an admin may edit this collection",
         )
 
+    review_owner_uuid = await _resolve_reviewer_id(
+        db,
+        organization_id=organization_id,
+        reviewer_id=payload.review_owner_id,
+    )
+
     collection = await _collection_repo.update(
         db,
         collection=collection,
         name=payload.name,
         description=payload.description,
         access_policy=payload.access_policy,
+        review_status=payload.review_status.value if payload.review_status else None,
+        review_owner_id=review_owner_uuid,
+        review_due_date=payload.review_due_date,
+        expiry_date=payload.expiry_date,
+        trust_level=payload.trust_level,
     )
     await _audit_service.record(
         db,
@@ -365,7 +429,18 @@ async def update_collection(
         resource_type="collection",
         resource_id=parsed_id,
         request_id=rid,
-        metadata={"name": collection.name},
+        metadata={
+            "name": collection.name,
+            "review_status": collection.review_status,
+            "review_owner_id": str(collection.review_owner_id)
+            if collection.review_owner_id is not None
+            else None,
+            "review_due_date": collection.review_due_date.isoformat()
+            if collection.review_due_date
+            else None,
+            "expiry_date": collection.expiry_date.isoformat() if collection.expiry_date else None,
+            "trust_level": collection.trust_level,
+        },
     )
     await db.commit()
 
@@ -556,6 +631,7 @@ async def list_collection_documents(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    freshness_filter: Annotated[DocumentReviewStatus | None, Query(alias="freshness")] = None,
 ) -> CollectionDocumentsResponse:
     organization_id = _org_id(principal)
     user_id = _user_id(principal)
@@ -572,7 +648,11 @@ async def list_collection_documents(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
 
     docs = await _collection_repo.list_documents(
-        db, collection_id=parsed_id, limit=limit, offset=offset
+        db,
+        collection_id=parsed_id,
+        review_status=freshness_filter.value if freshness_filter is not None else None,
+        limit=limit,
+        offset=offset,
     )
     total = await _collection_repo.count_documents(db, collection_id=parsed_id)
     return CollectionDocumentsResponse(
@@ -827,6 +907,7 @@ async def preview_collection_rules(
                 file_type=doc.file_type,
                 language=doc.language,
                 status=doc.status,
+                review_status=doc.review_status,
                 trust_status=doc.trust_status,
                 tags=doc.tags,
                 ingestion_source=doc.ingestion_source,

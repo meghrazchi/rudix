@@ -50,6 +50,20 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
   table_headers?: string[];
   table_section_context?: string | null;
   conflict_status?: "preferred" | "conflicting" | "neutral" | null;
+  doc_review_status?:
+    | "current"
+    | "trusted"
+    | "needs_review"
+    | "stale"
+    | "expired"
+    | "archived"
+    | null;
+  doc_review_owner_id?: string | null;
+  doc_review_due_date?: string | null;
+  doc_expiry_date?: string | null;
+  doc_expired_warning?: boolean;
+  doc_stale_warning?: boolean;
+  doc_is_excluded_status?: boolean;
   // OCR quality (F299)
   doc_ocr_quality_status?:
     | "high"
@@ -97,6 +111,8 @@ export type ChatQueryResponse = Omit<Schemas["ChatQueryResponse"], "debug"> & {
   conflicting_document_ids?: string[];
   preferred_document_ids?: string[];
   conflict_pairs?: ChatConflictPairResponse[];
+  source_freshness_warning?: boolean;
+  source_freshness_warning_reason?: string | null;
 };
 export type ChatMessageResponse = Schemas["ChatMessageResponse"];
 export type ChatSessionMessageResponse = Schemas["ChatSessionMessageResponse"];

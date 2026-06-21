@@ -177,6 +177,28 @@ function statusBadge(status: DocumentStatus): string {
   return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
 
+function freshnessBadge(status: string | null | undefined): string {
+  if (status === "trusted") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "current") {
+    return "rounded-full bg-sky-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-sky-800";
+  }
+  if (status === "needs_review") {
+    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+  }
+  if (status === "stale") {
+    return "rounded-full bg-orange-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-orange-800";
+  }
+  if (status === "expired") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  }
+  if (status === "archived") {
+    return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
+  }
+  return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
+}
+
 function graphStatusBadge(status: string): string {
   if (status === "completed") {
     return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
@@ -1252,7 +1274,18 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
             <div className="grid items-start gap-4 lg:grid-cols-12">
               <div className="space-y-4 lg:col-span-8">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {detail.review_status &&
+                ["stale", "expired", "needs_review", "archived"].includes(
+                  detail.review_status,
+                ) ? (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    This document is marked {detail.review_status.replaceAll("_", " ")}.
+                    Freshness metadata is used to warn readers and can exclude
+                    the document from retrieval.
+                  </p>
+                ) : null}
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   <MetricCard
                     label={td("pageCount")}
                     value={detail.page_count ?? "-"}
@@ -1268,6 +1301,31 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   <MetricCard
                     label={td("updatedMetric")}
                     value={formatDate(detail.updated_at)}
+                  />
+                  <MetricCard
+                    label="Freshness"
+                    value={detail.review_status ?? "current"}
+                    valueClass={freshnessBadge(detail.review_status)}
+                    plain={false}
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <MetricCard
+                    label="Review owner"
+                    value={detail.review_owner_id ?? "-"}
+                    mono
+                  />
+                  <MetricCard
+                    label="Review due"
+                    value={formatDate(detail.review_due_date)}
+                  />
+                  <MetricCard
+                    label="Expiry date"
+                    value={formatDate(detail.expiry_date)}
+                  />
+                  <MetricCard
+                    label="Trust level"
+                    value={detail.trust_level ?? "-"}
                   />
                 </div>
 

@@ -369,7 +369,7 @@ describe("DocumentsPage", () => {
     await screen.findByText("policy.pdf");
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Open upload modal" }),
+      screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
     const uploadInput = screen
@@ -424,7 +424,7 @@ describe("DocumentsPage", () => {
     await screen.findByText("policy.pdf");
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Open upload modal" }),
+      screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
     const uploadInput = screen
@@ -482,7 +482,7 @@ describe("DocumentsPage", () => {
     renderPage();
     await screen.findByText("policy.pdf");
     await userEvent.click(
-      screen.getByRole("button", { name: "Open upload modal" }),
+      screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
     const uploadInput = screen
@@ -516,7 +516,7 @@ describe("DocumentsPage", () => {
     renderPage();
     await screen.findByText("policy.pdf");
     await userEvent.click(
-      screen.getByRole("button", { name: "Open upload modal" }),
+      screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
     const uploadInput = screen
@@ -595,7 +595,7 @@ describe("DocumentsPage", () => {
     await screen.findByText("policy.pdf");
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Open upload modal" }),
+      screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
     const uploadInput = screen

@@ -788,11 +788,7 @@ async def decide_agent_run_approval(
     expires_at = approval.expires_at
     if expires_at is not None and expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=UTC)
-    if (
-        approval.status == "pending"
-        and expires_at
-        and expires_at <= datetime.now(tz=UTC)
-    ):
+    if approval.status == "pending" and expires_at and expires_at <= datetime.now(tz=UTC):
         await agent_run_repository.update_agent_approval(
             db_session,
             approval_id=approval_uuid,

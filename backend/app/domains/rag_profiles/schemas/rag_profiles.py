@@ -57,9 +57,11 @@ class RagProfileConfig(BaseModel):
     # Source freshness and trust-status scoring (F297).
     # freshness_boost_enabled: apply per-status score multipliers during retrieval.
     # exclude_deprecated_docs: drop deprecated/superseded/expired docs from results by default.
+    # exclude_expired_docs: explicitly control whether expired docs are omitted.
     # stale_threshold_days: org-level override for how many days without review before a doc is stale.
     freshness_boost_enabled: bool = Field(default=True)
     exclude_deprecated_docs: bool = Field(default=True)
+    exclude_expired_docs: bool = Field(default=True)
     stale_threshold_days: int | None = Field(default=None, ge=1, le=3650)
     # Table-aware retrieval (F298).
     # table_retrieval_boost_enabled: apply score multiplier to table chunks on table-like queries.

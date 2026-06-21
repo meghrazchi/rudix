@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.enums import DocumentStatus, DocumentTrustStatus
+from app.models.enums import DocumentReviewStatus, DocumentStatus, DocumentTrustStatus
 
 AllowedFileType = Literal["pdf", "txt", "docx"]
 
@@ -227,6 +227,11 @@ class DocumentListItemResponse(BaseModel):
     notes: str | None = None
     tags: list[str] = Field(default_factory=list)
     collections: list[DocumentCollectionSummary] = Field(default_factory=list)
+    review_status: DocumentReviewStatus = DocumentReviewStatus.current
+    review_owner_id: str | None = None
+    review_due_date: date | None = None
+    expiry_date: date | None = None
+    trust_level: str | None = None
     trust_status: DocumentTrustStatus = DocumentTrustStatus.current
     version_label: str | None = None
     review_date: date | None = None
@@ -240,6 +245,7 @@ class DocumentListResponse(BaseModel):
     limit: int
     offset: int
     status: DocumentStatus | None = None
+    freshness: DocumentReviewStatus | None = None
     sort_by: DocumentSortBy
     sort_order: SortOrder
 
@@ -329,6 +335,11 @@ class DocumentDetailResponse(BaseModel):
     chunking_diagnostics: DocumentChunkingDiagnosticsResponse | None = None
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     # Source freshness and trust fields (F297).
+    review_status: DocumentReviewStatus = DocumentReviewStatus.current
+    review_owner_id: str | None = None
+    review_due_date: date | None = None
+    expiry_date: date | None = None
+    trust_level: str | None = None
     trust_status: DocumentTrustStatus = DocumentTrustStatus.current
     version_label: str | None = None
     superseded_by_document_id: str | None = None

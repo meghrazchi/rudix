@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import (
     JSON,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -51,9 +52,19 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_rule_evaluated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    review_status: Mapped[str] = mapped_column(String(32), nullable=False, default="current")
+    review_owner_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    review_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    trust_level: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     organization = relationship("Organization", back_populates="collections")
-    owner = relationship("User", back_populates="owned_collections")
+    owner = relationship("User", back_populates="owned_collections", foreign_keys=[owner_id])
+    review_owner = relationship("User", foreign_keys=[review_owner_id])
     document_memberships = relationship(
         "CollectionDocument",
         back_populates="collection",

@@ -220,9 +220,7 @@ class _ChatCompletionProviderProxy:
         usage = getattr(response, "usage", None)
         prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
         completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-        total_tokens = int(
-            getattr(usage, "total_tokens", 0) or (prompt_tokens + completion_tokens)
-        )
+        total_tokens = int(getattr(usage, "total_tokens", 0) or (prompt_tokens + completion_tokens))
         return ChatCompletionResponse(
             content=str(content or ""),
             model=str(getattr(response, "model", request.model) or request.model),
@@ -246,10 +244,7 @@ class _EmbeddingProviderProxy:
         )
         latency_ms = max(0, int((perf_counter() - started) * 1000))
         data = getattr(response, "data", []) or []
-        vectors = [
-            list(getattr(item, "embedding", []) or [])
-            for item in data
-        ]
+        vectors = [list(getattr(item, "embedding", []) or []) for item in data]
         usage = getattr(response, "usage", None)
         prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
         total_tokens = int(getattr(usage, "total_tokens", 0) or prompt_tokens)
@@ -526,6 +521,7 @@ def _with_freshness(
     trust = trust_map.get(citation.document_id)
     if trust is None:
         return citation
+    effective_status = _source_freshness_service.compute_effective_trust_status(trust)
     return ChatCitationResponse(
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
@@ -551,11 +547,20 @@ def _with_freshness(
         source_acl_snapshot=citation.source_acl_snapshot,
         conflict_status=citation.conflict_status,
         doc_trust_status=trust.trust_status,
+        doc_review_status=trust.review_status or trust.trust_status,
+        doc_review_owner_id=str(trust.review_owner_id) if trust.review_owner_id else None,
+        doc_review_due_date=trust.review_due_date,
+        doc_expiry_date=trust.expiry_date,
         doc_version_label=trust.version_label,
         doc_review_date=trust.review_date,
         doc_effective_date=trust.effective_date,
-        doc_stale_warning=citation.document_id in stale_document_ids,
-        doc_is_excluded_status=trust.trust_status in {"deprecated", "superseded", "expired"},
+        doc_stale_warning=(
+            citation.document_id in stale_document_ids
+            or effective_status in {"stale", "needs_review"}
+        ),
+        doc_expired_warning=effective_status == "expired",
+        doc_is_excluded_status=effective_status
+        in {"archived", "deprecated", "superseded", "expired"},
     )
 
 
@@ -1837,14 +1842,20 @@ async def query_chat(
             # Resolve freshness settings from RAG profile; defaults are safe (boost on, exclude on).
             _freshness_boost_enabled = True
             _freshness_exclude_deprecated = True
+            _freshness_exclude_expired = True
             _freshness_stale_threshold_days: int | None = None
             if rag_profile is not None:
                 _fp_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
                 _freshness_boost_enabled = _fp_cfg.freshness_boost_enabled
                 _freshness_exclude_deprecated = _fp_cfg.exclude_deprecated_docs
+                _freshness_exclude_expired = _fp_cfg.exclude_expired_docs
                 _freshness_stale_threshold_days = _fp_cfg.stale_threshold_days
 
-            freshness_filter_enabled = _freshness_boost_enabled or _freshness_exclude_deprecated
+            freshness_filter_enabled = (
+                _freshness_boost_enabled
+                or _freshness_exclude_deprecated
+                or _freshness_exclude_expired
+            )
             if freshness_filter_enabled and retrieved_chunks:
                 _unique_doc_ids = list({chunk.document_id for chunk in retrieved_chunks})
                 _trust_docs = await _document_repository_for_trust.get_documents_by_ids_for_trust(
@@ -1854,11 +1865,12 @@ async def query_chat(
                 )
                 _freshness_trust_map = _source_freshness_service.build_trust_map(_trust_docs)
 
-                if _freshness_exclude_deprecated:
+                if _freshness_exclude_deprecated or _freshness_exclude_expired:
                     _filter_result = _source_freshness_service.filter_excluded(
                         chunk_document_ids=[str(c.document_id) for c in retrieved_chunks],
                         trust_map=_freshness_trust_map,
-                        exclude_deprecated=True,
+                        exclude_deprecated=_freshness_exclude_deprecated,
+                        exclude_expired=_freshness_exclude_expired,
                         org_stale_threshold_days=_freshness_stale_threshold_days,
                     )
                     freshness_excluded_count = _filter_result.excluded_count
@@ -2662,6 +2674,22 @@ async def query_chat(
             )
             for pair in conflict_detection_result.conflict_pairs
         ],
+        source_freshness_warning=any(
+            citation.doc_stale_warning
+            or citation.doc_expired_warning
+            or citation.doc_is_excluded_status
+            for citation in citations
+        ),
+        source_freshness_warning_reason=(
+            "One or more citations come from stale, expired, or archived sources."
+            if any(
+                citation.doc_stale_warning
+                or citation.doc_expired_warning
+                or citation.doc_is_excluded_status
+                for citation in citations
+            )
+            else None
+        ),
         debug=ChatDebugResponse(
             latencies_ms=latencies_ms,
             retrieval_count=len(retrieved_chunks),
@@ -4938,18 +4966,48 @@ async def get_shared_answer(
     question_text = user_msg.content if user_msg else ""
 
     # Load citations — include snippet/filename only, not document_id/chunk_id (safety).
-    citation_rows = await chat_repository.list_citations_for_message_with_filename(
+    citation_rows = await chat_repository.list_citations_for_message(
         db_session,
         chat_message_id=assistant_msg.id,
     )
-    safe_citations = [
-        SharedAnswerCitationResponse(
-            filename=filename,
-            page_number=citation.page_number,
-            text_snippet=citation.text_snippet,
+    citation_doc_ids = [citation.document_id for citation in citation_rows]
+    trust_docs = await _document_repository_for_trust.get_documents_by_ids_for_trust(
+        db_session,
+        document_ids=citation_doc_ids,
+        organization_id=organization_id,
+    )
+    trust_map = _source_freshness_service.build_trust_map(trust_docs)
+    trust_docs_by_id = {str(doc.id): doc for doc in trust_docs}
+    safe_citations: list[SharedAnswerCitationResponse] = []
+    for citation in citation_rows:
+        trust = trust_map.get(str(citation.document_id))
+        if trust is not None:
+            effective_status = _source_freshness_service.compute_effective_trust_status(trust)
+            warning = effective_status in {
+                "stale",
+                "needs_review",
+                "expired",
+                "archived",
+                "deprecated",
+                "superseded",
+            }
+        else:
+            effective_status = None
+            warning = False
+
+        source_doc = trust_docs_by_id.get(str(citation.document_id))
+        safe_citations.append(
+            SharedAnswerCitationResponse(
+                filename=source_doc.filename if source_doc is not None else None,
+                page_number=citation.page_number,
+                text_snippet=citation.text_snippet,
+                source_trust_status=effective_status,
+                source_freshness_warning=warning,
+                source_freshness_warning_reason=(
+                    "Citation comes from a stale, expired, or archived source." if warning else None
+                ),
+            )
         )
-        for citation, filename in citation_rows
-    ]
 
     await audit_log_service.record(
         db_session,

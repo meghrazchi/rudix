@@ -36,6 +36,34 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
   return "text-[#464555]";
 }
 
+function freshnessLabel(
+  citation: SharedAnswerCitationResponse,
+): { label: string; className: string } | null {
+  if (!citation.source_freshness_warning) {
+    return null;
+  }
+  const reason = (citation.source_freshness_warning_reason ?? "").toLowerCase();
+  if (reason.includes("expired")) {
+    return {
+      label: "Expired",
+      className:
+        "rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
+    };
+  }
+  if (reason.includes("archived")) {
+    return {
+      label: "Archived",
+      className:
+        "rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 uppercase",
+    };
+  }
+  return {
+    label: "Stale",
+    className:
+      "rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
+  };
+}
+
 function CitationCard({
   citation,
 }: {
@@ -43,6 +71,7 @@ function CitationCard({
 }) {
   const providerLabel = citation.source_provider_label ?? null;
   const sourceTitle = citation.source_title ?? citation.filename ?? "Document";
+  const freshness = freshnessLabel(citation);
   return (
     <div className="flex items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2">
       <div className="min-w-0 overflow-hidden">
@@ -58,6 +87,9 @@ function CitationCard({
             <span className="rounded-full bg-[#f0ecf9] px-1.5 py-0.5 text-[9px] font-semibold text-[#5d58a8] uppercase">
               {citation.source_trust_status}
             </span>
+          ) : null}
+          {freshness ? (
+            <span className={freshness.className}>{freshness.label}</span>
           ) : null}
         </div>
         <p
@@ -259,6 +291,11 @@ export function SharedAnswerPage({ token }: Props) {
             This answer is AI-generated and grounded in cited source excerpts.
             Verify against original documents before acting on it.
           </div>
+          {data.citations.some((citation) => citation.source_freshness_warning) ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Some citations come from stale, expired, or archived sources.
+            </div>
+          ) : null}
 
           <div className="space-y-4">
             {/* Question */}

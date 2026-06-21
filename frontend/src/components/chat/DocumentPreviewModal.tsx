@@ -107,6 +107,48 @@ function formatScore(value: number | null | undefined): string {
   return value.toFixed(3);
 }
 
+function freshnessBadge(
+  citation: ChatCitationResponse,
+): { label: string; className: string } | null {
+  const status = citation.doc_review_status ?? null;
+  if (citation.doc_expired_warning || status === "expired") {
+    return {
+      label: "Expired",
+      className:
+        "rounded bg-rose-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rose-800 uppercase",
+    };
+  }
+  if (status === "stale") {
+    return {
+      label: "Stale",
+      className:
+        "rounded bg-orange-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-orange-800 uppercase",
+    };
+  }
+  if (status === "needs_review") {
+    return {
+      label: "Needs review",
+      className:
+        "rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-800 uppercase",
+    };
+  }
+  if (status === "archived") {
+    return {
+      label: "Archived",
+      className:
+        "rounded bg-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-700 uppercase",
+    };
+  }
+  if (status) {
+    return {
+      label: status.replaceAll("_", " "),
+      className:
+        "rounded bg-sky-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-sky-800 uppercase",
+    };
+  }
+  return null;
+}
+
 export function DocumentPreviewModal({
   citations,
   initialIndex = 0,
@@ -176,6 +218,7 @@ export function DocumentPreviewModal({
     citation.source_provider_label ?? citation.source_provider ?? null;
   const sourceSection = citation.source_section ?? null;
   const sourceTrust = citation.source_trust_status ?? null;
+  const freshness = freshnessBadge(citation);
   const ocrQualityStatus = citation.doc_ocr_quality_status ?? null;
   const ocrLowConfidence = citation.doc_ocr_low_confidence_warning ?? false;
 
@@ -243,6 +286,9 @@ export function DocumentPreviewModal({
                   {sourceTrust}
                 </span>
               ) : null}
+              {freshness ? (
+                <span className={freshness.className}>{freshness.label}</span>
+              ) : null}
               {ocrQualityStatus && ocrQualityStatus !== "not_required" ? (
                 <span
                   className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase ${
@@ -307,6 +353,21 @@ export function DocumentPreviewModal({
                 Open source
               </a>
             ) : null}
+          </div>
+        ) : null}
+        {citation.doc_stale_warning ||
+        citation.doc_expired_warning ||
+        citation.doc_is_excluded_status ? (
+          <div className="flex shrink-0 items-start gap-2 border-b border-amber-200 bg-amber-50 px-5 py-2.5">
+            <span
+              className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600"
+              aria-hidden="true"
+            >
+              warning
+            </span>
+            <p className="text-[11px] text-amber-800">
+              This citation references a stale, expired, or archived source.
+            </p>
           </div>
         ) : null}
 

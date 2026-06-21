@@ -125,12 +125,34 @@ export type DocumentListItemResponse = Schemas["DocumentListItemResponse"] & {
   notes?: string | null;
   tags?: string[];
   collections?: DocumentCollectionSummary[];
+  review_status?:
+    | "current"
+    | "trusted"
+    | "needs_review"
+    | "stale"
+    | "expired"
+    | "archived";
+  review_owner_id?: string | null;
+  review_due_date?: string | null;
+  expiry_date?: string | null;
+  trust_level?: string | null;
+  trust_status?: "draft" | "current" | "verified" | "stale" | "deprecated" | "superseded" | "expired";
+  version_label?: string | null;
+  review_date?: string | null;
 };
 export type DocumentListResponse = Omit<
   Schemas["DocumentListResponse"],
   "items"
 > & {
   items: DocumentListItemResponse[];
+  freshness?:
+    | "current"
+    | "trusted"
+    | "needs_review"
+    | "stale"
+    | "expired"
+    | "archived"
+    | null;
 };
 export type DocumentLifecycleTimelineStepResponse =
   Schemas["DocumentLifecycleTimelineStepResponse"];
@@ -154,6 +176,23 @@ export type DocumentDetailResponse = Omit<
   embedding_provider_type?: string | null;
   embedding_vector_dimension?: number | null;
   chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
+  review_status?:
+    | "current"
+    | "trusted"
+    | "needs_review"
+    | "stale"
+    | "expired"
+    | "archived";
+  review_owner_id?: string | null;
+  review_due_date?: string | null;
+  expiry_date?: string | null;
+  trust_level?: string | null;
+  trust_status?: "draft" | "current" | "verified" | "stale" | "deprecated" | "superseded" | "expired";
+  version_label?: string | null;
+  review_date?: string | null;
+  effective_date?: string | null;
+  trusted_at?: string | null;
+  stale_after_days?: number | null;
 };
 
 export type OcrPageQuality = {
@@ -307,6 +346,13 @@ export type ListDocumentsOptions = {
   limit?: number;
   offset?: number;
   status?: DocumentStatus;
+  freshness?:
+    | "current"
+    | "trusted"
+    | "needs_review"
+    | "stale"
+    | "expired"
+    | "archived";
   file_type?: DocumentFileType;
   sort_by?: DocumentSortBy;
   sort_order?: SortOrder;
@@ -375,6 +421,7 @@ export async function listDocuments(
       limit: options.limit,
       offset: options.offset,
       status: options.status,
+      freshness: options.freshness,
       file_type: options.file_type,
       sort_by: options.sort_by,
       sort_order: options.sort_order,

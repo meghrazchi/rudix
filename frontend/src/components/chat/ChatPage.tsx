@@ -676,6 +676,51 @@ function citationProviderLabel(citation: ChatCitationResponse): string | null {
   return citation.source_provider_label ?? citation.source_provider ?? null;
 }
 
+function citationFreshnessLabel(
+  citation: ChatCitationResponse,
+): { label: string; className: string } | null {
+  const status = citation.doc_review_status ?? null;
+  if (citation.doc_expired_warning || status === "expired") {
+    return {
+      label: "Expired",
+      className:
+        "rounded-full bg-rose-100 px-2 py-1 text-[10px] font-semibold text-rose-800 uppercase",
+    };
+  }
+  if (status === "stale") {
+    return {
+      label: "Stale",
+      className:
+        "rounded-full bg-orange-100 px-2 py-1 text-[10px] font-semibold text-orange-800 uppercase",
+    };
+  }
+  if (status === "needs_review") {
+    return {
+      label: "Needs review",
+      className:
+        "rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800 uppercase",
+    };
+  }
+  if (status === "archived") {
+    return {
+      label: "Archived",
+      className:
+        "rounded-full bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 uppercase",
+    };
+  }
+  if (citation.doc_review_status || citation.doc_trust_status) {
+    return {
+      label: (status ?? citation.doc_trust_status ?? "Current").replaceAll(
+        "_",
+        " ",
+      ),
+      className:
+        "rounded-full bg-sky-100 px-2 py-1 text-[10px] font-semibold text-sky-800 uppercase",
+    };
+  }
+  return null;
+}
+
 function formatConnectorSourceRoots(
   providerKey: string,
   authConfig: Record<string, unknown>,
@@ -2385,6 +2430,17 @@ export function ChatPage() {
                                   }
                                 />
 
+                                {turn.response.citations.some(
+                                  (citation) =>
+                                    citation.doc_stale_warning ||
+                                    citation.doc_expired_warning ||
+                                    citation.doc_is_excluded_status,
+                                ) ? (
+                                  <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                    Some citations come from stale, expired, or archived sources.
+                                  </p>
+                                ) : null}
+
                                 {turn.response.not_found ? (
                                   <div className="space-y-2">
                                     <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
@@ -2412,6 +2468,8 @@ export function ChatPage() {
                                                 ?.split(".")
                                                 .pop()
                                                 ?.toUpperCase() ?? "FILE";
+                                            const freshness =
+                                              citationFreshnessLabel(citation);
                                             return (
                                               <div
                                                 key={`inline:${citation.document_id}:${citation.chunk_id}:${ci}`}
@@ -2443,13 +2501,20 @@ export function ChatPage() {
                                                     <span
                                                       className={`block text-[10px] font-bold uppercase ${getFileTypeColorClass(citation.filename)}`}
                                                     >
-                                                      {citationProviderLabel(
+                                                    {citationProviderLabel(
                                                         citation,
                                                       )?.toUpperCase() ?? ext}
                                                     </span>
                                                     <span className="block truncate text-xs font-medium text-[#1b1b24]">
                                                       {label}
                                                     </span>
+                                                    {freshness ? (
+                                                      <span
+                                                        className={`mt-1 inline-flex ${freshness.className}`}
+                                                      >
+                                                        {freshness.label}
+                                                      </span>
+                                                    ) : null}
                                                     {conflictStatusLabel(
                                                       citation.conflict_status,
                                                     ) ? (
@@ -3383,11 +3448,27 @@ export function ChatPage() {
                             {activeCitation.source_trust_status}
                           </span>
                         ) : null}
+                        {citationFreshnessLabel(activeCitation) ? (
+                          <span
+                            className={
+                              citationFreshnessLabel(activeCitation)!.className
+                            }
+                          >
+                            {citationFreshnessLabel(activeCitation)!.label}
+                          </span>
+                        ) : null}
                         {activeCitation.page_number ? (
                           <span>PAGE {activeCitation.page_number}</span>
                         ) : null}
                       </span>
                     </div>
+                    {activeCitation.doc_stale_warning ||
+                    activeCitation.doc_expired_warning ||
+                    activeCitation.doc_is_excluded_status ? (
+                      <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        This citation references a stale, expired, or archived source.
+                      </p>
+                    ) : null}
                     <p className="mb-3 text-xs leading-relaxed opacity-40">
                       {tc("citationPassage")}
                     </p>

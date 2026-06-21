@@ -61,6 +61,15 @@ class DocumentTrustStatus(StrEnum):
     expired = "expired"
 
 
+class DocumentReviewStatus(StrEnum):
+    current = "current"
+    trusted = "trusted"
+    needs_review = "needs_review"
+    stale = "stale"
+    expired = "expired"
+    archived = "archived"
+
+
 class ConnectorAuthType(StrEnum):
     none = "none"
     oauth2 = "oauth2"

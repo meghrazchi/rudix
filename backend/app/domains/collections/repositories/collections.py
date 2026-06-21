@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from builtins import list as list_
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -117,6 +118,7 @@ class CollectionRepository:
         user_id: UUID,
         user_roles: list[str],
         name_query: str | None = None,
+        review_status: str | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> list_[Collection]:
@@ -133,6 +135,8 @@ class CollectionRepository:
             stmt = stmt.where(access)
         if name_query:
             stmt = stmt.where(Collection.name.ilike(f"%{name_query.strip()}%"))
+        if review_status is not None:
+            stmt = stmt.where(Collection.review_status == review_status)
         stmt = stmt.order_by(Collection.created_at.desc()).limit(limit).offset(offset)
         result = await session.execute(stmt)
         return list(result.scalars().all())
@@ -145,6 +149,7 @@ class CollectionRepository:
         user_id: UUID,
         user_roles: list[str],
         name_query: str | None = None,
+        review_status: str | None = None,
     ) -> int:
         stmt = select(func.count(Collection.id)).where(
             Collection.organization_id == organization_id,
@@ -155,6 +160,8 @@ class CollectionRepository:
             stmt = stmt.where(access)
         if name_query:
             stmt = stmt.where(Collection.name.ilike(f"%{name_query.strip()}%"))
+        if review_status is not None:
+            stmt = stmt.where(Collection.review_status == review_status)
         result = await session.execute(stmt)
         return result.scalar_one()
 
@@ -195,6 +202,11 @@ class CollectionRepository:
         name: str | None = None,
         description: str | None = None,
         access_policy: str | None = None,
+        review_status: str | None = None,
+        review_owner_id: UUID | None = None,
+        review_due_date: date | None = None,
+        expiry_date: date | None = None,
+        trust_level: str | None = None,
         rule_schema: dict | None = None,
         clear_rule_schema: bool = False,
     ) -> Collection:
@@ -204,6 +216,16 @@ class CollectionRepository:
             collection.description = description or None
         if access_policy is not None:
             collection.access_policy = access_policy
+        if review_status is not None:
+            collection.review_status = review_status
+        if review_owner_id is not None:
+            collection.review_owner_id = review_owner_id
+        if review_due_date is not None:
+            collection.review_due_date = review_due_date
+        if expiry_date is not None:
+            collection.expiry_date = expiry_date
+        if trust_level is not None:
+            collection.trust_level = trust_level
         if rule_schema is not None:
             collection.rule_schema = rule_schema
         elif clear_rule_schema:
@@ -250,6 +272,7 @@ class CollectionRepository:
         session: AsyncSession,
         *,
         collection_id: UUID,
+        review_status: str | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> list_[Document]:
@@ -257,10 +280,10 @@ class CollectionRepository:
             select(Document)
             .join(CollectionDocument, CollectionDocument.document_id == Document.id)
             .where(CollectionDocument.collection_id == collection_id)
-            .order_by(Document.created_at.desc())
-            .limit(limit)
-            .offset(offset)
         )
+        if review_status is not None:
+            stmt = stmt.where(Document.review_status == review_status)
+        stmt = stmt.order_by(Document.created_at.desc()).limit(limit).offset(offset)
         result = await session.execute(stmt)
         return list(result.scalars().all())
 

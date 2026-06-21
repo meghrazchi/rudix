@@ -56,6 +56,8 @@ class SharedAnswerCitationResponse(BaseModel):
     source_section: str | None = None
     source_key: str | None = None
     source_trust_status: str | None = None
+    source_freshness_warning: bool = False
+    source_freshness_warning_reason: str | None = None
 
 
 class SharedAnswerResponse(BaseModel):

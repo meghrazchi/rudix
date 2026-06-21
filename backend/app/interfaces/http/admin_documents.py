@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, field_validator
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.documents.workflows import retry_delete_document_workflow
@@ -21,12 +22,20 @@ from app.domains.documents.schemas.documents import (
     RetryDeleteDocumentResponse,
 )
 from app.models.document import Document
-from app.models.enums import DocumentStatus, DocumentTrustStatus, OcrQualityStatus, OrganizationRole
+from app.models.enums import (
+    DocumentReviewStatus,
+    DocumentStatus,
+    DocumentTrustStatus,
+    OcrQualityStatus,
+    OrganizationRole,
+)
+from app.models.user import User
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.document_tasks import delete_document as delete_document_task
 from app.workers.document_tasks import reindex_document as reindex_document_task
 
 _ALLOWED_TRUST_STATUSES = frozenset(s.value for s in DocumentTrustStatus)
+_ALLOWED_REVIEW_STATUSES = frozenset(s.value for s in DocumentReviewStatus)
 
 
 class AdminLanguageOverrideRequest(BaseModel):
@@ -76,6 +85,11 @@ class AdminOcrConfigResponse(BaseModel):
 
 class AdminTrustStatusRequest(BaseModel):
     trust_status: str
+    review_status: str | None = None
+    review_owner_id: str | None = None
+    review_due_date: date | None = None
+    expiry_date: date | None = None
+    trust_level: str | None = None
     version_label: str | None = None
     review_date: date | None = None
     effective_date: date | None = None
@@ -99,10 +113,27 @@ class AdminTrustStatusRequest(BaseModel):
             raise ValueError("stale_after_days must be between 1 and 3650")
         return value
 
+    @field_validator("review_status")
+    @classmethod
+    def validate_review_status(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        normalized = value.strip().lower()
+        if normalized not in _ALLOWED_REVIEW_STATUSES:
+            raise ValueError(
+                f"Invalid review_status '{value}'. Must be one of: {sorted(_ALLOWED_REVIEW_STATUSES)}"
+            )
+        return normalized
+
 
 class AdminTrustStatusResponse(BaseModel):
     document_id: str
     trust_status: str
+    review_status: str
+    review_owner_id: str | None
+    review_due_date: date | None
+    expiry_date: date | None
+    trust_level: str | None
     version_label: str | None
     review_date: date | None
     effective_date: date | None
@@ -159,6 +190,35 @@ def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UU
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Principal identity context is invalid",
         ) from exc
+
+
+async def _resolve_reviewer_id(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    reviewer_id: str | None,
+) -> UUID | None:
+    if reviewer_id is None:
+        return None
+    try:
+        parsed = UUID(reviewer_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid review_owner_id format",
+        ) from exc
+    result = await db_session.execute(
+        select(User.id).where(
+            User.id == parsed,
+            User.organization_id == organization_id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="review_owner_id must reference a user in the active organization",
+        )
+    return parsed
 
 
 def _request_id_from_request(request: Request) -> str | None:
@@ -480,6 +540,12 @@ async def update_document_trust_status(
                 detail="superseded_by_document_id refers to a document that does not exist",
             )
 
+    review_owner_uuid = await _resolve_reviewer_id(
+        db_session,
+        organization_id=actor_organization_id,
+        reviewer_id=payload.review_owner_id,
+    )
+
     now = datetime.now(UTC)
     trusted_at = now if payload.trust_status == DocumentTrustStatus.verified.value else None
     trusted_by_id = (
@@ -490,6 +556,11 @@ async def update_document_trust_status(
         db_session,
         document_id=doc_uuid,
         trust_status=payload.trust_status,
+        review_status=payload.review_status,
+        review_owner_id=review_owner_uuid,
+        review_due_date=payload.review_due_date,
+        expiry_date=payload.expiry_date,
+        trust_level=payload.trust_level,
         version_label=payload.version_label,
         review_date=payload.review_date,
         effective_date=payload.effective_date,
@@ -514,6 +585,13 @@ async def update_document_trust_status(
         request_id=request_id,
         metadata={
             "trust_status": payload.trust_status,
+            "review_status": payload.review_status,
+            "review_owner_id": payload.review_owner_id,
+            "review_due_date": payload.review_due_date.isoformat()
+            if payload.review_due_date
+            else None,
+            "expiry_date": payload.expiry_date.isoformat() if payload.expiry_date else None,
+            "trust_level": payload.trust_level,
             "version_label": payload.version_label,
             "review_date": payload.review_date.isoformat() if payload.review_date else None,
             "effective_date": payload.effective_date.isoformat()
@@ -528,6 +606,11 @@ async def update_document_trust_status(
     return AdminTrustStatusResponse(
         document_id=str(updated.id),
         trust_status=updated.trust_status,
+        review_status=updated.review_status,
+        review_owner_id=str(updated.review_owner_id) if updated.review_owner_id else None,
+        review_due_date=updated.review_due_date,
+        expiry_date=updated.expiry_date,
+        trust_level=updated.trust_level,
         version_label=updated.version_label,
         review_date=updated.review_date,
         effective_date=updated.effective_date,

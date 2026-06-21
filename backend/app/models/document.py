@@ -154,19 +154,30 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("external_items.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # Source freshness and trust (F297).
-    # trust_status: lifecycle classification used by the retrieval pipeline to boost/exclude docs.
-    # version_label: human-readable version string (e.g. "v2.1", "2024-Q3").
-    # superseded_by_document_id: points to the newer document when status='superseded'.
-    # review_date: next scheduled review; docs past this date may auto-transition to 'stale'.
-    # effective_date: when this document became the authoritative version.
-    # trusted_at / trusted_by_id: audit trail for 'verified' transitions.
-    # stale_after_days: per-document override for the stale threshold.
+    # Source freshness and trust (F297/F298).
+    # trust_status: legacy lifecycle classification used by the retrieval pipeline.
+    # review_status: user-facing freshness state for review workflows and filters.
+    # review_owner_id / review_due_date: assignment for freshness review queues.
+    # expiry_date: hard stop after which a source should be treated as expired.
+    # trust_level: coarse trust tier used by dashboards and badge rendering.
     trust_status: Mapped[str] = mapped_column(
         String(32),
         default=DocumentTrustStatus.current.value,
         nullable=False,
     )
+    review_status: Mapped[str] = mapped_column(
+        String(32),
+        default="current",
+        nullable=False,
+    )
+    review_owner_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    review_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    trust_level: Mapped[str | None] = mapped_column(String(32), nullable=True)
     version_label: Mapped[str | None] = mapped_column(String(32), nullable=True)
     superseded_by_document_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
@@ -196,6 +207,7 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="documents",
         foreign_keys=[uploaded_by_user_id],
     )
+    review_owner = relationship("User", foreign_keys=[review_owner_id])
     pages = relationship("DocumentPage", back_populates="document", cascade="all, delete-orphan")
     chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
     citations = relationship("Citation", back_populates="document")

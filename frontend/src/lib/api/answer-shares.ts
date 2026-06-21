@@ -36,6 +36,8 @@ export type SharedAnswerCitationResponse = {
   source_section: string | null;
   source_key: string | null;
   source_trust_status: string | null;
+  source_freshness_warning: boolean;
+  source_freshness_warning_reason: string | null;
 };
 
 export type SharedAnswerResponse = {

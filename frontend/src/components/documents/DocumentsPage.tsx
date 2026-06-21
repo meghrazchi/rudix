@@ -75,6 +75,14 @@ const REINDEX_ALL_TARGET_STATUSES: DocumentStatus[] = ["uploaded", "failed"];
 
 type StatusFilter = "all" | DocumentStatus;
 type FileTypeFilter = "all" | DocumentFileType;
+type FreshnessFilter =
+  | "all"
+  | "current"
+  | "trusted"
+  | "needs_review"
+  | "stale"
+  | "expired"
+  | "archived";
 type IndexingStatusSummary = {
   total: number;
   uploaded: number;
@@ -101,6 +109,23 @@ function parseStatusFilter(value: string | null): StatusFilter {
   ];
   return supported.includes(value as DocumentStatus)
     ? (value as DocumentStatus)
+    : "all";
+}
+
+function parseFreshnessFilter(value: string | null): FreshnessFilter {
+  if (!value) {
+    return "all";
+  }
+  const supported: FreshnessFilter[] = [
+    "current",
+    "trusted",
+    "needs_review",
+    "stale",
+    "expired",
+    "archived",
+  ];
+  return supported.includes(value as FreshnessFilter)
+    ? (value as FreshnessFilter)
     : "all";
 }
 
@@ -164,6 +189,28 @@ function statusBadge(status: DocumentStatus): string {
   }
   if (status === "retained_by_policy") {
     return "rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-yellow-800";
+  }
+  return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
+}
+
+function freshnessBadge(status: FreshnessFilter | undefined): string {
+  if (status === "trusted") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "current") {
+    return "rounded-full bg-sky-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-sky-800";
+  }
+  if (status === "needs_review") {
+    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+  }
+  if (status === "stale") {
+    return "rounded-full bg-orange-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-orange-800";
+  }
+  if (status === "expired") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  }
+  if (status === "archived") {
+    return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold tracking-wide text-slate-700 uppercase";
   }
   return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
@@ -307,6 +354,16 @@ export function DocumentsPage() {
     { value: "deleted", label: tp("statusDeleted") },
     { value: "retained_by_policy", label: tp("statusRetainedByPolicy") },
   ];
+  const freshnessFilterOptions: Array<{ value: FreshnessFilter; label: string }> =
+    [
+      { value: "all", label: "All freshness" },
+      { value: "current", label: "Current" },
+      { value: "trusted", label: "Trusted" },
+      { value: "needs_review", label: "Needs review" },
+      { value: "stale", label: "Stale" },
+      { value: "expired", label: "Expired" },
+      { value: "archived", label: "Archived" },
+    ];
 
   const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
     { value: "created_at", label: tp("sortCreated") },
@@ -330,6 +387,9 @@ export function DocumentsPage() {
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
     parseStatusFilter(searchParams.get("status")),
+  );
+  const [freshnessFilter, setFreshnessFilter] = useState<FreshnessFilter>(() =>
+    parseFreshnessFilter(searchParams.get("freshness")),
   );
   const [sortBy, setSortBy] = useState<DocumentSortBy>(() =>
     parseSortBy(searchParams.get("sort_by")),
@@ -386,6 +446,8 @@ export function DocumentsPage() {
       limit: DOCUMENT_PAGE_SIZE,
       offset,
       status: statusFilter === "all" ? undefined : statusFilter,
+      freshness:
+        freshnessFilter === "all" ? undefined : freshnessFilter,
       file_type: fileTypeFilter === "all" ? undefined : fileTypeFilter,
       sort_by: sortBy,
       sort_order: sortOrder,
@@ -396,6 +458,7 @@ export function DocumentsPage() {
       sortBy,
       sortOrder,
       statusFilter,
+      freshnessFilter,
       fileTypeFilter,
       debouncedFilenameSearch,
     ],
@@ -619,6 +682,9 @@ export function DocumentsPage() {
     if (statusFilter !== "all") {
       params.set("status", statusFilter);
     }
+    if (freshnessFilter !== "all") {
+      params.set("freshness", freshnessFilter);
+    }
     params.set("sort_by", sortBy);
     params.set("sort_order", sortOrder);
     if (offset > 0) {
@@ -626,7 +692,7 @@ export function DocumentsPage() {
     }
     const serialized = params.toString();
     return serialized ? `/documents?${serialized}` : "/documents";
-  }, [offset, sortBy, sortOrder, statusFilter]);
+  }, [offset, sortBy, sortOrder, statusFilter, freshnessFilter]);
 
   async function fetchDocumentIdsForReindexAllStatus(
     status: DocumentStatus,
@@ -1441,6 +1507,23 @@ export function DocumentsPage() {
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              Freshness
+              <select
+                value={freshnessFilter}
+                onChange={(event) => {
+                  setOffset(0);
+                  setFreshnessFilter(event.target.value as FreshnessFilter);
+                }}
+                className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+              >
+                {freshnessFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               {tp("sortLabel")}
               <select
                 value={sortBy}
@@ -1595,6 +1678,7 @@ export function DocumentsPage() {
                     <th className="px-4 py-3">{tp("tableSource")}</th>
                     <th className="px-4 py-3">{tp("tableType")}</th>
                     <th className="px-4 py-3">{tp("tableStatus")}</th>
+                    <th className="px-4 py-3">Freshness</th>
                     <th className="px-4 py-3 text-center">
                       {tp("tablePages")}
                     </th>
@@ -1726,6 +1810,11 @@ export function DocumentsPage() {
                         <td className="px-4 py-3">
                           <span className={statusBadge(document.status)}>
                             {document.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={freshnessBadge(document.review_status)}>
+                            {document.review_status ?? "current"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center font-mono text-sm text-[#1b1b24]">
@@ -2012,7 +2101,17 @@ export function DocumentsPage() {
 
           {selectedDetail ? (
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {selectedDetail.review_status &&
+              ["stale", "expired", "needs_review", "archived"].includes(
+                selectedDetail.review_status,
+              ) ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  This document is marked {selectedDetail.review_status.replaceAll("_", " ")}.
+                  Review status affects retrieval and answer trust.
+                </p>
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <MetricCard
                   label={tp("tableFilename")}
                   value={selectedDetail.filename}
@@ -2032,6 +2131,12 @@ export function DocumentsPage() {
                 <MetricCard
                   label={tp("tableUpdated")}
                   value={formatDate(selectedDetail.updated_at)}
+                />
+                <MetricCard
+                  label="Freshness"
+                  value={selectedDetail.review_status ?? "current"}
+                  valueClass={freshnessBadge(selectedDetail.review_status)}
+                  plain={false}
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-3">

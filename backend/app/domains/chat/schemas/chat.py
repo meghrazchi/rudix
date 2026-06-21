@@ -212,10 +212,15 @@ class ChatCitationResponse(BaseModel):
     conflict_status: Literal["preferred", "conflicting", "neutral"] | None = None
     # Source freshness fields (F297): populated from document trust metadata.
     doc_trust_status: str | None = None
+    doc_review_status: str | None = None
+    doc_review_owner_id: str | None = None
+    doc_review_due_date: date | None = None
+    doc_expiry_date: date | None = None
     doc_version_label: str | None = None
     doc_review_date: date | None = None
     doc_effective_date: date | None = None
     doc_stale_warning: bool = False
+    doc_expired_warning: bool = False
     doc_is_excluded_status: bool = False
     # Table-aware retrieval (F298): populated when the cited chunk is a table.
     is_table_chunk: bool = False
@@ -353,5 +358,7 @@ class ChatQueryResponse(BaseModel):
     conflicting_document_ids: list[str] = Field(default_factory=list)
     preferred_document_ids: list[str] = Field(default_factory=list)
     conflict_pairs: list[ChatConflictPairResponse] = Field(default_factory=list)
+    source_freshness_warning: bool = False
+    source_freshness_warning_reason: str | None = None
     debug: ChatDebugResponse
     created_at: datetime

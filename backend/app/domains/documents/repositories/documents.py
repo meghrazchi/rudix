@@ -109,6 +109,7 @@ class DocumentRepository:
         *,
         organization_id: UUID,
         status: str | None = None,
+        review_status: str | None = None,
         file_type: str | None = None,
         filename_query: str | None = None,
         language: str | None = None,
@@ -120,6 +121,8 @@ class DocumentRepository:
         statement = select(Document).where(Document.organization_id == organization_id)
         if status is not None:
             statement = statement.where(Document.status == status)
+        if review_status is not None:
+            statement = statement.where(Document.review_status == review_status)
         if file_type is not None:
             statement = statement.where(Document.file_type == file_type)
         if filename_query is not None:
@@ -148,6 +151,7 @@ class DocumentRepository:
         *,
         organization_id: UUID,
         status: str | None = None,
+        review_status: str | None = None,
         file_type: str | None = None,
         filename_query: str | None = None,
         language: str | None = None,
@@ -157,6 +161,8 @@ class DocumentRepository:
         )
         if status is not None:
             statement = statement.where(Document.status == status)
+        if review_status is not None:
+            statement = statement.where(Document.review_status == review_status)
         if file_type is not None:
             statement = statement.where(Document.file_type == file_type)
         if filename_query is not None:
@@ -632,6 +638,11 @@ class DocumentRepository:
         *,
         document_id: UUID,
         trust_status: str,
+        review_status: str | None = None,
+        review_owner_id: UUID | None = None,
+        review_due_date: date | None = None,
+        expiry_date: date | None = None,
+        trust_level: str | None = None,
         version_label: str | None = None,
         review_date: date | None = None,
         effective_date: date | None = None,
@@ -645,6 +656,16 @@ class DocumentRepository:
         if document is None:
             return None
         document.trust_status = trust_status
+        if review_status is not None:
+            document.review_status = review_status
+        if review_owner_id is not None:
+            document.review_owner_id = review_owner_id
+        if review_due_date is not None:
+            document.review_due_date = review_due_date
+        if expiry_date is not None:
+            document.expiry_date = expiry_date
+        if trust_level is not None:
+            document.trust_level = trust_level
         if version_label is not None:
             document.version_label = version_label
         if review_date is not None:

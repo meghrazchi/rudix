@@ -39,7 +39,7 @@ from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.interfaces.http import documents as documents_http
 from app.main import app
 from app.models.document import Document
-from app.models.enums import DocumentStatus, OrganizationRole
+from app.models.enums import DocumentReviewStatus, DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
@@ -281,6 +281,56 @@ async def test_documents_list_filters_by_org_and_status_with_pagination(
     assert item["filename"] == "indexed.pdf"
     assert item["chunk_count"] == 3
     assert item["page_count"] == 3
+    assert item["review_status"] == "current"
+
+
+@pytest.mark.asyncio
+async def test_documents_list_filters_by_freshness(
+    documents_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org, _ = await _seed_principal(db_session)
+    repository = DocumentRepository()
+    _ = await _seed_document(
+        db_session,
+        organization=org,
+        uploader=user,
+        filename="current.pdf",
+        status=DocumentStatus.indexed,
+        page_count=2,
+    )
+    stale = await _seed_document(
+        db_session,
+        organization=org,
+        uploader=user,
+        filename="stale.pdf",
+        status=DocumentStatus.indexed,
+        page_count=2,
+    )
+    await repository.update_document_trust_status(
+        db_session,
+        document_id=stale.id,
+        trust_status="current",
+        review_status=DocumentReviewStatus.stale.value,
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+    response = await documents_client.get(
+        "/api/v1/documents",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        params={"freshness": "stale"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["freshness"] == "stale"
+    assert [item["document_id"] for item in payload["items"]] == [str(stale.id)]
+    assert payload["items"][0]["review_status"] == "stale"
+    assert payload["items"][0]["review_owner_id"] is None
+    assert payload["items"][0]["trust_level"] is None
 
 
 @pytest.mark.asyncio
@@ -618,6 +668,8 @@ async def test_document_detail_exposes_safe_chunking_diagnostics_and_chunk_metad
             "avg_tokens": 120.0,
             "total_tokens": 240,
         },
+        "embedding_provider_type": None,
+        "embedding_vector_dimension": None,
     }
 
     chunks_response = await documents_client.get(

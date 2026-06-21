@@ -101,7 +101,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "AgentTraceShareToken",
         back_populates="created_by_user",
     )
-    owned_collections = relationship("Collection", back_populates="owner")
+    owned_collections = relationship(
+        "Collection",
+        back_populates="owner",
+        foreign_keys="Collection.owner_id",
+    )
     chunking_profiles_created = relationship(
         "OrganizationChunkingProfile",
         foreign_keys="OrganizationChunkingProfile.created_by_user_id",

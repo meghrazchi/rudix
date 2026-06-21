@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+from app.models.enums import DocumentReviewStatus
 
 CollectionAccessPolicy = Literal["org_wide", "admin_only", "selected_roles", "selected_members"]
 
@@ -46,6 +48,11 @@ class CollectionListItemResponse(BaseModel):
     access_policy: CollectionAccessPolicy
     is_dynamic: bool
     last_rule_evaluated_at: datetime | None
+    review_status: DocumentReviewStatus = DocumentReviewStatus.current
+    review_owner_id: str | None = None
+    review_due_date: date | None = None
+    expiry_date: date | None = None
+    trust_level: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -58,6 +65,7 @@ class CollectionDetailResponse(CollectionListItemResponse):
 class CollectionListResponse(BaseModel):
     items: list[CollectionListItemResponse]
     total: int
+    freshness: DocumentReviewStatus | None = None
 
 
 class CreateCollectionRequest(BaseModel):
@@ -72,6 +80,11 @@ class UpdateCollectionRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = None
     access_policy: CollectionAccessPolicy | None = None
+    review_status: DocumentReviewStatus | None = None
+    review_owner_id: str | None = None
+    review_due_date: date | None = None
+    expiry_date: date | None = None
+    trust_level: str | None = None
 
 
 class DeleteCollectionResponse(BaseModel):
@@ -84,6 +97,11 @@ class CollectionDocumentItem(BaseModel):
     filename: str
     file_type: str
     status: str
+    review_status: DocumentReviewStatus = DocumentReviewStatus.current
+    review_owner_id: str | None = None
+    review_due_date: date | None = None
+    expiry_date: date | None = None
+    trust_level: str | None = None
     updated_at: datetime
 
 
@@ -154,6 +172,7 @@ class PreviewRulesDocumentItem(BaseModel):
     file_type: str
     language: str | None
     status: str
+    review_status: DocumentReviewStatus = DocumentReviewStatus.current
     trust_status: str | None
     tags: str | None
     ingestion_source: str | None

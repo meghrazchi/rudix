@@ -42,6 +42,12 @@ const baseCitation: ChatCitationResponse = {
   text_snippet: "Rudix processes enterprise documents securely.",
 };
 
+const staleCitation: ChatCitationResponse = {
+  ...baseCitation,
+  doc_trust_status: "stale",
+  doc_stale_warning: true,
+};
+
 function render(
   citations: ChatCitationResponse[],
   initialIndex = 0,
@@ -89,6 +95,16 @@ describe("DocumentPreviewModal", () => {
 
     expect(await screen.findByText("PDF")).toBeInTheDocument();
     expect(screen.getByText("indexed")).toBeInTheDocument();
+  });
+
+  it("shows a freshness warning for stale citations", async () => {
+    render([staleCitation]);
+
+    expect(
+      await screen.findByText(
+        "This citation references a stale, expired, or archived source.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows rerank score in the metadata strip", async () => {

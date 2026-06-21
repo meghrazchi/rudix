@@ -50,6 +50,17 @@ export type CollectionListItemResponse = {
   access_policy: CollectionAccessPolicy;
   is_dynamic: boolean;
   last_rule_evaluated_at: string | null;
+  review_status?:
+    | "current"
+    | "trusted"
+    | "needs_review"
+    | "stale"
+    | "expired"
+    | "archived";
+  review_owner_id?: string | null;
+  review_due_date?: string | null;
+  expiry_date?: string | null;
+  trust_level?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -62,6 +73,7 @@ export type CollectionDetailResponse = CollectionListItemResponse & {
 export type CollectionListResponse = {
   items: CollectionListItemResponse[];
   total: number;
+  freshness?: CollectionListItemResponse["review_status"] | null;
 };
 
 export type CreateCollectionRequest = {
@@ -76,6 +88,18 @@ export type UpdateCollectionRequest = {
   name?: string;
   description?: string | null;
   access_policy?: CollectionAccessPolicy;
+  review_status?:
+    | "current"
+    | "trusted"
+    | "needs_review"
+    | "stale"
+    | "expired"
+    | "archived"
+    | null;
+  review_owner_id?: string | null;
+  review_due_date?: string | null;
+  expiry_date?: string | null;
+  trust_level?: string | null;
 };
 
 export type DeleteCollectionResponse = {
@@ -101,6 +125,13 @@ export type ListCollectionsOptions = {
   limit?: number;
   offset?: number;
   name_query?: string;
+  freshness?:
+    | "current"
+    | "trusted"
+    | "needs_review"
+    | "stale"
+    | "expired"
+    | "archived";
 };
 
 // ── Access policy types ────────────────────────────────────────────────────────
@@ -131,6 +162,7 @@ export async function listCollections(
       limit: options.limit,
       offset: options.offset,
       name_query: options.name_query || undefined,
+      freshness: options.freshness,
     },
   });
 }
@@ -201,7 +233,17 @@ export async function updateCollectionPolicy(
 
 export async function listCollectionDocuments(
   collectionId: string,
-  options: { limit?: number; offset?: number } = {},
+  options: {
+    limit?: number;
+    offset?: number;
+    freshness?:
+      | "current"
+      | "trusted"
+      | "needs_review"
+      | "stale"
+      | "expired"
+      | "archived";
+  } = {},
 ): Promise<CollectionDocumentsResponse> {
   return apiRequest<CollectionDocumentsResponse>(
     `/collections/${encodeURIComponent(collectionId)}/documents`,
@@ -209,6 +251,7 @@ export async function listCollectionDocuments(
       query: {
         limit: options.limit,
         offset: options.offset,
+        freshness: options.freshness,
       },
     },
   );
