@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -16,9 +16,9 @@ from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.verified_answers.repositories.verified_answers import VerifiedAnswerRepository
 from app.domains.verified_answers.schemas.verified_answers import (
     ApproveRequest,
+    CitationResponse,
     CreateFromChatRequest,
     CreateVerifiedAnswerRequest,
-    CitationResponse,
     RejectRequest,
     UpdateVerifiedAnswerRequest,
     VerifiedAnswerListResponse,
@@ -95,7 +95,7 @@ def _request_id(request: Request) -> str | None:
 
 
 def _is_stale(answer: VerifiedAnswer) -> bool:
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     if answer.expiry_date and today > answer.expiry_date:
         return True
     if answer.review_date and today > answer.review_date and answer.status == "published":

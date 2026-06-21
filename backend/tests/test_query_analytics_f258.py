@@ -24,7 +24,7 @@ Run:
 from __future__ import annotations
 
 import os
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from uuid import uuid4
 
 import pytest
@@ -53,13 +53,6 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
-from app.domains.query_analytics.repositories.query_analytics import QueryAnalyticsRepository
-from app.domains.query_analytics.schemas.query_analytics import (
-    ConvertKnowledgeGapRequest,
-    CreateKnowledgeGapRequest,
-    DetectGapsRequest,
-    UpdateKnowledgeGapRequest,
-)
 from app.domains.query_analytics.services.query_analytics_service import QueryAnalyticsService
 from app.main import app
 from app.models.chat import ChatMessage, ChatSession
@@ -322,7 +315,7 @@ class TestGapService:
         )
         service = QueryAnalyticsService()
         # First detection creates the gap
-        r1 = await service.detect_gaps(db, organization_id=org.id, min_occurrences=3)
+        await service.detect_gaps(db, organization_id=org.id, min_occurrences=3)
         await db.flush()
         # Second detection should skip duplicates
         r2 = await service.detect_gaps(db, organization_id=org.id, min_occurrences=3)

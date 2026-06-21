@@ -12,8 +12,7 @@ Covers:
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
-from typing import Literal
+from dataclasses import dataclass
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -36,19 +35,19 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from app.domains.chat.schemas.chat import ChatCitationResponse
+from app.domains.chat.schemas.trust_metadata import ConflictStatusRecord
 from app.domains.chat.services.conflict_detection_service import (
     ConflictDetectionChunk,
     ConflictDetectionResult,
     ConflictDetectionService,
     ConflictPair,
 )
-from app.domains.chat.schemas.trust_metadata import ConflictStatusRecord
 from app.interfaces.http.chat import (
     _build_conflict_context,
     _compute_conflict_multiplier,
     _with_conflict_status,
 )
-from app.domains.chat.schemas.chat import ChatCitationResponse
 
 
 @dataclass

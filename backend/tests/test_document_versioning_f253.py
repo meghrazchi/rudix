@@ -13,8 +13,8 @@ Covers:
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -46,7 +46,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 def test_document_version_response_minimal() -> None:
     from app.domains.documents.schemas.documents import DocumentVersionResponse
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     resp = DocumentVersionResponse(
         version_id=str(uuid4()),
         document_id=str(uuid4()),
@@ -67,7 +67,7 @@ def test_document_version_response_minimal() -> None:
 def test_document_version_response_full() -> None:
     from app.domains.documents.schemas.documents import DocumentVersionResponse
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     user_id = str(uuid4())
     resp = DocumentVersionResponse(
         version_id=str(uuid4()),
@@ -102,7 +102,7 @@ def test_document_version_list_response() -> None:
         DocumentVersionResponse,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     doc_id = str(uuid4())
     items = [
         DocumentVersionResponse(
@@ -362,12 +362,9 @@ async def test_get_versions_query_includes_org_filter() -> None:
 
     doc_id = uuid4()
     org_id = uuid4()
-    other_org_id = uuid4()
 
     session = AsyncMock()
     called_with: list = []
-
-    original_execute = session.execute
 
     async def capturing_execute(stmt, *args, **kwargs):
         called_with.append(stmt)
@@ -393,7 +390,6 @@ async def test_get_versions_query_includes_org_filter() -> None:
 
 def test_upload_workflow_calls_create_version() -> None:
     """create_document_version is imported in the upload workflow module."""
-    import importlib
     import app.application.documents.workflows as wf
 
     assert hasattr(wf, "create_document_version"), (
@@ -424,7 +420,7 @@ def test_version_list_response_zero_versions() -> None:
 def test_version_response_change_reason_connector_sync() -> None:
     from app.domains.documents.schemas.documents import DocumentVersionResponse
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     resp = DocumentVersionResponse(
         version_id=str(uuid4()),
         document_id=str(uuid4()),
@@ -443,7 +439,7 @@ def test_version_response_change_reason_connector_sync() -> None:
 def test_version_response_tombstone_reason() -> None:
     from app.domains.documents.schemas.documents import DocumentVersionResponse
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     resp = DocumentVersionResponse(
         version_id=str(uuid4()),
         document_id=str(uuid4()),

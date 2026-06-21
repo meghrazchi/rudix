@@ -9,7 +9,6 @@ import pytest
 
 from app.domains.chat.services.confidence_service import (
     ConfidenceChunkSignal,
-    ConfidenceReason,
     ConfidenceService,
 )
 

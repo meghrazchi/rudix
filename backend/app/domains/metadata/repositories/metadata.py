@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 

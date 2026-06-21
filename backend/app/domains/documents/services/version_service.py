@@ -39,7 +39,7 @@ async def _next_version_number(
 async def create_document_version(
     db_session: AsyncSession,
     *,
-    document: "Document",
+    document: Document,
     change_reason: DocumentVersionChangeReason,
     content_hash: str | None = None,
     created_by_user_id: UUID | None = None,
@@ -100,7 +100,7 @@ async def mark_version_indexed(
     db_session: AsyncSession,
     *,
     version: DocumentVersion,
-    document: "Document",
+    document: Document,
     chunk_count: int | None = None,
     embedding_model: str | None = None,
     embedding_vector_dimension: int | None = None,

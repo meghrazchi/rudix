@@ -14,7 +14,6 @@ from app.domains.metadata.repositories.metadata import (
 )
 from app.models.metadata import DocumentMetadata, MetadataField
 
-
 _field_repo = MetadataFieldRepository()
 _doc_repo = DocumentMetadataRepository()
 
@@ -50,11 +49,11 @@ def _serialize_value(field: MetadataField, value: object) -> tuple[str | None, l
     if ft == "number":
         try:
             float(value)  # type: ignore[arg-type]
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as err:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Field '{field.name}' expects a numeric value",
-            )
+            ) from err
         return str(value), None
     # text / date — store as text
     return str(value), None

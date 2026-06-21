@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from typing import Literal
 
@@ -30,7 +29,7 @@ class CreateMetadataFieldRequest(BaseModel):
         return stripped
 
     @model_validator(mode="after")
-    def validate_allowed_values(self) -> "CreateMetadataFieldRequest":
+    def validate_allowed_values(self) -> CreateMetadataFieldRequest:
         if self.field_type in ("select", "multi_select"):
             if not self.allowed_values:
                 raise ValueError("allowed_values is required for select/multi_select fields")

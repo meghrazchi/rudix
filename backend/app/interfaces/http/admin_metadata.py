@@ -17,6 +17,7 @@ Document metadata endpoints (authenticated users):
 
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -104,9 +105,9 @@ def _field_to_response(field: MetadataField) -> MetadataFieldResponse:
 
 @router.get("/admin/metadata/fields", response_model=MetadataFieldListResponse)
 async def list_metadata_fields(
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
     include_inactive: bool = Query(default=False),
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_ADMIN_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
 ) -> MetadataFieldListResponse:
     org_id = _org_id(principal)
     fields = await _field_repo.list(db, organization_id=org_id, include_inactive=include_inactive)
@@ -124,8 +125,8 @@ async def list_metadata_fields(
 )
 async def create_metadata_field(
     payload: CreateMetadataFieldRequest,
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_ADMIN_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> MetadataFieldResponse:
     org_id = _org_id(principal)
     existing = await _field_repo.get_by_name(db, name=payload.name, organization_id=org_id)
@@ -157,8 +158,8 @@ async def create_metadata_field(
 )
 async def get_metadata_field(
     field_id: UUID,
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_ADMIN_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> MetadataFieldResponse:
     org_id = _org_id(principal)
     field = await _field_repo.get(db, field_id=field_id, organization_id=org_id)
@@ -176,8 +177,8 @@ async def get_metadata_field(
 async def update_metadata_field(
     field_id: UUID,
     payload: UpdateMetadataFieldRequest,
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_ADMIN_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> MetadataFieldResponse:
     org_id = _org_id(principal)
     field = await _field_repo.get(db, field_id=field_id, organization_id=org_id)
@@ -212,8 +213,8 @@ async def update_metadata_field(
 )
 async def delete_metadata_field(
     field_id: UUID,
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_ADMIN_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:
     org_id = _org_id(principal)
     field = await _field_repo.get(db, field_id=field_id, organization_id=org_id)
@@ -234,9 +235,9 @@ async def delete_metadata_field(
 )
 async def suggest_tag_values(
     field_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_READ_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
     prefix: str = Query(default="", max_length=128),
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_READ_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
 ) -> TagSuggestionResponse:
     org_id = _org_id(principal)
     field = await _field_repo.get(db, field_id=field_id, organization_id=org_id)
@@ -261,8 +262,8 @@ async def suggest_tag_values(
 )
 async def get_document_metadata(
     document_id: UUID,
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_READ_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_READ_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DocumentMetadataResponse:
     org_id = _org_id(principal)
     rows = await _doc_repo.get_document_metadata(
@@ -289,8 +290,8 @@ async def get_document_metadata(
 async def set_document_metadata(
     document_id: UUID,
     payload: SetDocumentMetadataRequest,
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_WRITE_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DocumentMetadataResponse:
     org_id = _org_id(principal)
     user_id = _user_id(principal)
@@ -332,8 +333,8 @@ async def set_document_metadata(
 )
 async def bulk_set_metadata(
     payload: BulkSetMetadataRequest,
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_ADMIN_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> BulkSetMetadataResponse:
     org_id = _org_id(principal)
     user_id = _user_id(principal)
@@ -376,14 +377,17 @@ async def bulk_set_metadata(
     response_model=dict,
 )
 async def filter_documents_by_metadata(
-    filters: list[str] = Query(
-        default=[],
-        alias="filter",
-        description="Repeated param: field_id:value",
-        max_length=50,
-    ),
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_READ_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_READ_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    filters: Annotated[
+        list[str],
+        Query(
+            default=[],
+            alias="filter",
+            description="Repeated param: field_id:value",
+            max_length=50,
+        ),
+    ]
 ) -> dict:
     """Return document IDs that satisfy ALL provided metadata filters.
 
@@ -411,10 +415,10 @@ async def filter_documents_by_metadata(
 )
 async def get_metadata_audit(
     document_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    principal: AuthenticatedPrincipal = Depends(require_roles(*_ADMIN_ROLES)),
-    db: AsyncSession = Depends(get_db_session),
 ) -> MetadataAuditListResponse:
     org_id = _org_id(principal)
 

@@ -17,8 +17,6 @@ import os
 from datetime import UTC, date, datetime
 from uuid import UUID, uuid4
 
-import pytest
-
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")

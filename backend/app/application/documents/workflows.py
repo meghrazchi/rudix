@@ -25,12 +25,11 @@ from app.domains.documents.services.duplicate_detection import check_for_duplica
 from app.domains.documents.services.malware_scan import MalwareScanResult, MalwareScanService
 from app.domains.documents.services.upload_validation import validate_upload
 from app.domains.documents.services.version_service import create_document_version
-from app.models.enums import DocumentVersionChangeReason
 from app.domains.quota.schemas.quota_schemas import QuotaType
 from app.domains.quota.services.plan_enforcement_service import PlanEnforcementService
 from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document
-from app.models.enums import DocumentStatus
+from app.models.enums import DocumentStatus, DocumentVersionChangeReason
 
 _LEGAL_HOLD_RETENTION_CLASSES = frozenset({"legal_hold"})
 
