@@ -1,0 +1,77 @@
+name: Playwright E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_PUBLIC_AUTH_PROVIDER: app
+  NEXT_PUBLIC_AUTH_LOCAL_FALLBACK: "true"
+  NEXT_PUBLIC_AUTH_LOCAL_PASSWORD: "123123123"
+  NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN: ci-access-token
+  NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_ID: 00000000-0000-0000-0000-000000000001
+  NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME: Rudix CI
+  NEXT_PUBLIC_AUTH_DEFAULT_ROLE: admin
+  NEXT_PUBLIC_FEATURE_DEVELOPER_MODE: "false"
+  NEXT_PUBLIC_FEATURE_EXPORTS_ENABLED: "true"
+  NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS: "true"
+  NEXT_PUBLIC_FEATURE_COLLECTIONS_ENABLED: "true"
+  NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED: "true"
+  NEXT_PUBLIC_CHAT_AGENTIC_ENABLED: "true"
+  NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT: "false"
+  NEXT_PUBLIC_CHAT_STREAMING_ENABLED: "true"
+  NEXT_PUBLIC_PUBLIC_SITE_URL: http://localhost:3000
+  NEXT_PUBLIC_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_PUBLIC_PUBLIC_PRODUCT_URL: /product
+  NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL: /solutions
+  NEXT_PUBLIC_PUBLIC_SECURITY_URL: /security
+  NEXT_PUBLIC_PUBLIC_PRICING_URL: /pricing
+  NEXT_PUBLIC_PUBLIC_DOCS_URL: /docs
+  NEXT_PUBLIC_PUBLIC_TRIAL_URL: /signup
+  NEXT_PUBLIC_PUBLIC_DEMO_URL: /contact
+  NEXT_PUBLIC_PUBLIC_CONTACT_URL: /contact
+  NEXT_PUBLIC_PUBLIC_STATUS_URL: /status
+  NEXT_PUBLIC_PUBLIC_LOGIN_URL: /login
+
+jobs:
+  frontend-e2e:
+    name: Frontend Playwright
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          if-no-files-found: ignore
