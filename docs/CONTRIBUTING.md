@@ -8,7 +8,7 @@ This repository currently contains architecture and implementation documentation
 
 1. Create a feature branch from `main`.
 2. Make focused changes with clear commit messages.
-3. Open a pull request with a short summary, rationale, and impacted docs.
+3. Open a GitHub pull request with a short summary, rationale, and impacted docs.
 4. Request review before merging.
 
 ## Pull Request Checklist
@@ -16,6 +16,7 @@ This repository currently contains architecture and implementation documentation
 - Change is scoped and easy to review.
 - Related docs are updated in the same PR.
 - No broken links in Markdown files.
+- Workflow changes are kept in sync with `README.md` and `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`.
 - Security or production-impacting changes are reflected in:
   - `11_SECURITY_AND_PRODUCTION_CHECKLIST.md`
   - `12_EVALUATION_AND_MONITORING.md`

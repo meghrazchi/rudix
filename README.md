@@ -321,9 +321,10 @@ make lint         # Run lint and type checks
 
 ## Deployment and CI/CD
 
-Rudix uses GitHub Actions for repository automation:
+Rudix uses GitHub Actions for repository automation. The workflow files under `.github/workflows/` are the source of truth for maintainer-facing CI, security, release, and evaluation automation:
 
-- `ci.yml` runs configuration validation, backend checks, frontend checks, API type verification, build validation, and Playwright e2e
+- `ci.yml` runs configuration validation, backend checks, frontend checks, API type verification, and build validation
+- `playwright.yml` runs the standalone Playwright end-to-end suite on demand
 - `security.yml` runs dependency and filesystem vulnerability scans and publishes the backend dependency audit report as an artifact
 - `codeql.yml` runs Python and TypeScript CodeQL analysis
 - `release.yml` builds and publishes images, runs integration smoke tests, deploys staging, deploys production with environment approval, and supports rollback
@@ -421,7 +422,7 @@ Some features may still be under active development. Check the docs, issues, and
 
 Contributions are welcome.
 
-Before opening a merge request, run the relevant checks:
+Before opening a pull request, run the relevant checks:
 
 ```bash
 cd backend

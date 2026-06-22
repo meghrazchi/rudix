@@ -6,7 +6,8 @@ This document describes the GitHub Actions automation used for Rudix:
 
 - validate repository configuration and Terraform syntax
 - run backend linting, tests, and migration validation
-- run frontend formatting, linting, type checks, API client checks, build, and Playwright e2e
+- run frontend formatting, linting, type checks, API client checks, and build validation
+- run the standalone Playwright e2e suite on demand
 - run filesystem and dependency vulnerability scans
 - run CodeQL security analysis on Python and TypeScript code
 - build and publish release images
@@ -44,9 +45,16 @@ Jobs:
    - runs Prettier, ESLint, and TypeScript checks
    - verifies generated API types against the committed OpenAPI schema
    - runs the production frontend build
-5. `frontend-e2e`
-   - installs Playwright browsers
-   - runs the Playwright suite with the repo's bundled dev server flow
+
+Playwright end-to-end validation lives in `playwright.yml` instead of `ci.yml`.
+
+### `playwright.yml`
+
+Runs:
+
+- Playwright browser installation
+- the repository's standalone Playwright end-to-end suite
+- Playwright report upload on completion
 
 ### `security.yml`
 

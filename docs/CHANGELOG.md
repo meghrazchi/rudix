@@ -9,6 +9,12 @@ All notable changes to this documentation set are recorded here.
 - `docs/DOCUMENT_TEMPLATE.md` for standardized technical documents.
 - `docs/DOCUMENT_REVIEW_CHECKLIST.md` for document quality gating.
 
+### Changed
+
+- `README.md`: aligned the GitHub Actions summary with the committed `.github/workflows/` files and documented the standalone Playwright workflow.
+- `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`: updated the CI/CD reference to match the current workflow split between `ci.yml` and `playwright.yml`.
+- `docs/CONTRIBUTING.md`: clarified GitHub pull request language and added a workflow-documentation sync check.
+
 ## [2026-06-02] — F210 Adaptive hybrid chunking
 
 ### Added
