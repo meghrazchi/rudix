@@ -67,13 +67,18 @@ def _resolve_txt(hostname: str) -> list[str]:
     )
 
 
+def _normalize_uuid(value: UUID | str) -> UUID:
+    return value if isinstance(value, UUID) else UUID(str(value))
+
+
 class DomainVerificationService:
     async def list_verifications(
         self, db: AsyncSession, *, organization_id: UUID
     ) -> list[OrgDomainVerification]:
+        organization_uuid = _normalize_uuid(organization_id)
         result = await db.execute(
             select(OrgDomainVerification)
-            .where(OrgDomainVerification.organization_id == organization_id)
+            .where(OrgDomainVerification.organization_id == organization_uuid)
             .order_by(OrgDomainVerification.created_at.desc())
         )
         return list(result.scalars().all())
@@ -81,10 +86,11 @@ class DomainVerificationService:
     async def get_verification(
         self, db: AsyncSession, *, verification_id: UUID, organization_id: UUID
     ) -> OrgDomainVerification | None:
+        organization_uuid = _normalize_uuid(organization_id)
         result = await db.execute(
             select(OrgDomainVerification).where(
                 OrgDomainVerification.id == verification_id,
-                OrgDomainVerification.organization_id == organization_id,
+                OrgDomainVerification.organization_id == organization_uuid,
             )
         )
         return result.scalar_one_or_none()
@@ -92,10 +98,11 @@ class DomainVerificationService:
     async def get_by_domain(
         self, db: AsyncSession, *, domain: str, organization_id: UUID
     ) -> OrgDomainVerification | None:
+        organization_uuid = _normalize_uuid(organization_id)
         result = await db.execute(
             select(OrgDomainVerification).where(
                 OrgDomainVerification.domain == domain.strip().lower(),
-                OrgDomainVerification.organization_id == organization_id,
+                OrgDomainVerification.organization_id == organization_uuid,
             )
         )
         return result.scalar_one_or_none()
@@ -108,9 +115,11 @@ class DomainVerificationService:
         domain: str,
         actor_id: UUID | None,
     ) -> OrgDomainVerification:
+        organization_uuid = _normalize_uuid(organization_id)
+        actor_uuid = _normalize_uuid(actor_id) if actor_id is not None else None
         clean_domain = domain.strip().lower().lstrip("@")
         existing = await self.get_by_domain(
-            db, domain=clean_domain, organization_id=organization_id
+            db, domain=clean_domain, organization_id=organization_uuid
         )
         if existing is not None:
             # Reset token and status so the admin can retry
@@ -124,11 +133,11 @@ class DomainVerificationService:
             return existing
 
         record = OrgDomainVerification(
-            organization_id=organization_id,
+            organization_id=organization_uuid,
             domain=clean_domain,
             status="pending",
             verification_token=_generate_verification_token(),
-            created_by_id=actor_id,
+            created_by_id=actor_uuid,
         )
         db.add(record)
         await db.flush()
@@ -142,8 +151,9 @@ class DomainVerificationService:
         verification_id: UUID,
         organization_id: UUID,
     ) -> OrgDomainVerification:
+        organization_uuid = _normalize_uuid(organization_id)
         record = await self.get_verification(
-            db, verification_id=verification_id, organization_id=organization_id
+            db, verification_id=verification_id, organization_id=organization_uuid
         )
         if record is None:
             raise ValueError("Domain verification record not found.")
@@ -171,8 +181,9 @@ class DomainVerificationService:
         verification_id: UUID,
         organization_id: UUID,
     ) -> bool:
+        organization_uuid = _normalize_uuid(organization_id)
         record = await self.get_verification(
-            db, verification_id=verification_id, organization_id=organization_id
+            db, verification_id=verification_id, organization_id=organization_uuid
         )
         if record is None:
             return False

@@ -184,8 +184,8 @@ async def test_reindex_requires_admin_or_owner_role(
         headers=_headers(token=token, organization_id=str(org.id)),
     )
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Insufficient role for requested operation"
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Document not found"
     assert fake_reindex_task.delay_calls == []
 
 

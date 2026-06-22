@@ -158,7 +158,7 @@ class QdrantService:
                         ),
                         "parent_text": ((parent_text_by_chunk_id or {}).get(chunk.id)),
                         "child_count": chunk.child_count,
-                        "chunk_type": chunk.chunk_type,
+                        "chunk_type": getattr(chunk, "chunk_type", "text"),
                     },
                 )
             )

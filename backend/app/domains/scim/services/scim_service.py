@@ -27,12 +27,17 @@ def _token_hint(raw_token: str) -> str:
     return raw_token[-4:]
 
 
+def _normalize_uuid(value: UUID | str) -> UUID:
+    return value if isinstance(value, UUID) else UUID(str(value))
+
+
 class SCIMService:
     # ── Config management ─────────────────────────────────────────────────────
 
     async def get_config(self, db: AsyncSession, *, organization_id: UUID) -> OrgSCIMConfig | None:
+        organization_uuid = _normalize_uuid(organization_id)
         result = await db.execute(
-            select(OrgSCIMConfig).where(OrgSCIMConfig.organization_id == organization_id)
+            select(OrgSCIMConfig).where(OrgSCIMConfig.organization_id == organization_uuid)
         )
         return result.scalar_one_or_none()
 
@@ -55,17 +60,19 @@ class SCIMService:
         actor_id: UUID | None,
     ) -> tuple[OrgSCIMConfig, str]:
         """Enable SCIM and generate a new bearer token. Returns (config, raw_token)."""
+        organization_uuid = _normalize_uuid(organization_id)
+        actor_uuid = _normalize_uuid(actor_id) if actor_id is not None else None
         raw_token = _generate_token()
-        existing = await self.get_config(db, organization_id=organization_id)
+        existing = await self.get_config(db, organization_id=organization_uuid)
 
         if existing is None:
             config = OrgSCIMConfig(
-                organization_id=organization_id,
+                organization_id=organization_uuid,
                 enabled=True,
                 token_hash=_hash_token(raw_token),
                 token_hint=_token_hint(raw_token),
-                created_by_id=actor_id,
-                updated_by_id=actor_id,
+                created_by_id=actor_uuid,
+                updated_by_id=actor_uuid,
             )
             db.add(config)
         else:
@@ -73,7 +80,7 @@ class SCIMService:
             config.enabled = True
             config.token_hash = _hash_token(raw_token)
             config.token_hint = _token_hint(raw_token)
-            config.updated_by_id = actor_id
+            config.updated_by_id = actor_uuid
 
         await db.flush()
         await db.refresh(config)
@@ -87,19 +94,22 @@ class SCIMService:
         actor_id: UUID | None,
     ) -> tuple[OrgSCIMConfig, str]:
         """Rotate the SCIM bearer token. Returns (config, new_raw_token)."""
-        config = await self.get_config(db, organization_id=organization_id)
+        organization_uuid = _normalize_uuid(organization_id)
+        actor_uuid = _normalize_uuid(actor_id) if actor_id is not None else None
+        config = await self.get_config(db, organization_id=organization_uuid)
         if config is None:
             raise ValueError("SCIM is not configured for this organization.")
         raw_token = _generate_token()
         config.token_hash = _hash_token(raw_token)
         config.token_hint = _token_hint(raw_token)
-        config.updated_by_id = actor_id
+        config.updated_by_id = actor_uuid
         await db.flush()
         await db.refresh(config)
         return config, raw_token
 
     async def disable(self, db: AsyncSession, *, organization_id: UUID) -> bool:
-        config = await self.get_config(db, organization_id=organization_id)
+        organization_uuid = _normalize_uuid(organization_id)
+        config = await self.get_config(db, organization_id=organization_uuid)
         if config is None:
             return False
         await db.delete(config)
@@ -118,12 +128,13 @@ class SCIMService:
         filter_email: str | None = None,
     ) -> tuple[list[User], int]:
         """Return (page_of_users, total_count) scoped to org."""
-        base_query = select(User).where(User.organization_id == organization_id)
+        organization_uuid = _normalize_uuid(organization_id)
+        base_query = select(User).where(User.organization_id == organization_uuid)
         if filter_email:
             base_query = base_query.where(User.email == filter_email.strip().lower())
 
         total_result = await db.execute(
-            select(User.id).where(User.organization_id == organization_id)
+            select(User.id).where(User.organization_id == organization_uuid)
         )
         total = len(total_result.scalars().all())
 
@@ -142,10 +153,11 @@ class SCIMService:
         scim_external_id: str,
         organization_id: UUID,
     ) -> User | None:
+        organization_uuid = _normalize_uuid(organization_id)
         result = await db.execute(
             select(User).where(
                 User.scim_external_id == scim_external_id,
-                User.organization_id == organization_id,
+                User.organization_id == organization_uuid,
             )
         )
         return result.scalar_one_or_none()
@@ -157,10 +169,11 @@ class SCIMService:
         email: str,
         organization_id: UUID,
     ) -> User | None:
+        organization_uuid = _normalize_uuid(organization_id)
         result = await db.execute(
             select(User).where(
                 User.email == email.strip().lower(),
-                User.organization_id == organization_id,
+                User.organization_id == organization_uuid,
             )
         )
         return result.scalar_one_or_none()
@@ -179,9 +192,10 @@ class SCIMService:
         """Create a new user via SCIM provisioning."""
         from app.models.enums import OrganizationRole
 
+        organization_uuid = _normalize_uuid(organization_id)
         clean_email = email.strip().lower()
         existing = await self.get_user_by_email(
-            db, email=clean_email, organization_id=organization_id
+            db, email=clean_email, organization_id=organization_uuid
         )
         if existing is not None:
             # Update existing user with SCIM external ID
@@ -194,8 +208,8 @@ class SCIMService:
             return existing
 
         user = User(
-            organization_id=organization_id,
-            external_auth_id=f"scim:{organization_id}:{scim_external_id}",
+            organization_id=organization_uuid,
+            external_auth_id=f"scim:{organization_uuid}:{scim_external_id}",
             email=clean_email,
             display_name=display_name,
             is_active=is_active,
@@ -207,7 +221,7 @@ class SCIMService:
 
         db.add(
             OrganizationMember(
-                organization_id=organization_id,
+                organization_id=organization_uuid,
                 user_id=user.id,
                 role=OrganizationRole.member.value,
             )

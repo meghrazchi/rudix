@@ -438,6 +438,24 @@ class PolicyEngine:
             return _deny(DenyReason.explicit_resource_deny, rule)
         trace.append(f"{rule}:pass")
 
+        # ── Rule 6b: Document uploader delete fallback ─────────────────────
+        # Uploader-owned documents can be deleted by non-viewer roles even when
+        # the base permission set does not include documents:delete.
+        if (
+            action is Action.delete
+            and resource.resource_type is ResourceType.document
+            and resource.owner_user_id is not None
+            and resource.owner_user_id == subject.user_id
+        ):
+            uploader_permissions = subject.resolved_permissions
+            if not uploader_permissions:
+                combined: set[str] = set()
+                for role in subject.roles:
+                    combined.update(ROLE_PERMISSIONS.get(role, frozenset()))
+                uploader_permissions = frozenset(combined)
+            if PermissionType.documents_upload in uploader_permissions:
+                return _allow("document_owner_delete")
+
         # ── Rule 7: Explicit resource allow ─────────────────────────────────
         rule = "explicit_resource_allow"
         if subject.user_id in resource.explicit_allow_user_ids or _legacy_rule_matches(
@@ -464,6 +482,7 @@ class PolicyEngine:
             accessible.update(subject.accessible_collection_ids)
             if accessible.intersection(resource.collection_ids):
                 return _allow(rule)
+            return _deny(DenyReason.collection_not_accessible, rule)
         trace.append(f"{rule}:pass")
 
         # ── Rule 9: Connector ACL ────────────────────────────────────────────
@@ -474,8 +493,11 @@ class PolicyEngine:
                 and resource.resource_id in subject.connector_acl_item_ids
             ):
                 return _allow(rule)
-            if resource.connector_allowed_user_ids or subject.connector_acl_item_ids:
-                # Non-empty ACL and subject is not in it.
+            if resource.resource_type is ResourceType.connector_source_item and (
+                not resource.connector_allowed_user_ids and not subject.connector_acl_item_ids
+            ):
+                trace.append(f"{rule}:pass(no_acl_filter)")
+            else:
                 return _deny(DenyReason.connector_acl_denied, rule)
         trace.append(f"{rule}:pass")
 

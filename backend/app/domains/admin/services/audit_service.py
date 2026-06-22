@@ -145,6 +145,17 @@ def _parse_resource_id(resource_id: UUID | str | None) -> UUID | None:
         return None
 
 
+def _parse_uuid(value: UUID | str | None) -> UUID | None:
+    if value is None:
+        return None
+    if isinstance(value, UUID):
+        return value
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
+
+
 class AuditLogService:
     def __init__(self, usage_repository: UsageRepository | None = None) -> None:
         self._usage_repository = usage_repository or UsageRepository()
@@ -153,8 +164,8 @@ class AuditLogService:
         self,
         session: AsyncSession,
         *,
-        organization_id: UUID,
-        user_id: UUID | None,
+        organization_id: UUID | str,
+        user_id: UUID | str | None,
         action: str,
         resource_type: str,
         resource_id: UUID | str | None = None,
@@ -169,12 +180,18 @@ class AuditLogService:
         if raw_resource_id and "resource_id_raw" not in audit_metadata:
             audit_metadata["resource_id_raw"] = raw_resource_id
 
+        parsed_organization_id = _parse_uuid(organization_id)
+        parsed_user_id = _parse_uuid(user_id)
         parsed_resource_id = _parse_resource_id(resource_id)
+        if parsed_organization_id is None:
+            raise ValueError("organization_id must be a valid UUID")
+        if user_id is not None and parsed_user_id is None:
+            raise ValueError("user_id must be a valid UUID")
         try:
             await self._usage_repository.create_audit_log(
                 session,
-                organization_id=organization_id,
-                user_id=user_id,
+                organization_id=parsed_organization_id,
+                user_id=parsed_user_id,
                 action=action,
                 resource_type=resource_type,
                 resource_id=parsed_resource_id,
@@ -186,8 +203,8 @@ class AuditLogService:
                 "audit.log.write_failed",
                 action=action,
                 resource_type=resource_type,
-                organization_id=str(organization_id),
-                user_id=str(user_id) if user_id is not None else None,
+                organization_id=str(parsed_organization_id),
+                user_id=str(parsed_user_id) if parsed_user_id is not None else None,
                 request_id=request_id,
                 error=exc.__class__.__name__,
             )

@@ -165,6 +165,20 @@ def _guard_citations(answer: VerifiedAnswer) -> None:
         )
 
 
+async def _load_answer_response(
+    db: AsyncSession,
+    *,
+    answer_id: UUID,
+    organization_id: UUID,
+) -> VerifiedAnswer:
+    answer = await _repo.get(db, answer_id=answer_id, organization_id=organization_id)
+    if answer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Verified answer not found"
+        )
+    return answer
+
+
 # ---------------------------------------------------------------------------
 # CRUD
 # ---------------------------------------------------------------------------
@@ -218,7 +232,9 @@ async def create_verified_answer(
         metadata={"title": answer.title},
     )
     await db.commit()
-    return _to_response(answer)
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
 
 
 @router.get("", response_model=VerifiedAnswerListResponse)
@@ -275,7 +291,9 @@ async def get_verified_answer(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Verified answer not found"
         )
-    return _to_response(answer)
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
 
 
 @router.patch("/{answer_id}", response_model=VerifiedAnswerResponse)
@@ -339,7 +357,9 @@ async def update_verified_answer(
         metadata={"title": answer.title, "change_reason": payload.change_reason},
     )
     await db.commit()
-    return _to_response(answer)
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
 
 
 @router.delete("/{answer_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -418,7 +438,9 @@ async def submit_for_review(
         metadata={"title": answer.title},
     )
     await db.commit()
-    return _to_response(answer)
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
 
 
 @router.post("/{answer_id}/approve", response_model=VerifiedAnswerResponse)
@@ -459,7 +481,9 @@ async def approve_verified_answer(
         metadata={"title": answer.title},
     )
     await db.commit()
-    return _to_response(answer)
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
 
 
 @router.post("/{answer_id}/reject", response_model=VerifiedAnswerResponse)
@@ -499,7 +523,9 @@ async def reject_verified_answer(
         metadata={"title": answer.title, "note": payload.note},
     )
     await db.commit()
-    return _to_response(answer)
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
 
 
 @router.post("/{answer_id}/publish", response_model=VerifiedAnswerResponse)
@@ -539,7 +565,9 @@ async def publish_verified_answer(
         metadata={"title": answer.title},
     )
     await db.commit()
-    return _to_response(answer)
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -657,7 +685,9 @@ async def create_from_chat_message(
         metadata={"title": answer.title, "source_message_id": message_id},
     )
     await db.commit()
-    return _to_response(answer)
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
 
 
 # ---------------------------------------------------------------------------

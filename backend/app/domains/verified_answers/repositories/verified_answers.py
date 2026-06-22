@@ -248,8 +248,13 @@ class VerifiedAnswerRepository:
         answer: VerifiedAnswer,
         citations: list[dict],
     ) -> None:
-        # Delete existing citations.
-        for citation in list(answer.citations):
+        # Delete existing citations without relying on a potentially unloaded relationship.
+        result = await db.execute(
+            select(VerifiedAnswerCitation).where(
+                VerifiedAnswerCitation.verified_answer_id == answer.id
+            )
+        )
+        for citation in list(result.scalars().all()):
             await db.delete(citation)
         await db.flush()
         # Insert new citations.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
@@ -692,7 +693,7 @@ class DocumentIntelligenceToolService:
                 "confidence": {
                     "score": confidence_result.score,
                     "category": confidence_result.category,
-                    "explanation": confidence_result.explanation.__dict__,
+                    "explanation": asdict(confidence_result.explanation),
                 },
                 "debug": {
                     "retrieval_count": len(retrieved_chunks),
@@ -763,7 +764,7 @@ class DocumentIntelligenceToolService:
                 "confidence": {
                     "score": confidence_result.score,
                     "category": confidence_result.category,
-                    "explanation": confidence_result.explanation.__dict__,
+                    "explanation": asdict(confidence_result.explanation),
                 },
                 "debug": {
                     "retrieval_count": len(retrieved_chunks),
@@ -834,7 +835,7 @@ class DocumentIntelligenceToolService:
             "confidence": {
                 "score": confidence_result.score,
                 "category": _category_from_score(confidence_result.score),
-                "explanation": confidence_result.explanation.__dict__,
+                "explanation": asdict(confidence_result.explanation),
             },
             "debug": {
                 "retrieval_count": len(retrieved_chunks),

@@ -79,14 +79,9 @@ async def _discover_cloud_id(access_token: str) -> str:
 async def _require_cloud_id(credential: dict[str, Any]) -> str:
     cloud_id = (credential.get("cloud_id") or "").strip()
     if not cloud_id:
-        access_token = credential.get("access_token", "")
-        if not access_token:
-            raise ConnectorAuthError(
-                "Confluence credential is missing 'cloud_id' and has no access token. "
-                "Re-authorize the connection."
-            )
-        cloud_id = await _discover_cloud_id(access_token)
-        credential["cloud_id"] = cloud_id
+        raise ConnectorAuthError(
+            "Confluence credential is missing 'cloud_id'. Re-authorize the connection."
+        )
     return cloud_id
 
 

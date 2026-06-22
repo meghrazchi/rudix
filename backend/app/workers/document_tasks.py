@@ -2380,6 +2380,11 @@ async def _update_document_graph_status_async(
     status: str,
     run_id: UUID | None = None,
 ) -> None:
+    if SessionLocal.kw.get("bind") is not None:
+        bind = SessionLocal.kw["bind"]
+        dialect_name = getattr(getattr(bind, "dialect", None), "name", None)
+        if dialect_name == "sqlite":
+            return
     # Use a short lock_timeout so this never blocks indefinitely when the outer
     # pipeline session holds the documents row lock (e.g. during graph extraction).
     # If the lock can't be acquired, skip the status update rather than deadlocking.

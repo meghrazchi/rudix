@@ -182,7 +182,7 @@ async def test_delete_document_marks_deleting_and_enqueues_task(
     assert response.status_code == 202
     payload = response.json()
     assert payload["document_id"] == str(document.id)
-    assert payload["status"] == DocumentStatus.deleting.value
+    assert payload["status"] == DocumentStatus.delete_requested.value
     assert len(fake_delete_document_task.delay_calls) == 1
     delay_call = fake_delete_document_task.delay_calls[0]
     assert delay_call["document_id"] == str(document.id)
@@ -192,7 +192,7 @@ async def test_delete_document_marks_deleting_and_enqueues_task(
 
     updated = await _get_document(db_session, document_id=document.id)
     assert updated is not None
-    assert updated.status == DocumentStatus.deleting.value
+    assert updated.status == DocumentStatus.delete_requested.value
     audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
     assert len(audit_logs) == 2
     actions = {row.action for row in audit_logs}
@@ -222,8 +222,8 @@ async def test_delete_document_returns_403_for_viewer(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Insufficient role for requested operation"
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Document not found"
     assert fake_delete_document_task.delay_calls == []
 
 

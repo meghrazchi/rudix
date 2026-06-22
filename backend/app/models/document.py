@@ -233,9 +233,13 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         storage_path = kwargs.pop("storage_path", None)
         file_size = kwargs.pop("file_size", None)
         del file_size
+        file_size_bytes = kwargs.pop("file_size_bytes", None)
+        del file_size_bytes
 
         if "storage_object_key" not in kwargs and storage_path is not None:
             kwargs["storage_object_key"] = storage_path
+        if "storage_object_key" not in kwargs:
+            kwargs["storage_object_key"] = str(kwargs.get("filename") or "document")
         if "storage_bucket" not in kwargs:
             kwargs["storage_bucket"] = "documents"
         if "file_type" not in kwargs:
