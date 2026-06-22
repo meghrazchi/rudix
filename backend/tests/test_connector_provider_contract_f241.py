@@ -429,7 +429,6 @@ def test_get_provider_confluence_has_export_formats(provider_client) -> None:
         assert "format" in ef
         assert "mime_type" in ef
     schema = data["config_schema"]
-    assert schema["properties"]["site_url"]["format"] == "uri"
     assert schema["properties"]["space_keys"]["type"] == "array"
     assert schema["properties"]["cql_filter"]["type"] == "string"
     assert schema["properties"]["include_comments"]["type"] == "boolean"

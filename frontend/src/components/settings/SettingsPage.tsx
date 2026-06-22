@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { BillingSettingsTab } from "@/components/settings/BillingSettingsTab";
 import { OrganizationSettingsTab } from "@/components/settings/OrganizationSettingsTab";
 import { SecuritySettingsTab } from "@/components/settings/SecuritySettingsTab";
+import { UserProfilePage } from "@/components/user/UserProfilePage";
 import {
   SettingsTabs,
   useSettingsTab,
@@ -35,6 +36,8 @@ export function SettingsPage() {
       </header>
 
       <SettingsTabs activeTab={activeTab} onTabChange={handleTabChange} />
+
+      {activeTab === "profile" && <UserProfilePage />}
 
       {activeTab === "organization" && (
         <div

@@ -240,17 +240,11 @@ export async function getOrganizationProfile(): Promise<OrganizationProfile> {
   const { profileUrl } = getOrgEndpoints();
   if (!profileUrl)
     throw new OrganizationEndpointUnavailableError("profileEnabled");
-  try {
-    const payload = await apiRequest<unknown>(profileUrl, {
-      method: "GET",
-      retry: false,
-    });
-    return normalizeProfile(payload);
-  } catch (err) {
-    if (isApiClientError(err) && err.status === 501)
-      throw new OrganizationEndpointUnavailableError("profileEnabled");
-    throw err;
-  }
+  const payload = await apiRequest<unknown>(profileUrl, {
+    method: "GET",
+    retry: false,
+  });
+  return normalizeProfile(payload);
 }
 
 export async function updateOrganizationProfile(
@@ -281,17 +275,11 @@ export async function getOrganizationSettings(): Promise<OrganizationSettings> {
   const { settingsUrl } = getOrgEndpoints();
   if (!settingsUrl)
     throw new OrganizationEndpointUnavailableError("settingsEnabled");
-  try {
-    const payload = await apiRequest<unknown>(settingsUrl, {
-      method: "GET",
-      retry: false,
-    });
-    return normalizeSettings(payload);
-  } catch (err) {
-    if (isApiClientError(err) && err.status === 501)
-      throw new OrganizationEndpointUnavailableError("settingsEnabled");
-    throw err;
-  }
+  const payload = await apiRequest<unknown>(settingsUrl, {
+    method: "GET",
+    retry: false,
+  });
+  return normalizeSettings(payload);
 }
 
 export async function updateOrganizationSettings(
@@ -312,17 +300,11 @@ export async function getIngestionDefaults(): Promise<IngestionDefaults> {
   const { ingestionUrl } = getOrgEndpoints();
   if (!ingestionUrl)
     throw new OrganizationEndpointUnavailableError("ingestionEnabled");
-  try {
-    const payload = await apiRequest<unknown>(ingestionUrl, {
-      method: "GET",
-      retry: false,
-    });
-    return normalizeIngestionDefaults(payload);
-  } catch (err) {
-    if (isApiClientError(err) && err.status === 501)
-      throw new OrganizationEndpointUnavailableError("ingestionEnabled");
-    throw err;
-  }
+  const payload = await apiRequest<unknown>(ingestionUrl, {
+    method: "GET",
+    retry: false,
+  });
+  return normalizeIngestionDefaults(payload);
 }
 
 export async function updateIngestionDefaults(

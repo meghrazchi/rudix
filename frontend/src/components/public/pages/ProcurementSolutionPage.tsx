@@ -135,21 +135,22 @@ function ProcurementHeroSection({
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function ProcurementProblemSection() {
+  const t = useTranslations("public.procurement");
   const problems = [
     {
       icon: "assignment_late",
-      title: "Long security questionnaires",
-      body: "Weeks spent manually parsing through spreadsheets and vendor responses just to verify basic security standards.",
+      title: t("problems.questionnairesTitle"),
+      body: t("problems.questionnairesBody"),
     },
     {
       icon: "compare_arrows",
-      title: "Manual contract comparison",
-      body: "Struggling to identify nuanced differences in indemnification and liability clauses across dozens of vendor variants.",
+      title: t("problems.contractsTitle"),
+      body: t("problems.contractsBody"),
     },
     {
       icon: "warning_amber",
-      title: "Risk assessment friction",
-      body: "Inconsistent risk profiling due to human error and the sheer volume of technical documentation to review.",
+      title: t("problems.riskTitle"),
+      body: t("problems.riskBody"),
     },
   ];
 
@@ -164,11 +165,10 @@ function ProcurementProblemSection() {
             id="proc-problem-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            The Procurement Bottleneck
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Manual vendor assessments are the primary source of friction in
-            modern enterprise deployment cycles.
+            {t("problems.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -193,17 +193,18 @@ function ProcurementProblemSection() {
 // ── document sources ──────────────────────────────────────────────────────────
 
 function ProcurementDocumentSourcesSection() {
+  const t = useTranslations("public.procurement");
   const sources = [
-    { icon: "description", label: "SOC2 Reports" },
-    { icon: "fact_check", label: "RFP Responses" },
-    { icon: "gavel", label: "Vendor Contracts" },
-    { icon: "security", label: "Security Questionnaires" },
+    { icon: "description", label: t("documentSources.soc2") },
+    { icon: "fact_check", label: t("documentSources.rfp") },
+    { icon: "gavel", label: t("documentSources.contracts") },
+    { icon: "security", label: t("documentSources.questionnaires") },
   ];
 
   const features = [
-    "OCR for scanned documents",
-    "Multi-format support (PDF, DOCX, XLSX)",
-    "Automated metadata tagging",
+    t("documentSources.feature0"),
+    t("documentSources.feature1"),
+    t("documentSources.feature2"),
   ];
 
   return (
@@ -226,12 +227,10 @@ function ProcurementDocumentSourcesSection() {
             id="proc-doc-title"
             className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Unified Knowledge Ingestion
+            {t("documentSources.heading")}
           </h2>
           <p className="mb-6 text-lg leading-7 text-[#464555]">
-            Rudix connects directly to your procurement inbox or document
-            repository. Our RAG engine extracts technical lineage from
-            unstructured PDFs, spreadsheets, and legal documents.
+            {t("documentSources.description")}
           </p>
           <ul className="space-y-4">
             {features.map((f) => (
@@ -253,6 +252,7 @@ function ProcurementDocumentSourcesSection() {
 // ── engine / how it works ─────────────────────────────────────────────────────
 
 function ProcurementEngineSection() {
+  const t = useTranslations("public.procurement");
   return (
     <section
       aria-labelledby="proc-engine-title"
@@ -264,10 +264,10 @@ function ProcurementEngineSection() {
             id="proc-engine-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
           >
-            The Rudix Engine for Procurement
+            {t("engine.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            From document upload to risk decision in minutes.
+            {t("engine.description")}
           </p>
         </div>
 
@@ -290,15 +290,13 @@ function ProcurementEngineSection() {
             />
             <div className="relative z-10">
               <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                Step 01
+                {t("engine.step01Label")}
               </span>
               <h3 className="mb-4 text-[30px] leading-[38px] font-semibold text-white">
-                Deep Semantic Indexing
+                {t("engine.step01Title")}
               </h3>
               <p className="text-base leading-6 text-[#464555]">
-                We don&apos;t just search keywords. Rudix understands the
-                context of security controls and legal obligations across your
-                entire vendor library.
+                {t("engine.step01Body")}
               </p>
             </div>
           </div>
@@ -307,15 +305,14 @@ function ProcurementEngineSection() {
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8 md:col-span-2">
             <div>
               <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                Step 02
+                {t("engine.step02Label")}
               </span>
               <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                Automated Extraction
+                {t("engine.step02Title")}
               </h3>
             </div>
             <p className="text-base leading-6 text-[#464555]">
-              Instantly map vendor responses to your internal risk framework
-              (ISO 27001, SOC2, HIPAA).
+              {t("engine.step02Body")}
             </p>
           </div>
 
@@ -323,10 +320,10 @@ function ProcurementEngineSection() {
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8">
             <div>
               <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                Step 03
+                {t("engine.step03Label")}
               </span>
               <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                Flag Risk
+                {t("engine.step03Title")}
               </h3>
             </div>
             <Sym name="report" className="text-4xl text-[#ba1a1a]" />
@@ -336,10 +333,10 @@ function ProcurementEngineSection() {
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-[#3525cd] bg-[#3525cd] p-8 text-white">
             <div>
               <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-white/60 uppercase">
-                Step 04
+                {t("engine.step04Label")}
               </span>
               <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                Approve
+                {t("engine.step04Title")}
               </h3>
             </div>
             <Sym name="verified" className="text-4xl text-white" />
@@ -353,17 +350,15 @@ function ProcurementEngineSection() {
 // ── example queries ───────────────────────────────────────────────────────────
 
 function ProcurementExampleQueriesSection() {
+  const t = useTranslations("public.procurement");
   const examples = [
     {
-      question:
-        "Which vendor meets our data residency requirements for the EU?",
-      answer:
-        "Vendor A (CloudFlow) specifies in Section 4.2 of their DPA that data is stored in Frankfurt. Vendor B (DataMesh) lacks specific EU region commitments in their current SOC2 report.",
+      question: t("exampleQueries.q1"),
+      answer: t("exampleQueries.a1"),
     },
     {
-      question: "Summarize the security controls in this SOC2 report.",
-      answer:
-        "The SOC2 Type II for Vendor C covers Security and Availability. Key controls include AES-256 encryption at rest, quarterly penetration testing, and a 99.9% uptime SLA. No exceptions were noted in the auditor's report.",
+      question: t("exampleQueries.q2"),
+      answer: t("exampleQueries.a2"),
     },
   ];
 
@@ -377,7 +372,7 @@ function ProcurementExampleQueriesSection() {
           id="proc-queries-title"
           className="mb-16 text-center text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
         >
-          Ask Anything. Get Citations.
+          {t("exampleQueries.heading")}
         </h2>
         <div className="mx-auto flex max-w-4xl flex-col gap-8">
           {examples.map((e) => (
@@ -396,7 +391,7 @@ function ProcurementExampleQueriesSection() {
                   </p>
                   <div className="rounded-lg border border-[#c7c4d8]/30 bg-white p-4 text-base leading-6 text-[#464555]">
                     <span className="mb-2 block font-semibold text-[#3525cd]">
-                      Rudix Analysis:
+                      {t("exampleQueries.analysisLabel")}
                     </span>
                     {e.answer}
                   </div>
@@ -456,8 +451,7 @@ function ProcurementFinalCtaSection({
             </PublicActionLink>
           </div>
           <p className="mt-8 text-[12px] font-semibold tracking-[0.05em] text-[#777587] uppercase">
-            Rudix surfaces answers for review — it does not replace legal or
-            procurement approval workflows.
+            {t("cta.disclaimer")}
           </p>
         </div>
       </div>

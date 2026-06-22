@@ -38,10 +38,11 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
     )
-    owner_id: Mapped[UUID] = mapped_column(
+    slug: Mapped[str | None] = mapped_column(String(120), nullable=True, unique=True)
+    owner_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -75,6 +76,18 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="collection",
         cascade="all, delete-orphan",
     )
+
+    def __init__(self, **kwargs: object) -> None:
+        for key in ("organization_id", "owner_id", "review_owner_id"):
+            value = kwargs.get(key)
+            if isinstance(value, str):
+                kwargs[key] = UUID(value)
+        for key, value in kwargs.items():
+            if not hasattr(type(self), key):
+                raise TypeError(
+                    f"{key!r} is an invalid keyword argument for {type(self).__name__}"
+                )
+            setattr(self, key, value)
 
 
 class CollectionDocument(TimestampMixin, Base):

@@ -19,6 +19,7 @@ import {
   updateChatSession,
 } from "@/lib/api/chat";
 import { listCollections } from "@/lib/api/collections";
+import { listAvailableConnectorConnections } from "@/lib/api/connectors";
 import { listDocuments } from "@/lib/api/documents";
 import {
   deleteMessageFeedback,
@@ -56,6 +57,10 @@ vi.mock("@/lib/api/documents", () => ({ listDocuments: vi.fn() }));
 vi.mock("@/lib/api/collections", () => ({
   listCollections: vi.fn(),
   listCollectionDocuments: vi.fn(),
+}));
+
+vi.mock("@/lib/api/connectors", () => ({
+  listAvailableConnectorConnections: vi.fn(),
 }));
 
 vi.mock("@/lib/api/chat", () => ({
@@ -179,9 +184,17 @@ describe("ChatPage feedback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    Object.defineProperty(window.HTMLElement.prototype, "scrollTo", {
+      configurable: true,
+      value: vi.fn(),
+    });
     mockNavigation.searchParams = new URLSearchParams();
 
     vi.mocked(listCollections).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
+      items: [],
+      total: 0,
+    });
     vi.mocked(listChatSessionMessages).mockResolvedValue({
       items: [],
       total: 0,
@@ -283,7 +296,13 @@ describe("ChatPage feedback", () => {
 
     renderPage();
 
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    await screen.findByRole("button", { name: /Select scope/i });
+    await userEvent.click(
+      screen.getByRole("button", { name: /Select scope/i }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: /All documents/i }),
+    );
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "When is the policy active?",
@@ -353,7 +372,7 @@ describe("ChatPage feedback", () => {
       screen.getByRole("dialog", { name: /Report an issue/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/What's wrong with this answer/i),
+      screen.getByText(/Issue type \(optional\)/i),
     ).toBeInTheDocument();
   });
 

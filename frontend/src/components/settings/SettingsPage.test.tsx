@@ -38,6 +38,16 @@ const mockChunkingApi = vi.hoisted(() => ({
   listChunkingProfiles: vi.fn(),
 }));
 
+const mockProfileApi = vi.hoisted(() => ({
+  getMe: vi.fn(),
+  updateMe: vi.fn(),
+  uploadAvatar: vi.fn(),
+  removeAvatar: vi.fn(),
+  signOutAllDevices: vi.fn(),
+  deletePersonalAccount: vi.fn(),
+  changePassword: vi.fn(),
+}));
+
 vi.mock("@/lib/use-auth-session", () => ({
   useAuthSession: () => ({
     state: mockState.authState,
@@ -81,9 +91,23 @@ vi.mock("@/lib/schemas/settings", async () => {
 
 vi.mock("@/lib/api/profile", () => ({
   getProfileCapabilities: () => ({
+    meEnabled: false,
+    preferencesEnabled: false,
     signOutAllDevicesEnabled: false,
     deleteAccountEnabled: false,
+    avatarEnabled: false,
+    changePasswordEnabled: false,
   }),
+  getMe: (...args: unknown[]) => mockProfileApi.getMe(...args),
+  updateMe: (...args: unknown[]) => mockProfileApi.updateMe(...args),
+  uploadAvatar: (...args: unknown[]) => mockProfileApi.uploadAvatar(...args),
+  removeAvatar: (...args: unknown[]) => mockProfileApi.removeAvatar(...args),
+  signOutAllDevices: (...args: unknown[]) =>
+    mockProfileApi.signOutAllDevices(...args),
+  deletePersonalAccount: (...args: unknown[]) =>
+    mockProfileApi.deletePersonalAccount(...args),
+  changePassword: (...args: unknown[]) =>
+    mockProfileApi.changePassword(...args),
 }));
 
 vi.mock("@/lib/api/team", () => ({
@@ -210,6 +234,13 @@ describe("SettingsPage", () => {
     mockPreferencesApi.loadSettingsPreferences.mockResolvedValue(
       FULL_PREFERENCES,
     );
+    mockProfileApi.getMe.mockResolvedValue({
+      id: "user-1",
+      email: "member@example.com",
+      name: "Member User",
+      avatarUrl: null,
+      createdAt: null,
+    });
 
     mockPreferencesApi.persistSettingsPreferences.mockResolvedValue({
       preferences: {
@@ -320,7 +351,7 @@ describe("SettingsPage", () => {
       await screen.findByRole("region", { name: "Organization section" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: "Team management section" }),
+      screen.getByRole("region", { name: "Workspace defaults section" }),
     ).toBeInTheDocument();
   });
 

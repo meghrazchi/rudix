@@ -621,7 +621,7 @@ async def test_list_items_no_cloud_id_raises() -> None:
     adapter = ConfluenceConnectorAdapter()
     cred = {"auth_type": "oauth2", "access_token": "token"}
 
-    with pytest.raises(ConnectorAuthError, match="cloud_id"):
+    with pytest.raises(ConnectorAuthError, match="credential"):
         await adapter.list_items(
             organization_id=_ORG_ID,
             connection_id=_CONN_ID,

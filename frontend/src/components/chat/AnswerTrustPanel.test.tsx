@@ -64,6 +64,8 @@ const baseTrustCitation: CitationTrustRecord = {
   doc_expired_warning: false,
   doc_is_excluded_status: false,
   doc_ocr_low_confidence_warning: false,
+  doc_unreviewed_warning: false,
+  doc_deprecated_warning: false,
   is_table_chunk: false,
   table_headers: [],
 };
@@ -169,6 +171,10 @@ const baseTrustMetadata: AnswerTrustMetadataResponse = {
     stale_count: 0,
     excluded_count: 0,
     boosted_count: 0,
+    warning_reasons: [],
+    unreviewed_count: 0,
+    deprecated_count: 0,
+    all_excluded_fallback: false,
   },
   generated_at: "2026-06-26T10:00:00Z",
 };
@@ -208,6 +214,8 @@ function renderPanel(
         doc_is_excluded_status: citation.doc_is_excluded_status ?? false,
         doc_ocr_low_confidence_warning:
           citation.doc_ocr_low_confidence_warning ?? false,
+        doc_unreviewed_warning: false,
+        doc_deprecated_warning: false,
         is_table_chunk: citation.is_table_chunk ?? false,
         table_headers: citation.table_headers ?? [],
       })),

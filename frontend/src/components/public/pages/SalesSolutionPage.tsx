@@ -133,42 +133,42 @@ function SalesHeroSection({
               <div className="mb-4 flex items-center gap-3 text-[#c3c0ff]">
                 <Sym name="search" />
                 <span className="font-mono text-[13px]">
-                  What are our competitive advantages against AWS Bedrock?
+                  {t("hero.mockQuestion")}
                 </span>
               </div>
               <div className="mb-4 h-px bg-white/10" />
               <p className="mb-4 text-sm leading-6 text-[#faf9ff]">
-                Our primary advantages include:
+                {t("hero.mockAnswerTitle")}
                 <br />
-                1. <span className="text-[#c3c0ff]">RAG Accuracy:</span> 24%
-                higher retrieval precision.
+                1. <span className="text-[#c3c0ff]">{t("hero.mockAnswer1Label")}</span>{" "}
+                {t("hero.mockAnswer1Body")}
                 <br />
-                2. <span className="text-[#c3c0ff]">Deployment:</span> On-prem
-                and VPC support.
+                2. <span className="text-[#c3c0ff]">{t("hero.mockAnswer2Label")}</span>{" "}
+                {t("hero.mockAnswer2Body")}
                 <br />
-                3. <span className="text-[#c3c0ff]">Pricing:</span> 40% lower
-                TCO for high-fidelity enterprise flows.
+                3. <span className="text-[#c3c0ff]">{t("hero.mockAnswer3Label")}</span>{" "}
+                {t("hero.mockAnswer3Body")}
               </p>
               <div className="flex flex-wrap gap-2">
                 <span className="rounded bg-white/10 px-2 py-1 font-mono text-[10px] text-[#faf9ff]">
-                  Battlecard_v2.pdf [p.4]
+                  {t("hero.mockTag1")}
                 </span>
                 <span className="rounded bg-white/10 px-2 py-1 font-mono text-[10px] text-[#faf9ff]">
-                  Pricing_Q3_Final.xlsx
+                  {t("hero.mockTag2")}
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-4 text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
               <span className="flex items-center gap-1">
-                <Sym name="sync" className="text-[16px]" /> Indexing Live
+                <Sym name="sync" className="text-[16px]" /> {t("hero.mockStatus1")}
               </span>
               <span className="flex items-center gap-1">
                 <Sym
                   name="check_circle"
                   className="text-[16px] text-[#108548]"
                 />{" "}
-                Sources Verified
+                {t("hero.mockStatus2")}
               </span>
             </div>
           </div>

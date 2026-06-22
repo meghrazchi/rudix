@@ -184,7 +184,7 @@ export function TermsOfServicePage() {
           body: (
             <p>
               We may update these Terms with 30 days&rsquo; notice for material
-              changes. Continued use after the effective date constitutes
+              changes. Continued use after the policy date constitutes
               acceptance. We will notify organization administrators by email
               for material changes.
             </p>

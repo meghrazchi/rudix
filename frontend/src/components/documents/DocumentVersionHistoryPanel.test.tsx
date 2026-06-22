@@ -3,7 +3,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DocumentVersionHistoryPanel } from "@/components/documents/DocumentVersionHistoryPanel";
-import { getDocumentVersions } from "@/lib/api/documents";
+import {
+  getDocumentVersions,
+  type DocumentVersionListResponse,
+} from "@/lib/api/documents";
 
 vi.mock("@/lib/api/documents", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api/documents")>(
@@ -21,7 +24,13 @@ function makeVersion(
   overrides: Partial<{
     version_id: string;
     version_number: number;
-    change_reason: string;
+    change_reason:
+      | "initial_upload"
+      | "content_update"
+      | "metadata_update"
+      | "connector_sync"
+      | "reindex"
+      | "tombstone";
     filename: string;
     status: string;
     is_current: boolean;
@@ -58,10 +67,12 @@ function makeVersion(
   };
 }
 
-function makeListResponse(items: ReturnType<typeof makeVersion>[]) {
+function makeListResponse(
+  items: ReturnType<typeof makeVersion>[],
+): DocumentVersionListResponse {
   return {
     document_id: "doc-abc",
-    items,
+    items: items as DocumentVersionListResponse["items"],
     total: items.length,
   };
 }

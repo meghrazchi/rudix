@@ -77,37 +77,31 @@ vi.mock("next-intl", async (importOriginal) => {
     string,
     unknown
   >;
+  type Translator = ReturnType<typeof actual.createTranslator>;
+  const translatorCache = new Map<string, Translator>();
 
-  function getNestedValue(
-    obj: Record<string, unknown>,
-    path: string,
-  ): string | undefined {
-    const parts = path.split(".");
-    let current: unknown = obj;
-    for (const part of parts) {
-      if (current === null || typeof current !== "object") return undefined;
-      current = (current as Record<string, unknown>)[part];
+  function getTranslator(namespace: string): Translator {
+    const cached = translatorCache.get(namespace);
+    if (cached) {
+      return cached;
     }
-    return typeof current === "string" ? current : undefined;
+
+    const translator = actual.createTranslator({
+      locale: "en",
+      messages,
+      namespace,
+    });
+    translatorCache.set(namespace, translator);
+    return translator;
   }
 
-  function makeTranslator(namespace: string) {
-    return function translate(
-      key: string,
-      values?: Record<string, unknown>,
-    ): string {
-      const fullKey = `${namespace}.${key}`;
-      const raw = getNestedValue(messages, fullKey) ?? key;
-      if (!values) return raw;
-      return raw.replace(/\{(\w+)\}/g, (_, name) =>
-        values[name] !== undefined ? String(values[name]) : `{${name}}`,
-      );
-    };
-  }
+  afterEach(() => {
+    translatorCache.clear();
+  });
 
   return {
     ...actual,
-    useTranslations: (namespace: string) => makeTranslator(namespace),
+    useTranslations: (namespace: string) => getTranslator(namespace),
     useLocale: () => "en",
     useFormatter: () => ({
       dateTime: (date: Date) => date.toISOString(),
@@ -116,7 +110,7 @@ vi.mock("next-intl", async (importOriginal) => {
     }),
     NextIntlClientProvider: ({ children }: { children: React.ReactNode }) =>
       children,
-    getTranslations: async (namespace: string) => makeTranslator(namespace),
+    getTranslations: async (namespace: string) => getTranslator(namespace),
     getLocale: async () => "en",
     getMessages: async () => messages,
   };

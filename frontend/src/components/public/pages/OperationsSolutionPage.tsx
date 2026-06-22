@@ -133,6 +133,22 @@ function OperationsHeroSection({
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function OperationsProblemSection() {
+  const t = useTranslations("public.operations");
+  const problems = [
+    {
+      title: t("problems.archiveTitle"),
+      body: t("problems.archiveBody"),
+    },
+    {
+      title: t("problems.stepsTitle"),
+      body: t("problems.stepsBody"),
+    },
+    {
+      title: t("problems.riskTitle"),
+      body: t("problems.riskBody"),
+    },
+  ];
+
   return (
     <section aria-labelledby="ops-problem-title" className="bg-white py-24">
       <div className="mx-auto max-w-[1440px] px-10">
@@ -141,29 +157,26 @@ function OperationsProblemSection() {
             id="ops-problem-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            During incidents, searching documents wastes time.
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-lg leading-7 text-[#464555]">
-            Every second spent looking for a wiki page is a second of downtime.
-            Modern ops teams need answers, not archives.
+            {t("problems.description")}
           </p>
         </div>
 
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-12">
           <li className="relative overflow-hidden rounded-2xl border border-[#c7c4d8]/30 bg-[#f4f3f9] p-10 md:col-span-7">
-            <div className="relative z-10">
-              <Sym
-                name="inventory_2"
-                className="mb-6 text-4xl text-[#3525cd]"
-              />
-              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                Runbooks scattered across wikis
-              </h3>
-              <p className="text-lg leading-7 text-[#464555]">
-                Stop the &quot;Where is that PDF?&quot; panic. Rudix unifies
-                knowledge from Confluence, Notion, and GitHub into a single
-                high-availability retrieval engine.
-              </p>
+              <div className="relative z-10">
+                <Sym
+                  name="inventory_2"
+                  className="mb-6 text-4xl text-[#3525cd]"
+                />
+                <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
+                {problems[0].title}
+                </h3>
+                <p className="text-lg leading-7 text-[#464555]">
+                {problems[0].body}
+                </p>
             </div>
             <Sym
               name="hub"
@@ -175,11 +188,10 @@ function OperationsProblemSection() {
             <div className="relative z-10">
               <Sym name="timer" className="mb-6 text-4xl text-[#c3c0ff]" />
               <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#faf9ff]">
-                Incident steps need to be followed quickly
+                {problems[1].title}
               </h3>
               <p className="text-lg leading-7 text-[#464555]">
-                When services are down, reading a 20-page SOP is impossible. Get
-                exact, bulleted instructions in seconds, not minutes.
+                {problems[1].body}
               </p>
             </div>
             <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#3525cd] to-transparent" />
@@ -189,12 +201,10 @@ function OperationsProblemSection() {
             <div className="flex-1">
               <Sym name="warning" className="mb-6 text-4xl text-[#ba1a1a]" />
               <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                Outdated procedures create risk
+                {problems[2].title}
               </h3>
               <p className="text-lg leading-7 text-[#464555]">
-                Deprecated commands in old runbooks lead to catastrophic
-                mistakes. Rudix weights the newest documentation higher,
-                ensuring teams always use current recovery logic.
+                {problems[2].body}
               </p>
             </div>
             <div className="relative h-48 w-full flex-1 overflow-hidden rounded-xl">
@@ -216,13 +226,14 @@ function OperationsProblemSection() {
 // ── document sources ──────────────────────────────────────────────────────────
 
 function OperationsDocumentSourcesSection() {
+  const t = useTranslations("public.operations");
   const sources = [
-    { icon: "description", label: "Incident response runbooks" },
-    { icon: "menu_book", label: "SOPs" },
-    { icon: "build", label: "Troubleshooting guides" },
-    { icon: "rocket_launch", label: "Deployment procedures" },
-    { icon: "notification_important", label: "Escalation policies" },
-    { icon: "settings_backup_restore", label: "System recovery guides" },
+    { icon: "description", label: t("documentSources.runbooks") },
+    { icon: "menu_book", label: t("documentSources.sops") },
+    { icon: "build", label: t("documentSources.troubleshooting") },
+    { icon: "rocket_launch", label: t("documentSources.deployment") },
+    { icon: "notification_important", label: t("documentSources.escalation") },
+    { icon: "settings_backup_restore", label: t("documentSources.recovery") },
   ];
 
   return (
@@ -237,11 +248,10 @@ function OperationsDocumentSourcesSection() {
               id="ops-doc-sources-title"
               className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
-              Universal technical ingestion.
+              {t("documentSources.heading")}
             </h2>
             <p className="text-lg leading-7 text-[#464555]">
-              Rudix supports your existing operational stack. Just upload, and
-              we&apos;ll index the technical nuance.
+              {t("documentSources.description")}
             </p>
           </div>
         </div>
@@ -264,26 +274,27 @@ function OperationsDocumentSourcesSection() {
 // ── how it works ──────────────────────────────────────────────────────────────
 
 function OperationsHowItWorksSection() {
+  const t = useTranslations("public.operations");
   const steps = [
     {
       icon: "upload_file",
-      label: "Upload",
-      desc: "Team uploads runbooks and procedures.",
+      label: t("howItWorks.step1Title"),
+      desc: t("howItWorks.step1Body"),
     },
     {
       icon: "database",
-      label: "Index",
-      desc: "Rudix indexes technical context and dependencies.",
+      label: t("howItWorks.step2Title"),
+      desc: t("howItWorks.step2Body"),
     },
     {
       icon: "question_answer",
-      label: "Ask",
-      desc: "Team asks questions during live incidents.",
+      label: t("howItWorks.step3Title"),
+      desc: t("howItWorks.step3Body"),
     },
     {
       icon: "verified",
-      label: "Solve",
-      desc: "Immediate answer with precise citations.",
+      label: t("howItWorks.step4Title"),
+      desc: t("howItWorks.step4Body"),
     },
   ];
 
@@ -298,10 +309,10 @@ function OperationsHowItWorksSection() {
             id="ops-flow-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#faf9ff]"
           >
-            How Rudix secures your uptime.
+            {t("howItWorks.heading")}
           </h2>
           <p className="text-lg leading-7 text-[#464555]">
-            Automated RAG workflow designed for mission-critical reliability.
+            {t("howItWorks.description")}
           </p>
         </div>
 
@@ -341,18 +352,19 @@ function OperationsHowItWorksSection() {
 // ── example queries ───────────────────────────────────────────────────────────
 
 function OperationsExampleQueriesSection() {
+  const t = useTranslations("public.operations");
   const questions = [
     {
       icon: "alternate_email",
-      text: "What are the steps for a priority incident?",
+      text: t("exampleQueries.q1"),
     },
     {
       icon: "sync_problem",
-      text: "How do we restart the failed indexing worker?",
+      text: t("exampleQueries.q2"),
     },
     {
       icon: "person_alert",
-      text: "Who needs to be notified during an outage?",
+      text: t("exampleQueries.q3"),
     },
   ];
 
@@ -365,11 +377,10 @@ function OperationsExampleQueriesSection() {
               id="ops-queries-title"
               className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
-              Built for the high-pressure query.
+              {t("exampleQueries.heading")}
             </h2>
             <p className="mb-8 text-lg leading-7 text-[#464555]">
-              Ops teams don&apos;t have time to craft the perfect prompt. Ask
-              naturally, get the technical truth.
+              {t("exampleQueries.description")}
             </p>
             <ul className="space-y-4">
               {questions.map((q) => (
@@ -398,7 +409,7 @@ function OperationsExampleQueriesSection() {
                     <Sym name="person" className="text-sm text-white" />
                   </div>
                   <div className="rounded-2xl bg-white/10 p-4 text-[#faf9ff]">
-                    How do we restart the failed indexing worker?
+                    {t("exampleQueries.mockQuestion")}
                   </div>
                 </div>
 
@@ -413,8 +424,7 @@ function OperationsExampleQueriesSection() {
                   <div className="w-full space-y-4">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                       <p className="mb-4 font-semibold text-[#c3c0ff]">
-                        According to the &apos;Infrastructure Recovery SOP
-                        (v2.4)&apos;:
+                        {t("exampleQueries.mockIntro")}
                       </p>
                       <ol className="list-inside list-decimal space-y-2 text-[#464555]">
                         <li>
@@ -438,8 +448,7 @@ function OperationsExampleQueriesSection() {
                       </ol>
                       <div className="mt-6 flex items-center gap-2 border-t border-white/10 pt-4 text-xs text-[#464555]">
                         <Sym name="link" className="text-sm" />
-                        Citations: Infrastructure_SOP_v2.4.pdf (Page 12),
-                        On-Call_Handbook.md
+                        {t("exampleQueries.mockCitations")}
                       </div>
                     </div>
                   </div>
@@ -480,28 +489,28 @@ function OperationsFinalCtaSection({
         }}
       />
       <div className="relative z-10 mx-auto max-w-[1440px] px-10 text-center">
-        <h2
-          id="ops-cta-title"
-          className="mb-8 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
-        >
-          {t("cta.heading")}
+          <h2
+            id="ops-cta-title"
+            className="mb-8 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
+          >
+            {t("cta.heading")}
         </h2>
         <p className="mx-auto mb-12 max-w-2xl text-lg leading-7 text-[#c3c0ff]">
           {t("cta.description")}
         </p>
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
-          <PublicActionLink
-            href={demoHref}
-            className="rounded-xl bg-white px-10 py-5 text-lg font-bold text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
-          >
-            {t("cta.primaryCta")}
-          </PublicActionLink>
-          <PublicActionLink
-            href={contactHref}
-            className="rounded-xl border border-white/30 bg-[#4f46e5] px-10 py-5 text-lg font-bold text-white transition hover:bg-[#3525cd]/80 active:scale-95"
-          >
-            {t("cta.secondaryCta")}
-          </PublicActionLink>
+            <PublicActionLink
+              href={demoHref}
+              className="rounded-xl bg-white px-10 py-5 text-lg font-bold text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
+            >
+              {t("cta.primaryCta")}
+            </PublicActionLink>
+            <PublicActionLink
+              href={contactHref}
+              className="rounded-xl border border-white/30 bg-[#4f46e5] px-10 py-5 text-lg font-bold text-white transition hover:bg-[#3525cd]/80 active:scale-95"
+            >
+              {t("cta.secondaryCta")}
+            </PublicActionLink>
         </div>
       </div>
     </section>

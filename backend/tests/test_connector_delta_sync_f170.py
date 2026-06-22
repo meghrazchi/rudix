@@ -23,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.connectors.repositories.connectors import ConnectorRepository
-from app.domains.connectors.schemas.connectors import NormalizedExternalItem
+from app.domains.connectors.schemas.connectors import NormalizedExternalItem, ProviderCapabilities, ProviderRegistration
 from app.domains.connectors.services.connector_service import ConnectorPlatformService
 from app.domains.connectors.services.provider_adapter import (
     ConnectorProviderAdapter,
@@ -32,14 +32,21 @@ from app.domains.connectors.services.provider_adapter import (
     ItemPage,
     SyncAdapterRegistry,
 )
+from app.domains.connectors.services.provider_registry import ProviderRegistry
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
 from app.models.connector import ConnectorConnection, ExternalItem
 from app.models.connector_source import ExternalItemTombstone
 from app.models.connector_sync import SyncConflict
-from app.models.enums import SyncConflictStatus, SyncConflictType
+from app.models.enums import ConnectorAuthType, SyncConflictStatus, SyncConflictType
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
+
+_TEST_PROVIDER_REGISTRATION = ProviderRegistration(
+    key="test_provider",
+    display_name="Test Provider",
+    capabilities=ProviderCapabilities(auth_type=ConnectorAuthType.none),
+)
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
@@ -75,7 +82,9 @@ async def _make_context(db: AsyncSession, provider_key: str = "test_provider") -
     db.add(OrganizationMember(organization_id=org.id, user_id=user.id, role="admin"))
     await db.flush()
 
-    service = ConnectorPlatformService()
+    registry = ProviderRegistry()
+    registry.register(_TEST_PROVIDER_REGISTRATION)
+    service = ConnectorPlatformService(provider_registry=registry)
     connection = await service.create_connection(
         db,
         organization_id=org.id,
@@ -176,11 +185,7 @@ async def test_permission_revoked_tombstones_item(db_session: AsyncSession) -> N
     # Now: incremental sync that revokes the item's permission
     delta = DeltaItem(provider_item_id=norm.provider_item_id, permission_revoked=True)
     engine2 = _engine(StubAdapter(delta_items=[delta]))
-    # Simulate cursor being set so incremental path is used
-    await db_session.execute(
-        select(engine2.repository.__class__.__mro__[0])  # access via query
-    )
-    # Re-fetch job and set cursor
+    # Re-fetch job and set cursor to simulate incremental sync path
     from app.models.connector_sync import ConnectorSyncJob
 
     job_row = (

@@ -74,7 +74,8 @@
       "status": "Status",
       "support": "Support",
       "shortcuts": "Tastenkürzel",
-      "readme": "Projekt-README"
+      "readme": "Projekt-README",
+      "changelog": "Changelog"
     }
   },
   "auth": {
@@ -159,7 +160,8 @@
         "dpa": "Auftragsverarbeitungsvertrag",
         "subprocessors": "Unterauftragsverarbeiter",
         "acceptableUse": "Nutzungsrichtlinien",
-        "securityDisclosure": "Sicherheitsoffenlegung"
+        "securityDisclosure": "Sicherheitsoffenlegung",
+        "changelog": "Changelog"
       }
     },
     "home": "Startseite",
@@ -1845,19 +1847,22 @@
       "documentSelect": "Auswählen",
       "documentSelected": "Ausgewählt",
       "scopeAllDocuments": "alle Dokumente ({count})",
-      "scopeCollectionsSelected": "{n} Sammlung(en) ausgewählt"
+      "scopeCollectionsSelected": "{n} Sammlung(en) ausgewählt",
+      "scopeAllDocumentsSelected": "all documents · {n} selected",
+      "collectionsTitle": "collections",
+      "collectionsSubtitle": "choose one or more collections to scope retrieval.",
+      "collectionScopeHint": "collection scope",
+      "loadingCollections": "loading collections...",
+      "noCollections": "No collections yet",
+      "collectionSelect": "Select",
+      "collectionSelected": "Selected",
+      "selectCollections": "select collections",
+      "collectionsSelected": "{n} collection(s) selected"
     },
     "composer": {
-      "scopeLabel": "Bereich",
-      "scopeAll": "Alle Dateien",
       "scopeCollection": "Sammlung",
-      "scopeDocuments": "Dateien",
       "scopeConnectors": "Konnektoren",
       "selectConnectors": "Konnektoren suchen",
-      "scopeNone": "Kein RAG",
-      "chooseCollection": "— Sammlung wählen —",
-      "selectFiles": "Dateien auswählen",
-      "filesSelected": "{count, plural, one {# Datei ausgewählt} other {# Dateien ausgewählt}}",
       "selectSources": "Quellen auswählen",
       "sourcesSelected": "{count, plural, one {# Quelle ausgewählt} other {# Quellen ausgewählt}}",
       "topKLabel": "Top-k",
@@ -1887,7 +1892,20 @@
       "additionalSettingsTitle": "Erweiterte Einstellungen",
       "additionalSettingsSubtitle": "Abruf- und Antwortverhalten für diesen Chat anpassen.",
       "agenticDescription": "Agentisches Planen für diesen Chat erlauben, wenn verfügbar.",
-      "rerankDescription": "Zweiten Ranking-Durchlauf für höhere Präzision ausführen."
+      "rerankDescription": "Zweiten Ranking-Durchlauf für höhere Präzision ausführen.",
+      "scopeAllDocumentsHint": "If no document is selected, all documents will be included.",
+      "scopeAllDocumentsSelected": "all documents · {n} selected",
+      "scopeCollectionsSelected": "{n} collection(s) selected",
+      "collectionSelect": "Select",
+      "collectionSelected": "Selected",
+      "selectDocuments": "select documents",
+      "documentsSelected": "{count} document(s) selected",
+      "documentSelect": "Select",
+      "documentSelected": "Selected",
+      "collectionsSelected": "{n} collection(s) selected",
+      "collectionsTitle": "collections",
+      "collectionsSubtitle": "choose one or more collections to scope retrieval.",
+      "collectionScopeHint": "collection scope"
     }
   },
   "evaluations": {
@@ -2022,7 +2040,21 @@
       "feedbackCreated": "Sammlung „{name}“ erstellt.",
       "feedbackUpdated": "Sammlung „{name}“ aktualisiert.",
       "feedbackDeleted": "Sammlung gelöscht.",
-      "deleteConfirm": "Sammlung „{name}“ löschen? Dokumente werden nicht gelöscht."
+      "deleteConfirm": "Sammlung „{name}“ löschen? Dokumente werden nicht gelöscht.",
+      "manageDocumentsTitle": "Manage documents",
+      "manageDocumentsSubtitle": "Search and select documents to add to this collection.",
+      "manageDocumentsButton": "Add documents",
+      "manageDocumentsSearchPlaceholder": "Search documents…",
+      "manageDocumentsSelected": "{n, plural, one {# document selected} other {# documents selected}}",
+      "manageDocumentsNoMatch": "No documents match your search.",
+      "documentSourceFallback": "Indexed document",
+      "docSavedFeedback": "Collection documents updated.",
+      "selectAllOnPage": "Select all on this page",
+      "select": "Select",
+      "selected": "Selected",
+      "saveDocuments": "Save documents",
+      "updateDocuments": "Update documents",
+      "loadMoreDocs": "Load more"
     }
   },
   "connectors": {

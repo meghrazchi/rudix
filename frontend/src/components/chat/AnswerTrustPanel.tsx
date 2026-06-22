@@ -71,11 +71,11 @@ function trustLevelBadge(level: TrustLevel): {
   icon: string;
 } {
   if (level === "high")
-    return {
-      label: "High",
-      icon: "verified",
-      cls: "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800",
-    };
+      return {
+        label: "High",
+        icon: "check_circle",
+        cls: "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800",
+      };
   if (level === "medium")
     return {
       label: "Medium",
@@ -489,13 +489,13 @@ export function AnswerTrustPanel({
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span
-            className="material-symbols-outlined text-[16px] text-[#3525cd]"
-            aria-hidden="true"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            shield_check
-          </span>
+      <span
+        className="material-symbols-outlined text-[16px] text-[#3525cd]"
+        aria-hidden="true"
+        style={{ fontVariationSettings: "'FILL' 1" }}
+      >
+            check_circle
+      </span>
           <span className="text-xs font-bold text-[#2f2a46]">
             Answer Explanation
           </span>
@@ -513,7 +513,7 @@ export function AnswerTrustPanel({
 
       {/* Confidence */}
       <div className="space-y-3">
-        <SectionHeader icon="verified" label="Trust Score" />
+        <SectionHeader icon="check_circle" label="Trust Score" />
         <div className="flex items-center gap-3">
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8e5f5]">
             <div

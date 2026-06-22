@@ -36,7 +36,41 @@ Base.metadata._add_table(  # type: ignore[attr-defined]
 _base_create_all = Base.metadata.create_all
 
 
+def _register_sqlite_compat_functions(bind: Any) -> None:
+    """Install SQLite helpers needed by PostgreSQL-oriented test metadata."""
+    if getattr(bind, "dialect", None) is None or bind.dialect.name != "sqlite":
+        return
+
+    raw_connection = getattr(bind, "connection", None)
+    if raw_connection is None:
+        return
+
+    create_function = getattr(raw_connection, "create_function", None)
+    if create_function is None:
+        raw_connection = getattr(raw_connection, "driver_connection", None)
+        create_function = getattr(raw_connection, "create_function", None)
+    if create_function is None:
+        return
+
+    def _to_tsvector(*args: Any) -> str:
+        if not args:
+            return ""
+        text = args[-1]
+        return "" if text is None else str(text)
+
+    for arity in (1, 2):
+        create_function(  # type: ignore[misc]
+            "to_tsvector",
+            arity,
+            _to_tsvector,
+            deterministic=True,
+        )
+
+
 def _create_all_without_alias(*args: Any, **kwargs: Any) -> Any:
+    if args:
+        _register_sqlite_compat_functions(args[0])
+
     alias_table = Base.metadata.tables.get("authorization_decision_log")
     if alias_table is None:
         return _base_create_all(*args, **kwargs)

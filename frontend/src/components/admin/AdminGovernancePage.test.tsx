@@ -26,6 +26,13 @@ vi.mock("@/lib/api/admin-governance", () => ({
   getGovernancePolicy: () => mockApi.getGovernancePolicy(),
   updateGovernancePolicy: (payload: unknown) =>
     mockApi.updateGovernancePolicy(payload),
+  DEFAULT_PROVIDER_SECURITY: {
+    local_only_mode: false,
+    cloud_fallback_allowed: true,
+    allowed_provider_profiles: [],
+    admin_only_model_selection: true,
+    retention_warning_acknowledged: false,
+  },
 }));
 
 function renderPage() {

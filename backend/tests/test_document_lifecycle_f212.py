@@ -244,12 +244,14 @@ async def test_chunk_count_persisted_on_document_after_indexing(
     monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService())
     monkeypatch.setattr(document_tasks, "_qdrant_service", FakeQdrantService())
 
+    document_id = seeded_document.id
     _page_count, chunk_count, _, _ = await document_tasks._extract_and_store_document_pages_async(
-        str(seeded_document.id)
+        str(document_id)
     )
 
+    db_session.expire(seeded_document)
     repo = DocumentRepository()
-    updated = await repo.get_document_by_id(db_session, document_id=seeded_document.id)
+    updated = await repo.get_document_by_id(db_session, document_id=document_id)
     assert updated is not None
     assert updated.chunk_count == chunk_count
     assert updated.chunk_count is not None and updated.chunk_count >= 1
@@ -269,13 +271,15 @@ async def test_chunking_config_snapshot_contains_f212_fields(
     monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService())
     monkeypatch.setattr(document_tasks, "_qdrant_service", FakeQdrantService())
 
+    document_id = seeded_document.id
     await document_tasks._extract_and_store_document_pages_async(
-        str(seeded_document.id),
+        str(document_id),
         profile_source="system_default",
     )
 
+    db_session.expire(seeded_document)
     repo = DocumentRepository()
-    updated = await repo.get_document_by_id(db_session, document_id=seeded_document.id)
+    updated = await repo.get_document_by_id(db_session, document_id=document_id)
     assert updated is not None
     snapshot = updated.chunking_config_snapshot
     assert snapshot is not None
@@ -303,14 +307,16 @@ async def test_custom_profile_snapshot_records_custom_source(
     custom_svc = _make_chunking_service(
         {"strategy": "token_recursive", "chunk_size_tokens": 300, "chunk_overlap_tokens": 30}
     )
+    document_id = seeded_document.id
     await document_tasks._extract_and_store_document_pages_async(
-        str(seeded_document.id),
+        str(document_id),
         chunking_service=custom_svc,
         profile_source="custom_profile",
     )
 
+    db_session.expire(seeded_document)
     repo = DocumentRepository()
-    updated = await repo.get_document_by_id(db_session, document_id=seeded_document.id)
+    updated = await repo.get_document_by_id(db_session, document_id=document_id)
     assert updated is not None
     assert updated.chunking_config_snapshot is not None
     assert updated.chunking_config_snapshot["profile_source"] == "custom_profile"
@@ -338,15 +344,16 @@ async def test_chunking_started_and_completed_events_are_logged(
 
     logged_events: list[str] = []
 
-    original_log = document_tasks.log_document_event
+    original_log_chunking = document_tasks.log_chunking_event
 
-    def capturing_log(*, event: str, **kwargs: Any) -> None:
+    def capturing_chunking_log(*, event: str, **kwargs: Any) -> None:
         logged_events.append(event)
-        original_log(event=event, **kwargs)
+        original_log_chunking(event=event, **kwargs)
 
-    monkeypatch.setattr(document_tasks, "log_document_event", capturing_log)
+    monkeypatch.setattr(document_tasks, "log_chunking_event", capturing_chunking_log)
 
-    await document_tasks._extract_and_store_document_pages_async(str(seeded_document.id))
+    document_id = seeded_document.id
+    await document_tasks._extract_and_store_document_pages_async(str(document_id))
 
     assert "document.chunking.started" in logged_events
     assert "document.chunking.completed" in logged_events

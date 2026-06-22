@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
@@ -124,8 +123,7 @@ function InternalKnowledgeHeroSection({
               {/* user message */}
               <div className="flex justify-end">
                 <div className="max-w-[80%] rounded-2xl rounded-tr-none bg-[#4f46e5] p-4 text-sm text-[#dad7ff]">
-                  &quot;What is our policy on remote work stipends for
-                  international employees?&quot;
+                  &quot;{t("hero.panelQuestion")}&quot;
                 </div>
               </div>
 
@@ -136,26 +134,18 @@ function InternalKnowledgeHeroSection({
                 </div>
                 <div className="max-w-[85%] rounded-2xl rounded-tl-none border border-[#c7c4d8]/30 bg-[#f4f3f9] p-4">
                   <p className="mb-3 text-sm text-[#1a1b20]">
-                    Based on the{" "}
-                    <strong>Global Employee Handbook (2024)</strong>:
+                    {t("hero.panelIntro")}{" "}
+                    <strong>{t("hero.panelDocument")}</strong>:
                   </p>
                   <ul className="list-disc space-y-1.5 pl-4 text-xs text-[#464555]">
-                    <li>
-                      Full-time remote workers are eligible for a $500 initial
-                      setup stipend.
-                    </li>
-                    <li>
-                      An annual $200 recurring tech refresh budget applies.
-                    </li>
-                    <li>
-                      International receipts must be converted to USD using the
-                      OANDA rate at date of purchase.
-                    </li>
+                    <li>{t("hero.panelBullet1")}</li>
+                    <li>{t("hero.panelBullet2")}</li>
+                    <li>{t("hero.panelBullet3")}</li>
                   </ul>
                   <div className="mt-4 flex items-center justify-between border-t border-[#c7c4d8]/50 pt-3">
                     <span className="flex items-center gap-1 text-[10px] text-[#3525cd]">
                       <Sym name="verified" className="text-[12px]" />
-                      Source: SOP-HR-042.pdf
+                      {t("hero.panelSource")}
                     </span>
                     <div className="flex gap-2">
                       <Sym
@@ -181,24 +171,25 @@ function InternalKnowledgeHeroSection({
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function InternalKnowledgeProblemSection() {
+  const t = useTranslations("public.internalKnowledge");
   const problems = [
     {
       icon: "cloud_off",
       iconBg: "bg-[#ffdad6] text-[#ba1a1a]",
-      title: "Information Silos",
-      body: "Critical context is trapped in private DMs, local drives, and individual heads. Rudix brings it into the collective light.",
+      title: t("problems.silosTitle"),
+      body: t("problems.silosBody"),
     },
     {
       icon: "person_add",
       iconBg: "bg-[#e2dee6] text-[#47464d]",
-      title: "Onboarding Friction",
-      body: 'New hires spend weeks asking "where is this?" Rudix acts as a 24/7 mentor, giving instant answers on day one.',
+      title: t("problems.onboardingTitle"),
+      body: t("problems.onboardingBody"),
     },
     {
       icon: "forum",
       iconBg: "bg-[#e2dfff] text-[#3323cc]",
-      title: "Slack Overload",
-      body: 'Prevent subject matter experts from answering the same "How do I…" questions repeatedly, freeing them for high-value work.',
+      title: t("problems.slackTitle"),
+      body: t("problems.slackBody"),
     },
   ];
 
@@ -210,11 +201,10 @@ function InternalKnowledgeProblemSection() {
             id="ik-problem-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            The high cost of hidden knowledge
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Inefficiency grows as teams scale. Rudix solves the three core
-            pillars of internal friction.
+            {t("problems.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-8 md:grid-cols-3">
@@ -243,33 +233,34 @@ function InternalKnowledgeProblemSection() {
 // ── document support ──────────────────────────────────────────────────────────
 
 function InternalKnowledgeDocumentSection() {
+  const t = useTranslations("public.internalKnowledge");
   const docTypes = [
     {
       icon: "description",
-      label: "SOPs",
-      desc: "Standard Operating Procedures for all departments.",
+      label: t("documents.sopsLabel"),
+      desc: t("documents.sopsDesc"),
     },
     {
       icon: "menu_book",
-      label: "Handbooks",
-      desc: "Culture, benefits, and administrative guides.",
+      label: t("documents.handbooksLabel"),
+      desc: t("documents.handbooksDesc"),
     },
     {
       icon: "play_circle",
-      label: "Playbooks",
-      desc: "Sales, marketing, and engineering strategies.",
+      label: t("documents.playbooksLabel"),
+      desc: t("documents.playbooksDesc"),
     },
     {
       icon: "school",
-      label: "Manuals",
-      desc: "Technical documentation and training kits.",
+      label: t("documents.manualsLabel"),
+      desc: t("documents.manualsDesc"),
     },
   ];
 
   const features = [
-    "Preserves original citations and links",
-    "Automatic re-indexing on file updates",
-    "Strict data permission mirroring",
+    t("documents.feature0"),
+    t("documents.feature1"),
+    t("documents.feature2"),
   ];
 
   return (
@@ -293,12 +284,10 @@ function InternalKnowledgeDocumentSection() {
             id="ik-doc-title"
             className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            One Brain, Every Document
+            {t("documents.heading")}
           </h2>
           <p className="mb-8 text-lg leading-7 text-[#464555]">
-            Rudix isn&apos;t limited to simple text files. Our high-fidelity RAG
-            engine ingests complex PDFs, Notion pages, Google Docs, and
-            structured JSON to build a multi-modal knowledge graph.
+            {t("documents.description")}
           </p>
           <ul className="space-y-4">
             {features.map((f) => (
@@ -319,82 +308,34 @@ function InternalKnowledgeDocumentSection() {
 
 // ── how it works ──────────────────────────────────────────────────────────────
 
-const CODE_CONTENT = `{
-  "query": "What is the budget approval process?",
-  "embeddings": "vector_f32[1536]",
-  "retrieval": [
-    "DOC_ID_091: Finance_Flow_v2.pdf",
-    "DOC_ID_212: Manager_Onboarding.notion"
-  ],
-  "output": "Budget approvals >$5k require VP sign-off..."
-}`;
-
 function InternalKnowledgeHowItWorksSection() {
+  const t = useTranslations("public.internalKnowledge");
   const steps = [
     {
       n: "01",
       icon: "upload_file",
-      label: "Upload SOPs",
-      desc: "Drag and drop your unstructured documents.",
+      label: t("flow.uploadTitle"),
+      desc: t("flow.uploadDesc"),
     },
     {
       n: "02",
       icon: "database",
-      label: "Vector Index",
-      desc: "Automatic semantic embedding and storage.",
+      label: t("flow.indexTitle"),
+      desc: t("flow.indexDesc"),
     },
     {
       n: "03",
       icon: "chat_paste_go",
-      label: "Ask Anything",
-      desc: "Natural language queries via web or Slack.",
+      label: t("flow.askTitle"),
+      desc: t("flow.askDesc"),
     },
     {
       n: "04",
       icon: "fact_check",
-      label: "Verify & Cite",
-      desc: "Answer delivered with verifiable sources.",
+      label: t("flow.answerTitle"),
+      desc: t("flow.answerDesc"),
     },
   ];
-
-  const cardRef = useRef<HTMLDivElement>(null);
-  const indexRef = useRef(0);
-  const [typedText, setTypedText] = useState("");
-  const [started, setStarted] = useState(false);
-
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === "undefined") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStarted(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setStarted(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.4 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!started) return;
-    indexRef.current = 0;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTypedText("");
-    const id = setInterval(() => {
-      indexRef.current += 1;
-      setTypedText(CODE_CONTENT.slice(0, indexRef.current));
-      if (indexRef.current >= CODE_CONTENT.length) clearInterval(id);
-    }, 15);
-    return () => clearInterval(id);
-  }, [started]);
 
   return (
     <section
@@ -407,10 +348,10 @@ function InternalKnowledgeHowItWorksSection() {
             id="ik-flow-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
           >
-            The Rudix Flow
+            {t("flow.heading")}
           </h2>
           <p className="text-base leading-6 text-[#464555]">
-            Enterprise-grade infrastructure, abstracted for simplicity.
+            {t("flow.description")}
           </p>
         </div>
 
@@ -443,30 +384,23 @@ function InternalKnowledgeHowItWorksSection() {
         </div>
 
         {/* technical card with typing animation */}
-        <div
-          ref={cardRef}
-          className="mt-20 rounded-2xl border border-white/10 bg-[#1F1E24] p-8 transition duration-700 hover:border-[#3525cd]/50"
-        >
+        <div className="mt-20 rounded-2xl border border-white/10 bg-[#1F1E24] p-8 transition duration-700 hover:border-[#3525cd]/50">
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 animate-pulse rounded-full bg-[#3525cd]" />
               <span className="font-mono text-xs text-[#c3c0ff]">
-                RAG ENGINE STATUS: ACTIVE
+                {t("flow.engineStatus")}
               </span>
             </div>
             <span className="font-mono text-xs text-[#464555]">
-              latency: 240ms
+              {t("flow.latency")}
             </span>
           </div>
-          <pre className="overflow-x-auto font-mono text-[13px] leading-5 text-[#e2dfff]">
-            <code>{typedText || " "}</code>
-            {typedText.length < CODE_CONTENT.length && (
-              <span
-                aria-hidden="true"
-                className="rudix-cursor-blink text-[#e2dfff]"
-              />
-            )}
-          </pre>
+          <div className="rounded-lg border border-white/10 bg-[#0A0A0F] p-4 font-mono text-[13px] leading-5 text-[#e2dfff]">
+            <pre className="overflow-x-auto whitespace-pre-wrap">
+              <code>{t("flow.codeSample")}</code>
+            </pre>
+          </div>
         </div>
       </div>
     </section>
@@ -476,11 +410,12 @@ function InternalKnowledgeHowItWorksSection() {
 // ── example questions ─────────────────────────────────────────────────────────
 
 function InternalKnowledgeExampleQueriesSection() {
+  const t = useTranslations("public.internalKnowledge");
   const questions = [
-    "What is the budget approval process?",
-    "Where is the brand style guide?",
-    "How do I request temporary VPN access?",
-    "What's our policy on working from abroad?",
+    t("exampleQuestions.q1"),
+    t("exampleQuestions.q2"),
+    t("exampleQuestions.q3"),
+    t("exampleQuestions.q4"),
   ];
 
   return (
@@ -490,7 +425,7 @@ function InternalKnowledgeExampleQueriesSection() {
           id="ik-queries-title"
           className="mb-12 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
         >
-          Ask Rudix Anything
+          {t("exampleQuestions.heading")}
         </h2>
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {questions.map((q) => (

@@ -110,26 +110,26 @@ function SupportHeroSection({
               <div className="mb-4 flex items-center gap-2">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#3525cd]" />
                 <span className="text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
-                  Support Workspace — Active
+                  {t("hero.workspaceLabel")}
                 </span>
               </div>
               <div className="mb-3 rounded-full border border-[#c7c4d8] bg-white px-4 py-2.5 text-sm text-[#464555] italic shadow-sm">
-                &quot;How do I escalate a P1 incident under the SLA?&quot;
+                &quot;{t("hero.workspaceQuestion")}&quot;
               </div>
               <div className="rounded-xl bg-[#1F1E24] p-4 font-mono text-[14px] leading-5 text-[#eeedf3]">
                 <p className="mb-2 text-[#c3c0ff]">
-                  # Source: Escalation_Playbook_v4.pdf
+                  {t("hero.workspaceSource")}
                 </p>
                 <p className="text-[#eeedf3]">
-                  1. Acknowledge within 15 minutes via on-call channel...
+                  {t("hero.workspaceStep1")}
                   <br />
-                  2. Open a war-room call and notify the customer...
+                  {t("hero.workspaceStep2")}
                   <br />
-                  3. Escalate to Tier 2 if unresolved within 30 min.
+                  {t("hero.workspaceStep3")}
                 </p>
               </div>
               <div className="mt-3 flex items-center justify-between rounded-lg bg-white px-4 py-2">
-                <span className="text-xs text-[#777587]">Confidence</span>
+                <span className="text-xs text-[#777587]">{t("hero.confidenceLabel")}</span>
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#e3e2e8]">
                     <div className="h-full w-[94%] rounded-full bg-[#108548]" />
@@ -146,13 +146,13 @@ function SupportHeroSection({
             <div className="mb-2 flex items-center gap-2">
               <Sym name="query_stats" className="text-base text-[#c3c0ff]" />
               <span className="text-[11px] font-semibold tracking-widest text-[#777587] uppercase">
-                Response Metric
+                {t("hero.metricLabel")}
               </span>
             </div>
             <p className="text-xl font-bold text-white">
               −84%{" "}
               <span className="text-sm font-normal text-[#777587]">
-                Search Time
+                {t("hero.metricValue")}
               </span>
             </p>
           </div>
@@ -165,21 +165,22 @@ function SupportHeroSection({
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function SupportProblemSection() {
+  const t = useTranslations("public.support");
   const problems = [
     {
       icon: "search_off",
-      title: "Tool Fatigue",
-      body: "Agents search too many tools — Confluence, Notion, and Slack — wasting 30% of their shift just looking for answers.",
+      title: t("problems.toolFatigueTitle"),
+      body: t("problems.toolFatigueBody"),
     },
     {
       icon: "speed",
-      title: "Slow Onboarding",
-      body: "New agents need faster onboarding to reach full productivity. Currently, training takes weeks of shadowing senior staff.",
+      title: t("problems.slowOnboardingTitle"),
+      body: t("problems.slowOnboardingBody"),
     },
     {
       icon: "sync_problem",
-      title: "Inconsistent Data",
-      body: "Customers expect fast and consistent answers. Outdated docs lead to conflicting advice and lower CSAT scores.",
+      title: t("problems.inconsistentDataTitle"),
+      body: t("problems.inconsistentDataBody"),
     },
   ];
 
@@ -194,10 +195,10 @@ function SupportProblemSection() {
             id="support-problem-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Support knowledge is often scattered.
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Siloed information leads to slower resolutions and agent burnout.
+            {t("problems.description")}
           </p>
         </div>
         <ul className="grid gap-6 md:grid-cols-3">
@@ -219,19 +220,20 @@ function SupportProblemSection() {
 // ── document sources ──────────────────────────────────────────────────────────
 
 function SupportDocumentSourcesSection() {
+  const t = useTranslations("public.support");
   const sources = [
-    { icon: "menu_book", label: "Product Documentation" },
-    { icon: "build", label: "Troubleshooting Guides" },
-    { icon: "quiz", label: "FAQs" },
-    { icon: "new_releases", label: "Release Notes" },
-    { icon: "warning", label: "Known Issue Lists" },
-    { icon: "priority_high", label: "Escalation Runbooks" },
+    { icon: "menu_book", label: t("documentSources.productDocumentation") },
+    { icon: "build", label: t("documentSources.troubleshootingGuides") },
+    { icon: "quiz", label: t("documentSources.faqs") },
+    { icon: "new_releases", label: t("documentSources.releaseNotes") },
+    { icon: "warning", label: t("documentSources.knownIssues") },
+    { icon: "priority_high", label: t("documentSources.escalationRunbooks") },
   ];
 
   const features = [
-    "Real-time sync with Confluence and ZenDesk",
-    "Parsing of complex PDF diagrams and runbooks",
-    "Version-controlled knowledge retrieval",
+    t("documentSources.feature0"),
+    t("documentSources.feature1"),
+    t("documentSources.feature2"),
   ];
 
   return (
@@ -251,7 +253,7 @@ function SupportDocumentSourcesSection() {
                 className="mb-4 text-[#464555] transition group-hover:text-[#3525cd]"
               />
               <p className="mb-1 text-[12px] font-semibold tracking-[0.05em] text-[#777587] uppercase">
-                Data Source
+                {t("documentSources.dataSourceLabel")}
               </p>
               <p className="font-bold text-[#1a1b20]">{s.label}</p>
             </div>
@@ -263,11 +265,10 @@ function SupportDocumentSourcesSection() {
             id="support-doc-sources-title"
             className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Connect all your support assets.
+            {t("documentSources.heading")}
           </h2>
           <p className="mb-8 text-lg leading-7 text-[#464555]">
-            Rudix indexes your existing technical knowledge base to create a
-            high-fidelity retrieval engine specifically for your support agents.
+            {t("documentSources.description")}
           </p>
           <ul className="space-y-4">
             {features.map((f) => (
@@ -289,32 +290,33 @@ function SupportDocumentSourcesSection() {
 // ── how it works ──────────────────────────────────────────────────────────────
 
 function SupportHowItWorksSection() {
+  const t = useTranslations("public.support");
   const steps = [
     {
       icon: "upload_file",
-      label: "1. Upload",
-      desc: "Support uploads docs from multiple formats.",
+      label: t("howItWorks.step1Title"),
+      desc: t("howItWorks.step1Body"),
       accent: "bg-[#3525cd] shadow-[0_0_24px_rgba(53,37,205,0.3)]",
       iconColor: "text-white",
     },
     {
       icon: "database",
-      label: "2. Index",
-      desc: "Rudix creates vector embeddings of your data.",
+      label: t("howItWorks.step2Title"),
+      desc: t("howItWorks.step2Body"),
       accent: "border border-[#3525cd] text-[#3525cd] bg-[#eeedf3]",
       iconColor: "",
     },
     {
       icon: "chat",
-      label: "3. Ask",
-      desc: "Agents ask natural language questions.",
+      label: t("howItWorks.step3Title"),
+      desc: t("howItWorks.step3Body"),
       accent: "border border-[#3525cd] text-[#3525cd] bg-[#eeedf3]",
       iconColor: "",
     },
     {
       icon: "verified",
-      label: "4. Resolve",
-      desc: "Answers with sources for instant resolution.",
+      label: t("howItWorks.step4Title"),
+      desc: t("howItWorks.step4Body"),
       accent: "bg-[#108548] shadow-[0_0_24px_rgba(16,133,72,0.3)]",
       iconColor: "text-white",
     },
@@ -331,10 +333,10 @@ function SupportHowItWorksSection() {
             id="support-flow-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#faf9ff]"
           >
-            How it works
+            {t("howItWorks.heading")}
           </h2>
           <p className="text-base leading-6 text-[#777587]">
-            A robust pipeline from raw documentation to verified agent answers.
+            {t("howItWorks.description")}
           </p>
         </div>
 
@@ -366,6 +368,7 @@ function SupportHowItWorksSection() {
 // ── example queries ───────────────────────────────────────────────────────────
 
 function SupportExampleQueriesSection() {
+  const t = useTranslations("public.support");
   return (
     <section
       aria-labelledby="support-queries-title"
@@ -378,18 +381,18 @@ function SupportExampleQueriesSection() {
               id="support-queries-title"
               className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
-              Precision retrieval in action.
+              {t("exampleQueries.heading")}
             </h2>
             <p className="text-base leading-6 text-[#464555]">
-              See how Rudix handles complex technical queries with ease.
+              {t("exampleQueries.description")}
             </p>
           </div>
           <div className="flex shrink-0 gap-1 rounded-full bg-[#e3e2e8] p-1.5">
             <span className="rounded-full bg-white px-5 py-2 text-[12px] font-semibold tracking-[0.05em] uppercase shadow-sm">
-              Agent view
+              {t("exampleQueries.agentView")}
             </span>
             <span className="px-5 py-2 text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
-              Admin view
+              {t("exampleQueries.adminView")}
             </span>
           </div>
         </div>
@@ -400,23 +403,22 @@ function SupportExampleQueriesSection() {
               <div className="mb-6 flex items-center gap-2">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#3525cd]" />
                 <span className="text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
-                  Active Query
+                  {t("exampleQueries.activeQuery")}
                 </span>
               </div>
               <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                &quot;How do I troubleshoot login failures for users on
-                Enterprise Plan v2?&quot;
+                &quot;{t("exampleQueries.mockQuestion")}&quot;
               </h3>
               <div className="rounded-xl bg-[#1F1E24] p-6 font-mono text-[14px] leading-5 text-[#eeedf3]">
                 <p className="mb-2 text-[#c3c0ff]">
-                  # Source: Auth_Runbook_v2.1.pdf
+                  {t("exampleQueries.mockSource")}
                 </p>
                 <p>
-                  1. Verify the &apos;client_id&apos; matches the region...
+                  {t("exampleQueries.mockStep1")}
                   <br />
-                  2. Check for &apos;error_code: 403_STALE&apos; in the logs...
+                  {t("exampleQueries.mockStep2")}
                   <br />
-                  3. Ensure SSO provider metadata is rotated.
+                  {t("exampleQueries.mockStep3")}
                 </p>
               </div>
             </div>
@@ -425,30 +427,28 @@ function SupportExampleQueriesSection() {
           <div className="col-span-1 space-y-6 md:col-span-4">
             <div className="rudix-landing-glass rounded-2xl border-l-4 border-[#3525cd] p-6">
               <h4 className="mb-2 font-bold text-[#1a1b20]">
-                &quot;Which plan includes SSO?&quot;
+                &quot;{t("exampleQueries.q1")}&quot;
               </h4>
               <p className="text-sm leading-5 text-[#464555]">
-                &quot;SSO is available on Enterprise and Custom plans. See
-                pricing.md for details.&quot;
+                &quot;{t("exampleQueries.a1")}&quot;
               </p>
             </div>
             <div className="rudix-landing-glass rounded-2xl border-l-4 border-[#E24329] p-6">
               <h4 className="mb-2 font-bold text-[#1a1b20]">
-                &quot;What changed in the latest release?&quot;
+                &quot;{t("exampleQueries.q2")}&quot;
               </h4>
               <p className="text-sm leading-5 text-[#464555]">
-                &quot;Release 4.2 introduced Webhooks and enhanced API rate
-                limiting. See CHANGELOG.txt&quot;
+                &quot;{t("exampleQueries.a2")}&quot;
               </p>
             </div>
             <div className="rounded-2xl bg-[#3525cd] p-6 text-white">
               <div className="mb-3 flex items-center justify-between">
                 <Sym name="auto_awesome" className="text-base" />
                 <span className="text-[11px] font-bold tracking-widest uppercase opacity-80">
-                  Smart Suggest
+                  {t("exampleQueries.smartSuggestLabel")}
                 </span>
               </div>
-              <p className="font-bold">Ask about API keys</p>
+              <p className="font-bold">{t("exampleQueries.smartSuggest")}</p>
               <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/20">
                 <div className="h-full w-2/3 rounded-full bg-white" />
               </div>

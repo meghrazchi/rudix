@@ -37,11 +37,13 @@ function ToggleSwitch({
   onChange,
   disabled,
   id,
+  ariaLabel,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
   id: string;
+  ariaLabel?: string;
 }) {
   return (
     <button
@@ -49,6 +51,7 @@ function ToggleSwitch({
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd] disabled:opacity-50 ${
@@ -503,6 +506,7 @@ function MCPTrustControlsSection({
             id="mcp-redact-doc"
             checked={redactDocumentText}
             onChange={onChangeRedactDocumentText}
+            ariaLabel="Redact document text"
           />
         </div>
 

@@ -623,34 +623,8 @@ function HRSecuritySection() {
               <span className="h-3 w-3 rounded-full bg-yellow-500" />
               <span className="h-3 w-3 rounded-full bg-green-500" />
             </div>
-            <pre className="font-mono text-xs leading-6 text-[#c7cede]">
-              <span className="text-[#c3c0ff]">POST</span>{" "}
-              /api/v1/documents/upload{"\n"}
-              {"  "}
-              <span className="text-[#75db94]">Authorization</span>: Bearer
-              $TOKEN{"\n"}
-              {"  "}Content-Type: multipart/form-data{"\n\n"}
-              <span className="text-[#9aa5c0]"># Response</span>
-              {"\n"}
-              {"{"}
-              {"\n"}
-              {"  "}
-              <span className="text-[#75db94]">
-                &quot;document_id&quot;
-              </span>:{" "}
-              <span className="text-[#c3c0ff]">&quot;doc_hr_24f9...&quot;</span>
-              ,{"\n"}
-              {"  "}
-              <span className="text-[#75db94]">&quot;status&quot;</span>:{" "}
-              <span className="text-[#c3c0ff]">&quot;uploaded&quot;</span>,
-              {"\n"}
-              {"  "}
-              <span className="text-[#75db94]">
-                &quot;queue_status&quot;
-              </span>:{" "}
-              <span className="text-[#c3c0ff]">&quot;queued&quot;</span>
-              {"\n"}
-              {"}"}
+            <pre className="whitespace-pre-wrap font-mono text-xs leading-6 text-[#c7cede]">
+              {t("security.codeSample")}
             </pre>
             <p className="mt-5 text-xs text-[#636a7f]">
               {t("security.usageNote")}

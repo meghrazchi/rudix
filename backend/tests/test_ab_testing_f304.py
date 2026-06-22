@@ -34,6 +34,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -129,7 +130,7 @@ async def member_user(db: AsyncSession, org: Organization):
 
 def _token(user: User, org: Organization) -> str:
     settings.auth_provider = AuthProvider.app
-    settings.app_auth_secret = "test-secret"  # type: ignore[assignment]
+    settings.app_auth_secret = SecretStr("test-secret")
     return create_app_access_token(
         user_id=str(user.id),
         organization_id=str(org.id),
@@ -139,7 +140,7 @@ def _token(user: User, org: Organization) -> str:
 
 def _member_token(user: User, org: Organization) -> str:
     settings.auth_provider = AuthProvider.app
-    settings.app_auth_secret = "test-secret"  # type: ignore[assignment]
+    settings.app_auth_secret = SecretStr("test-secret")
     return create_app_access_token(
         user_id=str(user.id),
         organization_id=str(org.id),

@@ -25,7 +25,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from app.models.permissions import PermissionType
+from app.models.permissions import ROLE_PERMISSIONS, PermissionType
 
 # ── Enumerations ─────────────────────────────────────────────────────────────
 
@@ -80,7 +80,7 @@ class DenyReason(StrEnum):
 # ── Subject ───────────────────────────────────────────────────────────────────
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class SubjectContext:
     """Resolved subject context passed to the policy engine."""
 
@@ -92,12 +92,56 @@ class SubjectContext:
     resolved_permissions: frozenset[str]
     # True when authenticated via a scoped API key (permissions pre-resolved).
     is_api_key: bool = False
+    # Legacy aliases kept for backwards-compatible test and adapter construction.
+    resource_grants: tuple[object, ...] = ()
+    resource_denies: tuple[object, ...] = ()
+    accessible_collection_ids: frozenset[str] = frozenset()
+    connector_acl_item_ids: frozenset[str] = frozenset()
+
+    def __init__(
+        self,
+        *,
+        user_id: str,
+        organization_id: str | None,
+        roles: frozenset[str],
+        resolved_permissions: frozenset[str],
+        is_api_key: bool = False,
+        resource_grants: Sequence[object] | None = None,
+        resource_denies: Sequence[object] | None = None,
+        accessible_collection_ids: Sequence[str] | None = None,
+        connector_acl_item_ids: Sequence[str] | None = None,
+    ) -> None:
+        object.__setattr__(self, "user_id", user_id)
+        object.__setattr__(self, "organization_id", organization_id)
+        object.__setattr__(self, "roles", frozenset(roles))
+        object.__setattr__(self, "resolved_permissions", frozenset(resolved_permissions))
+        object.__setattr__(self, "is_api_key", is_api_key)
+        object.__setattr__(
+            self,
+            "resource_grants",
+            tuple(resource_grants or ()),
+        )
+        object.__setattr__(
+            self,
+            "resource_denies",
+            tuple(resource_denies or ()),
+        )
+        object.__setattr__(
+            self,
+            "accessible_collection_ids",
+            frozenset(accessible_collection_ids or ()),
+        )
+        object.__setattr__(
+            self,
+            "connector_acl_item_ids",
+            frozenset(connector_acl_item_ids or ()),
+        )
 
 
 # ── Resource ──────────────────────────────────────────────────────────────────
 
 
-@dataclass
+@dataclass(init=False)
 class ResourceContext:
     """Describes the resource being accessed, plus its access-control metadata.
 
@@ -126,6 +170,54 @@ class ResourceContext:
     is_system_resource: bool = False
     # Feature flag gate. None = no gate. False = feature disabled for this org.
     feature_enabled: bool | None = None
+    # Legacy aliases kept for backwards-compatible test and adapter construction.
+    owner_ids: frozenset[str] = frozenset()
+    explicit_denies: list[object] = field(default_factory=list)
+
+    def __init__(
+        self,
+        *,
+        resource_type: ResourceType,
+        resource_id: str | None = None,
+        organization_id: str | None = None,
+        owner_user_id: str | None = None,
+        collection_ids: Sequence[str] | None = None,
+        connector_id: str | None = None,
+        explicit_deny_user_ids: Sequence[str] | None = None,
+        explicit_allow_user_ids: Sequence[str] | None = None,
+        connector_allowed_user_ids: Sequence[str] | None = None,
+        subject_accessible_collection_ids: Sequence[str] | None = None,
+        is_system_resource: bool = False,
+        feature_enabled: bool | None = None,
+        owner_ids: Sequence[str] | None = None,
+        explicit_denies: Sequence[object] | None = None,
+    ) -> None:
+        object.__setattr__(self, "resource_type", resource_type)
+        object.__setattr__(self, "resource_id", resource_id)
+        object.__setattr__(self, "organization_id", organization_id)
+        resolved_owner = owner_user_id
+        owners = frozenset(owner_ids or ())
+        if resolved_owner is None and owners:
+            resolved_owner = next(iter(owners))
+        object.__setattr__(self, "owner_user_id", resolved_owner)
+        object.__setattr__(self, "collection_ids", list(collection_ids or ()))
+        object.__setattr__(self, "connector_id", connector_id)
+        object.__setattr__(self, "explicit_deny_user_ids", list(explicit_deny_user_ids or ()))
+        object.__setattr__(self, "explicit_allow_user_ids", list(explicit_allow_user_ids or ()))
+        object.__setattr__(
+            self,
+            "connector_allowed_user_ids",
+            list(connector_allowed_user_ids or ()),
+        )
+        object.__setattr__(
+            self,
+            "subject_accessible_collection_ids",
+            list(subject_accessible_collection_ids or ()),
+        )
+        object.__setattr__(self, "is_system_resource", is_system_resource)
+        object.__setattr__(self, "feature_enabled", feature_enabled)
+        object.__setattr__(self, "owner_ids", owners)
+        object.__setattr__(self, "explicit_denies", list(explicit_denies or ()))
 
 
 # ── Result ────────────────────────────────────────────────────────────────────
@@ -289,6 +381,18 @@ class PolicyEngine:
                 action=action,
             )
 
+        def _legacy_rule_matches(entries: Sequence[object], resource_type: ResourceType) -> bool:
+            for entry in entries:
+                if isinstance(entry, tuple) and len(entry) >= 4:
+                    _, entry_type, entry_resource_id, entry_action = entry[:4]
+                    if (
+                        entry_type is resource_type
+                        and entry_resource_id == resource.resource_id
+                        and entry_action is action
+                    ):
+                        return True
+            return False
+
         # ── Rule 1: Organization context required ────────────────────────────
         rule = "no_organization_context"
         if subject.organization_id is None:
@@ -326,24 +430,38 @@ class PolicyEngine:
 
         # ── Rule 6: Explicit resource deny ──────────────────────────────────
         rule = "explicit_resource_deny"
-        if subject.user_id in resource.explicit_deny_user_ids:
+        if (
+            subject.user_id in resource.explicit_deny_user_ids
+            or _legacy_rule_matches(subject.resource_denies, resource.resource_type)
+            or _legacy_rule_matches(resource.explicit_denies, resource.resource_type)
+        ):
             return _deny(DenyReason.explicit_resource_deny, rule)
         trace.append(f"{rule}:pass")
 
         # ── Rule 7: Explicit resource allow ─────────────────────────────────
         rule = "explicit_resource_allow"
-        if subject.user_id in resource.explicit_allow_user_ids:
+        if subject.user_id in resource.explicit_allow_user_ids or _legacy_rule_matches(
+            subject.resource_grants, resource.resource_type
+        ):
             return _allow(rule)
         trace.append(f"{rule}:pass")
+
+        effective_permissions = subject.resolved_permissions
+        if not effective_permissions:
+            combined: set[str] = set()
+            for role in subject.roles:
+                combined.update(ROLE_PERMISSIONS.get(role, frozenset()))
+            effective_permissions = frozenset(combined)
 
         # ── Rule 8: Collection allow ─────────────────────────────────────────
         rule = "collection_allow"
         if (
             resource.collection_ids
             and resource.resource_type in _COLLECTION_ELIGIBLE_TYPES
-            and PermissionType.chat_use_collections in subject.resolved_permissions
+            and PermissionType.chat_use_collections in effective_permissions
         ):
             accessible = set(resource.subject_accessible_collection_ids)
+            accessible.update(subject.accessible_collection_ids)
             if accessible.intersection(resource.collection_ids):
                 return _allow(rule)
         trace.append(f"{rule}:pass")
@@ -351,9 +469,12 @@ class PolicyEngine:
         # ── Rule 9: Connector ACL ────────────────────────────────────────────
         rule = "connector_acl"
         if resource.connector_id is not None:
-            if subject.user_id in resource.connector_allowed_user_ids:
+            if subject.user_id in resource.connector_allowed_user_ids or (
+                resource.resource_id is not None
+                and resource.resource_id in subject.connector_acl_item_ids
+            ):
                 return _allow(rule)
-            if resource.connector_allowed_user_ids:
+            if resource.connector_allowed_user_ids or subject.connector_acl_item_ids:
                 # Non-empty ACL and subject is not in it.
                 return _deny(DenyReason.connector_acl_denied, rule)
         trace.append(f"{rule}:pass")
@@ -370,9 +491,9 @@ class PolicyEngine:
         rule = "role_permission"
         required = _RESOURCE_ACTION_PERMISSIONS.get((resource.resource_type, action), frozenset())
         if required:
-            if required.issubset(subject.resolved_permissions):
+            if required.issubset(effective_permissions):
                 return _allow(rule)
-            missing = required - subject.resolved_permissions
+            missing = required - effective_permissions
             trace.append(f"{rule}:missing={','.join(sorted(missing))}")
             return _deny(DenyReason.insufficient_role, rule)
         trace.append(f"{rule}:pass(no_mapping)")

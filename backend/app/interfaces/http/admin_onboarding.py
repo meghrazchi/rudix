@@ -15,6 +15,14 @@ from app.db.session import get_db_session
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 
+
+def _org_id(principal: AuthenticatedPrincipal) -> UUID:
+    if not principal.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization context"
+        )
+    return UUID(principal.organization_id)
+
 router = APIRouter(prefix="/admin/onboarding", tags=["admin-onboarding"])
 
 
@@ -35,7 +43,7 @@ async def get_onboarding_config(
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OnboardingConfigResponse:
-    org = await _get_org(db, principal.organization_id)
+    org = await _get_org(db, _org_id(principal))
     return OnboardingConfigResponse(
         sample_docs_enabled=org.sample_docs_enabled,
         reset_at=org.onboarding_reset_at,
@@ -51,7 +59,7 @@ async def patch_onboarding_config(
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OnboardingConfigResponse:
-    org = await _get_org(db, principal.organization_id)
+    org = await _get_org(db, _org_id(principal))
     if body.sample_docs_enabled is not None:
         org.sample_docs_enabled = body.sample_docs_enabled
     await db.commit()
@@ -71,7 +79,7 @@ async def reset_onboarding(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> OnboardingConfigResponse:
     """Set reset_at to now so all org users re-show the onboarding checklist."""
-    org = await _get_org(db, principal.organization_id)
+    org = await _get_org(db, _org_id(principal))
     org.onboarding_reset_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(org)

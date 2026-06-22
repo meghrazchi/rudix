@@ -4,11 +4,11 @@ export function CookiePolicyPage() {
   return (
     <LegalPageLayout
       title="Cookie Policy"
-      version="0.2"
+      version="0.1"
       effectiveDate="2026-06-20"
       sections={[
         {
-          heading: "1. What Are Cookies",
+          heading: "1. Cookies We Use",
           body: (
             <p>
               Cookies are small text files stored in your browser when you visit
@@ -19,7 +19,7 @@ export function CookiePolicyPage() {
           ),
         },
         {
-          heading: "2. Cookie Categories",
+          heading: "2. What We Do Not Use",
           body: (
             <>
               <p>
@@ -54,14 +54,15 @@ export function CookiePolicyPage() {
               </p>
               <p>
                 <strong>Marketing.</strong> We do not use marketing or
-                advertising cookies. No cross-site tracking pixels or
-                advertising network integrations are present.
+                advertising cookies. No third-party advertising cookies, cross-
+                site tracking pixels, or advertising network integrations are
+                present.
               </p>
             </>
           ),
         },
         {
-          heading: "3. Your Consent Choices",
+          heading: "3. How To Control Cookies",
           body: (
             <>
               <p>
@@ -93,7 +94,7 @@ export function CookiePolicyPage() {
           ),
         },
         {
-          heading: "4. How to Change or Withdraw Consent",
+          heading: "4. How To Change Or Withdraw Consent",
           body: (
             <>
               <p>
@@ -102,7 +103,7 @@ export function CookiePolicyPage() {
                 specifically). The consent banner will reappear on your next
                 visit. You can also delete all browser cookies for this site
                 through your browser&rsquo;s privacy settings — deleting the
-                session cookie will sign you out of the application.
+                authentication cookie will sign you out of the application.
               </p>
             </>
           ),
@@ -114,7 +115,7 @@ export function CookiePolicyPage() {
               If we introduce new cookies or tracking technologies, we will
               update this policy and increment the version number. Where the
               change affects optional categories, the consent banner will
-              re-prompt you. The version number and effective date at the top of
+              re-prompt you. The version number and policy date at the top of
               this page reflect the latest revision.
             </p>
           ),

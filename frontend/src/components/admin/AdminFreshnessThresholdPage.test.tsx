@@ -63,7 +63,16 @@ describe("AdminFreshnessThresholdPage", () => {
 
   it("shows forbidden state on 403", async () => {
     mockApi.getFreshnessThresholds.mockRejectedValue(
-      new ApiClientError("Forbidden", 403),
+      new ApiClientError({
+        status: 403,
+        code: "forbidden",
+        message: "Forbidden",
+        details: null,
+        requestId: null,
+        userMessage: "You do not have permission for this action.",
+        actionMessage: null,
+        retryable: false,
+      }),
     );
     renderPage();
     await waitFor(() =>

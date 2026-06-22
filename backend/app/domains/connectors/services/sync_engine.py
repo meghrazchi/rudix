@@ -569,25 +569,31 @@ class ConnectorSyncEngine:
                 error_code="connection_not_active",
             )
 
-        # Resolve credential
-        credential = await self.repository.get_current_credential(
-            session,
-            organization_id=organization_id,
-            connection_id=connection.id,
-        )
-        if credential is None:
-            return await self._fail_run(session, run, "no credential found for connection")
-        if credential.status == ConnectorCredentialStatus.revoked.value:
-            return await self._fail_run(session, run, "credential has been revoked")
+        # Resolve credential — skip for auth_type=none providers
+        if connection.provider.auth_type == ConnectorAuthType.none.value:
+            decrypted: dict = {}
+        else:
+            credential = await self.repository.get_current_credential(
+                session,
+                organization_id=organization_id,
+                connection_id=connection.id,
+            )
+            if credential is None:
+                return await self._fail_run(session, run, "no credential found for connection")
+            if credential.status == ConnectorCredentialStatus.revoked.value:
+                return await self._fail_run(session, run, "credential has been revoked")
 
-        credential = await self._refresh_oauth_if_needed(
-            session, connection=connection, credential=credential, organization_id=organization_id
-        )
+            credential = await self._refresh_oauth_if_needed(
+                session,
+                connection=connection,
+                credential=credential,
+                organization_id=organization_id,
+            )
 
-        try:
-            decrypted = self.credential_vault.decrypt(credential)
-        except Exception as exc:
-            return await self._fail_run(session, run, f"credential decryption failed: {exc}")
+            try:
+                decrypted = self.credential_vault.decrypt(credential)
+            except Exception as exc:
+                return await self._fail_run(session, run, f"credential decryption failed: {exc}")
 
         try:
             adapter = self.adapter_registry.require(connection.provider.key)
@@ -979,7 +985,7 @@ class ConnectorSyncEngine:
                 ExternalItem.organization_id == run.organization_id,
                 ExternalItem.connection_id == run.connection_id,
                 ExternalItem.deleted_at.is_(None),
-                ExternalItem.sync_version < run.sync_version,
+                ExternalItem.sync_version <= run.sync_version,
             )
         )
         stale_items = list(result.scalars().all())

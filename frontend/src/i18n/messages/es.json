@@ -74,7 +74,8 @@
       "status": "Estado",
       "support": "Soporte",
       "shortcuts": "Atajos de teclado",
-      "readme": "README del proyecto"
+      "readme": "README del proyecto",
+      "changelog": "Changelog"
     }
   },
   "auth": {
@@ -159,7 +160,8 @@
         "dpa": "DPA",
         "subprocessors": "Subprocesadores",
         "acceptableUse": "Uso aceptable",
-        "securityDisclosure": "Divulgación de seguridad"
+        "securityDisclosure": "Divulgación de seguridad",
+        "changelog": "Changelog"
       }
     },
     "home": "Inicio",

@@ -127,6 +127,10 @@ function buildTrustMetadata(
       stale_count: 0,
       excluded_count: 0,
       boosted_count: 0,
+      warning_reasons: [],
+      unreviewed_count: 0,
+      deprecated_count: 0,
+      all_excluded_fallback: false,
     },
     generated_at: "2026-06-26T10:00:00Z",
     ...overrides,
@@ -302,6 +306,10 @@ describe("getAnswerTrustMetadata", () => {
         stale_count: 2,
         excluded_count: 1,
         boosted_count: 0,
+        warning_reasons: [],
+        unreviewed_count: 0,
+        deprecated_count: 0,
+        all_excluded_fallback: false,
       },
     });
     fetchMock.mockResolvedValueOnce(jsonResponse(data));
@@ -334,6 +342,8 @@ describe("AnswerTrustMetadataResponse type contract", () => {
       is_table_chunk: false,
       table_headers: [],
       doc_ocr_low_confidence_warning: false,
+      doc_unreviewed_warning: false,
+      doc_deprecated_warning: false,
     };
     expect("source_acl_snapshot" in citation).toBe(false);
   });

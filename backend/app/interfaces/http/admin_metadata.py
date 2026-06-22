@@ -382,14 +382,13 @@ async def filter_documents_by_metadata(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_READ_ROLES))],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     filters: Annotated[
-        list[str],
+        list[str] | None,
         Query(
-            default=[],
             alias="filter",
             description="Repeated param: field_id:value",
             max_length=50,
         ),
-    ],
+    ] = None,
 ) -> dict:
     """Return document IDs that satisfy ALL provided metadata filters.
 
@@ -397,7 +396,7 @@ async def filter_documents_by_metadata(
     """
     org_id = _org_id(principal)
     parsed: list[dict] = []
-    for raw in filters:
+    for raw in filters or []:
         if ":" not in raw:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

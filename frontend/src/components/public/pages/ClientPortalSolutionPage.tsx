@@ -117,32 +117,31 @@ function ClientPortalHeroSection({
               <div className="h-3 w-3 rounded-full bg-[#E24329]" />
               <div className="h-3 w-3 rounded-full bg-[#108548]" />
               <span className="ml-auto font-mono text-[10px] tracking-widest text-[#777587] uppercase">
-                Portal Q&A
+                {t("hero.mockPanelLabel")}
               </span>
             </div>
             <div className="space-y-5 font-mono text-sm">
               <div>
                 <p className="mb-1 text-[10px] tracking-widest text-[#c3c0ff] uppercase">
-                  Customer
+                  {t("hero.mockCustomerLabel")}
                 </p>
                 <p className="text-white">
-                  &ldquo;How do I set up SSO for my team?&rdquo;
+                  &ldquo;{t("hero.mockQuestion")}&rdquo;
                 </p>
               </div>
               <div className="border-t border-white/10 pt-5">
                 <p className="mb-2 text-[10px] tracking-widest text-[#75db94] uppercase">
-                  Rudix
+                  {t("hero.mockAnswerLabel")}
                 </p>
                 <p className="text-[#e3e2e8]">
-                  Navigate to Settings &rarr; Security and upload your IdP
-                  metadata file. Okta and Azure AD are fully supported.
+                  {t("hero.mockAnswer")}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded bg-[#3525cd]/20 px-2 py-0.5 text-[10px] text-[#c3c0ff]">
-                    Setup Guide v3.1
+                    {t("hero.mockTag1")}
                   </span>
                   <span className="rounded bg-[#3525cd]/20 px-2 py-0.5 text-[10px] text-[#c3c0ff]">
-                    Admin Docs
+                    {t("hero.mockTag2")}
                   </span>
                 </div>
               </div>
@@ -157,21 +156,22 @@ function ClientPortalHeroSection({
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function ClientPortalProblemSection() {
+  const t = useTranslations("public.clientPortal");
   const problems = [
     {
       icon: "forum",
-      title: "Repeated client questions",
-      body: "Support and account teams field the same onboarding and implementation questions daily — questions already answered in your documentation.",
+      title: t("problems.repeatedQuestionsTitle"),
+      body: t("problems.repeatedQuestionsBody"),
     },
     {
       icon: "folder_off",
-      title: "Scattered onboarding docs",
-      body: "Customers can't find what they need across PDFs, wikis, and portals, slowing implementation timelines and frustrating new accounts.",
+      title: t("problems.scatteredDocsTitle"),
+      body: t("problems.scatteredDocsBody"),
     },
     {
       icon: "transfer_within_a_station",
-      title: "Slow implementation handoffs",
-      body: "Without a shared, searchable knowledge layer, every account handoff starts from scratch and strains customer success bandwidth.",
+      title: t("problems.handoffsTitle"),
+      body: t("problems.handoffsBody"),
     },
   ];
 
@@ -183,11 +183,10 @@ function ClientPortalProblemSection() {
             id="cp-problem-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            The Client Knowledge Gap
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Customers expect fast, accurate answers. Without a trusted knowledge
-            layer, your support and account teams absorb the cost.
+            {t("problems.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -212,20 +211,21 @@ function ClientPortalProblemSection() {
 // ── document sources ──────────────────────────────────────────────────────────
 
 function ClientPortalDocumentSourcesSection() {
+  const t = useTranslations("public.clientPortal");
   const sources = [
-    { icon: "rocket_launch", label: "Onboarding Guides" },
-    { icon: "integration_instructions", label: "API Documentation" },
-    { icon: "build", label: "Implementation Guides" },
-    { icon: "support_agent", label: "Knowledge Base" },
-    { icon: "menu_book", label: "Product Guides" },
-    { icon: "handshake", label: "Enablement Materials" },
+    { icon: "rocket_launch", label: t("documentSources.onboardingGuides") },
+    { icon: "integration_instructions", label: t("documentSources.apiDocumentation") },
+    { icon: "build", label: t("documentSources.implementationGuides") },
+    { icon: "support_agent", label: t("documentSources.knowledgeBase") },
+    { icon: "menu_book", label: t("documentSources.productGuides") },
+    { icon: "handshake", label: t("documentSources.enablementMaterials") },
   ];
 
   const features = [
-    "Approve and scope which docs are client-visible",
-    "Index across PDF, DOCX, and Markdown formats",
-    "Citation-backed answers from approved sources only",
-    "Access boundaries between customer segments",
+    t("documentSources.feature0"),
+    t("documentSources.feature1"),
+    t("documentSources.feature2"),
+    t("documentSources.feature3"),
   ];
 
   return (
@@ -250,13 +250,10 @@ function ClientPortalDocumentSourcesSection() {
             id="cp-doc-title"
             className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Approved sources, scoped access.
+            {t("documentSources.heading")}
           </h2>
           <p className="mb-6 text-lg leading-7 text-[#464555]">
-            Rudix indexes only the documents you approve for client visibility.
-            Every answer cites the exact source so customers and your team can
-            verify every response — with no content surfaced from outside your
-            approved documentation set.
+            {t("documentSources.description")}
           </p>
           <ul className="space-y-4">
             {features.map((f) => (
@@ -278,6 +275,7 @@ function ClientPortalDocumentSourcesSection() {
 // ── workflow / how it works ───────────────────────────────────────────────────
 
 function ClientPortalWorkflowSection() {
+  const t = useTranslations("public.clientPortal");
   return (
     <section
       aria-labelledby="cp-workflow-title"
@@ -289,11 +287,10 @@ function ClientPortalWorkflowSection() {
             id="cp-workflow-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
           >
-            From document approval to client Q&A
+            {t("workflow.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            A controlled workflow that puts your team in charge of what clients
-            can ask — and what answers they receive.
+            {t("workflow.description")}
           </p>
         </div>
 
@@ -315,16 +312,13 @@ function ClientPortalWorkflowSection() {
             />
             <div className="relative z-10">
               <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                Step 01
+                {t("workflow.step01Label")}
               </span>
               <h3 className="mb-4 text-[30px] leading-[38px] font-semibold text-white">
-                Approve Client-Facing Docs
+                {t("workflow.step01Title")}
               </h3>
               <p className="text-base leading-6 text-[#464555]">
-                Your team selects and uploads the documentation clients are
-                allowed to query — onboarding guides, implementation docs,
-                product manuals, and support knowledge. Nothing outside the
-                approved set is ever surfaced.
+                {t("workflow.step01Body")}
               </p>
             </div>
           </div>
@@ -333,16 +327,14 @@ function ClientPortalWorkflowSection() {
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8 md:col-span-2">
             <div>
               <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                Step 02
+                {t("workflow.step02Label")}
               </span>
               <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                Index & Scope Access
+                {t("workflow.step02Title")}
               </h3>
             </div>
             <p className="text-base leading-6 text-[#464555]">
-              Rudix semantically indexes approved content and applies access
-              boundaries — different customer segments can query different
-              document sets without overlap.
+              {t("workflow.step02Body")}
             </p>
           </div>
 
@@ -350,10 +342,10 @@ function ClientPortalWorkflowSection() {
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8">
             <div>
               <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                Step 03
+                {t("workflow.step03Label")}
               </span>
               <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                Expose Q&A
+                {t("workflow.step03Title")}
               </h3>
             </div>
             <Sym name="question_answer" className="text-4xl text-[#c3c0ff]" />
@@ -363,10 +355,10 @@ function ClientPortalWorkflowSection() {
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-[#3525cd] bg-[#3525cd] p-8 text-white">
             <div>
               <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-white/60 uppercase">
-                Step 04
+                {t("workflow.step04Label")}
               </span>
               <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                Verify & Improve
+                {t("workflow.step04Title")}
               </h3>
             </div>
             <Sym name="fact_check" className="text-4xl text-white" />
@@ -380,31 +372,32 @@ function ClientPortalWorkflowSection() {
 // ── use cases ─────────────────────────────────────────────────────────────────
 
 function ClientPortalUseCasesSection() {
+  const t = useTranslations("public.clientPortal");
   const useCases = [
     {
       icon: "rocket_launch",
-      title: "Customer Onboarding",
-      body: "New customers self-serve setup and configuration questions, reducing time-to-value and cutting onboarding call volume.",
+      title: t("useCases.customerOnboardingTitle"),
+      body: t("useCases.customerOnboardingBody"),
     },
     {
       icon: "build",
-      title: "Implementation Docs",
-      body: "Technical buyers and integration teams query configuration guides with cited answers — no waiting for an SE to respond.",
+      title: t("useCases.implementationDocsTitle"),
+      body: t("useCases.implementationDocsBody"),
     },
     {
       icon: "handshake",
-      title: "Partner Enablement",
-      body: "Channel and solution partners get accurate product answers without direct access to your internal knowledge base.",
+      title: t("useCases.partnerEnablementTitle"),
+      body: t("useCases.partnerEnablementBody"),
     },
     {
       icon: "support_agent",
-      title: "Support Knowledge",
-      body: "Customers resolve common support questions on their own, cutting Tier-1 ticket volume and escalation overhead.",
+      title: t("useCases.supportKnowledgeTitle"),
+      body: t("useCases.supportKnowledgeBody"),
     },
     {
       icon: "swap_horiz",
-      title: "Account Handoff",
-      body: "When accounts move between CSM owners, a shared knowledge layer ensures continuity and reduces ramp time.",
+      title: t("useCases.accountHandoffTitle"),
+      body: t("useCases.accountHandoffBody"),
     },
   ];
 
@@ -416,11 +409,10 @@ function ClientPortalUseCasesSection() {
             id="cp-usecases-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Built for every client touchpoint
+            {t("useCases.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            From first login to long-term account management, Rudix supports the
-            moments where clients need answers fast.
+            {t("useCases.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -445,18 +437,17 @@ function ClientPortalUseCasesSection() {
 // ── example queries ───────────────────────────────────────────────────────────
 
 function ClientPortalExampleQueriesSection() {
+  const t = useTranslations("public.clientPortal");
   const examples = [
     {
-      question: "How do I configure SAML-based SSO for my organization?",
-      answer:
-        "Navigate to Settings → Security → SSO and upload your IdP metadata XML file. Supported providers include Okta, Azure AD, and Google Workspace. Full configuration steps are in Admin Setup Guide, Section 3.2.",
-      sources: ["Admin Setup Guide v3.2", "Security Configuration Docs"],
+      question: t("exampleQueries.q1"),
+      answer: t("exampleQueries.a1"),
+      sources: [t("exampleQueries.source1a"), t("exampleQueries.source1b")],
     },
     {
-      question: "What data is retained after I close my account?",
-      answer:
-        "Per the Data Retention Policy (Section 5), account data is purged within 30 days of account closure. Audit logs are retained for 90 days as required for compliance. No customer data is shared with third parties after deletion.",
-      sources: ["Data Retention Policy", "Privacy FAQ"],
+      question: t("exampleQueries.q2"),
+      answer: t("exampleQueries.a2"),
+      sources: [t("exampleQueries.source2a"), t("exampleQueries.source2b")],
     },
   ];
 
@@ -470,7 +461,7 @@ function ClientPortalExampleQueriesSection() {
           id="cp-queries-title"
           className="mb-16 text-center text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
         >
-          Cited answers. Every time.
+          {t("exampleQueries.heading")}
         </h2>
         <div className="mx-auto flex max-w-4xl flex-col gap-8">
           {examples.map((e) => (
@@ -489,7 +480,7 @@ function ClientPortalExampleQueriesSection() {
                   </p>
                   <div className="rounded-lg border border-[#c7c4d8]/30 bg-white p-4 text-base leading-6 text-[#464555]">
                     <span className="mb-2 block font-semibold text-[#3525cd]">
-                      Rudix Answer:
+                      {t("exampleQueries.answerLabel")}
                     </span>
                     <p className="mb-4">{e.answer}</p>
                     <div className="flex flex-wrap gap-2">
@@ -516,11 +507,12 @@ function ClientPortalExampleQueriesSection() {
 // ── related solutions ─────────────────────────────────────────────────────────
 
 function ClientPortalRelatedSolutionsSection() {
+  const t = useTranslations("public.clientPortal");
   const related = [
-    { label: "Support", href: "/solutions/support" },
-    { label: "Sales", href: "/solutions/sales" },
-    { label: "Internal Knowledge", href: "/solutions/internal-knowledge" },
-    { label: "Security", href: "/security" },
+    { label: t("related.support"), href: "/solutions/support" },
+    { label: t("related.sales"), href: "/solutions/sales" },
+    { label: t("related.internalKnowledge"), href: "/solutions/internal-knowledge" },
+    { label: t("related.security"), href: "/security" },
   ];
 
   return (
@@ -530,7 +522,7 @@ function ClientPortalRelatedSolutionsSection() {
           id="cp-related-title"
           className="mb-8 text-center text-[24px] leading-8 font-semibold text-[#1a1b20]"
         >
-          Explore related solutions
+          {t("related.heading")}
         </h2>
         <ul className="flex flex-wrap justify-center gap-4">
           {related.map((r) => (
@@ -595,8 +587,7 @@ function ClientPortalFinalCtaSection({
             </PublicActionLink>
           </div>
           <p className="mt-8 text-[12px] font-semibold tracking-[0.05em] text-[#777587] uppercase">
-            Rudix surfaces answers from approved documents — it does not replace
-            a full external client portal or manage client identity and access.
+            {t("cta.disclaimer")}
           </p>
         </div>
       </div>

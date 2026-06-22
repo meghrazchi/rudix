@@ -178,7 +178,7 @@ async def test_oauth_begin_uses_configured_client_credentials(
     assert params["client_id"] == ["confluence-client-id"]
     assert params["redirect_uri"] == ["https://app.example.test/api/v1/connectors/oauth/callback"]
     assert params["scope"] == [
-        "read:confluence-content.all read:confluence-space.summary offline_access"
+        "read:confluence-content.all read:confluence-space.summary read:confluence-content.summary read:confluence-user search:confluence readonly:content.attachment:confluence offline_access"
     ]
 
 
@@ -480,6 +480,10 @@ def test_provider_scope_validation_enforces_least_privilege() -> None:
     assert registry.validate_scopes("confluence", None) == [
         "read:confluence-content.all",
         "read:confluence-space.summary",
+        "read:confluence-content.summary",
+        "read:confluence-user",
+        "search:confluence",
+        "readonly:content.attachment:confluence",
         "offline_access",
     ]
     with pytest.raises(ProviderRegistryError, match="not allowed"):
@@ -532,7 +536,7 @@ async def test_oauth_token_exchange_401_is_wrapped_as_safe_error(
         async def __aexit__(self, *args: object) -> None:
             del args
 
-        async def post(self, url: str, data: dict[str, object]) -> _FakeResponse:
+        async def post(self, url: str, data: dict[str, object], **kwargs: object) -> _FakeResponse:
             _FakeAsyncClient.last_payload = {"url": url, **data}
             return _FakeResponse(url)
 
@@ -596,7 +600,7 @@ async def test_oauth_token_exchange_400_includes_provider_error_code(
         async def __aexit__(self, *args: object) -> None:
             del args
 
-        async def post(self, url: str, data: dict[str, object]) -> _FakeResponse:
+        async def post(self, url: str, data: dict[str, object], **kwargs: object) -> _FakeResponse:
             del data
             return _FakeResponse(url)
 

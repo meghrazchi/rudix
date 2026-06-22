@@ -130,6 +130,14 @@ function ResearchHeroSection({
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function ResearchProblemSection() {
+  const t = useTranslations("public.research");
+  const cards = [
+    { title: t("problems.overloadTitle"), body: t("problems.overloadBody") },
+    { title: t("problems.manualTitle"), body: t("problems.manualBody") },
+    { title: t("problems.citationsTitle"), body: t("problems.citationsBody") },
+    { title: t("problems.fragmentationTitle"), body: t("problems.fragmentationBody") },
+  ];
+
   return (
     <section
       aria-labelledby="research-problem-title"
@@ -141,11 +149,10 @@ function ResearchProblemSection() {
             id="research-problem-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            The research friction point.
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Manual processing of technical reports is the bottleneck of modern
-            enterprise strategy.
+            {t("problems.description")}
           </p>
         </div>
 
@@ -153,12 +160,10 @@ function ResearchProblemSection() {
           <li className="rudix-landing-glass group relative overflow-hidden rounded-2xl p-10 md:col-span-8">
             <div className="relative z-10">
               <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                Information Overload
+                {cards[0].title}
               </h3>
               <p className="max-w-lg text-base leading-6 text-[#464555]">
-                Technical teams are drowning in 500+ page PDFs. Sifting through
-                noise to find specific implementation risks shouldn&apos;t take
-                days.
+                {cards[0].body}
               </p>
             </div>
             <Sym
@@ -173,24 +178,22 @@ function ResearchProblemSection() {
             </div>
             <div>
               <h3 className="mb-2 text-[24px] leading-8 font-semibold text-[#faf9ff]">
-                Manual Summarization
+                {cards[1].title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">
-                Subjective, slow, and prone to human error when handling complex
-                data points.
+                {cards[1].body}
               </p>
             </div>
           </li>
 
           <li className="rudix-landing-glass flex flex-col gap-4 rounded-2xl p-10 md:col-span-4">
             <Sym name="link" className="text-4xl text-[#3525cd]" />
-            <h3 className="text-[24px] leading-8 font-semibold text-[#1a1b20]">
-              Lack of Citations
-            </h3>
-            <p className="text-base leading-6 text-[#464555]">
-              Insights are useless without lineage. We solve the trust problem
-              in generative AI.
-            </p>
+              <h3 className="text-[24px] leading-8 font-semibold text-[#1a1b20]">
+              {cards[2].title}
+              </h3>
+              <p className="text-base leading-6 text-[#464555]">
+              {cards[2].body}
+              </p>
           </li>
 
           <li className="flex items-center gap-8 rounded-2xl bg-[#e3e2e8] p-10 md:col-span-8">
@@ -205,11 +208,10 @@ function ResearchProblemSection() {
             </div>
             <div>
               <h3 className="mb-2 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                Technical Fragmentation
+                {cards[3].title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">
-                Data spread across siloed repositories makes cross-document
-                synthesis nearly impossible for traditional tools.
+                {cards[3].body}
               </p>
             </div>
           </li>
@@ -222,31 +224,32 @@ function ResearchProblemSection() {
 // ── document types ────────────────────────────────────────────────────────────
 
 function ResearchDocumentSourcesSection() {
+  const t = useTranslations("public.research");
   const sources = [
     {
       icon: "article",
-      label: "Whitepapers",
-      desc: "Technical specs and protocols",
+      label: t("documentSources.whitepapers"),
+      desc: t("documentSources.whitepapersDesc"),
     },
     {
       icon: "query_stats",
-      label: "Market Research",
-      desc: "Trends and TAM data",
+      label: t("documentSources.marketResearch"),
+      desc: t("documentSources.marketResearchDesc"),
     },
     {
       icon: "lab_profile",
-      label: "Analyst Reports",
-      desc: "Gartner, Forrester, etc.",
+      label: t("documentSources.analystReports"),
+      desc: t("documentSources.analystReportsDesc"),
     },
     {
       icon: "science",
-      label: "Technical Papers",
-      desc: "Academic and R&D docs",
+      label: t("documentSources.technicalPapers"),
+      desc: t("documentSources.technicalPapersDesc"),
     },
     {
       icon: "account_tree",
-      label: "Strategy Docs",
-      desc: "Internal vision and roadmaps",
+      label: t("documentSources.strategyDocs"),
+      desc: t("documentSources.strategyDocsDesc"),
     },
   ];
 
@@ -258,16 +261,15 @@ function ResearchDocumentSourcesSection() {
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 flex flex-col items-end justify-between gap-8 md:flex-row">
           <div className="max-w-xl">
-            <h2
-              id="research-doc-sources-title"
-              className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-            >
-              Ingest everything. Analyze anything.
-            </h2>
-            <p className="text-base leading-6 text-[#464555]">
-              Our high-fidelity parser handles high-density documents that break
-              standard LLMs.
-            </p>
+          <h2
+            id="research-doc-sources-title"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
+          >
+              {t("documentSources.heading")}
+          </h2>
+          <p className="text-base leading-6 text-[#464555]">
+              {t("documentSources.description")}
+          </p>
           </div>
         </div>
         <ul className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-5">
@@ -293,21 +295,22 @@ function ResearchDocumentSourcesSection() {
 // ── pipeline / how it works ───────────────────────────────────────────────────
 
 function ResearchPipelineSection() {
+  const t = useTranslations("public.research");
   const steps = [
     {
       n: "1",
-      title: "Semantic Chunking",
-      body: "Unlike basic tools, we preserve table structures and image captions for context-aware extraction.",
+      title: t("pipeline.step1Title"),
+      body: t("pipeline.step1Body"),
     },
     {
       n: "2",
-      title: "Vector Indexing",
-      body: "Multi-modal embeddings map data into high-dimensional space for ultra-accurate retrieval.",
+      title: t("pipeline.step2Title"),
+      body: t("pipeline.step2Body"),
     },
     {
       n: "3",
-      title: "Verifiable Generation",
-      body: "Every claim is linked back to a specific page and paragraph in the original source.",
+      title: t("pipeline.step3Title"),
+      body: t("pipeline.step3Body"),
     },
   ];
 
@@ -323,7 +326,7 @@ function ResearchPipelineSection() {
               id="research-pipeline-title"
               className="mb-8 text-[30px] leading-[38px] font-semibold text-[#faf9ff]"
             >
-              The High-Fidelity Retrieval Pipeline
+              {t("pipeline.heading")}
             </h2>
             <ol className="space-y-12">
               {steps.map((s) => (
@@ -371,7 +374,7 @@ function ResearchPipelineSection() {
                 fill="white"
                 fontSize="10"
               >
-                PDF Source
+                {t("pipeline.svgSource")}
               </text>
               <rect
                 x="160"
@@ -388,7 +391,7 @@ function ResearchPipelineSection() {
                 fill="white"
                 fontSize="10"
               >
-                Embeddings
+                {t("pipeline.svgEmbeddings")}
               </text>
               <rect
                 x="160"
@@ -405,7 +408,7 @@ function ResearchPipelineSection() {
                 fill="white"
                 fontSize="10"
               >
-                Vector DB
+                {t("pipeline.svgVectorDb")}
               </text>
               <rect
                 x="300"
@@ -422,7 +425,7 @@ function ResearchPipelineSection() {
                 fill="white"
                 fontSize="10"
               >
-                Insights
+                {t("pipeline.svgInsights")}
               </text>
               <path
                 className="rudix-svg-flow-line"
@@ -452,13 +455,13 @@ function ResearchPipelineSection() {
             <div className="mt-8 grid grid-cols-2 gap-4">
               <div className="rounded-lg border border-white/10 bg-[#0A0A0F] p-3">
                 <p className="text-[10px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
-                  Latency
+                  {t("pipeline.metricLatency")}
                 </p>
                 <p className="font-mono text-[14px] text-[#3525cd]">124ms</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-[#0A0A0F] p-3">
                 <p className="text-[10px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
-                  Accuracy
+                  {t("pipeline.metricAccuracy")}
                 </p>
                 <p className="font-mono text-[14px] text-[#108548]">99.8%</p>
               </div>
@@ -473,30 +476,27 @@ function ResearchPipelineSection() {
 // ── example queries ───────────────────────────────────────────────────────────
 
 function ResearchExampleQueriesSection() {
+  const t = useTranslations("public.research");
   const examples = [
     {
       icon: "help",
-      question: "What are the core market projections for 2025?",
-      answer:
-        "Synthesizes data across multiple market reports to provide a consensus view with outliers highlighted.",
+      question: t("exampleQueries.q1"),
+      answer: t("exampleQueries.a1"),
     },
     {
       icon: "security",
-      question: "Which sources discuss implementation risks?",
-      answer:
-        "Aggregates risk assessments from technical whitepapers, mapping potential failure modes in a single view.",
+      question: t("exampleQueries.q2"),
+      answer: t("exampleQueries.a2"),
     },
     {
       icon: "compare",
-      question: "How do these two analyst reports differ on cloud adoption?",
-      answer:
-        "Compares and contrasts claims across documents side by side, surfacing verbatim quotes from each source.",
+      question: t("exampleQueries.q3"),
+      answer: t("exampleQueries.a3"),
     },
     {
       icon: "find_in_page",
-      question: "Which papers mention the term 'model drift'?",
-      answer:
-        "Performs source discovery across your entire corpus, returning every matching passage with its citation.",
+      question: t("exampleQueries.q4"),
+      answer: t("exampleQueries.a4"),
     },
   ];
 
@@ -511,10 +511,10 @@ function ResearchExampleQueriesSection() {
             id="research-queries-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Query your corpus.
+            {t("exampleQueries.heading")}
           </h2>
           <p className="text-base leading-6 text-[#464555]">
-            Stop searching. Start asking questions that matter.
+            {t("exampleQueries.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -560,10 +560,10 @@ function ResearchFinalCtaSection({
             className="rudix-research-dot-bg pointer-events-none absolute inset-0 opacity-10"
           />
           <div className="relative z-10 mx-auto max-w-2xl">
-            <h2
-              id="research-cta-title"
-              className="mb-8 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
-            >
+          <h2
+            id="research-cta-title"
+            className="mb-8 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
+          >
               {t("cta.heading")}
             </h2>
             <p className="mb-12 text-lg leading-7 opacity-90">

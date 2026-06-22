@@ -238,10 +238,10 @@ function LegalDocumentSourcesSection() {
             <div className="relative overflow-hidden rounded-3xl bg-[#0A0A0F] p-10">
               <div className="absolute inset-0 bg-gradient-to-br from-[#3525cd]/20 to-transparent" />
               <div className="relative z-10 text-center">
-                <div className="mb-8 flex justify-center -space-x-4">
-                  <div className="flex h-20 w-16 -rotate-12 items-center justify-center rounded-lg border border-white/20 bg-white/10 backdrop-blur">
-                    <Sym name="description" className="text-white/40" />
-                  </div>
+              <div className="mb-8 flex justify-center -space-x-4">
+                <div className="flex h-20 w-16 -rotate-12 items-center justify-center rounded-lg border border-white/20 bg-white/10 backdrop-blur">
+                  <Sym name="description" className="text-white/40" />
+                </div>
                   <div className="z-10 flex h-20 w-16 items-center justify-center rounded-lg border border-white/30 bg-white/20 backdrop-blur">
                     <Sym name="description" className="text-white/60" />
                   </div>
@@ -333,27 +333,24 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                   <span className="h-3 w-3 rounded-full bg-[#108548]/40" />
                 </div>
                 <span className="text-[12px] font-semibold tracking-[0.05em] text-[#777587]/50 uppercase">
-                  Contract_Viewer_v2
+                  {t("citations.viewerLabel")}
                 </span>
               </div>
               <div className="space-y-6">
                 <div className="border-l-2 border-[#3525cd] pl-4">
                   <p className="mb-1 font-mono text-[14px] text-[#3525cd]">
-                    Snippet from: MSA_Enterprise_Final.pdf
+                    {t("citations.snippetLabel1")}
                   </p>
                   <p className="text-sm leading-5 text-[#464555] italic">
-                    &quot;…either party may terminate this Agreement upon ninety
-                    (90) days prior written notice if the other party materially
-                    breaches any term…&quot;
+                    &quot;{t("citations.snippetBody1")}&quot;
                   </p>
                 </div>
                 <div className="border-l-2 border-[#3525cd] pl-4 opacity-40">
                   <p className="mb-1 font-mono text-[14px] text-[#3525cd]">
-                    Snippet from: Addendum_C.pdf
+                    {t("citations.snippetLabel2")}
                   </p>
                   <p className="text-sm leading-5 text-[#464555] italic">
-                    &quot;…notwithstanding Section 12, the pricing tier remains
-                    fixed for the duration of the initial term…&quot;
+                    &quot;{t("citations.snippetBody2")}&quot;
                   </p>
                 </div>
               </div>

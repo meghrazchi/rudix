@@ -99,7 +99,7 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
               <div className="flex items-center gap-3">
                 <Sym name="shield" className="text-[#3525cd]" />
                 <span className="text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
-                  Compliance Engine
+                  {t("hero.engineLabel")}
                 </span>
               </div>
               <div className="flex gap-2">
@@ -112,19 +112,19 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
               <div className="flex items-start gap-4 rounded-lg border border-[#c7c4d8]/20 bg-[#eeedf3] p-3">
                 <Sym name="search" className="mt-1 shrink-0 text-[#3525cd]" />
                 <p className="text-[#464555] italic">
-                  &quot;What supports our access review process?&quot;
+                  &quot;{t("hero.queryExample")}&quot;
                 </p>
               </div>
               <div className="rounded-lg border border-[#3525cd]/30 bg-[#0A0A0F] p-4 text-[#faf9ff]">
-                <p className="mb-2">Retrieving evidence...</p>
+                <p className="mb-2">{t("hero.retrievingEvidence")}</p>
                 <div className="mb-4 h-1 overflow-hidden rounded-full bg-[#e3e2e8]">
                   <div className="h-full w-2/3 rounded-full bg-[#3525cd]" />
                 </div>
                 <div className="space-y-2 opacity-90">
-                  <p className="text-[#c3c0ff]">Matches found in:</p>
+                  <p className="text-[#c3c0ff]">{t("hero.matchesFound")}</p>
                   <ul className="list-inside list-disc text-[#e2dfff]">
-                    <li>SOC2_Evidence_Q4.pdf (p.12)</li>
-                    <li>Access_Policy_v2.docx (Sec 4.1)</li>
+                    <li>{t("hero.match1")}</li>
+                    <li>{t("hero.match2")}</li>
                   </ul>
                 </div>
               </div>
@@ -375,27 +375,27 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
 
   const activityItems = [
     {
-      action: "Audit log retrieval",
+      action: t("trust.auditLogRetrieval"),
       doc: "SOC2_v2",
       user: "j_smith@enterprise.com",
       time: "2m ago",
-      badge: "Verified",
+      badge: t("trust.verifiedBadge"),
       badgeBg: "bg-[#91f8ae] text-[#00210d]",
     },
     {
-      action: "Source download",
+      action: t("trust.sourceDownload"),
       doc: "ISO_Annex_A",
       user: "k_chen@corp.com",
       time: "15m ago",
-      badge: "Verified",
+      badge: t("trust.verifiedBadge"),
       badgeBg: "bg-[#91f8ae] text-[#00210d]",
     },
     {
-      action: "New document indexed",
+      action: t("trust.newDocumentIndexed"),
       doc: "Q4_Evidence_01",
-      user: "System",
+      user: t("trust.systemUser"),
       time: "1h ago",
-      badge: "Indexed",
+      badge: t("trust.indexedBadge"),
       badgeBg: "bg-[#e2dfff] text-[#0f0069]",
       dim: true,
     },
@@ -487,9 +487,9 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
                           <span className="font-bold">{item.doc}</span>
                         </p>
                         <p className="text-xs text-[#464555]">
-                          {item.user === "System"
-                            ? `System • ${item.time}`
-                            : `User: ${item.user} • ${item.time}`}
+                          {item.user === t("trust.systemUser")
+                            ? `${t("trust.systemPrefix")} • ${item.time}`
+                            : `${t("trust.userPrefix")} ${item.user} • ${item.time}`}
                         </p>
                       </div>
                       <span

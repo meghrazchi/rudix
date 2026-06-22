@@ -78,7 +78,7 @@ export const orgSettingsFormSchema = z.object({
   evaluation_access: z.boolean(),
   agentic_access: z.boolean(),
   mcp_access: z.boolean(),
-  analytics_enabled: z.boolean(),
+  analytics_enabled: z.boolean().optional(),
 });
 
 export type OrgSettingsFormValues = z.infer<typeof orgSettingsFormSchema>;

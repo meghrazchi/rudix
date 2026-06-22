@@ -362,7 +362,7 @@ describe("DocumentsUploadModal (upload center)", () => {
       await userEvent.type(tagsInput, "compliance, legal");
 
       const dropZone = screen.getByRole("button", {
-        name: /Upload a document file/i,
+        name: /Drop files here or click to browse/i,
       });
 
       const file = new File(["content"], "doc.pdf", {

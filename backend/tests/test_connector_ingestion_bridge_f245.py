@@ -690,50 +690,41 @@ async def test_reingest_same_item_upserts_source_document(db_session: AsyncSessi
 # ---------------------------------------------------------------------------
 
 
-def test_google_drive_download_returns_none_for_folder() -> None:
+@pytest.mark.asyncio
+async def test_google_drive_download_returns_none_for_folder() -> None:
     from app.domains.connectors.providers.google_drive.adapter import GoogleDriveConnectorAdapter
 
     adapter = GoogleDriveConnectorAdapter()
-    import asyncio
-
-    result = asyncio.get_event_loop().run_until_complete(
-        adapter.download_file_content(
-            provider_item_id="folder-123",
-            mime_type="application/vnd.google-apps.folder",
-            decrypted_credential={"access_token": "tok"},
-        )
+    result = await adapter.download_file_content(
+        provider_item_id="folder-123",
+        mime_type="application/vnd.google-apps.folder",
+        decrypted_credential={"access_token": "tok"},
     )
     assert result is None
 
 
-def test_google_drive_download_returns_none_for_unsupported_shortcut() -> None:
+@pytest.mark.asyncio
+async def test_google_drive_download_returns_none_for_unsupported_shortcut() -> None:
     from app.domains.connectors.providers.google_drive.adapter import GoogleDriveConnectorAdapter
 
     adapter = GoogleDriveConnectorAdapter()
-    import asyncio
-
-    result = asyncio.get_event_loop().run_until_complete(
-        adapter.download_file_content(
-            provider_item_id="shortcut-abc",
-            mime_type="application/vnd.google-apps.shortcut",
-            decrypted_credential={"access_token": "tok"},
-        )
+    result = await adapter.download_file_content(
+        provider_item_id="shortcut-abc",
+        mime_type="application/vnd.google-apps.shortcut",
+        decrypted_credential={"access_token": "tok"},
     )
     assert result is None
 
 
-def test_google_drive_download_returns_none_for_none_mime() -> None:
+@pytest.mark.asyncio
+async def test_google_drive_download_returns_none_for_none_mime() -> None:
     from app.domains.connectors.providers.google_drive.adapter import GoogleDriveConnectorAdapter
 
     adapter = GoogleDriveConnectorAdapter()
-    import asyncio
-
-    result = asyncio.get_event_loop().run_until_complete(
-        adapter.download_file_content(
-            provider_item_id="unknown-item",
-            mime_type=None,
-            decrypted_credential={"access_token": "tok"},
-        )
+    result = await adapter.download_file_content(
+        provider_item_id="unknown-item",
+        mime_type=None,
+        decrypted_credential={"access_token": "tok"},
     )
     assert result is None
 
@@ -869,6 +860,8 @@ async def test_reingest_unchanged_bytes_skips_reprocessing() -> None:
 @pytest.mark.asyncio
 async def test_reingest_changed_bytes_updates_document_in_place() -> None:
     """Changed file bytes → upload new content, update doc, return pending_scan."""
+    from app.domains.quota.schemas.quota_schemas import QuotaCheckResult
+
     org_id = uuid4()
     ext_item_id = uuid4()
     doc_id = uuid4()
@@ -884,6 +877,19 @@ async def test_reingest_changed_bytes_updates_document_in_place() -> None:
     session.flush = AsyncMock()
     session.refresh = AsyncMock()
 
+    _quota_allowed = QuotaCheckResult(
+        quota_type="storage_bytes",
+        allowed=True,
+        near_limit=False,
+        over_soft_limit=False,
+        over_hard_limit=False,
+        current_value=0,
+        effective_hard_limit=None,
+        effective_soft_limit=None,
+        reset_window="per_day",
+        next_reset_at=None,
+    )
+
     bridge = _bridge()
     with (
         patch.object(bridge, "_upsert_source_reference", new=AsyncMock()),
@@ -891,6 +897,14 @@ async def test_reingest_changed_bytes_updates_document_in_place() -> None:
             "app.domains.connectors.services.ingestion_bridge._upload_to_storage",
             new=AsyncMock(),
         ) as mock_upload,
+        patch(
+            "app.domains.connectors.services.ingestion_bridge.check_quota",
+            new=AsyncMock(return_value=_quota_allowed),
+        ),
+        patch(
+            "app.domains.connectors.services.ingestion_bridge.increment_quota_usage",
+            new=AsyncMock(),
+        ),
     ):
         result = await bridge._reingest_existing_item(
             session,

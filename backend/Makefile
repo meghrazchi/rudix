@@ -1,4 +1,4 @@
-.PHONY: install venv lint test audit run-api run-worker run-mcp-http run-mcp-stdio format migrate downgrade seed-dev
+.PHONY: install venv lint test test-verbose audit run-api run-worker run-mcp-http run-mcp-stdio format migrate downgrade seed-dev
 
 PYTHON := python3
 VENV_DIR := .venv
@@ -26,6 +26,9 @@ lint:
 
 test:
 	$(PYTEST)
+
+test-verbose:
+	$(PYTEST) -vv --timeout=60 --tb=short
 
 audit:
 	$(PIP_AUDIT)

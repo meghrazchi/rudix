@@ -114,11 +114,17 @@ class ParagraphRecursiveStrategy:
             # bisect_right gives the index of the first para_end > max_end;
             # the one before it is the last para_end <= max_end.
             idx = bisect_right(para_ends, max_end) - 1
-            if idx >= 0 and para_ends[idx] > cursor:
-                # Snap to that paragraph boundary.
+            if (
+                idx >= 0
+                and para_ends[idx] > cursor
+                and para_ends[idx] - self.chunk_overlap_tokens > cursor
+            ):
+                # Snap to that paragraph boundary only when doing so still advances
+                # the cursor (avoids infinite loop when the boundary is within the
+                # overlap window of the current cursor position).
                 end = para_ends[idx]
             else:
-                # No paragraph boundary in range — break at the token limit.
+                # No usable paragraph boundary — break at the token limit.
                 end = max_end
 
             window = token_stream[cursor:end]

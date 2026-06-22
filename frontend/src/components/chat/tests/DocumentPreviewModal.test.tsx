@@ -48,11 +48,11 @@ const staleCitation: ChatCitationResponse = {
   doc_stale_warning: true,
 };
 
-const noChunkCitation: ChatCitationResponse = {
+const noChunkCitation = {
   ...baseCitation,
   chunk_id: null,
   text_snippet: "A citation without a chunk id should still render safely.",
-};
+} as unknown as ChatCitationResponse;
 
 function render(
   citations: ChatCitationResponse[],

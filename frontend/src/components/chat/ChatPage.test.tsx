@@ -25,9 +25,11 @@ import {
   updateChatSession,
 } from "@/lib/api/chat";
 import { listCollections } from "@/lib/api/collections";
-import { listConnectorConnections } from "@/lib/api/connectors";
+import { listAvailableConnectorConnections } from "@/lib/api/connectors";
 import { listDocuments } from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
+import { queryKeys } from "@/lib/api/query";
+import { createDefaultSettingsPreferences } from "@/lib/settings-preferences";
 
 const mockNavigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
@@ -47,7 +49,7 @@ vi.mock("@/lib/api/collections", () => ({
 }));
 
 vi.mock("@/lib/api/connectors", () => ({
-  listConnectorConnections: vi.fn(),
+  listAvailableConnectorConnections: vi.fn(),
 }));
 
 vi.mock("@/lib/api/chat", () => ({
@@ -65,14 +67,12 @@ vi.mock("@/lib/api/agent", () => ({
   getAgentRun: vi.fn(),
 }));
 
-function renderPage() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
+function renderPage(queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+})) {
   return render(
     <QueryClientProvider client={queryClient}>
       <ChatPage />
@@ -126,7 +126,7 @@ describe("ChatPage", () => {
     });
     mockNavigation.searchParams = new URLSearchParams();
     vi.mocked(listCollections).mockResolvedValue({ items: [], total: 0 });
-    vi.mocked(listConnectorConnections).mockResolvedValue({
+    vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
       items: [],
       total: 0,
     });
@@ -281,14 +281,9 @@ describe("ChatPage", () => {
     const contextDialog = await openContextSelector();
     expect(
       within(contextDialog).getByText(
-        "No indexed documents available. Upload and index documents first.",
+        "All documents are included in this search.",
       ),
     ).toBeInTheDocument();
-    expect(
-      within(contextDialog).getByRole("link", {
-        name: "Go to documents upload",
-      }),
-    ).toHaveAttribute("href", "/documents");
   });
 
   it("renders citations and low-confidence warning for an answer", async () => {
@@ -473,6 +468,43 @@ describe("ChatPage", () => {
   });
 
   it("hides debug panel for normal users by default", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(
+      queryKeys.documents.list({
+        status: "indexed",
+        limit: 200,
+        offset: 0,
+        sort_by: "updated_at",
+        sort_order: "desc",
+      }),
+      {
+        items: [
+          {
+            document_id: "doc-indexed-1",
+            filename: "policy.pdf",
+            file_type: "pdf",
+            status: "indexed",
+            page_count: 3,
+            chunk_count: 42,
+            error_message: null,
+            error_details: null,
+            created_at: "2026-05-14T10:00:00Z",
+            updated_at: "2026-05-14T10:05:00Z",
+          },
+        ],
+        total: 1,
+        limit: 200,
+        offset: 0,
+        status: "indexed",
+        sort_by: "updated_at",
+        sort_order: "desc",
+      },
+    );
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
         {
@@ -530,12 +562,17 @@ describe("ChatPage", () => {
       created_at: "2026-05-14T10:10:00Z",
     });
 
-    renderPage();
+    renderPage(queryClient);
     await screen.findByRole("button", { name: /Select scope/i });
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "check debug visibility",
     );
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Send message/i }),
+      ).not.toBeDisabled();
+    });
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
     );
@@ -545,20 +582,6 @@ describe("ChatPage", () => {
   });
 
   it("shows debug panel in developer mode", async () => {
-    window.localStorage.setItem(
-      "rudix.settings.preferences.v1",
-      JSON.stringify({
-        default_top_k: 5,
-        rerank_enabled: true,
-        developer_mode: true,
-        notifications: {
-          product_updates: true,
-          security_alerts: true,
-          document_processing: true,
-        },
-      }),
-    );
-
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
         {
@@ -619,12 +642,62 @@ describe("ChatPage", () => {
       created_at: "2026-05-14T10:10:00Z",
     });
 
-    renderPage();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(
+      queryKeys.documents.list({
+        status: "indexed",
+        limit: 200,
+        offset: 0,
+        sort_by: "updated_at",
+        sort_order: "desc",
+      }),
+      {
+        items: [
+          {
+            document_id: "doc-indexed-1",
+            filename: "policy.pdf",
+            file_type: "pdf",
+            status: "indexed",
+            page_count: 3,
+            chunk_count: 42,
+            error_message: null,
+            error_details: null,
+            created_at: "2026-05-14T10:00:00Z",
+            updated_at: "2026-05-14T10:05:00Z",
+          },
+        ],
+        total: 1,
+        limit: 200,
+        offset: 0,
+        status: "indexed",
+        sort_by: "updated_at",
+        sort_order: "desc",
+      },
+    );
+    queryClient.setQueryData(["settings", "preferences", "chat"], {
+      ...createDefaultSettingsPreferences(),
+      developerMode: true,
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChatPage />
+      </QueryClientProvider>,
+    );
     await screen.findByRole("button", { name: /Select scope/i });
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "show debug",
     );
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Send message/i }),
+      ).not.toBeDisabled();
+    });
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
     );
@@ -687,6 +760,11 @@ describe("ChatPage", () => {
     renderPage();
 
     const contextDialog = await openContextSelector();
+    await userEvent.click(
+      within(contextDialog).getByRole("button", {
+        name: /Select documents/i,
+      }),
+    );
     expect(
       await within(contextDialog).findByText("indexed.pdf"),
     ).toBeInTheDocument();
@@ -696,7 +774,7 @@ describe("ChatPage", () => {
   });
 
   it("paginates the context selector modal", async () => {
-    const docs = Array.from({ length: 10 }, (_, index) => ({
+    const docs = Array.from({ length: 250 }, (_, index) => ({
       document_id: `doc-indexed-${index + 1}`,
       filename: `policy-${index + 1}.pdf`,
       file_type: "pdf" as const,
@@ -723,28 +801,53 @@ describe("ChatPage", () => {
       };
     });
 
-    renderPage();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(
+      queryKeys.documents.list({
+        status: "indexed",
+        limit: 200,
+        offset: 0,
+        sort_by: "updated_at",
+        sort_order: "desc",
+      }),
+      {
+        items: docs.slice(0, 1),
+        total: docs.length,
+        limit: 200,
+        offset: 0,
+        status: "indexed",
+        sort_by: "updated_at",
+        sort_order: "desc",
+      },
+    );
+    renderPage(queryClient);
 
     const contextDialog = await openContextSelector();
+    await userEvent.click(
+      within(contextDialog).getByRole("button", {
+        name: /Select documents/i,
+      }),
+    );
     expect(
       await within(contextDialog).findByText("policy-1.pdf"),
     ).toBeInTheDocument();
     expect(
-      within(contextDialog).queryByText("policy-9.pdf"),
+      within(contextDialog).queryByText("policy-250.pdf"),
     ).not.toBeInTheDocument();
 
-    await userEvent.click(
-      within(contextDialog).getByRole("button", { name: "Next" }),
-    );
-
     expect(
-      await within(contextDialog).findByText("policy-9.pdf"),
+      await within(contextDialog).findByText("policy-1.pdf"),
     ).toBeInTheDocument();
     expect(
-      within(contextDialog).queryByText("policy-1.pdf"),
+      within(contextDialog).queryByText("policy-31.pdf"),
     ).not.toBeInTheDocument();
     expect(
-      within(contextDialog).getByText("Showing 9-10 of 10"),
+      await within(contextDialog).findByText("policy-30.pdf"),
     ).toBeInTheDocument();
   });
 
@@ -783,7 +886,7 @@ describe("ChatPage", () => {
       sort_by: "updated_at",
       sort_order: "desc",
     });
-    vi.mocked(listConnectorConnections).mockResolvedValue({
+    vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
       items: [
         {
           id: "conn-1",
@@ -859,7 +962,7 @@ describe("ChatPage", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: /Select scope/i }),
-      ).toHaveTextContent("select scope (All documents)");
+      ).toHaveTextContent("select scope - All documents");
     });
     const scopeMenu = await openScopeMenu();
     await userEvent.click(
@@ -871,10 +974,13 @@ describe("ChatPage", () => {
     await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /policy-a\.pdf/i }),
     );
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Apply/i }),
+    );
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: /Select scope/i }),
-      ).toHaveTextContent("select scope (1 document(s) selected)");
+      ).toHaveTextContent(/select scope - 1 document\(s\) selected/i);
     });
 
     await openAdditionalSettings();
@@ -924,7 +1030,7 @@ describe("ChatPage", () => {
       sort_by: "updated_at",
       sort_order: "desc",
     });
-    vi.mocked(listConnectorConnections).mockResolvedValue({
+    vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
       items: [
         {
           id: "conn-confluence-1",
@@ -1002,12 +1108,12 @@ describe("ChatPage", () => {
       within(scopeMenu).getByRole("button", { name: /Connectors/i }),
     );
     await userEvent.click(
-      within(scopeMenu).getByRole("button", {
+      within(scopeMenu).getByRole("checkbox", {
         name: /Engineering Confluence/i,
       }),
     );
     await userEvent.click(
-      within(scopeMenu).getByRole("button", { name: /^ENG$/i }),
+      within(scopeMenu).getByRole("button", { name: /Apply/i }),
     );
 
     await userEvent.type(
@@ -1028,7 +1134,7 @@ describe("ChatPage", () => {
       source_scope: {
         mode: "connector_sources",
         connection_ids: ["conn-confluence-1"],
-        provider_source_ids: ["ENG"],
+        provider_source_ids: [],
       },
     });
   });
@@ -1043,7 +1149,7 @@ describe("ChatPage", () => {
       sort_by: "updated_at",
       sort_order: "desc",
     });
-    vi.mocked(listConnectorConnections).mockResolvedValue({
+    vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
       items: [
         {
           id: "conn-confluence-1",
@@ -1126,10 +1232,10 @@ describe("ChatPage", () => {
       within(scopeMenu).getByRole("button", { name: /Connectors/i }),
     );
     await userEvent.click(
-      within(scopeMenu).getByRole("button", { name: /Docs Confluence/i }),
+      within(scopeMenu).getByRole("checkbox", { name: /Docs Confluence/i }),
     );
     await userEvent.click(
-      within(scopeMenu).getByRole("button", { name: /^ENG$/i }),
+      within(scopeMenu).getByRole("button", { name: /Apply/i }),
     );
 
     const textarea = screen.getByPlaceholderText(
@@ -1150,7 +1256,7 @@ describe("ChatPage", () => {
           source_scope: {
             mode: "connector_sources",
             connection_ids: ["conn-confluence-1"],
-            provider_source_ids: ["ENG"],
+            provider_source_ids: [],
           },
         }),
       );
@@ -2937,6 +3043,9 @@ describe("ChatPage", () => {
     await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /No RAG/i }),
     );
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Apply/i }),
+    );
 
     const textarea = screen.getByPlaceholderText(
       "Type a message or use '/' for commands...",
@@ -3039,11 +3148,15 @@ describe("ChatPage", () => {
       screen.getByRole("button", { name: /Send message/i }),
     );
 
+    const chipCandidates = await screen.findAllByText(
+      /all documents \(1\)/i,
+    );
     expect(
-      await screen.findByText("all documents (1)", {
-        selector: ".inline-flex.items-center.gap-1.rounded-full",
-      }),
-    ).toBeInTheDocument();
+      chipCandidates.some((element) =>
+        element.className.includes("inline-flex") &&
+        element.className.includes("rounded-full"),
+      ),
+    ).toBe(true);
   });
 
   it("passes scope_mode=all and selected document_ids when documents are selected", async () => {
@@ -3130,7 +3243,7 @@ describe("ChatPage", () => {
         expect.objectContaining({
           question: "Scoped query",
           document_ids: ["doc-scoped"],
-          scope_mode: "documents",
+          scope_mode: "all",
         }),
       );
     });

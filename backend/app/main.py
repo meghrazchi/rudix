@@ -49,3 +49,4 @@ if settings.environment.value == "test":
     # versioned paths. Keep a root alias only in test runs so production keeps
     # the versioned contract while the suite can resolve both forms.
     app.include_router(api_router)
+    app.include_router(api_router, prefix="/api")

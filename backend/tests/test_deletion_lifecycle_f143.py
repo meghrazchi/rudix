@@ -185,7 +185,7 @@ async def test_delete_document_transitions_to_delete_requested(
     db_session: AsyncSession,
     fake_task: FakeDeleteDocumentTask,
 ) -> None:
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.member, prefix="dr")
+    user, org = await _seed_org_user(db_session, role=OrganizationRole.admin, prefix="dr")
     document = await _seed_document(db_session, organization=org, uploader=user)
     token = create_app_access_token(
         subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
@@ -249,7 +249,7 @@ async def test_delete_already_delete_requested_is_idempotent(
     db_session: AsyncSession,
     fake_task: FakeDeleteDocumentTask,
 ) -> None:
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.member, prefix="idem")
+    user, org = await _seed_org_user(db_session, role=OrganizationRole.admin, prefix="idem")
     document = await _seed_document(
         db_session,
         organization=org,

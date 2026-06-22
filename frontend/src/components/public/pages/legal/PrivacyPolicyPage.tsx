@@ -165,9 +165,9 @@ export function PrivacyPolicyPage() {
           body: (
             <p>
               We use session cookies and browser-local storage to maintain
-              authentication state and user preferences. See our{" "}
+              authentication state and user preferences. See the{" "}
               <Link href="/legal/cookies" className="underline">
-                Cookie Policy
+                cookies page
               </Link>{" "}
               for details.
             </p>
@@ -178,10 +178,10 @@ export function PrivacyPolicyPage() {
           body: (
             <p>
               We may update this policy as the product evolves. We will update
-              the version number and effective date at the top of this page and,
+              the version number and policy date at the top of this page and,
               for material changes, notify organization administrators by email.
-              Continued use of the service after the effective date constitutes
-              acceptance of the updated policy.
+              Continued use of the service after the policy takes effect
+              constitutes acceptance of the updated policy.
             </p>
           ),
         },

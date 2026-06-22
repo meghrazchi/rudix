@@ -85,7 +85,7 @@ export const effectiveModelProviderPolicySchema = z.object({
 });
 
 export const modelProviderChangeLogEntrySchema = z.object({
-  entry_id: z.string().uuid(),
+  entry_id: z.string().min(1),
   organization_id: z.string(),
   version_number: z.number().int().positive(),
   settings_snapshot: z.record(z.string(), z.unknown()),
