@@ -10,6 +10,7 @@ import type {
   CitationTrustRecord,
   ConfidenceReasonRecord,
   ConflictStatusRecord,
+  QueryInterpretationRecord,
 } from "@/lib/api/trust_metadata";
 import {
   agreementLevelClass,
@@ -36,6 +37,7 @@ export type TrustPanelProps = {
   citations: TrustPanelCitation[];
   debug: ChatDebugResponse | null;
   trustMetadata?: AnswerTrustMetadataResponse | null;
+  showInterpretationDetails?: boolean;
   onOpenCitation: (citation: TrustPanelCitation) => void;
 };
 
@@ -71,11 +73,11 @@ function trustLevelBadge(level: TrustLevel): {
   icon: string;
 } {
   if (level === "high")
-      return {
-        label: "High",
-        icon: "check_circle",
-        cls: "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800",
-      };
+    return {
+      label: "High",
+      icon: "check_circle",
+      cls: "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800",
+    };
   if (level === "medium")
     return {
       label: "Medium",
@@ -257,6 +259,13 @@ function claimSupportBadge(
   };
 }
 
+function queryComplexityLabel(
+  complexity: QueryInterpretationRecord["complexity"],
+): string {
+  if (complexity === "multi_part") return "multi-part";
+  return complexity;
+}
+
 function SectionHeader({ icon, label }: { icon: string; label: string }) {
   return (
     <div className="flex items-center gap-1.5 border-b border-[#ece9f5] pb-1.5">
@@ -376,6 +385,7 @@ export function AnswerTrustPanel({
   citations,
   debug,
   trustMetadata,
+  showInterpretationDetails = false,
   onOpenCitation,
 }: TrustPanelProps) {
   const barWidth = `${Math.round(confidenceScore * 100)}%`;
@@ -383,6 +393,7 @@ export function AnswerTrustPanel({
   const graphEnabled = debug?.graph_context_enabled ?? false;
   const groundedVerification = trustMetadata?.grounded_verification ?? null;
   const trustCitations = trustMetadata?.citations ?? citations;
+  const queryInterpretation = trustMetadata?.query_interpretation ?? null;
   const verificationApplied =
     groundedVerification?.applied ??
     debug?.grounded_verification_applied ??
@@ -489,13 +500,13 @@ export function AnswerTrustPanel({
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-      <span
-        className="material-symbols-outlined text-[16px] text-[#3525cd]"
-        aria-hidden="true"
-        style={{ fontVariationSettings: "'FILL' 1" }}
-      >
+          <span
+            className="material-symbols-outlined text-[16px] text-[#3525cd]"
+            aria-hidden="true"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
             check_circle
-      </span>
+          </span>
           <span className="text-xs font-bold text-[#2f2a46]">
             Answer Explanation
           </span>
@@ -985,23 +996,61 @@ export function AnswerTrustPanel({
                 value={debug!.ocr_low_confidence_chunk_count}
               />
             ) : null}
-            {debug!.query_rewriting_applied && debug!.rewritten_query ? (
-              <StatRow
-                label="Rewritten query"
-                value={
-                  debug!.rewritten_query.length > 60
-                    ? `${debug!.rewritten_query.slice(0, 60)}…`
-                    : debug!.rewritten_query
-                }
-              />
-            ) : null}
-            {debug!.query_decomposed &&
-            (debug!.sub_queries?.length ?? 0) > 0 ? (
-              <StatRow label="Sub-queries" value={debug!.sub_queries!.length} />
-            ) : null}
           </div>
         </div>
       )}
+
+      {showInterpretationDetails && queryInterpretation ? (
+        <div className="space-y-2">
+          <SectionHeader icon="manage_search" label="Query Interpretation" />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+            <StatRow label="Intent" value={queryInterpretation.intent_label} />
+            <StatRow
+              label="Strategy"
+              value={queryInterpretation.retrieval_strategy}
+            />
+            <StatRow
+              label="Complexity"
+              value={queryComplexityLabel(queryInterpretation.complexity)}
+            />
+          </div>
+          {queryInterpretation.rewrite_preview_enabled ? (
+            <div className="space-y-2">
+              {queryInterpretation.rewritten_query_preview ? (
+                <div className="rounded-lg border border-[#e2dff1] bg-white px-3 py-2">
+                  <p className="text-[10px] font-semibold tracking-widest text-[#6a6780] uppercase">
+                    Rewrite preview
+                  </p>
+                  <p className="mt-1 text-[11px] leading-snug text-[#2f2a46]">
+                    {queryInterpretation.rewritten_query_preview}
+                  </p>
+                </div>
+              ) : null}
+              {queryInterpretation.sub_queries.length > 0 ? (
+                <div className="space-y-1 rounded-lg border border-[#e2dff1] bg-white px-3 py-2">
+                  <p className="text-[10px] font-semibold tracking-widest text-[#6a6780] uppercase">
+                    Sub-queries
+                  </p>
+                  <div className="space-y-1">
+                    {queryInterpretation.sub_queries.map((subQuery, index) => (
+                      <div
+                        key={`${queryInterpretation.retrieval_strategy}-${index}-${subQuery}`}
+                        className="rounded-md bg-[#faf9ff] px-2 py-1 text-[11px] leading-snug text-[#2f2a46]"
+                      >
+                        {subQuery}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-[11px] text-[#6a6780]">
+              Rewrite preview is disabled by organization policy.
+            </p>
+          )}
+        </div>
+      ) : null}
 
       {/* Model & Prompt */}
       {showModelSection && (

@@ -112,6 +112,7 @@ from app.domains.chat.schemas.trust_metadata import (
     GroundedVerificationRecord,
     ModelMetadataRecord,
     PolicyEnforcementRecord,
+    QueryInterpretationRecord,
     RetrievalDiagnosticsRecord,
     SourceFreshnessRecord,
 )
@@ -1127,6 +1128,234 @@ async def _resolve_graph_rag_enabled(
         return settings.feature_enable_graph_rag
 
 
+async def _resolve_query_rewrite_preview_enabled(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+) -> bool:
+    try:
+        return await _feature_flag_service.is_enabled(
+            db_session,
+            organization_id=organization_id,
+            flag_name="query_rewrite_preview",
+        )
+    except Exception as exc:
+        log_query_event(
+            event="query.rewrite_preview.feature_flag_fallback",
+            organization_id=str(organization_id),
+            error=exc.__class__.__name__,
+            detail=str(exc),
+            enabled=settings.feature_enable_query_rewrite_preview,
+        )
+        return settings.feature_enable_query_rewrite_preview
+
+
+_QUERY_INTENT_LABELS: dict[str, str] = {
+    "lookup": "Lookup",
+    "summary": "Summary",
+    "comparison": "Comparison",
+    "policy": "Policy",
+    "troubleshooting": "Troubleshooting",
+    "compliance": "Compliance",
+    "connector_search": "Connector search",
+    "graph_entity_search": "Graph/entity search",
+}
+
+
+def _infer_query_intent(question: str) -> str:
+    normalized = question.lower()
+    if any(
+        token in normalized
+        for token in (
+            "connector",
+            "connectors",
+            "integration",
+            "integrations",
+            "datasource",
+            "data source",
+            "slack",
+            "jira",
+            "salesforce",
+            "sharepoint",
+            "confluence",
+            "google drive",
+            "onedrive",
+            "box",
+        )
+    ):
+        return "connector_search"
+    if any(
+        token in normalized
+        for token in (
+            "graph",
+            "entity",
+            "entities",
+            "relationship",
+            "relationships",
+            "linked to",
+            "connected to",
+            "reports to",
+            "reporting line",
+            "org chart",
+        )
+    ):
+        return "graph_entity_search"
+    if any(
+        token in normalized
+        for token in (
+            "compare",
+            "comparison",
+            "difference",
+            "differences",
+            "versus",
+            "vs ",
+            " vs",
+            "better than",
+            "tradeoff",
+            "trade-offs",
+            "which is more",
+        )
+    ):
+        return "comparison"
+    if any(
+        token in normalized
+        for token in (
+            "troubleshoot",
+            "troubleshooting",
+            "debug",
+            "fix",
+            "issue",
+            "problem",
+            "error",
+            "failed",
+            "not working",
+            "why can't",
+            "why is",
+        )
+    ):
+        return "troubleshooting"
+    if any(
+        token in normalized
+        for token in (
+            "compliance",
+            "compliant",
+            "gdpr",
+            "hipaa",
+            "sox",
+            "pci",
+            "audit",
+            "regulation",
+            "regulatory",
+            "retention",
+            "privacy",
+            "legal",
+        )
+    ):
+        return "compliance"
+    if any(
+        token in normalized
+        for token in (
+            "summarize",
+            "summarise",
+            "summary",
+            "overview",
+            "brief",
+            "recap",
+            "what does",
+            "tell me about",
+        )
+    ):
+        return "summary"
+    if any(
+        token in normalized
+        for token in (
+            "policy",
+            "policies",
+            "guideline",
+            "guidelines",
+            "procedure",
+            "procedures",
+            "rule",
+            "rules",
+            "benefit",
+            "benefits",
+            "leave",
+            "vacation",
+            "expense",
+            "expenses",
+        )
+    ):
+        return "policy"
+    return "lookup"
+
+
+def _query_complexity(
+    *,
+    intent: str,
+    query_rewrite_result: QueryRewritingResult | None,
+    question: str,
+) -> str:
+    if query_rewrite_result is not None and query_rewrite_result.decomposition_applied:
+        return "multi_part"
+    if query_rewrite_result is not None and query_rewrite_result.rewriting_applied:
+        return "complex"
+    if intent in {
+        "comparison",
+        "policy",
+        "troubleshooting",
+        "compliance",
+        "connector_search",
+        "graph_entity_search",
+    }:
+        return "complex"
+    if len(question.split()) >= 18:
+        return "complex"
+    return "simple"
+
+
+def _build_query_interpretation_record(
+    *,
+    question: str,
+    query_rewrite_result: QueryRewritingResult | None,
+    rewrite_preview_enabled: bool,
+) -> QueryInterpretationRecord:
+    intent = _infer_query_intent(question)
+    strategy = query_rewrite_result.strategy if query_rewrite_result is not None else "original"
+    complexity = _query_complexity(
+        intent=intent,
+        query_rewrite_result=query_rewrite_result,
+        question=question,
+    )
+    preview_available = (
+        rewrite_preview_enabled
+        and query_rewrite_result is not None
+        and (query_rewrite_result.rewriting_applied or query_rewrite_result.decomposition_applied)
+    )
+    rewritten_query_preview = (
+        query_rewrite_result.primary_query
+        if preview_available
+        and query_rewrite_result is not None
+        and query_rewrite_result.primary_query.strip()
+        else None
+    )
+    sub_queries = (
+        list(query_rewrite_result.sub_queries)
+        if preview_available
+        and query_rewrite_result is not None
+        and query_rewrite_result.decomposition_applied
+        else []
+    )
+    return QueryInterpretationRecord(
+        intent=intent,
+        intent_label=_QUERY_INTENT_LABELS.get(intent, "Lookup"),
+        complexity=complexity,
+        retrieval_strategy=strategy,
+        rewrite_preview_enabled=rewrite_preview_enabled,
+        rewritten_query_preview=rewritten_query_preview,
+        sub_queries=sub_queries,
+    )
+
+
 async def _augment_retrieval_with_graph_context(
     db_session: AsyncSession,
     *,
@@ -1161,6 +1390,8 @@ def _build_trust_metadata(
     *,
     organization_id: UUID,
     message_id: str,
+    question: str,
+    query_rewrite_preview_enabled: bool,
     not_found: bool,
     citation_validation_failed: bool,
     verification_failed: bool,
@@ -1265,16 +1496,10 @@ def _build_trust_metadata(
         prompt_ver = getattr(answer_prompt_version, "version_number", None)
 
     gv_applied = grounded_verifier_result is not None and grounded_verifier_result.applied
-    qr_applied = query_rewrite_result is not None and getattr(
-        query_rewrite_result, "rewriting_applied", False
-    )
-    qr_decomposed = query_rewrite_result is not None and getattr(
-        query_rewrite_result, "decomposition_applied", False
-    )
-    sub_query_count = (
-        len(getattr(query_rewrite_result, "sub_queries", []) or [])
-        if query_rewrite_result is not None
-        else 0
+    query_interpretation = _build_query_interpretation_record(
+        question=question,
+        query_rewrite_result=query_rewrite_result,
+        rewrite_preview_enabled=query_rewrite_preview_enabled,
     )
 
     return AnswerTrustMetadataResponse(
@@ -1325,9 +1550,13 @@ def _build_trust_metadata(
             hybrid_retrieval_enabled=settings.feature_enable_hybrid_retrieval,
             hybrid_vector_hit_count=hybrid_vector_hit_count,
             hybrid_keyword_hit_count=hybrid_keyword_hit_count,
-            query_rewriting_applied=qr_applied,
-            query_decomposed=qr_decomposed,
-            sub_query_count=sub_query_count,
+            query_rewriting_applied=query_rewrite_result is not None
+            and query_rewrite_result.rewriting_applied,
+            query_decomposed=query_rewrite_result is not None
+            and query_rewrite_result.decomposition_applied,
+            sub_query_count=(
+                len(query_rewrite_result.sub_queries) if query_rewrite_result is not None else 0
+            ),
             parent_context_expanded_count=parent_context_expanded_count,
             graph_context_used=graph_context_result.graph_context_used,
             graph_context_unavailable=graph_context_result.graph_context_unavailable,
@@ -1335,6 +1564,7 @@ def _build_trust_metadata(
             freshness_excluded_count=freshness_excluded_count,
             freshness_boosted_count=freshness_boosted_count,
         ),
+        query_interpretation=query_interpretation,
         grounded_verification=GroundedVerificationRecord(
             applied=gv_applied,
             verdict=grounded_verifier_result.verdict if gv_applied else None,
@@ -1967,6 +2197,7 @@ async def query_chat(
     graph_context_result = GraphRetrievalResult()
     rerank_result: RerankResult | None = None
     query_rewrite_result: QueryRewritingResult | None = None
+    query_rewrite_preview_enabled = settings.feature_enable_query_rewrite_preview
     _freshness_trust_map: dict[str, DocumentTrustData] = {}
     _freshness_stale_ids: frozenset[str] = frozenset()
     freshness_filter_enabled = False
@@ -2048,6 +2279,10 @@ async def query_chat(
             _profile_rewriting = _profile_cfg.query_rewriting_enabled
             _profile_decomposition = _profile_cfg.query_decomposition_enabled
             _profile_max_sub_queries = _profile_cfg.query_rewriting_max_sub_queries
+        query_rewrite_preview_enabled = await _resolve_query_rewrite_preview_enabled(
+            db_session,
+            organization_id=organization_id,
+        )
         query_rewrite_result = await _query_rewriting_service.rewrite(
             payload.question,
             profile_rewriting_enabled=_profile_rewriting,
@@ -2938,6 +3173,8 @@ async def query_chat(
         trust_metadata = _build_trust_metadata(
             organization_id=organization_id,
             message_id=str(assistant_message.id),
+            question=payload.question,
+            query_rewrite_preview_enabled=query_rewrite_preview_enabled,
             not_found=not_found,
             citation_validation_failed=citation_validation_failed,
             verification_failed=verification_failed,

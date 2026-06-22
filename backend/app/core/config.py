@@ -577,6 +577,7 @@ class Settings(BaseSettings):
     # WARNING: each LLM rewriting call adds latency and token cost before retrieval.
     # Keep query_rewriting_timeout_seconds well below the overall request timeout.
     feature_enable_query_rewriting: bool = False
+    feature_enable_query_rewrite_preview: bool = True
     query_rewriting_timeout_seconds: float = Field(default=5.0, ge=0.5, le=30.0)
     query_rewriting_max_sub_queries: int = Field(default=4, ge=1, le=8)
     # Conflict detection and agreement scoring (F301).
@@ -1468,6 +1469,7 @@ class Settings(BaseSettings):
                 "adaptive_chunking": self.feature_enable_adaptive_chunking,
                 "hybrid_retrieval": self.feature_enable_hybrid_retrieval,
                 "query_rewriting": self.feature_enable_query_rewriting,
+                "query_rewrite_preview": self.feature_enable_query_rewrite_preview,
                 "conflict_detection": self.feature_enable_conflict_detection,
                 "grounded_answer_verification": self.feature_enable_grounded_answer_verification,
                 "graph_rag": self.feature_enable_graph_rag,

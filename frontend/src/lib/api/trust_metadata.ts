@@ -150,6 +150,24 @@ export type RetrievalDiagnosticsRecord = {
   freshness_boosted_count: number;
 };
 
+export type QueryInterpretationRecord = {
+  intent:
+    | "lookup"
+    | "summary"
+    | "comparison"
+    | "policy"
+    | "troubleshooting"
+    | "compliance"
+    | "connector_search"
+    | "graph_entity_search";
+  intent_label: string;
+  complexity: "simple" | "complex" | "multi_part";
+  retrieval_strategy: "original" | "rewrite" | "decompose";
+  rewrite_preview_enabled: boolean;
+  rewritten_query_preview?: string | null;
+  sub_queries: string[];
+};
+
 export type GroundedVerificationRecord = {
   applied: boolean;
   verdict?: string | null;
@@ -221,6 +239,7 @@ export type AnswerTrustMetadataResponse = {
   confidence: ConfidenceTrustRecord;
   citations: CitationTrustRecord[];
   retrieval: RetrievalDiagnosticsRecord;
+  query_interpretation?: QueryInterpretationRecord | null;
   grounded_verification: GroundedVerificationRecord;
   model: ModelMetadataRecord;
   conflict: ConflictStatusRecord;

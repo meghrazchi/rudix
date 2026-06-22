@@ -16,7 +16,8 @@ export type FeatureFlagName =
   | "local_llm_profiles"
   | "experimental_profiles"
   | "provider_fallback"
-  | "external_mcp_connectors";
+  | "external_mcp_connectors"
+  | "query_rewrite_preview";
 
 export const ALL_FLAG_NAMES: FeatureFlagName[] = [
   "agents",
@@ -35,6 +36,7 @@ export const ALL_FLAG_NAMES: FeatureFlagName[] = [
   "experimental_profiles",
   "provider_fallback",
   "external_mcp_connectors",
+  "query_rewrite_preview",
 ];
 
 export const FLAG_LABELS: Record<FeatureFlagName, string> = {
@@ -54,6 +56,7 @@ export const FLAG_LABELS: Record<FeatureFlagName, string> = {
   experimental_profiles: "Experimental model profiles",
   provider_fallback: "Provider fallback",
   external_mcp_connectors: "External MCP connectors",
+  query_rewrite_preview: "Query rewrite preview",
 };
 
 export type FeatureFlagDetail = {

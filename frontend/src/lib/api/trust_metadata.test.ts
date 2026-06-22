@@ -18,6 +18,7 @@ import {
   type ClaimSupportRecord,
   type CitationTrustRecord,
   type ModelMetadataRecord,
+  type QueryInterpretationRecord,
 } from "@/lib/api/trust_metadata";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -90,6 +91,15 @@ function buildTrustMetadata(
       freshness_excluded_count: 0,
       freshness_boosted_count: 0,
     },
+    query_interpretation: {
+      intent: "lookup",
+      intent_label: "Lookup",
+      complexity: "simple",
+      retrieval_strategy: "original",
+      rewrite_preview_enabled: false,
+      rewritten_query_preview: null,
+      sub_queries: [],
+    } satisfies QueryInterpretationRecord,
     grounded_verification: {
       applied: false,
       aggregate_support_score: 0.0,
@@ -200,6 +210,7 @@ describe("getAnswerTrustMetadata", () => {
     expect(result.confidence.category).toBe("low");
     expect(result.confidence.not_found_signal).toBe(true);
     expect(result.citations).toEqual([]);
+    expect(result.query_interpretation?.intent).toBe("lookup");
   });
 
   it("throws ApiClientError on 404", async () => {

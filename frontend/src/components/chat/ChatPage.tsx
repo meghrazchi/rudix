@@ -2694,6 +2694,7 @@ export function ChatPage() {
                                   citations={turn.response.citations}
                                   debug={turn.response.debug}
                                   trustMetadata={turn.response.trust_metadata}
+                                  showInterpretationDetails={showDebugDetails}
                                   onOpenCitation={(citation) => {
                                     const previewCitation =
                                       citation as ChatCitationResponse;

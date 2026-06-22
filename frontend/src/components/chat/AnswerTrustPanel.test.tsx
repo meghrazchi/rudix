@@ -11,6 +11,7 @@ import type {
   AnswerTrustMetadataResponse,
   CitationTrustRecord,
   ConfidenceTrustRecord,
+  QueryInterpretationRecord,
 } from "@/lib/api/trust_metadata";
 
 const baseExplanation: ChatConfidenceExplanationResponse = {
@@ -573,15 +574,65 @@ describe("AnswerTrustPanel", () => {
     expect(screen.getByText("1240")).toBeInTheDocument();
   });
 
-  it("shows query rewriting stats when applied", () => {
+  it("does not expose raw rewrite preview in retrieval stats", () => {
     const debug: ChatDebugResponse = {
       ...baseDebug,
       query_rewriting_applied: true,
       rewritten_query: "What is the leave policy?",
     };
     renderPanel({ debug });
-    expect(screen.getByText("Rewritten query")).toBeInTheDocument();
-    expect(screen.getByText("What is the leave policy?")).toBeInTheDocument();
+    expect(screen.queryByText("Rewritten query")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("What is the leave policy?"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows safe query interpretation when advanced diagnostics are enabled", () => {
+    const queryInterpretation: QueryInterpretationRecord = {
+      intent: "policy",
+      intent_label: "Policy",
+      complexity: "complex",
+      retrieval_strategy: "rewrite",
+      rewrite_preview_enabled: true,
+      rewritten_query_preview: "What is the leave policy for contractors?",
+      sub_queries: [],
+    };
+    renderPanel({
+      showInterpretationDetails: true,
+      trustMetadata: {
+        ...baseTrustMetadata,
+        query_interpretation: queryInterpretation,
+      },
+    });
+    expect(screen.getByText("Query Interpretation")).toBeInTheDocument();
+    expect(screen.getByText("Policy")).toBeInTheDocument();
+    expect(screen.getByText("rewrite")).toBeInTheDocument();
+    expect(
+      screen.getByText("What is the leave policy for contractors?"),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the rewrite preview when disabled by policy", () => {
+    const queryInterpretation: QueryInterpretationRecord = {
+      intent: "lookup",
+      intent_label: "Lookup",
+      complexity: "simple",
+      retrieval_strategy: "original",
+      rewrite_preview_enabled: false,
+      rewritten_query_preview: null,
+      sub_queries: [],
+    };
+    renderPanel({
+      showInterpretationDetails: true,
+      trustMetadata: {
+        ...baseTrustMetadata,
+        query_interpretation: queryInterpretation,
+      },
+    });
+    expect(
+      screen.getByText("Rewrite preview is disabled by organization policy."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Rewrite preview")).not.toBeInTheDocument();
   });
 
   it("shows prompt template when present", () => {

@@ -12,6 +12,7 @@ Covers:
 import json
 import os
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -61,9 +62,11 @@ from app.domains.chat.schemas.trust_metadata import (
     GroundedVerificationRecord,
     ModelMetadataRecord,
     PolicyEnforcementRecord,
+    QueryInterpretationRecord,
     RetrievalDiagnosticsRecord,
     SourceFreshnessRecord,
 )
+from app.domains.chat.services.query_rewriting_service import QueryRewritingResult
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.interfaces.http import chat as chat_api
 from app.main import app
@@ -273,6 +276,15 @@ def test_answer_trust_metadata_schema_version_is_one() -> None:
         ),
         citations=[],
         retrieval=RetrievalDiagnosticsRecord(),
+        query_interpretation=QueryInterpretationRecord(
+            intent="policy",
+            intent_label="Policy",
+            complexity="simple",
+            retrieval_strategy="original",
+            rewrite_preview_enabled=True,
+            rewritten_query_preview=None,
+            sub_queries=[],
+        ),
         grounded_verification=GroundedVerificationRecord(
             aggregate_support_score=0.0,
             claims=[],
@@ -314,6 +326,15 @@ def test_answer_trust_metadata_round_trips_json() -> None:
         ),
         citations=[],
         retrieval=RetrievalDiagnosticsRecord(retrieval_count=5, selected_count=0),
+        query_interpretation=QueryInterpretationRecord(
+            intent="lookup",
+            intent_label="Lookup",
+            complexity="simple",
+            retrieval_strategy="original",
+            rewrite_preview_enabled=True,
+            rewritten_query_preview=None,
+            sub_queries=[],
+        ),
         grounded_verification=GroundedVerificationRecord(
             applied=True,
             verdict="unsupported",
@@ -347,6 +368,8 @@ def test_answer_trust_metadata_round_trips_json() -> None:
     assert restored.grounded_verification.aggregate_support_score == pytest.approx(0.12)
     assert restored.conflict.conflict_count == 1
     assert restored.freshness.stale_count == 2
+    assert restored.query_interpretation is not None
+    assert restored.query_interpretation.intent == "lookup"
 
 
 def test_citation_trust_record_has_no_acl_snapshot_field() -> None:
@@ -446,6 +469,29 @@ async def test_query_chat_response_includes_trust_metadata(
         ]
     )
     _inject_providers(monkeypatch, answer=_chat_answer(str(doc.id), str(chunk.id)))
+    monkeypatch.setattr(settings, "feature_enable_query_rewriting", True)
+    monkeypatch.setattr(
+        chat_api,
+        "_resolve_query_rewrite_preview_enabled",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        chat_api._query_rewriting_service,
+        "rewrite",
+        AsyncMock(
+            return_value=QueryRewritingResult(
+                original_query="How much leave?",
+                primary_query="leave policy for contractors",
+                sub_queries=["What is the leave policy?", "Who qualifies for leave?"],
+                strategy="decompose",
+                rewriting_applied=True,
+                decomposition_applied=True,
+                latency_ms=12,
+                provider_key="openai",
+                model_name="gpt-5",
+            )
+        ),
+    )
     token = create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(org.id),
@@ -472,6 +518,14 @@ async def test_query_chat_response_includes_trust_metadata(
     assert isinstance(tm["citations"], list)
     assert len(tm["citations"]) >= 0
     assert isinstance(tm["retrieval"]["retrieval_count"], int)
+    assert tm["query_interpretation"]["intent"] == "policy"
+    assert tm["query_interpretation"]["retrieval_strategy"] == "decompose"
+    assert tm["query_interpretation"]["rewrite_preview_enabled"] is True
+    assert tm["query_interpretation"]["rewritten_query_preview"] == "leave policy for contractors"
+    assert tm["query_interpretation"]["sub_queries"] == [
+        "What is the leave policy?",
+        "Who qualifies for leave?",
+    ]
     assert isinstance(tm["grounded_verification"]["applied"], bool)
     assert "llm_model" in tm["model"]
     assert "prompt_template_version_id" not in tm["model"]
@@ -505,6 +559,29 @@ async def test_query_chat_trust_metadata_persisted_in_db(
         ]
     )
     _inject_providers(monkeypatch, answer=_chat_answer(str(doc.id), str(chunk.id)))
+    monkeypatch.setattr(settings, "feature_enable_query_rewriting", True)
+    monkeypatch.setattr(
+        chat_api,
+        "_resolve_query_rewrite_preview_enabled",
+        AsyncMock(return_value=False),
+    )
+    monkeypatch.setattr(
+        chat_api._query_rewriting_service,
+        "rewrite",
+        AsyncMock(
+            return_value=QueryRewritingResult(
+                original_query="How much leave?",
+                primary_query="leave policy for contractors",
+                sub_queries=["What is the leave policy?", "Who qualifies for leave?"],
+                strategy="decompose",
+                rewriting_applied=True,
+                decomposition_applied=True,
+                latency_ms=12,
+                provider_key="openai",
+                model_name="gpt-5",
+            )
+        ),
+    )
     token = create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(org.id),
@@ -526,6 +603,14 @@ async def test_query_chat_trust_metadata_persisted_in_db(
     assert assistant_msg.trust_metadata_json is not None
     assert assistant_msg.trust_metadata_json["schema_version"] == "1"
     assert assistant_msg.trust_metadata_json["message_id"] == message_id
+    assert (
+        assistant_msg.trust_metadata_json["query_interpretation"]["rewrite_preview_enabled"]
+        is False
+    )
+    assert (
+        assistant_msg.trust_metadata_json["query_interpretation"]["rewritten_query_preview"] is None
+    )
+    assert assistant_msg.trust_metadata_json["query_interpretation"]["sub_queries"] == []
     assert "acl" not in str(assistant_msg.trust_metadata_json)
 
 

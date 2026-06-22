@@ -763,6 +763,7 @@ Notes:
 - Citation validation quality contributes to final confidence scoring.
 - On success, question/answer/citations and assistant telemetry (`latency_ms`, `model_name`, token counts, `cost_usd`) are persisted transactionally to `chat_messages`/`citations`.
 - A `usage_events` row (`event_type=chat.completion`) is recorded transactionally for billing/admin analytics with latency, confidence, and retrieval metadata.
+- Trust metadata also stores a safe `query_interpretation` snapshot for advanced diagnostics: intent, retrieval strategy, complexity, optional rewrite preview, and sub-questions. It does not include prompts or chain-of-thought, and org admins can disable the rewrite preview flag.
 - LLM stage metrics include latency, token counts, model name, and approximate cost telemetry for orchestration persistence.
 
 Response:
@@ -815,6 +816,18 @@ Response:
       "text_snippet": "Employees receive 20 paid leave days..."
     }
   ],
+  "query_interpretation": {
+    "intent": "policy",
+    "intent_label": "Policy",
+    "complexity": "simple",
+    "retrieval_strategy": "decompose",
+    "rewrite_preview_enabled": true,
+    "rewritten_query_preview": "leave policy for contractors",
+    "sub_queries": [
+      "What is the leave policy?",
+      "Who qualifies for leave?"
+    ]
+  },
   "debug": {
     "latencies_ms": {
       "embed": 34,

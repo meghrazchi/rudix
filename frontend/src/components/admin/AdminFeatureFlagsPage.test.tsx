@@ -92,6 +92,7 @@ const mockFlagsResponse: FeatureFlagsResponse = {
     makeFlag("experimental_profiles", false, false),
     makeFlag("provider_fallback", false, false),
     makeFlag("external_mcp_connectors", false, false),
+    makeFlag("query_rewrite_preview", true, true),
   ],
 };
 
@@ -150,6 +151,7 @@ describe("AdminFeatureFlagsPage", () => {
     expect(screen.getByText("Connectors")).toBeInTheDocument();
     expect(screen.getByText("Evaluations")).toBeInTheDocument();
     expect(screen.getByText("MCP integration")).toBeInTheDocument();
+    expect(screen.getByText("Query rewrite preview")).toBeInTheDocument();
   });
 
   it("shows error state on API failure", async () => {

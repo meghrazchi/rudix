@@ -132,6 +132,27 @@ class RetrievalDiagnosticsRecord(BaseModel):
     freshness_boosted_count: int = 0
 
 
+class QueryInterpretationRecord(BaseModel):
+    """Safe query interpretation surfaced in the trust panel."""
+
+    intent: Literal[
+        "lookup",
+        "summary",
+        "comparison",
+        "policy",
+        "troubleshooting",
+        "compliance",
+        "connector_search",
+        "graph_entity_search",
+    ]
+    intent_label: str
+    complexity: Literal["simple", "complex", "multi_part"]
+    retrieval_strategy: Literal["original", "rewrite", "decompose"]
+    rewrite_preview_enabled: bool = True
+    rewritten_query_preview: str | None = None
+    sub_queries: list[str] = Field(default_factory=list)
+
+
 class GroundedVerificationRecord(BaseModel):
     """Results of the post-generation grounded answer verifier (F296)."""
 
@@ -234,6 +255,7 @@ class AnswerTrustMetadataResponse(BaseModel):
     confidence: ConfidenceTrustRecord
     citations: list[CitationTrustRecord]
     retrieval: RetrievalDiagnosticsRecord
+    query_interpretation: QueryInterpretationRecord | None = None
     grounded_verification: GroundedVerificationRecord
     model: ModelMetadataRecord
     conflict: ConflictStatusRecord
@@ -244,4 +266,5 @@ class AnswerTrustMetadataResponse(BaseModel):
 
 GroundedVerificationRecord.model_rebuild()
 ConfidenceTrustRecord.model_rebuild()
+QueryInterpretationRecord.model_rebuild()
 AnswerTrustMetadataResponse.model_rebuild()

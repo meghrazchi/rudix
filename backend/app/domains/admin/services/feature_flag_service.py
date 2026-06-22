@@ -38,6 +38,7 @@ _SETTINGS_ATTR: dict[str, str] = {
     "provider_fallback": "feature_enable_provider_fallback",
     "external_mcp_connectors": "feature_enable_external_mcp_connectors",
     "query_rewriting": "feature_enable_query_rewriting",
+    "query_rewrite_preview": "feature_enable_query_rewrite_preview",
 }
 
 

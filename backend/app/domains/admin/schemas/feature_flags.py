@@ -25,6 +25,7 @@ FeatureFlagName = Literal[
     "provider_fallback",
     "external_mcp_connectors",
     "query_rewriting",
+    "query_rewrite_preview",
 ]
 
 ALL_FLAG_NAMES: tuple[FeatureFlagName, ...] = (
@@ -46,6 +47,7 @@ ALL_FLAG_NAMES: tuple[FeatureFlagName, ...] = (
     "provider_fallback",
     "external_mcp_connectors",
     "query_rewriting",
+    "query_rewrite_preview",
 )
 
 
