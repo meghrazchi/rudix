@@ -46,8 +46,10 @@ class AnswerShareListResponse(BaseModel):
 
 
 class SharedAnswerCitationResponse(BaseModel):
-    """Citation included in a shared answer; document_id/chunk_id omitted to prevent leakage."""
+    """Citation included in a shared answer."""
 
+    document_id: str
+    chunk_id: str
     filename: str | None = None
     page_number: int | None = None
     text_snippet: str | None = None

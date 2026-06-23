@@ -6,6 +6,7 @@ import { getSharedAnswer } from "@/lib/api/answer-shares";
 import type { SharedAnswerCitationResponse } from "@/lib/api/answer-shares";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { isForbiddenError } from "@/lib/forbidden";
+import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import { LoadingState } from "@/components/states/LoadingState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -66,14 +67,22 @@ function freshnessLabel(
 
 function CitationCard({
   citation,
+  onClick,
 }: {
   citation: SharedAnswerCitationResponse;
+  onClick?: () => void;
 }) {
   const providerLabel = citation.source_provider_label ?? null;
   const sourceTitle = citation.source_title ?? citation.filename ?? "Document";
   const freshness = freshnessLabel(citation);
+  const clickable = typeof onClick === "function";
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className="flex w-full items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2 text-left transition-colors hover:bg-[#f5f2ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:cursor-default disabled:hover:bg-white"
+    >
       <div className="min-w-0 overflow-hidden">
         <div className="mb-0.5 flex flex-wrap items-center gap-1">
           <p
@@ -122,7 +131,7 @@ function CitationCard({
           </p>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -194,6 +203,10 @@ function PasswordGate({
 }
 
 export function SharedAnswerPage({ token }: Props) {
+  const [previewCitationSet, setPreviewCitationSet] = useState<{
+    citations: SharedAnswerCitationResponse[];
+    initialIndex: number;
+  } | null>(null);
   const [unlockedPassword, setUnlockedPassword] = useState<string | undefined>(
     undefined,
   );
@@ -348,8 +361,26 @@ export function SharedAnswerPage({ token }: Props) {
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     {data.citations.map((citation, ci) => (
                       <CitationCard
-                        key={`${citation.filename ?? ""}:${ci}`}
+                        key={`${citation.document_id}:${citation.chunk_id}:${ci}`}
                         citation={citation}
+                        onClick={
+                          citation.document_id && citation.chunk_id
+                            ? () => {
+                                const siblings = data.citations.filter(
+                                  (item) =>
+                                    item.document_id === citation.document_id,
+                                );
+                                setPreviewCitationSet({
+                                  citations:
+                                    siblings.length > 0 ? siblings : [citation],
+                                  initialIndex: Math.max(
+                                    0,
+                                    siblings.indexOf(citation),
+                                  ),
+                                });
+                              }
+                            : undefined
+                        }
                       />
                     ))}
                   </div>
@@ -359,6 +390,14 @@ export function SharedAnswerPage({ token }: Props) {
           </div>
         </div>
       </div>
+
+      {previewCitationSet ? (
+        <CitationPreviewDrawer
+          citations={previewCitationSet.citations}
+          initialIndex={previewCitationSet.initialIndex}
+          onClose={() => setPreviewCitationSet(null)}
+        />
+      ) : null}
     </section>
   );
 }

@@ -28,6 +28,8 @@ export type AnswerShareListResponse = {
 };
 
 export type SharedAnswerCitationResponse = {
+  document_id: string;
+  chunk_id: string;
   filename: string | null;
   page_number: number | null;
   text_snippet: string | null;

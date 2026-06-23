@@ -438,12 +438,11 @@ async def test_view_shared_answer_citations_no_document_id(
     assert len(data["citations"]) == 1
     citation = data["citations"][0]
     # Snippet and filename present
+    assert citation["document_id"] == str(doc.id)
+    assert citation["chunk_id"] == str(cit.chunk_id)
     assert citation["text_snippet"] == "Key finding here"
     assert citation["filename"] == "report.pdf"
     assert citation["page_number"] == 3
-    # document_id and chunk_id must NOT be present in the response
-    assert "document_id" not in citation
-    assert "chunk_id" not in citation
 
 
 @pytest.mark.asyncio

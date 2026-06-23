@@ -346,6 +346,18 @@ export function CitationPreviewDrawer({
     isApiClientError(docQuery.error) && docQuery.error.status === 403;
   const isNotFound =
     isApiClientError(docQuery.error) && docQuery.error.status === 404;
+  const isCitationNotIndexed =
+    isApiClientError(docQuery.error) &&
+    docQuery.error.status === 409 &&
+    docQuery.error.code === "citation_not_indexed";
+  const isCitationStale =
+    isApiClientError(docQuery.error) &&
+    docQuery.error.status === 409 &&
+    docQuery.error.code === "citation_stale";
+  const isCitationDeleted =
+    isApiClientError(docQuery.error) &&
+    docQuery.error.status === 410 &&
+    docQuery.error.code === "citation_deleted";
   const isError = docQuery.isError && !isPermissionDenied && !isNotFound;
 
   const highlightText = citation.text_snippet?.trim() ?? "";
@@ -397,6 +409,32 @@ export function CitationPreviewDrawer({
       ) : null}
     </div>
   ) : null;
+
+  const previewFallback = isCitationDeleted
+    ? {
+        icon: "delete",
+        title: "Citation deleted",
+        message:
+          "This citation points to a source that has been deleted or retained under deletion policy.",
+        action: null,
+      }
+    : isCitationStale
+      ? {
+          icon: "history",
+          title: "Citation re-indexed",
+          message:
+            "This citation points to source content that has been re-indexed and is no longer available in its original form.",
+          action: "Try again",
+        }
+      : isCitationNotIndexed
+        ? {
+            icon: "search_off",
+            title: "Citation not indexed yet",
+            message:
+              "This citation points to content that is not fully indexed yet. A safe excerpt is still available below.",
+            action: "Try again",
+          }
+        : null;
 
   const sourceSummary = [
     {
@@ -729,6 +767,35 @@ export function CitationPreviewDrawer({
                   <div className="mt-1 w-full max-w-2xl text-left">
                     {excerptCard}
                   </div>
+                ) : null}
+              </div>
+            ) : previewFallback ? (
+              <div className="flex min-h-[20vh] flex-col items-center justify-center gap-3 p-8 text-center">
+                <span
+                  className="material-symbols-outlined text-[36px] text-[#6a6780]"
+                  aria-hidden="true"
+                >
+                  {previewFallback.icon}
+                </span>
+                <p className="text-sm font-semibold text-[#1b1b24]">
+                  {previewFallback.title}
+                </p>
+                <p className="max-w-sm text-xs text-[#6a6780]">
+                  {previewFallback.message}
+                </p>
+                {excerptCard ? (
+                  <div className="mt-1 w-full max-w-2xl text-left">
+                    {excerptCard}
+                  </div>
+                ) : null}
+                {previewFallback.action ? (
+                  <button
+                    type="button"
+                    onClick={() => void docQuery.refetch()}
+                    className="text-xs font-semibold text-[#3525cd] hover:underline"
+                  >
+                    {previewFallback.action}
+                  </button>
                 ) : null}
               </div>
             ) : docQuery.isPending ? (

@@ -250,6 +250,44 @@ describe("DocumentPreviewModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows citation not indexed fallback on 409 and still shows snippet", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/documents/:id`, () =>
+        HttpResponse.json(
+          { detail: { code: "citation_not_indexed" } },
+          { status: 409 },
+        ),
+      ),
+    );
+
+    render([baseCitation]);
+
+    expect(
+      await screen.findByText("Citation not indexed yet"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Rudix processes enterprise documents securely."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows citation deleted fallback on 410 and still shows snippet", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/documents/:id`, () =>
+        HttpResponse.json(
+          { detail: { code: "citation_deleted" } },
+          { status: 410 },
+        ),
+      ),
+    );
+
+    render([baseCitation]);
+
+    expect(await screen.findByText("Citation deleted")).toBeInTheDocument();
+    expect(
+      screen.getByText("Rudix processes enterprise documents securely."),
+    ).toBeInTheDocument();
+  });
+
   it("shows document unavailable state on 404 and still shows snippet", async () => {
     server.use(
       http.get(`${apiBaseUrl}/documents/:id`, () =>

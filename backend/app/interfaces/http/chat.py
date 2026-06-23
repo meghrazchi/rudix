@@ -6434,6 +6434,8 @@ async def get_shared_answer(
         source_doc = trust_docs_by_id.get(str(citation.document_id))
         safe_citations.append(
             SharedAnswerCitationResponse(
+                document_id=str(citation.document_id),
+                chunk_id=str(citation.chunk_id),
                 filename=source_doc.filename if source_doc is not None else None,
                 page_number=citation.page_number,
                 text_snippet=citation.text_snippet,
