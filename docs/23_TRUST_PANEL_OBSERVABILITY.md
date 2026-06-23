@@ -216,6 +216,14 @@ The following analytics events are fired from the trust panel:
 | `feature.chat.trust_panel_feedback_submitted` | When "Report issue" is clicked |
 | `feature.chat.trust_panel_warning_clicked` | When the warning banner area is clicked |
 
+Citation preview drawers reuse the shared analytics surface and also emit:
+
+- `feature.chat.citation_preview_opened`
+- `feature.chat.citation_preview_load_failed`
+- `feature.chat.citation_preview_permission_denied`
+- `feature.chat.citation_preview_source_missing`
+- `feature.chat.citation_preview_external_link_clicked`
+
 All events use `surface: "app"`, `featureArea: "chat"`, and `entityId: <messageId>`.
 
 These events flow through the standard product analytics system (backend `usage_events` table, optional Matomo). They respect the user's analytics consent and the organization's `analytics_enabled` flag.

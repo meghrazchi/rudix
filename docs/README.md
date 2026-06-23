@@ -28,6 +28,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 22. [21_ENTERPRISE_GRAPH_EXTRACTION.md](./21_ENTERPRISE_GRAPH_EXTRACTION.md) — Entity/relation extraction, GraphRAG, Neo4j schema, configuration, troubleshooting
 23. [22_AUTHORIZATION_SYSTEM.md](./22_AUTHORIZATION_SYSTEM.md) — Authorization model, enforcement paths, and permission boundaries
 24. [23_MULTILINGUAL_DOCUMENTATION_HELP_ROLLOUT.md](./23_MULTILINGUAL_DOCUMENTATION_HELP_ROLLOUT.md) — Multilingual UI locales, language-aware RAG, OCR guidance, support playbook, and QA checklist
+25. [24_CITATION_PREVIEW_ARCHITECTURE.md](./24_CITATION_PREVIEW_ARCHITECTURE.md) — Citation preview drawer architecture, API contract, permission behavior, observability, and test fixtures
 
 ## Setup and Operations
 

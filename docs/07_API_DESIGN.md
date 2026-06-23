@@ -558,6 +558,9 @@ Returns a permission-filtered citation preview for a specific citation. This
 endpoint is intended for rendering citation popovers and source inspectors in
 the frontend.
 
+Implementation notes, UI behavior, and regression fixtures are documented in
+[docs/24_CITATION_PREVIEW_ARCHITECTURE.md](./24_CITATION_PREVIEW_ARCHITECTURE.md).
+
 Response:
 
 ```json

@@ -157,6 +157,48 @@ async def test_analytics_events_dedupe_activation_and_reject_sensitive_fields(
 
 
 @pytest.mark.asyncio
+async def test_analytics_events_accept_citation_preview_event_names(
+    analytics_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization = await _seed_admin(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    response = await analytics_client.post(
+        "/api/v1/analytics/events",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "event_name": "feature.chat.citation_preview_opened",
+            "schema_version": 1,
+            "surface": "app",
+            "route": "/chat",
+            "page_key": "chat",
+            "feature_area": "chat",
+            "entity_id": "doc-1",
+            "entity_type": "citation",
+            "status": "opened",
+            "source": "citation_preview",
+            "dedupe_key": "doc-1:chunk-1",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["accepted"] is True
+    assert payload["event_name"] == "feature.chat.citation_preview_opened"
+
+    rows = await db_session.execute(
+        select(UsageEvent).where(UsageEvent.organization_id == organization.id)
+    )
+    stored = rows.scalars().one()
+    assert stored.metadata_json["event_name"] == "feature.chat.citation_preview_opened"
+
+
+@pytest.mark.asyncio
 async def test_analytics_summary_returns_zeroes_when_disabled(
     analytics_client: AsyncClient,
     db_session: AsyncSession,
