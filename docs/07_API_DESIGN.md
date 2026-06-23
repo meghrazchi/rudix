@@ -552,6 +552,64 @@ Response:
 }
 ```
 
+### GET `/documents/{document_id}/citations/{citation_id}/preview`
+
+Returns a permission-filtered citation preview for a specific citation. This
+endpoint is intended for rendering citation popovers and source inspectors in
+the frontend.
+
+Response:
+
+```json
+{
+  "citation_id": "uuid",
+  "document_id": "uuid",
+  "chunk_id": "uuid",
+  "filename": "policy.pdf",
+  "page_number": 4,
+  "chunk_index": 12,
+  "section_path": "Policy > Leave",
+  "source_section": "Section 4.1",
+  "source_provider": "confluence",
+  "source_provider_label": "Confluence",
+  "source_title": "Leave policy",
+  "source_key": "page-123",
+  "source_url": "https://confluence.example.test/wiki/spaces/ENG/pages/123",
+  "document_url": "https://app.rudix.test/documents/uuid?chunk_id=uuid&citation=uuid",
+  "snippet": "Employees are entitled to ...",
+  "highlight_start_offset": 0,
+  "highlight_end_offset": 29,
+  "source_start_offset": 820,
+  "source_end_offset": 1510,
+  "source_last_synced_at": "2026-05-07T10:00:00Z",
+  "source_content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source_sync_version": 5,
+  "source_trust_status": "trusted",
+  "freshness_state": "current",
+  "request_id": "req-123"
+}
+```
+
+Behavior:
+
+- Enforces organization membership, document access, collection permissions,
+  and connector ACLs server-side before returning preview data.
+- Supports uploaded documents and connector-backed sources.
+- Returns `404` with `detail.code = citation_not_found` when the citation does
+  not exist, is malformed, or is not visible in the requested document scope.
+- Returns `404` with `detail.code = citation_unauthorized` when the source is
+  no longer accessible through connector ACLs.
+- Returns `409` with `detail.code = citation_not_indexed` when the citation
+  points at a document or chunk that is not yet indexed.
+- Returns `409` with `detail.code = citation_stale` when the source is stale,
+  expired, or otherwise no longer current enough for preview.
+- Returns `410` with `detail.code = citation_deleted` when the source document
+  or connector-backed item has been deleted or retained under deletion policy.
+- Echoes the request identifier in both the response body and the
+  `X-Request-ID` response header for troubleshooting.
+- Never exposes hidden prompts, raw credentials, or chunks outside the user's
+  authorization scope.
+
 ### DELETE `/documents/{document_id}`
 
 Soft-delete a document and enqueue deletion of MinIO and Qdrant assets.

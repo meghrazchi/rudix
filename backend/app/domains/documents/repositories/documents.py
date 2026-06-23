@@ -520,6 +520,21 @@ class DocumentRepository:
         result = await session.execute(statement.order_by(DocumentChunk.chunk_index.asc()))
         return list(result.scalars().all())
 
+    async def get_document_chunk_by_id(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        chunk_id: UUID,
+    ) -> DocumentChunk | None:
+        result = await session.execute(
+            select(DocumentChunk).where(
+                DocumentChunk.id == chunk_id,
+                DocumentChunk.document_id == document_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def list_document_chunks_paginated(
         self,
         session: AsyncSession,

@@ -104,6 +104,48 @@ export type DocumentChunkingDiagnosticsResponse = {
   adaptive_signals?: DocumentChunkingAdaptiveSignalsResponse | null;
   token_distribution?: DocumentChunkTokenDistributionResponse | null;
 };
+export type CitationPreviewResponse = {
+  citation_id: string;
+  document_id: string;
+  chunk_id: string;
+  filename: string;
+  page_number?: number | null;
+  chunk_index?: number | null;
+  section_path?: string | null;
+  source_section?: string | null;
+  source_provider?: string | null;
+  source_provider_label?: string | null;
+  source_title?: string | null;
+  source_key?: string | null;
+  source_url?: string | null;
+  document_url: string;
+  snippet: string;
+  highlight_start_offset?: number | null;
+  highlight_end_offset?: number | null;
+  source_start_offset?: number | null;
+  source_end_offset?: number | null;
+  source_last_synced_at?: string | null;
+  source_content_hash?: string | null;
+  source_sync_version?: number | null;
+  source_trust_status?:
+    | "trusted"
+    | "stale"
+    | "revoked"
+    | "deleted"
+    | "unknown"
+    | "uploaded"
+    | null;
+  freshness_state?:
+    | "current"
+    | "stale"
+    | "expired"
+    | "deprecated"
+    | "draft"
+    | "unreviewed"
+    | "unknown"
+    | null;
+  request_id?: string | null;
+};
 export type DocumentCollectionSummary = {
   collection_id: string;
   name: string;
@@ -473,6 +515,15 @@ export async function getDocumentChunks(
         include_full_text: options.include_full_text,
       },
     },
+  );
+}
+
+export async function getCitationPreview(
+  documentId: string,
+  citationId: string,
+): Promise<CitationPreviewResponse> {
+  return apiRequest<CitationPreviewResponse>(
+    `/documents/${encodeURIComponent(documentId)}/citations/${encodeURIComponent(citationId)}/preview`,
   );
 }
 

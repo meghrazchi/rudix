@@ -47,10 +47,17 @@ from app.db.session import get_db_session
 from app.domains.admin.schemas.chunking_profiles import ReindexWithProfileRequest
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.admin.services.chunking_profile_service import ChunkingProfileService
+from app.domains.chat.repositories.chat import ChatRepository
+from app.domains.chat.services.source_freshness_service import (
+    DocumentTrustData,
+    SourceFreshnessService,
+)
+from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.schemas.documents import (
     BulkDeleteDocumentsRequest,
     BulkDeleteDocumentsResponse,
+    CitationPreviewResponse,
     CreateUploadUrlRequest,
     CreateUploadUrlResponse,
     DeleteDocumentResponse,
@@ -107,11 +114,14 @@ from app.workers.document_tasks import (
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 document_repository = DocumentRepository()
+chat_repository = ChatRepository()
 pipeline_repository = PipelineRepository()
 audit_log_service = AuditLogService()
 malware_scan_service = MalwareScanService(clamav_client_provider=clamav_module.get_clamav_client)
 _chunking_profile_service = ChunkingProfileService()
 _authorization_service = AuthorizationService()
+_source_provenance_service = SourceProvenanceService()
+_source_freshness_service = SourceFreshnessService()
 _ADMIN_ROLES: frozenset[str] = frozenset(
     {OrganizationRole.owner.value, OrganizationRole.admin.value}
 )
@@ -154,6 +164,31 @@ def _request_id_from_request(request: Request) -> str | None:
     if isinstance(request_id, str) and request_id.strip():
         return request_id
     return request.headers.get("x-request-id")
+
+
+def _citation_preview_error(
+    *,
+    status_code: int,
+    code: str,
+    message: str,
+    request_id: str | None,
+) -> HTTPException:
+    detail: dict[str, str] = {
+        "code": code,
+        "message": message,
+    }
+    if request_id:
+        detail["request_id"] = request_id
+    return HTTPException(status_code=status_code, detail=detail)
+
+
+def _document_preview_url(*, document_id: str, chunk_id: str, citation_id: str) -> str:
+    base_url = str(settings.frontend_base_url).rstrip("/")
+    return (
+        f"{base_url}/documents/{quote(document_id, safe='')}"
+        f"?chunk_id={quote(chunk_id, safe='')}"
+        f"&citation={quote(citation_id, safe='')}"
+    )
 
 
 def _safe_log_lines(
@@ -891,6 +926,223 @@ async def get_document_chunks(
         offset=offset,
         include_full_text=include_full_text,
     )
+
+
+@router.get(
+    "/{document_id}/citations/{citation_id}/preview",
+    response_model=CitationPreviewResponse,
+)
+async def get_citation_preview(
+    request: Request,
+    document_id: str,
+    citation_id: str,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.view))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> CitationPreviewResponse:
+    del document_id
+    request_id = _request_id_from_request(request)
+
+    try:
+        citation_uuid = UUID(citation_id)
+    except ValueError as exc:
+        raise _citation_preview_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="citation_not_found",
+            message="Citation not found.",
+            request_id=request_id,
+        ) from exc
+
+    citation = await chat_repository.get_citation_for_document(
+        db_session,
+        citation_id=citation_uuid,
+        document_id=document.id,
+    )
+    if citation is None:
+        raise _citation_preview_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="citation_not_found",
+            message="Citation not found.",
+            request_id=request_id,
+        )
+
+    deleted_document_statuses = {
+        DocumentStatus.delete_requested.value,
+        DocumentStatus.deleting.value,
+        DocumentStatus.deleted.value,
+        DocumentStatus.retained_by_policy.value,
+    }
+    if document.status in deleted_document_statuses:
+        raise _citation_preview_error(
+            status_code=status.HTTP_410_GONE,
+            code="citation_deleted",
+            message="Citation source has been deleted.",
+            request_id=request_id,
+        )
+
+    indexed_document_statuses = {
+        DocumentStatus.indexed.value,
+        DocumentStatus.ocr_applied.value,
+    }
+    if document.status not in indexed_document_statuses:
+        raise _citation_preview_error(
+            status_code=status.HTTP_409_CONFLICT,
+            code="citation_not_indexed",
+            message="Citation source is not yet indexed.",
+            request_id=request_id,
+        )
+
+    chunk = await document_repository.get_document_chunk_by_id(
+        db_session,
+        document_id=document.id,
+        chunk_id=citation.chunk_id,
+    )
+    if chunk is None:
+        raise _citation_preview_error(
+            status_code=status.HTTP_409_CONFLICT,
+            code="citation_not_indexed",
+            message="Citation source is not yet indexed.",
+            request_id=request_id,
+        )
+
+    trust_data = DocumentTrustData(
+        document_id=document.id,
+        trust_status=document.trust_status,
+        review_status=document.review_status,
+        review_owner_id=document.review_owner_id,
+        review_due_date=document.review_due_date,
+        expiry_date=document.expiry_date,
+        version_label=document.version_label,
+        review_date=document.review_date,
+        effective_date=document.effective_date,
+        stale_after_days=document.stale_after_days,
+        superseded_by_document_id=document.superseded_by_document_id,
+        trust_level=document.trust_level,
+        last_updated_at=document.updated_at,
+    )
+    freshness_state = _source_freshness_service.derive_freshness_state(trust_data)
+    if freshness_state in {"stale", "expired", "deprecated"}:
+        raise _citation_preview_error(
+            status_code=status.HTTP_409_CONFLICT,
+            code="citation_stale",
+            message="Citation source is stale.",
+            request_id=request_id,
+        )
+
+    source_provider = "upload"
+    source_provider_label = "Uploaded file"
+    source_title = document.filename
+    source_key: str | None = None
+    source_url: str | None = None
+    source_section = chunk.section_path or (
+        f"Page {chunk.page_number}" if chunk.page_number is not None else None
+    )
+    source_last_synced_at: datetime | None = None
+    source_content_hash = document.checksum
+    source_sync_version: int | None = None
+    source_trust_status = "uploaded"
+
+    if document.connector_external_item_id is not None:
+        provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
+            db_session,
+            organization_id=document.organization_id,
+            chunk_ids=[citation.chunk_id],
+        )
+        provenance = provenance_by_chunk_id.get(citation.chunk_id)
+        if provenance is None:
+            raise _citation_preview_error(
+                status_code=status.HTTP_409_CONFLICT,
+                code="citation_not_indexed",
+                message="Citation source is not yet indexed.",
+                request_id=request_id,
+            )
+
+        source_trust_status = provenance.source_trust_status
+        if source_trust_status == "revoked":
+            raise _citation_preview_error(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="citation_unauthorized",
+                message="Citation source is unavailable.",
+                request_id=request_id,
+            )
+        if source_trust_status == "deleted":
+            raise _citation_preview_error(
+                status_code=status.HTTP_410_GONE,
+                code="citation_deleted",
+                message="Citation source has been deleted.",
+                request_id=request_id,
+            )
+        if source_trust_status == "stale":
+            raise _citation_preview_error(
+                status_code=status.HTTP_409_CONFLICT,
+                code="citation_stale",
+                message="Citation source is stale.",
+                request_id=request_id,
+            )
+
+        source_provider = provenance.provider_key or source_provider
+        source_provider_label = provenance.provider_label or source_provider_label
+        source_title = provenance.source_title or source_title
+        source_key = provenance.source_key
+        source_url = provenance.source_deep_link
+        source_section = provenance.source_section or source_section
+        source_last_synced_at = provenance.source_last_synced_at
+        source_content_hash = provenance.source_content_hash
+        source_sync_version = provenance.source_sync_version
+
+    highlight_start_offset = citation.start_offset
+    highlight_end_offset = citation.end_offset
+    if highlight_start_offset is None and citation.text_snippet:
+        highlight_start_offset = 0
+    if highlight_end_offset is None and citation.text_snippet:
+        highlight_end_offset = len(citation.text_snippet)
+
+    snippet = (
+        citation.text_snippet.strip() if citation.text_snippet else _chunk_preview_text(chunk.text)
+    )
+    preview = CitationPreviewResponse(
+        citation_id=str(citation.id),
+        document_id=str(document.id),
+        chunk_id=str(chunk.id),
+        filename=document.filename,
+        page_number=citation.page_number or chunk.page_number,
+        chunk_index=chunk.chunk_index,
+        section_path=chunk.section_path,
+        source_section=source_section,
+        source_provider=source_provider,
+        source_provider_label=source_provider_label,
+        source_title=source_title,
+        source_key=source_key,
+        source_url=source_url,
+        document_url=_document_preview_url(
+            document_id=str(document.id),
+            chunk_id=str(chunk.id),
+            citation_id=str(citation.id),
+        ),
+        snippet=snippet,
+        highlight_start_offset=highlight_start_offset,
+        highlight_end_offset=highlight_end_offset,
+        source_start_offset=chunk.source_start_offset,
+        source_end_offset=chunk.source_end_offset,
+        source_last_synced_at=source_last_synced_at,
+        source_content_hash=source_content_hash,
+        source_sync_version=source_sync_version,
+        source_trust_status=source_trust_status,
+        freshness_state=freshness_state,
+        request_id=request_id,
+    )
+
+    log_document_event(
+        event="document.citation_preview.requested",
+        document_id=str(document.id),
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        citation_id=str(citation.id),
+        chunk_id=str(chunk.id),
+        request_id=request_id,
+        status_code=status.HTTP_200_OK,
+    )
+    return preview
 
 
 @router.get("/{document_id}", response_model=DocumentDetailResponse)

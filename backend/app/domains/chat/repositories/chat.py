@@ -275,6 +275,23 @@ class ChatRepository:
         await session.refresh(citation)
         return citation
 
+    async def get_citation_for_document(
+        self,
+        session: AsyncSession,
+        *,
+        citation_id: UUID,
+        document_id: UUID,
+    ) -> Citation | None:
+        result = await session.execute(
+            select(Citation)
+            .where(
+                Citation.id == citation_id,
+                Citation.document_id == document_id,
+            )
+            .order_by(Citation.created_at.asc())
+        )
+        return result.scalar_one_or_none()
+
     async def list_citations_for_message(
         self,
         session: AsyncSession,

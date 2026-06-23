@@ -378,6 +378,39 @@ class DocumentChunksResponse(BaseModel):
     include_full_text: bool = False
 
 
+class CitationPreviewResponse(BaseModel):
+    citation_id: str
+    document_id: str
+    chunk_id: str
+    filename: str
+    page_number: int | None = None
+    chunk_index: int | None = None
+    section_path: str | None = None
+    source_section: str | None = None
+    source_provider: str | None = None
+    source_provider_label: str | None = None
+    source_title: str | None = None
+    source_key: str | None = None
+    source_url: str | None = None
+    document_url: str
+    snippet: str
+    highlight_start_offset: int | None = None
+    highlight_end_offset: int | None = None
+    source_start_offset: int | None = None
+    source_end_offset: int | None = None
+    source_last_synced_at: datetime | None = None
+    source_content_hash: str | None = None
+    source_sync_version: int | None = None
+    source_trust_status: (
+        Literal["trusted", "stale", "revoked", "deleted", "unknown", "uploaded"] | None
+    ) = None
+    freshness_state: (
+        Literal["current", "stale", "expired", "deprecated", "draft", "unreviewed", "unknown"]
+        | None
+    ) = None
+    request_id: str | None = None
+
+
 class DocumentVersionResponse(BaseModel):
     version_id: str
     document_id: str
