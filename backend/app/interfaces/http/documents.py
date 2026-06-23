@@ -92,8 +92,8 @@ from app.domains.pipeline.services.pipeline_graph_service import (
     pipeline_node_label,
 )
 from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
-from app.models.collection import Collection, CollectionDocument
 from app.models.authorization import SourceAclMapping
+from app.models.collection import Collection, CollectionDocument
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
 from app.models.connector_source import SourceDocument
 from app.models.document import Document

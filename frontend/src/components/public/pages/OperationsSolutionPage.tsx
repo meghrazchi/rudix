@@ -166,17 +166,17 @@ function OperationsProblemSection() {
 
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-12">
           <li className="relative overflow-hidden rounded-2xl border border-[#c7c4d8]/30 bg-[#f4f3f9] p-10 md:col-span-7">
-              <div className="relative z-10">
-                <Sym
-                  name="inventory_2"
-                  className="mb-6 text-4xl text-[#3525cd]"
-                />
-                <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
+            <div className="relative z-10">
+              <Sym
+                name="inventory_2"
+                className="mb-6 text-4xl text-[#3525cd]"
+              />
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {problems[0].title}
-                </h3>
-                <p className="text-lg leading-7 text-[#464555]">
+              </h3>
+              <p className="text-lg leading-7 text-[#464555]">
                 {problems[0].body}
-                </p>
+              </p>
             </div>
             <Sym
               name="hub"
@@ -489,28 +489,28 @@ function OperationsFinalCtaSection({
         }}
       />
       <div className="relative z-10 mx-auto max-w-[1440px] px-10 text-center">
-          <h2
-            id="ops-cta-title"
-            className="mb-8 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
-          >
-            {t("cta.heading")}
+        <h2
+          id="ops-cta-title"
+          className="mb-8 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
+        >
+          {t("cta.heading")}
         </h2>
         <p className="mx-auto mb-12 max-w-2xl text-lg leading-7 text-[#c3c0ff]">
           {t("cta.description")}
         </p>
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <PublicActionLink
-              href={demoHref}
-              className="rounded-xl bg-white px-10 py-5 text-lg font-bold text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
-            >
-              {t("cta.primaryCta")}
-            </PublicActionLink>
-            <PublicActionLink
-              href={contactHref}
-              className="rounded-xl border border-white/30 bg-[#4f46e5] px-10 py-5 text-lg font-bold text-white transition hover:bg-[#3525cd]/80 active:scale-95"
-            >
-              {t("cta.secondaryCta")}
-            </PublicActionLink>
+          <PublicActionLink
+            href={demoHref}
+            className="rounded-xl bg-white px-10 py-5 text-lg font-bold text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
+          >
+            {t("cta.primaryCta")}
+          </PublicActionLink>
+          <PublicActionLink
+            href={contactHref}
+            className="rounded-xl border border-white/30 bg-[#4f46e5] px-10 py-5 text-lg font-bold text-white transition hover:bg-[#3525cd]/80 active:scale-95"
+          >
+            {t("cta.secondaryCta")}
+          </PublicActionLink>
         </div>
       </div>
     </section>

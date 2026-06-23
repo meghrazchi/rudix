@@ -320,7 +320,10 @@ function joinParts(parts: Array<string | null | undefined>): string {
   return parts.filter((part): part is string => Boolean(part)).join(" · ");
 }
 
-function formatRange(min: number | null | undefined, max: number | null | undefined): string {
+function formatRange(
+  min: number | null | undefined,
+  max: number | null | undefined,
+): string {
   if (typeof min !== "number" && typeof max !== "number") return "N/A";
   if (typeof min === "number" && typeof max === "number") {
     return `${score(min)} - ${score(max)}`;
@@ -329,25 +332,24 @@ function formatRange(min: number | null | undefined, max: number | null | undefi
   return `up to ${score(max)}`;
 }
 
-function buildRetrievalSummary(
-  retrieval: {
-    retrieval_candidate_count?: number;
-    retrieval_count: number;
-    selected_count: number;
-    top_k?: number;
-    search_mode?: string | null;
-    source_scope_label?: string | null;
-    retrieval_profile_name?: string | null;
-    retrieval_profile_scope?: string | null;
-    retrieval_profile_source?: string | null;
-    rerank_applied: boolean;
-    rerank_fallback_used?: boolean;
-    rerank_fallback_reason?: string | null;
-  },
-): string {
+function buildRetrievalSummary(retrieval: {
+  retrieval_candidate_count?: number;
+  retrieval_count: number;
+  selected_count: number;
+  top_k?: number;
+  search_mode?: string | null;
+  source_scope_label?: string | null;
+  retrieval_profile_name?: string | null;
+  retrieval_profile_scope?: string | null;
+  retrieval_profile_source?: string | null;
+  rerank_applied: boolean;
+  rerank_fallback_used?: boolean;
+  rerank_fallback_reason?: string | null;
+}): string {
   const candidateCount =
     retrieval.retrieval_candidate_count ?? retrieval.retrieval_count;
-  const scope = retrieval.source_scope_label ?? retrieval.retrieval_profile_scope;
+  const scope =
+    retrieval.source_scope_label ?? retrieval.retrieval_profile_scope;
   const profile = retrieval.retrieval_profile_name
     ? `${retrieval.retrieval_profile_name}${
         retrieval.retrieval_profile_source
@@ -524,7 +526,8 @@ export function AnswerTrustPanel({
           source_scope_label: retrievalDiagnostics.source_scope_label,
           retrieval_profile_name: retrievalDiagnostics.retrieval_profile_name,
           retrieval_profile_scope: retrievalDiagnostics.retrieval_profile_scope,
-          retrieval_profile_source: retrievalDiagnostics.retrieval_profile_source,
+          retrieval_profile_source:
+            retrievalDiagnostics.retrieval_profile_source,
           rerank_applied: retrievalDiagnostics.rerank_applied,
           rerank_fallback_used: retrievalDiagnostics.rerank_fallback_used,
           rerank_fallback_reason: retrievalDiagnostics.rerank_fallback_reason,
@@ -625,7 +628,9 @@ export function AnswerTrustPanel({
   } else {
     if (
       trustCitations.some(
-        (c) => (c as { table_low_confidence_warning?: boolean }).table_low_confidence_warning,
+        (c) =>
+          (c as { table_low_confidence_warning?: boolean })
+            .table_low_confidence_warning,
       )
     )
       warnings.push(
@@ -633,7 +638,8 @@ export function AnswerTrustPanel({
       );
     if (
       trustCitations.some(
-        (c) => (c as { doc_extraction_warning?: boolean }).doc_extraction_warning,
+        (c) =>
+          (c as { doc_extraction_warning?: boolean }).doc_extraction_warning,
       )
     )
       warnings.push(
@@ -641,7 +647,8 @@ export function AnswerTrustPanel({
       );
     if (
       trustCitations.some(
-        (c) => (c as { doc_processing_warning?: boolean }).doc_processing_warning,
+        (c) =>
+          (c as { doc_processing_warning?: boolean }).doc_processing_warning,
       )
     )
       warnings.push(
@@ -711,14 +718,17 @@ export function AnswerTrustPanel({
               type="button"
               data-testid="trust-panel-report-issue-btn"
               onClick={() => {
-                void trackFeatureEvent("feature.chat.trust_panel_feedback_submitted", {
-                  surface: "app",
-                  route: "/chat",
-                  pageKey: "chat",
-                  featureArea: "chat",
-                  entityId: messageId,
-                  count: warnings.length,
-                });
+                void trackFeatureEvent(
+                  "feature.chat.trust_panel_feedback_submitted",
+                  {
+                    surface: "app",
+                    route: "/chat",
+                    pageKey: "chat",
+                    featureArea: "chat",
+                    entityId: messageId,
+                    count: warnings.length,
+                  },
+                );
                 onReportIssue({
                   warnings,
                   traceId:
@@ -741,40 +751,40 @@ export function AnswerTrustPanel({
               Report issue
             </button>
           ) : null}
-        {showInterpretationDetails ? (
-          <div
-            className="inline-flex rounded-full border border-[#d7d4e8] bg-white p-0.5 text-[10px] font-semibold"
-            role="tablist"
-            aria-label="Retrieval diagnostics mode"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={diagnosticsMode === "basic"}
-              onClick={() => setDiagnosticsMode("basic")}
-              className={`rounded-full px-2.5 py-1 transition-colors ${
-                diagnosticsMode === "basic"
-                  ? "bg-[#3525cd] text-white"
-                  : "text-[#6a6780] hover:text-[#3525cd]"
-              }`}
+          {showInterpretationDetails ? (
+            <div
+              className="inline-flex rounded-full border border-[#d7d4e8] bg-white p-0.5 text-[10px] font-semibold"
+              role="tablist"
+              aria-label="Retrieval diagnostics mode"
             >
-              Basic
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={diagnosticsMode === "expert"}
-              onClick={() => setDiagnosticsMode("expert")}
-              className={`rounded-full px-2.5 py-1 transition-colors ${
-                diagnosticsMode === "expert"
-                  ? "bg-[#3525cd] text-white"
-                  : "text-[#6a6780] hover:text-[#3525cd]"
-              }`}
-            >
-              Expert
-            </button>
-          </div>
-        ) : null}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={diagnosticsMode === "basic"}
+                onClick={() => setDiagnosticsMode("basic")}
+                className={`rounded-full px-2.5 py-1 transition-colors ${
+                  diagnosticsMode === "basic"
+                    ? "bg-[#3525cd] text-white"
+                    : "text-[#6a6780] hover:text-[#3525cd]"
+                }`}
+              >
+                Basic
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={diagnosticsMode === "expert"}
+                onClick={() => setDiagnosticsMode("expert")}
+                className={`rounded-full px-2.5 py-1 transition-colors ${
+                  diagnosticsMode === "expert"
+                    ? "bg-[#3525cd] text-white"
+                    : "text-[#6a6780] hover:text-[#3525cd]"
+                }`}
+              >
+                Expert
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1241,14 +1251,17 @@ export function AnswerTrustPanel({
                     type="button"
                     aria-label={`Preview ${title}`}
                     onClick={() => {
-                      void trackFeatureEvent("feature.chat.trust_panel_citation_clicked", {
-                        surface: "app",
-                        route: "/chat",
-                        pageKey: "chat",
-                        featureArea: "chat",
-                        entityId: messageId,
-                        source: "trust_panel",
-                      });
+                      void trackFeatureEvent(
+                        "feature.chat.trust_panel_citation_clicked",
+                        {
+                          surface: "app",
+                          route: "/chat",
+                          pageKey: "chat",
+                          featureArea: "chat",
+                          entityId: messageId,
+                          source: "trust_panel",
+                        },
+                      );
                       onOpenCitation(citation);
                     }}
                     className="shrink-0 self-center rounded-md p-1 text-[#9d98b5] transition-colors hover:bg-[#ede9f9] hover:text-[#3525cd]"
@@ -1286,7 +1299,10 @@ export function AnswerTrustPanel({
             <StatRow label="Top-k" value={retrievalDiagnostics.top_k ?? null} />
             <StatRow
               label="Search mode"
-              value={retrievalDiagnostics.search_mode ?? retrievalDiagnostics.source_scope_mode}
+              value={
+                retrievalDiagnostics.search_mode ??
+                retrievalDiagnostics.source_scope_mode
+              }
             />
             <StatRow
               label="Scope mode"

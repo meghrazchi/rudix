@@ -14,6 +14,7 @@ Covers:
 from __future__ import annotations
 
 import os
+from typing import ClassVar
 
 import pytest
 
@@ -47,16 +48,15 @@ from app.domains.chat.services.confidence_service import (
     ConfidenceWeights,
 )
 from app.interfaces.http.chat import (
-    _TABLE_CONFIDENCE_LOW_THRESHOLD,
     _EXTRACTION_WARNING_PROFILES,
     _PROCESSING_INCOMPLETE_STATUSES,
+    _TABLE_CONFIDENCE_LOW_THRESHOLD,
     _build_evidence_quality_record,
     _compute_extraction_quality_multiplier,
     _compute_table_quality_multiplier,
     _with_extraction_quality,
     _with_table_metadata,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -528,7 +528,9 @@ class TestBuildEvidenceQualityRecord:
 
 
 class TestConfidenceServiceF315Multipliers:
-    _chunks = [ConfidenceChunkSignal(similarity_score=0.5, rerank_score=None)]
+    _chunks: ClassVar[list[ConfidenceChunkSignal]] = [
+        ConfidenceChunkSignal(similarity_score=0.5, rerank_score=None)
+    ]
 
     def test_default_multipliers_no_change(self) -> None:
         svc = _make_service()

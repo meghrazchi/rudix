@@ -238,10 +238,10 @@ function LegalDocumentSourcesSection() {
             <div className="relative overflow-hidden rounded-3xl bg-[#0A0A0F] p-10">
               <div className="absolute inset-0 bg-gradient-to-br from-[#3525cd]/20 to-transparent" />
               <div className="relative z-10 text-center">
-              <div className="mb-8 flex justify-center -space-x-4">
-                <div className="flex h-20 w-16 -rotate-12 items-center justify-center rounded-lg border border-white/20 bg-white/10 backdrop-blur">
-                  <Sym name="description" className="text-white/40" />
-                </div>
+                <div className="mb-8 flex justify-center -space-x-4">
+                  <div className="flex h-20 w-16 -rotate-12 items-center justify-center rounded-lg border border-white/20 bg-white/10 backdrop-blur">
+                    <Sym name="description" className="text-white/40" />
+                  </div>
                   <div className="z-10 flex h-20 w-16 items-center justify-center rounded-lg border border-white/30 bg-white/20 backdrop-blur">
                     <Sym name="description" className="text-white/60" />
                   </div>

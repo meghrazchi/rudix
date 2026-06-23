@@ -29,7 +29,7 @@ Run:
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest

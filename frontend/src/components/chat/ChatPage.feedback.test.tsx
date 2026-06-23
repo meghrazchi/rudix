@@ -371,9 +371,7 @@ describe("ChatPage feedback", () => {
     expect(
       screen.getByRole("dialog", { name: /Report an issue/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Issue type \(optional\)/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Issue type \(optional\)/i)).toBeInTheDocument();
   });
 
   it("FeedbackModal cancel closes without API call", async () => {

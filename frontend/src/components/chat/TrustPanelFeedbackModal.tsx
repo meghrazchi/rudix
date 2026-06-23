@@ -47,7 +47,8 @@ const TRUST_PANEL_CATEGORIES: {
   {
     value: "bad_citation",
     label: "Bad citation",
-    description: "A citation is wrong, irrelevant, or points to the wrong place",
+    description:
+      "A citation is wrong, irrelevant, or points to the wrong place",
     warningKeywords: ["citation validation failed"],
   },
   {
@@ -60,7 +61,13 @@ const TRUST_PANEL_CATEGORIES: {
     value: "stale_source",
     label: "Stale source",
     description: "The cited source is outdated or no longer accurate",
-    warningKeywords: ["stale", "expired", "outdated", "deprecated", "unreviewed"],
+    warningKeywords: [
+      "stale",
+      "expired",
+      "outdated",
+      "deprecated",
+      "unreviewed",
+    ],
   },
   {
     value: "conflicting_source",
@@ -77,7 +84,8 @@ const TRUST_PANEL_CATEGORIES: {
   {
     value: "should_have_said_not_found",
     label: "Should have said not found",
-    description: "No relevant information exists — the model should have said so",
+    description:
+      "No relevant information exists — the model should have said so",
     warningKeywords: ["not_found", "no context"],
   },
 ];
@@ -105,8 +113,8 @@ export function TrustPanelFeedbackModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const [category, setCategory] = useState<FeedbackCategory | null>(
-    () => inferCategory(activeWarnings),
+  const [category, setCategory] = useState<FeedbackCategory | null>(() =>
+    inferCategory(activeWarnings),
   );
   const [selectedCitationIds, setSelectedCitationIds] = useState<string[]>([]);
   const [comment, setComment] = useState("");
@@ -120,7 +128,9 @@ export function TrustPanelFeedbackModal({
 
   function toggleCitation(docId: string) {
     setSelectedCitationIds((prev) =>
-      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId],
+      prev.includes(docId)
+        ? prev.filter((id) => id !== docId)
+        : [...prev, docId],
     );
   }
 
@@ -174,7 +184,10 @@ export function TrustPanelFeedbackModal({
             aria-label="Close report dialog"
             className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
           >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+            <span
+              className="material-symbols-outlined text-[20px]"
+              aria-hidden="true"
+            >
               close
             </span>
           </button>
@@ -190,7 +203,10 @@ export function TrustPanelFeedbackModal({
             >
               What is wrong with this answer?
             </p>
-            <fieldset aria-labelledby="trust-feedback-category-label" className="space-y-1">
+            <fieldset
+              aria-labelledby="trust-feedback-category-label"
+              className="space-y-1"
+            >
               <legend className="sr-only">Issue category</legend>
               {TRUST_PANEL_CATEGORIES.map(({ value, label, description }) => (
                 <label
@@ -281,8 +297,7 @@ export function TrustPanelFeedbackModal({
           {/* Trace context badge */}
           {traceId && (
             <p className="text-[10px] text-[#9d98b5]">
-              Trace ID:{" "}
-              <span className="font-mono">{traceId}</span>
+              Trace ID: <span className="font-mono">{traceId}</span>
             </p>
           )}
 

@@ -186,8 +186,6 @@ class FeedbackReviewRepository:
     ) -> dict:
         from datetime import timedelta
 
-        from sqlalchemy import case, cast, Float
-
         from app.models.chat import ChatMessage
         from app.models.message_feedback import MessageFeedback
 

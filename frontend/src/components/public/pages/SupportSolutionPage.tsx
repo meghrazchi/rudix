@@ -129,7 +129,9 @@ function SupportHeroSection({
                 </p>
               </div>
               <div className="mt-3 flex items-center justify-between rounded-lg bg-white px-4 py-2">
-                <span className="text-xs text-[#777587]">{t("hero.confidenceLabel")}</span>
+                <span className="text-xs text-[#777587]">
+                  {t("hero.confidenceLabel")}
+                </span>
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#e3e2e8]">
                     <div className="h-full w-[94%] rounded-full bg-[#108548]" />

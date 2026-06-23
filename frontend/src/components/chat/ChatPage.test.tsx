@@ -67,12 +67,14 @@ vi.mock("@/lib/api/agent", () => ({
   getAgentRun: vi.fn(),
 }));
 
-function renderPage(queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: false },
-    mutations: { retry: false },
-  },
-})) {
+function renderPage(
+  queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  }),
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <ChatPage />
@@ -3148,13 +3150,12 @@ describe("ChatPage", () => {
       screen.getByRole("button", { name: /Send message/i }),
     );
 
-    const chipCandidates = await screen.findAllByText(
-      /all documents \(1\)/i,
-    );
+    const chipCandidates = await screen.findAllByText(/all documents \(1\)/i);
     expect(
-      chipCandidates.some((element) =>
-        element.className.includes("inline-flex") &&
-        element.className.includes("rounded-full"),
+      chipCandidates.some(
+        (element) =>
+          element.className.includes("inline-flex") &&
+          element.className.includes("rounded-full"),
       ),
     ).toBe(true);
   });

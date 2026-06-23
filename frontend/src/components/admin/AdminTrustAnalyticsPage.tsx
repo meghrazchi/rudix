@@ -27,7 +27,10 @@ const TIME_RANGE_OPTIONS: { label: string; value: TimeRangeOption }[] = [
   { label: "90 days", value: "90d" },
 ];
 
-function resolveQueryDates(range: TimeRangeOption): { from: string; to: string } {
+function resolveQueryDates(range: TimeRangeOption): {
+  from: string;
+  to: string;
+} {
   const today = new Date();
   const days = { "7d": 7, "14d": 14, "30d": 30, "90d": 90 }[range];
   const from = new Date(today);
@@ -100,11 +103,26 @@ function MetricCard({
 }
 
 function TrustDistributionSection({ dist }: { dist: TrustDistribution }) {
-  const levels: { key: TrustLevel; label: string; count: number; pct: number | null }[] = [
+  const levels: {
+    key: TrustLevel;
+    label: string;
+    count: number;
+    pct: number | null;
+  }[] = [
     { key: "high", label: "High", count: dist.high_count, pct: dist.high_pct },
-    { key: "medium", label: "Medium", count: dist.medium_count, pct: dist.medium_pct },
+    {
+      key: "medium",
+      label: "Medium",
+      count: dist.medium_count,
+      pct: dist.medium_pct,
+    },
     { key: "low", label: "Low", count: dist.low_count, pct: dist.low_pct },
-    { key: "warning", label: "Warning", count: dist.warning_count, pct: dist.warning_pct },
+    {
+      key: "warning",
+      label: "Warning",
+      count: dist.warning_count,
+      pct: dist.warning_pct,
+    },
     {
       key: "not_found",
       label: "Not Found",
@@ -117,7 +135,9 @@ function TrustDistributionSection({ dist }: { dist: TrustDistribution }) {
       className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
       data-testid="trust-distribution-section"
     >
-      <h3 className="mb-4 text-sm font-bold text-[#2f2a46]">Trust Score Distribution</h3>
+      <h3 className="mb-4 text-sm font-bold text-[#2f2a46]">
+        Trust Score Distribution
+      </h3>
       <div className="space-y-2.5">
         {levels.map(({ key, label, count, pct }) => (
           <div key={key} className="flex items-center gap-3">
@@ -128,8 +148,10 @@ function TrustDistributionSection({ dist }: { dist: TrustDistribution }) {
             </span>
             <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-[#f0eef9]">
               <div
-                className={`absolute left-0 top-0 h-full rounded-full ${trustLevelBarColor(key)}`}
-                style={{ width: pct != null ? `${(pct * 100).toFixed(1)}%` : "0%" }}
+                className={`absolute top-0 left-0 h-full rounded-full ${trustLevelBarColor(key)}`}
+                style={{
+                  width: pct != null ? `${(pct * 100).toFixed(1)}%` : "0%",
+                }}
               />
             </div>
             <span className="w-14 shrink-0 text-right text-[11px] text-[#6a6780]">
@@ -144,12 +166,36 @@ function TrustDistributionSection({ dist }: { dist: TrustDistribution }) {
 
 function WarningsSection({ warnings }: { warnings: WarningBreakdown }) {
   const items: { label: string; count: number; icon: string }[] = [
-    { label: "Stale sources", count: warnings.stale_source_count, icon: "schedule" },
-    { label: "Source conflicts", count: warnings.conflict_count, icon: "sync_problem" },
-    { label: "OCR quality issues", count: warnings.ocr_count, icon: "document_scanner" },
-    { label: "Extraction issues", count: warnings.extraction_count, icon: "error_outline" },
-    { label: "Processing incomplete", count: warnings.processing_count, icon: "hourglass_empty" },
-    { label: "Evidence quality", count: warnings.evidence_quality_count, icon: "quiz" },
+    {
+      label: "Stale sources",
+      count: warnings.stale_source_count,
+      icon: "schedule",
+    },
+    {
+      label: "Source conflicts",
+      count: warnings.conflict_count,
+      icon: "sync_problem",
+    },
+    {
+      label: "OCR quality issues",
+      count: warnings.ocr_count,
+      icon: "document_scanner",
+    },
+    {
+      label: "Extraction issues",
+      count: warnings.extraction_count,
+      icon: "error_outline",
+    },
+    {
+      label: "Processing incomplete",
+      count: warnings.processing_count,
+      icon: "hourglass_empty",
+    },
+    {
+      label: "Evidence quality",
+      count: warnings.evidence_quality_count,
+      icon: "quiz",
+    },
     {
       label: "Citation validation failed",
       count: warnings.citation_validation_failed_count,
@@ -161,7 +207,9 @@ function WarningsSection({ warnings }: { warnings: WarningBreakdown }) {
       className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
       data-testid="trust-warnings-section"
     >
-      <h3 className="mb-4 text-sm font-bold text-[#2f2a46]">Warning Type Breakdown</h3>
+      <h3 className="mb-4 text-sm font-bold text-[#2f2a46]">
+        Warning Type Breakdown
+      </h3>
       <div className="divide-y divide-[#f0eef9]">
         {items.map(({ label, count, icon }) => (
           <div key={label} className="flex items-center gap-3 py-2">
@@ -197,7 +245,10 @@ function LangfuseStatusBadge({
         className="flex items-center gap-1.5 rounded-full border border-[#e0dced] bg-[#faf9ff] px-3 py-1 text-[11px] text-[#9d98b5]"
         data-testid="langfuse-status-badge"
       >
-        <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+        <span
+          className="material-symbols-outlined text-[13px]"
+          aria-hidden="true"
+        >
           link_off
         </span>
         Langfuse not configured
@@ -209,10 +260,14 @@ function LangfuseStatusBadge({
       className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] text-emerald-800"
       data-testid="langfuse-status-badge"
     >
-      <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
+      <span
+        className="material-symbols-outlined text-[13px]"
+        aria-hidden="true"
+      >
         link
       </span>
-      Langfuse linked · {formatCount(tracesLinked)} trace{tracesLinked !== 1 ? "s" : ""}
+      Langfuse linked · {formatCount(tracesLinked)} trace
+      {tracesLinked !== 1 ? "s" : ""}
     </div>
   );
 }
@@ -293,7 +348,9 @@ export function AdminTrustAnalyticsPage() {
   if (error || !data)
     return (
       <ErrorState
-        description={error ? getApiErrorMessage(error) : "Failed to load trust analytics."}
+        description={
+          error ? getApiErrorMessage(error) : "Failed to load trust analytics."
+        }
       />
     );
 
@@ -348,9 +405,12 @@ export function AdminTrustAnalyticsPage() {
           >
             analytics
           </span>
-          <p className="mt-2 text-[13px] font-medium text-[#6a6780]">No trust metrics yet</p>
+          <p className="mt-2 text-[13px] font-medium text-[#6a6780]">
+            No trust metrics yet
+          </p>
           <p className="mt-1 text-[11px] text-[#9d98b5]">
-            Trust metrics are recorded automatically after each answered question.
+            Trust metrics are recorded automatically after each answered
+            question.
           </p>
         </div>
       ) : (

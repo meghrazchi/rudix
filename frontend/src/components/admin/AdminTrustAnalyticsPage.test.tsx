@@ -105,7 +105,11 @@ function renderPage(data?: TrustAnalyticsResponse, loading = false) {
 
   if (data) {
     queryClient.setQueryData(
-      ["admin", "trust-analytics", { from: expect.any(String), to: expect.any(String) }],
+      [
+        "admin",
+        "trust-analytics",
+        { from: expect.any(String), to: expect.any(String) },
+      ],
       data,
     );
   }
@@ -137,7 +141,9 @@ function renderPageWithData(override?: Partial<TrustAnalyticsResponse>) {
 describe("AdminTrustAnalyticsPage", () => {
   it("renders header with Trust Analytics title", () => {
     renderPage();
-    expect(screen.getByRole("heading", { name: "Trust Analytics" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Trust Analytics" }),
+    ).toBeInTheDocument();
   });
 
   it("renders all four time range buttons", () => {
@@ -168,7 +174,9 @@ describe("AdminTrustAnalyticsPage — with data", () => {
       telemetry_missing: true,
       total_answers: 0,
     });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     render(
       <QueryClientProvider client={qc}>
         <AdminTrustAnalyticsPage />
@@ -181,7 +189,9 @@ describe("AdminTrustAnalyticsPage — with data", () => {
   it("shows trust distribution section label", async () => {
     const mod = await import("@/lib/api/trust_analytics");
     vi.spyOn(mod, "getTrustAnalytics").mockResolvedValue(baseTrustData);
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     render(
       <QueryClientProvider client={qc}>
         <AdminTrustAnalyticsPage />
@@ -208,7 +218,9 @@ describe("AdminTrustAnalyticsPage — with data", () => {
         not_found_pct: null,
       },
     });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     const { container } = render(
       <QueryClientProvider client={qc}>
         <AdminTrustAnalyticsPage />
@@ -222,13 +234,17 @@ describe("AdminTrustAnalyticsPage — Langfuse status badge", () => {
   it("shows disabled badge when langfuse not configured", () => {
     renderPage();
     // The badge label renders in the header area even without data
-    const badges = document.querySelectorAll('[data-testid="langfuse-status-badge"]');
+    const badges = document.querySelectorAll(
+      '[data-testid="langfuse-status-badge"]',
+    );
     // badge not rendered during loading — just ensure page doesn't crash
     expect(document.body).toBeTruthy();
   });
 
   it("renders page header without crashing when session is unauthenticated", () => {
     renderPage();
-    expect(screen.getByRole("heading", { name: "Trust Analytics" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Trust Analytics" }),
+    ).toBeInTheDocument();
   });
 });

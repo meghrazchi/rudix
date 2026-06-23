@@ -10,14 +10,16 @@ import {
 const onSubmit = vi.fn();
 const onClose = vi.fn();
 
-function renderModal(overrides: {
-  activeWarnings?: string[];
-  citations?: TrustPanelCitationRef[];
-  traceId?: string | null;
-  trustScore?: number | null;
-  trustLevel?: string | null;
-  isSubmitting?: boolean;
-} = {}) {
+function renderModal(
+  overrides: {
+    activeWarnings?: string[];
+    citations?: TrustPanelCitationRef[];
+    traceId?: string | null;
+    trustScore?: number | null;
+    trustLevel?: string | null;
+    isSubmitting?: boolean;
+  } = {},
+) {
   return render(
     <TrustPanelFeedbackModal
       activeWarnings={overrides.activeWarnings ?? []}
@@ -58,26 +60,36 @@ describe("TrustPanelFeedbackModal", () => {
   });
 
   it("pre-selects stale_source when freshness warning is active", () => {
-    renderModal({ activeWarnings: ["One or more cited sources are stale or expired."] });
+    renderModal({
+      activeWarnings: ["One or more cited sources are stale or expired."],
+    });
     const staleRadio = screen.getByDisplayValue("stale_source");
     expect(staleRadio).toBeChecked();
   });
 
   it("pre-selects conflicting_source when conflict warning is active", () => {
-    renderModal({ activeWarnings: ["Sources disagree on one or more claims."] });
+    renderModal({
+      activeWarnings: ["Sources disagree on one or more claims."],
+    });
     const conflictRadio = screen.getByDisplayValue("conflicting_source");
     expect(conflictRadio).toBeChecked();
   });
 
   it("pre-selects wrong_answer when verification failed warning is active", () => {
-    renderModal({ activeWarnings: ["Answer verification failed — claims may not be fully grounded."] });
+    renderModal({
+      activeWarnings: [
+        "Answer verification failed — claims may not be fully grounded.",
+      ],
+    });
     const wrongRadio = screen.getByDisplayValue("wrong_answer");
     expect(wrongRadio).toBeChecked();
   });
 
   it("calls onClose when the close button is clicked", async () => {
     renderModal();
-    await userEvent.click(screen.getByRole("button", { name: /close report dialog/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /close report dialog/i }),
+    );
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -90,7 +102,9 @@ describe("TrustPanelFeedbackModal", () => {
   it("submits with null category when 'Other / not listed' is selected", async () => {
     renderModal();
     await userEvent.click(screen.getByDisplayValue(""));
-    await userEvent.click(screen.getByRole("button", { name: /report issue/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /report issue/i }),
+    );
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ category: null }),
     );
@@ -101,7 +115,9 @@ describe("TrustPanelFeedbackModal", () => {
     await userEvent.click(screen.getByDisplayValue("bad_citation"));
     const textarea = screen.getByRole("textbox");
     await userEvent.type(textarea, "Citation points to wrong section.");
-    await userEvent.click(screen.getByRole("button", { name: /report issue/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /report issue/i }),
+    );
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         category: "bad_citation",
@@ -111,8 +127,14 @@ describe("TrustPanelFeedbackModal", () => {
   });
 
   it("passes traceId and trust metadata in submit payload", async () => {
-    renderModal({ traceId: "trace-abc123", trustScore: 0.35, trustLevel: "low" });
-    await userEvent.click(screen.getByRole("button", { name: /report issue/i }));
+    renderModal({
+      traceId: "trace-abc123",
+      trustScore: 0.35,
+      trustLevel: "low",
+    });
+    await userEvent.click(
+      screen.getByRole("button", { name: /report issue/i }),
+    );
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         traceId: "trace-abc123",
@@ -156,7 +178,9 @@ describe("TrustPanelFeedbackModal", () => {
     ];
     renderModal({ citations });
     await userEvent.click(screen.getByLabelText("Source A"));
-    await userEvent.click(screen.getByRole("button", { name: /report issue/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /report issue/i }),
+    );
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ selectedCitationIds: ["doc-1"] }),
     );
@@ -170,7 +194,9 @@ describe("TrustPanelFeedbackModal", () => {
     const checkbox = screen.getByLabelText("Source A");
     await userEvent.click(checkbox); // check
     await userEvent.click(checkbox); // uncheck
-    await userEvent.click(screen.getByRole("button", { name: /report issue/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /report issue/i }),
+    );
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ selectedCitationIds: [] }),
     );

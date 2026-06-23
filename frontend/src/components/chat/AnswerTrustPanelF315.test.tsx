@@ -27,8 +27,8 @@ const baseExplanation: ChatConfidenceExplanationResponse = {
   top_similarity: 0.88,
   average_similarity: 0.84,
   top_rerank_score: 0.85,
-  citation_support_score: 0.80,
-  citation_validation_score: 0.90,
+  citation_support_score: 0.8,
+  citation_validation_score: 0.9,
   citation_coverage_score: 0.95,
   retrieval_agreement_score: 1.0,
   raw_score: 0.84,
@@ -225,7 +225,9 @@ describe("EvidenceQualityRecord type", () => {
     const rec = makeEvidenceQuality({
       processing_warning_count: 1,
       any_incomplete_documents: true,
-      warning_reasons: ["1 source document has incomplete or failed processing."],
+      warning_reasons: [
+        "1 source document has incomplete or failed processing.",
+      ],
     });
     expect(rec.any_incomplete_documents).toBe(true);
     expect(rec.warning_reasons).toHaveLength(1);
@@ -437,7 +439,8 @@ describe("processing warning badge", () => {
 
 describe("evidence_quality warning reasons", () => {
   it("shows table low confidence warning reason from evidence_quality record", () => {
-    const warningReason = "1 cited table chunk has low extraction confidence — table data may be inaccurate.";
+    const warningReason =
+      "1 cited table chunk has low extraction confidence — table data may be inaccurate.";
     renderPanel({
       trustMetadata: makeTrustMetadata({
         evidence_quality: makeEvidenceQuality({
@@ -455,7 +458,8 @@ describe("evidence_quality warning reasons", () => {
   });
 
   it("shows extraction quality warning reason from evidence_quality record", () => {
-    const warningReason = "1 source document has poor extraction quality — text coverage may be incomplete.";
+    const warningReason =
+      "1 source document has poor extraction quality — text coverage may be incomplete.";
     renderPanel({
       trustMetadata: makeTrustMetadata({
         evidence_quality: makeEvidenceQuality({
@@ -473,7 +477,8 @@ describe("evidence_quality warning reasons", () => {
   });
 
   it("shows processing incomplete warning reason from evidence_quality record", () => {
-    const warningReason = "1 source document has incomplete or failed processing — content may be missing.";
+    const warningReason =
+      "1 source document has incomplete or failed processing — content may be missing.";
     renderPanel({
       trustMetadata: makeTrustMetadata({
         evidence_quality: makeEvidenceQuality({
@@ -496,18 +501,16 @@ describe("evidence_quality warning reasons", () => {
         evidence_quality: makeEvidenceQuality(),
       }),
     });
-    expect(
-      screen.queryByText(/low extraction confidence/i),
-    ).toBeNull();
+    expect(screen.queryByText(/low extraction confidence/i)).toBeNull();
     expect(screen.queryByText(/poor extraction quality/i)).toBeNull();
-    expect(
-      screen.queryByText(/incomplete or failed processing/i),
-    ).toBeNull();
+    expect(screen.queryByText(/incomplete or failed processing/i)).toBeNull();
   });
 
   it("renders multiple warning reasons when multiple quality issues exist", () => {
-    const tableReason = "2 cited table chunks have low extraction confidence — table data may be inaccurate.";
-    const extractionReason = "1 source document has poor extraction quality — text coverage may be incomplete.";
+    const tableReason =
+      "2 cited table chunks have low extraction confidence — table data may be inaccurate.";
+    const extractionReason =
+      "1 source document has poor extraction quality — text coverage may be incomplete.";
     renderPanel({
       trustMetadata: makeTrustMetadata({
         evidence_quality: makeEvidenceQuality({

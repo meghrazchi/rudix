@@ -1682,7 +1682,10 @@ export function ChatPage() {
       trustLevel: string | null;
       citations: import("@/lib/api/chat").ChatCitationResponse[];
       debug: import("@/lib/api/chat").ChatDebugResponse | null;
-      trustMetadata: import("@/lib/api/trust_metadata").AnswerTrustMetadataResponse | null | undefined;
+      trustMetadata:
+        | import("@/lib/api/trust_metadata").AnswerTrustMetadataResponse
+        | null
+        | undefined;
     }) =>
       submitMessageFeedback(messageId, {
         rating: "down",
@@ -1690,7 +1693,10 @@ export function ChatPage() {
         comment,
         diagnostics: {
           trust_metadata: trustMetadata
-            ? { confidence: trustMetadata.confidence, retrieval: trustMetadata.retrieval }
+            ? {
+                confidence: trustMetadata.confidence,
+                retrieval: trustMetadata.retrieval,
+              }
             : undefined,
           trust_score: trustScore ?? undefined,
           trust_level: trustLevel ?? undefined,
@@ -4144,46 +4150,55 @@ export function ChatPage() {
       ) : null}
       {chatFeedbackEnabled &&
       trustPanelFeedbackMessageId &&
-      trustPanelFeedbackContext ? (() => {
-        const activeTurn = thread.find(
-          (t) => t.response?.message_id === trustPanelFeedbackMessageId,
-        );
-        const panelCitations: TrustPanelCitationRef[] = (
-          activeTurn?.response?.citations ?? []
-        ).map((c) => ({
-          document_id: c.document_id,
-          chunk_id: c.chunk_id,
-          title: c.source_title ?? c.filename ?? "Unknown source",
-        }));
-        return (
-          <TrustPanelFeedbackModal
-            activeWarnings={trustPanelFeedbackContext.warnings}
-            citations={panelCitations}
-            traceId={trustPanelFeedbackContext.traceId}
-            trustScore={trustPanelFeedbackContext.trustScore}
-            trustLevel={trustPanelFeedbackContext.trustLevel}
-            isSubmitting={trustPanelFeedbackMutation.isPending}
-            onSubmit={({ category, comment, selectedCitationIds, traceId, trustScore, trustLevel }) => {
-              trustPanelFeedbackMutation.mutate({
-                messageId: trustPanelFeedbackMessageId,
-                category,
-                comment,
-                selectedCitationIds,
-                traceId,
-                trustScore,
-                trustLevel,
-                citations: activeTurn?.response?.citations ?? [],
-                debug: activeTurn?.response?.debug ?? null,
-                trustMetadata: activeTurn?.response?.trust_metadata ?? null,
-              });
-            }}
-            onClose={() => {
-              setTrustPanelFeedbackMessageId(null);
-              setTrustPanelFeedbackContext(null);
-            }}
-          />
-        );
-      })() : null}
+      trustPanelFeedbackContext
+        ? (() => {
+            const activeTurn = thread.find(
+              (t) => t.response?.message_id === trustPanelFeedbackMessageId,
+            );
+            const panelCitations: TrustPanelCitationRef[] = (
+              activeTurn?.response?.citations ?? []
+            ).map((c) => ({
+              document_id: c.document_id,
+              chunk_id: c.chunk_id,
+              title: c.source_title ?? c.filename ?? "Unknown source",
+            }));
+            return (
+              <TrustPanelFeedbackModal
+                activeWarnings={trustPanelFeedbackContext.warnings}
+                citations={panelCitations}
+                traceId={trustPanelFeedbackContext.traceId}
+                trustScore={trustPanelFeedbackContext.trustScore}
+                trustLevel={trustPanelFeedbackContext.trustLevel}
+                isSubmitting={trustPanelFeedbackMutation.isPending}
+                onSubmit={({
+                  category,
+                  comment,
+                  selectedCitationIds,
+                  traceId,
+                  trustScore,
+                  trustLevel,
+                }) => {
+                  trustPanelFeedbackMutation.mutate({
+                    messageId: trustPanelFeedbackMessageId,
+                    category,
+                    comment,
+                    selectedCitationIds,
+                    traceId,
+                    trustScore,
+                    trustLevel,
+                    citations: activeTurn?.response?.citations ?? [],
+                    debug: activeTurn?.response?.debug ?? null,
+                    trustMetadata: activeTurn?.response?.trust_metadata ?? null,
+                  });
+                }}
+                onClose={() => {
+                  setTrustPanelFeedbackMessageId(null);
+                  setTrustPanelFeedbackContext(null);
+                }}
+              />
+            );
+          })()
+        : null}
     </>
   );
 }

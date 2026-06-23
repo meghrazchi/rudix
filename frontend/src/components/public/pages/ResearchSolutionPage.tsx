@@ -135,7 +135,10 @@ function ResearchProblemSection() {
     { title: t("problems.overloadTitle"), body: t("problems.overloadBody") },
     { title: t("problems.manualTitle"), body: t("problems.manualBody") },
     { title: t("problems.citationsTitle"), body: t("problems.citationsBody") },
-    { title: t("problems.fragmentationTitle"), body: t("problems.fragmentationBody") },
+    {
+      title: t("problems.fragmentationTitle"),
+      body: t("problems.fragmentationBody"),
+    },
   ];
 
   return (
@@ -188,12 +191,12 @@ function ResearchProblemSection() {
 
           <li className="rudix-landing-glass flex flex-col gap-4 rounded-2xl p-10 md:col-span-4">
             <Sym name="link" className="text-4xl text-[#3525cd]" />
-              <h3 className="text-[24px] leading-8 font-semibold text-[#1a1b20]">
+            <h3 className="text-[24px] leading-8 font-semibold text-[#1a1b20]">
               {cards[2].title}
-              </h3>
-              <p className="text-base leading-6 text-[#464555]">
+            </h3>
+            <p className="text-base leading-6 text-[#464555]">
               {cards[2].body}
-              </p>
+            </p>
           </li>
 
           <li className="flex items-center gap-8 rounded-2xl bg-[#e3e2e8] p-10 md:col-span-8">
@@ -261,15 +264,15 @@ function ResearchDocumentSourcesSection() {
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 flex flex-col items-end justify-between gap-8 md:flex-row">
           <div className="max-w-xl">
-          <h2
-            id="research-doc-sources-title"
-            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-          >
+            <h2
+              id="research-doc-sources-title"
+              className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
+            >
               {t("documentSources.heading")}
-          </h2>
-          <p className="text-base leading-6 text-[#464555]">
+            </h2>
+            <p className="text-base leading-6 text-[#464555]">
               {t("documentSources.description")}
-          </p>
+            </p>
           </div>
         </div>
         <ul className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-5">
@@ -560,10 +563,10 @@ function ResearchFinalCtaSection({
             className="rudix-research-dot-bg pointer-events-none absolute inset-0 opacity-10"
           />
           <div className="relative z-10 mx-auto max-w-2xl">
-          <h2
-            id="research-cta-title"
-            className="mb-8 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
-          >
+            <h2
+              id="research-cta-title"
+              className="mb-8 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
+            >
               {t("cta.heading")}
             </h2>
             <p className="mb-12 text-lg leading-7 opacity-90">

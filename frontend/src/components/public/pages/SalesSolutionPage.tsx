@@ -140,13 +140,22 @@ function SalesHeroSection({
               <p className="mb-4 text-sm leading-6 text-[#faf9ff]">
                 {t("hero.mockAnswerTitle")}
                 <br />
-                1. <span className="text-[#c3c0ff]">{t("hero.mockAnswer1Label")}</span>{" "}
+                1.{" "}
+                <span className="text-[#c3c0ff]">
+                  {t("hero.mockAnswer1Label")}
+                </span>{" "}
                 {t("hero.mockAnswer1Body")}
                 <br />
-                2. <span className="text-[#c3c0ff]">{t("hero.mockAnswer2Label")}</span>{" "}
+                2.{" "}
+                <span className="text-[#c3c0ff]">
+                  {t("hero.mockAnswer2Label")}
+                </span>{" "}
                 {t("hero.mockAnswer2Body")}
                 <br />
-                3. <span className="text-[#c3c0ff]">{t("hero.mockAnswer3Label")}</span>{" "}
+                3.{" "}
+                <span className="text-[#c3c0ff]">
+                  {t("hero.mockAnswer3Label")}
+                </span>{" "}
                 {t("hero.mockAnswer3Body")}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -161,7 +170,8 @@ function SalesHeroSection({
 
             <div className="flex items-center gap-4 text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
               <span className="flex items-center gap-1">
-                <Sym name="sync" className="text-[16px]" /> {t("hero.mockStatus1")}
+                <Sym name="sync" className="text-[16px]" />{" "}
+                {t("hero.mockStatus1")}
               </span>
               <span className="flex items-center gap-1">
                 <Sym

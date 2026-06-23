@@ -276,7 +276,12 @@ describe("AnswerTrustPanel analytics — F317", () => {
       confidenceScore: 0.3,
       trustMetadata: {
         ...baseTrustMetadata,
-        confidence: { ...baseTrustConfidence, score: 0.3, category: "low", trust_level: "low" },
+        confidence: {
+          ...baseTrustConfidence,
+          score: 0.3,
+          category: "low",
+          trust_level: "low",
+        },
       },
     });
     // The warning div wrapping the banners is clickable

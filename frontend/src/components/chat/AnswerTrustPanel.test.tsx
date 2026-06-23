@@ -323,9 +323,7 @@ describe("AnswerTrustPanel", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Expert" }));
 
-    expect(
-      screen.getByText(/retrieval diagnostics/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/retrieval diagnostics/i)).toBeInTheDocument();
   });
 
   it("tracks retrieval diagnostics usage for telemetry", async () => {

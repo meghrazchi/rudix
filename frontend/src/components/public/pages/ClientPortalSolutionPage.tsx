@@ -133,9 +133,7 @@ function ClientPortalHeroSection({
                 <p className="mb-2 text-[10px] tracking-widest text-[#75db94] uppercase">
                   {t("hero.mockAnswerLabel")}
                 </p>
-                <p className="text-[#e3e2e8]">
-                  {t("hero.mockAnswer")}
-                </p>
+                <p className="text-[#e3e2e8]">{t("hero.mockAnswer")}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded bg-[#3525cd]/20 px-2 py-0.5 text-[10px] text-[#c3c0ff]">
                     {t("hero.mockTag1")}
@@ -214,7 +212,10 @@ function ClientPortalDocumentSourcesSection() {
   const t = useTranslations("public.clientPortal");
   const sources = [
     { icon: "rocket_launch", label: t("documentSources.onboardingGuides") },
-    { icon: "integration_instructions", label: t("documentSources.apiDocumentation") },
+    {
+      icon: "integration_instructions",
+      label: t("documentSources.apiDocumentation"),
+    },
     { icon: "build", label: t("documentSources.implementationGuides") },
     { icon: "support_agent", label: t("documentSources.knowledgeBase") },
     { icon: "menu_book", label: t("documentSources.productGuides") },
@@ -511,7 +512,10 @@ function ClientPortalRelatedSolutionsSection() {
   const related = [
     { label: t("related.support"), href: "/solutions/support" },
     { label: t("related.sales"), href: "/solutions/sales" },
-    { label: t("related.internalKnowledge"), href: "/solutions/internal-knowledge" },
+    {
+      label: t("related.internalKnowledge"),
+      href: "/solutions/internal-knowledge",
+    },
     { label: t("related.security"), href: "/security" },
   ];
 
