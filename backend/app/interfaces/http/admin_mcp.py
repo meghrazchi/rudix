@@ -172,6 +172,7 @@ async def update_mcp_policy(
         },
     )
     await db_session.commit()
+    await db_session.refresh(policy)
 
     _logger.info(
         "admin.mcp.policy.updated",

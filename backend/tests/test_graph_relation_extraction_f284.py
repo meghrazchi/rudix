@@ -134,8 +134,8 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 import app.clients.neo4j_client as neo4j_module
 
-_ORG = "org-test-f284"
-_WS = "ws-test-f284"
+_ORG = "00000000-0000-0000-0000-000000f284f1"
+_WS = "00000000-0000-0000-0000-000000f284f2"
 _DB = "neo4j"
 
 
@@ -958,7 +958,7 @@ async def test_AT_graph_service_delete_relation_by_id_delegates():
 
 def _owner_principal(org_id: str = _ORG) -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
-        user_id="user-f284",
+        user_id="00000000-0000-0000-0000-000000f284a1",
         organization_id=org_id,
         roles=[OrganizationRole.owner.value],
         auth_provider="app",
@@ -967,7 +967,7 @@ def _owner_principal(org_id: str = _ORG) -> AuthenticatedPrincipal:
 
 def _member_principal(org_id: str = _ORG) -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
-        user_id="user-member",
+        user_id="00000000-0000-0000-0000-000000f284b1",
         organization_id=org_id,
         roles=[OrganizationRole.member.value],
         auth_provider="app",

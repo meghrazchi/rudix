@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -179,7 +179,7 @@ def _trust_event(
     if langfuse_trace_id:
         meta["langfuse_trace_id"] = langfuse_trace_id
     event = UsageEvent(
-        organization_id=org_id,
+        organization_id=UUID(org_id) if isinstance(org_id, str) else org_id,
         event_type="trust.answer_metrics",
         metadata_json=meta,
     )

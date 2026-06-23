@@ -76,7 +76,6 @@ def _make_admin_token() -> str:
         user_id="user-admin",
         organization_id="org-1",
         roles=["owner"],
-        settings=settings,
     )
 
 
@@ -87,7 +86,6 @@ def _make_member_token() -> str:
         user_id="user-member",
         organization_id="org-1",
         roles=["member"],
-        settings=settings,
     )
 
 
@@ -97,7 +95,9 @@ def _make_member_token() -> str:
 
 
 def test_a_enterprise_graph_disabled_by_default() -> None:
-    assert settings.enterprise_graph_enabled is False
+    from app.core.config import Settings
+
+    assert Settings.model_fields["enterprise_graph_enabled"].default is False
 
 
 def test_b_enabled_without_uri_raises() -> None:

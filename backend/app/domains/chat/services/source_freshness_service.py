@@ -308,7 +308,7 @@ class SourceFreshnessService:
 
         Returns the effective chunk list and whether the fallback was triggered.
         """
-        if after_filter or not excluded_ids:
+        if after_filter or not excluded_ids or not before_filter:
             return after_filter, False
         return before_filter, True
 

@@ -493,9 +493,7 @@ class PolicyEngine:
                 and resource.resource_id in subject.connector_acl_item_ids
             ):
                 return _allow(rule)
-            if resource.resource_type is ResourceType.connector_source_item and (
-                not resource.connector_allowed_user_ids and not subject.connector_acl_item_ids
-            ):
+            if not resource.connector_allowed_user_ids and not subject.connector_acl_item_ids:
                 trace.append(f"{rule}:pass(no_acl_filter)")
             else:
                 return _deny(DenyReason.connector_acl_denied, rule)

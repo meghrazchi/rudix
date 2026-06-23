@@ -513,6 +513,8 @@ class RelationRepository:
         try:
             async with driver.session(database=settings.neo4j_database) as session:
                 cnt = await session.execute_write(_tx)
+                if asyncio.iscoroutine(cnt):
+                    cnt = await cnt
             return cnt > 0
         except Exception as exc:
             logger.warning(

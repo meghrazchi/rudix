@@ -51,6 +51,7 @@ from app.domains.prompt_templates.repositories.prompt_templates import PromptTem
 from app.models.document import Document
 from app.models.enums import EvaluationRunStatus
 from app.models.evaluation import EvaluationQuestion
+from app.domains.ai.providers.factory import default_provider_factory
 from app.workers import document_tasks
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
@@ -320,7 +321,6 @@ async def _evaluate_with_llm_judge_async(
     retrieved_chunks: list[RetrievedChunk],
     resolved_profile: ResolvedTaskProfile | None = None,
 ) -> EvaluationJudgeScores:
-    from app.domains.ai.providers.factory import default_provider_factory
     from app.domains.ai.providers.protocols import ChatCompletionRequest
 
     context_lines: list[str] = []

@@ -34,9 +34,11 @@ from app.domains.chat.services.llm_service import ParsedCitation
 from app.models.model_profile import OrgModelProfile
 from app.workers.evaluation_tasks import (
     EvaluationRunConfig,
+    EvaluationRegressionThresholds,
     PermanentTaskError,
     _parse_run_config,
 )
+from app.domains.evaluations.services.evaluation_metrics_service import EvaluationMetricOptions
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -71,24 +73,25 @@ def _make_org_model_profile_row(
     base_model: str = "gpt-4o",
     version: int = 1,
 ) -> OrgModelProfile:
-    row = OrgModelProfile.__new__(OrgModelProfile)
-    row.id = uuid4()
-    row.organization_id = org_id or uuid4()
-    row.task_type = task_type
-    row.provider_type = provider_type
-    row.base_model = base_model
-    row.profile_name = "Test profile"
-    row.context_window = 8192
-    row.max_tokens = None
-    row.temperature = None
-    row.json_mode = True
-    row.streaming = False
-    row.fallback_provider_key = None
-    row.is_active = True
-    row.is_experimental = False
-    row.cost_metadata = {}
-    row.version = version
-    row.updated_by_id = None
+    row = OrgModelProfile(
+        id=uuid4(),
+        organization_id=org_id or uuid4(),
+        task_type=task_type,
+        provider_type=provider_type,
+        base_model=base_model,
+        profile_name="Test profile",
+        context_window=8192,
+        max_tokens=None,
+        temperature=None,
+        json_mode=True,
+        streaming=False,
+        fallback_provider_key=None,
+        is_active=True,
+        is_experimental=False,
+        cost_metadata={},
+        version=version,
+        updated_by_id=None,
+    )
     return row
 
 
@@ -275,10 +278,18 @@ class TestEvaluateQuestionPipelineProfileThreading:
 
         fake_session = AsyncMock()
         config = EvaluationRunConfig(
+            run_name=None,
             top_k=3,
             rerank=False,
             model_name="gpt-4o",
             selected_document_ids=[],
+            metric_options=EvaluationMetricOptions(),
+            chunking_profile_id=None,
+            chunking_profile_config=None,
+            chunking_strategy=None,
+            profile_version=None,
+            comparison_targets=[],
+            regression_thresholds=EvaluationRegressionThresholds(),
         )
         question = MagicMock()
         question.evaluation_question_id = uuid4()
@@ -347,7 +358,18 @@ class TestEvaluateQuestionPipelineProfileThreading:
 
         fake_session = AsyncMock()
         config = EvaluationRunConfig(
-            top_k=3, rerank=False, model_name="gpt-4o", selected_document_ids=[]
+            run_name=None,
+            top_k=3,
+            rerank=False,
+            model_name="gpt-4o",
+            selected_document_ids=[],
+            metric_options=EvaluationMetricOptions(),
+            chunking_profile_id=None,
+            chunking_profile_config=None,
+            chunking_strategy=None,
+            profile_version=None,
+            comparison_targets=[],
+            regression_thresholds=EvaluationRegressionThresholds(),
         )
         question = MagicMock()
         question.evaluation_question_id = uuid4()

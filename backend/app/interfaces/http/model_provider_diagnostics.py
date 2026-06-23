@@ -203,7 +203,7 @@ def _classify_probe_error(exc: Exception) -> tuple[str, str]:
         return "unreachable", "Could not reach the provider endpoint."
 
     # Generic fallback — never leak exception message
-    return "error", "The provider returned an unexpected error during the probe."
+    return "error", "The provider returned an error during the probe."
 
 
 # ---------------------------------------------------------------------------

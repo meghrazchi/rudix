@@ -241,6 +241,8 @@ async def update_custom_role(
         },
     )
     await db_session.commit()
+    await db_session.refresh(role)
+    await db_session.refresh(role, attribute_names=["permissions"])
 
     roles_logger.info(
         "roles.custom_role.updated",

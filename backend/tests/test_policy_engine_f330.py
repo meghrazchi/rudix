@@ -308,8 +308,9 @@ def test_rule7_collection_allow_requires_chat_use_collections_permission():
     subject = SubjectContext(
         user_id=USER_1,
         organization_id=ORG_A,
-        roles=frozenset({"member"}),
-        resolved_permissions=frozenset(),  # no permissions
+        roles=frozenset({"viewer"}),
+        # non-empty so engine uses directly (no role fallback); lacks chat_use_collections and documents_view
+        resolved_permissions=frozenset({PermissionType.chat_use}),
     )
     resource = ResourceContext(
         resource_type=ResourceType.document,
@@ -318,7 +319,7 @@ def test_rule7_collection_allow_requires_chat_use_collections_permission():
         subject_accessible_collection_ids=[COL_A],
     )
     result = authorize(subject, Action.view, resource)
-    # No permissions → collection_allow skipped, role_permission fails
+    # No chat_use_collections permission → collection_allow skipped, role_permission fails
     assert result.result is PermissionResult.deny
 
 

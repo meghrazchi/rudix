@@ -1155,8 +1155,8 @@ async def get_citation_preview(
         filename=document.filename,
         document_title=document.filename,
         document_type=document.file_type,
-        document_owner_id=str(document.uploaded_by_user_id)
-        if document.uploaded_by_user_id is not None
+        document_owner_id=str(doc_uploaded_by_user_id)
+        if doc_uploaded_by_user_id is not None
         else None,
         document_owner_email=uploader.email if uploader is not None else None,
         document_owner_display_name=uploader.display_name if uploader is not None else None,
@@ -1282,9 +1282,10 @@ async def get_document(
         if current_version is not None:
             doc_last_indexed_at = current_version.indexed_at
 
+    doc_uploaded_by_user_id = document.uploaded_by_user_id
     uploader = None
-    if document.uploaded_by_user_id is not None:
-        uploader = await db_session.get(User, document.uploaded_by_user_id)
+    if doc_uploaded_by_user_id is not None:
+        uploader = await db_session.get(User, doc_uploaded_by_user_id)
 
     source_provider = None
     source_provider_label = None
@@ -1417,8 +1418,8 @@ async def get_document(
         effective_date=doc_effective_date,
         trusted_at=doc_trusted_at,
         stale_after_days=doc_stale_after_days,
-        uploaded_by_user_id=str(document.uploaded_by_user_id)
-        if document.uploaded_by_user_id is not None
+        uploaded_by_user_id=str(doc_uploaded_by_user_id)
+        if doc_uploaded_by_user_id is not None
         else None,
         uploaded_by_user_email=uploader.email if uploader is not None else None,
         uploaded_by_user_display_name=uploader.display_name if uploader is not None else None,
@@ -1434,8 +1435,8 @@ async def get_document(
         source_trust_status=source_trust_status,
         document_title=filename,
         document_type=file_type,
-        document_owner_id=str(document.uploaded_by_user_id)
-        if document.uploaded_by_user_id is not None
+        document_owner_id=str(doc_uploaded_by_user_id)
+        if doc_uploaded_by_user_id is not None
         else None,
         document_owner_email=uploader.email if uploader is not None else None,
         document_owner_display_name=uploader.display_name if uploader is not None else None,

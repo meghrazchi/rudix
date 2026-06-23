@@ -182,7 +182,7 @@ async def test_list_team_members_rejects_member_role(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "Insufficient role for requested operation"
+    assert response.json()["detail"] == "Insufficient permissions for requested operation"
 
 
 @pytest.mark.asyncio
@@ -273,4 +273,4 @@ async def test_update_and_remove_member_respect_conflict_rules(
         headers=_auth_headers(token=token, organization_id=str(primary_org.id)),
     )
     assert remove_owner_response.status_code == 409
-    assert remove_owner_response.json()["detail"] == "Owner cannot be removed"
+    assert remove_owner_response.json()["detail"] == "Cannot remove the last owner"

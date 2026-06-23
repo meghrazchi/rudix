@@ -26,7 +26,7 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -147,7 +147,7 @@ def _provider_event(
     if latency_ms is not None:
         metadata["latency_ms"] = latency_ms
     event = UsageEvent(
-        organization_id=org_id,
+        organization_id=UUID(org_id) if isinstance(org_id, str) else org_id,
         event_type="chat.completion",
         model_name="gpt-4o",
         input_tokens=10,
@@ -484,7 +484,7 @@ async def test_o_events_without_provider_key_excluded(
 
     # Legacy event without provider_key
     legacy = UsageEvent(
-        organization_id=org_id,
+        organization_id=UUID(org_id) if isinstance(org_id, str) else org_id,
         event_type="chat.completion",
         model_name="gpt-4o",
         input_tokens=10,

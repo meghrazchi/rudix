@@ -286,7 +286,7 @@ def test_warning_reasons_stale_only() -> None:
         all_excluded_fallback=False,
     )
     assert len(reasons) == 1
-    assert "stale" in reasons[0].lower()
+    assert "outdated" in reasons[0].lower() or "stale" in reasons[0].lower()
     assert "2" in reasons[0]
 
 

@@ -1068,7 +1068,7 @@ def test_retrieval_scope_all_with_no_doc_ids_enforces_org_boundary() -> None:
     results = service.retrieve_candidates(
         query_vector=[0.0] * settings.qdrant_vector_size,
         organization_id=org,
-        document_ids=[],  # scope_mode=all: no doc filter, org boundary still enforced
+        document_ids=None,  # scope_mode=all: no doc filter, org boundary still enforced
         initial_top_k=10,
     )
 

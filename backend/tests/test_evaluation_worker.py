@@ -97,9 +97,10 @@ class FakeLLMService:
         self,
         *,
         prompt: str,
-        openai_client: object,
+        openai_client: object | None = None,
+        **kwargs: object,
     ) -> object:
-        del prompt, openai_client
+        del prompt, openai_client, kwargs
         return type(
             "FakeLLMAnswerResult",
             (),

@@ -95,7 +95,7 @@ class OrgModelProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     change_log = relationship(
         "OrgModelProfileChangeLog",
         back_populates="profile",
-        cascade="all, delete-orphan",
+        cascade="save-update, merge",
         order_by="OrgModelProfileChangeLog.version_number.desc()",
     )
 

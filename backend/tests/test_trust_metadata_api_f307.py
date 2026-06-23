@@ -59,6 +59,7 @@ from app.domains.chat.schemas.trust_metadata import (
     ClaimSupportRecord,
     ConfidenceTrustRecord,
     ConflictStatusRecord,
+    EvidenceQualityRecord,
     GroundedVerificationRecord,
     ModelMetadataRecord,
     PolicyEnforcementRecord,
@@ -293,6 +294,7 @@ def test_answer_trust_metadata_schema_version_is_one() -> None:
         conflict=ConflictStatusRecord(),
         policy=PolicyEnforcementRecord(),
         freshness=SourceFreshnessRecord(),
+        evidence_quality=EvidenceQualityRecord(),
         generated_at=datetime.now(UTC),
     )
     assert meta.schema_version == "1"
@@ -359,6 +361,7 @@ def test_answer_trust_metadata_round_trips_json() -> None:
         conflict=ConflictStatusRecord(detected=True, conflict_count=1),
         policy=PolicyEnforcementRecord(applied=True, outcome="warned"),
         freshness=SourceFreshnessRecord(warning=True, stale_count=2),
+        evidence_quality=EvidenceQualityRecord(),
         generated_at=datetime.now(UTC),
     )
     dumped = meta.model_dump(mode="json")

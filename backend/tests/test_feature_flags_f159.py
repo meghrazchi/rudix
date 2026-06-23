@@ -485,8 +485,8 @@ async def test_require_feature_blocks_request_when_flag_disabled(
 
     @test_router.get("/test-require-feature-evaluations")
     async def _guarded(
-        _flag: Annotated[None, Depends(require_feature("evaluations"))],
         principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+        _flag: None = Depends(require_feature("evaluations")),
     ) -> dict:
         return {"ok": True}
 

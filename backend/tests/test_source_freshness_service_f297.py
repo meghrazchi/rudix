@@ -28,6 +28,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.domains.chat.services.source_freshness_service import (
     EXCLUDED_BY_DEFAULT,
+    PREFERRED_SOURCE_BUMP,
     TRUST_SCORE_MULTIPLIERS,
     DocumentTrustData,
     SourceFreshnessService,
@@ -339,7 +340,7 @@ def test_multiplier_verified_boosts() -> None:
         trust_map=trust_map,
         today=_TODAY,
     )
-    assert adjusted == pytest.approx(0.8 * TRUST_SCORE_MULTIPLIERS["verified"])
+    assert adjusted == pytest.approx(0.8 * TRUST_SCORE_MULTIPLIERS["verified"] + PREFERRED_SOURCE_BUMP)
 
 
 def test_multiplier_current_unchanged() -> None:

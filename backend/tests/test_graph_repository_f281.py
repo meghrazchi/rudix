@@ -116,8 +116,8 @@ from app.domains.graph.repositories.relation_repository import RelationRepositor
 from app.domains.graph.services.graph_service import GraphService
 from app.main import app
 
-_ORG = "org-test-f281"
-_WS = "ws-test-f281"
+_ORG = "00000000-0000-0000-0000-000000f281f1"
+_WS = "00000000-0000-0000-0000-000000f281f2"
 _DB = "neo4j"
 
 
@@ -153,7 +153,7 @@ def _mock_driver(records: list[dict] | None = None) -> MagicMock:
 def _principal_override(role: str = "owner"):
     async def _dep() -> AuthenticatedPrincipal:
         return AuthenticatedPrincipal(
-            user_id="test-user",
+            user_id="00000000-0000-0000-0000-000000f281a1",
             organization_id=_ORG,
             roles=[role],
             auth_provider="app",

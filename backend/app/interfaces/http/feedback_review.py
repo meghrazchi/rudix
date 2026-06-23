@@ -154,6 +154,28 @@ async def export_feedback_review_csv(
     )
 
 
+@router.get("/metrics", response_model=FeedbackMetricsResponse)
+async def get_feedback_metrics(
+    days: int = Query(default=30, ge=1, le=365),
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+) -> FeedbackMetricsResponse:
+    _user_id, org_id = _require_admin(principal)
+    data = await _review_repository.get_feedback_metrics(db, organization_id=org_id, days=days)
+    return FeedbackMetricsResponse(
+        period_days=data["period_days"],
+        total_feedback=data["total_feedback"],
+        categories=[
+            FeedbackCategoryMetric(
+                category=c["category"],
+                count=c["count"],
+                avg_confidence_score=c["avg_confidence_score"],
+            )
+            for c in data["categories"]
+        ],
+    )
+
+
 @router.get("/{review_id}", response_model=FeedbackReviewItemResponse)
 async def get_feedback_review_item(
     review_id: str,
@@ -473,28 +495,6 @@ async def convert_review_item_to_eval_case(
         evaluation_question_id=eval_question_id,
         question=question_text,
         already_existed=already_existed,
-    )
-
-
-@router.get("/metrics", response_model=FeedbackMetricsResponse)
-async def get_feedback_metrics(
-    days: int = Query(default=30, ge=1, le=365),
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
-) -> FeedbackMetricsResponse:
-    _user_id, org_id = _require_admin(principal)
-    data = await _review_repository.get_feedback_metrics(db, organization_id=org_id, days=days)
-    return FeedbackMetricsResponse(
-        period_days=data["period_days"],
-        total_feedback=data["total_feedback"],
-        categories=[
-            FeedbackCategoryMetric(
-                category=c["category"],
-                count=c["count"],
-                avg_confidence_score=c["avg_confidence_score"],
-            )
-            for c in data["categories"]
-        ],
     )
 
 

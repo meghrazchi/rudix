@@ -327,6 +327,7 @@ class QueryAnalyticsService:
         if description is not None:
             gap.description = description
         await session.flush()
+        await session.refresh(gap)
         return _gap_to_response(gap)
 
     async def convert_gap(

@@ -230,6 +230,7 @@ async def delete_profile(
         changed_by_id=deleted_by_id,
     )
     db.add(log_entry)
+    await db.flush()
     await db.delete(profile)
     return True
 

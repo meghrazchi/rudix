@@ -178,7 +178,7 @@ async def test_dashboard_returns_totals_for_admin(dash_client, admin_ctx, db_ses
     resp = await dash_client.get(
         "/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
-        params={"from": "2020-01-01", "to": "2099-12-31"},
+        params={"from": "2026-01-01", "to": "2026-12-31"},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -221,7 +221,7 @@ async def test_dashboard_empty_org_returns_zeros(dash_client, admin_ctx, db_sess
     resp = await dash_client.get(
         "/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
-        params={"from": "2020-01-01", "to": "2099-12-31"},
+        params={"from": "2026-01-01", "to": "2026-12-31"},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -276,7 +276,7 @@ async def test_dashboard_model_filter(dash_client, admin_ctx, db_session):
     resp = await dash_client.get(
         "/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
-        params={"from": "2020-01-01", "to": "2099-12-31", "model": "claude-3-sonnet"},
+        params={"from": "2026-01-01", "to": "2026-12-31", "model": "claude-3-sonnet"},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -303,7 +303,7 @@ async def test_dashboard_feature_area_filter(dash_client, admin_ctx, db_session)
     resp = await dash_client.get(
         "/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
-        params={"from": "2020-01-01", "to": "2099-12-31", "feature_area": "agent"},
+        params={"from": "2026-01-01", "to": "2026-12-31", "feature_area": "agent"},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -336,7 +336,7 @@ async def test_dashboard_top_users_populated_and_sorted(dash_client, admin_ctx, 
     resp = await dash_client.get(
         "/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
-        params={"from": "2020-01-01", "to": "2099-12-31"},
+        params={"from": "2026-01-01", "to": "2026-12-31"},
     )
     assert resp.status_code == 200
     top_users = resp.json()["top_users"]
@@ -359,7 +359,7 @@ async def test_dashboard_top_models_populated_and_sorted(dash_client, admin_ctx,
     resp = await dash_client.get(
         "/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
-        params={"from": "2020-01-01", "to": "2099-12-31"},
+        params={"from": "2026-01-01", "to": "2026-12-31"},
     )
     assert resp.status_code == 200
     top_models = resp.json()["top_models"]
@@ -378,7 +378,7 @@ async def test_dashboard_is_cost_estimate_always_true(dash_client, admin_ctx, db
     resp = await dash_client.get(
         "/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
-        params={"from": "2020-01-01", "to": "2099-12-31"},
+        params={"from": "2026-01-01", "to": "2026-12-31"},
     )
     assert resp.status_code == 200
     assert resp.json()["is_cost_estimate"] is True
@@ -400,7 +400,7 @@ async def test_export_csv_for_admin(dash_client, admin_ctx, db_session):
     resp = await dash_client.get(
         "/admin/usage/export",
         headers=_auth(ctx["token"]),
-        params={"format": "csv", "from": "2020-01-01", "to": "2099-12-31"},
+        params={"format": "csv", "from": "2026-01-01", "to": "2026-12-31"},
     )
     assert resp.status_code == 200
     assert "text/csv" in resp.headers.get("content-type", "")
@@ -426,7 +426,7 @@ async def test_export_json_for_admin(dash_client, admin_ctx, db_session):
     resp = await dash_client.get(
         "/admin/usage/export",
         headers=_auth(ctx["token"]),
-        params={"format": "json", "from": "2020-01-01", "to": "2099-12-31"},
+        params={"format": "json", "from": "2026-01-01", "to": "2026-12-31"},
     )
     assert resp.status_code == 200
     data = resp.json()

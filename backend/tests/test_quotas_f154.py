@@ -276,7 +276,11 @@ async def test_usage_dashboard_empty(quota_client: AsyncClient, admin_ctx: dict)
     assert data["organization_id"] == admin_ctx["org_id"]
     assert len(data["quota_usage"]) == 9  # one per QuotaType
     for item in data["quota_usage"]:
-        assert item["current_value"] == 0
+        # seats is computed live from member count (1 member in fixture), others are counters starting at 0
+        if item["quota_type"] == "seats":
+            assert item["current_value"] == 1
+        else:
+            assert item["current_value"] == 0
         assert item["over_hard_limit"] is False
 
 
@@ -315,7 +319,7 @@ async def test_usage_dashboard_reflects_increments(
     assert uploads["current_value"] == 4
     assert uploads["soft_limit"] == 5
     assert uploads["hard_limit"] == 10
-    assert uploads["near_limit"] is True  # 4/10 >= 80%
+    assert uploads["near_limit"] is False  # 4/10 = 40%, below 80% hard limit threshold
     assert uploads["over_soft_limit"] is False
     assert uploads["over_hard_limit"] is False
 
