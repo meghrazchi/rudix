@@ -40,6 +40,7 @@ export type AnalyticsEventName =
   | "feature.chat.question_submitted"
   | "feature.chat.answer_rendered"
   | "feature.chat.citation_opened"
+  | "feature.chat.retrieval_diagnostics_viewed"
   | "feature.evaluations.viewed"
   | "feature.settings.viewed"
   | "feature.connectors.viewed"

@@ -243,8 +243,19 @@ class ChatCitationResponse(BaseModel):
 
 class ChatDebugResponse(BaseModel):
     latencies_ms: dict[str, int]
+    request_id: str | None = None
+    trace_request_id: str | None = None
+    retrieval_candidate_count: int = 0
     retrieval_count: int
     selected_count: int
+    top_k: int = 0
+    search_mode: str | None = None
+    source_scope_mode: str | None = None
+    source_scope_label: str | None = None
+    retrieval_profile_name: str | None = None
+    retrieval_profile_scope: str | None = None
+    retrieval_profile_source: str | None = None
+    retrieval_filters: list[str] = Field(default_factory=list)
     rerank_applied: bool
     rerank_enabled: bool = False
     rerank_provider: str | None = None
@@ -252,6 +263,8 @@ class ChatDebugResponse(BaseModel):
     rerank_fallback_used: bool = False
     rerank_fallback_reason: str | None = None
     rerank_input_count: int = 0
+    rerank_score_min: float | None = None
+    rerank_score_max: float | None = None
     rerank_batch_count: int = 0
     rerank_prompt_tokens: int = 0
     rerank_completion_tokens: int = 0

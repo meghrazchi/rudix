@@ -76,7 +76,18 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
   doc_ocr_low_confidence_warning?: boolean;
 };
 export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
+  request_id?: string | null;
+  trace_request_id?: string | null;
+  retrieval_candidate_count?: number;
   source_scope?: string | null;
+  top_k?: number;
+  search_mode?: string | null;
+  source_scope_mode?: string | null;
+  source_scope_label?: string | null;
+  retrieval_profile_name?: string | null;
+  retrieval_profile_scope?: string | null;
+  retrieval_profile_source?: string | null;
+  retrieval_filters?: string[];
   llm_provider?: string | null;
   fallback_used?: boolean;
   fallback_from?: string | null;
@@ -89,6 +100,8 @@ export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
   rerank_fallback_used?: boolean;
   rerank_fallback_reason?: string | null;
   rerank_input_count?: number;
+  rerank_score_min?: number | null;
+  rerank_score_max?: number | null;
   // Hybrid retrieval (F293)
   hybrid_retrieval_enabled?: boolean;
   hybrid_vector_hit_count?: number;

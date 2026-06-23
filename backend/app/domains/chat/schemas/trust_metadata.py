@@ -113,11 +113,26 @@ class ConfidenceTrustRecord(BaseModel):
 class RetrievalDiagnosticsRecord(BaseModel):
     """Safe subset of pipeline retrieval diagnostics."""
 
+    retrieval_candidate_count: int = 0
     retrieval_count: int = 0
     selected_count: int = 0
+    top_k: int = 0
+    search_mode: str | None = None
+    source_scope_mode: str | None = None
+    source_scope_label: str | None = None
+    retrieval_profile_name: str | None = None
+    retrieval_profile_scope: str | None = None
+    retrieval_profile_source: str | None = None
+    retrieval_filters: list[str] = Field(default_factory=list)
     rerank_applied: bool = False
     rerank_provider: str | None = None
     rerank_model: str | None = None
+    rerank_score_min: float | None = None
+    rerank_score_max: float | None = None
+    rerank_fallback_used: bool = False
+    rerank_fallback_reason: str | None = None
+    request_id: str | None = None
+    trace_request_id: str | None = None
     hybrid_retrieval_enabled: bool = False
     hybrid_vector_hit_count: int = 0
     hybrid_keyword_hit_count: int = 0

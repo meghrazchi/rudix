@@ -1101,6 +1101,10 @@ async def test_websocket_chat_completes_when_rerank_provider_returns_invalid_jso
     events = [json.loads(text) for text in websocket.sent_texts]
 
     assert events[-1]["event"] == "chat.completed", events
+    response = events[-1]["payload"]["response"]
+    assert response["trust_metadata"]["retrieval"]["retrieval_candidate_count"] >= 1
+    assert response["trust_metadata"]["retrieval"]["request_id"] == "ws-test-1"
+    assert response["trust_metadata"]["retrieval"]["trace_request_id"] == "ws-test-1"
 
 
 @pytest.mark.asyncio

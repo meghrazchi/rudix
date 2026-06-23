@@ -526,6 +526,11 @@ async def test_query_chat_response_includes_trust_metadata(
         "What is the leave policy?",
         "Who qualifies for leave?",
     ]
+    assert tm["retrieval"]["retrieval_candidate_count"] >= tm["retrieval"]["selected_count"]
+    assert tm["retrieval"]["top_k"] >= 1
+    assert isinstance(tm["retrieval"]["retrieval_filters"], list)
+    assert tm["retrieval"]["request_id"]
+    assert tm["retrieval"]["trace_request_id"] == tm["retrieval"]["request_id"]
     assert isinstance(tm["grounded_verification"]["applied"], bool)
     assert "llm_model" in tm["model"]
     assert "prompt_template_version_id" not in tm["model"]
@@ -603,6 +608,8 @@ async def test_query_chat_trust_metadata_persisted_in_db(
     assert assistant_msg.trust_metadata_json is not None
     assert assistant_msg.trust_metadata_json["schema_version"] == "1"
     assert assistant_msg.trust_metadata_json["message_id"] == message_id
+    assert assistant_msg.trust_metadata_json["retrieval"]["retrieval_candidate_count"] >= 1
+    assert assistant_msg.trust_metadata_json["retrieval"]["request_id"]
     assert (
         assistant_msg.trust_metadata_json["query_interpretation"]["rewrite_preview_enabled"]
         is False

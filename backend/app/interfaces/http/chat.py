@@ -168,7 +168,10 @@ from app.domains.chat.services.source_freshness_service import (
     DocumentTrustData,
     SourceFreshnessService,
 )
-from app.domains.chat.services.source_scope_service import SourceScopeService
+from app.domains.chat.services.source_scope_service import (
+    ResolvedSourceScope,
+    SourceScopeService,
+)
 from app.domains.chat.services.table_retrieval_service import (
     TableBoostResult,
     TableRetrievalService,
@@ -1356,6 +1359,172 @@ def _build_query_interpretation_record(
     )
 
 
+def _build_search_mode(
+    *,
+    hybrid_retrieval_enabled: bool,
+    graph_context_result: GraphRetrievalResult,
+) -> str:
+    if graph_context_result.graph_context_used and hybrid_retrieval_enabled:
+        return "hybrid+graph"
+    if graph_context_result.graph_context_used:
+        return "graph"
+    if hybrid_retrieval_enabled:
+        return "hybrid"
+    return "vector"
+
+
+def _build_retrieval_profile_scope(
+    *,
+    payload: ChatQueryRequest,
+    source_scope_result: ResolvedSourceScope,
+    graph_context_result: GraphRetrievalResult,
+    document_ids: list[UUID] | None,
+) -> str:
+    if payload.scope_mode == "none":
+        return "none"
+    if graph_context_result.graph_context_used:
+        return "graph"
+    if payload.source_scope is not None:
+        if payload.source_scope.mode == "collections":
+            return "selected collection"
+        if payload.source_scope.mode in {"connector_sources", "connector_items"}:
+            return "connector"
+        if payload.source_scope.mode == "uploaded":
+            return "document"
+        if payload.source_scope.mode == "all" and (
+            payload.source_scope.collection_ids
+            or payload.source_scope.provider_keys
+            or payload.source_scope.connection_ids
+            or payload.source_scope.provider_source_ids
+            or payload.source_scope.external_source_ids
+            or payload.source_scope.external_item_ids
+        ):
+            return "document"
+    if document_ids:
+        return "document"
+    if source_scope_result.label == "All sources":
+        return "all documents"
+    return "all documents"
+
+
+def _build_retrieval_filters(
+    *,
+    payload: ChatQueryRequest,
+    source_scope_result: ResolvedSourceScope,
+    document_ids: list[UUID] | None,
+    graph_context_result: GraphRetrievalResult,
+) -> list[str]:
+    filters: list[str] = []
+    if payload.scope_mode is not None:
+        filters.append(f"scope_mode={payload.scope_mode}")
+    if document_ids:
+        filters.append(f"documents={len(document_ids)}")
+    if payload.source_scope is not None:
+        scope = payload.source_scope
+        if scope.mode != "all":
+            filters.append(f"source_scope={scope.mode}")
+        if scope.collection_ids:
+            filters.append(f"collections={len(scope.collection_ids)}")
+        if scope.provider_keys:
+            filters.append(f"providers={len(scope.provider_keys)}")
+        if scope.connection_ids:
+            filters.append(f"connections={len(scope.connection_ids)}")
+        if scope.provider_source_ids:
+            filters.append(f"provider_sources={len(scope.provider_source_ids)}")
+        if scope.external_source_ids:
+            filters.append(f"external_sources={len(scope.external_source_ids)}")
+        if scope.external_item_ids:
+            filters.append(f"external_items={len(scope.external_item_ids)}")
+        if scope.document_types:
+            filters.append(f"document_types={', '.join(scope.document_types[:3])}")
+        if scope.sync_statuses:
+            filters.append(f"sync_statuses={', '.join(scope.sync_statuses[:3])}")
+    if graph_context_result.graph_context_used:
+        filters.append("graph=enabled")
+    if source_scope_result.label:
+        filters.append(f"scope={source_scope_result.label}")
+    # Keep the list short and readable in the trust panel.
+    return filters[:8]
+
+
+def _build_rerank_score_range(chunks: list[RetrievedChunk]) -> tuple[float | None, float | None]:
+    scores = [
+        score
+        for score in (chunk.rerank_score for chunk in chunks)
+        if isinstance(score, (int, float))
+    ]
+    if not scores:
+        return None, None
+    return min(scores), max(scores)
+
+
+def _build_retrieval_diagnostics_payload(
+    *,
+    request_id: str | None,
+    rag_profile: object | None,
+    rag_profile_source: str,
+    payload: ChatQueryRequest,
+    source_scope_result: ResolvedSourceScope,
+    retrieved_chunks: list[RetrievedChunk],
+    selected_chunks: list[RetrievedChunk],
+    rerank_applied: bool,
+    rerank_diagnostics: object | None,
+    hybrid_retrieval_enabled: bool,
+    hybrid_vector_hit_count: int,
+    hybrid_keyword_hit_count: int,
+    query_rewrite_result: object | None,
+    graph_context_result: GraphRetrievalResult,
+    document_ids: list[UUID] | None,
+    final_top_k: int,
+) -> dict[str, object]:
+    profile_name = getattr(rag_profile, "name", None) if rag_profile is not None else None
+    search_mode = _build_search_mode(
+        hybrid_retrieval_enabled=hybrid_retrieval_enabled,
+        graph_context_result=graph_context_result,
+    )
+    retrieval_profile_scope = _build_retrieval_profile_scope(
+        payload=payload,
+        source_scope_result=source_scope_result,
+        graph_context_result=graph_context_result,
+        document_ids=document_ids,
+    )
+    retrieval_filters = _build_retrieval_filters(
+        payload=payload,
+        source_scope_result=source_scope_result,
+        document_ids=document_ids,
+        graph_context_result=graph_context_result,
+    )
+    rerank_score_min, rerank_score_max = _build_rerank_score_range(retrieved_chunks)
+    rerank_fallback_used = bool(getattr(rerank_diagnostics, "fallback_used", False))
+    rerank_fallback_reason = getattr(rerank_diagnostics, "fallback_reason", None)
+    return {
+        "retrieval_candidate_count": len(retrieved_chunks),
+        "retrieval_count": len(retrieved_chunks),
+        "selected_count": len(selected_chunks),
+        "top_k": final_top_k,
+        "search_mode": search_mode,
+        "source_scope_mode": payload.source_scope.mode if payload.source_scope is not None else payload.scope_mode,
+        "source_scope_label": source_scope_result.label,
+        "retrieval_profile_name": profile_name,
+        "retrieval_profile_scope": retrieval_profile_scope,
+        "retrieval_profile_source": rag_profile_source,
+        "retrieval_filters": retrieval_filters,
+        "rerank_applied": rerank_applied,
+        "rerank_provider": getattr(rerank_diagnostics, "provider_key", None)
+        if rerank_diagnostics is not None
+        else None,
+        "rerank_model": getattr(rerank_diagnostics, "model_name", None)
+        if rerank_diagnostics is not None
+        else None,
+        "rerank_score_min": rerank_score_min,
+        "rerank_score_max": rerank_score_max,
+        "rerank_fallback_used": rerank_fallback_used,
+        "rerank_fallback_reason": rerank_fallback_reason,
+        "request_id": request_id,
+        "trace_request_id": request_id,
+    }
+
+
 async def _augment_retrieval_with_graph_context(
     db_session: AsyncSession,
     *,
@@ -1399,6 +1568,7 @@ def _build_trust_metadata(
     confidence_category: str,
     confidence_explanation: object,
     citations: list[ChatCitationResponse],
+    retrieval_diagnostics_payload: dict[str, object],
     retrieved_chunks: list,
     selected_chunks: list,
     rerank_applied: bool,
@@ -1542,11 +1712,7 @@ def _build_trust_metadata(
         ),
         citations=citation_records,
         retrieval=RetrievalDiagnosticsRecord(
-            retrieval_count=len(retrieved_chunks),
-            selected_count=len(selected_chunks),
-            rerank_applied=rerank_applied,
-            rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
-            rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
+            **retrieval_diagnostics_payload,
             hybrid_retrieval_enabled=settings.feature_enable_hybrid_retrieval,
             hybrid_vector_hit_count=hybrid_vector_hit_count,
             hybrid_keyword_hit_count=hybrid_keyword_hit_count,
@@ -2026,7 +2192,6 @@ async def query_chat(
         explicit_document_ids=explicit_document_ids,
     )
     document_ids = source_scope_result.document_ids
-
     # Policy-engine authorization filter on the resolved document scope.
     # Admins bypass via rule 5; non-admins have each document checked.
     if document_ids and not frozenset({"owner", "admin"}).intersection(user_roles):
@@ -2161,7 +2326,7 @@ async def query_chat(
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
     embedding_model = _query_retrieval_service.embedding_model
-    rag_profile, _ = await resolve_profile_for_context(
+    rag_profile, rag_profile_source = await resolve_profile_for_context(
         db_session,
         organization_id=organization_id,
         collection_id=None,
@@ -2226,6 +2391,7 @@ async def query_chat(
     conflict_detection_applied = False
     conflict_detection_latency_ms = 0
     rerank_applied = False
+    final_top_k = payload.top_k or settings.retrieval_final_top_k
     grounded_verification_enabled = False
     grounded_verification_mode: str | None = None
     grounded_verification_threshold: float | None = None
@@ -3142,6 +3308,24 @@ async def query_chat(
 
     answer_latency_ms = int((perf_counter() - total_started) * 1000)
     rerank_diagnostics = rerank_result.diagnostics if rerank_result is not None else None
+    retrieval_diagnostics_payload = _build_retrieval_diagnostics_payload(
+        request_id=request_id,
+        rag_profile=rag_profile,
+        rag_profile_source=rag_profile_source,
+        payload=payload,
+        source_scope_result=source_scope_result,
+        retrieved_chunks=retrieved_chunks,
+        selected_chunks=selected_chunks,
+        rerank_applied=rerank_applied,
+        rerank_diagnostics=rerank_diagnostics,
+        hybrid_retrieval_enabled=hybrid_retrieval_enabled,
+        hybrid_vector_hit_count=hybrid_vector_hit_count,
+        hybrid_keyword_hit_count=hybrid_keyword_hit_count,
+        query_rewrite_result=query_rewrite_result,
+        graph_context_result=graph_context_result,
+        document_ids=document_ids,
+        final_top_k=final_top_k,
+    )
 
     persist_started = perf_counter()
     try:
@@ -3182,6 +3366,7 @@ async def query_chat(
             confidence_category=confidence_category,
             confidence_explanation=confidence_explanation,
             citations=citations,
+            retrieval_diagnostics_payload=retrieval_diagnostics_payload,
             retrieved_chunks=retrieved_chunks,
             selected_chunks=selected_chunks,
             rerank_applied=rerank_applied,
@@ -3557,18 +3742,12 @@ async def query_chat(
         policy_disclaimer=_ai_policy_result.disclaimer_text
         if not _ai_policy_result.blocked
         else None,
+        trust_metadata=trust_metadata,
         debug=ChatDebugResponse(
             latencies_ms=latencies_ms,
-            retrieval_count=len(retrieved_chunks),
-            selected_count=len(selected_chunks),
-            rerank_applied=rerank_applied,
+            **retrieval_diagnostics_payload,
+            source_scope=source_scope_result.label,
             rerank_enabled=rerank_settings.enabled,
-            rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
-            rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
-            rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
-            rerank_fallback_reason=rerank_diagnostics.fallback_reason
-            if rerank_diagnostics
-            else None,
             rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
             rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
             rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
@@ -3579,7 +3758,6 @@ async def query_chat(
             rerank_cost_usd=_decimal_to_float_or_none(rerank_diagnostics.approximate_cost_usd)
             if rerank_diagnostics
             else None,
-            source_scope=source_scope_result.label,
             graph_context_enabled=graph_context_result.graph_context_enabled,
             graph_context_used=graph_context_result.graph_context_used,
             graph_context_unavailable=graph_context_result.graph_context_unavailable,
@@ -3710,7 +3888,6 @@ async def query_chat(
             parent_context_expanded_count=parent_context_expanded_count,
             parent_context_tokens_used=parent_context_tokens_used,
         ),
-        trust_metadata=trust_metadata,
         created_at=assistant_message.created_at,
     )
 
@@ -4694,6 +4871,31 @@ async def _run_ws_chat_pipeline(
                 objective="", question=query_request.question, document_query=None
             )
 
+            _ai_org_policy = await _ai_policy_repo.get_active(
+                db_session, organization_id=organization_id
+            )
+            _ai_collection_override = None
+            _ai_policy_collection_id: UUID | None = None
+            if _ai_org_policy is not None and query_request.source_scope is not None:
+                try:
+                    _ai_policy_collection_id = UUID(str(query_request.source_scope))
+                    _ai_collection_override = await _ai_policy_repo.get_collection_override(
+                        db_session,
+                        org_policy_id=_ai_org_policy.id,
+                        collection_id=_ai_policy_collection_id,
+                    )
+                except (ValueError, AttributeError):
+                    pass
+            _ai_effective_policy = _ai_policy_engine.resolve(
+                _ai_org_policy, _ai_collection_override
+            )
+            _ai_pre_result = _ai_policy_engine.evaluate_pre_generation(
+                query_request.question, _ai_effective_policy
+            )
+            _ai_policy_result: AiPolicyEvaluationResult = AiPolicyEvaluationResult()
+            if _ai_pre_result.blocked and not injection_check.blocked:
+                _ai_policy_result = _ai_pre_result
+
             # ── Language detection ────────────────────────────────────────────
             latencies_ms: dict[str, int] = {}
             total_started = perf_counter()
@@ -4714,10 +4916,24 @@ async def _run_ws_chat_pipeline(
             llm_latency_ms = 0
             answer = _NOT_FOUND_ANSWER
             citations: list[ChatCitationResponse] = []
-            not_found = injection_check.blocked
+            not_found = injection_check.blocked or _ai_pre_result.blocked
             citation_validation_failed = False
+            verification_failed = False
+            grounded_verifier_result: GroundedVerifierResult | None = None
             graph_context_result = GraphRetrievalResult()
             rerank_result: RerankResult | None = None
+            query_rewrite_result: QueryRewritingResult | None = None
+            query_rewrite_preview_enabled = settings.feature_enable_query_rewrite_preview
+            hybrid_retrieval_enabled = False
+            hybrid_vector_hit_count = 0
+            hybrid_keyword_hit_count = 0
+            freshness_excluded_count = 0
+            freshness_boosted_count = 0
+            freshness_stale_count = 0
+            freshness_unreviewed_count = 0
+            freshness_deprecated_count = 0
+            freshness_all_excluded_fallback = False
+            parent_context_expanded_count = 0
             conflict_detection_enabled = False
             conflict_detection_applied = False
             conflict_detection_latency_ms = 0
@@ -4725,11 +4941,12 @@ async def _run_ws_chat_pipeline(
                 conflict_detected=False,
                 agreement_level="full",
             )
+            final_top_k = query_request.top_k or settings.retrieval_final_top_k
 
             chat_profile = await resolve_task_profile(
                 db_session, organization_id=organization_id, task_type=TaskType.chat
             )
-            rag_profile, _ = await resolve_profile_for_context(
+            rag_profile, rag_profile_source = await resolve_profile_for_context(
                 db_session,
                 organization_id=organization_id,
                 collection_id=None,
@@ -5067,6 +5284,24 @@ async def _run_ws_chat_pipeline(
             answer_latency_ms = int((perf_counter() - total_started) * 1000)
             latencies_ms["total"] = answer_latency_ms
             rerank_diagnostics = rerank_result.diagnostics if rerank_result is not None else None
+            retrieval_diagnostics_payload = _build_retrieval_diagnostics_payload(
+                request_id=request_id,
+                rag_profile=rag_profile,
+                rag_profile_source=rag_profile_source,
+                payload=query_request,
+                source_scope_result=source_scope_result,
+                retrieved_chunks=retrieved_chunks,
+                selected_chunks=selected_chunks,
+                rerank_applied=rerank_applied,
+                rerank_diagnostics=rerank_diagnostics,
+                hybrid_retrieval_enabled=hybrid_retrieval_enabled,
+                hybrid_vector_hit_count=hybrid_vector_hit_count,
+                hybrid_keyword_hit_count=hybrid_keyword_hit_count,
+                query_rewrite_result=query_rewrite_result,
+                graph_context_result=graph_context_result,
+                document_ids=document_ids,
+                final_top_k=final_top_k,
+            )
 
             # ── Persistence ───────────────────────────────────────────────────
             try:
@@ -5200,6 +5435,49 @@ async def _run_ws_chat_pipeline(
                         "transport": "websocket",
                     },
                 )
+                trust_metadata = _build_trust_metadata(
+                    organization_id=organization_id,
+                    message_id=str(assistant_message.id),
+                    question=query_request.question,
+                    query_rewrite_preview_enabled=query_rewrite_preview_enabled,
+                    not_found=not_found,
+                    citation_validation_failed=citation_validation_failed,
+                    verification_failed=verification_failed,
+                    confidence_score=confidence_score,
+                    confidence_category=confidence_category,
+                    confidence_explanation=confidence_explanation,
+                    citations=citations,
+                    retrieval_diagnostics_payload=retrieval_diagnostics_payload,
+                    retrieved_chunks=retrieved_chunks,
+                    selected_chunks=selected_chunks,
+                    rerank_applied=rerank_applied,
+                    rerank_diagnostics=rerank_diagnostics,
+                    hybrid_vector_hit_count=hybrid_vector_hit_count,
+                    hybrid_keyword_hit_count=hybrid_keyword_hit_count,
+                    query_rewrite_result=query_rewrite_result,
+                    parent_context_expanded_count=parent_context_expanded_count,
+                    graph_context_result=graph_context_result,
+                    freshness_excluded_count=freshness_excluded_count,
+                    freshness_boosted_count=freshness_boosted_count,
+                    freshness_stale_count=freshness_stale_count,
+                    freshness_unreviewed_count=freshness_unreviewed_count,
+                    freshness_deprecated_count=freshness_deprecated_count,
+                    freshness_all_excluded_fallback=freshness_all_excluded_fallback,
+                    grounded_verifier_result=grounded_verifier_result,
+                    llm_model=llm_model,
+                    llm_provider=llm_provider,
+                    embedding_model=embedding_model,
+                    llm_fallback_used=llm_fallback_used,
+                    llm_fallback_from=llm_fallback_from,
+                    llm_fallback_to=llm_fallback_to,
+                    llm_fallback_reason=llm_fallback_reason,
+                    answer_prompt_version=answer_prompt_version,
+                    conflict_detection_result=conflict_detection_result,
+                    ai_policy_applied=_ai_effective_policy.source != "none",
+                    ai_policy_result=_ai_policy_result,
+                    generated_at=assistant_message.created_at,
+                )
+                assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
                 await db_session.commit()
             except Exception:
                 await db_session.rollback()
@@ -5350,18 +5628,9 @@ async def _run_ws_chat_pipeline(
                 ],
                 debug=ChatDebugResponse(
                     latencies_ms=latencies_ms,
-                    retrieval_count=len(retrieved_chunks),
-                    selected_count=len(selected_chunks),
-                    rerank_applied=rerank_applied,
+                    **retrieval_diagnostics_payload,
+                    source_scope=source_scope_result.label,
                     rerank_enabled=rerank_settings.enabled,
-                    rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
-                    rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
-                    rerank_fallback_used=rerank_diagnostics.fallback_used
-                    if rerank_diagnostics
-                    else False,
-                    rerank_fallback_reason=rerank_diagnostics.fallback_reason
-                    if rerank_diagnostics
-                    else None,
                     rerank_input_count=rerank_diagnostics.requested_count
                     if rerank_diagnostics
                     else 0,
@@ -5380,7 +5649,6 @@ async def _run_ws_chat_pipeline(
                     )
                     if rerank_diagnostics
                     else None,
-                    source_scope=source_scope_result.label,
                     graph_context_enabled=graph_context_result.graph_context_enabled,
                     graph_context_used=graph_context_result.graph_context_used,
                     graph_context_unavailable=graph_context_result.graph_context_unavailable,
@@ -5424,6 +5692,7 @@ async def _run_ws_chat_pipeline(
                     if answer_prompt_version is not None
                     else None,
                 ),
+                trust_metadata=trust_metadata,
                 created_at=assistant_message.created_at,
             )
             await send(

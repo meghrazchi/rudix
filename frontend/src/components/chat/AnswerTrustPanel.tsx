@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState, type ReactNode } from "react";
+
 import type {
   ChatCitationResponse,
   ChatConfidenceExplanationResponse,
@@ -12,6 +14,7 @@ import type {
   ConflictStatusRecord,
   QueryInterpretationRecord,
 } from "@/lib/api/trust_metadata";
+import { trackFeatureEvent } from "@/lib/analytics";
 import {
   agreementLevelClass,
   agreementLevelLabel,
@@ -266,6 +269,68 @@ function queryComplexityLabel(
   return complexity;
 }
 
+function joinParts(parts: Array<string | null | undefined>): string {
+  return parts.filter((part): part is string => Boolean(part)).join(" · ");
+}
+
+function formatRange(min: number | null | undefined, max: number | null | undefined): string {
+  if (typeof min !== "number" && typeof max !== "number") return "N/A";
+  if (typeof min === "number" && typeof max === "number") {
+    return `${score(min)} - ${score(max)}`;
+  }
+  if (typeof min === "number") return `from ${score(min)}`;
+  return `up to ${score(max)}`;
+}
+
+function buildRetrievalSummary(
+  retrieval: {
+    retrieval_candidate_count?: number;
+    retrieval_count: number;
+    selected_count: number;
+    top_k?: number;
+    search_mode?: string | null;
+    source_scope_label?: string | null;
+    retrieval_profile_name?: string | null;
+    retrieval_profile_scope?: string | null;
+    retrieval_profile_source?: string | null;
+    rerank_applied: boolean;
+    rerank_fallback_used?: boolean;
+    rerank_fallback_reason?: string | null;
+  },
+): string {
+  const candidateCount =
+    retrieval.retrieval_candidate_count ?? retrieval.retrieval_count;
+  const scope = retrieval.source_scope_label ?? retrieval.retrieval_profile_scope;
+  const profile = retrieval.retrieval_profile_name
+    ? `${retrieval.retrieval_profile_name}${
+        retrieval.retrieval_profile_source
+          ? ` (${retrieval.retrieval_profile_source})`
+          : ""
+      }`
+    : null;
+  const searchMode = retrieval.search_mode ?? "vector";
+  const topK =
+    typeof retrieval.top_k === "number" && retrieval.top_k > 0
+      ? `top-k ${retrieval.top_k}`
+      : null;
+  const rerank =
+    retrieval.rerank_applied && retrieval.rerank_fallback_used
+      ? `reranking fell back${retrieval.rerank_fallback_reason ? ` (${retrieval.rerank_fallback_reason})` : ""}`
+      : retrieval.rerank_applied
+        ? "reranking was applied"
+        : "reranking was off";
+
+  return joinParts([
+    scope ? `Scope: ${scope}` : "Scope: all documents",
+    profile ? `Profile: ${profile}` : null,
+    `${candidateCount} candidate${candidateCount === 1 ? "" : "s"} reviewed`,
+    `${retrieval.selected_count} chunk${retrieval.selected_count === 1 ? "" : "s"} selected`,
+    topK,
+    `Mode: ${searchMode}`,
+    rerank,
+  ]);
+}
+
 function SectionHeader({ icon, label }: { icon: string; label: string }) {
   return (
     <div className="flex items-center gap-1.5 border-b border-[#ece9f5] pb-1.5">
@@ -306,7 +371,7 @@ function StatRow({
   );
 }
 
-function WarningBanner({ children }: { children: React.ReactNode }) {
+function WarningBanner({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
       <span
@@ -388,17 +453,58 @@ export function AnswerTrustPanel({
   showInterpretationDetails = false,
   onOpenCitation,
 }: TrustPanelProps) {
+  const [diagnosticsMode, setDiagnosticsMode] = useState<"basic" | "expert">(
+    "basic",
+  );
   const barWidth = `${Math.round(confidenceScore * 100)}%`;
   const graphUsed = debug?.graph_context_used ?? false;
   const graphEnabled = debug?.graph_context_enabled ?? false;
   const groundedVerification = trustMetadata?.grounded_verification ?? null;
   const trustCitations = trustMetadata?.citations ?? citations;
+  const retrievalDiagnostics = trustMetadata?.retrieval ?? debug;
   const queryInterpretation = trustMetadata?.query_interpretation ?? null;
+  const retrievalSummary =
+    retrievalDiagnostics != null
+      ? buildRetrievalSummary({
+          retrieval_candidate_count:
+            retrievalDiagnostics.retrieval_candidate_count ??
+            retrievalDiagnostics.retrieval_count,
+          retrieval_count: retrievalDiagnostics.retrieval_count,
+          selected_count: retrievalDiagnostics.selected_count,
+          top_k: retrievalDiagnostics.top_k,
+          search_mode: retrievalDiagnostics.search_mode,
+          source_scope_label: retrievalDiagnostics.source_scope_label,
+          retrieval_profile_name: retrievalDiagnostics.retrieval_profile_name,
+          retrieval_profile_scope: retrievalDiagnostics.retrieval_profile_scope,
+          retrieval_profile_source: retrievalDiagnostics.retrieval_profile_source,
+          rerank_applied: retrievalDiagnostics.rerank_applied,
+          rerank_fallback_used: retrievalDiagnostics.rerank_fallback_used,
+          rerank_fallback_reason: retrievalDiagnostics.rerank_fallback_reason,
+        })
+      : null;
   const verificationApplied =
     groundedVerification?.applied ??
     debug?.grounded_verification_applied ??
     false;
   const claimSupportRecords = groundedVerification?.claims ?? [];
+
+  useEffect(() => {
+    setDiagnosticsMode("basic");
+  }, [messageId, showInterpretationDetails]);
+
+  useEffect(() => {
+    if (!retrievalSummary) return;
+    void trackFeatureEvent("feature.chat.retrieval_diagnostics_viewed", {
+      surface: "app",
+      route: "/chat",
+      pageKey: "chat",
+      featureArea: "chat",
+      entityId: messageId,
+      status: diagnosticsMode,
+      source: "trust_panel",
+      dedupeKey: `chat-retrieval-diagnostics-${messageId}-${diagnosticsMode}`,
+    });
+  }, [diagnosticsMode, messageId, retrievalSummary]);
 
   // Compute warnings list
   const warnings: string[] = [];
@@ -484,21 +590,17 @@ export function AnswerTrustPanel({
     );
   }
 
-  const showRetrievalSection =
-    debug &&
-    ((debug.retrieval_count ?? 0) > 0 ||
-      (debug.selected_count ?? 0) > 0 ||
-      debug.hybrid_retrieval_enabled);
-
   const showModelSection =
     debug && (debug.llm_model || debug.embedding_model || debug.llm_provider);
+  const canShowExpertDiagnostics =
+    Boolean(showInterpretationDetails) && diagnosticsMode === "expert";
 
   return (
     <div
       data-testid={`trust-panel-${messageId}`}
       className="mt-2 space-y-5 rounded-xl border border-[#d7d4e8] bg-[#faf9ff] p-4 text-[#2f2a46]"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
             className="material-symbols-outlined text-[16px] text-[#3525cd]"
@@ -511,6 +613,40 @@ export function AnswerTrustPanel({
             Answer Explanation
           </span>
         </div>
+        {showInterpretationDetails ? (
+          <div
+            className="inline-flex rounded-full border border-[#d7d4e8] bg-white p-0.5 text-[10px] font-semibold"
+            role="tablist"
+            aria-label="Retrieval diagnostics mode"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={diagnosticsMode === "basic"}
+              onClick={() => setDiagnosticsMode("basic")}
+              className={`rounded-full px-2.5 py-1 transition-colors ${
+                diagnosticsMode === "basic"
+                  ? "bg-[#3525cd] text-white"
+                  : "text-[#6a6780] hover:text-[#3525cd]"
+              }`}
+            >
+              Basic
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={diagnosticsMode === "expert"}
+              onClick={() => setDiagnosticsMode("expert")}
+              className={`rounded-full px-2.5 py-1 transition-colors ${
+                diagnosticsMode === "expert"
+                  ? "bg-[#3525cd] text-white"
+                  : "text-[#6a6780] hover:text-[#3525cd]"
+              }`}
+            >
+              Expert
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {/* Warnings */}
@@ -521,6 +657,49 @@ export function AnswerTrustPanel({
           ))}
         </div>
       )}
+
+      {retrievalSummary ? (
+        <div className="space-y-2 rounded-lg border border-[#e2dff1] bg-white px-3 py-2">
+          <p className="text-[10px] font-semibold tracking-widest text-[#6a6780] uppercase">
+            Source selection
+          </p>
+          <p className="text-[11px] leading-snug text-[#2f2a46]">
+            {retrievalSummary}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {retrievalDiagnostics?.request_id ? (
+              <span className="rounded-full border border-[#d7d4e8] bg-[#faf9ff] px-2 py-0.5 text-[10px] font-medium text-[#3525cd]">
+                Request {retrievalDiagnostics.request_id}
+              </span>
+            ) : null}
+            {retrievalDiagnostics?.trace_request_id &&
+            retrievalDiagnostics.trace_request_id !==
+              retrievalDiagnostics.request_id ? (
+              <span className="rounded-full border border-[#d7d4e8] bg-[#faf9ff] px-2 py-0.5 text-[10px] font-medium text-[#3525cd]">
+                Trace {retrievalDiagnostics.trace_request_id}
+              </span>
+            ) : null}
+            {retrievalDiagnostics?.search_mode ? (
+              <span className="rounded-full border border-[#d7d4e8] bg-[#faf9ff] px-2 py-0.5 text-[10px] font-medium text-[#3525cd]">
+                Mode {retrievalDiagnostics.search_mode}
+              </span>
+            ) : null}
+            {retrievalDiagnostics?.rerank_fallback_used ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                Rerank fallback
+              </span>
+            ) : retrievalDiagnostics?.rerank_applied ? (
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
+                Rerank on
+              </span>
+            ) : (
+              <span className="rounded-full border border-[#d7d4e8] bg-[#faf9ff] px-2 py-0.5 text-[10px] font-medium text-[#6a6780]">
+                Rerank off
+              </span>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {/* Confidence */}
       <div className="space-y-3">
@@ -883,84 +1062,137 @@ export function AnswerTrustPanel({
       )}
 
       {/* Retrieval Diagnostics */}
-      {showRetrievalSection && (
+      {canShowExpertDiagnostics && retrievalDiagnostics ? (
         <div className="space-y-2">
-          <SectionHeader icon="manage_search" label="Retrieval" />
+          <SectionHeader icon="manage_search" label="Retrieval Diagnostics" />
           <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
             <StatRow
-              label="Retrieved chunks"
-              value={debug!.retrieval_count ?? 0}
+              label="Candidates"
+              value={
+                retrievalDiagnostics.retrieval_candidate_count ??
+                retrievalDiagnostics.retrieval_count
+              }
             />
             <StatRow
               label="Selected chunks"
-              value={debug!.selected_count ?? 0}
+              value={retrievalDiagnostics.selected_count ?? 0}
             />
-            {debug!.hybrid_retrieval_enabled ? (
+            <StatRow label="Top-k" value={retrievalDiagnostics.top_k ?? null} />
+            <StatRow
+              label="Search mode"
+              value={retrievalDiagnostics.search_mode ?? retrievalDiagnostics.source_scope_mode}
+            />
+            <StatRow
+              label="Scope mode"
+              value={retrievalDiagnostics.source_scope_mode ?? null}
+            />
+            <StatRow
+              label="Scope label"
+              value={retrievalDiagnostics.source_scope_label ?? null}
+            />
+            <StatRow
+              label="Profile"
+              value={retrievalDiagnostics.retrieval_profile_name ?? null}
+            />
+            <StatRow
+              label="Profile scope"
+              value={retrievalDiagnostics.retrieval_profile_scope ?? null}
+            />
+            <StatRow
+              label="Profile source"
+              value={retrievalDiagnostics.retrieval_profile_source ?? null}
+            />
+            <StatRow
+              label="Request ID"
+              value={retrievalDiagnostics.request_id ?? null}
+            />
+            <StatRow
+              label="Trace ID"
+              value={retrievalDiagnostics.trace_request_id ?? null}
+            />
+            <StatRow
+              label="Rerank score range"
+              value={formatRange(
+                retrievalDiagnostics.rerank_score_min,
+                retrievalDiagnostics.rerank_score_max,
+              )}
+            />
+          </div>
+          {retrievalDiagnostics.retrieval_filters?.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {retrievalDiagnostics.retrieval_filters.map((filter) => (
+                <span
+                  key={filter}
+                  className="rounded-full border border-[#d7d4e8] bg-[#faf9ff] px-2 py-0.5 text-[10px] font-medium text-[#6a6780]"
+                >
+                  {filter}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+            {retrievalDiagnostics.hybrid_retrieval_enabled ? (
               <>
                 <StatRow
                   label="Vector hits"
-                  value={debug!.hybrid_vector_hit_count ?? 0}
+                  value={retrievalDiagnostics.hybrid_vector_hit_count ?? 0}
                 />
                 <StatRow
                   label="Keyword hits"
-                  value={debug!.hybrid_keyword_hit_count ?? 0}
+                  value={retrievalDiagnostics.hybrid_keyword_hit_count ?? 0}
                 />
               </>
             ) : null}
-            {debug!.rerank_applied ? (
+            {retrievalDiagnostics.rerank_applied ? (
               <>
                 <StatRow
                   label="Reranker"
                   value={
-                    debug!.rerank_model ?? debug!.rerank_provider ?? "Enabled"
+                    retrievalDiagnostics.rerank_model ??
+                    retrievalDiagnostics.rerank_provider ??
+                    "Enabled"
                   }
                 />
-                {debug!.rerank_input_count ? (
-                  <StatRow
-                    label="Rerank inputs"
-                    value={debug!.rerank_input_count}
-                  />
-                ) : null}
-                {debug!.rerank_fallback_used ? (
+                {retrievalDiagnostics.rerank_fallback_used ? (
                   <StatRow
                     label="Rerank fallback"
-                    value={debug!.rerank_fallback_reason ?? "Yes"}
+                    value={retrievalDiagnostics.rerank_fallback_reason ?? "Yes"}
                   />
                 ) : null}
               </>
             ) : null}
-            {debug!.parent_context_expansion_enabled ? (
+            {debug?.parent_context_expansion_enabled ? (
               <>
                 <StatRow
                   label="Parent expansion"
-                  value={`${debug!.parent_context_expanded_count ?? 0} chunks`}
+                  value={`${debug.parent_context_expanded_count ?? 0} chunks`}
                 />
-                {(debug!.parent_context_tokens_used ?? 0) > 0 ? (
+                {(debug.parent_context_tokens_used ?? 0) > 0 ? (
                   <StatRow
                     label="Parent tokens"
-                    value={debug!.parent_context_tokens_used}
+                    value={debug.parent_context_tokens_used}
                   />
                 ) : null}
               </>
             ) : null}
-            {debug!.freshness_filter_enabled ? (
+            {debug?.freshness_filter_enabled ? (
               <>
-                {(debug!.freshness_boosted_count ?? 0) > 0 ? (
+                {(debug.freshness_boosted_count ?? 0) > 0 ? (
                   <StatRow
                     label="Freshness boosted"
-                    value={debug!.freshness_boosted_count}
+                    value={debug.freshness_boosted_count}
                   />
                 ) : null}
-                {(debug!.freshness_excluded_count ?? 0) > 0 ? (
+                {(debug.freshness_excluded_count ?? 0) > 0 ? (
                   <StatRow
                     label="Excluded (deprecated/expired)"
-                    value={debug!.freshness_excluded_count}
+                    value={debug.freshness_excluded_count}
                   />
                 ) : null}
-                {(debug!.freshness_stale_count ?? 0) > 0 ? (
+                {(debug.freshness_stale_count ?? 0) > 0 ? (
                   <StatRow
                     label="Stale sources"
-                    value={debug!.freshness_stale_count}
+                    value={debug.freshness_stale_count}
                   />
                 ) : null}
                 {((debug as { freshness_unreviewed_count?: number })
@@ -989,16 +1221,16 @@ export function AnswerTrustPanel({
                 ) : null}
               </>
             ) : null}
-            {debug!.ocr_quality_downranking_enabled &&
-            (debug!.ocr_low_confidence_chunk_count ?? 0) > 0 ? (
+            {debug?.ocr_quality_downranking_enabled &&
+            (debug.ocr_low_confidence_chunk_count ?? 0) > 0 ? (
               <StatRow
                 label="OCR low-conf chunks"
-                value={debug!.ocr_low_confidence_chunk_count}
+                value={debug.ocr_low_confidence_chunk_count}
               />
             ) : null}
           </div>
         </div>
-      )}
+      ) : null}
 
       {showInterpretationDetails && queryInterpretation ? (
         <div className="space-y-2">

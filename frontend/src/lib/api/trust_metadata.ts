@@ -131,11 +131,26 @@ export type ClaimSupportRecord = {
 };
 
 export type RetrievalDiagnosticsRecord = {
+  retrieval_candidate_count?: number;
   retrieval_count: number;
   selected_count: number;
+  top_k?: number;
+  search_mode?: string | null;
+  source_scope_mode?: string | null;
+  source_scope_label?: string | null;
+  retrieval_profile_name?: string | null;
+  retrieval_profile_scope?: string | null;
+  retrieval_profile_source?: string | null;
+  retrieval_filters?: string[];
   rerank_applied: boolean;
   rerank_provider?: string | null;
   rerank_model?: string | null;
+  rerank_score_min?: number | null;
+  rerank_score_max?: number | null;
+  rerank_fallback_used?: boolean;
+  rerank_fallback_reason?: string | null;
+  request_id?: string | null;
+  trace_request_id?: string | null;
   hybrid_retrieval_enabled: boolean;
   hybrid_vector_hit_count: number;
   hybrid_keyword_hit_count: number;

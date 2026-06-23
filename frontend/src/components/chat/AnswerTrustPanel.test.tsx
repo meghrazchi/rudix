@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { AnswerTrustPanel } from "@/components/chat/AnswerTrustPanel";
+import { trackFeatureEvent } from "@/lib/analytics";
 import type {
   ChatCitationResponse,
   ChatConfidenceExplanationResponse,
@@ -13,6 +14,10 @@ import type {
   ConfidenceTrustRecord,
   QueryInterpretationRecord,
 } from "@/lib/api/trust_metadata";
+
+vi.mock("@/lib/analytics", () => ({
+  trackFeatureEvent: vi.fn().mockResolvedValue(undefined),
+}));
 
 const baseExplanation: ChatConfidenceExplanationResponse = {
   top_similarity: 0.921,
@@ -234,6 +239,10 @@ function renderPanel(
 }
 
 describe("AnswerTrustPanel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders the trust panel with testid", () => {
     renderPanel();
     expect(screen.getByTestId("trust-panel-msg-1")).toBeInTheDocument();
@@ -253,6 +262,87 @@ describe("AnswerTrustPanel", () => {
     renderPanel();
     expect(screen.getByTestId("trust-level-badge")).toBeInTheDocument();
     expect(screen.getByText("High")).toBeInTheDocument();
+  });
+
+  it("renders a readable source-selection summary in basic mode", () => {
+    renderPanel({
+      trustMetadata: {
+        ...baseTrustMetadata,
+        retrieval: {
+          ...baseTrustMetadata.retrieval,
+          retrieval_candidate_count: 8,
+          retrieval_count: 8,
+          selected_count: 4,
+          top_k: 4,
+          search_mode: "hybrid",
+          source_scope_mode: "collections",
+          source_scope_label: "Selected collection · Finance",
+          retrieval_profile_name: "Finance QA",
+          retrieval_profile_scope: "selected collection",
+          retrieval_profile_source: "org_default",
+          retrieval_filters: ["scope_mode=collections", "collections=1"],
+          rerank_applied: true,
+          rerank_provider: "openai",
+          rerank_model: "cohere-rerank-v3",
+          rerank_score_min: 0.71,
+          rerank_score_max: 0.93,
+          rerank_fallback_used: false,
+          rerank_fallback_reason: null,
+          hybrid_retrieval_enabled: false,
+          hybrid_vector_hit_count: 0,
+          hybrid_keyword_hit_count: 0,
+          query_rewriting_applied: false,
+          query_decomposed: false,
+          sub_query_count: 0,
+          parent_context_expanded_count: 0,
+          graph_context_used: false,
+          graph_context_unavailable: false,
+          graph_chunk_count: 0,
+          freshness_excluded_count: 0,
+          freshness_boosted_count: 0,
+          request_id: "req-123",
+          trace_request_id: "trace-123",
+        },
+      } satisfies AnswerTrustMetadataResponse,
+    });
+
+    expect(screen.getByText("Source selection")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Scope: Selected collection · Finance/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/4 chunks selected/)).toBeInTheDocument();
+    expect(screen.getByText(/Request req-123/)).toBeInTheDocument();
+  });
+
+  it("reveals expert retrieval diagnostics when allowed", () => {
+    renderPanel({ showInterpretationDetails: true });
+
+    expect(
+      screen.queryByText(/retrieval diagnostics/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Expert" }));
+
+    expect(
+      screen.getByText(/retrieval diagnostics/i),
+    ).toBeInTheDocument();
+  });
+
+  it("tracks retrieval diagnostics usage for telemetry", async () => {
+    renderPanel();
+
+    await waitFor(() => {
+      expect(trackFeatureEvent).toHaveBeenCalledWith(
+        "feature.chat.retrieval_diagnostics_viewed",
+        expect.objectContaining({
+          featureArea: "chat",
+          pageKey: "chat",
+          route: "/chat",
+          source: "trust_panel",
+          status: "basic",
+        }),
+      );
+    });
   });
 
   it("shows claim support summary and mapped citations", () => {
@@ -357,17 +447,25 @@ describe("AnswerTrustPanel", () => {
     );
   });
 
-  it("renders the Retrieval section with chunk counts", () => {
-    renderPanel();
-    expect(screen.getByText("Retrieval")).toBeInTheDocument();
-    expect(screen.getByText("Retrieved chunks")).toBeInTheDocument();
+  it("shows expert retrieval diagnostics after switching modes", () => {
+    renderPanel({
+      showInterpretationDetails: true,
+      trustMetadata: {
+        ...baseTrustMetadata,
+        retrieval: {
+          ...baseTrustMetadata.retrieval,
+          rerank_model: "cohere-rerank-v3",
+          rerank_provider: "openai",
+        },
+      } satisfies AnswerTrustMetadataResponse,
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Expert" }));
+    expect(screen.getByText("Retrieval Diagnostics")).toBeInTheDocument();
+    expect(screen.getByText("Candidates")).toBeInTheDocument();
     expect(screen.getByText("8")).toBeInTheDocument();
     expect(screen.getByText("Selected chunks")).toBeInTheDocument();
     expect(screen.getByText("4")).toBeInTheDocument();
-  });
-
-  it("shows reranker model in Retrieval section", () => {
-    renderPanel();
+    expect(screen.getByText("Reranker")).toBeInTheDocument();
     expect(screen.getByText("cohere-rerank-v3")).toBeInTheDocument();
   });
 
@@ -378,7 +476,20 @@ describe("AnswerTrustPanel", () => {
       hybrid_vector_hit_count: 5,
       hybrid_keyword_hit_count: 3,
     };
-    renderPanel({ debug });
+    renderPanel({
+      debug,
+      showInterpretationDetails: true,
+      trustMetadata: {
+        ...baseTrustMetadata,
+        retrieval: {
+          ...baseTrustMetadata.retrieval,
+          hybrid_retrieval_enabled: true,
+          hybrid_vector_hit_count: 5,
+          hybrid_keyword_hit_count: 3,
+        },
+      } satisfies AnswerTrustMetadataResponse,
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Expert" }));
     expect(screen.getByText("Vector hits")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
     expect(screen.getByText("Keyword hits")).toBeInTheDocument();
@@ -567,7 +678,19 @@ describe("AnswerTrustPanel", () => {
       parent_context_expanded_count: 3,
       parent_context_tokens_used: 1240,
     };
-    renderPanel({ debug });
+    renderPanel({
+      debug,
+      showInterpretationDetails: true,
+      trustMetadata: {
+        ...baseTrustMetadata,
+        retrieval: {
+          ...baseTrustMetadata.retrieval,
+          rerank_model: "cohere-rerank-v3",
+          rerank_provider: "openai",
+        },
+      } satisfies AnswerTrustMetadataResponse,
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Expert" }));
     expect(screen.getByText("Parent expansion")).toBeInTheDocument();
     expect(screen.getByText("3 chunks")).toBeInTheDocument();
     expect(screen.getByText("Parent tokens")).toBeInTheDocument();
