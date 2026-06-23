@@ -500,8 +500,9 @@ def _member_token() -> str:
 
 @pytest.mark.asyncio
 async def test_langfuse_status_member_gets_403() -> None:
-    from app.db.session import engine as _app_engine
     from httpx import ASGITransport, AsyncClient
+
+    from app.db.session import engine as _app_engine
 
     await _app_engine.dispose()
 
@@ -524,8 +525,9 @@ async def test_langfuse_status_member_gets_403() -> None:
 
 @pytest.mark.asyncio
 async def test_langfuse_status_admin_sees_status() -> None:
-    from app.db.session import engine as _app_engine
     from httpx import ASGITransport, AsyncClient
+
+    from app.db.session import engine as _app_engine
 
     await _app_engine.dispose()
 

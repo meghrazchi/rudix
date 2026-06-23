@@ -97,8 +97,8 @@ from pydantic import ValidationError
 
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
-from app.db.session import get_db_session
 from app.core.config import settings
+from app.db.session import get_db_session
 from app.domains.graph.repositories.relation_repository import (
     RelationRepository,
     _validate_rel_type,

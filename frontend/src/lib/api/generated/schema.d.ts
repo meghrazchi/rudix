@@ -1225,12 +1225,124 @@ export interface components {
       score?: number | null;
       /** Similarity Score */
       similarity_score?: number | null;
+      /** Original Rank */
+      original_rank?: number | null;
       /** Rerank Score */
       rerank_score?: number | null;
       /** Rerank Rank */
       rerank_rank?: number | null;
+      /** Final Rank */
+      final_rank?: number | null;
       /** Text Snippet */
       text_snippet?: string | null;
+      /** Start Offset */
+      start_offset?: number | null;
+      /** End Offset */
+      end_offset?: number | null;
+      /** Source Provider */
+      source_provider?: string | null;
+      /** Source Provider Label */
+      source_provider_label?: string | null;
+      /** Source Title */
+      source_title?: string | null;
+      /** Source Key */
+      source_key?: string | null;
+      /** Source Section */
+      source_section?: string | null;
+      /** Source Deep Link */
+      source_deep_link?: string | null;
+      /** Source Last Synced At */
+      source_last_synced_at?: string | null;
+      /** Source Trust Status */
+      source_trust_status?:
+        | "trusted"
+        | "stale"
+        | "revoked"
+        | "deleted"
+        | "unknown"
+        | "uploaded"
+        | null;
+      /** Source ACL Snapshot */
+      source_acl_snapshot?: Record<string, unknown>;
+      /** Conflict Status */
+      conflict_status?: "preferred" | "conflicting" | "neutral" | null;
+      /** Doc Trust Status */
+      doc_trust_status?: string | null;
+      /** Doc Review Status */
+      doc_review_status?:
+        | "current"
+        | "trusted"
+        | "needs_review"
+        | "stale"
+        | "expired"
+        | "archived"
+        | null;
+      /** Doc Review Owner Id */
+      doc_review_owner_id?: string | null;
+      /** Doc Review Due Date */
+      doc_review_due_date?: string | null;
+      /** Doc Expiry Date */
+      doc_expiry_date?: string | null;
+      /** Doc Version Label */
+      doc_version_label?: string | null;
+      /** Doc Review Date */
+      doc_review_date?: string | null;
+      /** Doc Effective Date */
+      doc_effective_date?: string | null;
+      /** Doc Stale Warning */
+      doc_stale_warning?: boolean;
+      /** Doc Expired Warning */
+      doc_expired_warning?: boolean;
+      /** Doc Is Excluded Status */
+      doc_is_excluded_status?: boolean;
+      /** Freshness State */
+      freshness_state?:
+        | "current"
+        | "stale"
+        | "expired"
+        | "deprecated"
+        | "draft"
+        | "unreviewed"
+        | "unknown"
+        | null;
+      /** Doc Last Updated At */
+      doc_last_updated_at?: string | null;
+      /** Doc Unreviewed Warning */
+      doc_unreviewed_warning?: boolean;
+      /** Doc Deprecated Warning */
+      doc_deprecated_warning?: boolean;
+      /** Is Table Chunk */
+      is_table_chunk?: boolean;
+      /** Table Caption */
+      table_caption?: string | null;
+      /** Table Row Count */
+      table_row_count?: number | null;
+      /** Table Col Count */
+      table_col_count?: number | null;
+      /** Table Headers */
+      table_headers?: string[];
+      /** Table Section Context */
+      table_section_context?: string | null;
+      /** Doc OCR Quality Status */
+      doc_ocr_quality_status?:
+        | "high"
+        | "medium"
+        | "low"
+        | "failed"
+        | "not_required"
+        | null;
+      /** Doc OCR Low Confidence Warning */
+      doc_ocr_low_confidence_warning?: boolean;
+      /** Table Extraction Confidence */
+      table_extraction_confidence?: number | null;
+      /** Table Low Confidence Warning */
+      table_low_confidence_warning?: boolean;
+      /** Doc Extraction Quality */
+      doc_extraction_quality?: string | null;
+      /** Doc Extraction Warning */
+      doc_extraction_warning?: boolean;
+      /** Doc Processing Warning */
+      doc_processing_warning?: boolean;
     };
     /** ChatConfidenceExplanationResponse */
     ChatConfidenceExplanationResponse: {
@@ -1273,16 +1385,174 @@ export interface components {
       latencies_ms: {
         [key: string]: number;
       };
+      /** Request Id */
+      request_id?: string | null;
+      /** Trace Request Id */
+      trace_request_id?: string | null;
+      /** Retrieval Candidate Count */
+      retrieval_candidate_count?: number;
       /** Retrieval Count */
       retrieval_count: number;
       /** Selected Count */
       selected_count: number;
+      /** Top K */
+      top_k?: number;
+      /** Search Mode */
+      search_mode?: string | null;
+      /** Source Scope Mode */
+      source_scope_mode?: string | null;
+      /** Source Scope Label */
+      source_scope_label?: string | null;
+      /** Retrieval Profile Name */
+      retrieval_profile_name?: string | null;
+      /** Retrieval Profile Scope */
+      retrieval_profile_scope?: string | null;
+      /** Retrieval Profile Source */
+      retrieval_profile_source?: string | null;
+      /** Retrieval Filters */
+      retrieval_filters?: string[];
       /** Rerank Applied */
       rerank_applied: boolean;
+      /** Rerank Enabled */
+      rerank_enabled?: boolean;
+      /** Rerank Provider */
+      rerank_provider?: string | null;
+      /** Rerank Model */
+      rerank_model?: string | null;
+      /** Rerank Fallback Used */
+      rerank_fallback_used?: boolean;
+      /** Rerank Fallback Reason */
+      rerank_fallback_reason?: string | null;
+      /** Rerank Input Count */
+      rerank_input_count?: number;
+      /** Rerank Score Min */
+      rerank_score_min?: number | null;
+      /** Rerank Score Max */
+      rerank_score_max?: number | null;
+      /** Rerank Batch Count */
+      rerank_batch_count?: number;
+      /** Rerank Prompt Tokens */
+      rerank_prompt_tokens?: number;
+      /** Rerank Completion Tokens */
+      rerank_completion_tokens?: number;
+      /** Rerank Total Tokens */
+      rerank_total_tokens?: number;
+      /** Rerank Cost Usd */
+      rerank_cost_usd?: number | null;
+      /** Source Scope */
+      source_scope?: string | null;
       /** Embedding Model */
       embedding_model?: string | null;
       /** Llm Model */
       llm_model?: string | null;
+      /** Llm Provider */
+      llm_provider?: string | null;
+      /** Fallback Used */
+      fallback_used?: boolean;
+      /** Fallback From */
+      fallback_from?: string | null;
+      /** Fallback To */
+      fallback_to?: string | null;
+      /** Fallback Reason */
+      fallback_reason?: string | null;
+      /** Detected Language */
+      detected_language?: string | null;
+      /** Answer Language Used */
+      answer_language_used?: string | null;
+      /** Prompt Template Key */
+      prompt_template_key?: string | null;
+      /** Prompt Template Version */
+      prompt_template_version?: number | null;
+      /** Prompt Template Version Id */
+      prompt_template_version_id?: string | null;
+      /** Graph Context Enabled */
+      graph_context_enabled?: boolean;
+      /** Graph Context Used */
+      graph_context_used?: boolean;
+      /** Graph Context Unavailable */
+      graph_context_unavailable?: boolean;
+      /** Graph Context Reason */
+      graph_context_reason?: string | null;
+      /** Graph Seed Entity Count */
+      graph_seed_entity_count?: number;
+      /** Graph Related Entity Count */
+      graph_related_entity_count?: number;
+      /** Graph Chunk Count */
+      graph_chunk_count?: number;
+      /** Graph Max Hops Used */
+      graph_max_hops_used?: number;
+      /** Conflict Detection Enabled */
+      conflict_detection_enabled?: boolean;
+      /** Conflict Detection Applied */
+      conflict_detection_applied?: boolean;
+      /** Conflict Detection Latency Ms */
+      conflict_detection_latency_ms?: number;
+      /** Conflict Detection Agreement Level */
+      conflict_detection_agreement_level?: "full" | "partial" | "conflicting";
+      /** Conflict Detection Conflict Count */
+      conflict_detection_conflict_count?: number;
+      /** Conflict Detection Conflicting Document Ids */
+      conflict_detection_conflicting_document_ids?: string[];
+      /** Conflict Detection Preferred Document Ids */
+      conflict_detection_preferred_document_ids?: string[];
+      /** Conflict Detection Model */
+      conflict_detection_model?: string | null;
+      /** Conflict Detection Provider */
+      conflict_detection_provider?: string | null;
+      /** Graph Relation Types Used */
+      graph_relation_types_used?: string[];
+      /** Hybrid Retrieval Enabled */
+      hybrid_retrieval_enabled?: boolean;
+      /** Hybrid Vector Hit Count */
+      hybrid_vector_hit_count?: number;
+      /** Hybrid Keyword Hit Count */
+      hybrid_keyword_hit_count?: number;
+      /** Hybrid Exact Match Tokens */
+      hybrid_exact_match_tokens?: string[];
+      /** Query Rewriting Enabled */
+      query_rewriting_enabled?: boolean;
+      /** Query Rewriting Applied */
+      query_rewriting_applied?: boolean;
+      /** Query Decomposed */
+      query_decomposed?: boolean;
+      /** Original Query */
+      original_query?: string | null;
+      /** Rewritten Query */
+      rewritten_query?: string | null;
+      /** Sub Queries */
+      sub_queries?: string[];
+      /** Query Rewriting Strategy */
+      query_rewriting_strategy?: string | null;
+      /** Query Rewriting Latency Ms */
+      query_rewriting_latency_ms?: number;
+      /** Grounded Verification Enabled */
+      grounded_verification_enabled?: boolean;
+      /** Grounded Verification Applied */
+      grounded_verification_applied?: boolean;
+      /** Grounded Verification Verdict */
+      grounded_verification_verdict?: string | null;
+      /** Grounded Verification Score */
+      grounded_verification_score?: number | null;
+      /** Grounded Verification Claim Count */
+      grounded_verification_claim_count?: number;
+      /** Grounded Verification Supported Count */
+      grounded_verification_supported_count?: number;
+      /** Grounded Verification Partially Supported Count */
+      grounded_verification_partially_supported_count?: number;
+      /** Grounded Verification Unsupported Count */
+      grounded_verification_unsupported_count?: number;
+      /** Grounded Verification Unverifiable Count */
+      grounded_verification_unverifiable_count?: number;
+      /** Grounded Verification Removed Count */
+      grounded_verification_removed_count?: number;
+      /** Grounded Verification Reason Codes */
+      grounded_verification_reason_codes?: string[];
+      /** Grounded Verification Mode */
+      grounded_verification_mode?: string | null;
+      /** Grounded Verification Threshold */
+      grounded_verification_threshold?: number | null;
+      /** Grounded Verification Model */
+      grounded_verification_model?: string | null;
     };
     /** ChatMessageRequest */
     ChatMessageRequest: {
@@ -1333,6 +1603,30 @@ export interface components {
        * @default true
        */
       rerank: boolean;
+      /**
+       * Scope Mode
+       * @enum {string}
+       */
+      scope_mode?:
+        | "all"
+        | "collection"
+        | "documents"
+        | "connectors"
+        | "none"
+        | null;
+      /** Answer Language */
+      answer_language?: string | null;
+    };
+    /** ChatConflictPairResponse */
+    ChatConflictPairResponse: {
+      /** Document Id A */
+      document_id_a: string;
+      /** Document Id B */
+      document_id_b: string;
+      /** Conflict Type */
+      conflict_type?: string | null;
+      /** Explanation */
+      explanation?: string | null;
     };
     /** ChatQueryResponse */
     ChatQueryResponse: {
@@ -1354,6 +1648,36 @@ export interface components {
       not_found: boolean;
       /** Citations */
       citations?: components["schemas"]["ChatCitationResponse"][];
+      /** Citation Validation Failed */
+      citation_validation_failed?: boolean;
+      /** Verification Failed */
+      verification_failed?: boolean;
+      /** Agreement Level */
+      agreement_level?: "full" | "partial" | "conflicting";
+      /** Conflict Detected */
+      conflict_detected?: boolean;
+      /** Conflict Summary */
+      conflict_summary?: string | null;
+      /** Conflicting Document Ids */
+      conflicting_document_ids?: string[];
+      /** Preferred Document Ids */
+      preferred_document_ids?: string[];
+      /** Conflict Pairs */
+      conflict_pairs?: components["schemas"]["ChatConflictPairResponse"][];
+      /** Source Freshness Warning */
+      source_freshness_warning?: boolean;
+      /** Source Freshness Warning Reason */
+      source_freshness_warning_reason?: string | null;
+      /** Policy Applied */
+      policy_applied?: boolean;
+      /** Policy Outcome */
+      policy_outcome?: string | null;
+      /** Policy Violated Rules */
+      policy_violated_rules?: string[];
+      /** Policy Warning Flags */
+      policy_warning_flags?: string[];
+      /** Policy Disclaimer */
+      policy_disclaimer?: string | null;
       debug: components["schemas"]["ChatDebugResponse"];
       /**
        * Created At
@@ -1502,7 +1826,13 @@ export interface components {
        * Status
        * @enum {string}
        */
-      status: "deleting" | "deleted";
+      status:
+        | "delete_requested"
+        | "deleting"
+        | "deleted"
+        | "retained_by_policy";
+      /** Hold Reason */
+      hold_reason?: string | null;
     };
     /** DocumentChunkPreviewResponse */
     DocumentChunkPreviewResponse: {
@@ -1567,6 +1897,8 @@ export interface components {
       /** Error Message */
       error_message?: string | null;
       error_details?: components["schemas"]["DocumentErrorDetails"] | null;
+      /** OCR Quality Status */
+      ocr_quality_status?: string | null;
       /** Lifecycle Timeline */
       lifecycle_timeline?: components["schemas"]["DocumentLifecycleTimelineStepResponse"][];
       /**
@@ -1686,8 +2018,18 @@ export interface components {
       | "processing"
       | "indexed"
       | "failed"
+      | "quarantined"
+      | "blocked"
+      | "delete_requested"
       | "deleting"
-      | "deleted";
+      | "deleted"
+      | "retained_by_policy"
+      | "pending_scan"
+      | "infected"
+      | "extraction_failed"
+      | "ocr_applied"
+      | "skipped"
+      | "unsupported";
     /** DocumentStatusResponse */
     DocumentStatusResponse: {
       /** Document Id */
@@ -2076,6 +2418,74 @@ export interface components {
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /** MarkAllReadResponse */
+    MarkAllReadResponse: {
+      /** Marked Count */
+      marked_count: number;
+    };
+    /** MarkReadResponse */
+    MarkReadResponse: {
+      /** Notification Id */
+      notification_id: string;
+      /** Is Read */
+      is_read: boolean;
+    };
+    /** NotificationListResponse */
+    NotificationListResponse: {
+      /** Items */
+      items: components["schemas"]["NotificationResponse"][];
+      /** Total */
+      total: number;
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Unread Count */
+      unread_count: number;
+    };
+    /** NotificationResponse */
+    NotificationResponse: {
+      /** Notification Id */
+      notification_id: string;
+      /**
+       * Event Type
+       * @enum {string}
+       */
+      event_type:
+        | "upload_indexed"
+        | "upload_failed"
+        | "evaluation_complete"
+        | "evaluation_failed"
+        | "invite_received"
+        | "security_warning"
+        | "quota_warning"
+        | "connector_sync_issue";
+      /**
+       * Severity
+       * @enum {string}
+       */
+      severity: "info" | "warning" | "error";
+      /** Title */
+      title: string;
+      /** Message */
+      message?: string | null;
+      /** Href */
+      href?: string | null;
+      /** Source Id */
+      source_id?: string | null;
+      /** Is Read */
+      is_read: boolean;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** UnreadCountResponse */
+    UnreadCountResponse: {
+      /** Unread Count */
+      unread_count: number;
     };
     /** HealthDependency */
     HealthDependency: {

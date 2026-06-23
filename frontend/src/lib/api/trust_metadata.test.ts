@@ -69,6 +69,8 @@ function buildTrustMetadata(
       conflict_multiplier: 1.0,
       graph_evidence_boost: 0.0,
       verification_support_score: null,
+      table_quality_multiplier: 1.0,
+      extraction_quality_multiplier: 1.0,
       not_found_signal: false,
       no_context: false,
       reasons: [],
@@ -142,6 +144,13 @@ function buildTrustMetadata(
       deprecated_count: 0,
       all_excluded_fallback: false,
     },
+    evidence_quality: {
+      table_low_confidence_count: 0,
+      extraction_warning_count: 0,
+      processing_warning_count: 0,
+      any_incomplete_documents: false,
+      warning_reasons: [],
+    },
     generated_at: "2026-06-26T10:00:00Z",
     ...overrides,
   };
@@ -197,6 +206,8 @@ describe("getAnswerTrustMetadata", () => {
         conflict_multiplier: 1.0,
         graph_evidence_boost: 0.0,
         verification_support_score: null,
+        table_quality_multiplier: 1.0,
+        extraction_quality_multiplier: 1.0,
         not_found_signal: true,
         no_context: true,
         reasons: [],
@@ -355,6 +366,9 @@ describe("AnswerTrustMetadataResponse type contract", () => {
       doc_ocr_low_confidence_warning: false,
       doc_unreviewed_warning: false,
       doc_deprecated_warning: false,
+      table_low_confidence_warning: false,
+      doc_extraction_warning: false,
+      doc_processing_warning: false,
     };
     expect("source_acl_snapshot" in citation).toBe(false);
   });

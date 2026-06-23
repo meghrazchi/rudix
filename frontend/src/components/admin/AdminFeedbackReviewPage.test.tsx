@@ -90,6 +90,8 @@ const SAMPLE_ITEM: FeedbackReviewItemResponse = {
     model_name: "gpt-4o",
     redacted_at: null,
     converted_to_eval_question_id: null,
+    trace_id: null,
+    selected_citation_ids: null,
     submitted_at: "2026-06-01T09:55:00Z",
   },
   message: {

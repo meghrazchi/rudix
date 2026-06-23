@@ -319,9 +319,11 @@ export function CitationPreviewDrawer({
   const failureEventKeyRef = useRef<string | null>(null);
   const sourceMissingEventKeyRef = useRef<string | null>(null);
   const permissionDeniedEventKeyRef = useRef<string | null>(null);
+  const maxIndex = Math.max(0, visibleCitations.length - 1);
+  const safeActiveIndex = Math.min(activeIndex, maxIndex);
   const currentCitation = useMemo(
-    () => visibleCitations[activeIndex] ?? visibleCitations[0] ?? null,
-    [activeIndex, visibleCitations],
+    () => visibleCitations[safeActiveIndex] ?? null,
+    [safeActiveIndex, visibleCitations],
   );
 
   useEffect(() => {
@@ -330,20 +332,7 @@ export function CitationPreviewDrawer({
     return () => window.clearTimeout(timeout);
   }, [copied]);
 
-  useEffect(() => {
-    if (visibleCitations.length === 0) {
-      return;
-    }
-    const nextIndex = Math.min(activeIndex, visibleCitations.length - 1);
-    if (nextIndex !== activeIndex) {
-      setActiveIndex(nextIndex);
-    }
-  }, [activeIndex, visibleCitations.length]);
-
   useOverlayFocus({ isOpen: true, containerRef, onClose });
-
-  const maxIndex = Math.max(0, visibleCitations.length - 1);
-  const safeActiveIndex = Math.min(activeIndex, maxIndex);
   const citation =
     currentCitation ??
     ({ document_id: "", chunk_id: null } as CitationPreviewItem);

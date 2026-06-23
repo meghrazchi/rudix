@@ -21,6 +21,7 @@ from app.domains.ai.profile.service import (
     get_profile_by_id,
     resolve_task_profile,
 )
+from app.domains.ai.providers.factory import default_provider_factory
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 from app.domains.chat.services.llm_service import (
@@ -51,7 +52,6 @@ from app.domains.prompt_templates.repositories.prompt_templates import PromptTem
 from app.models.document import Document
 from app.models.enums import EvaluationRunStatus
 from app.models.evaluation import EvaluationQuestion
-from app.domains.ai.providers.factory import default_provider_factory
 from app.workers import document_tasks
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError

@@ -48,7 +48,6 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.auth.token_codec import create_app_access_token
 from app.core.config import settings
-from app.db.session import get_db_session
 from app.domains.collections.services.dynamic_rule_service import (
     DynamicRuleService,
     DynamicRuleValidationError,

@@ -57,6 +57,8 @@ const baseConfidence: ConfidenceTrustRecord = {
   conflict_multiplier: 1.0,
   graph_evidence_boost: 0.0,
   verification_support_score: null,
+  table_quality_multiplier: 1.0,
+  extraction_quality_multiplier: 1.0,
   reasons: [],
 };
 
@@ -84,6 +86,9 @@ function makeCitation(
     freshness_state: null,
     doc_last_updated_at: null,
     doc_review_owner_id: null,
+    table_low_confidence_warning: false,
+    doc_extraction_warning: false,
+    doc_processing_warning: false,
     ...overrides,
   };
 }
@@ -156,6 +161,13 @@ function makeMetadata(
       has_disclaimer: false,
     },
     freshness: { ...baseFreshness, ...freshnessOverrides },
+    evidence_quality: {
+      table_low_confidence_count: 0,
+      extraction_warning_count: 0,
+      processing_warning_count: 0,
+      any_incomplete_documents: false,
+      warning_reasons: [],
+    },
     generated_at: "2026-06-27T10:00:00Z",
   };
 }

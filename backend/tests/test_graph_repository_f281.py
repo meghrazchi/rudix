@@ -107,7 +107,6 @@ import app.clients.neo4j_client as neo4j_module
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
-from app.db.session import get_db_session
 from app.domains.graph.repositories.document_repository import DocumentGraphRepository
 from app.domains.graph.repositories.entity_repository import EntityRepository
 from app.domains.graph.repositories.evidence_repository import EvidenceRepository

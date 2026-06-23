@@ -52,6 +52,8 @@ function eventIcon(eventType: NotificationEventType): string {
       return "warning";
     case "connector_sync_issue":
       return "sync_problem";
+    default:
+      return "notifications";
   }
 }
 

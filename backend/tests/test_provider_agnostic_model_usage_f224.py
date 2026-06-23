@@ -31,14 +31,14 @@ from app.core.config import settings
 from app.domains.ai.profile.schemas import ProfileSource, ResolvedTaskProfile, TaskType
 from app.domains.ai.profile.service import _profile_to_resolved, get_profile_by_id
 from app.domains.chat.services.llm_service import ParsedCitation
+from app.domains.evaluations.services.evaluation_metrics_service import EvaluationMetricOptions
 from app.models.model_profile import OrgModelProfile
 from app.workers.evaluation_tasks import (
-    EvaluationRunConfig,
     EvaluationRegressionThresholds,
+    EvaluationRunConfig,
     PermanentTaskError,
     _parse_run_config,
 )
-from app.domains.evaluations.services.evaluation_metrics_service import EvaluationMetricOptions
 
 # ---------------------------------------------------------------------------
 # Helpers

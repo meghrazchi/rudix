@@ -506,6 +506,17 @@ export function AnswerTrustPanel({
   const [diagnosticsMode, setDiagnosticsMode] = useState<"basic" | "expert">(
     "basic",
   );
+  const [prevDiagnosticsKey, setPrevDiagnosticsKey] = useState({
+    messageId,
+    showInterpretationDetails,
+  });
+  if (
+    prevDiagnosticsKey.messageId !== messageId ||
+    prevDiagnosticsKey.showInterpretationDetails !== showInterpretationDetails
+  ) {
+    setPrevDiagnosticsKey({ messageId, showInterpretationDetails });
+    setDiagnosticsMode("basic");
+  }
   const barWidth = `${Math.round(confidenceScore * 100)}%`;
   const graphUsed = debug?.graph_context_used ?? false;
   const graphEnabled = debug?.graph_context_enabled ?? false;
@@ -538,10 +549,6 @@ export function AnswerTrustPanel({
     debug?.grounded_verification_applied ??
     false;
   const claimSupportRecords = groundedVerification?.claims ?? [];
-
-  useEffect(() => {
-    setDiagnosticsMode("basic");
-  }, [messageId, showInterpretationDetails]);
 
   // F317 — track trust panel open
   useEffect(() => {

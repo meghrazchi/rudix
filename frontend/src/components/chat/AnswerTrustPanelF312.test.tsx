@@ -78,6 +78,8 @@ const baseConfidence: ConfidenceTrustRecord = {
   conflict_multiplier: 0.8,
   graph_evidence_boost: 0.0,
   verification_support_score: null,
+  table_quality_multiplier: 1.0,
+  extraction_quality_multiplier: 1.0,
   reasons: [],
 };
 
@@ -91,6 +93,9 @@ const baseTrustCitationA: CitationTrustRecord = {
   table_headers: [],
   doc_unreviewed_warning: false,
   doc_deprecated_warning: false,
+  table_low_confidence_warning: false,
+  doc_extraction_warning: false,
+  doc_processing_warning: false,
 };
 
 const baseTrustCitationB: CitationTrustRecord = {
@@ -103,6 +108,9 @@ const baseTrustCitationB: CitationTrustRecord = {
   table_headers: [],
   doc_unreviewed_warning: false,
   doc_deprecated_warning: false,
+  table_low_confidence_warning: false,
+  doc_extraction_warning: false,
+  doc_processing_warning: false,
 };
 
 function makeTrustMetadata(
@@ -174,6 +182,13 @@ function makeTrustMetadata(
       unreviewed_count: 0,
       deprecated_count: 0,
       all_excluded_fallback: false,
+    },
+    evidence_quality: {
+      table_low_confidence_count: 0,
+      extraction_warning_count: 0,
+      processing_warning_count: 0,
+      any_incomplete_documents: false,
+      warning_reasons: [],
     },
     generated_at: "2026-06-21T10:00:00Z",
     ...overrides,
