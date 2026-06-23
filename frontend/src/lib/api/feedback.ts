@@ -16,7 +16,13 @@ export type FeedbackCategory =
   | "outdated_source"
   | "missing_information"
   | "low_confidence"
-  | "unsafe_response";
+  | "unsafe_response"
+  // F316 — trust-panel accuracy categories
+  | "missing_citation"
+  | "stale_source"
+  | "conflicting_source"
+  | "not_enough_detail"
+  | "should_have_said_not_found";
 
 export type FeedbackDiagnostics = {
   question_text?: string | null;
@@ -25,6 +31,12 @@ export type FeedbackDiagnostics = {
   retrieval_diagnostics?: Record<string, unknown> | null;
   model_name?: string | null;
   rag_profile_id?: string | null;
+  // F316 — trust-panel accuracy fields
+  trust_metadata?: Record<string, unknown> | null;
+  trust_score?: number | null;
+  trust_level?: string | null;
+  trace_id?: string | null;
+  selected_citation_ids?: string[] | null;
 };
 
 export type SubmitFeedbackPayload = {
@@ -50,8 +62,23 @@ export type MessageFeedbackResponse = {
   retain_until: string | null;
   redacted_at: string | null;
   converted_to_eval_question_id: string | null;
+  // F316 fields
+  trace_id: string | null;
+  selected_citation_ids: string[] | null;
   created_at: string;
   updated_at: string;
+};
+
+export type FeedbackCategoryMetric = {
+  category: string;
+  count: number;
+  avg_confidence_score: number | null;
+};
+
+export type FeedbackMetricsResponse = {
+  period_days: number;
+  total_feedback: number;
+  categories: FeedbackCategoryMetric[];
 };
 
 export type SessionFeedbackListResponse = {
@@ -82,4 +109,12 @@ export async function listSessionFeedback(
   return apiRequest<SessionFeedbackListResponse>(
     `/chat/sessions/${encodeURIComponent(sessionId)}/feedback`,
   );
+}
+
+export async function getFeedbackMetrics(
+  days?: number,
+): Promise<FeedbackMetricsResponse> {
+  return apiRequest<FeedbackMetricsResponse>("/feedback-review/metrics", {
+    query: { days: days ?? 30 },
+  });
 }

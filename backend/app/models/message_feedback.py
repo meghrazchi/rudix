@@ -76,3 +76,8 @@ class MessageFeedback(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("evaluation_questions.id", ondelete="SET NULL"),
         nullable=True,
     )
+
+    # F316 — trust-panel accuracy feedback fields
+    trust_metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    trace_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    selected_citation_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)

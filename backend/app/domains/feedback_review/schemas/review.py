@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 FeedbackReviewStatusLiteral = Literal[
-    "new", "triaged", "needs_document", "eval_created", "fixed", "rejected", "duplicate"
+    "new", "triaged", "needs_document", "accepted", "eval_created", "fixed", "rejected", "duplicate"
 ]
 FeedbackSeverityLiteral = Literal["low", "medium", "high"]
 FeedbackCategoryLiteral = Literal[
@@ -14,6 +14,11 @@ FeedbackCategoryLiteral = Literal[
     "missing_information",
     "low_confidence",
     "unsafe_response",
+    "missing_citation",
+    "stale_source",
+    "conflicting_source",
+    "not_enough_detail",
+    "should_have_said_not_found",
 ]
 DifficultyLiteral = Literal["easy", "medium", "hard"]
 
@@ -59,6 +64,9 @@ class FeedbackSummaryResponse(BaseModel):
     model_name: str | None = None
     redacted_at: datetime | None = None
     converted_to_eval_question_id: str | None = None
+    # F316 fields
+    trace_id: str | None = None
+    selected_citation_ids: list[str] | None = None
     submitted_at: datetime
 
 
@@ -120,6 +128,8 @@ class FeedbackReviewItemResponse(BaseModel):
                 converted_to_eval_question_id=str(feedback.converted_to_eval_question_id)
                 if feedback.converted_to_eval_question_id
                 else None,
+                trace_id=getattr(feedback, "trace_id", None),
+                selected_citation_ids=getattr(feedback, "selected_citation_ids", None),
                 submitted_at=feedback.created_at,
             )
 
@@ -177,6 +187,8 @@ class FeedbackReviewItemResponse(BaseModel):
             converted_to_eval_question_id=str(feedback.converted_to_eval_question_id)
             if feedback.converted_to_eval_question_id
             else None,
+            trace_id=getattr(feedback, "trace_id", None),
+            selected_citation_ids=getattr(feedback, "selected_citation_ids", None),
             submitted_at=feedback.created_at,
         )
         return cls(
@@ -197,3 +209,15 @@ class FeedbackReviewListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class FeedbackCategoryMetric(BaseModel):
+    category: str
+    count: int
+    avg_confidence_score: float | None = None
+
+
+class FeedbackMetricsResponse(BaseModel):
+    period_days: int
+    total_feedback: int
+    categories: list[FeedbackCategoryMetric]

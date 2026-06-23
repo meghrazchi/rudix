@@ -149,7 +149,7 @@ class FeedbackReviewRepository:
             }
             if FeedbackReviewStatus(status) in _terminal and item.resolved_at is None:
                 item.resolved_at = datetime.now(tz=UTC)
-            elif FeedbackReviewStatus(status) not in _terminal:
+            elif FeedbackReviewStatus(status) not in _terminal and status != FeedbackReviewStatus.eval_created:
                 item.resolved_at = None
 
         if severity is not None:
@@ -173,6 +173,69 @@ class FeedbackReviewRepository:
         await session.flush()
         await session.refresh(item)
         return item
+
+    async def get_feedback_metrics(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        days: int = 30,
+    ) -> dict:
+        from datetime import timedelta
+
+        from sqlalchemy import case, cast, Float
+
+        from app.models.chat import ChatMessage
+        from app.models.message_feedback import MessageFeedback
+
+        since = datetime.now(tz=UTC) - timedelta(days=days)
+
+        fb_result = await session.execute(
+            select(
+                MessageFeedback.category,
+                func.count(MessageFeedback.id).label("count"),
+            )
+            .where(
+                MessageFeedback.organization_id == organization_id,
+                MessageFeedback.created_at >= since,
+            )
+            .group_by(MessageFeedback.category)
+            .order_by(func.count(MessageFeedback.id).desc())
+        )
+        category_rows = fb_result.all()
+
+        # Trust score correlation: avg confidence_score per category
+        score_result = await session.execute(
+            select(
+                MessageFeedback.category,
+                func.avg(ChatMessage.confidence_score).label("avg_confidence"),
+                func.count(MessageFeedback.id).label("count"),
+            )
+            .join(ChatMessage, MessageFeedback.message_id == ChatMessage.id)
+            .where(
+                MessageFeedback.organization_id == organization_id,
+                MessageFeedback.created_at >= since,
+                ChatMessage.confidence_score.is_not(None),
+            )
+            .group_by(MessageFeedback.category)
+        )
+        score_rows = score_result.all()
+        score_by_category = {r.category: round(float(r.avg_confidence), 3) for r in score_rows}
+
+        total = sum(r.count for r in category_rows)
+        categories = [
+            {
+                "category": r.category or "uncategorized",
+                "count": r.count,
+                "avg_confidence_score": score_by_category.get(r.category),
+            }
+            for r in category_rows
+        ]
+        return {
+            "period_days": days,
+            "total_feedback": total,
+            "categories": categories,
+        }
 
     async def build_csv_export(
         self,

@@ -231,6 +231,12 @@ class FeedbackCategory(StrEnum):
     missing_information = "missing_information"
     low_confidence = "low_confidence"
     unsafe_response = "unsafe_response"
+    # F316 — trust-panel-specific accuracy categories
+    missing_citation = "missing_citation"
+    stale_source = "stale_source"
+    conflicting_source = "conflicting_source"
+    not_enough_detail = "not_enough_detail"
+    should_have_said_not_found = "should_have_said_not_found"
 
 
 class NotificationEventType(StrEnum):
@@ -254,6 +260,8 @@ class FeedbackReviewStatus(StrEnum):
     new = "new"
     triaged = "triaged"
     needs_document = "needs_document"
+    # F316 — reviewer has accepted the item for investigation (between triaged and fixed)
+    accepted = "accepted"
     eval_created = "eval_created"
     fixed = "fixed"
     rejected = "rejected"

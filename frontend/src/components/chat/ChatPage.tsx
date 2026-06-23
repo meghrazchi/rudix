@@ -15,6 +15,10 @@ import {
 
 import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import { FeedbackModal } from "@/components/chat/FeedbackModal";
+import {
+  TrustPanelFeedbackModal,
+  type TrustPanelCitationRef,
+} from "@/components/chat/TrustPanelFeedbackModal";
 import { ChatResponseLoadingState } from "@/components/chat/ChatResponseLoadingState";
 import { ShareModal } from "@/components/chat/ShareModal";
 import { AnswerShareModal } from "@/components/chat/AnswerShareModal";
@@ -892,6 +896,14 @@ export function ChatPage() {
   const [openTrustPanelMessageId, setOpenTrustPanelMessageId] = useState<
     string | null
   >(null);
+  const [trustPanelFeedbackMessageId, setTrustPanelFeedbackMessageId] =
+    useState<string | null>(null);
+  const [trustPanelFeedbackContext, setTrustPanelFeedbackContext] = useState<{
+    warnings: string[];
+    traceId: string | null;
+    trustScore: number;
+    trustLevel: string | null;
+  } | null>(null);
 
   const activeOrgId = state.session?.organizationId ?? null;
   const prevOrgIdRef = useRef<string | null>(null);
@@ -1645,6 +1657,62 @@ export function ChatPage() {
         delete next[messageId];
         return next;
       });
+    },
+  });
+
+  const trustPanelFeedbackMutation = useMutation({
+    mutationFn: ({
+      messageId,
+      category,
+      comment,
+      selectedCitationIds,
+      traceId,
+      trustScore,
+      trustLevel,
+      citations,
+      debug,
+      trustMetadata,
+    }: {
+      messageId: string;
+      category: import("@/lib/api/feedback").FeedbackCategory | null;
+      comment: string | null;
+      selectedCitationIds: string[];
+      traceId: string | null;
+      trustScore: number | null;
+      trustLevel: string | null;
+      citations: import("@/lib/api/chat").ChatCitationResponse[];
+      debug: import("@/lib/api/chat").ChatDebugResponse | null;
+      trustMetadata: import("@/lib/api/trust_metadata").AnswerTrustMetadataResponse | null | undefined;
+    }) =>
+      submitMessageFeedback(messageId, {
+        rating: "down",
+        category,
+        comment,
+        diagnostics: {
+          trust_metadata: trustMetadata
+            ? { confidence: trustMetadata.confidence, retrieval: trustMetadata.retrieval }
+            : undefined,
+          trust_score: trustScore ?? undefined,
+          trust_level: trustLevel ?? undefined,
+          trace_id: traceId ?? undefined,
+          selected_citation_ids:
+            selectedCitationIds.length > 0 ? selectedCitationIds : undefined,
+          model_name: debug?.llm_model ?? undefined,
+          citations: citations.slice(0, 20).map((c) => ({
+            document_id: c.document_id,
+            chunk_id: c.chunk_id,
+            filename: c.filename,
+            score: c.score,
+          })),
+        },
+      }),
+    onSuccess: (data) => {
+      setFeedbackByMessageId((previous) => ({
+        ...previous,
+        [data.message_id]: data,
+      }));
+      setTrustPanelFeedbackMessageId(null);
+      setTrustPanelFeedbackContext(null);
     },
   });
 
@@ -2719,11 +2787,21 @@ export function ChatPage() {
                                       ),
                                     });
                                   }}
+                                  onReportIssue={
+                                    chatFeedbackEnabled
+                                      ? (context) => {
+                                          setTrustPanelFeedbackMessageId(
+                                            turn.response.message_id,
+                                          );
+                                          setTrustPanelFeedbackContext(context);
+                                        }
+                                      : undefined
+                                  }
                                 />
                               )}
-                              <div className="mt-1 flex items-center gap-0.5 px-1">
+                              <div className="mt-1 flex items-center gap-1 px-1">
                                 {!turn.response.not_found ? (
-                                  <div className="group/trust relative">
+                                  <div className="group relative">
                                     <button
                                       type="button"
                                       aria-label="Explain this answer"
@@ -2742,7 +2820,7 @@ export function ChatPage() {
                                       className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${openTrustPanelMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                     >
                                       <span
-                                        className="material-symbols-outlined text-[13px]"
+                                        className="material-symbols-outlined text-[16px]"
                                         aria-hidden="true"
                                         style={{
                                           fontVariationSettings:
@@ -2752,16 +2830,16 @@ export function ChatPage() {
                                               : "'FILL' 0",
                                         }}
                                       >
-                                        shield_check
+                                        info
                                       </span>
                                     </button>
-                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/trust:opacity-100">
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
                                       Explain answer
                                     </span>
                                   </div>
                                 ) : null}
                                 {!turn.response.not_found ? (
-                                  <div className="group/copy relative">
+                                  <div className="group relative">
                                     <button
                                       type="button"
                                       aria-label="Copy answer"
@@ -2785,7 +2863,7 @@ export function ChatPage() {
                                       className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${copiedMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                     >
                                       <span
-                                        className="material-symbols-outlined text-[13px]"
+                                        className="material-symbols-outlined text-[16px]"
                                         aria-hidden="true"
                                       >
                                         {copiedMessageId ===
@@ -2794,7 +2872,7 @@ export function ChatPage() {
                                           : "content_copy"}
                                       </span>
                                     </button>
-                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/copy:opacity-100">
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
                                       {copiedMessageId ===
                                       turn.response.message_id
                                         ? tc("copiedTooltip")
@@ -2803,7 +2881,7 @@ export function ChatPage() {
                                   </div>
                                 ) : null}
                                 {!turn.response.not_found ? (
-                                  <div className="group/answershare relative">
+                                  <div className="group relative">
                                     <button
                                       type="button"
                                       aria-label="Share answer"
@@ -2815,20 +2893,20 @@ export function ChatPage() {
                                       className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#9d98b5] transition-colors hover:bg-[#f1f0f5] hover:text-[#6a6780]"
                                     >
                                       <span
-                                        className="material-symbols-outlined text-[13px]"
+                                        className="material-symbols-outlined text-[16px]"
                                         aria-hidden="true"
                                       >
                                         ios_share
                                       </span>
                                     </button>
-                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/answershare:opacity-100">
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
                                       Share answer
                                     </span>
                                   </div>
                                 ) : null}
                                 {chatFeedbackEnabled ? (
                                   <>
-                                    <div className="group/up relative">
+                                    <div className="group relative">
                                       <button
                                         type="button"
                                         aria-label="Mark answer helpful"
@@ -2852,17 +2930,17 @@ export function ChatPage() {
                                         className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${feedbackByMessageId[turn.response.message_id]?.rating === "up" ? "text-emerald-600" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                       >
                                         <span
-                                          className="material-symbols-outlined text-[13px]"
+                                          className="material-symbols-outlined text-[16px]"
                                           aria-hidden="true"
                                         >
                                           thumb_up
                                         </span>
                                       </button>
-                                      <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/up:opacity-100">
+                                      <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
                                         {tc("helpfulTooltip")}
                                       </span>
                                     </div>
-                                    <div className="group/down relative">
+                                    <div className="group relative">
                                       <button
                                         type="button"
                                         aria-label="Report an issue"
@@ -2874,20 +2952,20 @@ export function ChatPage() {
                                         className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${feedbackByMessageId[turn.response.message_id]?.rating === "down" ? "text-rose-500" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                       >
                                         <span
-                                          className="material-symbols-outlined text-[13px]"
+                                          className="material-symbols-outlined text-[16px]"
                                           aria-hidden="true"
                                         >
                                           thumb_down
                                         </span>
                                       </button>
-                                      <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/down:opacity-100">
+                                      <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
                                         {tc("notHelpfulTooltip")}
                                       </span>
                                     </div>
                                   </>
                                 ) : null}
                                 {isLatestTurn ? (
-                                  <div className="group/regen relative">
+                                  <div className="group relative">
                                     <button
                                       type="button"
                                       aria-label="Regenerate answer"
@@ -2907,13 +2985,13 @@ export function ChatPage() {
                                       className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#9d98b5] transition-colors hover:bg-[#f1f0f5] hover:text-[#6a6780] disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                       <span
-                                        className="material-symbols-outlined text-[13px]"
+                                        className="material-symbols-outlined text-[16px]"
                                         aria-hidden="true"
                                       >
                                         refresh
                                       </span>
                                     </button>
-                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/regen:opacity-100">
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
                                       {tc("regenerateTooltip")}
                                     </span>
                                   </div>
@@ -4064,6 +4142,48 @@ export function ChatPage() {
           onClose={() => setFeedbackModalMessageId(null)}
         />
       ) : null}
+      {chatFeedbackEnabled &&
+      trustPanelFeedbackMessageId &&
+      trustPanelFeedbackContext ? (() => {
+        const activeTurn = thread.find(
+          (t) => t.response?.message_id === trustPanelFeedbackMessageId,
+        );
+        const panelCitations: TrustPanelCitationRef[] = (
+          activeTurn?.response?.citations ?? []
+        ).map((c) => ({
+          document_id: c.document_id,
+          chunk_id: c.chunk_id,
+          title: c.source_title ?? c.filename ?? "Unknown source",
+        }));
+        return (
+          <TrustPanelFeedbackModal
+            activeWarnings={trustPanelFeedbackContext.warnings}
+            citations={panelCitations}
+            traceId={trustPanelFeedbackContext.traceId}
+            trustScore={trustPanelFeedbackContext.trustScore}
+            trustLevel={trustPanelFeedbackContext.trustLevel}
+            isSubmitting={trustPanelFeedbackMutation.isPending}
+            onSubmit={({ category, comment, selectedCitationIds, traceId, trustScore, trustLevel }) => {
+              trustPanelFeedbackMutation.mutate({
+                messageId: trustPanelFeedbackMessageId,
+                category,
+                comment,
+                selectedCitationIds,
+                traceId,
+                trustScore,
+                trustLevel,
+                citations: activeTurn?.response?.citations ?? [],
+                debug: activeTurn?.response?.debug ?? null,
+                trustMetadata: activeTurn?.response?.trust_metadata ?? null,
+              });
+            }}
+            onClose={() => {
+              setTrustPanelFeedbackMessageId(null);
+              setTrustPanelFeedbackContext(null);
+            }}
+          />
+        );
+      })() : null}
     </>
   );
 }

@@ -27,6 +27,9 @@ class FeedbackRepository:
         retrieval_diagnostics_json: dict | None = None,
         model_name: str | None = None,
         rag_profile_id: UUID | None = None,
+        trust_metadata_json: dict | None = None,
+        trace_id: str | None = None,
+        selected_citation_ids: list | None = None,
     ) -> MessageFeedback:
         existing = await self.get_feedback(
             session,
@@ -51,6 +54,12 @@ class FeedbackRepository:
                 existing.model_name = model_name
             if rag_profile_id is not None:
                 existing.rag_profile_id = rag_profile_id
+            if trust_metadata_json is not None:
+                existing.trust_metadata_json = trust_metadata_json
+            if trace_id is not None:
+                existing.trace_id = trace_id
+            if selected_citation_ids is not None:
+                existing.selected_citation_ids = selected_citation_ids
             session.add(existing)
             await session.flush()
             await session.refresh(existing)
@@ -71,6 +80,9 @@ class FeedbackRepository:
             retrieval_diagnostics_json=retrieval_diagnostics_json,
             model_name=model_name,
             rag_profile_id=rag_profile_id,
+            trust_metadata_json=trust_metadata_json,
+            trace_id=trace_id,
+            selected_citation_ids=selected_citation_ids,
             retain_until=retain_until,
         )
         session.add(feedback)
@@ -127,6 +139,8 @@ class FeedbackRepository:
         feedback.citations_json = None
         feedback.retrieval_diagnostics_json = None
         feedback.comment = None
+        feedback.trust_metadata_json = None
+        feedback.selected_citation_ids = None
         feedback.redacted_at = datetime.now(tz=UTC)
         session.add(feedback)
         await session.flush()

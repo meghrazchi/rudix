@@ -19,6 +19,12 @@ FeedbackCategoryLiteral = Literal[
     "missing_information",
     "low_confidence",
     "unsafe_response",
+    # F316 — trust-panel accuracy categories
+    "missing_citation",
+    "stale_source",
+    "conflicting_source",
+    "not_enough_detail",
+    "should_have_said_not_found",
 ]
 
 
@@ -29,6 +35,12 @@ class FeedbackDiagnostics(BaseModel):
     retrieval_diagnostics: dict | None = None
     model_name: str | None = Field(default=None, max_length=128)
     rag_profile_id: str | None = None
+    # F316 — trust-panel accuracy fields
+    trust_metadata: dict | None = None
+    trust_score: float | None = None
+    trust_level: str | None = Field(default=None, max_length=32)
+    trace_id: str | None = Field(default=None, max_length=128)
+    selected_citation_ids: list[str] | None = None
 
 
 class SubmitFeedbackRequest(BaseModel):
@@ -56,6 +68,9 @@ class MessageFeedbackResponse(BaseModel):
     retain_until: datetime | None = None
     redacted_at: datetime | None = None
     converted_to_eval_question_id: str | None = None
+    # F316 fields
+    trace_id: str | None = None
+    selected_citation_ids: list[str] | None = None
     created_at: datetime
     updated_at: datetime
 

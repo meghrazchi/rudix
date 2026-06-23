@@ -43,6 +43,13 @@ export type TrustPanelProps = {
   trustMetadata?: AnswerTrustMetadataResponse | null;
   showInterpretationDetails?: boolean;
   onOpenCitation: (citation: TrustPanelCitation) => void;
+  /** F316 — called when the user clicks "Report issue" from within the panel. */
+  onReportIssue?: (context: {
+    warnings: string[];
+    traceId: string | null;
+    trustScore: number;
+    trustLevel: string | null;
+  }) => void;
 };
 
 function pct(v: number | null | undefined): string {
@@ -492,6 +499,7 @@ export function AnswerTrustPanel({
   trustMetadata,
   showInterpretationDetails = false,
   onOpenCitation,
+  onReportIssue,
 }: TrustPanelProps) {
   const [diagnosticsMode, setDiagnosticsMode] = useState<"basic" | "expert">(
     "basic",
@@ -683,6 +691,34 @@ export function AnswerTrustPanel({
             Answer Explanation
           </span>
         </div>
+        <div className="flex items-center gap-2">
+          {onReportIssue ? (
+            <button
+              type="button"
+              data-testid="trust-panel-report-issue-btn"
+              onClick={() =>
+                onReportIssue({
+                  warnings,
+                  traceId:
+                    trustMetadata?.retrieval.trace_request_id ??
+                    debug?.trace_request_id ??
+                    null,
+                  trustScore: confidenceScore,
+                  trustLevel: trustMetadata?.confidence.trust_level ?? null,
+                })
+              }
+              className="flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-medium text-rose-700 hover:bg-rose-100 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
+              aria-label="Report an issue with this answer"
+            >
+              <span
+                className="material-symbols-outlined text-[12px]"
+                aria-hidden="true"
+              >
+                flag
+              </span>
+              Report issue
+            </button>
+          ) : null}
         {showInterpretationDetails ? (
           <div
             className="inline-flex rounded-full border border-[#d7d4e8] bg-white p-0.5 text-[10px] font-semibold"
@@ -717,6 +753,7 @@ export function AnswerTrustPanel({
             </button>
           </div>
         ) : null}
+        </div>
       </div>
 
       {/* Warnings */}

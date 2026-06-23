@@ -5,6 +5,7 @@ export type FeedbackReviewStatus =
   | "new"
   | "triaged"
   | "needs_document"
+  | "accepted"
   | "eval_created"
   | "fixed"
   | "rejected"
@@ -26,6 +27,9 @@ export type FeedbackSummary = {
   model_name: string | null;
   redacted_at: string | null;
   converted_to_eval_question_id: string | null;
+  // F316 fields
+  trace_id: string | null;
+  selected_citation_ids: string[] | null;
   submitted_at: string;
 };
 

@@ -4678,6 +4678,8 @@ def _to_feedback_response(fb: "MessageFeedback") -> MessageFeedbackResponse:  # 
         converted_to_eval_question_id=str(fb.converted_to_eval_question_id)
         if fb.converted_to_eval_question_id
         else None,
+        trace_id=getattr(fb, "trace_id", None),
+        selected_citation_ids=getattr(fb, "selected_citation_ids", None),
         created_at=fb.created_at,
         updated_at=fb.updated_at,
     )
@@ -4766,6 +4768,9 @@ async def submit_message_feedback(
         retrieval_diagnostics_json=diag.retrieval_diagnostics if diag else None,
         model_name=diag.model_name if diag else None,
         rag_profile_id=rag_profile_uuid,
+        trust_metadata_json=diag.trust_metadata if diag else None,
+        trace_id=diag.trace_id if diag else None,
+        selected_citation_ids=diag.selected_citation_ids if diag else None,
     )
     await audit_log_service.record(
         db_session,
