@@ -57,20 +57,14 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("now()"),
         ),
-        sa.ForeignKeyConstraint(
-            ["organization_id"], ["organizations.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
             ["connection_id"],
             ["connector_connections.id"],
             ondelete="CASCADE",
         ),
-        sa.ForeignKeyConstraint(
-            ["reviewed_by_user_id"], ["users.id"], ondelete="SET NULL"
-        ),
-        sa.UniqueConstraint(
-            "connection_id", name="uq_connector_permission_reviews_connection"
-        ),
+        sa.ForeignKeyConstraint(["reviewed_by_user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.UniqueConstraint("connection_id", name="uq_connector_permission_reviews_connection"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(

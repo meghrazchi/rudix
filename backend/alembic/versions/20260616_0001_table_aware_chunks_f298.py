@@ -45,8 +45,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("idx_chunks_chunk_type", table_name="document_chunks")
-    op.drop_constraint(
-        "document_chunks_chunk_type_allowed", "document_chunks", type_="check"
-    )
+    op.drop_constraint("document_chunks_chunk_type_allowed", "document_chunks", type_="check")
     op.drop_column("document_chunks", "table_metadata")
     op.drop_column("document_chunks", "chunk_type")

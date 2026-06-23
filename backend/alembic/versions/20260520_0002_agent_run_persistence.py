@@ -40,13 +40,25 @@ def upgrade() -> None:
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("error_details", sa.JSON(), nullable=False),
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "status IN ('queued', 'planning', 'running', 'waiting_approval', 'completed', 'failed', 'cancelled')",
             name=op.f("ck_agent_runs_agent_runs_status_allowed"),
         ),
-        sa.CheckConstraint("surface IN ('api', 'mcp')", name=op.f("ck_agent_runs_agent_runs_surface_allowed")),
+        sa.CheckConstraint(
+            "surface IN ('api', 'mcp')", name=op.f("ck_agent_runs_agent_runs_surface_allowed")
+        ),
         sa.CheckConstraint(
             "max_steps IS NULL OR max_steps >= 0",
             name=op.f("ck_agent_runs_agent_runs_max_steps_non_negative"),
@@ -73,14 +85,18 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_agent_runs")),
     )
-    op.create_index("idx_agent_runs_org_status", "agent_runs", ["organization_id", "status"], unique=False)
+    op.create_index(
+        "idx_agent_runs_org_status", "agent_runs", ["organization_id", "status"], unique=False
+    )
     op.create_index(
         "idx_agent_runs_org_user_created",
         "agent_runs",
         ["organization_id", "user_id", "created_at"],
         unique=False,
     )
-    op.create_index("idx_agent_runs_trace_request_id", "agent_runs", ["trace_request_id"], unique=False)
+    op.create_index(
+        "idx_agent_runs_trace_request_id", "agent_runs", ["trace_request_id"], unique=False
+    )
 
     op.create_table(
         "agent_steps",
@@ -100,13 +116,25 @@ def upgrade() -> None:
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("duration_ms", sa.Integer(), nullable=True),
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "status IN ('queued', 'running', 'waiting_approval', 'completed', 'failed', 'skipped', 'cancelled')",
             name=op.f("ck_agent_steps_agent_steps_status_allowed"),
         ),
-        sa.CheckConstraint("sequence >= 0", name=op.f("ck_agent_steps_agent_steps_sequence_non_negative")),
+        sa.CheckConstraint(
+            "sequence >= 0", name=op.f("ck_agent_steps_agent_steps_sequence_non_negative")
+        ),
         sa.CheckConstraint(
             "duration_ms IS NULL OR duration_ms >= 0",
             name=op.f("ck_agent_steps_agent_steps_duration_non_negative"),
@@ -132,8 +160,12 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_agent_steps")),
         sa.UniqueConstraint("agent_run_id", "sequence", name=op.f("uq_agent_steps_agent_run_id")),
     )
-    op.create_index("idx_agent_steps_org_status", "agent_steps", ["organization_id", "status"], unique=False)
-    op.create_index("idx_agent_steps_run_sequence", "agent_steps", ["agent_run_id", "sequence"], unique=False)
+    op.create_index(
+        "idx_agent_steps_org_status", "agent_steps", ["organization_id", "status"], unique=False
+    )
+    op.create_index(
+        "idx_agent_steps_run_sequence", "agent_steps", ["agent_run_id", "sequence"], unique=False
+    )
 
     op.create_table(
         "agent_tool_calls",
@@ -157,9 +189,22 @@ def upgrade() -> None:
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.CheckConstraint("surface IN ('api', 'mcp')", name=op.f("ck_agent_tool_calls_agent_tool_calls_surface_allowed")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "surface IN ('api', 'mcp')",
+            name=op.f("ck_agent_tool_calls_agent_tool_calls_surface_allowed"),
+        ),
         sa.CheckConstraint(
             "effect_policy IN ('read_only', 'side_effect')",
             name=op.f("ck_agent_tool_calls_agent_tool_calls_effect_policy_allowed"),
@@ -211,9 +256,21 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_agent_tool_calls")),
         sa.UniqueConstraint("call_id", name=op.f("uq_agent_tool_calls_call_id")),
     )
-    op.create_index("idx_agent_tool_calls_org_status", "agent_tool_calls", ["organization_id", "status"], unique=False)
-    op.create_index("idx_agent_tool_calls_run_status", "agent_tool_calls", ["agent_run_id", "status"], unique=False)
-    op.create_index("idx_agent_tool_calls_tool_name", "agent_tool_calls", ["tool_name"], unique=False)
+    op.create_index(
+        "idx_agent_tool_calls_org_status",
+        "agent_tool_calls",
+        ["organization_id", "status"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_agent_tool_calls_run_status",
+        "agent_tool_calls",
+        ["agent_run_id", "status"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_agent_tool_calls_tool_name", "agent_tool_calls", ["tool_name"], unique=False
+    )
 
     op.create_table(
         "agent_approvals",
@@ -231,8 +288,18 @@ def upgrade() -> None:
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("decided_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "status IN ('pending', 'approved', 'rejected', 'expired', 'cancelled')",
             name=op.f("ck_agent_approvals_agent_approvals_status_allowed"),
@@ -275,8 +342,18 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_agent_approvals")),
     )
-    op.create_index("idx_agent_approvals_org_status", "agent_approvals", ["organization_id", "status"], unique=False)
-    op.create_index("idx_agent_approvals_run_status", "agent_approvals", ["agent_run_id", "status"], unique=False)
+    op.create_index(
+        "idx_agent_approvals_org_status",
+        "agent_approvals",
+        ["organization_id", "status"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_agent_approvals_run_status",
+        "agent_approvals",
+        ["agent_run_id", "status"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:

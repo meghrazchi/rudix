@@ -34,18 +34,12 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="false"),
         # Citation rules
-        sa.Column(
-            "citation_mode", sa.String(32), nullable=False, server_default="recommended"
-        ),
+        sa.Column("citation_mode", sa.String(32), nullable=False, server_default="recommended"),
         # Confidence threshold
         sa.Column("min_confidence_threshold", sa.Float(), nullable=True),
-        sa.Column(
-            "no_answer_behavior", sa.String(32), nullable=False, server_default="warn"
-        ),
+        sa.Column("no_answer_behavior", sa.String(32), nullable=False, server_default="warn"),
         # Source freshness
-        sa.Column(
-            "stale_source_behavior", sa.String(32), nullable=False, server_default="warn"
-        ),
+        sa.Column("stale_source_behavior", sa.String(32), nullable=False, server_default="warn"),
         # Topic controls
         sa.Column("blocked_topics", sa.JSON(), nullable=True),
         sa.Column("allowed_topics", sa.JSON(), nullable=True),
@@ -53,9 +47,7 @@ def upgrade() -> None:
         sa.Column("min_sources_required", sa.Integer(), nullable=True),
         # Disclaimer injection
         sa.Column("disclaimer_text", sa.Text(), nullable=True),
-        sa.Column(
-            "disclaimer_position", sa.String(16), nullable=False, server_default="prepend"
-        ),
+        sa.Column("disclaimer_position", sa.String(16), nullable=False, server_default="prepend"),
         # Custom refusal message
         sa.Column("refusal_message", sa.Text(), nullable=True),
         # Timestamps

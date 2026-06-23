@@ -28,8 +28,25 @@ down_revision: str | None = "20260627_0001"
 branch_labels: Sequence[str] | None = None
 depends_on: Sequence[str] | None = None
 
-_OLD_STATUSES = ("new", "triaged", "needs_document", "eval_created", "fixed", "rejected", "duplicate")
-_NEW_STATUSES = ("new", "triaged", "needs_document", "accepted", "eval_created", "fixed", "rejected", "duplicate")
+_OLD_STATUSES = (
+    "new",
+    "triaged",
+    "needs_document",
+    "eval_created",
+    "fixed",
+    "rejected",
+    "duplicate",
+)
+_NEW_STATUSES = (
+    "new",
+    "triaged",
+    "needs_document",
+    "accepted",
+    "eval_created",
+    "fixed",
+    "rejected",
+    "duplicate",
+)
 
 
 def upgrade() -> None:

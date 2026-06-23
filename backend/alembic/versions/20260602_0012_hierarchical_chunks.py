@@ -50,9 +50,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("idx_chunks_chunk_level", table_name="document_chunks")
     op.drop_index("idx_chunks_parent_chunk_id", table_name="document_chunks")
-    op.drop_constraint(
-        "fk_document_chunks_parent_chunk_id", "document_chunks", type_="foreignkey"
-    )
+    op.drop_constraint("fk_document_chunks_parent_chunk_id", "document_chunks", type_="foreignkey")
     op.drop_column("document_chunks", "child_count")
     op.drop_column("document_chunks", "chunk_level")
     op.drop_column("document_chunks", "parent_chunk_id")

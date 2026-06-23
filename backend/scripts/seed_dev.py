@@ -49,9 +49,7 @@ _SEEDED_PASSWORD = "123123123"
 
 async def _get_or_create_organization() -> Organization:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(Organization).where(Organization.slug == "demo-org")
-        )
+        result = await session.execute(select(Organization).where(Organization.slug == "demo-org"))
         organization = result.scalar_one_or_none()
         if organization is not None:
             return organization
@@ -65,9 +63,7 @@ async def _get_or_create_organization() -> Organization:
 
 async def _get_or_create_user(organization: Organization) -> User:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.external_auth_id == "admin")
-        )
+        result = await session.execute(select(User).where(User.external_auth_id == "admin"))
         user = result.scalar_one_or_none()
         if user is not None:
             if user.email != "admin@example.com":

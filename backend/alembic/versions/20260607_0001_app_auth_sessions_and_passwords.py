@@ -60,8 +60,18 @@ def upgrade() -> None:
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("revoked_reason", sa.String(length=64), nullable=True),
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(
             ["organization_id"],
             ["organizations.id"],
@@ -75,7 +85,9 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_auth_refresh_sessions")),
-        sa.UniqueConstraint("refresh_token_hash", name="uq_auth_refresh_sessions_refresh_token_hash"),
+        sa.UniqueConstraint(
+            "refresh_token_hash", name="uq_auth_refresh_sessions_refresh_token_hash"
+        ),
         sa.UniqueConstraint("refresh_token_jti", name="uq_auth_refresh_sessions_refresh_token_jti"),
     )
     op.create_index(

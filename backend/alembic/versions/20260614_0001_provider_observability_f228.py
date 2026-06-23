@@ -64,9 +64,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("idx_usage_org_provider_created", table_name="usage_events")
-    op.drop_constraint(
-        "usage_events_retry_count_non_negative", "usage_events", type_="check"
-    )
+    op.drop_constraint("usage_events_retry_count_non_negative", "usage_events", type_="check")
     op.drop_column("usage_events", "request_id")
     op.drop_column("usage_events", "error_code")
     op.drop_column("usage_events", "fallback_used")

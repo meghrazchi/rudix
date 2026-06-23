@@ -404,7 +404,9 @@ def test_s_graph_health_enabled_connected(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(settings, "neo4j_uri", "bolt://localhost:7687")
     monkeypatch.setattr(settings, "neo4j_database", "neo4j")
     neo4j_module._neo4j_driver = MagicMock()  # type: ignore[assignment]
-    monkeypatch.setattr("app.interfaces.http.graph_health.check_neo4j_health", AsyncMock(return_value=True))
+    monkeypatch.setattr(
+        "app.interfaces.http.graph_health.check_neo4j_health", AsyncMock(return_value=True)
+    )
     admin = _make_admin_principal()
     app.dependency_overrides[get_current_principal] = lambda: admin
     try:
@@ -426,7 +428,9 @@ def test_t_graph_health_enabled_query_fails(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(settings, "neo4j_uri", "bolt://localhost:7687")
     monkeypatch.setattr(settings, "neo4j_database", "neo4j")
     neo4j_module._neo4j_driver = MagicMock()  # type: ignore[assignment]
-    monkeypatch.setattr("app.interfaces.http.graph_health.check_neo4j_health", AsyncMock(return_value=False))
+    monkeypatch.setattr(
+        "app.interfaces.http.graph_health.check_neo4j_health", AsyncMock(return_value=False)
+    )
     admin = _make_admin_principal()
     app.dependency_overrides[get_current_principal] = lambda: admin
     try:

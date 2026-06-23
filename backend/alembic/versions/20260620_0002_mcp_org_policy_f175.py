@@ -40,7 +40,9 @@ def upgrade() -> None:
         sa.Column("capabilities_admin", sa.JSON(), nullable=True),
         sa.Column("capabilities_member", sa.JSON(), nullable=True),
         sa.Column("capabilities_viewer", sa.JSON(), nullable=True),
-        sa.Column("rate_limit_enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column(
+            "rate_limit_enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")
+        ),
         sa.Column(
             "rate_limit_requests",
             sa.Integer(),

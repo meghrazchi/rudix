@@ -44,21 +44,11 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.ForeignKeyConstraint(
-            ["organization_id"], ["organizations.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["invited_by_user_id"], ["users.id"], ondelete="SET NULL"
-        ),
-        sa.ForeignKeyConstraint(
-            ["accepted_by_user_id"], ["users.id"], ondelete="SET NULL"
-        ),
-        sa.ForeignKeyConstraint(
-            ["revoked_by_user_id"], ["users.id"], ondelete="SET NULL"
-        ),
-        sa.ForeignKeyConstraint(
-            ["member_id"], ["organization_members.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["invited_by_user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["accepted_by_user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["revoked_by_user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["member_id"], ["organization_members.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("token_hash", name="uq_org_invitations_token_hash"),
         sa.CheckConstraint(
@@ -76,13 +66,8 @@ def upgrade() -> None:
     op.create_index(
         "idx_org_invitations_email_org", "organization_invitations", ["email", "organization_id"]
     )
-    op.create_index(
-        "idx_org_invitations_token_hash", "organization_invitations", ["token_hash"]
-    )
-    op.create_index(
-        "idx_org_invitations_expires", "organization_invitations", ["expires_at"]
-    )
-
+    op.create_index("idx_org_invitations_token_hash", "organization_invitations", ["token_hash"])
+    op.create_index("idx_org_invitations_expires", "organization_invitations", ["expires_at"])
 
 
 def downgrade() -> None:

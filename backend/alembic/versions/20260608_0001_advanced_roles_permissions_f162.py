@@ -52,9 +52,7 @@ def upgrade() -> None:
             ondelete="SET NULL",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_custom_roles"),
-        sa.UniqueConstraint(
-            "organization_id", "name", name="uq_custom_roles_org_name"
-        ),
+        sa.UniqueConstraint("organization_id", "name", name="uq_custom_roles_org_name"),
     )
     op.create_index("idx_custom_roles_org_id", "custom_roles", ["organization_id"])
 

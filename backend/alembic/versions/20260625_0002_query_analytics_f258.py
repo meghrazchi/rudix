@@ -60,12 +60,8 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["collection_id"], ["collections.id"], ondelete="SET NULL"
-        ),
-        sa.ForeignKeyConstraint(
-            ["linked_document_id"], ["documents.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["collection_id"], ["collections.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["linked_document_id"], ["documents.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(
             ["linked_eval_question_id"],
             ["evaluation_questions.id"],
@@ -89,7 +85,9 @@ def upgrade() -> None:
         ),
     )
     op.create_index("idx_qkg_org_status", "query_knowledge_gaps", ["organization_id", "status"])
-    op.create_index("idx_qkg_org_created", "query_knowledge_gaps", ["organization_id", "created_at"])
+    op.create_index(
+        "idx_qkg_org_created", "query_knowledge_gaps", ["organization_id", "created_at"]
+    )
     op.create_index("idx_qkg_gap_type", "query_knowledge_gaps", ["organization_id", "gap_type"])
 
 

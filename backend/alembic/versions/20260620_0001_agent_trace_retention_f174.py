@@ -34,9 +34,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("retain_days", sa.Integer(), nullable=False, server_default=sa.text("90")),
-        sa.Column(
-            "redact_prompts", sa.Boolean(), nullable=False, server_default=sa.text("false")
-        ),
+        sa.Column("redact_prompts", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column(
             "redact_raw_content", sa.Boolean(), nullable=False, server_default=sa.text("false")
         ),
@@ -59,9 +57,7 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
         sa.CheckConstraint("retain_days >= 1", name="trace_retention_retain_days_positive"),
-        sa.CheckConstraint(
-            "retain_days <= 3650", name="trace_retention_retain_days_max_ten_years"
-        ),
+        sa.CheckConstraint("retain_days <= 3650", name="trace_retention_retain_days_max_ten_years"),
     )
     op.create_index(
         "idx_trace_retention_org",

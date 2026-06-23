@@ -11,6 +11,7 @@ Usage:
 
     output_path defaults to stdout if omitted or "-", otherwise writes to file.
 """
+
 import json
 import os
 import sys

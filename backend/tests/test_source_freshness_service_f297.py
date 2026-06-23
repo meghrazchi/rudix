@@ -340,7 +340,9 @@ def test_multiplier_verified_boosts() -> None:
         trust_map=trust_map,
         today=_TODAY,
     )
-    assert adjusted == pytest.approx(0.8 * TRUST_SCORE_MULTIPLIERS["verified"] + PREFERRED_SOURCE_BUMP)
+    assert adjusted == pytest.approx(
+        0.8 * TRUST_SCORE_MULTIPLIERS["verified"] + PREFERRED_SOURCE_BUMP
+    )
 
 
 def test_multiplier_current_unchanged() -> None:

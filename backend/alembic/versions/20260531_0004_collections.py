@@ -92,7 +92,9 @@ def upgrade() -> None:
             name=op.f("fk_collection_documents_document_id_documents"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("collection_id", "document_id", name=op.f("pk_collection_documents")),
+        sa.PrimaryKeyConstraint(
+            "collection_id", "document_id", name=op.f("pk_collection_documents")
+        ),
         sa.UniqueConstraint(
             "collection_id",
             "document_id",
@@ -102,9 +104,7 @@ def upgrade() -> None:
     op.create_index(
         "idx_collection_documents_collection_id", "collection_documents", ["collection_id"]
     )
-    op.create_index(
-        "idx_collection_documents_document_id", "collection_documents", ["document_id"]
-    )
+    op.create_index("idx_collection_documents_document_id", "collection_documents", ["document_id"])
 
 
 def downgrade() -> None:

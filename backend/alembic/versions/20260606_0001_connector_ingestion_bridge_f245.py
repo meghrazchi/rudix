@@ -76,9 +76,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("idx_documents_connector_external_item", table_name="documents")
-    op.drop_constraint(
-        "fk_documents_connector_external_item", "documents", type_="foreignkey"
-    )
+    op.drop_constraint("fk_documents_connector_external_item", "documents", type_="foreignkey")
     op.drop_column("documents", "connector_external_item_id")
     op.drop_constraint("documents_ingestion_source_allowed", "documents", type_="check")
     op.drop_column("documents", "ingestion_source")

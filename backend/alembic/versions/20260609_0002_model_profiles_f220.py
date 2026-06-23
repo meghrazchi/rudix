@@ -42,9 +42,7 @@ def upgrade() -> None:
         sa.Column("streaming", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("fallback_provider_key", sa.String(length=64), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column(
-            "is_experimental", sa.Boolean(), nullable=False, server_default="false"
-        ),
+        sa.Column("is_experimental", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("cost_metadata", JSONB(), nullable=False, server_default="{}"),
         sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column(

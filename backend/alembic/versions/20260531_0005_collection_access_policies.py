@@ -22,8 +22,7 @@ def upgrade() -> None:
     # We use raw SQL here because op.drop_constraint() would re-apply the
     # naming convention (ck_%(table)s_%(name)s) and double-prefix the name.
     op.execute(
-        "ALTER TABLE collections "
-        "DROP CONSTRAINT ck_collections_collections_access_policy_allowed"
+        "ALTER TABLE collections DROP CONSTRAINT ck_collections_collections_access_policy_allowed"
     )
 
     # Migrate existing 'restricted' rows to 'admin_only' (safest default)
@@ -99,8 +98,7 @@ def downgrade() -> None:
 
     # Drop the extended constraint by raw SQL (same double-prefix issue)
     op.execute(
-        "ALTER TABLE collections "
-        "DROP CONSTRAINT ck_collections_collections_access_policy_allowed"
+        "ALTER TABLE collections DROP CONSTRAINT ck_collections_collections_access_policy_allowed"
     )
 
     # Revert non-org_wide policies back to 'restricted'

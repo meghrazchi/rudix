@@ -244,9 +244,7 @@ async def db_session():
     from app.core.config import settings
 
     engine = create_async_engine(str(settings.database_url), echo=False)
-    session_factory = async_sessionmaker(
-        bind=engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         yield session
         await session.rollback()

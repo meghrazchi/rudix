@@ -83,9 +83,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["field_id"], ["metadata_fields.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
-        sa.UniqueConstraint(
-            "document_id", "field_id", name="uq_document_metadata_doc_field"
-        ),
+        sa.UniqueConstraint("document_id", "field_id", name="uq_document_metadata_doc_field"),
     )
     op.create_index("idx_document_metadata_doc", "document_metadata", ["document_id"])
     op.create_index("idx_document_metadata_field", "document_metadata", ["field_id"])
@@ -119,7 +117,9 @@ def upgrade() -> None:
     )
     op.create_index("idx_metadata_audit_doc", "metadata_audit_log", ["document_id"])
     op.create_index("idx_metadata_audit_field", "metadata_audit_log", ["field_id"])
-    op.create_index("idx_metadata_audit_org_created", "metadata_audit_log", ["organization_id", "created_at"])
+    op.create_index(
+        "idx_metadata_audit_org_created", "metadata_audit_log", ["organization_id", "created_at"]
+    )
 
 
 def downgrade() -> None:

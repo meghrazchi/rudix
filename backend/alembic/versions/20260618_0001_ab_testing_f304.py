@@ -35,10 +35,25 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("evaluation_set_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="draft"),
-        sa.Column("metrics_config", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default="{}"),
+        sa.Column(
+            "metrics_config",
+            postgresql.JSON(astext_type=sa.Text()),
+            nullable=False,
+            server_default="{}",
+        ),
         sa.Column("created_by_id", sa.Uuid(as_uuid=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["evaluation_set_id"], ["evaluation_sets.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="SET NULL"),
@@ -63,13 +78,30 @@ def upgrade() -> None:
         sa.Column("rag_profile_version", sa.Integer(), nullable=True),
         sa.Column("prompt_template_version_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("model_profile_key", sa.String(length=64), nullable=True),
-        sa.Column("config_snapshot", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default="{}"),
-        sa.Column("approval_status", sa.String(length=32), nullable=False, server_default="pending"),
+        sa.Column(
+            "config_snapshot",
+            postgresql.JSON(astext_type=sa.Text()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column(
+            "approval_status", sa.String(length=32), nullable=False, server_default="pending"
+        ),
         sa.Column("approved_by_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("approval_note", sa.Text(), nullable=True),
         sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(["experiment_id"], ["ab_experiments.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["rag_profile_id"], ["rag_profiles.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(
@@ -94,12 +126,27 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("experiment_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="running"),
-        sa.Column("comparison_report", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default="{}"),
+        sa.Column(
+            "comparison_report",
+            postgresql.JSON(astext_type=sa.Text()),
+            nullable=False,
+            server_default="{}",
+        ),
         sa.Column("triggered_by_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(["experiment_id"], ["ab_experiments.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["triggered_by_id"], ["users.id"], ondelete="SET NULL"),
         sa.CheckConstraint(
@@ -124,19 +171,30 @@ def upgrade() -> None:
         sa.Column("variant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("evaluation_run_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="queued"),
-        sa.Column("metrics_summary", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default="{}"),
+        sa.Column(
+            "metrics_summary",
+            postgresql.JSON(astext_type=sa.Text()),
+            nullable=False,
+            server_default="{}",
+        ),
         sa.Column("error_detail", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(
             ["experiment_run_id"], ["ab_experiment_runs.id"], ondelete="CASCADE"
         ),
-        sa.ForeignKeyConstraint(
-            ["variant_id"], ["ab_experiment_variants.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["evaluation_run_id"], ["evaluation_runs.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["variant_id"], ["ab_experiment_variants.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["evaluation_run_id"], ["evaluation_runs.id"], ondelete="SET NULL"),
         sa.CheckConstraint(
             "status IN ('queued', 'running', 'completed', 'failed')",
             name="ab_experiment_variant_runs_status_allowed",

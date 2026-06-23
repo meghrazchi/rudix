@@ -39,7 +39,10 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.CheckConstraint("rating IN ('up', 'down')", name=op.f("ck_message_feedback_message_feedback_rating_allowed")),
+        sa.CheckConstraint(
+            "rating IN ('up', 'down')",
+            name=op.f("ck_message_feedback_message_feedback_rating_allowed"),
+        ),
         sa.ForeignKeyConstraint(
             ["message_id"],
             ["chat_messages.id"],
@@ -62,7 +65,9 @@ def upgrade() -> None:
         sa.UniqueConstraint("message_id", "user_id", name="uq_message_feedback_message_user"),
     )
     op.create_index("idx_message_feedback_message", "message_feedback", ["message_id"])
-    op.create_index("idx_message_feedback_org_user", "message_feedback", ["organization_id", "user_id"])
+    op.create_index(
+        "idx_message_feedback_org_user", "message_feedback", ["organization_id", "user_id"]
+    )
 
 
 def downgrade() -> None:

@@ -65,9 +65,7 @@ def upgrade() -> None:
             "status IN ('open', 'resolved', 'dismissed')",
             name="connector_sync_conflicts_status_allowed",
         ),
-        sa.ForeignKeyConstraint(
-            ["organization_id"], ["organizations.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
             ["connection_id"],
             ["connector_connections.id"],
@@ -83,9 +81,7 @@ def upgrade() -> None:
             ["connector_sync_runs.id"],
             ondelete="SET NULL",
         ),
-        sa.ForeignKeyConstraint(
-            ["resolved_by_user_id"], ["users.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["resolved_by_user_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(

@@ -153,9 +153,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_org_scim_configs"),
         sa.UniqueConstraint("organization_id", name="uq_org_scim_configs_org_id"),
     )
-    op.create_index(
-        "idx_org_scim_configs_org_id", "org_scim_configs", ["organization_id"]
-    )
+    op.create_index("idx_org_scim_configs_org_id", "org_scim_configs", ["organization_id"])
 
 
 def downgrade() -> None:

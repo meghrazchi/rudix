@@ -48,18 +48,12 @@ def upgrade() -> None:
             "severity IN ('critical','high','medium','low')",
             name="incidents_severity_check",
         ),
-        sa.ForeignKeyConstraint(
-            ["organization_id"], ["organizations.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["created_by_id"], ["users.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("idx_incidents_org_status", "incidents", ["organization_id", "status"])
-    op.create_index(
-        "idx_incidents_org_started_at", "incidents", ["organization_id", "started_at"]
-    )
+    op.create_index("idx_incidents_org_started_at", "incidents", ["organization_id", "started_at"])
 
     op.create_table(
         "incident_notes",
@@ -70,20 +64,12 @@ def upgrade() -> None:
         sa.Column("status_change", sa.String(32), nullable=True),
         sa.Column("created_by_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["incident_id"], ["incidents.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["organization_id"], ["organizations.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["created_by_id"], ["users.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["incident_id"], ["incidents.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "idx_incident_notes_incident_id", "incident_notes", ["incident_id"]
-    )
+    op.create_index("idx_incident_notes_incident_id", "incident_notes", ["incident_id"])
     op.create_index(
         "idx_incident_notes_org_created",
         "incident_notes",

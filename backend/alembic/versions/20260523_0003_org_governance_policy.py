@@ -41,7 +41,9 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.false(),
         ),
-        sa.Column("allowed_tool_names", sa.JSON(), nullable=False, server_default=sa.text("'[]'::json")),
+        sa.Column(
+            "allowed_tool_names", sa.JSON(), nullable=False, server_default=sa.text("'[]'::json")
+        ),
         sa.Column("max_steps", sa.Integer(), nullable=True),
         sa.Column("max_tool_calls_per_run", sa.Integer(), nullable=True),
         sa.Column("max_tool_timeout_ms", sa.Integer(), nullable=True),
@@ -50,10 +52,22 @@ def upgrade() -> None:
         sa.Column("max_tool_retry_attempts", sa.Integer(), nullable=True),
         sa.Column("max_total_tokens", sa.Integer(), nullable=True),
         sa.Column("max_total_cost_usd", sa.Numeric(precision=12, scale=6), nullable=True),
-        sa.Column("external_mcp_servers", sa.JSON(), nullable=False, server_default=sa.text("'[]'::json")),
+        sa.Column(
+            "external_mcp_servers", sa.JSON(), nullable=False, server_default=sa.text("'[]'::json")
+        ),
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "max_steps IS NULL OR max_steps >= 1",
             name=op.f("ck_organization_governance_policies_org_governance_max_steps_positive"),
@@ -76,7 +90,9 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "max_tool_retry_attempts IS NULL OR max_tool_retry_attempts >= 0",
-            name=op.f("ck_organization_governance_policies_org_governance_retry_attempts_non_negative"),
+            name=op.f(
+                "ck_organization_governance_policies_org_governance_retry_attempts_non_negative"
+            ),
         ),
         sa.CheckConstraint(
             "max_total_tokens IS NULL OR max_total_tokens >= 1",
@@ -89,9 +105,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["organization_id"],
             ["organizations.id"],
-            name=op.f(
-                "fk_organization_governance_policies_organization_id_organizations"
-            ),
+            name=op.f("fk_organization_governance_policies_organization_id_organizations"),
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(

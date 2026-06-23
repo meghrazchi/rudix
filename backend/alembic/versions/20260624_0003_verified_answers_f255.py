@@ -68,9 +68,17 @@ def upgrade() -> None:
             name="verified_answers_status_allowed",
         ),
     )
-    op.create_index("idx_verified_answers_org_status", "verified_answers", ["organization_id", "status"])
-    op.create_index("idx_verified_answers_org_owner", "verified_answers", ["organization_id", "owner_id"])
-    op.create_index("idx_verified_answers_org_collection", "verified_answers", ["organization_id", "collection_id"])
+    op.create_index(
+        "idx_verified_answers_org_status", "verified_answers", ["organization_id", "status"]
+    )
+    op.create_index(
+        "idx_verified_answers_org_owner", "verified_answers", ["organization_id", "owner_id"]
+    )
+    op.create_index(
+        "idx_verified_answers_org_collection",
+        "verified_answers",
+        ["organization_id", "collection_id"],
+    )
 
     op.create_table(
         "verified_answer_citations",
@@ -106,7 +114,9 @@ def upgrade() -> None:
         sa.Column("tags", sa.String(1024), nullable=True),
         sa.Column("change_reason", sa.String(255), nullable=False),
         sa.Column("changed_by_id", sa.Uuid(as_uuid=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(
             ["verified_answer_id"], ["verified_answers.id"], ondelete="CASCADE"

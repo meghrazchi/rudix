@@ -106,9 +106,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_failed_job_audit_logs"),
     )
-    op.create_index(
-        "idx_failed_job_audit_logs_job_id", "failed_job_audit_logs", ["failed_job_id"]
-    )
+    op.create_index("idx_failed_job_audit_logs_job_id", "failed_job_audit_logs", ["failed_job_id"])
     op.create_index(
         "idx_failed_job_audit_logs_org_created",
         "failed_job_audit_logs",
