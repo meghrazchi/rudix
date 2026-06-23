@@ -696,8 +696,12 @@ async def test_feedback_sets_retain_until_on_creation(
     user, org = await _seed_admin(db_session)
     feedback, _msg = await _seed_feedback_with_diagnostics(db_session, org=org, user=user)
     assert feedback.retain_until is not None
-    # Should be ~90 days from now
+    # Should be ~90 days from now (SQLite strips tz, compare naive)
     from datetime import datetime
 
-    diff = (feedback.retain_until - datetime.now(tz=UTC)).days
+    now = datetime.now(tz=UTC)
+    retain = feedback.retain_until
+    if retain.tzinfo is None:
+        now = now.replace(tzinfo=None)
+    diff = (retain - now).days
     assert 88 <= diff <= 91

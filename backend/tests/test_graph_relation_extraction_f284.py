@@ -97,6 +97,7 @@ from pydantic import ValidationError
 
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
+from app.db.session import get_db_session
 from app.core.config import settings
 from app.domains.graph.repositories.relation_repository import (
     RelationRepository,
@@ -957,11 +958,14 @@ async def test_AT_graph_service_delete_relation_by_id_delegates():
 
 
 def _owner_principal(org_id: str = _ORG) -> AuthenticatedPrincipal:
+    from app.models.permissions import PermissionType
+
     return AuthenticatedPrincipal(
         user_id="00000000-0000-0000-0000-000000f284a1",
         organization_id=org_id,
         roles=[OrganizationRole.owner.value],
         auth_provider="app",
+        api_key_permissions=frozenset(p.value for p in PermissionType),
     )
 
 
@@ -972,6 +976,10 @@ def _member_principal(org_id: str = _ORG) -> AuthenticatedPrincipal:
         roles=[OrganizationRole.member.value],
         auth_provider="app",
     )
+
+
+async def _mock_db_session():
+    yield AsyncMock()
 
 
 def _graph_disabled_client():
@@ -1083,12 +1091,14 @@ def test_BA_create_relation_valid_200():
     }
     with patch.object(settings, "enterprise_graph_enabled", True):
         app.dependency_overrides[get_current_principal] = lambda: _owner_principal()
+        app.dependency_overrides[get_db_session] = _mock_db_session
         with patch("app.interfaces.http.admin_graph_relations.GraphService") as MockSvc:
             MockSvc.return_value.create_relation_with_evidence = AsyncMock()
             MockSvc.return_value.get_relation = AsyncMock(return_value=fake_relation)
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post("/api/v1/admin/graph/relations", json=payload)
     app.dependency_overrides.pop(get_current_principal, None)
+    app.dependency_overrides.pop(get_db_session, None)
     assert resp.status_code == 200
     assert resp.json()["relation_id"] == rel_id
 
@@ -1136,6 +1146,7 @@ def test_BE_patch_status_valid_200():
     rel_id = str(uuid.uuid4())
     with patch.object(settings, "enterprise_graph_enabled", True):
         app.dependency_overrides[get_current_principal] = lambda: _owner_principal()
+        app.dependency_overrides[get_db_session] = _mock_db_session
         with patch("app.interfaces.http.admin_graph_relations.GraphService") as MockSvc:
             MockSvc.return_value.update_relation_status = AsyncMock(return_value=True)
             client = TestClient(app, raise_server_exceptions=False)
@@ -1144,6 +1155,7 @@ def test_BE_patch_status_valid_200():
                 json={"status": "verified"},
             )
     app.dependency_overrides.pop(get_current_principal, None)
+    app.dependency_overrides.pop(get_db_session, None)
     assert resp.status_code == 200
     data = resp.json()
     assert data["updated"] is True
@@ -1165,11 +1177,13 @@ def test_BG_delete_relation_valid_200():
     rel_id = str(uuid.uuid4())
     with patch.object(settings, "enterprise_graph_enabled", True):
         app.dependency_overrides[get_current_principal] = lambda: _owner_principal()
+        app.dependency_overrides[get_db_session] = _mock_db_session
         with patch("app.interfaces.http.admin_graph_relations.GraphService") as MockSvc:
             MockSvc.return_value.delete_relation_by_id = AsyncMock(return_value=True)
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.delete(f"/api/v1/admin/graph/relations/{rel_id}")
     app.dependency_overrides.pop(get_current_principal, None)
+    app.dependency_overrides.pop(get_db_session, None)
     assert resp.status_code == 200
     assert resp.json()["deleted"] is True
 

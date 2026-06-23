@@ -57,6 +57,8 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from fastapi.testclient import TestClient
 
 import app.clients.neo4j_client as neo4j_module
+from app.auth.dependencies import get_current_principal
+from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.main import app
 
@@ -67,6 +69,24 @@ from app.main import app
 
 def _reset_driver() -> None:
     neo4j_module._neo4j_driver = None
+
+
+def _make_admin_principal() -> AuthenticatedPrincipal:
+    return AuthenticatedPrincipal(
+        user_id="user-admin",
+        organization_id="org-1",
+        roles=["owner"],
+        auth_provider="app",
+    )
+
+
+def _make_member_principal() -> AuthenticatedPrincipal:
+    return AuthenticatedPrincipal(
+        user_id="user-member",
+        organization_id="org-1",
+        roles=["member"],
+        auth_provider="app",
+    )
 
 
 def _make_admin_token() -> str:
@@ -345,13 +365,13 @@ def _patch_all_ready_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_q_graph_health_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", False)
-    token = _make_admin_token()
-    client = TestClient(app)
-
-    response = client.get(
-        "/api/v1/admin/graph/health",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    admin = _make_admin_principal()
+    app.dependency_overrides[get_current_principal] = lambda: admin
+    try:
+        client = TestClient(app)
+        response = client.get("/api/v1/admin/graph/health")
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
 
     assert response.status_code == 200
     body = response.json()
@@ -364,13 +384,13 @@ def test_r_graph_health_enabled_driver_none(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(settings, "neo4j_uri", "bolt://localhost:7687")
     monkeypatch.setattr(settings, "neo4j_database", "neo4j")
     neo4j_module._neo4j_driver = None
-    token = _make_admin_token()
-    client = TestClient(app)
-
-    response = client.get(
-        "/api/v1/admin/graph/health",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    admin = _make_admin_principal()
+    app.dependency_overrides[get_current_principal] = lambda: admin
+    try:
+        client = TestClient(app)
+        response = client.get("/api/v1/admin/graph/health")
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
 
     assert response.status_code == 200
     body = response.json()
@@ -384,21 +404,21 @@ def test_s_graph_health_enabled_connected(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(settings, "neo4j_uri", "bolt://localhost:7687")
     monkeypatch.setattr(settings, "neo4j_database", "neo4j")
     neo4j_module._neo4j_driver = MagicMock()  # type: ignore[assignment]
-    monkeypatch.setattr(neo4j_module, "check_neo4j_health", AsyncMock(return_value=True))
-    token = _make_admin_token()
-    client = TestClient(app)
-
-    response = client.get(
-        "/api/v1/admin/graph/health",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    monkeypatch.setattr("app.interfaces.http.graph_health.check_neo4j_health", AsyncMock(return_value=True))
+    admin = _make_admin_principal()
+    app.dependency_overrides[get_current_principal] = lambda: admin
+    try:
+        client = TestClient(app)
+        response = client.get("/api/v1/admin/graph/health")
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
+        _reset_driver()
 
     assert response.status_code == 200
     body = response.json()
     assert body["enabled"] is True
     assert body["status"] == "connected"
     assert body["detail"] is None
-    _reset_driver()
 
 
 def test_t_graph_health_enabled_query_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -406,32 +426,32 @@ def test_t_graph_health_enabled_query_fails(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(settings, "neo4j_uri", "bolt://localhost:7687")
     monkeypatch.setattr(settings, "neo4j_database", "neo4j")
     neo4j_module._neo4j_driver = MagicMock()  # type: ignore[assignment]
-    monkeypatch.setattr(neo4j_module, "check_neo4j_health", AsyncMock(return_value=False))
-    token = _make_admin_token()
-    client = TestClient(app)
-
-    response = client.get(
-        "/api/v1/admin/graph/health",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    monkeypatch.setattr("app.interfaces.http.graph_health.check_neo4j_health", AsyncMock(return_value=False))
+    admin = _make_admin_principal()
+    app.dependency_overrides[get_current_principal] = lambda: admin
+    try:
+        client = TestClient(app)
+        response = client.get("/api/v1/admin/graph/health")
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
+        _reset_driver()
 
     assert response.status_code == 200
     body = response.json()
     assert body["enabled"] is True
     assert body["status"] == "unavailable"
     assert body["detail"] == "neo4j_query_failed"
-    _reset_driver()
 
 
 def test_u_graph_health_member_gets_403(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", False)
-    token = _make_member_token()
-    client = TestClient(app)
-
-    response = client.get(
-        "/api/v1/admin/graph/health",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    member = _make_member_principal()
+    app.dependency_overrides[get_current_principal] = lambda: member
+    try:
+        client = TestClient(app)
+        response = client.get("/api/v1/admin/graph/health")
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
 
     assert response.status_code == 403
 

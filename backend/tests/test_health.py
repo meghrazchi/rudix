@@ -43,6 +43,7 @@ def _patch_ready_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.api.health.check_qdrant_health", lambda: True)
     monkeypatch.setattr("app.api.health.check_minio_health", lambda: True)
     monkeypatch.setattr("app.api.health._openai_configuration_health", _ok_dependency)
+    monkeypatch.setattr("app.api.health.check_neo4j_health", _ok_async)
 
 
 def test_health_returns_ok() -> None:

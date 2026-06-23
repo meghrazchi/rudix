@@ -107,6 +107,7 @@ import app.clients.neo4j_client as neo4j_module
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
+from app.db.session import get_db_session
 from app.domains.graph.repositories.document_repository import DocumentGraphRepository
 from app.domains.graph.repositories.entity_repository import EntityRepository
 from app.domains.graph.repositories.evidence_repository import EvidenceRepository
@@ -150,13 +151,22 @@ def _mock_driver(records: list[dict] | None = None) -> MagicMock:
     return driver_mock
 
 
+async def _mock_db_session():
+    yield AsyncMock()
+
+
 def _principal_override(role: str = "owner"):
+    from app.models.permissions import PermissionType
+
+    perms = frozenset(p.value for p in PermissionType)
+
     async def _dep() -> AuthenticatedPrincipal:
         return AuthenticatedPrincipal(
             user_id="00000000-0000-0000-0000-000000f281a1",
             organization_id=_ORG,
             roles=[role],
             auth_provider="app",
+            api_key_permissions=perms,
         )
 
     return _dep
@@ -1099,6 +1109,23 @@ async def test_aq2_service_delegates_list_entity_aliases():
 # ---------------------------------------------------------------------------
 
 _BASE = "/api/v1/admin/graph"
+
+
+@pytest.fixture(autouse=True)
+def _dispose_engine_between_http_tests():
+    """Dispose the asyncpg pool before each test to prevent event loop conflicts."""
+    import asyncio
+
+    from app.db.session import engine as _app_engine
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    loop.run_until_complete(_app_engine.dispose())
+    yield
+    loop.run_until_complete(_app_engine.dispose())
 
 
 def _svc_mock(**overrides: Any) -> MagicMock:

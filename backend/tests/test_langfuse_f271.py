@@ -54,6 +54,8 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 import app.core.langfuse_tracer as tracer_module
+from app.auth.dependencies import get_current_principal
+from app.auth.models import AuthenticatedPrincipal
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, LangfuseRedactionMode, settings
 from app.core.langfuse_tracer import (
@@ -170,6 +172,8 @@ def test_init_langfuse_disabled_missing_base_url() -> None:
 
 def test_init_langfuse_handles_import_error() -> None:
     _reset_tracer()
+    import sys
+
     with (
         patch.object(settings, "langfuse_enabled", True),
         patch.object(settings, "langfuse_public_key", "pk-test"),
@@ -177,7 +181,7 @@ def test_init_langfuse_handles_import_error() -> None:
             settings, "langfuse_secret_key", MagicMock(get_secret_value=lambda: "sk-test")
         ),
         patch.object(settings, "langfuse_base_url", "http://localhost:3030"),
-        patch("builtins.__import__", side_effect=ImportError("langfuse not installed")),
+        patch.dict(sys.modules, {"langfuse": None}),
     ):
         result = init_langfuse(runtime="api")
     assert result is False
@@ -258,7 +262,7 @@ def test_trace_chat_query_full_rag_creates_spans() -> None:
         patch.object(settings, "langfuse_capture_input_output", True),
         patch.object(settings, "langfuse_redaction_mode", LangfuseRedactionMode.none),
     ):
-        trace_chat_query(_make_metadata())
+        trace_chat_query(_make_metadata(rerank_enabled=True))
 
     mock_client.trace.assert_called_once()
     call_kwargs = mock_client.trace.call_args.kwargs
@@ -495,39 +499,65 @@ def _member_token() -> str:
 
 
 @pytest.mark.asyncio
-async def test_langfuse_status_member_gets_403(_member_token: str) -> None:
+async def test_langfuse_status_member_gets_403() -> None:
+    from app.db.session import engine as _app_engine
     from httpx import ASGITransport, AsyncClient
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get(
-            "/api/v1/admin/langfuse/status",
-            headers={"Authorization": f"Bearer {_member_token}"},
+    await _app_engine.dispose()
+
+    def _member_principal() -> AuthenticatedPrincipal:
+        return AuthenticatedPrincipal(
+            user_id="00000000-0000-0000-0000-000000f271b1",
+            organization_id="org-001",
+            roles=[OrganizationRole.member.value],
+            auth_provider="app",
         )
+
+    app.dependency_overrides[get_current_principal] = _member_principal
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/admin/langfuse/status")
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_langfuse_status_admin_sees_status(_admin_token: str) -> None:
+async def test_langfuse_status_admin_sees_status() -> None:
+    from app.db.session import engine as _app_engine
     from httpx import ASGITransport, AsyncClient
 
-    with patch(
-        "app.core.langfuse_tracer.check_langfuse_health",
-        AsyncMock(
-            return_value={
-                "enabled": False,
-                "base_url_configured": False,
-                "keys_configured": False,
-                "client_initialized": False,
-                "reachable": False,
-                "last_error": None,
-            }
-        ),
-    ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get(
-                "/api/v1/admin/langfuse/status",
-                headers={"Authorization": f"Bearer {_admin_token}"},
-            )
+    await _app_engine.dispose()
+
+    def _admin_principal() -> AuthenticatedPrincipal:
+        return AuthenticatedPrincipal(
+            user_id="00000000-0000-0000-0000-000000f271a1",
+            organization_id="org-001",
+            roles=[OrganizationRole.admin.value],
+            auth_provider="app",
+        )
+
+    app.dependency_overrides[get_current_principal] = _admin_principal
+    try:
+        with patch(
+            "app.interfaces.http.langfuse_diagnostics.check_langfuse_health",
+            AsyncMock(
+                return_value={
+                    "enabled": False,
+                    "base_url_configured": False,
+                    "keys_configured": False,
+                    "client_initialized": False,
+                    "reachable": False,
+                    "last_error": None,
+                }
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get("/api/v1/admin/langfuse/status")
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
 
     assert response.status_code == 200
     body = response.json()

@@ -318,6 +318,8 @@ async def create_collection(
         },
     )
     await db.commit()
+    await db.refresh(collection)
+    await db.refresh(collection, ["owner"])
 
     _logger.info(
         "collection.created",

@@ -86,9 +86,11 @@ async def _seed_org(
     org = Organization(id=uuid4(), name=f"org-{uuid4().hex[:6]}", slug=uuid4().hex[:8])
     user = User(
         id=uuid4(),
+        organization_id=org.id,
         email=f"u-{uuid4().hex[:6]}@example.com",
         display_name="Test User",
         auth_provider="app",
+        provisioned_by="manual",
     )
     member = OrganizationMember(id=uuid4(), organization_id=org.id, user_id=user.id, role=role)
     db.add_all([org, user, member])
@@ -237,9 +239,18 @@ async def test_validate_in_operator_requires_list():
 
 @pytest_asyncio.fixture
 async def db_session():
-    async for session in get_db_session():
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    from app.core.config import settings
+
+    engine = create_async_engine(str(settings.database_url), echo=False)
+    session_factory = async_sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with session_factory() as session:
         yield session
         await session.rollback()
+    await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -372,8 +383,11 @@ async def test_refresh_membership_clears_stale(db_session: AsyncSession):
 
 @pytest_asyncio.fixture
 async def http_client():
+    from app.db.session import engine as _app_engine
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
+    await _app_engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -507,11 +521,11 @@ async def test_refresh_rules_non_dynamic_422(http_client: AsyncClient, db_sessio
 async def test_create_dynamic_collection_refreshes_immediately(
     http_client: AsyncClient, db_session: AsyncSession
 ):
-    org, user, _ = await _seed_org(db_session, role=OrganizationRole.member.value)
+    org, user, _ = await _seed_org(db_session, role=OrganizationRole.owner.value)
     await _seed_doc(db_session, org_id=org.id, user_id=user.id, file_type="pdf")
     await db_session.commit()
 
-    token = _make_token(str(user.id), str(org.id), OrganizationRole.member.value)
+    token = _make_token(str(user.id), str(org.id), OrganizationRole.owner.value)
     resp = await http_client.post(
         "/collections",
         json={

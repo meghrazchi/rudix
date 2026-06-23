@@ -1134,9 +1134,15 @@ async def get_citation_preview(
         if current_version is not None:
             document_last_indexed_at = current_version.indexed_at
 
+    doc_uploaded_by_user_id = document.uploaded_by_user_id
     uploader = None
-    if document.uploaded_by_user_id is not None:
-        uploader = await db_session.get(User, document.uploaded_by_user_id)
+    uploader_email: str | None = None
+    uploader_display_name: str | None = None
+    if doc_uploaded_by_user_id is not None:
+        uploader = await db_session.get(User, doc_uploaded_by_user_id)
+        if uploader is not None:
+            uploader_email = uploader.email
+            uploader_display_name = uploader.display_name
 
     highlight_start_offset = citation.start_offset
     highlight_end_offset = citation.end_offset
@@ -1158,8 +1164,8 @@ async def get_citation_preview(
         document_owner_id=str(doc_uploaded_by_user_id)
         if doc_uploaded_by_user_id is not None
         else None,
-        document_owner_email=uploader.email if uploader is not None else None,
-        document_owner_display_name=uploader.display_name if uploader is not None else None,
+        document_owner_email=uploader_email,
+        document_owner_display_name=uploader_display_name,
         document_version_label=document.version_label,
         document_last_updated_at=document.updated_at,
         document_last_indexed_at=document_last_indexed_at,
@@ -1284,8 +1290,13 @@ async def get_document(
 
     doc_uploaded_by_user_id = document.uploaded_by_user_id
     uploader = None
+    uploader_email: str | None = None
+    uploader_display_name: str | None = None
     if doc_uploaded_by_user_id is not None:
         uploader = await db_session.get(User, doc_uploaded_by_user_id)
+        if uploader is not None:
+            uploader_email = uploader.email
+            uploader_display_name = uploader.display_name
 
     source_provider = None
     source_provider_label = None
@@ -1421,8 +1432,8 @@ async def get_document(
         uploaded_by_user_id=str(doc_uploaded_by_user_id)
         if doc_uploaded_by_user_id is not None
         else None,
-        uploaded_by_user_email=uploader.email if uploader is not None else None,
-        uploaded_by_user_display_name=uploader.display_name if uploader is not None else None,
+        uploaded_by_user_email=uploader_email,
+        uploaded_by_user_display_name=uploader_display_name,
         source_provider=source_provider,
         source_provider_label=source_provider_label,
         source_title=source_title,
@@ -1438,8 +1449,8 @@ async def get_document(
         document_owner_id=str(doc_uploaded_by_user_id)
         if doc_uploaded_by_user_id is not None
         else None,
-        document_owner_email=uploader.email if uploader is not None else None,
-        document_owner_display_name=uploader.display_name if uploader is not None else None,
+        document_owner_email=uploader_email,
+        document_owner_display_name=uploader_display_name,
         document_version_label=doc_version_label,
         document_last_updated_at=updated_at,
         document_last_indexed_at=doc_last_indexed_at,

@@ -149,6 +149,7 @@ class TestRetrievalFiltering:
     def test_connector_acl_denies_when_item_not_cleared(self) -> None:
         org = _org()
         item_id = str(uuid4())
+        other_item_id = str(uuid4())
         connector_id = str(uuid4())
         subject = SubjectContext(
             user_id=str(uuid4()),
@@ -157,7 +158,7 @@ class TestRetrievalFiltering:
             resource_grants=[],
             resource_denies=[],
             accessible_collection_ids=frozenset(),
-            connector_acl_item_ids=frozenset(),
+            connector_acl_item_ids=frozenset({other_item_id}),  # has items, but not this one
             resolved_permissions=frozenset(),
         )
         resource = ResourceContext(
@@ -348,17 +349,29 @@ class TestChatAction:
 
     def test_chat_denied_when_connector_acl_not_cleared(self) -> None:
         org = _org()
+        resource_id = str(uuid4())
+        other_item_id = str(uuid4())
         connector_id = str(uuid4())
+        subject = SubjectContext(
+            user_id=str(uuid4()),
+            organization_id=org,
+            roles=frozenset({"member"}),
+            resource_grants=[],
+            resource_denies=[],
+            accessible_collection_ids=frozenset(),
+            connector_acl_item_ids=frozenset({other_item_id}),  # has items, but not this resource
+            resolved_permissions=frozenset(),
+        )
         resource = ResourceContext(
             resource_type=ResourceType.document,
-            resource_id=str(uuid4()),
+            resource_id=resource_id,
             organization_id=org,
             owner_ids=frozenset(),
             collection_ids=frozenset(),
             connector_id=connector_id,
             feature_enabled=True,
         )
-        result = _engine.authorize(_member(org), Action.chat, resource)
+        result = _engine.authorize(subject, Action.chat, resource)
         assert result.result is PermissionResult.deny
         assert result.deny_reason is DenyReason.connector_acl_denied
 
