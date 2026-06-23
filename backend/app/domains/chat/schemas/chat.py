@@ -239,6 +239,17 @@ class ChatCitationResponse(BaseModel):
     # OCR quality (F299): populated when the source document was OCR-processed.
     doc_ocr_quality_status: str | None = None
     doc_ocr_low_confidence_warning: bool = False
+    # Evidence quality (F315): table extraction confidence and document processing quality.
+    # table_extraction_confidence: raw confidence from the extraction engine for this table chunk.
+    # table_low_confidence_warning: True when table_extraction_confidence < 0.4.
+    # doc_extraction_quality: document_profile from extraction_snapshot (e.g. corrupted, scanned).
+    # doc_extraction_warning: True when extraction profile is problematic or confidence is low.
+    # doc_processing_warning: True when the source document has incomplete or failed processing.
+    table_extraction_confidence: float | None = None
+    table_low_confidence_warning: bool = False
+    doc_extraction_quality: str | None = None
+    doc_extraction_warning: bool = False
+    doc_processing_warning: bool = False
 
 
 class ChatDebugResponse(BaseModel):

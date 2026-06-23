@@ -79,6 +79,16 @@ export type CitationTrustRecord = {
   doc_unreviewed_warning: boolean;
   /** F311 — true when the source is deprecated, archived, or superseded. */
   doc_deprecated_warning: boolean;
+  /** F315 — raw confidence from the table extraction engine (0.0–1.0). */
+  table_extraction_confidence?: number | null;
+  /** F315 — true when table extraction confidence is below 0.4. */
+  table_low_confidence_warning: boolean;
+  /** F315 — document profile from extraction_snapshot (e.g. "corrupted", "scanned"). */
+  doc_extraction_quality?: string | null;
+  /** F315 — true when extraction profile is problematic or extraction confidence is low. */
+  doc_extraction_warning: boolean;
+  /** F315 — true when the source document has incomplete or failed processing. */
+  doc_processing_warning: boolean;
 };
 
 /** Single explainable signal that contributed to the confidence score (F310). */
@@ -107,6 +117,10 @@ export type ConfidenceTrustRecord = {
   freshness_multiplier: number;
   ocr_quality_multiplier: number;
   conflict_multiplier: number;
+  /** F315 — table extraction quality penalty across table citations. */
+  table_quality_multiplier: number;
+  /** F315 — document extraction quality penalty across citations. */
+  extraction_quality_multiplier: number;
   graph_evidence_boost: number;
   verification_support_score?: number | null;
   not_found_signal: boolean;
@@ -243,6 +257,15 @@ export type SourceFreshnessRecord = {
   all_excluded_fallback: boolean;
 };
 
+/** Aggregated evidence quality signals across all cited sources (F315). */
+export type EvidenceQualityRecord = {
+  table_low_confidence_count: number;
+  extraction_warning_count: number;
+  processing_warning_count: number;
+  any_incomplete_documents: boolean;
+  warning_reasons: string[];
+};
+
 /** Versioned, organization-scoped answer trust metadata. schema_version "1" is current. */
 export type AnswerTrustMetadataResponse = {
   schema_version: "1";
@@ -260,6 +283,7 @@ export type AnswerTrustMetadataResponse = {
   conflict: ConflictStatusRecord;
   policy: PolicyEnforcementRecord;
   freshness: SourceFreshnessRecord;
+  evidence_quality: EvidenceQualityRecord;
   generated_at: string;
 };
 

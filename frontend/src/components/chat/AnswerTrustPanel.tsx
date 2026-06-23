@@ -12,6 +12,7 @@ import type {
   CitationTrustRecord,
   ConfidenceReasonRecord,
   ConflictStatusRecord,
+  EvidenceQualityRecord,
   QueryInterpretationRecord,
 } from "@/lib/api/trust_metadata";
 import { trackFeatureEvent } from "@/lib/analytics";
@@ -159,6 +160,45 @@ function ocrBadge(
       cls: "rounded-full border border-[#e0dced] bg-[#faf9ff] px-1.5 py-0.5 text-[9px] font-semibold text-[#6a6780] uppercase",
     };
   return null;
+}
+
+function tableExtractionBadge(
+  warn: boolean | undefined,
+): { label: string; cls: string } | null {
+  if (!warn) return null;
+  return {
+    label: "Table low confidence",
+    cls: "rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
+  };
+}
+
+function extractionQualityBadge(
+  quality: string | null | undefined,
+  warn: boolean | undefined,
+): { label: string; cls: string } | null {
+  if (!warn) return null;
+  const label =
+    quality === "corrupted"
+      ? "Corrupted"
+      : quality === "unsupported"
+        ? "Unsupported format"
+        : quality === "encrypted"
+          ? "Encrypted"
+          : "Extraction issue";
+  return {
+    label,
+    cls: "rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
+  };
+}
+
+function processingWarningBadge(
+  warn: boolean | undefined,
+): { label: string; cls: string } | null {
+  if (!warn) return null;
+  return {
+    label: "Processing incomplete",
+    cls: "rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[9px] font-semibold text-orange-800 uppercase",
+  };
 }
 
 function freshnessBadge(
@@ -556,6 +596,36 @@ export function AnswerTrustPanel({
     warnings.push(
       "One or more sources have low OCR confidence — text accuracy may be reduced.",
     );
+  // F315 — evidence quality warnings
+  const evidenceQuality = trustMetadata?.evidence_quality ?? null;
+  if (evidenceQuality) {
+    evidenceQuality.warning_reasons.forEach((r) => warnings.push(r));
+  } else {
+    if (
+      trustCitations.some(
+        (c) => (c as { table_low_confidence_warning?: boolean }).table_low_confidence_warning,
+      )
+    )
+      warnings.push(
+        "One or more cited tables have low extraction confidence — table data may be inaccurate.",
+      );
+    if (
+      trustCitations.some(
+        (c) => (c as { doc_extraction_warning?: boolean }).doc_extraction_warning,
+      )
+    )
+      warnings.push(
+        "One or more source documents have poor extraction quality — text coverage may be incomplete.",
+      );
+    if (
+      trustCitations.some(
+        (c) => (c as { doc_processing_warning?: boolean }).doc_processing_warning,
+      )
+    )
+      warnings.push(
+        "One or more source documents have incomplete or failed processing — content may be missing.",
+      );
+  }
   if (policyDisclaimer) warnings.push(policyDisclaimer);
   if ((debug?.grounded_verification_removed_count ?? 0) > 0)
     warnings.push(
@@ -816,6 +886,22 @@ export function AnswerTrustPanel({
                   value={pct(trustMetadata.confidence.conflict_multiplier)}
                 />
               )}
+            {trustMetadata?.confidence.table_quality_multiplier != null &&
+              trustMetadata.confidence.table_quality_multiplier < 1.0 && (
+                <StatRow
+                  label="Table quality factor"
+                  value={pct(trustMetadata.confidence.table_quality_multiplier)}
+                />
+              )}
+            {trustMetadata?.confidence.extraction_quality_multiplier != null &&
+              trustMetadata.confidence.extraction_quality_multiplier < 1.0 && (
+                <StatRow
+                  label="Extraction quality factor"
+                  value={pct(
+                    trustMetadata.confidence.extraction_quality_multiplier,
+                  )}
+                />
+              )}
             {trustMetadata?.confidence.graph_evidence_boost != null &&
               trustMetadata.confidence.graph_evidence_boost > 0 && (
                 <StatRow
@@ -974,6 +1060,10 @@ export function AnswerTrustPanel({
                 doc_deprecated_warning?: boolean;
                 doc_version_label?: string | null;
                 source_last_synced_at?: string | null;
+                table_low_confidence_warning?: boolean;
+                doc_extraction_quality?: string | null;
+                doc_extraction_warning?: boolean;
+                doc_processing_warning?: boolean;
               };
               const freshness = freshnessBadge(
                 citExt.freshness_state,
@@ -981,6 +1071,16 @@ export function AnswerTrustPanel({
                 citation.doc_expired_warning,
                 citExt.doc_unreviewed_warning,
                 citExt.doc_deprecated_warning,
+              );
+              const tableConfBadge = tableExtractionBadge(
+                citExt.table_low_confidence_warning,
+              );
+              const extractionBadge = extractionQualityBadge(
+                citExt.doc_extraction_quality,
+                citExt.doc_extraction_warning,
+              );
+              const processingBadge = processingWarningBadge(
+                citExt.doc_processing_warning,
               );
               const lastUpdated = fmtDate(citExt.doc_last_updated_at);
               const lastSynced = fmtDate(citExt.source_last_synced_at);
@@ -1019,6 +1119,30 @@ export function AnswerTrustPanel({
                       ) : null}
                       {ocr ? (
                         <span className={ocr.cls}>{ocr.label}</span>
+                      ) : null}
+                      {tableConfBadge ? (
+                        <span
+                          className={tableConfBadge.cls}
+                          data-testid="table-low-confidence-badge"
+                        >
+                          {tableConfBadge.label}
+                        </span>
+                      ) : null}
+                      {extractionBadge ? (
+                        <span
+                          className={extractionBadge.cls}
+                          data-testid="extraction-warning-badge"
+                        >
+                          {extractionBadge.label}
+                        </span>
+                      ) : null}
+                      {processingBadge ? (
+                        <span
+                          className={processingBadge.cls}
+                          data-testid="processing-warning-badge"
+                        >
+                          {processingBadge.label}
+                        </span>
                       ) : null}
                       {conflict ? (
                         <span className={conflict.cls}>{conflict.label}</span>

@@ -109,6 +109,7 @@ from app.domains.chat.schemas.trust_metadata import (
     ConfidenceReasonRecord,
     ConfidenceTrustRecord,
     ConflictStatusRecord,
+    EvidenceQualityRecord,
     GroundedVerificationRecord,
     ModelMetadataRecord,
     PolicyEnforcementRecord,
@@ -722,6 +723,11 @@ def _with_table_metadata(
     meta = table_metadata_map.get(citation.chunk_id)
     if not meta:
         return citation
+    raw_conf = meta.get("confidence")
+    table_conf: float | None = float(raw_conf) if raw_conf is not None else None
+    table_low_conf_warn = (
+        table_conf is not None and table_conf < _TABLE_CONFIDENCE_LOW_THRESHOLD
+    )
     return ChatCitationResponse(
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
@@ -758,6 +764,8 @@ def _with_table_metadata(
         table_col_count=meta.get("col_count"),
         table_headers=list(meta.get("headers") or []),
         table_section_context=meta.get("section_context"),
+        table_extraction_confidence=table_conf,
+        table_low_confidence_warning=table_low_conf_warn,
     )
 
 
@@ -794,19 +802,33 @@ def _with_ocr_quality(
         source_acl_snapshot=citation.source_acl_snapshot,
         conflict_status=citation.conflict_status,
         doc_trust_status=citation.doc_trust_status,
+        doc_review_status=citation.doc_review_status,
+        doc_review_owner_id=citation.doc_review_owner_id,
+        doc_review_due_date=citation.doc_review_due_date,
+        doc_expiry_date=citation.doc_expiry_date,
         doc_version_label=citation.doc_version_label,
         doc_review_date=citation.doc_review_date,
         doc_effective_date=citation.doc_effective_date,
         doc_stale_warning=citation.doc_stale_warning,
+        doc_expired_warning=citation.doc_expired_warning,
         doc_is_excluded_status=citation.doc_is_excluded_status,
+        freshness_state=citation.freshness_state,
+        doc_last_updated_at=citation.doc_last_updated_at,
+        doc_unreviewed_warning=citation.doc_unreviewed_warning,
+        doc_deprecated_warning=citation.doc_deprecated_warning,
         is_table_chunk=citation.is_table_chunk,
         table_caption=citation.table_caption,
         table_row_count=citation.table_row_count,
         table_col_count=citation.table_col_count,
         table_headers=citation.table_headers,
         table_section_context=citation.table_section_context,
+        table_extraction_confidence=citation.table_extraction_confidence,
+        table_low_confidence_warning=citation.table_low_confidence_warning,
         doc_ocr_quality_status=quality_status,
         doc_ocr_low_confidence_warning=_ocr_quality_service.is_low_confidence(quality_status),
+        doc_extraction_quality=citation.doc_extraction_quality,
+        doc_extraction_warning=citation.doc_extraction_warning,
+        doc_processing_warning=citation.doc_processing_warning,
     )
 
 
@@ -848,19 +870,108 @@ def _with_conflict_status(
         source_acl_snapshot=citation.source_acl_snapshot,
         conflict_status=status,
         doc_trust_status=citation.doc_trust_status,
+        doc_review_status=citation.doc_review_status,
+        doc_review_owner_id=citation.doc_review_owner_id,
+        doc_review_due_date=citation.doc_review_due_date,
+        doc_expiry_date=citation.doc_expiry_date,
         doc_version_label=citation.doc_version_label,
         doc_review_date=citation.doc_review_date,
         doc_effective_date=citation.doc_effective_date,
         doc_stale_warning=citation.doc_stale_warning,
+        doc_expired_warning=citation.doc_expired_warning,
         doc_is_excluded_status=citation.doc_is_excluded_status,
+        freshness_state=citation.freshness_state,
+        doc_last_updated_at=citation.doc_last_updated_at,
+        doc_unreviewed_warning=citation.doc_unreviewed_warning,
+        doc_deprecated_warning=citation.doc_deprecated_warning,
         is_table_chunk=citation.is_table_chunk,
         table_caption=citation.table_caption,
         table_row_count=citation.table_row_count,
         table_col_count=citation.table_col_count,
         table_headers=citation.table_headers,
         table_section_context=citation.table_section_context,
+        table_extraction_confidence=citation.table_extraction_confidence,
+        table_low_confidence_warning=citation.table_low_confidence_warning,
         doc_ocr_quality_status=citation.doc_ocr_quality_status,
         doc_ocr_low_confidence_warning=citation.doc_ocr_low_confidence_warning,
+        doc_extraction_quality=citation.doc_extraction_quality,
+        doc_extraction_warning=citation.doc_extraction_warning,
+        doc_processing_warning=citation.doc_processing_warning,
+    )
+
+
+def _with_extraction_quality(
+    citation: ChatCitationResponse,
+    extraction_quality_map: dict[str, tuple[str | None, float | None, str]],
+) -> ChatCitationResponse:
+    """Annotate a citation with document extraction quality and processing status (F315).
+
+    extraction_quality_map maps document_id to (document_profile, extraction_confidence, doc_status).
+    Sets doc_extraction_quality, doc_extraction_warning, and doc_processing_warning.
+    """
+    entry = extraction_quality_map.get(citation.document_id)
+    if entry is None:
+        return citation
+    doc_profile, extraction_conf, doc_status = entry
+    is_bad_profile = doc_profile in _EXTRACTION_WARNING_PROFILES
+    is_low_conf = (
+        extraction_conf is not None
+        and extraction_conf < _EXTRACTION_CONFIDENCE_WARN_THRESHOLD
+    )
+    extraction_warning = is_bad_profile or is_low_conf
+    processing_warning = doc_status in _PROCESSING_INCOMPLETE_STATUSES
+    return ChatCitationResponse(
+        document_id=citation.document_id,
+        chunk_id=citation.chunk_id,
+        filename=citation.filename,
+        page_number=citation.page_number,
+        score=citation.score,
+        similarity_score=citation.similarity_score,
+        original_rank=citation.original_rank,
+        rerank_score=citation.rerank_score,
+        rerank_rank=citation.rerank_rank,
+        final_rank=citation.final_rank,
+        text_snippet=citation.text_snippet,
+        start_offset=citation.start_offset,
+        end_offset=citation.end_offset,
+        source_provider=citation.source_provider,
+        source_provider_label=citation.source_provider_label,
+        source_title=citation.source_title,
+        source_key=citation.source_key,
+        source_section=citation.source_section,
+        source_deep_link=citation.source_deep_link,
+        source_last_synced_at=citation.source_last_synced_at,
+        source_trust_status=citation.source_trust_status,
+        source_acl_snapshot=citation.source_acl_snapshot,
+        conflict_status=citation.conflict_status,
+        doc_trust_status=citation.doc_trust_status,
+        doc_review_status=citation.doc_review_status,
+        doc_review_owner_id=citation.doc_review_owner_id,
+        doc_review_due_date=citation.doc_review_due_date,
+        doc_expiry_date=citation.doc_expiry_date,
+        doc_version_label=citation.doc_version_label,
+        doc_review_date=citation.doc_review_date,
+        doc_effective_date=citation.doc_effective_date,
+        doc_stale_warning=citation.doc_stale_warning,
+        doc_expired_warning=citation.doc_expired_warning,
+        doc_is_excluded_status=citation.doc_is_excluded_status,
+        freshness_state=citation.freshness_state,
+        doc_last_updated_at=citation.doc_last_updated_at,
+        doc_unreviewed_warning=citation.doc_unreviewed_warning,
+        doc_deprecated_warning=citation.doc_deprecated_warning,
+        is_table_chunk=citation.is_table_chunk,
+        table_caption=citation.table_caption,
+        table_row_count=citation.table_row_count,
+        table_col_count=citation.table_col_count,
+        table_headers=citation.table_headers,
+        table_section_context=citation.table_section_context,
+        table_extraction_confidence=citation.table_extraction_confidence,
+        table_low_confidence_warning=citation.table_low_confidence_warning,
+        doc_ocr_quality_status=citation.doc_ocr_quality_status,
+        doc_ocr_low_confidence_warning=citation.doc_ocr_low_confidence_warning,
+        doc_extraction_quality=doc_profile,
+        doc_extraction_warning=extraction_warning,
+        doc_processing_warning=processing_warning,
     )
 
 
@@ -1107,6 +1218,87 @@ def _compute_conflict_multiplier(conflict_result: ConflictDetectionResult) -> fl
     if level == "partial":
         return max(0.0, 1.0 - settings.confidence_conflict_penalty_partial)
     return 1.0
+
+
+# F315 — evidence quality thresholds
+_TABLE_CONFIDENCE_LOW_THRESHOLD = 0.4
+_TABLE_CONFIDENCE_VERY_LOW_THRESHOLD = 0.2
+_EXTRACTION_CONFIDENCE_WARN_THRESHOLD = 0.5
+_EXTRACTION_WARNING_PROFILES = frozenset({"corrupted", "unsupported", "encrypted"})
+_PROCESSING_INCOMPLETE_STATUSES = frozenset(
+    {"processing", "failed", "extraction_failed", "quarantined", "blocked", "infected"}
+)
+
+
+def _compute_table_quality_multiplier(citations: list) -> float:
+    """Average table-extraction quality penalty across table citations (F315).
+
+    Citations that are not table chunks are excluded. A low-confidence table
+    (< 0.4) yields a 0.85 multiplier; very low-confidence (< 0.2) yields 0.70.
+    """
+    multipliers: list[float] = []
+    for c in citations:
+        if not getattr(c, "is_table_chunk", False):
+            continue
+        conf = getattr(c, "table_extraction_confidence", None)
+        if conf is None:
+            continue
+        if conf < _TABLE_CONFIDENCE_VERY_LOW_THRESHOLD:
+            multipliers.append(0.70)
+        elif conf < _TABLE_CONFIDENCE_LOW_THRESHOLD:
+            multipliers.append(0.85)
+        else:
+            multipliers.append(1.0)
+    return round(sum(multipliers) / len(multipliers), 4) if multipliers else 1.0
+
+
+def _compute_extraction_quality_multiplier(citations: list) -> float:
+    """Return 0.85 when any citation carries a document extraction warning (F315)."""
+    if any(getattr(c, "doc_extraction_warning", False) for c in citations):
+        return 0.85
+    return 1.0
+
+
+def _build_evidence_quality_record(citations: list) -> "EvidenceQualityRecord":
+    """Build an aggregated evidence quality summary from annotated citations (F315)."""
+    table_low_conf_count = sum(
+        1 for c in citations if getattr(c, "table_low_confidence_warning", False)
+    )
+    extraction_warn_count = sum(
+        1 for c in citations if getattr(c, "doc_extraction_warning", False)
+    )
+    processing_warn_count = sum(
+        1 for c in citations if getattr(c, "doc_processing_warning", False)
+    )
+    any_incomplete = processing_warn_count > 0
+
+    warning_reasons: list[str] = []
+    if table_low_conf_count > 0:
+        warning_reasons.append(
+            f"{table_low_conf_count} cited table chunk"
+            f"{'s have' if table_low_conf_count > 1 else ' has'} low extraction confidence"
+            " — table data may be inaccurate."
+        )
+    if extraction_warn_count > 0:
+        warning_reasons.append(
+            f"{extraction_warn_count} source document"
+            f"{'s have' if extraction_warn_count > 1 else ' has'} poor extraction quality"
+            " — text coverage may be incomplete."
+        )
+    if processing_warn_count > 0:
+        warning_reasons.append(
+            f"{processing_warn_count} source document"
+            f"{'s have' if processing_warn_count > 1 else ' has'} incomplete or failed"
+            " processing — content may be missing."
+        )
+
+    return EvidenceQualityRecord(
+        table_low_confidence_count=table_low_conf_count,
+        extraction_warning_count=extraction_warn_count,
+        processing_warning_count=processing_warn_count,
+        any_incomplete_documents=any_incomplete,
+        warning_reasons=warning_reasons,
+    )
 
 
 async def _resolve_graph_rag_enabled(
@@ -1655,6 +1847,11 @@ def _build_trust_metadata(
             doc_review_owner_id=getattr(c, "doc_review_owner_id", None),
             doc_unreviewed_warning=getattr(c, "doc_unreviewed_warning", False),
             doc_deprecated_warning=getattr(c, "doc_deprecated_warning", False),
+            table_extraction_confidence=getattr(c, "table_extraction_confidence", None),
+            table_low_confidence_warning=getattr(c, "table_low_confidence_warning", False),
+            doc_extraction_quality=getattr(c, "doc_extraction_quality", None),
+            doc_extraction_warning=getattr(c, "doc_extraction_warning", False),
+            doc_processing_warning=getattr(c, "doc_processing_warning", False),
         )
         for c in ([] if not_found else citations)
     ]
@@ -1696,6 +1893,8 @@ def _build_trust_metadata(
             freshness_multiplier=expl.freshness_multiplier,
             ocr_quality_multiplier=expl.ocr_quality_multiplier,
             conflict_multiplier=expl.conflict_multiplier,
+            table_quality_multiplier=expl.table_quality_multiplier,
+            extraction_quality_multiplier=expl.extraction_quality_multiplier,
             graph_evidence_boost=expl.graph_evidence_boost,
             verification_support_score=expl.verification_support_score,
             not_found_signal=expl.not_found_signal,
@@ -1818,6 +2017,7 @@ def _build_trust_metadata(
             deprecated_count=freshness_deprecated_count,
             all_excluded_fallback=freshness_all_excluded_fallback,
         ),
+        evidence_quality=_build_evidence_quality_record(citation_records),
         generated_at=generated_at,
     )
 
@@ -2378,6 +2578,7 @@ async def query_chat(
     table_chunk_count = 0
     table_query_detected = False
     _table_boost_result: TableBoostResult | None = None
+    _ocr_docs: list = []
     _ocr_quality_map: dict[str, str] = {}
     ocr_quality_downranking_enabled = False
     ocr_low_confidence_chunk_count = 0
@@ -3097,26 +3298,39 @@ async def query_chat(
                     )
                 )
                 _table_metadata_map = {str(k): v for k, v in _table_metadata_by_chunk_id.items()}
+                # F315 — build extraction quality map from already-loaded document objects.
+                # _ocr_docs contains Document ORM objects with extraction_snapshot and status.
+                _extraction_quality_map: dict[str, tuple[str | None, float | None, str]] = {
+                    str(doc.id): (
+                        (doc.extraction_snapshot or {}).get("document_profile"),
+                        (doc.extraction_snapshot or {}).get("extraction_confidence"),
+                        doc.status,
+                    )
+                    for doc in _ocr_docs
+                }
                 citations = []
                 for citation in citation_result.citations:
                     citation_uuid = _parse_uuid_or_none(citation.chunk_id)
                     citations.append(
-                        _with_conflict_status(
-                            _with_ocr_quality(
-                                _with_table_metadata(
-                                    _with_freshness(
-                                        _with_provenance(
-                                            citation,
-                                            provenance_by_chunk_id.get(citation_uuid),
+                        _with_extraction_quality(
+                            _with_conflict_status(
+                                _with_ocr_quality(
+                                    _with_table_metadata(
+                                        _with_freshness(
+                                            _with_provenance(
+                                                citation,
+                                                provenance_by_chunk_id.get(citation_uuid),
+                                            ),
+                                            _freshness_trust_map,
+                                            _freshness_stale_ids,
                                         ),
-                                        _freshness_trust_map,
-                                        _freshness_stale_ids,
+                                        _table_metadata_map,
                                     ),
-                                    _table_metadata_map,
+                                    {str(k): v for k, v in _ocr_quality_map.items()},
                                 ),
-                                {str(k): v for k, v in _ocr_quality_map.items()},
+                                conflict_detection_result,
                             ),
-                            conflict_detection_result,
+                            _extraction_quality_map,
                         )
                     )
                 citation_validation_failed = citation_result.invalid_chunk_id_count > 0
@@ -3132,6 +3346,9 @@ async def query_chat(
                 )
                 _ocr_quality_multiplier = _compute_ocr_quality_multiplier(citations)
                 _conflict_multiplier = _compute_conflict_multiplier(conflict_detection_result)
+                # F315 — evidence quality multipliers
+                _table_quality_multiplier = _compute_table_quality_multiplier(citations)
+                _extraction_quality_multiplier = _compute_extraction_quality_multiplier(citations)
                 confidence_result = _confidence_service.score(
                     chunks=confidence_signals,
                     citation_count=len(citations),
@@ -3140,6 +3357,8 @@ async def query_chat(
                     freshness_multiplier=_freshness_multiplier,
                     ocr_quality_multiplier=_ocr_quality_multiplier,
                     conflict_multiplier=_conflict_multiplier,
+                    table_quality_multiplier=_table_quality_multiplier,
+                    extraction_quality_multiplier=_extraction_quality_multiplier,
                     graph_context_used=graph_context_result.graph_context_used,
                 )
                 confidence_score = confidence_result.score

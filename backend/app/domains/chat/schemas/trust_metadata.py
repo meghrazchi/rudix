@@ -73,6 +73,12 @@ class CitationTrustRecord(BaseModel):
     doc_review_owner_id: str | None = None
     doc_unreviewed_warning: bool = False
     doc_deprecated_warning: bool = False
+    # F315 — evidence quality: table extraction and document processing signals
+    table_extraction_confidence: float | None = None
+    table_low_confidence_warning: bool = False
+    doc_extraction_quality: str | None = None
+    doc_extraction_warning: bool = False
+    doc_processing_warning: bool = False
 
 
 class ConfidenceReasonRecord(BaseModel):
@@ -103,6 +109,8 @@ class ConfidenceTrustRecord(BaseModel):
     freshness_multiplier: float = Field(ge=0.0, le=1.0, default=1.0)
     ocr_quality_multiplier: float = Field(ge=0.0, le=1.0, default=1.0)
     conflict_multiplier: float = Field(ge=0.0, le=1.0, default=1.0)
+    table_quality_multiplier: float = Field(ge=0.0, le=1.0, default=1.0)
+    extraction_quality_multiplier: float = Field(ge=0.0, le=1.0, default=1.0)
     graph_evidence_boost: float = Field(ge=0.0, le=1.0, default=0.0)
     verification_support_score: float | None = None
     not_found_signal: bool
@@ -253,6 +261,20 @@ class SourceFreshnessRecord(BaseModel):
     all_excluded_fallback: bool = False
 
 
+class EvidenceQualityRecord(BaseModel):
+    """Aggregated evidence quality signals across all cited sources (F315).
+
+    Captures table extraction confidence, document extraction health, and
+    processing completeness issues that may reduce answer reliability.
+    """
+
+    table_low_confidence_count: int = 0
+    extraction_warning_count: int = 0
+    processing_warning_count: int = 0
+    any_incomplete_documents: bool = False
+    warning_reasons: list[str] = Field(default_factory=list)
+
+
 class AnswerTrustMetadataResponse(BaseModel):
     """Versioned, organization-scoped answer trust metadata contract.
 
@@ -276,10 +298,12 @@ class AnswerTrustMetadataResponse(BaseModel):
     conflict: ConflictStatusRecord
     policy: PolicyEnforcementRecord
     freshness: SourceFreshnessRecord
+    evidence_quality: EvidenceQualityRecord
     generated_at: datetime
 
 
 GroundedVerificationRecord.model_rebuild()
 ConfidenceTrustRecord.model_rebuild()
 QueryInterpretationRecord.model_rebuild()
+EvidenceQualityRecord.model_rebuild()
 AnswerTrustMetadataResponse.model_rebuild()

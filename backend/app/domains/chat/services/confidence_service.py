@@ -46,6 +46,8 @@ class ConfidenceExplanation:
     freshness_multiplier: float
     ocr_quality_multiplier: float
     conflict_multiplier: float
+    table_quality_multiplier: float
+    extraction_quality_multiplier: float
     graph_evidence_boost: float
     verification_support_score: float | None
     no_context: bool
@@ -191,13 +193,14 @@ class ConfidenceService:
         freshness_multiplier: float,
         ocr_quality_multiplier: float,
         conflict_multiplier: float,
+        table_quality_multiplier: float = 1.0,
+        extraction_quality_multiplier: float = 1.0,
     ) -> str:
         """Derive trust level from score and quality-signal degradation.
 
         "warning" is emitted when the score falls below the medium threshold
-        and a quality signal (freshness, OCR, or source conflict) materially
-        degraded the result — distinguishing quality-driven low confidence
-        from simply weak retrieval.
+        and a quality signal (freshness, OCR, conflict, table extraction, or
+        document extraction) materially degraded the result.
         """
         if not_found_signal:
             return "not_found"
@@ -210,6 +213,8 @@ class ConfidenceService:
             freshness_multiplier < 0.85
             or ocr_quality_multiplier < 0.80
             or conflict_multiplier < 0.85
+            or table_quality_multiplier < 0.90
+            or extraction_quality_multiplier < 0.90
         )
         if quality_degraded:
             return "warning"
@@ -241,6 +246,8 @@ class ConfidenceService:
         freshness_multiplier: float,
         ocr_quality_multiplier: float,
         conflict_multiplier: float,
+        table_quality_multiplier: float,
+        extraction_quality_multiplier: float,
         graph_context_used: bool,
         graph_evidence_boost: float,
         not_found_signal: bool,
@@ -338,6 +345,26 @@ class ConfidenceService:
                 )
             )
 
+        if table_quality_multiplier < 1.0:
+            reasons.append(
+                ConfidenceReason(
+                    code="low_table_extraction",
+                    label="Some cited tables have low extraction confidence — table data may be unreliable",
+                    impact="negative",
+                    magnitude=self._round(1.0 - table_quality_multiplier),
+                )
+            )
+
+        if extraction_quality_multiplier < 1.0:
+            reasons.append(
+                ConfidenceReason(
+                    code="low_extraction_quality",
+                    label="One or more source documents have poor extraction quality",
+                    impact="negative",
+                    magnitude=self._round(1.0 - extraction_quality_multiplier),
+                )
+            )
+
         if conflict_multiplier < 1.0:
             reasons.append(
                 ConfidenceReason(
@@ -381,6 +408,8 @@ class ConfidenceService:
         freshness_multiplier: float = 1.0,
         ocr_quality_multiplier: float = 1.0,
         conflict_multiplier: float = 1.0,
+        table_quality_multiplier: float = 1.0,
+        extraction_quality_multiplier: float = 1.0,
         graph_context_used: bool = False,
         verification_support_score: float | None = None,
         high_threshold_override: float | None = None,
@@ -408,6 +437,8 @@ class ConfidenceService:
         freshness_m = self._clamp(freshness_multiplier)
         ocr_m = self._clamp(ocr_quality_multiplier)
         conflict_m = self._clamp(conflict_multiplier)
+        table_m = self._clamp(table_quality_multiplier)
+        extraction_m = self._clamp(extraction_quality_multiplier)
         graph_boost = self.graph_evidence_boost if graph_context_used else 0.0
 
         def _resolve_category(s: float) -> str:
@@ -424,7 +455,13 @@ class ConfidenceService:
                 return "high"
             if s >= effective_medium:
                 return "medium"
-            quality_degraded = freshness_m < 0.85 or ocr_m < 0.80 or conflict_m < 0.85
+            quality_degraded = (
+                freshness_m < 0.85
+                or ocr_m < 0.80
+                or conflict_m < 0.85
+                or table_m < 0.90
+                or extraction_m < 0.90
+            )
             return "warning" if quality_degraded else "low"
 
         if not chunks:
@@ -435,6 +472,8 @@ class ConfidenceService:
                 freshness_multiplier=freshness_m,
                 ocr_quality_multiplier=ocr_m,
                 conflict_multiplier=conflict_m,
+                table_quality_multiplier=table_m,
+                extraction_quality_multiplier=extraction_m,
                 graph_context_used=graph_context_used,
                 graph_evidence_boost=graph_boost,
                 not_found_signal=not_found_signal,
@@ -455,6 +494,8 @@ class ConfidenceService:
                 freshness_multiplier=freshness_m,
                 ocr_quality_multiplier=ocr_m,
                 conflict_multiplier=conflict_m,
+                table_quality_multiplier=table_m,
+                extraction_quality_multiplier=extraction_m,
                 graph_evidence_boost=graph_boost,
                 verification_support_score=verification_support_score,
                 no_context=True,
@@ -511,6 +552,8 @@ class ConfidenceService:
             * freshness_m
             * ocr_m
             * conflict_m
+            * table_m
+            * extraction_m
             * citation_validation_multiplier
             * penalty_multiplier
         )
@@ -523,6 +566,8 @@ class ConfidenceService:
             freshness_multiplier=freshness_m,
             ocr_quality_multiplier=ocr_m,
             conflict_multiplier=conflict_m,
+            table_quality_multiplier=table_m,
+            extraction_quality_multiplier=extraction_m,
             graph_context_used=graph_context_used,
             graph_evidence_boost=graph_boost,
             not_found_signal=not_found_signal,
@@ -544,6 +589,8 @@ class ConfidenceService:
             freshness_multiplier=self._round(freshness_m),
             ocr_quality_multiplier=self._round(ocr_m),
             conflict_multiplier=self._round(conflict_m),
+            table_quality_multiplier=self._round(table_m),
+            extraction_quality_multiplier=self._round(extraction_m),
             graph_evidence_boost=self._round(graph_boost),
             verification_support_score=verification_support_score,
             no_context=False,
