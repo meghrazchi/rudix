@@ -178,6 +178,8 @@ export const queryKeys = {
       ["admin", "audit-logs", params ?? {}] as const,
     observability: (params?: Record<string, unknown>) =>
       ["admin", "observability", params ?? {}] as const,
+    trustAnalytics: (params?: Record<string, unknown>) =>
+      ["admin", "trust-analytics", params ?? {}] as const,
     providerObservability: (params?: Record<string, unknown>) =>
       ["admin", "provider-observability", params ?? {}] as const,
     governance: ["admin", "governance"] as const,

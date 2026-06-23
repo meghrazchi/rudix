@@ -15,6 +15,7 @@ from app.interfaces.http import (
     admin_feature_flags,
     admin_freshness,
     admin_governance,
+    admin_trust_analytics,
     admin_graph_entities,
     admin_graph_observability,
     admin_graph_provenance,
@@ -159,5 +160,6 @@ protected_router.include_router(verified_answers.router)
 protected_router.include_router(admin_metadata.router)
 protected_router.include_router(admin_ai_response_policy.router)
 protected_router.include_router(admin_freshness.router)
+protected_router.include_router(admin_trust_analytics.router)
 
 api_router.include_router(protected_router)

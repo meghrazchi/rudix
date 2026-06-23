@@ -540,6 +540,20 @@ export function AnswerTrustPanel({
     setDiagnosticsMode("basic");
   }, [messageId, showInterpretationDetails]);
 
+  // F317 — track trust panel open
+  useEffect(() => {
+    void trackFeatureEvent("feature.chat.trust_panel_opened", {
+      surface: "app",
+      route: "/chat",
+      pageKey: "chat",
+      featureArea: "chat",
+      entityId: messageId,
+      status: confidenceCategory,
+      dedupeKey: `chat-trust-panel-${messageId}`,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageId]);
+
   useEffect(() => {
     if (!retrievalSummary) return;
     void trackFeatureEvent("feature.chat.retrieval_diagnostics_viewed", {
@@ -696,7 +710,15 @@ export function AnswerTrustPanel({
             <button
               type="button"
               data-testid="trust-panel-report-issue-btn"
-              onClick={() =>
+              onClick={() => {
+                void trackFeatureEvent("feature.chat.trust_panel_feedback_submitted", {
+                  surface: "app",
+                  route: "/chat",
+                  pageKey: "chat",
+                  featureArea: "chat",
+                  entityId: messageId,
+                  count: warnings.length,
+                });
                 onReportIssue({
                   warnings,
                   traceId:
@@ -705,8 +727,8 @@ export function AnswerTrustPanel({
                     null,
                   trustScore: confidenceScore,
                   trustLevel: trustMetadata?.confidence.trust_level ?? null,
-                })
-              }
+                });
+              }}
               className="flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-medium text-rose-700 hover:bg-rose-100 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
               aria-label="Report an issue with this answer"
             >
@@ -758,7 +780,20 @@ export function AnswerTrustPanel({
 
       {/* Warnings */}
       {warnings.length > 0 && (
-        <div className="space-y-1.5">
+        <div
+          className="space-y-1.5"
+          onClick={() => {
+            void trackFeatureEvent("feature.chat.trust_panel_warning_clicked", {
+              surface: "app",
+              route: "/chat",
+              pageKey: "chat",
+              featureArea: "chat",
+              entityId: messageId,
+              count: warnings.length,
+              dedupeKey: `chat-trust-panel-warning-${messageId}`,
+            });
+          }}
+        >
           {warnings.map((w, i) => (
             <WarningBanner key={i}>{w}</WarningBanner>
           ))}
@@ -1205,7 +1240,17 @@ export function AnswerTrustPanel({
                   <button
                     type="button"
                     aria-label={`Preview ${title}`}
-                    onClick={() => onOpenCitation(citation)}
+                    onClick={() => {
+                      void trackFeatureEvent("feature.chat.trust_panel_citation_clicked", {
+                        surface: "app",
+                        route: "/chat",
+                        pageKey: "chat",
+                        featureArea: "chat",
+                        entityId: messageId,
+                        source: "trust_panel",
+                      });
+                      onOpenCitation(citation);
+                    }}
                     className="shrink-0 self-center rounded-md p-1 text-[#9d98b5] transition-colors hover:bg-[#ede9f9] hover:text-[#3525cd]"
                   >
                     <span

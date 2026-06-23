@@ -1,3 +1,10 @@
+"""Evaluation metrics and trust metadata evaluation fixtures (F317).
+
+TrustMetadataEvalCase / score_trust_metadata_case provide deterministic
+scoring of trust metadata correctness against expected outcomes, enabling
+evaluation runs to include trust-panel accuracy assertions.
+"""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -8,6 +15,124 @@ from typing import Any
 from uuid import UUID
 
 _SUPPORTED_LANGUAGES = frozenset({"en", "de", "es", "fr"})
+
+# ---------------------------------------------------------------------------
+# Trust metadata evaluation fixtures (F317)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TrustMetadataEvalCase:
+    """Expected trust metadata outcomes for a single evaluation question.
+
+    All fields are optional — only the fields provided are scored.
+    This lets evaluations assert subsets of trust metadata correctness.
+    """
+
+    expected_trust_level: str | None = None  # high / medium / low / warning / not_found
+    expected_not_found: bool | None = None
+    min_citation_support_score: float | None = None  # e.g. 0.5 means support >= 0.5 required
+    max_confidence_score: float | None = None  # asserts answer is not over-confident
+    min_confidence_score: float | None = None
+    expected_conflict_detected: bool | None = None
+    expected_stale_warning: bool | None = None
+
+
+@dataclass(frozen=True)
+class TrustMetadataEvalResult:
+    """Scores for a single trust metadata eval case."""
+
+    trust_level_match: bool | None
+    not_found_match: bool | None
+    citation_support_ok: bool | None
+    confidence_range_ok: bool | None
+    conflict_match: bool | None
+    stale_warning_match: bool | None
+    overall_pass: bool
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def score_trust_metadata_case(
+    case: TrustMetadataEvalCase,
+    *,
+    actual_trust_level: str | None,
+    actual_not_found: bool,
+    actual_citation_support_score: float | None,
+    actual_confidence_score: float | None,
+    actual_conflict_detected: bool,
+    actual_stale_warning: bool,
+) -> TrustMetadataEvalResult:
+    """Score trust metadata against expected outcomes deterministically.
+
+    Returns a TrustMetadataEvalResult where overall_pass is True only when
+    every provided expectation is satisfied.
+    """
+    trust_level_match: bool | None = None
+    not_found_match: bool | None = None
+    citation_support_ok: bool | None = None
+    confidence_range_ok: bool | None = None
+    conflict_match: bool | None = None
+    stale_warning_match: bool | None = None
+
+    if case.expected_trust_level is not None:
+        trust_level_match = actual_trust_level == case.expected_trust_level
+
+    if case.expected_not_found is not None:
+        not_found_match = actual_not_found == case.expected_not_found
+
+    if case.min_citation_support_score is not None:
+        if actual_citation_support_score is not None:
+            citation_support_ok = actual_citation_support_score >= case.min_citation_support_score
+        else:
+            citation_support_ok = False
+
+    if case.min_confidence_score is not None or case.max_confidence_score is not None:
+        if actual_confidence_score is not None:
+            above_min = (
+                actual_confidence_score >= case.min_confidence_score
+                if case.min_confidence_score is not None
+                else True
+            )
+            below_max = (
+                actual_confidence_score <= case.max_confidence_score
+                if case.max_confidence_score is not None
+                else True
+            )
+            confidence_range_ok = above_min and below_max
+        else:
+            confidence_range_ok = False
+
+    if case.expected_conflict_detected is not None:
+        conflict_match = actual_conflict_detected == case.expected_conflict_detected
+
+    if case.expected_stale_warning is not None:
+        stale_warning_match = actual_stale_warning == case.expected_stale_warning
+
+    checks = [
+        v
+        for v in (
+            trust_level_match,
+            not_found_match,
+            citation_support_ok,
+            confidence_range_ok,
+            conflict_match,
+            stale_warning_match,
+        )
+        if v is not None
+    ]
+    overall_pass = all(checks) if checks else True
+
+    return TrustMetadataEvalResult(
+        trust_level_match=trust_level_match,
+        not_found_match=not_found_match,
+        citation_support_ok=citation_support_ok,
+        confidence_range_ok=confidence_range_ok,
+        conflict_match=conflict_match,
+        stale_warning_match=stale_warning_match,
+        overall_pass=overall_pass,
+    )
 
 # Character-frequency heuristics for short evaluation questions and answers.
 # ¿ and ¡ are unambiguous Spanish markers; a single hit is sufficient.

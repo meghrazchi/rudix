@@ -198,6 +198,15 @@ class ChatTraceMetadata:
     # Prompt template
     prompt_template_key: str | None = None
     prompt_template_version: int | None = None
+    # Trust metadata (F317) — safe aggregates only, no raw content
+    trust_level: str | None = None
+    trust_citation_support_score: float | None = None
+    trust_unsupported_claims_removed: int = 0
+    trust_stale_source_warning: bool = False
+    trust_conflict_detected: bool = False
+    trust_ocr_warning: bool = False
+    trust_extraction_warning: bool = False
+    trust_evidence_quality_warning: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +273,8 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
         tags.append("not_found")
     if metadata.citation_validation_failed:
         tags.append("citation_validation_failed")
+    if metadata.trust_level:
+        tags.append(f"trust:{metadata.trust_level}")
 
     trace_meta = {
         "request_id": metadata.request_id,
@@ -309,6 +320,15 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
         "prompt_template_key": metadata.prompt_template_key,
         "prompt_template_version": metadata.prompt_template_version,
         "answer_latency_ms": metadata.answer_latency_ms,
+        # Trust metadata (F317)
+        "trust_level": metadata.trust_level,
+        "trust_citation_support_score": metadata.trust_citation_support_score,
+        "trust_unsupported_claims_removed": metadata.trust_unsupported_claims_removed,
+        "trust_stale_source_warning": metadata.trust_stale_source_warning,
+        "trust_conflict_detected": metadata.trust_conflict_detected,
+        "trust_ocr_warning": metadata.trust_ocr_warning,
+        "trust_extraction_warning": metadata.trust_extraction_warning,
+        "trust_evidence_quality_warning": metadata.trust_evidence_quality_warning,
     }
 
     trace = _langfuse_client.trace(
