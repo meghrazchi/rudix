@@ -11,22 +11,19 @@ import {
 
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { ChatCitationResponse } from "@/lib/api/chat";
 import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
 import { renderWithProviders } from "@/test/render";
-import { mockDocumentDetail, mockDocumentChunks } from "@/test/msw/fixtures";
+import { mockDocumentDetail } from "@/test/msw/fixtures";
 
 const apiBaseUrl = "http://api.test";
 
 const server = setupServer(
   http.get(`${apiBaseUrl}/documents/:id`, () =>
     HttpResponse.json(mockDocumentDetail),
-  ),
-  http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
-    HttpResponse.json(mockDocumentChunks),
   ),
 );
 
@@ -84,7 +81,10 @@ describe("DocumentPreviewModal", () => {
     expect(
       await screen.findByText("Rudix processes enterprise documents securely."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Cited passage")).toBeInTheDocument();
+    expect(screen.getAllByText("Cited excerpt")[0]).toBeInTheDocument();
+    expect(
+      screen.getByText(/exact highlight unavailable/i),
+    ).toBeInTheDocument();
   });
 
   it("shows document filename and page number in header", async () => {
@@ -103,6 +103,29 @@ describe("DocumentPreviewModal", () => {
     expect(screen.getByText("indexed")).toBeInTheDocument();
   });
 
+  it("shows the document language chip from document metadata", async () => {
+    render([baseCitation]);
+
+    expect(await screen.findByText("EN")).toBeInTheDocument();
+  });
+
+  it("shows connector provenance labels and section context", async () => {
+    const citation: ChatCitationResponse = {
+      ...baseCitation,
+      source_provider_label: "Google Drive",
+      source_section: "Policy / Approvals",
+      source_deep_link: "https://drive.example.com/doc-1",
+    } as unknown as ChatCitationResponse;
+
+    render([citation]);
+
+    expect(await screen.findByText("Google Drive")).toBeInTheDocument();
+    expect(screen.getByText("Section: Policy / Approvals")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: /open source/i })[0],
+    ).toHaveAttribute("href", "https://drive.example.com/doc-1");
+  });
+
   it("shows a freshness warning for stale citations", async () => {
     render([staleCitation]);
 
@@ -111,6 +134,27 @@ describe("DocumentPreviewModal", () => {
         "This citation references a stale, expired, or archived source.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("shows OCR and table extraction warnings when present", async () => {
+    const citation: ChatCitationResponse = {
+      ...baseCitation,
+      doc_ocr_low_confidence_warning: true,
+      table_low_confidence_warning: true,
+      table_extraction_confidence: 0.31,
+      is_table_chunk: true,
+      table_caption: "Approval matrix",
+      table_row_count: 8,
+      table_col_count: 4,
+    } as unknown as ChatCitationResponse;
+
+    render([citation]);
+
+    expect(await screen.findByText(/low-confidence OCR/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/low-confidence table extraction/i),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Table evidence")).toBeInTheDocument();
   });
 
   it("degrades safely when no chunk id is available", async () => {
@@ -133,34 +177,16 @@ describe("DocumentPreviewModal", () => {
   });
 
   it("renders chunk text body after successful load", async () => {
-    server.use(
-      http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
-        HttpResponse.json({
-          ...mockDocumentChunks,
-          items: [
-            {
-              ...mockDocumentChunks.items[0],
-              text: "Full chunk text from the handbook.",
-              text_preview: "Full chunk text from the handbook.",
-            },
-          ],
-        }),
-      ),
-    );
-
     render([baseCitation]);
 
     expect(
-      await screen.findByText("Full chunk text from the handbook."),
+      await screen.findByText("Rudix processes enterprise documents securely."),
     ).toBeInTheDocument();
   });
 
   it("shows access restricted state on 403 and still shows snippet", async () => {
     server.use(
       http.get(`${apiBaseUrl}/documents/:id`, () =>
-        HttpResponse.json({ detail: "Forbidden" }, { status: 403 }),
-      ),
-      http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
         HttpResponse.json({ detail: "Forbidden" }, { status: 403 }),
       ),
     );
@@ -178,9 +204,6 @@ describe("DocumentPreviewModal", () => {
       http.get(`${apiBaseUrl}/documents/:id`, () =>
         HttpResponse.json({ detail: "Not found" }, { status: 404 }),
       ),
-      http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
-        HttpResponse.json({ detail: "Not found" }, { status: 404 }),
-      ),
     );
 
     render([baseCitation]);
@@ -194,9 +217,6 @@ describe("DocumentPreviewModal", () => {
   it("disables download button when document is restricted", async () => {
     server.use(
       http.get(`${apiBaseUrl}/documents/:id`, () =>
-        HttpResponse.json({ detail: "Forbidden" }, { status: 403 }),
-      ),
-      http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
         HttpResponse.json({ detail: "Forbidden" }, { status: 403 }),
       ),
     );
@@ -235,7 +255,7 @@ describe("DocumentPreviewModal", () => {
 
   it("shows generic error with retry when chunks fetch fails with 500", async () => {
     server.use(
-      http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
+      http.get(`${apiBaseUrl}/documents/:id`, () =>
         HttpResponse.json({ detail: "Server error" }, { status: 500 }),
       ),
     );
@@ -243,7 +263,7 @@ describe("DocumentPreviewModal", () => {
     render([baseCitation]);
 
     expect(
-      await screen.findByText(/failed to load document content/i),
+      await screen.findByText(/failed to load citation metadata/i),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /try again/i }),
@@ -253,25 +273,9 @@ describe("DocumentPreviewModal", () => {
 
 describe("DocumentPreviewModal — offset-based highlighting", () => {
   it("renders highlighted mark when start_offset and end_offset are provided", async () => {
-    const chunkText = "Rudix processes enterprise documents securely.";
     const snippet = "enterprise documents";
-    const startOffset = chunkText.indexOf(snippet); // 16
-    const endOffset = startOffset + snippet.length; // 36
-
-    server.use(
-      http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
-        HttpResponse.json({
-          ...mockDocumentChunks,
-          items: [
-            {
-              ...mockDocumentChunks.items[0],
-              text: chunkText,
-              text_preview: chunkText,
-            },
-          ],
-        }),
-      ),
-    );
+    const startOffset = 16;
+    const endOffset = 36;
 
     const citation: ChatCitationResponse = {
       ...baseCitation,
@@ -280,33 +284,14 @@ describe("DocumentPreviewModal — offset-based highlighting", () => {
       end_offset: endOffset,
     };
 
-    const { container } = render([citation]);
+    render([citation]);
 
-    // Chunks load async — wait until a <mark> appears in the chunk body.
-    await waitFor(() => {
-      expect(container.querySelector("mark")).not.toBeNull();
-    });
-    expect(container.querySelector("mark")?.textContent).toBe(snippet);
+    const highlighted = await screen.findByText(snippet, { selector: "mark" });
+    expect(highlighted).toBeInTheDocument();
   });
 
   it("falls back to case-insensitive match when offsets are absent", async () => {
-    const chunkText = "Rudix processes enterprise documents securely.";
-    server.use(
-      http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
-        HttpResponse.json({
-          ...mockDocumentChunks,
-          items: [
-            {
-              ...mockDocumentChunks.items[0],
-              text: chunkText,
-              text_preview: chunkText,
-            },
-          ],
-        }),
-      ),
-    );
-
-    // Uppercase snippet — no offsets; should fall back to case-insensitive search.
+    // Uppercase snippet — no offsets; the excerpt should still be highlighted.
     const citation: ChatCitationResponse = {
       ...baseCitation,
       text_snippet: "ENTERPRISE DOCUMENTS",
@@ -314,33 +299,14 @@ describe("DocumentPreviewModal — offset-based highlighting", () => {
       end_offset: null,
     };
 
-    const { container } = render([citation]);
+    render([citation]);
 
-    await waitFor(() => {
-      expect(container.querySelector("mark")).not.toBeNull();
-    });
-    expect(container.querySelector("mark")?.textContent?.toLowerCase()).toBe(
-      "enterprise documents",
-    );
+    expect(
+      await screen.findByText("ENTERPRISE DOCUMENTS", { selector: "mark" }),
+    ).toBeInTheDocument();
   });
 
   it("shows fallback note when snippet cannot be located in chunk text", async () => {
-    const chunkText = "Completely different text in this chunk.";
-    server.use(
-      http.get(`${apiBaseUrl}/documents/:id/chunks`, () =>
-        HttpResponse.json({
-          ...mockDocumentChunks,
-          items: [
-            {
-              ...mockDocumentChunks.items[0],
-              text: chunkText,
-              text_preview: chunkText,
-            },
-          ],
-        }),
-      ),
-    );
-
     const citation: ChatCitationResponse = {
       ...baseCitation,
       text_snippet: "xyzzy no match possible here",
@@ -353,7 +319,11 @@ describe("DocumentPreviewModal — offset-based highlighting", () => {
     expect(
       await screen.findByText(/exact highlight unavailable/i),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("mark")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("xyzzy no match possible here", {
+        selector: "mark",
+      }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -408,7 +378,9 @@ describe("DocumentPreviewModal — multi-citation navigation", () => {
 
     await screen.findByText("Citation 1 of 2");
     expect(
-      screen.getByText("First cited passage from this document."),
+      await screen.findByText("First cited passage from this document.", {
+        selector: "mark",
+      }),
     ).toBeInTheDocument();
 
     await userEvent.click(
@@ -417,7 +389,9 @@ describe("DocumentPreviewModal — multi-citation navigation", () => {
 
     expect(screen.getByText("Citation 2 of 2")).toBeInTheDocument();
     expect(
-      screen.getByText("Second cited passage from the same document."),
+      await screen.findByText("Second cited passage from the same document.", {
+        selector: "mark",
+      }),
     ).toBeInTheDocument();
   });
 
@@ -432,7 +406,9 @@ describe("DocumentPreviewModal — multi-citation navigation", () => {
 
     expect(screen.getByText("Citation 1 of 2")).toBeInTheDocument();
     expect(
-      screen.getByText("First cited passage from this document."),
+      await screen.findByText("First cited passage from this document.", {
+        selector: "mark",
+      }),
     ).toBeInTheDocument();
   });
 });
