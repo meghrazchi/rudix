@@ -23,6 +23,7 @@ def _org_id(principal: AuthenticatedPrincipal) -> UUID:
         )
     return UUID(principal.organization_id)
 
+
 router = APIRouter(prefix="/admin/onboarding", tags=["admin-onboarding"])
 
 

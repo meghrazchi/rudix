@@ -27,6 +27,15 @@ export type CreateChatSessionRequest = Schemas["CreateChatSessionRequest"];
 export type ChatSessionResponse = Schemas["ChatSessionResponse"];
 export type ChatSessionListResponse = Schemas["ChatSessionListResponse"];
 export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
+  freshness_state?:
+    | "current"
+    | "stale"
+    | "expired"
+    | "deprecated"
+    | "draft"
+    | "unreviewed"
+    | "unknown"
+    | null;
   source_provider?: string | null;
   source_provider_label?: string | null;
   source_title?: string | null;
@@ -59,12 +68,15 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
     | "expired"
     | "archived"
     | null;
+  doc_last_updated_at?: string | null;
   doc_review_owner_id?: string | null;
   doc_review_due_date?: string | null;
   doc_expiry_date?: string | null;
   doc_expired_warning?: boolean;
   doc_stale_warning?: boolean;
   doc_is_excluded_status?: boolean;
+  doc_unreviewed_warning?: boolean;
+  doc_deprecated_warning?: boolean;
   // OCR quality (F299)
   doc_ocr_quality_status?:
     | "high"

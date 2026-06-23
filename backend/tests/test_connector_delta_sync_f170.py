@@ -23,7 +23,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.connectors.repositories.connectors import ConnectorRepository
-from app.domains.connectors.schemas.connectors import NormalizedExternalItem, ProviderCapabilities, ProviderRegistration
+from app.domains.connectors.schemas.connectors import (
+    NormalizedExternalItem,
+    ProviderCapabilities,
+    ProviderRegistration,
+)
 from app.domains.connectors.services.connector_service import ConnectorPlatformService
 from app.domains.connectors.services.provider_adapter import (
     ConnectorProviderAdapter,

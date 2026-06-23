@@ -14,6 +14,7 @@ type CitationPreviewItem = {
   document_id: string;
   chunk_id: string | null;
   filename?: string | null;
+  freshness_state?: string | null;
   source_title?: string | null;
   source_provider?: string | null;
   source_provider_label?: string | null;
@@ -23,9 +24,12 @@ type CitationPreviewItem = {
   source_last_synced_at?: string | null;
   source_trust_status?: string | null;
   doc_review_status?: string | null;
+  doc_last_updated_at?: string | null;
   doc_expired_warning?: boolean | null;
   doc_stale_warning?: boolean | null;
   doc_is_excluded_status?: boolean | null;
+  doc_unreviewed_warning?: boolean | null;
+  doc_deprecated_warning?: boolean | null;
   doc_ocr_quality_status?: string | null;
   doc_ocr_low_confidence_warning?: boolean | null;
   doc_extraction_warning?: boolean | null;
@@ -68,6 +72,141 @@ function formatScore(value: number | null | undefined): string {
     : "-";
 }
 
+function normalizeFreshnessState(
+  citation: CitationPreviewItem,
+  doc: CitationPreviewDoc | undefined,
+): string | null {
+  const explicit = citation.freshness_state ?? null;
+  if (explicit) {
+    return explicit;
+  }
+  const reviewStatus = doc?.review_status ?? citation.doc_review_status ?? null;
+  const trustStatus = doc?.trust_status ?? citation.source_trust_status ?? null;
+  if (reviewStatus === "needs_review" || citation.doc_unreviewed_warning) {
+    return "unreviewed";
+  }
+  if (
+    reviewStatus === "stale" ||
+    trustStatus === "stale" ||
+    citation.doc_stale_warning
+  ) {
+    return "stale";
+  }
+  if (
+    reviewStatus === "expired" ||
+    trustStatus === "deleted" ||
+    trustStatus === "expired" ||
+    citation.doc_expired_warning
+  ) {
+    return "expired";
+  }
+  if (
+    reviewStatus === "archived" ||
+    trustStatus === "deprecated" ||
+    trustStatus === "superseded" ||
+    trustStatus === "revoked" ||
+    citation.doc_deprecated_warning
+  ) {
+    return "deprecated";
+  }
+  if (trustStatus === "draft") {
+    return "draft";
+  }
+  if (trustStatus === "trusted" || trustStatus === "current") {
+    return "current";
+  }
+  return null;
+}
+
+function freshnessBadge(
+  state: string | null | undefined,
+): { label: string; className: string } | null {
+  if (!state) {
+    return null;
+  }
+  if (state === "current") {
+    return {
+      label: "Current",
+      className:
+        "rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-800 uppercase",
+    };
+  }
+  if (state === "stale") {
+    return {
+      label: "Stale",
+      className:
+        "rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
+    };
+  }
+  if (state === "expired") {
+    return {
+      label: "Expired",
+      className:
+        "rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
+    };
+  }
+  if (state === "deprecated") {
+    return {
+      label: "Deprecated",
+      className:
+        "rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 uppercase",
+    };
+  }
+  if (state === "draft") {
+    return {
+      label: "Draft",
+      className:
+        "rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-semibold text-sky-800 uppercase",
+    };
+  }
+  if (state === "unreviewed") {
+    return {
+      label: "Unreviewed",
+      className:
+        "rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
+    };
+  }
+  return {
+    label: "Unknown",
+    className:
+      "rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 uppercase",
+  };
+}
+
+type CitationPreviewDoc = {
+  filename?: string | null;
+  file_type?: string | null;
+  status?: string | null;
+  language?: string | null;
+  source_provider?: string | null;
+  source_provider_label?: string | null;
+  source_title?: string | null;
+  source_key?: string | null;
+  source_url?: string | null;
+  source_link_allowed?: boolean;
+  source_last_synced_at?: string | null;
+  source_sync_version?: number | null;
+  source_visibility?: string | null;
+  source_trust_status?: string | null;
+  document_title?: string | null;
+  document_type?: string | null;
+  document_owner_email?: string | null;
+  document_owner_display_name?: string | null;
+  document_version_label?: string | null;
+  document_last_updated_at?: string | null;
+  document_last_indexed_at?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+  uploaded_by_user_id?: string | null;
+  uploaded_by_user_email?: string | null;
+  uploaded_by_user_display_name?: string | null;
+  review_status?: string | null;
+  trust_status?: string | null;
+  review_owner_id?: string | null;
+  expiry_date?: string | null;
+  ocr_quality_status?: string | null;
+};
+
 function fileTypeIcon(fileType: string | null | undefined): string {
   if (fileType === "pdf") return "picture_as_pdf";
   if (fileType === "docx") return "description";
@@ -79,42 +218,6 @@ function fileTypeLabel(fileType: string | null | undefined): string {
   if (fileType === "docx") return "DOCX";
   if (fileType === "txt") return "Plain text";
   return (fileType ?? "file").toUpperCase();
-}
-
-function sourceFreshnessBadge(
-  citation: CitationPreviewItem,
-): { label: string; className: string } | null {
-  const trust =
-    citation.doc_review_status ?? citation.source_trust_status ?? null;
-  if (citation.doc_expired_warning || trust === "expired") {
-    return {
-      label: "Expired",
-      className:
-        "rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
-    };
-  }
-  if (trust === "stale" || citation.doc_stale_warning) {
-    return {
-      label: "Stale",
-      className:
-        "rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
-    };
-  }
-  if (trust === "archived") {
-    return {
-      label: "Archived",
-      className:
-        "rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 uppercase",
-    };
-  }
-  if (trust === "needs_review") {
-    return {
-      label: "Needs review",
-      className:
-        "rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
-    };
-  }
-  return null;
 }
 
 function triggerBlobDownload(blob: Blob, filename: string): void {
@@ -171,15 +274,50 @@ export function CitationPreviewDrawer({
 
   const doc = docQuery.data;
   const displayFilename =
-    citation.source_title ?? citation.filename ?? doc?.filename ?? "Document";
-  const displayFileType = doc?.file_type ?? null;
+    doc?.document_title ??
+    doc?.filename ??
+    citation.source_title ??
+    citation.filename ??
+    "Document";
+  const displayFileType = doc?.document_type ?? doc?.file_type ?? null;
   const displayStatus = doc?.status ?? null;
   const displayLanguage = doc?.language?.trim().toUpperCase() ?? null;
   const sourceProvider =
-    citation.source_provider_label ?? citation.source_provider ?? null;
-  const freshness = sourceFreshnessBadge(citation);
+    doc?.source_provider_label ??
+    citation.source_provider_label ??
+    doc?.source_provider ??
+    citation.source_provider ??
+    null;
+  const sourceProviderKey =
+    doc?.source_provider ?? citation.source_provider ?? null;
+  const freshnessState = normalizeFreshnessState(citation, doc);
+  const freshness = freshnessBadge(freshnessState);
+  const documentOwner =
+    doc?.document_owner_display_name ??
+    doc?.document_owner_email ??
+    doc?.uploaded_by_user_display_name ??
+    doc?.uploaded_by_user_email ??
+    doc?.document_owner_id ??
+    doc?.uploaded_by_user_id ??
+    null;
+  const documentVersion =
+    doc?.document_version_label ?? citation.doc_version_label ?? null;
+  const documentLastUpdatedAt =
+    doc?.document_last_updated_at ??
+    citation.doc_last_updated_at ??
+    doc?.updated_at ??
+    null;
+  const documentLastIndexedAt = doc?.document_last_indexed_at ?? null;
+  const sourceLastSyncedAt =
+    doc?.source_last_synced_at ?? citation.source_last_synced_at ?? null;
+  const sourceLink = doc?.source_link_allowed
+    ? (doc.source_url ?? citation.source_url ?? null)
+    : null;
   const sourceSection = citation.source_section ?? null;
-  const sourceLink = citation.source_deep_link ?? null;
+  const sourceLinkLabel =
+    doc?.source_provider_label ??
+    sourceProvider ??
+    (sourceProviderKey ? null : "Uploaded file");
 
   const viewInDocsHref =
     citation.document_id && citation.chunk_id != null
@@ -214,7 +352,19 @@ export function CitationPreviewDrawer({
   const highlightUnavailable = highlightText.length > 0;
 
   const warningMessages = [
-    citation.doc_ocr_low_confidence_warning
+    freshnessState === "stale" || citation.doc_stale_warning
+      ? "This source is stale. It may reflect content that has not been reviewed recently."
+      : null,
+    freshnessState === "expired" || citation.doc_expired_warning
+      ? "This source is expired. It may no longer reflect the current policy or source of truth."
+      : null,
+    freshnessState === "deprecated" || citation.doc_deprecated_warning
+      ? "This source is deprecated or superseded. Prefer a current source when available."
+      : null,
+    freshnessState === "unreviewed" || citation.doc_unreviewed_warning
+      ? "This source has not been reviewed yet, so its accuracy is not confirmed."
+      : null,
+    citation.doc_ocr_low_confidence_warning || doc?.ocr_quality_status === "low"
       ? "This source was extracted via low-confidence OCR. The text may contain errors and the answer reliability may be reduced."
       : null,
     citation.table_low_confidence_warning ||
@@ -247,6 +397,49 @@ export function CitationPreviewDrawer({
       ) : null}
     </div>
   ) : null;
+
+  const sourceSummary = [
+    {
+      label: "Document title",
+      value: displayFilename,
+    },
+    {
+      label: "Owner",
+      value: documentOwner ?? "-",
+    },
+    {
+      label: "Type",
+      value: displayFileType?.toUpperCase() ?? "-",
+    },
+    {
+      label: "Version",
+      value: documentVersion ?? "-",
+    },
+    {
+      label: "Last updated",
+      value: formatDate(documentLastUpdatedAt),
+    },
+    {
+      label: "Last indexed",
+      value: formatDate(documentLastIndexedAt),
+    },
+    {
+      label: "Last synced",
+      value: formatDate(sourceLastSyncedAt),
+    },
+    {
+      label: "Connector",
+      value: sourceLinkLabel ?? "-",
+    },
+    {
+      label: "Trust",
+      value: doc?.source_trust_status ?? citation.source_trust_status ?? "-",
+    },
+    {
+      label: "Freshness",
+      value: freshnessState ?? "-",
+    },
+  ];
 
   async function handleCopySourceLink(): Promise<void> {
     if (!copyLink) return;
@@ -360,28 +553,31 @@ export function CitationPreviewDrawer({
             </button>
           </div>
 
-          {sourceSection || citation.source_last_synced_at || sourceLink ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-2 text-[11px] text-[#6a6780]">
-              {sourceSection ? <span>Section: {sourceSection}</span> : null}
-              {citation.source_last_synced_at ? (
-                <span>Synced {formatDate(citation.source_last_synced_at)}</span>
-              ) : null}
-              {sourceLink ? (
-                <a
-                  href={sourceLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-[#3525cd] hover:underline"
-                >
-                  Open source
-                </a>
-              ) : null}
+          <div className="border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-3">
+            <div className="grid gap-2 text-[11px] text-[#6a6780] sm:grid-cols-2 xl:grid-cols-3">
+              {sourceSummary.map((item) => (
+                <div key={item.label} className="min-w-0">
+                  <p className="text-[9px] font-bold tracking-[0.16em] uppercase">
+                    {item.label}
+                  </p>
+                  <p className="truncate text-[#1b1b24]" title={item.value}>
+                    {item.value}
+                  </p>
+                </div>
+              ))}
             </div>
-          ) : null}
+            {sourceSection ? (
+              <p className="mt-2 text-[11px] text-[#6a6780]">
+                Section: {sourceSection}
+              </p>
+            ) : null}
+          </div>
 
           {citation.doc_stale_warning ||
           citation.doc_expired_warning ||
-          citation.doc_is_excluded_status ? (
+          citation.doc_is_excluded_status ||
+          citation.doc_unreviewed_warning ||
+          citation.doc_deprecated_warning ? (
             <div className="flex shrink-0 items-start gap-2 border-b border-amber-200 bg-amber-50 px-5 py-2.5">
               <span
                 className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600"
@@ -390,7 +586,8 @@ export function CitationPreviewDrawer({
                 warning
               </span>
               <p className="text-[11px] text-amber-800">
-                This citation references a stale, expired, or archived source.
+                This citation references a source that may be stale, expired,
+                deprecated, or still under review.
               </p>
             </div>
           ) : null}
@@ -443,8 +640,11 @@ export function CitationPreviewDrawer({
                   Chunk: {citation.chunk_id.slice(0, 8)}&hellip;
                 </span>
               ) : null}
-              {doc?.created_at ? (
-                <span>Indexed: {formatDate(doc.created_at)}</span>
+              {documentLastIndexedAt || doc?.created_at ? (
+                <span>
+                  Indexed:{" "}
+                  {formatDate(documentLastIndexedAt ?? doc?.created_at)}
+                </span>
               ) : null}
               {citation.rerank_score != null ? (
                 <span>Rerank: {formatScore(citation.rerank_score)}</span>
@@ -663,6 +863,11 @@ export function CitationPreviewDrawer({
                   </span>
                   Open source
                 </a>
+              ) : sourceProviderKey &&
+                sourceProviderKey.toLowerCase() !== "upload" ? (
+                <p className="rounded-xl border border-dashed border-[#d2cee6] px-4 py-3 text-center text-xs text-[#777587] sm:flex-1">
+                  Connector source link is not available for your access level.
+                </p>
               ) : null}
               {viewInDocsHref ? (
                 <Link

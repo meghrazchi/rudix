@@ -391,9 +391,13 @@ async def test_citation_preview_returns_uploaded_document_data(
     assert payload["document_id"] == str(document.id)
     assert payload["chunk_id"] == str(chunk.id)
     assert payload["filename"] == "uploaded-citation.pdf"
+    assert payload["document_title"] == "uploaded-citation.pdf"
+    assert payload["document_type"] == "pdf"
+    assert payload["document_owner_email"] == user.email
     assert payload["source_provider"] == "upload"
     assert payload["source_trust_status"] == "uploaded"
     assert payload["source_url"] is None
+    assert payload["source_link_allowed"] is False
     assert payload["document_url"].endswith(
         f"/documents/{document.id}?chunk_id={chunk.id}&citation={citation.id}"
     )
@@ -432,6 +436,7 @@ async def test_citation_preview_returns_connector_source_data(
     assert payload["source_title"] == "Connector Source Title"
     assert payload["source_key"] == "page-123"
     assert payload["source_url"] == "https://confluence.example.test/wiki/spaces/ENG/pages/123"
+    assert payload["source_link_allowed"] is True
     assert payload["source_trust_status"] == "trusted"
     assert payload["freshness_state"] == "current"
     assert payload["source_content_hash"] == "d" * 64

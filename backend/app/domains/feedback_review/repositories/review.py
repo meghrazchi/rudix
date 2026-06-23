@@ -149,7 +149,10 @@ class FeedbackReviewRepository:
             }
             if FeedbackReviewStatus(status) in _terminal and item.resolved_at is None:
                 item.resolved_at = datetime.now(tz=UTC)
-            elif FeedbackReviewStatus(status) not in _terminal and status != FeedbackReviewStatus.eval_created:
+            elif (
+                FeedbackReviewStatus(status) not in _terminal
+                and status != FeedbackReviewStatus.eval_created
+            ):
                 item.resolved_at = None
 
         if severity is not None:

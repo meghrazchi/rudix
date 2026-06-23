@@ -332,6 +332,27 @@ class DocumentDetailResponse(BaseModel):
     extraction_snapshot: dict | None = None
     embedding_provider_type: str | None = None
     embedding_vector_dimension: int | None = None
+    uploaded_by_user_id: str | None = None
+    uploaded_by_user_email: str | None = None
+    uploaded_by_user_display_name: str | None = None
+    source_provider: str | None = None
+    source_provider_label: str | None = None
+    source_title: str | None = None
+    source_key: str | None = None
+    source_url: str | None = None
+    source_link_allowed: bool = False
+    source_last_synced_at: datetime | None = None
+    source_sync_version: int | None = None
+    source_visibility: str | None = None
+    source_trust_status: str | None = None
+    document_title: str | None = None
+    document_type: str | None = None
+    document_owner_id: str | None = None
+    document_owner_email: str | None = None
+    document_owner_display_name: str | None = None
+    document_version_label: str | None = None
+    document_last_updated_at: datetime | None = None
+    document_last_indexed_at: datetime | None = None
     chunking_diagnostics: DocumentChunkingDiagnosticsResponse | None = None
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     # Source freshness and trust fields (F297).
@@ -383,6 +404,14 @@ class CitationPreviewResponse(BaseModel):
     document_id: str
     chunk_id: str
     filename: str
+    document_title: str | None = None
+    document_type: str | None = None
+    document_owner_id: str | None = None
+    document_owner_email: str | None = None
+    document_owner_display_name: str | None = None
+    document_version_label: str | None = None
+    document_last_updated_at: datetime | None = None
+    document_last_indexed_at: datetime | None = None
     page_number: int | None = None
     chunk_index: int | None = None
     section_path: str | None = None
@@ -392,6 +421,7 @@ class CitationPreviewResponse(BaseModel):
     source_title: str | None = None
     source_key: str | None = None
     source_url: str | None = None
+    source_link_allowed: bool = False
     document_url: str
     snippet: str
     highlight_start_offset: int | None = None
@@ -401,6 +431,7 @@ class CitationPreviewResponse(BaseModel):
     source_last_synced_at: datetime | None = None
     source_content_hash: str | None = None
     source_sync_version: int | None = None
+    source_visibility: str | None = None
     source_trust_status: (
         Literal["trusted", "stale", "revoked", "deleted", "unknown", "uploaded"] | None
     ) = None
@@ -408,6 +439,21 @@ class CitationPreviewResponse(BaseModel):
         Literal["current", "stale", "expired", "deprecated", "draft", "unreviewed", "unknown"]
         | None
     ) = None
+    doc_trust_status: str | None = None
+    doc_review_status: str | None = None
+    doc_review_owner_id: str | None = None
+    doc_review_due_date: date | None = None
+    doc_expiry_date: date | None = None
+    doc_version_label: str | None = None
+    doc_review_date: date | None = None
+    doc_effective_date: date | None = None
+    doc_stale_warning: bool = False
+    doc_expired_warning: bool = False
+    doc_is_excluded_status: bool = False
+    doc_unreviewed_warning: bool = False
+    doc_deprecated_warning: bool = False
+    doc_ocr_quality_status: str | None = None
+    doc_ocr_low_confidence_warning: bool = False
     request_id: str | None = None
 
 

@@ -725,9 +725,7 @@ def _with_table_metadata(
         return citation
     raw_conf = meta.get("confidence")
     table_conf: float | None = float(raw_conf) if raw_conf is not None else None
-    table_low_conf_warn = (
-        table_conf is not None and table_conf < _TABLE_CONFIDENCE_LOW_THRESHOLD
-    )
+    table_low_conf_warn = table_conf is not None and table_conf < _TABLE_CONFIDENCE_LOW_THRESHOLD
     return ChatCitationResponse(
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
@@ -915,8 +913,7 @@ def _with_extraction_quality(
     doc_profile, extraction_conf, doc_status = entry
     is_bad_profile = doc_profile in _EXTRACTION_WARNING_PROFILES
     is_low_conf = (
-        extraction_conf is not None
-        and extraction_conf < _EXTRACTION_CONFIDENCE_WARN_THRESHOLD
+        extraction_conf is not None and extraction_conf < _EXTRACTION_CONFIDENCE_WARN_THRESHOLD
     )
     extraction_warning = is_bad_profile or is_low_conf
     processing_warning = doc_status in _PROCESSING_INCOMPLETE_STATUSES
@@ -1264,12 +1261,8 @@ def _build_evidence_quality_record(citations: list) -> "EvidenceQualityRecord":
     table_low_conf_count = sum(
         1 for c in citations if getattr(c, "table_low_confidence_warning", False)
     )
-    extraction_warn_count = sum(
-        1 for c in citations if getattr(c, "doc_extraction_warning", False)
-    )
-    processing_warn_count = sum(
-        1 for c in citations if getattr(c, "doc_processing_warning", False)
-    )
+    extraction_warn_count = sum(1 for c in citations if getattr(c, "doc_extraction_warning", False))
+    processing_warn_count = sum(1 for c in citations if getattr(c, "doc_processing_warning", False))
     any_incomplete = processing_warn_count > 0
 
     warning_reasons: list[str] = []
@@ -1695,7 +1688,9 @@ def _build_retrieval_diagnostics_payload(
         "selected_count": len(selected_chunks),
         "top_k": final_top_k,
         "search_mode": search_mode,
-        "source_scope_mode": payload.source_scope.mode if payload.source_scope is not None else payload.scope_mode,
+        "source_scope_mode": payload.source_scope.mode
+        if payload.source_scope is not None
+        else payload.scope_mode,
         "source_scope_label": source_scope_result.label,
         "retrieval_profile_name": profile_name,
         "retrieval_profile_scope": retrieval_profile_scope,

@@ -497,12 +497,8 @@ class TestBuildEvidenceQualityRecord:
                 is_table_chunk=True,
                 table_low_confidence_warning=True,
             ),
-            CitationTrustRecord(
-                document_id="d2", chunk_id="c2", doc_extraction_warning=True
-            ),
-            CitationTrustRecord(
-                document_id="d3", chunk_id="c3", doc_processing_warning=True
-            ),
+            CitationTrustRecord(document_id="d2", chunk_id="c2", doc_extraction_warning=True),
+            CitationTrustRecord(document_id="d3", chunk_id="c3", doc_processing_warning=True),
         ]
         rec = _build_evidence_quality_record(citations)
         assert rec.table_low_confidence_count == 1

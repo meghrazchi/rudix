@@ -84,9 +84,7 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
                 kwargs[key] = UUID(value)
         for key, value in kwargs.items():
             if not hasattr(type(self), key):
-                raise TypeError(
-                    f"{key!r} is an invalid keyword argument for {type(self).__name__}"
-                )
+                raise TypeError(f"{key!r} is an invalid keyword argument for {type(self).__name__}")
             setattr(self, key, value)
 
 

@@ -91,16 +91,20 @@ describe("DocumentPreviewModal", () => {
     render([baseCitation]);
 
     expect(
-      await screen.findByText("Employee-Handbook.pdf"),
+      await screen.findByRole("dialog", { name: /citation preview/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Page 3")).toBeInTheDocument();
+    expect(await screen.findByText("Page 3")).toBeInTheDocument();
+    expect(await screen.findByTitle("Avery Owner")).toBeInTheDocument();
+    expect(await screen.findByTitle("v3")).toBeInTheDocument();
+    expect(await screen.findByText("Last indexed")).toBeInTheDocument();
+    expect(await screen.findByText("Last synced")).toBeInTheDocument();
   });
 
   it("shows file type chip and indexed status from document detail", async () => {
     render([baseCitation]);
 
-    expect(await screen.findByText("PDF")).toBeInTheDocument();
-    expect(screen.getByText("indexed")).toBeInTheDocument();
+    expect(await screen.findByTitle("PDF")).toBeInTheDocument();
+    expect(await screen.findByText("indexed")).toBeInTheDocument();
   });
 
   it("shows the document language chip from document metadata", async () => {
@@ -119,11 +123,16 @@ describe("DocumentPreviewModal", () => {
 
     render([citation]);
 
-    expect(await screen.findByText("Google Drive")).toBeInTheDocument();
-    expect(screen.getByText("Section: Policy / Approvals")).toBeInTheDocument();
+    expect(await screen.findByTitle("Confluence")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Section: Policy / Approvals"),
+    ).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /open source/i })[0],
-    ).toHaveAttribute("href", "https://drive.example.com/doc-1");
+    ).toHaveAttribute(
+      "href",
+      "https://confluence.example.test/wiki/spaces/ENG/pages/123",
+    );
   });
 
   it("shows a freshness warning for stale citations", async () => {
@@ -131,9 +140,51 @@ describe("DocumentPreviewModal", () => {
 
     expect(
       await screen.findByText(
-        "This citation references a stale, expired, or archived source.",
+        "This source is stale. It may reflect content that has not been reviewed recently.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("shows a freshness warning for unreviewed citations", async () => {
+    const citation: ChatCitationResponse = {
+      ...baseCitation,
+      freshness_state: "unreviewed",
+      doc_unreviewed_warning: true,
+    };
+
+    render([citation]);
+
+    expect(
+      await screen.findByText(
+        "This source has not been reviewed yet, so its accuracy is not confirmed.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("hides connector deep links when the source link is not allowed", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/documents/:id`, () =>
+        HttpResponse.json(
+          {
+            ...mockDocumentDetail,
+            source_link_allowed: false,
+            source_url: null,
+          },
+          { status: 200 },
+        ),
+      ),
+    );
+
+    render([baseCitation]);
+
+    expect(
+      await screen.findByText(
+        "Connector source link is not available for your access level.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /open source/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows OCR and table extraction warnings when present", async () => {
@@ -232,7 +283,7 @@ describe("DocumentPreviewModal", () => {
   it("shows View in Documents link with document id, chunk id, snippet, and back params", async () => {
     render([baseCitation]);
 
-    await screen.findByText("Employee-Handbook.pdf");
+    await screen.findByRole("dialog", { name: /citation preview/i });
 
     const link = screen.getByRole("link", { name: /view in documents/i });
     const href = link.getAttribute("href") ?? "";
@@ -246,7 +297,7 @@ describe("DocumentPreviewModal", () => {
     const onClose = vi.fn();
     render([baseCitation], 0, onClose);
 
-    await screen.findByText("Employee-Handbook.pdf");
+    await screen.findByRole("dialog", { name: /citation preview/i });
     await userEvent.click(
       screen.getByRole("button", { name: /close citation preview/i }),
     );
@@ -351,7 +402,7 @@ describe("DocumentPreviewModal — multi-citation navigation", () => {
   it("does not show navigation bar for a single citation", async () => {
     render([baseCitation]);
 
-    await screen.findByText("Employee-Handbook.pdf");
+    await screen.findByRole("dialog", { name: /citation preview/i });
     expect(screen.queryByText(/Citation \d of \d/)).not.toBeInTheDocument();
   });
 

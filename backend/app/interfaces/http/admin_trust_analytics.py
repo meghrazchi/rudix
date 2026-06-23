@@ -193,17 +193,15 @@ def _build_daily_trends(
         day_events = by_date.get(current, [])
         count = len(day_events)
         not_found_count = sum(1 for m in day_events if _safe_bool(m, "not_found"))
-        conf_scores = [v for m in day_events if (v := _safe_float(m, "confidence_score")) is not None]
+        conf_scores = [
+            v for m in day_events if (v := _safe_float(m, "confidence_score")) is not None
+        ]
         cit_scores = [
-            v
-            for m in day_events
-            if (v := _safe_float(m, "citation_support_score")) is not None
+            v for m in day_events if (v := _safe_float(m, "citation_support_score")) is not None
         ]
         high_count = sum(1 for m in day_events if m.get("trust_level") == "high")
         low_count = sum(
-            1
-            for m in day_events
-            if m.get("trust_level") in ("low", "warning", "not_found")
+            1 for m in day_events if m.get("trust_level") in ("low", "warning", "not_found")
         )
         trends.append(
             TrustTrendPoint(

@@ -93,11 +93,14 @@ from app.domains.pipeline.services.pipeline_graph_service import (
 )
 from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.models.collection import Collection, CollectionDocument
+from app.models.authorization import SourceAclMapping
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
 from app.models.connector_source import SourceDocument
 from app.models.document import Document
+from app.models.document_version import DocumentVersion
 from app.models.enums import DocumentReviewStatus, DocumentStatus, OrganizationRole
 from app.models.pipeline import PipelineEvent, PipelineRun
+from app.models.user import User
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.document_tasks import (
     delete_document as delete_document_task,
@@ -189,6 +192,31 @@ def _document_preview_url(*, document_id: str, chunk_id: str, citation_id: str) 
         f"?chunk_id={quote(chunk_id, safe='')}"
         f"&citation={quote(citation_id, safe='')}"
     )
+
+
+async def _connector_source_link_allowed(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    user_id: UUID,
+    connection_id: UUID | None,
+    source_visibility: str | None,
+) -> bool:
+    if connection_id is None:
+        return False
+    if source_visibility == "org_wide":
+        return True
+    result = await db_session.execute(
+        select(SourceAclMapping.id).where(
+            SourceAclMapping.organization_id == organization_id,
+            SourceAclMapping.connector_connection_id == connection_id,
+            SourceAclMapping.user_id == user_id,
+            SourceAclMapping.principal_type == "user",
+            SourceAclMapping.acl_effect == "allow",
+            SourceAclMapping.is_active.is_(True),
+        )
+    )
+    return result.scalar_one_or_none() is not None
 
 
 def _safe_log_lines(
@@ -942,6 +970,7 @@ async def get_citation_preview(
 ) -> CitationPreviewResponse:
     del document_id
     request_id = _request_id_from_request(request)
+    user_id, _ = _principal_user_and_org(principal)
 
     try:
         citation_uuid = UUID(citation_id)
@@ -1034,6 +1063,7 @@ async def get_citation_preview(
     source_title = document.filename
     source_key: str | None = None
     source_url: str | None = None
+    source_link_allowed = False
     source_section = chunk.section_path or (
         f"Page {chunk.page_number}" if chunk.page_number is not None else None
     )
@@ -1041,6 +1071,7 @@ async def get_citation_preview(
     source_content_hash = document.checksum
     source_sync_version: int | None = None
     source_trust_status = "uploaded"
+    provenance = None
 
     if document.connector_external_item_id is not None:
         provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
@@ -1089,6 +1120,23 @@ async def get_citation_preview(
         source_last_synced_at = provenance.source_last_synced_at
         source_content_hash = provenance.source_content_hash
         source_sync_version = provenance.source_sync_version
+        source_link_allowed = await _connector_source_link_allowed(
+            db_session,
+            organization_id=document.organization_id,
+            user_id=user_id,
+            connection_id=provenance.connector_connection_id,
+            source_visibility=provenance.source_visibility,
+        )
+
+    document_last_indexed_at: datetime | None = None
+    if document.current_version_id is not None:
+        current_version = await db_session.get(DocumentVersion, document.current_version_id)
+        if current_version is not None:
+            document_last_indexed_at = current_version.indexed_at
+
+    uploader = None
+    if document.uploaded_by_user_id is not None:
+        uploader = await db_session.get(User, document.uploaded_by_user_id)
 
     highlight_start_offset = citation.start_offset
     highlight_end_offset = citation.end_offset
@@ -1105,6 +1153,16 @@ async def get_citation_preview(
         document_id=str(document.id),
         chunk_id=str(chunk.id),
         filename=document.filename,
+        document_title=document.filename,
+        document_type=document.file_type,
+        document_owner_id=str(document.uploaded_by_user_id)
+        if document.uploaded_by_user_id is not None
+        else None,
+        document_owner_email=uploader.email if uploader is not None else None,
+        document_owner_display_name=uploader.display_name if uploader is not None else None,
+        document_version_label=document.version_label,
+        document_last_updated_at=document.updated_at,
+        document_last_indexed_at=document_last_indexed_at,
         page_number=citation.page_number or chunk.page_number,
         chunk_index=chunk.chunk_index,
         section_path=chunk.section_path,
@@ -1113,7 +1171,8 @@ async def get_citation_preview(
         source_provider_label=source_provider_label,
         source_title=source_title,
         source_key=source_key,
-        source_url=source_url,
+        source_url=source_url if source_link_allowed else None,
+        source_link_allowed=source_link_allowed,
         document_url=_document_preview_url(
             document_id=str(document.id),
             chunk_id=str(chunk.id),
@@ -1127,8 +1186,26 @@ async def get_citation_preview(
         source_last_synced_at=source_last_synced_at,
         source_content_hash=source_content_hash,
         source_sync_version=source_sync_version,
+        source_visibility=provenance.source_visibility if provenance is not None else None,
         source_trust_status=source_trust_status,
         freshness_state=freshness_state,
+        doc_trust_status=document.trust_status,
+        doc_review_status=document.review_status,
+        doc_review_owner_id=str(document.review_owner_id)
+        if document.review_owner_id is not None
+        else None,
+        doc_review_due_date=document.review_due_date,
+        doc_expiry_date=document.expiry_date,
+        doc_version_label=document.version_label,
+        doc_review_date=document.review_date,
+        doc_effective_date=document.effective_date,
+        doc_stale_warning=freshness_state == "stale",
+        doc_expired_warning=freshness_state == "expired",
+        doc_is_excluded_status=freshness_state in {"deprecated", "expired"},
+        doc_unreviewed_warning=freshness_state == "unreviewed",
+        doc_deprecated_warning=freshness_state == "deprecated",
+        doc_ocr_quality_status=document.ocr_quality_status,
+        doc_ocr_low_confidence_warning=document.ocr_quality_status == "low",
         request_id=request_id,
     )
 
@@ -1141,6 +1218,9 @@ async def get_citation_preview(
         chunk_id=str(chunk.id),
         request_id=request_id,
         status_code=status.HTTP_200_OK,
+        source_provider=source_provider,
+        source_link_allowed=source_link_allowed,
+        freshness_state=freshness_state,
     )
     return preview
 
@@ -1153,7 +1233,7 @@ async def get_document(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DocumentDetailResponse:
     del document_id
-    _, organization_id = _principal_user_and_org(principal)
+    user_id, organization_id = _principal_user_and_org(principal)
     document_uuid = document.id
     document_id_text = str(document_uuid)
     filename = document.filename
@@ -1196,6 +1276,50 @@ async def get_document(
     doc_effective_date = document.effective_date
     doc_trusted_at = document.trusted_at
     doc_stale_after_days = document.stale_after_days
+    doc_last_indexed_at: datetime | None = None
+    if document.current_version_id is not None:
+        current_version = await db_session.get(DocumentVersion, document.current_version_id)
+        if current_version is not None:
+            doc_last_indexed_at = current_version.indexed_at
+
+    uploader = None
+    if document.uploaded_by_user_id is not None:
+        uploader = await db_session.get(User, document.uploaded_by_user_id)
+
+    source_provider = None
+    source_provider_label = None
+    source_title = None
+    source_key = None
+    source_url = None
+    source_link_allowed = False
+    source_last_synced_at: datetime | None = None
+    source_sync_version: int | None = None
+    source_visibility: str | None = None
+    source_trust_status: str | None = "uploaded"
+    if document.connector_external_item_id is not None:
+        provenance_by_doc_id = await _source_provenance_service.load_citation_details_for_documents(
+            db_session,
+            organization_id=document.organization_id,
+            document_ids=[document.id],
+        )
+        provenance = provenance_by_doc_id.get(document.id)
+        if provenance is not None:
+            source_provider = provenance.provider_key
+            source_provider_label = provenance.provider_label
+            source_title = provenance.source_title
+            source_key = provenance.source_key
+            source_url = provenance.source_deep_link
+            source_last_synced_at = provenance.source_last_synced_at
+            source_sync_version = provenance.source_sync_version
+            source_visibility = provenance.source_visibility
+            source_trust_status = provenance.source_trust_status
+            source_link_allowed = await _connector_source_link_allowed(
+                db_session,
+                organization_id=document.organization_id,
+                user_id=user_id,
+                connection_id=provenance.connector_connection_id,
+                source_visibility=provenance.source_visibility,
+            )
 
     safe_error_message, safe_error_details = _safe_error_payload(document)
     chunk_count = await document_repository.count_document_chunks(
@@ -1253,6 +1377,9 @@ async def get_document(
         user_id=principal.user_id,
         status_code=status.HTTP_200_OK,
         document_status=document_status,
+        source_provider=source_provider,
+        source_link_allowed=source_link_allowed,
+        source_trust_status=source_trust_status,
     )
     return DocumentDetailResponse(
         document_id=document_id_text,
@@ -1290,6 +1417,31 @@ async def get_document(
         effective_date=doc_effective_date,
         trusted_at=doc_trusted_at,
         stale_after_days=doc_stale_after_days,
+        uploaded_by_user_id=str(document.uploaded_by_user_id)
+        if document.uploaded_by_user_id is not None
+        else None,
+        uploaded_by_user_email=uploader.email if uploader is not None else None,
+        uploaded_by_user_display_name=uploader.display_name if uploader is not None else None,
+        source_provider=source_provider,
+        source_provider_label=source_provider_label,
+        source_title=source_title,
+        source_key=source_key,
+        source_url=source_url if source_link_allowed else None,
+        source_link_allowed=source_link_allowed,
+        source_last_synced_at=source_last_synced_at,
+        source_sync_version=source_sync_version,
+        source_visibility=source_visibility,
+        source_trust_status=source_trust_status,
+        document_title=filename,
+        document_type=file_type,
+        document_owner_id=str(document.uploaded_by_user_id)
+        if document.uploaded_by_user_id is not None
+        else None,
+        document_owner_email=uploader.email if uploader is not None else None,
+        document_owner_display_name=uploader.display_name if uploader is not None else None,
+        document_version_label=doc_version_label,
+        document_last_updated_at=updated_at,
+        document_last_indexed_at=doc_last_indexed_at,
         chunking_diagnostics=_build_chunking_diagnostics(
             file_type=file_type,
             chunking_strategy=chunking_strategy,

@@ -27,9 +27,9 @@ describe("generated schema types", () => {
   it("document types match generated schema", () => {
     // DocumentListResponse augments the schema items with optional frontend fields
     // (collections, tags, source, language, etc.); verify only the envelope shape.
-    expectTypeOf<Omit<DocumentListResponse, "items" | "freshness">>().toEqualTypeOf<
-      Omit<Schemas["DocumentListResponse"], "items">
-    >();
+    expectTypeOf<
+      Omit<DocumentListResponse, "items" | "freshness">
+    >().toEqualTypeOf<Omit<Schemas["DocumentListResponse"], "items">>();
     expectTypeOf<
       Omit<
         DocumentDetailResponse,
@@ -43,6 +43,27 @@ describe("generated schema types", () => {
         | "extraction_snapshot"
         | "embedding_provider_type"
         | "embedding_vector_dimension"
+        | "uploaded_by_user_id"
+        | "uploaded_by_user_email"
+        | "uploaded_by_user_display_name"
+        | "source_provider"
+        | "source_provider_label"
+        | "source_title"
+        | "source_key"
+        | "source_url"
+        | "source_link_allowed"
+        | "source_last_synced_at"
+        | "source_sync_version"
+        | "source_visibility"
+        | "source_trust_status"
+        | "document_title"
+        | "document_type"
+        | "document_owner_id"
+        | "document_owner_email"
+        | "document_owner_display_name"
+        | "document_version_label"
+        | "document_last_updated_at"
+        | "document_last_indexed_at"
         | "review_status"
         | "review_owner_id"
         | "review_due_date"

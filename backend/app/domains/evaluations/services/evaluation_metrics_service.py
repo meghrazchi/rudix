@@ -134,6 +134,7 @@ def score_trust_metadata_case(
         overall_pass=overall_pass,
     )
 
+
 # Character-frequency heuristics for short evaluation questions and answers.
 # ¿ and ¡ are unambiguous Spanish markers; a single hit is sufficient.
 # Umlaut characters (ä, ö, ü, ß) are unambiguous German markers.

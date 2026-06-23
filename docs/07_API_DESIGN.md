@@ -566,6 +566,12 @@ Response:
   "document_id": "uuid",
   "chunk_id": "uuid",
   "filename": "policy.pdf",
+  "document_title": "policy.pdf",
+  "document_type": "pdf",
+  "document_owner_email": "owner@example.com",
+  "document_version_label": "v3",
+  "document_last_updated_at": "2026-05-20T08:30:00Z",
+  "document_last_indexed_at": "2026-05-20T08:15:00Z",
   "page_number": 4,
   "chunk_index": 12,
   "section_path": "Policy > Leave",
@@ -575,6 +581,7 @@ Response:
   "source_title": "Leave policy",
   "source_key": "page-123",
   "source_url": "https://confluence.example.test/wiki/spaces/ENG/pages/123",
+  "source_link_allowed": true,
   "document_url": "https://app.rudix.test/documents/uuid?chunk_id=uuid&citation=uuid",
   "snippet": "Employees are entitled to ...",
   "highlight_start_offset": 0,
@@ -584,8 +591,16 @@ Response:
   "source_last_synced_at": "2026-05-07T10:00:00Z",
   "source_content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "source_sync_version": 5,
+  "source_visibility": "org_wide",
   "source_trust_status": "trusted",
   "freshness_state": "current",
+  "doc_trust_status": "current",
+  "doc_review_status": "current",
+  "doc_version_label": "v3",
+  "doc_unreviewed_warning": false,
+  "doc_deprecated_warning": false,
+  "doc_ocr_quality_status": "high",
+  "doc_ocr_low_confidence_warning": false,
   "request_id": "req-123"
 }
 ```
@@ -595,6 +610,8 @@ Behavior:
 - Enforces organization membership, document access, collection permissions,
   and connector ACLs server-side before returning preview data.
 - Supports uploaded documents and connector-backed sources.
+- Shows source links only when the connector source is available to the current
+  user; uploaded documents always fall back to the internal document link.
 - Returns `404` with `detail.code = citation_not_found` when the citation does
   not exist, is malformed, or is not visible in the requested document scope.
 - Returns `404` with `detail.code = citation_unauthorized` when the source is

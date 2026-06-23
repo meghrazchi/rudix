@@ -17,6 +17,7 @@ from app.models.enums import ConnectorConnectionStatus
 
 @dataclass(frozen=True)
 class SourceCitationDetails:
+    connector_connection_id: UUID | None
     provider_key: str | None
     provider_label: str | None
     source_title: str | None
@@ -28,6 +29,7 @@ class SourceCitationDetails:
     source_content_hash: str | None
     source_sync_version: int | None
     source_acl_snapshot: dict[str, Any]
+    source_visibility: str | None
 
 
 class SourceProvenanceService:
@@ -166,6 +168,7 @@ class SourceProvenanceService:
                 SourceDocument.content_hash,
                 SourceDocument.sync_version,
                 SourceDocument.status,
+                ExternalItem.connection_id,
                 ExternalItem.provider_item_id,
                 ExternalItem.title,
                 ExternalItem.source_url,
@@ -173,6 +176,7 @@ class SourceProvenanceService:
                 ExternalItem.content_hash,
                 ExternalItem.sync_version,
                 ExternalItem.permissions_json,
+                ExternalItem.visibility,
                 provider_alias.key,
                 provider_alias.display_name,
                 connection_alias.status,
@@ -193,30 +197,32 @@ class SourceProvenanceService:
                 continue
             locator = row[1] or {}
             metadata = row[2] or {}
-            source_url = row[3] or row[11]
-            source_title = row[4] or row[9]
+            source_url = row[3] or row[12]
+            source_title = row[4] or row[11]
             trust_status = self._trust_status(
-                connection_status=str(row[18] or ""),
-                deleted_at=row[12],
+                connection_status=str(row[20] or ""),
+                deleted_at=row[13],
                 source_document_status=str(row[8] or ""),
                 source_document_content_hash=str(row[6] or ""),
                 source_document_sync_version=row[7],
-                external_item_content_hash=str(row[13] or ""),
-                external_item_sync_version=row[14],
+                external_item_content_hash=str(row[14] or ""),
+                external_item_sync_version=row[15],
                 metadata=metadata,
             )
             details_by_chunk_id[chunk_id] = SourceCitationDetails(
-                provider_key=str(row[16] or "").strip() or None,
-                provider_label=str(row[17] or "").strip() or None,
+                connector_connection_id=row[9],
+                provider_key=str(row[18] or "").strip() or None,
+                provider_label=str(row[19] or "").strip() or None,
                 source_title=str(source_title or "").strip() or None,
-                source_key=str(row[9] or "").strip() or None,
+                source_key=str(row[10] or "").strip() or None,
                 source_section=self._source_section(locator=locator, metadata=metadata),
                 source_deep_link=str(source_url or "").strip() or None,
                 source_last_synced_at=row[5],
                 source_trust_status=trust_status,
                 source_content_hash=str(row[6] or "").strip() or None,
                 source_sync_version=int(row[7]) if row[7] is not None else None,
-                source_acl_snapshot=row[15] or {},
+                source_acl_snapshot=row[16] or {},
+                source_visibility=str(row[17] or "").strip() or None,
             )
 
         return details_by_chunk_id
@@ -244,6 +250,7 @@ class SourceProvenanceService:
                 SourceDocument.content_hash,
                 SourceDocument.sync_version,
                 SourceDocument.status,
+                ExternalItem.connection_id,
                 ExternalItem.provider_item_id,
                 ExternalItem.title,
                 ExternalItem.source_url,
@@ -251,6 +258,7 @@ class SourceProvenanceService:
                 ExternalItem.content_hash,
                 ExternalItem.sync_version,
                 ExternalItem.permissions_json,
+                ExternalItem.visibility,
                 provider_alias.key,
                 provider_alias.display_name,
                 connection_alias.status,
@@ -275,30 +283,32 @@ class SourceProvenanceService:
             document_id = row[0]
             locator = row[1] or {}
             metadata = row[2] or {}
-            source_url = row[3] or row[11]
-            source_title = row[4] or row[10]
+            source_url = row[3] or row[12]
+            source_title = row[4] or row[11]
             trust_status = self._trust_status(
-                connection_status=str(row[18] or ""),
-                deleted_at=row[12],
+                connection_status=str(row[20] or ""),
+                deleted_at=row[13],
                 source_document_status=str(row[8] or ""),
                 source_document_content_hash=str(row[6] or ""),
                 source_document_sync_version=row[7],
-                external_item_content_hash=str(row[13] or ""),
-                external_item_sync_version=row[14],
+                external_item_content_hash=str(row[14] or ""),
+                external_item_sync_version=row[15],
                 metadata=metadata,
             )
             details_by_document_id[document_id] = SourceCitationDetails(
-                provider_key=str(row[16] or "").strip() or None,
-                provider_label=str(row[17] or "").strip() or None,
+                connector_connection_id=row[9],
+                provider_key=str(row[18] or "").strip() or None,
+                provider_label=str(row[19] or "").strip() or None,
                 source_title=str(source_title or "").strip() or None,
-                source_key=str(row[9] or "").strip() or None,
+                source_key=str(row[10] or "").strip() or None,
                 source_section=self._source_section(locator=locator, metadata=metadata),
                 source_deep_link=str(source_url or "").strip() or None,
                 source_last_synced_at=row[5],
                 source_trust_status=trust_status,
                 source_content_hash=str(row[6] or "").strip() or None,
                 source_sync_version=int(row[7]) if row[7] is not None else None,
-                source_acl_snapshot=row[15] or {},
+                source_acl_snapshot=row[16] or {},
+                source_visibility=str(row[17] or "").strip() or None,
             )
 
         return details_by_document_id

@@ -109,6 +109,14 @@ export type CitationPreviewResponse = {
   document_id: string;
   chunk_id: string;
   filename: string;
+  document_title?: string | null;
+  document_type?: string | null;
+  document_owner_id?: string | null;
+  document_owner_email?: string | null;
+  document_owner_display_name?: string | null;
+  document_version_label?: string | null;
+  document_last_updated_at?: string | null;
+  document_last_indexed_at?: string | null;
   page_number?: number | null;
   chunk_index?: number | null;
   section_path?: string | null;
@@ -118,6 +126,7 @@ export type CitationPreviewResponse = {
   source_title?: string | null;
   source_key?: string | null;
   source_url?: string | null;
+  source_link_allowed?: boolean;
   document_url: string;
   snippet: string;
   highlight_start_offset?: number | null;
@@ -127,6 +136,7 @@ export type CitationPreviewResponse = {
   source_last_synced_at?: string | null;
   source_content_hash?: string | null;
   source_sync_version?: number | null;
+  source_visibility?: string | null;
   source_trust_status?:
     | "trusted"
     | "stale"
@@ -144,6 +154,27 @@ export type CitationPreviewResponse = {
     | "unreviewed"
     | "unknown"
     | null;
+  doc_trust_status?: string | null;
+  doc_review_status?: string | null;
+  doc_review_owner_id?: string | null;
+  doc_review_due_date?: string | null;
+  doc_expiry_date?: string | null;
+  doc_version_label?: string | null;
+  doc_review_date?: string | null;
+  doc_effective_date?: string | null;
+  doc_stale_warning?: boolean;
+  doc_expired_warning?: boolean;
+  doc_is_excluded_status?: boolean;
+  doc_unreviewed_warning?: boolean;
+  doc_deprecated_warning?: boolean;
+  doc_ocr_quality_status?:
+    | "high"
+    | "medium"
+    | "low"
+    | "failed"
+    | "not_required"
+    | null;
+  doc_ocr_low_confidence_warning?: boolean;
   request_id?: string | null;
 };
 export type DocumentCollectionSummary = {
@@ -224,6 +255,27 @@ export type DocumentDetailResponse = Omit<
   extraction_snapshot?: ExtractionSnapshot | null;
   embedding_provider_type?: string | null;
   embedding_vector_dimension?: number | null;
+  uploaded_by_user_id?: string | null;
+  uploaded_by_user_email?: string | null;
+  uploaded_by_user_display_name?: string | null;
+  source_provider?: string | null;
+  source_provider_label?: string | null;
+  source_title?: string | null;
+  source_key?: string | null;
+  source_url?: string | null;
+  source_link_allowed?: boolean;
+  source_last_synced_at?: string | null;
+  source_sync_version?: number | null;
+  source_visibility?: string | null;
+  source_trust_status?: string | null;
+  document_title?: string | null;
+  document_type?: string | null;
+  document_owner_id?: string | null;
+  document_owner_email?: string | null;
+  document_owner_display_name?: string | null;
+  document_version_label?: string | null;
+  document_last_updated_at?: string | null;
+  document_last_indexed_at?: string | null;
   chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
   review_status?:
     | "current"

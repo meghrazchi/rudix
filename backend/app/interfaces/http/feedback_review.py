@@ -483,9 +483,7 @@ async def get_feedback_metrics(
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackMetricsResponse:
     _user_id, org_id = _require_admin(principal)
-    data = await _review_repository.get_feedback_metrics(
-        db, organization_id=org_id, days=days
-    )
+    data = await _review_repository.get_feedback_metrics(db, organization_id=org_id, days=days)
     return FeedbackMetricsResponse(
         period_days=data["period_days"],
         total_feedback=data["total_feedback"],
