@@ -540,9 +540,13 @@ export async function listDocuments(
 
 export async function getDocument(
   documentId: string,
+  options: { signal?: AbortSignal } = {},
 ): Promise<DocumentDetailResponse> {
   return apiRequest<DocumentDetailResponse>(
     `/documents/${encodeURIComponent(documentId)}`,
+    {
+      signal: options.signal,
+    },
   );
 }
 
@@ -573,9 +577,13 @@ export async function getDocumentChunks(
 export async function getCitationPreview(
   documentId: string,
   citationId: string,
+  options: { signal?: AbortSignal } = {},
 ): Promise<CitationPreviewResponse> {
   return apiRequest<CitationPreviewResponse>(
     `/documents/${encodeURIComponent(documentId)}/citations/${encodeURIComponent(citationId)}/preview`,
+    {
+      signal: options.signal,
+    },
   );
 }
 

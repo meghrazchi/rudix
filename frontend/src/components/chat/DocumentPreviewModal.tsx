@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { trackFeatureEvent } from "@/lib/analytics";
+import type { AnalyticsEventPayload } from "@/lib/analytics";
 import { downloadDocumentFile, getDocument } from "@/lib/api/documents";
 import { isApiClientError } from "@/lib/api/errors";
 import { copyToClipboard } from "@/lib/export-utils";
+import { addFrontendBreadcrumb } from "@/lib/observability";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 
 type CitationPreviewItem = {
@@ -20,9 +29,11 @@ type CitationPreviewItem = {
   source_provider_label?: string | null;
   source_key?: string | null;
   source_section?: string | null;
+  source_url?: string | null;
   source_deep_link?: string | null;
   source_last_synced_at?: string | null;
   source_trust_status?: string | null;
+  doc_version_label?: string | null;
   doc_review_status?: string | null;
   doc_last_updated_at?: string | null;
   doc_expired_warning?: boolean | null;
@@ -56,6 +67,17 @@ type Props = {
   initialIndex?: number;
   onClose: () => void;
 };
+
+const MAX_CITATIONS_TO_RENDER = 12;
+const MAX_SNIPPET_LENGTH = 320;
+const PREVIEW_ROUTE = "/chat";
+
+type CitationPreviewEventName =
+  | "feature.chat.citation_preview_opened"
+  | "feature.chat.citation_preview_load_failed"
+  | "feature.chat.citation_preview_permission_denied"
+  | "feature.chat.citation_preview_source_missing"
+  | "feature.chat.citation_preview_external_link_clicked";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "-";
@@ -192,6 +214,7 @@ type CitationPreviewDoc = {
   document_type?: string | null;
   document_owner_email?: string | null;
   document_owner_display_name?: string | null;
+  document_owner_id?: string | null;
   document_version_label?: string | null;
   document_last_updated_at?: string | null;
   document_last_indexed_at?: string | null;
@@ -232,16 +255,74 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
   URL.revokeObjectURL(objectUrl);
 }
 
+function truncateSnippet(
+  value: string,
+  maxLength = MAX_SNIPPET_LENGTH,
+): string {
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength).trimEnd()}…`;
+}
+
+function citationPreviewKey(citation: CitationPreviewItem): string {
+  return [
+    citation.document_id,
+    citation.chunk_id ?? "",
+    citation.page_number ?? "",
+    citation.source_key ?? "",
+  ].join(":");
+}
+
+function emitCitationPreviewEvent(
+  eventName: CitationPreviewEventName,
+  payload: Omit<AnalyticsEventPayload, "surface">,
+): void {
+  addFrontendBreadcrumb({
+    category: "citation.preview",
+    message: eventName,
+    level:
+      eventName === "feature.chat.citation_preview_load_failed"
+        ? "error"
+        : "info",
+    data: payload,
+  });
+
+  trackFeatureEvent(eventName, {
+    surface: "app",
+    featureArea: "chat",
+    route: PREVIEW_ROUTE,
+    source: "citation_preview",
+    ...payload,
+  }).catch(() => {
+    // Fire-and-forget telemetry must never block preview rendering.
+  });
+}
+
 export function CitationPreviewDrawer({
   citations,
   initialIndex = 0,
   onClose,
 }: Props) {
+  const visibleCitations = useMemo(
+    () => citations.slice(0, MAX_CITATIONS_TO_RENDER),
+    [citations],
+  );
+  const previewHasMoreCitations = citations.length > visibleCitations.length;
   const [activeIndex, setActiveIndex] = useState(
-    Math.min(initialIndex, Math.max(0, citations.length - 1)),
+    Math.min(initialIndex, Math.max(0, visibleCitations.length - 1)),
   );
   const [copied, setCopied] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const openedCitationKeyRef = useRef<string | null>(null);
+  const failureEventKeyRef = useRef<string | null>(null);
+  const sourceMissingEventKeyRef = useRef<string | null>(null);
+  const permissionDeniedEventKeyRef = useRef<string | null>(null);
+  const currentCitation = useMemo(
+    () => visibleCitations[activeIndex] ?? visibleCitations[0] ?? null,
+    [activeIndex, visibleCitations],
+  );
 
   useEffect(() => {
     if (!copied) return;
@@ -249,16 +330,75 @@ export function CitationPreviewDrawer({
     return () => window.clearTimeout(timeout);
   }, [copied]);
 
+  useEffect(() => {
+    if (visibleCitations.length === 0) {
+      return;
+    }
+    const nextIndex = Math.min(activeIndex, visibleCitations.length - 1);
+    if (nextIndex !== activeIndex) {
+      setActiveIndex(nextIndex);
+    }
+  }, [activeIndex, visibleCitations.length]);
+
   useOverlayFocus({ isOpen: true, containerRef, onClose });
 
-  const maxIndex = Math.max(0, citations.length - 1);
+  const maxIndex = Math.max(0, visibleCitations.length - 1);
   const safeActiveIndex = Math.min(activeIndex, maxIndex);
-  const citation = citations[safeActiveIndex] ?? citations[0];
+  const citation =
+    currentCitation ??
+    ({ document_id: "", chunk_id: null } as CitationPreviewItem);
+  const hasCitation = currentCitation != null;
+
+  useEffect(() => {
+    if (!hasCitation) {
+      return;
+    }
+
+    const citationKey = citationPreviewKey(citation);
+    const eventContext = {
+      entityId: citation.document_id,
+      entityType: citation.chunk_id ? "citation_chunk" : "citation",
+      count: visibleCitations.length,
+      pageKey:
+        citation.page_number != null
+          ? `page-${citation.page_number}`
+          : undefined,
+      status: "opened",
+      dedupeKey: citationKey,
+      source: "citation_preview",
+    } satisfies Omit<AnalyticsEventPayload, "surface">;
+
+    if (!citation.document_id) {
+      if (sourceMissingEventKeyRef.current === citationKey) {
+        return;
+      }
+      sourceMissingEventKeyRef.current = citationKey;
+      emitCitationPreviewEvent("feature.chat.citation_preview_source_missing", {
+        ...eventContext,
+        entityId: citation.document_id,
+        status: "missing_document_id",
+      });
+      return;
+    }
+
+    if (openedCitationKeyRef.current === citationKey) {
+      return;
+    }
+
+    openedCitationKeyRef.current = citationKey;
+    emitCitationPreviewEvent("feature.chat.citation_preview_opened", {
+      ...eventContext,
+      status: "opened",
+    });
+  }, [citation, hasCitation, visibleCitations.length]);
 
   const docQuery = useQuery({
-    queryKey: ["citation-preview", "document", citation.document_id],
-    queryFn: () => getDocument(citation.document_id),
-    enabled: Boolean(citation.document_id),
+    queryKey: ["citation-preview", "document", citation?.document_id ?? "none"],
+    queryFn: ({ signal }) =>
+      citation?.document_id
+        ? getDocument(citation.document_id, { signal })
+        : Promise.reject(new Error("No citation document id")),
+    enabled: Boolean(citation?.document_id),
     retry: false,
   });
 
@@ -276,21 +416,23 @@ export function CitationPreviewDrawer({
   const displayFilename =
     doc?.document_title ??
     doc?.filename ??
-    citation.source_title ??
-    citation.filename ??
+    citation?.source_title ??
+    citation?.filename ??
     "Document";
   const displayFileType = doc?.document_type ?? doc?.file_type ?? null;
   const displayStatus = doc?.status ?? null;
   const displayLanguage = doc?.language?.trim().toUpperCase() ?? null;
   const sourceProvider =
     doc?.source_provider_label ??
-    citation.source_provider_label ??
+    citation?.source_provider_label ??
     doc?.source_provider ??
-    citation.source_provider ??
+    citation?.source_provider ??
     null;
   const sourceProviderKey =
-    doc?.source_provider ?? citation.source_provider ?? null;
-  const freshnessState = normalizeFreshnessState(citation, doc);
+    doc?.source_provider ?? citation?.source_provider ?? null;
+  const freshnessState = citation
+    ? normalizeFreshnessState(citation, doc)
+    : null;
   const freshness = freshnessBadge(freshnessState);
   const documentOwner =
     doc?.document_owner_display_name ??
@@ -301,46 +443,46 @@ export function CitationPreviewDrawer({
     doc?.uploaded_by_user_id ??
     null;
   const documentVersion =
-    doc?.document_version_label ?? citation.doc_version_label ?? null;
+    doc?.document_version_label ?? citation?.doc_version_label ?? null;
   const documentLastUpdatedAt =
     doc?.document_last_updated_at ??
-    citation.doc_last_updated_at ??
+    citation?.doc_last_updated_at ??
     doc?.updated_at ??
     null;
   const documentLastIndexedAt = doc?.document_last_indexed_at ?? null;
   const sourceLastSyncedAt =
-    doc?.source_last_synced_at ?? citation.source_last_synced_at ?? null;
+    doc?.source_last_synced_at ?? citation?.source_last_synced_at ?? null;
   const sourceLink = doc?.source_link_allowed
-    ? (doc.source_url ?? citation.source_url ?? null)
+    ? (doc.source_url ?? citation?.source_url ?? null)
     : null;
-  const sourceSection = citation.source_section ?? null;
+  const sourceSection = citation?.source_section ?? null;
   const sourceLinkLabel =
     doc?.source_provider_label ??
     sourceProvider ??
     (sourceProviderKey ? null : "Uploaded file");
 
   const viewInDocsHref =
-    citation.document_id && citation.chunk_id != null
+    citation?.document_id && citation.chunk_id != null
       ? `/documents/${encodeURIComponent(citation.document_id)}` +
         `?chunk_id=${encodeURIComponent(citation.chunk_id)}` +
         (citation.page_number != null
           ? `&page=${encodeURIComponent(String(citation.page_number))}`
           : "") +
-        `&back=${encodeURIComponent("/chat")}`
+        `&back=${encodeURIComponent(PREVIEW_ROUTE)}`
       : null;
 
   const copyLink = sourceLink ?? viewInDocsHref;
   const canDownload = Boolean(
-    citation.document_id &&
+    citation?.document_id &&
     !downloadMutation.isPending &&
     !(
       (isApiClientError(docQuery.error) && docQuery.error.status === 403) ||
       (isApiClientError(docQuery.error) && docQuery.error.status === 404)
     ),
   );
-  const hasSiblings = citations.length > 1;
+  const hasSiblings = visibleCitations.length > 1;
   const canGoPrev = activeIndex > 0;
-  const canGoNext = activeIndex < citations.length - 1;
+  const canGoNext = activeIndex < visibleCitations.length - 1;
 
   const isPermissionDenied =
     isApiClientError(docQuery.error) && docQuery.error.status === 403;
@@ -360,7 +502,73 @@ export function CitationPreviewDrawer({
     docQuery.error.code === "citation_deleted";
   const isError = docQuery.isError && !isPermissionDenied && !isNotFound;
 
-  const highlightText = citation.text_snippet?.trim() ?? "";
+  useEffect(() => {
+    if (!citation.document_id) {
+      return;
+    }
+
+    const citationKey = citationPreviewKey(citation);
+    const eventBase = {
+      entityId: citation.document_id,
+      entityType: citation.chunk_id ? "citation_chunk" : "citation",
+      pageKey:
+        citation.page_number != null
+          ? `page-${citation.page_number}`
+          : undefined,
+      count: visibleCitations.length,
+      dedupeKey: citationKey,
+    } satisfies Omit<AnalyticsEventPayload, "surface">;
+
+    if (isPermissionDenied) {
+      if (permissionDeniedEventKeyRef.current === citationKey) {
+        return;
+      }
+      permissionDeniedEventKeyRef.current = citationKey;
+      emitCitationPreviewEvent(
+        "feature.chat.citation_preview_permission_denied",
+        {
+          ...eventBase,
+          status: "forbidden",
+        },
+      );
+      return;
+    }
+
+    if (isNotFound || isCitationDeleted) {
+      if (sourceMissingEventKeyRef.current === citationKey) {
+        return;
+      }
+      sourceMissingEventKeyRef.current = citationKey;
+      emitCitationPreviewEvent("feature.chat.citation_preview_source_missing", {
+        ...eventBase,
+        status: isCitationDeleted ? "deleted" : "missing",
+      });
+      return;
+    }
+
+    if (isError) {
+      if (failureEventKeyRef.current === citationKey) {
+        return;
+      }
+      failureEventKeyRef.current = citationKey;
+      emitCitationPreviewEvent("feature.chat.citation_preview_load_failed", {
+        ...eventBase,
+        status: isApiClientError(docQuery.error)
+          ? `${docQuery.error.status}:${docQuery.error.code}`
+          : "unknown_error",
+      });
+    }
+  }, [
+    citation,
+    docQuery.error,
+    isCitationDeleted,
+    isError,
+    isNotFound,
+    isPermissionDenied,
+    visibleCitations.length,
+  ]);
+
+  const highlightText = truncateSnippet(citation?.text_snippet ?? "");
   const highlightUnavailable = highlightText.length > 0;
 
   const warningMessages = [
@@ -376,18 +584,19 @@ export function CitationPreviewDrawer({
     freshnessState === "unreviewed" || citation.doc_unreviewed_warning
       ? "This source has not been reviewed yet, so its accuracy is not confirmed."
       : null,
-    citation.doc_ocr_low_confidence_warning || doc?.ocr_quality_status === "low"
+    citation?.doc_ocr_low_confidence_warning ||
+    doc?.ocr_quality_status === "low"
       ? "This source was extracted via low-confidence OCR. The text may contain errors and the answer reliability may be reduced."
       : null,
-    citation.table_low_confidence_warning ||
-    (citation.table_extraction_confidence != null &&
+    citation?.table_low_confidence_warning ||
+    (citation?.table_extraction_confidence != null &&
       citation.table_extraction_confidence < 0.4)
       ? "This citation comes from a low-confidence table extraction, so the highlighted passage may be incomplete."
       : null,
-    citation.doc_extraction_warning
+    citation?.doc_extraction_warning
       ? "This source had extraction quality issues, so the evidence preview may be incomplete or noisy."
       : null,
-    citation.doc_processing_warning
+    citation?.doc_processing_warning
       ? "This source was only partially processed, so some surrounding text may be unavailable."
       : null,
   ].filter((message): message is string => Boolean(message));
@@ -478,11 +687,37 @@ export function CitationPreviewDrawer({
       value: freshnessState ?? "-",
     },
   ];
+  const helpTextId = "citation-preview-help";
+  const previewLimitNotice = previewHasMoreCitations
+    ? `Showing the first ${MAX_CITATIONS_TO_RENDER} citations to keep the preview responsive.`
+    : null;
 
   async function handleCopySourceLink(): Promise<void> {
     if (!copyLink) return;
     await copyToClipboard(copyLink);
     setCopied(true);
+  }
+
+  function handleOpenSourceLink(): void {
+    if (!sourceLink) {
+      return;
+    }
+
+    emitCitationPreviewEvent(
+      "feature.chat.citation_preview_external_link_clicked",
+      {
+        entityId: citation.document_id,
+        entityType: citation.chunk_id ? "citation_chunk" : "citation",
+        pageKey:
+          citation.page_number != null
+            ? `page-${citation.page_number}`
+            : undefined,
+        count: visibleCitations.length,
+        dedupeKey: `${citationPreviewKey(citation)}:source-link`,
+        status: sourceProviderKey ?? "source",
+        source: "citation_preview",
+      },
+    );
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>): void {
@@ -512,9 +747,10 @@ export function CitationPreviewDrawer({
           role="dialog"
           aria-modal="true"
           aria-label={`Citation preview: ${displayFilename}`}
+          aria-describedby={helpTextId}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={handleKeyDown}
-          className="flex h-full w-full max-w-none flex-col overflow-hidden rounded-none border-l border-[#d7d4e8] bg-white shadow-2xl sm:max-w-[48rem] sm:rounded-l-2xl"
+          className="flex h-full w-full max-w-none flex-col overflow-hidden rounded-none border-l border-[#d7d4e8] bg-white shadow-2xl outline-none sm:max-w-[48rem] sm:rounded-l-2xl"
         >
           <div className="flex shrink-0 items-center gap-3 border-b border-[#e4e1ee] px-5 py-4">
             <span
@@ -580,7 +816,7 @@ export function CitationPreviewDrawer({
               onClick={onClose}
               data-overlay-autofocus="true"
               aria-label="Close citation preview"
-              className="ml-2 shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
+              className="ml-2 shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none motion-reduce:transition-none"
             >
               <span
                 className="material-symbols-outlined text-[20px]"
@@ -604,6 +840,19 @@ export function CitationPreviewDrawer({
                 </div>
               ))}
             </div>
+            <p
+              id={helpTextId}
+              className="mt-3 text-[11px] leading-relaxed text-[#6a6780]"
+            >
+              Use Left and Right arrows to move between citations, Home and End
+              to jump to the first or last citation, and Escape to close. The
+              highlighted excerpt shows the cited evidence.
+            </p>
+            {previewLimitNotice ? (
+              <p className="mt-1 text-[11px] text-[#6a6780]">
+                {previewLimitNotice}
+              </p>
+            ) : null}
             {sourceSection ? (
               <p className="mt-2 text-[11px] text-[#6a6780]">
                 Section: {sourceSection}
@@ -633,7 +882,7 @@ export function CitationPreviewDrawer({
           {hasSiblings ? (
             <div className="flex shrink-0 items-center justify-between border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-2">
               <span className="text-[11px] font-semibold text-[#6a6780]">
-                Citation {safeActiveIndex + 1} of {citations.length}
+                Citation {safeActiveIndex + 1} of {visibleCitations.length}
               </span>
               <div className="flex items-center gap-1">
                 <button
@@ -641,7 +890,7 @@ export function CitationPreviewDrawer({
                   disabled={!canGoPrev}
                   onClick={() => setActiveIndex((current) => current - 1)}
                   aria-label="Previous citation"
-                  className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
                 >
                   <span
                     className="material-symbols-outlined text-[18px]"
@@ -655,7 +904,7 @@ export function CitationPreviewDrawer({
                   disabled={!canGoNext}
                   onClick={() => setActiveIndex((current) => current + 1)}
                   aria-label="Next citation"
-                  className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
                 >
                   <span
                     className="material-symbols-outlined text-[18px]"
@@ -792,7 +1041,7 @@ export function CitationPreviewDrawer({
                   <button
                     type="button"
                     onClick={() => void docQuery.refetch()}
-                    className="text-xs font-semibold text-[#3525cd] hover:underline"
+                    className="text-xs font-semibold text-[#3525cd] hover:underline focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                   >
                     {previewFallback.action}
                   </button>
@@ -801,7 +1050,7 @@ export function CitationPreviewDrawer({
             ) : docQuery.isPending ? (
               <div className="flex min-h-[40vh] items-center justify-center p-8">
                 <span
-                  className="material-symbols-outlined animate-spin text-[32px] text-[#3525cd]"
+                  className="material-symbols-outlined animate-spin text-[32px] text-[#3525cd] motion-reduce:animate-none"
                   aria-label="Loading"
                 >
                   progress_activity
@@ -820,7 +1069,7 @@ export function CitationPreviewDrawer({
                 <button
                   type="button"
                   onClick={() => void docQuery.refetch()}
-                  className="text-xs font-semibold text-[#3525cd] hover:underline"
+                  className="text-xs font-semibold text-[#3525cd] hover:underline focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                 >
                   Try again
                 </button>
@@ -889,7 +1138,7 @@ export function CitationPreviewDrawer({
                 type="button"
                 onClick={() => void handleCopySourceLink()}
                 disabled={!copyLink}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
               >
                 <span
                   className="material-symbols-outlined text-[18px]"
@@ -903,7 +1152,7 @@ export function CitationPreviewDrawer({
                 type="button"
                 onClick={() => void downloadMutation.mutate()}
                 disabled={!canDownload}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
               >
                 <span
                   className="material-symbols-outlined text-[18px]"
@@ -920,7 +1169,9 @@ export function CitationPreviewDrawer({
                   href={sourceLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff]"
+                  onClick={handleOpenSourceLink}
+                  aria-label={`Open source for ${displayFilename}`}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none motion-reduce:transition-none"
                 >
                   <span
                     className="material-symbols-outlined text-[18px]"
@@ -939,7 +1190,8 @@ export function CitationPreviewDrawer({
               {viewInDocsHref ? (
                 <Link
                   href={viewInDocsHref}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
+                  aria-label={`View citation in documents for ${displayFilename}`}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none motion-reduce:transition-none"
                 >
                   <span
                     className="material-symbols-outlined text-[18px]"

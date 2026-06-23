@@ -3245,7 +3245,7 @@
       },
       "citations": {
         "title": "Verify citations",
-        "description": "Click any citation chip in a chat answer to preview the source passage."
+        "description": "Open a citation to preview the source passage, inspect highlighted evidence, and move between citations with the keyboard."
       },
       "collections": {
         "title": "Manage collections",

@@ -11,13 +11,23 @@ import {
 
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { ChatCitationResponse } from "@/lib/api/chat";
 import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
+import { trackFeatureEvent } from "@/lib/analytics";
+import { addFrontendBreadcrumb } from "@/lib/observability";
 import { renderWithProviders } from "@/test/render";
 import { mockDocumentDetail } from "@/test/msw/fixtures";
+
+vi.mock("@/lib/analytics", () => ({
+  trackFeatureEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/observability", () => ({
+  addFrontendBreadcrumb: vi.fn(),
+}));
 
 const apiBaseUrl = "http://api.test";
 
@@ -51,6 +61,9 @@ const noChunkCitation = {
   text_snippet: "A citation without a chunk id should still render safely.",
 } as unknown as ChatCitationResponse;
 
+const mockedTrackFeatureEvent = vi.mocked(trackFeatureEvent);
+const mockedAddFrontendBreadcrumb = vi.mocked(addFrontendBreadcrumb);
+
 function render(
   citations: ChatCitationResponse[],
   initialIndex = 0,
@@ -72,6 +85,8 @@ afterAll(() => server.close());
 beforeEach(() => {
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
   Element.prototype.scrollIntoView = vi.fn();
+  mockedTrackFeatureEvent.mockClear();
+  mockedAddFrontendBreadcrumb.mockClear();
 });
 
 describe("DocumentPreviewModal", () => {
@@ -87,12 +102,38 @@ describe("DocumentPreviewModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("truncates oversized snippets before rendering", async () => {
+    const longSnippet = Array.from({ length: 90 }, () => "Evidence").join(" ");
+
+    render([
+      {
+        ...baseCitation,
+        text_snippet: longSnippet,
+      },
+    ]);
+
+    expect(
+      await screen.findByRole("dialog", { name: /citation preview/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(longSnippet)).not.toBeInTheDocument();
+    expect(
+      screen.getByText((content, element) => {
+        return element?.tagName === "MARK" && content.endsWith("…");
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("shows document filename and page number in header", async () => {
     render([baseCitation]);
 
     expect(
       await screen.findByRole("dialog", { name: /citation preview/i }),
     ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /close citation preview/i }),
+      ).toHaveFocus();
+    });
     expect(await screen.findByText("Page 3")).toBeInTheDocument();
     expect(await screen.findByTitle("Avery Owner")).toBeInTheDocument();
     expect(await screen.findByTitle("v3")).toBeInTheDocument();
@@ -331,6 +372,33 @@ describe("DocumentPreviewModal", () => {
     expect(href).toContain("back=%2Fchat");
   });
 
+  it("emits a safe telemetry event when the external source link is opened", async () => {
+    const citation: ChatCitationResponse = {
+      ...baseCitation,
+      source_url: "https://confluence.example.test/wiki/spaces/ENG/pages/123",
+    } as unknown as ChatCitationResponse;
+
+    render([citation]);
+
+    await screen.findByRole("dialog", { name: /citation preview/i });
+    await userEvent.click(
+      screen.getByRole("link", {
+        name: /open source for employee-handbook\.pdf/i,
+      }),
+    );
+
+    expect(mockedTrackFeatureEvent).toHaveBeenCalledWith(
+      "feature.chat.citation_preview_external_link_clicked",
+      expect.objectContaining({
+        surface: "app",
+        featureArea: "chat",
+        entityId: "doc-1",
+        entityType: "citation",
+        source: "citation_preview",
+      }),
+    );
+  });
+
   it("calls onClose when close button is clicked", async () => {
     const onClose = vi.fn();
     render([baseCitation], 0, onClose);
@@ -357,6 +425,12 @@ describe("DocumentPreviewModal", () => {
     expect(
       screen.getByRole("button", { name: /try again/i }),
     ).toBeInTheDocument();
+    expect(mockedAddFrontendBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "citation.preview",
+        message: "feature.chat.citation_preview_load_failed",
+      }),
+    );
   });
 });
 
@@ -484,6 +558,20 @@ describe("DocumentPreviewModal — multi-citation navigation", () => {
     ).toBeInTheDocument();
   });
 
+  it("navigates citations with the keyboard", async () => {
+    render([citationA, citationB], 0);
+
+    await screen.findByText("Citation 1 of 2");
+    await userEvent.keyboard("{ArrowRight}");
+
+    expect(screen.getByText("Citation 2 of 2")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Second cited passage from the same document.", {
+        selector: "mark",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("navigating back from second citation restores first citation", async () => {
     render([citationA, citationB], 1);
 
@@ -499,5 +587,31 @@ describe("DocumentPreviewModal — multi-citation navigation", () => {
         selector: "mark",
       }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("DocumentPreviewModal — cancellation", () => {
+  it("aborts the in-flight document request when unmounted", async () => {
+    let aborted = false;
+
+    server.use(
+      http.get(`${apiBaseUrl}/documents/:id`, async ({ request }) => {
+        request.signal.addEventListener("abort", () => {
+          aborted = true;
+        });
+        await new Promise((resolve) => {
+          setTimeout(resolve, 100);
+        });
+        return HttpResponse.json(mockDocumentDetail);
+      }),
+    );
+
+    const { unmount } = render([baseCitation]);
+    await screen.findByRole("dialog", { name: /citation preview/i });
+    unmount();
+
+    await waitFor(() => {
+      expect(aborted).toBe(true);
+    });
   });
 });
