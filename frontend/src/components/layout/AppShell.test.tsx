@@ -141,9 +141,10 @@ describe("AppShell top bar menus", () => {
     expect(await screen.findByText("admin")).toBeInTheDocument();
     expect(screen.getByText("admin@example.com")).toBeInTheDocument();
     expect(screen.getByText("Organization: Org One")).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: "User Profile" }),
-    ).toHaveAttribute("href", "/user/profile");
+    expect(screen.getByRole("menuitem", { name: /Profile/i })).toHaveAttribute(
+      "href",
+      "/user/profile",
+    );
     expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings",

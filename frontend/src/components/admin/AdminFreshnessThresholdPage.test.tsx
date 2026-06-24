@@ -144,10 +144,11 @@ describe("AdminFreshnessThresholdPage", () => {
     await user.type(input, "60");
     await user.click(screen.getByTestId("save-freshness-thresholds"));
     await waitFor(() =>
-      expect(mockApi.patchFreshnessThresholds).toHaveBeenCalledWith(
-        expect.objectContaining({ warn_stale_after_days: 60 }),
-      ),
+      expect(mockApi.patchFreshnessThresholds).toHaveBeenCalled(),
     );
+    expect(mockApi.patchFreshnessThresholds.mock.calls[0][0]).toMatchObject({
+      warn_stale_after_days: 60,
+    });
   });
 
   it("shows success message after save", async () => {

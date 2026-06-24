@@ -157,7 +157,7 @@ describe("AdminRolesPage", () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getByText("Owner")).toBeInTheDocument();
-      expect(screen.getByText("Admin")).toBeInTheDocument();
+      expect(screen.getAllByText("Admin").length).toBeGreaterThan(0);
     });
   });
 
@@ -196,14 +196,16 @@ describe("AdminRolesPage", () => {
     renderPage();
     await waitFor(() => screen.getByText("Owner"));
 
-    await user.click(screen.getByRole("button", { name: /Create role/i }));
+    await user.click(screen.getByRole("button", { name: /\+ Create role/i }));
     await user.type(
       screen.getByPlaceholderText(/e.g. Read-only analyst/i),
       "New Role",
     );
-    await user.click(
-      screen.getByRole("button", { name: /Create role/i, hidden: false }),
-    );
+    const createBtns = screen.getAllByRole("button", {
+      name: /Create role/i,
+      hidden: false,
+    });
+    await user.click(createBtns[createBtns.length - 1]);
     await waitFor(() => {
       expect(mockApi.createCustomRole).toHaveBeenCalledWith(
         expect.objectContaining({ name: "New Role" }),

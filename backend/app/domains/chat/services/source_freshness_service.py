@@ -245,11 +245,15 @@ class SourceFreshnessService:
     ) -> str:
         """Return the effective trust status, promoting to 'stale' when past review_date."""
         status = (
-            trust_data.quality_state
-            or trust_data.review_status
-            or trust_data.trust_status
-            or "current"
-        ).strip().lower()
+            (
+                trust_data.quality_state
+                or trust_data.review_status
+                or trust_data.trust_status
+                or "current"
+            )
+            .strip()
+            .lower()
+        )
         if status in {"reviewed", "verified", "trusted"}:
             _today_trusted = today or date.today()
             if trust_data.review_date is not None and trust_data.review_date < _today_trusted:
@@ -262,8 +266,8 @@ class SourceFreshnessService:
 
         if status == "unreviewed":
             legacy_status = (
-                trust_data.review_status or trust_data.trust_status or "current"
-            ).strip().lower()
+                (trust_data.review_status or trust_data.trust_status or "current").strip().lower()
+            )
             if legacy_status in {"verified", "reviewed", "trusted", "current"}:
                 return legacy_status
             if legacy_status in {"stale", "expired", "deprecated", "archived", "superseded"}:

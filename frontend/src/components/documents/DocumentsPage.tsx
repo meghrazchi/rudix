@@ -1907,7 +1907,9 @@ export function DocumentsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={qualityBadge(document.quality_state)}>
+                          <span
+                            className={qualityBadge(document.quality_state)}
+                          >
                             {document.quality_state ?? "unreviewed"}
                           </span>
                         </td>

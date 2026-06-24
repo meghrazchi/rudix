@@ -159,8 +159,8 @@ describe("DocumentDetailPage — citation deep-link support", () => {
 
     expect(await screen.findByText("Citation evidence")).toBeInTheDocument();
     expect(
-      screen.getByText("The cited passage text lives here."),
-    ).toBeInTheDocument();
+      screen.getAllByText("The cited passage text lives here.").length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows truncated chunk ID in the citation callout", async () => {

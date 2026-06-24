@@ -147,7 +147,7 @@ describe("AdminUsagePage", () => {
     expect(
       await screen.findByText("Usage & cost dashboard"),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Cost figures are/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Cost figures are/).length).toBeGreaterThan(0);
   });
 
   it("renders summary metric cards with correct values", async () => {

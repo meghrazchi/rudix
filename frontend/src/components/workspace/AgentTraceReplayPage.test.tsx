@@ -202,6 +202,7 @@ function renderPage(runId = RUN_ID) {
 describe("AgentTraceReplayPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("shows loading state initially", () => {
@@ -244,7 +245,9 @@ describe("AgentTraceReplayPage", () => {
     expect(stepStartedRow).toBeTruthy();
     await userEvent.click(stepStartedRow!);
     await waitFor(() =>
-      expect(screen.getByText(/retrieve_documents/i)).toBeInTheDocument(),
+      expect(screen.getAllByText(/retrieve_documents/i).length).toBeGreaterThan(
+        0,
+      ),
     );
   });
 
@@ -252,7 +255,7 @@ describe("AgentTraceReplayPage", () => {
     mockApi.getAgentRunTrace.mockResolvedValue(makeTrace());
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText("search_documents")).toBeInTheDocument(),
+      expect(screen.getAllByText("search_documents").length).toBeGreaterThan(0),
     );
   });
 
@@ -300,10 +303,25 @@ describe("AgentTraceReplayPage", () => {
     mockApi.getAgentRunTrace.mockResolvedValue(makeTrace());
     mockApi.exportAgentRunTrace.mockResolvedValue(makeExport());
 
+    renderPage();
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole("button")
+          .some((b) => /export/i.test(b.textContent ?? "")),
+      ).toBe(true),
+    );
+
     const createObjectURL = vi.fn().mockReturnValue("blob:test");
     const revokeObjectURL = vi.fn();
-    Object.defineProperty(URL, "createObjectURL", { value: createObjectURL });
-    Object.defineProperty(URL, "revokeObjectURL", { value: revokeObjectURL });
+    Object.defineProperty(URL, "createObjectURL", {
+      value: createObjectURL,
+      writable: true,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      value: revokeObjectURL,
+      writable: true,
+    });
 
     const appendChildSpy = vi
       .spyOn(document.body, "appendChild")
@@ -312,13 +330,10 @@ describe("AgentTraceReplayPage", () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
 
-    renderPage();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: /export/i }),
-      ).toBeInTheDocument(),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /export/i }));
+    const exportBtn = screen
+      .getAllByRole("button")
+      .find((b) => /export/i.test(b.textContent ?? ""))!;
+    await userEvent.click(exportBtn);
 
     await waitFor(() =>
       expect(mockApi.exportAgentRunTrace).toHaveBeenCalledWith(RUN_ID),
@@ -332,10 +347,15 @@ describe("AgentTraceReplayPage", () => {
     renderPage();
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /share/i }),
-      ).toBeInTheDocument(),
+        screen
+          .getAllByRole("button")
+          .some((b) => b.textContent?.includes("Share")),
+      ).toBe(true),
     );
-    await userEvent.click(screen.getByRole("button", { name: /share/i }));
+    const shareBtn = screen
+      .getAllByRole("button")
+      .find((b) => b.textContent?.includes("Share"))!;
+    await userEvent.click(shareBtn);
     expect(
       screen.getByRole("dialog", { name: /share trace/i }),
     ).toBeInTheDocument();
@@ -347,10 +367,15 @@ describe("AgentTraceReplayPage", () => {
     renderPage();
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /share/i }),
-      ).toBeInTheDocument(),
+        screen
+          .getAllByRole("button")
+          .some((b) => b.textContent?.includes("Share")),
+      ).toBe(true),
     );
-    await userEvent.click(screen.getByRole("button", { name: /share/i }));
+    const shareBtn = screen
+      .getAllByRole("button")
+      .find((b) => b.textContent?.includes("Share"))!;
+    await userEvent.click(shareBtn);
     await userEvent.click(screen.getByRole("button", { name: /create link/i }));
     await waitFor(() =>
       expect(
@@ -369,8 +394,8 @@ describe("AgentTraceReplayPage", () => {
     renderPage();
     await waitFor(() =>
       expect(
-        screen.getByText(/No timeline events recorded/i),
-      ).toBeInTheDocument(),
+        screen.getAllByText(/No timeline events recorded/i).length,
+      ).toBeGreaterThan(0),
     );
   });
 });

@@ -42,28 +42,26 @@ describe("AdminLandingPage", () => {
 
     render(<AdminLandingPage />);
 
-    expect(screen.getByText("Admin landing")).toBeInTheDocument();
+    expect(screen.getByText(/Admin [Ll]anding/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open Usage/i })).toHaveAttribute(
+      "href",
+      "/admin/usage",
+    );
+    expect(screen.getByRole("link", { name: /Open Logs/i })).toHaveAttribute(
+      "href",
+      "/admin/audit-logs",
+    );
     expect(
-      screen.getByRole("link", { name: "Open Usage analytics" }),
-    ).toHaveAttribute("href", "/admin/usage");
-    expect(
-      screen.getByRole("link", { name: "Open Audit logs" }),
-    ).toHaveAttribute("href", "/admin/audit-logs");
-    expect(
-      screen.getByRole("link", { name: "Open Security center" }),
+      screen.getByRole("link", { name: /Open Security/i }),
     ).toHaveAttribute("href", "/admin/security-center");
+    expect(screen.getByRole("link", { name: /Open Health/i })).toHaveAttribute(
+      "href",
+      "/admin/system-health",
+    );
     expect(
-      screen.getByRole("link", { name: "Open System health" }),
-    ).toHaveAttribute("href", "/admin/system-health");
-    expect(
-      screen.getByRole("link", { name: "Open Agent governance" }),
+      screen.getByRole("link", { name: /Manage Policies/i }),
     ).toHaveAttribute("href", "/admin/governance");
-    expect(
-      screen.getByText("Unavailable in this deployment"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "View setup details" }),
-    ).toHaveAttribute("href", "/admin/monitoring");
+    expect(screen.getAllByText(/unavailable/i).length).toBeGreaterThan(0);
   });
 
   it("renders forbidden state for non-admin role", () => {

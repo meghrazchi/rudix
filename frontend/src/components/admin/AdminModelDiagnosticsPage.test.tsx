@@ -206,9 +206,9 @@ describe("AdminModelDiagnosticsPage", () => {
   it("shows capability badges for a known model", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText("JSON mode")).toBeTruthy();
+      expect(screen.getAllByText("JSON mode").length).toBeGreaterThan(0);
     });
-    expect(screen.getByText("Tool calling")).toBeTruthy();
+    expect(screen.getAllByText("Tool calling").length).toBeGreaterThan(0);
   });
 
   it("shows embedding dimension badge", async () => {

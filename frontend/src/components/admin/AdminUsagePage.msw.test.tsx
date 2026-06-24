@@ -36,7 +36,7 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 const server = setupServer(
-  http.get(`${apiBaseUrl}/admin/usage`, ({ request }) => {
+  http.get(`${apiBaseUrl}/admin/usage/dashboard`, ({ request }) => {
     const url = new URL(request.url);
     observedFrom = url.searchParams.get("from");
     observedTo = url.searchParams.get("to");
@@ -46,28 +46,31 @@ const server = setupServer(
       organization_id: "org-1",
       range: { from: "2026-05-01", to: "2026-05-30" },
       granularity: "day",
+      is_cost_estimate: true,
       totals: {
+        questions_asked: 7,
         input_tokens: 1200,
         output_tokens: 300,
-        cost_usd: 2.45,
-        event_count: 7,
+        estimated_cost_usd: 2.45,
+        active_users: 3,
+        documents: 11,
+        indexed_documents: 9,
+        total_chunks: 150,
+        indexing_jobs: 4,
+        failed_indexing_jobs: 1,
+        evaluation_runs: 2,
+        agent_runs: 0,
+        api_calls: 20,
         avg_confidence: 0.77,
         avg_latency_ms: 280,
+        latency_score: null,
       },
       series: [],
+      top_users: [],
+      top_models: [],
+      feature_area_breakdown: {},
     });
   }),
-  http.get(`${apiBaseUrl}/documents`, () =>
-    HttpResponse.json({
-      items: [],
-      total: 11,
-      limit: 1,
-      offset: 0,
-      status: null,
-      sort_by: "updated_at",
-      sort_order: "desc",
-    }),
-  ),
 );
 
 function renderPage() {
@@ -119,7 +122,9 @@ describe("AdminUsagePage MSW", () => {
   it("loads usage summary and document totals", async () => {
     renderPage();
 
-    expect(await screen.findByText("Usage analytics")).toBeInTheDocument();
+    expect(
+      await screen.findByText(/usage.*dashboard|usage analytics/i),
+    ).toBeInTheDocument();
     expect(await screen.findByText("7")).toBeInTheDocument();
     expect(await screen.findByText("11")).toBeInTheDocument();
     expect(await screen.findByText("1,500")).toBeInTheDocument();

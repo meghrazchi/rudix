@@ -165,7 +165,9 @@ describe("DocumentsPage upload states (MSW)", () => {
     await screen.findByText("policy.pdf");
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Open upload modal" }),
+      screen.getByRole("button", {
+        name: /Upload Documents|Open upload modal/i,
+      }),
     );
 
     const uploadInput = screen
@@ -194,7 +196,9 @@ describe("DocumentsPage upload states (MSW)", () => {
     renderPage();
     await screen.findByText("policy.pdf");
     await userEvent.click(
-      screen.getByRole("button", { name: "Open upload modal" }),
+      screen.getByRole("button", {
+        name: /Upload Documents|Open upload modal/i,
+      }),
     );
 
     const uploadInput = screen
@@ -224,7 +228,9 @@ describe("DocumentsPage upload states (MSW)", () => {
     renderPage();
     await screen.findByText("policy.pdf");
     await userEvent.click(
-      screen.getByRole("button", { name: "Open upload modal" }),
+      screen.getByRole("button", {
+        name: /Upload Documents|Open upload modal/i,
+      }),
     );
 
     const uploadInput = screen

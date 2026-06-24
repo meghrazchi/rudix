@@ -125,8 +125,8 @@ describe("AdminAgentPolicyPage", () => {
     mockState.authState = { status: "unauthenticated", session: null };
     renderPage();
     expect(
-      await screen.findByText(/forbidden|permission|access/i),
-    ).toBeInTheDocument();
+      (await screen.findAllByText(/forbidden|permission|access/i)).length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows error state when API fails", async () => {

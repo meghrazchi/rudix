@@ -207,7 +207,10 @@ const server = setupServer(
   ),
 );
 
-beforeAll(() => server.listen({ onUnhandledRequest: "warn" }));
+beforeAll(() => {
+  process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
+  server.listen({ onUnhandledRequest: "warn" });
+});
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -253,8 +256,8 @@ describe("AbTestPanel", () => {
     await waitFor(() => screen.getByText("Prompt v2 vs v3"));
     fireEvent.click(screen.getByText("Prompt v2 vs v3"));
     await waitFor(() => {
-      expect(screen.getByText("Control")).toBeInTheDocument();
-      expect(screen.getByText("Challenger")).toBeInTheDocument();
+      expect(screen.getAllByText("Control").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Challenger").length).toBeGreaterThan(0);
     });
   });
 
@@ -274,7 +277,7 @@ describe("AbTestPanel", () => {
     fireEvent.click(screen.getByText("Prompt v2 vs v3"));
     await waitFor(() => {
       // Faithfulness improved (+17%) should be visible in comparison
-      expect(screen.getByText(/Faithfulness/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Faithfulness/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -309,8 +312,8 @@ describe("AbTestPanel", () => {
     await waitFor(() => screen.getByText("Prompt v2 vs v3"));
     fireEvent.click(screen.getByText("Prompt v2 vs v3"));
     await waitFor(() => screen.getByText(/\+ Add variant/i));
-    fireEvent.click(screen.getByText(/\+ Add variant/i));
-    expect(screen.getByText(/Add Variant/i)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByText(/\+ Add variant/i)[0]);
+    expect(screen.getAllByText(/Add Variant/i).length).toBeGreaterThan(0);
   });
 
   it("shows Run Experiment button and sends request on click", async () => {

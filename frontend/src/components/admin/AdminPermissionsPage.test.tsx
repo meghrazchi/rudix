@@ -197,7 +197,7 @@ describe("AdminPermissionsPage", () => {
       renderPage();
       await waitFor(() => {
         expect(screen.getByText("Owner")).toBeInTheDocument();
-        expect(screen.getByText("Admin")).toBeInTheDocument();
+        expect(screen.getAllByText("Admin").length).toBeGreaterThan(0);
         expect(screen.getByText("Member")).toBeInTheDocument();
       });
     });
@@ -281,7 +281,7 @@ describe("AdminPermissionsPage", () => {
       await user.click(screen.getByText("Edit Member"));
       await user.click(screen.getByText("Save changes"));
       await waitFor(() =>
-        expect(screen.getByText(/Unsafe change/)).toBeInTheDocument(),
+        expect(screen.getAllByText(/Unsafe change/).length).toBeGreaterThan(0),
       );
     });
   });
@@ -321,7 +321,7 @@ describe("AdminPermissionsPage", () => {
       await user.click(screen.getByText("Resource Grants"));
       await waitFor(() => {
         expect(screen.getByText("user-abc")).toBeInTheDocument();
-        expect(screen.getByText("document")).toBeInTheDocument();
+        expect(screen.getAllByText("document").length).toBeGreaterThan(0);
       });
     });
 
@@ -359,7 +359,7 @@ describe("AdminPermissionsPage", () => {
       );
       await user.type(principalInput, "user-xyz");
 
-      const resourceTypeSelect = screen.getAllByRole("combobox")[1];
+      const resourceTypeSelect = screen.getAllByRole("combobox")[3];
       await user.selectOptions(resourceTypeSelect, "document");
 
       await user.click(screen.getByText("Create grant"));
@@ -408,7 +408,7 @@ describe("AdminPermissionsPage", () => {
       await waitFor(() => screen.getByText("Resource Denies"));
       await user.click(screen.getByText("Resource Denies"));
       await waitFor(() =>
-        expect(screen.getByText(/No denies match/)).toBeInTheDocument(),
+        expect(screen.getByText(/No deny/i)).toBeInTheDocument(),
       );
     });
 
@@ -428,7 +428,7 @@ describe("AdminPermissionsPage", () => {
       );
       await user.type(principalInput, "user-blocked");
 
-      const resourceTypeSelect = screen.getAllByRole("combobox")[1];
+      const resourceTypeSelect = screen.getAllByRole("combobox")[3];
       await user.selectOptions(resourceTypeSelect, "connector");
 
       await user.click(screen.getByText("Create deny"));

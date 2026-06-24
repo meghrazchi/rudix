@@ -18,11 +18,15 @@ const mockApi = vi.hoisted(() => ({
 }));
 
 const mockPermissions = vi.hoisted(() => ({
+  role: "admin" as string,
   isAdmin: true,
   isOwner: false,
   isMember: false,
   isViewer: false,
   hasPermission: () => true,
+  hasAnyPermission: () => true,
+  hasAllPermissions: () => true,
+  permissions: new Set<string>(),
 }));
 
 vi.mock("@/lib/api/metadata", () => ({
@@ -42,6 +46,8 @@ vi.mock("@/lib/use-permissions", () => ({
 vi.mock("@/lib/forbidden", () => ({
   isForbiddenError: () => false,
   extractRequestIdFromError: () => null,
+  getSupportAction: () => null,
+  sanitizeRequestId: () => null,
 }));
 
 vi.mock("@/lib/api/errors", () => ({
@@ -106,6 +112,7 @@ describe("AdminTaxonomyPage", () => {
     mockApi.updateMetadataField.mockReset();
     mockApi.deleteMetadataField.mockReset();
     mockPermissions.isAdmin = true;
+    mockPermissions.role = "admin";
   });
 
   it("shows empty state when no fields defined", async () => {
@@ -151,7 +158,7 @@ describe("AdminTaxonomyPage", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /add field/i }));
     expect(screen.getByText("New metadata field")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/e.g. department/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g. department")).toBeInTheDocument();
   });
 
   it("submits create form and shows new field", async () => {
@@ -165,10 +172,10 @@ describe("AdminTaxonomyPage", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /add field/i }));
 
-    fireEvent.change(screen.getByPlaceholderText(/e.g. department/i), {
+    fireEvent.change(screen.getByPlaceholderText("e.g. department"), {
       target: { value: "department" },
     });
-    fireEvent.change(screen.getByPlaceholderText(/e.g. Department/i), {
+    fireEvent.change(screen.getByPlaceholderText("e.g. Department"), {
       target: { value: "Department" },
     });
     fireEvent.click(screen.getByRole("button", { name: /create field/i }));
@@ -191,7 +198,7 @@ describe("AdminTaxonomyPage", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
     const input = screen.getByPlaceholderText(
-      /e.g. Department/i,
+      "e.g. Department",
     ) as HTMLInputElement;
     expect(input.value).toBe("Department");
   });
@@ -207,7 +214,7 @@ describe("AdminTaxonomyPage", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
 
-    const input = screen.getByPlaceholderText(/e.g. Department/i);
+    const input = screen.getByPlaceholderText("e.g. Department");
     fireEvent.change(input, { target: { value: "Business Unit" } });
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
@@ -225,7 +232,7 @@ describe("AdminTaxonomyPage", () => {
     await waitFor(() =>
       expect(screen.getByText("Department")).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /^delete$/i })[0]);
     expect(screen.getByText(/delete field\?/i)).toBeInTheDocument();
   });
 
@@ -238,11 +245,14 @@ describe("AdminTaxonomyPage", () => {
     await waitFor(() =>
       expect(screen.getByText("Department")).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
-    const confirmBtn = screen.getByRole("button", {
-      name: /^delete$/i,
-      hidden: false,
-    });
+    fireEvent.click(screen.getAllByRole("button", { name: /^delete$/i })[0]);
+    // Wait for dialog, then pick the dialog's Delete button (last one)
+    await waitFor(() => screen.getByText(/delete field\?/i));
+    const confirmBtn = screen
+      .getAllByRole("button", {
+        name: /^delete$/i,
+      })
+      .at(-1)!;
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
@@ -252,6 +262,7 @@ describe("AdminTaxonomyPage", () => {
 
   it("shows forbidden state for non-admin", async () => {
     mockPermissions.isAdmin = false;
+    mockPermissions.role = "member";
     mockApi.listMetadataFields.mockResolvedValue(makeList());
     renderPage();
     await waitFor(() => {

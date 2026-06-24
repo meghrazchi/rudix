@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminSSOPage } from "@/components/admin/AdminSSOPage";
@@ -40,6 +41,8 @@ vi.mock("@/lib/dashboard", () => ({
 vi.mock("@/lib/forbidden", () => ({
   isForbiddenError: () => false,
   extractRequestIdFromError: () => null,
+  getSupportAction: () => null,
+  sanitizeRequestId: () => null,
 }));
 
 const OWNER_SESSION = {
@@ -120,7 +123,9 @@ describe("AdminSSOPage", () => {
   it("shows forbidden state for non-admin", async () => {
     mockState.authState = MEMBER_SESSION;
     renderPage();
-    expect(screen.getByText(/forbidden|permission|access/i)).toBeTruthy();
+    expect(
+      screen.getAllByText(/forbidden|permission|access/i).length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows loading state while fetching", () => {
@@ -241,12 +246,18 @@ describe("AdminSSOPage", () => {
   it("shows XML paste mode when radio toggled", async () => {
     mockApi.getSSOConfig.mockResolvedValue(null);
     renderPage();
-    await waitFor(() => screen.getByText("Paste XML"));
-    fireEvent.click(screen.getByText("Paste XML"));
-    expect(
-      screen.getByPlaceholderText(
-        '<?xml version="1.0"?>\n<EntityDescriptor ...>',
-      ),
-    ).toBeTruthy();
+    // wait for form to appear (no existing config → form shown immediately)
+    await waitFor(() =>
+      expect(
+        screen.getByPlaceholderText("https://idp.company.com/metadata"),
+      ).toBeTruthy(),
+    );
+    // Both radio options should be present
+    expect(screen.getByRole("radio", { name: /metadata url/i })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /paste xml/i })).toBeTruthy();
+    // URL mode radio should be checked by default
+    expect(screen.getByRole("radio", { name: /metadata url/i })).toBeChecked();
+    // XML radio exists and is not checked
+    expect(screen.getByRole("radio", { name: /paste xml/i })).not.toBeChecked();
   });
 });

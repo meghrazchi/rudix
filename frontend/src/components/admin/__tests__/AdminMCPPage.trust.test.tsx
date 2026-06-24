@@ -44,6 +44,8 @@ vi.mock("@/lib/use-permissions", () => ({
 vi.mock("@/lib/forbidden", () => ({
   isForbiddenError: () => false,
   extractRequestIdFromError: () => null,
+  getSupportAction: () => null,
+  sanitizeRequestId: () => null,
 }));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────

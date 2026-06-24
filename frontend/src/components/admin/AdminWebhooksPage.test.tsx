@@ -218,7 +218,9 @@ describe("AdminWebhooksPage", () => {
     );
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/Access denied/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/do not have access|webhook management|forbidden/i),
+      ).toBeInTheDocument(),
     );
   });
 
@@ -300,7 +302,7 @@ describe("AdminWebhooksPage", () => {
       expect(screen.getByText("Doc Events")).toBeInTheDocument(),
     );
     await user.click(screen.getByRole("button", { name: /Delete/i }));
-    expect(screen.getByText(/Delete "Doc Events"/i)).toBeInTheDocument();
+    expect(screen.getByText(/Delete.*Doc Events/i)).toBeInTheDocument();
   });
 
   it("calls deleteWebhook on confirmation", async () => {

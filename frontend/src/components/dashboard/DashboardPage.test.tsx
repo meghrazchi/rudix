@@ -16,6 +16,7 @@ const mockState = vi.hoisted(() => ({
 const mockApi = vi.hoisted(() => ({
   listDocuments: vi.fn(),
   listChatSessions: vi.fn(),
+  getChatStats: vi.fn(),
   getUsageSummary: vi.fn(),
   listAuditLogs: vi.fn(),
   getBillingCapabilities: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock("@/lib/api/documents", () => ({
 vi.mock("@/lib/api/chat", () => ({
   listChatSessions: (options?: { limit?: number; offset?: number }) =>
     mockApi.listChatSessions(options),
+  getChatStats: () => mockApi.getChatStats(),
 }));
 
 vi.mock("@/lib/api/admin-usage", () => ({
@@ -95,6 +97,7 @@ describe("DashboardPage", () => {
 
     mockApi.listDocuments.mockReset();
     mockApi.listChatSessions.mockReset();
+    mockApi.getChatStats.mockReset();
     mockApi.getUsageSummary.mockReset();
     mockApi.listAuditLogs.mockReset();
     mockApi.getBillingCapabilities.mockReset();
@@ -163,6 +166,11 @@ describe("DashboardPage", () => {
       total: 1,
       limit: 200,
       offset: 0,
+    });
+
+    mockApi.getChatStats.mockResolvedValue({
+      questions_asked: 8,
+      total_sessions: 1,
     });
 
     const usage: UsageSummaryResponse = {

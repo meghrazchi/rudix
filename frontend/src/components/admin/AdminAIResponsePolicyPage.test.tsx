@@ -56,6 +56,8 @@ vi.mock("@/lib/use-auth-session", () => ({
 vi.mock("@/lib/forbidden", () => ({
   isForbiddenError: () => false,
   extractRequestIdFromError: () => null,
+  getSupportAction: () => null,
+  sanitizeRequestId: () => null,
 }));
 
 vi.mock("@/lib/api/errors", () => ({
@@ -363,7 +365,7 @@ describe("AdminAIResponsePolicyPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /run preview/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/blocked/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/blocked/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/blocked_topic:gambling/i)).toBeInTheDocument();
     });
   });

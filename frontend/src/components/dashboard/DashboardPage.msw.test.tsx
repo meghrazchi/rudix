@@ -52,6 +52,12 @@ const server = setupServer(
       offset: 0,
     });
   }),
+  http.get(`${apiBaseUrl}/chat/stats`, async () => {
+    return HttpResponse.json({
+      questions_asked: 0,
+      total_sessions: 0,
+    });
+  }),
 );
 
 function renderPage() {
@@ -129,7 +135,9 @@ describe("DashboardPage MSW states", () => {
 
   it("shows empty state when no documents and chats exist", async () => {
     renderPage();
-    expect(await screen.findByText("No activity yet")).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText("No activity yet")).length,
+    ).toBeGreaterThan(0);
     expect(
       screen.getByRole("link", { name: "Upload documents" }),
     ).toHaveAttribute("href", "/documents");

@@ -1424,9 +1424,14 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   </p>
                 ) : null}
                 {detail.quality_state &&
-                ["draft", "unreviewed", "stale", "expired", "deprecated", "archived"].includes(
-                  detail.quality_state,
-                ) ? (
+                [
+                  "draft",
+                  "unreviewed",
+                  "stale",
+                  "expired",
+                  "deprecated",
+                  "archived",
+                ].includes(detail.quality_state) ? (
                   <p className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-800">
                     This document is marked{" "}
                     {detail.quality_state.replaceAll("_", " ")}. Quality state
@@ -1454,11 +1459,13 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         }}
                         className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {qualityMutation.isPending ? "Saving..." : "Save quality"}
+                        {qualityMutation.isPending
+                          ? "Saving..."
+                          : "Save quality"}
                       </button>
                     </div>
                     <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         Quality state
                         <select
                           value={qualityStateDraft}
@@ -1485,7 +1492,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           ))}
                         </select>
                       </label>
-                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         Quality owner id
                         <input
                           type="text"
@@ -1496,7 +1503,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                         />
                       </label>
-                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         Reviewer id
                         <input
                           type="text"
@@ -1507,7 +1514,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                         />
                       </label>
-                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         Review due
                         <input
                           type="date"
@@ -1518,7 +1525,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                         />
                       </label>
-                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         Review date
                         <input
                           type="date"
@@ -1529,7 +1536,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                         />
                       </label>
-                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         Expiry date
                         <input
                           type="date"
@@ -1540,7 +1547,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                         />
                       </label>
-                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         Trust level
                         <input
                           type="text"
@@ -1552,7 +1559,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         />
                       </label>
                     </div>
-                    <label className="mt-3 grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                    <label className="mt-3 grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                       Quality notes
                       <textarea
                         value={qualityNotesDraft}
@@ -1617,7 +1624,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                 {detail.quality_notes ? (
                   <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
                     <p className="font-semibold">Quality notes</p>
-                    <p className="mt-1 whitespace-pre-wrap">{detail.quality_notes}</p>
+                    <p className="mt-1 whitespace-pre-wrap">
+                      {detail.quality_notes}
+                    </p>
                   </div>
                 ) : null}
 

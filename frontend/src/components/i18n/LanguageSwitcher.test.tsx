@@ -13,6 +13,18 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("@/i18n/navigation", () => ({
+  useRouter: () => ({
+    replace: (_path: string, options?: { locale?: string }) => {
+      if (options?.locale) {
+        document.cookie = `NEXT_LOCALE=${options.locale}; path=/`;
+        mockRefresh();
+      }
+    },
+  }),
+  usePathname: () => "/",
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {

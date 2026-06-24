@@ -964,7 +964,7 @@ describe("ChatPage", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: /Select scope/i }),
-      ).toHaveTextContent("select scope - All documents");
+      ).toHaveTextContent(/select scope.*all documents/i);
     });
     const scopeMenu = await openScopeMenu();
     await userEvent.click(

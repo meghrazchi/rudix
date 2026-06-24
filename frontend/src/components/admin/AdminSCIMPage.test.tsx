@@ -54,6 +54,8 @@ vi.mock("@/lib/dashboard", () => ({
 vi.mock("@/lib/forbidden", () => ({
   isForbiddenError: () => false,
   extractRequestIdFromError: () => null,
+  getSupportAction: () => null,
+  sanitizeRequestId: () => null,
 }));
 
 const OWNER_SESSION = {

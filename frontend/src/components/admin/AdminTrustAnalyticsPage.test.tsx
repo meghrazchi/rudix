@@ -18,13 +18,22 @@
  * 14. Active time range button has correct styling
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 import { AdminTrustAnalyticsPage } from "@/components/admin/AdminTrustAnalyticsPage";
 import type { TrustAnalyticsResponse } from "@/lib/api/trust_analytics";
+
+const mockTrustApi = vi.hoisted(() => ({
+  getTrustAnalytics: vi.fn(),
+}));
+
+vi.mock("@/lib/api/trust_analytics", () => ({
+  getTrustAnalytics: (...args: unknown[]) =>
+    mockTrustApi.getTrustAnalytics(...args),
+}));
 
 const mockState = vi.hoisted(() => ({
   session: {
@@ -96,23 +105,12 @@ const baseTrustData: TrustAnalyticsResponse = {
   telemetry_missing: false,
 };
 
-function renderPage(data?: TrustAnalyticsResponse, loading = false) {
+function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false, enabled: false },
+      queries: { retry: false },
     },
   });
-
-  if (data) {
-    queryClient.setQueryData(
-      [
-        "admin",
-        "trust-analytics",
-        { from: expect.any(String), to: expect.any(String) },
-      ],
-      data,
-    );
-  }
 
   return render(
     <QueryClientProvider client={queryClient}>
@@ -121,89 +119,74 @@ function renderPage(data?: TrustAnalyticsResponse, loading = false) {
   );
 }
 
-function renderPageWithData(override?: Partial<TrustAnalyticsResponse>) {
-  const data = { ...baseTrustData, ...override };
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-
-  vi.mock("@/lib/api/trust_analytics", () => ({
-    getTrustAnalytics: vi.fn().mockResolvedValue(data),
-  }));
-
-  return render(
-    <QueryClientProvider client={qc}>
-      <AdminTrustAnalyticsPage />
-    </QueryClientProvider>,
-  );
-}
-
 describe("AdminTrustAnalyticsPage", () => {
-  it("renders header with Trust Analytics title", () => {
-    renderPage();
-    expect(
-      screen.getByRole("heading", { name: "Trust Analytics" }),
-    ).toBeInTheDocument();
+  beforeEach(() => {
+    mockTrustApi.getTrustAnalytics.mockResolvedValue(baseTrustData);
   });
 
-  it("renders all four time range buttons", () => {
+  it("renders header with Trust Analytics title", async () => {
     renderPage();
-    expect(screen.getByRole("button", { name: "7 days" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Trust Analytics" }),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("renders all four time range buttons", async () => {
+    renderPage();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "7 days" }),
+      ).toBeInTheDocument(),
+    );
     expect(screen.getByRole("button", { name: "14 days" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "30 days" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "90 days" })).toBeInTheDocument();
   });
 
-  it("shows 30d as the default active range", () => {
+  it("shows 30d as the default active range", async () => {
     renderPage();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "30 days" }),
+      ).toBeInTheDocument(),
+    );
     const btn = screen.getByRole("button", { name: "30 days" });
     expect(btn.className).toContain("bg-[#3525cd]");
   });
 
   it("shows loading state when no data is available", () => {
+    mockTrustApi.getTrustAnalytics.mockReturnValue(new Promise(() => {}));
     renderPage();
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
 });
 
 describe("AdminTrustAnalyticsPage — with data", () => {
-  it("shows no-data state when telemetry_missing is true", async () => {
-    const mod = await import("@/lib/api/trust_analytics");
-    vi.spyOn(mod, "getTrustAnalytics").mockResolvedValue({
+  beforeEach(() => {
+    mockTrustApi.getTrustAnalytics.mockResolvedValue(baseTrustData);
+  });
+
+  it("shows no-data state when telemetry_missing is true", () => {
+    mockTrustApi.getTrustAnalytics.mockResolvedValue({
       ...baseTrustData,
       telemetry_missing: true,
       total_answers: 0,
     });
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={qc}>
-        <AdminTrustAnalyticsPage />
-      </QueryClientProvider>,
-    );
+    renderPage();
     // Loading renders first; just ensure no metric cards appear yet
     expect(screen.queryByTestId("trust-metric-card")).toBeNull();
   });
 
-  it("shows trust distribution section label", async () => {
-    const mod = await import("@/lib/api/trust_analytics");
-    vi.spyOn(mod, "getTrustAnalytics").mockResolvedValue(baseTrustData);
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={qc}>
-        <AdminTrustAnalyticsPage />
-      </QueryClientProvider>,
-    );
+  it("shows trust distribution section label", () => {
+    renderPage();
     // Page starts loading — section only appears after data arrives
     expect(screen.queryByTestId("trust-distribution-section")).toBeNull(); // loading state
   });
 
   it("renders without crashing when data has zero counts", async () => {
-    const mod = await import("@/lib/api/trust_analytics");
-    vi.spyOn(mod, "getTrustAnalytics").mockResolvedValue({
+    mockTrustApi.getTrustAnalytics.mockResolvedValue({
       ...baseTrustData,
       trust_distribution: {
         high_count: 0,
@@ -218,33 +201,29 @@ describe("AdminTrustAnalyticsPage — with data", () => {
         not_found_pct: null,
       },
     });
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const { container } = render(
-      <QueryClientProvider client={qc}>
-        <AdminTrustAnalyticsPage />
-      </QueryClientProvider>,
-    );
+    const { container } = renderPage();
     expect(container).toBeDefined();
   });
 });
 
 describe("AdminTrustAnalyticsPage — Langfuse status badge", () => {
+  beforeEach(() => {
+    mockTrustApi.getTrustAnalytics.mockResolvedValue(baseTrustData);
+  });
+
   it("shows disabled badge when langfuse not configured", () => {
+    mockTrustApi.getTrustAnalytics.mockReturnValue(new Promise(() => {}));
     renderPage();
-    // The badge label renders in the header area even without data
-    const badges = document.querySelectorAll(
-      '[data-testid="langfuse-status-badge"]',
-    );
     // badge not rendered during loading — just ensure page doesn't crash
     expect(document.body).toBeTruthy();
   });
 
-  it("renders page header without crashing when session is unauthenticated", () => {
+  it("renders page header without crashing when session is unauthenticated", async () => {
     renderPage();
-    expect(
-      screen.getByRole("heading", { name: "Trust Analytics" }),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Trust Analytics" }),
+      ).toBeInTheDocument(),
+    );
   });
 });

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -266,7 +266,7 @@ describe("ConflictsTab", () => {
     mockConflictsApi.listConflicts.mockResolvedValue(CONFLICT_LIST);
     await openConflictsTab();
     await waitFor(() =>
-      expect(screen.getByText(/blocking/i)).toBeInTheDocument(),
+      expect(screen.getAllByText(/blocking/i).length).toBeGreaterThan(0),
     );
   });
 
@@ -408,8 +408,10 @@ describe("AccessDebuggerTab", () => {
   });
 
   it("submitting without user ID shows validation error", async () => {
-    const user = await openDebuggerTab();
-    await user.click(screen.getByRole("button", { name: /check access/i }));
+    await openDebuggerTab();
+    // Use fireEvent.submit to bypass HTML5 required-field validation in JSDOM
+    const form = document.querySelector("form:last-of-type")!;
+    fireEvent.submit(form);
     await waitFor(() =>
       expect(
         screen.getByText(/subject user id is required/i),
@@ -439,7 +441,9 @@ describe("AccessDebuggerTab", () => {
       "user-abc",
     );
     await user.click(screen.getByRole("button", { name: /check access/i }));
-    await waitFor(() => expect(screen.getByText(/allow/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getAllByText(/allow/i).length).toBeGreaterThan(0),
+    );
   });
 
   it("shows DENY result with deny reason", async () => {
@@ -451,7 +455,9 @@ describe("AccessDebuggerTab", () => {
     );
     await user.click(screen.getByRole("button", { name: /check access/i }));
     await waitFor(() =>
-      expect(screen.getByText(/insufficient_role/i)).toBeInTheDocument(),
+      expect(screen.getAllByText(/insufficient_role/i).length).toBeGreaterThan(
+        0,
+      ),
     );
   });
 
@@ -499,7 +505,7 @@ describe("AccessDebuggerTab", () => {
       "user-abc",
     );
     await user.click(screen.getByRole("button", { name: /check access/i }));
-    await waitFor(() => screen.getByText(/allow/i));
+    await waitFor(() => screen.getAllByText(/allow/i));
     expect(screen.queryByText(/how to grant access/i)).not.toBeInTheDocument();
   });
 

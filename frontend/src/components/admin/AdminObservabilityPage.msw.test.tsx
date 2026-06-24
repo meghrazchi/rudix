@@ -143,7 +143,7 @@ describe("AdminObservabilityPage MSW", () => {
     renderPage();
     expect(await screen.findByText("Total requests")).toBeInTheDocument();
     expect(await screen.findByText("120")).toBeInTheDocument();
-    expect(await screen.findByText("5.0%")).toBeInTheDocument();
+    expect((await screen.findAllByText("5.0%")).length).toBeGreaterThan(0);
   });
 
   it("renders llm top_models list", async () => {

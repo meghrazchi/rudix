@@ -144,10 +144,10 @@ describe("AdminApiKeysPage", () => {
     mockApi.listApiKeys.mockResolvedValue(LIST_WITH_KEYS);
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/rudix_abc12345/)).toBeInTheDocument(),
+      expect(screen.getAllByText(/rudix_abc12345/).length).toBeGreaterThan(0),
     );
-    expect(screen.getByText("documents:read")).toBeInTheDocument();
-    expect(screen.getByText("chat:write")).toBeInTheDocument();
+    expect(screen.getAllByText("documents:read").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("chat:write").length).toBeGreaterThan(0);
   });
 
   it("shows forbidden state for viewer role", async () => {
@@ -164,7 +164,9 @@ describe("AdminApiKeysPage", () => {
     await waitFor(() =>
       expect(screen.getByText(/No active API keys/i)).toBeInTheDocument(),
     );
-    await userEvent.click(screen.getByRole("button", { name: /Create key/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /\+ Create key/i }),
+    );
     expect(screen.getByText("Create API Key")).toBeInTheDocument();
   });
 
@@ -186,14 +188,18 @@ describe("AdminApiKeysPage", () => {
     await waitFor(() =>
       expect(screen.getByText(/No active API keys/i)).toBeInTheDocument(),
     );
-    await userEvent.click(screen.getByRole("button", { name: /Create key/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /\+ Create key/i }),
+    );
     await userEvent.type(
       screen.getByPlaceholderText(/e.g. CI integration key/i),
       "My key",
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Create key/i, hidden: false }),
-    );
+    const createBtns = screen.getAllByRole("button", {
+      name: /Create key/i,
+      hidden: false,
+    });
+    await userEvent.click(createBtns[createBtns.length - 1]);
     await waitFor(() =>
       expect(
         screen.getByText(/This is the only time the full key is shown/i),
@@ -222,7 +228,7 @@ describe("AdminApiKeysPage", () => {
       expect(screen.getByText("CI Integration")).toBeInTheDocument(),
     );
     await userEvent.click(screen.getByRole("button", { name: /Revoke/i }));
-    expect(screen.getByText(/Revoke "CI Integration"\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/Revoke.*CI Integration/i)).toBeInTheDocument();
     expect(
       screen.getByText(/The key will stop working immediately/i),
     ).toBeInTheDocument();

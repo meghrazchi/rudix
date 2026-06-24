@@ -213,6 +213,13 @@ describe("ConnectorSetupPage", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("permission-review-confirm"),
+      ).toBeInTheDocument(),
+    );
+    await user.click(screen.getByTestId("permission-review-confirm"));
+    await user.click(screen.getByRole("button", { name: /next/i }));
     await user.click(
       screen.getByRole("button", { name: /complete connection/i }),
     );
@@ -260,6 +267,13 @@ describe("ConnectorSetupPage", () => {
     await user.type(screen.getByLabelText(/CQL filter/i), 'label = "docs"');
     await user.click(screen.getByLabelText(/Include page comments/i));
 
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("permission-review-confirm"),
+      ).toBeInTheDocument(),
+    );
+    await user.click(screen.getByTestId("permission-review-confirm"));
     await user.click(screen.getByRole("button", { name: /next/i }));
     await user.click(
       screen.getByRole("button", { name: /complete connection/i }),

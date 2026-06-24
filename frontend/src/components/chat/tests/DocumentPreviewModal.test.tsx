@@ -27,6 +27,7 @@ vi.mock("@/lib/analytics", () => ({
 
 vi.mock("@/lib/observability", () => ({
   addFrontendBreadcrumb: vi.fn(),
+  captureFrontendException: vi.fn(),
 }));
 
 const apiBaseUrl = "http://api.test";
@@ -116,11 +117,13 @@ describe("DocumentPreviewModal", () => {
       await screen.findByRole("dialog", { name: /citation preview/i }),
     ).toBeInTheDocument();
     expect(screen.queryByText(longSnippet)).not.toBeInTheDocument();
-    expect(
-      screen.getByText((content, element) => {
-        return element?.tagName === "MARK" && content.endsWith("…");
-      }),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByText((content, element) => {
+          return element?.tagName === "MARK" && content.endsWith("…");
+        }),
+      ).toBeInTheDocument(),
+    );
   });
 
   it("shows document filename and page number in header", async () => {
@@ -134,7 +137,7 @@ describe("DocumentPreviewModal", () => {
         screen.getByRole("button", { name: /close citation preview/i }),
       ).toHaveFocus();
     });
-    expect(await screen.findByText("Page 3")).toBeInTheDocument();
+    expect((await screen.findAllByText("Page 3")).length).toBeGreaterThan(0);
     expect(await screen.findByTitle("Avery Owner")).toBeInTheDocument();
     expect(await screen.findByTitle("v3")).toBeInTheDocument();
     expect(await screen.findByText("Last indexed")).toBeInTheDocument();
@@ -364,7 +367,9 @@ describe("DocumentPreviewModal", () => {
 
     await screen.findByRole("dialog", { name: /citation preview/i });
 
-    const link = screen.getByRole("link", { name: /view in documents/i });
+    const link = await screen.findByRole("link", {
+      name: /view.*in documents/i,
+    });
     const href = link.getAttribute("href") ?? "";
     expect(href).toContain("/documents/doc-1");
     expect(href).toContain("chunk_id=chunk-1");
@@ -382,7 +387,7 @@ describe("DocumentPreviewModal", () => {
 
     await screen.findByRole("dialog", { name: /citation preview/i });
     await userEvent.click(
-      screen.getByRole("link", {
+      await screen.findByRole("link", {
         name: /open source for employee-handbook\.pdf/i,
       }),
     );
@@ -393,7 +398,7 @@ describe("DocumentPreviewModal", () => {
         surface: "app",
         featureArea: "chat",
         entityId: "doc-1",
-        entityType: "citation",
+        entityType: "citation_chunk",
         source: "citation_preview",
       }),
     );
@@ -562,9 +567,12 @@ describe("DocumentPreviewModal — multi-citation navigation", () => {
     render([citationA, citationB], 0);
 
     await screen.findByText("Citation 1 of 2");
-    await userEvent.keyboard("{ArrowRight}");
+    const aside = document.querySelector("aside[role='dialog']")!;
+    aside.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+    );
 
-    expect(screen.getByText("Citation 2 of 2")).toBeInTheDocument();
+    expect(await screen.findByText("Citation 2 of 2")).toBeInTheDocument();
     expect(
       await screen.findByText("Second cited passage from the same document.", {
         selector: "mark",

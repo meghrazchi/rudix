@@ -149,6 +149,25 @@ const server = setupServer(
       { status: 202 },
     ),
   ),
+  http.get(`${apiBaseUrl}/model-profiles`, async () =>
+    HttpResponse.json({ items: [], total: 0 }),
+  ),
+  http.get(`${apiBaseUrl}/admin/chunking-profiles`, async () =>
+    HttpResponse.json({ items: [], total: 0 }),
+  ),
+  http.get(
+    `${apiBaseUrl}/evaluations/runs/:runId/language-breakdown`,
+    async () => HttpResponse.json({ breakdown: [] }),
+  ),
+  http.get(`${apiBaseUrl}/evaluation-sets/:setId/validate`, async () =>
+    HttpResponse.json({ valid: true, errors: [] }),
+  ),
+  http.get(`${apiBaseUrl}/evaluation-sets/:setId/versions`, async () =>
+    HttpResponse.json({ items: [], total: 0 }),
+  ),
+  http.get(`${apiBaseUrl}/evaluation-sets/:setId/language-coverage`, async () =>
+    HttpResponse.json({ coverage: {} }),
+  ),
 );
 
 function renderPage(initialRunId?: string | null) {
@@ -264,7 +283,9 @@ describe("EvaluationsPage states (MSW)", () => {
   it("renders run detail using route run id", async () => {
     renderPage("run-msw-1");
 
-    expect(await screen.findByText("Run detail")).toBeInTheDocument();
-    expect(screen.getByText("Case results")).toBeInTheDocument();
+    expect((await screen.findAllByText("Run detail")).length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.getAllByText("Case results").length).toBeGreaterThan(0);
   });
 });

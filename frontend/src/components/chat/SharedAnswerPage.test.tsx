@@ -72,9 +72,10 @@ describe("SharedAnswerPage", () => {
       await screen.findByRole("dialog", { name: /citation preview/i }),
     ).toBeInTheDocument();
     const dialog = screen.getByRole("dialog", { name: /citation preview/i });
-    expect(
-      within(dialog).getByRole("link", { name: /view in documents/i }),
-    ).toHaveAttribute(
+    const viewLink = await within(dialog).findByRole("link", {
+      name: /view.*in documents/i,
+    });
+    expect(viewLink).toHaveAttribute(
       "href",
       "/documents/doc-1?chunk_id=chunk-1&page=3&back=%2Fchat",
     );

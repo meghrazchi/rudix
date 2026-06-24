@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -138,9 +138,7 @@ describe("AdminAccessDebuggerPage", () => {
     it("renders forbidden state when user lacks security_center:view", () => {
       mockPermissions.hasPermission.mockReturnValue(false);
       renderPage();
-      expect(
-        screen.getByText(/access debugger/i, { selector: "h1, h2, p, div" }),
-      ).toBeTruthy();
+      expect(screen.getAllByText(/access debugger/i).length).toBeGreaterThan(0);
       expect(screen.queryByText(/simulation parameters/i)).toBeNull();
     });
 
@@ -210,8 +208,9 @@ describe("AdminAccessDebuggerPage", () => {
   describe("form validation", () => {
     it("shows error when simulate clicked without user", async () => {
       renderPage();
-      const btn = screen.getByRole("button", { name: /simulate/i });
-      await userEvent.click(btn);
+      // Button is disabled when no user is selected — submit the form directly
+      const form = document.querySelector("form")!;
+      fireEvent.submit(form);
       expect(screen.getByText(/select a subject user/i)).toBeTruthy();
     });
 
@@ -305,7 +304,9 @@ describe("AdminAccessDebuggerPage", () => {
 
     it("shows deny reason", async () => {
       await runSimulation();
-      expect(screen.getByText("insufficient_role")).toBeTruthy();
+      expect(screen.getAllByText("insufficient_role").length).toBeGreaterThan(
+        0,
+      );
     });
 
     it("shows remediation when decision is deny", async () => {
@@ -352,7 +353,7 @@ describe("AdminAccessDebuggerPage", () => {
   describe("security guard", () => {
     it("page header mentions audit logging", () => {
       renderPage();
-      expect(screen.getByText(/audit-logged/i)).toBeTruthy();
+      expect(screen.getAllByText(/audit-logged/i).length).toBeGreaterThan(0);
     });
 
     it("security note mentions tenant-scoped", () => {

@@ -736,10 +736,14 @@ describe("DocumentDetailPage", () => {
     await screen.findByRole("heading", { name: "policy.pdf" });
 
     await screen.findByRole("button", { name: "Queue re-index" });
-    await userEvent.selectOptions(
-      screen.getAllByRole("combobox")[0],
-      "profile-1",
-    );
+    const profileSelect = screen
+      .getAllByRole("combobox")
+      .find((el) =>
+        Array.from(el.querySelectorAll("option")).some(
+          (opt) => (opt as HTMLOptionElement).value === "system",
+        ),
+      )!;
+    await userEvent.selectOptions(profileSelect, "profile-1");
     await userEvent.click(
       screen.getByRole("button", { name: "Queue re-index" }),
     );
