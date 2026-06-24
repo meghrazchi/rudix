@@ -336,15 +336,23 @@ Allow users to rate answers:
 ```text
 👍 helpful
 👎 not helpful
-Citation incorrect
-Answer not in document
-Answer incomplete
+Wrong answer
+Bad citation
+Missing citation
+Missing source
+Outdated source
+Hallucination risk
+Conflict not detected
+Should have said not found
+Unclear answer
 ```
 
-Store feedback in PostgreSQL and use it to improve:
+Store feedback in PostgreSQL, surface it in a reviewer queue, and use it to improve:
 
 - Test questions.
 - Prompts.
 - Chunking.
 - Retrieval filters.
 - Reranking.
+
+Reviewers can triage, assign, resolve, and convert accepted feedback into evaluation cases while redacted diagnostics keep sensitive context out of the broad review flow.
