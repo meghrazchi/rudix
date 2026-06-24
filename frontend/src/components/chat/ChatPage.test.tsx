@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -127,6 +127,28 @@ describe("ChatPage", () => {
       value: vi.fn(),
     });
     mockNavigation.searchParams = new URLSearchParams();
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-default",
+          filename: "default.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
     vi.mocked(listCollections).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
       items: [],
@@ -228,6 +250,10 @@ describe("ChatPage", () => {
     });
   });
 
+  afterEach(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+
   it("prevents empty submissions in composer", async () => {
     vi.mocked(listDocuments).mockResolvedValue({
       items: [],
@@ -247,7 +273,7 @@ describe("ChatPage", () => {
     const textarea = screen.getByPlaceholderText(
       "Type a message or use '/' for commands...",
     );
-    await userEvent.type(textarea, "   ");
+    fireEvent.change(textarea, { target: { value: "   " } });
     expect(askButton).toBeDisabled();
     expect(vi.mocked(queryChat)).not.toHaveBeenCalled();
   });
@@ -286,6 +312,7 @@ describe("ChatPage", () => {
         "All documents are included in this search.",
       ),
     ).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
   });
 
   it("renders citations and low-confidence warning for an answer", async () => {
@@ -363,9 +390,9 @@ describe("ChatPage", () => {
 
     await screen.findByRole("button", { name: /Select scope/i });
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "When is the policy active?",
+      { target: { value: "When is the policy active?" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -421,9 +448,9 @@ describe("ChatPage", () => {
 
     await screen.findByRole("button", { name: /Select scope/i });
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "What is the policy status?",
+      { target: { value: "What is the policy status?" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -566,9 +593,9 @@ describe("ChatPage", () => {
 
     renderPage(queryClient);
     await screen.findByRole("button", { name: /Select scope/i });
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "check debug visibility",
+      { target: { value: "check debug visibility" } },
     );
     await waitFor(() => {
       expect(
@@ -691,9 +718,9 @@ describe("ChatPage", () => {
       </QueryClientProvider>,
     );
     await screen.findByRole("button", { name: /Select scope/i });
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "show debug",
+      { target: { value: "show debug" } },
     );
     await waitFor(() => {
       expect(
@@ -988,9 +1015,9 @@ describe("ChatPage", () => {
     await openAdditionalSettings();
     const topKSlider = screen.getByRole("slider", { name: /Top-k/i });
     fireEvent.change(topKSlider, { target: { value: "9" } });
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "scope check",
+      { target: { value: "scope check" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -1118,9 +1145,9 @@ describe("ChatPage", () => {
       within(scopeMenu).getByRole("button", { name: /Apply/i }),
     );
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "connector scope check",
+      { target: { value: "connector scope check" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -1245,7 +1272,7 @@ describe("ChatPage", () => {
     );
     expect(textarea).not.toBeDisabled();
 
-    await userEvent.type(textarea, "Connector only scope");
+    fireEvent.change(textarea, { target: { value: "Connector only scope" } });
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
     );
@@ -1374,9 +1401,9 @@ describe("ChatPage", () => {
 
     await openAdditionalSettings();
     await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "agentic question",
+      { target: { value: "agentic question" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -1449,9 +1476,9 @@ describe("ChatPage", () => {
 
     await openAdditionalSettings();
     await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "agentic failing question",
+      { target: { value: "agentic failing question" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -1544,9 +1571,9 @@ describe("ChatPage", () => {
     await screen.findByRole("button", { name: /Select scope/i });
 
     await openAdditionalSettings();
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "fallback question",
+      { target: { value: "fallback question" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -1683,9 +1710,9 @@ describe("ChatPage", () => {
 
     await openAdditionalSettings();
     await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "approval question",
+      { target: { value: "approval question" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -1736,6 +1763,7 @@ describe("ChatPage", () => {
 
     fireEvent.change(topKInput, { target: { value: "999" } });
     expect(topKInput).toHaveValue("20");
+    await userEvent.keyboard("{Escape}");
   });
 
   it("shows actionable error state when chat query fails", async () => {
@@ -1766,9 +1794,9 @@ describe("ChatPage", () => {
     renderPage();
 
     await screen.findByRole("button", { name: /Select scope/i });
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "hello",
+      { target: { value: "hello" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -1849,8 +1877,8 @@ describe("ChatPage", () => {
     const textarea = screen.getByPlaceholderText(
       "Type a message or use '/' for commands...",
     );
-    await userEvent.type(textarea, "retry me");
-    await userEvent.keyboard("{Control>}{Enter}{/Control}");
+    fireEvent.change(textarea, { target: { value: "retry me" } });
+    fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true });
 
     await waitFor(() => {
       expect(
@@ -2224,9 +2252,9 @@ describe("ChatPage", () => {
 
     renderPage();
     await screen.findByRole("button", { name: /Select scope/i });
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "unknown question",
+      { target: { value: "unknown question" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -2312,9 +2340,9 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Select scope/i });
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "first",
+      { target: { value: "first" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -2323,9 +2351,9 @@ describe("ChatPage", () => {
       await screen.findByText("First answer stays visible"),
     ).toBeInTheDocument();
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "second",
+      { target: { value: "second" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -2433,9 +2461,9 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Select scope/i });
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "repeat me",
+      { target: { value: "repeat me" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -3054,7 +3082,9 @@ describe("ChatPage", () => {
     );
     expect(textarea).not.toBeDisabled();
 
-    await userEvent.type(textarea, "What is the capital of France?");
+    fireEvent.change(textarea, {
+      target: { value: "What is the capital of France?" },
+    });
 
     await waitFor(() => {
       expect(
@@ -3142,9 +3172,9 @@ describe("ChatPage", () => {
 
     await screen.findByRole("button", { name: /Select scope/i });
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "What is the policy?",
+      { target: { value: "What is the policy?" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -3231,9 +3261,9 @@ describe("ChatPage", () => {
       within(scopeMenu).getByRole("button", { name: /scoped\.pdf/i }),
     );
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "Scoped query",
+      { target: { value: "Scoped query" } },
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
@@ -3274,9 +3304,9 @@ describe("ChatPage", () => {
       "de",
     );
 
-    await userEvent.type(
+    fireEvent.change(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "How many leave days?",
+      { target: { value: "How many leave days?" } },
     );
 
     vi.mocked(queryChat).mockResolvedValue({
@@ -3362,7 +3392,7 @@ describe("ChatPage", () => {
       expect(textarea).not.toBeDisabled();
     });
 
-    await userEvent.type(textarea, "Test question");
+    fireEvent.change(textarea, { target: { value: "Test question" } });
 
     vi.mocked(queryChat).mockResolvedValue({
       chat_session_id: "session-auto",
