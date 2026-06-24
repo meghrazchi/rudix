@@ -31,6 +31,13 @@ import { ApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import { createDefaultSettingsPreferences } from "@/lib/settings-preferences";
 
+vi.hoisted(() => {
+  // Disable WS and streaming module-level constants so tests use the REST path.
+  // .env.local sets these to "true" but module constants are frozen at import time.
+  process.env.NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED = "false";
+  process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED = "false";
+});
+
 const mockNavigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
 }));

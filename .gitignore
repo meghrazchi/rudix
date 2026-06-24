@@ -1,6 +1,10 @@
 # OS files
 .DS_Store
 
+# Node
+node_modules/
+.vite/
+
 # Claude Code project settings
 .claude/
 
