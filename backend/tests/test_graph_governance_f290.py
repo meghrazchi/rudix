@@ -67,6 +67,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+import socket as _socket
+
 import app.interfaces.http.admin_graph_entities as entities_http
 import app.interfaces.http.admin_graph_relations as relations_http
 import app.interfaces.http.graph_explorer as explorer_http
@@ -78,8 +80,6 @@ from app.domains.admin.services.audit_service import sanitize_metadata
 from app.domains.chat.services.graph_retrieval_service import GraphRetrievalService
 from app.main import app
 from app.models.permissions import ROLE_PERMISSIONS, PermissionType
-
-import socket as _socket
 
 
 def _redis_reachable() -> bool:
