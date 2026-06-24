@@ -283,6 +283,7 @@ def test_warning_reasons_stale_only() -> None:
         excluded_count=0,
         unreviewed_count=0,
         deprecated_count=0,
+        draft_count=0,
         all_excluded_fallback=False,
     )
     assert len(reasons) == 1
@@ -296,6 +297,7 @@ def test_warning_reasons_unreviewed_only() -> None:
         excluded_count=0,
         unreviewed_count=1,
         deprecated_count=0,
+        draft_count=0,
         all_excluded_fallback=False,
     )
     assert len(reasons) == 1
@@ -308,6 +310,7 @@ def test_warning_reasons_deprecated_only() -> None:
         excluded_count=0,
         unreviewed_count=0,
         deprecated_count=3,
+        draft_count=0,
         all_excluded_fallback=False,
     )
     assert len(reasons) == 1
@@ -320,6 +323,7 @@ def test_warning_reasons_excluded_only() -> None:
         excluded_count=2,
         unreviewed_count=0,
         deprecated_count=0,
+        draft_count=0,
         all_excluded_fallback=False,
     )
     assert len(reasons) == 1
@@ -332,6 +336,7 @@ def test_warning_reasons_all_excluded_fallback_leads() -> None:
         excluded_count=3,
         unreviewed_count=0,
         deprecated_count=1,
+        draft_count=0,
         all_excluded_fallback=True,
     )
     assert reasons[0].lower().startswith("all preferred sources")
@@ -343,6 +348,7 @@ def test_warning_reasons_empty_when_no_issues() -> None:
         excluded_count=0,
         unreviewed_count=0,
         deprecated_count=0,
+        draft_count=0,
         all_excluded_fallback=False,
     )
     assert reasons == []
@@ -354,6 +360,7 @@ def test_warning_reasons_multiple_issues() -> None:
         excluded_count=2,
         unreviewed_count=1,
         deprecated_count=0,
+        draft_count=0,
         all_excluded_fallback=False,
     )
     assert len(reasons) == 3

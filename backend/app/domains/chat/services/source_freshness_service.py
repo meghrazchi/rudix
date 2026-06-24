@@ -52,9 +52,11 @@ PREFERRED_SOURCE_BUMP: float = 0.005
 
 TRUST_SCORE_MULTIPLIERS: dict[str, float] = {
     "verified": 1.15,
+    "reviewed": 1.07,
     "current": 1.0,
     "trusted": 1.1,
     "draft": 0.85,
+    "unreviewed": 0.82,
     "stale": 0.7,
     "needs_review": 0.8,
     "archived": 0.2,
@@ -76,6 +78,7 @@ EXCLUDED_BY_DEFAULT: frozenset[str] = frozenset({"archived", "deprecated", "supe
 class DocumentTrustData:
     document_id: UUID
     trust_status: str
+    quality_state: str | None = None
     review_status: str | None = None
     review_owner_id: UUID | None = None
     review_due_date: date | None = None
@@ -99,6 +102,7 @@ class FreshnessFilterResult:
 class _DocumentTrustSource(Protocol):
     id: UUID
     trust_status: str | None
+    quality_state: str | None
     review_status: str | None
     review_owner_id: UUID | None
     review_due_date: date | None
@@ -137,6 +141,7 @@ class SourceFreshnessService:
             trust_map[doc_id] = DocumentTrustData(
                 document_id=cast(UUID, doc.id),
                 trust_status=doc.trust_status or "current",
+                quality_state=getattr(doc, "quality_state", None),
                 review_status=doc.review_status or None,
                 review_owner_id=doc.review_owner_id,
                 review_due_date=doc.review_due_date,
@@ -186,14 +191,51 @@ class SourceFreshnessService:
             return "stale"
         if effective == "needs_review":
             return "unreviewed"
+        if effective == "unreviewed":
+            return "unreviewed"
+        if effective == "draft":
+            return "draft"
+        if effective in {"reviewed", "verified", "current", "trusted"}:
+            return "current"
 
         raw_status = (trust_data.trust_status or "current").lower()
         if raw_status == "draft":
             return "draft"
-        if raw_status in {"verified", "trusted", "current"}:
+        if raw_status in {"verified", "trusted", "current", "reviewed"}:
             return "current"
 
         return "unknown"
+
+    def derive_quality_state(
+        self,
+        trust_data: DocumentTrustData | None,
+        *,
+        today: date | None = None,
+    ) -> str | None:
+        """Return the explicit document quality workflow state for UI display."""
+        if trust_data is None:
+            return None
+
+        explicit = (trust_data.quality_state or "").strip().lower()
+        if explicit:
+            return explicit
+
+        effective = self.compute_effective_trust_status(trust_data, today=today)
+        if effective == "draft":
+            return "draft"
+        if effective == "verified":
+            return "verified"
+        if effective in {"reviewed", "current", "trusted"}:
+            return "reviewed"
+        if effective == "needs_review":
+            return "unreviewed"
+        if effective == "stale":
+            return "stale"
+        if effective == "expired":
+            return "expired"
+        if effective in {"archived", "deprecated", "superseded"}:
+            return "archived" if effective == "archived" else "deprecated"
+        return "unreviewed"
 
     def compute_effective_trust_status(
         self,
@@ -202,8 +244,27 @@ class SourceFreshnessService:
         org_stale_threshold_days: int | None = None,
     ) -> str:
         """Return the effective trust status, promoting to 'stale' when past review_date."""
-        status = (trust_data.review_status or trust_data.trust_status or "current").strip().lower()
+        status = (
+            trust_data.quality_state
+            or trust_data.review_status
+            or trust_data.trust_status
+            or "current"
+        ).strip().lower()
+        if status in {"reviewed", "verified", "trusted"}:
+            return status
         if status in ("archived", "deprecated", "superseded", "expired", "stale"):
+            return status
+        if status == "draft":
+            return status
+
+        if status == "unreviewed":
+            legacy_status = (
+                trust_data.review_status or trust_data.trust_status or "current"
+            ).strip().lower()
+            if legacy_status in {"verified", "reviewed", "trusted", "current"}:
+                return legacy_status
+            if legacy_status in {"stale", "expired", "deprecated", "archived", "superseded"}:
+                return legacy_status
             return status
 
         _today = today or date.today()
@@ -218,6 +279,8 @@ class SourceFreshnessService:
         if trust_data.review_date is not None and trust_data.review_date < _today:
             return "stale"
 
+        if status == "unreviewed":
+            return "unreviewed"
         return status
 
     def filter_excluded(
@@ -319,6 +382,7 @@ class SourceFreshnessService:
         excluded_count: int,
         unreviewed_count: int,
         deprecated_count: int,
+        draft_count: int,
         all_excluded_fallback: bool,
     ) -> list[str]:
         """Build a structured list of specific freshness warning messages (F311)."""
@@ -337,7 +401,12 @@ class SourceFreshnessService:
                 f"{unreviewed_count} source{'s' if unreviewed_count > 1 else ''} "
                 "pending review — accuracy is not yet confirmed."
             )
-        if deprecated_count:
+        if draft_count:
+            reasons.append(
+                f"{draft_count} draft source{'s' if draft_count > 1 else ''} "
+                "were cited before review completed."
+            )
+        if deprecated_count and not all_excluded_fallback:
             reasons.append(
                 f"{deprecated_count} deprecated or archived source{'s were' if deprecated_count > 1 else ' was'} "
                 "used because no current alternative was available."

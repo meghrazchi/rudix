@@ -214,6 +214,7 @@ class ChatCitationResponse(BaseModel):
     conflict_status: Literal["preferred", "conflicting", "neutral"] | None = None
     # Source freshness fields (F297/F311): populated from document trust metadata.
     doc_trust_status: str | None = None
+    doc_quality_state: str | None = None
     doc_review_status: str | None = None
     doc_review_owner_id: str | None = None
     doc_review_due_date: date | None = None
@@ -229,6 +230,7 @@ class ChatCitationResponse(BaseModel):
     doc_last_updated_at: datetime | None = None
     doc_unreviewed_warning: bool = False
     doc_deprecated_warning: bool = False
+    doc_draft_warning: bool = False
     # Table-aware retrieval (F298): populated when the cited chunk is a table.
     is_table_chunk: bool = False
     table_caption: str | None = None

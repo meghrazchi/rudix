@@ -98,7 +98,12 @@ from app.models.connector import ConnectorConnection, ConnectorProvider, Externa
 from app.models.connector_source import SourceDocument
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
-from app.models.enums import DocumentReviewStatus, DocumentStatus, OrganizationRole
+from app.models.enums import (
+    DocumentQualityState,
+    DocumentReviewStatus,
+    DocumentStatus,
+    OrganizationRole,
+)
 from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.user import User
 from app.rate_limit import RateLimitScope, enforce_rate_limit
@@ -153,6 +158,25 @@ def _safe_error_payload(document: Document) -> tuple[str | None, object | None]:
         return error_message, error_details
     # Legacy/plain errors are not exposed verbatim.
     return "Processing failed", None
+
+
+def _document_trust_data(document: Document) -> DocumentTrustData:
+    return DocumentTrustData(
+        document_id=document.id,
+        trust_status=document.trust_status,
+        quality_state=document.quality_state,
+        review_status=document.review_status,
+        review_owner_id=document.review_owner_id,
+        review_due_date=document.review_due_date,
+        expiry_date=document.expiry_date,
+        version_label=document.version_label,
+        review_date=document.review_date,
+        effective_date=document.effective_date,
+        stale_after_days=document.stale_after_days,
+        superseded_by_document_id=document.superseded_by_document_id,
+        trust_level=document.trust_level,
+        last_updated_at=document.updated_at,
+    )
 
 
 def _chunk_preview_text(text: str, *, max_length: int = 240) -> str:
@@ -736,6 +760,9 @@ async def list_documents(
     offset: Annotated[int, Query(ge=0)] = 0,
     status_filter: Annotated[DocumentStatus | None, Query(alias="status")] = None,
     freshness_filter: Annotated[DocumentReviewStatus | None, Query(alias="freshness")] = None,
+    quality_state_filter: Annotated[
+        DocumentQualityState | None, Query(alias="quality_state")
+    ] = None,
     sort_by: DocumentSortBy = "created_at",
     sort_order: SortOrder = "desc",
     filename_query: Annotated[str | None, Query(max_length=255)] = None,
@@ -750,6 +777,7 @@ async def list_documents(
         organization_id=organization_id,
         status=status_filter.value if status_filter is not None else None,
         review_status=freshness_filter.value if freshness_filter is not None else None,
+        quality_state=quality_state_filter.value if quality_state_filter is not None else None,
         file_type=file_type,
         filename_query=filename_query,
         language=language,
@@ -763,6 +791,7 @@ async def list_documents(
         organization_id=organization_id,
         status=status_filter.value if status_filter is not None else None,
         review_status=freshness_filter.value if freshness_filter is not None else None,
+        quality_state=quality_state_filter.value if quality_state_filter is not None else None,
         file_type=file_type,
         filename_query=filename_query,
         language=language,
@@ -848,6 +877,10 @@ async def list_documents(
                 notes=document.notes,
                 tags=_parse_tags_string(document.tags),
                 collections=collections_by_doc.get(document.id, []),
+                quality_state=_source_freshness_service.derive_quality_state(
+                    _document_trust_data(document)
+                ),
+                quality_notes=document.quality_notes,
                 review_status=document.review_status,
                 review_owner_id=str(document.review_owner_id)
                 if document.review_owner_id is not None
@@ -856,6 +889,9 @@ async def list_documents(
                 expiry_date=document.expiry_date,
                 trust_level=document.trust_level,
                 trust_status=document.trust_status,
+                trusted_by_id=str(document.trusted_by_id)
+                if document.trusted_by_id is not None
+                else None,
                 version_label=document.version_label,
                 review_date=document.review_date,
                 created_at=document.created_at,
@@ -874,6 +910,9 @@ async def list_documents(
         offset=offset,
         status_filter=status_filter.value if status_filter is not None else None,
         freshness_filter=(freshness_filter.value if freshness_filter is not None else None),
+        quality_state_filter=(
+            quality_state_filter.value if quality_state_filter is not None else None
+        ),
         sort_by=sort_by,
         sort_order=sort_order,
     )
@@ -884,6 +923,7 @@ async def list_documents(
         offset=offset,
         status=status_filter,
         freshness=freshness_filter,
+        quality_state=quality_state_filter,
         sort_by=sort_by,
         sort_order=sort_order,
     )
@@ -1034,21 +1074,7 @@ async def get_citation_preview(
             request_id=request_id,
         )
 
-    trust_data = DocumentTrustData(
-        document_id=document.id,
-        trust_status=document.trust_status,
-        review_status=document.review_status,
-        review_owner_id=document.review_owner_id,
-        review_due_date=document.review_due_date,
-        expiry_date=document.expiry_date,
-        version_label=document.version_label,
-        review_date=document.review_date,
-        effective_date=document.effective_date,
-        stale_after_days=document.stale_after_days,
-        superseded_by_document_id=document.superseded_by_document_id,
-        trust_level=document.trust_level,
-        last_updated_at=document.updated_at,
-    )
+    trust_data = _document_trust_data(document)
     freshness_state = _source_freshness_service.derive_freshness_state(trust_data)
     if freshness_state in {"stale", "expired", "deprecated"}:
         raise _citation_preview_error(
@@ -1196,6 +1222,7 @@ async def get_citation_preview(
         source_trust_status=source_trust_status,
         freshness_state=freshness_state,
         doc_trust_status=document.trust_status,
+        doc_quality_state=_source_freshness_service.derive_quality_state(trust_data),
         doc_review_status=document.review_status,
         doc_review_owner_id=str(document.review_owner_id)
         if document.review_owner_id is not None
@@ -1210,6 +1237,7 @@ async def get_citation_preview(
         doc_is_excluded_status=freshness_state in {"deprecated", "expired"},
         doc_unreviewed_warning=freshness_state == "unreviewed",
         doc_deprecated_warning=freshness_state == "deprecated",
+        doc_draft_warning=freshness_state == "draft",
         doc_ocr_quality_status=document.ocr_quality_status,
         doc_ocr_low_confidence_warning=document.ocr_quality_status == "low",
         request_id=request_id,
@@ -1277,6 +1305,9 @@ async def get_document(
     doc_expiry_date = document.expiry_date
     doc_trust_level = document.trust_level
     doc_trust_status = document.trust_status
+    doc_quality_state = _source_freshness_service.derive_quality_state(
+        _document_trust_data(document)
+    )
     doc_version_label = document.version_label
     doc_review_date = document.review_date
     doc_effective_date = document.effective_date
@@ -1424,6 +1455,13 @@ async def get_document(
         expiry_date=doc_expiry_date,
         trust_level=doc_trust_level,
         trust_status=doc_trust_status,
+        quality_state=doc_quality_state,
+        quality_notes=document.__dict__.get("quality_notes"),
+        trusted_by_id=(
+            str(document.__dict__.get("trusted_by_id"))
+            if document.__dict__.get("trusted_by_id") is not None
+            else None
+        ),
         version_label=doc_version_label,
         review_date=doc_review_date,
         effective_date=doc_effective_date,

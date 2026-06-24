@@ -640,6 +640,7 @@ def _with_freshness(
     }
     is_unreviewed = effective_status == "needs_review"
     is_deprecated = effective_status in {"archived", "deprecated", "superseded"}
+    is_draft = effective_status == "draft" or trust.quality_state == "draft"
     return ChatCitationResponse(
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
@@ -665,6 +666,7 @@ def _with_freshness(
         source_acl_snapshot=citation.source_acl_snapshot,
         conflict_status=citation.conflict_status,
         doc_trust_status=trust.trust_status,
+        doc_quality_state=trust.quality_state,
         doc_review_status=trust.review_status or trust.trust_status,
         doc_review_owner_id=str(trust.review_owner_id) if trust.review_owner_id else None,
         doc_review_due_date=trust.review_due_date,
@@ -680,6 +682,7 @@ def _with_freshness(
         doc_last_updated_at=trust.last_updated_at,
         doc_unreviewed_warning=is_unreviewed,
         doc_deprecated_warning=is_deprecated,
+        doc_draft_warning=is_draft,
     )
 
 
@@ -1770,6 +1773,7 @@ def _build_trust_metadata(
     freshness_stale_count: int,
     freshness_unreviewed_count: int,
     freshness_deprecated_count: int,
+    freshness_draft_count: int,
     freshness_all_excluded_fallback: bool,
     grounded_verifier_result: GroundedVerifierResult | None,
     llm_model: str | None,
@@ -1798,6 +1802,7 @@ def _build_trust_metadata(
         or getattr(c, "doc_is_excluded_status", False)
         or getattr(c, "doc_unreviewed_warning", False)
         or getattr(c, "doc_deprecated_warning", False)
+        or getattr(c, "doc_draft_warning", False)
         for c in citations
     )
 
@@ -1823,6 +1828,7 @@ def _build_trust_metadata(
             source_trust_status=c.source_trust_status,
             conflict_status=c.conflict_status,
             doc_trust_status=c.doc_trust_status,
+            doc_quality_state=getattr(c, "doc_quality_state", None),
             doc_review_status=c.doc_review_status,
             doc_version_label=c.doc_version_label,
             doc_review_due_date=c.doc_review_due_date,
@@ -1842,6 +1848,7 @@ def _build_trust_metadata(
             doc_review_owner_id=getattr(c, "doc_review_owner_id", None),
             doc_unreviewed_warning=getattr(c, "doc_unreviewed_warning", False),
             doc_deprecated_warning=getattr(c, "doc_deprecated_warning", False),
+            doc_draft_warning=getattr(c, "doc_draft_warning", False),
             table_extraction_confidence=getattr(c, "table_extraction_confidence", None),
             table_low_confidence_warning=getattr(c, "table_low_confidence_warning", False),
             doc_extraction_quality=getattr(c, "doc_extraction_quality", None),
@@ -1995,7 +2002,7 @@ def _build_trust_metadata(
         ),
         freshness=SourceFreshnessRecord(
             warning=source_freshness_warning,
-            warning_reason="One or more citations come from stale, unreviewed, deprecated, or archived sources."
+            warning_reason="One or more citations come from stale, draft, unreviewed, deprecated, or archived sources."
             if source_freshness_warning
             else None,
             warning_reasons=_source_freshness_service.build_warning_reasons(
@@ -2003,6 +2010,7 @@ def _build_trust_metadata(
                 excluded_count=freshness_excluded_count,
                 unreviewed_count=freshness_unreviewed_count,
                 deprecated_count=freshness_deprecated_count,
+                draft_count=freshness_draft_count,
                 all_excluded_fallback=freshness_all_excluded_fallback,
             ),
             stale_count=freshness_stale_count,
@@ -2010,6 +2018,7 @@ def _build_trust_metadata(
             boosted_count=freshness_boosted_count,
             unreviewed_count=freshness_unreviewed_count,
             deprecated_count=freshness_deprecated_count,
+            draft_count=freshness_draft_count,
             all_excluded_fallback=freshness_all_excluded_fallback,
         ),
         evidence_quality=_build_evidence_quality_record(citation_records),
@@ -2566,6 +2575,7 @@ async def query_chat(
     freshness_stale_count = 0
     freshness_unreviewed_count = 0
     freshness_deprecated_count = 0
+    freshness_draft_count = 0
     freshness_all_excluded_fallback = False
     table_boost_enabled = False
     table_boost_applied = False
@@ -3336,6 +3346,9 @@ async def query_chat(
                 freshness_deprecated_count = sum(
                     1 for c in citations if getattr(c, "doc_deprecated_warning", False)
                 )
+                freshness_draft_count = sum(
+                    1 for c in citations if getattr(c, "doc_draft_warning", False)
+                )
                 _freshness_multiplier = _compute_freshness_multiplier(
                     freshness_stale_count, len(citations)
                 )
@@ -3595,6 +3608,7 @@ async def query_chat(
             freshness_stale_count=freshness_stale_count,
             freshness_unreviewed_count=freshness_unreviewed_count,
             freshness_deprecated_count=freshness_deprecated_count,
+            freshness_draft_count=freshness_draft_count,
             freshness_all_excluded_fallback=freshness_all_excluded_fallback,
             grounded_verifier_result=grounded_verifier_result,
             llm_model=llm_model,
@@ -4089,6 +4103,7 @@ async def query_chat(
             freshness_stale_count=freshness_stale_count,
             freshness_unreviewed_count=freshness_unreviewed_count,
             freshness_deprecated_count=freshness_deprecated_count,
+            freshness_draft_count=freshness_draft_count,
             freshness_all_excluded_fallback=freshness_all_excluded_fallback,
             table_boost_enabled=table_boost_enabled,
             table_boost_applied=table_boost_applied,
@@ -6422,10 +6437,12 @@ async def get_shared_answer(
             warning = effective_status in {
                 "stale",
                 "needs_review",
+                "unreviewed",
                 "expired",
                 "archived",
                 "deprecated",
                 "superseded",
+                "draft",
             }
         else:
             effective_status = None
@@ -6442,7 +6459,9 @@ async def get_shared_answer(
                 source_trust_status=effective_status,
                 source_freshness_warning=warning,
                 source_freshness_warning_reason=(
-                    "Citation comes from a stale, expired, or archived source." if warning else None
+                    "Citation comes from a stale, draft, unreviewed, expired, or archived source."
+                    if warning
+                    else None
                 ),
             )
         )

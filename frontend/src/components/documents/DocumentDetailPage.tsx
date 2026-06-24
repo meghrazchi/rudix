@@ -24,6 +24,8 @@ import type {
   DocumentStatusResponse,
   AdminLanguageOverrideRequest,
   AdminOcrConfigRequest,
+  AdminTrustStatusRequest,
+  DocumentQualityState,
 } from "@/lib/api/documents";
 import {
   configureDocumentOcr,
@@ -34,6 +36,7 @@ import {
   overrideDocumentLanguage,
   reindexDocumentGraph,
   reindexDocument,
+  updateDocumentTrustStatus,
   OCR_LANGUAGES,
   UPLOAD_LANGUAGES,
 } from "@/lib/api/documents";
@@ -198,6 +201,34 @@ function freshnessBadge(status: string | null | undefined): string {
   }
   if (status === "archived") {
     return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
+  }
+  return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
+}
+
+function qualityBadge(status: string | null | undefined): string {
+  if (status === "verified") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "reviewed") {
+    return "rounded-full bg-sky-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-sky-800";
+  }
+  if (status === "unreviewed") {
+    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+  }
+  if (status === "draft") {
+    return "rounded-full bg-violet-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-violet-800";
+  }
+  if (status === "stale") {
+    return "rounded-full bg-orange-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-orange-800";
+  }
+  if (status === "expired") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  }
+  if (status === "deprecated") {
+    return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
+  }
+  if (status === "archived") {
+    return "rounded-full bg-slate-300 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-800";
   }
   return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
@@ -561,6 +592,15 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const [langOverrideOpen, setLangOverrideOpen] = useState(false);
   const [ocrLangOverrideValue, setOcrLangOverrideValue] = useState<string>("");
   const [ocrLangOverrideOpen, setOcrLangOverrideOpen] = useState(false);
+  const [qualityStateDraft, setQualityStateDraft] =
+    useState<DocumentQualityState>("unreviewed");
+  const [qualityNotesDraft, setQualityNotesDraft] = useState("");
+  const [qualityOwnerDraft, setQualityOwnerDraft] = useState("");
+  const [qualityReviewerDraft, setQualityReviewerDraft] = useState("");
+  const [qualityDueDateDraft, setQualityDueDateDraft] = useState("");
+  const [qualityExpiryDateDraft, setQualityExpiryDateDraft] = useState("");
+  const [qualityReviewDateDraft, setQualityReviewDateDraft] = useState("");
+  const [qualityTrustLevelDraft, setQualityTrustLevelDraft] = useState("");
   const [previewCitationSet, setPreviewCitationSet] = useState<{
     citations: ChatCitationResponse[];
     initialIndex: number;
@@ -632,6 +672,22 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const refetchDetail = detailQuery.refetch;
   const liveStatus = statusQuery.data;
   const statusSnapshotUpdatedAt = statusQuery.dataUpdatedAt;
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!detailData) {
+      return;
+    }
+    setQualityStateDraft(detailData.quality_state ?? "unreviewed");
+    setQualityNotesDraft(detailData.quality_notes ?? "");
+    setQualityOwnerDraft(detailData.review_owner_id ?? "");
+    setQualityReviewerDraft(detailData.trusted_by_id ?? "");
+    setQualityDueDateDraft(detailData.review_due_date ?? "");
+    setQualityExpiryDateDraft(detailData.expiry_date ?? "");
+    setQualityReviewDateDraft(detailData.review_date ?? "");
+    setQualityTrustLevelDraft(detailData.trust_level ?? "");
+  }, [detailData]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!detailData || !liveStatus || statusSnapshotUpdatedAt <= 0) {
@@ -818,6 +874,47 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
+
+  const qualityMutation = useMutation({
+    mutationFn: (payload: AdminTrustStatusRequest) =>
+      updateDocumentTrustStatus(documentId, payload),
+    onSuccess: async () => {
+      setActionFeedback("Quality metadata saved.");
+      setActionRequestId(null);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.detail(documentId),
+      });
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
+  const saveQualityMetadata = async (): Promise<void> => {
+    if (!detail || qualityMutation.isPending) {
+      return;
+    }
+
+    const payload: AdminTrustStatusRequest = {
+      trust_status: detail.trust_status ?? "current",
+      quality_state: qualityStateDraft,
+      quality_notes: qualityNotesDraft.trim() || null,
+      quality_owner_id: qualityOwnerDraft.trim() || null,
+      quality_reviewer_id: qualityReviewerDraft.trim() || null,
+      review_status: detail.review_status ?? null,
+      review_owner_id: qualityOwnerDraft.trim() || null,
+      review_due_date: qualityDueDateDraft || null,
+      expiry_date: qualityExpiryDateDraft || null,
+      trust_level: qualityTrustLevelDraft.trim() || null,
+      version_label: detail.version_label ?? null,
+      review_date: qualityReviewDateDraft || null,
+      effective_date: detail.effective_date ?? null,
+      stale_after_days: detail.stale_after_days ?? null,
+      superseded_by_document_id: detail.superseded_by_document_id ?? null,
+    };
+    await qualityMutation.mutateAsync(payload);
+  };
 
   const safeBackHrefRaw = searchParams.get("back");
   const safeBackHref =
@@ -1326,6 +1423,148 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     document from retrieval.
                   </p>
                 ) : null}
+                {detail.quality_state &&
+                ["draft", "unreviewed", "stale", "expired", "deprecated", "archived"].includes(
+                  detail.quality_state,
+                ) ? (
+                  <p className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-800">
+                    This document is marked{" "}
+                    {detail.quality_state.replaceAll("_", " ")}. Quality state
+                    influences retrieval ranking, warning banners, and bulk
+                    review workflows.
+                  </p>
+                ) : null}
+                {capabilities.canEditQuality ? (
+                  <div className="rounded-lg border border-violet-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                          Quality workflow
+                        </h4>
+                        <p className="mt-1 text-sm text-[#605d73]">
+                          Update the state that drives retrieval preference and
+                          source warnings.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={qualityMutation.isPending}
+                        onClick={() => {
+                          void saveQualityMetadata();
+                        }}
+                        className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {qualityMutation.isPending ? "Saving..." : "Save quality"}
+                      </button>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        Quality state
+                        <select
+                          value={qualityStateDraft}
+                          onChange={(event) =>
+                            setQualityStateDraft(
+                              event.target.value as DocumentQualityState,
+                            )
+                          }
+                          className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                        >
+                          {[
+                            "draft",
+                            "verified",
+                            "reviewed",
+                            "unreviewed",
+                            "stale",
+                            "expired",
+                            "deprecated",
+                            "archived",
+                          ].map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        Quality owner id
+                        <input
+                          type="text"
+                          value={qualityOwnerDraft}
+                          onChange={(event) =>
+                            setQualityOwnerDraft(event.target.value)
+                          }
+                          className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        Reviewer id
+                        <input
+                          type="text"
+                          value={qualityReviewerDraft}
+                          onChange={(event) =>
+                            setQualityReviewerDraft(event.target.value)
+                          }
+                          className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        Review due
+                        <input
+                          type="date"
+                          value={qualityDueDateDraft}
+                          onChange={(event) =>
+                            setQualityDueDateDraft(event.target.value)
+                          }
+                          className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        Review date
+                        <input
+                          type="date"
+                          value={qualityReviewDateDraft}
+                          onChange={(event) =>
+                            setQualityReviewDateDraft(event.target.value)
+                          }
+                          className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        Expiry date
+                        <input
+                          type="date"
+                          value={qualityExpiryDateDraft}
+                          onChange={(event) =>
+                            setQualityExpiryDateDraft(event.target.value)
+                          }
+                          className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        Trust level
+                        <input
+                          type="text"
+                          value={qualityTrustLevelDraft}
+                          onChange={(event) =>
+                            setQualityTrustLevelDraft(event.target.value)
+                          }
+                          className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                        />
+                      </label>
+                    </div>
+                    <label className="mt-3 grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      Quality notes
+                      <textarea
+                        value={qualityNotesDraft}
+                        onChange={(event) =>
+                          setQualityNotesDraft(event.target.value)
+                        }
+                        rows={4}
+                        className="rounded-lg border border-[#d2cee6] bg-white px-3 py-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                      />
+                    </label>
+                  </div>
+                ) : null}
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   <MetricCard
@@ -1345,16 +1584,21 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     value={formatDate(detail.updated_at)}
                   />
                   <MetricCard
-                    label="Freshness"
-                    value={detail.review_status ?? "current"}
-                    valueClass={freshnessBadge(detail.review_status)}
+                    label="Quality"
+                    value={detail.quality_state ?? "unreviewed"}
+                    valueClass={qualityBadge(detail.quality_state)}
                     plain={false}
                   />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   <MetricCard
-                    label="Review owner"
+                    label="Quality owner"
                     value={detail.review_owner_id ?? "-"}
+                    mono
+                  />
+                  <MetricCard
+                    label="Reviewer"
+                    value={detail.trusted_by_id ?? "-"}
                     mono
                   />
                   <MetricCard
@@ -1370,6 +1614,12 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     value={detail.trust_level ?? "-"}
                   />
                 </div>
+                {detail.quality_notes ? (
+                  <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
+                    <p className="font-semibold">Quality notes</p>
+                    <p className="mt-1 whitespace-pre-wrap">{detail.quality_notes}</p>
+                  </div>
+                ) : null}
 
                 <section className="rounded-xl border border-[#e4e1f2] bg-white shadow-sm">
                   <div className="flex flex-wrap items-center border-b border-[#e9e6f5] px-4">

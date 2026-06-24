@@ -37,6 +37,7 @@ describe("documents UI permissions", () => {
       canReindex: true,
       canViewChunkFullText: true,
       canOverrideLanguage: true,
+      canEditQuality: true,
     });
     expect(resolveDocumentCapabilities("admin")).toEqual({
       canUpload: true,
@@ -44,6 +45,7 @@ describe("documents UI permissions", () => {
       canReindex: true,
       canViewChunkFullText: true,
       canOverrideLanguage: true,
+      canEditQuality: true,
     });
   });
 
@@ -54,6 +56,7 @@ describe("documents UI permissions", () => {
       canReindex: false,
       canViewChunkFullText: true,
       canOverrideLanguage: false,
+      canEditQuality: false,
     });
     expect(resolveDocumentCapabilities("viewer")).toEqual({
       canUpload: false,
@@ -61,6 +64,7 @@ describe("documents UI permissions", () => {
       canReindex: false,
       canViewChunkFullText: false,
       canOverrideLanguage: false,
+      canEditQuality: false,
     });
   });
 });

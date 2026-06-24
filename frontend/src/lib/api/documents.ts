@@ -6,6 +6,15 @@ type Schemas = components["schemas"];
 
 export type DocumentFileType = Schemas["DocumentDetailResponse"]["file_type"];
 export type DocumentStatus = Schemas["DocumentStatus"];
+export type DocumentQualityState =
+  | "draft"
+  | "verified"
+  | "reviewed"
+  | "unreviewed"
+  | "stale"
+  | "expired"
+  | "deprecated"
+  | "archived";
 export type DocumentSortBy = Schemas["DocumentListResponse"]["sort_by"];
 export type SortOrder = Schemas["DocumentListResponse"]["sort_order"];
 export type DocumentErrorDetails = Schemas["DocumentErrorDetails"];
@@ -155,6 +164,7 @@ export type CitationPreviewResponse = {
     | "unknown"
     | null;
   doc_trust_status?: string | null;
+  doc_quality_state?: DocumentQualityState | null;
   doc_review_status?: string | null;
   doc_review_owner_id?: string | null;
   doc_review_due_date?: string | null;
@@ -167,6 +177,7 @@ export type CitationPreviewResponse = {
   doc_is_excluded_status?: boolean;
   doc_unreviewed_warning?: boolean;
   doc_deprecated_warning?: boolean;
+  doc_draft_warning?: boolean;
   doc_ocr_quality_status?:
     | "high"
     | "medium"
@@ -209,6 +220,9 @@ export type DocumentListItemResponse = Schemas["DocumentListItemResponse"] & {
   review_due_date?: string | null;
   expiry_date?: string | null;
   trust_level?: string | null;
+  quality_state?: DocumentQualityState | null;
+  quality_notes?: string | null;
+  trusted_by_id?: string | null;
   trust_status?:
     | "draft"
     | "current"
@@ -233,6 +247,7 @@ export type DocumentListResponse = Omit<
     | "expired"
     | "archived"
     | null;
+  quality_state?: DocumentQualityState | null;
 };
 export type DocumentLifecycleTimelineStepResponse =
   Schemas["DocumentLifecycleTimelineStepResponse"];
@@ -288,6 +303,9 @@ export type DocumentDetailResponse = Omit<
   review_due_date?: string | null;
   expiry_date?: string | null;
   trust_level?: string | null;
+  quality_state?: DocumentQualityState | null;
+  quality_notes?: string | null;
+  trusted_by_id?: string | null;
   trust_status?:
     | "draft"
     | "current"
@@ -301,6 +319,7 @@ export type DocumentDetailResponse = Omit<
   effective_date?: string | null;
   trusted_at?: string | null;
   stale_after_days?: number | null;
+  superseded_by_document_id?: string | null;
 };
 
 export type OcrPageQuality = {
@@ -382,6 +401,57 @@ export type AdminOcrConfigResponse = {
   ocr_quality_snapshot: OcrQualitySnapshot | null;
   updated_at: string;
 };
+export type AdminTrustStatusRequest = {
+  trust_status: string;
+  quality_state?: DocumentQualityState | null;
+  quality_notes?: string | null;
+  quality_owner_id?: string | null;
+  quality_reviewer_id?: string | null;
+  review_status?: string | null;
+  review_owner_id?: string | null;
+  review_due_date?: string | null;
+  expiry_date?: string | null;
+  trust_level?: string | null;
+  version_label?: string | null;
+  review_date?: string | null;
+  effective_date?: string | null;
+  stale_after_days?: number | null;
+  superseded_by_document_id?: string | null;
+};
+export type AdminTrustStatusResponse = {
+  document_id: string;
+  trust_status: string;
+  quality_state?: DocumentQualityState | null;
+  quality_notes?: string | null;
+  quality_owner_id?: string | null;
+  quality_reviewer_id?: string | null;
+  review_status: string;
+  review_owner_id?: string | null;
+  review_due_date?: string | null;
+  expiry_date?: string | null;
+  trust_level?: string | null;
+  version_label?: string | null;
+  review_date?: string | null;
+  effective_date?: string | null;
+  stale_after_days?: number | null;
+  superseded_by_document_id?: string | null;
+  trusted_at?: string | null;
+  updated_at: string;
+};
+export type BulkAdminTrustStatusRequest = AdminTrustStatusRequest & {
+  document_ids: string[];
+};
+export type BulkAdminTrustStatusResult = {
+  document_id: string;
+  status: "updated" | "skipped" | "error";
+  error?: string | null;
+};
+export type BulkAdminTrustStatusResponse = {
+  updated: number;
+  skipped: number;
+  errors: string[];
+  results: BulkAdminTrustStatusResult[];
+};
 export type DocumentChunkPreviewResponse =
   Schemas["DocumentChunkPreviewResponse"] & {
     section_path?: string | null;
@@ -461,6 +531,7 @@ export type ListDocumentsOptions = {
     | "stale"
     | "expired"
     | "archived";
+  quality_state?: DocumentQualityState;
   file_type?: DocumentFileType;
   sort_by?: DocumentSortBy;
   sort_order?: SortOrder;
@@ -530,6 +601,7 @@ export async function listDocuments(
       offset: options.offset,
       status: options.status,
       freshness: options.freshness,
+      quality_state: options.quality_state,
       file_type: options.file_type,
       sort_by: options.sort_by,
       sort_order: options.sort_order,
@@ -694,6 +766,31 @@ export async function configureDocumentOcr(
     {
       method: "PATCH",
       json: payload,
+    },
+  );
+}
+
+export async function updateDocumentTrustStatus(
+  documentId: string,
+  payload: AdminTrustStatusRequest,
+): Promise<AdminTrustStatusResponse> {
+  return apiRequest<AdminTrustStatusResponse>(
+    `/admin/documents/${encodeURIComponent(documentId)}/trust-status`,
+    {
+      method: "PATCH",
+      json: payload,
+    },
+  );
+}
+
+export async function bulkUpdateDocumentTrustStatus(
+  payload: BulkAdminTrustStatusRequest,
+): Promise<BulkAdminTrustStatusResponse> {
+  return apiRequest<BulkAdminTrustStatusResponse>(
+    "/admin/documents/bulk/trust-status",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
   );
 }

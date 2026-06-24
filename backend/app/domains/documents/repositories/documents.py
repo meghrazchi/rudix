@@ -28,6 +28,8 @@ class DocumentRepository:
         language_source: str | None = None,
         retention_class: str | None = None,
         notes: str | None = None,
+        quality_state: str | None = None,
+        quality_notes: str | None = None,
         tags: str | None = None,
         duplicate_of_document_id: UUID | None = None,
         security_scan_result: dict | None = None,
@@ -47,6 +49,8 @@ class DocumentRepository:
             "language_source": language_source,
             "retention_class": retention_class,
             "notes": notes,
+            "quality_state": quality_state or "unreviewed",
+            "quality_notes": quality_notes,
             "tags": tags,
             "duplicate_of_document_id": duplicate_of_document_id,
             "security_scan_result": security_scan_result,
@@ -110,6 +114,7 @@ class DocumentRepository:
         organization_id: UUID,
         status: str | None = None,
         review_status: str | None = None,
+        quality_state: str | None = None,
         file_type: str | None = None,
         filename_query: str | None = None,
         language: str | None = None,
@@ -123,6 +128,8 @@ class DocumentRepository:
             statement = statement.where(Document.status == status)
         if review_status is not None:
             statement = statement.where(Document.review_status == review_status)
+        if quality_state is not None:
+            statement = statement.where(Document.quality_state == quality_state)
         if file_type is not None:
             statement = statement.where(Document.file_type == file_type)
         if filename_query is not None:
@@ -152,6 +159,7 @@ class DocumentRepository:
         organization_id: UUID,
         status: str | None = None,
         review_status: str | None = None,
+        quality_state: str | None = None,
         file_type: str | None = None,
         filename_query: str | None = None,
         language: str | None = None,
@@ -163,6 +171,8 @@ class DocumentRepository:
             statement = statement.where(Document.status == status)
         if review_status is not None:
             statement = statement.where(Document.review_status == review_status)
+        if quality_state is not None:
+            statement = statement.where(Document.quality_state == quality_state)
         if file_type is not None:
             statement = statement.where(Document.file_type == file_type)
         if filename_query is not None:
@@ -658,6 +668,8 @@ class DocumentRepository:
         review_due_date: date | None = None,
         expiry_date: date | None = None,
         trust_level: str | None = None,
+        quality_state: str | None = None,
+        quality_notes: str | None = None,
         version_label: str | None = None,
         review_date: date | None = None,
         effective_date: date | None = None,
@@ -681,6 +693,10 @@ class DocumentRepository:
             document.expiry_date = expiry_date
         if trust_level is not None:
             document.trust_level = trust_level
+        if quality_state is not None:
+            document.quality_state = quality_state
+        if quality_notes is not None:
+            document.quality_notes = quality_notes
         if version_label is not None:
             document.version_label = version_label
         if review_date is not None:

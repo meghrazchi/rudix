@@ -28,7 +28,7 @@ describe("generated schema types", () => {
     // DocumentListResponse augments the schema items with optional frontend fields
     // (collections, tags, source, language, etc.); verify only the envelope shape.
     expectTypeOf<
-      Omit<DocumentListResponse, "items" | "freshness">
+      Omit<DocumentListResponse, "items" | "freshness" | "quality_state">
     >().toEqualTypeOf<Omit<Schemas["DocumentListResponse"], "items">>();
     expectTypeOf<
       Omit<
@@ -69,12 +69,16 @@ describe("generated schema types", () => {
         | "review_due_date"
         | "expiry_date"
         | "trust_level"
+        | "quality_state"
+        | "quality_notes"
+        | "trusted_by_id"
         | "trust_status"
         | "version_label"
         | "review_date"
         | "effective_date"
         | "trusted_at"
         | "stale_after_days"
+        | "superseded_by_document_id"
       >
     >().toEqualTypeOf<Schemas["DocumentDetailResponse"]>();
     expectTypeOf<Omit<DocumentChunksResponse, "items">>().toEqualTypeOf<

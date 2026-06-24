@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,7 @@ from app.domains.documents.schemas.documents import (
 )
 from app.models.document import Document
 from app.models.enums import (
+    DocumentQualityState,
     DocumentReviewStatus,
     DocumentStatus,
     DocumentTrustStatus,
@@ -36,6 +37,7 @@ from app.workers.document_tasks import reindex_document as reindex_document_task
 
 _ALLOWED_TRUST_STATUSES = frozenset(s.value for s in DocumentTrustStatus)
 _ALLOWED_REVIEW_STATUSES = frozenset(s.value for s in DocumentReviewStatus)
+_ALLOWED_QUALITY_STATES = frozenset(s.value for s in DocumentQualityState)
 
 
 class AdminLanguageOverrideRequest(BaseModel):
@@ -85,6 +87,10 @@ class AdminOcrConfigResponse(BaseModel):
 
 class AdminTrustStatusRequest(BaseModel):
     trust_status: str
+    quality_state: str | None = None
+    quality_notes: str | None = None
+    quality_owner_id: str | None = None
+    quality_reviewer_id: str | None = None
     review_status: str | None = None
     review_owner_id: str | None = None
     review_due_date: date | None = None
@@ -125,10 +131,26 @@ class AdminTrustStatusRequest(BaseModel):
             )
         return normalized
 
+    @field_validator("quality_state")
+    @classmethod
+    def validate_quality_state(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        normalized = value.strip().lower()
+        if normalized not in _ALLOWED_QUALITY_STATES:
+            raise ValueError(
+                f"Invalid quality_state '{value}'. Must be one of: {sorted(_ALLOWED_QUALITY_STATES)}"
+            )
+        return normalized
+
 
 class AdminTrustStatusResponse(BaseModel):
     document_id: str
     trust_status: str
+    quality_state: str | None
+    quality_notes: str | None
+    quality_owner_id: str | None
+    quality_reviewer_id: str | None
     review_status: str
     review_owner_id: str | None
     review_due_date: date | None
@@ -141,6 +163,31 @@ class AdminTrustStatusResponse(BaseModel):
     superseded_by_document_id: str | None
     trusted_at: datetime | None
     updated_at: datetime
+
+
+class BulkAdminTrustStatusRequest(AdminTrustStatusRequest):
+    document_ids: list[str] = Field(min_length=1, max_length=500)
+
+    @field_validator("document_ids")
+    @classmethod
+    def validate_document_ids(cls, value: list[str]) -> list[str]:
+        cleaned = [item.strip() for item in value if item.strip()]
+        if not cleaned:
+            raise ValueError("document_ids must not be empty")
+        return cleaned
+
+
+class BulkAdminTrustStatusResult(BaseModel):
+    document_id: str
+    status: Literal["updated", "skipped", "error"]
+    error: str | None = None
+
+
+class BulkAdminTrustStatusResponse(BaseModel):
+    updated: int
+    skipped: int
+    errors: list[str]
+    results: list[BulkAdminTrustStatusResult]
 
 
 class AdminOcrRetryResponse(BaseModel):
@@ -221,8 +268,175 @@ async def _resolve_reviewer_id(
     return parsed
 
 
+async def _update_document_trust_status_for_payload(
+    *,
+    db_session: AsyncSession,
+    actor_user_id: UUID,
+    actor_organization_id: UUID,
+    request_id: str | None,
+    document_id: UUID,
+    payload: AdminTrustStatusRequest,
+) -> Document:
+    document = await document_repository.get_document_by_id(db_session, document_id=document_id)
+    if document is None or document.organization_id != actor_organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    superseded_by_uuid: UUID | None = None
+    if payload.superseded_by_document_id is not None:
+        try:
+            superseded_by_uuid = UUID(payload.superseded_by_document_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid superseded_by_document_id format",
+            ) from exc
+        successor = await document_repository.get_document_by_id(
+            db_session, document_id=superseded_by_uuid
+        )
+        if successor is None or successor.organization_id != actor_organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="superseded_by_document_id refers to a document that does not exist",
+            )
+
+    review_owner_uuid = await _resolve_reviewer_id(
+        db_session,
+        organization_id=actor_organization_id,
+        reviewer_id=payload.review_owner_id,
+    )
+    quality_owner_uuid = await _resolve_reviewer_id(
+        db_session,
+        organization_id=actor_organization_id,
+        reviewer_id=payload.quality_owner_id,
+    )
+    quality_reviewer_uuid = await _resolve_reviewer_id(
+        db_session,
+        organization_id=actor_organization_id,
+        reviewer_id=payload.quality_reviewer_id,
+    )
+
+    now = datetime.now(UTC)
+    trusted_at = now if payload.trust_status == DocumentTrustStatus.verified.value else None
+    trusted_by_id = (
+        actor_user_id if payload.trust_status == DocumentTrustStatus.verified.value else None
+    )
+    quality_trust_status = payload.trust_status
+    quality_review_status = payload.review_status
+    quality_review_date = payload.review_date
+    quality_trusted_at = trusted_at
+    quality_trusted_by_id = trusted_by_id
+
+    mapped_quality_status, mapped_review_status, mapped_trusted_at, mapped_trusted_by_id = (
+        _quality_to_legacy_values(
+            payload.quality_state,
+            actor_user_id=actor_user_id,
+            quality_reviewer_id=quality_reviewer_uuid,
+        )
+    )
+    if mapped_quality_status is not None:
+        quality_trust_status = mapped_quality_status
+    if mapped_review_status is not None:
+        quality_review_status = mapped_review_status
+    if mapped_trusted_at is not None or payload.quality_state is not None:
+        quality_trusted_at = mapped_trusted_at
+    if mapped_trusted_by_id is not None or payload.quality_state is not None:
+        quality_trusted_by_id = mapped_trusted_by_id
+    effective_review_owner_uuid = quality_owner_uuid or review_owner_uuid
+
+    updated = await document_repository.update_document_trust_status(
+        db_session,
+        document_id=document_id,
+        trust_status=quality_trust_status,
+        review_status=quality_review_status,
+        review_owner_id=effective_review_owner_uuid,
+        review_due_date=payload.review_due_date,
+        expiry_date=payload.expiry_date,
+        trust_level=payload.trust_level,
+        quality_state=payload.quality_state,
+        quality_notes=payload.quality_notes,
+        version_label=payload.version_label,
+        review_date=quality_review_date,
+        effective_date=payload.effective_date,
+        stale_after_days=payload.stale_after_days,
+        superseded_by_document_id=superseded_by_uuid,
+        trusted_at=quality_trusted_at,
+        trusted_by_id=quality_trusted_by_id,
+    )
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.trust_status.updated",
+        resource_type="document",
+        resource_id=document_id,
+        request_id=request_id,
+        metadata={
+            "trust_status": payload.trust_status,
+            "quality_state": payload.quality_state,
+            "quality_notes": payload.quality_notes,
+            "quality_owner_id": payload.quality_owner_id,
+            "quality_reviewer_id": payload.quality_reviewer_id,
+            "review_status": payload.review_status,
+            "review_owner_id": payload.review_owner_id,
+            "review_due_date": payload.review_due_date.isoformat()
+            if payload.review_due_date
+            else None,
+            "expiry_date": payload.expiry_date.isoformat() if payload.expiry_date else None,
+            "trust_level": payload.trust_level,
+            "version_label": payload.version_label,
+            "review_date": payload.review_date.isoformat() if payload.review_date else None,
+            "effective_date": payload.effective_date.isoformat()
+            if payload.effective_date
+            else None,
+            "stale_after_days": payload.stale_after_days,
+            "superseded_by_document_id": payload.superseded_by_document_id,
+        },
+    )
+    return updated
+
+
 def _request_id_from_request(request: Request) -> str | None:
     return request.headers.get("X-Request-ID")
+
+
+def _quality_to_legacy_values(
+    quality_state: str | None,
+    *,
+    actor_user_id: UUID,
+    quality_reviewer_id: UUID | None,
+) -> tuple[str | None, str | None, datetime | None, UUID | None]:
+    if quality_state is None:
+        return None, None, None, None
+
+    now = datetime.now(UTC)
+    reviewer_id = quality_reviewer_id
+
+    if quality_state == DocumentQualityState.draft.value:
+        return "draft", "current", None, None
+    if quality_state == DocumentQualityState.verified.value:
+        return "verified", "trusted", now, actor_user_id
+    if quality_state == DocumentQualityState.reviewed.value:
+        return "current", "current", now, reviewer_id or actor_user_id
+    if quality_state == DocumentQualityState.unreviewed.value:
+        return "current", "needs_review", None, None
+    if quality_state == DocumentQualityState.stale.value:
+        return "stale", "stale", None, None
+    if quality_state == DocumentQualityState.expired.value:
+        return "expired", "expired", None, None
+    if quality_state == DocumentQualityState.deprecated.value:
+        return "deprecated", "archived", None, None
+    if quality_state == DocumentQualityState.archived.value:
+        return "deprecated", "archived", None, None
+    return None, None, None, None
 
 
 def _document_deletion_item(doc: Document) -> AdminDocumentDeletionItem:
@@ -521,91 +735,23 @@ async def update_document_trust_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found",
         )
-
-    superseded_by_uuid: UUID | None = None
-    if payload.superseded_by_document_id is not None:
-        try:
-            superseded_by_uuid = UUID(payload.superseded_by_document_id)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Invalid superseded_by_document_id format",
-            ) from exc
-        successor = await document_repository.get_document_by_id(
-            db_session, document_id=superseded_by_uuid
-        )
-        if successor is None or successor.organization_id != actor_organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="superseded_by_document_id refers to a document that does not exist",
-            )
-
-    review_owner_uuid = await _resolve_reviewer_id(
-        db_session,
-        organization_id=actor_organization_id,
-        reviewer_id=payload.review_owner_id,
-    )
-
-    now = datetime.now(UTC)
-    trusted_at = now if payload.trust_status == DocumentTrustStatus.verified.value else None
-    trusted_by_id = (
-        actor_user_id if payload.trust_status == DocumentTrustStatus.verified.value else None
-    )
-
-    updated = await document_repository.update_document_trust_status(
-        db_session,
-        document_id=doc_uuid,
-        trust_status=payload.trust_status,
-        review_status=payload.review_status,
-        review_owner_id=review_owner_uuid,
-        review_due_date=payload.review_due_date,
-        expiry_date=payload.expiry_date,
-        trust_level=payload.trust_level,
-        version_label=payload.version_label,
-        review_date=payload.review_date,
-        effective_date=payload.effective_date,
-        stale_after_days=payload.stale_after_days,
-        superseded_by_document_id=superseded_by_uuid,
-        trusted_at=trusted_at,
-        trusted_by_id=trusted_by_id,
-    )
-    if updated is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found",
-        )
-
-    await audit_log_service.record(
-        db_session,
-        organization_id=actor_organization_id,
-        user_id=actor_user_id,
-        action="document.trust_status.updated",
-        resource_type="document",
-        resource_id=doc_uuid,
+    updated = await _update_document_trust_status_for_payload(
+        db_session=db_session,
+        actor_user_id=actor_user_id,
+        actor_organization_id=actor_organization_id,
         request_id=request_id,
-        metadata={
-            "trust_status": payload.trust_status,
-            "review_status": payload.review_status,
-            "review_owner_id": payload.review_owner_id,
-            "review_due_date": payload.review_due_date.isoformat()
-            if payload.review_due_date
-            else None,
-            "expiry_date": payload.expiry_date.isoformat() if payload.expiry_date else None,
-            "trust_level": payload.trust_level,
-            "version_label": payload.version_label,
-            "review_date": payload.review_date.isoformat() if payload.review_date else None,
-            "effective_date": payload.effective_date.isoformat()
-            if payload.effective_date
-            else None,
-            "stale_after_days": payload.stale_after_days,
-            "superseded_by_document_id": payload.superseded_by_document_id,
-        },
+        document_id=doc_uuid,
+        payload=payload,
     )
     await db_session.commit()
 
     return AdminTrustStatusResponse(
         document_id=str(updated.id),
         trust_status=updated.trust_status,
+        quality_state=updated.quality_state,
+        quality_notes=updated.quality_notes,
+        quality_owner_id=str(updated.review_owner_id) if updated.review_owner_id else None,
+        quality_reviewer_id=str(updated.trusted_by_id) if updated.trusted_by_id else None,
         review_status=updated.review_status,
         review_owner_id=str(updated.review_owner_id) if updated.review_owner_id else None,
         review_due_date=updated.review_due_date,
@@ -620,6 +766,83 @@ async def update_document_trust_status(
         else None,
         trusted_at=updated.trusted_at,
         updated_at=updated.updated_at,
+    )
+
+
+@router.post(
+    "/bulk/trust-status",
+    response_model=BulkAdminTrustStatusResponse,
+)
+async def bulk_update_document_trust_status(
+    request: Request,
+    payload: BulkAdminTrustStatusRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BulkAdminTrustStatusResponse:
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+
+    updated = 0
+    skipped = 0
+    errors: list[str] = []
+    results: list[BulkAdminTrustStatusResult] = []
+
+    for document_id_text in payload.document_ids:
+        try:
+            document_uuid = UUID(document_id_text)
+        except ValueError:
+            skipped += 1
+            error = f"Invalid document_id format: {document_id_text}"
+            errors.append(error)
+            results.append(
+                BulkAdminTrustStatusResult(
+                    document_id=document_id_text,
+                    status="error",
+                    error=error,
+                )
+            )
+            continue
+
+        try:
+            await _update_document_trust_status_for_payload(
+                db_session=db_session,
+                actor_user_id=actor_user_id,
+                actor_organization_id=actor_organization_id,
+                request_id=request_id,
+                document_id=document_uuid,
+                payload=payload,
+            )
+            updated += 1
+            results.append(
+                BulkAdminTrustStatusResult(document_id=document_id_text, status="updated")
+            )
+        except HTTPException as exc:
+            skipped += 1
+            error = str(exc.detail)
+            errors.append(f"[{document_id_text}] {error}")
+            results.append(
+                BulkAdminTrustStatusResult(
+                    document_id=document_id_text,
+                    status="skipped",
+                    error=error,
+                )
+            )
+
+    await db_session.commit()
+    return BulkAdminTrustStatusResponse(
+        updated=updated,
+        skipped=skipped,
+        errors=errors,
+        results=results,
     )
 
 

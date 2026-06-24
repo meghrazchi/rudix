@@ -61,6 +61,17 @@ class DocumentTrustStatus(StrEnum):
     expired = "expired"
 
 
+class DocumentQualityState(StrEnum):
+    draft = "draft"
+    verified = "verified"
+    reviewed = "reviewed"
+    unreviewed = "unreviewed"
+    stale = "stale"
+    expired = "expired"
+    deprecated = "deprecated"
+    archived = "archived"
+
+
 class DocumentReviewStatus(StrEnum):
     current = "current"
     trusted = "trusted"

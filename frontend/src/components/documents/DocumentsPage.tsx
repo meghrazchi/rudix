@@ -24,6 +24,7 @@ import { OnboardingCtaBanner } from "@/components/onboarding/OnboardingCtaBanner
 import type {
   DocumentDetailResponse,
   DocumentFileType,
+  DocumentQualityState,
   DocumentListResponse,
   DocumentSortBy,
   DocumentStatus,
@@ -83,6 +84,7 @@ type FreshnessFilter =
   | "stale"
   | "expired"
   | "archived";
+type QualityFilter = "all" | DocumentQualityState;
 type IndexingStatusSummary = {
   total: number;
   uploaded: number;
@@ -126,6 +128,25 @@ function parseFreshnessFilter(value: string | null): FreshnessFilter {
   ];
   return supported.includes(value as FreshnessFilter)
     ? (value as FreshnessFilter)
+    : "all";
+}
+
+function parseQualityFilter(value: string | null): QualityFilter {
+  if (!value) {
+    return "all";
+  }
+  const supported: QualityFilter[] = [
+    "draft",
+    "verified",
+    "reviewed",
+    "unreviewed",
+    "stale",
+    "expired",
+    "deprecated",
+    "archived",
+  ];
+  return supported.includes(value as QualityFilter)
+    ? (value as QualityFilter)
     : "all";
 }
 
@@ -211,6 +232,34 @@ function freshnessBadge(status: FreshnessFilter | undefined): string {
   }
   if (status === "archived") {
     return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold tracking-wide text-slate-700 uppercase";
+  }
+  return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
+}
+
+function qualityBadge(status: DocumentQualityState | null | undefined): string {
+  if (status === "verified") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "reviewed") {
+    return "rounded-full bg-sky-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-sky-800";
+  }
+  if (status === "unreviewed") {
+    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+  }
+  if (status === "draft") {
+    return "rounded-full bg-violet-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-violet-800";
+  }
+  if (status === "stale") {
+    return "rounded-full bg-orange-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-orange-800";
+  }
+  if (status === "expired") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  }
+  if (status === "deprecated") {
+    return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
+  }
+  if (status === "archived") {
+    return "rounded-full bg-slate-300 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-800";
   }
   return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
@@ -366,6 +415,17 @@ export function DocumentsPage() {
     { value: "expired", label: "Expired" },
     { value: "archived", label: "Archived" },
   ];
+  const qualityFilterOptions: Array<{ value: QualityFilter; label: string }> = [
+    { value: "all", label: "All quality" },
+    { value: "draft", label: "Draft" },
+    { value: "verified", label: "Verified" },
+    { value: "reviewed", label: "Reviewed" },
+    { value: "unreviewed", label: "Unreviewed" },
+    { value: "stale", label: "Stale" },
+    { value: "expired", label: "Expired" },
+    { value: "deprecated", label: "Deprecated" },
+    { value: "archived", label: "Archived" },
+  ];
 
   const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
     { value: "created_at", label: tp("sortCreated") },
@@ -392,6 +452,9 @@ export function DocumentsPage() {
   );
   const [freshnessFilter, setFreshnessFilter] = useState<FreshnessFilter>(() =>
     parseFreshnessFilter(searchParams.get("freshness")),
+  );
+  const [qualityFilter, setQualityFilter] = useState<QualityFilter>(() =>
+    parseQualityFilter(searchParams.get("quality_state")),
   );
   const [sortBy, setSortBy] = useState<DocumentSortBy>(() =>
     parseSortBy(searchParams.get("sort_by")),
@@ -449,6 +512,7 @@ export function DocumentsPage() {
       offset,
       status: statusFilter === "all" ? undefined : statusFilter,
       freshness: freshnessFilter === "all" ? undefined : freshnessFilter,
+      quality_state: qualityFilter === "all" ? undefined : qualityFilter,
       file_type: fileTypeFilter === "all" ? undefined : fileTypeFilter,
       sort_by: sortBy,
       sort_order: sortOrder,
@@ -460,6 +524,7 @@ export function DocumentsPage() {
       sortOrder,
       statusFilter,
       freshnessFilter,
+      qualityFilter,
       fileTypeFilter,
       debouncedFilenameSearch,
     ],
@@ -686,6 +751,9 @@ export function DocumentsPage() {
     if (freshnessFilter !== "all") {
       params.set("freshness", freshnessFilter);
     }
+    if (qualityFilter !== "all") {
+      params.set("quality_state", qualityFilter);
+    }
     params.set("sort_by", sortBy);
     params.set("sort_order", sortOrder);
     if (offset > 0) {
@@ -693,7 +761,7 @@ export function DocumentsPage() {
     }
     const serialized = params.toString();
     return serialized ? `/documents?${serialized}` : "/documents";
-  }, [offset, sortBy, sortOrder, statusFilter, freshnessFilter]);
+  }, [offset, sortBy, sortOrder, statusFilter, freshnessFilter, qualityFilter]);
 
   async function fetchDocumentIdsForReindexAllStatus(
     status: DocumentStatus,
@@ -1525,6 +1593,23 @@ export function DocumentsPage() {
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              Quality
+              <select
+                value={qualityFilter}
+                onChange={(event) => {
+                  setOffset(0);
+                  setQualityFilter(event.target.value as QualityFilter);
+                }}
+                className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+              >
+                {qualityFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               {tp("sortLabel")}
               <select
                 value={sortBy}
@@ -1680,6 +1765,7 @@ export function DocumentsPage() {
                     <th className="px-4 py-3">{tp("tableType")}</th>
                     <th className="px-4 py-3">{tp("tableStatus")}</th>
                     <th className="px-4 py-3">Freshness</th>
+                    <th className="px-4 py-3">Quality</th>
                     <th className="px-4 py-3 text-center">
                       {tp("tablePages")}
                     </th>
@@ -1818,6 +1904,11 @@ export function DocumentsPage() {
                             className={freshnessBadge(document.review_status)}
                           >
                             {document.review_status ?? "current"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={qualityBadge(document.quality_state)}>
+                            {document.quality_state ?? "unreviewed"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center font-mono text-sm text-[#1b1b24]">

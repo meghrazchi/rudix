@@ -54,6 +54,10 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="documents_trust_status_allowed",
         ),
         CheckConstraint(
+            "quality_state IS NULL OR quality_state IN ('draft', 'verified', 'reviewed', 'unreviewed', 'stale', 'expired', 'deprecated', 'archived')",
+            name="documents_quality_state_allowed",
+        ),
+        CheckConstraint(
             "ocr_quality_status IS NULL OR ocr_quality_status IN ('high', 'medium', 'low', 'failed', 'not_required')",
             name="documents_ocr_quality_status_allowed",
         ),
@@ -71,6 +75,7 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_documents_uploaded_by", "uploaded_by_user_id"),
         Index("idx_documents_connector_external_item", "connector_external_item_id"),
         Index("idx_documents_org_trust_status", "organization_id", "trust_status"),
+        Index("idx_documents_org_quality_state", "organization_id", "quality_state"),
         Index("idx_documents_org_review_date", "organization_id", "review_date"),
     )
 
@@ -160,6 +165,8 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # review_owner_id / review_due_date: assignment for freshness review queues.
     # expiry_date: hard stop after which a source should be treated as expired.
     # trust_level: coarse trust tier used by dashboards and badge rendering.
+    # quality_state: explicit workflow state for the document quality review flow.
+    # quality_notes: short safe review note for operators and owners.
     trust_status: Mapped[str] = mapped_column(
         String(32),
         default=DocumentTrustStatus.current.value,
@@ -178,6 +185,8 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     review_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     trust_level: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    quality_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    quality_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     version_label: Mapped[str | None] = mapped_column(String(32), nullable=True)
     superseded_by_document_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),

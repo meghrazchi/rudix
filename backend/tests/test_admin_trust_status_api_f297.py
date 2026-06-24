@@ -221,6 +221,10 @@ def _make_response(trust_status: str = "current") -> AdminTrustStatusResponse:
     return AdminTrustStatusResponse(
         document_id=str(uuid4()),
         trust_status=trust_status,
+        quality_state="reviewed",
+        quality_notes=None,
+        quality_owner_id=None,
+        quality_reviewer_id=None,
         review_status="current",
         review_owner_id=None,
         review_due_date=None,
@@ -249,6 +253,10 @@ def test_response_includes_review_date() -> None:
     resp = AdminTrustStatusResponse(
         document_id=str(uuid4()),
         trust_status="stale",
+        quality_state="stale",
+        quality_notes="Needs follow-up",
+        quality_owner_id=None,
+        quality_reviewer_id=None,
         review_status="stale",
         review_owner_id=None,
         review_due_date=None,
@@ -265,6 +273,7 @@ def test_response_includes_review_date() -> None:
     data = resp.model_dump()
     assert data["review_date"] == date(2026, 3, 1)
     assert data["stale_after_days"] == 30
+    assert data["quality_state"] == "stale"
 
 
 @pytest.mark.asyncio
@@ -339,6 +348,51 @@ async def test_member_cannot_update_review_status(
     )
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_can_bulk_update_review_status(
+    admin_client: tuple[AsyncClient, UUID, UUID],
+    db_session: AsyncSession,
+) -> None:
+    client, org_id, user_id = admin_client
+    app.dependency_overrides[get_db_session] = lambda: db_session
+
+    doc_one = await _seed_document(
+        db_session,
+        organization_id=org_id,
+        uploaded_by_user_id=user_id,
+    )
+    doc_two = await _seed_document(
+        db_session,
+        organization_id=org_id,
+        uploaded_by_user_id=user_id,
+    )
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/v1/admin/documents/bulk/trust-status",
+        json={
+            "document_ids": [str(doc_one.id), str(doc_two.id), "not-a-uuid"],
+            "trust_status": "verified",
+            "quality_state": "verified",
+            "review_status": "current",
+            "trust_level": "gold",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["updated"] == 2
+    assert data["skipped"] == 1
+    assert len(data["results"]) == 3
+
+    refreshed_one = await document_repository.get_document_by_id(db_session, document_id=doc_one.id)
+    refreshed_two = await document_repository.get_document_by_id(db_session, document_id=doc_two.id)
+    assert refreshed_one is not None
+    assert refreshed_two is not None
+    assert refreshed_one.quality_state == "verified"
+    assert refreshed_two.trust_status == "verified"
 
 
 # ---------------------------------------------------------------------------

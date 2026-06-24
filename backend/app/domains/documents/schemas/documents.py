@@ -3,7 +3,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.enums import DocumentReviewStatus, DocumentStatus, DocumentTrustStatus
+from app.models.enums import (
+    DocumentQualityState,
+    DocumentReviewStatus,
+    DocumentStatus,
+    DocumentTrustStatus,
+)
 
 AllowedFileType = Literal["pdf", "txt", "docx"]
 
@@ -233,6 +238,9 @@ class DocumentListItemResponse(BaseModel):
     expiry_date: date | None = None
     trust_level: str | None = None
     trust_status: DocumentTrustStatus = DocumentTrustStatus.current
+    quality_state: DocumentQualityState | None = None
+    quality_notes: str | None = None
+    trusted_by_id: str | None = None
     version_label: str | None = None
     review_date: date | None = None
     created_at: datetime
@@ -246,6 +254,7 @@ class DocumentListResponse(BaseModel):
     offset: int
     status: DocumentStatus | None = None
     freshness: DocumentReviewStatus | None = None
+    quality_state: DocumentQualityState | None = None
     sort_by: DocumentSortBy
     sort_order: SortOrder
 
@@ -362,6 +371,9 @@ class DocumentDetailResponse(BaseModel):
     expiry_date: date | None = None
     trust_level: str | None = None
     trust_status: DocumentTrustStatus = DocumentTrustStatus.current
+    quality_state: DocumentQualityState | None = None
+    quality_notes: str | None = None
+    trusted_by_id: str | None = None
     version_label: str | None = None
     superseded_by_document_id: str | None = None
     review_date: date | None = None
@@ -440,6 +452,7 @@ class CitationPreviewResponse(BaseModel):
         | None
     ) = None
     doc_trust_status: str | None = None
+    doc_quality_state: str | None = None
     doc_review_status: str | None = None
     doc_review_owner_id: str | None = None
     doc_review_due_date: date | None = None
@@ -452,6 +465,7 @@ class CitationPreviewResponse(BaseModel):
     doc_is_excluded_status: bool = False
     doc_unreviewed_warning: bool = False
     doc_deprecated_warning: bool = False
+    doc_draft_warning: bool = False
     doc_ocr_quality_status: str | None = None
     doc_ocr_low_confidence_warning: bool = False
     request_id: str | None = None

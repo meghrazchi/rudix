@@ -50,6 +50,7 @@ class CitationTrustRecord(BaseModel):
     ) = None
     conflict_status: Literal["preferred", "conflicting", "neutral"] | None = None
     doc_trust_status: str | None = None
+    doc_quality_state: str | None = None
     doc_review_status: str | None = None
     doc_version_label: str | None = None
     doc_review_due_date: date | None = None
@@ -57,6 +58,7 @@ class CitationTrustRecord(BaseModel):
     doc_stale_warning: bool = False
     doc_expired_warning: bool = False
     doc_is_excluded_status: bool = False
+    doc_draft_warning: bool = False
     is_table_chunk: bool = False
     table_caption: str | None = None
     table_row_count: int | None = None
@@ -73,6 +75,7 @@ class CitationTrustRecord(BaseModel):
     doc_review_owner_id: str | None = None
     doc_unreviewed_warning: bool = False
     doc_deprecated_warning: bool = False
+    doc_draft_warning: bool = False
     # F315 — evidence quality: table extraction and document processing signals
     table_extraction_confidence: float | None = None
     table_low_confidence_warning: bool = False
@@ -258,6 +261,7 @@ class SourceFreshnessRecord(BaseModel):
     boosted_count: int = 0
     unreviewed_count: int = 0
     deprecated_count: int = 0
+    draft_count: int = 0
     all_excluded_fallback: bool = False
 
 
