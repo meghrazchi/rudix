@@ -320,15 +320,15 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
               Cancel
             </button>
           </div>
-          {commentSent && (
-            <p className="text-[11px] text-emerald-700">Comment posted.</p>
-          )}
           {commentError && (
             <p role="alert" className="text-[11px] text-rose-700">
               {commentError}
             </p>
           )}
         </div>
+      )}
+      {commentSent && (
+        <p className="text-[11px] text-emerald-700">Comment posted.</p>
       )}
     </div>
   );

@@ -37,6 +37,10 @@ vi.mock("@/lib/api/connector-sync", () => ({
   getSyncRun: (...args: unknown[]) => mockApi.getSyncRun(...args),
 }));
 
+vi.mock("@/lib/api/connectors", () => ({
+  getPermissionReview: vi.fn().mockResolvedValue({ is_confirmed: true }),
+}));
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const CONNECTION_ID = "conn-abc-123";

@@ -243,7 +243,7 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
         {jobs.length === 0 && !jobsQuery.isLoading && (
           <EmptyState
             compact
-            title="No sync schedules"
+            title="No sync schedules configured"
             description="Add a schedule to start syncing automatically."
           />
         )}

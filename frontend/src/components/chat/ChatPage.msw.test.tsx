@@ -180,7 +180,7 @@ function renderPage() {
 
 async function openAdditionalSettings() {
   await userEvent.click(
-    await screen.findByRole("button", { name: /Additional settings/i }),
+    await screen.findByRole("button", { name: /Advanced settings/i }),
   );
 }
 
@@ -319,10 +319,11 @@ describe("ChatPage sessions (MSW)", () => {
 
     renderPage();
 
-    await screen.findByRole("button", { name: /Context \([1-9]/i });
-    const textarea = screen.getByPlaceholderText(
+    // Wait until documents load so the textarea and submit button become enabled
+    const textarea = await screen.findByPlaceholderText(
       "Type a message or use '/' for commands...",
     );
+    await waitFor(() => expect(textarea).not.toBeDisabled());
     await userEvent.type(textarea, "Keep this draft");
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),

@@ -18,6 +18,8 @@ const mockApi = vi.hoisted(() => ({
   createAgentRun: vi.fn(),
   cancelAgentRun: vi.fn(),
   decideAgentRunApproval: vi.fn(),
+  listAgentApprovals: vi.fn(),
+  commentAgentRunApproval: vi.fn(),
 }));
 
 vi.mock("@/lib/api/agent", () => ({
@@ -27,6 +29,10 @@ vi.mock("@/lib/api/agent", () => ({
   cancelAgentRun: (...args: unknown[]) => mockApi.cancelAgentRun(...args),
   decideAgentRunApproval: (...args: unknown[]) =>
     mockApi.decideAgentRunApproval(...args),
+  listAgentApprovals: (...args: unknown[]) =>
+    mockApi.listAgentApprovals(...args),
+  commentAgentRunApproval: (...args: unknown[]) =>
+    mockApi.commentAgentRunApproval(...args),
 }));
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -120,7 +126,7 @@ function makeDetailResponse(
         tool_call_id: "tc-1",
         agent_step_id: "step-1",
         call_id: "call-abc",
-        tool_name: "search_documents",
+        tool_name: "fetch_document",
         surface: "api",
         effect_policy: "read_only",
         status: "completed",
@@ -158,6 +164,8 @@ function renderPage() {
 describe("AgentWorkspacePage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockApi.listAgentApprovals.mockResolvedValue({ items: [], total: 0 });
+    mockApi.commentAgentRunApproval.mockResolvedValue({});
   });
 
   describe("run list", () => {

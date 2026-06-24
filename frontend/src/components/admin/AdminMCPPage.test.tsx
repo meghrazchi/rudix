@@ -364,7 +364,7 @@ describe("AdminMCPPage", () => {
     mockApi.getMCPStatus.mockResolvedValue(makeStatus({ http_port: 9999 }));
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/9999/)).toBeTruthy();
+      expect(screen.getAllByText(/9999/).length).toBeGreaterThan(0);
     });
   });
 });

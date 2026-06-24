@@ -203,7 +203,7 @@ export function ConnectorConflictPanel({ connectionId }: Props) {
 
   const conflictsQuery = useQuery({
     queryKey: queryKeys.connectorConflicts(connectionId, filter),
-    queryFn: () => listSyncConflicts(connectionId, filter),
+    queryFn: () => listSyncConflicts(connectionId, filter, 50),
   });
 
   const conflicts = conflictsQuery.data?.items ?? [];

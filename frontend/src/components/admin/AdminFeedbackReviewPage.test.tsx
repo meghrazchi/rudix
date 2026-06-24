@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminFeedbackReviewPage } from "@/components/admin/AdminFeedbackReviewPage";
@@ -223,7 +223,7 @@ describe("AdminFeedbackReviewPage", () => {
     expect(await screen.findByText("Thumbs down")).toBeInTheDocument();
     // F303: category column shows bad citation
     expect(await screen.findByText("bad citation")).toBeInTheDocument();
-    expect(await screen.findByText(/new/i)).toBeInTheDocument();
+    expect(await screen.findByText("new")).toBeInTheDocument();
     // Question text is shown in the preview column
     expect(
       await screen.findByText(/What is the capital of France/),
@@ -271,14 +271,16 @@ describe("AdminFeedbackReviewPage", () => {
     const reviewBtn = await screen.findByRole("button", { name: "Review" });
     fireEvent.click(reviewBtn);
 
+    const panel = await screen.findByRole("dialog");
+
     // F303: category shown in detail panel
-    expect(await screen.findByText("Category")).toBeInTheDocument();
-    expect(await screen.findByText("bad citation")).toBeInTheDocument();
+    expect(within(panel).getByText("Category")).toBeInTheDocument();
+    expect(within(panel).getByText("bad citation")).toBeInTheDocument();
 
     // F303: captured question text shown
     expect(await screen.findByText("Captured question")).toBeInTheDocument();
     expect(
-      await screen.findByText("What is the capital of France?"),
+      within(panel).getByText("What is the capital of France?"),
     ).toBeInTheDocument();
 
     // F303: captured answer text shown

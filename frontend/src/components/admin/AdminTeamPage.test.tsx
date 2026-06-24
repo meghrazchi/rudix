@@ -78,7 +78,11 @@ vi.mock("@/lib/api/team-invitations", async (importOriginal) => {
 
 // ── Mock forbidden helper ──────────────────────────────────────────────────
 
-vi.mock("@/lib/forbidden", () => ({ isForbiddenError: () => false }));
+vi.mock("@/lib/forbidden", () => ({
+  isForbiddenError: () => false,
+  getSupportAction: vi.fn().mockReturnValue(null),
+  sanitizeRequestId: vi.fn().mockReturnValue(null),
+}));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -353,6 +357,7 @@ describe("AdminTeamPage", () => {
     await waitFor(() => {
       expect(mockTeamApi.inviteTeamMember).toHaveBeenCalledWith(
         expect.objectContaining({ email: "new@example.com" }),
+        expect.anything(),
       );
     });
   });

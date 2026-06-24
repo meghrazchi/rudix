@@ -158,6 +158,7 @@ function InviteDialog({
         </div>
         <form
           onSubmit={form.handleSubmit(handleSubmit)}
+          noValidate
           className="space-y-4 p-6"
         >
           <div>

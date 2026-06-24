@@ -388,7 +388,7 @@ describe("EvaluationsPage redesign", () => {
     expect(
       await screen.findByRole("heading", { name: "Recent Runs" }),
     ).toBeInTheDocument();
-    expect(await screen.findByText("Run detail")).toBeInTheDocument();
+    expect((await screen.findAllByText("Run detail")).length).toBeGreaterThan(0);
     expect(screen.getByText("Case results")).toBeInTheDocument();
     expect(screen.getByText("Baseline vs latest")).toBeInTheDocument();
     expect(
