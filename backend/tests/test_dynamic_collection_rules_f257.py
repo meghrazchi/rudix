@@ -238,6 +238,13 @@ async def test_validate_in_operator_requires_list():
 
 @pytest_asyncio.fixture
 async def db_session():
+    import socket
+
+    try:
+        socket.create_connection(("localhost", 5432), timeout=1).close()
+    except OSError:
+        pytest.skip("PostgreSQL not available at localhost:5432")
+
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     from app.core.config import settings

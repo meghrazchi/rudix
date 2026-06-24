@@ -79,7 +79,21 @@ from app.domains.chat.services.graph_retrieval_service import GraphRetrievalServ
 from app.main import app
 from app.models.permissions import ROLE_PERMISSIONS, PermissionType
 
-pytestmark = pytest.mark.governance
+import socket as _socket
+
+
+def _redis_reachable() -> bool:
+    try:
+        _socket.create_connection(("localhost", 6379), timeout=1).close()
+        return True
+    except OSError:
+        return False
+
+
+pytestmark = [
+    pytest.mark.governance,
+    pytest.mark.skipif(not _redis_reachable(), reason="Redis not available at localhost:6379"),
+]
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

@@ -328,7 +328,7 @@ async def test_reindex_with_ocr_languages_stores_override(
     admin_client, db_session: AsyncSession, monkeypatch
 ) -> None:
     """Reindex with ocr_languages should update ocr_languages_override on the document."""
-    import app.workers.document_tasks as worker_module
+    import app.interfaces.http.documents as doc_http
 
     client, org_id, user_id = admin_client
     doc = await _create_doc(db_session, org_id=org_id, user_id=user_id)
@@ -341,7 +341,7 @@ async def test_reindex_with_ocr_languages_stores_override(
             FakeTask.called_with.append((args, kwargs))
             return type("FakeResult", (), {"id": "fake-task-id"})()
 
-    monkeypatch.setattr(worker_module, "reindex_document", FakeTask())
+    monkeypatch.setattr(doc_http, "reindex_document_task", FakeTask())
 
     response = await client.post(
         f"/api/v1/documents/{doc.id}/reindex",

@@ -434,7 +434,7 @@ async def test_get_page_ocr_confidence_map(db_session: AsyncSession) -> None:
 async def test_admin_can_retry_ocr_for_low_quality_document(
     admin_client, db_session: AsyncSession, monkeypatch
 ) -> None:
-    import app.workers.document_tasks as worker_module
+    import app.interfaces.http.admin_documents as admin_doc_http
 
     client, org_id, user_id = admin_client
     doc = await _create_doc(
@@ -452,7 +452,7 @@ async def test_admin_can_retry_ocr_for_low_quality_document(
             FakeTask.called.append(kwargs)
             return type("FakeResult", (), {"id": "fake-task-id"})()
 
-    monkeypatch.setattr(worker_module, "reindex_document", FakeTask())
+    monkeypatch.setattr(admin_doc_http, "reindex_document_task", FakeTask())
 
     response = await client.post(f"/api/v1/admin/documents/{doc.id}/ocr-retry")
 
@@ -467,7 +467,7 @@ async def test_admin_can_retry_ocr_for_low_quality_document(
 async def test_admin_can_retry_ocr_for_failed_document(
     admin_client, db_session: AsyncSession, monkeypatch
 ) -> None:
-    import app.workers.document_tasks as worker_module
+    import app.interfaces.http.admin_documents as admin_doc_http
 
     client, org_id, user_id = admin_client
     doc = await _create_doc(
@@ -481,7 +481,7 @@ async def test_admin_can_retry_ocr_for_failed_document(
         def delay(self, *args, **kwargs):
             return type("FakeResult", (), {"id": "fake-task-id"})()
 
-    monkeypatch.setattr(worker_module, "reindex_document", FakeTask())
+    monkeypatch.setattr(admin_doc_http, "reindex_document_task", FakeTask())
 
     response = await client.post(f"/api/v1/admin/documents/{doc.id}/ocr-retry")
     assert response.status_code == 202

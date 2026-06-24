@@ -75,6 +75,9 @@ markers = [
   "isolation: RAG and vector isolation regression tests (F144 — release blocker for v0.4.0)",
   "guardrails: Prompt injection and citation validation guardrail tests (F145 — release blocker for v0.4.0)",
   "connector_contract: Connector provider adapter contract tests (F241)",
+  "governance: Graph governance RBAC, audit, and tenant isolation tests (F290)",
+  "requires_postgres: Tests requiring a live PostgreSQL instance at localhost:5432",
+  "requires_redis: Tests requiring a live Redis instance at localhost:6379",
 ]
 
 [tool.mypy]
