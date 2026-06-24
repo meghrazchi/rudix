@@ -251,6 +251,9 @@ class SourceFreshnessService:
             or "current"
         ).strip().lower()
         if status in {"reviewed", "verified", "trusted"}:
+            _today_trusted = today or date.today()
+            if trust_data.review_date is not None and trust_data.review_date < _today_trusted:
+                return "stale"
             return status
         if status in ("archived", "deprecated", "superseded", "expired", "stale"):
             return status

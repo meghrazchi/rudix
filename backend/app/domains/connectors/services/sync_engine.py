@@ -627,6 +627,9 @@ class ConnectorSyncEngine:
         except ConnectorAuthError as exc:
             # For OAuth connections: attempt a token refresh + one retry before giving up.
             # This handles expired tokens regardless of whether expires_at is set in the DB.
+            if credential is None:
+                await self._mark_connection_error(session, connection, str(exc))
+                return await self._fail_run(session, run, str(exc), error_code="auth_error")
             retry_result = await self._refresh_and_retry(
                 session,
                 run=run,

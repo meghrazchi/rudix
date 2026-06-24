@@ -5184,6 +5184,7 @@ async def _run_ws_chat_pipeline(
             freshness_stale_count = 0
             freshness_unreviewed_count = 0
             freshness_deprecated_count = 0
+            freshness_draft_count = 0
             freshness_all_excluded_fallback = False
             parent_context_expanded_count = 0
             conflict_detection_enabled = False
@@ -5714,6 +5715,7 @@ async def _run_ws_chat_pipeline(
                     freshness_stale_count=freshness_stale_count,
                     freshness_unreviewed_count=freshness_unreviewed_count,
                     freshness_deprecated_count=freshness_deprecated_count,
+                    freshness_draft_count=freshness_draft_count,
                     freshness_all_excluded_fallback=freshness_all_excluded_fallback,
                     grounded_verifier_result=grounded_verifier_result,
                     llm_model=llm_model,

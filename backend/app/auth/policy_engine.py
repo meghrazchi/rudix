@@ -466,10 +466,10 @@ class PolicyEngine:
 
         effective_permissions = subject.resolved_permissions
         if not effective_permissions:
-            combined: set[str] = set()
+            combined_eff: set[str] = set()
             for role in subject.roles:
-                combined.update(ROLE_PERMISSIONS.get(role, frozenset()))
-            effective_permissions = frozenset(combined)
+                combined_eff.update(ROLE_PERMISSIONS.get(role, frozenset()))
+            effective_permissions = frozenset(combined_eff)
 
         # ── Rule 8: Collection allow ─────────────────────────────────────────
         rule = "collection_allow"
