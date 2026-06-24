@@ -3717,6 +3717,28 @@
               }
             ],
             "title": "Text Snippet"
+          },
+          "start_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Offset"
+          },
+          "end_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Offset"
           }
         },
         "type": "object",
@@ -3869,6 +3891,47 @@
               }
             ],
             "title": "Llm Model"
+          },
+          "detected_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detected Language"
+          },
+          "answer_language_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Language Used"
+          },
+          "graph_context_used": {
+            "type": "boolean",
+            "title": "Graph Context Used"
+          },
+          "graph_context_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graph Context Reason"
+          },
+          "graph_chunk_count": {
+            "type": "integer",
+            "title": "Graph Chunk Count"
           }
         },
         "type": "object",
@@ -3987,6 +4050,28 @@
             "type": "boolean",
             "title": "Rerank",
             "default": true
+          },
+          "scope_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Mode"
+          },
+          "answer_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Language"
           }
         },
         "type": "object",
@@ -4039,6 +4124,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "citation_validation_failed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Citation Validation Failed"
           }
         },
         "type": "object",
@@ -4397,8 +4493,19 @@
           },
           "status": {
             "type": "string",
-            "enum": ["deleting", "deleted"],
+            "enum": ["deleting", "deleted", "retained_by_policy"],
             "title": "Status"
+          },
+          "hold_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold Reason"
           }
         },
         "type": "object",
@@ -4587,6 +4694,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "ocr_quality_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Quality Status"
           }
         },
         "type": "object",
@@ -4870,7 +4988,11 @@
           "indexed",
           "failed",
           "deleting",
-          "deleted"
+          "deleted",
+          "quarantined",
+          "blocked",
+          "delete_requested",
+          "retained_by_policy"
         ],
         "title": "DocumentStatus"
       },
@@ -6851,6 +6973,192 @@
         "type": "object",
         "required": ["loc", "msg", "type"],
         "title": "ValidationError"
+      },
+      "ChatConflictPairResponse": {
+        "properties": {
+          "document_id_a": {
+            "type": "string",
+            "title": "Document Id A"
+          },
+          "document_id_b": {
+            "type": "string",
+            "title": "Document Id B"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+            "title": "Severity"
+          },
+          "conflict_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict Summary"
+          }
+        },
+        "type": "object",
+        "required": ["document_id_a", "document_id_b", "topic", "severity"],
+        "title": "ChatConflictPairResponse"
+      },
+      "NotificationResponse": {
+        "properties": {
+          "notification_id": {
+            "type": "string",
+            "title": "Notification Id"
+          },
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "upload_indexed",
+              "upload_failed",
+              "evaluation_complete",
+              "evaluation_failed",
+              "invite_received",
+              "security_warning",
+              "quota_warning",
+              "connector_sync_issue",
+              "generic"
+            ],
+            "title": "Event Type"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["info", "warning", "error"],
+            "title": "Severity"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Href"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "is_read": {
+            "type": "boolean",
+            "title": "Is Read"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "notification_id",
+          "event_type",
+          "severity",
+          "title",
+          "is_read",
+          "created_at"
+        ],
+        "title": "NotificationResponse"
+      },
+      "NotificationListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          }
+        },
+        "type": "object",
+        "required": ["items", "total", "limit", "offset", "unread_count"],
+        "title": "NotificationListResponse"
+      },
+      "MarkReadResponse": {
+        "properties": {
+          "notification_id": {
+            "type": "string",
+            "title": "Notification Id"
+          },
+          "is_read": {
+            "type": "boolean",
+            "title": "Is Read"
+          }
+        },
+        "type": "object",
+        "required": ["notification_id", "is_read"],
+        "title": "MarkReadResponse"
+      },
+      "MarkAllReadResponse": {
+        "properties": {
+          "marked_count": {
+            "type": "integer",
+            "title": "Marked Count"
+          }
+        },
+        "type": "object",
+        "required": ["marked_count"],
+        "title": "MarkAllReadResponse"
+      },
+      "UnreadCountResponse": {
+        "properties": {
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          }
+        },
+        "type": "object",
+        "required": ["unread_count"],
+        "title": "UnreadCountResponse"
       }
     }
   }

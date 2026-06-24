@@ -320,6 +320,7 @@ export type DocumentDetailResponse = Omit<
   trusted_at?: string | null;
   stale_after_days?: number | null;
   superseded_by_document_id?: string | null;
+  ocr_quality_status?: string | null;
 };
 
 export type OcrPageQuality = {
