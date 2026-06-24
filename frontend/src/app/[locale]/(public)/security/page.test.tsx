@@ -1,9 +1,21 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import SecurityPage, { generateMetadata } from "./page";
 
+const originalEnv = { ...process.env };
+
 describe("Security public page", () => {
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    delete process.env.NEXT_PUBLIC_PUBLIC_DOCS_URL;
+    delete process.env.NEXT_PUBLIC_HELP_DOCS_URL;
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
   it("renders security and trust sections with route CTAs", () => {
     render(<SecurityPage />);
 

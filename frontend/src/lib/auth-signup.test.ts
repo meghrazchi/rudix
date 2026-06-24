@@ -11,6 +11,7 @@ describe("startSignupSession", () => {
     delete process.env.NEXT_PUBLIC_AUTH_SIGNUP_URL;
     delete process.env.NEXT_PUBLIC_AUTH_INVITE_ONLY;
     delete process.env.NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD;
+    delete process.env.NEXT_PUBLIC_AUTH_LOCAL_PASSWORD;
     process.env.NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK = "true";
     process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK = "true";
   });

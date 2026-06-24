@@ -178,7 +178,7 @@ describe("SignupPage", () => {
         role: "member",
         organizationId: null,
         organizationName: null,
-        accessToken: "token-2",
+        accessToken: null,
       },
     };
 
