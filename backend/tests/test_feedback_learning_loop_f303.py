@@ -249,10 +249,12 @@ async def test_all_feedback_categories_accepted(
     categories = [
         "wrong_answer",
         "bad_citation",
+        "missing_source",
         "outdated_source",
-        "missing_information",
-        "low_confidence",
-        "unsafe_response",
+        "hallucination_risk",
+        "conflict_not_detected",
+        "unclear_answer",
+        "should_have_said_not_found",
     ]
 
     for cat in categories:
@@ -327,7 +329,7 @@ async def test_convert_review_to_eval_case_creates_question(
 
 
 @pytest.mark.asyncio
-async def test_convert_review_sets_status_to_eval_created(
+async def test_convert_review_sets_status_to_converted_to_evaluation(
     f303_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
@@ -360,7 +362,7 @@ async def test_convert_review_sets_status_to_eval_created(
     )
     assert get_resp.status_code == 200
     item = get_resp.json()
-    assert item["status"] == "eval_created"
+    assert item["status"] == "converted_to_evaluation"
     assert item["linked_eval_question_id"] is not None
     assert item["resolved_at"] is not None
 

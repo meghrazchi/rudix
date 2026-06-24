@@ -238,7 +238,11 @@ class FeedbackReason(StrEnum):
 class FeedbackCategory(StrEnum):
     wrong_answer = "wrong_answer"
     bad_citation = "bad_citation"
+    missing_source = "missing_source"
     outdated_source = "outdated_source"
+    hallucination_risk = "hallucination_risk"
+    conflict_not_detected = "conflict_not_detected"
+    unclear_answer = "unclear_answer"
     missing_information = "missing_information"
     low_confidence = "low_confidence"
     unsafe_response = "unsafe_response"
@@ -270,12 +274,16 @@ class NotificationSeverity(StrEnum):
 class FeedbackReviewStatus(StrEnum):
     new = "new"
     triaged = "triaged"
-    needs_document = "needs_document"
-    # F316 — reviewer has accepted the item for investigation (between triaged and fixed)
     accepted = "accepted"
+    rejected = "rejected"
+    needs_document_update = "needs_document_update"
+    needs_prompt_retrieval_fix = "needs_prompt_retrieval_fix"
+    converted_to_evaluation = "converted_to_evaluation"
+    resolved = "resolved"
+    # Legacy statuses retained for backward compatibility.
+    needs_document = "needs_document"
     eval_created = "eval_created"
     fixed = "fixed"
-    rejected = "rejected"
     duplicate = "duplicate"
 
 

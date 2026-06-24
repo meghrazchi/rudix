@@ -270,7 +270,7 @@ async def test_list_review_items_with_filter(
     assert r_filtered.status_code == 200
     assert r_filtered.json()["total"] == 1
 
-    r_none = await review_client.get("/api/v1/feedback-review?status=fixed", headers=headers)
+    r_none = await review_client.get("/api/v1/feedback-review?status=resolved", headers=headers)
     assert r_none.status_code == 200
     assert r_none.json()["total"] == 0
 
@@ -303,7 +303,7 @@ async def test_update_review_status_transition(
     )
     assert update_resp.status_code == 200
     payload = update_resp.json()
-    assert payload["status"] == "fixed"
+    assert payload["status"] == "resolved"
     assert payload["reviewer_notes"] == "Uploaded corrected document."
     assert payload["resolved_at"] is not None
 
@@ -411,6 +411,25 @@ async def test_list_requires_admin_role(
         headers=_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_reviewer_role_can_access_queue(
+    review_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_admin(db_session, role=OrganizationRole.reviewer)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+
+    response = await review_client.get(
+        "/api/v1/feedback-review",
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert response.status_code == 200
 
 
 @pytest.mark.asyncio

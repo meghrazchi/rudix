@@ -29,8 +29,9 @@ import {
   type FeedbackSeverity,
   type UpdateReviewItemPayload,
 } from "@/lib/api/feedback-review";
+import type { FeedbackCategory } from "@/lib/api/feedback";
 import { queryKeys } from "@/lib/api/query";
-import { canViewAdminUsage } from "@/lib/dashboard";
+import { canViewFeedbackReview } from "@/lib/dashboard";
 import { isForbiddenError, extractRequestIdFromError } from "@/lib/forbidden";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
@@ -39,6 +40,12 @@ const PAGE_LIMIT = 20;
 
 type AppliedFilters = {
   status: FeedbackReviewStatus | null;
+  category: FeedbackCategory | null;
+  workspaceId: string | null;
+  documentId: string | null;
+  modelName: string | null;
+  confidenceMin: string | null;
+  confidenceMax: string | null;
   severity: FeedbackSeverity | null;
   rating: "up" | "down" | null;
   reason: string | null;
@@ -46,6 +53,12 @@ type AppliedFilters = {
 
 const DEFAULT_FILTERS: AppliedFilters = {
   status: null,
+  category: null,
+  workspaceId: null,
+  documentId: null,
+  modelName: null,
+  confidenceMin: null,
+  confidenceMax: null,
   severity: null,
   rating: null,
   reason: null,
@@ -59,14 +72,20 @@ function formatTimestamp(value: string): string {
 
 function statusPillClass(s: FeedbackReviewStatus): string {
   switch (s) {
+    case "resolved":
     case "fixed":
+      return "bg-emerald-100 text-emerald-800";
+    case "converted_to_evaluation":
+    case "eval_created":
       return "bg-emerald-100 text-emerald-800";
     case "rejected":
     case "duplicate":
       return "bg-slate-200 text-slate-700";
-    case "eval_created":
+    case "accepted":
       return "bg-violet-100 text-violet-800";
+    case "needs_document_update":
     case "needs_document":
+    case "needs_prompt_retrieval_fix":
       return "bg-amber-100 text-amber-800";
     case "triaged":
       return "bg-blue-100 text-blue-800";
@@ -95,6 +114,13 @@ function trimToNull(value: string | null | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseNullableNumber(value: string | null | undefined): number | null {
+  const trimmed = trimToNull(value);
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function triggerCsvDownload(url: string): void {
@@ -271,6 +297,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
       item.severity,
     );
     const [notesInput, setNotesInput] = useState(item.reviewer_notes ?? "");
+    const [reviewerInput, setReviewerInput] = useState(item.reviewer_id ?? "");
     const [evalQuestionId, setEvalQuestionId] = useState(
       item.linked_eval_question_id ?? "",
     );
@@ -283,6 +310,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
         status: statusInput,
         severity: severityInput,
         reviewer_notes: trimToNull(notesInput),
+        reviewer_id: trimToNull(reviewerInput),
         linked_eval_question_id: trimToNull(evalQuestionId),
         linked_document_id: trimToNull(linkedDocId),
       });
@@ -368,6 +396,56 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
                   </dt>
                   <dd className="font-mono text-xs text-[#464555]">
                     {item.feedback.model_name}
+                  </dd>
+                </div>
+              ) : null}
+              {item.feedback.llm_provider ? (
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Provider
+                  </dt>
+                  <dd className="font-mono text-xs text-[#464555]">
+                    {item.feedback.llm_provider}
+                  </dd>
+                </div>
+              ) : null}
+              {item.feedback.confidence_score != null ? (
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Confidence
+                  </dt>
+                  <dd className="text-[#302f39]">
+                    {(item.feedback.confidence_score * 100).toFixed(1)}%
+                  </dd>
+                </div>
+              ) : null}
+              {item.feedback.citations ? (
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Citations
+                  </dt>
+                  <dd className="text-[#302f39]">
+                    {item.feedback.citations.length} captured
+                  </dd>
+                </div>
+              ) : null}
+              {item.feedback.trace_id ? (
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Trace
+                  </dt>
+                  <dd className="font-mono text-xs text-[#464555]">
+                    {item.feedback.trace_id}
+                  </dd>
+                </div>
+              ) : null}
+              {item.feedback.trust_metadata ? (
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Trust
+                  </dt>
+                  <dd className="text-[#302f39]">
+                    {Object.keys(item.feedback.trust_metadata).length} fields
                   </dd>
                 </div>
               ) : null}
@@ -474,9 +552,17 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
             >
               <option value="new">New</option>
               <option value="triaged">Triaged</option>
-              <option value="needs_document">Needs document</option>
-              <option value="eval_created">Eval created</option>
-              <option value="fixed">Fixed</option>
+              <option value="accepted">Accepted</option>
+              <option value="needs_document_update">
+                Needs document update
+              </option>
+              <option value="needs_prompt_retrieval_fix">
+                Needs prompt/retrieval fix
+              </option>
+              <option value="converted_to_evaluation">
+                Converted to evaluation
+              </option>
+              <option value="resolved">Resolved</option>
               <option value="rejected">Rejected</option>
               <option value="duplicate">Duplicate</option>
             </select>
@@ -509,6 +595,18 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               rows={3}
               maxLength={4000}
               className="w-full resize-none rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Assignee reviewer ID
+            </span>
+            <input
+              value={reviewerInput}
+              onChange={(e) => setReviewerInput(e.target.value)}
+              placeholder="UUID (optional)"
+              className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             />
           </label>
 
@@ -570,10 +668,16 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
 export function AdminFeedbackReviewPage() {
   const { state } = useAuthSession();
   const role = state.session?.role;
-  const isAdminUser = canViewAdminUsage(role);
+  const isAdminUser = canViewFeedbackReview(role);
   const queryClient = useQueryClient();
 
   const [statusInput, setStatusInput] = useState<FeedbackReviewStatus | "">("");
+  const [categoryInput, setCategoryInput] = useState("");
+  const [workspaceInput, setWorkspaceInput] = useState("");
+  const [documentInput, setDocumentInput] = useState("");
+  const [modelInput, setModelInput] = useState("");
+  const [confidenceMinInput, setConfidenceMinInput] = useState("");
+  const [confidenceMaxInput, setConfidenceMaxInput] = useState("");
   const [severityInput, setSeverityInput] = useState<FeedbackSeverity | "">("");
   const [ratingInput, setRatingInput] = useState<"up" | "down" | "">("");
   const [reasonInput, setReasonInput] = useState("");
@@ -598,6 +702,14 @@ export function AdminFeedbackReviewPage() {
   const queryParams = useMemo(
     (): FeedbackReviewListParams => ({
       status: appliedFilters.status ?? undefined,
+      category: appliedFilters.category ?? undefined,
+      workspace_id: appliedFilters.workspaceId ?? undefined,
+      document_id: appliedFilters.documentId ?? undefined,
+      model_name: appliedFilters.modelName ?? undefined,
+      confidence_min:
+        parseNullableNumber(appliedFilters.confidenceMin) ?? undefined,
+      confidence_max:
+        parseNullableNumber(appliedFilters.confidenceMax) ?? undefined,
       severity: appliedFilters.severity ?? undefined,
       rating: appliedFilters.rating ?? undefined,
       reason: appliedFilters.reason ?? undefined,
@@ -682,21 +794,32 @@ export function AdminFeedbackReviewPage() {
   const hasNextPage = offset + PAGE_LIMIT < pageTotal;
 
   const openCount = rows.filter(
-    (r) => r.status === "new" || r.status === "triaged",
+    (r) =>
+      r.status === "new" || r.status === "triaged" || r.status === "accepted",
   ).length;
   const highSeverityCount = rows.filter((r) => r.severity === "high").length;
   const resolvedCount = rows.filter(
     (r) =>
+      r.status === "resolved" ||
       r.status === "fixed" ||
+      r.status === "converted_to_evaluation" ||
+      r.status === "eval_created" ||
       r.status === "rejected" ||
       r.status === "duplicate",
   ).length;
 
   function applyFilters(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const category = trimToNull(categoryInput) as FeedbackCategory | null;
     setOffset(0);
     setAppliedFilters({
       status: (statusInput as FeedbackReviewStatus) || null,
+      category,
+      workspaceId: trimToNull(workspaceInput),
+      documentId: trimToNull(documentInput),
+      modelName: trimToNull(modelInput),
+      confidenceMin: trimToNull(confidenceMinInput),
+      confidenceMax: trimToNull(confidenceMaxInput),
       severity: (severityInput as FeedbackSeverity) || null,
       rating: (ratingInput as "up" | "down") || null,
       reason: trimToNull(reasonInput),
@@ -705,6 +828,12 @@ export function AdminFeedbackReviewPage() {
 
   function clearFilters() {
     setStatusInput("");
+    setCategoryInput("");
+    setWorkspaceInput("");
+    setDocumentInput("");
+    setModelInput("");
+    setConfidenceMinInput("");
+    setConfidenceMaxInput("");
     setSeverityInput("");
     setRatingInput("");
     setReasonInput("");
@@ -714,6 +843,14 @@ export function AdminFeedbackReviewPage() {
 
   const exportUrl = buildFeedbackReviewExportUrl({
     status: appliedFilters.status,
+    category: appliedFilters.category ?? undefined,
+    workspace_id: appliedFilters.workspaceId ?? undefined,
+    document_id: appliedFilters.documentId ?? undefined,
+    model_name: appliedFilters.modelName ?? undefined,
+    confidence_min:
+      parseNullableNumber(appliedFilters.confidenceMin) ?? undefined,
+    confidence_max:
+      parseNullableNumber(appliedFilters.confidenceMax) ?? undefined,
     severity: appliedFilters.severity,
     rating: appliedFilters.rating,
     reason: appliedFilters.reason,
@@ -791,12 +928,94 @@ export function AdminFeedbackReviewPage() {
               <option value="">All statuses</option>
               <option value="new">New</option>
               <option value="triaged">Triaged</option>
-              <option value="needs_document">Needs document</option>
-              <option value="eval_created">Eval created</option>
-              <option value="fixed">Fixed</option>
+              <option value="accepted">Accepted</option>
+              <option value="needs_document_update">
+                Needs document update
+              </option>
+              <option value="needs_prompt_retrieval_fix">
+                Needs prompt/retrieval fix
+              </option>
+              <option value="converted_to_evaluation">
+                Converted to evaluation
+              </option>
+              <option value="resolved">Resolved</option>
               <option value="rejected">Rejected</option>
               <option value="duplicate">Duplicate</option>
             </select>
+          </label>
+
+          <label className="w-[180px] space-y-1">
+            <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Category
+            </span>
+            <input
+              value={categoryInput}
+              onChange={(e) => setCategoryInput(e.target.value)}
+              placeholder="e.g. wrong_answer"
+              className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <label className="w-[220px] space-y-1">
+            <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Workspace ID
+            </span>
+            <input
+              value={workspaceInput}
+              onChange={(e) => setWorkspaceInput(e.target.value)}
+              placeholder="Current workspace"
+              className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <label className="w-[220px] space-y-1">
+            <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Document ID
+            </span>
+            <input
+              value={documentInput}
+              onChange={(e) => setDocumentInput(e.target.value)}
+              placeholder="Document UUID"
+              className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <label className="w-[180px] space-y-1">
+            <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Model
+            </span>
+            <input
+              value={modelInput}
+              onChange={(e) => setModelInput(e.target.value)}
+              placeholder="gpt-4o"
+              className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <label className="w-[120px] space-y-1">
+            <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Min confidence
+            </span>
+            <input
+              value={confidenceMinInput}
+              onChange={(e) => setConfidenceMinInput(e.target.value)}
+              placeholder="0.0"
+              inputMode="decimal"
+              className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <label className="w-[120px] space-y-1">
+            <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Max confidence
+            </span>
+            <input
+              value={confidenceMaxInput}
+              onChange={(e) => setConfidenceMaxInput(e.target.value)}
+              placeholder="1.0"
+              inputMode="decimal"
+              className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            />
           </label>
 
           <label className="w-[150px] space-y-1">

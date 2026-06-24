@@ -58,26 +58,32 @@ const TRUST_PANEL_CATEGORIES: {
     warningKeywords: [],
   },
   {
-    value: "stale_source",
-    label: "Stale source",
-    description: "The cited source is outdated or no longer accurate",
-    warningKeywords: [
-      "stale",
-      "expired",
-      "outdated",
-      "deprecated",
-      "unreviewed",
-    ],
+    value: "missing_source",
+    label: "Missing source",
+    description: "The answer should have used a source that is absent",
+    warningKeywords: ["missing source", "missing document"],
   },
   {
-    value: "conflicting_source",
-    label: "Conflicting source",
-    description: "Cited sources disagree with each other",
+    value: "outdated_source",
+    label: "Outdated source",
+    description: "The cited source is outdated or no longer accurate",
+    warningKeywords: ["stale", "expired", "outdated", "deprecated"],
+  },
+  {
+    value: "hallucination_risk",
+    label: "Hallucination risk",
+    description: "The answer may be unsupported or fabricated",
+    warningKeywords: ["hallucin", "unsupported", "unsupported claim"],
+  },
+  {
+    value: "conflict_not_detected",
+    label: "Conflict not detected",
+    description: "The model missed a conflict between sources",
     warningKeywords: ["conflict", "disagree"],
   },
   {
-    value: "not_enough_detail",
-    label: "Not enough detail",
+    value: "unclear_answer",
+    label: "Unclear answer",
     description: "The answer is too vague or incomplete",
     warningKeywords: ["low confidence", "weak"],
   },
@@ -85,8 +91,8 @@ const TRUST_PANEL_CATEGORIES: {
     value: "should_have_said_not_found",
     label: "Should have said not found",
     description:
-      "No relevant information exists — the model should have said so",
-    warningKeywords: ["not_found", "no context"],
+      "No relevant information exists - the model should have said so",
+    warningKeywords: ["not_found", "no context", "should have said not found"],
   },
 ];
 

@@ -4669,6 +4669,7 @@ async def get_shared_session(
 
 
 def _to_feedback_response(fb: "MessageFeedback") -> MessageFeedbackResponse:  # type: ignore[name-defined]  # noqa: F821
+    from app.domains.feedback_review.schemas.review import normalize_feedback_category
     from app.models.message_feedback import MessageFeedback as _MessageFeedback  # noqa: F401
 
     return MessageFeedbackResponse(
@@ -4678,16 +4679,22 @@ def _to_feedback_response(fb: "MessageFeedback") -> MessageFeedbackResponse:  # 
         rating=fb.rating,  # type: ignore[arg-type]
         reason=fb.reason,  # type: ignore[arg-type]
         comment=fb.comment,
-        category=fb.category,  # type: ignore[arg-type]
+        category=normalize_feedback_category(fb.category),  # type: ignore[arg-type]
         question_text=fb.question_text,
         answer_text=fb.answer_text,
         model_name=fb.model_name,
+        llm_provider=(
+            fb.trust_metadata_json.get("llm_provider")
+            if isinstance(fb.trust_metadata_json, dict)
+            else None
+        ),
         rag_profile_id=str(fb.rag_profile_id) if fb.rag_profile_id else None,
         retain_until=fb.retain_until,
         redacted_at=fb.redacted_at,
         converted_to_eval_question_id=str(fb.converted_to_eval_question_id)
         if fb.converted_to_eval_question_id
         else None,
+        trust_metadata=fb.trust_metadata_json if isinstance(fb.trust_metadata_json, dict) else None,
         trace_id=getattr(fb, "trace_id", None),
         selected_citation_ids=getattr(fb, "selected_citation_ids", None),
         created_at=fb.created_at,
@@ -4778,7 +4785,18 @@ async def submit_message_feedback(
         retrieval_diagnostics_json=diag.retrieval_diagnostics if diag else None,
         model_name=diag.model_name if diag else None,
         rag_profile_id=rag_profile_uuid,
-        trust_metadata_json=diag.trust_metadata if diag else None,
+        trust_metadata_json=(
+            {
+                **(diag.trust_metadata or {}),
+                **(
+                    {"llm_provider": diag.llm_provider}
+                    if diag and diag.llm_provider is not None
+                    else {}
+                ),
+            }
+            if diag
+            else None
+        ),
         trace_id=diag.trace_id if diag else None,
         selected_citation_ids=diag.selected_citation_ids if diag else None,
     )

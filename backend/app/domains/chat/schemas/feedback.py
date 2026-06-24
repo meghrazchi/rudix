@@ -15,7 +15,11 @@ FeedbackReasonLiteral = Literal[
 FeedbackCategoryLiteral = Literal[
     "wrong_answer",
     "bad_citation",
+    "missing_source",
     "outdated_source",
+    "hallucination_risk",
+    "conflict_not_detected",
+    "unclear_answer",
     "missing_information",
     "low_confidence",
     "unsafe_response",
@@ -39,6 +43,7 @@ class FeedbackDiagnostics(BaseModel):
     trust_metadata: dict | None = None
     trust_score: float | None = None
     trust_level: str | None = Field(default=None, max_length=32)
+    llm_provider: str | None = Field(default=None, max_length=128)
     trace_id: str | None = Field(default=None, max_length=128)
     selected_citation_ids: list[str] | None = None
 
@@ -65,6 +70,8 @@ class MessageFeedbackResponse(BaseModel):
     answer_text: str | None = None
     model_name: str | None = None
     rag_profile_id: str | None = None
+    llm_provider: str | None = None
+    trust_metadata: dict | None = None
     retain_until: datetime | None = None
     redacted_at: datetime | None = None
     converted_to_eval_question_id: str | None = None

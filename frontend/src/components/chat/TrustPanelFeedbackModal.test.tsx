@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
@@ -46,32 +46,34 @@ describe("TrustPanelFeedbackModal", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows all 7 trust-panel categories", () => {
+  it("shows all trust-panel categories", () => {
     renderModal();
     expect(screen.getByLabelText(/wrong answer/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/bad citation/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/missing citation/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/stale source/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/conflicting source/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/not enough detail/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/missing source/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/outdated source/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/hallucination risk/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/conflict not detected/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/unclear answer/i)).toBeInTheDocument();
     expect(
       screen.getByLabelText(/should have said not found/i),
     ).toBeInTheDocument();
   });
 
-  it("pre-selects stale_source when freshness warning is active", () => {
+  it("pre-selects outdated_source when freshness warning is active", () => {
     renderModal({
       activeWarnings: ["One or more cited sources are stale or expired."],
     });
-    const staleRadio = screen.getByDisplayValue("stale_source");
+    const staleRadio = screen.getByDisplayValue("outdated_source");
     expect(staleRadio).toBeChecked();
   });
 
-  it("pre-selects conflicting_source when conflict warning is active", () => {
+  it("pre-selects conflict_not_detected when conflict warning is active", () => {
     renderModal({
       activeWarnings: ["Sources disagree on one or more claims."],
     });
-    const conflictRadio = screen.getByDisplayValue("conflicting_source");
+    const conflictRadio = screen.getByDisplayValue("conflict_not_detected");
     expect(conflictRadio).toBeChecked();
   });
 
@@ -101,7 +103,9 @@ describe("TrustPanelFeedbackModal", () => {
 
   it("submits with null category when 'Other / not listed' is selected", async () => {
     renderModal();
-    await userEvent.click(screen.getByDisplayValue(""));
+    await userEvent.click(
+      screen.getByRole("radio", { name: /other \/ not listed/i }),
+    );
     await userEvent.click(
       screen.getByRole("button", { name: /report issue/i }),
     );
@@ -216,7 +220,7 @@ describe("TrustPanelFeedbackModal", () => {
   it("updates character count as comment is typed", async () => {
     renderModal();
     const textarea = screen.getByRole("textbox");
-    await userEvent.type(textarea, "abc");
-    expect(screen.getByText("3/1000")).toBeInTheDocument();
+    fireEvent.change(textarea, { target: { value: "abc" } });
+    expect(screen.getByText(/3\/1000/)).toBeInTheDocument();
   });
 });

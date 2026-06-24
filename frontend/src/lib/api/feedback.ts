@@ -13,7 +13,11 @@ export type FeedbackReason =
 export type FeedbackCategory =
   | "wrong_answer"
   | "bad_citation"
+  | "missing_source"
   | "outdated_source"
+  | "hallucination_risk"
+  | "conflict_not_detected"
+  | "unclear_answer"
   | "missing_information"
   | "low_confidence"
   | "unsafe_response"
@@ -31,6 +35,7 @@ export type FeedbackDiagnostics = {
   retrieval_diagnostics?: Record<string, unknown> | null;
   model_name?: string | null;
   rag_profile_id?: string | null;
+  llm_provider?: string | null;
   // F316 — trust-panel accuracy fields
   trust_metadata?: Record<string, unknown> | null;
   trust_score?: number | null;
@@ -59,6 +64,8 @@ export type MessageFeedbackResponse = {
   answer_text: string | null;
   model_name: string | null;
   rag_profile_id: string | null;
+  llm_provider: string | null;
+  trust_metadata: Record<string, unknown> | null;
   retain_until: string | null;
   redacted_at: string | null;
   converted_to_eval_question_id: string | null;

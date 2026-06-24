@@ -86,6 +86,12 @@ export function canViewAdminUsage(role: AppRole | null | undefined): boolean {
   return role === "owner" || role === "admin";
 }
 
+export function canViewFeedbackReview(
+  role: AppRole | null | undefined,
+): boolean {
+  return role === "owner" || role === "admin" || role === "reviewer";
+}
+
 export function estimateQuestionsAsked(
   sessions: ChatSessionResponse[],
 ): number {

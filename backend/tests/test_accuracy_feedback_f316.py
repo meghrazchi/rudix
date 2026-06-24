@@ -121,14 +121,20 @@ async def _seed_message(
 
 def test_new_category_enum_values() -> None:
     assert FeedbackCategory.missing_citation == "missing_citation"
-    assert FeedbackCategory.stale_source == "stale_source"
-    assert FeedbackCategory.conflicting_source == "conflicting_source"
-    assert FeedbackCategory.not_enough_detail == "not_enough_detail"
+    assert FeedbackCategory.missing_source == "missing_source"
+    assert FeedbackCategory.outdated_source == "outdated_source"
+    assert FeedbackCategory.hallucination_risk == "hallucination_risk"
+    assert FeedbackCategory.conflict_not_detected == "conflict_not_detected"
+    assert FeedbackCategory.unclear_answer == "unclear_answer"
     assert FeedbackCategory.should_have_said_not_found == "should_have_said_not_found"
 
 
 def test_accepted_review_status_enum() -> None:
     assert FeedbackReviewStatus.accepted == "accepted"
+    assert FeedbackReviewStatus.needs_document_update == "needs_document_update"
+    assert FeedbackReviewStatus.needs_prompt_retrieval_fix == "needs_prompt_retrieval_fix"
+    assert FeedbackReviewStatus.converted_to_evaluation == "converted_to_evaluation"
+    assert FeedbackReviewStatus.resolved == "resolved"
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +183,7 @@ async def test_submit_feedback_stale_source(
     )
 
     assert response.status_code == 200
-    assert response.json()["category"] == "stale_source"
+    assert response.json()["category"] == "outdated_source"
 
 
 @pytest.mark.asyncio
@@ -199,7 +205,7 @@ async def test_submit_feedback_conflicting_source(
     )
 
     assert response.status_code == 200
-    assert response.json()["category"] == "conflicting_source"
+    assert response.json()["category"] == "conflict_not_detected"
 
 
 @pytest.mark.asyncio
@@ -222,6 +228,33 @@ async def test_submit_feedback_should_have_said_not_found(
 
     assert response.status_code == 200
     assert response.json()["category"] == "should_have_said_not_found"
+
+
+@pytest.mark.asyncio
+async def test_submit_feedback_new_canonical_categories(
+    f316_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    user, org = await _seed_admin(db_session)
+    msg = await _seed_message(db_session, org=org, user=user)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+
+    for category in (
+        "missing_source",
+        "hallucination_risk",
+        "conflict_not_detected",
+        "unclear_answer",
+    ):
+        response = await f316_client.put(
+            f"/api/v1/chat/messages/{msg.id}/feedback",
+            headers=_headers(token=token, organization_id=str(org.id)),
+            json={"rating": "down", "category": category},
+        )
+        assert response.status_code == 200
+        assert response.json()["category"] == category
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +281,7 @@ async def test_submit_feedback_with_trust_metadata_and_trace_id(
         headers=_headers(token=token, organization_id=str(org.id)),
         json={
             "rating": "down",
-            "category": "stale_source",
+            "category": "outdated_source",
             "diagnostics": {
                 "question_text": "What is the refund policy?",
                 "answer_text": "Refunds within 30 days.",
@@ -291,7 +324,7 @@ async def test_trust_metadata_persisted_in_db(
         rating="down",
         reason=None,
         comment=None,
-        category="stale_source",
+        category="outdated_source",
         trust_metadata_json={"score": 0.3, "trust_level": "low"},
         trace_id=trace_id,
         selected_citation_ids=[doc_id],
@@ -323,7 +356,7 @@ async def test_redact_clears_trust_metadata_and_citation_ids(
         rating="down",
         reason=None,
         comment="sensitive info",
-        category="stale_source",
+        category="outdated_source",
         question_text="some question",
         answer_text="some answer",
         trust_metadata_json={"score": 0.3},
@@ -368,7 +401,7 @@ async def test_review_item_can_be_set_to_accepted(
         rating="down",
         reason=None,
         comment=None,
-        category="conflicting_source",
+        category="conflict_not_detected",
     )
     await db_session.commit()
 
@@ -416,7 +449,7 @@ async def test_feedback_metrics_returns_category_breakdown(
     )
 
     # Seed two feedback items
-    for category in ("missing_citation", "stale_source"):
+    for category in ("missing_citation", "outdated_source"):
         msg = await _seed_message(db_session, org=org, user=user)
         await _feedback_repo.upsert_feedback(
             db_session,
@@ -440,7 +473,7 @@ async def test_feedback_metrics_returns_category_breakdown(
     assert body["total_feedback"] >= 2
     categories = {c["category"] for c in body["categories"]}
     assert "missing_citation" in categories
-    assert "stale_source" in categories
+    assert "outdated_source" in categories
     assert "period_days" in body
 
 
@@ -460,7 +493,7 @@ async def test_feedback_metrics_respects_org_isolation(
         rating="down",
         reason=None,
         comment=None,
-        category="conflicting_source",
+        category="conflict_not_detected",
     )
     await db_session.commit()
 
@@ -478,8 +511,8 @@ async def test_feedback_metrics_respects_org_isolation(
     assert response.status_code == 200
     body = response.json()
     categories = {c["category"] for c in body["categories"]}
-    # org_b has no feedback — org_a's conflicting_source must not appear
-    assert "conflicting_source" not in categories
+    # org_b has no feedback — org_a's conflict_not_detected must not appear
+    assert "conflict_not_detected" not in categories
 
 
 @pytest.mark.asyncio

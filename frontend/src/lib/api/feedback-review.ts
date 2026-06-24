@@ -4,17 +4,22 @@ import type { FeedbackCategory } from "@/lib/api/feedback";
 export type FeedbackReviewStatus =
   | "new"
   | "triaged"
-  | "needs_document"
   | "accepted"
+  | "rejected"
+  | "needs_document_update"
+  | "needs_prompt_retrieval_fix"
+  | "converted_to_evaluation"
+  | "resolved"
+  | "needs_document"
   | "eval_created"
   | "fixed"
-  | "rejected"
   | "duplicate";
 
 export type FeedbackSeverity = "low" | "medium" | "high";
 
 export type FeedbackSummary = {
   feedback_id: string;
+  answer_id: string | null;
   message_id: string;
   submitter_user_id: string;
   rating: "up" | "down";
@@ -25,6 +30,11 @@ export type FeedbackSummary = {
   question_text: string | null;
   answer_text: string | null;
   model_name: string | null;
+  llm_provider: string | null;
+  citations: Record<string, unknown>[] | null;
+  retrieval_diagnostics: Record<string, unknown> | null;
+  trust_metadata: Record<string, unknown> | null;
+  confidence_score: number | null;
   redacted_at: string | null;
   converted_to_eval_question_id: string | null;
   // F316 fields
@@ -69,10 +79,15 @@ export type FeedbackReviewListResponse = {
 
 export type FeedbackReviewListParams = {
   status?: FeedbackReviewStatus | null;
+  category?: FeedbackCategory | null;
+  workspace_id?: string | null;
+  document_id?: string | null;
+  model_name?: string | null;
+  confidence_min?: number | null;
+  confidence_max?: number | null;
   severity?: FeedbackSeverity | null;
   rating?: "up" | "down" | null;
   reason?: string | null;
-  category?: FeedbackCategory | null;
   reviewer_id?: string | null;
   limit?: number;
   offset?: number;
@@ -87,6 +102,7 @@ export type UpdateReviewItemPayload = {
   status?: FeedbackReviewStatus | null;
   severity?: FeedbackSeverity | null;
   reviewer_notes?: string | null;
+  reviewer_id?: string | null;
   linked_eval_question_id?: string | null;
   linked_document_id?: string | null;
 };
@@ -111,6 +127,12 @@ export async function listFeedbackReviewItems(
   return apiRequest<FeedbackReviewListResponse>("/feedback-review", {
     query: {
       status: params.status ?? undefined,
+      category: params.category ?? undefined,
+      workspace: params.workspace_id ?? undefined,
+      document: params.document_id ?? undefined,
+      model: params.model_name ?? undefined,
+      confidence_min: params.confidence_min ?? undefined,
+      confidence_max: params.confidence_max ?? undefined,
       severity: params.severity ?? undefined,
       rating: params.rating ?? undefined,
       reason: params.reason ?? undefined,
@@ -173,6 +195,16 @@ export function buildFeedbackReviewExportUrl(
 ): string {
   const query = new URLSearchParams();
   if (params.status) query.set("status", params.status);
+  if (params.category) query.set("category", params.category);
+  if (params.workspace_id) query.set("workspace", params.workspace_id);
+  if (params.document_id) query.set("document", params.document_id);
+  if (params.model_name) query.set("model", params.model_name);
+  if (params.confidence_min != null) {
+    query.set("confidence_min", String(params.confidence_min));
+  }
+  if (params.confidence_max != null) {
+    query.set("confidence_max", String(params.confidence_max));
+  }
   if (params.severity) query.set("severity", params.severity);
   if (params.rating) query.set("rating", params.rating);
   if (params.reason) query.set("reason", params.reason);

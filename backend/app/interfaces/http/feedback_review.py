@@ -28,6 +28,7 @@ _review_repository = FeedbackReviewRepository()
 _audit_log_service = AuditLogService()
 
 _ADMIN_ROLES = (OrganizationRole.owner.value, OrganizationRole.admin.value)
+_REVIEW_ROLES = (*_ADMIN_ROLES, OrganizationRole.reviewer.value)
 
 
 def _require_admin(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
@@ -64,16 +65,30 @@ def _request_id(request: Request) -> str | None:
 @router.get("", response_model=FeedbackReviewListResponse)
 async def list_feedback_review_items(
     status_filter: str | None = Query(default=None, alias="status"),
+    category: str | None = Query(default=None),
+    workspace_id: str | None = Query(default=None, alias="workspace"),
+    document_id: str | None = Query(default=None, alias="document"),
+    model_name: str | None = Query(default=None, alias="model"),
+    confidence_min: float | None = Query(default=None, ge=0.0, le=1.0),
+    confidence_max: float | None = Query(default=None, ge=0.0, le=1.0),
     severity: str | None = Query(default=None),
     rating: str | None = Query(default=None),
     reason: str | None = Query(default=None),
     reviewer_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_REVIEW_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewListResponse:
     _user_id, org_id = _require_admin(principal)
+
+    workspace_uuid: UUID | None = None
+    if workspace_id:
+        workspace_uuid = _parse_uuid(workspace_id, "workspace")
+
+    document_uuid: UUID | None = None
+    if document_id:
+        document_uuid = _parse_uuid(document_id, "document")
 
     reviewer_uuid: UUID | None = None
     if reviewer_id:
@@ -83,6 +98,12 @@ async def list_feedback_review_items(
         db,
         organization_id=org_id,
         status=status_filter,
+        category=category,
+        workspace_id=workspace_uuid,
+        document_id=document_uuid,
+        model_name=model_name,
+        confidence_min=confidence_min,
+        confidence_max=confidence_max,
         severity=severity,
         rating=rating,
         reason=reason,
@@ -132,6 +153,12 @@ async def list_feedback_review_items(
 @router.get("/export")
 async def export_feedback_review_csv(
     status_filter: str | None = Query(default=None, alias="status"),
+    category: str | None = Query(default=None),
+    workspace_id: str | None = Query(default=None, alias="workspace"),
+    document_id: str | None = Query(default=None, alias="document"),
+    model_name: str | None = Query(default=None, alias="model"),
+    confidence_min: float | None = Query(default=None, ge=0.0, le=1.0),
+    confidence_max: float | None = Query(default=None, ge=0.0, le=1.0),
     severity: str | None = Query(default=None),
     rating: str | None = Query(default=None),
     reason: str | None = Query(default=None),
@@ -139,10 +166,24 @@ async def export_feedback_review_csv(
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> Response:
     _user_id, org_id = _require_admin(principal)
+    workspace_uuid: UUID | None = None
+    if workspace_id:
+        workspace_uuid = _parse_uuid(workspace_id, "workspace")
+
+    document_uuid: UUID | None = None
+    if document_id:
+        document_uuid = _parse_uuid(document_id, "document")
+
     csv_content = await _review_repository.build_csv_export(
         db,
         organization_id=org_id,
         status=status_filter,
+        category=category,
+        workspace_id=workspace_uuid,
+        document_id=document_uuid,
+        model_name=model_name,
+        confidence_min=confidence_min,
+        confidence_max=confidence_max,
         severity=severity,
         rating=rating,
         reason=reason,
@@ -179,7 +220,7 @@ async def get_feedback_metrics(
 @router.get("/{review_id}", response_model=FeedbackReviewItemResponse)
 async def get_feedback_review_item(
     review_id: str,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_REVIEW_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     _user_id, org_id = _require_admin(principal)
@@ -218,7 +259,7 @@ async def triage_feedback(
     feedback_id: str,
     payload: TriageFeedbackRequest,
     request: Request,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_REVIEW_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     user_id, org_id = _require_admin(principal)
@@ -276,7 +317,7 @@ async def update_feedback_review_item(
     review_id: str,
     payload: UpdateReviewItemRequest,
     request: Request,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_REVIEW_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     user_id, org_id = _require_admin(principal)
@@ -290,6 +331,26 @@ async def update_feedback_review_item(
     if payload.linked_document_id:
         linked_doc_uuid = _parse_uuid(payload.linked_document_id, "linked_document_id")
 
+    assignee_uuid: UUID | None = None
+    if payload.reviewer_id:
+        assignee_uuid = _parse_uuid(payload.reviewer_id, "reviewer_id")
+        from sqlalchemy import select as _select
+
+        from app.models.organization_member import OrganizationMember
+
+        assignee_result = await db.execute(
+            _select(OrganizationMember).where(
+                OrganizationMember.organization_id == org_id,
+                OrganizationMember.user_id == assignee_uuid,
+            )
+        )
+        assignee_member = assignee_result.scalar_one_or_none()
+        if assignee_member is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reviewer not found in active organization",
+            )
+
     item = await _review_repository.update_review_item(
         db,
         review_id=review_uuid,
@@ -298,6 +359,7 @@ async def update_feedback_review_item(
         status=payload.status,
         severity=payload.severity,
         reviewer_notes=payload.reviewer_notes,
+        assignee_id=assignee_uuid,
         linked_eval_question_id=linked_eval_uuid,
         linked_document_id=linked_doc_uuid,
         clear_linked_eval=payload.linked_eval_question_id == "",
@@ -345,7 +407,7 @@ async def convert_review_item_to_eval_case(
     review_id: str,
     payload: ConvertToEvalCaseRequest,
     request: Request,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_REVIEW_ROLES))] = ...,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> ConvertToEvalCaseResponse:
     from uuid import UUID as _UUID
@@ -466,7 +528,7 @@ async def convert_review_item_to_eval_case(
     from uuid import UUID as _UUID2
 
     eval_q_uuid = _UUID2(eval_question_id) if eval_question_id else None
-    item.status = "eval_created"
+    item.status = "converted_to_evaluation"
     item.linked_eval_question_id = eval_q_uuid
     item.resolved_at = _dt.now(tz=UTC)
     if payload.reviewer_notes:

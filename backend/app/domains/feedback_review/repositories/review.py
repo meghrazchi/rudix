@@ -1,11 +1,17 @@
 import csv
 import io
+import json
 from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.feedback_review.schemas.review import (
+    feedback_category_filter_candidates,
+    feedback_status_filter_candidates,
+    normalize_feedback_status,
+)
 from app.models.enums import FeedbackReviewStatus
 from app.models.feedback_review_item import FeedbackReviewItem
 
@@ -80,6 +86,12 @@ class FeedbackReviewRepository:
         *,
         organization_id: UUID,
         status: str | None = None,
+        category: str | None = None,
+        workspace_id: UUID | None = None,
+        document_id: UUID | None = None,
+        model_name: str | None = None,
+        confidence_min: float | None = None,
+        confidence_max: float | None = None,
         severity: str | None = None,
         rating: str | None = None,
         reason: str | None = None,
@@ -87,23 +99,61 @@ class FeedbackReviewRepository:
         limit: int = 20,
         offset: int = 0,
     ) -> tuple[list[FeedbackReviewItem], int]:
+        from app.models.chat import ChatMessage
         from app.models.message_feedback import MessageFeedback
 
         base_query = select(FeedbackReviewItem).where(
             FeedbackReviewItem.organization_id == organization_id
         )
+        joins_feedback = False
 
         if status:
-            base_query = base_query.where(FeedbackReviewItem.status == status)
+            base_query = base_query.where(
+                FeedbackReviewItem.status.in_(feedback_status_filter_candidates(status))
+            )
+        if workspace_id is not None and workspace_id != organization_id:
+            return [], 0
+        if category or document_id or rating or reason or model_name:
+            base_query = base_query.join(
+                MessageFeedback, FeedbackReviewItem.feedback_id == MessageFeedback.id
+            )
+            joins_feedback = True
+        if category:
+            base_query = base_query.where(
+                MessageFeedback.category.in_(feedback_category_filter_candidates(category))
+            )
+        if document_id:
+            base_query = base_query.where(
+                (FeedbackReviewItem.linked_document_id == document_id)
+                | (
+                    MessageFeedback.selected_citation_ids.is_not(None)
+                    & MessageFeedback.selected_citation_ids.contains([str(document_id)])
+                )
+            )
+        if model_name or confidence_min is not None or confidence_max is not None:
+            if not joins_feedback:
+                base_query = base_query.join(
+                    MessageFeedback, FeedbackReviewItem.feedback_id == MessageFeedback.id
+                )
+                joins_feedback = True
+            base_query = base_query.join(ChatMessage, MessageFeedback.message_id == ChatMessage.id)
+        if model_name:
+            base_query = base_query.where(MessageFeedback.model_name == model_name)
+        if confidence_min is not None:
+            base_query = base_query.where(ChatMessage.confidence_score >= confidence_min)
+        if confidence_max is not None:
+            base_query = base_query.where(ChatMessage.confidence_score <= confidence_max)
         if severity:
             base_query = base_query.where(FeedbackReviewItem.severity == severity)
         if reviewer_id:
             base_query = base_query.where(FeedbackReviewItem.reviewer_id == reviewer_id)
 
         if rating or reason:
-            base_query = base_query.join(
-                MessageFeedback, FeedbackReviewItem.feedback_id == MessageFeedback.id
-            )
+            if not joins_feedback:
+                base_query = base_query.join(
+                    MessageFeedback, FeedbackReviewItem.feedback_id == MessageFeedback.id
+                )
+                joins_feedback = True
             if rating:
                 base_query = base_query.where(MessageFeedback.rating == rating)
             if reason:
@@ -129,6 +179,7 @@ class FeedbackReviewRepository:
         status: str | None = None,
         severity: str | None = None,
         reviewer_notes: str | None = None,
+        assignee_id: UUID | None = None,
         linked_eval_question_id: UUID | None = None,
         linked_document_id: UUID | None = None,
         clear_linked_eval: bool = False,
@@ -141,17 +192,20 @@ class FeedbackReviewRepository:
             return None
 
         if status is not None:
-            item.status = status
+            item.status = normalize_feedback_status(status)
             _terminal = {
-                FeedbackReviewStatus.fixed,
+                FeedbackReviewStatus.resolved,
                 FeedbackReviewStatus.rejected,
                 FeedbackReviewStatus.duplicate,
+                FeedbackReviewStatus.converted_to_evaluation,
+                FeedbackReviewStatus.eval_created,
+                FeedbackReviewStatus.fixed,
             }
-            if FeedbackReviewStatus(status) in _terminal and item.resolved_at is None:
+            if FeedbackReviewStatus(item.status) in _terminal and item.resolved_at is None:
                 item.resolved_at = datetime.now(tz=UTC)
             elif (
-                FeedbackReviewStatus(status) not in _terminal
-                and status != FeedbackReviewStatus.eval_created
+                FeedbackReviewStatus(item.status) not in _terminal
+                and item.status != FeedbackReviewStatus.converted_to_evaluation.value
             ):
                 item.resolved_at = None
 
@@ -160,6 +214,9 @@ class FeedbackReviewRepository:
 
         if reviewer_notes is not None:
             item.reviewer_notes = reviewer_notes
+
+        if assignee_id is not None:
+            item.reviewer_id = assignee_id
 
         if linked_eval_question_id is not None:
             item.linked_eval_question_id = linked_eval_question_id
@@ -171,7 +228,8 @@ class FeedbackReviewRepository:
         elif clear_linked_document:
             item.linked_document_id = None
 
-        item.reviewer_id = reviewer_id
+        if assignee_id is None:
+            item.reviewer_id = reviewer_id
         session.add(item)
         await session.flush()
         await session.refresh(item)
@@ -244,6 +302,12 @@ class FeedbackReviewRepository:
         *,
         organization_id: UUID,
         status: str | None = None,
+        category: str | None = None,
+        workspace_id: UUID | None = None,
+        document_id: UUID | None = None,
+        model_name: str | None = None,
+        confidence_min: float | None = None,
+        confidence_max: float | None = None,
         severity: str | None = None,
         rating: str | None = None,
         reason: str | None = None,
@@ -254,6 +318,12 @@ class FeedbackReviewRepository:
             session,
             organization_id=organization_id,
             status=status,
+            category=category,
+            workspace_id=workspace_id,
+            document_id=document_id,
+            model_name=model_name,
+            confidence_min=confidence_min,
+            confidence_max=confidence_max,
             severity=severity,
             rating=rating,
             reason=reason,
@@ -281,6 +351,14 @@ class FeedbackReviewRepository:
                 "rating",
                 "reason",
                 "comment",
+                "question_text",
+                "answer_text",
+                "model_name",
+                "confidence_score",
+                "trace_id",
+                "answer_snapshot",
+                "citations_json",
+                "retrieval_diagnostics_json",
                 "reviewer_notes",
                 "linked_eval_question_id",
                 "linked_document_id",
@@ -300,6 +378,20 @@ class FeedbackReviewRepository:
                     "rating": fb.rating if fb else "",
                     "reason": fb.reason if fb else "",
                     "comment": fb.comment if fb else "",
+                    "question_text": fb.question_text if fb else "",
+                    "answer_text": fb.answer_text if fb else "",
+                    "model_name": fb.model_name if fb else "",
+                    "confidence_score": (
+                        fb.trust_metadata_json.get("confidence_score")
+                        if fb and isinstance(fb.trust_metadata_json, dict)
+                        else ""
+                    ),
+                    "trace_id": fb.trace_id if fb else "",
+                    "answer_snapshot": fb.answer_text[:500] if fb and fb.answer_text else "",
+                    "citations_json": json.dumps(fb.citations_json) if fb else "",
+                    "retrieval_diagnostics_json": (
+                        json.dumps(fb.retrieval_diagnostics_json) if fb else ""
+                    ),
                     "reviewer_notes": item.reviewer_notes or "",
                     "linked_eval_question_id": str(item.linked_eval_question_id)
                     if item.linked_eval_question_id

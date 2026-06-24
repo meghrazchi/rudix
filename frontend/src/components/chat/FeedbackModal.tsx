@@ -44,24 +44,39 @@ const CATEGORIES: {
     description: "Citation is wrong, missing, or irrelevant",
   },
   {
+    value: "missing_citation",
+    label: "Missing citation",
+    description: "A citation that should be there is absent",
+  },
+  {
+    value: "missing_source",
+    label: "Missing source",
+    description: "A relevant source was not used or surfaced",
+  },
+  {
     value: "outdated_source",
     label: "Outdated source",
     description: "The source material is no longer current",
   },
   {
-    value: "missing_information",
-    label: "Missing information",
-    description: "Relevant facts or context were omitted",
+    value: "hallucination_risk",
+    label: "Hallucination risk",
+    description: "The answer may be unsupported or fabricated",
   },
   {
-    value: "low_confidence",
-    label: "Low confidence",
-    description: "Answer feels uncertain or hedged without reason",
+    value: "conflict_not_detected",
+    label: "Conflict not detected",
+    description: "Conflicting sources were not flagged",
   },
   {
-    value: "unsafe_response",
-    label: "Unsafe response",
-    description: "Answer contains harmful or sensitive content",
+    value: "unclear_answer",
+    label: "Unclear answer",
+    description: "The answer is too vague or incomplete",
+  },
+  {
+    value: "should_have_said_not_found",
+    label: "Should have said not found",
+    description: "The system should have refused or said not found",
   },
 ];
 

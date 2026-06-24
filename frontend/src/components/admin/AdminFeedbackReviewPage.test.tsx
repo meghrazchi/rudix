@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminFeedbackReviewPage } from "@/components/admin/AdminFeedbackReviewPage";
@@ -78,6 +84,7 @@ const SAMPLE_ITEM: FeedbackReviewItemResponse = {
   updated_at: "2026-06-01T10:00:00Z",
   feedback: {
     feedback_id: "fb-1",
+    answer_id: "msg-1",
     message_id: "msg-1",
     submitter_user_id: "user-1",
     rating: "down",
@@ -88,6 +95,11 @@ const SAMPLE_ITEM: FeedbackReviewItemResponse = {
     question_text: "What is the capital of France?",
     answer_text: "The capital of France is London.",
     model_name: "gpt-4o",
+    llm_provider: "openai",
+    citations: [],
+    retrieval_diagnostics: {},
+    trust_metadata: {},
+    confidence_score: 0.55,
     redacted_at: null,
     converted_to_eval_question_id: null,
     trace_id: null,
@@ -120,7 +132,7 @@ const REDACTED_ITEM: FeedbackReviewItemResponse = {
 const CONVERTED_ITEM: FeedbackReviewItemResponse = {
   ...SAMPLE_ITEM,
   review_id: "rev-3",
-  status: "eval_created",
+  status: "converted_to_evaluation",
   feedback: {
     ...SAMPLE_ITEM.feedback!,
     feedback_id: "fb-3",
@@ -241,7 +253,7 @@ describe("AdminFeedbackReviewPage", () => {
     const fixedItem = {
       ...SAMPLE_ITEM,
       review_id: "rev-2",
-      status: "fixed" as const,
+      status: "resolved" as const,
       severity: "low" as const,
     };
     mockApi.listFeedbackReviewItems.mockResolvedValue({
@@ -457,7 +469,7 @@ describe("AdminFeedbackReviewPage", () => {
     mockState.authState = adminSession();
     const updatedItem: FeedbackReviewItemResponse = {
       ...SAMPLE_ITEM,
-      status: "fixed",
+      status: "resolved",
       resolved_at: "2026-06-01T11:00:00Z",
     };
     mockApi.listFeedbackReviewItems.mockResolvedValue({
@@ -473,7 +485,7 @@ describe("AdminFeedbackReviewPage", () => {
     fireEvent.click(reviewBtn);
 
     const statusSelect = await screen.findByDisplayValue("New");
-    fireEvent.change(statusSelect, { target: { value: "fixed" } });
+    fireEvent.change(statusSelect, { target: { value: "resolved" } });
 
     const saveBtn = screen.getByRole("button", { name: "Save changes" });
     fireEvent.click(saveBtn);
@@ -481,7 +493,7 @@ describe("AdminFeedbackReviewPage", () => {
     await waitFor(() => {
       expect(mockApi.updateFeedbackReviewItem).toHaveBeenCalledWith(
         "rev-1",
-        expect.objectContaining({ status: "fixed" }),
+        expect.objectContaining({ status: "resolved" }),
       );
     });
   });
