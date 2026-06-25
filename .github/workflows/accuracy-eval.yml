@@ -1,8 +1,6 @@
 name: Accuracy Evaluation
 
 on:
-  schedule:
-    - cron: "21 3 * * *"
   workflow_dispatch:
     inputs:
       mode:
