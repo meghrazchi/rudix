@@ -49,10 +49,11 @@ format:
 	$(RUFF) check app tests --fix
 
 check-revisions:
-	@count=$$($(ALEMBIC) heads 2>/dev/null | grep -c "(head)" || echo 0); \
+	@out=$$($(ALEMBIC) heads 2>&1); \
+	count=$$(echo "$$out" | grep -c "(head)" || true); \
 	if [ "$$count" -ne 1 ]; then \
-		echo "ERROR: expected 1 alembic head, found $$count (duplicate revision IDs or unmerged branches)"; \
-		$(ALEMBIC) heads; \
+		echo "ERROR: expected 1 alembic head, found $$count (duplicate revision IDs or unmerged branches):"; \
+		echo "$$out"; \
 		exit 1; \
 	fi
 

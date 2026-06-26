@@ -87,9 +87,20 @@ def test_activity_timeline_migration_upgrade_creates_table_and_indexes() -> None
 
         cols = {c["name"] for c in inspector.get_columns("activity_timeline_events")}
         assert cols >= {
-            "id", "organization_id", "chat_session_id", "chat_message_id",
-            "sequence", "step_key", "label", "state", "detail",
-            "started_at", "completed_at", "duration_ms", "created_at", "updated_at",
+            "id",
+            "organization_id",
+            "chat_session_id",
+            "chat_message_id",
+            "sequence",
+            "step_key",
+            "label",
+            "state",
+            "detail",
+            "started_at",
+            "completed_at",
+            "duration_ms",
+            "created_at",
+            "updated_at",
         }
 
         indexes = {idx["name"] for idx in inspector.get_indexes("activity_timeline_events")}
@@ -155,6 +166,7 @@ def test_chat_ws_activity_step_json_excludes_none_detail() -> None:
     )
     raw = evt.to_json()
     import json
+
     parsed = json.loads(raw)
     assert parsed["payload"]["state"] == "running"
     assert parsed["payload"]["detail"] is None
@@ -179,16 +191,23 @@ def test_send_step_increments_seq_only_on_running_or_pending() -> None:
             activity_step_seq += 1
         await _fake_send(
             "activity.step.update",
-            {"step_key": step_key, "sequence": activity_step_seq, "label": label,
-             "state": state, "detail": detail, "duration_ms": duration_ms},
+            {
+                "step_key": step_key,
+                "sequence": activity_step_seq,
+                "label": label,
+                "state": state,
+                "detail": detail,
+                "duration_ms": duration_ms,
+            },
         )
 
     async def _run() -> None:
         await send_step("understanding_question", "Understanding your question", "running")
         await send_step("understanding_question", "Understanding your question", "success")
         await send_step("checking_sources", "Checking accessible sources", "running")
-        await send_step("checking_sources", "Checking accessible sources", "success",
-                        detail="Found 5 sources")
+        await send_step(
+            "checking_sources", "Checking accessible sources", "success", detail="Found 5 sources"
+        )
 
     asyncio.run(_run())
 
@@ -221,6 +240,7 @@ def test_activity_step_payload_contains_no_document_ids() -> None:
     assert isinstance(detail, str)
     # No raw UUID4 patterns in the human-readable detail
     import re
+
     uuid_pattern = re.compile(
         r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", re.I
     )
@@ -250,11 +270,13 @@ def test_all_valid_states_covered() -> None:
     valid_states = {"pending", "running", "success", "warning", "failed", "skipped"}
     # These come from the DB model constraint and the frontend type
     from app.models.activity_timeline import _STATES
+
     assert set(_STATES) == valid_states
 
 
 def test_step_merge_logic_updates_existing_by_step_key() -> None:
     """Simulates the frontend setTimelineSteps merge logic in Python."""
+
     def apply_step(steps: list[dict], new_step: dict) -> list[dict]:
         idx = next((i for i, s in enumerate(steps) if s["stepKey"] == new_step["stepKey"]), -1)
         if idx == -1:
@@ -266,21 +288,45 @@ def test_step_merge_logic_updates_existing_by_step_key() -> None:
         return result
 
     steps: list[dict] = []
-    steps = apply_step(steps, {"stepKey": "understanding_question", "sequence": 1,
-                                "label": "Understanding your question", "state": "running",
-                                "detail": None, "durationMs": None})
+    steps = apply_step(
+        steps,
+        {
+            "stepKey": "understanding_question",
+            "sequence": 1,
+            "label": "Understanding your question",
+            "state": "running",
+            "detail": None,
+            "durationMs": None,
+        },
+    )
     assert len(steps) == 1
     assert steps[0]["state"] == "running"
 
-    steps = apply_step(steps, {"stepKey": "understanding_question", "sequence": 1,
-                                "label": "Understanding your question", "state": "success",
-                                "detail": None, "durationMs": None})
+    steps = apply_step(
+        steps,
+        {
+            "stepKey": "understanding_question",
+            "sequence": 1,
+            "label": "Understanding your question",
+            "state": "success",
+            "detail": None,
+            "durationMs": None,
+        },
+    )
     assert len(steps) == 1
     assert steps[0]["state"] == "success"
 
-    steps = apply_step(steps, {"stepKey": "checking_sources", "sequence": 2,
-                                "label": "Checking accessible sources", "state": "running",
-                                "detail": None, "durationMs": None})
+    steps = apply_step(
+        steps,
+        {
+            "stepKey": "checking_sources",
+            "sequence": 2,
+            "label": "Checking accessible sources",
+            "state": "running",
+            "detail": None,
+            "durationMs": None,
+        },
+    )
     assert len(steps) == 2
     assert steps[0]["stepKey"] == "understanding_question"
     assert steps[1]["stepKey"] == "checking_sources"
@@ -293,7 +339,7 @@ def test_general_chat_path_expected_step_keys() -> None:
     """Steps emitted for scope_mode=none should skip source/search stages."""
     expected_in_general_chat = {
         "understanding_question",
-        "checking_sources",   # skipped
+        "checking_sources",  # skipped
         "searching_documents",  # skipped
         "drafting_answer",
         "preparing_final_answer",
@@ -320,7 +366,9 @@ def test_full_rag_path_expected_step_keys_order() -> None:
     assert ordered_steps.index("searching_documents") < ordered_steps.index("reranking_evidence")
     assert ordered_steps.index("reranking_evidence") < ordered_steps.index("drafting_answer")
     assert ordered_steps.index("drafting_answer") < ordered_steps.index("verifying_citations")
-    assert ordered_steps.index("verifying_citations") < ordered_steps.index("preparing_final_answer")
+    assert ordered_steps.index("verifying_citations") < ordered_steps.index(
+        "preparing_final_answer"
+    )
 
 
 # ── ActivityTimelineEvent model ───────────────────────────────────────────────
@@ -328,20 +376,31 @@ def test_full_rag_path_expected_step_keys_order() -> None:
 
 def test_activity_timeline_event_model_tablename() -> None:
     from app.models.activity_timeline import ActivityTimelineEvent
+
     assert ActivityTimelineEvent.__tablename__ == "activity_timeline_events"
 
 
 def test_activity_timeline_event_model_has_required_fields() -> None:
     from app.models.activity_timeline import ActivityTimelineEvent
+
     mapper = sa.inspect(ActivityTimelineEvent)
     col_names = {col.key for col in mapper.columns}
     assert col_names >= {
-        "organization_id", "chat_session_id", "chat_message_id",
-        "sequence", "step_key", "label", "state", "detail",
-        "started_at", "completed_at", "duration_ms",
+        "organization_id",
+        "chat_session_id",
+        "chat_message_id",
+        "sequence",
+        "step_key",
+        "label",
+        "state",
+        "detail",
+        "started_at",
+        "completed_at",
+        "duration_ms",
     }
 
 
 def test_activity_timeline_event_exported_from_models_init() -> None:
     from app import models
+
     assert hasattr(models, "ActivityTimelineEvent")
