@@ -67,8 +67,8 @@ resource "null_resource" "compose_rollout" {
       "docker compose -f '${local.compose_filename}' run --rm api ${var.migration_command}",
       "docker compose -f '${local.compose_filename}' up -d --wait",
       "docker image prune -f",
-      "curl -fsS '${var.health_url}' >/dev/null",
-      "curl -sS '${var.readiness_url}' | grep -q '\"status\"' || true",
+      "docker compose -f '${local.compose_filename}' exec -T api python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)\"",
+      "docker compose -f '${local.compose_filename}' exec -T api python -c \"import urllib.request, sys; r=urllib.request.urlopen('http://127.0.0.1:8000/api/v1/ready', timeout=5); print(r.read().decode())\" || true",
     ]
   }
 }
