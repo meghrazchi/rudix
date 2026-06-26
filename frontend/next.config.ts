@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
-
-import { assertFrontendRuntimeConfigForBuild } from "./src/lib/runtime-config";
-
-assertFrontendRuntimeConfigForBuild(process.env);
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -11,4 +8,12 @@ const nextConfig: NextConfig = {
   /* config options here */
 };
 
-export default withNextIntl(nextConfig);
+export default async function config(phase: string): Promise<NextConfig> {
+  if (phase === PHASE_PRODUCTION_BUILD) {
+    const { assertFrontendRuntimeConfigForBuild } = await import(
+      "./src/lib/runtime-config"
+    );
+    assertFrontendRuntimeConfigForBuild(process.env);
+  }
+  return withNextIntl(nextConfig);
+}
