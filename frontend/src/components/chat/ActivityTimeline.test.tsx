@@ -24,8 +24,17 @@ describe("ActivityTimeline", () => {
 
   it("renders nothing when all steps are skipped", () => {
     const steps: ActivityTimelineStep[] = [
-      makeStep({ stepKey: "checking_sources", label: "Checking accessible sources", state: "skipped" }),
-      makeStep({ stepKey: "searching_documents", label: "Searching knowledge base", state: "skipped", sequence: 2 }),
+      makeStep({
+        stepKey: "checking_sources",
+        label: "Checking accessible sources",
+        state: "skipped",
+      }),
+      makeStep({
+        stepKey: "searching_documents",
+        label: "Searching knowledge base",
+        state: "skipped",
+        sequence: 2,
+      }),
     ];
     const { container } = render(<ActivityTimeline steps={steps} />);
     expect(container.firstChild).toBeNull();
@@ -33,8 +42,18 @@ describe("ActivityTimeline", () => {
 
   it("renders visible non-skipped steps", () => {
     const steps: ActivityTimelineStep[] = [
-      makeStep({ stepKey: "understanding_question", label: "Understanding your question", state: "success", sequence: 1 }),
-      makeStep({ stepKey: "drafting_answer", label: "Drafting answer", state: "running", sequence: 2 }),
+      makeStep({
+        stepKey: "understanding_question",
+        label: "Understanding your question",
+        state: "success",
+        sequence: 1,
+      }),
+      makeStep({
+        stepKey: "drafting_answer",
+        label: "Drafting answer",
+        state: "running",
+        sequence: 2,
+      }),
     ];
     render(<ActivityTimeline steps={steps} />);
     expect(screen.getByText("Understanding your question")).toBeInTheDocument();
@@ -43,13 +62,30 @@ describe("ActivityTimeline", () => {
 
   it("filters out skipped steps while rendering others", () => {
     const steps: ActivityTimelineStep[] = [
-      makeStep({ stepKey: "understanding_question", label: "Understanding your question", state: "success", sequence: 1 }),
-      makeStep({ stepKey: "reranking_evidence", label: "Ranking evidence by relevance", state: "skipped", sequence: 2 }),
-      makeStep({ stepKey: "drafting_answer", label: "Drafting answer", state: "running", sequence: 3 }),
+      makeStep({
+        stepKey: "understanding_question",
+        label: "Understanding your question",
+        state: "success",
+        sequence: 1,
+      }),
+      makeStep({
+        stepKey: "reranking_evidence",
+        label: "Ranking evidence by relevance",
+        state: "skipped",
+        sequence: 2,
+      }),
+      makeStep({
+        stepKey: "drafting_answer",
+        label: "Drafting answer",
+        state: "running",
+        sequence: 3,
+      }),
     ];
     render(<ActivityTimeline steps={steps} />);
     expect(screen.getByText("Understanding your question")).toBeInTheDocument();
-    expect(screen.queryByText("Ranking evidence by relevance")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Ranking evidence by relevance"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Drafting answer")).toBeInTheDocument();
   });
 
@@ -107,7 +143,11 @@ describe("ActivityTimeline", () => {
 
   it("has accessible role and aria-live for live updates", () => {
     const steps: ActivityTimelineStep[] = [
-      makeStep({ stepKey: "understanding_question", label: "Understanding your question", state: "running" }),
+      makeStep({
+        stepKey: "understanding_question",
+        label: "Understanding your question",
+        state: "running",
+      }),
     ];
     render(<ActivityTimeline steps={steps} />);
     const region = screen.getByRole("status");
@@ -125,7 +165,9 @@ describe("ActivityTimeline", () => {
     ];
     render(<ActivityTimeline steps={steps} />);
     expect(screen.getByText("Searching knowledge base")).toBeInTheDocument();
-    expect(screen.getByText(/Limited relevant sources found/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Limited relevant sources found/),
+    ).toBeInTheDocument();
   });
 
   it("renders failed state step", () => {
@@ -144,9 +186,24 @@ describe("ActivityTimeline", () => {
 
   it("renders multiple steps in order", () => {
     const steps: ActivityTimelineStep[] = [
-      makeStep({ stepKey: "understanding_question", label: "Step One", state: "success", sequence: 1 }),
-      makeStep({ stepKey: "checking_sources", label: "Step Two", state: "success", sequence: 2 }),
-      makeStep({ stepKey: "drafting_answer", label: "Step Three", state: "running", sequence: 3 }),
+      makeStep({
+        stepKey: "understanding_question",
+        label: "Step One",
+        state: "success",
+        sequence: 1,
+      }),
+      makeStep({
+        stepKey: "checking_sources",
+        label: "Step Two",
+        state: "success",
+        sequence: 2,
+      }),
+      makeStep({
+        stepKey: "drafting_answer",
+        label: "Step Three",
+        state: "running",
+        sequence: 3,
+      }),
     ];
     render(<ActivityTimeline steps={steps} />);
     const items = screen.getAllByRole("listitem");
@@ -158,7 +215,12 @@ describe("ActivityTimeline", () => {
 
   it("step without detail renders no dash separator", () => {
     const steps: ActivityTimelineStep[] = [
-      makeStep({ stepKey: "understanding_question", label: "Understanding your question", state: "success", detail: null }),
+      makeStep({
+        stepKey: "understanding_question",
+        label: "Understanding your question",
+        state: "success",
+        detail: null,
+      }),
     ];
     render(<ActivityTimeline steps={steps} />);
     expect(screen.queryByText("—")).not.toBeInTheDocument();

@@ -73,7 +73,9 @@ export function useChatWebSocket(): UseChatWebSocketResult {
     null,
   );
   const [error, setError] = useState<string | null>(null);
-  const [timelineSteps, setTimelineSteps] = useState<ActivityTimelineStep[]>([]);
+  const [timelineSteps, setTimelineSteps] = useState<ActivityTimelineStep[]>(
+    [],
+  );
 
   const clientRef = useRef<ChatWSClient | null>(null);
   // Keep a stable ref to the current phase to avoid stale closures.
