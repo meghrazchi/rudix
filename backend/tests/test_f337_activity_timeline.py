@@ -70,7 +70,7 @@ def _load_migration(path: Path, module_name: str):
 
 
 def test_activity_timeline_migration_upgrade_creates_table_and_indexes() -> None:
-    migration = _load_migration(_MIGRATION_PATH, "migration_20260626_0003")
+    migration = _load_migration(_MIGRATION_PATH, "migration_20260630_0002")
 
     engine = sa.create_engine("sqlite:///:memory:")
     with engine.begin() as conn:
@@ -109,7 +109,7 @@ def test_activity_timeline_migration_upgrade_creates_table_and_indexes() -> None
 
 
 def test_activity_timeline_migration_downgrade_removes_table() -> None:
-    migration = _load_migration(_MIGRATION_PATH, "migration_20260626_0003_down")
+    migration = _load_migration(_MIGRATION_PATH, "migration_20260630_0002_down")
 
     engine = sa.create_engine("sqlite:///:memory:")
     with engine.begin() as conn:
