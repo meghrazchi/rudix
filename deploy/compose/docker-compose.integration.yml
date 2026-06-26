@@ -35,6 +35,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 8
+      start_period: 60s
 
   worker:
     image: ${RUDIX_WORKER_IMAGE}

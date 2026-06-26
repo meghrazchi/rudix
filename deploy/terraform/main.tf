@@ -62,7 +62,7 @@ resource "null_resource" "compose_rollout" {
       "rm -f .registry_password",
       "docker compose -f '${local.compose_filename}' pull",
       "docker compose -f '${local.compose_filename}' run --rm api ${var.migration_command}",
-      "docker compose -f '${local.compose_filename}' up -d",
+      "docker compose -f '${local.compose_filename}' up -d --wait",
       "curl -fsS '${var.health_url}' >/dev/null",
       "curl -fsS '${var.readiness_url}' >/dev/null",
     ]
