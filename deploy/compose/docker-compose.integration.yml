@@ -65,6 +65,7 @@ services:
   migrate:
     image: ${RUDIX_API_IMAGE}
     command: alembic upgrade head
+    profiles: ["migrate"]
     env_file:
       - ../../.env.ci.integration
     environment:
