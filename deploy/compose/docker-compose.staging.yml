@@ -7,6 +7,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      NEXT_PUBLIC_APP_URL: ${FRONTEND_APP_URL}
+      NEXT_PUBLIC_API_URL: ${FRONTEND_API_URL}
     ports:
       - "3000:3000"
     depends_on:

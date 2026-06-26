@@ -232,6 +232,9 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Write frontend env
+        run: printf '%s' "${{ secrets.FRONTEND_ENV_LOCAL }}" > frontend/.env.local
+
       - name: Format, lint, and typecheck
         working-directory: frontend
         run: |
