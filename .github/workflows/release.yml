@@ -98,7 +98,8 @@ jobs:
     outputs:
       api_image: ${{ steps.image-refs.outputs.api_image }}
       worker_image: ${{ steps.image-refs.outputs.worker_image }}
-      frontend_image: ${{ steps.image-refs.outputs.frontend_image }}
+      frontend_staging_image: ${{ steps.image-refs.outputs.frontend_staging_image }}
+      frontend_production_image: ${{ steps.image-refs.outputs.frontend_production_image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -142,30 +143,41 @@ jobs:
             -f backend/Dockerfile \
             backend
 
-      - name: Build and push frontend image
+      - name: Build and push frontend staging image
         env:
           IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
-          tags=(
-            --tag "${IMAGE_BASE}/frontend:${GITHUB_SHA}"
-          )
+          printf '%s' "${{ secrets.FRONTEND_ENV_STAGING }}" > frontend/.env.production
+          staging_tags=(--tag "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}")
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            tags+=(
-              --tag "${IMAGE_BASE}/frontend:staging"
-              --tag "${IMAGE_BASE}/frontend:latest"
-            )
+            staging_tags+=(--tag "${IMAGE_BASE}/frontend-staging:latest")
           fi
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            tags+=(
-              --tag "${IMAGE_BASE}/frontend:${GITHUB_REF_NAME}"
-            )
+            staging_tags+=(--tag "${IMAGE_BASE}/frontend-staging:${GITHUB_REF_NAME}")
           fi
           docker buildx build \
             --platform linux/amd64 \
             --push \
-            --build-arg NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
-            --build-arg NEXT_PUBLIC_APP_URL="${NEXT_PUBLIC_APP_URL}" \
-            "${tags[@]}" \
+            "${staging_tags[@]}" \
+            -f frontend/Dockerfile \
+            frontend
+
+      - name: Build and push frontend production image
+        env:
+          IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
+        run: |
+          printf '%s' "${{ secrets.FRONTEND_ENV_PRODUCTION }}" > frontend/.env.production
+          prod_tags=(--tag "${IMAGE_BASE}/frontend-production:${GITHUB_SHA}")
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            prod_tags+=(--tag "${IMAGE_BASE}/frontend-production:latest")
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            prod_tags+=(--tag "${IMAGE_BASE}/frontend-production:${GITHUB_REF_NAME}")
+          fi
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            "${prod_tags[@]}" \
             -f frontend/Dockerfile \
             frontend
 
@@ -176,10 +188,12 @@ jobs:
         run: |
           docker pull "${IMAGE_BASE}/api:${GITHUB_SHA}"
           docker pull "${IMAGE_BASE}/worker:${GITHUB_SHA}"
-          docker pull "${IMAGE_BASE}/frontend:${GITHUB_SHA}"
+          docker pull "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}"
+          docker pull "${IMAGE_BASE}/frontend-production:${GITHUB_SHA}"
           echo "api_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/api:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
           echo "worker_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/worker:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
-          echo "frontend_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/frontend:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
+          echo "frontend_staging_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
+          echo "frontend_production_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/frontend-production:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
 
       - name: Upload image digest references
         if: always()
@@ -187,7 +201,8 @@ jobs:
           mkdir -p artifacts/image-digests
           printf '%s\n' "${{ steps.image-refs.outputs.api_image }}" > artifacts/image-digests/api.txt
           printf '%s\n' "${{ steps.image-refs.outputs.worker_image }}" > artifacts/image-digests/worker.txt
-          printf '%s\n' "${{ steps.image-refs.outputs.frontend_image }}" > artifacts/image-digests/frontend.txt
+          printf '%s\n' "${{ steps.image-refs.outputs.frontend_staging_image }}" > artifacts/image-digests/frontend-staging.txt
+          printf '%s\n' "${{ steps.image-refs.outputs.frontend_production_image }}" > artifacts/image-digests/frontend-production.txt
 
       - name: Upload image digest artifacts
         if: always()
@@ -385,7 +400,7 @@ jobs:
           TF_VAR_env_file_content: ${{ secrets.STAGING_ENV_FILE }}
           TF_VAR_api_image: ${{ needs.build-images.outputs.api_image }}
           TF_VAR_worker_image: ${{ needs.build-images.outputs.worker_image }}
-          TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_image }}
+          TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_staging_image }}
           TF_VAR_backup_check_enabled: "false"
         run: |
           terraform init -input=false
@@ -395,7 +410,7 @@ jobs:
         env:
           DEPLOY_API_IMAGE: ${{ needs.build-images.outputs.api_image }}
           DEPLOY_WORKER_IMAGE: ${{ needs.build-images.outputs.worker_image }}
-          DEPLOY_FRONTEND_IMAGE: ${{ needs.build-images.outputs.frontend_image }}
+          DEPLOY_FRONTEND_IMAGE: ${{ needs.build-images.outputs.frontend_staging_image }}
           STAGING_ENV_URL: ${{ secrets.STAGING_ENV_URL }}
         run: |
           mkdir -p artifacts/deployment
@@ -518,7 +533,7 @@ jobs:
           TF_VAR_env_file_content: ${{ secrets.PRODUCTION_ENV_FILE }}
           TF_VAR_api_image: ${{ needs.build-images.outputs.api_image }}
           TF_VAR_worker_image: ${{ needs.build-images.outputs.worker_image }}
-          TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_image }}
+          TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_production_image }}
           TF_VAR_backup_check_enabled: "true"
           TF_VAR_postgres_backup_path: ${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}
           TF_VAR_minio_backup_path: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
@@ -531,7 +546,7 @@ jobs:
         env:
           DEPLOY_API_IMAGE: ${{ needs.build-images.outputs.api_image }}
           DEPLOY_WORKER_IMAGE: ${{ needs.build-images.outputs.worker_image }}
-          DEPLOY_FRONTEND_IMAGE: ${{ needs.build-images.outputs.frontend_image }}
+          DEPLOY_FRONTEND_IMAGE: ${{ needs.build-images.outputs.frontend_production_image }}
           PRODUCTION_ENV_URL: ${{ secrets.PRODUCTION_ENV_URL }}
         run: |
           mkdir -p artifacts/deployment
