@@ -10,9 +10,8 @@ const nextConfig: NextConfig = {
 
 export default async function config(phase: string): Promise<NextConfig> {
   if (phase === PHASE_PRODUCTION_BUILD) {
-    const { assertFrontendRuntimeConfigForBuild } = await import(
-      "./src/lib/runtime-config"
-    );
+    const { assertFrontendRuntimeConfigForBuild } =
+      await import("./src/lib/runtime-config");
     assertFrontendRuntimeConfigForBuild(process.env);
   }
   return withNextIntl(nextConfig);
