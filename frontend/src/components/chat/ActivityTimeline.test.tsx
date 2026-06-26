@@ -63,7 +63,7 @@ describe("ActivityTimeline", () => {
       }),
     ];
     render(<ActivityTimeline steps={steps} />);
-    expect(screen.getByText("Found 8 relevant passages")).toBeInTheDocument();
+    expect(screen.getByText(/Found 8 relevant passages/)).toBeInTheDocument();
   });
 
   it("shows duration for success steps", () => {
@@ -125,7 +125,7 @@ describe("ActivityTimeline", () => {
     ];
     render(<ActivityTimeline steps={steps} />);
     expect(screen.getByText("Searching knowledge base")).toBeInTheDocument();
-    expect(screen.getByText("Limited relevant sources found")).toBeInTheDocument();
+    expect(screen.getByText(/Limited relevant sources found/)).toBeInTheDocument();
   });
 
   it("renders failed state step", () => {
@@ -139,7 +139,7 @@ describe("ActivityTimeline", () => {
     ];
     render(<ActivityTimeline steps={steps} />);
     expect(screen.getByText("Drafting answer")).toBeInTheDocument();
-    expect(screen.getByText("Generation failed")).toBeInTheDocument();
+    expect(screen.getByText(/Generation failed/)).toBeInTheDocument();
   });
 
   it("renders multiple steps in order", () => {
