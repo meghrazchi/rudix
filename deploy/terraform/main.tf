@@ -61,10 +61,12 @@ resource "null_resource" "compose_rollout" {
       "cd '${var.app_path}'",
       "cat .registry_password | docker login -u '${var.registry_user}' --password-stdin '${var.registry}'",
       "rm -f .registry_password",
+      "docker image prune -f",
       "docker compose -f '${local.compose_filename}' pull",
       "docker compose -f '${local.compose_filename}' up -d --wait ${local.infra_services}",
       "docker compose -f '${local.compose_filename}' run --rm api ${var.migration_command}",
       "docker compose -f '${local.compose_filename}' up -d --wait",
+      "docker image prune -f",
       "curl -fsS '${var.health_url}' >/dev/null",
       "curl -fsS '${var.readiness_url}' >/dev/null",
     ]
