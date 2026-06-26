@@ -19,6 +19,7 @@ import type { ChatQueryRequest, ChatQueryResponse } from "@/lib/api/chat";
 import {
   buildChatWsUrl,
   ChatWSClient,
+  type ActivityTimelineStep,
   type ChatWSEvent,
 } from "@/lib/chat-websocket";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
@@ -46,6 +47,8 @@ export type UseChatWebSocketResult = {
   error: string | null;
   /** True while any non-terminal phase is active. */
   isPending: boolean;
+  /** Live activity timeline steps, keyed by step_key and sorted by sequence. */
+  timelineSteps: ActivityTimelineStep[];
   sendQuery: (payload: ChatQueryRequest & { _scopeLabel?: string }) => void;
   cancel: () => void;
   reset: () => void;
@@ -70,6 +73,7 @@ export function useChatWebSocket(): UseChatWebSocketResult {
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [timelineSteps, setTimelineSteps] = useState<ActivityTimelineStep[]>([]);
 
   const clientRef = useRef<ChatWSClient | null>(null);
   // Keep a stable ref to the current phase to avoid stale closures.
@@ -124,6 +128,30 @@ export function useChatWebSocket(): UseChatWebSocketResult {
           break;
         case "citation.validation.completed":
           break;
+        case "activity.step.update": {
+          const p = evt.payload;
+          if (!p) break;
+          const step: ActivityTimelineStep = {
+            stepKey: p.step_key as string,
+            sequence: p.sequence as number,
+            label: p.label as string,
+            state: p.state as ActivityTimelineStep["state"],
+            detail: (p.detail as string | null) ?? null,
+            durationMs: (p.duration_ms as number | null) ?? null,
+          };
+          setTimelineSteps((prev) => {
+            const idx = prev.findIndex((s) => s.stepKey === step.stepKey);
+            if (idx === -1) {
+              const next = [...prev, step];
+              next.sort((a, b) => a.sequence - b.sequence);
+              return next;
+            }
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...step };
+            return next;
+          });
+          break;
+        }
         case "chat.completed": {
           const response = evt.payload?.response as
             | ChatQueryResponse
@@ -192,6 +220,7 @@ export function useChatWebSocket(): UseChatWebSocketResult {
       setPartialAnswer("");
       setFinalResponse(null);
       setError(null);
+      setTimelineSteps([]);
       updatePhase("connecting");
 
       // Strip internal _scopeLabel — not a valid backend field.
@@ -219,6 +248,7 @@ export function useChatWebSocket(): UseChatWebSocketResult {
     setPartialAnswer("");
     setFinalResponse(null);
     setError(null);
+    setTimelineSteps([]);
     updatePhase("idle");
   }, [updatePhase]);
 
@@ -234,6 +264,7 @@ export function useChatWebSocket(): UseChatWebSocketResult {
     finalResponse,
     error,
     isPending,
+    timelineSteps,
     sendQuery,
     cancel,
     reset,

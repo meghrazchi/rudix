@@ -5057,6 +5057,33 @@ async def _run_ws_chat_pipeline(
 
     await send("chat.request.received")
 
+    # Activity timeline helpers — step_seq is the display order in the UI.
+    _activity_step_seq = 0
+
+    async def send_step(
+        step_key: str,
+        label: str,
+        state: str,
+        detail: str | None = None,
+        duration_ms: int | None = None,
+    ) -> None:
+        nonlocal _activity_step_seq
+        if state in ("running", "pending"):
+            _activity_step_seq += 1
+        await send(
+            "activity.step.update",
+            {
+                "step_key": step_key,
+                "sequence": _activity_step_seq,
+                "label": label,
+                "state": state,
+                "detail": detail,
+                "duration_ms": duration_ms,
+            },
+        )
+
+    await send_step("understanding_question", "Understanding your question", "running")
+
     user_id, organization_id = _principal_user_and_org(principal)
     user_roles = list(principal.roles or [])
 
@@ -5083,6 +5110,8 @@ async def _run_ws_chat_pipeline(
             )
             document_ids = source_scope_result.document_ids
             await send("chat.scope.validated", {"scope_label": source_scope_result.label})
+            await send_step("understanding_question", "Understanding your question", "success")
+            await send_step("checking_sources", "Checking accessible sources", "running")
 
             # ── Session management ────────────────────────────────────────────
             if query_request.chat_session_id is not None:
@@ -5218,6 +5247,8 @@ async def _run_ws_chat_pipeline(
                 )
 
             if injection_check.blocked:
+                await send_step("checking_sources", "Checking accessible sources", "failed",
+                                detail="Request could not be processed")
                 embedding_model = None
                 confidence_signals = _to_confidence_signals(chunks=[], rerank_applied=False)
                 confidence_result = _confidence_service.score(
@@ -5232,16 +5263,20 @@ async def _run_ws_chat_pipeline(
 
             elif query_request.scope_mode == "none":
                 # ── General chat (no retrieval) ───────────────────────────────
+                await send_step("checking_sources", "Checking accessible sources", "skipped")
+                await send_step("searching_documents", "Searching knowledge base", "skipped")
                 embedding_model = None
                 prompt = _prompt_service.build_general_prompt(
                     question=query_request.question, answer_language=answer_language_used
                 )
                 await send("generation.started")
+                await send_step("drafting_answer", "Drafting answer", "running")
                 try:
                     llm_result = await _llm_service.generate_answer(
                         prompt=prompt, resolved_profile=chat_profile
                     )
                 except (TransientLLMServiceError, PermanentLLMServiceError):
+                    await send_step("drafting_answer", "Drafting answer", "failed")
                     await send("chat.error", safe_error_code="generation_failed")
                     return
                 llm_latency_ms = llm_result.latency_ms
@@ -5257,6 +5292,12 @@ async def _run_ws_chat_pipeline(
                 answer = llm_result.answer if llm_result.answer.strip() else _NOT_FOUND_ANSWER
                 not_found = llm_result.not_found or not answer.strip()
                 await send("generation.delta", {"text": answer})
+                await send_step(
+                    "drafting_answer", "Drafting answer",
+                    "warning" if not_found else "success",
+                    detail="No relevant answer found" if not_found else None,
+                    duration_ms=llm_result.latency_ms,
+                )
                 confidence_signals = _to_confidence_signals(chunks=[], rerank_applied=False)
                 confidence_result = _confidence_service.score(
                     chunks=confidence_signals,
@@ -5293,7 +5334,13 @@ async def _run_ws_chat_pipeline(
                 latencies_ms["embed"] = int((perf_counter() - embed_started) * 1000)
 
                 # Retrieval
+                _source_count = len(document_ids) if document_ids is not None else 0
+                await send_step(
+                    "checking_sources", "Checking accessible sources", "success",
+                    detail=f"Searching {_source_count} source{'s' if _source_count != 1 else ''}",
+                )
                 await send("retrieval.started")
+                await send_step("searching_documents", "Searching knowledge base", "running")
                 retrieve_started = perf_counter()
                 try:
                     retrieved_candidates = _query_retrieval_service.retrieve_candidates(
@@ -5330,11 +5377,21 @@ async def _run_ws_chat_pipeline(
                     "retrieval.completed",
                     {"chunk_count": len(retrieved_chunks)},
                 )
+                _retrieve_count = len(retrieved_chunks)
+                await send_step(
+                    "searching_documents", "Searching knowledge base",
+                    "warning" if _retrieve_count == 0 else "success",
+                    detail=f"Found {_retrieve_count} relevant passage{'s' if _retrieve_count != 1 else ''}",
+                    duration_ms=latencies_ms["retrieve"],
+                )
 
                 # Reranking
                 rerank_started = perf_counter()
                 if rerank_applied:
                     await send("rerank.started")
+                    await send_step("reranking_evidence", "Ranking evidence by relevance", "running")
+                else:
+                    await send_step("reranking_evidence", "Ranking evidence by relevance", "skipped")
                 selected_chunks, rerank_result = await _rerank_chunks(
                     query=query_request.question,
                     chunks=retrieved_chunks,
@@ -5345,6 +5402,11 @@ async def _run_ws_chat_pipeline(
                 latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
                 if rerank_applied:
                     await send("rerank.completed", {"selected_count": len(selected_chunks)})
+                    await send_step(
+                        "reranking_evidence", "Ranking evidence by relevance", "success",
+                        detail=f"Selected {len(selected_chunks)} top source{'s' if len(selected_chunks) != 1 else ''}",
+                        duration_ms=latencies_ms["rerank"],
+                    )
 
                 # Confidence pre-LLM
                 confidence_signals = _to_confidence_signals(
@@ -5430,11 +5492,13 @@ async def _run_ws_chat_pipeline(
 
                 if not not_found:
                     await send("generation.started")
+                    await send_step("drafting_answer", "Drafting answer", "running")
                     try:
                         llm_result = await _llm_service.generate_answer(
                             prompt=prompt, resolved_profile=chat_profile
                         )
                     except (TransientLLMServiceError, PermanentLLMServiceError):
+                        await send_step("drafting_answer", "Drafting answer", "failed")
                         await send("chat.error", safe_error_code="generation_failed")
                         return
                     llm_latency_ms = llm_result.latency_ms
@@ -5458,9 +5522,19 @@ async def _run_ws_chat_pipeline(
                     ):
                         answer = _NOT_FOUND_ANSWER
                         not_found = True
+                        await send_step(
+                            "drafting_answer", "Drafting answer", "warning",
+                            detail="No relevant answer found",
+                            duration_ms=llm_latency_ms,
+                        )
                     else:
+                        await send_step(
+                            "drafting_answer", "Drafting answer", "success",
+                            duration_ms=llm_latency_ms,
+                        )
                         # Citation validation
                         await send("citation.validation.started")
+                        await send_step("verifying_citations", "Verifying source citations", "running")
                         citation_result = _citation_service.build_citations(
                             not_found=False,
                             answer=answer,
@@ -5519,6 +5593,11 @@ async def _run_ws_chat_pipeline(
                         await send(
                             "citation.validation.completed",
                             {"citation_count": len(citations)},
+                        )
+                        await send_step(
+                            "verifying_citations", "Verifying source citations",
+                            "warning" if citation_validation_failed else "success",
+                            detail=f"Linked {len(citations)} citation{'s' if len(citations) != 1 else ''}",
                         )
 
                     if not_found:
@@ -5832,6 +5911,8 @@ async def _run_ws_chat_pipeline(
                 conflict_detection_conflict_count=len(conflict_detection_result.conflict_pairs),
                 transport="websocket",
             )
+            await send_step("preparing_final_answer", "Preparing final answer", "success")
+
             # ── Final event ───────────────────────────────────────────────────
             final_response = ChatQueryResponse(
                 chat_session_id=str(chat_session.id),

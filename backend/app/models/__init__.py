@@ -1,3 +1,4 @@
+from app.models.activity_timeline import ActivityTimelineEvent
 from app.models.ab_experiment import (
     AbExperiment,
     AbExperimentRun,
@@ -92,6 +93,7 @@ from app.models.verified_answer import VerifiedAnswer, VerifiedAnswerCitation, V
 from app.models.webhook import Webhook, WebhookDelivery
 
 __all__ = [
+    "ActivityTimelineEvent",
     "AbExperiment",
     "AbExperimentRun",
     "AbExperimentVariant",

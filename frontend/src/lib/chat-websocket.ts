@@ -24,10 +24,28 @@ export type ChatWSEventType =
   | "generation.delta"
   | "citation.validation.started"
   | "citation.validation.completed"
+  | "activity.step.update"
   | "chat.completed"
   | "chat.cancelled"
   | "chat.error"
   | "heartbeat.ping";
+
+export type ActivityStepState =
+  | "pending"
+  | "running"
+  | "success"
+  | "warning"
+  | "failed"
+  | "skipped";
+
+export type ActivityTimelineStep = {
+  stepKey: string;
+  sequence: number;
+  label: string;
+  state: ActivityStepState;
+  detail: string | null;
+  durationMs: number | null;
+};
 
 export type ChatWSEvent = {
   event: ChatWSEventType;

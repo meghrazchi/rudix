@@ -19,6 +19,7 @@ import {
   TrustPanelFeedbackModal,
   type TrustPanelCitationRef,
 } from "@/components/chat/TrustPanelFeedbackModal";
+import { ActivityTimeline } from "@/components/chat/ActivityTimeline";
 import { ChatResponseLoadingState } from "@/components/chat/ChatResponseLoadingState";
 import { ShareModal } from "@/components/chat/ShareModal";
 import { AnswerShareModal } from "@/components/chat/AnswerShareModal";
@@ -3018,6 +3019,10 @@ export function ChatPage() {
                             </p>
                           </article>
                         </div>
+                        {CHAT_WEBSOCKET_ENABLED &&
+                          wsChat.timelineSteps.length > 0 && (
+                            <ActivityTimeline steps={wsChat.timelineSteps} />
+                          )}
                         {CHAT_WEBSOCKET_ENABLED && wsChat.partialAnswer ? (
                           <div className="flex justify-start">
                             <article className="max-w-[90%] rounded-xl rounded-tl-none border border-[#e2dff1] bg-white px-4 py-3 shadow-sm">

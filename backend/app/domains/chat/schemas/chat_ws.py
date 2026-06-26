@@ -17,6 +17,7 @@ ChatWSEventType = Literal[
     "generation.delta",
     "citation.validation.started",
     "citation.validation.completed",
+    "activity.step.update",
     "chat.completed",
     "chat.cancelled",
     "chat.error",
