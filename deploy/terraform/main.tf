@@ -1,5 +1,6 @@
 locals {
   compose_filename   = "docker-compose.${var.environment_name}.yml"
+  infra_services     = "postgres rabbitmq redis minio qdrant minio-init"
   backup_check_cmd   = var.backup_check_enabled ? "test -f '${var.postgres_backup_path}' && test -f '${var.minio_backup_path}' && test -f '${var.qdrant_backup_path}'" : "echo 'Backup checks disabled for this environment.'"
   deploy_env_content = <<-EOT
 ${var.env_file_content}
@@ -61,6 +62,7 @@ resource "null_resource" "compose_rollout" {
       "cat .registry_password | docker login -u '${var.registry_user}' --password-stdin '${var.registry}'",
       "rm -f .registry_password",
       "docker compose -f '${local.compose_filename}' pull",
+      "docker compose -f '${local.compose_filename}' up -d --wait ${local.infra_services}",
       "docker compose -f '${local.compose_filename}' run --rm api ${var.migration_command}",
       "docker compose -f '${local.compose_filename}' up -d --wait",
       "curl -fsS '${var.health_url}' >/dev/null",

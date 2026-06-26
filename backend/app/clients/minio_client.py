@@ -25,15 +25,14 @@ def init_minio() -> None:
             bootstrap_bucket=settings.minio_bootstrap_bucket,
         )
     except Exception as exc:
-        logger.error(
-            "minio.init.failed",
+        logger.warning(
+            "minio.init.unavailable",
             endpoint=str(settings.minio_endpoint),
             bucket=settings.minio_bucket,
             error=exc.__class__.__name__,
-            exc_info=exc,
+            detail=str(exc),
         )
         close_minio()
-        raise
 
 
 def close_minio() -> None:
