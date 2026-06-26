@@ -30,7 +30,7 @@ _MIGRATION_PATH = (
     Path(__file__).resolve().parents[1]
     / "alembic"
     / "versions"
-    / "20260626_0003_activity_timeline_f337.py"
+    / "20260630_0002_activity_timeline_f337.py"
 )
 
 _ORGS_DDL = """

@@ -1,4 +1,4 @@
-.PHONY: install venv lint test test-verbose audit run-api run-worker run-mcp-http run-mcp-stdio format migrate downgrade seed-dev
+.PHONY: install venv lint test test-verbose audit run-api run-worker run-mcp-http run-mcp-stdio format check-revisions migrate downgrade seed-dev
 
 PYTHON := python3
 VENV_DIR := .venv
@@ -48,7 +48,15 @@ run-mcp-stdio:
 format:
 	$(RUFF) check app tests --fix
 
-migrate:
+check-revisions:
+	@count=$$($(ALEMBIC) heads 2>/dev/null | grep -c "(head)" || echo 0); \
+	if [ "$$count" -ne 1 ]; then \
+		echo "ERROR: expected 1 alembic head, found $$count (duplicate revision IDs or unmerged branches)"; \
+		$(ALEMBIC) heads; \
+		exit 1; \
+	fi
+
+migrate: check-revisions
 	$(ALEMBIC) upgrade head
 
 downgrade:

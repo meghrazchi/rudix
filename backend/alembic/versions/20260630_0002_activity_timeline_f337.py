@@ -1,6 +1,6 @@
 """activity_timeline_events table for F337 agent activity timeline.
 
-Revision ID: 20260626_0003
+Revision ID: 20260630_0002
 Revises: 20260630_0001
 Create Date: 2026-06-26
 
@@ -16,7 +16,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "20260626_0003"
+revision: str = "20260630_0002"
 down_revision: str | None = "20260630_0001"
 branch_labels: Sequence[str] | None = None
 depends_on: Sequence[str] | None = None
