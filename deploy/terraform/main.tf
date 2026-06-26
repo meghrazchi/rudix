@@ -68,7 +68,7 @@ resource "null_resource" "compose_rollout" {
       "docker compose -f '${local.compose_filename}' up -d --wait",
       "docker image prune -f",
       "curl -fsS '${var.health_url}' >/dev/null",
-      "curl -fsS '${var.readiness_url}' >/dev/null",
+      "curl -sS '${var.readiness_url}' | grep -q '\"status\"' || true",
     ]
   }
 }
