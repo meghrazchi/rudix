@@ -26,6 +26,7 @@ FeatureFlagName = Literal[
     "external_mcp_connectors",
     "query_rewriting",
     "query_rewrite_preview",
+    "tree_search_reasoning",
     "org_memory",
 ]
 
