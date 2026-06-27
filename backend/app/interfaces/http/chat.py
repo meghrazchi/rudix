@@ -3930,6 +3930,17 @@ async def query_chat(
                         ],
                         model_citations=llm_result.citations,
                     )
+                if citation_result is None:
+                    citation_result = CitationBuildResult(
+                        citations=[],
+                        model_citation_count=0,
+                        accepted_model_citation_count=0,
+                        used_fallback=False,
+                        validation_score=1.0,
+                        invalid_chunk_id_count=0,
+                        metadata_mismatch_count=0,
+                        snippet_mismatch_count=0,
+                    )
                 citation_chunk_ids = [
                     chunk_id
                     for citation in citation_result.citations

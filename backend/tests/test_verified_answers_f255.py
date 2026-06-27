@@ -31,7 +31,7 @@ Run:
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -890,7 +890,7 @@ async def test_http_versions_newest_first(client: AsyncClient, org: Organization
 @pytest.mark.asyncio
 async def test_http_stale_expiry(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
-    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
     resp = await client.post(
         "/verified-answers",
         json={

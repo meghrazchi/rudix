@@ -36,7 +36,7 @@ _GUIDANCE_PATTERNS: tuple[tuple[re.Pattern[str], GuidanceTopic], ...] = (
     (
         re.compile(
             r"\b(onboarding|getting started|first steps|welcome flow|setup wizard|setup guide|"
-            r"new user|new users|new hire|day one|walk me through|guide me through|"
+            r"new user|new users|new hire|day one|get started|walk me through|guide me through|"
             r"how do i use rudix|how can i use rudix|using rudix|help me use rudix)\b",
             re.IGNORECASE,
         ),
@@ -137,4 +137,6 @@ class AnswerModeService:
             )
         except Exception as exc:
             logger.warning("answer_mode classifier failed, using grounded fallback: %s", exc)
-            return AnswerModeResult(mode="grounded", topic=None, reason="classifier_error", latency_ms=0)
+            return AnswerModeResult(
+                mode="grounded", topic=None, reason="classifier_error", latency_ms=0
+            )

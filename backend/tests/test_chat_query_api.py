@@ -1670,10 +1670,7 @@ async def test_post_chat_guidance_question_skips_retrieval_and_uses_guidance_pro
     # LLM must have been called once (for the general answer).
     assert len(chat_provider.calls) == 1
     assert payload["trust_metadata"]["query_interpretation"]["answer_mode"] == "guidance"
-    assert (
-        payload["trust_metadata"]["query_interpretation"]["guidance_topic"]
-        == "source_scope"
-    )
+    assert payload["trust_metadata"]["query_interpretation"]["guidance_topic"] == "source_scope"
 
 
 @pytest.mark.asyncio
