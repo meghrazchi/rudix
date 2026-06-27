@@ -1,0 +1,15 @@
+# Local env files must never enter the Docker build context — they override
+# .env.production (which CI writes with the correct staging/production URLs)
+# because Next.js loads .env.local before .env.[NODE_ENV].
+.env.local
+.env.*.local
+
+# Runtime artifacts not needed at build time
+.next
+node_modules
+
+# Dev/test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
