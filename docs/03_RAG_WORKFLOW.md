@@ -338,6 +338,17 @@ profile or the environment defaults.
 
 Qdrant returns top 20 similar chunks.
 
+Parallel retrieval fan-out runs safe branches together when available:
+
+- query embedding for sub-queries
+- vector search and keyword search per query
+- graph expansion for graph-enabled requests
+- shared metadata lookups for freshness and provenance
+
+The parallel executor is bounded by max parallel calls, timeout, retry, token,
+and cost budgets. If any branch fails or times out, the remaining branches
+continue and merged results are still deduplicated and reranked.
+
 ### Stage 2: Reranking
 
 ```text

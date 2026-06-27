@@ -576,6 +576,11 @@ class Settings(BaseSettings):
     # into focused sub-queries for parallel retrieval.
     # WARNING: each LLM rewriting call adds latency and token cost before retrieval.
     # Keep query_rewriting_timeout_seconds well below the overall request timeout.
+    retrieval_parallel_max_calls: int = Field(default=4, ge=1, le=50)
+    retrieval_parallel_timeout_ms: int = Field(default=8_000, ge=100, le=300_000)
+    retrieval_parallel_max_retry_attempts: int = Field(default=1, ge=0, le=10)
+    retrieval_parallel_max_total_tokens: int | None = Field(default=4_000, ge=1, le=100_000)
+    retrieval_parallel_max_total_cost_usd: float | None = Field(default=0.05, ge=0.0, le=1000.0)
     feature_enable_query_rewriting: bool = False
     feature_enable_query_rewrite_preview: bool = True
     query_rewriting_timeout_seconds: float = Field(default=5.0, ge=0.5, le=30.0)
@@ -1499,6 +1504,11 @@ class Settings(BaseSettings):
                 "hybrid_retrieval": self.feature_enable_hybrid_retrieval,
                 "query_rewriting": self.feature_enable_query_rewriting,
                 "query_rewrite_preview": self.feature_enable_query_rewrite_preview,
+                "retrieval_parallel_max_calls": self.retrieval_parallel_max_calls,
+                "retrieval_parallel_timeout_ms": self.retrieval_parallel_timeout_ms,
+                "retrieval_parallel_max_retry_attempts": self.retrieval_parallel_max_retry_attempts,
+                "retrieval_parallel_max_total_tokens": self.retrieval_parallel_max_total_tokens,
+                "retrieval_parallel_max_total_cost_usd": self.retrieval_parallel_max_total_cost_usd,
                 "conflict_detection": self.feature_enable_conflict_detection,
                 "grounded_answer_verification": self.feature_enable_grounded_answer_verification,
                 "graph_rag": self.feature_enable_graph_rag,

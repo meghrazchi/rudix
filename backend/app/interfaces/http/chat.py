@@ -118,6 +118,7 @@ from app.domains.chat.schemas.trust_metadata import (
     PlannerCriticRecord,
     PolicyEnforcementRecord,
     QueryInterpretationRecord,
+    RetrievalBranchRecord,
     RetrievalDiagnosticsRecord,
     RetrievalMethodRecord,
     SourceFreshnessRecord,
@@ -163,6 +164,11 @@ from app.domains.chat.services.llm_service import (
     LLMService,
     PermanentLLMServiceError,
     TransientLLMServiceError,
+)
+from app.domains.chat.services.parallel_retrieval_optimizer import (
+    ParallelRetrievalBudget,
+    ParallelRetrievalOptimizer,
+    ParallelRetrievalResult,
 )
 from app.domains.chat.services.parent_context_expansion_service import (
     ParentContextExpansionService,
@@ -324,6 +330,7 @@ _source_freshness_service = SourceFreshnessService()
 _table_retrieval_service = TableRetrievalService()
 _ocr_quality_service = OcrQualityService()
 _parent_context_expansion_service = ParentContextExpansionService()
+_parallel_retrieval_optimizer = ParallelRetrievalOptimizer()
 _context_packer_service = ContextPackerService()
 _retrieval_strategy_router = RetrievalStrategyRouter()
 _chat_tool_orchestrator = ChatToolOrchestrator()
@@ -422,6 +429,25 @@ def _build_retrieval_method_record(
         override_source=route_result.override_source,  # type: ignore[arg-type]
         routing_latency_ms=route_result.routing_latency_ms,
     )
+
+
+def _build_parallel_branch_records(
+    parallel_result: ParallelRetrievalResult | None,
+) -> list[RetrievalBranchRecord]:
+    if parallel_result is None:
+        return []
+    return [
+        RetrievalBranchRecord(
+            branch_name=record.branch_name,
+            latency_ms=record.latency_ms,
+            succeeded=record.succeeded,
+            retries=record.retries,
+            candidate_count=record.candidate_count,
+            error_code=record.error_code,
+            skipped=record.skipped,
+        )
+        for record in parallel_result.branch_records
+    ]
 
 
 def _build_tool_orchestration_record(
@@ -1824,6 +1850,7 @@ def _build_retrieval_diagnostics_payload(
     selected_chunks: list[RetrievedChunk],
     rerank_applied: bool,
     rerank_diagnostics: object | None,
+    parallel_result: ParallelRetrievalResult | None,
     hybrid_retrieval_enabled: bool,
     hybrid_vector_hit_count: int,
     hybrid_keyword_hit_count: int,
@@ -1852,6 +1879,7 @@ def _build_retrieval_diagnostics_payload(
     rerank_score_min, rerank_score_max = _build_rerank_score_range(retrieved_chunks)
     rerank_fallback_used = bool(getattr(rerank_diagnostics, "fallback_used", False))
     rerank_fallback_reason = getattr(rerank_diagnostics, "fallback_reason", None)
+    parallel_branches = _build_parallel_branch_records(parallel_result)
     return {
         "retrieval_candidate_count": len(retrieved_chunks),
         "retrieval_count": len(retrieved_chunks),
@@ -1879,6 +1907,14 @@ def _build_retrieval_diagnostics_payload(
         "rerank_fallback_reason": rerank_fallback_reason,
         "request_id": request_id,
         "trace_request_id": request_id,
+        "parallel_branch_count": len(parallel_branches),
+        "parallel_branch_failure_count": sum(
+            1 for branch in parallel_branches if not branch.succeeded
+        ),
+        "parallel_branch_timeout_count": sum(
+            1 for branch in parallel_branches if branch.error_code == "timeout"
+        ),
+        "parallel_branches": parallel_branches,
     }
 
 
@@ -1890,6 +1926,7 @@ async def _augment_retrieval_with_graph_context(
     vector_chunks: list[RetrievedChunk],
     allowed_document_ids: list[UUID] | None,
     graph_enabled: bool,
+    graph_result: GraphRetrievalResult | None = None,
 ) -> tuple[list[RetrievedChunk], GraphRetrievalResult]:
     if not graph_enabled:
         return vector_chunks, GraphRetrievalResult(
@@ -1898,13 +1935,14 @@ async def _augment_retrieval_with_graph_context(
             graph_context_reason="disabled",
         )
 
-    graph_result = await _graph_retrieval_service.expand(
-        session=db_session,
-        organization_id=organization_id,
-        question=question,
-        allowed_document_ids=allowed_document_ids,
-        graph_enabled=True,
-    )
+    if graph_result is None:
+        graph_result = await _graph_retrieval_service.expand(
+            session=db_session,
+            organization_id=organization_id,
+            question=question,
+            allowed_document_ids=allowed_document_ids,
+            graph_enabled=True,
+        )
     if not graph_result.chunks:
         return vector_chunks, graph_result
 
@@ -2808,6 +2846,7 @@ async def query_chat(
     context_packing_rejected_count: int = 0
     # Dynamic retrieval strategy routing state (F341)
     _route_result: RetrievalRouteResult | None = None
+    parallel_result: ParallelRetrievalResult | None = None
     # Adaptive tool orchestration state (F342)
     _orchestration_result: ToolOrchestrationResult | None = None
 
@@ -3026,78 +3065,62 @@ async def query_chat(
         else:
             _retrieval_queries = [payload.question]
 
-        embed_started = perf_counter()
-        try:
-            embed_tasks = [
-                _query_retrieval_service.embed_query(question=q) for q in _retrieval_queries
-            ]
-            embed_results = await asyncio.gather(*embed_tasks)
-            # Sum token counts across all embedding calls.
-            embedding_prompt_tokens = sum(tokens for _, tokens in embed_results)
-        except Exception as exc:
-            log_query_event(
-                event="query.failed.embed",
-                organization_id=principal.organization_id,
-                user_id=principal.user_id,
-                job_id=str(chat_session.id),
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                error=exc.__class__.__name__,
-                embedding_model=embedding_model,
-            )
-            raise _safe_http_error(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                code="query_embedding_failed",
-                message="Query embedding is unavailable",
-            ) from exc
-        latencies_ms["embed"] = int((perf_counter() - embed_started) * 1000)
-
         retrieve_started = perf_counter()
         try:
-            # Collect chunks from all retrieval queries, deduplicating by chunk_id.
-            # When the same chunk appears in multiple sub-query results we keep the
-            # instance with the highest similarity score.
+            graph_enabled = await _resolve_graph_rag_enabled(
+                db_session, organization_id=organization_id
+            )
+            _route_wants_vector_only = (
+                _route_result is not None and _route_result.method == "vector"
+            )
+            _effective_hybrid = (
+                settings.feature_enable_hybrid_retrieval and not _route_wants_vector_only
+            )
+            _parallel_budget = ParallelRetrievalBudget(
+                max_parallel_calls=settings.retrieval_parallel_max_calls,
+                timeout_ms=settings.retrieval_parallel_timeout_ms,
+                max_retry_attempts=settings.retrieval_parallel_max_retry_attempts,
+                max_total_tokens=settings.retrieval_parallel_max_total_tokens,
+                max_total_cost_usd=(
+                    None
+                    if settings.retrieval_parallel_max_total_cost_usd is None
+                    else settings.retrieval_parallel_max_total_cost_usd
+                ),
+            )
+            parallel_result = await _parallel_retrieval_optimizer.execute(
+                session=db_session,
+                organization_id=organization_id,
+                document_ids=document_ids,
+                queries=_retrieval_queries,
+                query_retrieval_service=_query_retrieval_service,
+                keyword_retrieval_service=_keyword_retrieval_service,
+                graph_retrieval_service=_graph_retrieval_service,
+                graph_enabled=graph_enabled,
+                keyword_enabled=_effective_hybrid,
+                qdrant_client=_get_qdrant_client(),
+                top_k=retrieval_top_k,
+                exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
+                budget=_parallel_budget,
+            )
+            embedding_model = parallel_result.embedding_model or embedding_model
+            embedding_prompt_tokens = parallel_result.total_embedding_prompt_tokens
+            graph_context_result = parallel_result.graph_result
+
             _merged_chunks: dict[str, RetrievedChunk] = {}
             _primary_query_for_kw = _retrieval_queries[0]
-
-            for (query_vector, _), retrieval_q in zip(
-                embed_results, _retrieval_queries, strict=False
-            ):
-                retrieved_candidates = _query_retrieval_service.retrieve_candidates(
-                    query_vector=query_vector,
-                    organization_id=organization_id,
-                    document_ids=document_ids,
-                    initial_top_k=retrieval_top_k,
-                    qdrant_client=_get_qdrant_client(),
-                )
-
-                # Dynamic routing (F341): skip hybrid when router explicitly selects vector,
-                # or fall through to hybrid when any keyword-capable method is requested.
-                _route_wants_vector_only = (
-                    _route_result is not None and _route_result.method == "vector"
-                )
-                _effective_hybrid = (
-                    settings.feature_enable_hybrid_retrieval and not _route_wants_vector_only
-                )
-                if _effective_hybrid:
-                    kw_result = await _keyword_retrieval_service.search_chunks(
-                        session=db_session,
-                        query=retrieval_q,
-                        organization_id=organization_id,
-                        document_ids=document_ids,
-                        top_k=retrieval_top_k,
-                        exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
-                    )
+            for record in parallel_result.query_records:
+                retrieved_candidates = record.vector_candidates
+                if _effective_hybrid and record.keyword_candidates is not None:
                     hybrid_result = _hybrid_retrieval_service.merge(
                         vector_candidates=retrieved_candidates,
-                        keyword_candidates=kw_result.candidates,
-                        exact_match_tokens=kw_result.exact_match_tokens,
+                        keyword_candidates=record.keyword_candidates.candidates,
+                        exact_match_tokens=record.keyword_candidates.exact_match_tokens,
                         vector_weight=settings.hybrid_retrieval_vector_weight,
                         rrf_k=settings.hybrid_retrieval_rrf_k,
                         exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
                     )
                     batch_chunks = [_hybrid_to_retrieved_chunk(c) for c in hybrid_result.candidates]
-                    # Accumulate hybrid stats only for the primary query.
-                    if retrieval_q == _primary_query_for_kw:
+                    if record.query == _primary_query_for_kw:
                         hybrid_retrieval_enabled = True
                         hybrid_vector_hit_count = hybrid_result.vector_hit_count
                         hybrid_keyword_hit_count = hybrid_result.keyword_hit_count
@@ -3170,9 +3193,6 @@ async def query_chat(
                         c for c in retrieved_chunks if str(c.document_id) in _allowed_cite_ids
                     ]
 
-            graph_enabled = await _resolve_graph_rag_enabled(
-                db_session, organization_id=organization_id
-            )
             retrieved_chunks, graph_context_result = await _augment_retrieval_with_graph_context(
                 db_session,
                 organization_id=organization_id,
@@ -3180,6 +3200,7 @@ async def query_chat(
                 vector_chunks=retrieved_chunks,
                 allowed_document_ids=document_ids,
                 graph_enabled=graph_enabled,
+                graph_result=graph_context_result,
             )
             retrieved_chunks = _with_original_ranks(retrieved_chunks)
 
@@ -3963,6 +3984,7 @@ async def query_chat(
         selected_chunks=selected_chunks,
         rerank_applied=rerank_applied,
         rerank_diagnostics=rerank_diagnostics,
+        parallel_result=parallel_result,
         hybrid_retrieval_enabled=hybrid_retrieval_enabled,
         hybrid_vector_hit_count=hybrid_vector_hit_count,
         hybrid_keyword_hit_count=hybrid_keyword_hit_count,
@@ -5676,6 +5698,7 @@ async def _run_ws_chat_pipeline(
             verification_failed = False
             grounded_verifier_result: GroundedVerifierResult | None = None
             graph_context_result = GraphRetrievalResult()
+            parallel_result: ParallelRetrievalResult | None = None
             rerank_result: RerankResult | None = None
             query_rewrite_result: QueryRewritingResult | None = None
             query_rewrite_preview_enabled = settings.feature_enable_query_rewrite_preview
@@ -5879,18 +5902,6 @@ async def _run_ws_chat_pipeline(
                     rerank_input_limit if rerank_applied else final_top_k,
                 )
 
-                # Embedding
-                embed_started = perf_counter()
-                try:
-                    (
-                        query_vector,
-                        embedding_prompt_tokens,
-                    ) = await _query_retrieval_service.embed_query(question=query_request.question)
-                except Exception:
-                    await send("chat.error", safe_error_code="query_embedding_failed")
-                    return
-                latencies_ms["embed"] = int((perf_counter() - embed_started) * 1000)
-
                 # Retrieval
                 _source_count = len(document_ids) if document_ids is not None else 0
                 await send_step(
@@ -5903,20 +5914,75 @@ async def _run_ws_chat_pipeline(
                 await send_step("searching_documents", "Searching knowledge base", "running")
                 retrieve_started = perf_counter()
                 try:
-                    retrieved_candidates = _query_retrieval_service.retrieve_candidates(
-                        query_vector=query_vector,
-                        organization_id=organization_id,
-                        document_ids=document_ids,
-                        initial_top_k=retrieval_top_k,
-                        qdrant_client=_get_qdrant_client(),
-                    )
-                    retrieved_chunks = [_to_retrieved_chunk(c) for c in retrieved_candidates]
-                    retrieved_chunks = await _source_provenance_service.filter_active_chunks(
-                        db_session, organization_id=organization_id, chunks=retrieved_chunks
-                    )
                     graph_enabled = await _resolve_graph_rag_enabled(
                         db_session, organization_id=organization_id
                     )
+                    _ws_route_wants_vector_only = (
+                        _ws_route_result is not None and _ws_route_result.method == "vector"
+                    )
+                    _ws_effective_hybrid = (
+                        settings.feature_enable_hybrid_retrieval and not _ws_route_wants_vector_only
+                    )
+                    _ws_parallel_budget = ParallelRetrievalBudget(
+                        max_parallel_calls=settings.retrieval_parallel_max_calls,
+                        timeout_ms=settings.retrieval_parallel_timeout_ms,
+                        max_retry_attempts=settings.retrieval_parallel_max_retry_attempts,
+                        max_total_tokens=settings.retrieval_parallel_max_total_tokens,
+                        max_total_cost_usd=(
+                            None
+                            if settings.retrieval_parallel_max_total_cost_usd is None
+                            else settings.retrieval_parallel_max_total_cost_usd
+                        ),
+                    )
+                    parallel_result = await _parallel_retrieval_optimizer.execute(
+                        session=db_session,
+                        organization_id=organization_id,
+                        document_ids=document_ids,
+                        queries=[query_request.question],
+                        query_retrieval_service=_query_retrieval_service,
+                        keyword_retrieval_service=_keyword_retrieval_service,
+                        graph_retrieval_service=_graph_retrieval_service,
+                        graph_enabled=graph_enabled,
+                        keyword_enabled=_ws_effective_hybrid,
+                        qdrant_client=_get_qdrant_client(),
+                        top_k=retrieval_top_k,
+                        exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
+                        budget=_ws_parallel_budget,
+                    )
+                    embedding_model = parallel_result.embedding_model or embedding_model
+                    embedding_prompt_tokens = parallel_result.total_embedding_prompt_tokens
+                    graph_context_result = parallel_result.graph_result
+                    _ws_record = (
+                        parallel_result.query_records[0] if parallel_result.query_records else None
+                    )
+                    if _ws_record is not None:
+                        retrieved_chunks = [
+                            _hybrid_to_retrieved_chunk(c)
+                            if _ws_effective_hybrid and _ws_record.keyword_candidates is not None
+                            else _to_retrieved_chunk(c)
+                            for c in _ws_record.vector_candidates
+                        ]
+                        if _ws_effective_hybrid and _ws_record.keyword_candidates is not None:
+                            hybrid_result = _hybrid_retrieval_service.merge(
+                                vector_candidates=_ws_record.vector_candidates,
+                                keyword_candidates=_ws_record.keyword_candidates.candidates,
+                                exact_match_tokens=_ws_record.keyword_candidates.exact_match_tokens,
+                                vector_weight=settings.hybrid_retrieval_vector_weight,
+                                rrf_k=settings.hybrid_retrieval_rrf_k,
+                                exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
+                            )
+                            retrieved_chunks = [
+                                _hybrid_to_retrieved_chunk(c) for c in hybrid_result.candidates
+                            ]
+                            hybrid_retrieval_enabled = True
+                            hybrid_vector_hit_count = hybrid_result.vector_hit_count
+                            hybrid_keyword_hit_count = hybrid_result.keyword_hit_count
+                        retrieved_chunks = await _source_provenance_service.filter_active_chunks(
+                            db_session, organization_id=organization_id, chunks=retrieved_chunks
+                        )
+                        retrieved_chunks = _with_original_ranks(retrieved_chunks)
+                    else:
+                        retrieved_chunks = []
                     (
                         retrieved_chunks,
                         graph_context_result,
@@ -5927,8 +5993,8 @@ async def _run_ws_chat_pipeline(
                         vector_chunks=retrieved_chunks,
                         allowed_document_ids=document_ids,
                         graph_enabled=graph_enabled,
+                        graph_result=graph_context_result,
                     )
-                    retrieved_chunks = _with_original_ranks(retrieved_chunks)
                 except Exception:
                     await send("chat.error", safe_error_code="retrieval_failed")
                     return
@@ -6280,6 +6346,7 @@ async def _run_ws_chat_pipeline(
                 selected_chunks=selected_chunks,
                 rerank_applied=rerank_applied,
                 rerank_diagnostics=rerank_diagnostics,
+                parallel_result=parallel_result,
                 hybrid_retrieval_enabled=hybrid_retrieval_enabled,
                 hybrid_vector_hit_count=hybrid_vector_hit_count,
                 hybrid_keyword_hit_count=hybrid_keyword_hit_count,

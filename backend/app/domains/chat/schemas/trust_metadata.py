@@ -144,6 +144,10 @@ class RetrievalDiagnosticsRecord(BaseModel):
     rerank_fallback_reason: str | None = None
     request_id: str | None = None
     trace_request_id: str | None = None
+    parallel_branch_count: int = 0
+    parallel_branch_failure_count: int = 0
+    parallel_branch_timeout_count: int = 0
+    parallel_branches: list[RetrievalBranchRecord] = Field(default_factory=list)
     hybrid_retrieval_enabled: bool = False
     hybrid_vector_hit_count: int = 0
     hybrid_keyword_hit_count: int = 0
@@ -328,6 +332,18 @@ class RetrievalMethodRecord(BaseModel):
     override_applied: bool = False
     override_source: Literal["user", "rag_profile", None] = None
     routing_latency_ms: int = 0
+
+
+class RetrievalBranchRecord(BaseModel):
+    """Per-branch diagnostics for parallel retrieval fan-out."""
+
+    branch_name: str
+    latency_ms: int = 0
+    succeeded: bool = False
+    retries: int = 0
+    candidate_count: int = 0
+    error_code: str | None = None
+    skipped: bool = False
 
 
 class ChatToolCallRecord(BaseModel):

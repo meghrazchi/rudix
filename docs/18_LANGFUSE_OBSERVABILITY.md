@@ -118,6 +118,7 @@ Each chat/RAG query produces one Langfuse trace with the following child spans:
 rag.chat                          (root trace)
   ├── embedding.query             latency, model, token count
   ├── retrieval.vector_search     latency, retrieved_count
+  ├── retrieval.parallel.*         per-branch latency, retries, failures
   ├── retrieval.rerank            latency, selected_count, provider/model, fallback, token/cost metadata  (only when rerank=true)
   ├── llm.generate_answer         model, token usage, cost estimate, latency
   └── citations.validate          cited_count, validation_failed flag
@@ -142,6 +143,9 @@ rag.chat
 | `release_version` | API version string |
 | `retrieved_count` | Chunks returned by vector search |
 | `selected_count` | Chunks after reranking |
+| `parallel_branch_count` | Number of retrieval branches executed in parallel |
+| `parallel_branch_failure_count` | Parallel branches that failed or timed out |
+| `parallel_branch_timeout_count` | Parallel branches that exceeded the timeout budget |
 | `rerank_enabled` | Whether the active RAG profile allows reranking |
 | `rerank_provider` | Provider key used for reranking |
 | `rerank_model` | Model name used for reranking |
