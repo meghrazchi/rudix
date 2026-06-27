@@ -16,6 +16,7 @@ import type {
   EvidenceQualityRecord,
   PlannerCriticRecord,
   QueryInterpretationRecord,
+  RetrievalMethodRecord,
 } from "@/lib/api/trust_metadata";
 import { trackFeatureEvent } from "@/lib/analytics";
 import {
@@ -404,7 +405,7 @@ function StatRow({
   subtle,
 }: {
   label: string;
-  value: string | number | null | undefined;
+  value: ReactNode;
   subtle?: boolean;
 }) {
   if (value === null || value === undefined || value === "") return null;
@@ -415,9 +416,7 @@ function StatRow({
       >
         {label}
       </span>
-      <span className="text-[11px] font-medium text-[#2f2a46]">
-        {String(value)}
-      </span>
+      <span className="text-[11px] font-medium text-[#2f2a46]">{value}</span>
     </div>
   );
 }
@@ -1688,6 +1687,11 @@ export function AnswerTrustPanel({
       <PlannerCriticSection
         plannerCritic={trustMetadata?.planner_critic ?? null}
       />
+
+      {/* Dynamic retrieval method (F341) */}
+      <RetrievalMethodSection
+        retrievalMethod={trustMetadata?.retrieval_method ?? null}
+      />
     </div>
   );
 }
@@ -1803,5 +1807,45 @@ function CriticWarningRow({ warning }: { warning: CriticWarningRecord }) {
         {warning.detail}
       </span>
     </li>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Retrieval method section (F341)
+// ---------------------------------------------------------------------------
+
+function RetrievalMethodSection({
+  retrievalMethod,
+}: {
+  retrievalMethod: RetrievalMethodRecord | null;
+}) {
+  if (
+    retrievalMethod === null ||
+    retrievalMethod.method === "vector" ||
+    retrievalMethod.method === "auto_fallback"
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2">
+      <SectionHeader icon="manage_search" label="Search Strategy" />
+      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+        <StatRow label="Method" value={retrievalMethod.method_label} />
+        {retrievalMethod.override_applied ? (
+          <StatRow
+            label="Override"
+            value={
+              retrievalMethod.override_source === "user"
+                ? "User-specified"
+                : "Admin profile"
+            }
+          />
+        ) : null}
+        {!retrievalMethod.override_applied ? (
+          <StatRow label="Selection" value="Auto-selected" />
+        ) : null}
+      </div>
+    </div>
   );
 }

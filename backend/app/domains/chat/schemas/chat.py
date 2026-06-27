@@ -80,6 +80,7 @@ class ChatQueryRequest(BaseModel):
     ) = None
     source_scope: SourceScopeRequest | None = None
     answer_language: AnswerLanguageMode | None = None
+    retrieval_strategy_override: str | None = None
 
     @field_validator("question")
     @classmethod

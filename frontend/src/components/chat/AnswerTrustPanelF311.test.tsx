@@ -168,6 +168,25 @@ function makeMetadata(
       any_incomplete_documents: false,
       warning_reasons: [],
     },
+    planner_critic: {
+      strategy: "standard",
+      high_risk: false,
+      critic_warnings: [],
+      critic_severity: "none" as const,
+      refiner_applied: false,
+      draft_changed: false,
+      unsupported_claims_removed: 0,
+      planner_latency_ms: 0,
+      critic_latency_ms: 0,
+      refiner_latency_ms: 0,
+    },
+    retrieval_method: {
+      method: "vector",
+      method_label: "Vector search",
+      override_applied: false,
+      override_source: null,
+      routing_latency_ms: 0,
+    },
     generated_at: "2026-06-27T10:00:00Z",
   };
 }

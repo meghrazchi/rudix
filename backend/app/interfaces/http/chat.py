@@ -117,6 +117,7 @@ from app.domains.chat.schemas.trust_metadata import (
     PolicyEnforcementRecord,
     QueryInterpretationRecord,
     RetrievalDiagnosticsRecord,
+    RetrievalMethodRecord,
     SourceFreshnessRecord,
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
@@ -138,6 +139,11 @@ from app.domains.chat.services.answer_planner_service import (
     PlannerResult,
 )
 from app.domains.chat.services.answer_refiner_service import AnswerRefinerService, RefinerResult
+from app.domains.chat.services.retrieval_strategy_router import (
+    FeatureAvailability,
+    RetrievalRouteResult,
+    RetrievalStrategyRouter,
+)
 from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
     GroundedVerifierResult,
@@ -312,6 +318,7 @@ _table_retrieval_service = TableRetrievalService()
 _ocr_quality_service = OcrQualityService()
 _parent_context_expansion_service = ParentContextExpansionService()
 _context_packer_service = ContextPackerService()
+_retrieval_strategy_router = RetrievalStrategyRouter()
 _document_repository_for_trust = _DocumentRepository()
 _ai_policy_repo = AiResponsePolicyRepository()
 _ai_policy_engine = AiResponsePolicyEngine()
@@ -388,6 +395,24 @@ def _resolve_planner_critic_controls(
             high_risk = frozenset(rag_profile.planner_high_risk_strategies)
 
     return enabled, mode, high_risk
+
+
+def _build_retrieval_method_record(
+    route_result: "RetrievalRouteResult | None",
+) -> RetrievalMethodRecord:
+    """Build a RetrievalMethodRecord from a route result (F341).
+
+    Returns an empty default record when routing is disabled or unavailable.
+    """
+    if route_result is None:
+        return RetrievalMethodRecord()
+    return RetrievalMethodRecord(
+        method=route_result.method,
+        method_label=route_result.method_label,
+        override_applied=route_result.override_applied,
+        override_source=route_result.override_source,  # type: ignore[arg-type]
+        routing_latency_ms=route_result.routing_latency_ms,
+    )
 
 
 def _build_planner_critic_record(
@@ -1889,6 +1914,7 @@ def _build_trust_metadata(
     planner_result: "PlannerResult | None" = None,
     critic_result: "CriticResult | None" = None,
     refiner_result: "RefinerResult | None" = None,
+    route_result: "RetrievalRouteResult | None" = None,
 ) -> AnswerTrustMetadataResponse:
     """Build the versioned trust metadata contract from pipeline state.
 
@@ -2134,6 +2160,7 @@ def _build_trust_metadata(
             critic_result=critic_result,
             refiner_result=refiner_result,
         ),
+        retrieval_method=_build_retrieval_method_record(route_result),
         generated_at=generated_at,
     )
 
@@ -2734,6 +2761,8 @@ async def query_chat(
     _context_pack_result: ContextPackResult | None = None
     context_packing_enabled: bool = False
     context_packing_rejected_count: int = 0
+    # Dynamic retrieval strategy routing state (F341)
+    _route_result: RetrievalRouteResult | None = None
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -2744,17 +2773,45 @@ async def query_chat(
 
     # Planner: classify question strategy and flag high-risk answers (F339).
     # Runs synchronously before retrieval — keyword heuristics only, <1 ms.
+    # Also runs when dynamic routing is enabled (F341) so the router has a strategy.
     _pcr_enabled, _pcr_mode, _pcr_high_risk = _resolve_planner_critic_controls(
         RagProfileConfig.model_validate(dict(rag_profile.config))
         if rag_profile is not None
         else None,
     )
-    if _pcr_enabled and not injection_check.blocked and not not_found:
+    _routing_enabled = settings.feature_enable_dynamic_retrieval_routing
+    if (_pcr_enabled or _routing_enabled) and not injection_check.blocked and not not_found:
         planner_result = _answer_planner.classify(
             question=payload.question,
             graph_context_available=settings.feature_enable_graph_rag,
             connector_search_scope=False,
             high_risk_strategies_override=_pcr_high_risk,
+        )
+
+    # Dynamic retrieval strategy routing (F341).
+    # Selects the best retrieval method based on the planner strategy,
+    # feature-flag availability, and any admin / user overrides.
+    if _routing_enabled and not injection_check.blocked and not not_found:
+        _profile_cfg_for_routing = (
+            RagProfileConfig.model_validate(dict(rag_profile.config))
+            if rag_profile is not None
+            else None
+        )
+        _route_result = _retrieval_strategy_router.route(
+            planner_strategy=planner_result.strategy if planner_result is not None else "standard",
+            features=FeatureAvailability(
+                hybrid_retrieval_enabled=settings.feature_enable_hybrid_retrieval,
+                graph_rag_enabled=settings.feature_enable_graph_rag,
+                parent_context_expansion_enabled=settings.feature_enable_parent_context_expansion,
+                keyword_retrieval_enabled=settings.feature_enable_hybrid_retrieval,
+            ),
+            profile_override=(
+                _profile_cfg_for_routing.retrieval_strategy_override
+                if _profile_cfg_for_routing is not None
+                else None
+            ),
+            request_override=payload.retrieval_strategy_override,
+            allow_user_override=settings.feature_enable_retrieval_strategy_user_override,
         )
 
     # Language detection and answer language resolution (F231).
@@ -2941,7 +2998,15 @@ async def query_chat(
                     qdrant_client=_get_qdrant_client(),
                 )
 
-                if settings.feature_enable_hybrid_retrieval:
+                # Dynamic routing (F341): skip hybrid when router explicitly selects vector,
+                # or fall through to hybrid when any keyword-capable method is requested.
+                _route_wants_vector_only = (
+                    _route_result is not None and _route_result.method == "vector"
+                )
+                _effective_hybrid = (
+                    settings.feature_enable_hybrid_retrieval and not _route_wants_vector_only
+                )
+                if _effective_hybrid:
                     kw_result = await _keyword_retrieval_service.search_chunks(
                         session=db_session,
                         query=retrieval_q,
@@ -3912,6 +3977,7 @@ async def query_chat(
             planner_result=planner_result,
             critic_result=critic_result,
             refiner_result=refiner_result,
+            route_result=_route_result,
         )
         assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
         db_session.add(assistant_message)
@@ -5417,6 +5483,14 @@ async def _run_ws_chat_pipeline(
                     "success",
                     detail=_strategy_label,
                 )
+            # Emit selecting_strategy step when dynamic routing is active (F341)
+            if _ws_routing_enabled and _ws_route_result is not None:
+                await send_step(
+                    "selecting_strategy",
+                    "Selecting search strategy",
+                    "success",
+                    detail=_ws_route_result.method_label,
+                )
             await send_step("checking_sources", "Checking accessible sources", "running")
 
             # ── Session management ────────────────────────────────────────────
@@ -5529,6 +5603,7 @@ async def _run_ws_chat_pipeline(
             _ws_planner_result: PlannerResult | None = None
             _ws_critic_result: CriticResult | None = None
             _ws_refiner_result: RefinerResult | None = None
+            _ws_route_result: RetrievalRouteResult | None = None
             _ws_pcr_enabled: bool = False
             _ws_pcr_mode: str = "high_risk_only"
             _ws_pcr_high_risk: frozenset[str] = frozenset()
@@ -5551,17 +5626,53 @@ async def _run_ws_chat_pipeline(
             )
 
             # Planner: classify question strategy (F339) — keyword heuristics, <1 ms.
+            # Also runs when dynamic routing is enabled (F341).
             _ws_pcr_enabled, _ws_pcr_mode, _ws_pcr_high_risk = _resolve_planner_critic_controls(
                 RagProfileConfig.model_validate(dict(rag_profile.config))
                 if rag_profile is not None
                 else None,
             )
-            if _ws_pcr_enabled and not injection_check.blocked and not not_found:
+            _ws_routing_enabled = settings.feature_enable_dynamic_retrieval_routing
+            if (
+                (_ws_pcr_enabled or _ws_routing_enabled)
+                and not injection_check.blocked
+                and not not_found
+            ):
                 _ws_planner_result = _answer_planner.classify(
                     question=query_request.question,
                     graph_context_available=settings.feature_enable_graph_rag,
                     connector_search_scope=False,
                     high_risk_strategies_override=_ws_pcr_high_risk,
+                )
+
+            # Dynamic retrieval strategy routing (F341).
+            if _ws_routing_enabled and not injection_check.blocked and not not_found:
+                _ws_profile_cfg = (
+                    RagProfileConfig.model_validate(dict(rag_profile.config))
+                    if rag_profile is not None
+                    else None
+                )
+                _ws_route_result = _retrieval_strategy_router.route(
+                    planner_strategy=(
+                        _ws_planner_result.strategy
+                        if _ws_planner_result is not None
+                        else "standard"
+                    ),
+                    features=FeatureAvailability(
+                        hybrid_retrieval_enabled=settings.feature_enable_hybrid_retrieval,
+                        graph_rag_enabled=settings.feature_enable_graph_rag,
+                        parent_context_expansion_enabled=(
+                            settings.feature_enable_parent_context_expansion
+                        ),
+                        keyword_retrieval_enabled=settings.feature_enable_hybrid_retrieval,
+                    ),
+                    profile_override=(
+                        _ws_profile_cfg.retrieval_strategy_override
+                        if _ws_profile_cfg is not None
+                        else None
+                    ),
+                    request_override=query_request.retrieval_strategy_override,
+                    allow_user_override=settings.feature_enable_retrieval_strategy_user_override,
                 )
 
             detected_language: str | None = None
@@ -6237,6 +6348,7 @@ async def _run_ws_chat_pipeline(
                     planner_result=_ws_planner_result,
                     critic_result=_ws_critic_result,
                     refiner_result=_ws_refiner_result,
+                    route_result=_ws_route_result,
                 )
                 assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
                 await db_session.commit()

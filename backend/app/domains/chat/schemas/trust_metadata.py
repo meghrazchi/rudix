@@ -315,6 +315,21 @@ class PlannerCriticRecord(BaseModel):
     refiner_latency_ms: int = 0
 
 
+class RetrievalMethodRecord(BaseModel):
+    """Dynamically selected retrieval method for this query (F341).
+
+    Populated when feature_enable_dynamic_retrieval_routing is active.
+    Shows which retrieval approach Rudix chose and whether an override was applied.
+    The internal `reason` field is excluded — only the public label is returned.
+    """
+
+    method: str = "vector"
+    method_label: str = "Vector search"
+    override_applied: bool = False
+    override_source: Literal["user", "rag_profile", None] = None
+    routing_latency_ms: int = 0
+
+
 class AnswerTrustMetadataResponse(BaseModel):
     """Versioned, organization-scoped answer trust metadata contract.
 
@@ -340,6 +355,7 @@ class AnswerTrustMetadataResponse(BaseModel):
     freshness: SourceFreshnessRecord
     evidence_quality: EvidenceQualityRecord
     planner_critic: PlannerCriticRecord = Field(default_factory=PlannerCriticRecord)
+    retrieval_method: RetrievalMethodRecord = Field(default_factory=RetrievalMethodRecord)
     generated_at: datetime
 
 
@@ -348,4 +364,5 @@ ConfidenceTrustRecord.model_rebuild()
 QueryInterpretationRecord.model_rebuild()
 EvidenceQualityRecord.model_rebuild()
 PlannerCriticRecord.model_rebuild()
+RetrievalMethodRecord.model_rebuild()
 AnswerTrustMetadataResponse.model_rebuild()

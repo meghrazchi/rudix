@@ -114,6 +114,24 @@ class RagProfileConfig(BaseModel):
     context_reject_stale_superseded: bool = Field(default=False)
     context_require_citations: bool = Field(default=True)
     context_not_found_min_chunks: int = Field(default=1, ge=1, le=50)
+    # Dynamic retrieval strategy routing (F341).
+    # retrieval_strategy_override: admin-set override that forces a specific
+    # retrieval method for all queries using this profile. "auto" (default) lets
+    # the router decide based on question intent. Per-query user overrides are
+    # governed separately by feature_enable_retrieval_strategy_user_override.
+    retrieval_strategy_override: (
+        Literal[
+            "auto",
+            "vector",
+            "keyword",
+            "hybrid",
+            "table_aware",
+            "parent_child",
+            "graph_rag",
+            "connector_aware",
+        ]
+        | None
+    ) = Field(default=None)
 
     @field_validator("rerank_model")
     @classmethod

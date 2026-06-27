@@ -745,6 +745,14 @@ class Settings(BaseSettings):
     # applied after reranking.  Disabled by default; enable per RAG profile via
     # context_packing_enabled.  This system flag gates the feature entirely.
     feature_enable_context_packing: bool = False
+    # Dynamic retrieval strategy routing (F341).
+    # When True, the RetrievalStrategyRouter auto-selects a retrieval method
+    # (vector / keyword / hybrid / table_aware / parent_child / graph_rag /
+    # connector_aware) based on the question's planner strategy.
+    feature_enable_dynamic_retrieval_routing: bool = False
+    # When True, API callers may pass retrieval_strategy_override in the request
+    # body to force a specific retrieval method for that query.
+    feature_enable_retrieval_strategy_user_override: bool = False
     # PDF extraction pipeline (F237).
     feature_enable_advanced_pdf_extraction: bool = True
     pdf_extraction_enable_tables: bool = True

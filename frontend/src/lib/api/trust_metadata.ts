@@ -291,6 +291,19 @@ export type PlannerCriticRecord = {
   refiner_latency_ms: number;
 };
 
+/**
+ * Dynamically selected retrieval method for this query (F341).
+ * Populated when dynamic retrieval routing is enabled.
+ * Only safe public fields — internal routing reason is excluded.
+ */
+export type RetrievalMethodRecord = {
+  method: string;
+  method_label: string;
+  override_applied: boolean;
+  override_source: "user" | "rag_profile" | null;
+  routing_latency_ms: number;
+};
+
 /** Versioned, organization-scoped answer trust metadata. schema_version "1" is current. */
 export type AnswerTrustMetadataResponse = {
   schema_version: "1";
@@ -311,6 +324,8 @@ export type AnswerTrustMetadataResponse = {
   evidence_quality: EvidenceQualityRecord;
   /** F339 — planner strategy, critic warnings, and refiner outcome. */
   planner_critic: PlannerCriticRecord;
+  /** F341 — dynamically selected retrieval method. */
+  retrieval_method: RetrievalMethodRecord;
   generated_at: string;
 };
 
