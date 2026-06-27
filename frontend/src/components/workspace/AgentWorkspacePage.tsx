@@ -35,6 +35,29 @@ const RUN_LIST_LIMIT = 20;
 
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
 
+const WORKFLOW_MODE_OPTIONS = [
+  {
+    value: "auto",
+    label: "Auto",
+    description: "Let the agent decide",
+  },
+  {
+    value: "answer",
+    label: "Answer",
+    description: "Grounded answer from sources",
+  },
+  {
+    value: "summarize",
+    label: "Summarize",
+    description: "Condense source material",
+  },
+  {
+    value: "compare",
+    label: "Compare",
+    description: "Side-by-side comparison",
+  },
+] as const;
+
 const WORKFLOW_PRESETS: {
   workflowType: WorkflowType;
   label: string;
@@ -958,28 +981,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           Mode
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {[
-            {
-              value: "auto",
-              label: "Auto",
-              description: "Let the agent decide",
-            },
-            {
-              value: "answer",
-              label: "Answer",
-              description: "Grounded answer from sources",
-            },
-            {
-              value: "summarize",
-              label: "Summarize",
-              description: "Condense source material",
-            },
-            {
-              value: "compare",
-              label: "Compare",
-              description: "Side-by-side comparison",
-            },
-          ].map((m) => (
+          {WORKFLOW_MODE_OPTIONS.map((m) => (
             <button
               key={m.value}
               type="button"

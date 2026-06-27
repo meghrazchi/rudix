@@ -45,12 +45,10 @@ from app.domains.chat.schemas.trust_metadata import (
 )
 from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
-    GroundedClaimResult,
-    GroundedVerifierResult,
     VerifierChunk,
     VerifierCitation,
-    _VerifierOutput,
     _evidence_match_score,
+    _VerifierOutput,
 )
 
 # ---------------------------------------------------------------------------

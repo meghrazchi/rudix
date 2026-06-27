@@ -9,6 +9,7 @@ permission-scoping rules:
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,7 @@ from app.domains.memory.schemas.memory import (
     UpsertMemoryPreferenceRequest,
     WorkflowListResponse,
     WorkflowResponse,
+    WorkflowStepIn,
     WorkflowStepResponse,
 )
 from app.models.org_memory import OrgWorkflow, UserMemoryPreference
@@ -37,7 +39,9 @@ _pref_repo = UserMemoryPreferenceRepository()
 # ---------------------------------------------------------------------------
 
 
-def _steps_to_json(steps) -> str | None:
+def _steps_to_json(
+    steps: Sequence[WorkflowStepIn | WorkflowStepResponse] | None,
+) -> str | None:
     if not steps:
         return None
     return json.dumps([s.model_dump() for s in steps])

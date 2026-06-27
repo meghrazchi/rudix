@@ -33,8 +33,15 @@ from app.auth.models import AuthenticatedPrincipal
 from app.auth.token_codec import create_app_access_token
 from app.clients import minio_client as minio_module
 from app.clients import redis_client as redis_module
-from app.core.config import AuthProvider, RateLimitRedisFailureMode, settings
+from app.core.config import (
+    AuthProvider,
+    Environment,
+    RateLimitRedisFailureMode,
+    settings,
+)
 from app.db.session import get_db_session
+from app.domains.documents.services.malware_scan import MalwareScanResult
+from app.interfaces.http import documents as documents_api
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
@@ -83,6 +90,15 @@ class FakeMinio:
         del kwargs
 
 
+class FakeMalwareScanService:
+    def __init__(self) -> None:
+        self.result = MalwareScanResult(status="clean", duration_ms=1)
+
+    async def scan_bytes(self, *, content: bytes) -> MalwareScanResult:
+        del content
+        return self.result
+
+
 @pytest_asyncio.fixture
 async def rate_limit_client(
     monkeypatch: pytest.MonkeyPatch,
@@ -93,6 +109,7 @@ async def rate_limit_client(
     monkeypatch.setattr(settings, "app_auth_issuer", "rudix-test")
     monkeypatch.setattr(settings, "app_auth_audience", "rudix-test-audience")
     monkeypatch.setattr(settings, "rate_limit_enabled", True)
+    monkeypatch.setattr(settings, "environment", Environment.test)
     monkeypatch.setattr(settings, "rate_limit_disable_in_test", False)
     monkeypatch.setattr(settings, "rate_limit_window_seconds", 60)
     monkeypatch.setattr(settings, "rate_limit_upload_requests", 1)
@@ -101,6 +118,7 @@ async def rate_limit_client(
     monkeypatch.setattr(settings, "rate_limit_admin_requests", 1)
     monkeypatch.setattr(settings, "rate_limit_redis_failure_mode", RateLimitRedisFailureMode.open)
     monkeypatch.setattr(minio_module, "minio_client", FakeMinio())
+    monkeypatch.setattr(documents_api, "malware_scan_service", FakeMalwareScanService())
     get_auth_provider.cache_clear()
 
     async def _override_get_db_session() -> AsyncSession:
@@ -167,6 +185,7 @@ async def test_rate_limit_consume_sets_expiry_for_new_key(monkeypatch: pytest.Mo
     fake_redis = FakeRedis()
     monkeypatch.setattr(redis_module, "redis_client", fake_redis)
     monkeypatch.setattr(settings, "rate_limit_enabled", True)
+    monkeypatch.setattr(settings, "environment", Environment.test)
     monkeypatch.setattr(settings, "rate_limit_disable_in_test", False)
     monkeypatch.setattr(settings, "rate_limit_window_seconds", 60)
     monkeypatch.setattr(settings, "rate_limit_chat_requests", 5)

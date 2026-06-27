@@ -20,13 +20,13 @@ from __future__ import annotations
 
 import pytest
 
-from app.domains.chat.services.retrieval_strategy_router import (
-    FeatureAvailability,
-    RetrievalStrategyRouter,
-)
 from app.domains.chat.schemas.trust_metadata import (
     AnswerTrustMetadataResponse,
     RetrievalMethodRecord,
+)
+from app.domains.chat.services.retrieval_strategy_router import (
+    FeatureAvailability,
+    RetrievalStrategyRouter,
 )
 
 # ---------------------------------------------------------------------------
@@ -369,19 +369,9 @@ def test_retrieval_method_record_with_values():
 
 def test_answer_trust_metadata_has_retrieval_method_field():
     """AnswerTrustMetadataResponse must include a retrieval_method field."""
-    from datetime import datetime
 
     from app.domains.chat.schemas.trust_metadata import (
         AnswerTrustMetadataResponse,
-        ConfidenceTrustRecord,
-        ConflictStatusRecord,
-        EvidenceQualityRecord,
-        GroundedVerificationRecord,
-        ModelMetadataRecord,
-        PlannerCriticRecord,
-        PolicyEnforcementRecord,
-        RetrievalDiagnosticsRecord,
-        SourceFreshnessRecord,
     )
 
     fields = AnswerTrustMetadataResponse.model_fields

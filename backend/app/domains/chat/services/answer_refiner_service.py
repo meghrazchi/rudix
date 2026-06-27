@@ -56,7 +56,7 @@ class _RefinerOutput(BaseModel):
         ]
 
     @classmethod
-    def parse(cls, raw: str) -> "_RefinerOutput":
+    def parse(cls, raw: str) -> _RefinerOutput:
         start = raw.find("{")
         end = raw.rfind("}")
         if start == -1 or end <= start:

@@ -683,8 +683,8 @@ class TestBuildToolOrchestrationRecord:
         assert record.enabled is False
 
     def test_active_result_is_serialized(self) -> None:
-        from app.interfaces.http.chat import _build_tool_orchestration_record
         from app.domains.chat.services.tool_orchestrator import ChatToolCallRecord as _SvcRecord
+        from app.interfaces.http.chat import _build_tool_orchestration_record
 
         active = ToolOrchestrationResult(
             enabled=True,
@@ -722,8 +722,8 @@ class TestBuildToolOrchestrationRecord:
         assert record.tool_calls[1].denial_reason == "feature_unavailable"
 
     def test_all_authorized_result(self) -> None:
-        from app.interfaces.http.chat import _build_tool_orchestration_record
         from app.domains.chat.services.tool_orchestrator import ChatToolCallRecord as _SvcRecord
+        from app.interfaces.http.chat import _build_tool_orchestration_record
 
         active = ToolOrchestrationResult(
             enabled=True,

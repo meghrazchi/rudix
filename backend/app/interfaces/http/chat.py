@@ -44,6 +44,7 @@ from app.db.session import SessionLocal, get_db_session
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.admin.services.feature_flag_service import FeatureFlagService
+from app.domains.agents.repositories.agent_policy import AgentToolPolicyRepository
 from app.domains.ai.profile.schemas import TaskType
 from app.domains.ai.profile.service import resolve_task_profile
 from app.domains.ai.providers.factory import default_provider_factory
@@ -122,18 +123,6 @@ from app.domains.chat.schemas.trust_metadata import (
     SourceFreshnessRecord,
     ToolOrchestrationRecord,
 )
-from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
-from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
-from app.domains.chat.services.conflict_detection_service import (
-    ConflictDetectionChunk,
-    ConflictDetectionResult,
-    ConflictDetectionService,
-)
-from app.domains.chat.services.graph_retrieval_service import (
-    GraphRetrievalResult,
-    GraphRetrievalService,
-    GraphRetrievedChunk,
-)
 from app.domains.chat.services.answer_critic_service import AnswerCriticService, CriticResult
 from app.domains.chat.services.answer_planner_service import (
     STRATEGY_LABELS,
@@ -141,14 +130,22 @@ from app.domains.chat.services.answer_planner_service import (
     PlannerResult,
 )
 from app.domains.chat.services.answer_refiner_service import AnswerRefinerService, RefinerResult
-from app.domains.chat.services.retrieval_strategy_router import (
-    FeatureAvailability,
-    RetrievalRouteResult,
-    RetrievalStrategyRouter,
+from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
+from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.domains.chat.services.conflict_detection_service import (
+    ConflictDetectionChunk,
+    ConflictDetectionResult,
+    ConflictDetectionService,
 )
-from app.domains.chat.services.tool_orchestrator import (
-    ChatToolOrchestrator,
-    ToolOrchestrationResult,
+from app.domains.chat.services.context_packer_service import (
+    ContextPackerConfig,
+    ContextPackerService,
+    ContextPackResult,
+)
+from app.domains.chat.services.graph_retrieval_service import (
+    GraphRetrievalResult,
+    GraphRetrievalService,
+    GraphRetrievedChunk,
 )
 from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
@@ -166,11 +163,6 @@ from app.domains.chat.services.llm_service import (
     LLMService,
     PermanentLLMServiceError,
     TransientLLMServiceError,
-)
-from app.domains.chat.services.context_packer_service import (
-    ContextPackerConfig,
-    ContextPackerService,
-    ContextPackResult,
 )
 from app.domains.chat.services.parent_context_expansion_service import (
     ParentContextExpansionService,
@@ -191,6 +183,11 @@ from app.domains.chat.services.rerank_service import (
     RerankService,
     RerankSettings,
 )
+from app.domains.chat.services.retrieval_strategy_router import (
+    FeatureAvailability,
+    RetrievalRouteResult,
+    RetrievalStrategyRouter,
+)
 from app.domains.chat.services.source_freshness_service import (
     DocumentTrustData,
     SourceFreshnessService,
@@ -203,10 +200,13 @@ from app.domains.chat.services.table_retrieval_service import (
     TableBoostResult,
     TableRetrievalService,
 )
+from app.domains.chat.services.tool_orchestrator import (
+    ChatToolOrchestrator,
+    ToolOrchestrationResult,
+)
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.repositories.documents import DocumentRepository as _DocumentRepository
 from app.domains.documents.services.ocr_quality_service import OcrQualityService
-from app.domains.agents.repositories.agent_policy import AgentToolPolicyRepository
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
 from app.domains.quota.schemas.quota_schemas import QuotaType
@@ -2805,7 +2805,6 @@ async def query_chat(
     _pcr_high_risk: frozenset[str] = frozenset()
     # Strict context packing state (F340)
     _context_pack_result: ContextPackResult | None = None
-    context_packing_enabled: bool = False
     context_packing_rejected_count: int = 0
     # Dynamic retrieval strategy routing state (F341)
     _route_result: RetrievalRouteResult | None = None
@@ -3390,7 +3389,6 @@ async def query_chat(
         # global token budget.  The pack is controlled by the RAG profile; the system
         # flag feature_enable_context_packing must also be True.
         if settings.feature_enable_context_packing and selected_chunks:
-            context_packing_enabled = True
             _cp_cfg = ContextPackerConfig(enabled=True)
             if rag_profile is not None:
                 _cp_rag = RagProfileConfig.model_validate(dict(rag_profile.config))
@@ -5491,6 +5489,17 @@ async def _run_ws_chat_pipeline(
     # Activity timeline helpers — step_seq is the display order in the UI.
     _activity_step_seq = 0
 
+    # Planner-critic-refiner pipeline state (F339)
+    _ws_planner_result: PlannerResult | None = None
+    _ws_critic_result: CriticResult | None = None
+    _ws_refiner_result: RefinerResult | None = None
+    _ws_route_result: RetrievalRouteResult | None = None
+    _ws_orchestration_result: ToolOrchestrationResult | None = None
+    _ws_pcr_enabled: bool = False
+    _ws_pcr_mode: str = "high_risk_only"
+    _ws_pcr_high_risk: frozenset[str] = frozenset()
+    _ws_routing_enabled: bool = False
+
     async def send_step(
         step_key: str,
         label: str,
@@ -5684,15 +5693,6 @@ async def _run_ws_chat_pipeline(
             conflict_detection_enabled = False
             conflict_detection_applied = False
             conflict_detection_latency_ms = 0
-            # Planner-critic-refiner pipeline state (F339)
-            _ws_planner_result: PlannerResult | None = None
-            _ws_critic_result: CriticResult | None = None
-            _ws_refiner_result: RefinerResult | None = None
-            _ws_route_result: RetrievalRouteResult | None = None
-            _ws_orchestration_result: ToolOrchestrationResult | None = None
-            _ws_pcr_enabled: bool = False
-            _ws_pcr_mode: str = "high_risk_only"
-            _ws_pcr_high_risk: frozenset[str] = frozenset()
             conflict_detection_result = ConflictDetectionResult(
                 conflict_detected=False,
                 agreement_level="full",

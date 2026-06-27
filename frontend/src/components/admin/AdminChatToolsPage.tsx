@@ -50,11 +50,11 @@ export function AdminChatToolsPage() {
 
   if (error) {
     if (isForbiddenError(error)) return <ForbiddenState />;
-    return <ErrorState message="Failed to load chat tool availability." />;
+    return <ErrorState description="Failed to load chat tool availability." />;
   }
 
   if (!data) {
-    return <EmptyState message="No tool availability data." />;
+    return <EmptyState description="No tool availability data." />;
   }
 
   return (

@@ -124,7 +124,11 @@ class AnswerPlannerService:
         *,
         high_risk_strategies: frozenset[str] | None = None,
     ) -> None:
-        self._default_high_risk = high_risk_strategies or _DEFAULT_HIGH_RISK_STRATEGIES
+        self._default_high_risk = (
+            _DEFAULT_HIGH_RISK_STRATEGIES
+            if high_risk_strategies is None
+            else high_risk_strategies
+        )
 
     @staticmethod
     def _fallback() -> PlannerResult:
@@ -151,7 +155,11 @@ class AnswerPlannerService:
         """
         started = perf_counter()
         try:
-            effective_high_risk = high_risk_strategies_override or self._default_high_risk
+            effective_high_risk = (
+                self._default_high_risk
+                if high_risk_strategies_override is None
+                else high_risk_strategies_override
+            )
             strategy = self._detect_strategy(
                 question=question,
                 table_query_detected=table_query_detected,

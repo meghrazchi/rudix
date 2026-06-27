@@ -24,7 +24,7 @@ Answer rules enforced in the returned metadata:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal, Protocol
 
 _CHARS_PER_TOKEN = 4  # matches parent_context_expansion_service approximation

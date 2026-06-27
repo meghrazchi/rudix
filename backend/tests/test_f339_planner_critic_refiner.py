@@ -12,7 +12,6 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -23,20 +22,14 @@ from app.domains.chat.schemas.trust_metadata import (
 )
 from app.domains.chat.services.answer_critic_service import (
     AnswerCriticService,
-    CriticResult,
     CriticWarning,
     _build_refiner_instruction,
 )
-from app.domains.chat.services.answer_planner_service import (
-    AnswerPlannerService,
-    PlannerResult,
-)
+from app.domains.chat.services.answer_planner_service import AnswerPlannerService
 from app.domains.chat.services.answer_refiner_service import (
     AnswerRefinerService,
-    RefinerResult,
     _build_refiner_prompt,
 )
-
 
 # ===========================================================================
 # AnswerPlannerService
@@ -150,8 +143,9 @@ class TestAnswerPlannerService:
     # Error fallback
 
     def test_fallback_on_exception(self):
-        with patch(
-            "app.domains.chat.services.answer_planner_service._LEGAL_COMPLIANCE_RE.search",
+        with patch.object(
+            AnswerPlannerService,
+            "_detect_strategy",
             side_effect=RuntimeError("boom"),
         ):
             result = self.planner.classify(question="GDPR compliance required.")
@@ -316,7 +310,7 @@ class TestAnswerCriticService:
             "evaluate",
             side_effect=RuntimeError("boom"),
         ):
-            critic = AnswerCriticService()
+            AnswerCriticService()
         # Directly test _fallback
         fallback = AnswerCriticService._fallback()
         assert fallback.severity == "none"
@@ -635,7 +629,7 @@ class TestPipelineHelpers:
         with patch("app.interfaces.http.chat.settings") as mock_settings:
             mock_settings.feature_enable_planner_critic_refiner = False
             mock_settings.planner_critic_refiner_mode = "high_risk_only"
-            enabled, mode, high_risk = _resolve_planner_critic_controls(None)
+            enabled, _mode, _high_risk = _resolve_planner_critic_controls(None)
         assert enabled is False
 
     def test_resolve_controls_rag_profile_override(self):
@@ -666,10 +660,10 @@ class TestPipelineHelpers:
         assert record.critic_warnings == []
 
     def test_build_planner_critic_record_full(self):
-        from app.interfaces.http.chat import _build_planner_critic_record
-        from app.domains.chat.services.answer_planner_service import PlannerResult
         from app.domains.chat.services.answer_critic_service import CriticResult, CriticWarning
+        from app.domains.chat.services.answer_planner_service import PlannerResult
         from app.domains.chat.services.answer_refiner_service import RefinerResult
+        from app.interfaces.http.chat import _build_planner_critic_record
 
         planner = PlannerResult(strategy="legal_compliance", high_risk=True, latency_ms=1)
         critic = CriticResult(
