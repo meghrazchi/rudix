@@ -104,6 +104,7 @@ from app.domains.chat.schemas.share import (
 )
 from app.domains.chat.schemas.trust_metadata import (
     AnswerTrustMetadataResponse,
+    ChatToolCallRecord,
     CitationTrustRecord,
     ClaimSupportRecord,
     ConfidenceReasonRecord,
@@ -119,6 +120,7 @@ from app.domains.chat.schemas.trust_metadata import (
     RetrievalDiagnosticsRecord,
     RetrievalMethodRecord,
     SourceFreshnessRecord,
+    ToolOrchestrationRecord,
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
@@ -143,6 +145,10 @@ from app.domains.chat.services.retrieval_strategy_router import (
     FeatureAvailability,
     RetrievalRouteResult,
     RetrievalStrategyRouter,
+)
+from app.domains.chat.services.tool_orchestrator import (
+    ChatToolOrchestrator,
+    ToolOrchestrationResult,
 )
 from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
@@ -200,6 +206,7 @@ from app.domains.chat.services.table_retrieval_service import (
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.repositories.documents import DocumentRepository as _DocumentRepository
 from app.domains.documents.services.ocr_quality_service import OcrQualityService
+from app.domains.agents.repositories.agent_policy import AgentToolPolicyRepository
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
 from app.domains.quota.schemas.quota_schemas import QuotaType
@@ -319,6 +326,8 @@ _ocr_quality_service = OcrQualityService()
 _parent_context_expansion_service = ParentContextExpansionService()
 _context_packer_service = ContextPackerService()
 _retrieval_strategy_router = RetrievalStrategyRouter()
+_chat_tool_orchestrator = ChatToolOrchestrator()
+_chat_tool_policy_repo = AgentToolPolicyRepository()
 _document_repository_for_trust = _DocumentRepository()
 _ai_policy_repo = AiResponsePolicyRepository()
 _ai_policy_engine = AiResponsePolicyEngine()
@@ -412,6 +421,41 @@ def _build_retrieval_method_record(
         override_applied=route_result.override_applied,
         override_source=route_result.override_source,  # type: ignore[arg-type]
         routing_latency_ms=route_result.routing_latency_ms,
+    )
+
+
+def _build_tool_orchestration_record(
+    orchestration_result: "ToolOrchestrationResult | None",
+) -> ToolOrchestrationRecord:
+    """Build a ToolOrchestrationRecord for trust metadata from pipeline state (F342).
+
+    Returns an empty default record when orchestration is disabled or unavailable.
+    """
+    if orchestration_result is None or not orchestration_result.enabled:
+        return ToolOrchestrationRecord()
+    return ToolOrchestrationRecord(
+        enabled=True,
+        tool_count=orchestration_result.tool_count,
+        authorized_count=orchestration_result.authorized_count,
+        executed_count=orchestration_result.executed_count,
+        succeeded_count=orchestration_result.succeeded_count,
+        fallback_count=orchestration_result.fallback_count,
+        denied_count=orchestration_result.denied_count,
+        orchestration_latency_ms=orchestration_result.orchestration_latency_ms,
+        tool_calls=[
+            ChatToolCallRecord(
+                tool_name=t.tool_name,
+                tool_purpose=t.tool_purpose,
+                authorized=t.authorized,
+                executed=t.executed,
+                succeeded=t.succeeded,
+                fallback_used=t.fallback_used,
+                latency_ms=t.latency_ms,
+                denial_reason=t.denial_reason,
+                error_code=t.error_code,
+            )
+            for t in orchestration_result.tool_calls
+        ],
     )
 
 
@@ -1915,6 +1959,7 @@ def _build_trust_metadata(
     critic_result: "CriticResult | None" = None,
     refiner_result: "RefinerResult | None" = None,
     route_result: "RetrievalRouteResult | None" = None,
+    orchestration_result: "ToolOrchestrationResult | None" = None,
 ) -> AnswerTrustMetadataResponse:
     """Build the versioned trust metadata contract from pipeline state.
 
@@ -2161,6 +2206,7 @@ def _build_trust_metadata(
             refiner_result=refiner_result,
         ),
         retrieval_method=_build_retrieval_method_record(route_result),
+        tool_orchestration=_build_tool_orchestration_record(orchestration_result),
         generated_at=generated_at,
     )
 
@@ -2763,6 +2809,8 @@ async def query_chat(
     context_packing_rejected_count: int = 0
     # Dynamic retrieval strategy routing state (F341)
     _route_result: RetrievalRouteResult | None = None
+    # Adaptive tool orchestration state (F342)
+    _orchestration_result: ToolOrchestrationResult | None = None
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -2812,6 +2860,27 @@ async def query_chat(
             ),
             request_override=payload.retrieval_strategy_override,
             allow_user_override=settings.feature_enable_retrieval_strategy_user_override,
+        )
+
+    # Adaptive tool orchestration (F342): authorize pipeline tools for this query.
+    # Loads org-level disabled tools from DB, then resolves authorization synchronously.
+    if settings.feature_enable_chat_tool_orchestration and not injection_check.blocked and not not_found:
+        _orchestration_feature_availability: dict[str, bool] = {
+            "feature_enable_connectors": settings.feature_enable_connectors,
+            "feature_enable_graph_rag": settings.feature_enable_graph_rag,
+        }
+        _orchestration_overrides = await _chat_tool_policy_repo.list_by_organization(
+            db_session, organization_id=organization_id
+        )
+        _orchestration_disabled: frozenset[str] = frozenset(
+            o.tool_name for o in _orchestration_overrides if not o.enabled
+        )
+        _orchestration_result = _chat_tool_orchestrator.orchestrate(
+            planner_strategy=planner_result.strategy if planner_result is not None else "standard",
+            principal=principal,
+            feature_availability=_orchestration_feature_availability,
+            disabled_tool_names=_orchestration_disabled,
+            source_scope_mode=payload.scope_mode,
         )
 
     # Language detection and answer language resolution (F231).
@@ -3978,6 +4047,7 @@ async def query_chat(
             critic_result=critic_result,
             refiner_result=refiner_result,
             route_result=_route_result,
+            orchestration_result=_orchestration_result,
         )
         assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
         db_session.add(assistant_message)
@@ -5491,6 +5561,21 @@ async def _run_ws_chat_pipeline(
                     "success",
                     detail=_ws_route_result.method_label,
                 )
+            # Emit tool_orchestration step when adaptive tool orchestration is active (F342)
+            if (
+                settings.feature_enable_chat_tool_orchestration
+                and _ws_orchestration_result is not None
+            ):
+                _orch_detail = (
+                    f"{_ws_orchestration_result.authorized_count} of "
+                    f"{_ws_orchestration_result.tool_count} tools authorized"
+                )
+                await send_step(
+                    "tool_orchestration",
+                    "Orchestrating available tools",
+                    "success",
+                    detail=_orch_detail,
+                )
             await send_step("checking_sources", "Checking accessible sources", "running")
 
             # ── Session management ────────────────────────────────────────────
@@ -5604,6 +5689,7 @@ async def _run_ws_chat_pipeline(
             _ws_critic_result: CriticResult | None = None
             _ws_refiner_result: RefinerResult | None = None
             _ws_route_result: RetrievalRouteResult | None = None
+            _ws_orchestration_result: ToolOrchestrationResult | None = None
             _ws_pcr_enabled: bool = False
             _ws_pcr_mode: str = "high_risk_only"
             _ws_pcr_high_risk: frozenset[str] = frozenset()
@@ -5673,6 +5759,34 @@ async def _run_ws_chat_pipeline(
                     ),
                     request_override=query_request.retrieval_strategy_override,
                     allow_user_override=settings.feature_enable_retrieval_strategy_user_override,
+                )
+
+            # Adaptive tool orchestration (F342): authorize pipeline tools for this query.
+            if (
+                settings.feature_enable_chat_tool_orchestration
+                and not injection_check.blocked
+                and not not_found
+            ):
+                _ws_orchestration_feature_availability: dict[str, bool] = {
+                    "feature_enable_connectors": settings.feature_enable_connectors,
+                    "feature_enable_graph_rag": settings.feature_enable_graph_rag,
+                }
+                _ws_orchestration_overrides = await _chat_tool_policy_repo.list_by_organization(
+                    db_session, organization_id=organization_id
+                )
+                _ws_orchestration_disabled: frozenset[str] = frozenset(
+                    o.tool_name for o in _ws_orchestration_overrides if not o.enabled
+                )
+                _ws_orchestration_result = _chat_tool_orchestrator.orchestrate(
+                    planner_strategy=(
+                        _ws_planner_result.strategy
+                        if _ws_planner_result is not None
+                        else "standard"
+                    ),
+                    principal=principal,
+                    feature_availability=_ws_orchestration_feature_availability,
+                    disabled_tool_names=_ws_orchestration_disabled,
+                    source_scope_mode=query_request.scope_mode,
                 )
 
             detected_language: str | None = None
@@ -6349,6 +6463,7 @@ async def _run_ws_chat_pipeline(
                     critic_result=_ws_critic_result,
                     refiner_result=_ws_refiner_result,
                     route_result=_ws_route_result,
+                    orchestration_result=_ws_orchestration_result,
                 )
                 assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
                 await db_session.commit()

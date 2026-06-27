@@ -304,6 +304,36 @@ export type RetrievalMethodRecord = {
   routing_latency_ms: number;
 };
 
+/** Authorization and execution outcome for one tool capability (F342). */
+export type ChatToolCallRecord = {
+  tool_name: string;
+  tool_purpose: string;
+  authorized: boolean;
+  executed: boolean;
+  succeeded: boolean;
+  fallback_used: boolean;
+  latency_ms: number;
+  denial_reason?: string | null;
+  error_code?: string | null;
+};
+
+/**
+ * Aggregated result of the permission-aware adaptive tool orchestration step (F342).
+ * Populated when feature_enable_chat_tool_orchestration is active.
+ * Shows which tools were selected, authorized, executed, and whether fallbacks fired.
+ */
+export type ToolOrchestrationRecord = {
+  enabled: boolean;
+  tool_count: number;
+  authorized_count: number;
+  executed_count: number;
+  succeeded_count: number;
+  fallback_count: number;
+  denied_count: number;
+  orchestration_latency_ms: number;
+  tool_calls: ChatToolCallRecord[];
+};
+
 /** Versioned, organization-scoped answer trust metadata. schema_version "1" is current. */
 export type AnswerTrustMetadataResponse = {
   schema_version: "1";
@@ -326,6 +356,8 @@ export type AnswerTrustMetadataResponse = {
   planner_critic: PlannerCriticRecord;
   /** F341 — dynamically selected retrieval method. */
   retrieval_method: RetrievalMethodRecord;
+  /** F342 — permission-aware adaptive tool orchestration result. */
+  tool_orchestration: ToolOrchestrationRecord;
   generated_at: string;
 };
 

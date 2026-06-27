@@ -753,6 +753,11 @@ class Settings(BaseSettings):
     # When True, API callers may pass retrieval_strategy_override in the request
     # body to force a specific retrieval method for that query.
     feature_enable_retrieval_strategy_user_override: bool = False
+    # Permission-aware adaptive tool orchestration (F342): selects and authorizes
+    # chat-pipeline tools based on planner strategy, feature flags, principal roles,
+    # and org-level policy overrides. Tool call decisions are logged and surfaced in
+    # the trust panel. Default off — enable after baseline pipeline is validated.
+    feature_enable_chat_tool_orchestration: bool = False
     # PDF extraction pipeline (F237).
     feature_enable_advanced_pdf_extraction: bool = True
     pdf_extraction_enable_tables: bool = True

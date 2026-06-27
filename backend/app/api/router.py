@@ -29,6 +29,7 @@ from app.interfaces.http import (
     admin_service_accounts,
     admin_sso,
     admin_status,
+    admin_chat_tools,
     admin_troubleshooting_bundle,
     admin_trust_analytics,
     admin_webhooks,
@@ -163,5 +164,6 @@ protected_router.include_router(admin_ai_response_policy.router)
 protected_router.include_router(admin_freshness.router)
 protected_router.include_router(admin_trust_analytics.router)
 protected_router.include_router(admin_troubleshooting_bundle.router)
+protected_router.include_router(admin_chat_tools.router)
 
 api_router.include_router(protected_router)

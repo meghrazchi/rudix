@@ -186,6 +186,7 @@ export const queryKeys = {
     agentPolicy: ["admin", "agent-policy"] as const,
     agentPolicyEffective: (runId: string) =>
       ["admin", "agent-policy", "effective", runId] as const,
+    chatToolsAvailability: ["admin", "chat-tools", "availability"] as const,
     failedJobs: (params?: Record<string, unknown>) =>
       ["admin", "failed-jobs", params ?? {}] as const,
     failedJobDetail: (jobId: string) =>

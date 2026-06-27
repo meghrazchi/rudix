@@ -9,6 +9,7 @@ import type {
 } from "@/lib/api/chat";
 import type {
   AnswerTrustMetadataResponse,
+  ChatToolCallRecord,
   CitationTrustRecord,
   ConfidenceReasonRecord,
   ConflictStatusRecord,
@@ -17,6 +18,7 @@ import type {
   PlannerCriticRecord,
   QueryInterpretationRecord,
   RetrievalMethodRecord,
+  ToolOrchestrationRecord,
 } from "@/lib/api/trust_metadata";
 import { trackFeatureEvent } from "@/lib/analytics";
 import {
@@ -1692,6 +1694,11 @@ export function AnswerTrustPanel({
       <RetrievalMethodSection
         retrievalMethod={trustMetadata?.retrieval_method ?? null}
       />
+
+      {/* Adaptive tool orchestration (F342) */}
+      <ToolOrchestrationSection
+        toolOrchestration={trustMetadata?.tool_orchestration ?? null}
+      />
     </div>
   );
 }
@@ -1846,6 +1853,74 @@ function RetrievalMethodSection({
           <StatRow label="Selection" value="Auto-selected" />
         ) : null}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tool Orchestration section (F342)
+// ---------------------------------------------------------------------------
+
+const DENIAL_REASON_LABEL: Record<string, string> = {
+  org_policy_disabled: "Disabled by policy",
+  feature_unavailable: "Feature unavailable",
+  insufficient_role: "Insufficient role",
+  insufficient_permission: "Insufficient permission",
+  source_scope_mismatch: "Scope mismatch",
+};
+
+function ToolOrchestrationSection({
+  toolOrchestration,
+}: {
+  toolOrchestration: ToolOrchestrationRecord | null;
+}) {
+  if (toolOrchestration === null || !toolOrchestration.enabled) {
+    return null;
+  }
+
+  const deniedCalls = toolOrchestration.tool_calls.filter((t) => !t.authorized);
+
+  return (
+    <div className="space-y-2">
+      <SectionHeader icon="build" label="Tool Orchestration" />
+      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+        <StatRow
+          label="Tools evaluated"
+          value={toolOrchestration.tool_count}
+        />
+        <StatRow
+          label="Authorized"
+          value={toolOrchestration.authorized_count}
+        />
+        {toolOrchestration.denied_count > 0 ? (
+          <StatRow
+            label="Denied"
+            value={
+              <span className="font-semibold text-[#d97706]">
+                {toolOrchestration.denied_count}
+              </span>
+            }
+          />
+        ) : null}
+      </div>
+      {deniedCalls.length > 0 ? (
+        <div className="mt-1 space-y-1">
+          {deniedCalls.map((call: ChatToolCallRecord) => (
+            <div
+              key={call.tool_name}
+              className="flex items-start gap-1.5 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-900 border border-amber-100"
+            >
+              <span className="font-medium">{call.tool_name}</span>
+              <span className="text-amber-600">—</span>
+              <span>
+                {DENIAL_REASON_LABEL[call.denial_reason ?? ""] ??
+                  call.denial_reason ??
+                  "Denied"}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -330,6 +330,39 @@ class RetrievalMethodRecord(BaseModel):
     routing_latency_ms: int = 0
 
 
+class ChatToolCallRecord(BaseModel):
+    """Authorization and execution outcome for one tool capability (F342)."""
+
+    tool_name: str
+    tool_purpose: str
+    authorized: bool
+    executed: bool
+    succeeded: bool
+    fallback_used: bool
+    latency_ms: int = 0
+    denial_reason: str | None = None
+    error_code: str | None = None
+
+
+class ToolOrchestrationRecord(BaseModel):
+    """Aggregated result of the permission-aware adaptive tool orchestration step (F342).
+
+    Populated when feature_enable_chat_tool_orchestration is active.
+    Shows which tools were selected, authorized, executed, and whether fallbacks fired.
+    Tool call details include per-tool authorization outcomes for the trust panel.
+    """
+
+    enabled: bool = False
+    tool_count: int = 0
+    authorized_count: int = 0
+    executed_count: int = 0
+    succeeded_count: int = 0
+    fallback_count: int = 0
+    denied_count: int = 0
+    orchestration_latency_ms: int = 0
+    tool_calls: list[ChatToolCallRecord] = Field(default_factory=list)
+
+
 class AnswerTrustMetadataResponse(BaseModel):
     """Versioned, organization-scoped answer trust metadata contract.
 
@@ -356,6 +389,7 @@ class AnswerTrustMetadataResponse(BaseModel):
     evidence_quality: EvidenceQualityRecord
     planner_critic: PlannerCriticRecord = Field(default_factory=PlannerCriticRecord)
     retrieval_method: RetrievalMethodRecord = Field(default_factory=RetrievalMethodRecord)
+    tool_orchestration: ToolOrchestrationRecord = Field(default_factory=ToolOrchestrationRecord)
     generated_at: datetime
 
 
@@ -365,4 +399,6 @@ QueryInterpretationRecord.model_rebuild()
 EvidenceQualityRecord.model_rebuild()
 PlannerCriticRecord.model_rebuild()
 RetrievalMethodRecord.model_rebuild()
+ChatToolCallRecord.model_rebuild()
+ToolOrchestrationRecord.model_rebuild()
 AnswerTrustMetadataResponse.model_rebuild()

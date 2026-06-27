@@ -209,6 +209,17 @@ function makeTrustMetadata(
       override_source: null,
       routing_latency_ms: 0,
     },
+    tool_orchestration: {
+      enabled: false,
+      tool_count: 0,
+      authorized_count: 0,
+      executed_count: 0,
+      succeeded_count: 0,
+      fallback_count: 0,
+      denied_count: 0,
+      orchestration_latency_ms: 0,
+      tool_calls: [],
+    },
     generated_at: "2026-06-21T10:00:00Z",
     ...overrides,
   };
