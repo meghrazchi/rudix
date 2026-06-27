@@ -29,6 +29,7 @@ _ALL_STRATEGIES: frozenset[str] = frozenset(
         "legal_compliance",
         "policy_lookup",
         "comparison",
+        "incident_decision_support",
         "table_heavy",
         "graph_assisted",
         "connector_search",
@@ -83,7 +84,14 @@ CHAT_TOOL_CAPABILITIES: tuple[ChatToolCapability, ...] = (
         approval_required=False,
         feature_flag=None,
         relevant_strategies=frozenset(
-            {"standard", "policy_lookup", "comparison", "legal_compliance", "summary"}
+            {
+                "standard",
+                "policy_lookup",
+                "comparison",
+                "incident_decision_support",
+                "legal_compliance",
+                "summary",
+            }
         ),
         required_roles=_ALL_ROLES,
     ),
@@ -94,7 +102,9 @@ CHAT_TOOL_CAPABILITIES: tuple[ChatToolCapability, ...] = (
         allowed_resource_types=["connector", "document"],
         approval_required=False,
         feature_flag="feature_enable_connectors",
-        relevant_strategies=frozenset({"connector_search", "standard", "troubleshooting"}),
+        relevant_strategies=frozenset(
+            {"connector_search", "standard", "troubleshooting", "incident_decision_support"}
+        ),
         required_roles=_ALL_ROLES,
     ),
     ChatToolCapability(
@@ -104,7 +114,7 @@ CHAT_TOOL_CAPABILITIES: tuple[ChatToolCapability, ...] = (
         allowed_resource_types=["graph_entity", "graph_relation"],
         approval_required=False,
         feature_flag="feature_enable_graph_rag",
-        relevant_strategies=frozenset({"graph_assisted", "standard"}),
+        relevant_strategies=frozenset({"graph_assisted", "standard", "incident_decision_support"}),
         required_roles=_ALL_ROLES,
     ),
     ChatToolCapability(
@@ -124,7 +134,7 @@ CHAT_TOOL_CAPABILITIES: tuple[ChatToolCapability, ...] = (
         allowed_resource_types=["evaluation_run", "evaluation_set"],
         approval_required=False,
         feature_flag=None,
-        relevant_strategies=frozenset({"standard", "troubleshooting"}),
+        relevant_strategies=frozenset({"standard", "troubleshooting", "incident_decision_support"}),
         required_roles=_ELEVATED_ROLES,
     ),
     ChatToolCapability(
@@ -144,7 +154,7 @@ CHAT_TOOL_CAPABILITIES: tuple[ChatToolCapability, ...] = (
         allowed_resource_types=["document"],
         approval_required=False,
         feature_flag=None,
-        relevant_strategies=frozenset({"troubleshooting", "standard"}),
+        relevant_strategies=frozenset({"troubleshooting", "standard", "incident_decision_support"}),
         required_roles=_ELEVATED_ROLES,
     ),
 )

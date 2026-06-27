@@ -81,6 +81,11 @@ def test_comparison_routes_to_hybrid(router, all_features):
     assert result.method == "hybrid"
 
 
+def test_incident_decision_support_routes_to_hybrid(router, all_features):
+    result = router.route(planner_strategy="incident_decision_support", features=all_features)
+    assert result.method == "hybrid"
+
+
 def test_table_heavy_routes_to_table_aware(router, all_features):
     result = router.route(planner_strategy="table_heavy", features=all_features)
     assert result.method == "table_aware"

@@ -288,12 +288,18 @@ The query pipeline runs when a user asks a question.
    within configured hop/entity/chunk limits, and merges graph-backed chunks
    into the candidate set.
 8. Backend reranks chunks with the configured provider-backed reranker, capped by the profile/env input limits.
-9. Backend resolves the active organization `answer_generation` prompt version and builds a context block.
-10. Backend calls the LLM.
-11. Backend validates citations.
-12. Backend computes confidence score.
-13. Backend stores the answer, citations, prompt template version ID, and graph debug metadata.
-14. Backend returns the answer to frontend.
+9. If `FEATURE_ENABLE_TREE_SEARCH_REASONING=true` and the question is high-risk
+   (for example legal, compliance, policy conflict, contract risk, or incident
+   decision support), the backend generates multiple candidate answer strategies,
+   scores them by citation support, source trust, freshness, conflict level, and
+   completeness, then selects the safest supported answer within cost/latency
+   limits.
+10. Backend resolves the active organization `answer_generation` prompt version and builds a context block.
+11. Backend calls the LLM.
+12. Backend validates citations.
+13. Backend computes confidence score.
+14. Backend stores the answer, citations, prompt template version ID, and graph debug metadata.
+15. Backend returns the answer to frontend.
 
 ### Query Mermaid diagram
 

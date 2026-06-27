@@ -763,6 +763,16 @@ class Settings(BaseSettings):
     # and org-level policy overrides. Tool call decisions are logged and surfaced in
     # the trust panel. Default off — enable after baseline pipeline is validated.
     feature_enable_chat_tool_orchestration: bool = False
+    # Tree-search reasoning (F346): fan out multiple candidate answers for high-risk,
+    # multi-source questions and select the safest supported answer. Disabled by
+    # default so simple questions keep the single-pass path.
+    feature_enable_tree_search_reasoning: bool = False
+    tree_search_max_candidates: int = Field(default=3, ge=1, le=10)
+    tree_search_timeout_seconds: float = Field(default=6.0, ge=0.5, le=60.0)
+    tree_search_max_total_tokens: int = Field(default=6000, ge=256, le=100_000)
+    tree_search_max_total_cost_usd: float = Field(default=0.03, ge=0.0, le=1000.0)
+    tree_search_min_selected_score: float = Field(default=0.45, ge=0.0, le=1.0)
+    tree_search_min_context_chunks: int = Field(default=2, ge=1, le=10)
     # Org workflow memory and user preferences (F343). Off by default; enable once
     # permission-scoping and redaction are validated for the target org.
     feature_enable_org_memory: bool = False

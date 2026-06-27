@@ -27,6 +27,7 @@ PlannerStrategy = Literal[
     "policy_lookup",
     "comparison",
     "legal_compliance",
+    "incident_decision_support",
     "table_heavy",
     "graph_assisted",
     "connector_search",
@@ -37,6 +38,7 @@ STRATEGY_LABELS: dict[str, str] = {
     "policy_lookup": "Policy lookup",
     "comparison": "Comparison",
     "legal_compliance": "Legal / compliance",
+    "incident_decision_support": "Incident decision support",
     "table_heavy": "Table-heavy",
     "graph_assisted": "Graph-assisted",
     "connector_search": "Connector search",
@@ -44,7 +46,7 @@ STRATEGY_LABELS: dict[str, str] = {
 }
 
 _DEFAULT_HIGH_RISK_STRATEGIES: frozenset[str] = frozenset(
-    {"legal_compliance", "policy_lookup", "comparison"}
+    {"legal_compliance", "policy_lookup", "comparison", "incident_decision_support"}
 )
 
 # ---------------------------------------------------------------------------
@@ -72,6 +74,13 @@ _COMPARISON_RE = re.compile(
     r"better|worse|prefer|advantage|disadvantage|pros? and cons?|"
     r"which (is|one|option|approach)|side[- ]by[- ]side|contrast|distinguish|"
     r"trade[- ]off|alternative)\b",
+    re.IGNORECASE,
+)
+
+_INCIDENT_DECISION_RE = re.compile(
+    r"\b(incident|incidents|outage|outages|sev1|sev2|severity 1|severity 2|"
+    r"security incident|incident response|postmortem|rollback|containment|"
+    r"escalat(e|ion)|mitigat(e|ion)|service restoration|decision support)\b",
     re.IGNORECASE,
 )
 
@@ -125,9 +134,7 @@ class AnswerPlannerService:
         high_risk_strategies: frozenset[str] | None = None,
     ) -> None:
         self._default_high_risk = (
-            _DEFAULT_HIGH_RISK_STRATEGIES
-            if high_risk_strategies is None
-            else high_risk_strategies
+            _DEFAULT_HIGH_RISK_STRATEGIES if high_risk_strategies is None else high_risk_strategies
         )
 
     @staticmethod
@@ -188,13 +195,16 @@ class AnswerPlannerService:
         connector_search_scope: bool,
     ) -> str:
         # Priority order (highest to lowest): legal_compliance > policy_lookup >
-        # comparison > table_heavy > graph_assisted > connector_search > standard
+        # comparison > incident_decision_support > table_heavy > graph_assisted >
+        # connector_search > standard
         if _LEGAL_COMPLIANCE_RE.search(question):
             return "legal_compliance"
         if _POLICY_LOOKUP_RE.search(question):
             return "policy_lookup"
         if _COMPARISON_RE.search(question):
             return "comparison"
+        if _INCIDENT_DECISION_RE.search(question):
+            return "incident_decision_support"
         if table_query_detected or _TABLE_HEAVY_RE.search(question):
             return "table_heavy"
         if graph_context_available:

@@ -3,6 +3,7 @@ import json
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from time import perf_counter
 from types import MethodType
 from typing import Annotated, Any, Literal, cast
@@ -131,7 +132,11 @@ from app.domains.chat.services.answer_planner_service import (
     PlannerResult,
 )
 from app.domains.chat.services.answer_refiner_service import AnswerRefinerService, RefinerResult
-from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
+from app.domains.chat.services.citation_service import (
+    CitationBuildResult,
+    CitationContextChunk,
+    CitationService,
+)
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 from app.domains.chat.services.conflict_detection_service import (
     ConflictDetectionChunk,
@@ -161,6 +166,7 @@ from app.domains.chat.services.hybrid_retrieval_service import (
 from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
 from app.domains.chat.services.llm_service import (
+    LLMAnswerResult,
     LLMService,
     PermanentLLMServiceError,
     TransientLLMServiceError,
@@ -209,6 +215,10 @@ from app.domains.chat.services.table_retrieval_service import (
 from app.domains.chat.services.tool_orchestrator import (
     ChatToolOrchestrator,
     ToolOrchestrationResult,
+)
+from app.domains.chat.services.tree_search_service import (
+    TreeSearchCandidateScore,
+    TreeSearchService,
 )
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.repositories.documents import DocumentRepository as _DocumentRepository
@@ -334,6 +344,7 @@ _parallel_retrieval_optimizer = ParallelRetrievalOptimizer()
 _context_packer_service = ContextPackerService()
 _retrieval_strategy_router = RetrievalStrategyRouter()
 _chat_tool_orchestrator = ChatToolOrchestrator()
+_tree_search_service = TreeSearchService()
 _chat_tool_policy_repo = AgentToolPolicyRepository()
 _document_repository_for_trust = _DocumentRepository()
 _ai_policy_repo = AiResponsePolicyRepository()
@@ -411,6 +422,28 @@ def _resolve_planner_critic_controls(
             high_risk = frozenset(rag_profile.planner_high_risk_strategies)
 
     return enabled, mode, high_risk
+
+
+async def _resolve_tree_search_reasoning_enabled(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+) -> bool:
+    try:
+        return await _feature_flag_service.is_enabled(
+            db_session,
+            organization_id=organization_id,
+            flag_name="tree_search_reasoning",
+        )
+    except Exception as exc:
+        log_query_event(
+            event="query.tree_search.feature_flag_fallback",
+            organization_id=str(organization_id),
+            error=exc.__class__.__name__,
+            detail=str(exc),
+            enabled=settings.feature_enable_tree_search_reasoning,
+        )
+        return settings.feature_enable_tree_search_reasoning
 
 
 def _build_retrieval_method_record(
@@ -3578,67 +3611,274 @@ async def query_chat(
         )
         latencies_ms["prompt"] = int((perf_counter() - prompt_started) * 1000)
 
+        citation_result: CitationBuildResult | None = None
         if not not_found:
-            try:
-                llm_result = await _llm_service.generate_answer(
-                    prompt=prompt,
+            _tree_search_enabled = await _resolve_tree_search_reasoning_enabled(
+                db_session, organization_id=organization_id
+            )
+            _tree_search_applicable = (
+                _tree_search_enabled
+                and planner_result is not None
+                and planner_result.high_risk
+                and len(selected_chunks) >= settings.tree_search_min_context_chunks
+            )
+            if _tree_search_applicable:
+                _tree_search_context_chunks = [
+                    CitationContextChunk(
+                        document_id=chunk.document_id,
+                        chunk_id=chunk.chunk_id,
+                        filename=chunk.filename,
+                        page_number=chunk.page_number,
+                        text=chunk.text,
+                        similarity_score=chunk.similarity_score,
+                        original_rank=chunk.original_rank,
+                        rerank_score=chunk.rerank_score,
+                        rerank_rank=chunk.rerank_rank,
+                        final_rank=chunk.final_rank,
+                    )
+                    for chunk in selected_chunks
+                ]
+                _tree_search_result = await _tree_search_service.generate_candidates(
+                    question=payload.question,
+                    context_chunks=_tree_search_context_chunks,
+                    not_found_answer=_NOT_FOUND_ANSWER,
+                    conflict_context=_build_conflict_context(conflict_detection_result),
+                    answer_language=answer_language_used,
                     resolved_profile=chat_profile,
+                    max_candidates=settings.tree_search_max_candidates,
+                    timeout_seconds=settings.tree_search_timeout_seconds,
+                    max_total_tokens=settings.tree_search_max_total_tokens,
+                    max_total_cost_usd=Decimal(str(settings.tree_search_max_total_cost_usd)),
                 )
-            except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
-                log_query_event(
-                    event="query.failed.generate",
-                    organization_id=principal.organization_id,
-                    user_id=principal.user_id,
-                    job_id=str(chat_session.id),
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    error=exc.__class__.__name__,
-                )
-                raise _safe_http_error(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    code="generation_failed",
-                    message="Answer generation is unavailable",
-                ) from exc
-
-            llm_latency_ms = llm_result.latency_ms
-            llm_model = llm_result.model_name
-            llm_provider = llm_result.provider_key
-            llm_fallback_used = llm_result.fallback_used
-            llm_fallback_from = llm_result.fallback_from
-            llm_fallback_to = llm_result.fallback_to
-            llm_fallback_reason = llm_result.fallback_reason
-            llm_retry_count = llm_result.retry_count
-            llm_prompt_tokens = llm_result.prompt_tokens
-            llm_completion_tokens = llm_result.completion_tokens
-            llm_cost_usd = llm_result.approximate_cost_usd
-            answer = llm_result.answer
-
-            if llm_result.not_found:
-                answer = _NOT_FOUND_ANSWER
-                not_found = True
-            elif not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
-                answer = _NOT_FOUND_ANSWER
-                not_found = True
-            else:
-                citation_result = _citation_service.build_citations(
-                    not_found=False,
-                    answer=answer,
-                    retrieved_chunks=[
-                        CitationContextChunk(
-                            document_id=chunk.document_id,
-                            chunk_id=chunk.chunk_id,
-                            filename=chunk.filename,
-                            page_number=chunk.page_number,
-                            text=chunk.text,
-                            similarity_score=chunk.similarity_score,
-                            original_rank=chunk.original_rank,
-                            rerank_score=chunk.rerank_score,
-                            rerank_rank=chunk.rerank_rank,
-                            final_rank=chunk.final_rank,
+                latencies_ms["tree_search"] = _tree_search_result.latency_ms
+                if _tree_search_result.candidate_count > 0:
+                    _tree_search_candidate_scores: list[TreeSearchCandidateScore] = []
+                    _tree_search_evaluations: list[
+                        tuple[
+                            TreeSearchCandidateScore,
+                            CitationBuildResult,
+                            list[ChatCitationResponse],
+                            LLMAnswerResult,
+                        ]
+                    ] = []
+                    _tree_search_context_signals = confidence_signals
+                    _tree_search_min_selected_score = settings.tree_search_min_selected_score
+                    for _candidate in _tree_search_result.candidates:
+                        _candidate_citation_result = _citation_service.build_citations(
+                            not_found=False,
+                            answer=_candidate.llm_result.answer,
+                            retrieved_chunks=_tree_search_context_chunks,
+                            model_citations=_candidate.llm_result.citations,
                         )
-                        for chunk in selected_chunks
-                    ],
-                    model_citations=llm_result.citations,
-                )
+                        _candidate_citations: list[ChatCitationResponse] = []
+                        for _citation in _candidate_citation_result.citations:
+                            _candidate_citations.append(
+                                _with_conflict_status(
+                                    _with_ocr_quality(
+                                        _with_freshness(
+                                            _citation,
+                                            _freshness_trust_map,
+                                            _freshness_stale_ids,
+                                        ),
+                                        {str(k): v for k, v in _ocr_quality_map.items()},
+                                    ),
+                                    conflict_detection_result,
+                                )
+                            )
+                        _candidate_score = _tree_search_service.score_candidate(
+                            candidate=_candidate,
+                            citations=_candidate_citations,
+                            confidence_signals=_tree_search_context_signals,
+                            citation_validation_score=_candidate_citation_result.validation_score,
+                            freshness_multiplier=_compute_freshness_multiplier(
+                                freshness_stale_count, len(_candidate_citations)
+                            ),
+                            ocr_quality_multiplier=_compute_ocr_quality_multiplier(
+                                _candidate_citations
+                            ),
+                            conflict_multiplier=_compute_conflict_multiplier(
+                                conflict_detection_result
+                            ),
+                            table_quality_multiplier=1.0,
+                            extraction_quality_multiplier=1.0,
+                            graph_context_used=graph_context_result.graph_context_used,
+                        )
+                        _tree_search_candidate_scores.append(_candidate_score)
+                        _tree_search_evaluations.append(
+                            (
+                                _candidate_score,
+                                _candidate_citation_result,
+                                _candidate_citations,
+                                _candidate.llm_result,
+                            )
+                        )
+
+                    _tree_search_selection = _tree_search_service.select_candidate(
+                        _tree_search_candidate_scores,
+                        min_selected_score=_tree_search_min_selected_score,
+                    )
+                    if _tree_search_selection.selected_candidate is not None:
+                        _selected_candidate_score = _tree_search_selection.selected_candidate
+                        _selected_evaluation = next(
+                            (
+                                evaluation
+                                for evaluation in _tree_search_evaluations
+                                if evaluation[0].strategy == _selected_candidate_score.strategy
+                            ),
+                            None,
+                        )
+                        if _selected_evaluation is None and _tree_search_evaluations:
+                            _selected_evaluation = _tree_search_evaluations[0]
+                        if _selected_evaluation is not None and _tree_search_selection.accepted:
+                            (
+                                _selected_candidate_score,
+                                _selected_citation_result,
+                                _selected_candidate_citations,
+                                llm_result,
+                            ) = _selected_evaluation
+                            llm_latency_ms = llm_result.latency_ms
+                            llm_model = llm_result.model_name
+                            llm_provider = llm_result.provider_key
+                            llm_fallback_used = llm_result.fallback_used
+                            llm_fallback_from = llm_result.fallback_from
+                            llm_fallback_to = llm_result.fallback_to
+                            llm_fallback_reason = llm_result.fallback_reason
+                            llm_retry_count = llm_result.retry_count
+                            llm_prompt_tokens = llm_result.prompt_tokens
+                            llm_completion_tokens = llm_result.completion_tokens
+                            llm_cost_usd = llm_result.approximate_cost_usd
+                            answer = llm_result.answer
+                            citation_result = _selected_citation_result
+                            citations = _selected_candidate_citations
+                            citation_validation_failed = citation_result.invalid_chunk_id_count > 0
+                            log_query_event(
+                                event="query.citations.validated",
+                                organization_id=principal.organization_id,
+                                user_id=principal.user_id,
+                                job_id=str(chat_session.id),
+                                validation_score=citation_result.validation_score,
+                                model_citation_count=citation_result.model_citation_count,
+                                accepted_model_citation_count=(
+                                    citation_result.accepted_model_citation_count
+                                ),
+                                used_fallback=citation_result.used_fallback,
+                                invalid_chunk_id_count=citation_result.invalid_chunk_id_count,
+                                metadata_mismatch_count=citation_result.metadata_mismatch_count,
+                                snippet_mismatch_count=citation_result.snippet_mismatch_count,
+                            )
+                            if citation_validation_failed:
+                                log_query_event(
+                                    event="query.citations.validation_failed",
+                                    organization_id=principal.organization_id,
+                                    user_id=principal.user_id,
+                                    job_id=str(chat_session.id),
+                                    invalid_chunk_id_count=citation_result.invalid_chunk_id_count,
+                                )
+                        elif _selected_evaluation is not None:
+                            llm_result = LLMAnswerResult(
+                                answer="",
+                                not_found=True,
+                                citations=[],
+                                model_name=_selected_evaluation[3].model_name,
+                                prompt_tokens=_selected_evaluation[3].prompt_tokens,
+                                completion_tokens=_selected_evaluation[3].completion_tokens,
+                                total_tokens=_selected_evaluation[3].total_tokens,
+                                approximate_cost_usd=_selected_evaluation[3].approximate_cost_usd,
+                                latency_ms=_selected_evaluation[3].latency_ms,
+                                retry_count=_selected_evaluation[3].retry_count,
+                                used_fallback_parser=_selected_evaluation[3].used_fallback_parser,
+                                provider_key=_selected_evaluation[3].provider_key,
+                                fallback_used=_selected_evaluation[3].fallback_used,
+                                fallback_from=_selected_evaluation[3].fallback_from,
+                                fallback_to=_selected_evaluation[3].fallback_to,
+                                fallback_reason=_selected_evaluation[3].fallback_reason,
+                            )
+                            llm_latency_ms = llm_result.latency_ms
+                            llm_model = llm_result.model_name
+                            llm_provider = llm_result.provider_key
+                            llm_fallback_used = llm_result.fallback_used
+                            llm_fallback_from = llm_result.fallback_from
+                            llm_fallback_to = llm_result.fallback_to
+                            llm_fallback_reason = llm_result.fallback_reason
+                            llm_retry_count = llm_result.retry_count
+                            llm_prompt_tokens = llm_result.prompt_tokens
+                            llm_completion_tokens = llm_result.completion_tokens
+                            llm_cost_usd = llm_result.approximate_cost_usd
+                            answer = _NOT_FOUND_ANSWER
+                            not_found = True
+                            citations = []
+                            citation_result = CitationBuildResult(
+                                citations=[],
+                                model_citation_count=0,
+                                accepted_model_citation_count=0,
+                                used_fallback=False,
+                                validation_score=1.0,
+                                invalid_chunk_id_count=0,
+                                metadata_mismatch_count=0,
+                                snippet_mismatch_count=0,
+                            )
+
+            if citation_result is None:
+                try:
+                    llm_result = await _llm_service.generate_answer(
+                        prompt=prompt,
+                        resolved_profile=chat_profile,
+                    )
+                except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
+                    log_query_event(
+                        event="query.failed.generate",
+                        organization_id=principal.organization_id,
+                        user_id=principal.user_id,
+                        job_id=str(chat_session.id),
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        error=exc.__class__.__name__,
+                    )
+                    raise _safe_http_error(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        code="generation_failed",
+                        message="Answer generation is unavailable",
+                    ) from exc
+
+                llm_latency_ms = llm_result.latency_ms
+                llm_model = llm_result.model_name
+                llm_provider = llm_result.provider_key
+                llm_fallback_used = llm_result.fallback_used
+                llm_fallback_from = llm_result.fallback_from
+                llm_fallback_to = llm_result.fallback_to
+                llm_fallback_reason = llm_result.fallback_reason
+                llm_retry_count = llm_result.retry_count
+                llm_prompt_tokens = llm_result.prompt_tokens
+                llm_completion_tokens = llm_result.completion_tokens
+                llm_cost_usd = llm_result.approximate_cost_usd
+                answer = llm_result.answer
+
+                if llm_result.not_found:
+                    answer = _NOT_FOUND_ANSWER
+                    not_found = True
+                elif not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
+                    answer = _NOT_FOUND_ANSWER
+                    not_found = True
+                else:
+                    citation_result = _citation_service.build_citations(
+                        not_found=False,
+                        answer=answer,
+                        retrieved_chunks=[
+                            CitationContextChunk(
+                                document_id=chunk.document_id,
+                                chunk_id=chunk.chunk_id,
+                                filename=chunk.filename,
+                                page_number=chunk.page_number,
+                                text=chunk.text,
+                                similarity_score=chunk.similarity_score,
+                                original_rank=chunk.original_rank,
+                                rerank_score=chunk.rerank_score,
+                                rerank_rank=chunk.rerank_rank,
+                                final_rank=chunk.final_rank,
+                            )
+                            for chunk in selected_chunks
+                        ],
+                        model_citations=llm_result.citations,
+                    )
                 citation_chunk_ids = [
                     chunk_id
                     for citation in citation_result.citations

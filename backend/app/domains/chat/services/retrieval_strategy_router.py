@@ -50,6 +50,7 @@ _STRATEGY_METHOD_MAP: dict[str, RetrievalMethod] = {
     "legal_compliance": "hybrid",  # exact legal language + semantic
     "policy_lookup": "keyword",  # exact policy IDs and names
     "comparison": "hybrid",  # wide recall for both sides
+    "incident_decision_support": "hybrid",  # high-risk incident summaries + recall
     "table_heavy": "table_aware",  # table-boost vector retrieval
     "graph_assisted": "graph_rag",  # GraphRAG entity traversal
     "connector_search": "connector_aware",  # connector-scoped

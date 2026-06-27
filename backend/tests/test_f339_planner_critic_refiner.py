@@ -77,6 +77,11 @@ class TestAnswerPlannerService:
         result = self.planner.classify(question="Pros and cons of using Kafka vs RabbitMQ?")
         assert result.strategy == "comparison"
 
+    def test_incident_decision_support(self):
+        result = self.planner.classify(question="Should we rollback this incident or contain it?")
+        assert result.strategy == "incident_decision_support"
+        assert result.high_risk is True
+
     def test_table_heavy_detected(self):
         result = self.planner.classify(question="Show all users.", table_query_detected=True)
         assert result.strategy == "table_heavy"
@@ -130,6 +135,11 @@ class TestAnswerPlannerService:
             high_risk_strategies_override=frozenset({"graph_assisted"}),
         )
         assert result.strategy == "graph_assisted"
+        assert result.high_risk is True
+
+    def test_incident_decision_support_is_high_risk_by_default(self):
+        result = self.planner.classify(question="How should we respond to the security incident?")
+        assert result.strategy == "incident_decision_support"
         assert result.high_risk is True
 
     def test_empty_high_risk_strategies(self):
