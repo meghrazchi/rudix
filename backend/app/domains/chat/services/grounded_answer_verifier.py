@@ -42,6 +42,8 @@ _ALLOWED_REASON_CODES: frozenset[str] = frozenset(
         "low_coverage",
         "hallucinated_detail",
         "ambiguous",
+        "source_conflict",
+        "insufficient_evidence",
     }
 )
 
@@ -63,6 +65,8 @@ class _VerifierOutput(BaseModel):
     partially_supported_claim_count: int = Field(default=0, ge=0)
     unsupported_claim_count: int = Field(default=0, ge=0)
     unverifiable_claim_count: int = Field(default=0, ge=0)
+    conflicting_claim_count: int = Field(default=0, ge=0)
+    not_enough_evidence_claim_count: int = Field(default=0, ge=0)
     claims: list[_VerifierClaimOutput] = Field(default_factory=list)
 
     @field_validator("removed_claims", mode="before")
@@ -101,6 +105,8 @@ class _VerifierClaimOutput(BaseModel):
         "partially_supported",
         "unsupported",
         "unverifiable",
+        "conflicting",
+        "not_enough_evidence",
     ]
     citation_indices: list[_VerifierClaimCitationRef] = Field(default_factory=list)
 
@@ -173,6 +179,7 @@ class GroundedVerifierResult:
     Callers must:
     - Use `final_answer` instead of the raw LLM answer when `applied` is True.
     - Treat verdict="unsupported" in strict mode as a not_found signal.
+    - Treat conflicting_claim_count > 0 as a verification_failed signal.
     - Never store or log raw chunk text obtained via the verifier path.
     """
 
@@ -184,6 +191,8 @@ class GroundedVerifierResult:
     partially_supported_claim_count: int
     unsupported_claim_count: int
     unverifiable_claim_count: int
+    conflicting_claim_count: int = 0
+    not_enough_evidence_claim_count: int = 0
     removed_claims: list[str] = field(default_factory=list)  # answer excerpts only
     reason_codes: list[str] = field(default_factory=list)
     claims: list[GroundedClaimResult] = field(default_factory=list)
@@ -201,7 +210,14 @@ class GroundedClaimResult:
     """Claim-level evidence mapping returned by the verifier."""
 
     claim_text: str
-    support_status: Literal["supported", "partially_supported", "unsupported", "unverifiable"]
+    support_status: Literal[
+        "supported",
+        "partially_supported",
+        "unsupported",
+        "unverifiable",
+        "conflicting",
+        "not_enough_evidence",
+    ]
     support_score: float
     evidence_match_score: float
     source_quality_score: float
@@ -246,15 +262,26 @@ Steps:
     needing rewrite.
   "unsupported_claim_count": integer — claims with no source support.
   "unverifiable_claim_count": integer — claims the sources do not let you verify.
+  "conflicting_claim_count": integer — claims where retrieved sources actively
+    contradict each other about the claim (e.g. source A says X, source B says NOT X).
+  "not_enough_evidence_claim_count": integer — claims where sources touch the topic
+    but provide insufficient detail to confirm or deny the claim.
+
   "claims": list of claim objects. Each claim object must include:
     - claim_text: a short excerpt or normalized sentence from the answer
     - support_status: supported | partially_supported | unsupported | unverifiable
+        | conflicting | not_enough_evidence
+      Use "conflicting" when multiple retrieved sources directly contradict each other
+      about this specific claim. Use "not_enough_evidence" when sources are relevant
+      but lack the detail needed to verify — distinct from "unsupported" (no source
+      at all) and "unverifiable" (topic out of scope for any source).
     - citation_indices: 1-based indices into VALIDATED CITATIONS
       A claim may reference multiple citations when several chunks support it.
 
   "reason_codes": list of reason codes from this set only:
     ["no_source", "contradicts_context", "out_of_scope",
-     "low_coverage", "hallucinated_detail", "ambiguous"]
+     "low_coverage", "hallucinated_detail", "ambiguous",
+     "source_conflict", "insufficient_evidence"]
 
 Constraints:
 - Return ONLY valid JSON — no markdown fences, no explanation outside the JSON.
@@ -269,8 +296,11 @@ def _evidence_match_score(status: str) -> float:
         return 1.0
     if status == "partially_supported":
         return 0.65
+    if status == "not_enough_evidence":
+        return 0.2
     if status == "unverifiable":
         return 0.3
+    # "conflicting" and "unsupported" both score 0 — conflicting is actively contradicted
     return 0.0
 
 
@@ -433,6 +463,8 @@ class GroundedAnswerVerifier:
             partially_supported_claim_count=0,
             unsupported_claim_count=0,
             unverifiable_claim_count=0,
+            conflicting_claim_count=0,
+            not_enough_evidence_claim_count=0,
             removed_claims=[],
             reason_codes=[],
             final_answer=answer,
@@ -493,12 +525,18 @@ class GroundedAnswerVerifier:
             + parsed.partially_supported_claim_count
             + parsed.unsupported_claim_count
             + parsed.unverifiable_claim_count
+            + parsed.conflicting_claim_count
+            + parsed.not_enough_evidence_claim_count
         )
         total = max(1, parsed.claim_count or counted_claims)
         if counted_claims and counted_claims != parsed.claim_count:
             total = counted_claims
-        weighted_supported = parsed.supported_claim_count + (
-            0.5 * parsed.partially_supported_claim_count
+        # conflicting = 0 weight (actively contradicted, same as unsupported)
+        # not_enough_evidence = 0.2 weight (partial signal, slightly above unsupported)
+        weighted_supported = (
+            parsed.supported_claim_count
+            + (0.5 * parsed.partially_supported_claim_count)
+            + (0.2 * parsed.not_enough_evidence_claim_count)
         )
         verification_score = round(weighted_supported / total, 4)
 
@@ -545,10 +583,12 @@ class GroundedAnswerVerifier:
             else verification_score
         )
 
-        # In strict mode, insufficient evidence is treated as not_found so the
-        # caller can safely refuse rather than showing a thin answer.
+        # In strict mode, insufficient or conflicting evidence is treated as not_found
+        # so the caller can safely refuse rather than showing a misleading answer.
         strict_refusal = mode == "strict" and (
-            parsed.verdict == "unsupported" or verification_score < threshold
+            parsed.verdict == "unsupported"
+            or verification_score < threshold
+            or parsed.conflicting_claim_count > 0
         )
         if strict_refusal:
             final_answer = ""
@@ -571,6 +611,8 @@ class GroundedAnswerVerifier:
             partially_supported_claim_count=parsed.partially_supported_claim_count,
             unsupported_claim_count=parsed.unsupported_claim_count,
             unverifiable_claim_count=parsed.unverifiable_claim_count,
+            conflicting_claim_count=parsed.conflicting_claim_count,
+            not_enough_evidence_claim_count=parsed.not_enough_evidence_claim_count,
             removed_claims=list(parsed.removed_claims),
             reason_codes=list(parsed.reason_codes),
             claims=grounded_claims,

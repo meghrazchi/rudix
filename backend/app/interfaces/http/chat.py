@@ -1954,6 +1954,12 @@ def _build_trust_metadata(
             unverifiable_count=grounded_verifier_result.unverifiable_claim_count
             if grounded_verifier_result is not None
             else 0,
+            conflicting_count=grounded_verifier_result.conflicting_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            not_enough_evidence_count=grounded_verifier_result.not_enough_evidence_claim_count
+            if grounded_verifier_result is not None
+            else 0,
             removed_count=len(grounded_verifier_result.removed_claims)
             if grounded_verifier_result is not None
             else 0,
@@ -3437,7 +3443,18 @@ async def query_chat(
                         ):
                             not_found = True
                             verification_failed = True
-                        elif grounded_verifier_result.unsupported_claim_count > 0:
+                        elif (
+                            _gv_mode == "strict"
+                            and grounded_verifier_result.conflicting_claim_count > 0
+                        ):
+                            # Conflicting sources in strict mode: refuse the answer rather than
+                            # showing content that sources actively contradict.
+                            not_found = True
+                            verification_failed = True
+                        elif (
+                            grounded_verifier_result.unsupported_claim_count > 0
+                            or grounded_verifier_result.conflicting_claim_count > 0
+                        ):
                             verification_failed = True
                         if not_found:
                             answer = _NOT_FOUND_ANSWER
@@ -4077,6 +4094,12 @@ async def query_chat(
             if grounded_verifier_result is not None
             else 0,
             grounded_verification_unverifiable_count=grounded_verifier_result.unverifiable_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            grounded_verification_conflicting_count=grounded_verifier_result.conflicting_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            grounded_verification_not_enough_evidence_count=grounded_verifier_result.not_enough_evidence_claim_count
             if grounded_verifier_result is not None
             else 0,
             grounded_verification_removed_count=len(grounded_verifier_result.removed_claims)

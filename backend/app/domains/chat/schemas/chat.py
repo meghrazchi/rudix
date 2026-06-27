@@ -335,6 +335,8 @@ class ChatDebugResponse(BaseModel):
     grounded_verification_partially_supported_count: int = 0
     grounded_verification_unsupported_count: int = 0
     grounded_verification_unverifiable_count: int = 0
+    grounded_verification_conflicting_count: int = 0
+    grounded_verification_not_enough_evidence_count: int = 0
     grounded_verification_removed_count: int = 0
     grounded_verification_reason_codes: list[str] = Field(default_factory=list)
     grounded_verification_mode: str | None = None

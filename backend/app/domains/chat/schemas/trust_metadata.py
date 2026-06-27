@@ -180,7 +180,7 @@ class QueryInterpretationRecord(BaseModel):
 
 
 class GroundedVerificationRecord(BaseModel):
-    """Results of the post-generation grounded answer verifier (F296)."""
+    """Results of the post-generation grounded answer verifier (F296/F338)."""
 
     applied: bool = False
     verdict: str | None = None
@@ -191,6 +191,8 @@ class GroundedVerificationRecord(BaseModel):
     partially_supported_count: int = 0
     unsupported_count: int = 0
     unverifiable_count: int = 0
+    conflicting_count: int = 0
+    not_enough_evidence_count: int = 0
     removed_count: int = 0
     reason_codes: list[str] = Field(default_factory=list)
     claims: list[ClaimSupportRecord] = Field(default_factory=list)
@@ -203,7 +205,14 @@ class ClaimSupportRecord(BaseModel):
 
     claim_index: int = Field(ge=1)
     claim_text: str
-    support_status: Literal["supported", "partially_supported", "unsupported", "unverifiable"]
+    support_status: Literal[
+        "supported",
+        "partially_supported",
+        "unsupported",
+        "unverifiable",
+        "conflicting",
+        "not_enough_evidence",
+    ]
     support_score: float = Field(ge=0.0, le=1.0)
     evidence_match_score: float = Field(ge=0.0, le=1.0)
     source_quality_score: float = Field(ge=0.0, le=1.0)
