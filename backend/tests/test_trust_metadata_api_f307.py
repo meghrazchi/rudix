@@ -278,6 +278,7 @@ def test_answer_trust_metadata_schema_version_is_one() -> None:
         citations=[],
         retrieval=RetrievalDiagnosticsRecord(),
         query_interpretation=QueryInterpretationRecord(
+            answer_mode="grounded",
             intent="policy",
             intent_label="Policy",
             complexity="simple",
@@ -285,6 +286,7 @@ def test_answer_trust_metadata_schema_version_is_one() -> None:
             rewrite_preview_enabled=True,
             rewritten_query_preview=None,
             sub_queries=[],
+            guidance_topic=None,
         ),
         grounded_verification=GroundedVerificationRecord(
             aggregate_support_score=0.0,
@@ -329,6 +331,7 @@ def test_answer_trust_metadata_round_trips_json() -> None:
         citations=[],
         retrieval=RetrievalDiagnosticsRecord(retrieval_count=5, selected_count=0),
         query_interpretation=QueryInterpretationRecord(
+            answer_mode="grounded",
             intent="lookup",
             intent_label="Lookup",
             complexity="simple",
@@ -336,6 +339,7 @@ def test_answer_trust_metadata_round_trips_json() -> None:
             rewrite_preview_enabled=True,
             rewritten_query_preview=None,
             sub_queries=[],
+            guidance_topic=None,
         ),
         grounded_verification=GroundedVerificationRecord(
             applied=True,

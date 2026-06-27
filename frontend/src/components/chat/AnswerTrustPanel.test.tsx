@@ -755,6 +755,7 @@ describe("AnswerTrustPanel", () => {
 
   it("shows safe query interpretation when advanced diagnostics are enabled", () => {
     const queryInterpretation: QueryInterpretationRecord = {
+      answer_mode: "grounded",
       intent: "policy",
       intent_label: "Policy",
       complexity: "complex",
@@ -762,6 +763,7 @@ describe("AnswerTrustPanel", () => {
       rewrite_preview_enabled: true,
       rewritten_query_preview: "What is the leave policy for contractors?",
       sub_queries: [],
+      guidance_topic: null,
     };
     renderPanel({
       showInterpretationDetails: true,
@@ -780,6 +782,7 @@ describe("AnswerTrustPanel", () => {
 
   it("hides the rewrite preview when disabled by policy", () => {
     const queryInterpretation: QueryInterpretationRecord = {
+      answer_mode: "grounded",
       intent: "lookup",
       intent_label: "Lookup",
       complexity: "simple",
@@ -787,6 +790,7 @@ describe("AnswerTrustPanel", () => {
       rewrite_preview_enabled: false,
       rewritten_query_preview: null,
       sub_queries: [],
+      guidance_topic: null,
     };
     renderPanel({
       showInterpretationDetails: true,
@@ -799,6 +803,26 @@ describe("AnswerTrustPanel", () => {
       screen.getByText("Rewrite preview is disabled by organization policy."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Rewrite preview")).not.toBeInTheDocument();
+  });
+
+  it("shows general product guidance badge when answer mode is guidance", () => {
+    renderPanel({
+      trustMetadata: {
+        ...baseTrustMetadata,
+        query_interpretation: {
+          answer_mode: "guidance",
+          intent: "product_guidance",
+          intent_label: "Onboarding",
+          complexity: "simple",
+          retrieval_strategy: "original",
+          rewrite_preview_enabled: false,
+          rewritten_query_preview: null,
+          sub_queries: [],
+          guidance_topic: "onboarding",
+        },
+      },
+    });
+    expect(screen.getByText("General product guidance")).toBeInTheDocument();
   });
 
   it("shows prompt template when present", () => {

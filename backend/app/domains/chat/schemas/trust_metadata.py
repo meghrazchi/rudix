@@ -165,6 +165,7 @@ class RetrievalDiagnosticsRecord(BaseModel):
 class QueryInterpretationRecord(BaseModel):
     """Safe query interpretation surfaced in the trust panel."""
 
+    answer_mode: Literal["grounded", "guidance"] = "grounded"
     intent: Literal[
         "lookup",
         "summary",
@@ -174,6 +175,7 @@ class QueryInterpretationRecord(BaseModel):
         "compliance",
         "connector_search",
         "graph_entity_search",
+        "product_guidance",
     ]
     intent_label: str
     complexity: Literal["simple", "complex", "multi_part"]
@@ -181,6 +183,13 @@ class QueryInterpretationRecord(BaseModel):
     rewrite_preview_enabled: bool = True
     rewritten_query_preview: str | None = None
     sub_queries: list[str] = Field(default_factory=list)
+    guidance_topic: Literal[
+        "onboarding",
+        "ui_help",
+        "empty_state",
+        "source_scope",
+        "how_to_use",
+    ] | None = None
 
 
 class GroundedVerificationRecord(BaseModel):

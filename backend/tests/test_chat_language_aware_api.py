@@ -288,19 +288,20 @@ class TestPromptServiceLanguageInjection:
         )
         assert "Write the answer in" not in prompt
 
-    def test_build_general_prompt_with_french_language_includes_rule(self) -> None:
-        prompt = self.svc.build_general_prompt(
+    def test_build_guidance_prompt_with_french_language_includes_rule(self) -> None:
+        prompt = self.svc.build_guidance_prompt(
             question="Quelle est la politique?",
             answer_language="fr",
         )
         assert "French" in prompt
 
-    def test_build_general_prompt_without_language_has_no_language_rule(self) -> None:
-        prompt = self.svc.build_general_prompt(
+    def test_build_guidance_prompt_without_language_has_no_language_rule(self) -> None:
+        prompt = self.svc.build_guidance_prompt(
             question="What is the policy?",
             answer_language=None,
         )
         assert "Write the answer in" not in prompt
+        assert "Rudix product guidance assistant" in prompt
 
     def test_citation_integrity_rule_always_present_with_language(self) -> None:
         prompt = self.svc.build_prompt(

@@ -94,6 +94,7 @@ function buildTrustMetadata(
       freshness_boosted_count: 0,
     },
     query_interpretation: {
+      answer_mode: "grounded",
       intent: "lookup",
       intent_label: "Lookup",
       complexity: "simple",
@@ -101,6 +102,7 @@ function buildTrustMetadata(
       rewrite_preview_enabled: false,
       rewritten_query_preview: null,
       sub_queries: [],
+      guidance_topic: null,
     } satisfies QueryInterpretationRecord,
     grounded_verification: {
       applied: false,

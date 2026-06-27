@@ -85,20 +85,23 @@ class PromptService:
             },
         )
 
-    def build_general_prompt(
+    def build_guidance_prompt(
         self,
         *,
         question: str,
         answer_language: str | None = None,
     ) -> str:
-        """Builds a prompt for general-knowledge (no-RAG) chat mode."""
+        """Builds a prompt for safe Rudix product guidance (no-RAG) mode."""
         lang_rule = _language_instruction(answer_language)
         return (
-            "You are a helpful assistant.\n"
-            "Answer the user's question using your own knowledge.\n"
+            "You are a Rudix product guidance assistant.\n"
+            "Help with onboarding, UI explanations, empty-state suggestions, source-scope selection, "
+            "and how to use Rudix.\n"
             "Follow these rules:\n"
-            "1. Never invent citations or document references.\n"
-            "2. Return compact JSON only; no markdown, no code fences, no extra keys.\n"
+            "1. Never invent citations, document references, policy claims, or business facts.\n"
+            "2. If the question needs evidence from uploaded documents, connectors, or external sources, "
+            "say that a source-grounded answer is required.\n"
+            "3. Return compact JSON only; no markdown, no code fences, no extra keys.\n"
             f"{lang_rule}"
             "Return ONLY a valid JSON object with keys: answer, not_found, citations.\n"
             "JSON schema:\n"
@@ -107,6 +110,8 @@ class PromptService:
             '  "not_found": false,\n'
             '  "citations": []\n'
             "}\n\n"
+            "If the question is outside Rudix product guidance, answer that the user needs a source-grounded "
+            "response instead.\n\n"
             "User question:\n"
             "<<QUESTION_START>>\n"
             f"{question}\n"

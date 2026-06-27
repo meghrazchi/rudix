@@ -180,6 +180,7 @@ export type RetrievalDiagnosticsRecord = {
 };
 
 export type QueryInterpretationRecord = {
+  answer_mode: "grounded" | "guidance";
   intent:
     | "lookup"
     | "summary"
@@ -188,13 +189,21 @@ export type QueryInterpretationRecord = {
     | "troubleshooting"
     | "compliance"
     | "connector_search"
-    | "graph_entity_search";
+    | "graph_entity_search"
+    | "product_guidance";
   intent_label: string;
   complexity: "simple" | "complex" | "multi_part";
   retrieval_strategy: "original" | "rewrite" | "decompose";
   rewrite_preview_enabled: boolean;
   rewritten_query_preview?: string | null;
   sub_queries: string[];
+  guidance_topic?:
+    | "onboarding"
+    | "ui_help"
+    | "empty_state"
+    | "source_scope"
+    | "how_to_use"
+    | null;
 };
 
 export type GroundedVerificationRecord = {

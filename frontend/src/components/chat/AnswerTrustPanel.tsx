@@ -14,7 +14,6 @@ import type {
   ConfidenceReasonRecord,
   ConflictStatusRecord,
   CriticWarningRecord,
-  EvidenceQualityRecord,
   PlannerCriticRecord,
   QueryInterpretationRecord,
   RetrievalMethodRecord,
@@ -211,6 +210,18 @@ function processingWarningBadge(
     label: "Processing incomplete",
     cls: "rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[9px] font-semibold text-orange-800 uppercase",
   };
+}
+
+function answerModeBadge(
+  mode: "grounded" | "guidance" | null | undefined,
+): { label: string; cls: string; icon: string } | null {
+  if (mode === "guidance")
+    return {
+      label: "General product guidance",
+      icon: "tips_and_updates",
+      cls: "inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold uppercase text-sky-800",
+    };
+  return null;
 }
 
 function freshnessBadge(
@@ -527,6 +538,9 @@ export function AnswerTrustPanel({
   const trustCitations = trustMetadata?.citations ?? citations;
   const retrievalDiagnostics = trustMetadata?.retrieval ?? debug;
   const queryInterpretation = trustMetadata?.query_interpretation ?? null;
+  const answerModeBadgeRecord = answerModeBadge(
+    queryInterpretation?.answer_mode ?? null,
+  );
   const retrievalSummary =
     retrievalDiagnostics != null
       ? buildRetrievalSummary({
@@ -721,6 +735,17 @@ export function AnswerTrustPanel({
           <span className="text-xs font-bold text-[#2f2a46]">
             Answer Explanation
           </span>
+          {answerModeBadgeRecord ? (
+            <span className={answerModeBadgeRecord.cls}>
+              <span
+                className="material-symbols-outlined text-[10px]"
+                aria-hidden="true"
+              >
+                {answerModeBadgeRecord.icon}
+              </span>
+              {answerModeBadgeRecord.label}
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {onReportIssue ? (

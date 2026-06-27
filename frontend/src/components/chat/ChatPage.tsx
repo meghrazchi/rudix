@@ -424,6 +424,7 @@ function toTurnResponseFromQuery(
     policy_disclaimer: response.policy_disclaimer ?? null,
     debug: response.debug ?? null,
     citations: response.citations ?? [],
+    trust_metadata: response.trust_metadata ?? null,
     created_at: response.created_at,
     agent_run_id: null,
     agent_run_status: null,
@@ -523,6 +524,11 @@ export function toTurnResponseFromHistoryMessage(
     policy_disclaimer: null,
     debug: null,
     citations: message.citations ?? [],
+    trust_metadata:
+      (messageRecord.trust_metadata as
+        | import("@/lib/api/trust_metadata").AnswerTrustMetadataResponse
+        | null
+        | undefined) ?? null,
     created_at: message.created_at,
     agent_run_id: null,
     agent_run_status: null,
@@ -2496,6 +2502,19 @@ export function ChatPage() {
                                         </span>
                                       ) : null}
                                     </span>
+                                    {turn.response.trust_metadata
+                                      ?.query_interpretation?.answer_mode ===
+                                    "guidance" ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
+                                        <span
+                                          className="material-symbols-outlined text-[11px]"
+                                          aria-hidden="true"
+                                        >
+                                          tips_and_updates
+                                        </span>
+                                        General product guidance
+                                      </span>
+                                    ) : null}
                                     {turn.response.scope_label ? (
                                       <span className="inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2 py-0.5 text-[10px] font-semibold text-[#3525cd]">
                                         <span

@@ -1624,12 +1624,12 @@ async def test_post_chat_strict_grounded_verification_refuses_low_support_answer
 
 
 @pytest.mark.asyncio
-async def test_post_chat_scope_mode_none_skips_retrieval_and_uses_general_prompt(
+async def test_post_chat_guidance_question_skips_retrieval_and_uses_guidance_prompt(
     chat_query_client: AsyncClient,
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """scope_mode=none must skip embedding+retrieval and answer from general knowledge."""
+    """Safe product-help questions should use guidance mode without retrieval."""
     user, organization, _ = await _seed_principal(db_session)
     token = create_app_access_token(
         subject=user.external_auth_id,
@@ -1641,14 +1641,14 @@ async def test_post_chat_scope_mode_none_skips_retrieval_and_uses_general_prompt
     qdrant_module.qdrant_client = fake_qdrant
     chat_provider, embed_provider = _inject_providers(
         monkeypatch,
-        answer='{"answer":"Paris is the capital of France.","not_found":false,"citations":[]}',
+        answer='{"answer":"Use the source scope menu to narrow the documents shown in chat.","not_found":false,"citations":[]}',
     )
 
     response = await chat_query_client.post(
         "/api/v1/chat",
         headers=_auth_headers(token=token, organization_id=str(organization.id)),
         json={
-            "question": "What is the capital of France?",
+            "question": "How do I choose a source scope?",
             "document_ids": [],
             "scope_mode": "none",
             "rerank": False,
@@ -1657,7 +1657,7 @@ async def test_post_chat_scope_mode_none_skips_retrieval_and_uses_general_prompt
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["answer"] == "Paris is the capital of France."
+    assert payload["answer"] == "Use the source scope menu to narrow the documents shown in chat."
     assert payload["not_found"] is False
     assert payload["citations"] == []
     assert payload["debug"]["retrieval_count"] == 0
@@ -1669,6 +1669,86 @@ async def test_post_chat_scope_mode_none_skips_retrieval_and_uses_general_prompt
     assert embed_provider.calls == []
     # LLM must have been called once (for the general answer).
     assert len(chat_provider.calls) == 1
+    assert payload["trust_metadata"]["query_interpretation"]["answer_mode"] == "guidance"
+    assert (
+        payload["trust_metadata"]["query_interpretation"]["guidance_topic"]
+        == "source_scope"
+    )
+
+
+@pytest.mark.asyncio
+async def test_post_chat_scope_mode_none_falls_back_to_grounded_mode_when_evidence_is_needed(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Evidence-seeking questions must switch back to source-grounded retrieval."""
+    user, organization, _ = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Annual leave is thirty days.",
+    )
+    fake_qdrant = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Annual leave is thirty days.",
+                },
+            )
+        ]
+    )
+    qdrant_module.qdrant_client = fake_qdrant
+    chat_provider, embed_provider = _inject_providers(
+        monkeypatch,
+        answer=(
+            '{"answer":"Annual leave is thirty days.","not_found":false,'
+            '"citations":[{"document_id":"'
+            + str(document.id)
+            + '","chunk_id":"'
+            + str(chunk.id)
+            + '","filename":"policy.pdf","page_number":1,'
+            '"text_snippet":"Annual leave is thirty days."}]}'
+        ),
+    )
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "What is the leave policy?",
+            "document_ids": [str(document.id)],
+            "scope_mode": "none",
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert payload["answer"] == "Annual leave is thirty days."
+    assert len(payload["citations"]) == 1
+    assert payload["debug"]["retrieval_count"] == 1
+    assert payload["debug"]["selected_count"] == 1
+    assert payload["debug"]["embedding_model"] is not None
+    assert fake_qdrant.calls != []
+    assert embed_provider.calls != []
+    assert len(chat_provider.calls) >= 1
+    assert payload["trust_metadata"]["query_interpretation"]["answer_mode"] == "grounded"
 
 
 @pytest.mark.asyncio

@@ -71,6 +71,7 @@ Supported document types include:
 - Vector search with Qdrant
 - Question answering with OpenAI models
 - Source-grounded responses
+- Safe product guidance for onboarding, UI, and source-scope help when no document evidence is needed
 - Citations and confidence scoring
 - Multilingual UI locales plus language-aware chat, OCR, and document controls
 - Slack and Microsoft Teams bot ask interface with mapped-user permissions

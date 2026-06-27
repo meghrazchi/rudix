@@ -126,6 +126,10 @@ from app.domains.chat.schemas.trust_metadata import (
     ToolOrchestrationRecord,
 )
 from app.domains.chat.services.answer_critic_service import AnswerCriticService, CriticResult
+from app.domains.chat.services.answer_mode_service import (
+    AnswerModeResult,
+    AnswerModeService,
+)
 from app.domains.chat.services.answer_planner_service import (
     STRATEGY_LABELS,
     AnswerPlannerService,
@@ -332,6 +336,7 @@ _llm_service = LLMService(provider=_ChatCompletionProviderProxy())
 _injection_guard = PromptInjectionGuard()
 _query_rewriting_service = QueryRewritingService()
 _grounded_verifier = GroundedAnswerVerifier()
+_answer_mode_service = AnswerModeService()
 _answer_planner = AnswerPlannerService()
 _answer_critic = AnswerCriticService()
 _answer_refiner = AnswerRefinerService()
@@ -1576,6 +1581,7 @@ _QUERY_INTENT_LABELS: dict[str, str] = {
     "compliance": "Compliance",
     "connector_search": "Connector search",
     "graph_entity_search": "Graph/entity search",
+    "product_guidance": "Product guidance",
 }
 
 
@@ -1706,6 +1712,20 @@ def _infer_query_intent(question: str) -> str:
     return "lookup"
 
 
+def _guidance_label(topic: str | None) -> str:
+    if topic == "onboarding":
+        return "Onboarding"
+    if topic == "ui_help":
+        return "UI help"
+    if topic == "empty_state":
+        return "Empty state help"
+    if topic == "source_scope":
+        return "Source scope guidance"
+    if topic == "how_to_use":
+        return "How to use Rudix"
+    return "Product guidance"
+
+
 def _query_complexity(
     *,
     intent: str,
@@ -1735,8 +1755,13 @@ def _build_query_interpretation_record(
     question: str,
     query_rewrite_result: QueryRewritingResult | None,
     rewrite_preview_enabled: bool,
+    answer_mode_result: AnswerModeResult,
 ) -> QueryInterpretationRecord:
-    intent = _infer_query_intent(question)
+    intent = (
+        "product_guidance"
+        if answer_mode_result.mode == "guidance"
+        else _infer_query_intent(question)
+    )
     strategy = query_rewrite_result.strategy if query_rewrite_result is not None else "original"
     complexity = _query_complexity(
         intent=intent,
@@ -1763,13 +1788,19 @@ def _build_query_interpretation_record(
         else []
     )
     return QueryInterpretationRecord(
+        answer_mode=answer_mode_result.mode,
         intent=intent,
-        intent_label=_QUERY_INTENT_LABELS.get(intent, "Lookup"),
+        intent_label=(
+            _guidance_label(answer_mode_result.topic)
+            if answer_mode_result.mode == "guidance"
+            else _QUERY_INTENT_LABELS.get(intent, "Lookup")
+        ),
         complexity=complexity,
         retrieval_strategy=strategy,
         rewrite_preview_enabled=rewrite_preview_enabled,
         rewritten_query_preview=rewritten_query_preview,
         sub_queries=sub_queries,
+        guidance_topic=answer_mode_result.topic,
     )
 
 
@@ -2014,6 +2045,7 @@ def _build_trust_metadata(
     freshness_draft_count: int,
     freshness_all_excluded_fallback: bool,
     grounded_verifier_result: GroundedVerifierResult | None,
+    answer_mode_result: AnswerModeResult,
     llm_model: str | None,
     llm_provider: str | None,
     embedding_model: str | None,
@@ -2112,6 +2144,7 @@ def _build_trust_metadata(
         question=question,
         query_rewrite_result=query_rewrite_result,
         rewrite_preview_enabled=query_rewrite_preview_enabled,
+        answer_mode_result=answer_mode_result,
     )
 
     return AnswerTrustMetadataResponse(
@@ -2731,12 +2764,6 @@ async def query_chat(
 
     answer_prompt_version: PromptTemplateVersion | None = None
     answer_prompt_template: str | None = None
-    if payload.scope_mode != "none":
-        answer_prompt_version = await _resolve_answer_prompt_version(
-            db_session,
-            organization_id=organization_id,
-        )
-        answer_prompt_template = answer_prompt_version.content
 
     injection_check = _injection_guard.evaluate_request(
         objective="",
@@ -2782,6 +2809,14 @@ async def query_chat(
             status_code=status.HTTP_200_OK,
             violated_rules=_ai_pre_result.violated_rules,
         )
+
+    answer_mode_result = _answer_mode_service.classify(question=payload.question)
+    if answer_mode_result.mode == "grounded":
+        answer_prompt_version = await _resolve_answer_prompt_version(
+            db_session,
+            organization_id=organization_id,
+        )
+        answer_prompt_template = answer_prompt_version.content
 
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
@@ -2899,7 +2934,12 @@ async def query_chat(
         else None,
     )
     _routing_enabled = settings.feature_enable_dynamic_retrieval_routing
-    if (_pcr_enabled or _routing_enabled) and not injection_check.blocked and not not_found:
+    if (
+        (_pcr_enabled or _routing_enabled)
+        and not injection_check.blocked
+        and not not_found
+        and answer_mode_result.mode == "grounded"
+    ):
         planner_result = _answer_planner.classify(
             question=payload.question,
             graph_context_available=settings.feature_enable_graph_rag,
@@ -2910,7 +2950,12 @@ async def query_chat(
     # Dynamic retrieval strategy routing (F341).
     # Selects the best retrieval method based on the planner strategy,
     # feature-flag availability, and any admin / user overrides.
-    if _routing_enabled and not injection_check.blocked and not not_found:
+    if (
+        _routing_enabled
+        and not injection_check.blocked
+        and not not_found
+        and answer_mode_result.mode == "grounded"
+    ):
         _profile_cfg_for_routing = (
             RagProfileConfig.model_validate(dict(rag_profile.config))
             if rag_profile is not None
@@ -2939,6 +2984,7 @@ async def query_chat(
         settings.feature_enable_chat_tool_orchestration
         and not injection_check.blocked
         and not not_found
+        and answer_mode_result.mode == "grounded"
     ):
         _orchestration_feature_availability: dict[str, bool] = {
             "feature_enable_connectors": settings.feature_enable_connectors,
@@ -2981,7 +3027,11 @@ async def query_chat(
     # Runs after language detection so the detected language is available for context.
     # Scope filters (document_ids, org tenancy) are applied in the retrieval layer and
     # are never altered here — rewriting cannot widen access.
-    if settings.feature_enable_query_rewriting and not injection_check.blocked:
+    if (
+        settings.feature_enable_query_rewriting
+        and not injection_check.blocked
+        and answer_mode_result.mode == "grounded"
+    ):
         _profile_rewriting = True
         _profile_decomposition = True
         _profile_max_sub_queries: int | None = None
@@ -3027,10 +3077,10 @@ async def query_chat(
         confidence_score = confidence_result.score
         confidence_category = confidence_result.category
         confidence_explanation = confidence_result.explanation
-    elif payload.scope_mode == "none":
-        # General chat mode: skip retrieval, answer from LLM general knowledge.
+    elif answer_mode_result.mode == "guidance":
+        # Guidance mode: skip retrieval and answer with safe Rudix product help only.
         embedding_model = None
-        prompt = _prompt_service.build_general_prompt(
+        prompt = _prompt_service.build_guidance_prompt(
             question=payload.question,
             answer_language=answer_language_used,
         )
@@ -3066,6 +3116,7 @@ async def query_chat(
         llm_cost_usd = llm_result.approximate_cost_usd
         answer = llm_result.answer if llm_result.answer.strip() else _NOT_FOUND_ANSWER
         not_found = llm_result.not_found or not answer.strip()
+        citations = []
         confidence_signals = _to_confidence_signals(chunks=[], rerank_applied=False)
         confidence_result = _confidence_service.score(
             chunks=confidence_signals,
@@ -4291,6 +4342,7 @@ async def query_chat(
             freshness_draft_count=freshness_draft_count,
             freshness_all_excluded_fallback=freshness_all_excluded_fallback,
             grounded_verifier_result=grounded_verifier_result,
+            answer_mode_result=answer_mode_result,
             llm_model=llm_model,
             llm_provider=llm_provider,
             embedding_model=embedding_model,
@@ -5912,6 +5964,12 @@ async def _run_ws_chat_pipeline(
             _ai_policy_result: AiPolicyEvaluationResult = AiPolicyEvaluationResult()
             if _ai_pre_result.blocked and not injection_check.blocked:
                 _ai_policy_result = _ai_pre_result
+            answer_mode_result = _answer_mode_service.classify(question=query_request.question)
+            if answer_mode_result.mode == "grounded":
+                answer_prompt_version = await _resolve_answer_prompt_version(
+                    db_session, organization_id=organization_id
+                )
+                answer_prompt_template = answer_prompt_version.content
 
             # ── Language detection ────────────────────────────────────────────
             latencies_ms: dict[str, int] = {}
@@ -5986,6 +6044,7 @@ async def _run_ws_chat_pipeline(
                 (_ws_pcr_enabled or _ws_routing_enabled)
                 and not injection_check.blocked
                 and not not_found
+                and answer_mode_result.mode == "grounded"
             ):
                 _ws_planner_result = _answer_planner.classify(
                     question=query_request.question,
@@ -5995,7 +6054,12 @@ async def _run_ws_chat_pipeline(
                 )
 
             # Dynamic retrieval strategy routing (F341).
-            if _ws_routing_enabled and not injection_check.blocked and not not_found:
+            if (
+                _ws_routing_enabled
+                and not injection_check.blocked
+                and not not_found
+                and answer_mode_result.mode == "grounded"
+            ):
                 _ws_profile_cfg = (
                     RagProfileConfig.model_validate(dict(rag_profile.config))
                     if rag_profile is not None
@@ -6029,6 +6093,7 @@ async def _run_ws_chat_pipeline(
                 settings.feature_enable_chat_tool_orchestration
                 and not injection_check.blocked
                 and not not_found
+                and answer_mode_result.mode == "grounded"
             ):
                 _ws_orchestration_feature_availability: dict[str, bool] = {
                     "feature_enable_connectors": settings.feature_enable_connectors,
@@ -6081,12 +6146,12 @@ async def _run_ws_chat_pipeline(
                 confidence_category = confidence_result.category
                 confidence_explanation = confidence_result.explanation
 
-            elif query_request.scope_mode == "none":
-                # ── General chat (no retrieval) ───────────────────────────────
+            elif answer_mode_result.mode == "guidance":
+                # ── Guidance mode (no retrieval) ─────────────────────────────
                 await send_step("checking_sources", "Checking accessible sources", "skipped")
                 await send_step("searching_documents", "Searching knowledge base", "skipped")
                 embedding_model = None
-                prompt = _prompt_service.build_general_prompt(
+                prompt = _prompt_service.build_guidance_prompt(
                     question=query_request.question, answer_language=answer_language_used
                 )
                 await send("generation.started")
@@ -6111,6 +6176,7 @@ async def _run_ws_chat_pipeline(
                 llm_cost_usd = llm_result.approximate_cost_usd
                 answer = llm_result.answer if llm_result.answer.strip() else _NOT_FOUND_ANSWER
                 not_found = llm_result.not_found or not answer.strip()
+                citations = []
                 await send("generation.delta", {"text": answer})
                 await send_step(
                     "drafting_answer",
@@ -6758,6 +6824,7 @@ async def _run_ws_chat_pipeline(
                     freshness_draft_count=freshness_draft_count,
                     freshness_all_excluded_fallback=freshness_all_excluded_fallback,
                     grounded_verifier_result=grounded_verifier_result,
+                    answer_mode_result=answer_mode_result,
                     llm_model=llm_model,
                     llm_provider=llm_provider,
                     embedding_model=embedding_model,

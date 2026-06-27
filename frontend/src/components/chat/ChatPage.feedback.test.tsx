@@ -328,6 +328,29 @@ describe("ChatPage feedback", () => {
     ).toBeInTheDocument();
   });
 
+  it("labels guidance answers as general product guidance", async () => {
+    vi.mocked(queryChat).mockResolvedValueOnce({
+      ...QUERY_RESPONSE,
+      trust_metadata: {
+        query_interpretation: {
+          answer_mode: "guidance",
+          intent: "product_guidance",
+          intent_label: "Onboarding",
+          complexity: "simple",
+          retrieval_strategy: "original",
+          rewrite_preview_enabled: false,
+          rewritten_query_preview: null,
+          sub_queries: [],
+          guidance_topic: "onboarding",
+        },
+      },
+    } as never);
+
+    await submitQuestion();
+
+    expect(screen.getByText("General product guidance")).toBeInTheDocument();
+  });
+
   it("thumbs-up calls submitMessageFeedback with rating=up", async () => {
     await submitQuestion();
 
