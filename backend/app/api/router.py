@@ -35,6 +35,7 @@ from app.interfaces.http import (
     admin_trust_analytics,
     admin_webhooks,
     agent_runs,
+    agent_workflows,
     analytics,
     auth,
     billing,
@@ -168,6 +169,7 @@ protected_router.include_router(admin_trust_analytics.router)
 protected_router.include_router(admin_troubleshooting_bundle.router)
 protected_router.include_router(admin_chat_tools.router)
 protected_router.include_router(admin_org_memory.router)
+protected_router.include_router(agent_workflows.router)
 protected_router.include_router(org_memory.router)
 
 api_router.include_router(protected_router)

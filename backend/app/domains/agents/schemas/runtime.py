@@ -78,6 +78,20 @@ class AgentRuntimeRequest(BaseModel):
         return normalized
 
 
+class AgentPlanPreviewResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    objective: str
+    mode: AgentRuntimeMode
+    plan: list[PlannedToolSelection]
+    workflow_type: str | None = None
+    planner_strategy: str = "standard"
+    planner_high_risk: bool = False
+    requires_approval: bool = False
+    requested_actions: list[str] = Field(default_factory=list)
+    request: AgentRuntimeRequest
+
+
 class PlannedToolSelection(BaseModel):
     model_config = ConfigDict(frozen=True)
 

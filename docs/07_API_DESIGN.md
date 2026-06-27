@@ -1878,6 +1878,60 @@ Feature-gated behavior:
 
 - If `FEATURE_ENABLE_AGENTS=false`, endpoints return `404` with `feature_not_available`.
 
+### POST `/agent/workflows/preview`
+
+Returns a deterministic workflow plan before execution. The preview is used by
+the workspace UI to show step order, planner metadata, and approval-sensitive
+actions before the user starts the run.
+
+Request:
+
+```json
+{
+  "workflow_type": "policy_comparison",
+  "request": {
+    "objective": "Compare the relevant policies and surface the material differences with citations.",
+    "mode": "compare",
+    "question": "Compare the policies",
+    "document_query": "Compare the policies",
+    "rerank": true,
+    "budget": { "max_steps": 8, "max_tool_calls": 20 }
+  },
+  "requested_actions": ["share"]
+}
+```
+
+Response:
+
+```json
+{
+  "objective": "Compare the relevant policies and surface the material differences with citations.",
+  "mode": "compare",
+  "workflow_type": "policy_comparison",
+  "planner_strategy": "comparison",
+  "planner_high_risk": true,
+  "requires_approval": true,
+  "requested_actions": ["share"],
+  "plan": [
+    {
+      "step_name": "discover_documents",
+      "tool_name": "search_documents",
+      "rationale": "Find indexed accessible documents to ground the workflow.",
+      "arguments": { "query": "Compare the policies" }
+    },
+    {
+      "step_name": "document_comparison",
+      "tool_name": "compare_documents",
+      "rationale": "Compare grounded evidence across selected documents.",
+      "arguments": { "question": "Compare the policies" }
+    }
+  ]
+}
+```
+
+The preview endpoint does not execute tools or persist run state. Execution
+continues through `POST /agent/runs` using the previewed request payload.
+
 ### GET `/agent/runs/{run_id}`
 
 Returns persisted run state, steps, tool calls, approvals, budget/costs, and safe error metadata.

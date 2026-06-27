@@ -20,6 +20,11 @@ import {
   type AgentRunListItem,
   type AgentRuntimeMode,
 } from "@/lib/api/agent";
+import {
+  previewWorkflowPlan,
+  type WorkflowPlanPreviewResponse,
+  type WorkflowType,
+} from "@/lib/api/workflow-planner";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 
@@ -29,6 +34,70 @@ const POLL_INTERVAL_MS = 3_000;
 const RUN_LIST_LIMIT = 20;
 
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
+
+const WORKFLOW_PRESETS: {
+  workflowType: WorkflowType;
+  label: string;
+  description: string;
+  mode: AgentRuntimeMode;
+  objective: string;
+  rerank: boolean;
+}[] = [
+  {
+    workflowType: "audit_evidence_pack",
+    label: "Audit evidence pack",
+    description: "Collect evidence and ground it in the selected sources.",
+    mode: "compare",
+    objective:
+      "Build an audit evidence pack from the selected sources with citations.",
+    rerank: true,
+  },
+  {
+    workflowType: "policy_comparison",
+    label: "Policy comparison",
+    description: "Compare policies and surface the material differences.",
+    mode: "compare",
+    objective:
+      "Compare the relevant policies and surface the material differences with citations.",
+    rerank: true,
+  },
+  {
+    workflowType: "contract_obligation_analysis",
+    label: "Contract analysis",
+    description: "Analyse obligations and cite the controlling clauses.",
+    mode: "compare",
+    objective:
+      "Analyse contract obligations across the available agreements and cite the source clauses.",
+    rerank: true,
+  },
+  {
+    workflowType: "onboarding_faq_preparation",
+    label: "Onboarding FAQ",
+    description: "Prepare a grounded FAQ from onboarding material.",
+    mode: "summarize",
+    objective:
+      "Prepare an onboarding FAQ from the selected onboarding sources with grounded citations.",
+    rerank: false,
+  },
+  {
+    workflowType: "connector_content_summarization",
+    label: "Connector summary",
+    description: "Summarise connector content into a reusable workflow output.",
+    mode: "summarize",
+    objective:
+      "Summarise the selected connector content into a reusable workflow output with citations.",
+    rerank: true,
+  },
+  {
+    workflowType: "low_confidence_answer_investigation",
+    label: "Confidence review",
+    description: "Verify a weak answer and explain the trust gap.",
+    mode: "answer",
+    objective:
+      "Investigate the low-confidence answer, verify the evidence, and explain the trust gaps.",
+    rerank: true,
+  },
+];
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 
@@ -79,6 +148,13 @@ function formatCost(value: number | null | undefined): string {
   return `$${value.toFixed(6)}`;
 }
 
+function findWorkflowPreset(workflowType: WorkflowType) {
+  return (
+    WORKFLOW_PRESETS.find((preset) => preset.workflowType === workflowType) ??
+    WORKFLOW_PRESETS[0]
+  );
+}
+
 function safeObjectEntries(
   value: Record<string, unknown> | null | undefined,
 ): [string, string][] {
@@ -90,28 +166,6 @@ function safeObjectEntries(
       typeof v === "object" ? JSON.stringify(v) : String(v),
     ]);
 }
-
-// ── Mode selector ─────────────────────────────────────────────────────────────
-
-const MODES: { value: AgentRuntimeMode; label: string; description: string }[] =
-  [
-    { value: "auto", label: "Auto", description: "Let the agent decide" },
-    {
-      value: "answer",
-      label: "Answer",
-      description: "Grounded answer from sources",
-    },
-    {
-      value: "summarize",
-      label: "Summarize",
-      description: "Condense source material",
-    },
-    {
-      value: "compare",
-      label: "Compare",
-      description: "Side-by-side comparison",
-    },
-  ];
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -767,43 +821,112 @@ type NewRunFormProps = {
 };
 
 function NewRunForm({ onRunCreated }: NewRunFormProps) {
+  const [workflowType, setWorkflowType] = useState<WorkflowType>(
+    "audit_evidence_pack",
+  );
   const [objective, setObjective] = useState("");
-  const [mode, setMode] = useState<AgentRuntimeMode>("auto");
+  const [mode, setMode] = useState<AgentRuntimeMode>("compare");
   const [maxSteps, setMaxSteps] = useState(12);
   const [maxToolCalls, setMaxToolCalls] = useState(30);
-  const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<WorkflowPlanPreviewResponse | null>(
+    null,
+  );
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [executionError, setExecutionError] = useState<string | null>(null);
+
+  const preset = findWorkflowPreset(workflowType);
+
+  const buildRequest = () => ({
+    objective: objective.trim() || preset.objective,
+    mode,
+    question: objective.trim() || preset.objective,
+    document_query: objective.trim() || preset.objective,
+    rerank: preset.rerank,
+    budget: {
+      max_steps: maxSteps,
+      max_tool_calls: maxToolCalls,
+    },
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: () =>
+      previewWorkflowPlan({
+        workflow_type: workflowType,
+        request: buildRequest(),
+      }),
+    onSuccess: (data) => {
+      setPreview(data);
+      setPreviewError(null);
+      setExecutionError(null);
+    },
+    onError: (err) => setPreviewError(getApiErrorMessage(err)),
+  });
 
   const createMutation = useMutation({
     mutationFn: () =>
       createAgentRun({
         agentic_mode: true,
-        request: {
-          objective: objective.trim(),
-          mode,
-          budget: {
-            max_steps: maxSteps,
-            max_tool_calls: maxToolCalls,
-          },
-        },
+        request: preview?.request ?? buildRequest(),
       }),
     onSuccess: (data) => {
       setObjective("");
-      setError(null);
+      setPreview(null);
+      setPreviewError(null);
+      setExecutionError(null);
       onRunCreated(data.run.run_id);
     },
-    onError: (err) => setError(getApiErrorMessage(err)),
+    onError: (err) => setExecutionError(getApiErrorMessage(err)),
   });
 
-  const canSubmit = objective.trim().length >= 3 && !createMutation.isPending;
+  const canPreview =
+    (objective.trim().length >= 3 || Boolean(preview?.request.objective)) &&
+    !previewMutation.isPending;
+  const canExecute = Boolean(preview) && !createMutation.isPending;
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (canSubmit) createMutation.mutate();
-      }}
-      className="space-y-3"
-    >
+    <div className="space-y-3">
+      <div>
+        <p className="mb-1 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
+          Workflow preset
+        </p>
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {WORKFLOW_PRESETS.map((workflow) => {
+            const active = workflow.workflowType === workflowType;
+            return (
+              <button
+                key={workflow.workflowType}
+                type="button"
+                onClick={() => {
+                  setWorkflowType(workflow.workflowType);
+                  setMode(workflow.mode);
+                  setObjective(workflow.objective);
+                  setPreview(null);
+                  setPreviewError(null);
+                  setExecutionError(null);
+                }}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                  active
+                    ? "border-[#3525cd] bg-[#f0ecf9]"
+                    : "border-[#e4e1f2] bg-white hover:border-[#c7c3e0]"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-[#2a2640]">
+                    {workflow.label}
+                  </span>
+                  <span className="text-[10px] text-[#777587]">
+                    {workflow.mode}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] text-[#68647b]">
+                  {workflow.description}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div>
         <label
           htmlFor="agent-objective"
@@ -814,10 +937,15 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
         <textarea
           id="agent-objective"
           value={objective}
-          onChange={(e) => setObjective(e.target.value)}
+          onChange={(e) => {
+            setObjective(e.target.value);
+            setPreview(null);
+            setPreviewError(null);
+            setExecutionError(null);
+          }}
           rows={3}
           maxLength={4000}
-          placeholder="Describe what the agent should accomplish…"
+          placeholder="Describe what the workflow should accomplish…"
           className="w-full resize-none rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm text-[#2a2640] outline-none placeholder:text-[#b0adbe] focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
         />
         <p className="mt-0.5 text-right text-[10px] text-[#b0adbe]">
@@ -830,11 +958,37 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           Mode
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {MODES.map((m) => (
+          {[
+            {
+              value: "auto",
+              label: "Auto",
+              description: "Let the agent decide",
+            },
+            {
+              value: "answer",
+              label: "Answer",
+              description: "Grounded answer from sources",
+            },
+            {
+              value: "summarize",
+              label: "Summarize",
+              description: "Condense source material",
+            },
+            {
+              value: "compare",
+              label: "Compare",
+              description: "Side-by-side comparison",
+            },
+          ].map((m) => (
             <button
               key={m.value}
               type="button"
-              onClick={() => setMode(m.value)}
+              onClick={() => {
+                setMode(m.value);
+                setPreview(null);
+                setPreviewError(null);
+                setExecutionError(null);
+              }}
               title={m.description}
               className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
                 mode === m.value
@@ -866,7 +1020,12 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
               min={1}
               max={50}
               value={maxSteps}
-              onChange={(e) => setMaxSteps(Number(e.target.value))}
+              onChange={(e) => {
+                setMaxSteps(Number(e.target.value));
+                setPreview(null);
+                setPreviewError(null);
+                setExecutionError(null);
+              }}
               className="w-full accent-[#3525cd]"
             />
           </div>
@@ -884,27 +1043,99 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
               min={1}
               max={100}
               value={maxToolCalls}
-              onChange={(e) => setMaxToolCalls(Number(e.target.value))}
+              onChange={(e) => {
+                setMaxToolCalls(Number(e.target.value));
+                setPreview(null);
+                setPreviewError(null);
+                setExecutionError(null);
+              }}
               className="w-full accent-[#3525cd]"
             />
           </div>
         </div>
       </details>
 
-      {error && (
-        <p role="alert" className="text-xs text-rose-700">
-          {error}
-        </p>
-      )}
+      {preview ? (
+        <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-bold tracking-wide text-emerald-800 uppercase">
+                Plan preview
+              </p>
+              <p className="text-sm font-semibold text-emerald-950">
+                {preview.workflow_type
+                  ? findWorkflowPreset(preview.workflow_type).label
+                  : preset.label}
+              </p>
+            </div>
+            <div className="text-[11px] text-emerald-800">
+              strategy {preview.planner_strategy}
+            </div>
+          </div>
+          <p className="mt-2 text-[12px] text-emerald-900">
+            {preview.objective}
+          </p>
+          {preview.requires_approval ? (
+            <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
+              This plan includes approval-gated actions.
+            </p>
+          ) : null}
+          <div className="mt-3 space-y-2">
+            {preview.plan.map((step, index) => (
+              <div
+                key={`${step.step_name}:${index}`}
+                className="rounded border border-emerald-100 bg-white px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-[#2a2640]">
+                    {step.step_name}
+                  </p>
+                  <span className="font-mono text-[10px] text-[#777587]">
+                    {step.tool_name}
+                  </span>
+                </div>
+                {step.rationale ? (
+                  <p className="mt-1 text-[11px] text-[#68647b]">
+                    {step.rationale}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-      <button
-        type="submit"
-        disabled={!canSubmit}
-        className="w-full rounded-lg bg-[#3525cd] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2a1da8] disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {createMutation.isPending ? "Starting run…" : "Start agent run"}
-      </button>
-    </form>
+      {previewError ? (
+        <p role="alert" className="text-xs text-rose-700">
+          {previewError}
+        </p>
+      ) : null}
+
+      {executionError ? (
+        <p role="alert" className="text-xs text-rose-700">
+          {executionError}
+        </p>
+      ) : null}
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => previewMutation.mutate()}
+          disabled={!canPreview}
+          className="flex-1 rounded-lg border border-[#d7d4e8] bg-white px-4 py-2.5 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {previewMutation.isPending ? "Building plan…" : "Preview plan"}
+        </button>
+        <button
+          type="button"
+          onClick={() => createMutation.mutate()}
+          disabled={!canExecute}
+          className="flex-1 rounded-lg bg-[#3525cd] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2a1da8] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {createMutation.isPending ? "Starting run…" : "Execute workflow"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -925,7 +1156,12 @@ export function AgentWorkspacePage() {
   const handleRunCreated = useCallback((runId: string) => {
     setExplicitSelectedRunId(runId);
     setTimeout(() => {
-      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (typeof detailRef.current?.scrollIntoView === "function") {
+        detailRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
     }, 100);
   }, []);
 

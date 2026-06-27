@@ -16,6 +16,7 @@ from app.domains.agents.schemas.agent_tools import (
 )
 from app.domains.agents.schemas.runtime import (
     AgentBudgetConfig,
+    AgentPlanPreviewResponse,
     AgentRuntimeError,
     AgentRuntimeMode,
     AgentRuntimeOutcome,
@@ -26,6 +27,7 @@ from app.domains.agents.schemas.runtime import (
 
 __all__ = [
     "AgentBudgetConfig",
+    "AgentPlanPreviewResponse",
     "AgentRuntimeError",
     "AgentRuntimeMode",
     "AgentRuntimeOutcome",

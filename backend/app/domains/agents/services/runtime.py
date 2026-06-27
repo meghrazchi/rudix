@@ -712,6 +712,10 @@ class AgentRuntime:
 
         return selections
 
+    def preview_plan(self, *, request: AgentRuntimeRequest) -> list[PlannedToolSelection]:
+        """Expose the deterministic tool plan without executing it."""
+        return self._build_plan(request=request)
+
     def _resolve_selection_arguments(
         self,
         *,

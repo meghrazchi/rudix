@@ -17,6 +17,10 @@ from app.domains.agents.services.tool_registry import (
     build_default_tool_specs,
 )
 from app.domains.agents.services.trace_service import AgentTraceService
+from app.domains.agents.services.workflow_planner_service import (
+    WorkflowPlannerService,
+    workflow_title,
+)
 
 __all__ = [
     "AgentRuntime",
@@ -30,6 +34,8 @@ __all__ = [
     "RegisteredTool",
     "ToolHandler",
     "ToolRegistry",
+    "WorkflowPlannerService",
     "build_default_tool_specs",
     "register_document_intelligence_handlers",
+    "workflow_title",
 ]

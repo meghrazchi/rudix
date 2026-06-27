@@ -122,6 +122,10 @@ export const queryKeys = {
     trace: (runId: string) => ["agent", "trace", runId] as const,
     traceRetention: ["admin", "agent", "trace-retention"] as const,
   },
+  workflowPlanner: {
+    preview: (params?: Record<string, unknown>) =>
+      ["workflow-planner", "preview", params ?? {}] as const,
+  },
   evaluations: {
     sets: ["evaluations", "sets"] as const,
     setQuestions: (evaluationSetId: string, params?: Record<string, unknown>) =>

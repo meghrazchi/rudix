@@ -9,6 +9,7 @@ import type {
   AgentRunListItem,
   AgentRunListResponse,
 } from "@/lib/api/agent";
+import type { WorkflowPlanPreviewResponse } from "@/lib/api/workflow-planner";
 
 // ── Mock: agent API ───────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ const mockApi = vi.hoisted(() => ({
   decideAgentRunApproval: vi.fn(),
   listAgentApprovals: vi.fn(),
   commentAgentRunApproval: vi.fn(),
+  previewWorkflowPlan: vi.fn(),
 }));
 
 vi.mock("@/lib/api/agent", () => ({
@@ -33,6 +35,11 @@ vi.mock("@/lib/api/agent", () => ({
     mockApi.listAgentApprovals(...args),
   commentAgentRunApproval: (...args: unknown[]) =>
     mockApi.commentAgentRunApproval(...args),
+}));
+
+vi.mock("@/lib/api/workflow-planner", () => ({
+  previewWorkflowPlan: (...args: unknown[]) =>
+    mockApi.previewWorkflowPlan(...args),
 }));
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -159,6 +166,50 @@ function renderPage() {
   );
 }
 
+function makePlanPreview(
+  overrides: Partial<WorkflowPlanPreviewResponse> = {},
+): WorkflowPlanPreviewResponse {
+  return {
+    objective:
+      "Build an audit evidence pack from the selected sources with citations.",
+    mode: "compare",
+    plan: [
+      {
+        step_name: "discover_documents",
+        tool_name: "search_documents",
+        rationale: "Find indexed accessible documents to ground the workflow.",
+        arguments: { query: "audit evidence" },
+      },
+      {
+        step_name: "grounded_answer",
+        tool_name: "answer_from_context",
+        rationale: "Return a grounded answer with citations and confidence.",
+        arguments: { question: "Audit evidence" },
+      },
+    ],
+    workflow_type: "audit_evidence_pack",
+    planner_strategy: "comparison",
+    planner_high_risk: true,
+    requires_approval: false,
+    requested_actions: [],
+    request: {
+      objective:
+        "Build an audit evidence pack from the selected sources with citations.",
+      mode: "compare",
+      question:
+        "Build an audit evidence pack from the selected sources with citations.",
+      document_query:
+        "Build an audit evidence pack from the selected sources with citations.",
+      rerank: true,
+      budget: {
+        max_steps: 12,
+        max_tool_calls: 30,
+      },
+    },
+    ...overrides,
+  };
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe("AgentWorkspacePage", () => {
@@ -166,6 +217,36 @@ describe("AgentWorkspacePage", () => {
     vi.resetAllMocks();
     mockApi.listAgentApprovals.mockResolvedValue({ items: [], total: 0 });
     mockApi.commentAgentRunApproval.mockResolvedValue({});
+    mockApi.previewWorkflowPlan.mockImplementation(
+      async (payload: { request?: { objective?: string; mode?: string } }) =>
+        makePlanPreview({
+          objective:
+            payload.request?.objective ??
+            "Build an audit evidence pack from the selected sources with citations.",
+          mode:
+            (payload.request?.mode as WorkflowPlanPreviewResponse["mode"]) ??
+            "compare",
+          request: {
+            objective:
+              payload.request?.objective ??
+              "Build an audit evidence pack from the selected sources with citations.",
+            mode:
+              (payload.request?.mode as WorkflowPlanPreviewResponse["mode"]) ??
+              "compare",
+            question:
+              payload.request?.objective ??
+              "Build an audit evidence pack from the selected sources with citations.",
+            document_query:
+              payload.request?.objective ??
+              "Build an audit evidence pack from the selected sources with citations.",
+            rerank: true,
+            budget: {
+              max_steps: 12,
+              max_tool_calls: 30,
+            },
+          },
+        }),
+    );
   });
 
   describe("run list", () => {
@@ -383,36 +464,38 @@ describe("AgentWorkspacePage", () => {
       renderPage();
       expect(
         screen.getByPlaceholderText(
-          /describe what the agent should accomplish/i,
+          /describe what the workflow should accomplish/i,
         ),
       ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Auto" })).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: "Answer" }),
+        screen.getByRole("button", { name: /Audit evidence pack/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Preview plan/i }),
       ).toBeInTheDocument();
     });
 
-    it("submit button is disabled when objective is empty", async () => {
+    it("preview button is disabled when objective is empty", async () => {
       renderPage();
-      const submitBtn = screen.getByRole("button", {
-        name: /start agent run/i,
+      const previewBtn = screen.getByRole("button", {
+        name: /preview plan/i,
       });
-      expect(submitBtn).toBeDisabled();
+      expect(previewBtn).toBeDisabled();
     });
 
-    it("submit button is enabled when objective has ≥3 chars", async () => {
+    it("preview button is enabled when objective has ≥3 chars", async () => {
       const user = userEvent.setup();
       renderPage();
       const textarea = screen.getByPlaceholderText(
-        /describe what the agent should accomplish/i,
+        /describe what the workflow should accomplish/i,
       );
       await user.type(textarea, "Summarise results");
       expect(
-        screen.getByRole("button", { name: /start agent run/i }),
+        screen.getByRole("button", { name: /preview plan/i }),
       ).not.toBeDisabled();
     });
 
-    it("calls createAgentRun with objective and mode on submit", async () => {
+    it("shows a preview before executing the workflow", async () => {
       const user = userEvent.setup();
       const newDetail = makeDetailResponse({ run_id: "run-new" });
       mockApi.createAgentRun.mockResolvedValue({
@@ -420,15 +503,25 @@ describe("AgentWorkspacePage", () => {
       });
       mockApi.getAgentRun.mockResolvedValue(newDetail);
       mockApi.listAgentRuns.mockResolvedValue(makeListResponse([]));
-
       renderPage();
-      const textarea = screen.getByPlaceholderText(
-        /describe what the agent should accomplish/i,
-      );
-      await user.type(textarea, "Check compliance docs");
-      await user.click(screen.getByRole("button", { name: "Summarize" }));
       await user.click(
-        screen.getByRole("button", { name: /start agent run/i }),
+        screen.getByRole("button", { name: /policy comparison/i }),
+      );
+      const textarea = screen.getByPlaceholderText(
+        /describe what the workflow should accomplish/i,
+      );
+      await user.clear(textarea);
+      await user.type(textarea, "Check compliance docs");
+      await user.click(screen.getByRole("button", { name: /preview plan/i }));
+
+      await waitFor(() => {
+        expect(mockApi.previewWorkflowPlan).toHaveBeenCalled();
+      });
+      expect(screen.getByText("Plan preview")).toBeInTheDocument();
+      expect(screen.getByText("discover_documents")).toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("button", { name: /execute workflow/i }),
       );
 
       await waitFor(() => {
@@ -437,25 +530,26 @@ describe("AgentWorkspacePage", () => {
             agentic_mode: true,
             request: expect.objectContaining({
               objective: "Check compliance docs",
-              mode: "summarize",
+              mode: "compare",
             }),
           }),
         );
       });
     });
 
-    it("shows error when createAgentRun fails", async () => {
+    it("shows error when preview fails", async () => {
       const user = userEvent.setup();
-      mockApi.createAgentRun.mockRejectedValue(new Error("Rate limited"));
+      mockApi.previewWorkflowPlan.mockRejectedValue(new Error("Rate limited"));
 
       renderPage();
+      await user.click(
+        screen.getByRole("button", { name: /audit evidence pack/i }),
+      );
       const textarea = screen.getByPlaceholderText(
-        /describe what the agent should accomplish/i,
+        /describe what the workflow should accomplish/i,
       );
       await user.type(textarea, "Analyse the data");
-      await user.click(
-        screen.getByRole("button", { name: /start agent run/i }),
-      );
+      await user.click(screen.getByRole("button", { name: /preview plan/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Rate limited|Unable to/i)).toBeInTheDocument();
