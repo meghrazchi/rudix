@@ -85,9 +85,7 @@ class TestAnswerPlannerService:
         assert result.strategy == "comparison"
 
     def test_table_heavy_detected(self):
-        result = self.planner.classify(
-            question="Show all users.", table_query_detected=True
-        )
+        result = self.planner.classify(question="Show all users.", table_query_detected=True)
         assert result.strategy == "table_heavy"
         assert result.high_risk is False
 
@@ -117,9 +115,7 @@ class TestAnswerPlannerService:
     # Priority ordering
 
     def test_legal_beats_policy(self):
-        result = self.planner.classify(
-            question="Our GDPR policy must comply with regulation."
-        )
+        result = self.planner.classify(question="Our GDPR policy must comply with regulation.")
         assert result.strategy == "legal_compliance"
 
     def test_legal_beats_comparison(self):
@@ -129,9 +125,7 @@ class TestAnswerPlannerService:
         assert result.strategy == "legal_compliance"
 
     def test_policy_beats_table(self):
-        result = self.planner.classify(
-            question="List all rules we are required to follow."
-        )
+        result = self.planner.classify(question="List all rules we are required to follow.")
         assert result.strategy == "policy_lookup"
 
     # Custom high-risk strategies
@@ -191,9 +185,7 @@ class TestAnswerCriticService:
         assert result.requires_refiner is False
 
     def test_no_sources_found(self):
-        result = self.critic.evaluate(
-            not_found=True, selected_chunk_count=0, citation_count=0
-        )
+        result = self.critic.evaluate(not_found=True, selected_chunk_count=0, citation_count=0)
         assert any(w.code == "no_sources_found" for w in result.warnings)
         assert result.severity == "high"
         assert result.requires_refiner is True
@@ -341,9 +333,7 @@ class TestAnswerCriticService:
         assert "Remove all claims" in instruction
 
     def test_refiner_instruction_for_source_conflict(self):
-        warnings = [
-            CriticWarning(code="source_conflict", detail="conflict", severity_level=3)
-        ]
+        warnings = [CriticWarning(code="source_conflict", detail="conflict", severity_level=3)]
         instruction = _build_refiner_instruction(warnings)
         assert "conflict" in instruction.lower()
 
@@ -357,9 +347,7 @@ class TestAnswerCriticService:
         assert "outdated" in instruction
 
     def test_latency_ms_non_negative(self):
-        result = self.critic.evaluate(
-            not_found=False, selected_chunk_count=3, citation_count=2
-        )
+        result = self.critic.evaluate(not_found=False, selected_chunk_count=3, citation_count=2)
         assert result.latency_ms >= 0
 
 
@@ -385,7 +373,9 @@ class TestAnswerRefinerService:
     @pytest.mark.asyncio
     async def test_refines_answer(self):
         json_resp = '{"refined_answer": "Supported claim only.", "changes_made": ["Removed unsupported claim about X"], "unsupported_claims_removed": 1}'
-        with patch.object(self.refiner, "_resolve_provider", return_value=self._mock_provider(json_resp)):
+        with patch.object(
+            self.refiner, "_resolve_provider", return_value=self._mock_provider(json_resp)
+        ):
             result = await self.refiner.refine(
                 draft_answer="Supported claim only. Plus unsupported claim.",
                 critic_instruction="Remove unsupported claims.",
@@ -400,7 +390,9 @@ class TestAnswerRefinerService:
     async def test_no_change_when_answer_matches_draft(self):
         original = "The answer is 42."
         json_resp = f'{{"refined_answer": "{original}", "changes_made": [], "unsupported_claims_removed": 0}}'
-        with patch.object(self.refiner, "_resolve_provider", return_value=self._mock_provider(json_resp)):
+        with patch.object(
+            self.refiner, "_resolve_provider", return_value=self._mock_provider(json_resp)
+        ):
             result = await self.refiner.refine(
                 draft_answer=original,
                 critic_instruction="No changes needed.",
@@ -412,7 +404,9 @@ class TestAnswerRefinerService:
     @pytest.mark.asyncio
     async def test_empty_refined_answer_signals_not_found(self):
         json_resp = '{"refined_answer": "", "changes_made": ["All claims removed"], "unsupported_claims_removed": 3}'
-        with patch.object(self.refiner, "_resolve_provider", return_value=self._mock_provider(json_resp)):
+        with patch.object(
+            self.refiner, "_resolve_provider", return_value=self._mock_provider(json_resp)
+        ):
             result = await self.refiner.refine(
                 draft_answer="Completely unsupported answer.",
                 critic_instruction="Remove all claims.",
@@ -461,7 +455,9 @@ class TestAnswerRefinerService:
 
         async def capture(request):
             captured_prompts.append(request.prompt)
-            return _MockResponse('{"refined_answer": "ok", "changes_made": [], "unsupported_claims_removed": 0}')
+            return _MockResponse(
+                '{"refined_answer": "ok", "changes_made": [], "unsupported_claims_removed": 0}'
+            )
 
         provider = MagicMock()
         provider.complete = capture
@@ -564,9 +560,7 @@ class TestHighRiskScenarios:
         assert result.high_risk is True
 
     def test_hr_leave_policy(self):
-        result = self.planner.classify(
-            question="What is the parental leave policy for employees?"
-        )
+        result = self.planner.classify(question="What is the parental leave policy for employees?")
         assert result.strategy == "policy_lookup"
         assert result.high_risk is True
 
@@ -623,9 +617,7 @@ class TestHighRiskScenarios:
         assert "Remove" in eval_result.refiner_instruction
 
     def test_no_sources_found_refiner_instruction(self):
-        eval_result = self.critic.evaluate(
-            not_found=True, selected_chunk_count=0, citation_count=0
-        )
+        eval_result = self.critic.evaluate(not_found=True, selected_chunk_count=0, citation_count=0)
         assert "not found" in eval_result.refiner_instruction.lower()
 
 
@@ -681,9 +673,7 @@ class TestPipelineHelpers:
 
         planner = PlannerResult(strategy="legal_compliance", high_risk=True, latency_ms=1)
         critic = CriticResult(
-            warnings=[
-                CriticWarning(code="source_conflict", detail="conflict", severity_level=3)
-            ],
+            warnings=[CriticWarning(code="source_conflict", detail="conflict", severity_level=3)],
             severity="high",
             requires_refiner=True,
             refiner_instruction="Fix it.",

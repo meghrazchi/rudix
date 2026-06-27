@@ -9,6 +9,7 @@ export * from "@/lib/api/evaluations";
 export * from "@/lib/api/health";
 export * from "@/lib/api/graph";
 export * from "@/lib/api/notifications";
+export * from "@/lib/api/org-memory";
 export * from "@/lib/api/public-status";
 export * from "@/lib/api/organization";
 export * from "@/lib/api/pipeline";

@@ -20,5 +20,7 @@ export type ChatToolsAvailabilityResponse = {
 };
 
 export async function getChatToolsAvailability(): Promise<ChatToolsAvailabilityResponse> {
-  return apiRequest<ChatToolsAvailabilityResponse>("/admin/chat-tools/availability");
+  return apiRequest<ChatToolsAvailabilityResponse>(
+    "/admin/chat-tools/availability",
+  );
 }

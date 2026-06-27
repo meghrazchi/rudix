@@ -1749,8 +1749,7 @@ function PlannerCriticSection({
   const strategyLabel =
     STRATEGY_LABEL[plannerCritic.strategy] ?? plannerCritic.strategy;
   const severityColor =
-    CRITIC_SEVERITY_COLOR[plannerCritic.critic_severity] ??
-    "text-[#464555]";
+    CRITIC_SEVERITY_COLOR[plannerCritic.critic_severity] ?? "text-[#464555]";
 
   return (
     <div className="space-y-2">
@@ -1773,7 +1772,11 @@ function PlannerCriticSection({
         {plannerCritic.refiner_applied ? (
           <StatRow
             label="Refiner"
-            value={plannerCritic.draft_changed ? "Applied — answer revised" : "Applied — no changes"}
+            value={
+              plannerCritic.draft_changed
+                ? "Applied — answer revised"
+                : "Applied — no changes"
+            }
           />
         ) : null}
         {plannerCritic.unsupported_claims_removed > 0 ? (
@@ -1786,7 +1789,7 @@ function PlannerCriticSection({
 
       {plannerCritic.critic_warnings.length > 0 ? (
         <div className="mt-1 space-y-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9896a8]">
+          <p className="text-[10px] font-semibold tracking-wide text-[#9896a8] uppercase">
             Critic warnings
           </p>
           <ul className="space-y-1">
@@ -1884,10 +1887,7 @@ function ToolOrchestrationSection({
     <div className="space-y-2">
       <SectionHeader icon="build" label="Tool Orchestration" />
       <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
-        <StatRow
-          label="Tools evaluated"
-          value={toolOrchestration.tool_count}
-        />
+        <StatRow label="Tools evaluated" value={toolOrchestration.tool_count} />
         <StatRow
           label="Authorized"
           value={toolOrchestration.authorized_count}
@@ -1908,7 +1908,7 @@ function ToolOrchestrationSection({
           {deniedCalls.map((call: ChatToolCallRecord) => (
             <div
               key={call.tool_name}
-              className="flex items-start gap-1.5 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-900 border border-amber-100"
+              className="flex items-start gap-1.5 rounded border border-amber-100 bg-amber-50 px-2 py-1 text-[11px] text-amber-900"
             >
               <span className="font-medium">{call.tool_name}</span>
               <span className="text-amber-600">—</span>

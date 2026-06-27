@@ -47,15 +47,15 @@ RETRIEVAL_METHOD_LABELS: dict[str, str] = {
 # Planner strategy → preferred retrieval method (when all features available).
 # Priority order matches the planner: legal_compliance → policy_lookup → … → standard.
 _STRATEGY_METHOD_MAP: dict[str, RetrievalMethod] = {
-    "legal_compliance": "hybrid",        # exact legal language + semantic
-    "policy_lookup": "keyword",          # exact policy IDs and names
-    "comparison": "hybrid",             # wide recall for both sides
-    "table_heavy": "table_aware",        # table-boost vector retrieval
-    "graph_assisted": "graph_rag",       # GraphRAG entity traversal
+    "legal_compliance": "hybrid",  # exact legal language + semantic
+    "policy_lookup": "keyword",  # exact policy IDs and names
+    "comparison": "hybrid",  # wide recall for both sides
+    "table_heavy": "table_aware",  # table-boost vector retrieval
+    "graph_assisted": "graph_rag",  # GraphRAG entity traversal
     "connector_search": "connector_aware",  # connector-scoped
-    "troubleshooting": "hybrid",         # exact error codes + semantic context
-    "summary": "parent_child",           # broader parent-section context
-    "standard": "hybrid",               # default when hybrid is available
+    "troubleshooting": "hybrid",  # exact error codes + semantic context
+    "summary": "parent_child",  # broader parent-section context
+    "standard": "hybrid",  # default when hybrid is available
 }
 
 _VALID_OVERRIDE_VALUES: frozenset[str] = frozenset(RETRIEVAL_METHOD_LABELS.keys())
@@ -88,9 +88,9 @@ class RetrievalRouteResult:
     - Never surface `reason` to end-users — it may contain internal signals.
     """
 
-    method: str            # one of RetrievalMethod values
+    method: str  # one of RetrievalMethod values
     method_label: str
-    reason: str            # internal only — not exposed to UI
+    reason: str  # internal only — not exposed to UI
     override_applied: bool = False
     override_source: Literal["user", "rag_profile", None] = None
     routing_latency_ms: int = 0

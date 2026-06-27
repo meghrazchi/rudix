@@ -434,6 +434,28 @@ export function AdminLandingPage() {
                   </svg>
                 }
               />
+              <LargeCard
+                title="Org Memory"
+                description="Review reusable workflow memory, verified knowledge links, and source-scoped defaults."
+                href="/admin/memory"
+                status="available"
+                actionLabel="Open Memory"
+                icon={
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M12 6v12m6-6H6m12-3H6m12 6H6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
+                  </svg>
+                }
+              />
             </div>
           </div>
 

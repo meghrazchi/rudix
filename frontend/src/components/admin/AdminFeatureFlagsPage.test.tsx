@@ -93,6 +93,7 @@ const mockFlagsResponse: FeatureFlagsResponse = {
     makeFlag("provider_fallback", false, false),
     makeFlag("external_mcp_connectors", false, false),
     makeFlag("query_rewrite_preview", true, true),
+    makeFlag("org_memory", false, false),
   ],
 };
 

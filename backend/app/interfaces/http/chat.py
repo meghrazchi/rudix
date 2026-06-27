@@ -2864,7 +2864,11 @@ async def query_chat(
 
     # Adaptive tool orchestration (F342): authorize pipeline tools for this query.
     # Loads org-level disabled tools from DB, then resolves authorization synchronously.
-    if settings.feature_enable_chat_tool_orchestration and not injection_check.blocked and not not_found:
+    if (
+        settings.feature_enable_chat_tool_orchestration
+        and not injection_check.blocked
+        and not not_found
+    ):
         _orchestration_feature_availability: dict[str, bool] = {
             "feature_enable_connectors": settings.feature_enable_connectors,
             "feature_enable_graph_rag": settings.feature_enable_graph_rag,
@@ -3453,9 +3457,7 @@ async def query_chat(
         confidence_category = confidence_result.category
         confidence_explanation = confidence_result.explanation
         _min_chunks_for_answer = (
-            _context_pack_result.not_found_min_chunks
-            if _context_pack_result is not None
-            else 1
+            _context_pack_result.not_found_min_chunks if _context_pack_result is not None else 1
         )
         not_found = (
             len(selected_chunks) < _min_chunks_for_answer
@@ -3890,9 +3892,7 @@ async def query_chat(
                 # Refiner: rewrite the answer when critic finds medium/high severity (F339).
                 if critic_result.requires_refiner and not not_found and answer.strip():
                     _refiner_snippets = [
-                        c.text_snippet
-                        for c in citations
-                        if getattr(c, "text_snippet", None)
+                        c.text_snippet for c in citations if getattr(c, "text_snippet", None)
                     ][:10]
                     _refiner_started = perf_counter()
                     refiner_result = await _answer_refiner.refine(
@@ -6187,7 +6187,11 @@ async def _run_ws_chat_pipeline(
                         confidence_explanation = confidence_result.explanation
 
                 # Critic + refiner for high-risk answers (F339 WS pipeline).
-                if _ws_pcr_enabled and _ws_planner_result is not None and not injection_check.blocked:
+                if (
+                    _ws_pcr_enabled
+                    and _ws_planner_result is not None
+                    and not injection_check.blocked
+                ):
                     _ws_run_critic = _ws_pcr_mode == "always" or (
                         _ws_pcr_mode == "high_risk_only" and _ws_planner_result.high_risk
                     )

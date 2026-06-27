@@ -172,7 +172,9 @@ def _extract_citations_from_trust_metadata(
             BundleCitation(
                 citation_index=i,
                 document_id=str(c.get("document_id", "")),
-                document_filename=c.get("document_filename") if not config.redact_source_content else None,
+                document_filename=c.get("document_filename")
+                if not config.redact_source_content
+                else None,
                 page_number=c.get("page_number"),
                 trust_status=c.get("trust_status"),
                 freshness_status=c.get("freshness_status"),
@@ -221,11 +223,25 @@ class TroubleshootingBundleService:
                 session, source_id=source_id, org_id=organization_id, config=config
             )
         elif source_type == BundleSourceType.connector_sync:
-            detail, lifecycle, cfg_fp, logs, warnings, identifiers = await self._build_connector_sync(
+            (
+                detail,
+                lifecycle,
+                cfg_fp,
+                logs,
+                warnings,
+                identifiers,
+            ) = await self._build_connector_sync(
                 session, source_id=source_id, org_id=organization_id, config=config
             )
         elif source_type == BundleSourceType.evaluation_run:
-            detail, lifecycle, cfg_fp, logs, warnings, identifiers = await self._build_evaluation_run(
+            (
+                detail,
+                lifecycle,
+                cfg_fp,
+                logs,
+                warnings,
+                identifiers,
+            ) = await self._build_evaluation_run(
                 session, source_id=source_id, org_id=organization_id, config=config
             )
         elif source_type == BundleSourceType.failed_job:
@@ -397,7 +413,11 @@ class TroubleshootingBundleService:
             )
         if row.status == "failed":
             warnings.append(
-                BundleWarning(code="DOCUMENT_FAILED", message="Document is in 'failed' status", severity="error")
+                BundleWarning(
+                    code="DOCUMENT_FAILED",
+                    message="Document is in 'failed' status",
+                    severity="error",
+                )
             )
 
         identifiers: dict[str, str | None] = {}
@@ -450,7 +470,9 @@ class TroubleshootingBundleService:
         warnings: list[BundleWarning] = []
         if row.status == "failed":
             warnings.append(
-                BundleWarning(code="SYNC_FAILED", message="Connector sync run failed", severity="error")
+                BundleWarning(
+                    code="SYNC_FAILED", message="Connector sync run failed", severity="error"
+                )
             )
 
         identifiers: dict[str, str | None] = {
@@ -507,7 +529,9 @@ class TroubleshootingBundleService:
         warnings: list[BundleWarning] = []
         if row.status == "failed":
             warnings.append(
-                BundleWarning(code="EVAL_RUN_FAILED", message="Evaluation run failed", severity="error")
+                BundleWarning(
+                    code="EVAL_RUN_FAILED", message="Evaluation run failed", severity="error"
+                )
             )
         if failed_count and len(results) > 0 and (failed_count / len(results)) > 0.2:
             warnings.append(
@@ -607,7 +631,10 @@ class TroubleshootingBundleService:
 
         if bundle.lifecycle_stages:
             lines += ["## Pipeline Stages", ""]
-            lines += ["| Stage | Status | Latency | Error |", "|-------|--------|---------|-------|"]
+            lines += [
+                "| Stage | Status | Latency | Error |",
+                "|-------|--------|---------|-------|",
+            ]
             for s in bundle.lifecycle_stages:
                 lat = f"{s.latency_ms}ms" if s.latency_ms is not None else "—"
                 err = s.error_message or "—"

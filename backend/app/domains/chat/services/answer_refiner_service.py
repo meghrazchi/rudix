@@ -51,11 +51,9 @@ class _RefinerOutput(BaseModel):
     def _clean_changes(cls, v: object) -> list[str]:
         if not isinstance(v, list):
             return []
-        return [
-            str(item).strip()[:_MAX_CHANGE_CHARS]
-            for item in v
-            if str(item).strip()
-        ][:_MAX_CHANGES]
+        return [str(item).strip()[:_MAX_CHANGE_CHARS] for item in v if str(item).strip()][
+            :_MAX_CHANGES
+        ]
 
     @classmethod
     def parse(cls, raw: str) -> "_RefinerOutput":

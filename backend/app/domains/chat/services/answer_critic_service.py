@@ -33,14 +33,14 @@ _INT_SEVERITY: dict[int, CriticSeverity] = {0: "none", 1: "low", 2: "medium", 3:
 
 # Minimum severity level contributed by each warning code (1=low, 2=medium, 3=high)
 _CODE_SEVERITY: dict[str, int] = {
-    "citation_unsupported": 3,   # high — missing citation support is a serious issue
-    "source_conflict": 3,        # high — conflicting sources undermine answer trust
-    "no_sources_found": 3,       # high — no evidence at all
-    "missing_evidence": 2,       # medium — insufficient evidence for some claims
-    "stale_source": 1,           # low — staleness is a warning, not a blocker
-    "ocr_low_quality": 1,        # low — OCR issues reduce but don't eliminate trust
-    "table_low_confidence": 1,   # low — table extraction issues
-    "extraction_quality": 1,     # low — document extraction issues
+    "citation_unsupported": 3,  # high — missing citation support is a serious issue
+    "source_conflict": 3,  # high — conflicting sources undermine answer trust
+    "no_sources_found": 3,  # high — no evidence at all
+    "missing_evidence": 2,  # medium — insufficient evidence for some claims
+    "stale_source": 1,  # low — staleness is a warning, not a blocker
+    "ocr_low_quality": 1,  # low — OCR issues reduce but don't eliminate trust
+    "table_low_confidence": 1,  # low — table extraction issues
+    "extraction_quality": 1,  # low — document extraction issues
 }
 
 
@@ -156,9 +156,7 @@ class AnswerCriticService:
                 warnings.append(
                     CriticWarning(
                         code="citation_unsupported",
-                        detail=(
-                            f"{gv_unsupported_count} claim(s) lacked direct source support."
-                        ),
+                        detail=(f"{gv_unsupported_count} claim(s) lacked direct source support."),
                         severity_level=3,
                     )
                 )
@@ -217,8 +215,7 @@ class AnswerCriticService:
                     CriticWarning(
                         code="ocr_low_quality",
                         detail=(
-                            f"{ocr_low_confidence_chunk_count} chunk(s) "
-                            "have low OCR confidence."
+                            f"{ocr_low_confidence_chunk_count} chunk(s) have low OCR confidence."
                         ),
                         severity_level=1,
                     )
@@ -252,12 +249,8 @@ class AnswerCriticService:
 
             max_level = max((w.severity_level for w in warnings), default=0)
             severity: CriticSeverity = _INT_SEVERITY.get(min(max_level, 3), "none")
-            requires_refiner = (
-                max_level >= self._refiner_min_level and self._refiner_min_level > 0
-            )
-            refiner_instruction = (
-                _build_refiner_instruction(warnings) if requires_refiner else ""
-            )
+            requires_refiner = max_level >= self._refiner_min_level and self._refiner_min_level > 0
+            refiner_instruction = _build_refiner_instruction(warnings) if requires_refiner else ""
 
             latency_ms = int((perf_counter() - started) * 1000)
             logger.debug(

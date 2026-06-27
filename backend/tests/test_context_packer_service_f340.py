@@ -181,8 +181,12 @@ class TestComputePackScore:
         assert _compute_pack_score(graph_chunk) > _compute_pack_score(base_chunk)
 
     def test_graph_hop_discount_applied(self) -> None:
-        direct = _Chunk(similarity_score=0.8, retrieval_source="graph", graph_score=0.8, graph_hops=0)
-        multi_hop = _Chunk(similarity_score=0.8, retrieval_source="graph", graph_score=0.8, graph_hops=5)
+        direct = _Chunk(
+            similarity_score=0.8, retrieval_source="graph", graph_score=0.8, graph_hops=0
+        )
+        multi_hop = _Chunk(
+            similarity_score=0.8, retrieval_source="graph", graph_score=0.8, graph_hops=5
+        )
         assert _compute_pack_score(direct) > _compute_pack_score(multi_hop)
 
     def test_zero_similarity_gives_zero_score(self) -> None:
@@ -285,9 +289,7 @@ class TestLowRelevanceRejection:
         svc = _svc()
         low = _Chunk(similarity_score=0.1)
         high = _Chunk(similarity_score=0.9)
-        result = svc.pack(
-            chunks=[low, high], config=_cfg(enabled=True, min_relevance_score=0.5)
-        )
+        result = svc.pack(chunks=[low, high], config=_cfg(enabled=True, min_relevance_score=0.5))
         assert len(result.selected) == 1
         assert str(result.selected[0].chunk_id) == str(high.chunk_id)
         assert result.rejected_low_relevance == 1
@@ -539,8 +541,8 @@ class TestTokenBudgetHard:
 class TestTokenBudgetSoft:
     def test_soft_mode_skips_large_chunk_but_continues(self) -> None:
         svc = _svc()
-        large = _Chunk(text="a" * 400, similarity_score=0.9)   # 100 tokens
-        small = _Chunk(text="b" * 40, similarity_score=0.8)    # 10 tokens
+        large = _Chunk(text="a" * 400, similarity_score=0.9)  # 100 tokens
+        small = _Chunk(text="b" * 40, similarity_score=0.8)  # 10 tokens
         # Budget = 50 tokens → large overruns, small fits
         result = svc.pack(
             chunks=[large, small],
@@ -648,9 +650,9 @@ class TestDiagnosticCounts:
         svc = _svc()
         doc_id = uuid4()
         chunks = [
-            _Chunk(similarity_score=0.1),       # low_relevance
+            _Chunk(similarity_score=0.1),  # low_relevance
             _Chunk(document_id=doc_id, similarity_score=0.8),  # weak_ocr
-            _Chunk(similarity_score=0.9),       # selected
+            _Chunk(similarity_score=0.9),  # selected
         ]
         result = svc.pack(
             chunks=chunks,

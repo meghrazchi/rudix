@@ -92,9 +92,8 @@ async def get_chat_tools_availability(
 
     tools: list[ChatToolAvailabilityEntry] = []
     for cap in CHAT_TOOL_CAPABILITIES:
-        feature_available = (
-            cap.feature_flag is None
-            or feature_availability.get(cap.feature_flag, False)
+        feature_available = cap.feature_flag is None or feature_availability.get(
+            cap.feature_flag, False
         )
         org_policy_enabled = cap.name not in disabled_by_policy
         tools.append(

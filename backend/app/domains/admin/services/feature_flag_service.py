@@ -39,6 +39,7 @@ _SETTINGS_ATTR: dict[str, str] = {
     "external_mcp_connectors": "feature_enable_external_mcp_connectors",
     "query_rewriting": "feature_enable_query_rewriting",
     "query_rewrite_preview": "feature_enable_query_rewrite_preview",
+    "org_memory": "feature_enable_org_memory",
 }
 
 

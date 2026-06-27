@@ -758,6 +758,9 @@ class Settings(BaseSettings):
     # and org-level policy overrides. Tool call decisions are logged and surfaced in
     # the trust panel. Default off — enable after baseline pipeline is validated.
     feature_enable_chat_tool_orchestration: bool = False
+    # Org workflow memory and user preferences (F343). Off by default; enable once
+    # permission-scoping and redaction are validated for the target org.
+    feature_enable_org_memory: bool = False
     # PDF extraction pipeline (F237).
     feature_enable_advanced_pdf_extraction: bool = True
     pdf_extraction_enable_tables: bool = True

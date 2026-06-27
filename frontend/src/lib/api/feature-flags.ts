@@ -17,7 +17,8 @@ export type FeatureFlagName =
   | "experimental_profiles"
   | "provider_fallback"
   | "external_mcp_connectors"
-  | "query_rewrite_preview";
+  | "query_rewrite_preview"
+  | "org_memory";
 
 export const ALL_FLAG_NAMES: FeatureFlagName[] = [
   "agents",
@@ -37,6 +38,7 @@ export const ALL_FLAG_NAMES: FeatureFlagName[] = [
   "provider_fallback",
   "external_mcp_connectors",
   "query_rewrite_preview",
+  "org_memory",
 ];
 
 export const FLAG_LABELS: Record<FeatureFlagName, string> = {
@@ -57,6 +59,7 @@ export const FLAG_LABELS: Record<FeatureFlagName, string> = {
   provider_fallback: "Provider fallback",
   external_mcp_connectors: "External MCP connectors",
   query_rewrite_preview: "Query rewrite preview",
+  org_memory: "Organization memory",
 };
 
 export type FeatureFlagDetail = {

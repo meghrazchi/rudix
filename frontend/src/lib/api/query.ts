@@ -187,6 +187,8 @@ export const queryKeys = {
     agentPolicyEffective: (runId: string) =>
       ["admin", "agent-policy", "effective", runId] as const,
     chatToolsAvailability: ["admin", "chat-tools", "availability"] as const,
+    orgMemoryWorkflows: (params?: Record<string, unknown>) =>
+      ["admin", "memory", "workflows", params ?? {}] as const,
     failedJobs: (params?: Record<string, unknown>) =>
       ["admin", "failed-jobs", params ?? {}] as const,
     failedJobDetail: (jobId: string) =>
@@ -210,6 +212,13 @@ export const queryKeys = {
   },
   featureFlags: ["feature-flags"] as const,
   statusBanner: ["status", "banner"] as const,
+  orgMemory: {
+    workflows: (params?: Record<string, unknown>) =>
+      ["memory", "workflows", params ?? {}] as const,
+    workflow: (workflowId: string) =>
+      ["memory", "workflow", workflowId] as const,
+    preferences: ["memory", "preferences"] as const,
+  },
   ragProfiles: {
     all: ["rag-profiles"] as const,
     list: (params?: Record<string, unknown>) =>

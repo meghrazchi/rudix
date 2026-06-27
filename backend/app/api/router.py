@@ -8,6 +8,7 @@ from app.interfaces.http import (
     admin_agent_policy,
     admin_ai_response_policy,
     admin_api_keys,
+    admin_chat_tools,
     admin_chunking_profiles,
     admin_conflicts,
     admin_documents,
@@ -23,13 +24,13 @@ from app.interfaces.http import (
     admin_mcp,
     admin_metadata,
     admin_onboarding,
+    admin_org_memory,
     admin_permissions,
     admin_roles,
     admin_scim,
     admin_service_accounts,
     admin_sso,
     admin_status,
-    admin_chat_tools,
     admin_troubleshooting_bundle,
     admin_trust_analytics,
     admin_webhooks,
@@ -58,6 +59,7 @@ from app.interfaces.http import (
     model_provider_settings,
     notifications,
     observability,
+    org_memory,
     org_settings,
     pipeline,
     profile,
@@ -165,5 +167,7 @@ protected_router.include_router(admin_freshness.router)
 protected_router.include_router(admin_trust_analytics.router)
 protected_router.include_router(admin_troubleshooting_bundle.router)
 protected_router.include_router(admin_chat_tools.router)
+protected_router.include_router(admin_org_memory.router)
+protected_router.include_router(org_memory.router)
 
 api_router.include_router(protected_router)

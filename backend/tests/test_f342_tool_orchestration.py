@@ -359,9 +359,7 @@ class TestChatToolOrchestrator:
         assert "evaluation_lookup" not in names
         assert "document_lifecycle_lookup" not in names
 
-    def test_graph_search_denied_when_feature_off(
-        self, orchestrator: ChatToolOrchestrator
-    ) -> None:
+    def test_graph_search_denied_when_feature_off(self, orchestrator: ChatToolOrchestrator) -> None:
         result = orchestrator.orchestrate(
             planner_strategy="graph_assisted",
             principal=_member(),

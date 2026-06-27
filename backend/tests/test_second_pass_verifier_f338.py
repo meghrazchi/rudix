@@ -470,7 +470,9 @@ class TestConflictDetection:
         svc = _make_service()
         provider = _mock_provider(_CONFLICTING_JSON)
         with patch.object(svc, "_resolve_provider", return_value=provider):
-            result = await svc.verify(answer="Partial answer.", chunks=_make_chunks(2), mode="strict")
+            result = await svc.verify(
+                answer="Partial answer.", chunks=_make_chunks(2), mode="strict"
+            )
 
         assert result.final_answer == ""
         assert result.conflicting_claim_count == 1
@@ -605,9 +607,7 @@ class TestCitationHallucinationRegression:
             )
 
         # Citation index 99 exceeds list length → treated as no valid citation
-        claims_with_bad_ref = [
-            c for c in result.claims if 99 in c.citation_indices
-        ]
+        claims_with_bad_ref = [c for c in result.claims if 99 in c.citation_indices]
         assert not claims_with_bad_ref, "Out-of-range citation indices must be stripped"
 
     @pytest.mark.asyncio
@@ -706,9 +706,7 @@ class TestNotFoundBehavior:
         svc = _make_service()
         provider = AsyncMock()
         with patch.object(svc, "_resolve_provider", return_value=provider):
-            result = await svc.verify(
-                answer="Some answer.", chunks=[], mode="strict"
-            )
+            result = await svc.verify(answer="Some answer.", chunks=[], mode="strict")
 
         provider.complete.assert_not_called()
         assert result.applied is False

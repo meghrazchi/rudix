@@ -74,6 +74,7 @@ from app.models.model_provider_settings import (
 from app.models.notification import Notification
 from app.models.org_domain_verification import OrgDomainVerification
 from app.models.org_freshness_policy import OrgFreshnessPolicy
+from app.models.org_memory import OrgWorkflow, UserMemoryPreference
 from app.models.org_scim_config import OrgSCIMConfig
 from app.models.org_sso_config import OrgSSOConfig
 from app.models.organization import Organization
@@ -170,6 +171,7 @@ __all__ = [
     "OrgQuotaUsage",
     "OrgSCIMConfig",
     "OrgSSOConfig",
+    "OrgWorkflow",
     "Organization",
     "OrganizationChunkingProfile",
     "OrganizationGovernancePolicy",
@@ -199,6 +201,7 @@ __all__ = [
     "SyncConflict",
     "UsageEvent",
     "User",
+    "UserMemoryPreference",
     "UserNotificationPreference",
     "VerifiedAnswer",
     "VerifiedAnswerCitation",

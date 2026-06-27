@@ -15,13 +15,13 @@ import { LoadingState } from "@/components/states/LoadingState";
 function StatusBadge({ available }: { available: boolean }) {
   if (available) {
     return (
-      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
+      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
         Available
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200">
+    <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
       Unavailable
     </span>
   );
@@ -67,10 +67,13 @@ export function AdminChatToolsPage() {
           <p className="mt-1 text-sm text-gray-500">
             Permission-aware tools the chat pipeline can use. Disable tools per
             organisation via{" "}
-            <span className="font-mono text-xs">PUT /admin/agent-policy/tools/&#123;name&#125;</span>.
+            <span className="font-mono text-xs">
+              PUT /admin/agent-policy/tools/&#123;name&#125;
+            </span>
+            .
           </p>
         </div>
-        <div className="shrink-0 flex items-center gap-2 rounded border border-gray-200 bg-gray-50 px-3 py-1.5">
+        <div className="flex shrink-0 items-center gap-2 rounded border border-gray-200 bg-gray-50 px-3 py-1.5">
           <span className="text-xs text-gray-500">Orchestration</span>
           {data.feature_enabled ? (
             <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
@@ -98,7 +101,7 @@ export function AdminChatToolsPage() {
       <div className="overflow-x-auto rounded border border-gray-200">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
-            <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <tr className="text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
               <th className="px-4 py-3 pr-4">Tool</th>
               <th className="px-4 py-3 pr-4">Required permission</th>
               <th className="px-4 py-3 pr-4">Required roles</th>
@@ -118,7 +121,7 @@ export function AdminChatToolsPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3 align-top">
-                  <code className="text-[11px] text-gray-700 bg-gray-50 rounded px-1 py-0.5">
+                  <code className="rounded bg-gray-50 px-1 py-0.5 text-[11px] text-gray-700">
                     {tool.required_permission}
                   </code>
                 </td>
@@ -140,7 +143,7 @@ export function AdminChatToolsPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 align-top">
-                  <div className="flex flex-col gap-1 items-start">
+                  <div className="flex flex-col items-start gap-1">
                     <StatusBadge available={tool.available} />
                     {!tool.feature_available ? (
                       <span className="text-[10px] text-rose-600">

@@ -233,9 +233,7 @@ class ContextPackerService:
         _freshness = freshness_state_map or {}
 
         # --- score and sort ---
-        scored: list[tuple[float, object]] = [
-            (_compute_pack_score(c), c) for c in chunks
-        ]
+        scored: list[tuple[float, object]] = [(_compute_pack_score(c), c) for c in chunks]
         scored.sort(key=lambda t: t[0], reverse=True)
 
         selected: list = []
@@ -249,22 +247,34 @@ class ContextPackerService:
 
             # Rule 1: relevance floor
             if pack_score < min_relevance:
-                rejected.append(RejectedChunk(chunk_id=cid, document_id=did,
-                                               reason="low_relevance", pack_score=pack_score))
+                rejected.append(
+                    RejectedChunk(
+                        chunk_id=cid, document_id=did, reason="low_relevance", pack_score=pack_score
+                    )
+                )
                 n_low_rel += 1
                 continue
 
             # Rule 2: weak OCR rejection
             if reject_weak_ocr and _is_weak_ocr(_ocr.get(did)):
-                rejected.append(RejectedChunk(chunk_id=cid, document_id=did,
-                                               reason="weak_ocr", pack_score=pack_score))
+                rejected.append(
+                    RejectedChunk(
+                        chunk_id=cid, document_id=did, reason="weak_ocr", pack_score=pack_score
+                    )
+                )
                 n_weak_ocr += 1
                 continue
 
             # Rule 3: stale / superseded rejection
             if reject_stale and _is_stale_superseded(_freshness.get(did)):
-                rejected.append(RejectedChunk(chunk_id=cid, document_id=did,
-                                               reason="stale_superseded", pack_score=pack_score))
+                rejected.append(
+                    RejectedChunk(
+                        chunk_id=cid,
+                        document_id=did,
+                        reason="stale_superseded",
+                        pack_score=pack_score,
+                    )
+                )
                 n_stale += 1
                 continue
 
@@ -276,26 +286,38 @@ class ContextPackerService:
                     if budget_mode == "hard":
                         # Stop processing; remaining chunks are rejected.
                         rejected.append(
-                            RejectedChunk(chunk_id=cid, document_id=did,
-                                          reason="token_budget", pack_score=pack_score)
+                            RejectedChunk(
+                                chunk_id=cid,
+                                document_id=did,
+                                reason="token_budget",
+                                pack_score=pack_score,
+                            )
                         )
                         n_budget += 1
                         # mark all remaining as budget-rejected
-                        for _, remaining_chunk in scored[scored.index((pack_score, chunk)) + 1:]:
+                        for _, remaining_chunk in scored[scored.index((pack_score, chunk)) + 1 :]:
                             rc_id = str(remaining_chunk.chunk_id)
                             rd_id = str(remaining_chunk.document_id)
                             rp = _compute_pack_score(remaining_chunk)
                             rejected.append(
-                                RejectedChunk(chunk_id=rc_id, document_id=rd_id,
-                                              reason="token_budget", pack_score=rp)
+                                RejectedChunk(
+                                    chunk_id=rc_id,
+                                    document_id=rd_id,
+                                    reason="token_budget",
+                                    pack_score=rp,
+                                )
                             )
                             n_budget += 1
                         break
                     else:
                         # soft mode: skip this chunk but continue
                         rejected.append(
-                            RejectedChunk(chunk_id=cid, document_id=did,
-                                          reason="token_budget", pack_score=pack_score)
+                            RejectedChunk(
+                                chunk_id=cid,
+                                document_id=did,
+                                reason="token_budget",
+                                pack_score=pack_score,
+                            )
                         )
                         n_budget += 1
                         continue
