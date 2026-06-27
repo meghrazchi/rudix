@@ -288,6 +288,33 @@ class EvidenceQualityRecord(BaseModel):
     warning_reasons: list[str] = Field(default_factory=list)
 
 
+class CriticWarningRecord(BaseModel):
+    """A single quality warning produced by the answer critic (F339)."""
+
+    code: str
+    detail: str
+    severity: Literal["low", "medium", "high"]
+
+
+class PlannerCriticRecord(BaseModel):
+    """Planner strategy classification, critic warnings, and refiner outcome (F339).
+
+    Populated when feature_enable_planner_critic_refiner is active and the
+    question strategy (or mode=always) triggers the critic+refiner pass.
+    """
+
+    strategy: str = "standard"
+    high_risk: bool = False
+    critic_warnings: list[CriticWarningRecord] = Field(default_factory=list)
+    critic_severity: Literal["none", "low", "medium", "high"] = "none"
+    refiner_applied: bool = False
+    draft_changed: bool = False
+    unsupported_claims_removed: int = 0
+    planner_latency_ms: int = 0
+    critic_latency_ms: int = 0
+    refiner_latency_ms: int = 0
+
+
 class AnswerTrustMetadataResponse(BaseModel):
     """Versioned, organization-scoped answer trust metadata contract.
 
@@ -312,6 +339,7 @@ class AnswerTrustMetadataResponse(BaseModel):
     policy: PolicyEnforcementRecord
     freshness: SourceFreshnessRecord
     evidence_quality: EvidenceQualityRecord
+    planner_critic: PlannerCriticRecord = Field(default_factory=PlannerCriticRecord)
     generated_at: datetime
 
 
@@ -319,4 +347,5 @@ GroundedVerificationRecord.model_rebuild()
 ConfidenceTrustRecord.model_rebuild()
 QueryInterpretationRecord.model_rebuild()
 EvidenceQualityRecord.model_rebuild()
+PlannerCriticRecord.model_rebuild()
 AnswerTrustMetadataResponse.model_rebuild()

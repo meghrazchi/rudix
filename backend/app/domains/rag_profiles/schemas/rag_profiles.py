@@ -75,6 +75,18 @@ class RagProfileConfig(BaseModel):
     #   Parent texts exceeding this limit are truncated at a word boundary.
     parent_context_expansion_enabled: bool = Field(default=True)
     parent_context_max_tokens_per_chunk: int = Field(default=512, ge=64, le=8192)
+    # Planner-critic-refiner pipeline (F339).
+    # planner_critic_refiner_enabled: run the planner/critic/refiner on applicable answers.
+    # planner_critic_refiner_mode: "high_risk_only" limits to strategies flagged as high-risk;
+    #   "always" runs critic+refiner on every answer regardless of strategy.
+    # planner_high_risk_strategies: list of strategy names that trigger critic+refiner.
+    planner_critic_refiner_enabled: bool = Field(default=False)
+    planner_critic_refiner_mode: Literal["high_risk_only", "always"] = Field(
+        default="high_risk_only"
+    )
+    planner_high_risk_strategies: list[str] = Field(
+        default_factory=lambda: ["legal_compliance", "policy_lookup", "comparison"]
+    )
 
     @field_validator("rerank_model")
     @classmethod

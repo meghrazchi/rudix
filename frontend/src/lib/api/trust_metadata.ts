@@ -266,6 +266,31 @@ export type EvidenceQualityRecord = {
   warning_reasons: string[];
 };
 
+/** A single quality warning produced by the answer critic (F339). */
+export type CriticWarningRecord = {
+  code: string;
+  detail: string;
+  severity: "low" | "medium" | "high";
+};
+
+/**
+ * Planner strategy classification, critic warnings, and refiner outcome (F339).
+ * Present on all responses; fields are empty/default when the pipeline is disabled
+ * or the question was not flagged as high-risk.
+ */
+export type PlannerCriticRecord = {
+  strategy: string;
+  high_risk: boolean;
+  critic_warnings: CriticWarningRecord[];
+  critic_severity: "none" | "low" | "medium" | "high";
+  refiner_applied: boolean;
+  draft_changed: boolean;
+  unsupported_claims_removed: number;
+  planner_latency_ms: number;
+  critic_latency_ms: number;
+  refiner_latency_ms: number;
+};
+
 /** Versioned, organization-scoped answer trust metadata. schema_version "1" is current. */
 export type AnswerTrustMetadataResponse = {
   schema_version: "1";
@@ -284,6 +309,8 @@ export type AnswerTrustMetadataResponse = {
   policy: PolicyEnforcementRecord;
   freshness: SourceFreshnessRecord;
   evidence_quality: EvidenceQualityRecord;
+  /** F339 — planner strategy, critic warnings, and refiner outcome. */
+  planner_critic: PlannerCriticRecord;
   generated_at: string;
 };
 

@@ -594,6 +594,15 @@ class Settings(BaseSettings):
     # Keep grounded_verification_timeout_seconds well below the overall request timeout.
     feature_enable_grounded_answer_verification: bool = False
     grounded_verification_timeout_seconds: float = Field(default=12.0, ge=0.5, le=60.0)
+    # Planner-critic-refiner pipeline (F339): classifies questions into answer strategies,
+    # evaluates quality signals after generation, and rewrites high-risk answers using only
+    # supported claims. Adds one LLM call (refiner) for high-risk answers when critic finds
+    # medium/high severity issues. Keep refiner_timeout_seconds well below request timeout.
+    feature_enable_planner_critic_refiner: bool = False
+    refiner_timeout_seconds: float = Field(default=10.0, ge=0.5, le=60.0)
+    # "high_risk_only": critic+refiner only runs when planner flags the question as high-risk.
+    # "always": critic+refiner runs on every answer (higher latency and LLM cost).
+    planner_critic_refiner_mode: str = Field(default="high_risk_only", max_length=32)
     feature_enable_graph_rag: bool = False
     # graph_extraction gates the entity/relation extraction pipeline per org.
     # graph_explorer gates the read-only graph explorer UI per org.

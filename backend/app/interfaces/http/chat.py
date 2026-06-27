@@ -109,9 +109,11 @@ from app.domains.chat.schemas.trust_metadata import (
     ConfidenceReasonRecord,
     ConfidenceTrustRecord,
     ConflictStatusRecord,
+    CriticWarningRecord,
     EvidenceQualityRecord,
     GroundedVerificationRecord,
     ModelMetadataRecord,
+    PlannerCriticRecord,
     PolicyEnforcementRecord,
     QueryInterpretationRecord,
     RetrievalDiagnosticsRecord,
@@ -129,6 +131,13 @@ from app.domains.chat.services.graph_retrieval_service import (
     GraphRetrievalService,
     GraphRetrievedChunk,
 )
+from app.domains.chat.services.answer_critic_service import AnswerCriticService, CriticResult
+from app.domains.chat.services.answer_planner_service import (
+    STRATEGY_LABELS,
+    AnswerPlannerService,
+    PlannerResult,
+)
+from app.domains.chat.services.answer_refiner_service import AnswerRefinerService, RefinerResult
 from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
     GroundedVerifierResult,
@@ -289,6 +298,9 @@ _llm_service = LLMService(provider=_ChatCompletionProviderProxy())
 _injection_guard = PromptInjectionGuard()
 _query_rewriting_service = QueryRewritingService()
 _grounded_verifier = GroundedAnswerVerifier()
+_answer_planner = AnswerPlannerService()
+_answer_critic = AnswerCriticService()
+_answer_refiner = AnswerRefinerService()
 _authorization_service = AuthorizationService()
 _source_freshness_service = SourceFreshnessService()
 _table_retrieval_service = TableRetrievalService()
@@ -350,6 +362,74 @@ def _resolve_grounded_verification_controls(
             threshold = policy_threshold
 
     return enabled, mode, threshold
+
+
+def _resolve_planner_critic_controls(
+    rag_profile: RagProfileConfig | None,
+) -> tuple[bool, str, frozenset[str]]:
+    """Resolve planner-critic-refiner activation, mode, and high-risk strategy set.
+
+    Returns (enabled, mode, high_risk_strategies).
+    """
+    enabled: bool = settings.feature_enable_planner_critic_refiner
+    mode: str = settings.planner_critic_refiner_mode
+    high_risk: frozenset[str] = frozenset({"legal_compliance", "policy_lookup", "comparison"})
+
+    if rag_profile is not None:
+        enabled = rag_profile.planner_critic_refiner_enabled
+        mode = rag_profile.planner_critic_refiner_mode
+        if rag_profile.planner_high_risk_strategies:
+            high_risk = frozenset(rag_profile.planner_high_risk_strategies)
+
+    return enabled, mode, high_risk
+
+
+def _build_planner_critic_record(
+    *,
+    planner_result: "PlannerResult | None",
+    critic_result: "CriticResult | None",
+    refiner_result: "RefinerResult | None",
+) -> PlannerCriticRecord:
+    """Build the PlannerCriticRecord for trust metadata from pipeline state."""
+    if planner_result is None:
+        return PlannerCriticRecord()
+
+    _severity_label = {1: "low", 2: "medium", 3: "high"}
+    critic_warnings: list[CriticWarningRecord] = []
+    critic_severity = "none"
+    if critic_result is not None:
+        critic_severity = critic_result.severity
+        for w in critic_result.warnings:
+            critic_warnings.append(
+                CriticWarningRecord(
+                    code=w.code,
+                    detail=w.detail,
+                    severity=_severity_label.get(w.severity_level, "low"),  # type: ignore[arg-type]
+                )
+            )
+
+    refiner_applied = False
+    draft_changed = False
+    unsupported_removed = 0
+    refiner_latency_ms = 0
+    if refiner_result is not None:
+        refiner_applied = refiner_result.applied
+        draft_changed = refiner_result.draft_changed
+        unsupported_removed = refiner_result.unsupported_claims_removed
+        refiner_latency_ms = refiner_result.latency_ms
+
+    return PlannerCriticRecord(
+        strategy=planner_result.strategy,
+        high_risk=planner_result.high_risk,
+        critic_warnings=critic_warnings,
+        critic_severity=critic_severity,  # type: ignore[arg-type]
+        refiner_applied=refiner_applied,
+        draft_changed=draft_changed,
+        unsupported_claims_removed=unsupported_removed,
+        planner_latency_ms=planner_result.latency_ms,
+        critic_latency_ms=critic_result.latency_ms if critic_result is not None else 0,
+        refiner_latency_ms=refiner_latency_ms,
+    )
 
 
 def _build_verifier_citations(citations: list[ChatCitationResponse]) -> list[VerifierCitation]:
@@ -1297,6 +1377,18 @@ def _build_evidence_quality_record(citations: list) -> "EvidenceQualityRecord":
     )
 
 
+def _build_evidence_quality_inputs(citations: list) -> dict[str, int]:
+    """Extract integer quality signal counts from citations for the critic (F339)."""
+    return {
+        "table_low_confidence_count": sum(
+            1 for c in citations if getattr(c, "table_low_confidence_warning", False)
+        ),
+        "extraction_warning_count": sum(
+            1 for c in citations if getattr(c, "doc_extraction_warning", False)
+        ),
+    }
+
+
 async def _resolve_graph_rag_enabled(
     db_session: AsyncSession,
     *,
@@ -1788,6 +1880,9 @@ def _build_trust_metadata(
     ai_policy_applied: bool,
     ai_policy_result: object,
     generated_at: datetime,
+    planner_result: "PlannerResult | None" = None,
+    critic_result: "CriticResult | None" = None,
+    refiner_result: "RefinerResult | None" = None,
 ) -> AnswerTrustMetadataResponse:
     """Build the versioned trust metadata contract from pipeline state.
 
@@ -2028,6 +2123,11 @@ def _build_trust_metadata(
             all_excluded_fallback=freshness_all_excluded_fallback,
         ),
         evidence_quality=_build_evidence_quality_record(citation_records),
+        planner_critic=_build_planner_critic_record(
+            planner_result=planner_result,
+            critic_result=critic_result,
+            refiner_result=refiner_result,
+        ),
         generated_at=generated_at,
     )
 
@@ -2617,6 +2717,13 @@ async def query_chat(
     _conflict_multiplier: float = 1.0
     # AI response policy state (F268)
     _ai_policy_result: AiPolicyEvaluationResult = AiPolicyEvaluationResult()
+    # Planner-critic-refiner pipeline state (F339)
+    planner_result: PlannerResult | None = None
+    critic_result: CriticResult | None = None
+    refiner_result: RefinerResult | None = None
+    _pcr_enabled: bool = False
+    _pcr_mode: str = "high_risk_only"
+    _pcr_high_risk: frozenset[str] = frozenset()
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -2624,6 +2731,21 @@ async def query_chat(
         organization_id=organization_id,
         task_type=TaskType.chat,
     )
+
+    # Planner: classify question strategy and flag high-risk answers (F339).
+    # Runs synchronously before retrieval — keyword heuristics only, <1 ms.
+    _pcr_enabled, _pcr_mode, _pcr_high_risk = _resolve_planner_critic_controls(
+        RagProfileConfig.model_validate(dict(rag_profile.config))
+        if rag_profile is not None
+        else None,
+    )
+    if _pcr_enabled and not injection_check.blocked and not not_found:
+        planner_result = _answer_planner.classify(
+            question=payload.question,
+            graph_context_available=settings.feature_enable_graph_rag,
+            connector_search_scope=False,
+            high_risk_strategies_override=_pcr_high_risk,
+        )
 
     # Language detection and answer language resolution (F231).
     detected_language: str | None = None
@@ -3518,6 +3640,80 @@ async def query_chat(
                 confidence_category = confidence_result.category
                 confidence_explanation = confidence_result.explanation
 
+        # Critic: aggregate quality signals (F339).
+        # Runs when the planner flagged a high-risk question (or mode=always).
+        # Always synchronous — no LLM call in the critic itself.
+        if _pcr_enabled and planner_result is not None and not injection_check.blocked:
+            _run_critic = _pcr_mode == "always" or (
+                _pcr_mode == "high_risk_only" and planner_result.high_risk
+            )
+            if _run_critic:
+                _gv_r = grounded_verifier_result
+                _ev_quality = _build_evidence_quality_inputs(citations)
+                critic_result = _answer_critic.evaluate(
+                    not_found=not_found,
+                    selected_chunk_count=len(selected_chunks),
+                    citation_count=len(citations),
+                    gv_applied=bool(_gv_r and _gv_r.applied),
+                    gv_unsupported_count=(_gv_r.unsupported_claim_count if _gv_r else 0),
+                    gv_conflicting_count=(_gv_r.conflicting_claim_count if _gv_r else 0),
+                    gv_not_enough_evidence_count=(
+                        _gv_r.not_enough_evidence_claim_count if _gv_r else 0
+                    ),
+                    conflict_detected=conflict_detection_result.conflict_detected,
+                    freshness_stale_count=freshness_stale_count,
+                    freshness_excluded_count=freshness_excluded_count,
+                    freshness_all_excluded_fallback=freshness_all_excluded_fallback,
+                    ocr_low_confidence_chunk_count=ocr_low_confidence_chunk_count,
+                    table_low_confidence_count=_ev_quality["table_low_confidence_count"],
+                    extraction_warning_count=_ev_quality["extraction_warning_count"],
+                )
+                log_query_event(
+                    event="query.planner_critic.evaluated",
+                    organization_id=principal.organization_id,
+                    user_id=principal.user_id,
+                    job_id=str(chat_session.id),
+                    strategy=planner_result.strategy,
+                    high_risk=planner_result.high_risk,
+                    critic_severity=critic_result.severity,
+                    warning_count=len(critic_result.warnings),
+                    requires_refiner=critic_result.requires_refiner,
+                )
+
+                # Refiner: rewrite the answer when critic finds medium/high severity (F339).
+                if critic_result.requires_refiner and not not_found and answer.strip():
+                    _refiner_snippets = [
+                        c.text_snippet
+                        for c in citations
+                        if getattr(c, "text_snippet", None)
+                    ][:10]
+                    _refiner_started = perf_counter()
+                    refiner_result = await _answer_refiner.refine(
+                        draft_answer=answer,
+                        critic_instruction=critic_result.refiner_instruction,
+                        citation_snippets=_refiner_snippets,
+                    )
+                    latencies_ms["refiner"] = int((perf_counter() - _refiner_started) * 1000)
+                    if refiner_result.applied:
+                        _refined = refiner_result.refined_answer.strip()
+                        if not _refined:
+                            answer = _NOT_FOUND_ANSWER
+                            not_found = True
+                            verification_failed = True
+                        else:
+                            answer = _refined
+                            if refiner_result.draft_changed:
+                                verification_failed = True
+                        log_query_event(
+                            event="query.planner_critic.refined",
+                            organization_id=principal.organization_id,
+                            user_id=principal.user_id,
+                            job_id=str(chat_session.id),
+                            draft_changed=refiner_result.draft_changed,
+                            unsupported_removed=refiner_result.unsupported_claims_removed,
+                            latency_ms=refiner_result.latency_ms,
+                        )
+
     latencies_ms["llm"] = llm_latency_ms
 
     # AI response policy post-generation check (F268) — citation, confidence, stale sources.
@@ -3640,6 +3836,9 @@ async def query_chat(
             ai_policy_applied=_ai_effective_policy.source != "none",
             ai_policy_result=_ai_policy_result,
             generated_at=assistant_message.created_at,
+            planner_result=planner_result,
+            critic_result=critic_result,
+            refiner_result=refiner_result,
         )
         assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
         db_session.add(assistant_message)
@@ -5134,6 +5333,17 @@ async def _run_ws_chat_pipeline(
             document_ids = source_scope_result.document_ids
             await send("chat.scope.validated", {"scope_label": source_scope_result.label})
             await send_step("understanding_question", "Understanding your question", "success")
+            # Emit planning_answer step when planner is active (F339)
+            if _ws_pcr_enabled and _ws_planner_result is not None:
+                _strategy_label = STRATEGY_LABELS.get(
+                    _ws_planner_result.strategy, _ws_planner_result.strategy
+                )
+                await send_step(
+                    "planning_answer",
+                    "Planning answer strategy",
+                    "success",
+                    detail=_strategy_label,
+                )
             await send_step("checking_sources", "Checking accessible sources", "running")
 
             # ── Session management ────────────────────────────────────────────
@@ -5242,6 +5452,13 @@ async def _run_ws_chat_pipeline(
             conflict_detection_enabled = False
             conflict_detection_applied = False
             conflict_detection_latency_ms = 0
+            # Planner-critic-refiner pipeline state (F339)
+            _ws_planner_result: PlannerResult | None = None
+            _ws_critic_result: CriticResult | None = None
+            _ws_refiner_result: RefinerResult | None = None
+            _ws_pcr_enabled: bool = False
+            _ws_pcr_mode: str = "high_risk_only"
+            _ws_pcr_high_risk: frozenset[str] = frozenset()
             conflict_detection_result = ConflictDetectionResult(
                 conflict_detected=False,
                 agreement_level="full",
@@ -5259,6 +5476,21 @@ async def _run_ws_chat_pipeline(
             rerank_settings = _build_rerank_settings(
                 dict(rag_profile.config) if rag_profile is not None else None
             )
+
+            # Planner: classify question strategy (F339) — keyword heuristics, <1 ms.
+            _ws_pcr_enabled, _ws_pcr_mode, _ws_pcr_high_risk = _resolve_planner_critic_controls(
+                RagProfileConfig.model_validate(dict(rag_profile.config))
+                if rag_profile is not None
+                else None,
+            )
+            if _ws_pcr_enabled and not injection_check.blocked and not not_found:
+                _ws_planner_result = _answer_planner.classify(
+                    question=query_request.question,
+                    graph_context_available=settings.feature_enable_graph_rag,
+                    connector_search_scope=False,
+                    high_risk_strategies_override=_ws_pcr_high_risk,
+                )
+
             detected_language: str | None = None
             answer_language_used: str | None = None
             if settings.feature_enable_language_aware_rag and not injection_check.blocked:
@@ -5656,6 +5888,82 @@ async def _run_ws_chat_pipeline(
                         confidence_category = confidence_result.category
                         confidence_explanation = confidence_result.explanation
 
+                # Critic + refiner for high-risk answers (F339 WS pipeline).
+                if _ws_pcr_enabled and _ws_planner_result is not None and not injection_check.blocked:
+                    _ws_run_critic = _ws_pcr_mode == "always" or (
+                        _ws_pcr_mode == "high_risk_only" and _ws_planner_result.high_risk
+                    )
+                    if _ws_run_critic:
+                        _ws_ev = _build_evidence_quality_inputs(citations)
+                        _ws_critic_result = _answer_critic.evaluate(
+                            not_found=not_found,
+                            selected_chunk_count=len(selected_chunks),
+                            citation_count=len(citations),
+                            conflict_detected=conflict_detection_result.conflict_detected,
+                            freshness_stale_count=freshness_stale_count,
+                            freshness_excluded_count=freshness_excluded_count,
+                            freshness_all_excluded_fallback=freshness_all_excluded_fallback,
+                            table_low_confidence_count=_ws_ev["table_low_confidence_count"],
+                            extraction_warning_count=_ws_ev["extraction_warning_count"],
+                        )
+                        _critic_severity = _ws_critic_result.severity
+                        await send_step(
+                            "reviewing_answer",
+                            "Reviewing answer quality",
+                            "warning" if _critic_severity in ("medium", "high") else "success",
+                            detail=(
+                                f"{len(_ws_critic_result.warnings)} quality warning(s) found"
+                                if _ws_critic_result.warnings
+                                else "No quality issues found"
+                            ),
+                        )
+
+                        if _ws_critic_result.requires_refiner and not not_found and answer.strip():
+                            await send_step(
+                                "refining_answer", "Refining with verified claims", "running"
+                            )
+                            _ws_refiner_snippets = [
+                                c.text_snippet
+                                for c in citations
+                                if getattr(c, "text_snippet", None)
+                            ][:10]
+                            _ws_refiner_started = perf_counter()
+                            _ws_refiner_result = await _answer_refiner.refine(
+                                draft_answer=answer,
+                                critic_instruction=_ws_critic_result.refiner_instruction,
+                                citation_snippets=_ws_refiner_snippets,
+                            )
+                            latencies_ms["refiner"] = int(
+                                (perf_counter() - _ws_refiner_started) * 1000
+                            )
+                            if _ws_refiner_result.applied:
+                                _ws_refined = _ws_refiner_result.refined_answer.strip()
+                                if not _ws_refined:
+                                    answer = _NOT_FOUND_ANSWER
+                                    not_found = True
+                                    verification_failed = True
+                                else:
+                                    answer = _ws_refined
+                                    if _ws_refiner_result.draft_changed:
+                                        verification_failed = True
+                                await send_step(
+                                    "refining_answer",
+                                    "Refining with verified claims",
+                                    "warning" if not_found else "success",
+                                    detail=(
+                                        "Unsupported claims removed"
+                                        if _ws_refiner_result.draft_changed
+                                        else "No changes needed"
+                                    ),
+                                    duration_ms=_ws_refiner_result.latency_ms,
+                                )
+                            else:
+                                await send_step(
+                                    "refining_answer",
+                                    "Refining with verified claims",
+                                    "skipped",
+                                )
+
             latencies_ms["llm"] = llm_latency_ms
             answer_latency_ms = int((perf_counter() - total_started) * 1000)
             latencies_ms["total"] = answer_latency_ms
@@ -5853,6 +6161,9 @@ async def _run_ws_chat_pipeline(
                     ai_policy_applied=_ai_effective_policy.source != "none",
                     ai_policy_result=_ai_policy_result,
                     generated_at=assistant_message.created_at,
+                    planner_result=_ws_planner_result,
+                    critic_result=_ws_critic_result,
+                    refiner_result=_ws_refiner_result,
                 )
                 assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
                 await db_session.commit()
