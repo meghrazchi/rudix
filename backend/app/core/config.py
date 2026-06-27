@@ -741,6 +741,10 @@ class Settings(BaseSettings):
     # parent_context_max_tokens_per_chunk: estimated-token cap per expanded parent text.
     feature_enable_parent_context_expansion: bool = True
     parent_context_max_tokens_per_chunk: int = Field(default=512, ge=64, le=8192)
+    # Strict context packing (F340): priority scoring, rejection rules, and global token budget
+    # applied after reranking.  Disabled by default; enable per RAG profile via
+    # context_packing_enabled.  This system flag gates the feature entirely.
+    feature_enable_context_packing: bool = False
     # PDF extraction pipeline (F237).
     feature_enable_advanced_pdf_extraction: bool = True
     pdf_extraction_enable_tables: bool = True

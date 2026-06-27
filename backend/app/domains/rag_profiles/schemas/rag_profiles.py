@@ -87,6 +87,33 @@ class RagProfileConfig(BaseModel):
     planner_high_risk_strategies: list[str] = Field(
         default_factory=lambda: ["legal_compliance", "policy_lookup", "comparison"]
     )
+    # Strict context packing (F340).
+    # context_packing_enabled: run the context packer after reranking to apply priority scoring,
+    #   rejection rules, and a global token budget before prompt construction.
+    # context_packing_strategy: "strict" enforces a hard token budget and rejects weak OCR /
+    #   stale-superseded chunks; "balanced" applies soft budget and OCR rejection only;
+    #   "permissive" disables all rejection rules.
+    # context_budget_max_tokens: maximum estimated tokens for the full evidence context window.
+    #   None means unlimited (only top_k limits selection).
+    # context_min_relevance_score: floor below which a chunk is rejected as unrelated.
+    #   The strategy preset raises this floor if the config value is lower than the preset.
+    # context_reject_weak_ocr: drop chunks from documents with failed/low-confidence OCR.
+    # context_reject_stale_superseded: drop deprecated/expired sources even after the
+    #   exclusion-fallback has re-included them (strict compliance mode).
+    # context_require_citations: metadata flag passed to the prompt builder; when True,
+    #   the prompt instructs the model to cite every claim.
+    # context_not_found_min_chunks: minimum chunks that must survive packing before the
+    #   pipeline attempts a grounded answer (fewer → not_found).
+    context_packing_enabled: bool = Field(default=False)
+    context_packing_strategy: Literal["strict", "balanced", "permissive"] = Field(
+        default="balanced"
+    )
+    context_budget_max_tokens: int | None = Field(default=None, ge=256, le=128_000)
+    context_min_relevance_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    context_reject_weak_ocr: bool = Field(default=True)
+    context_reject_stale_superseded: bool = Field(default=False)
+    context_require_citations: bool = Field(default=True)
+    context_not_found_min_chunks: int = Field(default=1, ge=1, le=50)
 
     @field_validator("rerank_model")
     @classmethod

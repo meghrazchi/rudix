@@ -155,6 +155,11 @@ from app.domains.chat.services.llm_service import (
     PermanentLLMServiceError,
     TransientLLMServiceError,
 )
+from app.domains.chat.services.context_packer_service import (
+    ContextPackerConfig,
+    ContextPackerService,
+    ContextPackResult,
+)
 from app.domains.chat.services.parent_context_expansion_service import (
     ParentContextExpansionService,
     ParentExpansionResult,
@@ -306,6 +311,7 @@ _source_freshness_service = SourceFreshnessService()
 _table_retrieval_service = TableRetrievalService()
 _ocr_quality_service = OcrQualityService()
 _parent_context_expansion_service = ParentContextExpansionService()
+_context_packer_service = ContextPackerService()
 _document_repository_for_trust = _DocumentRepository()
 _ai_policy_repo = AiResponsePolicyRepository()
 _ai_policy_engine = AiResponsePolicyEngine()
@@ -2724,6 +2730,10 @@ async def query_chat(
     _pcr_enabled: bool = False
     _pcr_mode: str = "high_risk_only"
     _pcr_high_risk: frozenset[str] = frozenset()
+    # Strict context packing state (F340)
+    _context_pack_result: ContextPackResult | None = None
+    context_packing_enabled: bool = False
+    context_packing_rejected_count: int = 0
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -3235,6 +3245,63 @@ async def query_chat(
         )
         latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
 
+        # Strict context packing (F340).
+        # Runs after reranking on selected_chunks.  Applies a composite priority score
+        # (trust-weighted similarity + rerank blend + type bonuses), enforces rejection
+        # rules for low-relevance, weak-OCR, and stale/superseded chunks, and imposes a
+        # global token budget.  The pack is controlled by the RAG profile; the system
+        # flag feature_enable_context_packing must also be True.
+        if settings.feature_enable_context_packing and selected_chunks:
+            context_packing_enabled = True
+            _cp_cfg = ContextPackerConfig(enabled=True)
+            if rag_profile is not None:
+                _cp_rag = RagProfileConfig.model_validate(dict(rag_profile.config))
+                _cp_cfg = ContextPackerConfig(
+                    enabled=_cp_rag.context_packing_enabled,
+                    strategy=_cp_rag.context_packing_strategy,
+                    budget_max_tokens=_cp_rag.context_budget_max_tokens,
+                    min_relevance_score=_cp_rag.context_min_relevance_score,
+                    reject_weak_ocr=_cp_rag.context_reject_weak_ocr,
+                    reject_stale_superseded=_cp_rag.context_reject_stale_superseded,
+                    require_citations=_cp_rag.context_require_citations,
+                    not_found_min_chunks=_cp_rag.context_not_found_min_chunks,
+                )
+            # Build a freshness state map from the trust data already loaded.
+            _cp_freshness_state_map: dict[str, str] = {}
+            if _freshness_trust_map:
+                for _doc_id, _td in _freshness_trust_map.items():
+                    _cp_freshness_state_map[_doc_id] = (
+                        _source_freshness_service.derive_freshness_state(
+                            _td,
+                            org_stale_threshold_days=_freshness_stale_threshold_days,
+                        )
+                    )
+            _context_pack_result = _context_packer_service.pack(
+                chunks=selected_chunks,
+                config=_cp_cfg,
+                ocr_quality_map=_ocr_quality_map if _ocr_quality_map else None,
+                freshness_state_map=_cp_freshness_state_map if _cp_freshness_state_map else None,
+            )
+            context_packing_rejected_count = len(_context_pack_result.rejected)
+            if _context_pack_result.selected is not selected_chunks:
+                selected_chunks = _context_pack_result.selected
+            if context_packing_rejected_count:
+                log_query_event(
+                    event="query.context_packing.applied",
+                    organization_id=principal.organization_id,
+                    user_id=principal.user_id,
+                    job_id=str(chat_session.id),
+                    strategy=_cp_cfg.strategy,
+                    selected_count=len(selected_chunks),
+                    rejected_count=context_packing_rejected_count,
+                    rejected_low_relevance=_context_pack_result.rejected_low_relevance,
+                    rejected_weak_ocr=_context_pack_result.rejected_weak_ocr,
+                    rejected_stale_superseded=_context_pack_result.rejected_stale_superseded,
+                    rejected_token_budget=_context_pack_result.rejected_token_budget,
+                    total_estimated_tokens=_context_pack_result.total_estimated_tokens,
+                    budget_applied=_context_pack_result.budget_applied,
+                )
+
         confidence_signals = _to_confidence_signals(
             chunks=selected_chunks, rerank_applied=rerank_applied
         )
@@ -3251,8 +3318,14 @@ async def query_chat(
         confidence_score = confidence_result.score
         confidence_category = confidence_result.category
         confidence_explanation = confidence_result.explanation
+        _min_chunks_for_answer = (
+            _context_pack_result.not_found_min_chunks
+            if _context_pack_result is not None
+            else 1
+        )
         not_found = (
-            len(selected_chunks) == 0 or confidence_score < settings.confidence_not_found_threshold
+            len(selected_chunks) < _min_chunks_for_answer
+            or confidence_score < settings.confidence_not_found_threshold
         )
 
         if not_found:
