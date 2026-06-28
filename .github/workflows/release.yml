@@ -120,8 +120,11 @@ jobs:
         run: |
           # Next.js inlines NEXT_PUBLIC_* values at build time, so the
           # deployment-specific .env.production file must be the source of truth.
+          # Re-assert the staging API/app URLs after appending the secret blob so
+          # a stale value in FRONTEND_ENV_STAGING cannot override them.
           printf 'NEXT_PUBLIC_APP_URL=https://staging.getrudix.com\nNEXT_PUBLIC_API_URL=https://api-staging.getrudix.com/api/v1\n' > frontend/.env.production
           printf '%s\n' "${{ secrets.FRONTEND_ENV_STAGING }}" >> frontend/.env.production
+          printf 'NEXT_PUBLIC_APP_URL=https://staging.getrudix.com\nNEXT_PUBLIC_API_URL=https://api-staging.getrudix.com/api/v1\n' >> frontend/.env.production
           staging_tags=(--tag "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}")
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             staging_tags+=(--tag "${IMAGE_BASE}/frontend-staging:latest")
