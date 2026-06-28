@@ -118,11 +118,17 @@ jobs:
         env:
           IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
-          # Write all staging NEXT_PUBLIC_* vars from the secret as .env.production
-          # so Next.js loads them during npm run build (NODE_ENV=production).
-          # The --build-arg values for API/app URLs are set as process.env,
-          # which takes precedence over the file and is validated by next.config.ts.
-          printf '%s\n' "${{ secrets.FRONTEND_ENV_STAGING }}" > frontend/.env.production
+          # Write the critical URL vars first — dotenv takes the first occurrence
+          # of a duplicate key, so these win even if the secret has stale values.
+          # The secret provides all remaining NEXT_PUBLIC_* vars.
+          # next.config.ts calls assertFrontendRuntimeConfigForBuild() and will
+          # abort npm run build (and therefore the Docker build) if the URLs are
+          # missing or not valid http(s):// URLs.
+          {
+            printf 'NEXT_PUBLIC_API_URL=https://api-staging.getrudix.com/api/v1\n'
+            printf 'NEXT_PUBLIC_APP_URL=https://staging.getrudix.com\n'
+            printf '%s\n' "${{ secrets.FRONTEND_ENV_STAGING }}"
+          } > frontend/.env.production
           staging_tags=(--tag "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}")
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             staging_tags+=(--tag "${IMAGE_BASE}/frontend-staging:latest")
@@ -132,8 +138,6 @@ jobs:
           fi
           docker buildx build \
             --platform linux/amd64 \
-            --build-arg "NEXT_PUBLIC_API_URL=https://api-staging.getrudix.com/api/v1" \
-            --build-arg "NEXT_PUBLIC_APP_URL=https://staging.getrudix.com" \
             --push \
             "${staging_tags[@]}" \
             -f frontend/Dockerfile \
