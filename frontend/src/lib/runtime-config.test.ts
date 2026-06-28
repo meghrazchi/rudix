@@ -105,7 +105,11 @@ describe("frontend env usage", () => {
         if (!key) {
           continue;
         }
-        if (key === "NODE_ENV" || key === "NEXT_PHASE" || key.startsWith("NEXT_PUBLIC_")) {
+        if (
+          key === "NODE_ENV" ||
+          key === "NEXT_PHASE" ||
+          key.startsWith("NEXT_PUBLIC_")
+        ) {
           continue;
         }
         invalidReferences.push(`${path.relative(repoRoot, filePath)}:${key}`);
