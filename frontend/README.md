@@ -440,6 +440,9 @@ NEXT_PUBLIC_SUPPORT_EMAIL=
 
 `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_APP_URL` are required and validated at startup/build time.  
 Missing or invalid values stop production builds and render a safe startup error in runtime environments.
+Because these values are bundled by Next.js during `npm run build`, updating the container environment
+after the image is built will not change the API target. Rebuild the frontend image after changing any
+`NEXT_PUBLIC_*` value.
 
 Do not place private secrets (API keys, service tokens, signing secrets) in any `NEXT_PUBLIC_*` variable.  
 Only non-sensitive values intended for browser exposure should use the `NEXT_PUBLIC_` prefix.
