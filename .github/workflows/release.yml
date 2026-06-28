@@ -147,7 +147,14 @@ jobs:
         env:
           IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
-          printf '%s' "${{ secrets.FRONTEND_ENV_PRODUCTION }}" > frontend/.env.production
+          # Write the critical URL vars first — dotenv takes the first occurrence
+          # of a duplicate key, so these win even if the secret has stale values.
+          # The secret provides all remaining NEXT_PUBLIC_* vars.
+          {
+            printf 'NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1\n'
+            printf 'NEXT_PUBLIC_APP_URL=https://app.getrudix.com\n'
+            printf '%s\n' "${{ secrets.FRONTEND_ENV_PRODUCTION }}"
+          } > frontend/.env.production
           prod_tags=(--tag "${IMAGE_BASE}/frontend-production:${GITHUB_SHA}")
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             prod_tags+=(--tag "${IMAGE_BASE}/frontend-production:latest")
