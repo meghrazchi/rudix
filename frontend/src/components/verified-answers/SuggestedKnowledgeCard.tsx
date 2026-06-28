@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { searchVerifiedAnswers, type VerifiedAnswerResponse } from "@/lib/api/verified-answers";
+import {
+  searchVerifiedAnswers,
+  type VerifiedAnswerResponse,
+} from "@/lib/api/verified-answers";
 
 type Props = {
   query: string;

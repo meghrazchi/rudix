@@ -289,7 +289,15 @@ type DetailPanelProps = {
 
 const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
   function DetailPanel(
-    { item, onClose, onUpdate, onConvert, onRedact, onSaveAsKnowledgeCard, isUpdating },
+    {
+      item,
+      onClose,
+      onUpdate,
+      onConvert,
+      onRedact,
+      onSaveAsKnowledgeCard,
+      isUpdating,
+    },
     ref,
   ) {
     const [statusInput, setStatusInput] = useState<FeedbackReviewStatus>(

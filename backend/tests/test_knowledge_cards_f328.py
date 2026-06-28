@@ -427,7 +427,15 @@ async def test_k_http_duplicate_copies_citations(
     await _repo.replace_citations(
         db,
         card,
-        [{"document_id": str(doc.id), "chunk_id": None, "text_snippet": "snippet", "page_number": 1, "citation_order": 0}],
+        [
+            {
+                "document_id": str(doc.id),
+                "chunk_id": None,
+                "text_snippet": "snippet",
+                "page_number": 1,
+                "citation_order": 0,
+            }
+        ],
     )
     await db.commit()
 
@@ -450,7 +458,9 @@ async def test_l_deprecated_excluded_from_search(
     db: AsyncSession, org: Organization, admin_user: tuple, client: AsyncClient
 ) -> None:
     user, token = admin_user
-    card = await _create_draft(db, org.id, user.id, question="What is deprecation?", title="Dep card")
+    card = await _create_draft(
+        db, org.id, user.id, question="What is deprecation?", title="Dep card"
+    )
     await _publish_card(db, card)
     await _repo.deprecate(db, card)
     await db.commit()

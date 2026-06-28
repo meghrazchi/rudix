@@ -69,7 +69,12 @@ beforeEach(() => {
 
 describe("SuggestedKnowledgeCard", () => {
   it("renders nothing when no matches", async () => {
-    mockApi.searchVerifiedAnswers.mockResolvedValue({ items: [], total: 0, limit: 3, offset: 0 });
+    mockApi.searchVerifiedAnswers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 3,
+      offset: 0,
+    });
     const { container } = wrap(
       <SuggestedKnowledgeCard query="some random query" />,
     );
@@ -133,7 +138,9 @@ describe("SuggestedKnowledgeCard", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: /expand/i }));
     expect(screen.getByText(/how do i get a refund/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /collapse/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /collapse/i }),
+    ).toBeInTheDocument();
   });
 
   it("does not fetch when query is empty", async () => {

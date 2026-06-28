@@ -193,10 +193,7 @@ describe("KnowledgeCard F328 — published card actions", () => {
 describe("KnowledgeCard F328 — duplicate action", () => {
   it("shows Duplicate button for writer roles", () => {
     wrap(
-      <KnowledgeCard
-        answer={makeAnswer({ status: "draft" })}
-        queryKey={[]}
-      />,
+      <KnowledgeCard answer={makeAnswer({ status: "draft" })} queryKey={[]} />,
     );
     expect(
       screen.getByRole("button", { name: /duplicate/i }),
@@ -227,10 +224,7 @@ describe("KnowledgeCard F328 — duplicate action", () => {
   it("hides Duplicate for viewer roles", () => {
     mockPermissions.role = "viewer";
     wrap(
-      <KnowledgeCard
-        answer={makeAnswer({ status: "draft" })}
-        queryKey={[]}
-      />,
+      <KnowledgeCard answer={makeAnswer({ status: "draft" })} queryKey={[]} />,
     );
     expect(
       screen.queryByRole("button", { name: /duplicate/i }),

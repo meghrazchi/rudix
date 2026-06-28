@@ -809,9 +809,7 @@ async def duplicate_verified_answer(
         metadata={"title": copy.title, "source_id": answer_id},
     )
     await db.commit()
-    return _to_response(
-        await _load_answer_response(db, answer_id=copy.id, organization_id=org_id)
-    )
+    return _to_response(await _load_answer_response(db, answer_id=copy.id, organization_id=org_id))
 
 
 # ---------------------------------------------------------------------------

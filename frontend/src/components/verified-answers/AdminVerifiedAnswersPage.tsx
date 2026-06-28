@@ -43,7 +43,11 @@ export function AdminVerifiedAnswersPage() {
     { id: "pending", label: "Needs review", count: pendingCount },
     { id: "all", label: "All cards" },
     { id: "stale", label: "Stale / expiring" },
-    { id: "deprecated", label: "Deprecated", count: deprecatedCount > 0 ? deprecatedCount : undefined },
+    {
+      id: "deprecated",
+      label: "Deprecated",
+      count: deprecatedCount > 0 ? deprecatedCount : undefined,
+    },
   ];
 
   return (
