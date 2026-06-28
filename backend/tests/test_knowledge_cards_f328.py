@@ -418,7 +418,7 @@ async def test_k_http_duplicate_copies_citations(
         organization_id=org.id,
         filename="doc.pdf",
         status="indexed",
-        source_type="upload",
+        ingestion_source="upload",
     )
     db.add(doc)
     await db.flush()
