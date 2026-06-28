@@ -4,7 +4,7 @@
 	migrate test lint check-backend \
 	frontend-dev frontend-build frontend-lint frontend-typecheck frontend-test frontend-e2e frontend-format check-frontend \
 	api-types api-types-check api-types-update \
-	check-all \
+	check-all install-hooks \
 	eval-smoke eval-nightly
 
 COMPOSE := docker compose
@@ -153,6 +153,9 @@ check-all:
 	$(MAKE) check-backend
 	$(MAKE) check-frontend
 	$(MAKE) api-types-check
+
+install-hooks:
+	$(BACKEND_MAKE) install-hooks
 
 ## Local model benchmark (F226)
 # Run local model benchmark suites against cloud_baseline and local_profile, then

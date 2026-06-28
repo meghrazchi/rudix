@@ -1,0 +1,71 @@
+# Pre-commit hooks for Rudix.
+# Install once: make install-hooks
+# Run manually against all files: pre-commit run --all-files
+#
+# pre-commit hooks  — fast checks that gate every commit
+# pre-push hooks    — full test suites (slower, run on push)
+
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: local
+    hooks:
+      # ── Backend ────────────────────────────────────────────────────────────
+
+      - id: backend-format
+        name: "backend: ruff format"
+        stages: [pre-commit]
+        language: system
+        entry: bash -c 'cd backend && .venv/bin/ruff format --check app tests'
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-lint
+        name: "backend: ruff check + mypy"
+        stages: [pre-commit]
+        language: system
+        entry: bash -c 'cd backend && .venv/bin/ruff check app tests && .venv/bin/mypy app'
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-test
+        name: "backend: pytest"
+        stages: [pre-push]
+        language: system
+        entry: bash -c 'cd backend && .venv/bin/pytest -q --timeout=60'
+        pass_filenames: false
+        files: ^backend/
+
+      # ── Frontend ───────────────────────────────────────────────────────────
+
+      - id: frontend-format
+        name: "frontend: prettier"
+        stages: [pre-commit]
+        language: system
+        entry: bash -c 'cd frontend && npx prettier --check .'
+        pass_filenames: false
+        files: ^frontend/
+
+      - id: frontend-lint
+        name: "frontend: eslint"
+        stages: [pre-commit]
+        language: system
+        entry: bash -c 'cd frontend && npm run lint'
+        pass_filenames: false
+        files: ^frontend/.*\.[jt]sx?$
+
+      - id: frontend-typecheck
+        name: "frontend: tsc"
+        stages: [pre-commit]
+        language: system
+        entry: bash -c 'cd frontend && npm run typecheck'
+        pass_filenames: false
+        files: ^frontend/.*\.[jt]sx?$
+
+      - id: frontend-test
+        name: "frontend: vitest"
+        stages: [pre-push]
+        language: system
+        entry: bash -c 'cd frontend && npm test'
+        pass_filenames: false
+        files: ^frontend/

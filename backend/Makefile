@@ -1,4 +1,4 @@
-.PHONY: install venv lint test test-verbose audit run-api run-worker run-mcp-http run-mcp-stdio format check-revisions migrate downgrade seed-dev
+.PHONY: install venv lint test test-verbose audit run-api run-worker run-mcp-http run-mcp-stdio format check-revisions migrate downgrade seed-dev install-hooks
 
 PYTHON := python3
 VENV_DIR := .venv
@@ -19,6 +19,9 @@ venv:
 install: venv
 	$(PIP) install --upgrade pip
 	$(PIP) install -e .[dev]
+
+install-hooks: install
+	$(VENV_BIN)/pre-commit install --hook-type pre-commit --hook-type pre-push
 
 lint:
 	$(RUFF) check app tests
@@ -46,6 +49,7 @@ run-mcp-stdio:
 	$(PYTHON_VENV) -m app.mcp.main --transport stdio
 
 format:
+	$(RUFF) format app tests
 	$(RUFF) check app tests --fix
 
 check-revisions:
