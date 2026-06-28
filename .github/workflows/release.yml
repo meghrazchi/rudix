@@ -118,12 +118,11 @@ jobs:
         env:
           IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
-          # frontend/.env.staging is the committed source of truth for all
-          # staging NEXT_PUBLIC_* vars. Copy it as .env.production so Next.js
-          # loads it during npm run build (NODE_ENV=production).
+          # Write all staging NEXT_PUBLIC_* vars from the secret as .env.production
+          # so Next.js loads them during npm run build (NODE_ENV=production).
           # The --build-arg values for API/app URLs are set as process.env,
           # which takes precedence over the file and is validated by next.config.ts.
-          cp frontend/.env.staging frontend/.env.production
+          printf '%s\n' "${{ secrets.FRONTEND_ENV_STAGING }}" > frontend/.env.production
           staging_tags=(--tag "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}")
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             staging_tags+=(--tag "${IMAGE_BASE}/frontend-staging:latest")
