@@ -36,6 +36,26 @@ if (process.env.NEXT_PHASE === "phase-production-build") {
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
-const nextConfig: NextConfig = {};
+// When NEXT_PUBLIC_PROXY_TARGET is set, proxy /api/v1/* through the local
+// Next.js server so the browser sees same-origin requests (no CORS).
+// Set in .env.local when developing against a remote API (e.g. staging).
+// Staging/production deployments leave this unset and hit the API directly.
+const proxyTarget = (process.env.NEXT_PUBLIC_PROXY_TARGET ?? "").replace(
+  /\/$/,
+  "",
+);
+
+const nextConfig: NextConfig = {
+  ...(proxyTarget && {
+    async rewrites() {
+      return [
+        {
+          source: "/api/v1/:path*",
+          destination: `${proxyTarget}/:path*`,
+        },
+      ];
+    },
+  }),
+};
 
 export default withNextIntl(nextConfig);
