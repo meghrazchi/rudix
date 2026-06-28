@@ -835,9 +835,9 @@ async def create_from_feedback_item(
     knowledge card.  Falls back to the plain from-message path when the
     feedback item has a source message ID.
     """
+    from app.models.chat import ChatMessage
     from app.models.feedback_review_item import FeedbackReviewItem
     from app.models.message_feedback import MessageFeedback
-    from app.models.chat import ChatMessage
 
     org_id = _org_id(principal)
     user_id = _user_id(principal)

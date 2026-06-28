@@ -66,6 +66,8 @@ function makeAnswer(
     approved_by_id: null,
     approved_at: null,
     published_at: null,
+    deprecated_at: null,
+    restored_at: null,
     rejection_note: null,
     source_message_id: null,
     created_by_id: null,

@@ -101,9 +101,10 @@ describe("SuggestedKnowledgeCard", () => {
       offset: 0,
     });
     wrap(<SuggestedKnowledgeCard query="refund" />);
-    await waitFor(() =>
-      expect(screen.getByText(/verified/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => {
+      const matches = screen.getAllByText(/verified/i);
+      expect(matches.length).toBeGreaterThan(0);
+    });
   });
 
   it("shows stale warning when card is_stale", async () => {

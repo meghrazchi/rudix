@@ -137,8 +137,8 @@ export function CreateVerifiedAnswerModal({
           )}
           {mode.kind === "from-feedback" && (
             <div className="rounded-md bg-indigo-50 p-3 text-sm text-indigo-700">
-              This will create a draft knowledge card from the feedback item's
-              associated chat answer.
+              This will create a draft knowledge card from the feedback
+              item&apos;s associated chat answer.
             </div>
           )}
 

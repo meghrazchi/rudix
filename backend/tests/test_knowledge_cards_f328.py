@@ -409,7 +409,6 @@ async def test_j_http_duplicate_card(
 async def test_k_http_duplicate_copies_citations(
     db: AsyncSession, org: Organization, admin_user: tuple, client: AsyncClient
 ) -> None:
-    from uuid import uuid4
     from app.models.document import Document
 
     user, token = admin_user
