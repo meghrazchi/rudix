@@ -12,7 +12,7 @@ const STATUS_CONFIG: Record<
     bg: "bg-gray-100",
   },
   pending_review: {
-    label: "Pending review",
+    label: "Needs review",
     color: "text-amber-700",
     bg: "bg-amber-50 border border-amber-200",
   },
@@ -30,6 +30,11 @@ const STATUS_CONFIG: Record<
     label: "Archived",
     color: "text-gray-500",
     bg: "bg-gray-100",
+  },
+  deprecated: {
+    label: "Deprecated",
+    color: "text-rose-700",
+    bg: "bg-rose-50 border border-rose-200",
   },
 };
 

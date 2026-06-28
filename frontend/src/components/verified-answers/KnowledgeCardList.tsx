@@ -16,9 +16,10 @@ const PAGE_SIZE = 20;
 const STATUS_OPTIONS: { value: VerifiedAnswerStatus | ""; label: string }[] = [
   { value: "", label: "All statuses" },
   { value: "draft", label: "Draft" },
-  { value: "pending_review", label: "Pending review" },
+  { value: "pending_review", label: "Needs review" },
   { value: "approved", label: "Approved" },
-  { value: "published", label: "Published" },
+  { value: "published", label: "Verified" },
+  { value: "deprecated", label: "Deprecated" },
   { value: "archived", label: "Archived" },
 ];
 

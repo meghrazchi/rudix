@@ -31,7 +31,7 @@ class VerifiedAnswer(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "verified_answers"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('draft', 'pending_review', 'approved', 'published', 'archived')",
+            "status IN ('draft', 'pending_review', 'approved', 'published', 'archived', 'deprecated')",
             name="verified_answers_status_allowed",
         ),
         Index("idx_verified_answers_org_status", "organization_id", "status"),
@@ -73,6 +73,8 @@ class VerifiedAnswer(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deprecated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    restored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     rejection_note: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 
     # When promoted from a chat message.

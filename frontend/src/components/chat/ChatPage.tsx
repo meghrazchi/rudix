@@ -15,6 +15,8 @@ import {
 
 import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import { FeedbackModal } from "@/components/chat/FeedbackModal";
+import { CreateVerifiedAnswerModal } from "@/components/verified-answers/CreateVerifiedAnswerModal";
+import { SuggestedKnowledgeCard } from "@/components/verified-answers/SuggestedKnowledgeCard";
 import {
   TrustPanelFeedbackModal,
   type TrustPanelCitationRef,
@@ -901,6 +903,9 @@ export function ChatPage() {
   >(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [openTrustPanelMessageId, setOpenTrustPanelMessageId] = useState<
+    string | null
+  >(null);
+  const [saveKnowledgeCardMessageId, setSaveKnowledgeCardMessageId] = useState<
     string | null
   >(null);
   const [trustPanelFeedbackMessageId, setTrustPanelFeedbackMessageId] =
@@ -2578,6 +2583,14 @@ export function ChatPage() {
                                   </p>
                                 ) : null}
 
+                                {!turn.response.not_found && (
+                                  <SuggestedKnowledgeCard
+                                    query={turn.question}
+                                    collectionId={
+                                      selectedCollectionIds[0] ?? null
+                                    }
+                                  />
+                                )}
                                 {turn.response.not_found ? (
                                   <div className="space-y-2">
                                     <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
@@ -2822,6 +2835,11 @@ export function ChatPage() {
                                           setTrustPanelFeedbackContext(context);
                                         }
                                       : undefined
+                                  }
+                                  onSaveAsKnowledgeCard={() =>
+                                    setSaveKnowledgeCardMessageId(
+                                      turn.response.message_id,
+                                    )
                                   }
                                 />
                               )}
@@ -4223,6 +4241,16 @@ export function ChatPage() {
             );
           })()
         : null}
+      {saveKnowledgeCardMessageId ? (
+        <CreateVerifiedAnswerModal
+          mode={{
+            kind: "from-message",
+            messageId: saveKnowledgeCardMessageId,
+          }}
+          onClose={() => setSaveKnowledgeCardMessageId(null)}
+          invalidateKey={["verified-answers"]}
+        />
+      ) : null}
     </>
   );
 }

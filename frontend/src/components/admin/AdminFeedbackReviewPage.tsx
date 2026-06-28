@@ -11,6 +11,7 @@ import React, {
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { CreateVerifiedAnswerModal } from "@/components/verified-answers/CreateVerifiedAnswerModal";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -282,12 +283,13 @@ type DetailPanelProps = {
   onUpdate: (reviewId: string, payload: UpdateReviewItemPayload) => void;
   onConvert: (reviewId: string) => void;
   onRedact: (feedbackId: string) => void;
+  onSaveAsKnowledgeCard: (reviewId: string) => void;
   isUpdating: boolean;
 };
 
 const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
   function DetailPanel(
-    { item, onClose, onUpdate, onConvert, onRedact, isUpdating },
+    { item, onClose, onUpdate, onConvert, onRedact, onSaveAsKnowledgeCard, isUpdating },
     ref,
   ) {
     const [statusInput, setStatusInput] = useState<FeedbackReviewStatus>(
@@ -510,7 +512,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
           </section>
         ) : null}
 
-        {/* F303 quick actions */}
+        {/* F303 / F328 quick actions */}
         {item.review_id ? (
           <div className="mb-4 flex flex-wrap gap-2">
             {!isConverted ? (
@@ -522,6 +524,13 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
                 Convert to eval case
               </button>
             ) : null}
+            <button
+              type="button"
+              onClick={() => onSaveAsKnowledgeCard(item.review_id)}
+              className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+            >
+              Save as knowledge card
+            </button>
             {!isRedacted && item.feedback ? (
               <button
                 type="button"
@@ -687,6 +696,9 @@ export function AdminFeedbackReviewPage() {
   const [selectedItem, setSelectedItem] =
     useState<FeedbackReviewItemResponse | null>(null);
   const [convertReviewId, setConvertReviewId] = useState<string | null>(null);
+  const [saveKnowledgeCardReviewId, setSaveKnowledgeCardReviewId] = useState<
+    string | null
+  >(null);
 
   const panelRef = useRef<HTMLElement | null>(null);
   const tableHostRef = useRef<HTMLDivElement | null>(null);
@@ -1259,6 +1271,9 @@ export function AdminFeedbackReviewPage() {
                 updateMutation.mutate({ reviewId, payload })
               }
               onConvert={(reviewId) => setConvertReviewId(reviewId)}
+              onSaveAsKnowledgeCard={(reviewId) =>
+                setSaveKnowledgeCardReviewId(reviewId)
+              }
               onRedact={(feedbackId) => redactMutation.mutate(feedbackId)}
               isUpdating={updateMutation.isPending}
             />
@@ -1283,6 +1298,13 @@ export function AdminFeedbackReviewPage() {
             setConvertReviewId(null);
             setSelectedItem(null);
           }}
+        />
+      ) : null}
+      {saveKnowledgeCardReviewId ? (
+        <CreateVerifiedAnswerModal
+          mode={{ kind: "from-feedback", reviewId: saveKnowledgeCardReviewId }}
+          onClose={() => setSaveKnowledgeCardReviewId(null)}
+          invalidateKey={["verified-answers"]}
         />
       ) : null}
     </section>

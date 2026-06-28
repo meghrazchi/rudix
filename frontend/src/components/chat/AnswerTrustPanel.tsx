@@ -54,6 +54,8 @@ export type TrustPanelProps = {
     trustScore: number;
     trustLevel: string | null;
   }) => void;
+  /** F328 — called when the user wants to save this answer as a knowledge card. */
+  onSaveAsKnowledgeCard?: () => void;
 };
 
 function pct(v: number | null | undefined): string {
@@ -516,6 +518,7 @@ export function AnswerTrustPanel({
   showInterpretationDetails = false,
   onOpenCitation,
   onReportIssue,
+  onSaveAsKnowledgeCard,
 }: TrustPanelProps) {
   const [diagnosticsMode, setDiagnosticsMode] = useState<"basic" | "expert">(
     "basic",
@@ -748,6 +751,23 @@ export function AnswerTrustPanel({
           ) : null}
         </div>
         <div className="flex items-center gap-2">
+          {onSaveAsKnowledgeCard ? (
+            <button
+              type="button"
+              data-testid="trust-panel-save-knowledge-card-btn"
+              onClick={onSaveAsKnowledgeCard}
+              className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-medium text-indigo-700 hover:bg-indigo-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+              aria-label="Save as knowledge card"
+            >
+              <span
+                className="material-symbols-outlined text-[12px]"
+                aria-hidden="true"
+              >
+                bookmark_add
+              </span>
+              Save as card
+            </button>
+          ) : null}
           {onReportIssue ? (
             <button
               type="button"

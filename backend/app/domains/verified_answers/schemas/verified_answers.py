@@ -128,7 +128,7 @@ class VerifiedAnswerResponse(BaseModel):
     title: str
     question: str
     answer_text: str
-    status: Literal["draft", "pending_review", "approved", "published", "archived"]
+    status: Literal["draft", "pending_review", "approved", "published", "archived", "deprecated"]
     tags: str | None
     collection_id: str | None
     owner_id: str | None
@@ -138,6 +138,8 @@ class VerifiedAnswerResponse(BaseModel):
     approved_by_id: str | None
     approved_at: datetime | None
     published_at: datetime | None
+    deprecated_at: datetime | None
+    restored_at: datetime | None
     rejection_note: str | None
     source_message_id: str | None
     created_by_id: str | None

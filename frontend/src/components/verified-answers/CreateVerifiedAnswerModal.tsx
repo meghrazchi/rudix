@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   createVerifiedAnswer,
+  createVerifiedAnswerFromFeedback,
   createVerifiedAnswerFromMessage,
   type CitationIn,
   type CreateVerifiedAnswerRequest,
@@ -22,8 +23,13 @@ type FromMessageMode = {
   prefillCitations?: CitationIn[];
 };
 
+type FromFeedbackMode = {
+  kind: "from-feedback";
+  reviewId: string;
+};
+
 type Props = {
-  mode: ManualMode | FromMessageMode;
+  mode: ManualMode | FromMessageMode | FromFeedbackMode;
   onClose: () => void;
   onCreated?: (answerId: string) => void;
   invalidateKey?: unknown[];
@@ -42,6 +48,8 @@ export function CreateVerifiedAnswerModal({
   const [answerText, setAnswerText] = useState(
     mode.kind === "from-message" ? (mode.prefillAnswerText ?? "") : "",
   );
+  const isFromExternal =
+    mode.kind === "from-message" || mode.kind === "from-feedback";
   const [tags, setTags] = useState("");
   const [reviewDate, setReviewDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
@@ -50,6 +58,16 @@ export function CreateVerifiedAnswerModal({
     mutationFn: async () => {
       if (mode.kind === "from-message") {
         return createVerifiedAnswerFromMessage(mode.messageId, {
+          title: title.trim(),
+          question: question.trim() || undefined,
+          tags: tags.trim() || undefined,
+          review_date: reviewDate || undefined,
+          expiry_date: expiryDate || undefined,
+        });
+      }
+
+      if (mode.kind === "from-feedback") {
+        return createVerifiedAnswerFromFeedback(mode.reviewId, {
           title: title.trim(),
           question: question.trim() || undefined,
           tags: tags.trim() || undefined,
@@ -79,7 +97,7 @@ export function CreateVerifiedAnswerModal({
 
   const canSubmit =
     title.trim().length > 0 &&
-    (mode.kind === "from-message" ||
+    (isFromExternal ||
       (question.trim().length > 0 && answerText.trim().length > 0));
 
   return (
@@ -94,7 +112,9 @@ export function CreateVerifiedAnswerModal({
           <h2 className="text-base font-semibold text-gray-900">
             {mode.kind === "from-message"
               ? "Promote to knowledge card"
-              : "New knowledge card"}
+              : mode.kind === "from-feedback"
+                ? "Save answer as knowledge card"
+                : "New knowledge card"}
           </h2>
           <button
             onClick={onClose}
@@ -113,6 +133,12 @@ export function CreateVerifiedAnswerModal({
             <div className="rounded-md bg-indigo-50 p-3 text-sm text-indigo-700">
               This will create a draft knowledge card from the selected answer.
               Citations will be copied automatically.
+            </div>
+          )}
+          {mode.kind === "from-feedback" && (
+            <div className="rounded-md bg-indigo-50 p-3 text-sm text-indigo-700">
+              This will create a draft knowledge card from the feedback item's
+              associated chat answer.
             </div>
           )}
 
@@ -134,7 +160,7 @@ export function CreateVerifiedAnswerModal({
             />
           </div>
 
-          {mode.kind !== "from-message" && (
+          {!isFromExternal && (
             <div>
               <label
                 htmlFor="ka-question"
@@ -154,7 +180,7 @@ export function CreateVerifiedAnswerModal({
             </div>
           )}
 
-          {mode.kind !== "from-message" && (
+          {!isFromExternal && (
             <div>
               <label
                 htmlFor="ka-answer"
@@ -173,7 +199,7 @@ export function CreateVerifiedAnswerModal({
             </div>
           )}
 
-          {mode.kind === "from-message" && (
+          {isFromExternal && (
             <div>
               <label
                 htmlFor="ka-question-override"

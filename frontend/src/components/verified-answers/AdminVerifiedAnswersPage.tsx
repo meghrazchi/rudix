@@ -12,8 +12,9 @@ import { listVerifiedAnswers } from "@/lib/api/verified-answers";
 import { usePermissions } from "@/lib/use-permissions";
 
 const PENDING_KEY = ["verified-answers", { status: "pending_review" }];
+const DEPRECATED_KEY = ["verified-answers", { status: "deprecated" }];
 
-type Tab = "pending" | "all" | "stale";
+type Tab = "pending" | "all" | "stale" | "deprecated";
 
 export function AdminVerifiedAnswersPage() {
   const { hasPermission } = usePermissions();
@@ -26,16 +27,23 @@ export function AdminVerifiedAnswersPage() {
       listVerifiedAnswers({ status: "pending_review", limit: 100 }),
   });
 
+  const { data: deprecatedData } = useQuery({
+    queryKey: DEPRECATED_KEY,
+    queryFn: () => listVerifiedAnswers({ status: "deprecated", limit: 100 }),
+  });
+
   if (!hasPermission("knowledge_card:manage")) {
     return <ForbiddenState />;
   }
 
   const pendingCount = pendingData?.total ?? 0;
+  const deprecatedCount = deprecatedData?.total ?? 0;
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
-    { id: "pending", label: "Pending review", count: pendingCount },
+    { id: "pending", label: "Needs review", count: pendingCount },
     { id: "all", label: "All cards" },
     { id: "stale", label: "Stale / expiring" },
+    { id: "deprecated", label: "Deprecated", count: deprecatedCount > 0 ? deprecatedCount : undefined },
   ];
 
   return (
@@ -90,6 +98,12 @@ export function AdminVerifiedAnswersPage() {
       )}
       {activeTab === "all" && <KnowledgeCardList showStatusFilter />}
       {activeTab === "stale" && <StaleCardsPanel />}
+      {activeTab === "deprecated" && (
+        <KnowledgeCardList
+          defaultStatus="deprecated"
+          showStatusFilter={false}
+        />
+      )}
 
       {showCreate && (
         <CreateVerifiedAnswerModal
@@ -125,7 +139,7 @@ function StaleCardsPanel() {
   return (
     <div>
       <p className="mb-4 text-sm text-amber-700">
-        {staleItems.length} published card
+        {staleItems.length} verified card
         {staleItems.length !== 1 ? "s are" : " is"} past their review or expiry
         date.
       </p>

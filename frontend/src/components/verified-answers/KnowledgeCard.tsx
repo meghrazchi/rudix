@@ -9,6 +9,9 @@ import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   archiveVerifiedAnswer,
+  deprecateVerifiedAnswer,
+  duplicateVerifiedAnswer,
+  restoreVerifiedAnswer,
   submitForReview,
   approveVerifiedAnswer,
   rejectVerifiedAnswer,
@@ -22,9 +25,15 @@ type Props = {
   answer: VerifiedAnswerResponse;
   queryKey: unknown[];
   showActions?: boolean;
+  onDuplicated?: (newAnswerId: string) => void;
 };
 
-export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
+export function KnowledgeCard({
+  answer,
+  queryKey,
+  showActions = true,
+  onDuplicated,
+}: Props) {
   const qc = useQueryClient();
   const { role } = usePermissions();
   const [rejectNote, setRejectNote] = useState("");
@@ -64,20 +73,41 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
     mutationFn: () => archiveVerifiedAnswer(answer.answer_id),
     onSuccess: invalidate,
   });
+  const deprecateMutation = useMutation({
+    mutationFn: () => deprecateVerifiedAnswer(answer.answer_id),
+    onSuccess: invalidate,
+  });
+  const restoreMutation = useMutation({
+    mutationFn: () => restoreVerifiedAnswer(answer.answer_id),
+    onSuccess: invalidate,
+  });
+  const duplicateMutation = useMutation({
+    mutationFn: () => duplicateVerifiedAnswer(answer.answer_id),
+    onSuccess: (result) => {
+      invalidate();
+      onDuplicated?.(result.answer_id);
+    },
+  });
 
   const anyLoading =
     submitMutation.isPending ||
     approveMutation.isPending ||
     rejectMutation.isPending ||
     publishMutation.isPending ||
-    archiveMutation.isPending;
+    archiveMutation.isPending ||
+    deprecateMutation.isPending ||
+    restoreMutation.isPending ||
+    duplicateMutation.isPending;
 
   const mutationError =
     submitMutation.error ||
     approveMutation.error ||
     rejectMutation.error ||
     publishMutation.error ||
-    archiveMutation.error;
+    archiveMutation.error ||
+    deprecateMutation.error ||
+    restoreMutation.error ||
+    duplicateMutation.error;
 
   const tags = answer.tags
     ? answer.tags
@@ -85,6 +115,9 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
         .map((t) => t.trim())
         .filter(Boolean)
     : [];
+
+  const isRestorable =
+    answer.status === "archived" || answer.status === "deprecated";
 
   return (
     <article
@@ -172,7 +205,14 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
         </div>
       )}
 
-      {answer.is_stale && (
+      {answer.status === "deprecated" && (
+        <div className="mt-3 rounded-md bg-rose-50 p-2 text-xs text-rose-700">
+          This card has been deprecated and will not be surfaced as a suggested
+          answer. Restore it to make it active again.
+        </div>
+      )}
+
+      {answer.is_stale && answer.status !== "deprecated" && (
         <div className="mt-3 rounded-md bg-amber-50 p-2 text-xs text-amber-700">
           ⚠ This card is past its review or expiry date and may be outdated.
         </div>
@@ -184,7 +224,7 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
         </p>
       )}
 
-      {showActions && answer.status !== "archived" && (
+      {showActions && (
         <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-3">
           {answer.status === "draft" && isWriter && (
             <button
@@ -222,7 +262,47 @@ export function KnowledgeCard({ answer, queryKey, showActions = true }: Props) {
               Publish
             </button>
           )}
-          {isAdmin && (
+          {answer.status === "published" && isAdmin && (
+            <button
+              onClick={() => {
+                if (
+                  confirm(
+                    "Mark this card as deprecated? It will no longer surface as a suggested answer.",
+                  )
+                ) {
+                  deprecateMutation.mutate();
+                }
+              }}
+              disabled={anyLoading}
+              className="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+            >
+              Deprecate
+            </button>
+          )}
+          {isRestorable && isAdmin && (
+            <button
+              onClick={() => {
+                if (confirm("Restore this card to draft?")) {
+                  restoreMutation.mutate();
+                }
+              }}
+              disabled={anyLoading}
+              className="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+            >
+              Restore
+            </button>
+          )}
+          {isWriter && (
+            <button
+              onClick={() => duplicateMutation.mutate()}
+              disabled={anyLoading}
+              title="Create a draft copy of this card"
+              className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Duplicate
+            </button>
+          )}
+          {isAdmin && !isRestorable && (
             <button
               onClick={() => {
                 if (confirm("Archive this knowledge card?")) {

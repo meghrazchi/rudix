@@ -5,7 +5,8 @@ export type VerifiedAnswerStatus =
   | "pending_review"
   | "approved"
   | "published"
-  | "archived";
+  | "archived"
+  | "deprecated";
 
 export type CitationIn = {
   document_id: string;
@@ -52,6 +53,8 @@ export type VerifiedAnswerResponse = {
   approved_by_id: string | null;
   approved_at: string | null;
   published_at: string | null;
+  deprecated_at: string | null;
+  restored_at: string | null;
   rejection_note: string | null;
   source_message_id: string | null;
   created_by_id: string | null;
@@ -244,5 +247,46 @@ export async function searchVerifiedAnswers(
         limit: options.limit,
       },
     },
+  );
+}
+
+// ── F328 — deprecate / restore / duplicate ────────────────────────────────────
+
+export async function deprecateVerifiedAnswer(
+  answerId: string,
+): Promise<VerifiedAnswerResponse> {
+  return apiRequest<VerifiedAnswerResponse>(
+    `/verified-answers/${encodeURIComponent(answerId)}/deprecate`,
+    { method: "POST" },
+  );
+}
+
+export async function restoreVerifiedAnswer(
+  answerId: string,
+): Promise<VerifiedAnswerResponse> {
+  return apiRequest<VerifiedAnswerResponse>(
+    `/verified-answers/${encodeURIComponent(answerId)}/restore`,
+    { method: "POST" },
+  );
+}
+
+export async function duplicateVerifiedAnswer(
+  answerId: string,
+): Promise<VerifiedAnswerResponse> {
+  return apiRequest<VerifiedAnswerResponse>(
+    `/verified-answers/${encodeURIComponent(answerId)}/duplicate`,
+    { method: "POST" },
+  );
+}
+
+// ── F328 — Create from feedback review item ───────────────────────────────────
+
+export async function createVerifiedAnswerFromFeedback(
+  itemId: string,
+  payload: CreateFromChatRequest,
+): Promise<VerifiedAnswerResponse> {
+  return apiRequest<VerifiedAnswerResponse>(
+    `/verified-answers/from-feedback/${encodeURIComponent(itemId)}`,
+    { method: "POST", json: payload },
   );
 }

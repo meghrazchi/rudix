@@ -131,6 +131,8 @@ def _to_response(answer: VerifiedAnswer) -> VerifiedAnswerResponse:
         approved_by_id=str(answer.approved_by_id) if answer.approved_by_id else None,
         approved_at=answer.approved_at,
         published_at=answer.published_at,
+        deprecated_at=answer.deprecated_at,
+        restored_at=answer.restored_at,
         rejection_note=answer.rejection_note,
         source_message_id=str(answer.source_message_id) if answer.source_message_id else None,
         created_by_id=str(answer.created_by_id) if answer.created_by_id else None,
@@ -683,6 +685,215 @@ async def create_from_chat_message(
         resource_id=answer.id,
         request_id=_request_id(request),
         metadata={"title": answer.title, "source_message_id": message_id},
+    )
+    await db.commit()
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
+
+
+# ---------------------------------------------------------------------------
+# F328 — deprecate, restore, duplicate
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{answer_id}/deprecate", response_model=VerifiedAnswerResponse)
+async def deprecate_verified_answer(
+    answer_id: str,
+    request: Request,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> VerifiedAnswerResponse:
+    """Mark a knowledge card as deprecated (admin only).
+
+    Deprecated cards are still retrievable but are excluded from suggested
+    answers and displayed with a warning badge.
+    """
+    org_id = _org_id(principal)
+    user_id = _user_id(principal)
+    answer_uuid = _parse_uuid(answer_id, "Verified answer")
+    answer = await _load_answer_response(db, answer_id=answer_uuid, organization_id=org_id)
+    if answer.status in ("archived", "deprecated"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Card is already deprecated or archived",
+        )
+
+    await _repo.deprecate(db, answer)
+    await db.commit()
+    await db.refresh(answer)
+
+    await _audit.record(
+        db,
+        organization_id=org_id,
+        user_id=user_id,
+        action="verified_answer.deprecated",
+        resource_type="verified_answer",
+        resource_id=answer.id,
+        request_id=_request_id(request),
+        metadata={"title": answer.title},
+    )
+    await db.commit()
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
+
+
+@router.post("/{answer_id}/restore", response_model=VerifiedAnswerResponse)
+async def restore_verified_answer(
+    answer_id: str,
+    request: Request,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> VerifiedAnswerResponse:
+    """Restore an archived or deprecated card back to draft (admin only)."""
+    org_id = _org_id(principal)
+    user_id = _user_id(principal)
+    answer_uuid = _parse_uuid(answer_id, "Verified answer")
+    answer = await _load_answer_response(db, answer_id=answer_uuid, organization_id=org_id)
+    if answer.status not in ("archived", "deprecated"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only archived or deprecated cards can be restored",
+        )
+
+    await _repo.restore(db, answer, restored_by_id=user_id)
+    await db.commit()
+    await db.refresh(answer)
+
+    await _audit.record(
+        db,
+        organization_id=org_id,
+        user_id=user_id,
+        action="verified_answer.restored",
+        resource_type="verified_answer",
+        resource_id=answer.id,
+        request_id=_request_id(request),
+        metadata={"title": answer.title},
+    )
+    await db.commit()
+    return _to_response(
+        await _load_answer_response(db, answer_id=answer.id, organization_id=org_id)
+    )
+
+
+@router.post(
+    "/{answer_id}/duplicate",
+    response_model=VerifiedAnswerResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_verified_answer(
+    answer_id: str,
+    request: Request,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> VerifiedAnswerResponse:
+    """Create a draft copy of an existing knowledge card."""
+    org_id = _org_id(principal)
+    user_id = _user_id(principal)
+    answer_uuid = _parse_uuid(answer_id, "Verified answer")
+    source = await _load_answer_response(db, answer_id=answer_uuid, organization_id=org_id)
+
+    copy = await _repo.duplicate(db, source, created_by_id=user_id)
+    await db.commit()
+    await db.refresh(copy)
+
+    await _audit.record(
+        db,
+        organization_id=org_id,
+        user_id=user_id,
+        action="verified_answer.duplicated",
+        resource_type="verified_answer",
+        resource_id=copy.id,
+        request_id=_request_id(request),
+        metadata={"title": copy.title, "source_id": answer_id},
+    )
+    await db.commit()
+    return _to_response(
+        await _load_answer_response(db, answer_id=copy.id, organization_id=org_id)
+    )
+
+
+# ---------------------------------------------------------------------------
+# F328 — Create from feedback review item
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/from-feedback/{item_id}",
+    response_model=VerifiedAnswerResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_from_feedback_item(
+    item_id: str,
+    request: Request,
+    payload: CreateFromChatRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> VerifiedAnswerResponse:
+    """Promote a feedback review item's associated chat message into a draft
+    knowledge card.  Falls back to the plain from-message path when the
+    feedback item has a source message ID.
+    """
+    from app.models.feedback_review_item import FeedbackReviewItem
+    from app.models.message_feedback import MessageFeedback
+    from app.models.chat import ChatMessage
+
+    org_id = _org_id(principal)
+    user_id = _user_id(principal)
+    item_uuid = _parse_uuid(item_id, "Feedback item")
+    collection_uuid: UUID | None = None
+    if payload.collection_id:
+        collection_uuid = _parse_uuid(payload.collection_id, "Collection")
+
+    from sqlalchemy import select as sa_select
+
+    result = await db.execute(
+        sa_select(FeedbackReviewItem, MessageFeedback, ChatMessage)
+        .join(MessageFeedback, FeedbackReviewItem.feedback_id == MessageFeedback.id)
+        .join(ChatMessage, MessageFeedback.message_id == ChatMessage.id)
+        .where(
+            FeedbackReviewItem.id == item_uuid,
+            FeedbackReviewItem.organization_id == org_id,
+        )
+    )
+    row = result.first()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedback item not found")
+
+    _item, _feedback, chat_msg = row
+    answer_text: str = getattr(chat_msg, "content", "") or ""
+    source_msg_id: UUID | None = chat_msg.id
+    question: str = payload.question or answer_text[:200]
+
+    answer = await _repo.create(
+        db,
+        organization_id=org_id,
+        title=payload.title,
+        question=question,
+        answer_text=answer_text,
+        tags=payload.tags,
+        collection_id=collection_uuid,
+        owner_id=user_id,
+        requires_citations=False,
+        review_date=payload.review_date,
+        expiry_date=payload.expiry_date,
+        source_message_id=source_msg_id,
+        created_by_id=user_id,
+    )
+
+    await db.commit()
+    await db.refresh(answer)
+
+    await _audit.record(
+        db,
+        organization_id=org_id,
+        user_id=user_id,
+        action="verified_answer.created_from_feedback",
+        resource_type="verified_answer",
+        resource_id=answer.id,
+        request_id=_request_id(request),
+        metadata={"title": answer.title, "feedback_item_id": item_id},
     )
     await db.commit()
     return _to_response(

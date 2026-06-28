@@ -238,6 +238,78 @@ class VerifiedAnswerRepository:
         answer.status = "archived"
         await db.flush()
 
+    async def deprecate(
+        self,
+        db: AsyncSession,
+        answer: VerifiedAnswer,
+    ) -> None:
+        now = datetime.now(UTC)
+        answer.status = "deprecated"
+        answer.deprecated_at = now
+        await db.flush()
+
+    async def restore(
+        self,
+        db: AsyncSession,
+        answer: VerifiedAnswer,
+        *,
+        restored_by_id: UUID,
+    ) -> None:
+        now = datetime.now(UTC)
+        answer.status = "draft"
+        answer.restored_at = now
+        await db.flush()
+        await self._snapshot_version(
+            db, answer, change_reason="restored_from_archive", changed_by_id=restored_by_id
+        )
+
+    async def duplicate(
+        self,
+        db: AsyncSession,
+        source: VerifiedAnswer,
+        *,
+        created_by_id: UUID,
+    ) -> VerifiedAnswer:
+        copy = VerifiedAnswer(
+            organization_id=source.organization_id,
+            title=f"Copy of {source.title}",
+            question=source.question,
+            answer_text=source.answer_text,
+            status="draft",
+            tags=source.tags,
+            collection_id=source.collection_id,
+            owner_id=created_by_id,
+            requires_citations=source.requires_citations,
+            review_date=source.review_date,
+            expiry_date=source.expiry_date,
+            source_message_id=source.source_message_id,
+            created_by_id=created_by_id,
+        )
+        db.add(copy)
+        await db.flush()
+        # Copy citations.
+        existing = await db.execute(
+            select(VerifiedAnswerCitation).where(
+                VerifiedAnswerCitation.verified_answer_id == source.id
+            )
+        )
+        for cit in existing.scalars().all():
+            db.add(
+                VerifiedAnswerCitation(
+                    verified_answer_id=copy.id,
+                    document_id=cit.document_id,
+                    chunk_id=cit.chunk_id,
+                    text_snippet=cit.text_snippet,
+                    page_number=cit.page_number,
+                    citation_order=cit.citation_order,
+                )
+            )
+        await db.flush()
+        await self._snapshot_version(
+            db, copy, change_reason="duplicated", changed_by_id=created_by_id
+        )
+        return copy
+
     # ------------------------------------------------------------------
     # Citations
     # ------------------------------------------------------------------
