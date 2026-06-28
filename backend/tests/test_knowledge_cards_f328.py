@@ -207,7 +207,8 @@ async def test_b2_restore_snapshots_version(
     user, _ = admin_user
     card = await _create_draft(db, org.id, user.id)
     await _repo.archive(db, card)
-    initial_version_count = len(card.versions)
+    versions_before = await _repo.list_versions(db, answer_id=card.id, organization_id=org.id)
+    initial_version_count = len(versions_before)
 
     await _repo.restore(db, card, restored_by_id=user.id)
     await db.flush()
@@ -415,7 +416,6 @@ async def test_k_http_duplicate_copies_citations(
     # Create a dummy document so the FK is valid.
     doc = Document(
         organization_id=org.id,
-        title="Doc",
         filename="doc.pdf",
         status="indexed",
         source_type="upload",
