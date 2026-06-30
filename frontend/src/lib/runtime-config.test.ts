@@ -127,6 +127,53 @@ describe("runtime config parsing", () => {
     expect(config.apiUrl).toBe("https://api.getrudix.com/api/v1");
     expect(config.appUrl).toBe("https://getrudix.com");
   });
+
+  it("replaces a stale localhost API URL on the staging public host", () => {
+    const { config, errors } = parseFrontendRuntimeConfig(
+      buildEnv({
+        NEXT_PUBLIC_DEPLOYMENT_ENV: "development",
+        NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1",
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      }),
+      { publicOrigin: "https://staging.getrudix.com" },
+    );
+
+    expect(errors).toEqual([]);
+    expect(config.deploymentEnvironment).toBe("staging");
+    expect(config.apiUrl).toBe("https://api-staging.getrudix.com/api/v1");
+    expect(config.appUrl).toBe("https://staging.getrudix.com");
+  });
+
+  it("replaces a stale localhost API URL on the production public host", () => {
+    const { config, errors } = parseFrontendRuntimeConfig(
+      buildEnv({
+        NEXT_PUBLIC_DEPLOYMENT_ENV: undefined,
+        NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1",
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      }),
+      { publicOrigin: "https://getrudix.com" },
+    );
+
+    expect(errors).toEqual([]);
+    expect(config.deploymentEnvironment).toBe("production");
+    expect(config.apiUrl).toBe("https://api.getrudix.com/api/v1");
+    expect(config.appUrl).toBe("https://getrudix.com");
+  });
+
+  it("keeps localhost URLs when the browser is local", () => {
+    const { config, errors } = parseFrontendRuntimeConfig(
+      buildEnv({
+        NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1",
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      }),
+      { publicOrigin: "http://localhost:3000" },
+    );
+
+    expect(errors).toEqual([]);
+    expect(config.deploymentEnvironment).toBe("other");
+    expect(config.apiUrl).toBe("http://localhost:8000/api/v1");
+    expect(config.appUrl).toBe("http://localhost:3000");
+  });
 });
 
 describe("frontend env usage", () => {

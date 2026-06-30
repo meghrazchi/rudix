@@ -1,6 +1,10 @@
 const DEFAULT_API_URL = "http://localhost:8000/api/v1";
 const DEFAULT_APP_URL = "http://localhost:3000";
 const PRODUCTION_LIKE_ENVIRONMENTS = new Set(["staging", "production"]);
+const RUDIX_STAGING_APP_URL = "https://staging.getrudix.com";
+const RUDIX_STAGING_API_URL = "https://api-staging.getrudix.com/api/v1";
+const RUDIX_PRODUCTION_APP_URL = "https://getrudix.com";
+const RUDIX_PRODUCTION_API_URL = "https://api.getrudix.com/api/v1";
 
 export type FrontendAuthProvider = "app" | "clerk" | "other";
 export type FrontendDeploymentEnvironment =
@@ -38,6 +42,19 @@ export type FrontendRuntimeConfig = {
 export type FrontendRuntimeConfigValidation = {
   config: FrontendRuntimeConfig;
   errors: string[];
+};
+
+export type FrontendRuntimeConfigParseOptions = {
+  publicOrigin?: string | null;
+};
+
+type PublicUrlFallback = {
+  apiUrl: string;
+  appUrl: string;
+  deploymentEnvironment: Extract<
+    FrontendDeploymentEnvironment,
+    "staging" | "production"
+  >;
 };
 
 function trimToNull(value: string | undefined): string | null {
@@ -86,6 +103,13 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/$/, "");
 }
 
+function getBrowserOrigin(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return trimToNull(window.location?.origin);
+}
+
 function isLoopbackPublicHost(host: string): boolean {
   const normalized = host.toLowerCase().replace(/^\[|\]$/g, "");
   return (
@@ -95,6 +119,55 @@ function isLoopbackPublicHost(host: string): boolean {
     normalized === "0.0.0.0" ||
     normalized.startsWith("127.")
   );
+}
+
+function isLoopbackPublicUrl(value: string): boolean {
+  try {
+    return isLoopbackPublicHost(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function inferRudixPublicUrlFallback(
+  publicOrigin: string | null | undefined,
+): PublicUrlFallback | null {
+  const origin = trimToNull(publicOrigin ?? undefined);
+  if (!origin) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(origin);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (isLoopbackPublicHost(hostname)) {
+      return null;
+    }
+
+    if (hostname === "staging.getrudix.com") {
+      return {
+        apiUrl: RUDIX_STAGING_API_URL,
+        appUrl: RUDIX_STAGING_APP_URL,
+        deploymentEnvironment: "staging",
+      };
+    }
+
+    if (hostname === "getrudix.com" || hostname === "www.getrudix.com") {
+      return {
+        apiUrl: RUDIX_PRODUCTION_API_URL,
+        appUrl: RUDIX_PRODUCTION_APP_URL,
+        deploymentEnvironment: "production",
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 function toDeploymentEnvironment(env: NodeJS.ProcessEnv): {
@@ -181,9 +254,11 @@ function validateProductionLikeUrl(
 
 export function parseFrontendRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env,
+  options: FrontendRuntimeConfigParseOptions = {},
 ): FrontendRuntimeConfigValidation {
   const errors: string[] = [];
   const deploymentEnvironment = toDeploymentEnvironment(env);
+  const publicUrlFallback = inferRudixPublicUrlFallback(options.publicOrigin);
   const apiUrl = parseRequiredHttpUrl(
     env,
     "NEXT_PUBLIC_API_URL",
@@ -194,28 +269,49 @@ export function parseFrontendRuntimeConfig(
     "NEXT_PUBLIC_APP_URL",
     DEFAULT_APP_URL,
   );
+  const resolvedApiUrl =
+    publicUrlFallback && isLoopbackPublicUrl(apiUrl.value)
+      ? publicUrlFallback.apiUrl
+      : apiUrl.value;
+  const resolvedAppUrl =
+    publicUrlFallback && isLoopbackPublicUrl(appUrl.value)
+      ? publicUrlFallback.appUrl
+      : appUrl.value;
+  const usingPublicUrlFallback =
+    publicUrlFallback !== null &&
+    (resolvedApiUrl !== apiUrl.value || resolvedAppUrl !== appUrl.value);
+  const resolvedDeploymentEnvironment = usingPublicUrlFallback
+    ? publicUrlFallback.deploymentEnvironment
+    : deploymentEnvironment.normalized;
+  const resolvedDeploymentEnvironmentRaw = usingPublicUrlFallback
+    ? publicUrlFallback.deploymentEnvironment
+    : deploymentEnvironment.raw;
+  const apiUrlError =
+    apiUrl.error && resolvedApiUrl === apiUrl.value ? apiUrl.error : null;
+  const appUrlError =
+    appUrl.error && resolvedAppUrl === appUrl.value ? appUrl.error : null;
 
-  if (apiUrl.error) {
-    errors.push(apiUrl.error);
+  if (apiUrlError) {
+    errors.push(apiUrlError);
   }
-  if (appUrl.error) {
-    errors.push(appUrl.error);
+  if (appUrlError) {
+    errors.push(appUrlError);
   }
-  if (!apiUrl.error) {
+  if (!apiUrlError) {
     errors.push(
       ...validateProductionLikeUrl(
         "NEXT_PUBLIC_API_URL",
-        apiUrl.value,
-        deploymentEnvironment.normalized,
+        resolvedApiUrl,
+        resolvedDeploymentEnvironment,
       ),
     );
   }
-  if (!appUrl.error) {
+  if (!appUrlError) {
     errors.push(
       ...validateProductionLikeUrl(
         "NEXT_PUBLIC_APP_URL",
-        appUrl.value,
-        deploymentEnvironment.normalized,
+        resolvedAppUrl,
+        resolvedDeploymentEnvironment,
       ),
     );
   }
@@ -224,10 +320,10 @@ export function parseFrontendRuntimeConfig(
 
   return {
     config: {
-      apiUrl: apiUrl.value,
-      appUrl: appUrl.value,
-      deploymentEnvironment: deploymentEnvironment.normalized,
-      deploymentEnvironmentRaw: deploymentEnvironment.raw,
+      apiUrl: resolvedApiUrl,
+      appUrl: resolvedAppUrl,
+      deploymentEnvironment: resolvedDeploymentEnvironment,
+      deploymentEnvironmentRaw: resolvedDeploymentEnvironmentRaw,
       authProvider: authProvider.normalized,
       authProviderRaw: authProvider.raw,
       features: {
@@ -268,7 +364,9 @@ export function parseFrontendRuntimeConfig(
 export function getFrontendRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): FrontendRuntimeConfig {
-  return parseFrontendRuntimeConfig(env).config;
+  return parseFrontendRuntimeConfig(env, {
+    publicOrigin: getBrowserOrigin(),
+  }).config;
 }
 
 export function getFrontendRuntimeConfigErrors(

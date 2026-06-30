@@ -445,7 +445,9 @@ HTTPS public URLs and reject `localhost`/loopback API or app URLs. Missing, inva
 production builds and render a safe startup error in runtime environments.
 Because these values are bundled by Next.js during `npm run build`, updating the container environment
 after the image is built will not change the API target. Rebuild the frontend image after changing any
-`NEXT_PUBLIC_*` value.
+`NEXT_PUBLIC_*` value. As a safety net, browser runtime config on `staging.getrudix.com` and
+`getrudix.com` replaces a stale loopback API URL with the matching public HTTPS API endpoint, but this
+does not replace setting the correct build-time environment.
 
 Do not place private secrets (API keys, service tokens, signing secrets) in any `NEXT_PUBLIC_*` variable.  
 Only non-sensitive values intended for browser exposure should use the `NEXT_PUBLIC_` prefix.
