@@ -144,6 +144,10 @@ The workflows rely on the repository's committed defaults and do not require a s
 - `PRODUCTION_QDRANT_BACKUP_PATH`
 - `PRODUCTION_BACKUP_CHECK_OK`
 
+Production uses `https://getrudix.com` as the public frontend URL and
+`https://api.getrudix.com/api/v1` as the browser API base URL. Keep
+`PRODUCTION_ENV_URL` aligned with `https://getrudix.com`.
+
 ### Evaluation and quality gates
 
 - `RUDIX_API_BASE_URL`

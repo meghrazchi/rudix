@@ -334,6 +334,8 @@ When deleting a document:
 - [ ] Rate limiting enabled.
 - [ ] Request IDs enabled.
 - [ ] CORS configured.
+- [ ] Public API/frontend base URLs use HTTPS and do not point to loopback hosts
+      in staging or production.
 - [ ] Error responses standardized.
 - [ ] Input validation with Pydantic.
 - [ ] Sentry integrated.

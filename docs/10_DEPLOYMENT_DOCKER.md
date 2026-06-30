@@ -187,7 +187,9 @@ Self-hosted Next.js container behind Nginx or Traefik
 Frontend env vars:
 
 ```env
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+NEXT_PUBLIC_DEPLOYMENT_ENV=production
+NEXT_PUBLIC_APP_URL=https://getrudix.com
+NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1
 NEXT_PUBLIC_AUTH_PROVIDER=clerk
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 ```
@@ -222,6 +224,9 @@ Frontend:   Container platform (ECS / Fly.io / Render / Railway / Kubernetes)
 
 ```env
 ENVIRONMENT=production
+API_BASE_URL=https://api.getrudix.com
+FRONTEND_BASE_URL=https://getrudix.com
+CORS_ORIGINS=https://getrudix.com
 DATABASE_URL=
 QDRANT_URL=
 QDRANT_API_KEY=
@@ -242,6 +247,12 @@ OPENAI_LLM_OUTPUT_COST_PER_MILLION_TOKENS_USD=0.0
 SENTRY_DSN=
 ```
 
+For staging and production, the public URL variables must be HTTPS and must not
+point to `localhost` or other loopback addresses. The backend uses `API_BASE_URL`
+and `FRONTEND_BASE_URL` for redirects, callbacks, email links, and generated
+resource URLs. The frontend uses `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_APP_URL`
+at build time, so rebuild the frontend image after changing them.
+
 ## Release checklist
 
 Before deployment:
@@ -253,6 +264,7 @@ Before deployment:
 - Verify MinIO bucket exists.
 - Verify RabbitMQ and worker connectivity.
 - Verify Redis connectivity.
+- Verify staging/production public URLs use the HTTPS frontend and API domains.
 - Verify auth token validation.
 - Verify file upload size limits.
 - Verify Sentry events.

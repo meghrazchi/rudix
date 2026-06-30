@@ -55,6 +55,7 @@ describe("runtime config parsing", () => {
     expect(errors).toEqual([]);
     expect(config.apiUrl).toBe("https://api.example.com/v1");
     expect(config.appUrl).toBe("https://app.example.com");
+    expect(config.deploymentEnvironment).toBe("other");
     expect(config.authProvider).toBe("clerk");
     expect(config.features).toEqual({
       collectionsEnabled: true,
@@ -78,6 +79,53 @@ describe("runtime config parsing", () => {
     expect(errors).toContain(
       "NEXT_PUBLIC_API_URL is required and must be an absolute http(s) URL.",
     );
+  });
+
+  it("rejects localhost URLs for staging builds", () => {
+    const { errors } = parseFrontendRuntimeConfig(
+      buildEnv({
+        NEXT_PUBLIC_DEPLOYMENT_ENV: "staging",
+        NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1",
+        NEXT_PUBLIC_APP_URL: "https://staging.getrudix.com",
+      }),
+    );
+
+    expect(errors).toContain(
+      "NEXT_PUBLIC_API_URL must use https:// when NEXT_PUBLIC_DEPLOYMENT_ENV is staging or production.",
+    );
+    expect(errors).toContain(
+      "NEXT_PUBLIC_API_URL must not point to localhost when NEXT_PUBLIC_DEPLOYMENT_ENV is staging or production.",
+    );
+  });
+
+  it("accepts the staging frontend and API URLs", () => {
+    const { config, errors } = parseFrontendRuntimeConfig(
+      buildEnv({
+        NEXT_PUBLIC_DEPLOYMENT_ENV: "staging",
+        NEXT_PUBLIC_API_URL: "https://api-staging.getrudix.com/api/v1",
+        NEXT_PUBLIC_APP_URL: "https://staging.getrudix.com",
+      }),
+    );
+
+    expect(errors).toEqual([]);
+    expect(config.deploymentEnvironment).toBe("staging");
+    expect(config.apiUrl).toBe("https://api-staging.getrudix.com/api/v1");
+    expect(config.appUrl).toBe("https://staging.getrudix.com");
+  });
+
+  it("accepts the production frontend and API URLs", () => {
+    const { config, errors } = parseFrontendRuntimeConfig(
+      buildEnv({
+        NEXT_PUBLIC_DEPLOYMENT_ENV: "production",
+        NEXT_PUBLIC_API_URL: "https://api.getrudix.com/api/v1",
+        NEXT_PUBLIC_APP_URL: "https://getrudix.com",
+      }),
+    );
+
+    expect(errors).toEqual([]);
+    expect(config.deploymentEnvironment).toBe("production");
+    expect(config.apiUrl).toBe("https://api.getrudix.com/api/v1");
+    expect(config.appUrl).toBe("https://getrudix.com");
   });
 });
 

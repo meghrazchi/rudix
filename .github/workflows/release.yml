@@ -118,16 +118,15 @@ jobs:
         env:
           IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
-          # Write the critical URL vars first — dotenv takes the first occurrence
-          # of a duplicate key, so these win even if the secret has stale values.
-          # The secret provides all remaining NEXT_PUBLIC_* vars.
-          # next.config.ts calls assertFrontendRuntimeConfigForBuild() and will
-          # abort npm run build (and therefore the Docker build) if the URLs are
-          # missing or not valid http(s):// URLs.
+          # Strip deploy-owned URL keys from the secret before writing the known
+          # staging values, so stale localhost values cannot be baked into Next.
+          # next.config.ts aborts npm run build (and therefore the Docker build)
+          # if the public URLs are missing, invalid, or unsafe for staging.
           {
+            printf 'NEXT_PUBLIC_DEPLOYMENT_ENV=staging\n'
             printf 'NEXT_PUBLIC_API_URL=https://api-staging.getrudix.com/api/v1\n'
             printf 'NEXT_PUBLIC_APP_URL=https://staging.getrudix.com\n'
-            printf '%s\n' "${{ secrets.FRONTEND_ENV_STAGING }}"
+            printf '%s\n' "${{ secrets.FRONTEND_ENV_STAGING }}" | awk '!/^(NEXT_PUBLIC_DEPLOYMENT_ENV|NEXT_PUBLIC_ENVIRONMENT|NEXT_PUBLIC_API_URL|NEXT_PUBLIC_APP_URL)=/'
           } > frontend/.env.production
           staging_tags=(--tag "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}")
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
@@ -147,13 +146,13 @@ jobs:
         env:
           IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
-          # Write the critical URL vars first — dotenv takes the first occurrence
-          # of a duplicate key, so these win even if the secret has stale values.
-          # The secret provides all remaining NEXT_PUBLIC_* vars.
+          # Strip deploy-owned URL keys from the secret before writing the known
+          # production values, so stale localhost values cannot be baked into Next.
           {
+            printf 'NEXT_PUBLIC_DEPLOYMENT_ENV=production\n'
             printf 'NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1\n'
-            printf 'NEXT_PUBLIC_APP_URL=https://app.getrudix.com\n'
-            printf '%s\n' "${{ secrets.FRONTEND_ENV_PRODUCTION }}"
+            printf 'NEXT_PUBLIC_APP_URL=https://getrudix.com\n'
+            printf '%s\n' "${{ secrets.FRONTEND_ENV_PRODUCTION }}" | awk '!/^(NEXT_PUBLIC_DEPLOYMENT_ENV|NEXT_PUBLIC_ENVIRONMENT|NEXT_PUBLIC_API_URL|NEXT_PUBLIC_APP_URL)=/'
           } > frontend/.env.production
           prod_tags=(--tag "${IMAGE_BASE}/frontend-production:${GITHUB_SHA}")
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
@@ -394,6 +393,29 @@ jobs:
           terraform init -input=false
           terraform apply -auto-approve -input=false
 
+      - name: Smoke test staging public endpoints
+        env:
+          STAGING_APP_URL: ${{ secrets.STAGING_ENV_URL }}
+          STAGING_API_URL: https://api-staging.getrudix.com/api/v1
+        run: |
+          app_origin="${STAGING_APP_URL%/}"
+          api_origin="${STAGING_API_URL%/}"
+
+          curl -fsS "${app_origin}" >/dev/null
+          curl -fsS "${api_origin}/health" >/dev/null
+
+          preflight_status="$(
+            curl -s -o /dev/null -w "%{http_code}" \
+              -X OPTIONS \
+              -H "Origin: ${app_origin}" \
+              -H "Access-Control-Request-Method: POST" \
+              "${api_origin}/chat"
+          )"
+          if [ "${preflight_status}" != "200" ] && [ "${preflight_status}" != "204" ]; then
+            echo "Unexpected staging API preflight status: ${preflight_status}"
+            exit 1
+          fi
+
       - name: Write staging deployment metadata
         env:
           DEPLOY_API_IMAGE: ${{ needs.build-images.outputs.api_image }}
@@ -474,6 +496,11 @@ jobs:
               exit 1
             fi
           done
+
+          if [ "${PRODUCTION_ENV_URL%/}" != "https://getrudix.com" ]; then
+            echo "PRODUCTION_ENV_URL must be https://getrudix.com"
+            exit 1
+          fi
         env:
           PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
@@ -529,6 +556,29 @@ jobs:
         run: |
           terraform init -input=false
           terraform apply -auto-approve -input=false
+
+      - name: Smoke test production public endpoints
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_ENV_URL }}
+          PRODUCTION_API_URL: https://api.getrudix.com/api/v1
+        run: |
+          app_origin="${PRODUCTION_APP_URL%/}"
+          api_origin="${PRODUCTION_API_URL%/}"
+
+          curl -fsS "${app_origin}" >/dev/null
+          curl -fsS "${api_origin}/health" >/dev/null
+
+          preflight_status="$(
+            curl -s -o /dev/null -w "%{http_code}" \
+              -X OPTIONS \
+              -H "Origin: ${app_origin}" \
+              -H "Access-Control-Request-Method: POST" \
+              "${api_origin}/chat"
+          )"
+          if [ "${preflight_status}" != "200" ] && [ "${preflight_status}" != "204" ]; then
+            echo "Unexpected production API preflight status: ${preflight_status}"
+            exit 1
+          fi
 
       - name: Write production deployment metadata
         env:

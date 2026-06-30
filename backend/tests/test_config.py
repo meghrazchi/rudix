@@ -183,6 +183,51 @@ def test_malformed_url_fails_fast() -> None:
         Settings(_env_file=None, **payload)
 
 
+def test_staging_rejects_localhost_public_urls() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.staging
+
+    with pytest.raises(ValidationError, match="api_base_url must use https"):
+        Settings(_env_file=None, **payload)
+
+
+def test_staging_accepts_https_public_urls() -> None:
+    payload = valid_settings_kwargs()
+    payload.update(
+        {
+            "environment": Environment.staging,
+            "api_base_url": "https://api-staging.getrudix.com",
+            "frontend_base_url": "https://staging.getrudix.com",
+            "cors_origins": "https://staging.getrudix.com",
+        }
+    )
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.environment == Environment.staging
+    assert str(settings.api_base_url) == "https://api-staging.getrudix.com/"
+    assert str(settings.frontend_base_url) == "https://staging.getrudix.com/"
+
+
+def test_production_accepts_getrudix_public_urls() -> None:
+    payload = valid_settings_kwargs()
+    payload.update(
+        {
+            "environment": Environment.production,
+            "api_base_url": "https://api.getrudix.com",
+            "frontend_base_url": "https://getrudix.com",
+            "cors_origins": "https://getrudix.com",
+            "sentry_dsn": "https://public@example.com/1",
+        }
+    )
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.environment == Environment.production
+    assert str(settings.api_base_url) == "https://api.getrudix.com/"
+    assert str(settings.frontend_base_url) == "https://getrudix.com/"
+
+
 def test_invalid_numeric_limit_fails_fast() -> None:
     payload = valid_settings_kwargs()
     payload["max_upload_size_mb"] = 0

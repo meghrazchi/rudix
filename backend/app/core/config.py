@@ -263,6 +263,29 @@ class Settings(BaseSettings):
             return secret.get_secret_value()
         return str(secret)
 
+    @staticmethod
+    def _is_loopback_public_host(host: str) -> bool:
+        normalized = host.lower().strip("[]")
+        return (
+            normalized == "localhost"
+            or normalized.endswith(".localhost")
+            or normalized == "::1"
+            or normalized == "0.0.0.0"
+            or normalized.startswith("127.")
+        )
+
+    @classmethod
+    def _validate_production_public_url(cls, field_name: str, url: AnyHttpUrl) -> None:
+        parsed = urlsplit(str(url))
+        if parsed.scheme != "https":
+            raise ValueError(
+                f"{field_name} must use https:// in staging or production environments"
+            )
+        if parsed.hostname and cls._is_loopback_public_host(parsed.hostname):
+            raise ValueError(
+                f"{field_name} must not point to localhost in staging or production environments"
+            )
+
     environment: Environment = Environment.development
     log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
     log_format: LogFormat = LogFormat.auto
@@ -1044,6 +1067,13 @@ class Settings(BaseSettings):
     def validate_consistency(self) -> "Settings":
         if not self.cors_origins:
             self.cors_origins = [self.frontend_base_url]
+
+        if self.environment in {Environment.production, Environment.staging}:
+            self._validate_production_public_url("api_base_url", self.api_base_url)
+            self._validate_production_public_url(
+                "frontend_base_url",
+                self.frontend_base_url,
+            )
 
         if self.feature_enable_agents is None:
             self.feature_enable_agents = self.environment in {

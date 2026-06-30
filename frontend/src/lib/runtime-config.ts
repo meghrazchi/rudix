@@ -1,7 +1,14 @@
 const DEFAULT_API_URL = "http://localhost:8000/api/v1";
 const DEFAULT_APP_URL = "http://localhost:3000";
+const PRODUCTION_LIKE_ENVIRONMENTS = new Set(["staging", "production"]);
 
 export type FrontendAuthProvider = "app" | "clerk" | "other";
+export type FrontendDeploymentEnvironment =
+  | "development"
+  | "test"
+  | "staging"
+  | "production"
+  | "other";
 
 export type FrontendFeatureFlags = {
   developerMode: boolean;
@@ -20,6 +27,8 @@ export type FrontendAnalyticsConfig = {
 export type FrontendRuntimeConfig = {
   apiUrl: string;
   appUrl: string;
+  deploymentEnvironment: FrontendDeploymentEnvironment;
+  deploymentEnvironmentRaw: string;
   authProvider: FrontendAuthProvider;
   authProviderRaw: string;
   analytics: FrontendAnalyticsConfig;
@@ -77,6 +86,40 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/$/, "");
 }
 
+function isLoopbackPublicHost(host: string): boolean {
+  const normalized = host.toLowerCase().replace(/^\[|\]$/g, "");
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized === "::1" ||
+    normalized === "0.0.0.0" ||
+    normalized.startsWith("127.")
+  );
+}
+
+function toDeploymentEnvironment(env: NodeJS.ProcessEnv): {
+  normalized: FrontendDeploymentEnvironment;
+  raw: string;
+} {
+  const raw =
+    trimToNull(env.NEXT_PUBLIC_DEPLOYMENT_ENV) ??
+    trimToNull(env.NEXT_PUBLIC_ENVIRONMENT) ??
+    trimToNull(env.NEXT_PUBLIC_SENTRY_ENVIRONMENT) ??
+    "";
+  const normalized = raw.toLowerCase();
+
+  if (
+    normalized === "development" ||
+    normalized === "test" ||
+    normalized === "staging" ||
+    normalized === "production"
+  ) {
+    return { normalized, raw: normalized };
+  }
+
+  return { normalized: "other", raw: normalized };
+}
+
 function parseRequiredHttpUrl(
   env: NodeJS.ProcessEnv,
   key: "NEXT_PUBLIC_API_URL" | "NEXT_PUBLIC_APP_URL",
@@ -108,10 +151,39 @@ function parseRequiredHttpUrl(
   return { value: normalizeBaseUrl(raw), error: null };
 }
 
+function validateProductionLikeUrl(
+  key: "NEXT_PUBLIC_API_URL" | "NEXT_PUBLIC_APP_URL",
+  value: string,
+  deploymentEnvironment: FrontendDeploymentEnvironment,
+): string[] {
+  if (!PRODUCTION_LIKE_ENVIRONMENTS.has(deploymentEnvironment)) {
+    return [];
+  }
+
+  const errors: string[] = [];
+  const parsed = new URL(value);
+  const hostname = parsed.hostname.toLowerCase();
+
+  if (parsed.protocol !== "https:") {
+    errors.push(
+      `${key} must use https:// when NEXT_PUBLIC_DEPLOYMENT_ENV is staging or production.`,
+    );
+  }
+
+  if (isLoopbackPublicHost(hostname)) {
+    errors.push(
+      `${key} must not point to localhost when NEXT_PUBLIC_DEPLOYMENT_ENV is staging or production.`,
+    );
+  }
+
+  return errors;
+}
+
 export function parseFrontendRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): FrontendRuntimeConfigValidation {
   const errors: string[] = [];
+  const deploymentEnvironment = toDeploymentEnvironment(env);
   const apiUrl = parseRequiredHttpUrl(
     env,
     "NEXT_PUBLIC_API_URL",
@@ -129,6 +201,24 @@ export function parseFrontendRuntimeConfig(
   if (appUrl.error) {
     errors.push(appUrl.error);
   }
+  if (!apiUrl.error) {
+    errors.push(
+      ...validateProductionLikeUrl(
+        "NEXT_PUBLIC_API_URL",
+        apiUrl.value,
+        deploymentEnvironment.normalized,
+      ),
+    );
+  }
+  if (!appUrl.error) {
+    errors.push(
+      ...validateProductionLikeUrl(
+        "NEXT_PUBLIC_APP_URL",
+        appUrl.value,
+        deploymentEnvironment.normalized,
+      ),
+    );
+  }
 
   const authProvider = toAuthProvider(env.NEXT_PUBLIC_AUTH_PROVIDER);
 
@@ -136,6 +226,8 @@ export function parseFrontendRuntimeConfig(
     config: {
       apiUrl: apiUrl.value,
       appUrl: appUrl.value,
+      deploymentEnvironment: deploymentEnvironment.normalized,
+      deploymentEnvironmentRaw: deploymentEnvironment.raw,
       authProvider: authProvider.normalized,
       authProviderRaw: authProvider.raw,
       features: {

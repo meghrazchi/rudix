@@ -353,6 +353,7 @@ cp .env.example .env.local
 Required values:
 
 ```env
+NEXT_PUBLIC_DEPLOYMENT_ENV=development
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_QUERY_STALE_TIME_MS=10000
@@ -438,8 +439,10 @@ NEXT_PUBLIC_SUPPORT_URL=
 NEXT_PUBLIC_SUPPORT_EMAIL=
 ```
 
-`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_APP_URL` are required and validated at startup/build time.  
-Missing or invalid values stop production builds and render a safe startup error in runtime environments.
+`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_APP_URL` are required and validated at startup/build time.
+Set `NEXT_PUBLIC_DEPLOYMENT_ENV=staging` or `production` for deployed builds; those environments require
+HTTPS public URLs and reject `localhost`/loopback API or app URLs. Missing, invalid, or unsafe values stop
+production builds and render a safe startup error in runtime environments.
 Because these values are bundled by Next.js during `npm run build`, updating the container environment
 after the image is built will not change the API target. Rebuild the frontend image after changing any
 `NEXT_PUBLIC_*` value.

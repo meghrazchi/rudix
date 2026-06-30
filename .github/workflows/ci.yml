@@ -202,7 +202,13 @@ jobs:
         run: npm ci
 
       - name: Write frontend env
-        run: printf '%s' "${{ secrets.FRONTEND_ENV_STAGING }}" > frontend/.env.local
+        run: |
+          {
+            printf 'NEXT_PUBLIC_DEPLOYMENT_ENV=staging\n'
+            printf 'NEXT_PUBLIC_API_URL=https://api-staging.getrudix.com/api/v1\n'
+            printf 'NEXT_PUBLIC_APP_URL=https://staging.getrudix.com\n'
+            printf '%s\n' "${{ secrets.FRONTEND_ENV_STAGING }}" | awk '!/^(NEXT_PUBLIC_DEPLOYMENT_ENV|NEXT_PUBLIC_ENVIRONMENT|NEXT_PUBLIC_API_URL|NEXT_PUBLIC_APP_URL)=/'
+          } > frontend/.env.local
 
       - name: Format, lint, and typecheck
         working-directory: frontend
@@ -222,4 +228,3 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
-
