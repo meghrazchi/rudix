@@ -21,6 +21,7 @@ Covers:
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncIterator
 from uuid import uuid4
 
 import pytest
@@ -48,6 +49,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.auth.token_codec import create_app_access_token
 from app.core.config import settings
+from app.db.session import get_db_session
 from app.domains.collections.services.dynamic_rule_service import (
     DynamicRuleService,
     DynamicRuleValidationError,
@@ -233,28 +235,7 @@ async def test_validate_in_operator_requires_list():
         )
 
 
-# ─── Service integration tests (require DB) ───────────────────────────────────
-
-
-@pytest_asyncio.fixture
-async def db_session():
-    import socket
-
-    try:
-        socket.create_connection(("localhost", 5432), timeout=1).close()
-    except OSError:
-        pytest.skip("PostgreSQL not available at localhost:5432")
-
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-    from app.core.config import settings
-
-    engine = create_async_engine(str(settings.database_url), echo=False)
-    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_factory() as session:
-        yield session
-        await session.rollback()
-    await engine.dispose()
+# ─── Service integration tests ────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
@@ -386,12 +367,16 @@ async def test_refresh_membership_clears_stale(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def http_client():
-    from app.db.session import engine as _app_engine
+async def http_client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+    async def _override_get_db_session() -> AsyncIterator[AsyncSession]:
+        yield db_session
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        yield client
-    await _app_engine.dispose()
+    app.dependency_overrides[get_db_session] = _override_get_db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            yield client
+    finally:
+        app.dependency_overrides.pop(get_db_session, None)
 
 
 @pytest.mark.asyncio
