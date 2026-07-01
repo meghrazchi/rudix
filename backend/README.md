@@ -119,6 +119,7 @@ Current endpoint authorization:
 - `documents/upload` and `documents/upload-url`: `owner|admin|member`
 - `evaluations` (POST): `owner|admin`
 - `admin/usage`, `admin/audit-logs`, `admin/audit-logs/export`, and `admin/governance`: `owner|admin`
+- `admin/portability/*`: `owner|admin`; creates sanitized workspace export/import jobs and downloadable JSON artifacts
 - `admin/bots/*`: `owner|admin`
 - `status`: public-safe snapshot endpoint with no auth; uses `PUBLIC_STATUS_ORGANIZATION_SLUG` when configured to source incidents from the public Rudix status org
 - `bots/slack/events` and `bots/teams/events`: public transport endpoints guarded by Slack signatures or Teams bearer secret when configured.

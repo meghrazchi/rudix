@@ -112,3 +112,8 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="organization",
         cascade="all, delete-orphan",
     )
+    portability_jobs = relationship(
+        "WorkspacePortabilityJob",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )

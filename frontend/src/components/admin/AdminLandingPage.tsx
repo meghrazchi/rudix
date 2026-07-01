@@ -619,6 +619,13 @@ export function AdminLandingPage() {
                 status="configurable"
                 actionLabel="Manage Quotas"
               />
+              <SmallCard
+                title="Data Portability"
+                description="Request sanitized workspace exports, validate imports, and download completed artifacts."
+                href="/admin/portability"
+                status="available"
+                actionLabel="Open Portability"
+              />
             </div>
           </div>
 

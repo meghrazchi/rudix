@@ -65,6 +65,9 @@ describe("AdminLandingPage", () => {
       "href",
       "/admin/memory",
     );
+    expect(
+      screen.getByRole("link", { name: /Open Portability/i }),
+    ).toHaveAttribute("href", "/admin/portability");
     expect(screen.getAllByText(/unavailable/i).length).toBeGreaterThan(0);
   });
 

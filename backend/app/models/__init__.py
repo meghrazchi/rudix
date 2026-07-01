@@ -81,6 +81,7 @@ from app.models.organization import Organization
 from app.models.organization_invitation import OrganizationInvitation
 from app.models.organization_member import OrganizationMember
 from app.models.pipeline import PipelineEvent, PipelineRun
+from app.models.portability import WorkspacePortabilityJob
 from app.models.prompt_template import PromptTemplate, PromptTemplateVersion
 from app.models.quality_gate import QualityGate, QualityGateRun
 from app.models.query_analytics import KnowledgeGap
@@ -208,4 +209,5 @@ __all__ = [
     "VerifiedAnswerVersion",
     "Webhook",
     "WebhookDelivery",
+    "WorkspacePortabilityJob",
 ]

@@ -213,6 +213,8 @@ export const queryKeys = {
     mcpTools: ["admin", "mcp", "tools"] as const,
     mcpAuditEvents: (params?: Record<string, unknown>) =>
       ["admin", "mcp", "audit-events", params ?? {}] as const,
+    portabilityJobs: (params?: Record<string, unknown>) =>
+      ["admin", "portability", "jobs", params ?? {}] as const,
   },
   featureFlags: ["feature-flags"] as const,
   statusBanner: ["status", "banner"] as const,

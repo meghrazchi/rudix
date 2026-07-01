@@ -76,6 +76,7 @@ Supported document types include:
 - Multilingual UI locales plus language-aware chat, OCR, and document controls
 - Slack and Microsoft Teams bot ask interface with mapped-user permissions
 - Audit logs for upload/delete/query/evaluation/admin actions (with sensitive metadata redaction)
+- Admin-controlled workspace data import/export for metadata, collections, chats, evaluations, audit records, and safe configuration portability
 - Standalone MCP server mode for read-only context tools (disabled by default)
 - Background processing with Celery
 - PostgreSQL metadata storage

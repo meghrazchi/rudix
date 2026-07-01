@@ -314,6 +314,29 @@ Audit explorer/export requirements:
 - Export only safe structured metadata (no secrets, tokens, or raw private document text).
 - Respect configured workspace retention policies for audit-data lifecycle.
 
+## Workspace portability
+
+Export/import requirements:
+
+- Restrict portability endpoints to `owner|admin`.
+- Enforce organization scope on job listing, detail, and artifact downloads.
+- Exclude original document files, extracted document text, embeddings, vector
+  payloads, storage object keys, raw API keys, API key hashes, webhook secret
+  hashes, OAuth tokens, connector credentials, and secret material from exports.
+- Sanitize chat transcripts, audit metadata, evaluation details, and settings
+  snapshots for token/secret-shaped values before writing an artifact.
+- Validate import artifacts before processing; failed validation must create no
+  workspace records.
+- Treat document manifests as metadata only. Do not create document rows,
+  object-storage objects, chunks, embeddings, or vectors from import artifacts.
+- Keep import support limited to safe records: collections, metadata field
+  definitions, and evaluation datasets until a separate file-ingestion flow is
+  approved.
+- Record export/import requests and validation failures in the audit log with
+  safe metadata only.
+- Apply row caps, artifact expiry, and retention/legal-hold metadata handling to
+  portability jobs.
+
 ## Data deletion
 
 When deleting a document:

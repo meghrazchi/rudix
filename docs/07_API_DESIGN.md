@@ -2067,6 +2067,89 @@ Behavior:
 - Returns downloadable attachments with sanitized metadata only.
 - Never includes raw auth secrets, tokens, or private document body text.
 
+## Workspace Portability
+
+### POST `/admin/portability/exports`
+
+Creates a workspace export job and returns the completed job record with a
+downloadable JSON artifact.
+
+- Requires `owner|admin`.
+- Supported sections: `collections`, `document_metadata`, `chat_transcripts`,
+  `evaluation_datasets`, `evaluation_results`, `audit_logs`, `settings`,
+  `api_metadata`, and `webhook_metadata`.
+- `max_rows_per_section` defaults to `5000` and is capped at `10000`.
+- Optional `from` and `to` dates filter time-based sections such as chat,
+  evaluation results, and audit logs.
+- Artifacts expire after the configured job artifact window.
+
+Artifacts use schema version `rudix.workspace_export.v1`:
+
+```json
+{
+  "schema_version": "rudix.workspace_export.v1",
+  "generated_at": "2026-07-01T10:00:00Z",
+  "organization": {
+    "id": "uuid",
+    "name": "Example Org",
+    "slug": "example-org"
+  },
+  "requested_sections": ["collections", "document_metadata"],
+  "limits": {
+    "max_rows_per_section": 5000,
+    "from": null,
+    "to": null,
+    "artifact_expires_days": 7
+  },
+  "sections": {
+    "collections": { "items": [] },
+    "document_metadata": {
+      "fields": [],
+      "documents": [],
+      "values": []
+    }
+  },
+  "limitations": []
+}
+```
+
+Exports never include original document files, extracted document text,
+embeddings, vector payloads, storage object keys, raw API keys, API key hashes,
+webhook secret hashes, OAuth tokens, connector credentials, or secret material.
+
+### POST `/admin/portability/imports`
+
+Validates a Rudix workspace export artifact and optionally applies safe records.
+
+- Requires `owner|admin`.
+- Request body: `{ "artifact": { ... }, "apply": false }`.
+- Validation always runs before processing.
+- `apply=false` records a `validated` job with warnings/errors and makes an
+  import report artifact available.
+- `apply=true` creates safe records only after validation passes.
+- Importable sections: `collections`, `document_metadata` metadata field
+  definitions, and `evaluation_datasets`.
+- Document manifests are validated and reported but do not create document rows,
+  object-storage files, chunks, embeddings, or vectors. Documents must still be
+  uploaded and indexed through the normal ingestion pipeline.
+- Export-only sections such as chat transcripts, audit logs, settings,
+  evaluation results, API metadata, and webhook metadata are ignored during
+  import and reported as warnings.
+
+### GET `/admin/portability/jobs`
+
+Lists recent workspace portability jobs for the active organization.
+
+### GET `/admin/portability/jobs/{job_id}`
+
+Returns one organization-scoped portability job.
+
+### GET `/admin/portability/jobs/{job_id}/download`
+
+Downloads the export artifact or import report for a completed/validated job.
+Cross-organization downloads return `404`, and unavailable or expired artifacts
+return `409`.
+
 ### GET `/admin/governance`
 
 Returns organization-scoped governance policy for agent and MCP controls.

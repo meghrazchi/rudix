@@ -136,6 +136,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - usage trend table sourced from `/admin/usage` with date-range filters
   - audit explorer sourced from `/admin/audit-logs` with actor/action/entity/organization/document/collection/IP/session/result/severity filters
   - authenticated export from `/admin/audit-logs/export` in CSV and JSON formats with sanitized metadata only
+  - workspace portability page at `/admin/portability` for requesting sanitized export jobs, validating import artifacts before processing, downloading artifacts, and reviewing job warnings/errors
   - owner/admin-only access with forbidden-state fallback when authorization changes
   - quick links to documents, chat, evaluations, and pipeline explorer
 - Admin security center behavior:
