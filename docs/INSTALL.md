@@ -267,6 +267,13 @@ Note: CI integration smoke runs must use `ENVIRONMENT=test` (not `ci`), because 
 
 ### 4.2 Required production configuration
 
+Use these exact public URLs for Rudix-hosted staging and production:
+
+| Environment | Frontend URL                   | Browser API base URL                      | Backend origin URL                 |
+| ----------- | ------------------------------ | ----------------------------------------- | ---------------------------------- |
+| Staging     | `https://staging.getrudix.com` | `https://api-staging.getrudix.com/api/v1` | `https://api-staging.getrudix.com` |
+| Production  | `https://getrudix.com`         | `https://api.getrudix.com/api/v1`         | `https://api.getrudix.com`         |
+
 At minimum, set these values to production endpoints/secrets:
 
 ```env
@@ -274,9 +281,9 @@ ENVIRONMENT=production
 LOG_LEVEL=INFO
 LOG_FORMAT=json
 
-API_BASE_URL=https://api.yourdomain.com
-FRONTEND_BASE_URL=https://app.yourdomain.com
-CORS_ORIGINS=https://app.yourdomain.com
+API_BASE_URL=https://api.getrudix.com
+FRONTEND_BASE_URL=https://getrudix.com
+CORS_ORIGINS=https://getrudix.com
 
 DATABASE_URL=postgresql+asyncpg://<user>:<password>@<host>:5432/<db>
 QDRANT_URL=https://<qdrant-host>
@@ -348,8 +355,8 @@ docker compose up -d --build
 Then verify health:
 
 ```bash
-curl -fsS https://api.yourdomain.com/api/v1/health
-curl -fsS https://api.yourdomain.com/api/v1/ready
+curl -fsS https://api.getrudix.com/api/v1/health
+curl -fsS https://api.getrudix.com/api/v1/ready
 ```
 
 Apply schema migrations before serving traffic:
@@ -465,7 +472,7 @@ PY
 # password: 123123123
 
 # Get seeded org id (after `make seed-dev`)
-ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from organizations where slug='demo-org' limit 1;")  
+ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from organizations where slug='demo-org' limit 1;")
 
 # Valid authenticated request
 curl -i http://localhost:8000/api/v1/pipeline/steps \

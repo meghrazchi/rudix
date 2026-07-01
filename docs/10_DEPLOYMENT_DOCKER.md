@@ -194,6 +194,24 @@ NEXT_PUBLIC_AUTH_PROVIDER=clerk
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 ```
 
+For staging, use the staging domains at frontend build time:
+
+```env
+NEXT_PUBLIC_DEPLOYMENT_ENV=staging
+NEXT_PUBLIC_APP_URL=https://staging.getrudix.com
+NEXT_PUBLIC_API_URL=https://api-staging.getrudix.com/api/v1
+```
+
+`NEXT_PUBLIC_*` values are compiled into the Next.js browser bundle during
+`npm run build`. Changing container runtime environment variables after the
+frontend image has been built does not change the API host used by the browser.
+Always rebuild and redeploy the frontend image after changing
+`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL`, auth URLs, or other public
+frontend settings. The app includes a safety fallback for `staging.getrudix.com`
+and `getrudix.com` that replaces stale loopback API URLs with the matching
+public HTTPS API endpoint, but the deployment should still set correct
+build-time values.
+
 ## Backend deployment options
 
 ### Option A: Single VM with Docker Compose
@@ -253,6 +271,13 @@ and `FRONTEND_BASE_URL` for redirects, callbacks, email links, and generated
 resource URLs. The frontend uses `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_APP_URL`
 at build time, so rebuild the frontend image after changing them.
 
+For Rudix-hosted deployments, keep the URL pairs aligned:
+
+| Environment | Frontend URL                   | API URL                                   |
+| ----------- | ------------------------------ | ----------------------------------------- |
+| Staging     | `https://staging.getrudix.com` | `https://api-staging.getrudix.com/api/v1` |
+| Production  | `https://getrudix.com`         | `https://api.getrudix.com/api/v1`         |
+
 ## Release checklist
 
 Before deployment:
@@ -292,15 +317,15 @@ Qdrant: daily snapshot
 
 Scale these independently:
 
-| Component | Scaling method |
-|---|---|
-| FastAPI | More API containers |
-| Celery workers | More worker containers |
-| PostgreSQL | Managed DB, read replicas later |
-| Qdrant | Dedicated node/cluster |
-| MinIO | Distributed MinIO or managed S3 |
-| RabbitMQ | Managed RabbitMQ |
-| Redis | Managed Redis |
+| Component      | Scaling method                  |
+| -------------- | ------------------------------- |
+| FastAPI        | More API containers             |
+| Celery workers | More worker containers          |
+| PostgreSQL     | Managed DB, read replicas later |
+| Qdrant         | Dedicated node/cluster          |
+| MinIO          | Distributed MinIO or managed S3 |
+| RabbitMQ       | Managed RabbitMQ                |
+| Redis          | Managed Redis                   |
 
 ## Production readiness diagram
 

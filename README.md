@@ -303,20 +303,20 @@ make lint         # Run lint and type checks
 
 ## Local Service URLs
 
-| Service | URL |
-|---|---|
-| Frontend | `http://localhost:3000` |
-| Backend API | `http://localhost:8000` |
-| MCP Server (optional profile) | `http://localhost:8010` |
-| API Health | `http://localhost:8000/api/v1/health` |
-| Swagger UI | `http://localhost:8000/docs` |
-| ReDoc | `http://localhost:8000/redoc` |
-| OpenAPI Schema | `http://localhost:8000/openapi.json` |
-| MinIO Console | `http://localhost:9001` |
-| RabbitMQ UI | `http://localhost:15672` |
-| Qdrant | `http://localhost:6333` |
-| PostgreSQL | `localhost:5432` |
-| Redis | `localhost:6379` |
+| Service                       | URL                                   |
+| ----------------------------- | ------------------------------------- |
+| Frontend                      | `http://localhost:3000`               |
+| Backend API                   | `http://localhost:8000`               |
+| MCP Server (optional profile) | `http://localhost:8010`               |
+| API Health                    | `http://localhost:8000/api/v1/health` |
+| Swagger UI                    | `http://localhost:8000/docs`          |
+| ReDoc                         | `http://localhost:8000/redoc`         |
+| OpenAPI Schema                | `http://localhost:8000/openapi.json`  |
+| MinIO Console                 | `http://localhost:9001`               |
+| RabbitMQ UI                   | `http://localhost:15672`              |
+| Qdrant                        | `http://localhost:6333`               |
+| PostgreSQL                    | `localhost:5432`                      |
+| Redis                         | `localhost:6379`                      |
 
 ---
 
@@ -331,6 +331,13 @@ Rudix uses GitHub Actions for repository automation. The workflow files under `.
 - `release.yml` builds and publishes images, runs integration smoke tests, deploys staging, deploys production with environment approval, and supports rollback
 - `quality-gate.yml` runs the evaluation quality gate on demand
 - `accuracy-eval.yml` runs the accuracy evaluation gate on a nightly schedule and on demand
+
+Rudix-hosted deployments use these exact public URLs:
+
+| Environment | Frontend URL                   | API URL                                   |
+| ----------- | ------------------------------ | ----------------------------------------- |
+| Staging     | `https://staging.getrudix.com` | `https://api-staging.getrudix.com/api/v1` |
+| Production  | `https://getrudix.com`         | `https://api.getrudix.com/api/v1`         |
 
 For workflow details, see:
 

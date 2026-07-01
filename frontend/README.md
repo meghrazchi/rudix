@@ -443,6 +443,14 @@ NEXT_PUBLIC_SUPPORT_EMAIL=
 Set `NEXT_PUBLIC_DEPLOYMENT_ENV=staging` or `production` for deployed builds; those environments require
 HTTPS public URLs and reject `localhost`/loopback API or app URLs. Missing, invalid, or unsafe values stop
 production builds and render a safe startup error in runtime environments.
+
+Use these exact public frontend values for Rudix-hosted deployments:
+
+| Environment | `NEXT_PUBLIC_APP_URL`          | `NEXT_PUBLIC_API_URL`                     |
+| ----------- | ------------------------------ | ----------------------------------------- |
+| Staging     | `https://staging.getrudix.com` | `https://api-staging.getrudix.com/api/v1` |
+| Production  | `https://getrudix.com`         | `https://api.getrudix.com/api/v1`         |
+
 Because these values are bundled by Next.js during `npm run build`, updating the container environment
 after the image is built will not change the API target. Rebuild the frontend image after changing any
 `NEXT_PUBLIC_*` value. As a safety net, browser runtime config on `staging.getrudix.com` and
