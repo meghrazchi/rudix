@@ -4,6 +4,22 @@ Step-by-step instructions for setting up CI/CD and deploying Rudix to staging an
 
 ---
 
+## Canonical Deployment URLs
+
+Use these exact public URLs for Rudix-hosted deployments:
+
+| Environment | Frontend URL                   | Browser API base URL                      | Backend origin URL                 |
+| ----------- | ------------------------------ | ----------------------------------------- | ---------------------------------- |
+| Staging     | `https://staging.getrudix.com` | `https://api-staging.getrudix.com/api/v1` | `https://api-staging.getrudix.com` |
+| Production  | `https://getrudix.com`         | `https://api.getrudix.com/api/v1`         | `https://api.getrudix.com`         |
+
+Do not use `localhost`, `127.0.0.1`, or placeholder domains in deployed
+staging/production secrets. The frontend image must be built with the matching
+`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_APP_URL` values because Next.js embeds
+those public variables into the browser bundle at build time.
+
+---
+
 ## Table of Contents
 
 1. [Prerequisites](#1-prerequisites)
@@ -39,12 +55,14 @@ gh auth status
 ```
 
 Your server needs:
+
 - Ubuntu 22.04 or later (or any Docker-capable Linux)
 - Docker Engine ≥ 24
 - Docker Compose plugin (`docker compose` not `docker-compose`)
 - Open ports: `80`, `443`, `8000` (API), `3000` (frontend)
 
 Install Docker on the server:
+
 ```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER   # allow your deploy user to run docker
@@ -129,46 +147,49 @@ All secrets below go under **Repository secrets** (not environment secrets), unl
 
 ### 6a. Container Registry
 
-| Secret | Value |
-|--------|-------|
-| `GHCR_USERNAME` | Your GitHub username |
-| `GHCR_TOKEN` | The PAT you created in step 4 |
+| Secret          | Value                         |
+| --------------- | ----------------------------- |
+| `GHCR_USERNAME` | Your GitHub username          |
+| `GHCR_TOKEN`    | The PAT you created in step 4 |
 
 ### 6b. OpenAI (used in integration smoke test)
 
-| Secret | Value |
-|--------|-------|
+| Secret           | Value                             |
+| ---------------- | --------------------------------- |
 | `OPENAI_API_KEY` | `sk-...` from platform.openai.com |
 
 ### 6c. Staging Server
 
-| Secret | Value |
-|--------|-------|
-| `STAGING_SSH_HOST` | Staging server IP or hostname |
-| `STAGING_SSH_PORT` | SSH port — omit if `22` |
-| `STAGING_SSH_USER` | Linux user, e.g. `ubuntu` |
-| `STAGING_SSH_PRIVATE_KEY` | Full content of `~/.ssh/rudix_staging_deploy` |
-| `STAGING_APP_PATH` | `/opt/rudix` |
-| `STAGING_ENV_URL` | `https://staging.yourdomain.com` |
-| `STAGING_ENV_FILE` | Full `.env` file content — see [step 7](#7-build-the-env-file) |
+| Secret                    | Value                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------ |
+| `STAGING_SSH_HOST`        | Staging server IP or hostname                                                  |
+| `STAGING_SSH_PORT`        | SSH port — omit if `22`                                                        |
+| `STAGING_SSH_USER`        | Linux user, e.g. `ubuntu`                                                      |
+| `STAGING_SSH_PRIVATE_KEY` | Full content of `~/.ssh/rudix_staging_deploy`                                  |
+| `STAGING_APP_PATH`        | `/opt/rudix`                                                                   |
+| `STAGING_ENV_URL`         | `https://staging.getrudix.com`                                                 |
+| `STAGING_ENV_FILE`        | Full `.env` file content — see [step 7](#7-build-the-env-file)                 |
+| `FRONTEND_ENV_STAGING`    | Browser-safe frontend-only env overrides — see [step 7](#7-build-the-env-file) |
 
 ### 6d. Production Server
 
-| Secret | Value |
-|--------|-------|
-| `PRODUCTION_SSH_HOST` | Production server IP or hostname |
-| `PRODUCTION_SSH_PORT` | SSH port — omit if `22` |
-| `PRODUCTION_SSH_USER` | Linux user, e.g. `ubuntu` |
-| `PRODUCTION_SSH_PRIVATE_KEY` | Full content of `~/.ssh/rudix_production_deploy` |
-| `PRODUCTION_APP_PATH` | `/opt/rudix` |
-| `PRODUCTION_ENV_URL` | `https://app.yourdomain.com` |
-| `PRODUCTION_ENV_FILE` | Full `.env` file content — see [step 7](#7-build-the-env-file) |
-| `PRODUCTION_POSTGRES_BACKUP_PATH` | `/opt/backups/postgres` |
-| `PRODUCTION_MINIO_BACKUP_PATH` | `/opt/backups/minio` |
-| `PRODUCTION_QDRANT_BACKUP_PATH` | `/opt/backups/qdrant` |
-| `PRODUCTION_BACKUP_CHECK_OK` | `yes` (confirms backups are running before deploy) |
+| Secret                            | Value                                                          |
+| --------------------------------- | -------------------------------------------------------------- |
+| `PRODUCTION_SSH_HOST`             | Production server IP or hostname                               |
+| `PRODUCTION_SSH_PORT`             | SSH port — omit if `22`                                        |
+| `PRODUCTION_SSH_USER`             | Linux user, e.g. `ubuntu`                                      |
+| `PRODUCTION_SSH_PRIVATE_KEY`      | Full content of `~/.ssh/rudix_production_deploy`               |
+| `PRODUCTION_APP_PATH`             | `/opt/rudix`                                                   |
+| `PRODUCTION_ENV_URL`              | `https://getrudix.com`                                         |
+| `PRODUCTION_ENV_FILE`             | Full `.env` file content — see [step 7](#7-build-the-env-file) |
+| `FRONTEND_ENV_PRODUCTION`         | Browser-safe frontend-only env overrides                       |
+| `PRODUCTION_POSTGRES_BACKUP_PATH` | `/opt/backups/postgres`                                        |
+| `PRODUCTION_MINIO_BACKUP_PATH`    | `/opt/backups/minio`                                           |
+| `PRODUCTION_QDRANT_BACKUP_PATH`   | `/opt/backups/qdrant`                                          |
+| `PRODUCTION_BACKUP_CHECK_OK`      | `yes` (confirms backups are running before deploy)             |
 
 **To paste a private key:** open the file and copy everything including the header and footer lines:
+
 ```
 -----BEGIN OPENSSH PRIVATE KEY-----
 ...
@@ -190,16 +211,18 @@ gh secret set STAGING_SSH_HOST        --body "1.2.3.4"
 gh secret set STAGING_SSH_USER        --body "ubuntu"
 gh secret set STAGING_SSH_PRIVATE_KEY < ~/.ssh/rudix_staging_deploy
 gh secret set STAGING_APP_PATH        --body "/opt/rudix"
-gh secret set STAGING_ENV_URL         --body "https://staging.yourdomain.com"
+gh secret set STAGING_ENV_URL         --body "https://staging.getrudix.com"
 gh secret set STAGING_ENV_FILE        < /path/to/staging.env
+gh secret set FRONTEND_ENV_STAGING    < /path/to/frontend-staging.env
 
 # Production
 gh secret set PRODUCTION_SSH_HOST        --body "5.6.7.8"
 gh secret set PRODUCTION_SSH_USER        --body "ubuntu"
 gh secret set PRODUCTION_SSH_PRIVATE_KEY < ~/.ssh/rudix_production_deploy
 gh secret set PRODUCTION_APP_PATH        --body "/opt/rudix"
-gh secret set PRODUCTION_ENV_URL         --body "https://app.yourdomain.com"
+gh secret set PRODUCTION_ENV_URL         --body "https://getrudix.com"
 gh secret set PRODUCTION_ENV_FILE        < /path/to/production.env
+gh secret set FRONTEND_ENV_PRODUCTION    < /path/to/frontend-production.env
 gh secret set PRODUCTION_POSTGRES_BACKUP_PATH --body "/opt/backups/postgres"
 gh secret set PRODUCTION_MINIO_BACKUP_PATH    --body "/opt/backups/minio"
 gh secret set PRODUCTION_QDRANT_BACKUP_PATH   --body "/opt/backups/qdrant"
@@ -211,6 +234,54 @@ gh secret set PRODUCTION_BACKUP_CHECK_OK      --body "yes"
 ## 7. Build the ENV File
 
 Create a `.env` file for each environment. Start from `.env.example` and change the values below. Do **not** commit these files — paste their contents into the `STAGING_ENV_FILE` / `PRODUCTION_ENV_FILE` secrets.
+
+`STAGING_ENV_FILE` and `PRODUCTION_ENV_FILE` are server-side environment files
+used by Docker Compose for the API, workers, MCP server, and infrastructure
+containers. They may contain private backend secrets. Do not put these backend
+secrets in any `NEXT_PUBLIC_*` variable.
+
+`FRONTEND_ENV_STAGING` and `FRONTEND_ENV_PRODUCTION` are separate. They are
+used only while building the Next.js frontend images and may contain only
+browser-safe `NEXT_PUBLIC_*` values. The release workflow writes these
+deployment-owned values itself, so do not put them in the frontend env secrets:
+
+Staging:
+
+```env
+NEXT_PUBLIC_DEPLOYMENT_ENV=staging
+NEXT_PUBLIC_API_URL=https://api-staging.getrudix.com/api/v1
+NEXT_PUBLIC_APP_URL=https://staging.getrudix.com
+```
+
+Production:
+
+```env
+NEXT_PUBLIC_DEPLOYMENT_ENV=production
+NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1
+NEXT_PUBLIC_APP_URL=https://getrudix.com
+```
+
+Recommended `FRONTEND_ENV_STAGING` content:
+
+```env
+NEXT_PUBLIC_AUTH_PROVIDER=app
+NEXT_PUBLIC_AUTH_LOGIN_URL=https://api-staging.getrudix.com/api/v1/auth/login
+NEXT_PUBLIC_AUTH_REFRESH_URL=https://api-staging.getrudix.com/api/v1/auth/token/refresh
+NEXT_PUBLIC_AUTH_LOGOUT_URL=https://api-staging.getrudix.com/api/v1/auth/logout
+NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=false
+NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK=false
+NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS=false
+NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE=true
+NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED=true
+NEXT_PUBLIC_FEATURE_COLLECTIONS_ENABLED=true
+NEXT_PUBLIC_FEATURE_EXPORTS_ENABLED=true
+NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED=true
+```
+
+For production, use the same public keys with `https://api.getrudix.com/api/v1`
+in the auth URLs. Never set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` for
+deployed environments; `NEXT_PUBLIC_*` variables are readable by every browser
+user.
 
 ### Generate required secrets first
 
@@ -227,9 +298,9 @@ openssl rand -base64 24   # run once per password needed
 ```bash
 # ── Environment ───────────────────────────────────────────────────────────────
 ENVIRONMENT=production                          # or staging
-API_BASE_URL=https://api.yourdomain.com
-FRONTEND_BASE_URL=https://app.yourdomain.com
-CORS_ORIGINS=https://app.yourdomain.com
+API_BASE_URL=https://api.getrudix.com           # staging: https://api-staging.getrudix.com
+FRONTEND_BASE_URL=https://getrudix.com          # staging: https://staging.getrudix.com
+CORS_ORIGINS=https://getrudix.com               # staging: https://staging.getrudix.com
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 APP_AUTH_SECRET=<output of: openssl rand -hex 32>
@@ -295,6 +366,7 @@ git push origin main
 ```
 
 This triggers `release.yml` which:
+
 1. Builds and pushes Docker images to GHCR
 2. Runs the integration smoke test
 3. SSHes into the staging server and deploys via Docker Compose
@@ -332,16 +404,17 @@ After the workflow completes, verify from your local machine:
 
 ```bash
 # Health check
-curl https://api.yourdomain.com/api/v1/health
+curl https://api-staging.getrudix.com/api/v1/health
 
 # Readiness check
-curl https://api.yourdomain.com/api/v1/ready
+curl https://api-staging.getrudix.com/api/v1/ready
 
 # Auth boundary (should return 401)
-curl https://api.yourdomain.com/api/v1/documents
+curl https://api-staging.getrudix.com/api/v1/documents
 ```
 
-Then open the frontend in a browser and log in.
+Then open `https://staging.getrudix.com` in a browser and log in. For
+production, use `https://api.getrudix.com/api/v1/*` and `https://getrudix.com`.
 
 ---
 
@@ -377,7 +450,7 @@ The accuracy eval workflow (`accuracy-eval.yml`) calls your **live deployed API*
 6. Add the secrets:
 
 ```bash
-gh secret set RUDIX_API_BASE_URL   --body "https://api.yourdomain.com"
+gh secret set RUDIX_API_BASE_URL   --body "https://api-staging.getrudix.com/api/v1"
 gh secret set RUDIX_API_TOKEN      --body "rudix_..."
 gh secret set ACCURACY_EVAL_SET_ID --body "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 gh secret set QUALITY_GATE_ID      --body "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
