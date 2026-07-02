@@ -29,6 +29,7 @@ import { listAvailableConnectorConnections } from "@/lib/api/connectors";
 import { listDocuments } from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
+import { writeSessionToStorage } from "@/lib/auth-session";
 import { createDefaultSettingsPreferences } from "@/lib/settings-preferences";
 
 vi.hoisted(() => {
@@ -1592,18 +1593,6 @@ describe("ChatPage", () => {
   });
 
   it("renders pending approvals in timeline and allows admin decisions", async () => {
-    window.localStorage.setItem(
-      "rudix.session.v1",
-      JSON.stringify({
-        userId: "user-1",
-        email: "admin@example.com",
-        role: "admin",
-        organizationId: "org-1",
-        organizationName: "Org 1",
-        accessToken: "token",
-        refreshToken: "refresh",
-      }),
-    );
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
         {
@@ -1714,6 +1703,15 @@ describe("ChatPage", () => {
 
     renderPage();
     await screen.findByRole("button", { name: /Select scope/i });
+    writeSessionToStorage({
+      userId: "user-1",
+      email: "admin@example.com",
+      role: "admin",
+      organizationId: "org-1",
+      organizationName: "Org 1",
+      accessToken: "token",
+      refreshToken: "refresh",
+    });
 
     await openAdditionalSettings();
     await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
