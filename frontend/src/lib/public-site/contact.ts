@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isExternalHref, type PublicSiteLinks } from "@/lib/public-site/links";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 export const CONTACT_TEAM_SIZE_OPTIONS = [
   "1-10",
@@ -112,17 +113,6 @@ function trimToNull(value: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function resolveEnv(...keys: string[]): string | null {
-  for (const key of keys) {
-    const value = trimToNull(process.env[key]);
-    if (value) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
 function toMailtoHref(value: string): string {
   if (/^mailto:/i.test(value)) {
     return value;
@@ -152,7 +142,9 @@ function createMailtoBody(values: ContactFormValues): string {
 }
 
 function inferExternalSubmitUrl(links: PublicSiteLinks): string | null {
-  const configured = resolveEnv("NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL");
+  const configured = trimToNull(
+    process.env.NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL,
+  );
   if (configured) {
     return configured;
   }
@@ -160,13 +152,8 @@ function inferExternalSubmitUrl(links: PublicSiteLinks): string | null {
   return isExternalHref(links.requestDemo) ? links.requestDemo : null;
 }
 
-function inferApiEndpoint(): string | null {
-  const configured = resolveEnv("NEXT_PUBLIC_CONTACT_SUBMIT_API_URL");
-  if (configured) {
-    return configured;
-  }
-
-  const apiBaseUrl = resolveEnv("NEXT_PUBLIC_API_URL");
+function inferDefaultApiEndpoint(): string | null {
+  const apiBaseUrl = trimToNull(getFrontendRuntimeConfig().apiUrl);
   if (!apiBaseUrl) {
     return null;
   }
@@ -175,10 +162,9 @@ function inferApiEndpoint(): string | null {
 }
 
 function inferMailtoAddress(links: PublicSiteLinks): string | null {
-  const configured = resolveEnv(
-    "NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO",
-    "NEXT_PUBLIC_SUPPORT_EMAIL",
-  );
+  const configured =
+    trimToNull(process.env.NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO) ??
+    trimToNull(process.env.NEXT_PUBLIC_SUPPORT_EMAIL);
 
   if (configured) {
     return toMailtoHref(configured);
@@ -240,13 +226,23 @@ function toSubmissionError(status: number | null): ContactSubmissionError {
 export function resolveContactSubmissionConfig(
   links: PublicSiteLinks,
 ): ContactSubmissionConfig {
-  const apiEndpoint = inferApiEndpoint();
+  const configuredApiEndpoint = trimToNull(
+    process.env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL,
+  );
   const externalSubmitUrl = inferExternalSubmitUrl(links);
   const mailtoAddress = inferMailtoAddress(links);
+  const apiEndpoint =
+    configuredApiEndpoint ??
+    (mailtoAddress || externalSubmitUrl ? null : inferDefaultApiEndpoint());
   const schedulerUrl =
-    resolveEnv("NEXT_PUBLIC_CONTACT_SCHEDULER_URL") ?? externalSubmitUrl;
-  const captchaProvider = resolveEnv("NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER");
-  const captchaSiteKey = resolveEnv("NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY");
+    trimToNull(process.env.NEXT_PUBLIC_CONTACT_SCHEDULER_URL) ??
+    externalSubmitUrl;
+  const captchaProvider = trimToNull(
+    process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER,
+  );
+  const captchaSiteKey = trimToNull(
+    process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY,
+  );
 
   const configWithoutMode = {
     apiEndpoint,

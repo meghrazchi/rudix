@@ -44,11 +44,11 @@ afterEach(() => {
 });
 
 describe("resolveContactSubmissionConfig", () => {
-  it("defaults to unavailable when no submission mode is configured", () => {
+  it("defaults to the runtime API contact endpoint when no override is configured", () => {
     const config = resolveContactSubmissionConfig(resolvePublicSiteLinks());
 
-    expect(config.mode).toBe("unavailable");
-    expect(config.apiEndpoint).toBeNull();
+    expect(config.mode).toBe("api");
+    expect(config.apiEndpoint).toBe("http://localhost:8000/api/v1/contact");
     expect(config.mailtoAddress).toBeNull();
     expect(config.externalSubmitUrl).toBeNull();
   });
