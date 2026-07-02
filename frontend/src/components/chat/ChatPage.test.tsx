@@ -1726,7 +1726,9 @@ describe("ChatPage", () => {
     );
 
     expect(await screen.findByText("Approvals")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Approve$/i }),
+    );
 
     await waitFor(() => {
       expect(vi.mocked(decideAgentRunApproval)).toHaveBeenCalledWith(
