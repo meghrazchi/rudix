@@ -100,6 +100,9 @@ Seeded local dev login:
 - email: `admin@example.com`
 - password: `123123123`
 
+Password login does not create unknown users by default. For local experiments,
+enable `APP_AUTH_AUTO_PROVISION_USERS=true`; staging and production force it off.
+
 Optional: fetch seeded organization UUID (`make seed-dev`):
 
 ```bash

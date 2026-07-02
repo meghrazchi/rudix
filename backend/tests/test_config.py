@@ -209,6 +209,23 @@ def test_staging_accepts_https_public_urls() -> None:
     assert str(settings.frontend_base_url) == "https://staging.getrudix.com/"
 
 
+def test_staging_forces_app_auth_auto_provisioning_off() -> None:
+    payload = valid_settings_kwargs()
+    payload.update(
+        {
+            "environment": Environment.staging,
+            "api_base_url": "https://api-staging.getrudix.com",
+            "frontend_base_url": "https://staging.getrudix.com",
+            "cors_origins": "https://staging.getrudix.com",
+            "app_auth_auto_provision_users": True,
+        }
+    )
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.app_auth_auto_provision_users is False
+
+
 def test_production_accepts_getrudix_public_urls() -> None:
     payload = valid_settings_kwargs()
     payload.update(

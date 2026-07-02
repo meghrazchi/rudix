@@ -511,6 +511,23 @@ async def test_auth_login_returns_access_token_and_refresh_cookie(
 
 
 @pytest.mark.asyncio
+async def test_auth_login_rejects_unknown_email_by_default(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    email = f"unknown-{uuid4().hex[:8]}@example.com"
+
+    response = await auth_client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "123123123"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid email or password"
+    assert await _repository.get_user_by_email(db_session, email=email) is None
+
+
+@pytest.mark.asyncio
 async def test_auth_login_auto_provisions_user_when_email_is_unknown(
     auth_client: AsyncClient,
     db_session: AsyncSession,

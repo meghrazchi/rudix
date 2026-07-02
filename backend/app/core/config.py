@@ -421,7 +421,7 @@ class Settings(BaseSettings):
     app_auth_cookie_same_site: str = Field(default="lax", min_length=3, max_length=16)
     app_auth_cookie_path: str = Field(default="/api/v1/auth", min_length=1, max_length=255)
     app_auth_login_password: SecretStr | None = None
-    app_auth_auto_provision_users: bool = True
+    app_auth_auto_provision_users: bool = False
     app_auth_password_hash_memory_cost_kib: int = Field(default=65536, ge=8192, le=1048576)
     app_auth_password_hash_time_cost: int = Field(default=3, ge=1, le=10)
     app_auth_password_hash_parallelism: int = Field(default=1, ge=1, le=8)
@@ -1299,6 +1299,9 @@ class Settings(BaseSettings):
                 and self._secret_value(self.app_auth_secret) == "dev-insecure-change-me"
             ):
                 raise ValueError("app_auth_secret must be overridden in production")
+            if self.auth_provider == AuthProvider.app:
+                self.app_auth_auto_provision_users = False
+        elif self.environment == Environment.staging:
             if self.auth_provider == AuthProvider.app:
                 self.app_auth_auto_provision_users = False
         elif self.environment == Environment.test:

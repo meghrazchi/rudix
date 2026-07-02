@@ -245,6 +245,7 @@ ENVIRONMENT=production
 API_BASE_URL=https://api.getrudix.com
 FRONTEND_BASE_URL=https://getrudix.com
 CORS_ORIGINS=https://getrudix.com
+APP_AUTH_AUTO_PROVISION_USERS=false
 DATABASE_URL=
 QDRANT_URL=
 QDRANT_API_KEY=

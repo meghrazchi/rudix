@@ -335,6 +335,7 @@ APP_AUTH_SECRET=<strong-random-secret>
 APP_AUTH_ACCESS_TOKEN_TTL_SECONDS=3600
 APP_AUTH_ISSUER=rudix-app
 APP_AUTH_AUDIENCE=rudix-api
+APP_AUTH_AUTO_PROVISION_USERS=false
 # Future external providers (currently scaffold placeholders):
 # AUTH_PROVIDER=clerk
 # CLERK_JWKS_URL=https://<clerk-domain>/.well-known/jwks.json
@@ -382,6 +383,9 @@ The settings layer validates on startup:
 - `CLERK_JWKS_URL` is required for `AUTH_PROVIDER=clerk`.
 - `SUPABASE_JWKS_URL` is required for `AUTH_PROVIDER=supabase`.
 - In production with `AUTH_PROVIDER=app`, `APP_AUTH_SECRET` must not be `dev-insecure-change-me`.
+- In staging and production with `AUTH_PROVIDER=app`, password login does not
+  auto-provision unknown email addresses. Keep `APP_AUTH_AUTO_PROVISION_USERS=false`
+  and create users through approved admin/invitation flows.
 - OpenAI API key is required when related features are enabled.
 - `SENTRY_DSN` is required in production profile.
 

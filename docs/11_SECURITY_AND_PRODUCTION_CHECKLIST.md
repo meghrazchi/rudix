@@ -378,6 +378,8 @@ When deleting a document:
 - [ ] CORS configured.
 - [ ] Public API/frontend base URLs use HTTPS and do not point to loopback hosts
       in staging or production.
+- [ ] App-auth password login does not auto-provision users in staging or
+      production.
 - [ ] Error responses standardized.
 - [ ] Input validation with Pydantic.
 - [ ] Sentry integrated.

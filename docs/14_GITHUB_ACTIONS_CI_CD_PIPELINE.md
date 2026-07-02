@@ -174,6 +174,8 @@ NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED=true
 
 Do not set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` in deployed environments.
 Anything under `NEXT_PUBLIC_*` is readable by every browser user.
+Keep `NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=false` so staging always calls the backend
+login endpoint.
 
 #### Staging environment file
 
@@ -196,6 +198,7 @@ AUTH_PROVIDER=app
 APP_AUTH_SECRET=<strong-random-secret>
 APP_AUTH_ISSUER=rudix-app
 APP_AUTH_AUDIENCE=rudix-api
+APP_AUTH_AUTO_PROVISION_USERS=false
 
 QDRANT_COLLECTION=documents
 QDRANT_VECTOR_SIZE=1536
