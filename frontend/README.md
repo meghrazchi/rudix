@@ -484,7 +484,8 @@ Set `NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT=true` to start chat in agentic mode by def
 Set `NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS` to control timeline polling for non-terminal agent run statuses.
 Set `NEXT_PUBLIC_PUBLIC_*` URLs to override public marketing navigation and CTA destinations.
 Set `NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL` to route security-review CTAs to a dedicated contact endpoint or mailbox.
-Set `NEXT_PUBLIC_CONTACT_SUBMIT_API_URL` to post validated `/contact` form submissions directly to your endpoint.
+By default, the `/contact` form posts to `${NEXT_PUBLIC_API_URL}/contact`.
+Set `NEXT_PUBLIC_CONTACT_SUBMIT_API_URL` only when you need to override that endpoint.
 Set `NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO` to use a `mailto:` fallback when no API endpoint is configured.
 Set `NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL` to route form submissions to a CRM/scheduling page when needed.
 Set `NEXT_PUBLIC_CONTACT_SCHEDULER_URL` to show a secondary direct scheduling CTA on the contact page.

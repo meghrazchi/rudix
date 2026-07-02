@@ -337,6 +337,25 @@ Export/import requirements:
 - Apply row caps, artifact expiry, and retention/legal-hold metadata handling to
   portability jobs.
 
+## Public contact form
+
+Requirements:
+
+- Keep `/contact` unauthenticated but explicitly documented as public.
+- Validate all contact form fields server-side before persistence or delivery.
+- Persist valid submissions in `contact_submissions`; do not persist CAPTCHA
+  tokens or honeypot values.
+- Send notifications only to `CONTACT_RECEIVER_EMAIL`; do not accept receiver
+  addresses from the browser.
+- Use `EMAIL_FROM_ADDRESS` as the provider sender and the submitter email only
+  as `reply_to`.
+- Return safe delivery errors only. Do not expose SMTP/API provider responses,
+  credentials, or stack traces to the browser.
+- Rate-limit public submissions with `RATE_LIMIT_CONTACT_REQUESTS` and the
+  shared Redis rate-limit failure mode.
+- Keep real provider credentials and the production receiver address in CI/CD
+  secrets or deployment secret stores, not in committed env examples.
+
 ## Data deletion
 
 When deleting a document:

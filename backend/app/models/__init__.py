@@ -47,6 +47,7 @@ from app.models.connector import (
 from app.models.connector_credential import ConnectorCredential, ConnectorOAuthState
 from app.models.connector_source import ExternalItemTombstone, SourceDocument, SourceReference
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun, SyncConflict
+from app.models.contact import ContactSubmission
 from app.models.custom_role import CustomRole, CustomRolePermission
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.document_version import DocumentVersion
@@ -130,6 +131,7 @@ __all__ = [
     "ConnectorProvider",
     "ConnectorSyncJob",
     "ConnectorSyncRun",
+    "ContactSubmission",
     "CustomRole",
     "CustomRolePermission",
     "Document",

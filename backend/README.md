@@ -70,6 +70,9 @@ make seed-dev
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Connector sync endpoints use connector-specific Redis rate limits (`RATE_LIMIT_CONNECTOR_REQUESTS`) in addition to the shared admin/document scopes.
+- The public contact form uses `POST /api/v1/contact`, persists valid
+  submissions, and sends email to `CONTACT_RECEIVER_EMAIL` when
+  `EMAIL_ENABLED=true`; throttle it with `RATE_LIMIT_CONTACT_REQUESTS`.
 - Slack and Microsoft Teams bot ask events use bot-specific Redis rate limits (`RATE_LIMIT_BOT_REQUESTS`) keyed by provider workspace/team and external user.
 - Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`, `CHUNKING_STRATEGY`).
 - `CHUNKING_STRATEGY` selects the default strategy for all document processing (default: `token_recursive`). Set to `adaptive_hybrid` to enable automatic per-document strategy selection based on file type, OCR status, and structure heuristics.
@@ -121,6 +124,8 @@ Current endpoint authorization:
 - `admin/usage`, `admin/audit-logs`, `admin/audit-logs/export`, and `admin/governance`: `owner|admin`
 - `admin/portability/*`: `owner|admin`; creates sanitized workspace export/import jobs and downloadable JSON artifacts
 - `admin/bots/*`: `owner|admin`
+- `contact`: public validated contact/demo submission endpoint; stores valid
+  submissions and dispatches email to the configured receiver
 - `status`: public-safe snapshot endpoint with no auth; uses `PUBLIC_STATUS_ORGANIZATION_SLUG` when configured to source incidents from the public Rudix status org
 - `bots/slack/events` and `bots/teams/events`: public transport endpoints guarded by Slack signatures or Teams bearer secret when configured.
 - `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.

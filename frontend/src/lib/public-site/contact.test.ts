@@ -27,6 +27,7 @@ function baseFormValues() {
 beforeEach(() => {
   vi.unstubAllGlobals();
   process.env = { ...originalEnv };
+  delete process.env.NEXT_PUBLIC_API_URL;
   delete process.env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL;
   delete process.env.NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO;
   delete process.env.NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL;
@@ -60,6 +61,15 @@ describe("resolveContactSubmissionConfig", () => {
 
     expect(config.mode).toBe("api");
     expect(config.apiEndpoint).toBe("https://api.example.com/contact");
+  });
+
+  it("defaults api mode to NEXT_PUBLIC_API_URL contact endpoint", () => {
+    process.env.NEXT_PUBLIC_API_URL = "https://api.example.com/api/v1";
+
+    const config = resolveContactSubmissionConfig(resolvePublicSiteLinks());
+
+    expect(config.mode).toBe("api");
+    expect(config.apiEndpoint).toBe("https://api.example.com/api/v1/contact");
   });
 
   it("uses mailto mode when support email is configured", () => {

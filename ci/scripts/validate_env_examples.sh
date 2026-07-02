@@ -24,7 +24,8 @@ check_keys ".env.example" \
   "QDRANT_URL" \
   "MINIO_ENDPOINT" \
   "RABBITMQ_URL" \
-  "REDIS_URL"
+  "REDIS_URL" \
+  "CONTACT_RECEIVER_EMAIL"
 
 if [ -f "frontend/.env.example" ]; then
   check_keys "frontend/.env.example" \

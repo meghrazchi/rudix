@@ -67,6 +67,7 @@ from app.interfaces.http import (
     profile,
     prompt_templates,
     provider_observability,
+    public_contact,
     public_status,
     quality_gates,
     query_analytics,
@@ -99,6 +100,7 @@ protected_router.include_router(collections.documents_router)
 api_router.include_router(connectors.public_router)
 api_router.include_router(team_invitations.public_router)
 api_router.include_router(agent_runs.public_trace_router)
+api_router.include_router(public_contact.router)
 api_router.include_router(public_status.router)
 protected_router.include_router(connector_platform.router)
 protected_router.include_router(connector_discovery.router)

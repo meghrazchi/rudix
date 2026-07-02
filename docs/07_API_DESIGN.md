@@ -4,7 +4,8 @@ FastAPI exposes the production backend API.
 
 ## API principles
 
-1. Every endpoint must verify authentication.
+1. Every endpoint must verify authentication unless it is explicitly documented
+   as a public endpoint.
 2. Every document operation must check organization membership.
 3. Long-running work must be handled by Celery.
 4. API responses must be typed with Pydantic schemas.
@@ -178,6 +179,49 @@ Response:
     }
   },
   "failed_dependencies": ["postgres"]
+}
+```
+
+### POST `/contact`
+
+Accepts validated submissions from the public `/contact` marketing form.
+
+- Does not require authentication.
+- Applies a public Redis-backed IP rate limit using `RATE_LIMIT_CONTACT_REQUESTS`.
+- Persists every valid submission in `contact_submissions` before attempting
+  email delivery.
+- Sends the notification to `CONTACT_RECEIVER_EMAIL` through the configured
+  transactional email provider when `EMAIL_ENABLED=true`.
+- Uses the submitter email as `reply_to`; provider `from` stays controlled by
+  `EMAIL_FROM_ADDRESS`.
+- Does not persist CAPTCHA tokens or honeypot values.
+- Returns safe provider-independent errors: `503` when delivery is not
+  configured, `502` when provider delivery fails, and `429` when rate-limited.
+
+Request:
+
+```json
+{
+  "full_name": "Alex Rivera",
+  "work_email": "alex@example.com",
+  "company": "Acme Legal",
+  "role_title": "Head of Knowledge",
+  "use_case": "Legal document Q&A",
+  "team_size": "51-250",
+  "message": "We want a demo focused on citations and governance.",
+  "consent_accepted": true,
+  "captcha_token": "optional-provider-token",
+  "source": "public_contact_page"
+}
+```
+
+Response:
+
+```json
+{
+  "submission_id": "0b8c8d4e-2b7f-49f5-94af-62d3b8307f3e",
+  "status": "received",
+  "email_status": "sent"
 }
 ```
 

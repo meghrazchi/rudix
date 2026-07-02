@@ -160,6 +160,20 @@ function inferExternalSubmitUrl(links: PublicSiteLinks): string | null {
   return isExternalHref(links.requestDemo) ? links.requestDemo : null;
 }
 
+function inferApiEndpoint(): string | null {
+  const configured = resolveEnv("NEXT_PUBLIC_CONTACT_SUBMIT_API_URL");
+  if (configured) {
+    return configured;
+  }
+
+  const apiBaseUrl = resolveEnv("NEXT_PUBLIC_API_URL");
+  if (!apiBaseUrl) {
+    return null;
+  }
+
+  return `${apiBaseUrl.replace(/\/+$/, "")}/contact`;
+}
+
 function inferMailtoAddress(links: PublicSiteLinks): string | null {
   const configured = resolveEnv(
     "NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO",
@@ -226,7 +240,7 @@ function toSubmissionError(status: number | null): ContactSubmissionError {
 export function resolveContactSubmissionConfig(
   links: PublicSiteLinks,
 ): ContactSubmissionConfig {
-  const apiEndpoint = resolveEnv("NEXT_PUBLIC_CONTACT_SUBMIT_API_URL");
+  const apiEndpoint = inferApiEndpoint();
   const externalSubmitUrl = inferExternalSubmitUrl(links);
   const mailtoAddress = inferMailtoAddress(links);
   const schedulerUrl =

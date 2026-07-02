@@ -354,6 +354,7 @@ class Settings(BaseSettings):
     rate_limit_delete_requests: int = Field(default=20, ge=1, le=10000)
     rate_limit_admin_requests: int = Field(default=15, ge=1, le=10000)
     rate_limit_connector_requests: int = Field(default=15, ge=1, le=10000)
+    rate_limit_contact_requests: int = Field(default=5, ge=1, le=10000)
     rate_limit_bot_requests: int = Field(default=30, ge=1, le=10000)
     rate_limit_auth_login_requests: int = Field(default=10, ge=1, le=10000)
     rate_limit_auth_refresh_requests: int = Field(default=60, ge=1, le=10000)
@@ -452,6 +453,11 @@ class Settings(BaseSettings):
     email_from_name: str = Field(default="Rudix", min_length=1, max_length=120)
     email_reply_to: str | None = Field(default=None, max_length=255)
     email_max_retries: int = Field(default=3, ge=0, le=10)
+    contact_receiver_email: str | None = Field(
+        default=None,
+        max_length=255,
+        pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+    )
     smtp_host: str = Field(default="localhost", min_length=1, max_length=255)
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str | None = Field(default=None, max_length=255)
@@ -1388,6 +1394,7 @@ class Settings(BaseSettings):
             "rate_limit_delete_requests": self.rate_limit_delete_requests,
             "rate_limit_admin_requests": self.rate_limit_admin_requests,
             "rate_limit_connector_requests": self.rate_limit_connector_requests,
+            "rate_limit_contact_requests": self.rate_limit_contact_requests,
             "rate_limit_bot_requests": self.rate_limit_bot_requests,
             "rate_limit_auth_login_requests": self.rate_limit_auth_login_requests,
             "rate_limit_auth_refresh_requests": self.rate_limit_auth_refresh_requests,
@@ -1452,6 +1459,7 @@ class Settings(BaseSettings):
                 "smtp_host": self.smtp_host,
                 "smtp_port": self.smtp_port,
                 "smtp_use_tls": self.smtp_use_tls,
+                "contact_receiver_email_set": self.contact_receiver_email is not None,
                 "resend_api_key_set": self.resend_api_key is not None,
                 "postmark_server_token_set": self.postmark_server_token is not None,
             },
