@@ -318,6 +318,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  window.localStorage.clear();
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
   chunkRequests.length = 0;
   reindexRequests.length = 0;

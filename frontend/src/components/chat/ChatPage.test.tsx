@@ -29,7 +29,7 @@ import { listAvailableConnectorConnections } from "@/lib/api/connectors";
 import { listDocuments } from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
-import { writeSessionToStorage } from "@/lib/auth-session";
+import type { SessionState } from "@/lib/auth-session";
 import { createDefaultSettingsPreferences } from "@/lib/settings-preferences";
 
 vi.hoisted(() => {
@@ -43,8 +43,23 @@ const mockNavigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
 }));
 
+const mockAuthSession = vi.hoisted(() => ({
+  state: { status: "unauthenticated", session: null } as SessionState,
+}));
+
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockNavigation.searchParams,
+}));
+
+vi.mock("@/lib/use-auth-session", () => ({
+  useAuthSession: () => ({
+    state: mockAuthSession.state,
+    boundaryEvent: null,
+    boundaryMessageKey: null,
+    setAuthenticatedSession: vi.fn(),
+    signOut: vi.fn(),
+    clearBoundaryEvent: vi.fn(),
+  }),
 }));
 
 vi.mock("@/lib/api/documents", () => ({
@@ -135,6 +150,7 @@ describe("ChatPage", () => {
       value: vi.fn(),
     });
     mockNavigation.searchParams = new URLSearchParams();
+    mockAuthSession.state = { status: "unauthenticated", session: null };
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
         {
@@ -1701,18 +1717,20 @@ describe("ChatPage", () => {
       ],
     });
 
+    mockAuthSession.state = {
+      status: "authenticated",
+      session: {
+        userId: "user-1",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org 1",
+        accessToken: "token",
+      },
+    };
+
     renderPage();
     await screen.findByRole("button", { name: /Select scope/i });
-    writeSessionToStorage({
-      userId: "user-1",
-      email: "admin@example.com",
-      role: "admin",
-      organizationId: "org-1",
-      organizationName: "Org 1",
-      accessToken: "token",
-      refreshToken: "refresh",
-    });
-
     await openAdditionalSettings();
     await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
     fireEvent.change(
