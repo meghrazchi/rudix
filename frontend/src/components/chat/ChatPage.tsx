@@ -1150,6 +1150,7 @@ export function ChatPage() {
   const searchParams = useSearchParams();
   const { state } = useAuthSession();
   const lastAppliedSessionIdRef = useRef<string | null>(null);
+  const lastAppliedDocumentIdFromQueryRef = useRef<string | null>(null);
   const contextModalRef = useRef<HTMLDivElement | null>(null);
   const persistedSettings = useMemo(() => readPersistedChatSettings(), []);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -1416,6 +1417,8 @@ export function ChatPage() {
     [indexedDocuments],
   );
 
+  const documentIdFromQuery = searchParams.get("document_id");
+
   const collectionsListQuery = useQuery({
     queryKey: [...queryKeys.collections.all, "chat-picker"],
     queryFn: () => listCollections({ limit: 200 }),
@@ -1511,7 +1514,25 @@ export function ChatPage() {
     selectedCollectionDocsQuery.data,
   ]);
 
-  const documentIdFromQuery = searchParams.get("document_id");
+  useEffect(() => {
+    if (!documentIdFromQuery) {
+      lastAppliedDocumentIdFromQueryRef.current = null;
+      return;
+    }
+
+    if (!indexedDocumentIdSet.has(documentIdFromQuery)) {
+      return;
+    }
+
+    if (lastAppliedDocumentIdFromQueryRef.current === documentIdFromQuery) {
+      return;
+    }
+
+    setScopeMode("documents");
+    setSelectedDocumentIds([documentIdFromQuery]);
+    lastAppliedDocumentIdFromQueryRef.current = documentIdFromQuery;
+  }, [documentIdFromQuery, indexedDocumentIdSet]);
+
   const filteredSelectedDocumentIds = useMemo(() => {
     const validSelectedDocumentIds = selectedDocumentIds.filter((documentId) =>
       indexedDocumentIdSet.has(documentId),

@@ -3718,6 +3718,41 @@ describe("ChatPage", () => {
     });
   });
 
+  it("preselects the document from the detail page link", async () => {
+    mockNavigation.searchParams = new URLSearchParams("document_id=doc-link");
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-link",
+          filename: "linked-file.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 3,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    const scopeMenu = await openScopeMenu();
+    const selectedDocumentButton = within(scopeMenu).getByRole("button", {
+      name: /linked-file\.pdf/i,
+    });
+
+    expect(selectedDocumentButton).toHaveTextContent("Selected");
+  });
+
   it("renders the answer language selector in the composer toolbar", async () => {
     renderPage();
     await screen.findByRole("heading", { name: /Conversation/i });
