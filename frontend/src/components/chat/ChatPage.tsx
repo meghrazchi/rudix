@@ -3878,42 +3878,43 @@ export function ChatPage() {
                         </span>
                       </Link>
                     </div>
-                  </section>
-
-                  <section className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
-                      <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#777587] uppercase">
-                        {tc("citationPositionMetric")}
-                      </p>
-                      <p className="text-2xl font-black tracking-tight text-[#1b1b24]">
-                        {activePreviewCitation.page_number
-                          ? tc("citationPositionPage", {
-                              page: activePreviewCitation.page_number,
-                            })
-                          : activePreviewCitation.chunk_id
-                            ? tc("citationPositionChunk", {
-                                chunk: activePreviewCitation.chunk_id.slice(
-                                  0,
-                                  8,
-                                ),
+                    <div className="mt-5 grid w-full grid-cols-2 items-stretch gap-3">
+                      <div className="h-full w-full rounded-2xl border border-[#e4e1ee] bg-[#faf9ff] px-3 pt-4 pb-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                        <p className="text-[10px] font-black tracking-[0.18em] text-[#777587] uppercase">
+                          {tc("citationPositionMetric")}
+                        </p>
+                        <p className="mt-3 text-[15px] font-black tracking-tight text-[#1b1b24]">
+                          {activePreviewCitation.page_number
+                            ? tc("citationPositionPage", {
+                                page: activePreviewCitation.page_number,
                               })
-                            : "—"}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
-                      <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#777587] uppercase">
-                        {tc("citationRelevanceMetric")}
-                      </p>
-                      <p className="text-2xl font-black tracking-tight text-[#3525cd]">
-                        {formatScorePercent(activePreviewCitationScore)}
-                      </p>
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e4e1ee]">
-                        <div
-                          className="h-full rounded-full bg-[#3525cd]"
-                          style={{
-                            width: `${activePreviewCitationScorePercent ?? 0}%`,
-                          }}
-                        />
+                            : activePreviewCitation.chunk_id
+                              ? tc("citationPositionChunk", {
+                                  chunk: activePreviewCitation.chunk_id.slice(
+                                    0,
+                                    8,
+                                  ),
+                                })
+                              : "—"}
+                        </p>
+                      </div>
+                      <div className="h-full w-full rounded-2xl border border-[#e4e1ee] bg-[#faf9ff] px-3 pt-4 pb-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                        <p className="text-[10px] font-black tracking-[0.18em] text-[#777587] uppercase">
+                          {tc("citationRelevanceMetric")}
+                        </p>
+                        <div className="mt-3 flex items-center gap-3">
+                          <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[#e4e1ee]">
+                            <div
+                              className="h-full rounded-full bg-[#3525cd]"
+                              style={{
+                                width: `${activePreviewCitationScorePercent ?? 0}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="shrink-0 text-[15px] font-black tracking-tight text-[#3525cd]">
+                            {formatScorePercent(activePreviewCitationScore)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </section>
