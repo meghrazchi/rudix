@@ -654,6 +654,12 @@ describe("AnswerTrustPanel", () => {
 
   it("shows low confidence warning banner", () => {
     renderPanel({ confidenceCategory: "low" });
+    const banner = screen
+      .getByText(/Low confidence — validate this answer/i)
+      .closest("div");
+    expect(banner).toHaveClass("border-[#d7d4e8]");
+    expect(banner).toHaveClass("bg-[#f5f2ff]");
+    expect(banner).toHaveClass("text-[#4f4b63]");
     expect(
       screen.getByText(/Low confidence — validate this answer/i),
     ).toBeInTheDocument();

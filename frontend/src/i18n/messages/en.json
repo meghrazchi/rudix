@@ -2110,7 +2110,7 @@
       "shareSessionTitle": "Share session with org members",
       "loadingHistory": "Loading session history...",
       "loadHistoryError": "Unable to load prior messages",
-      "noMessages": "No messages yet. Submit a question to start the conversation.",
+      "noMessages": "How can I help you today?",
       "questionLabel": "Question",
       "agentStatus": "Agent {status}",
       "lowConfidenceWarning": "Low confidence warning: validate this answer against the cited source text.",

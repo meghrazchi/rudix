@@ -2926,7 +2926,7 @@ describe("ChatPage", () => {
     });
   });
 
-  it.skip("shows rename inline form when rename button is clicked", async () => {
+  it("shows rename inline form when rename button is clicked", async () => {
     vi.mocked(listDocuments).mockResolvedValue({
       items: [],
       total: 0,
@@ -2955,16 +2955,22 @@ describe("ChatPage", () => {
     expect(await screen.findByText("My Session")).toBeInTheDocument();
 
     await openSessionMenu("My Session");
-    await userEvent.click(screen.getByRole("menuitem", { name: /Rename/i }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: /Rename session/i }),
+    );
 
     expect(
       screen.getByRole("textbox", { name: /Session title/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save rename" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Cancel rename" }),
+    ).toBeInTheDocument();
   });
 
-  it.skip("calls updateChatSession when rename is saved", async () => {
+  it("calls updateChatSession when rename is saved", async () => {
     vi.mocked(listDocuments).mockResolvedValue({
       items: [],
       total: 0,
@@ -3000,16 +3006,21 @@ describe("ChatPage", () => {
     expect(await screen.findByText("Old Title")).toBeInTheDocument();
 
     await openSessionMenu("Old Title");
-    await userEvent.click(screen.getByRole("menuitem", { name: /Rename/i }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: /Rename session/i }),
+    );
     const input = screen.getByRole("textbox", { name: /Session title/i });
     await userEvent.clear(input);
     await userEvent.type(input, "New Title");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await userEvent.keyboard("{Enter}");
 
     await waitFor(() => {
       expect(vi.mocked(updateChatSession)).toHaveBeenCalledWith("s1", {
         title: "New Title",
       });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("New Title")).toBeInTheDocument();
     });
   });
 
@@ -3023,29 +3034,44 @@ describe("ChatPage", () => {
       sort_by: "updated_at",
       sort_order: "desc",
     });
-    vi.mocked(listChatSessions).mockResolvedValue({
-      items: [
-        {
-          session_id: "s1",
-          title: "Session To Delete",
-          message_count: 3,
-          created_at: "2026-05-14T09:00:00Z",
-          updated_at: "2026-05-14T09:05:00Z",
-        },
-      ],
-      total: 1,
-      limit: 10,
-      offset: 0,
-    });
+    vi.mocked(listChatSessions)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            session_id: "s1",
+            title: "Session To Delete",
+            message_count: 3,
+            created_at: "2026-05-14T09:00:00Z",
+            updated_at: "2026-05-14T09:05:00Z",
+          },
+        ],
+        total: 1,
+        limit: 10,
+        offset: 0,
+      })
+      .mockResolvedValue({
+        items: [],
+        total: 0,
+        limit: 10,
+        offset: 0,
+      });
 
     renderPage();
     expect(await screen.findByText("Session To Delete")).toBeInTheDocument();
 
+    const sessionRow = (await screen.findByText("Session To Delete")).closest(
+      "li",
+    ) as HTMLElement;
     await userEvent.click(
-      await screen.findByRole("button", { name: "Delete session" }),
+      within(sessionRow).getByRole("button", { name: /Session actions/i }),
+    );
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Delete session" }),
     );
 
-    expect(screen.getByText("Delete this session?")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "Delete this session?" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
 
@@ -3053,6 +3079,9 @@ describe("ChatPage", () => {
 
     await waitFor(() => {
       expect(vi.mocked(deleteChatSession)).toHaveBeenCalledWith("s1");
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("Session To Delete")).not.toBeInTheDocument();
     });
   });
 
@@ -3084,14 +3113,24 @@ describe("ChatPage", () => {
     renderPage();
     expect(await screen.findByText("Keep Me")).toBeInTheDocument();
 
+    const sessionRow = (await screen.findByText("Keep Me")).closest(
+      "li",
+    ) as HTMLElement;
     await userEvent.click(
-      await screen.findByRole("button", { name: "Delete session" }),
+      within(sessionRow).getByRole("button", { name: /Session actions/i }),
     );
-    expect(screen.getByText("Delete this session?")).toBeInTheDocument();
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Delete session" }),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: "Delete this session?" }),
+    ).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(screen.queryByText("Delete this session?")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Delete this session?" }),
+    ).not.toBeInTheDocument();
     expect(vi.mocked(deleteChatSession)).not.toHaveBeenCalled();
   });
 
@@ -3543,6 +3582,50 @@ describe("ChatPage", () => {
           element.className.includes("rounded-full"),
       ),
     ).toBe(true);
+  });
+
+  it("opens answer explanation in a modal dialog", async () => {
+    const citation = {
+      document_id: "doc-indexed-1",
+      chunk_id: "chunk-1",
+      filename: "policy.pdf",
+      page_number: 2,
+      source_trust_status: "trusted",
+      doc_ocr_quality_status: "high",
+      doc_ocr_low_confidence_warning: false,
+      doc_stale_warning: false,
+      doc_expired_warning: false,
+      conflict_status: "preferred",
+      is_table_chunk: false,
+      table_headers: [],
+    } as ChatCitationResponse;
+    vi.mocked(queryChat).mockResolvedValue(
+      createChatQueryResponse({
+        answer: "Policy answer.",
+        citations: [citation],
+      }),
+    );
+
+    renderPage();
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      { target: { value: "What is the policy?" } },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Explain this answer/i }),
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /Answer Explanation/i,
+    });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("aria-label", "Answer Explanation");
+    expect(screen.getByText("Policy answer.")).toBeInTheDocument();
   });
 
   it("passes scope_mode=all and selected document_ids when documents are selected", async () => {

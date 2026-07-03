@@ -2110,7 +2110,7 @@
       "shareSessionTitle": "Compartir sesión con miembros de la organización",
       "loadingHistory": "Cargando historial de la sesión...",
       "loadHistoryError": "No se pudieron cargar mensajes anteriores",
-      "noMessages": "Aún no hay mensajes. Envía una pregunta para iniciar la conversación.",
+      "noMessages": "¿Cómo puedo ayudarte hoy?",
       "questionLabel": "Pregunta",
       "agentStatus": "Agente {status}",
       "lowConfidenceWarning": "Advertencia de baja confianza: valida esta respuesta con el texto de fuente citado.",

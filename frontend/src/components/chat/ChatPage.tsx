@@ -14,6 +14,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   keepPreviousData,
+  type InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -58,10 +59,12 @@ import {
   listChatSessionMessages,
   listChatSessions,
   queryChat,
+  updateChatSession,
   type ChatCitationResponse,
   type ChatConfidenceExplanationResponse,
   type ChatConflictPairResponse,
   type ChatDebugResponse,
+  type ChatSessionListResponse,
   type ChatSessionMessageResponse,
   type ChatQueryRequest,
   type ChatQueryResponse,
@@ -109,6 +112,7 @@ import {
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { trackActivationEvent, trackFeatureEvent } from "@/lib/analytics";
 import { loadSettingsPreferences } from "@/lib/settings-preferences";
+import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { useChatWebSocket } from "@/lib/use-chat-websocket";
 
@@ -122,6 +126,11 @@ type AnswerLanguageMode =
   | "de"
   | "es"
   | "fr";
+type ChatSessionListItem = ChatSessionListResponse["items"][number];
+type ChatSessionListInfiniteData = InfiniteData<
+  ChatSessionListResponse,
+  number
+>;
 
 function parsePositiveIntegerEnv(
   value: string | undefined,
@@ -1200,6 +1209,12 @@ export function ChatPage() {
   const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<
     string | null
   >(null);
+  const deleteSessionModalRef = useRef<HTMLDivElement>(null);
+  const deleteSessionOverlayRef = useRef<HTMLDivElement>(null);
+  const sessionMenuRef = useRef<HTMLDivElement>(null);
+  const editSessionInputRef = useRef<HTMLInputElement>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingSessionTitle, setEditingSessionTitle] = useState("");
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(
     null,
   );
@@ -1214,6 +1229,8 @@ export function ChatPage() {
   const [openTrustPanelMessageId, setOpenTrustPanelMessageId] = useState<
     string | null
   >(null);
+  const trustPanelModalRef = useRef<HTMLDivElement>(null);
+  const trustPanelOverlayRef = useRef<HTMLDivElement>(null);
   const [saveKnowledgeCardMessageId, setSaveKnowledgeCardMessageId] = useState<
     string | null
   >(null);
@@ -1657,13 +1674,43 @@ export function ChatPage() {
 
   useEffect(() => {
     if (!openSessionMenuId) return;
-    const close = () => setOpenSessionMenuId(null);
+    const close = (event: MouseEvent) => {
+      if (
+        sessionMenuRef.current &&
+        event.target instanceof Node &&
+        sessionMenuRef.current.contains(event.target)
+      ) {
+        return;
+      }
+      setOpenSessionMenuId(null);
+    };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [openSessionMenuId]);
 
+  useOverlayFocus({
+    isOpen: openTrustPanelMessageId !== null,
+    containerRef: trustPanelModalRef,
+    onClose: () => setOpenTrustPanelMessageId(null),
+  });
+
+  useOverlayFocus({
+    isOpen: confirmDeleteSessionId !== null,
+    containerRef: deleteSessionModalRef,
+    onClose: () => setConfirmDeleteSessionId(null),
+  });
+
   const activeSession =
     sessions.find((item) => item.session_id === activeSessionId) ?? null;
+  const deleteSessionCandidate = useMemo(
+    () =>
+      confirmDeleteSessionId
+        ? (sessions.find(
+            (session) => session.session_id === confirmDeleteSessionId,
+          ) ?? null)
+        : null,
+    [confirmDeleteSessionId, sessions],
+  );
   const thread = useMemo(
     () => threadsBySession[activeThreadKey(activeSessionId)] ?? [],
     [activeSessionId, threadsBySession],
@@ -1706,6 +1753,10 @@ export function ChatPage() {
     ) ??
     thread[thread.length - 1] ??
     null;
+  const openTrustPanelTurn =
+    thread.find(
+      (turn) => turn.response.message_id === openTrustPanelMessageId,
+    ) ?? null;
   const selectedCitationPipelineHref = selectedCitationTurn
     ? buildChatPipelineHref(selectedCitationTurn.response)
     : null;
@@ -1943,12 +1994,87 @@ export function ChatPage() {
     mutationFn: (title: string | null) => createChatSession({ title }),
   });
 
+  const updateSessionMutation = useMutation({
+    mutationFn: ({
+      sessionId,
+      title,
+    }: {
+      sessionId: string;
+      title: string | null;
+    }) => updateChatSession(sessionId, { title }),
+    onSuccess: async (updatedSession, variables) => {
+      const { sessionId } = variables;
+      const updateSessionInCache = (
+        current: ChatSessionListInfiniteData | undefined,
+      ): ChatSessionListInfiniteData | undefined => {
+        if (!current) {
+          return current;
+        }
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            items: (page.items ?? []).map((session: ChatSessionListItem) =>
+              session.session_id === sessionId
+                ? { ...session, title: updatedSession.title ?? null }
+                : session,
+            ),
+          })),
+        };
+      };
+      queryClient.setQueryData(
+        queryKeys.chat.sessionsQuery(
+          debouncedSearchQuery ? { search: debouncedSearchQuery } : undefined,
+        ),
+        updateSessionInCache,
+      );
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.chat.sessions },
+        updateSessionInCache,
+      );
+      setEditingSessionId(null);
+      setEditingSessionTitle("");
+      await invalidateAfterMutation(queryClient, "chat.session.rename");
+    },
+  });
+
   const deleteSessionMutation = useMutation({
     mutationFn: (sessionId: string) => deleteChatSession(sessionId),
     onSuccess: async (_, deletedSessionId) => {
       if (activeSessionId === deletedSessionId) {
         resetForNewChat();
       }
+      const removeDeletedSession = (
+        current: ChatSessionListInfiniteData | undefined,
+      ): ChatSessionListInfiniteData | undefined => {
+        if (!current) {
+          return current;
+        }
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            items: (page.items ?? []).filter(
+              (session: ChatSessionListItem) =>
+                session.session_id !== deletedSessionId,
+            ),
+            total:
+              typeof page.total === "number"
+                ? Math.max(0, page.total - 1)
+                : page.total,
+          })),
+        };
+      };
+      queryClient.setQueryData(
+        queryKeys.chat.sessionsQuery(
+          debouncedSearchQuery ? { search: debouncedSearchQuery } : undefined,
+        ),
+        removeDeletedSession,
+      );
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.chat.sessions },
+        removeDeletedSession,
+      );
       setThreadsBySession((previous) => {
         const next = { ...previous };
         delete next[activeThreadKey(deletedSessionId)];
@@ -2302,6 +2428,16 @@ export function ChatPage() {
     setConfirmDeleteSessionId(sessionId);
   }, []);
 
+  const handleRenameRequest = useCallback(
+    (sessionId: string, currentTitle: string | null) => {
+      setOpenSessionMenuId(null);
+      setConfirmDeleteSessionId(null);
+      setEditingSessionId(sessionId);
+      setEditingSessionTitle(currentTitle ?? "");
+    },
+    [],
+  );
+
   const handleDeleteConfirm = useCallback(
     (sessionId: string) => {
       setConfirmDeleteSessionId(null);
@@ -2313,6 +2449,30 @@ export function ChatPage() {
   const handleDeleteCancel = useCallback(() => {
     setConfirmDeleteSessionId(null);
   }, []);
+
+  const handleRenameCancel = useCallback(() => {
+    setEditingSessionId(null);
+    setEditingSessionTitle("");
+  }, []);
+
+  const handleRenameSave = useCallback(
+    (sessionId: string) => {
+      const nextTitle = editingSessionTitle.trim();
+      updateSessionMutation.mutate({
+        sessionId,
+        title: nextTitle.length > 0 ? nextTitle : null,
+      });
+    },
+    [editingSessionTitle, updateSessionMutation],
+  );
+
+  useEffect(() => {
+    if (!editingSessionId) {
+      return;
+    }
+    editSessionInputRef.current?.focus();
+    editSessionInputRef.current?.select();
+  }, [editingSessionId]);
 
   async function handleApprovalDecision(params: {
     runId: string;
@@ -2498,27 +2658,7 @@ export function ChatPage() {
     <>
       <section className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fcf8ff] text-[#1b1b24]">
         <header className="flex h-16 shrink-0 items-center border-b border-[#e4e1ee] bg-white px-4 lg:px-8">
-          <div className="flex w-full items-center justify-end gap-2">
-            <Link
-              href="/documents"
-              className="rounded-xl border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-            >
-              {tc("uploadDocuments")}
-            </Link>
-            <button
-              type="button"
-              onClick={resetForNewChat}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#3525cd]/15 transition-all hover:-translate-y-0.5 hover:bg-[#2b1fa8]"
-            >
-              <span
-                className="material-symbols-outlined text-[18px]"
-                aria-hidden="true"
-              >
-                add
-              </span>
-              {tc("newChat")}
-            </button>
-          </div>
+          <div className="flex w-full items-center justify-end gap-2"></div>
         </header>
 
         <div
@@ -2526,6 +2666,19 @@ export function ChatPage() {
         >
           <aside className="rudix-chat-scrollbar hidden min-h-0 overflow-y-auto border-r border-[#e4e1ee] bg-[#fcf8ff] p-4 xl:block">
             <section className="rounded-3xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
+              <button
+                type="button"
+                onClick={resetForNewChat}
+                className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#3525cd]/15 transition-all hover:-translate-y-0.5 hover:bg-[#2b1fa8]"
+              >
+                <span
+                  className="material-symbols-outlined text-[18px]"
+                  aria-hidden="true"
+                >
+                  add
+                </span>
+                {tc("newChat")}
+              </button>
               <div className="mb-3">
                 <div className="relative">
                   <span
@@ -2563,50 +2716,83 @@ export function ChatPage() {
                   <ul className="space-y-2">
                     {sessions.map((session) => {
                       const isActive = session.session_id === activeSessionId;
-                      const isConfirmingDelete =
-                        confirmDeleteSessionId === session.session_id;
                       const displayTitle =
                         sessionDisplayTitleById.get(session.session_id) ??
                         tc("untitledSession");
+                      const isSessionMenuOpen =
+                        openSessionMenuId === session.session_id;
 
                       return (
                         <li key={session.session_id}>
-                          {isConfirmingDelete ? (
-                            <div className="rounded-2xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm">
-                              <p className="mb-2 font-semibold text-rose-800">
-                                {tc("deleteConfirmTitle")}
-                              </p>
-                              <p className="mb-3 truncate text-xs text-rose-700">
-                                {displayTitle}
-                              </p>
-                              <div className="flex gap-2">
+                          <div
+                            className={`group relative cursor-pointer rounded-2xl border transition ${
+                              isActive
+                                ? "border-[#c3c0ff] bg-[#e2dfff]"
+                                : "border-[#e4e1ee] bg-white hover:bg-[#f5f2ff]"
+                            }`}
+                          >
+                            {editingSessionId === session.session_id ? (
+                              <div className="flex items-center gap-2 px-3 py-2 pr-2 text-sm">
+                                <input
+                                  ref={editSessionInputRef}
+                                  type="text"
+                                  value={editingSessionTitle}
+                                  onChange={(event) =>
+                                    setEditingSessionTitle(event.target.value)
+                                  }
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      handleRenameSave(session.session_id);
+                                    }
+                                    if (event.key === "Escape") {
+                                      event.preventDefault();
+                                      handleRenameCancel();
+                                    }
+                                  }}
+                                  aria-label="Session title"
+                                  className="h-9 min-w-0 flex-1 rounded-xl border border-[#cfc9e6] bg-white px-3 text-sm text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
+                                />
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    handleDeleteConfirm(session.session_id)
-                                  }
-                                  disabled={deleteSessionMutation.isPending}
-                                  className="flex-1 rounded-xl bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+                                  aria-label="Cancel rename"
+                                  onClick={handleRenameCancel}
+                                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d7d4e8] bg-white text-[#6a6780] transition hover:bg-[#f5f2ff] hover:text-[#3525cd]"
                                 >
-                                  {tc("delete")}
+                                  <span
+                                    className="material-symbols-outlined text-[2px]"
+                                    aria-hidden="true"
+                                  >
+                                    close
+                                  </span>
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={handleDeleteCancel}
-                                  className="flex-1 rounded-xl border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                                  aria-label="Save rename"
+                                  onClick={() =>
+                                    handleRenameSave(session.session_id)
+                                  }
+                                  disabled={updateSessionMutation.isPending}
+                                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d2cee6] bg-[#3525cd] text-white transition hover:bg-[#2c1fb1] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                  {tc("cancel")}
+                                  {updateSessionMutation.isPending ? (
+                                    <span
+                                      className="material-symbols-outlined text-[2px]"
+                                      aria-hidden="true"
+                                    >
+                                      progress_activity
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="material-symbols-outlined text-[2px]"
+                                      aria-hidden="true"
+                                    >
+                                      check
+                                    </span>
+                                  )}
                                 </button>
                               </div>
-                            </div>
-                          ) : (
-                            <div
-                              className={`group relative cursor-pointer rounded-2xl border transition ${
-                                isActive
-                                  ? "border-[#c3c0ff] bg-[#e2dfff]"
-                                  : "border-[#e4e1ee] bg-white hover:bg-[#f5f2ff]"
-                              }`}
-                            >
+                            ) : (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2615,43 +2801,86 @@ export function ChatPage() {
                                   setPendingQuestion(null);
                                   replaceSessionParamInUrl(session.session_id);
                                 }}
-                                className="w-full cursor-pointer px-3 py-2 pr-8 text-left text-sm"
+                                className="w-full cursor-pointer px-3 py-2 pr-10 text-left text-sm"
                               >
                                 <p
                                   className={`truncate font-semibold ${isActive ? "text-[#2f2a46]" : "text-[#4f4b63]"}`}
                                 >
                                   {displayTitle}
                                 </p>
-                                <p className="mt-1 text-xs text-[#7a758f]">
-                                  {tc("sessionMeta", {
-                                    count: session.message_count,
-                                    date: formatDate(session.updated_at),
-                                  })}
-                                </p>
                               </button>
+                            )}
+                            {editingSessionId === session.session_id ? null : (
                               <div
-                                className="absolute top-1 right-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+                                ref={isSessionMenuOpen ? sessionMenuRef : null}
+                                className="absolute top-1 right-1 flex items-start gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <button
                                   type="button"
-                                  aria-label="Delete session"
+                                  aria-label="Session actions"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDeleteRequest(session.session_id);
+                                    setOpenSessionMenuId((current) =>
+                                      current === session.session_id
+                                        ? null
+                                        : session.session_id,
+                                    );
                                   }}
-                                  className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg text-[#6a6780] hover:bg-white hover:text-rose-600"
+                                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-[#6a6780] hover:bg-white hover:text-[#3525cd]"
                                 >
                                   <span
-                                    className="material-symbols-outlined text-[16px]"
+                                    className="material-symbols-outlined text-[18px]"
                                     aria-hidden="true"
                                   >
-                                    delete
+                                    more_vert
                                   </span>
                                 </button>
+                                {isSessionMenuOpen ? (
+                                  <div className="absolute top-8 right-0 z-20 w-44 overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-lg">
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleRenameRequest(
+                                          session.session_id,
+                                          session.title ?? null,
+                                        );
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-[#3e376f] hover:bg-[#f5f2ff]"
+                                    >
+                                      <span
+                                        className="material-symbols-outlined text-[16px]"
+                                        aria-hidden="true"
+                                      >
+                                        edit
+                                      </span>
+                                      Rename session
+                                    </button>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-rose-700 hover:bg-rose-50"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setOpenSessionMenuId(null);
+                                        handleDeleteRequest(session.session_id);
+                                      }}
+                                    >
+                                      <span
+                                        className="material-symbols-outlined text-[16px]"
+                                        aria-hidden="true"
+                                      >
+                                        delete
+                                      </span>
+                                      Delete session
+                                    </button>
+                                  </div>
+                                ) : null}
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </li>
                       );
                     })}
@@ -2824,7 +3053,26 @@ export function ChatPage() {
                 {thread.length === 0 &&
                 !pendingQuestion &&
                 !sessionMessagesQuery.isLoading ? (
-                  <EmptyState compact title={tc("noMessages")} />
+                  <div className="mx-auto flex max-w-3xl justify-start">
+                    <div className="flex max-w-[85%] items-start gap-3 rounded-3xl rounded-tl-none border border-[#e4e1ee] bg-[#f5f2ff] px-5 py-4 shadow-sm">
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#3525cd] shadow-sm">
+                        <span
+                          className="material-symbols-outlined text-[18px]"
+                          aria-hidden="true"
+                        >
+                          auto_awesome
+                        </span>
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#2f2a46]">
+                          Rudix is here.
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-[#4f4b63]">
+                          {tc("noMessages")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <ul className="mx-auto max-w-3xl space-y-12">
                     {thread.map((turn, turnIndex) => {
@@ -3130,88 +3378,6 @@ export function ChatPage() {
                                   </p>
                                 ) : null}
                               </article>
-                              {openTrustPanelMessageId ===
-                                turn.response.message_id && (
-                                <AnswerTrustPanel
-                                  messageId={turn.response.message_id}
-                                  confidenceScore={
-                                    turn.response.confidence_score
-                                  }
-                                  confidenceCategory={
-                                    turn.response.confidence_category
-                                  }
-                                  confidenceExplanation={
-                                    turn.response.confidence_explanation
-                                  }
-                                  citationValidationFailed={
-                                    turn.response.citation_validation_failed
-                                  }
-                                  verificationFailed={
-                                    turn.response.verification_failed
-                                  }
-                                  sourceFreshnessWarning={
-                                    turn.response.source_freshness_warning
-                                  }
-                                  sourceFreshnessWarningReason={
-                                    turn.response
-                                      .source_freshness_warning_reason
-                                  }
-                                  policyApplied={turn.response.policy_applied}
-                                  policyOutcome={turn.response.policy_outcome}
-                                  policyViolatedRules={
-                                    turn.response.policy_violated_rules
-                                  }
-                                  policyWarningFlags={
-                                    turn.response.policy_warning_flags
-                                  }
-                                  policyDisclaimer={
-                                    turn.response.policy_disclaimer
-                                  }
-                                  citations={turn.response.citations}
-                                  debug={turn.response.debug}
-                                  trustMetadata={turn.response.trust_metadata}
-                                  showInterpretationDetails={showDebugDetails}
-                                  onOpenCitation={(citation) => {
-                                    const previewCitation =
-                                      citation as ChatCitationResponse;
-                                    const siblings =
-                                      turn.response.citations.filter(
-                                        (c) =>
-                                          c.document_id ===
-                                          citation.document_id,
-                                      );
-                                    setSelectedResponseMessageId(
-                                      turn.response.message_id,
-                                    );
-                                    setIsKnowledgeHubOpen(false);
-                                    setPreviewCitationSet({
-                                      citations:
-                                        siblings.length > 0
-                                          ? siblings
-                                          : [previewCitation],
-                                      initialIndex: Math.max(
-                                        0,
-                                        siblings.indexOf(previewCitation),
-                                      ),
-                                    });
-                                  }}
-                                  onReportIssue={
-                                    chatFeedbackEnabled
-                                      ? (context) => {
-                                          setTrustPanelFeedbackMessageId(
-                                            turn.response.message_id,
-                                          );
-                                          setTrustPanelFeedbackContext(context);
-                                        }
-                                      : undefined
-                                  }
-                                  onSaveAsKnowledgeCard={() =>
-                                    setSaveKnowledgeCardMessageId(
-                                      turn.response.message_id,
-                                    )
-                                  }
-                                />
-                              )}
                               <div className="mt-3 flex items-center gap-1 px-1 pt-3">
                                 {!turn.response.not_found ? (
                                   <div className="group relative">
@@ -3222,14 +3388,17 @@ export function ChatPage() {
                                         openTrustPanelMessageId ===
                                         turn.response.message_id
                                       }
-                                      onClick={() =>
+                                      onClick={() => {
+                                        setSelectedResponseMessageId(
+                                          turn.response.message_id,
+                                        );
                                         setOpenTrustPanelMessageId(
                                           openTrustPanelMessageId ===
                                             turn.response.message_id
                                             ? null
                                             : turn.response.message_id,
-                                        )
-                                      }
+                                        );
+                                      }}
                                       className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${openTrustPanelMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                     >
                                       <span
@@ -4917,6 +5086,223 @@ export function ChatPage() {
           messageId={answerShareMessageId}
           onClose={() => setAnswerShareMessageId(null)}
         />
+      ) : null}
+
+      {openTrustPanelTurn ? (
+        <div
+          ref={trustPanelOverlayRef}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#171428]/60 p-6 backdrop-blur-[2px] md:p-8"
+          onClick={(event) => {
+            if (event.target === trustPanelOverlayRef.current) {
+              setOpenTrustPanelMessageId(null);
+            }
+          }}
+        >
+          <div
+            ref={trustPanelModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Answer Explanation"
+            className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-[#d7d4e8] bg-[#fcf8ff] shadow-[0_30px_90px_rgba(15,10,40,0.35)]"
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-[#e4e1ee] bg-white px-6 py-4 md:px-8">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f0ecf9] text-[#3525cd]">
+                  <span
+                    className="material-symbols-outlined text-[20px]"
+                    aria-hidden="true"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    tips_and_updates
+                  </span>
+                </span>
+                <p className="text-base font-semibold text-[#1b1b24]">
+                  Answer Explanation
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {openTrustPanelTurn ? (
+                  <button
+                    type="button"
+                    data-testid="trust-panel-save-knowledge-card-btn"
+                    onClick={() =>
+                      setSaveKnowledgeCardMessageId(
+                        openTrustPanelTurn.response.message_id,
+                      )
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#d7d4e8] bg-white px-3 py-2 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+                    aria-label="Save as knowledge card"
+                  >
+                    <span
+                      className="material-symbols-outlined text-[14px]"
+                      aria-hidden="true"
+                    >
+                      bookmark_add
+                    </span>
+                    Save as card
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  data-overlay-autofocus="true"
+                  aria-label="Close answer explanation"
+                  onClick={() => setOpenTrustPanelMessageId(null)}
+                  className="rounded-lg p-2 text-[#6a6780] transition-colors hover:bg-[#f5f2ff] hover:text-[#2f2a46]"
+                >
+                  <span
+                    className="material-symbols-outlined text-[20px]"
+                    aria-hidden="true"
+                  >
+                    close
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div className="rudix-chat-scrollbar max-h-[calc(90vh-5.25rem)] overflow-y-auto p-4 md:p-6">
+              <AnswerTrustPanel
+                messageId={openTrustPanelTurn.response.message_id}
+                confidenceScore={openTrustPanelTurn.response.confidence_score}
+                confidenceCategory={
+                  openTrustPanelTurn.response.confidence_category
+                }
+                confidenceExplanation={
+                  openTrustPanelTurn.response.confidence_explanation
+                }
+                citationValidationFailed={
+                  openTrustPanelTurn.response.citation_validation_failed
+                }
+                verificationFailed={
+                  openTrustPanelTurn.response.verification_failed
+                }
+                sourceFreshnessWarning={
+                  openTrustPanelTurn.response.source_freshness_warning
+                }
+                sourceFreshnessWarningReason={
+                  openTrustPanelTurn.response.source_freshness_warning_reason
+                }
+                policyApplied={openTrustPanelTurn.response.policy_applied}
+                policyOutcome={openTrustPanelTurn.response.policy_outcome}
+                policyViolatedRules={
+                  openTrustPanelTurn.response.policy_violated_rules
+                }
+                policyWarningFlags={
+                  openTrustPanelTurn.response.policy_warning_flags
+                }
+                policyDisclaimer={openTrustPanelTurn.response.policy_disclaimer}
+                citations={openTrustPanelTurn.response.citations}
+                debug={openTrustPanelTurn.response.debug}
+                trustMetadata={openTrustPanelTurn.response.trust_metadata}
+                showInterpretationDetails={showDebugDetails}
+                hideHeader
+                onOpenCitation={(citation) => {
+                  const previewCitation = citation as ChatCitationResponse;
+                  const siblings = openTrustPanelTurn.response.citations.filter(
+                    (item) => item.document_id === citation.document_id,
+                  );
+                  setSelectedResponseMessageId(
+                    openTrustPanelTurn.response.message_id,
+                  );
+                  setOpenTrustPanelMessageId(null);
+                  setIsKnowledgeHubOpen(false);
+                  setPreviewCitationSet({
+                    citations:
+                      siblings.length > 0 ? siblings : [previewCitation],
+                    initialIndex: Math.max(
+                      0,
+                      siblings.indexOf(previewCitation),
+                    ),
+                  });
+                }}
+                onReportIssue={
+                  chatFeedbackEnabled
+                    ? (context) => {
+                        setTrustPanelFeedbackMessageId(
+                          openTrustPanelTurn.response.message_id,
+                        );
+                        setTrustPanelFeedbackContext(context);
+                      }
+                    : undefined
+                }
+                onSaveAsKnowledgeCard={() =>
+                  setSaveKnowledgeCardMessageId(
+                    openTrustPanelTurn.response.message_id,
+                  )
+                }
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteSessionCandidate ? (
+        <div
+          ref={deleteSessionOverlayRef}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#171428]/50 p-4 backdrop-blur-[2px]"
+          onClick={(event) => {
+            if (event.target === deleteSessionOverlayRef.current) {
+              handleDeleteCancel();
+            }
+          }}
+        >
+          <div
+            ref={deleteSessionModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-session-modal-title"
+            className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#d7d4e8] bg-white shadow-[0_25px_70px_rgba(15,10,40,0.28)]"
+          >
+            <div className="flex items-start gap-3 border-b border-[#e4e1ee] px-5 py-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                <span
+                  className="material-symbols-outlined text-[20px]"
+                  aria-hidden="true"
+                >
+                  delete
+                </span>
+              </span>
+              <div className="min-w-0">
+                <h2
+                  id="delete-session-modal-title"
+                  className="text-base font-semibold text-[#1b1b24]"
+                >
+                  {tc("deleteConfirmTitle")}
+                </h2>
+                <p className="mt-1 truncate text-sm text-[#6a6780]">
+                  {sessionDisplayTitleById.get(
+                    deleteSessionCandidate.session_id,
+                  ) ?? tc("untitledSession")}
+                </p>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm leading-relaxed text-[#4f4b63]">
+                This session will be permanently deleted from the workspace. The
+                action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-[#e4e1ee] bg-[#faf9ff] px-5 py-4">
+              <button
+                type="button"
+                onClick={handleDeleteCancel}
+                className="rounded-xl border border-[#d7d4e8] bg-white px-4 py-2 text-sm font-semibold text-[#4f4b63] hover:bg-[#f5f2ff]"
+              >
+                {tc("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleDeleteConfirm(deleteSessionCandidate.session_id)
+                }
+                disabled={deleteSessionMutation.isPending}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleteSessionMutation.isPending
+                  ? tc("deleting")
+                  : tc("delete")}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {chatFeedbackEnabled && feedbackModalMessageId ? (

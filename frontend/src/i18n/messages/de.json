@@ -2110,7 +2110,7 @@
       "shareSessionTitle": "Sitzung mit Organisationsmitgliedern teilen",
       "loadingHistory": "Sitzungsverlauf wird geladen...",
       "loadHistoryError": "Frühere Nachrichten konnten nicht geladen werden",
-      "noMessages": "Noch keine Nachrichten. Stellen Sie eine Frage, um die Konversation zu starten.",
+      "noMessages": "Wie kann ich Ihnen heute helfen?",
       "questionLabel": "Frage",
       "agentStatus": "Agent {status}",
       "lowConfidenceWarning": "Geringes Vertrauen: Überprüfen Sie diese Antwort anhand des zitierten Quelltexts.",

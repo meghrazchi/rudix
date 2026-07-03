@@ -1,4 +1,3 @@
-import { isApiClientError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/request";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
