@@ -36,6 +36,10 @@ from app.domains.agents.services.external_mcp import ExternalMCPToolManager
 from app.domains.agents.services.safety_guardrails import PromptInjectionGuard
 from app.domains.agents.services.tool_executor import AgentToolExecutor
 from app.domains.agents.services.tool_registry import ToolRegistry, build_default_tool_specs
+from app.domains.chat.services.source_scope_service import (
+    ResolvedSourceScope,
+    SourceScopeService,
+)
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
 from app.models.enums import AgentRunStatus, AgentStepStatus, PromptTemplateKey
@@ -70,6 +74,7 @@ class AgentRuntime:
         safety_guard: PromptInjectionGuard | None = None,
         usage_repository: UsageRepository | None = None,
         external_mcp_tool_manager: ExternalMCPToolManager | None = None,
+        source_scope_service: SourceScopeService | None = None,
     ) -> None:
         resolved_registry = registry or ToolRegistry(specs=build_default_tool_specs())
         if registry is None:
@@ -81,6 +86,7 @@ class AgentRuntime:
         self._safety_guard = safety_guard or PromptInjectionGuard()
         self._usage_repository = usage_repository or UsageRepository()
         self._external_mcp_tool_manager = external_mcp_tool_manager or ExternalMCPToolManager()
+        self._source_scope_service = source_scope_service or SourceScopeService()
         self._prompt_template_service = PromptTemplateService()
         self._executor = executor or AgentToolExecutor(
             registry=self._registry,
@@ -102,12 +108,7 @@ class AgentRuntime:
         started_at = datetime.now(tz=UTC)
         started_perf = perf_counter()
         budget = self._resolve_budget(request.budget)
-        plan = self._build_plan(request=request)
-        context = _RuntimeContext(
-            mode=self._select_mode(request),
-            question=request.question or request.objective,
-            selected_document_ids=list(request.document_ids),
-        )
+        effective_request = request
         external_mcp_summary = await self._external_mcp_tool_manager.ensure_registered(
             registry=self._registry
         )
@@ -128,7 +129,28 @@ class AgentRuntime:
                 "version_number": prompt_version.version_number,
                 "version_id": str(prompt_version.id),
             }
-
+        source_scope_result = await self._resolve_request_source_scope(
+            session=session,
+            organization_id=organization_id,
+            user_id=user_id,
+            user_roles=list(principal.roles or []),
+            request=request,
+        )
+        source_scope_mode = request.source_scope.mode if request.source_scope is not None else None
+        if source_scope_result is not None:
+            if source_scope_result.document_ids:
+                effective_request = request.model_copy(
+                    update={
+                        "document_ids": [
+                            str(document_id) for document_id in source_scope_result.document_ids
+                        ],
+                    }
+                )
+        context = _RuntimeContext(
+            mode=self._select_mode(effective_request),
+            question=effective_request.question or effective_request.objective,
+            selected_document_ids=list(effective_request.document_ids),
+        )
         run = await self._repository.create_agent_run(
             session,
             organization_id=organization_id,
@@ -163,6 +185,22 @@ class AgentRuntime:
             started_at=started_at,
             trace_request_id=request_id,
         )
+        if source_scope_result is not None and source_scope_result.document_ids == []:
+            return await self._fail_run(
+                session=session,
+                run_id=run.id,
+                organization_id=organization_id,
+                user_id=user_id,
+                context=context,
+                request_id=request_id,
+                code="validation_failed",
+                message="No accessible documents matched the selected sources.",
+                details={
+                    "source_scope_mode": source_scope_mode,
+                    "source_scope_label": source_scope_result.label,
+                },
+            )
+        plan = self._build_plan(request=effective_request)
         log_agent_event(
             event="agent.runtime.started",
             organization_id=str(organization_id),
@@ -184,9 +222,9 @@ class AgentRuntime:
 
         if settings.agent_prompt_injection_guard_enabled:
             request_injection = self._safety_guard.evaluate_request(
-                objective=request.objective,
-                question=request.question,
-                document_query=request.document_query,
+                objective=effective_request.objective,
+                question=effective_request.question,
+                document_query=effective_request.document_query,
             )
             if request_injection.blocked:
                 return await self._fail_run(
@@ -644,6 +682,27 @@ class AgentRuntime:
             return AgentRuntimeMode.summarize
         return AgentRuntimeMode.answer
 
+    async def _resolve_request_source_scope(
+        self,
+        *,
+        session: AsyncSession,
+        organization_id: UUID,
+        user_id: UUID,
+        user_roles: list[str],
+        request: AgentRuntimeRequest,
+    ) -> ResolvedSourceScope | None:
+        if request.source_scope is None:
+            return None
+        explicit_document_ids = self._parse_document_ids(request.document_ids)
+        return await self._source_scope_service.resolve_document_ids(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            user_roles=user_roles,
+            source_scope=request.source_scope,
+            explicit_document_ids=explicit_document_ids,
+        )
+
     def _build_plan(self, *, request: AgentRuntimeRequest) -> list[PlannedToolSelection]:
         mode = self._select_mode(request)
         question = request.question or request.objective
@@ -711,6 +770,22 @@ class AgentRuntime:
             )
 
         return selections
+
+    @staticmethod
+    def _parse_document_ids(document_ids: list[str]) -> list[UUID]:
+        parsed: list[UUID] = []
+        seen: set[str] = set()
+        for raw_document_id in document_ids:
+            normalized = raw_document_id.strip()
+            if not normalized or normalized in seen:
+                continue
+            try:
+                document_id = UUID(normalized)
+            except ValueError:
+                continue
+            seen.add(normalized)
+            parsed.append(document_id)
+        return parsed
 
     def preview_plan(self, *, request: AgentRuntimeRequest) -> list[PlannedToolSelection]:
         """Expose the deterministic tool plan without executing it."""

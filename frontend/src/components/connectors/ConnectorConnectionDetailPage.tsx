@@ -1036,6 +1036,15 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href={`/chat?connection_id=${encodeURIComponent(connection.id)}&scope_mode=connectors`}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#d7d4e8] bg-white px-4 py-2.5 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f2ff]"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                forum
+              </span>
+              Ask in chat
+            </Link>
             <button
               type="button"
               onClick={() => syncMutation.mutate(activeJob?.id)}

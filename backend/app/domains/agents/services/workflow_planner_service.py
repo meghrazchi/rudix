@@ -108,6 +108,7 @@ class WorkflowPlannerService:
                 question=workflow_request.question,
                 document_query=workflow_request.document_query,
                 document_ids=workflow_request.document_ids,
+                source_scope=workflow_request.source_scope,
                 top_k=workflow_request.top_k,
                 rerank=workflow_request.rerank,
                 approval_ids=workflow_request.approval_ids,

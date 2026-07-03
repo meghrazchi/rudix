@@ -1153,13 +1153,13 @@ describe("ChatPage", () => {
     const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
     expect(call).toMatchObject({
       question: "collection scope check",
-      document_ids: ["doc-collection"],
       scope_mode: "collection",
       source_scope: {
         mode: "collections",
         collection_ids: ["collection-finance"],
       },
     });
+    expect(call?.document_ids).toBeUndefined();
   });
 
   it("submits selected document_ids with top_k payload", async () => {
@@ -3751,6 +3751,252 @@ describe("ChatPage", () => {
     });
 
     expect(selectedDocumentButton).toHaveTextContent("Selected");
+  });
+
+  it("preselects the collection from the detail page link", async () => {
+    mockNavigation.searchParams = new URLSearchParams("collection_id=col-link");
+    vi.mocked(listCollections).mockResolvedValue({
+      items: [
+        {
+          collection_id: "col-link",
+          name: "Linked collection",
+          description: "Linked collection description",
+          owner_id: "user-1",
+          owner_email: "owner@example.com",
+          document_count: 159,
+          indexed_count: 159,
+          access_policy: "org_wide",
+          is_dynamic: false,
+          last_rule_evaluated_at: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(listCollectionDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+    });
+
+    renderPage();
+
+    const scopeMenu = await openScopeMenu();
+    const selectedCollectionCheckbox = within(scopeMenu).getByRole("checkbox", {
+      name: /linked collection/i,
+    });
+
+    expect(selectedCollectionCheckbox).toBeChecked();
+  });
+
+  it("submits a collection deep link without expanding document_ids", async () => {
+    mockNavigation.searchParams = new URLSearchParams("collection_id=col-link");
+    vi.mocked(listCollections).mockResolvedValue({
+      items: [
+        {
+          collection_id: "col-link",
+          name: "Linked collection",
+          description: "Linked collection description",
+          owner_id: "user-1",
+          owner_email: "owner@example.com",
+          document_count: 159,
+          indexed_count: 159,
+          access_policy: "org_wide",
+          is_dynamic: false,
+          last_rule_evaluated_at: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(listCollectionDocuments).mockResolvedValue({
+      items: Array.from({ length: 159 }, (_, index) => ({
+        document_id: `doc-${index + 1}`,
+        filename: `doc-${index + 1}.pdf`,
+        file_type: "pdf" as const,
+        status: "indexed" as const,
+        page_count: 1,
+        chunk_count: 1,
+        error_message: null,
+        error_details: null,
+        created_at: "2026-05-14T10:00:00Z",
+        updated_at: "2026-05-14T10:05:00Z",
+      })),
+      total: 159,
+    });
+    vi.mocked(queryChat).mockResolvedValue(createChatQueryResponse());
+
+    renderPage();
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      { target: { value: "Collection deep link query" } },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalled();
+    });
+    const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
+    expect(call).toMatchObject({
+      question: "Collection deep link query",
+      scope_mode: "collection",
+      source_scope: {
+        mode: "collections",
+        collection_ids: ["col-link"],
+      },
+    });
+    expect(call?.document_ids).toBeUndefined();
+  });
+
+  it("submits a collection deep link through agentic chat with source scope", async () => {
+    window.localStorage.setItem(
+      "rudix.chat.settings.v1",
+      JSON.stringify({
+        topK: 5,
+        rerank: true,
+        agenticMode: true,
+        scopeMode: "all",
+        answerLanguage: "auto",
+      }),
+    );
+    mockNavigation.searchParams = new URLSearchParams("collection_id=col-link");
+    vi.mocked(listCollections).mockResolvedValue({
+      items: [
+        {
+          collection_id: "col-link",
+          name: "Linked collection",
+          description: "Linked collection description",
+          owner_id: "user-1",
+          owner_email: "owner@example.com",
+          document_count: 159,
+          indexed_count: 159,
+          access_policy: "org_wide",
+          is_dynamic: false,
+          last_rule_evaluated_at: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(listCollectionDocuments).mockResolvedValue({
+      items: Array.from({ length: 159 }, (_, index) => ({
+        document_id: `doc-${index + 1}`,
+        filename: `doc-${index + 1}.pdf`,
+        file_type: "pdf" as const,
+        status: "indexed" as const,
+        page_count: 1,
+        chunk_count: 1,
+        error_message: null,
+        error_details: null,
+        created_at: "2026-05-14T10:00:00Z",
+        updated_at: "2026-05-14T10:05:00Z",
+      })),
+      total: 159,
+    });
+    vi.mocked(queryChat).mockResolvedValue(createChatQueryResponse());
+
+    renderPage();
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      { target: { value: "Agentic collection query" } },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(createAgentRun)).toHaveBeenCalled();
+    });
+    expect(vi.mocked(queryChat)).not.toHaveBeenCalled();
+    const call = vi.mocked(createAgentRun).mock.calls.at(-1)?.[0];
+    expect(call).toMatchObject({
+      agentic_mode: true,
+      request: {
+        objective: "Agentic collection query",
+        question: "Agentic collection query",
+        top_k: 5,
+        rerank: true,
+        source_scope: {
+          mode: "collections",
+          collection_ids: ["col-link"],
+        },
+      },
+    });
+    expect(call?.request.document_ids).toBeUndefined();
+  });
+
+  it("submits a connector deep link with connector source scope", async () => {
+    mockNavigation.searchParams = new URLSearchParams(
+      "connection_id=conn-confluence-1",
+    );
+    vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
+      items: [
+        {
+          id: "conn-confluence-1",
+          provider_key: "confluence",
+          provider: {
+            key: "confluence",
+            display_name: "Confluence",
+            enabled_by_default: false,
+            has_oauth: true,
+            capabilities: {
+              auth_type: "oauth2",
+              capabilities: ["attachments", "folders"],
+              rate_limits: [],
+              export_formats: [],
+              max_page_size: null,
+              notes: null,
+            },
+            config_schema: { type: "object", properties: {} },
+          },
+          display_name: "Engineering Confluence",
+          external_account_id: null,
+          collection_id: null,
+          status: "active",
+          auth_config: { space_keys: ["ENG", "DOCS"] },
+          last_sync_at: null,
+          error_message: null,
+          source_count: 2,
+          indexed_document_count: 2,
+          sync_job_count: 1,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(queryChat).mockResolvedValue(createChatQueryResponse());
+
+    renderPage();
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      { target: { value: "Connector deep link query" } },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalled();
+    });
+    const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
+    expect(call).toMatchObject({
+      question: "Connector deep link query",
+      scope_mode: "all",
+      source_scope: {
+        mode: "connector_sources",
+        connection_ids: ["conn-confluence-1"],
+        provider_source_ids: [],
+      },
+    });
+    expect(call?.document_ids).toBeUndefined();
   });
 
   it("renders the answer language selector in the composer toolbar", async () => {

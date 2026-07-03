@@ -19,6 +19,7 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.authorization_service import AuthorizationService
@@ -233,7 +234,8 @@ from app.domains.quota.schemas.quota_schemas import QuotaType
 from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
 from app.domains.rag_profiles.services.rag_profile_service import resolve_profile_for_context
-from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
+from app.models.document import Document, DocumentChunk
+from app.models.enums import ChatRole, DocumentStatus, OrganizationRole, PromptTemplateKey
 from app.models.prompt_template import PromptTemplateVersion
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.rate_limit.dependencies import _build_key, _rate_limit_disabled, _scope_limit
@@ -251,6 +253,9 @@ usage_repository = UsageRepository()
 audit_log_service = AuditLogService()
 
 _MAX_ACTIVE_SHARES_PER_SESSION = 10
+_SCOPE_INVENTORY_MAX_LISTED_DOCUMENTS = 200
+_SCOPE_INVENTORY_MAX_CITATIONS = 20
+_SCOPE_INVENTORY_SNIPPET_CHARS = 400
 _query_retrieval_service = QueryRetrievalService()
 _keyword_retrieval_service = KeywordRetrievalService()
 _hybrid_retrieval_service = HybridRetrievalService()
@@ -651,6 +656,23 @@ class RetrievedChunk:
     parent_text: str | None = None
 
 
+@dataclass(frozen=True)
+class ScopeInventoryDocument:
+    document_id: UUID
+    filename: str
+    file_type: str
+    page_count: int | None
+    chunk_count: int | None
+
+
+@dataclass(frozen=True)
+class ScopeInventoryResult:
+    total_count: int
+    listed_documents: list[ScopeInventoryDocument]
+    retrieved_chunks: list[RetrievedChunk]
+    citations: list[ChatCitationResponse]
+
+
 def _safe_http_error(*, status_code: int, code: str, message: str) -> HTTPException:
     return HTTPException(
         status_code=status_code,
@@ -714,6 +736,306 @@ def _list_or_empty(value: object) -> list[object]:
         return list(value)  # type: ignore[arg-type]
     except TypeError:
         return []
+
+
+def _is_scope_inventory_question(question: str) -> bool:
+    normalized = " ".join(question.lower().split())
+    if not normalized:
+        return False
+
+    plural_source_terms = (
+        "files",
+        "documents",
+        "docs",
+        "sources",
+        "source files",
+        "indexed files",
+    )
+    singular_source_terms = ("file", "document", "doc", "source")
+    has_plural_source_term = any(term in normalized for term in plural_source_terms)
+    has_any_source_term = has_plural_source_term or any(
+        term in normalized for term in singular_source_terms
+    )
+    if not has_any_source_term:
+        return False
+
+    if any(
+        phrase in normalized
+        for phrase in (
+            "which files",
+            "what files",
+            "which documents",
+            "what documents",
+            "which docs",
+            "what docs",
+            "which sources",
+            "what sources",
+            "files are included",
+            "documents are included",
+            "docs are included",
+            "sources are included",
+            "files included",
+            "documents included",
+            "docs included",
+            "sources included",
+            "included files",
+            "included documents",
+            "selected files",
+            "selected documents",
+            "selected sources",
+            "available files",
+            "available documents",
+            "available sources",
+            "files in this collection",
+            "documents in this collection",
+            "files in this connector",
+            "documents in this connector",
+            "files in scope",
+            "documents in scope",
+            "sources in scope",
+            "tell me about files",
+            "tell me about the files",
+            "explain about files",
+            "explain about the files",
+        )
+    ):
+        return True
+
+    if has_plural_source_term and normalized.startswith(("list ", "show ")):
+        return True
+
+    return False
+
+
+def _scope_inventory_snippet(text: str) -> str:
+    normalized = " ".join(text.split())
+    if len(normalized) <= _SCOPE_INVENTORY_SNIPPET_CHARS:
+        return normalized
+    return normalized[:_SCOPE_INVENTORY_SNIPPET_CHARS].rsplit(" ", 1)[0].strip()
+
+
+async def _filter_authorized_documents_for_chat(
+    db_session: AsyncSession,
+    *,
+    principal: AuthenticatedPrincipal,
+    organization_id: UUID,
+    user_id: UUID,
+    user_roles: list[str],
+    documents: list[Document],
+) -> list[Document]:
+    if not documents or frozenset({"owner", "admin"}).intersection(user_roles):
+        return documents
+
+    accessible_col_ids = await get_subject_accessible_collection_ids(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=user_roles,
+    )
+    resource_contexts = await build_document_resource_contexts_batch(
+        db_session,
+        documents=documents,
+        organization_id=organization_id,
+        subject_accessible_collection_ids=accessible_col_ids,
+    )
+    allowed_ids = {
+        ctx.resource_id
+        for ctx in await _authorization_service.filter_accessible_resources(
+            principal, Action.chat, resource_contexts, db_session
+        )
+    }
+    return [document for document in documents if str(document.id) in allowed_ids]
+
+
+async def _filter_authorized_document_ids_for_chat(
+    db_session: AsyncSession,
+    *,
+    principal: AuthenticatedPrincipal,
+    organization_id: UUID,
+    user_id: UUID,
+    user_roles: list[str],
+    document_ids: list[UUID] | None,
+) -> list[UUID] | None:
+    if document_ids is None or not document_ids:
+        return document_ids
+    if frozenset({"owner", "admin"}).intersection(user_roles):
+        return document_ids
+
+    result = await db_session.execute(
+        select(Document).where(
+            Document.organization_id == organization_id,
+            Document.id.in_(document_ids),
+        )
+    )
+    documents = list(result.scalars().all())
+    allowed_documents = await _filter_authorized_documents_for_chat(
+        db_session,
+        principal=principal,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=user_roles,
+        documents=documents,
+    )
+    allowed_ids = {document.id for document in allowed_documents}
+    return [document_id for document_id in document_ids if document_id in allowed_ids]
+
+
+async def _build_scope_inventory_result(
+    db_session: AsyncSession,
+    *,
+    principal: AuthenticatedPrincipal,
+    organization_id: UUID,
+    user_id: UUID,
+    user_roles: list[str],
+    document_ids: list[UUID] | None,
+) -> ScopeInventoryResult:
+    statement = select(Document).where(
+        Document.organization_id == organization_id,
+        Document.status == DocumentStatus.indexed.value,
+    )
+    if document_ids is not None:
+        if not document_ids:
+            return ScopeInventoryResult(
+                total_count=0,
+                listed_documents=[],
+                retrieved_chunks=[],
+                citations=[],
+            )
+        statement = statement.where(Document.id.in_(document_ids))
+
+    result = await db_session.execute(
+        statement.order_by(Document.filename.asc(), Document.id.asc())
+    )
+    documents = list(result.scalars().all())
+    if document_ids is not None:
+        order_by_scope = {document_id: index for index, document_id in enumerate(document_ids)}
+        documents.sort(key=lambda document: order_by_scope.get(document.id, len(order_by_scope)))
+
+    documents = await _filter_authorized_documents_for_chat(
+        db_session,
+        principal=principal,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=user_roles,
+        documents=documents,
+    )
+    listed_documents = [
+        ScopeInventoryDocument(
+            document_id=document.id,
+            filename=document.filename,
+            file_type=document.file_type,
+            page_count=document.page_count,
+            chunk_count=document.chunk_count,
+        )
+        for document in documents[:_SCOPE_INVENTORY_MAX_LISTED_DOCUMENTS]
+    ]
+    citation_document_ids = [
+        document.document_id for document in listed_documents[:_SCOPE_INVENTORY_MAX_CITATIONS]
+    ]
+    if not citation_document_ids:
+        return ScopeInventoryResult(
+            total_count=len(documents),
+            listed_documents=listed_documents,
+            retrieved_chunks=[],
+            citations=[],
+        )
+
+    chunks_result = await db_session.execute(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id.in_(citation_document_ids))
+        .order_by(DocumentChunk.document_id.asc(), DocumentChunk.chunk_index.asc())
+    )
+    first_chunk_by_document_id: dict[UUID, DocumentChunk] = {}
+    for chunk in chunks_result.scalars().all():
+        if chunk.document_id not in first_chunk_by_document_id:
+            first_chunk_by_document_id[chunk.document_id] = chunk
+
+    provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
+        db_session,
+        organization_id=organization_id,
+        chunk_ids=[chunk.id for chunk in first_chunk_by_document_id.values()],
+    )
+    retrieved_chunks: list[RetrievedChunk] = []
+    citations: list[ChatCitationResponse] = []
+    for rank, document in enumerate(listed_documents, start=1):
+        chunk = first_chunk_by_document_id.get(document.document_id)
+        if chunk is None:
+            continue
+        retrieved_chunk = RetrievedChunk(
+            document_id=document.document_id,
+            chunk_id=chunk.id,
+            filename=document.filename,
+            page_number=chunk.page_number,
+            text=chunk.text,
+            similarity_score=1.0,
+            original_rank=rank,
+            final_rank=rank,
+            retrieval_source="scope_inventory",
+            chunk_type=chunk.chunk_type,
+            chunk_level=chunk.chunk_level or 0,
+        )
+        retrieved_chunks.append(retrieved_chunk)
+        citation = ChatCitationResponse(
+            document_id=str(document.document_id),
+            chunk_id=str(chunk.id),
+            filename=document.filename,
+            page_number=chunk.page_number,
+            score=1.0,
+            similarity_score=1.0,
+            original_rank=rank,
+            final_rank=rank,
+            text_snippet=_scope_inventory_snippet(chunk.text),
+            start_offset=chunk.source_start_offset,
+            end_offset=chunk.source_end_offset,
+        )
+        citations.append(
+            _with_provenance(
+                citation,
+                provenance_by_chunk_id.get(chunk.id),
+            )
+        )
+
+    return ScopeInventoryResult(
+        total_count=len(documents),
+        listed_documents=listed_documents,
+        retrieved_chunks=retrieved_chunks,
+        citations=citations,
+    )
+
+
+def _build_scope_inventory_answer(
+    *,
+    inventory: ScopeInventoryResult,
+    source_scope_result: ResolvedSourceScope,
+) -> str:
+    scope_label = source_scope_result.label or "All indexed files"
+    if inventory.total_count == 0:
+        return f"No indexed files were found in the selected scope ({scope_label})."
+
+    lines = [
+        f"The selected scope ({scope_label}) includes {inventory.total_count} indexed file(s).",
+        "",
+        "Files included:",
+    ]
+    for document in inventory.listed_documents:
+        details: list[str] = [document.file_type.upper()]
+        if document.page_count is not None:
+            page_label = "page" if document.page_count == 1 else "pages"
+            details.append(f"{document.page_count} {page_label}")
+        if document.chunk_count is not None:
+            chunk_label = "chunk" if document.chunk_count == 1 else "chunks"
+            details.append(f"{document.chunk_count} {chunk_label}")
+        lines.append(f"- {document.filename} ({', '.join(details)})")
+
+    if inventory.total_count > len(inventory.listed_documents):
+        lines.append(
+            f"- Showing first {len(inventory.listed_documents)} of "
+            f"{inventory.total_count} indexed files."
+        )
+    if inventory.citations:
+        lines.append("")
+        lines.append("Citations reference the first indexed chunk for the listed files.")
+    return "\n".join(lines)
 
 
 def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
@@ -2692,40 +3014,14 @@ async def query_chat(
         explicit_document_ids=explicit_document_ids,
     )
     document_ids = source_scope_result.document_ids
-    # Policy-engine authorization filter on the resolved document scope.
-    # Admins bypass via rule 5; non-admins have each document checked.
-    if document_ids and not frozenset({"owner", "admin"}).intersection(user_roles):
-        from app.domains.documents.repositories.documents import DocumentRepository as _DocRepo
-
-        _doc_repo_chat = _DocRepo()
-        docs_for_auth = []
-        for doc_id in document_ids:
-            doc = await _doc_repo_chat.get_document(
-                db_session, document_id=doc_id, organization_id=organization_id
-            )
-            if doc is not None:
-                docs_for_auth.append(doc)
-
-        if docs_for_auth:
-            accessible_col_ids = await get_subject_accessible_collection_ids(
-                db_session,
-                organization_id=organization_id,
-                user_id=user_id,
-                user_roles=user_roles,
-            )
-            resource_contexts = await build_document_resource_contexts_batch(
-                db_session,
-                documents=docs_for_auth,
-                organization_id=organization_id,
-                subject_accessible_collection_ids=accessible_col_ids,
-            )
-            allowed_ids = {
-                ctx.resource_id
-                for ctx in await _authorization_service.filter_accessible_resources(
-                    principal, Action.chat, resource_contexts, db_session
-                )
-            }
-            document_ids = [d for d in document_ids if str(d) in allowed_ids]
+    document_ids = await _filter_authorized_document_ids_for_chat(
+        db_session,
+        principal=principal,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=user_roles,
+        document_ids=document_ids,
+    )
 
     if payload.chat_session_id is not None:
         try:
@@ -2818,7 +3114,8 @@ async def query_chat(
         )
 
     answer_mode_result = _answer_mode_service.classify(question=payload.question)
-    if answer_mode_result.mode == "grounded":
+    scope_inventory_requested = _is_scope_inventory_question(payload.question)
+    if answer_mode_result.mode == "grounded" and not scope_inventory_requested:
         answer_prompt_version = await _resolve_answer_prompt_version(
             db_session,
             organization_id=organization_id,
@@ -2946,6 +3243,7 @@ async def query_chat(
         and not injection_check.blocked
         and not not_found
         and answer_mode_result.mode == "grounded"
+        and not scope_inventory_requested
     ):
         planner_result = _answer_planner.classify(
             question=payload.question,
@@ -2962,6 +3260,7 @@ async def query_chat(
         and not injection_check.blocked
         and not not_found
         and answer_mode_result.mode == "grounded"
+        and not scope_inventory_requested
     ):
         _profile_cfg_for_routing = (
             RagProfileConfig.model_validate(dict(rag_profile.config))
@@ -2992,6 +3291,7 @@ async def query_chat(
         and not injection_check.blocked
         and not not_found
         and answer_mode_result.mode == "grounded"
+        and not scope_inventory_requested
     ):
         _orchestration_feature_availability: dict[str, bool] = {
             "feature_enable_connectors": settings.feature_enable_connectors,
@@ -3038,6 +3338,7 @@ async def query_chat(
         settings.feature_enable_query_rewriting
         and not injection_check.blocked
         and answer_mode_result.mode == "grounded"
+        and not scope_inventory_requested
     ):
         _profile_rewriting = True
         _profile_decomposition = True
@@ -3080,6 +3381,39 @@ async def query_chat(
             citation_count=0,
             citation_validation_score=1.0,
             not_found_signal=True,
+        )
+        confidence_score = confidence_result.score
+        confidence_category = confidence_result.category
+        confidence_explanation = confidence_result.explanation
+    elif scope_inventory_requested:
+        embedding_model = None
+        retrieve_started = perf_counter()
+        inventory_result = await _build_scope_inventory_result(
+            db_session,
+            principal=principal,
+            organization_id=organization_id,
+            user_id=user_id,
+            user_roles=user_roles,
+            document_ids=document_ids,
+        )
+        latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
+        retrieved_chunks = inventory_result.retrieved_chunks
+        selected_chunks = inventory_result.retrieved_chunks
+        citations = inventory_result.citations
+        answer = _build_scope_inventory_answer(
+            inventory=inventory_result,
+            source_scope_result=source_scope_result,
+        )
+        not_found = inventory_result.total_count == 0
+        confidence_signals = _to_confidence_signals(
+            chunks=selected_chunks,
+            rerank_applied=False,
+        )
+        confidence_result = _confidence_service.score(
+            chunks=confidence_signals,
+            citation_count=len(citations),
+            citation_validation_score=1.0,
+            not_found_signal=not_found,
         )
         confidence_score = confidence_result.score
         confidence_category = confidence_result.category
@@ -5886,6 +6220,14 @@ async def _run_ws_chat_pipeline(
                 explicit_document_ids=explicit_document_ids,
             )
             document_ids = source_scope_result.document_ids
+            document_ids = await _filter_authorized_document_ids_for_chat(
+                db_session,
+                principal=principal,
+                organization_id=organization_id,
+                user_id=user_id,
+                user_roles=user_roles,
+                document_ids=document_ids,
+            )
             await send("chat.scope.validated", {"scope_label": source_scope_result.label})
             await send_step("understanding_question", "Understanding your question", "success")
             # Emit planning_answer step when planner is active (F339)
@@ -5988,7 +6330,8 @@ async def _run_ws_chat_pipeline(
             if _ai_pre_result.blocked and not injection_check.blocked:
                 _ai_policy_result = _ai_pre_result
             answer_mode_result = _answer_mode_service.classify(question=query_request.question)
-            if answer_mode_result.mode == "grounded":
+            scope_inventory_requested = _is_scope_inventory_question(query_request.question)
+            if answer_mode_result.mode == "grounded" and not scope_inventory_requested:
                 answer_prompt_version = await _resolve_answer_prompt_version(
                     db_session, organization_id=organization_id
                 )
@@ -6042,6 +6385,7 @@ async def _run_ws_chat_pipeline(
                 agreement_level="full",
             )
             final_top_k = query_request.top_k or settings.retrieval_final_top_k
+            rerank_applied = False
 
             chat_profile = await resolve_task_profile(
                 db_session, organization_id=organization_id, task_type=TaskType.chat
@@ -6068,6 +6412,7 @@ async def _run_ws_chat_pipeline(
                 and not injection_check.blocked
                 and not not_found
                 and answer_mode_result.mode == "grounded"
+                and not scope_inventory_requested
             ):
                 _ws_planner_result = _answer_planner.classify(
                     question=query_request.question,
@@ -6082,6 +6427,7 @@ async def _run_ws_chat_pipeline(
                 and not injection_check.blocked
                 and not not_found
                 and answer_mode_result.mode == "grounded"
+                and not scope_inventory_requested
             ):
                 _ws_profile_cfg = (
                     RagProfileConfig.model_validate(dict(rag_profile.config))
@@ -6117,6 +6463,7 @@ async def _run_ws_chat_pipeline(
                 and not injection_check.blocked
                 and not not_found
                 and answer_mode_result.mode == "grounded"
+                and not scope_inventory_requested
             ):
                 _ws_orchestration_feature_availability: dict[str, bool] = {
                     "feature_enable_connectors": settings.feature_enable_connectors,
@@ -6164,6 +6511,86 @@ async def _run_ws_chat_pipeline(
                     citation_count=0,
                     citation_validation_score=1.0,
                     not_found_signal=True,
+                )
+                confidence_score = confidence_result.score
+                confidence_category = confidence_result.category
+                confidence_explanation = confidence_result.explanation
+
+            elif scope_inventory_requested:
+                # Scope inventory questions are answered from indexed document metadata
+                # and first chunks; vector retrieval and LLM generation are unnecessary.
+                embedding_model = None
+                retrieve_started = perf_counter()
+                inventory_result = await _build_scope_inventory_result(
+                    db_session,
+                    principal=principal,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                    user_roles=user_roles,
+                    document_ids=document_ids,
+                )
+                latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
+                retrieved_chunks = inventory_result.retrieved_chunks
+                selected_chunks = inventory_result.retrieved_chunks
+                citations = inventory_result.citations
+                answer = _build_scope_inventory_answer(
+                    inventory=inventory_result,
+                    source_scope_result=source_scope_result,
+                )
+                not_found = inventory_result.total_count == 0
+                await send_step(
+                    "checking_sources",
+                    "Checking accessible sources",
+                    "warning" if not_found else "success",
+                    detail=(
+                        "No indexed files found"
+                        if not_found
+                        else f"Found {inventory_result.total_count} indexed file"
+                        f"{'s' if inventory_result.total_count != 1 else ''}"
+                    ),
+                )
+                await send("retrieval.started")
+                await send("retrieval.completed", {"chunk_count": len(retrieved_chunks)})
+                await send_step(
+                    "searching_documents",
+                    "Searching knowledge base",
+                    "warning" if not_found else "success",
+                    detail=(
+                        "No indexed files found"
+                        if not_found
+                        else f"Included {inventory_result.total_count} indexed file"
+                        f"{'s' if inventory_result.total_count != 1 else ''}"
+                    ),
+                    duration_ms=latencies_ms["retrieve"],
+                )
+                await send_step("reranking_evidence", "Ranking evidence by relevance", "skipped")
+                await send("generation.started")
+                await send_step("drafting_answer", "Drafting answer", "running")
+                await send("generation.delta", {"text": answer})
+                await send_step(
+                    "drafting_answer",
+                    "Drafting answer",
+                    "warning" if not_found else "success",
+                    detail="No indexed files found" if not_found else None,
+                )
+                await send("citation.validation.completed", {"citation_count": len(citations)})
+                if citations:
+                    await send_step(
+                        "verifying_citations",
+                        "Verifying source citations",
+                        "success",
+                        detail=f"Linked {len(citations)} citation"
+                        f"{'s' if len(citations) != 1 else ''}",
+                    )
+                confidence_signals = _to_confidence_signals(
+                    chunks=selected_chunks,
+                    rerank_applied=False,
+                )
+                confidence_result = _confidence_service.score(
+                    chunks=confidence_signals,
+                    citation_count=len(citations),
+                    citation_validation_score=1.0,
+                    not_found_signal=not_found,
                 )
                 confidence_score = confidence_result.score
                 confidence_category = confidence_result.category

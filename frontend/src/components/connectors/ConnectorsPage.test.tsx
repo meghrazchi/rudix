@@ -13,7 +13,7 @@ import type {
 const mockApi = vi.hoisted(() => ({
   listProviders: vi.fn(),
   listConnectorConnections: vi.fn(),
-  disconnectConnector: vi.fn(),
+  deleteConnectorConnection: vi.fn(),
 }));
 
 vi.mock("@/lib/api/connector-providers", async (importOriginal) => {
@@ -31,8 +31,8 @@ vi.mock("@/lib/api/connectors", async (importOriginal) => {
     ...actual,
     listConnectorConnections: (...args: unknown[]) =>
       mockApi.listConnectorConnections(...args),
-    disconnectConnector: (...args: unknown[]) =>
-      mockApi.disconnectConnector(...args),
+    deleteConnectorConnection: (...args: unknown[]) =>
+      mockApi.deleteConnectorConnection(...args),
   };
 });
 
@@ -121,7 +121,7 @@ describe("ConnectorsPage", () => {
     mockApi.listConnectorConnections.mockResolvedValue(
       makeConnectionsResponse([makeConnection()]),
     );
-    mockApi.disconnectConnector.mockResolvedValue({});
+    mockApi.deleteConnectorConnection.mockResolvedValue({});
   });
 
   it("renders the connector catalog and connection table", async () => {
@@ -238,7 +238,7 @@ describe("ConnectorsPage", () => {
     await user.click(deleteButton);
 
     await waitFor(() => {
-      expect(mockApi.disconnectConnector).toHaveBeenCalledWith("conn-1");
+      expect(mockApi.deleteConnectorConnection).toHaveBeenCalledWith("conn-1");
       expect(
         screen.queryByText("Engineering Confluence"),
       ).not.toBeInTheDocument();

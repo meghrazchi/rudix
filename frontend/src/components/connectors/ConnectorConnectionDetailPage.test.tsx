@@ -167,6 +167,19 @@ describe("ConnectorConnectionDetailPage", () => {
     });
   });
 
+  it("links ask in chat to the connector scoped chat view", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("link", { name: /ask in chat/i }),
+      ).toHaveAttribute(
+        "href",
+        "/chat?connection_id=conn-1&scope_mode=connectors",
+      );
+    });
+  });
+
   it("shows a retry action for failed sync runs", async () => {
     mockSyncApi.listSyncJobs.mockResolvedValue({
       items: [

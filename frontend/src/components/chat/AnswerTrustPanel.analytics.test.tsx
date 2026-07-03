@@ -314,12 +314,12 @@ describe("AnswerTrustPanel analytics — F317", () => {
         },
       },
     });
-    // The warning div wrapping the banners is clickable
-    const warningBanners = document.querySelectorAll(
-      '[data-testid^="trust-panel"] .space-y-1\\.5',
+    mockTrack.mockClear();
+    const warningText = screen.getByText(
+      /Low confidence — validate this answer/i,
     );
-    if (warningBanners.length > 0) {
-      fireEvent.click(warningBanners[0]);
+    if (warningText) {
+      fireEvent.click(warningText);
       expect(mockTrack).toHaveBeenCalledWith(
         "feature.chat.trust_panel_warning_clicked",
         expect.objectContaining({

@@ -9,7 +9,7 @@ import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
 import { OnboardingCtaBanner } from "@/components/onboarding/OnboardingCtaBanner";
 import { listProviders } from "@/lib/api/connector-providers";
 import {
-  disconnectConnector,
+  deleteConnectorConnection,
   listConnectorConnections,
 } from "@/lib/api/connectors";
 import type { ConnectorConnectionsListResponse } from "@/lib/api/connectors";
@@ -351,8 +351,9 @@ export function ConnectorsPage() {
     gitlab: t("catalog.gitlabDesc"),
   };
 
-  const disconnectConnectionMutation = useMutation({
-    mutationFn: (connectionId: string) => disconnectConnector(connectionId),
+  const deleteConnectionMutation = useMutation({
+    mutationFn: (connectionId: string) =>
+      deleteConnectorConnection(connectionId),
     onMutate: async (connectionId) => {
       await queryClient.cancelQueries({
         queryKey: queryKeys.connectorConnections,
@@ -412,7 +413,7 @@ export function ConnectorsPage() {
     if (!confirmed) {
       return;
     }
-    disconnectConnectionMutation.mutate(connectionId);
+    deleteConnectionMutation.mutate(connectionId);
   }
 
   function scrollToCatalog() {
@@ -612,7 +613,7 @@ export function ConnectorsPage() {
                             aria-label={t("table.ariaDelete", {
                               name: conn.name,
                             })}
-                            disabled={disconnectConnectionMutation.isPending}
+                            disabled={deleteConnectionMutation.isPending}
                             onClick={() =>
                               handleDisconnectConnection(conn.id, conn.name)
                             }

@@ -18,6 +18,8 @@ from app.domains.agents.schemas import (
     ToolSurface,
 )
 from app.domains.agents.services import AgentRuntime, ToolRegistry
+from app.domains.chat.schemas.chat import SourceScopeRequest
+from app.domains.chat.services.source_scope_service import ResolvedSourceScope
 from app.models import Organization, User
 from app.models.enums import AgentRunStatus
 from app.models.usage import UsageEvent
@@ -63,11 +65,14 @@ def _build_runtime(
     answer_raises: bool = False,
     answer_effect_policy: ToolEffectPolicy = ToolEffectPolicy.read_only,
     answer_approval_required: bool = False,
+    search_calls: dict[str, int] | None = None,
 ) -> AgentRuntime:
     async def _search_documents(
         call: ToolCall, principal: AuthenticatedPrincipal
     ) -> dict[str, object]:
         del principal
+        if search_calls is not None:
+            search_calls["count"] = search_calls.get("count", 0) + 1
         return {
             "total": 1,
             "items": [
@@ -210,6 +215,114 @@ async def test_agent_runtime_success_path_persists_trace(
     assert latest.metadata_json.get("status") == "completed"
     assert latest.metadata_json.get("confidence_category") == "high"
     assert "answer" not in latest.metadata_json
+
+
+@pytest.mark.asyncio
+async def test_agent_runtime_resolves_collection_source_scope(
+    db_session: AsyncSession,
+    runtime_subjects: tuple[UUID, UUID, UUID, UUID],
+) -> None:
+    org_a, user_a, _, _ = runtime_subjects
+    search_calls: dict[str, int] = {}
+    runtime = _build_runtime(search_calls=search_calls)
+
+    class _FakeSourceScopeService:
+        async def resolve_document_ids(
+            self,
+            session: AsyncSession,
+            *,
+            organization_id: UUID,
+            user_id: UUID,
+            user_roles: list[str],
+            source_scope: SourceScopeRequest | None,
+            explicit_document_ids: list[UUID] | None = None,
+        ) -> ResolvedSourceScope:
+            del session, organization_id, user_id, user_roles, explicit_document_ids
+            assert source_scope is not None
+            assert source_scope.mode == "collections"
+            return ResolvedSourceScope(
+                document_ids=[
+                    UUID("11111111-1111-1111-1111-111111111111"),
+                    UUID("22222222-2222-2222-2222-222222222222"),
+                ],
+                label="2 collection(s)",
+            )
+
+    runtime._source_scope_service = _FakeSourceScopeService()
+    principal = _principal(user_id=user_a, organization_id=org_a)
+    request = AgentRuntimeRequest(
+        objective="Answer using the selected collection",
+        mode=AgentRuntimeMode.answer,
+        source_scope=SourceScopeRequest(
+            mode="collections",
+            collection_ids=["collection-a"],
+        ),
+    )
+
+    result = await runtime.execute(
+        session=db_session,
+        principal=principal,
+        request=request,
+        request_id="runtime-req-collection-scope",
+    )
+
+    assert result.status == AgentRunStatus.completed.value
+    assert result.outcome is not None
+    assert result.outcome.answer == "Grounded answer"
+    assert search_calls.get("count", 0) == 0
+
+
+@pytest.mark.asyncio
+async def test_agent_runtime_resolves_connector_source_scope(
+    db_session: AsyncSession,
+    runtime_subjects: tuple[UUID, UUID, UUID, UUID],
+) -> None:
+    org_a, user_a, _, _ = runtime_subjects
+    search_calls: dict[str, int] = {}
+    runtime = _build_runtime(search_calls=search_calls)
+
+    class _FakeSourceScopeService:
+        async def resolve_document_ids(
+            self,
+            session: AsyncSession,
+            *,
+            organization_id: UUID,
+            user_id: UUID,
+            user_roles: list[str],
+            source_scope: SourceScopeRequest | None,
+            explicit_document_ids: list[UUID] | None = None,
+        ) -> ResolvedSourceScope:
+            del session, organization_id, user_id, user_roles, explicit_document_ids
+            assert source_scope is not None
+            assert source_scope.mode == "connector_sources"
+            return ResolvedSourceScope(
+                document_ids=[UUID("33333333-3333-3333-3333-333333333333")],
+                label="Connector sources",
+            )
+
+    runtime._source_scope_service = _FakeSourceScopeService()
+    principal = _principal(user_id=user_a, organization_id=org_a)
+    request = AgentRuntimeRequest(
+        objective="Answer using the selected connector content",
+        mode=AgentRuntimeMode.answer,
+        source_scope=SourceScopeRequest(
+            mode="connector_sources",
+            connection_ids=["44444444-4444-4444-4444-444444444444"],
+            provider_source_ids=["connector-docs"],
+        ),
+    )
+
+    result = await runtime.execute(
+        session=db_session,
+        principal=principal,
+        request=request,
+        request_id="runtime-req-connector-scope",
+    )
+
+    assert result.status == AgentRunStatus.completed.value
+    assert result.outcome is not None
+    assert result.outcome.answer == "Grounded answer"
+    assert search_calls.get("count", 0) == 0
 
 
 @pytest.mark.asyncio

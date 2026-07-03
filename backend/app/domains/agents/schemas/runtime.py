@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.domains.chat.schemas.chat import SourceScopeRequest
+
 
 class AgentRuntimeMode(StrEnum):
     auto = "auto"
@@ -30,6 +32,7 @@ class AgentRuntimeRequest(BaseModel):
     question: str | None = Field(default=None, max_length=4000)
     document_query: str | None = Field(default=None, max_length=512)
     document_ids: list[str] = Field(default_factory=list, max_length=200)
+    source_scope: SourceScopeRequest | None = None
     top_k: int | None = Field(default=None, ge=1, le=200)
     rerank: bool | None = None
     approval_ids: dict[str, str] = Field(default_factory=dict, max_length=64)

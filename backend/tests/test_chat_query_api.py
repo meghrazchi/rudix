@@ -53,7 +53,7 @@ from app.interfaces.http import chat as chat_api
 from app.main import app
 from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
-from app.models.collection import Collection, CollectionAccessGrant
+from app.models.collection import Collection, CollectionAccessGrant, CollectionDocument
 from app.models.connector import (
     ConnectorConnection,
     ConnectorProvider,
@@ -1108,6 +1108,86 @@ async def test_websocket_chat_completes_when_rerank_provider_returns_invalid_jso
 
 
 @pytest.mark.asyncio
+async def test_websocket_connector_inventory_lists_connection_documents(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    (
+        _connector_doc,
+        _connector_chunk,
+        external_item,
+        _external_source,
+    ) = await _seed_connector_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="WebSocket Connector Scope.txt",
+        text="WebSocket connector content is available for scoped chat.",
+        provider_source_id="ENG",
+    )
+    qdrant_module.qdrant_client = FakeQdrantClient([])
+
+    class _SessionLocalOverride:
+        def __init__(self, session: AsyncSession) -> None:
+            self._session = session
+
+        def __call__(self) -> object:
+            session = self._session
+
+            class _SessionContext:
+                async def __aenter__(self_inner) -> AsyncSession:
+                    return session
+
+                async def __aexit__(
+                    self_inner,
+                    exc_type: object,
+                    exc: object,
+                    tb: object,
+                ) -> bool:
+                    return False
+
+            return _SessionContext()
+
+    monkeypatch.setattr(chat_api, "SessionLocal", _SessionLocalOverride(db_session))
+
+    websocket = _FakeWebSocket()
+    principal = chat_api.AuthenticatedPrincipal(
+        user_id=str(user.id),
+        organization_id=str(organization.id),
+        email=user.email,
+        roles=[OrganizationRole.member.value],
+        auth_provider="app",
+    )
+    await chat_api._run_ws_chat_pipeline(
+        websocket=websocket,  # type: ignore[arg-type]
+        payload={
+            "question": "Which files are included?",
+            "top_k": 3,
+            "rerank": False,
+            "scope_mode": "connectors",
+            "source_scope": {
+                "mode": "connector_sources",
+                "connection_ids": [str(external_item.connection_id)],
+            },
+            "chat_session_id": None,
+        },
+        principal=principal,
+        request_id="ws-connector-inventory",
+        sequence_start=0,
+    )
+
+    events = [json.loads(text) for text in websocket.sent_texts]
+    assert events[-1]["event"] == "chat.completed", events
+    response = events[-1]["payload"]["response"]
+    assert response["not_found"] is False
+    assert "WebSocket Connector Scope.txt" in response["answer"]
+    assert len(response["citations"]) == 1
+    assert response["debug"]["source_scope"] == "Connector Sources · 1 connection(s)"
+    assert qdrant_module.qdrant_client.calls == []
+
+
+@pytest.mark.asyncio
 async def test_post_chat_rejects_unstructured_generation_output_with_safe_not_found(
     chat_query_client: AsyncClient,
     db_session: AsyncSession,
@@ -1945,7 +2025,7 @@ async def test_post_chat_source_scope_includes_uploads_and_connector_sources(
         "/api/v1/chat",
         headers=_auth_headers(token=token, organization_id=str(organization.id)),
         json={
-            "question": "Which sources are available?",
+            "question": "Summarize the selected source content.",
             "document_ids": [str(uploaded_doc.id)],
             "scope_mode": "connectors",
             "source_scope": {
@@ -1975,6 +2055,251 @@ async def test_post_chat_source_scope_includes_uploads_and_connector_sources(
     assert str(uploaded_doc.id) in matched_document_ids
     assert str(connector_doc.id) in matched_document_ids
     assert payload["debug"]["source_scope"] == "Connector Sources · ENG"
+
+
+@pytest.mark.asyncio
+async def test_post_chat_connector_scope_includes_connection_documents(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    (
+        connector_doc,
+        connector_chunk,
+        external_item,
+        _external_source,
+    ) = await _seed_connector_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="connector.pdf",
+        text="Connector-backed content for grounded answers.",
+        provider_source_id="ENG",
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.95,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(connector_doc.id),
+                    "chunk_id": str(connector_chunk.id),
+                    "filename": "connector.pdf",
+                    "page_number": 1,
+                    "text": "Connector-backed content for grounded answers.",
+                },
+            )
+        ]
+    )
+    _inject_providers(
+        monkeypatch,
+        answer='{"answer":"Connector-backed content for grounded answers.","not_found":false,"citations":[]}',
+    )
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "What does the connector say?",
+            "scope_mode": "connectors",
+            "source_scope": {
+                "mode": "connector_sources",
+                "connection_ids": [str(external_item.connection_id)],
+            },
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert payload["answer"] == "Connector-backed content for grounded answers."
+    assert qdrant_module.qdrant_client is not None
+    assert len(qdrant_module.qdrant_client.calls) == 1
+    query_filter = qdrant_module.qdrant_client.calls[0]["query_filter"]
+    document_filter = next(
+        condition
+        for condition in query_filter.must
+        if getattr(condition, "key", None) == "document_id"
+    )
+    matched_document_ids = (
+        [str(document_filter.match.value)]
+        if getattr(document_filter.match, "value", None) is not None
+        else [str(value) for value in getattr(document_filter.match, "any", [])]
+    )
+    assert str(connector_doc.id) in matched_document_ids
+    assert payload["debug"]["source_scope"] == "Connector Sources · 1 connection(s)"
+
+
+@pytest.mark.asyncio
+async def test_post_chat_all_files_inventory_lists_indexed_documents(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="Team Mission.txt",
+        text="The team mission is to build reliable document answers.",
+    )
+    await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="Rudix Scope.pdf",
+        text="Rudix provides grounded answers with citations.",
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    qdrant_module.qdrant_client = FakeQdrantClient([])
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "Which files are included?",
+            "scope_mode": "all",
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert "Team Mission.txt" in payload["answer"]
+    assert "Rudix Scope.pdf" in payload["answer"]
+    assert len(payload["citations"]) == 2
+    assert qdrant_module.qdrant_client.calls == []
+
+
+@pytest.mark.asyncio
+async def test_post_chat_collection_inventory_lists_collection_documents(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    collection = Collection(
+        organization_id=organization.id,
+        owner_id=user.id,
+        name="Product Docs",
+        description=None,
+        access_policy="org_wide",
+    )
+    db_session.add(collection)
+    await db_session.flush()
+    document, _chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="Rudix Product Scope.pdf",
+        text="Rudix solves reliable private document question answering.",
+    )
+    (
+        _connector_doc,
+        _connector_chunk,
+        _external_item,
+        _external_source,
+    ) = await _seed_connector_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="Collection Connector Scope.txt",
+        text="Connector documents linked to a collection are in collection scope.",
+        provider_source_id="COLL",
+        collection=collection,
+    )
+    db_session.add(CollectionDocument(collection_id=collection.id, document_id=document.id))
+    await db_session.commit()
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    qdrant_module.qdrant_client = FakeQdrantClient([])
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "What files are included in this collection?",
+            "scope_mode": "collection",
+            "source_scope": {
+                "mode": "collections",
+                "collection_ids": [str(collection.id)],
+            },
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert "Rudix Product Scope.pdf" in payload["answer"]
+    assert "Collection Connector Scope.txt" in payload["answer"]
+    assert len(payload["citations"]) == 2
+    assert payload["debug"]["source_scope"] == "Collections · 1 collection(s)"
+    assert qdrant_module.qdrant_client.calls == []
+
+
+@pytest.mark.asyncio
+async def test_post_chat_connector_inventory_lists_connection_documents(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    (
+        _connector_doc,
+        _connector_chunk,
+        external_item,
+        _external_source,
+    ) = await _seed_connector_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="Connector Rudix Scope.txt",
+        text="Rudix connector content is indexed for grounded answers.",
+        provider_source_id="ENG",
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    qdrant_module.qdrant_client = FakeQdrantClient([])
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "Which files are included?",
+            "scope_mode": "connectors",
+            "source_scope": {
+                "mode": "connector_sources",
+                "connection_ids": [str(external_item.connection_id)],
+            },
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert "Connector Rudix Scope.txt" in payload["answer"]
+    assert len(payload["citations"]) == 1
+    assert payload["debug"]["source_scope"] == "Connector Sources · 1 connection(s)"
+    assert qdrant_module.qdrant_client.calls == []
 
 
 @pytest.mark.asyncio
@@ -2035,9 +2360,10 @@ async def test_post_chat_source_scope_respects_collection_permissions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     user, organization, _ = await _seed_principal(db_session)
+    collection_owner = await _seed_user_for_org(db_session, organization=organization)
     restricted_collection = Collection(
         organization_id=organization.id,
-        owner_id=user.id,
+        owner_id=collection_owner.id,
         name="Restricted",
         description=None,
         access_policy="selected_members",

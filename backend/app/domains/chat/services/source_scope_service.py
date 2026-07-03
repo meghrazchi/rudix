@@ -121,7 +121,7 @@ class SourceScopeService:
             status.strip().lower() for status in source_scope.sync_statuses if status.strip()
         }
         needs_connector_joins = any(status != "uploaded" for status in normalized_sync_statuses)
-        join_source_document = needs_connector_joins
+        join_source_document = any(status == "stale" for status in normalized_sync_statuses)
         if source_scope.mode == "uploaded":
             conditions.append(Document.connector_external_item_id.is_(None))
         elif source_scope.mode in {"collections", "connector_sources", "connector_items"}:
@@ -130,11 +130,6 @@ class SourceScopeService:
 
         if source_scope.document_types:
             conditions.append(Document.file_type.in_(source_scope.document_types))
-
-        if source_scope.sync_statuses:
-            source_status_clause = self._sync_status_clause(source_scope.sync_statuses)
-            if source_status_clause is not None:
-                conditions.append(source_status_clause)
 
         joins_needed = False
         item_filters: list[object] = []
@@ -149,7 +144,12 @@ class SourceScopeService:
             or needs_connector_joins
         ):
             joins_needed = True
-            item_filters.append(Document.connector_external_item_id == ExternalItem.id)
+            item_filters.append(
+                or_(
+                    Document.connector_external_item_id == ExternalItem.id,
+                    SourceDocument.external_item_id == ExternalItem.id,
+                )
+            )
             item_filters.append(ExternalItem.organization_id == organization_id)
             item_filters.append(ExternalItem.deleted_at.is_(None))
             item_filters.append(ConnectorConnection.id == ExternalItem.connection_id)
@@ -159,7 +159,6 @@ class SourceScopeService:
             )
             item_filters.append(ConnectorProvider.id == ConnectorConnection.provider_id)
             item_filters.append(ConnectorProvider.key.isnot(None))
-            item_filters.append(SourceDocument.status == "active")
             if source_scope.provider_keys:
                 item_filters.append(ConnectorProvider.key.in_(source_scope.provider_keys))
             if source_scope.connection_ids:
@@ -182,29 +181,67 @@ class SourceScopeService:
                 if not item_ids:
                     return []
                 item_filters.append(ExternalItem.id.in_(item_ids))
+            if source_scope.sync_statuses:
+                if join_source_document:
+                    sync_status_clause = self._sync_status_clause(source_scope.sync_statuses)
+                    if sync_status_clause is not None:
+                        conditions.append(sync_status_clause)
+                    item_filters.append(SourceDocument.status == "active")
+                else:
+                    connector_status_clause = self._connector_status_clause(
+                        source_scope.sync_statuses
+                    )
+                    if connector_status_clause is not None:
+                        conditions.append(connector_status_clause)
 
         statement = select(distinct(Document.id)).where(*conditions)
+        source_document_joined = False
 
         if accessible_collection_ids:
-            statement = statement.join(
+            statement = statement.outerjoin(
                 CollectionDocument, CollectionDocument.document_id == Document.id
-            ).where(CollectionDocument.collection_id.in_(accessible_collection_ids))
+            )
+            if not joins_needed:
+                statement = statement.outerjoin(
+                    SourceDocument, SourceDocument.document_id == Document.id
+                )
+                source_document_joined = True
+            statement = statement.where(
+                or_(
+                    CollectionDocument.collection_id.in_(accessible_collection_ids),
+                    and_(
+                        SourceDocument.collection_id.in_(accessible_collection_ids),
+                        SourceDocument.status == "active",
+                    ),
+                )
+            )
 
         if joins_needed:
-            join_source_document = True
+            if not source_document_joined:
+                statement = statement.outerjoin(
+                    SourceDocument, SourceDocument.document_id == Document.id
+                )
+                source_document_joined = True
             statement = (
-                statement.join(ExternalItem, ExternalItem.id == Document.connector_external_item_id)
-                .join(ConnectorConnection, ConnectorConnection.id == ExternalItem.connection_id)
-                .join(ConnectorProvider, ConnectorProvider.id == ConnectorConnection.provider_id)
+                statement.outerjoin(
+                    ExternalItem,
+                    or_(
+                        Document.connector_external_item_id == ExternalItem.id,
+                        SourceDocument.external_item_id == ExternalItem.id,
+                    ),
+                )
+                .outerjoin(
+                    ConnectorConnection, ConnectorConnection.id == ExternalItem.connection_id
+                )
+                .outerjoin(
+                    ConnectorProvider, ConnectorProvider.id == ConnectorConnection.provider_id
+                )
             )
             if source_scope.provider_source_ids or source_scope.external_source_ids:
-                statement = statement.join(
+                statement = statement.outerjoin(
                     ExternalSource, ExternalSource.id == ExternalItem.external_source_id
                 )
             statement = statement.where(*item_filters)
-
-        if join_source_document:
-            statement = statement.join(SourceDocument, SourceDocument.document_id == Document.id)
 
         statement = statement.where(Document.status == DocumentStatus.indexed.value)
         result = await session.execute(statement)
@@ -253,10 +290,13 @@ class SourceScopeService:
             return Document.connector_external_item_id.is_(None)
         if normalized == {"active"}:
             return and_(
-                Document.connector_external_item_id.is_not(None),
+                or_(
+                    Document.connector_external_item_id.is_not(None),
+                    SourceDocument.id.is_not(None),
+                ),
                 ExternalItem.deleted_at.is_(None),
                 ConnectorConnection.status == ConnectorConnectionStatus.active.value,
-                SourceDocument.status == "active",
+                or_(SourceDocument.id.is_(None), SourceDocument.status == "active"),
             )
         if normalized == {"deleted"}:
             return or_(
@@ -274,6 +314,34 @@ class SourceScopeService:
                 SourceDocument.sync_version != ExternalItem.sync_version,
             )
         return None
+
+    @staticmethod
+    def _connector_status_clause(sync_statuses: list[str]):
+        normalized = {status.strip().lower() for status in sync_statuses if status.strip()}
+        if not normalized:
+            return None
+        clauses: list[object] = []
+        if "active" in normalized:
+            clauses.append(
+                and_(
+                    ExternalItem.deleted_at.is_(None),
+                    ConnectorConnection.status == ConnectorConnectionStatus.active.value,
+                )
+            )
+        if "revoked" in normalized:
+            clauses.append(ConnectorConnection.status != ConnectorConnectionStatus.active.value)
+        if "deleted" in normalized:
+            clauses.append(
+                or_(
+                    ExternalItem.deleted_at.is_not(None),
+                    ConnectorConnection.status != ConnectorConnectionStatus.active.value,
+                )
+            )
+        if not clauses:
+            return None
+        if len(clauses) == 1:
+            return clauses[0]
+        return or_(*clauses)
 
     @staticmethod
     def _has_any_filters(source_scope: SourceScopeRequest) -> bool:

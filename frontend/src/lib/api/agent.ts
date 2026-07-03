@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api/request";
+import type { ChatSourceScopeRequest } from "@/lib/api/chat";
 
 export type AgentRuntimeMode = "auto" | "answer" | "summarize" | "compare";
 
@@ -16,6 +17,7 @@ export type AgentRuntimeRequest = {
   question?: string | null;
   document_query?: string | null;
   document_ids?: string[];
+  source_scope?: ChatSourceScopeRequest | null;
   top_k?: number;
   rerank?: boolean;
   approval_ids?: Record<string, string>;

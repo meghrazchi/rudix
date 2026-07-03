@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1149,8 +1150,13 @@ export function ChatPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { state } = useAuthSession();
+  const documentIdFromQuery = searchParams.get("document_id");
+  const collectionIdFromQuery = searchParams.get("collection_id");
+  const connectorIdFromQuery = searchParams.get("connection_id");
   const lastAppliedSessionIdRef = useRef<string | null>(null);
   const lastAppliedDocumentIdFromQueryRef = useRef<string | null>(null);
+  const lastAppliedCollectionIdFromQueryRef = useRef<string | null>(null);
+  const lastAppliedConnectorIdFromQueryRef = useRef<string | null>(null);
   const contextModalRef = useRef<HTMLDivElement | null>(null);
   const persistedSettings = useMemo(() => readPersistedChatSettings(), []);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -1258,6 +1264,9 @@ export function ChatPage() {
       setSelectedDocumentIds([]);
       setSelectedConnectorConnectionIds([]);
       setSelectedProviderSourceIds([]);
+      lastAppliedDocumentIdFromQueryRef.current = null;
+      lastAppliedCollectionIdFromQueryRef.current = null;
+      lastAppliedConnectorIdFromQueryRef.current = null;
     }
   }, [activeOrgId]);
 
@@ -1417,8 +1426,6 @@ export function ChatPage() {
     [indexedDocuments],
   );
 
-  const documentIdFromQuery = searchParams.get("document_id");
-
   const collectionsListQuery = useQuery({
     queryKey: [...queryKeys.collections.all, "chat-picker"],
     queryFn: () => listCollections({ limit: 200 }),
@@ -1514,7 +1521,7 @@ export function ChatPage() {
     selectedCollectionDocsQuery.data,
   ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!documentIdFromQuery) {
       lastAppliedDocumentIdFromQueryRef.current = null;
       return;
@@ -1529,9 +1536,56 @@ export function ChatPage() {
     }
 
     setScopeMode("documents");
+    setSelectedCollectionIds([]);
     setSelectedDocumentIds([documentIdFromQuery]);
+    setSelectedConnectorConnectionIds([]);
+    setSelectedProviderSourceIds([]);
     lastAppliedDocumentIdFromQueryRef.current = documentIdFromQuery;
   }, [documentIdFromQuery, indexedDocumentIdSet]);
+
+  useLayoutEffect(() => {
+    if (!collectionIdFromQuery) {
+      lastAppliedCollectionIdFromQueryRef.current = null;
+      return;
+    }
+
+    if (documentIdFromQuery) {
+      return;
+    }
+
+    if (lastAppliedCollectionIdFromQueryRef.current === collectionIdFromQuery) {
+      return;
+    }
+
+    setScopeMode("collection");
+    setSelectedDocumentIds([]);
+    setSelectedCollectionIds([collectionIdFromQuery]);
+    setSelectedConnectorConnectionIds([]);
+    setSelectedProviderSourceIds([]);
+    lastAppliedCollectionIdFromQueryRef.current = collectionIdFromQuery;
+  }, [collectionIdFromQuery, documentIdFromQuery]);
+
+  useLayoutEffect(() => {
+    if (!connectorIdFromQuery) {
+      lastAppliedConnectorIdFromQueryRef.current = null;
+      return;
+    }
+
+    if (documentIdFromQuery || collectionIdFromQuery) {
+      return;
+    }
+
+    if (lastAppliedConnectorIdFromQueryRef.current === connectorIdFromQuery) {
+      return;
+    }
+
+    setScopeMode("connectors");
+    setSelectedCollectionIds([]);
+    setSelectedDocumentIds([]);
+    setSelectedConnectorConnectionIds([connectorIdFromQuery]);
+    setSelectedProviderSourceIds([]);
+    lastAppliedConnectorIdFromQueryRef.current = connectorIdFromQuery;
+  }, [collectionIdFromQuery, connectorIdFromQuery, documentIdFromQuery]);
 
   const filteredSelectedDocumentIds = useMemo(() => {
     const validSelectedDocumentIds = selectedDocumentIds.filter((documentId) =>
@@ -2055,7 +2109,6 @@ export function ChatPage() {
       );
       setEditingSessionId(null);
       setEditingSessionTitle("");
-      await invalidateAfterMutation(queryClient, "chat.session.rename");
     },
   });
 
@@ -2539,8 +2592,9 @@ export function ChatPage() {
     }
 
     const currentScopeLabel = buildScopeLabel();
+    const shouldUseAgenticChat = AGENTIC_CHAT_ENABLED && agenticMode;
 
-    if (AGENTIC_CHAT_ENABLED && agenticMode && !hasConnectorScopeSelection) {
+    if (shouldUseAgenticChat) {
       const previousThreadKey = activeThreadKey(activeSessionId);
       let fallbackToStandardQuery = false;
       const payload: AgentRunCreateRequest = {
@@ -2550,9 +2604,10 @@ export function ChatPage() {
           mode: "answer",
           question: trimmedQuestion,
           document_ids:
-            scopeMode !== "none" && effectiveDocumentIds.length > 0
+            scopeMode !== "collection" && effectiveDocumentIds.length > 0
               ? effectiveDocumentIds
               : undefined,
+          source_scope: buildSourceScopePayload() ?? undefined,
           top_k: topK,
           rerank,
         },
@@ -2599,9 +2654,6 @@ export function ChatPage() {
         return;
       }
     }
-    if (AGENTIC_CHAT_ENABLED && agenticMode && hasConnectorScopeSelection) {
-      setAgenticMode(false);
-    }
 
     let targetSessionId = activeSessionId;
     if (!targetSessionId) {
@@ -2629,7 +2681,9 @@ export function ChatPage() {
       question: trimmedQuestion,
       chat_session_id: targetSessionId,
       document_ids:
-        requiresUploadedDocuments && effectiveDocumentIds.length > 0
+        scopeMode !== "collection" &&
+        requiresUploadedDocuments &&
+        effectiveDocumentIds.length > 0
           ? effectiveDocumentIds
           : undefined,
       top_k: topK,
@@ -2678,10 +2732,6 @@ export function ChatPage() {
   return (
     <>
       <section className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fcf8ff] text-[#1b1b24]">
-        <header className="flex h-16 shrink-0 items-center border-b border-[#e4e1ee] bg-white px-4 lg:px-8">
-          <div className="flex w-full items-center justify-end gap-2"></div>
-        </header>
-
         <div
           className={`grid min-h-0 flex-1 overflow-hidden xl:grid-rows-[1fr] ${isKnowledgeHubOpen || previewCitationSet !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_420px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
         >
