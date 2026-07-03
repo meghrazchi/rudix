@@ -76,6 +76,7 @@ type ChatComposerProps = {
   onToggleCollection: (collectionId: string) => void;
   onToggleConnectorConnection: (connectionId: string) => void;
   onToggleDocument: (documentId: string) => void;
+  onToggleProviderSource: (providerSourceId: string) => void;
   setAgenticMode: (value: boolean) => void;
   setAnswerLanguage: (value: AnswerLanguageMode) => void;
   setDocumentSearchQuery: (value: string) => void;
@@ -153,6 +154,7 @@ export function ChatComposer({
   onToggleCollection,
   onToggleConnectorConnection,
   onToggleDocument,
+  onToggleProviderSource,
   topK,
   isGenerating = false,
   onStop,
@@ -224,7 +226,8 @@ export function ChatComposer({
     return connectorConnections.filter(
       (c) =>
         c.display_name.toLowerCase().includes(query) ||
-        c.provider_label.toLowerCase().includes(query),
+        c.provider_label.toLowerCase().includes(query) ||
+        c.rootChips.some((root) => root.label.toLowerCase().includes(query)),
     );
   }, [connectorSearchQuery, connectorConnections]);
 
@@ -321,10 +324,10 @@ export function ChatComposer({
   }, [closeScopeMenu, isAdditionalSettingsOpen, isScopeMenuOpen]);
 
   return (
-    <div className="border-t border-[#e2dff1] p-4">
+    <div className="shrink-0 border-t border-[#e4e1ee] bg-white p-4 shadow-[0_-18px_42px_rgba(27,27,36,0.04)] lg:p-6">
       <div
         ref={settingsPanelRef}
-        className="relative overflow-visible rounded-2xl border border-[#c7c4d8] bg-[#f0ecf9] shadow-sm"
+        className="relative mx-auto max-w-4xl overflow-visible"
       >
         <form
           onSubmit={(event) => {
@@ -334,7 +337,7 @@ export function ChatComposer({
           className="flex h-full min-h-0 flex-col"
         >
           <div className="relative flex min-h-0 flex-1 flex-col overflow-visible">
-            <div className="flex flex-wrap items-center gap-2 border-b border-[#c7c4d8] bg-[#f5f2ff] px-3 py-2 text-[11px] font-semibold text-[#464555]">
+            <div className="flex flex-wrap items-center gap-2 pb-3 text-[11px] font-semibold text-[#464555]">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -356,17 +359,17 @@ export function ChatComposer({
                   aria-expanded={isScopeMenuOpen}
                   aria-haspopup="menu"
                   aria-label={t("scopeAriaLabel")}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-2 py-0.5 text-[11px] font-semibold text-[#3525cd] transition-colors outline-none hover:bg-[#ece8ff] focus:ring-1 focus:ring-[#3525cd]/20"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#c7c4d8] bg-[#f5f2ff] px-3 py-1.5 text-xs font-bold text-[#464555] shadow-sm transition-all outline-none hover:border-[#3525cd] hover:bg-[#ece8ff] focus:ring-2 focus:ring-[#3525cd]/20"
                 >
                   <span
-                    className="material-symbols-outlined text-[14px]"
+                    className="material-symbols-outlined text-[18px]"
                     aria-hidden="true"
                   >
-                    filter_list
+                    list_alt
                   </span>
                   <span className="truncate">{scopeSelectorLabel}</span>
                   <span
-                    className="material-symbols-outlined text-[14px]"
+                    className="material-symbols-outlined text-[16px]"
                     aria-hidden="true"
                   >
                     expand_more
@@ -379,25 +382,25 @@ export function ChatComposer({
                 onClick={() =>
                   setIsAdditionalSettingsOpen((previous) => !previous)
                 }
-                className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-full border border-[#c7c4d8] bg-white px-3 py-1 text-[11px] font-semibold text-[#2a2640] transition-colors hover:bg-[#faf9ff]"
+                className="ml-auto inline-flex cursor-pointer items-center gap-2 rounded-xl border border-transparent bg-[#f5f2ff] p-2 text-xs font-bold text-[#777587] transition-all hover:bg-[#e2dfff] hover:text-[#3525cd]"
                 aria-expanded={isAdditionalSettingsOpen}
                 aria-haspopup="dialog"
                 aria-label={t("additionalSettings")}
               >
                 <span
-                  className="material-symbols-outlined text-[13px]"
+                  className="material-symbols-outlined text-[20px]"
                   aria-hidden="true"
                 >
                   settings
                 </span>
-                {t("additionalSettings")}
+                <span className="sr-only">{t("additionalSettings")}</span>
               </button>
             </div>
 
             {isScopeMenuOpen && (
               <div
                 ref={scopeMenuRef}
-                className="absolute bottom-full left-3 z-40 mb-2 flex w-[min(40rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-2xl"
+                className="absolute bottom-full left-0 z-40 mb-3 flex w-[min(40rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-3xl border border-[#c7c4d8] bg-white shadow-2xl"
                 role="menu"
                 aria-label={t("scopeAriaLabel")}
               >
@@ -661,39 +664,77 @@ export function ChatComposer({
                                   index % COLLECTION_COLORS.length
                                 ];
                               return (
-                                <label
+                                <div
                                   key={connection.id}
-                                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                                  className={`rounded-lg border p-3 transition-colors ${
                                     isSelected
                                       ? "border-[#c7c4d8] bg-[#ece8ff]/50"
                                       : "border-[#e2dff1] hover:bg-[#f7f5ff]"
                                   }`}
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() =>
-                                      onToggleConnectorConnection(connection.id)
-                                    }
-                                    className="rounded border-[#c7c4d8] text-[#3525cd] focus:ring-[#3525cd]/20"
-                                  />
-                                  <span
-                                    className={`material-symbols-outlined flex-shrink-0 text-[22px] ${colorClass}`}
-                                    aria-hidden="true"
-                                  >
-                                    hub
-                                  </span>
-                                  <div className="min-w-0 flex-1">
-                                    <span className="block truncate text-sm font-bold text-[#2f2a46]">
-                                      {connection.display_name}
+                                  <label className="flex cursor-pointer items-center gap-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() =>
+                                        onToggleConnectorConnection(
+                                          connection.id,
+                                        )
+                                      }
+                                      className="rounded border-[#c7c4d8] text-[#3525cd] focus:ring-[#3525cd]/20"
+                                    />
+                                    <span
+                                      className={`material-symbols-outlined flex-shrink-0 text-[22px] ${colorClass}`}
+                                      aria-hidden="true"
+                                    >
+                                      hub
                                     </span>
-                                    {connection.provider_label && (
-                                      <p className="truncate text-[10px] text-[#6a6780]">
-                                        {connection.provider_label}
-                                      </p>
-                                    )}
-                                  </div>
-                                </label>
+                                    <div className="min-w-0 flex-1">
+                                      <span className="block truncate text-sm font-bold text-[#2f2a46]">
+                                        {connection.display_name}
+                                      </span>
+                                      {connection.provider_label && (
+                                        <p className="truncate text-[10px] text-[#6a6780]">
+                                          {connection.provider_label}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </label>
+
+                                  {connection.rootChips.length > 0 ? (
+                                    <div className="mt-3 flex flex-wrap gap-2 pl-8">
+                                      {connection.rootChips.map((root) => {
+                                        const isRootSelected =
+                                          selectedProviderSourceIds.includes(
+                                            root.label,
+                                          );
+                                        return (
+                                          <button
+                                            key={root.id}
+                                            type="button"
+                                            onClick={() => {
+                                              if (!isSelected) {
+                                                onToggleConnectorConnection(
+                                                  connection.id,
+                                                );
+                                              }
+                                              onToggleProviderSource(
+                                                root.label,
+                                              );
+                                            }}
+                                            className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                                              isRootSelected
+                                                ? "border-[#3525cd] bg-[#ece8ff] text-[#3525cd]"
+                                                : "border-[#d2cee6] bg-white text-[#5f5a74] hover:border-[#b9b2dd] hover:bg-[#faf9ff]"
+                                            }`}
+                                          >
+                                            {root.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : null}
+                                </div>
                               );
                             })
                           )}
@@ -955,7 +996,7 @@ export function ChatComposer({
               </div>
             )}
 
-            <div className="relative flex min-h-0 flex-1 items-end bg-white">
+            <div className="relative flex min-h-0 flex-1 items-end rounded-2xl border border-[#c7c4d8] bg-white p-2 shadow-sm transition-all focus-within:border-transparent focus-within:ring-2 focus-within:ring-[#3525cd]">
               <textarea
                 ref={composerTextareaRef}
                 value={question}
@@ -972,17 +1013,17 @@ export function ChatComposer({
                 rows={1}
                 placeholder={t("placeholder")}
                 disabled={requiresUploadedDocuments && !hasAvailableDocuments}
-                className="w-full resize-none overflow-hidden border-none bg-transparent py-3 pr-14 pl-3 text-sm text-[#2f2a46] outline-none focus:ring-0"
+                className="rudix-chat-scrollbar w-full resize-none overflow-hidden border-none bg-transparent py-3 pr-16 pl-4 text-sm text-[#2f2a46] outline-none placeholder:text-[#777587] focus:ring-0"
               />
               <div
-                className={`absolute right-3 ${composerSendButtonPositionClass} transition-all`}
+                className={`absolute right-4 ${composerSendButtonPositionClass} transition-all`}
               >
                 {isGenerating ? (
                   <button
                     type="button"
                     onClick={onStop}
                     aria-label={t("stopGenerating")}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3525cd] text-white transition-all hover:bg-[#2b1fa8] hover:shadow-lg active:scale-90"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3525cd] text-white shadow-lg shadow-[#3525cd]/20 transition-all hover:-translate-y-0.5 hover:bg-[#2b1fa8] hover:shadow-[#3525cd]/30 active:translate-y-0 active:scale-95"
                   >
                     <span
                       className="material-symbols-outlined text-[20px]"
@@ -996,7 +1037,7 @@ export function ChatComposer({
                     type="submit"
                     disabled={disabled}
                     aria-label={submitButtonLabel}
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl bg-[#3525cd] text-white transition-all hover:shadow-lg active:scale-90 disabled:cursor-not-allowed disabled:opacity-60 ${
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl bg-[#3525cd] text-white shadow-lg shadow-[#3525cd]/20 transition-all hover:-translate-y-0.5 hover:shadow-[#3525cd]/30 active:translate-y-0 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 ${
                       composerHasText ? "opacity-100" : "opacity-0"
                     }`}
                   >
@@ -1004,7 +1045,7 @@ export function ChatComposer({
                       className="material-symbols-outlined text-[20px]"
                       aria-hidden="true"
                     >
-                      arrow_upward
+                      arrow_forward
                     </span>
                   </button>
                 )}
@@ -1017,11 +1058,16 @@ export function ChatComposer({
       {!agenticChatEnabled && (
         <p className="mt-2 text-xs text-[#8a4762]">{t("agenticDisabled")}</p>
       )}
-      {!hasAvailableDocuments && requiresUploadedDocuments && (
-        <p className="mt-2 text-center text-xs text-[#777587]">
-          <span>{t("chatDisabled")}</span> <span>{t("chatDisabledHint")}</span>
-        </p>
-      )}
+      <p className="mt-3 text-center text-[10px] font-medium tracking-wide text-[#777587] uppercase">
+        {hasAvailableDocuments || !requiresUploadedDocuments ? (
+          t("disclaimer")
+        ) : (
+          <>
+            <span>{t("chatDisabled")}</span>{" "}
+            <span>{t("chatDisabledHint")}</span>
+          </>
+        )}
+      </p>
     </div>
   );
 }

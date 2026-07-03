@@ -861,6 +861,7 @@ def _with_freshness(
     is_deprecated = effective_status in {"archived", "deprecated", "superseded"}
     is_draft = effective_status == "draft" or trust.quality_state == "draft"
     return ChatCitationResponse(
+        citation_id=citation.citation_id,
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
         filename=citation.filename,
@@ -913,6 +914,7 @@ def _with_provenance(
         return citation
 
     return ChatCitationResponse(
+        citation_id=citation.citation_id,
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
         filename=citation.filename,
@@ -949,6 +951,7 @@ def _with_table_metadata(
     table_conf: float | None = float(raw_conf) if raw_conf is not None else None
     table_low_conf_warn = table_conf is not None and table_conf < _TABLE_CONFIDENCE_LOW_THRESHOLD
     return ChatCitationResponse(
+        citation_id=citation.citation_id,
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
         filename=citation.filename,
@@ -998,6 +1001,7 @@ def _with_ocr_quality(
     if quality_status is None:
         return citation
     return ChatCitationResponse(
+        citation_id=citation.citation_id,
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
         filename=citation.filename,
@@ -1066,6 +1070,7 @@ def _with_conflict_status(
         status = "conflicting"
 
     return ChatCitationResponse(
+        citation_id=citation.citation_id,
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
         filename=citation.filename,
@@ -1140,6 +1145,7 @@ def _with_extraction_quality(
     extraction_warning = is_bad_profile or is_low_conf
     processing_warning = doc_status in _PROCESSING_INCOMPLETE_STATUSES
     return ChatCitationResponse(
+        citation_id=citation.citation_id,
         document_id=citation.document_id,
         chunk_id=citation.chunk_id,
         filename=citation.filename,
@@ -2577,6 +2583,7 @@ async def list_chat_session_messages(
             message_citations = [
                 _with_provenance(
                     ChatCitationResponse(
+                        citation_id=str(citation.id),
                         document_id=str(citation.document_id),
                         chunk_id=str(citation.chunk_id),
                         filename=filename,
@@ -4376,12 +4383,13 @@ async def query_chat(
         db_session.add(assistant_message)
         await db_session.flush()
 
+        response_citations: list[ChatCitationResponse] = []
         for citation in citations:
             document_uuid = _parse_uuid_or_none(citation.document_id)
             chunk_uuid = _parse_uuid_or_none(citation.chunk_id)
             if document_uuid is None or chunk_uuid is None:
                 continue
-            await chat_repository.create_citation(
+            persisted_citation = await chat_repository.create_citation(
                 db_session,
                 chat_message_id=assistant_message.id,
                 document_id=document_uuid,
@@ -4392,6 +4400,9 @@ async def query_chat(
                 end_offset=citation.end_offset,
                 similarity_score=citation.similarity_score,
                 rerank_score=citation.rerank_score if rerank_applied else None,
+            )
+            response_citations.append(
+                citation.model_copy(update={"citation_id": str(persisted_citation.id)})
             )
 
         await usage_repository.create_usage_event(
@@ -4674,7 +4685,7 @@ async def query_chat(
             thresholds=confidence_explanation.thresholds,
         ),
         not_found=not_found,
-        citations=[] if not_found else citations,
+        citations=[] if not_found else response_citations,
         citation_validation_failed=citation_validation_failed,
         verification_failed=verification_failed,
         agreement_level=conflict_detection_result.agreement_level,
@@ -5360,6 +5371,7 @@ async def get_shared_session(
             )
             message_citations = [
                 ChatCitationResponse(
+                    citation_id=str(citation.id),
                     document_id=str(citation.document_id),
                     chunk_id=str(citation.chunk_id),
                     filename=filename,

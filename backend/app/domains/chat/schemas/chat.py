@@ -180,6 +180,7 @@ class ChatSessionMessageListResponse(BaseModel):
 
 
 class ChatCitationResponse(BaseModel):
+    citation_id: str | None = None
     document_id: str
     chunk_id: str
     filename: str | None = None

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -13,7 +20,6 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-import { CitationPreviewDrawer } from "@/components/chat/DocumentPreviewModal";
 import { FeedbackModal } from "@/components/chat/FeedbackModal";
 import { CreateVerifiedAnswerModal } from "@/components/verified-answers/CreateVerifiedAnswerModal";
 import { SuggestedKnowledgeCard } from "@/components/verified-answers/SuggestedKnowledgeCard";
@@ -63,8 +69,11 @@ import {
 import type { AnswerTrustMetadataResponse } from "@/lib/api/trust_metadata";
 import { AnswerTrustPanel } from "@/components/chat/AnswerTrustPanel";
 import {
+  downloadDocumentFile,
+  getDocumentChunks,
   listDocuments,
   type DocumentListItemResponse,
+  type DocumentChunkPreviewResponse,
 } from "@/lib/api/documents";
 import {
   listCollectionDocuments,
@@ -235,15 +244,312 @@ function formatScore(value: number | null | undefined): string {
   return value.toFixed(3);
 }
 
-function formatPercent(value: number | null | undefined): string {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return "N/A";
-  }
-  return `${(value * 100).toFixed(1)}%`;
+function getCitationScore(citation: ChatCitationResponse): number | null {
+  return (
+    citation.rerank_score ?? citation.similarity_score ?? citation.score ?? null
+  );
 }
 
-function confidenceBadgeClass(): string {
-  return "inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-white px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+function normalizeScorePercent(
+  value: number | null | undefined,
+): number | null {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return null;
+  }
+  const percent = value <= 1 ? value * 100 : value;
+  return Math.min(100, Math.max(0, percent));
+}
+
+function formatScorePercent(value: number | null | undefined): string {
+  const percent = normalizeScorePercent(value);
+  return percent === null ? "N/A" : `${percent.toFixed(1)}%`;
+}
+
+function citationOrdinal(index: number): string {
+  return `CIT-${String(index + 1).padStart(2, "0")}`;
+}
+
+function citationDisplayTitle(
+  citation: ChatCitationResponse,
+  fallback: string,
+): string {
+  return citation.source_title ?? citation.filename ?? fallback;
+}
+
+function citationCopyText(
+  citation: ChatCitationResponse,
+  label: string,
+  title: string,
+): string {
+  return [
+    `${label}: ${title}`,
+    citation.page_number ? `Page: ${citation.page_number}` : null,
+    citation.text_snippet ? `Excerpt: ${citation.text_snippet}` : null,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+}
+
+function splitSentences(value: string): string[] {
+  return (
+    value
+      .match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+      ?.map((sentence) => sentence.trim()) ?? [value.trim()]
+  );
+}
+
+function splitMeaningfulCitationPhrase(value: string): {
+  before: string;
+  highlighted: string;
+  after: string;
+} {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const matchers = [
+    /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4}\b/i,
+    /\b\d{4}\b/,
+    /\b\d+(?:\.\d+)?%?\b/,
+    /"[^"]+"/,
+    /'[^']+'/,
+  ];
+
+  for (const matcher of matchers) {
+    const found = normalized.match(matcher);
+    if (found?.index != null) {
+      return {
+        before: "",
+        highlighted: normalized,
+        after: "",
+      };
+    }
+  }
+
+  const words = normalized.split(" ").filter(Boolean);
+  if (words.length <= 3) {
+    return { before: "", highlighted: normalized, after: "" };
+  }
+
+  const highlightWordCount = Math.max(
+    3,
+    Math.min(6, Math.round(words.length * 0.25)),
+  );
+  const startIndex = Math.max(
+    0,
+    Math.floor((words.length - highlightWordCount) / 2),
+  );
+  const endIndex = startIndex + highlightWordCount;
+
+  return {
+    before: words.slice(0, startIndex).join(" "),
+    highlighted: words.slice(startIndex, endIndex).join(" "),
+    after: words.slice(endIndex).join(" "),
+  };
+}
+
+function buildCitationExcerptParts(
+  value: string,
+  compact = false,
+): {
+  before: string;
+  highlightedPrefix: string;
+  highlighted: string;
+  highlightedSuffix: string;
+  after: string;
+} {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const sentences = splitSentences(normalized);
+  if (sentences.length === 1) {
+    const sentenceParts = splitMeaningfulCitationPhrase(sentences[0]);
+    return {
+      before: "",
+      highlightedPrefix: sentenceParts.before,
+      highlighted: sentenceParts.highlighted,
+      highlightedSuffix: sentenceParts.after,
+      after: "",
+    };
+  }
+
+  const highlightedIndex = Math.floor(sentences.length / 2);
+  const contextRadius = compact ? 1 : 1;
+  const startIndex = Math.max(0, highlightedIndex - contextRadius);
+  const endIndex = Math.min(
+    sentences.length,
+    highlightedIndex + contextRadius + 1,
+  );
+  const sentenceParts = splitMeaningfulCitationPhrase(
+    sentences[highlightedIndex],
+  );
+
+  return {
+    before: sentences.slice(startIndex, highlightedIndex).join(" "),
+    highlightedPrefix: sentenceParts.before,
+    highlighted: sentenceParts.highlighted,
+    highlightedSuffix: sentenceParts.after,
+    after: sentences.slice(highlightedIndex + 1, endIndex).join(" "),
+  };
+}
+
+function renderCitationExcerpt(
+  value: string | null | undefined,
+  options: { compact?: boolean } = {},
+): ReactElement | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const excerptParts = buildCitationExcerptParts(normalized, options.compact);
+  const containerClassName = options.compact
+    ? "relative overflow-hidden rounded-2xl border border-[#e6e0fb] bg-gradient-to-br from-[#fcfbff] via-white to-[#f7f3ff] p-3 pl-4"
+    : "relative overflow-hidden rounded-2xl border border-[#e6e0fb] bg-gradient-to-br from-[#fcfbff] via-white to-[#f7f3ff] p-5 pl-5";
+  const textClassName = options.compact
+    ? "text-xs leading-snug text-[#2f2a46]"
+    : "text-sm leading-relaxed text-[#2f2a46]";
+
+  return (
+    <div className={containerClassName}>
+      <div className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-gradient-to-b from-[#3525cd] via-[#7b61ff] to-[#14b8a6]" />
+      <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#5d58a8] uppercase">
+        Cited excerpt
+      </p>
+      <p className={`${textClassName} whitespace-pre-wrap`}>
+        {excerptParts.before ? (
+          <span className="text-[#5f5a73]">{`${excerptParts.before} `}</span>
+        ) : null}
+        {excerptParts.highlightedPrefix ? (
+          <span className="text-[#5f5a73]">
+            {`${excerptParts.highlightedPrefix} `}
+          </span>
+        ) : null}
+        <mark className="rounded-lg bg-[#f0ecf9] box-decoration-clone px-1.5 py-0.5 text-[#3525cd] ring-1 ring-[#d7d4e8] ring-inset">
+          {excerptParts.highlighted}
+        </mark>
+        {excerptParts.highlightedSuffix ? (
+          <span className="text-[#5f5a73]">
+            {` ${excerptParts.highlightedSuffix}`}
+          </span>
+        ) : null}
+        {excerptParts.after ? (
+          <span className="text-[#5f5a73]">{` ${excerptParts.after}`}</span>
+        ) : null}
+      </p>
+    </div>
+  );
+}
+
+function renderChunkCitationExcerpt(
+  chunk: DocumentChunkPreviewResponse | null | undefined,
+  citationSnippet: string | null | undefined,
+): ReactElement | null {
+  if (!chunk?.text) {
+    return null;
+  }
+
+  const chunkText = chunk.text.replace(/\s+/g, " ").trim();
+  const snippet = citationSnippet?.replace(/\s+/g, " ").trim() ?? "";
+  if (!chunkText) {
+    return null;
+  }
+
+  let before = chunkText;
+  let highlighted = snippet;
+  let after = "";
+  if (snippet) {
+    const matchIndex = chunkText.toLowerCase().indexOf(snippet.toLowerCase());
+    if (matchIndex >= 0) {
+      before = chunkText.slice(0, matchIndex);
+      highlighted = chunkText.slice(matchIndex, matchIndex + snippet.length);
+      after = chunkText.slice(matchIndex + snippet.length);
+    } else {
+      highlighted = snippet;
+    }
+  }
+
+  const excerptWindow = 220;
+  const maxLength = 900;
+  if (before.length + highlighted.length + after.length > maxLength) {
+    const center = before.length + Math.floor(highlighted.length / 2);
+    const start = Math.max(0, center - excerptWindow);
+    const end = Math.min(chunkText.length, center + excerptWindow);
+    const windowText = chunkText.slice(start, end);
+    const windowIndex = snippet
+      ? windowText.toLowerCase().indexOf(snippet.toLowerCase())
+      : -1;
+    if (windowIndex >= 0) {
+      before = windowText.slice(0, windowIndex);
+      highlighted = windowText.slice(windowIndex, windowIndex + snippet.length);
+      after = windowText.slice(windowIndex + snippet.length);
+    } else {
+      before = windowText;
+      highlighted = snippet || windowText;
+      after = "";
+    }
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-[#e6e0fb] bg-gradient-to-br from-[#fcfbff] via-white to-[#f7f3ff] p-5 pl-5">
+      <div className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-gradient-to-b from-[#3525cd] via-[#7b61ff] to-[#14b8a6]" />
+      <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#5d58a8] uppercase">
+        Cited chunk text
+      </p>
+      <p className="text-sm leading-relaxed whitespace-pre-wrap text-[#2f2a46]">
+        <span className="text-[#5f5a73]">&ldquo;...</span>
+        {before ? <span className="text-[#5f5a73]">{` ${before}`}</span> : null}
+        {before ? " " : null}
+        <mark className="rounded-lg bg-[#f0ecf9] box-decoration-clone px-1.5 py-0.5 text-[#3525cd] ring-1 ring-[#d7d4e8] ring-inset">
+          {highlighted}
+        </mark>
+        {after ? <span className="text-[#5f5a73]">{` ${after}`}</span> : null}
+        <span className="text-[#5f5a73]">...&rdquo;</span>
+      </p>
+    </div>
+  );
+}
+
+function buildCitationDocumentHref(citation: ChatCitationResponse): string {
+  const params = new URLSearchParams();
+  if (citation.chunk_id) {
+    params.set("chunk_id", citation.chunk_id);
+  }
+  if (citation.page_number != null) {
+    params.set("page", String(citation.page_number));
+  }
+  params.set("back", "/chat");
+
+  const query = params.toString();
+  return `/documents/${encodeURIComponent(citation.document_id)}${
+    query ? `?${query}` : ""
+  }`;
+}
+
+function getCitationSourceHref(citation: ChatCitationResponse): string {
+  return (
+    citation.source_deep_link ??
+    citation.source_url ??
+    buildCitationDocumentHref(citation)
+  );
+}
+
+function isExternalHref(href: string): boolean {
+  return /^https?:\/\//i.test(href);
+}
+
+function toAbsoluteBrowserHref(href: string): string {
+  if (typeof window === "undefined") {
+    return href;
+  }
+  return new URL(href, window.location.origin).toString();
+}
+
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
 }
 
 function conflictStatusLabel(
@@ -902,6 +1208,9 @@ export function ChatPage() {
     string | null
   >(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [copiedCitationLinkKey, setCopiedCitationLinkKey] = useState<
+    string | null
+  >(null);
   const [openTrustPanelMessageId, setOpenTrustPanelMessageId] = useState<
     string | null
   >(null);
@@ -1619,6 +1928,17 @@ export function ChatPage() {
     },
   });
 
+  const citationDownloadMutation = useMutation({
+    mutationFn: (citation: ChatCitationResponse) =>
+      downloadDocumentFile(citation.document_id),
+    onSuccess: (blob, citation) => {
+      triggerBlobDownload(
+        blob,
+        citation.filename?.trim() || `document-${citation.document_id}`,
+      );
+    },
+  });
+
   const createSessionMutation = useMutation({
     mutationFn: (title: string | null) => createChatSession({ title }),
   });
@@ -1858,6 +2178,68 @@ export function ChatPage() {
     );
     return uniqueDocumentIds.size;
   }, [selectedCitationTurn]);
+  const previewCitationIndex = useMemo(() => {
+    if (!previewCitationSet || previewCitationSet.citations.length === 0) {
+      return -1;
+    }
+    return Math.min(
+      Math.max(previewCitationSet.initialIndex, 0),
+      previewCitationSet.citations.length - 1,
+    );
+  }, [previewCitationSet]);
+  const activePreviewCitation =
+    previewCitationSet && previewCitationIndex >= 0
+      ? previewCitationSet.citations[previewCitationIndex]
+      : null;
+  const activePreviewCitationChunkQuery = useQuery({
+    queryKey: [
+      "citation-chunk",
+      activePreviewCitation?.document_id ?? "none",
+      activePreviewCitation?.chunk_id ?? "none",
+    ],
+    queryFn: () =>
+      activePreviewCitation?.chunk_id
+        ? getDocumentChunks(activePreviewCitation.document_id, {
+            limit: 200,
+            include_full_text: true,
+          })
+        : Promise.reject(new Error("No citation id")),
+    enabled: Boolean(activePreviewCitation?.chunk_id),
+    retry: false,
+  });
+  const activePreviewCitationChunk =
+    activePreviewCitationChunkQuery.data?.items.find(
+      (item) => item.chunk_id === activePreviewCitation?.chunk_id,
+    ) ?? null;
+  const activePreviewCitationTitle = activePreviewCitation
+    ? citationDisplayTitle(activePreviewCitation, tc("unknownDocument"))
+    : null;
+  const activePreviewCitationDocumentHref = activePreviewCitation
+    ? buildCitationDocumentHref(activePreviewCitation)
+    : null;
+  const activePreviewCitationSourceHref = activePreviewCitation
+    ? getCitationSourceHref(activePreviewCitation)
+    : null;
+  const isActivePreviewCitationSourceExternal =
+    activePreviewCitationSourceHref !== null &&
+    isExternalHref(activePreviewCitationSourceHref);
+  const activePreviewCitationKey = activePreviewCitation
+    ? `${activePreviewCitation.document_id}:${activePreviewCitation.chunk_id ?? ""}:${previewCitationIndex}`
+    : null;
+  const activePreviewCitationScore = activePreviewCitation
+    ? getCitationScore(activePreviewCitation)
+    : null;
+  const activePreviewCitationScorePercent = normalizeScorePercent(
+    activePreviewCitationScore,
+  );
+  const relatedPreviewCitations = useMemo(() => {
+    if (!previewCitationSet || previewCitationIndex < 0) {
+      return [];
+    }
+    return previewCitationSet.citations
+      .map((citation, index) => ({ citation, index }))
+      .filter(({ index }) => index !== previewCitationIndex);
+  }, [previewCitationIndex, previewCitationSet]);
 
   function toggleCollection(collectionId: string) {
     setSelectedCollectionIds((previous) =>
@@ -2114,62 +2496,55 @@ export function ChatPage() {
 
   return (
     <>
-      <section className="flex h-full min-h-0 flex-col gap-4 overflow-hidden px-4 py-4 lg:px-8 lg:py-6">
-        <header className="rounded-2xl border border-[#d7d4e8] bg-white px-4 py-4 shadow-sm lg:px-5">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="min-w-0">
-              <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-                {tc("eyebrow")}
-              </p>
-              <h1 className="truncate text-xl font-semibold text-[#2a2640] lg:text-2xl">
-                {tc("title")}
-              </h1>
-              <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-[#ece8ff] px-2.5 py-1">
-                <span className="font-mono text-xs text-[#463f7b]">
-                  {activeSessionId ?? DRAFT_SESSION_KEY}
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <span
-                  className="material-symbols-outlined pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-[18px] text-[#6a6780]"
-                  aria-hidden="true"
-                >
-                  search
-                </span>
-                <input
-                  type="text"
-                  value={sessionSearchQuery}
-                  onChange={(e) => setSessionSearchQuery(e.target.value)}
-                  placeholder={tc("searchPlaceholder")}
-                  aria-label={tc("searchPlaceholder")}
-                  className="h-9 w-60 rounded-full border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
-                />
-              </div>
-              <Link
-                href="/documents"
-                className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+      <section className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fcf8ff] text-[#1b1b24]">
+        <header className="flex h-16 shrink-0 items-center border-b border-[#e4e1ee] bg-white px-4 lg:px-8">
+          <div className="flex w-full items-center justify-end gap-2">
+            <Link
+              href="/documents"
+              className="rounded-xl border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+            >
+              {tc("uploadDocuments")}
+            </Link>
+            <button
+              type="button"
+              onClick={resetForNewChat}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#3525cd]/15 transition-all hover:-translate-y-0.5 hover:bg-[#2b1fa8]"
+            >
+              <span
+                className="material-symbols-outlined text-[18px]"
+                aria-hidden="true"
               >
-                {tc("uploadDocuments")}
-              </Link>
-              <button
-                type="button"
-                onClick={resetForNewChat}
-                className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
-              >
-                {tc("newChat")}
-              </button>
-            </div>
+                add
+              </span>
+              {tc("newChat")}
+            </button>
           </div>
         </header>
 
         <div
-          className={`grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-rows-[1fr] ${isKnowledgeHubOpen || previewCitationSet !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
+          className={`grid min-h-0 flex-1 overflow-hidden xl:grid-rows-[1fr] ${isKnowledgeHubOpen || previewCitationSet !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_420px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
         >
-          <aside className="hide-scrollbar hidden min-h-0 space-y-4 overflow-y-auto xl:block xl:pr-1">
-            <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
-              <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+          <aside className="rudix-chat-scrollbar hidden min-h-0 overflow-y-auto border-r border-[#e4e1ee] bg-[#fcf8ff] p-4 xl:block">
+            <section className="rounded-3xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
+              <div className="mb-3">
+                <div className="relative">
+                  <span
+                    className="material-symbols-outlined pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-[18px] text-[#6a6780]"
+                    aria-hidden="true"
+                  >
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    value={sessionSearchQuery}
+                    onChange={(e) => setSessionSearchQuery(e.target.value)}
+                    placeholder={tc("searchPlaceholder")}
+                    aria-label={tc("searchPlaceholder")}
+                    className="h-9 w-full rounded-xl border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
+                  />
+                </div>
+              </div>
+              <h2 className="mb-3 text-[10px] font-bold tracking-widest text-[#777587] uppercase">
                 {tc("sessionsTitle")}
               </h2>
               {sessionsQuery.isLoading ? (
@@ -2197,7 +2572,7 @@ export function ChatPage() {
                       return (
                         <li key={session.session_id}>
                           {isConfirmingDelete ? (
-                            <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm">
+                            <div className="rounded-2xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm">
                               <p className="mb-2 font-semibold text-rose-800">
                                 {tc("deleteConfirmTitle")}
                               </p>
@@ -2211,14 +2586,14 @@ export function ChatPage() {
                                     handleDeleteConfirm(session.session_id)
                                   }
                                   disabled={deleteSessionMutation.isPending}
-                                  className="flex-1 rounded bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+                                  className="flex-1 rounded-xl bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
                                 >
                                   {tc("delete")}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={handleDeleteCancel}
-                                  className="flex-1 rounded border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                                  className="flex-1 rounded-xl border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                                 >
                                   {tc("cancel")}
                                 </button>
@@ -2226,10 +2601,10 @@ export function ChatPage() {
                             </div>
                           ) : (
                             <div
-                              className={`group relative cursor-pointer rounded-lg border transition ${
+                              className={`group relative cursor-pointer rounded-2xl border transition ${
                                 isActive
-                                  ? "border-[#3525cd] bg-[#ece8ff]"
-                                  : "border-[#dfdbef] bg-white hover:bg-[#faf9ff]"
+                                  ? "border-[#c3c0ff] bg-[#e2dfff]"
+                                  : "border-[#e4e1ee] bg-white hover:bg-[#f5f2ff]"
                               }`}
                             >
                               <button
@@ -2265,7 +2640,7 @@ export function ChatPage() {
                                     e.stopPropagation();
                                     handleDeleteRequest(session.session_id);
                                   }}
-                                  className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-[#6a6780] hover:text-rose-600"
+                                  className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg text-[#6a6780] hover:bg-white hover:text-rose-600"
                                 >
                                   <span
                                     className="material-symbols-outlined text-[16px]"
@@ -2288,7 +2663,7 @@ export function ChatPage() {
                         void sessionsQuery.fetchNextPage();
                       }}
                       disabled={sessionsQuery.isFetchingNextPage}
-                      className="mt-3 w-full rounded-lg border border-[#cbc5e6] px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-3 w-full rounded-xl border border-[#cbc5e6] px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {sessionsQuery.isFetchingNextPage
                         ? tc("loadingMore")
@@ -2326,14 +2701,14 @@ export function ChatPage() {
             </section>
           </aside>
 
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
+          <section className="flex min-h-0 flex-col overflow-hidden bg-white shadow-sm">
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex items-start justify-between gap-2 border-b border-[#e2dff1] px-4 py-3">
+              <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-[#e4e1ee] px-4 py-3 lg:px-6">
                 <div className="min-w-0">
-                  <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+                  <h2 className="text-base font-semibold text-[#1b1b24]">
                     {tc("conversationTitle")}
                   </h2>
-                  <p className="mt-1 text-xs text-[#5f5a74]">
+                  <p className="mt-1 truncate text-xs text-[#505f76]">
                     {activeSession ? (
                       <>
                         {tc("sessionLabel")}{" "}
@@ -2367,7 +2742,7 @@ export function ChatPage() {
                         );
                         void copyToClipboard(md);
                       }}
-                      className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
+                      className="inline-flex items-center gap-1 rounded-xl border border-[#d2cee6] px-2.5 py-1.5 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
                     >
                       <span
                         className="material-symbols-outlined text-[14px]"
@@ -2391,7 +2766,7 @@ export function ChatPage() {
                           `${sanitizeFilename(activeSessionDisplayTitle ?? "chat")}.md`,
                         );
                       }}
-                      className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
+                      className="inline-flex items-center gap-1 rounded-xl border border-[#d2cee6] px-2.5 py-1.5 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
                     >
                       <span
                         className="material-symbols-outlined text-[14px]"
@@ -2406,7 +2781,7 @@ export function ChatPage() {
                       aria-label={tc("shareSessionTitle")}
                       title={tc("shareSessionTitle")}
                       onClick={() => setIsShareModalOpen(true)}
-                      className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
+                      className="inline-flex items-center gap-1 rounded-xl border border-[#d2cee6] px-2.5 py-1.5 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
                     >
                       <span
                         className="material-symbols-outlined text-[14px]"
@@ -2422,7 +2797,7 @@ export function ChatPage() {
 
               <div
                 ref={messagesContainerRef}
-                className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-white p-4"
+                className="rudix-chat-scrollbar min-h-0 flex-1 overflow-y-auto bg-white px-4 py-8 lg:px-6"
               >
                 {sessionMessagesQuery.isLoading &&
                 activeSession &&
@@ -2451,7 +2826,7 @@ export function ChatPage() {
                 !sessionMessagesQuery.isLoading ? (
                   <EmptyState compact title={tc("noMessages")} />
                 ) : (
-                  <ul className="space-y-6">
+                  <ul className="mx-auto max-w-3xl space-y-12">
                     {thread.map((turn, turnIndex) => {
                       const isLatestTurn = turnIndex === thread.length - 1;
 
@@ -2460,17 +2835,20 @@ export function ChatPage() {
                           key={turn.response.message_id}
                           className="space-y-3"
                         >
-                          <div className="flex justify-end">
-                            <article className="max-w-[80%] rounded-xl rounded-tr-none bg-[#f0ecf9] px-4 py-3 shadow-sm">
+                          <div className="flex flex-col items-end gap-2">
+                            <article className="max-w-[85%] rounded-3xl rounded-tr-none bg-[#f0ecf9] px-6 py-4 shadow-sm">
                               <p className="sr-only">{tc("questionLabel")}</p>
-                              <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#1b1b24]">
+                              <p className="rudix-chat-scrollbar max-h-72 overflow-y-auto pr-1 text-[15px] leading-relaxed break-words whitespace-pre-wrap text-[#1b1b24]">
                                 {turn.question}
                               </p>
                             </article>
+                            <div className="mr-2 flex items-center gap-2 text-[10px] font-bold tracking-widest text-[#777587] uppercase">
+                              <span>You</span>
+                            </div>
                           </div>
 
-                          <div className="flex items-start gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#3525cd] text-white">
+                          <div className="flex flex-col items-start gap-3">
+                            <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#3525cd] text-white">
                               <span
                                 className="material-symbols-outlined text-[18px]"
                                 aria-hidden="true"
@@ -2479,34 +2857,23 @@ export function ChatPage() {
                                 auto_awesome
                               </span>
                             </div>
-                            <div className="flex max-w-[92%] min-w-0 flex-1 flex-col">
-                              <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-white px-4 py-3 shadow-sm">
-                                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="group/conf relative">
-                                      <span className={confidenceBadgeClass()}>
-                                        <span
-                                          className="material-symbols-outlined text-xs"
-                                          aria-hidden="true"
-                                          style={{
-                                            fontVariationSettings: "'FILL' 1",
-                                          }}
-                                        >
-                                          verified
-                                        </span>
-                                        Confidence{" "}
-                                        {formatPercent(
-                                          turn.response.confidence_score,
-                                        )}
-                                      </span>
-                                      {turn.response.confidence_category ===
-                                        "low" && !turn.response.not_found ? (
-                                        <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1.5 w-56 rounded bg-[#2a2640] px-2 py-1.5 text-[10px] leading-snug whitespace-normal text-white opacity-0 transition-opacity group-hover/conf:opacity-100">
-                                          Low confidence warning: validate this
-                                          answer against the cited source text.
-                                        </span>
-                                      ) : null}
-                                    </span>
+                            <div className="flex w-full min-w-0 flex-1 flex-col">
+                              <article className="rounded-3xl rounded-tl-none border border-[#e4e1ee] bg-white px-6 py-5 shadow-sm">
+                                <div className="mb-4 flex items-center gap-2">
+                                  <span className="flex h-6 w-6 items-center justify-center rounded bg-[#3525cd] text-[10px] font-bold text-white italic">
+                                    R
+                                  </span>
+                                  <span className="text-[10px] font-bold tracking-widest text-[#3525cd] uppercase">
+                                    Rudix AI
+                                  </span>
+                                </div>
+
+                                {turn.response.trust_metadata
+                                  ?.query_interpretation?.answer_mode ===
+                                  "guidance" ||
+                                turn.response.scope_label ||
+                                turn.response.agent_run_status ? (
+                                  <div className="mb-4 flex flex-wrap items-center gap-2">
                                     {turn.response.trust_metadata
                                       ?.query_interpretation?.answer_mode ===
                                     "guidance" ? (
@@ -2531,8 +2898,6 @@ export function ChatPage() {
                                         {turn.response.scope_label}
                                       </span>
                                     ) : null}
-                                  </div>
-                                  <div className="flex items-center gap-2">
                                     {turn.response.agent_run_status ? (
                                       <span
                                         className={agentRunStatusClass(
@@ -2545,11 +2910,8 @@ export function ChatPage() {
                                         })}
                                       </span>
                                     ) : null}
-                                    <span className="font-mono text-xs text-[#6a6780]">
-                                      {formatDate(turn.response.created_at)}
-                                    </span>
                                   </div>
-                                </div>
+                                ) : null}
 
                                 {turn.response.citation_validation_failed &&
                                 !turn.response.not_found ? (
@@ -2593,7 +2955,7 @@ export function ChatPage() {
                                 )}
                                 {turn.response.not_found ? (
                                   <div className="space-y-2">
-                                    <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
+                                    <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-[15px] break-words text-[#2f2a46]">
                                       {tc("notFoundAnswer")}
                                     </p>
                                     <p className="text-xs text-[#6a6780]">
@@ -2602,11 +2964,11 @@ export function ChatPage() {
                                   </div>
                                 ) : (
                                   <>
-                                    <p className="hide-scrollbar max-h-80 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                                    <p className="rudix-chat-scrollbar max-h-80 overflow-y-auto pr-1 text-[16px] leading-relaxed break-words whitespace-pre-wrap text-[#2f2a46]">
                                       {turn.response.answer}
                                     </p>
                                     {turn.response.citations.length > 0 && (
-                                      <div className="mt-2 flex flex-wrap gap-1.5">
+                                      <div className="mt-4 flex flex-wrap gap-2">
                                         {turn.response.citations.map(
                                           (citation, ci) => {
                                             const label =
@@ -2623,7 +2985,7 @@ export function ChatPage() {
                                             return (
                                               <div
                                                 key={`inline:${citation.document_id}:${citation.chunk_id}:${ci}`}
-                                                className="relative flex w-64 shrink-0 items-stretch rounded-lg border border-[#c7c4d8] bg-white transition-colors hover:bg-[#eae6f4]"
+                                                className="relative flex max-w-[18rem] shrink-0 items-stretch overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#fcfbff] transition-colors hover:border-[#3525cd] hover:bg-[#f0ecf9]"
                                               >
                                                 <button
                                                   type="button"
@@ -2657,7 +3019,7 @@ export function ChatPage() {
                                                   className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden px-2.5 py-2 text-left"
                                                 >
                                                   <span
-                                                    className={`material-symbols-outlined shrink-0 text-[22px] ${getFileTypeColorClass(citation.filename)}`}
+                                                    className={`material-symbols-outlined shrink-0 text-[20px] ${getFileTypeColorClass(citation.filename)}`}
                                                     aria-hidden="true"
                                                   >
                                                     {getFileIcon(
@@ -2672,7 +3034,7 @@ export function ChatPage() {
                                                         citation,
                                                       )?.toUpperCase() ?? ext}
                                                     </span>
-                                                    <span className="block truncate text-xs font-medium text-[#1b1b24]">
+                                                    <span className="block truncate text-xs font-bold text-[#1b1b24]">
                                                       {label}
                                                     </span>
                                                     {freshness ? (
@@ -2710,6 +3072,13 @@ export function ChatPage() {
                                                         siblings.indexOf(
                                                           citation,
                                                         );
+                                                      setSelectedResponseMessageId(
+                                                        turn.response
+                                                          .message_id,
+                                                      );
+                                                      setIsKnowledgeHubOpen(
+                                                        false,
+                                                      );
                                                       setPreviewCitationSet({
                                                         citations: siblings,
                                                         initialIndex:
@@ -2742,7 +3111,7 @@ export function ChatPage() {
                                           );
                                           setIsKnowledgeHubOpen(true);
                                         }}
-                                        className="mt-3 w-full cursor-pointer rounded-r border-l-4 border-[#3525cd] bg-white px-3 py-2 text-left text-sm text-[#464555] italic shadow-sm transition-colors hover:bg-[#f5f2ff]"
+                                        className="mt-4 w-full cursor-pointer rounded-3xl border border-[#e4e1ee] bg-white px-5 py-4 text-left text-sm leading-relaxed text-[#464555] italic shadow-sm transition-colors hover:border-[#c3c0ff] hover:bg-[#f5f2ff]"
                                       >
                                         {
                                           turn.response.citations[0]
@@ -2843,7 +3212,7 @@ export function ChatPage() {
                                   }
                                 />
                               )}
-                              <div className="mt-1 flex items-center gap-1 px-1">
+                              <div className="mt-3 flex items-center gap-1 px-1 pt-3">
                                 {!turn.response.not_found ? (
                                   <div className="group relative">
                                     <button
@@ -3048,13 +3417,16 @@ export function ChatPage() {
                     })}
                     {pendingQuestion ? (
                       <li className="space-y-3">
-                        <div className="flex justify-end">
-                          <article className="max-w-[80%] rounded-xl rounded-tr-none bg-[#f0ecf9] px-4 py-3 shadow-sm">
+                        <div className="flex flex-col items-end gap-2">
+                          <article className="max-w-[85%] rounded-3xl rounded-tr-none bg-[#f0ecf9] px-6 py-4 shadow-sm">
                             <p className="sr-only">{tc("questionLabel")}</p>
-                            <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#1b1b24]">
+                            <p className="rudix-chat-scrollbar max-h-72 overflow-y-auto pr-1 text-[15px] leading-relaxed break-words whitespace-pre-wrap text-[#1b1b24]">
                               {pendingQuestion}
                             </p>
                           </article>
+                          <div className="mr-2 flex items-center gap-2 text-[10px] font-bold tracking-widest text-[#777587] uppercase">
+                            <span>You</span>
+                          </div>
                         </div>
                         {CHAT_WEBSOCKET_ENABLED &&
                           wsChat.timelineSteps.length > 0 && (
@@ -3062,8 +3434,16 @@ export function ChatPage() {
                           )}
                         {CHAT_WEBSOCKET_ENABLED && wsChat.partialAnswer ? (
                           <div className="flex justify-start">
-                            <article className="max-w-[90%] rounded-xl rounded-tl-none border border-[#e2dff1] bg-white px-4 py-3 shadow-sm">
-                              <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                            <article className="w-full rounded-3xl rounded-tl-none border border-[#e4e1ee] bg-white px-6 py-5 shadow-sm">
+                              <div className="mb-4 flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded bg-[#3525cd] text-[10px] font-bold text-white italic">
+                                  R
+                                </span>
+                                <span className="text-[10px] font-bold tracking-widest text-[#3525cd] uppercase">
+                                  Rudix AI
+                                </span>
+                              </div>
+                              <p className="text-[16px] leading-relaxed break-words whitespace-pre-wrap text-[#2f2a46]">
                                 {wsChat.partialAnswer}
                                 <span
                                   className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[#3525cd] align-middle"
@@ -3133,6 +3513,7 @@ export function ChatPage() {
                 onToggleCollection={toggleCollection}
                 onToggleConnectorConnection={toggleConnectorConnection}
                 onToggleDocument={toggleDocument}
+                onToggleProviderSource={toggleProviderSource}
                 question={question}
                 requiresUploadedDocuments={requiresUploadedDocuments}
                 rerank={rerank}
@@ -3157,23 +3538,36 @@ export function ChatPage() {
           </section>
 
           <aside
-            className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm ${isKnowledgeHubOpen || previewCitationSet !== null ? "" : "hidden"}`}
+            className={`relative flex min-h-0 flex-col overflow-hidden border-l border-[#e4e1ee] bg-[#fcf8ff] shadow-sm ${isKnowledgeHubOpen || previewCitationSet !== null ? "" : "hidden"}`}
           >
-            {/* ── Header ── */}
-            <div className="flex items-center justify-between border-b border-[#e4e1ee] p-4">
-              <div>
-                <h2 className="text-lg font-semibold text-[#1b1b24]">
-                  {tc("knowledgeHubTitle")}
-                </h2>
-                <p className="text-xs text-[#464555]">
-                  {tc("knowledgeHubSubtitle")}
-                </p>
+            <div className="flex min-h-16 shrink-0 items-center justify-between border-b border-[#e4e1ee] bg-white px-6 py-3">
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#3525cd] shadow-[0_0_8px_rgba(53,37,205,0.6)]" />
+                <div>
+                  <h2 className="font-bold tracking-tight text-[#1b1b24]">
+                    {activePreviewCitation
+                      ? tc("citationDetailsTitle")
+                      : tc("knowledgeHubTitle")}
+                  </h2>
+                  <p className="text-xs text-[#464555]">
+                    {activePreviewCitation
+                      ? tc("citationDetailsSubtitle")
+                      : tc("knowledgeHubSubtitle")}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsKnowledgeHubOpen(false)}
-                aria-label="Close Knowledge Hub"
-                className="cursor-pointer rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
+                onClick={() => {
+                  setIsKnowledgeHubOpen(false);
+                  setPreviewCitationSet(null);
+                }}
+                aria-label={
+                  activePreviewCitation
+                    ? "Close citation details"
+                    : "Close Knowledge Hub"
+                }
+                className="cursor-pointer rounded-full p-2 text-[#777587] transition-colors hover:bg-[#f0ecf9] hover:text-[#1b1b24]"
               >
                 <span
                   className="material-symbols-outlined text-[20px]"
@@ -3184,539 +3578,903 @@ export function ChatPage() {
               </button>
             </div>
 
-            {/* ── Scrollable body ── */}
-            <div className="hide-scrollbar flex-1 overflow-y-auto">
-              {/* Context Map */}
-              <div className="p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                    {tc("contextMapTitle")}
-                  </span>
-                  <button
-                    type="button"
-                    className="text-[10px] font-bold text-[#3525cd]"
-                  >
-                    {tc("contextMapExpand")}
-                  </button>
-                </div>
-                <div className="group relative h-40 overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#f0ecf9]">
-                  <div className="pointer-events-none absolute inset-0 opacity-20">
-                    <svg className="h-full w-full">
-                      <line
-                        stroke="#3525cd"
-                        strokeWidth="1"
-                        x1="20%"
-                        y1="30%"
-                        x2="50%"
-                        y2="50%"
-                      />
-                      <line
-                        stroke="#3525cd"
-                        strokeWidth="1"
-                        x1="50%"
-                        y1="50%"
-                        x2="80%"
-                        y2="20%"
-                      />
-                      <line
-                        stroke="#3525cd"
-                        strokeWidth="1"
-                        x1="50%"
-                        y1="50%"
-                        x2="70%"
-                        y2="80%"
-                      />
-                    </svg>
-                  </div>
-                  <div className="absolute top-[30%] left-[20%] h-3 w-3 rounded-full bg-[#3525cd] shadow-lg" />
-                  <div className="absolute top-[50%] left-[50%] flex h-6 w-6 items-center justify-center rounded-full bg-[#3525cd] shadow-lg">
-                    <span
-                      className="material-symbols-outlined text-xs text-white"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
-                    >
-                      stars
-                    </span>
-                  </div>
-                  <div className="absolute top-[20%] left-[78%] h-2.5 w-2.5 rounded-full bg-[#505f76] shadow-lg" />
-                  <div className="absolute top-[78%] left-[68%] h-4 w-4 rounded-full bg-[#a44100] shadow-lg" />
-                  <div className="absolute right-2 bottom-2 left-2 rounded border border-[#c7c4d8] bg-white/80 px-2 py-0.5 text-center font-mono text-[9px] text-[#464555] backdrop-blur-sm">
-                    {tc("contextMapConnected", {
-                      count:
-                        selectedCitationTurn?.response.citations.length ?? 0,
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Source Documents */}
-              <div className="border-t border-[#e4e1ee] bg-[#f5f2ff] p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                    {tc("sourceDocsTitle")}
-                  </span>
-                  <span
-                    className="material-symbols-outlined text-sm text-[#464555]"
-                    aria-hidden="true"
-                  >
-                    filter_list
-                  </span>
-                </div>
-
-                {!selectedCitationTurn ? (
-                  <p className="text-xs text-[#777587]">
-                    {tc("sourceDocsAsk")}
-                  </p>
-                ) : selectedCitationTurn.response.conflict_detected ? (
-                  <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={agreementLevelClass(
-                          selectedCitationTurn.response.agreement_level,
-                        )}
-                      >
-                        {agreementLevelLabel(
-                          selectedCitationTurn.response.agreement_level,
-                        )}
-                      </span>
-                      <span className="font-semibold">Source comparison</span>
-                    </div>
-                    {selectedCitationTurn.response.conflict_summary ? (
-                      <p className="mt-1 text-[11px] leading-snug">
-                        {selectedCitationTurn.response.conflict_summary}
-                      </p>
-                    ) : null}
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      <div>
-                        <p className="mb-2 text-[10px] font-bold tracking-widest text-emerald-800 uppercase">
-                          Preferred sources
-                        </p>
-                        <div className="space-y-2">
-                          {selectedCitationTurn.response.citations
-                            .filter((citation) =>
-                              selectedCitationTurn.response.preferred_document_ids.includes(
-                                citation.document_id,
-                              ),
-                            )
-                            .map((citation, ci) => (
-                              <button
-                                key={`preferred:${citation.document_id}:${citation.chunk_id}:${ci}`}
-                                type="button"
-                                onClick={() => {
-                                  const siblings =
-                                    selectedCitationTurn.response.citations.filter(
-                                      (c) =>
-                                        c.document_id === citation.document_id,
-                                    );
-                                  setPreviewCitationSet({
-                                    citations:
-                                      siblings.length > 0
-                                        ? siblings
-                                        : [citation],
-                                    initialIndex: Math.max(
-                                      0,
-                                      siblings.indexOf(citation),
-                                    ),
-                                  });
-                                  setIsKnowledgeHubOpen(false);
-                                }}
-                                className="group w-full rounded-lg border border-emerald-200 bg-white p-3 text-left transition-all hover:border-emerald-400"
-                              >
-                                <div className="mb-1 flex items-center justify-between">
-                                  <span
-                                    className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
-                                  >
-                                    {getFileTypeLabel(citation.filename)}
-                                  </span>
-                                  <span className="text-[9px] font-semibold text-emerald-700 uppercase">
-                                    Preferred
-                                  </span>
-                                </div>
-                                <h4
-                                  className="truncate text-sm font-bold text-[#1b1b24]"
-                                  title={
-                                    citation.filename ?? tc("unknownDocument")
-                                  }
-                                >
-                                  {citation.filename ?? tc("unknownDocument")}
-                                </h4>
-                                {citation.page_number ? (
-                                  <p className="text-[9px] text-[#464555]">
-                                    Page {citation.page_number}
-                                  </p>
-                                ) : null}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="mb-2 text-[10px] font-bold tracking-widest text-rose-800 uppercase">
-                          Conflicting sources
-                        </p>
-                        <div className="space-y-2">
-                          {selectedCitationTurn.response.citations
-                            .filter((citation) =>
-                              selectedCitationTurn.response.conflicting_document_ids.includes(
-                                citation.document_id,
-                              ),
-                            )
-                            .map((citation, ci) => (
-                              <button
-                                key={`conflicting:${citation.document_id}:${citation.chunk_id}:${ci}`}
-                                type="button"
-                                onClick={() => {
-                                  const siblings =
-                                    selectedCitationTurn.response.citations.filter(
-                                      (c) =>
-                                        c.document_id === citation.document_id,
-                                    );
-                                  setPreviewCitationSet({
-                                    citations:
-                                      siblings.length > 0
-                                        ? siblings
-                                        : [citation],
-                                    initialIndex: Math.max(
-                                      0,
-                                      siblings.indexOf(citation),
-                                    ),
-                                  });
-                                  setIsKnowledgeHubOpen(false);
-                                }}
-                                className="group w-full rounded-lg border border-rose-200 bg-white p-3 text-left transition-all hover:border-rose-400"
-                              >
-                                <div className="mb-1 flex items-center justify-between">
-                                  <span
-                                    className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
-                                  >
-                                    {getFileTypeLabel(citation.filename)}
-                                  </span>
-                                  <span className="text-[9px] font-semibold text-rose-700 uppercase">
-                                    Conflicting
-                                  </span>
-                                </div>
-                                <h4
-                                  className="truncate text-sm font-bold text-[#1b1b24]"
-                                  title={
-                                    citation.filename ?? tc("unknownDocument")
-                                  }
-                                >
-                                  {citation.filename ?? tc("unknownDocument")}
-                                </h4>
-                                {citation.page_number ? (
-                                  <p className="text-[9px] text-[#464555]">
-                                    Page {citation.page_number}
-                                  </p>
-                                ) : null}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : selectedCitationTurn.response.not_found ? (
-                  <p className="text-xs text-[#777587]">
-                    {tc("sourceDocsNotFound")}
-                  </p>
-                ) : selectedCitationTurn.response.citations.length === 0 ? (
-                  <p className="text-xs text-[#777587]">
-                    {tc("sourceDocsNone")}
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {selectedCitationTurn.response.citations.map(
-                      (citation, ci) => (
-                        <button
-                          key={`hub:${citation.document_id}:${citation.chunk_id}:${ci}`}
-                          type="button"
-                          onClick={() => {
-                            const siblings =
-                              selectedCitationTurn.response.citations.filter(
-                                (c) => c.document_id === citation.document_id,
-                              );
-                            setPreviewCitationSet({
-                              citations:
-                                siblings.length > 0 ? siblings : [citation],
-                              initialIndex: Math.max(
-                                0,
-                                siblings.indexOf(citation),
-                              ),
-                            });
-                            setIsKnowledgeHubOpen(false);
-                          }}
-                          className="group w-full rounded-lg border border-[#c7c4d8] bg-white p-3 text-left transition-all hover:border-[#3525cd]"
+            <div className="rudix-chat-scrollbar flex-1 overflow-y-auto">
+              {activePreviewCitation ? (
+                <div className="space-y-6 p-6">
+                  <section className="rounded-2xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f0ecf9] text-[#3525cd] shadow-inner">
+                        <span
+                          className="material-symbols-outlined text-[26px]"
+                          aria-hidden="true"
                         >
-                          <div className="mb-1 flex items-center justify-between">
-                            <span
-                              className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
-                            >
-                              {getFileTypeLabel(citation.filename)}
-                            </span>
-                            <span
-                              className="material-symbols-outlined text-xs text-[#464555] group-hover:text-[#3525cd]"
-                              aria-hidden="true"
-                            >
-                              open_in_new
-                            </span>
-                          </div>
-                          <h4
-                            className="mb-1 truncate text-sm font-bold text-[#1b1b24]"
-                            title={citation.filename ?? tc("unknownDocument")}
-                          >
-                            {citation.filename ?? tc("unknownDocument")}
-                          </h4>
-                          <div className="flex items-center gap-2">
-                            {citation.page_number ? (
-                              <span className="rounded bg-[#f0ecf9] px-2 py-0.5 font-mono text-[9px]">
-                                PAGE {citation.page_number}
-                              </span>
-                            ) : null}
-                            <span className="text-[9px] text-[#464555]">
-                              score {formatScore(citation.score)}
-                            </span>
-                          </div>
-                        </button>
-                      ),
-                    )}
-                    {selectedCitationPipelineHref ? (
-                      <Link
-                        href={selectedCitationPipelineHref}
-                        className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-[#777587] py-2 text-xs font-bold text-[#464555] transition-all hover:border-[#3525cd] hover:bg-white hover:text-[#3525cd]"
-                      >
-                        {tc("viewPipelineRun")}
-                      </Link>
-                    ) : null}
-                  </div>
-                )}
-
-                {/* Agent timeline */}
-                {selectedAgentRunId ? (
-                  <div className="mt-4">
-                    <p className="mb-2 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                      {tc("agentTimeline")}
-                    </p>
-                    {selectedAgentRunQuery.isLoading ? (
-                      <LoadingState compact title={tc("loadingTimeline")} />
-                    ) : selectedAgentRunQuery.isError ? (
-                      <ErrorState
-                        compact
-                        error={selectedAgentRunQuery.error}
-                        description={getApiErrorMessage(
-                          selectedAgentRunQuery.error,
-                        )}
-                        onRetry={() => {
-                          void selectedAgentRunQuery.refetch();
-                        }}
-                      />
-                    ) : selectedAgentRunQuery.data ? (
-                      <div className="space-y-1.5 text-xs text-[#4f4b63]">
-                        <div className="flex flex-wrap items-center gap-2 rounded border border-[#ebe8f7] px-2 py-1.5">
+                          {getFileIcon(activePreviewCitation.filename)}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black tracking-[0.18em] text-[#3525cd] uppercase">
+                          {citationOrdinal(previewCitationIndex)}
+                        </p>
+                        <h3
+                          className="mt-1 line-clamp-2 text-lg leading-tight font-black tracking-tight text-[#1b1b24]"
+                          title={activePreviewCitationTitle ?? undefined}
+                        >
+                          {activePreviewCitationTitle}
+                        </h3>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
                           <span
-                            className={agentRunStatusClass(
-                              selectedAgentRunQuery.data.status,
+                            className={`rounded-lg bg-[#f5f2ff] px-2 py-1 text-[10px] font-black tracking-wider uppercase ${getFileTypeColorClass(activePreviewCitation.filename)}`}
+                          >
+                            {citationProviderLabel(activePreviewCitation) ??
+                              getFileTypeLabel(activePreviewCitation.filename)}
+                          </span>
+                          {citationFreshnessLabel(activePreviewCitation) ? (
+                            <span
+                              className={
+                                citationFreshnessLabel(activePreviewCitation)
+                                  ?.className
+                              }
+                            >
+                              {
+                                citationFreshnessLabel(activePreviewCitation)
+                                  ?.label
+                              }
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <Link
+                        href={activePreviewCitationDocumentHref ?? "#"}
+                        aria-label={`${tc("citationFullDocument")}: ${
+                          activePreviewCitationTitle ?? tc("unknownDocument")
+                        }`}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e4e1ee] bg-white text-[#777587] transition-colors hover:border-[#3525cd] hover:text-[#3525cd]"
+                      >
+                        <span
+                          className="material-symbols-outlined text-[18px]"
+                          aria-hidden="true"
+                        >
+                          open_in_new
+                        </span>
+                      </Link>
+                    </div>
+                  </section>
+
+                  <section className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
+                      <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#777587] uppercase">
+                        {tc("citationPositionMetric")}
+                      </p>
+                      <p className="text-2xl font-black tracking-tight text-[#1b1b24]">
+                        {activePreviewCitation.page_number
+                          ? tc("citationPositionPage", {
+                              page: activePreviewCitation.page_number,
+                            })
+                          : activePreviewCitation.chunk_id
+                            ? tc("citationPositionChunk", {
+                                chunk: activePreviewCitation.chunk_id.slice(
+                                  0,
+                                  8,
+                                ),
+                              })
+                            : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
+                      <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#777587] uppercase">
+                        {tc("citationRelevanceMetric")}
+                      </p>
+                      <p className="text-2xl font-black tracking-tight text-[#3525cd]">
+                        {formatScorePercent(activePreviewCitationScore)}
+                      </p>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e4e1ee]">
+                        <div
+                          className="h-full rounded-full bg-[#3525cd]"
+                          style={{
+                            width: `${activePreviewCitationScorePercent ?? 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section>
+                    <p className="mb-3 text-[10px] font-black tracking-[0.18em] text-[#464555] uppercase">
+                      {tc("citationReferencedContext")}
+                    </p>
+                    <div className="rounded-2xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
+                      {activePreviewCitationChunkQuery.isLoading ? (
+                        <p className="rounded-2xl border border-dashed border-[#d7d4e8] bg-[#faf9ff] p-4 text-sm text-[#6a6780]">
+                          Loading chunk text...
+                        </p>
+                      ) : (
+                        (renderChunkCitationExcerpt(
+                          activePreviewCitationChunk,
+                          activePreviewCitation.text_snippet,
+                        ) ??
+                        renderCitationExcerpt(
+                          activePreviewCitation.text_snippet,
+                        ))
+                      )}
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {activePreviewCitation.page_number ? (
+                          <span className="rounded-full bg-[#f0ecf9] px-3 py-1 font-mono text-[10px] font-bold text-[#464555]">
+                            {tc("citationPositionPage", {
+                              page: activePreviewCitation.page_number,
+                            })}
+                          </span>
+                        ) : null}
+                        {activePreviewCitation.source_section ? (
+                          <span className="rounded-full bg-[#f0ecf9] px-3 py-1 text-[10px] font-bold text-[#464555]">
+                            {tc("citationSection", {
+                              section: activePreviewCitation.source_section,
+                            })}
+                          </span>
+                        ) : null}
+                        {activePreviewCitation.source_last_synced_at ? (
+                          <span className="rounded-full bg-[#f0ecf9] px-3 py-1 text-[10px] font-bold text-[#464555]">
+                            {tc("citationSynced", {
+                              date: formatDate(
+                                activePreviewCitation.source_last_synced_at,
+                              ),
+                            })}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="grid grid-cols-2 gap-3">
+                    <Link
+                      href={activePreviewCitationDocumentHref ?? "#"}
+                      className="flex items-center justify-center gap-2 rounded-2xl bg-[#1b1b24] px-4 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#3525cd]"
+                    >
+                      <span
+                        className="material-symbols-outlined text-[18px]"
+                        aria-hidden="true"
+                      >
+                        article
+                      </span>
+                      {tc("citationFullDocument")}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void copyToClipboard(
+                          citationCopyText(
+                            activePreviewCitation,
+                            citationOrdinal(previewCitationIndex),
+                            activePreviewCitationTitle ?? tc("unknownDocument"),
+                          ),
+                        );
+                      }}
+                      className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-[#e4e1ee] bg-white px-4 py-3 text-sm font-black text-[#464555] shadow-sm transition-colors hover:border-[#3525cd] hover:text-[#3525cd]"
+                    >
+                      <span
+                        className="material-symbols-outlined text-[18px]"
+                        aria-hidden="true"
+                      >
+                        ios_share
+                      </span>
+                      {tc("citationShare")}
+                    </button>
+                  </section>
+
+                  <section>
+                    <p className="mb-3 text-[10px] font-black tracking-[0.18em] text-[#464555] uppercase">
+                      {tc("citationOtherFindings")}
+                    </p>
+                    {relatedPreviewCitations.length > 0 ? (
+                      <div className="space-y-2">
+                        {relatedPreviewCitations.map(({ citation, index }) => {
+                          const title = citationDisplayTitle(
+                            citation,
+                            tc("unknownDocument"),
+                          );
+                          return (
+                            <button
+                              key={`related:${citation.document_id}:${citation.chunk_id}:${index}`}
+                              type="button"
+                              onClick={() => {
+                                setPreviewCitationSet({
+                                  citations: previewCitationSet?.citations ?? [
+                                    activePreviewCitation,
+                                  ],
+                                  initialIndex: index,
+                                });
+                              }}
+                              className="group w-full rounded-2xl border border-[#e4e1ee] bg-white p-3 text-left shadow-sm transition-colors hover:border-[#3525cd]"
+                            >
+                              <div className="mb-1 flex items-center justify-between gap-3">
+                                <span className="text-[10px] font-black tracking-[0.18em] text-[#3525cd] uppercase">
+                                  {citationOrdinal(index)}
+                                </span>
+                                {citation.page_number ? (
+                                  <span className="rounded-full bg-[#f0ecf9] px-2 py-0.5 font-mono text-[9px] font-bold text-[#464555]">
+                                    {tc("citationPositionPage", {
+                                      page: citation.page_number,
+                                    })}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="truncate text-sm font-black text-[#1b1b24]">
+                                {title}
+                              </p>
+                              {citation.text_snippet ? (
+                                <div className="mt-2">
+                                  {renderCitationExcerpt(
+                                    citation.text_snippet,
+                                    {
+                                      compact: true,
+                                    },
+                                  )}
+                                </div>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="rounded-2xl border border-dashed border-[#d7d4e8] bg-white/70 p-4 text-sm text-[#6a6780]">
+                        {tc("citationRelatedEmpty")}
+                      </p>
+                    )}
+                  </section>
+                </div>
+              ) : (
+                <>
+                  {/* Context Map */}
+                  <div className="p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                        {tc("contextMapTitle")}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[10px] font-bold text-[#3525cd]"
+                      >
+                        {tc("contextMapExpand")}
+                      </button>
+                    </div>
+                    <div className="group relative h-40 overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#f0ecf9]">
+                      <div className="pointer-events-none absolute inset-0 opacity-20">
+                        <svg className="h-full w-full">
+                          <line
+                            stroke="#3525cd"
+                            strokeWidth="1"
+                            x1="20%"
+                            y1="30%"
+                            x2="50%"
+                            y2="50%"
+                          />
+                          <line
+                            stroke="#3525cd"
+                            strokeWidth="1"
+                            x1="50%"
+                            y1="50%"
+                            x2="80%"
+                            y2="20%"
+                          />
+                          <line
+                            stroke="#3525cd"
+                            strokeWidth="1"
+                            x1="50%"
+                            y1="50%"
+                            x2="70%"
+                            y2="80%"
+                          />
+                        </svg>
+                      </div>
+                      <div className="absolute top-[30%] left-[20%] h-3 w-3 rounded-full bg-[#3525cd] shadow-lg" />
+                      <div className="absolute top-[50%] left-[50%] flex h-6 w-6 items-center justify-center rounded-full bg-[#3525cd] shadow-lg">
+                        <span
+                          className="material-symbols-outlined text-xs text-white"
+                          style={{ fontVariationSettings: "'FILL' 1" }}
+                        >
+                          stars
+                        </span>
+                      </div>
+                      <div className="absolute top-[20%] left-[78%] h-2.5 w-2.5 rounded-full bg-[#505f76] shadow-lg" />
+                      <div className="absolute top-[78%] left-[68%] h-4 w-4 rounded-full bg-[#a44100] shadow-lg" />
+                      <div className="absolute right-2 bottom-2 left-2 rounded border border-[#c7c4d8] bg-white/80 px-2 py-0.5 text-center font-mono text-[9px] text-[#464555] backdrop-blur-sm">
+                        {tc("contextMapConnected", {
+                          count:
+                            selectedCitationTurn?.response.citations.length ??
+                            0,
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Source Documents */}
+                  <div className="border-t border-[#e4e1ee] bg-[#f5f2ff] p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                        {tc("sourceDocsTitle")}
+                      </span>
+                      <span
+                        className="material-symbols-outlined text-sm text-[#464555]"
+                        aria-hidden="true"
+                      >
+                        filter_list
+                      </span>
+                    </div>
+
+                    {!selectedCitationTurn ? (
+                      <p className="text-xs text-[#777587]">
+                        {tc("sourceDocsAsk")}
+                      </p>
+                    ) : selectedCitationTurn.response.conflict_detected ? (
+                      <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={agreementLevelClass(
+                              selectedCitationTurn.response.agreement_level,
                             )}
                           >
-                            {selectedAgentRunQuery.data.status}
+                            {agreementLevelLabel(
+                              selectedCitationTurn.response.agreement_level,
+                            )}
                           </span>
-                          <span className="truncate text-[#6a6780]">
-                            run {selectedAgentRunQuery.data.run_id.slice(0, 8)}…
+                          <span className="font-semibold">
+                            Source comparison
                           </span>
                         </div>
-                        {selectedAgentRunQuery.data.approvals.length > 0 && (
-                          <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                            {tc("approvalsTitle")}
+                        {selectedCitationTurn.response.conflict_summary ? (
+                          <p className="mt-1 text-[11px] leading-snug">
+                            {selectedCitationTurn.response.conflict_summary}
                           </p>
-                        )}
-                        {selectedAgentRunQuery.data.approvals
-                          .filter((a) => a.status === "pending")
-                          .map((approval) => (
-                            <div
-                              key={approval.approval_id}
-                              className="rounded border border-amber-200 bg-amber-50 px-2 py-2"
-                            >
-                              <p className="mb-1 text-xs text-amber-800">
-                                {approval.request_summary ??
-                                  tc("approvalNeeded")}
-                              </p>
-                              {canDecideApprovals && (
-                                <div className="flex gap-2">
+                        ) : null}
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div>
+                            <p className="mb-2 text-[10px] font-bold tracking-widest text-emerald-800 uppercase">
+                              Preferred sources
+                            </p>
+                            <div className="space-y-2">
+                              {selectedCitationTurn.response.citations
+                                .filter((citation) =>
+                                  selectedCitationTurn.response.preferred_document_ids.includes(
+                                    citation.document_id,
+                                  ),
+                                )
+                                .map((citation, ci) => (
                                   <button
+                                    key={`preferred:${citation.document_id}:${citation.chunk_id}:${ci}`}
                                     type="button"
-                                    disabled={decideApprovalMutation.isPending}
                                     onClick={() => {
-                                      void handleApprovalDecision({
-                                        runId:
-                                          selectedAgentRunQuery.data.run_id,
-                                        approvalId: approval.approval_id,
-                                        status: "approved",
+                                      const siblings =
+                                        selectedCitationTurn.response.citations.filter(
+                                          (c) =>
+                                            c.document_id ===
+                                            citation.document_id,
+                                        );
+                                      setPreviewCitationSet({
+                                        citations:
+                                          siblings.length > 0
+                                            ? siblings
+                                            : [citation],
+                                        initialIndex: Math.max(
+                                          0,
+                                          siblings.indexOf(citation),
+                                        ),
                                       });
+                                      setIsKnowledgeHubOpen(false);
                                     }}
-                                    className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 disabled:opacity-60"
+                                    className="group w-full rounded-lg border border-emerald-200 bg-white p-3 text-left transition-all hover:border-emerald-400"
                                   >
-                                    {tc("approve")}
+                                    <div className="mb-1 flex items-center justify-between">
+                                      <span
+                                        className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                                      >
+                                        {getFileTypeLabel(citation.filename)}
+                                      </span>
+                                      <span className="text-[9px] font-semibold text-emerald-700 uppercase">
+                                        Preferred
+                                      </span>
+                                    </div>
+                                    <h4
+                                      className="truncate text-sm font-bold text-[#1b1b24]"
+                                      title={
+                                        citation.filename ??
+                                        tc("unknownDocument")
+                                      }
+                                    >
+                                      {citation.filename ??
+                                        tc("unknownDocument")}
+                                    </h4>
+                                    {citation.page_number ? (
+                                      <p className="text-[9px] text-[#464555]">
+                                        Page {citation.page_number}
+                                      </p>
+                                    ) : null}
                                   </button>
-                                  <button
-                                    type="button"
-                                    disabled={decideApprovalMutation.isPending}
-                                    onClick={() => {
-                                      void handleApprovalDecision({
-                                        runId:
-                                          selectedAgentRunQuery.data.run_id,
-                                        approvalId: approval.approval_id,
-                                        status: "rejected",
-                                      });
-                                    }}
-                                    className="rounded border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-800 disabled:opacity-60"
-                                  >
-                                    {tc("reject")}
-                                  </button>
-                                </div>
-                              )}
+                                ))}
                             </div>
-                          ))}
-                        <ol className="space-y-1">
-                          {selectedAgentRunQuery.data.steps.map((step) => (
-                            <li
-                              key={step.step_id}
-                              className="rounded border border-[#ebe8f7] px-2 py-1.5"
+                          </div>
+                          <div>
+                            <p className="mb-2 text-[10px] font-bold tracking-widest text-rose-800 uppercase">
+                              Conflicting sources
+                            </p>
+                            <div className="space-y-2">
+                              {selectedCitationTurn.response.citations
+                                .filter((citation) =>
+                                  selectedCitationTurn.response.conflicting_document_ids.includes(
+                                    citation.document_id,
+                                  ),
+                                )
+                                .map((citation, ci) => (
+                                  <button
+                                    key={`conflicting:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                                    type="button"
+                                    onClick={() => {
+                                      const siblings =
+                                        selectedCitationTurn.response.citations.filter(
+                                          (c) =>
+                                            c.document_id ===
+                                            citation.document_id,
+                                        );
+                                      setPreviewCitationSet({
+                                        citations:
+                                          siblings.length > 0
+                                            ? siblings
+                                            : [citation],
+                                        initialIndex: Math.max(
+                                          0,
+                                          siblings.indexOf(citation),
+                                        ),
+                                      });
+                                      setIsKnowledgeHubOpen(false);
+                                    }}
+                                    className="group w-full rounded-lg border border-rose-200 bg-white p-3 text-left transition-all hover:border-rose-400"
+                                  >
+                                    <div className="mb-1 flex items-center justify-between">
+                                      <span
+                                        className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                                      >
+                                        {getFileTypeLabel(citation.filename)}
+                                      </span>
+                                      <span className="text-[9px] font-semibold text-rose-700 uppercase">
+                                        Conflicting
+                                      </span>
+                                    </div>
+                                    <h4
+                                      className="truncate text-sm font-bold text-[#1b1b24]"
+                                      title={
+                                        citation.filename ??
+                                        tc("unknownDocument")
+                                      }
+                                    >
+                                      {citation.filename ??
+                                        tc("unknownDocument")}
+                                    </h4>
+                                    {citation.page_number ? (
+                                      <p className="text-[9px] text-[#464555]">
+                                        Page {citation.page_number}
+                                      </p>
+                                    ) : null}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : selectedCitationTurn.response.not_found ? (
+                      <p className="text-xs text-[#777587]">
+                        {tc("sourceDocsNotFound")}
+                      </p>
+                    ) : selectedCitationTurn.response.citations.length === 0 ? (
+                      <p className="text-xs text-[#777587]">
+                        {tc("sourceDocsNone")}
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedCitationTurn.response.citations.map(
+                          (citation, ci) => (
+                            <button
+                              key={`hub:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                              type="button"
+                              onClick={() => {
+                                const siblings =
+                                  selectedCitationTurn.response.citations.filter(
+                                    (c) =>
+                                      c.document_id === citation.document_id,
+                                  );
+                                setPreviewCitationSet({
+                                  citations:
+                                    siblings.length > 0 ? siblings : [citation],
+                                  initialIndex: Math.max(
+                                    0,
+                                    siblings.indexOf(citation),
+                                  ),
+                                });
+                                setIsKnowledgeHubOpen(false);
+                              }}
+                              className="group w-full rounded-lg border border-[#c7c4d8] bg-white p-3 text-left transition-all hover:border-[#3525cd]"
                             >
-                              <p className="font-semibold text-[#3f3b58]">
-                                {step.sequence}. {step.step_name}
-                              </p>
-                              <p className="text-[#6a6780]">
-                                {step.status}
-                                {step.duration_ms !== null
-                                  ? ` • ${step.duration_ms}ms`
-                                  : ""}
-                              </p>
-                            </li>
-                          ))}
-                        </ol>
-                        {decideApprovalMutation.isError && (
-                          <p className="rounded border border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-800">
-                            {getApiErrorMessage(decideApprovalMutation.error)}
-                          </p>
+                              <div className="mb-1 flex items-center justify-between">
+                                <span
+                                  className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                                >
+                                  {getFileTypeLabel(citation.filename)}
+                                </span>
+                                <span
+                                  className="material-symbols-outlined text-xs text-[#464555] group-hover:text-[#3525cd]"
+                                  aria-hidden="true"
+                                >
+                                  open_in_new
+                                </span>
+                              </div>
+                              <h4
+                                className="mb-1 truncate text-sm font-bold text-[#1b1b24]"
+                                title={
+                                  citation.filename ?? tc("unknownDocument")
+                                }
+                              >
+                                {citation.filename ?? tc("unknownDocument")}
+                              </h4>
+                              <div className="flex items-center gap-2">
+                                {citation.page_number ? (
+                                  <span className="rounded bg-[#f0ecf9] px-2 py-0.5 font-mono text-[9px]">
+                                    PAGE {citation.page_number}
+                                  </span>
+                                ) : null}
+                                <span className="text-[9px] text-[#464555]">
+                                  score {formatScore(citation.score)}
+                                </span>
+                              </div>
+                            </button>
+                          ),
                         )}
+                        {selectedCitationPipelineHref ? (
+                          <Link
+                            href={selectedCitationPipelineHref}
+                            className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-[#777587] py-2 text-xs font-bold text-[#464555] transition-all hover:border-[#3525cd] hover:bg-white hover:text-[#3525cd]"
+                          >
+                            {tc("viewPipelineRun")}
+                          </Link>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {/* Agent timeline */}
+                    {selectedAgentRunId ? (
+                      <div className="mt-4">
+                        <p className="mb-2 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                          {tc("agentTimeline")}
+                        </p>
+                        {selectedAgentRunQuery.isLoading ? (
+                          <LoadingState compact title={tc("loadingTimeline")} />
+                        ) : selectedAgentRunQuery.isError ? (
+                          <ErrorState
+                            compact
+                            error={selectedAgentRunQuery.error}
+                            description={getApiErrorMessage(
+                              selectedAgentRunQuery.error,
+                            )}
+                            onRetry={() => {
+                              void selectedAgentRunQuery.refetch();
+                            }}
+                          />
+                        ) : selectedAgentRunQuery.data ? (
+                          <div className="space-y-1.5 text-xs text-[#4f4b63]">
+                            <div className="flex flex-wrap items-center gap-2 rounded border border-[#ebe8f7] px-2 py-1.5">
+                              <span
+                                className={agentRunStatusClass(
+                                  selectedAgentRunQuery.data.status,
+                                )}
+                              >
+                                {selectedAgentRunQuery.data.status}
+                              </span>
+                              <span className="truncate text-[#6a6780]">
+                                run{" "}
+                                {selectedAgentRunQuery.data.run_id.slice(0, 8)}…
+                              </span>
+                            </div>
+                            {selectedAgentRunQuery.data.approvals.length >
+                              0 && (
+                              <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                                {tc("approvalsTitle")}
+                              </p>
+                            )}
+                            {selectedAgentRunQuery.data.approvals
+                              .filter((a) => a.status === "pending")
+                              .map((approval) => (
+                                <div
+                                  key={approval.approval_id}
+                                  className="rounded border border-amber-200 bg-amber-50 px-2 py-2"
+                                >
+                                  <p className="mb-1 text-xs text-amber-800">
+                                    {approval.request_summary ??
+                                      tc("approvalNeeded")}
+                                  </p>
+                                  {canDecideApprovals && (
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          decideApprovalMutation.isPending
+                                        }
+                                        onClick={() => {
+                                          void handleApprovalDecision({
+                                            runId:
+                                              selectedAgentRunQuery.data.run_id,
+                                            approvalId: approval.approval_id,
+                                            status: "approved",
+                                          });
+                                        }}
+                                        className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 disabled:opacity-60"
+                                      >
+                                        {tc("approve")}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          decideApprovalMutation.isPending
+                                        }
+                                        onClick={() => {
+                                          void handleApprovalDecision({
+                                            runId:
+                                              selectedAgentRunQuery.data.run_id,
+                                            approvalId: approval.approval_id,
+                                            status: "rejected",
+                                          });
+                                        }}
+                                        className="rounded border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-800 disabled:opacity-60"
+                                      >
+                                        {tc("reject")}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            <ol className="space-y-1">
+                              {selectedAgentRunQuery.data.steps.map((step) => (
+                                <li
+                                  key={step.step_id}
+                                  className="rounded border border-[#ebe8f7] px-2 py-1.5"
+                                >
+                                  <p className="font-semibold text-[#3f3b58]">
+                                    {step.sequence}. {step.step_name}
+                                  </p>
+                                  <p className="text-[#6a6780]">
+                                    {step.status}
+                                    {step.duration_ms !== null
+                                      ? ` • ${step.duration_ms}ms`
+                                      : ""}
+                                  </p>
+                                </li>
+                              ))}
+                            </ol>
+                            {decideApprovalMutation.isError && (
+                              <p className="rounded border border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-800">
+                                {getApiErrorMessage(
+                                  decideApprovalMutation.error,
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
-                  </div>
-                ) : null}
 
-                {/* Fallback warning — visible to all users */}
-                {selectedCitationTurn?.response.debug?.fallback_used ? (
-                  <div className="mt-3 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    <span className="mt-0.5 shrink-0">⚠</span>
-                    <span>
-                      {selectedCitationTurn.response.debug.fallback_to
-                        ? tc("fallbackWarningWithProvider", {
-                            provider:
-                              selectedCitationTurn.response.debug.fallback_to,
-                          })
-                        : tc("fallbackWarning")}
+                    {/* Fallback warning — visible to all users */}
+                    {selectedCitationTurn?.response.debug?.fallback_used ? (
+                      <div className="mt-3 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        <span className="mt-0.5 shrink-0">⚠</span>
+                        <span>
+                          {selectedCitationTurn.response.debug.fallback_to
+                            ? tc("fallbackWarningWithProvider", {
+                                provider:
+                                  selectedCitationTurn.response.debug
+                                    .fallback_to,
+                              })
+                            : tc("fallbackWarning")}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {/* Debug details for admins */}
+                    {showDebugDetails &&
+                    selectedCitationTurn?.response.debug ? (
+                      <details className="mt-4">
+                        <summary className="cursor-pointer text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                          {tc("retrievalDebug")}
+                        </summary>
+                        <div className="mt-2 space-y-1 text-xs text-[#4f4b63]">
+                          <dl className="grid grid-cols-2 gap-1 rounded border border-[#ebe8f7] px-2 py-2">
+                            {(
+                              [
+                                "retrieval_count",
+                                "selected_count",
+                                "rerank_applied",
+                                "embedding_model",
+                                "llm_model",
+                                "llm_provider",
+                                "fallback_used",
+                                "fallback_from",
+                                "fallback_to",
+                                "graph_context_enabled",
+                                "graph_context_used",
+                                "graph_context_unavailable",
+                                "graph_context_reason",
+                                "graph_seed_entity_count",
+                                "graph_related_entity_count",
+                                "graph_chunk_count",
+                                "graph_max_hops_used",
+                                "graph_relation_types_used",
+                                "detected_language",
+                                "answer_language_used",
+                              ] as const
+                            ).map((key) => (
+                              <div
+                                key={key}
+                                className={
+                                  key === "llm_model" ||
+                                  key === "llm_provider" ||
+                                  key === "graph_context_reason" ||
+                                  key === "graph_relation_types_used"
+                                    ? "col-span-2"
+                                    : ""
+                                }
+                              >
+                                <dt className="font-semibold">{key}</dt>
+                                <dd>
+                                  {String(
+                                    (
+                                      selectedCitationTurn.response
+                                        .debug as Record<string, unknown>
+                                    )[key] ?? "N/A",
+                                  )}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </div>
+                      </details>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {activePreviewCitation ? (
+              <div className="border-t border-[#e4e1ee] bg-[#f5f2ff] p-4">
+                <div className="mb-4 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        !activePreviewCitationSourceHref ||
+                        !activePreviewCitationKey
+                      ) {
+                        return;
+                      }
+                      void copyToClipboard(
+                        toAbsoluteBrowserHref(activePreviewCitationSourceHref),
+                      ).then(() => {
+                        setCopiedCitationLinkKey(activePreviewCitationKey);
+                        window.setTimeout(
+                          () => setCopiedCitationLinkKey(null),
+                          1800,
+                        );
+                      });
+                    }}
+                    className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-[#c7c4d8] bg-white px-2 py-2.5 text-[11px] font-black text-[#464555] shadow-sm transition-colors hover:bg-[#f0ecf9] hover:text-[#3525cd]"
+                  >
+                    <span
+                      className="material-symbols-outlined text-[18px]"
+                      aria-hidden="true"
+                    >
+                      link
                     </span>
+                    {copiedCitationLinkKey === activePreviewCitationKey
+                      ? tc("citationCopiedLink")
+                      : tc("citationCopyLink")}
+                  </button>
+
+                  {isActivePreviewCitationSourceExternal ? (
+                    <a
+                      href={activePreviewCitationSourceHref ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#c7c4d8] bg-white px-2 py-2.5 text-[11px] font-black text-[#464555] shadow-sm transition-colors hover:bg-[#f0ecf9] hover:text-[#3525cd]"
+                    >
+                      <span
+                        className="material-symbols-outlined text-[18px]"
+                        aria-hidden="true"
+                      >
+                        open_in_new
+                      </span>
+                      {tc("citationOpenSource")}
+                    </a>
+                  ) : (
+                    <Link
+                      href={activePreviewCitationSourceHref ?? "#"}
+                      className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#c7c4d8] bg-white px-2 py-2.5 text-[11px] font-black text-[#464555] shadow-sm transition-colors hover:bg-[#f0ecf9] hover:text-[#3525cd]"
+                    >
+                      <span
+                        className="material-symbols-outlined text-[18px]"
+                        aria-hidden="true"
+                      >
+                        open_in_new
+                      </span>
+                      {tc("citationOpenSource")}
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={citationDownloadMutation.isPending}
+                    onClick={() => {
+                      citationDownloadMutation.mutate(activePreviewCitation);
+                    }}
+                    className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-[#c7c4d8] bg-white px-2 py-2.5 text-[11px] font-black text-[#464555] shadow-sm transition-colors hover:bg-[#f0ecf9] hover:text-[#3525cd] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span
+                      className="material-symbols-outlined text-[18px]"
+                      aria-hidden="true"
+                    >
+                      download
+                    </span>
+                    {citationDownloadMutation.isPending
+                      ? tc("citationDownloading")
+                      : tc("citationDownload")}
+                  </button>
+                </div>
+                {citationDownloadMutation.isError ? (
+                  <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                    {getApiErrorMessage(citationDownloadMutation.error)}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewCitationSet(null);
+                    setIsKnowledgeHubOpen(true);
+                  }}
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#3525cd] px-4 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#2b1fa6]"
+                >
+                  <span
+                    className="material-symbols-outlined text-[18px]"
+                    aria-hidden="true"
+                  >
+                    insights
+                  </span>
+                  {tc("citationReadCollectionInsights")}
+                </button>
+              </div>
+            ) : (
+              <div className="border-t border-[#e4e1ee] bg-white p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
+                    <p className="mb-1 text-[9px] font-bold tracking-wider text-[#464555] uppercase">
+                      {tc("confidenceMetric")}
+                    </p>
+                    <p className="text-lg font-semibold text-[#3525cd]">
+                      {selectedCitationTurn
+                        ? selectedCitationTurn.response.confidence_category ===
+                          "high"
+                          ? tc("confidenceHigh")
+                          : selectedCitationTurn.response
+                                .confidence_category === "medium"
+                            ? tc("confidenceMedium")
+                            : tc("confidenceLow")
+                        : "—"}
+                    </p>
                   </div>
-                ) : null}
-
-                {/* Debug details for admins */}
-                {showDebugDetails && selectedCitationTurn?.response.debug ? (
-                  <details className="mt-4">
-                    <summary className="cursor-pointer text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                      {tc("retrievalDebug")}
-                    </summary>
-                    <div className="mt-2 space-y-1 text-xs text-[#4f4b63]">
-                      <dl className="grid grid-cols-2 gap-1 rounded border border-[#ebe8f7] px-2 py-2">
-                        {(
-                          [
-                            "retrieval_count",
-                            "selected_count",
-                            "rerank_applied",
-                            "embedding_model",
-                            "llm_model",
-                            "llm_provider",
-                            "fallback_used",
-                            "fallback_from",
-                            "fallback_to",
-                            "graph_context_enabled",
-                            "graph_context_used",
-                            "graph_context_unavailable",
-                            "graph_context_reason",
-                            "graph_seed_entity_count",
-                            "graph_related_entity_count",
-                            "graph_chunk_count",
-                            "graph_max_hops_used",
-                            "graph_relation_types_used",
-                            "detected_language",
-                            "answer_language_used",
-                          ] as const
-                        ).map((key) => (
-                          <div
-                            key={key}
-                            className={
-                              key === "llm_model" ||
-                              key === "llm_provider" ||
-                              key === "graph_context_reason" ||
-                              key === "graph_relation_types_used"
-                                ? "col-span-2"
-                                : ""
-                            }
-                          >
-                            <dt className="font-semibold">{key}</dt>
-                            <dd>
-                              {String(
-                                (
-                                  selectedCitationTurn.response.debug as Record<
-                                    string,
-                                    unknown
-                                  >
-                                )[key] ?? "N/A",
-                              )}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </div>
-                  </details>
-                ) : null}
-              </div>
-            </div>
-
-            {/* ── Metrics footer ── */}
-            <div className="border-t border-[#e4e1ee] bg-white p-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
-                  <p className="mb-1 text-[9px] font-bold tracking-wider text-[#464555] uppercase">
-                    {tc("confidenceMetric")}
-                  </p>
-                  <p className="text-lg font-semibold text-[#3525cd]">
-                    {selectedCitationTurn
-                      ? selectedCitationTurn.response.confidence_category ===
-                        "high"
-                        ? tc("confidenceHigh")
-                        : selectedCitationTurn.response.confidence_category ===
-                            "medium"
-                          ? tc("confidenceMedium")
-                          : tc("confidenceLow")
-                      : "—"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
-                  <p className="mb-1 text-[9px] font-bold tracking-wider text-[#464555] uppercase">
-                    {tc("sourcesMetric")}
-                  </p>
-                  <p className="text-lg font-semibold text-[#3525cd]">
-                    {selectedCitationDocumentCount > 0
-                      ? String(selectedCitationDocumentCount).padStart(2, "0")
-                      : "—"}
-                  </p>
+                  <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
+                    <p className="mb-1 text-[9px] font-bold tracking-wider text-[#464555] uppercase">
+                      {tc("sourcesMetric")}
+                    </p>
+                    <p className="text-lg font-semibold text-[#3525cd]">
+                      {selectedCitationDocumentCount > 0
+                        ? String(selectedCitationDocumentCount).padStart(2, "0")
+                        : "—"}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {previewCitationSet ? (
-              <CitationPreviewDrawer
-                citations={previewCitationSet.citations}
-                initialIndex={previewCitationSet.initialIndex}
-                onClose={() => setPreviewCitationSet(null)}
-              />
-            ) : null}
+            )}
           </aside>
         </div>
       </section>

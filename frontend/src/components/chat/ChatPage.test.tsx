@@ -22,11 +22,19 @@ import {
   listChatSessionMessages,
   listChatSessions,
   queryChat,
+  type ChatCitationResponse,
   updateChatSession,
 } from "@/lib/api/chat";
-import { listCollections } from "@/lib/api/collections";
+import {
+  listCollectionDocuments,
+  listCollections,
+} from "@/lib/api/collections";
 import { listAvailableConnectorConnections } from "@/lib/api/connectors";
-import { listDocuments } from "@/lib/api/documents";
+import {
+  downloadDocumentFile,
+  getDocumentChunks,
+  listDocuments,
+} from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import type { SessionState } from "@/lib/auth-session";
@@ -63,6 +71,8 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 vi.mock("@/lib/api/documents", () => ({
+  downloadDocumentFile: vi.fn(),
+  getDocumentChunks: vi.fn(),
   listDocuments: vi.fn(),
 }));
 
@@ -113,6 +123,46 @@ function createDeferred<T>() {
   return { promise, resolve };
 }
 
+function createChatQueryResponse(
+  overrides: Partial<Awaited<ReturnType<typeof queryChat>>> = {},
+): Awaited<ReturnType<typeof queryChat>> {
+  return {
+    chat_session_id: "session-new",
+    message_id: "msg-scope",
+    answer: "Scoped answer.",
+    confidence_score: 0.8,
+    confidence_category: "high",
+    confidence_explanation: {
+      top_similarity: 0.8,
+      average_similarity: 0.7,
+      top_rerank_score: 0.75,
+      citation_support_score: 0.7,
+      citation_validation_score: 0.9,
+      citation_coverage_score: 0.85,
+      retrieval_agreement_score: 0.8,
+      raw_score: 0.81,
+      citation_validation_multiplier: 1,
+      not_found_penalty_multiplier: 1,
+      no_context: false,
+      not_found_signal: false,
+      weights: {},
+      thresholds: {},
+    },
+    not_found: false,
+    citations: [],
+    debug: {
+      latencies_ms: { total: 100 },
+      retrieval_count: 3,
+      selected_count: 2,
+      rerank_applied: false,
+      embedding_model: "embed-model",
+      llm_model: "llm-model",
+    },
+    created_at: "2026-05-14T10:10:00Z",
+    ...overrides,
+  };
+}
+
 async function openSessionMenu(sessionTitle: string) {
   const item = await screen.findByText(sessionTitle);
   const row = item.closest("li") as HTMLElement;
@@ -145,6 +195,42 @@ describe("ChatPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    vi.mocked(downloadDocumentFile).mockResolvedValue(new Blob(["document"]));
+    vi.mocked(getDocumentChunks).mockResolvedValue({
+      document_id: "doc-indexed-1",
+      items: [
+        {
+          chunk_id: "chunk-1",
+          page_number: 2,
+          chunk_index: 0,
+          token_count: 48,
+          embedding_model: "model-a",
+          index_version: "v1",
+          section_path: "Policy > Dates",
+          language: "en",
+          chunk_level: 0,
+          child_count: null,
+          source_start_offset: 0,
+          source_end_offset: 180,
+          text_preview:
+            "Introduction. The policy was approved in 2025. Policy became active in May 2026. Review annually. Closing.",
+          text: "Introduction. The policy was approved in 2025. Policy became active in May 2026. Review annually. Closing.",
+          created_at: "2026-05-14T10:00:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      include_full_text: true,
+    });
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn().mockReturnValue("blob:document"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
     Object.defineProperty(window.HTMLElement.prototype, "scrollTo", {
       configurable: true,
       value: vi.fn(),
@@ -174,6 +260,10 @@ describe("ChatPage", () => {
       sort_order: "desc",
     });
     vi.mocked(listCollections).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(listCollectionDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+    });
     vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
       items: [],
       total: 0,
@@ -339,7 +429,7 @@ describe("ChatPage", () => {
     await userEvent.keyboard("{Escape}");
   });
 
-  it("renders citations and low-confidence warning for an answer", async () => {
+  it("renders citations and citation details for an answer", async () => {
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
         {
@@ -388,6 +478,7 @@ describe("ChatPage", () => {
       not_found: false,
       citations: [
         {
+          citation_id: "citation-1",
           document_id: "doc-indexed-1",
           chunk_id: "chunk-1",
           filename: "policy.pdf",
@@ -396,8 +487,9 @@ describe("ChatPage", () => {
           similarity_score: 0.61,
           rerank_score: 0.58,
           rerank_rank: 1,
+          source_deep_link: "https://docs.example.com/policy#page=2",
           text_snippet: "Policy became active in May 2026.",
-        },
+        } as ChatCitationResponse,
       ],
       debug: {
         latencies_ms: { total: 123 },
@@ -431,13 +523,59 @@ describe("ChatPage", () => {
       await screen.findByText("The policy is active as of May 2026."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
+      screen.queryByText(
         "Low confidence warning: validate this answer against the cited source text.",
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
+
+    const citationButton = screen
+      .getAllByText("policy.pdf")[0]
+      .closest("button") as HTMLButtonElement;
+    await userEvent.click(citationButton);
+
+    expect(await screen.findByText("Citation Details")).toBeInTheDocument();
+    expect(screen.getByText("Referenced Context")).toBeInTheDocument();
+    expect(screen.getByText("Relevance Score")).toBeInTheDocument();
+    expect(screen.getByText("58.0%")).toBeInTheDocument();
+    const referencedContext = screen
+      .getByText("Referenced Context")
+      .closest("section");
+    expect(referencedContext).not.toBeNull();
+    expect(referencedContext as HTMLElement).toHaveTextContent("“...");
+    expect(referencedContext as HTMLElement).toHaveTextContent("Introduction.");
+    expect(referencedContext as HTMLElement).toHaveTextContent("...");
+    expect(referencedContext as HTMLElement).toHaveTextContent(
+      "The policy was approved in 2025.",
+    );
+    expect(referencedContext as HTMLElement).toHaveTextContent(
+      "Policy became active in May 2026.",
+    );
+    expect(referencedContext as HTMLElement).toHaveTextContent(
+      "Review annually.",
+    );
+    expect(referencedContext as HTMLElement).toHaveTextContent("...”");
+    const citedHighlight = within(referencedContext as HTMLElement).getByText(
+      "Policy became active in May 2026.",
+    );
+    expect(citedHighlight.closest("mark")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Full Doc" })).toHaveAttribute(
+      "href",
+      "/documents/doc-indexed-1?chunk_id=chunk-1&page=2&back=%2Fchat",
+    );
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
     expect(
-      screen.getAllByText("Policy became active in May 2026.").length,
-    ).toBeGreaterThan(0);
+      screen.getByRole("button", { name: "Copy link" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open source" })).toHaveAttribute(
+      "href",
+      "https://docs.example.com/policy#page=2",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Download" }));
+    await waitFor(() => {
+      expect(vi.mocked(downloadDocumentFile)).toHaveBeenCalledWith(
+        "doc-indexed-1",
+      );
+    });
   });
 
   it("shows the response loading state while a query is in flight", async () => {
@@ -904,6 +1042,126 @@ describe("ChatPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("submits all indexed documents without narrowing filters by default", async () => {
+    vi.mocked(queryChat).mockResolvedValue(
+      createChatQueryResponse({ answer: "All documents answer." }),
+    );
+
+    renderPage();
+
+    await screen.findByRole("button", { name: /Select scope/i });
+    fireEvent.change(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      { target: { value: "all files check" } },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalled();
+    });
+    const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
+    expect(call).toMatchObject({
+      question: "all files check",
+      scope_mode: "all",
+    });
+    expect(call?.document_ids).toBeUndefined();
+    expect(call?.source_scope).toBeUndefined();
+  });
+
+  it("submits selected collection scope with collection source filters", async () => {
+    const collectionDocument = {
+      document_id: "doc-collection",
+      filename: "collection-policy.pdf",
+      file_type: "pdf" as const,
+      status: "indexed" as const,
+      page_count: 1,
+      chunk_count: 5,
+      error_message: null,
+      error_details: null,
+      created_at: "2026-05-14T10:00:00Z",
+      updated_at: "2026-05-14T10:05:00Z",
+    };
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [collectionDocument],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listCollections).mockResolvedValue({
+      items: [
+        {
+          collection_id: "collection-finance",
+          name: "Finance",
+          description: "Finance policy collection",
+          owner_id: "user-1",
+          owner_email: "owner@example.com",
+          document_count: 1,
+          indexed_count: 1,
+          access_policy: "org_wide",
+          is_dynamic: false,
+          last_rule_evaluated_at: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(listCollectionDocuments).mockResolvedValue({
+      items: [collectionDocument],
+      total: 1,
+    });
+    vi.mocked(queryChat).mockResolvedValue(
+      createChatQueryResponse({ answer: "Collection answer." }),
+    );
+
+    renderPage();
+
+    const scopeMenu = await openScopeMenu();
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /^Collection/i }),
+    );
+    await userEvent.click(
+      within(scopeMenu).getByRole("checkbox", { name: /Finance/i }),
+    );
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Apply/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(listCollectionDocuments)).toHaveBeenCalledWith(
+        "collection-finance",
+        { limit: 200 },
+      );
+    });
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      { target: { value: "collection scope check" } },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalled();
+    });
+    const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
+    expect(call).toMatchObject({
+      question: "collection scope check",
+      document_ids: ["doc-collection"],
+      scope_mode: "collection",
+      source_scope: {
+        mode: "collections",
+        collection_ids: ["collection-finance"],
+      },
+    });
+  });
+
   it("submits selected document_ids with top_k payload", async () => {
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
@@ -1188,6 +1446,83 @@ describe("ChatPage", () => {
         mode: "connector_sources",
         connection_ids: ["conn-confluence-1"],
         provider_source_ids: [],
+      },
+    });
+  });
+
+  it("submits connector source-root selections with the chat request", async () => {
+    vi.mocked(listAvailableConnectorConnections).mockResolvedValue({
+      items: [
+        {
+          id: "conn-confluence-1",
+          provider_key: "confluence",
+          provider: {
+            key: "confluence",
+            display_name: "Confluence",
+            enabled_by_default: false,
+            has_oauth: true,
+            capabilities: {
+              auth_type: "oauth2",
+              capabilities: ["attachments", "folders"],
+              rate_limits: [],
+              export_formats: [],
+              max_page_size: null,
+              notes: null,
+            },
+            config_schema: { type: "object", properties: {} },
+          },
+          display_name: "Engineering Confluence",
+          external_account_id: null,
+          collection_id: null,
+          status: "active",
+          auth_config: { space_keys: ["ENG", "DOCS"] },
+          last_sync_at: null,
+          error_message: null,
+          source_count: 2,
+          indexed_document_count: 2,
+          sync_job_count: 1,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(queryChat).mockResolvedValue(
+      createChatQueryResponse({ answer: "Connector source-root answer." }),
+    );
+
+    renderPage();
+
+    const scopeMenu = await openScopeMenu();
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Connectors/i }),
+    );
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: "ENG" }),
+    );
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Apply/i }),
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      { target: { value: "connector root check" } },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalled();
+    });
+    const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
+    expect(call).toMatchObject({
+      question: "connector root check",
+      scope_mode: "all",
+      source_scope: {
+        mode: "connector_sources",
+        connection_ids: ["conn-confluence-1"],
+        provider_source_ids: ["ENG"],
       },
     });
   });
@@ -2108,7 +2443,7 @@ describe("ChatPage", () => {
     );
   });
 
-  it("renders high, medium, and low confidence badges from session history", async () => {
+  it("renders session history without message confidence metadata", async () => {
     vi.mocked(listDocuments).mockResolvedValue({
       items: [],
       total: 0,
@@ -2199,22 +2534,17 @@ describe("ChatPage", () => {
       await screen.findByRole("button", { name: /Confidence history/i }),
     );
 
+    expect(await screen.findByText("a1")).toBeInTheDocument();
+    expect(await screen.findByText("a2")).toBeInTheDocument();
+    expect(await screen.findByText("a3")).toBeInTheDocument();
+    expect(screen.queryByText("Confidence 91.0%")).not.toBeInTheDocument();
+    expect(screen.queryByText("Confidence 55.0%")).not.toBeInTheDocument();
+    expect(screen.queryByText("Confidence 22.0%")).not.toBeInTheDocument();
     expect(
-      (await screen.findAllByText("Confidence 91.0%")).length,
-    ).toBeGreaterThan(0);
-    expect(
-      (await screen.findAllByText("Confidence 55.0%")).length,
-    ).toBeGreaterThan(0);
-    expect(
-      (await screen.findAllByText("Confidence 22.0%")).length,
-    ).toBeGreaterThan(0);
-    expect(
-      (
-        await screen.findAllByText(
-          "Low confidence warning: validate this answer against the cited source text.",
-        )
-      ).length,
-    ).toBe(1);
+      screen.queryByText(
+        "Low confidence warning: validate this answer against the cited source text.",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("renders safe not-found state and hides citations panel details", async () => {
@@ -3307,7 +3637,7 @@ describe("ChatPage", () => {
 
   it("renders the answer language selector in the composer toolbar", async () => {
     renderPage();
-    await screen.findByRole("heading", { name: /Chat Session/i });
+    await screen.findByRole("heading", { name: /Conversation/i });
 
     await openAdditionalSettings();
     const selector = screen.getByRole("combobox", { name: "Answer language" });
@@ -3321,7 +3651,7 @@ describe("ChatPage", () => {
 
   it("passes answer_language=de to queryChat when German is selected", async () => {
     renderPage();
-    await screen.findByRole("heading", { name: /Chat Session/i });
+    await screen.findByRole("heading", { name: /Conversation/i });
 
     await openAdditionalSettings();
     await userEvent.selectOptions(
@@ -3408,7 +3738,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByRole("heading", { name: /Chat Session/i });
+    await screen.findByRole("heading", { name: /Conversation/i });
 
     const textarea = screen.getByPlaceholderText(
       "Type a message or use '/' for commands...",

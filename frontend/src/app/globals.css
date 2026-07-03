@@ -143,6 +143,69 @@ body {
   display: none;
 }
 
+.rudix-chat-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #d8d4e6 transparent;
+}
+
+.rudix-chat-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.rudix-chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rudix-chat-scrollbar::-webkit-scrollbar-thumb {
+  background: #d8d4e6;
+  border-radius: 9999px;
+}
+
+.rudix-chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #c7c4d8;
+}
+
+.rudix-thinking-gradient {
+  position: relative;
+  background: #ffffff;
+  isolation: isolate;
+}
+
+.rudix-thinking-gradient::before {
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4f46e5, #a855f7, #4f46e5);
+  background-size: 200% 100%;
+  animation: rudix-gradient-flow 2s linear infinite;
+  content: "";
+}
+
+@keyframes rudix-gradient-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.rudix-skeleton-pulse {
+  background: linear-gradient(90deg, #f5f2ff 25%, #e4e1ee 50%, #f5f2ff 75%);
+  background-size: 200% 100%;
+  animation: rudix-skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes rudix-skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 .rudix-svg-flow-line {
   stroke-dasharray: 8;
   animation: rudix-svg-flow-dash 30s linear infinite;

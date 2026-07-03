@@ -27,6 +27,7 @@ export type CreateChatSessionRequest = Schemas["CreateChatSessionRequest"];
 export type ChatSessionResponse = Schemas["ChatSessionResponse"];
 export type ChatSessionListResponse = Schemas["ChatSessionListResponse"];
 export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
+  citation_id?: string | null;
   freshness_state?:
     | "current"
     | "stale"
@@ -40,6 +41,7 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
   source_provider_label?: string | null;
   source_title?: string | null;
   source_key?: string | null;
+  source_url?: string | null;
   source_section?: string | null;
   source_deep_link?: string | null;
   source_last_synced_at?: string | null;
