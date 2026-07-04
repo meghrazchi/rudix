@@ -136,7 +136,7 @@ export function LandingPage() {
                 </span>
               </PublicActionLink>
               <PublicActionLink
-                href={links.startTrial}
+                href={links.docs}
                 className="rounded-xl border border-[#777587] px-8 py-4 text-base font-semibold text-[#1a1b20] transition hover:bg-[#eeedf3]"
               >
                 {t("hero.secondaryCta")}

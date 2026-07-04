@@ -65,7 +65,7 @@ describe("Public Landing Page", () => {
       screen.getAllByRole("link", { name: "Speak to us" }).length,
     ).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByRole("link", { name: "Try the demo" }),
+      screen.getByRole("link", { name: "Upload documents" }),
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: "View documentation" }).length,
@@ -89,10 +89,9 @@ describe("Public Landing Page", () => {
       "href",
       "/pricing",
     );
-    expect(screen.getByRole("link", { name: "Try the demo" })).toHaveAttribute(
-      "href",
-      "/signup",
-    );
+    expect(
+      screen.getByRole("link", { name: "Upload documents" }),
+    ).toHaveAttribute("href", "/documents");
     expect(
       screen.getAllByRole("link", { name: "Speak to us" })[0],
     ).toHaveAttribute("href", "/contact");
@@ -126,10 +125,9 @@ describe("Public Landing Page", () => {
       "href",
       "/pricing-overview",
     );
-    expect(screen.getByRole("link", { name: "Try the demo" })).toHaveAttribute(
-      "href",
-      "https://trial.example.com",
-    );
+    expect(
+      screen.getByRole("link", { name: "Upload documents" }),
+    ).toHaveAttribute("href", "https://docs.example.com");
     expect(
       screen.getAllByRole("link", { name: "Speak to us" })[0],
     ).toHaveAttribute("href", "https://demo.example.com");
