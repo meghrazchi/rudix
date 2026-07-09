@@ -8,6 +8,7 @@ import type {
   AgentRunDetailResponse,
   AgentRunListItem,
   AgentRunListResponse,
+  AgentRuntimeRequest,
 } from "@/lib/api/agent";
 import type { WorkflowPlanPreviewResponse } from "@/lib/api/workflow-planner";
 
@@ -22,6 +23,9 @@ const mockApi = vi.hoisted(() => ({
   listAgentApprovals: vi.fn(),
   commentAgentRunApproval: vi.fn(),
   previewWorkflowPlan: vi.fn(),
+  listCollections: vi.fn(),
+  listAvailableConnectorConnections: vi.fn(),
+  listDocuments: vi.fn(),
 }));
 
 vi.mock("@/lib/api/agent", () => ({
@@ -40,6 +44,19 @@ vi.mock("@/lib/api/agent", () => ({
 vi.mock("@/lib/api/workflow-planner", () => ({
   previewWorkflowPlan: (...args: unknown[]) =>
     mockApi.previewWorkflowPlan(...args),
+}));
+
+vi.mock("@/lib/api/collections", () => ({
+  listCollections: (...args: unknown[]) => mockApi.listCollections(...args),
+}));
+
+vi.mock("@/lib/api/connectors", () => ({
+  listAvailableConnectorConnections: (...args: unknown[]) =>
+    mockApi.listAvailableConnectorConnections(...args),
+}));
+
+vi.mock("@/lib/api/documents", () => ({
+  listDocuments: (...args: unknown[]) => mockApi.listDocuments(...args),
 }));
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -217,8 +234,88 @@ describe("AgentWorkspacePage", () => {
     vi.resetAllMocks();
     mockApi.listAgentApprovals.mockResolvedValue({ items: [], total: 0 });
     mockApi.commentAgentRunApproval.mockResolvedValue({});
+    mockApi.listDocuments.mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-1",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 3,
+          chunk_count: 6,
+          error_message: null,
+          error_details: null,
+          created_at: NOW,
+          updated_at: NOW,
+        },
+      ],
+      total: 1,
+      limit: 30,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    mockApi.listCollections.mockResolvedValue({
+      items: [
+        {
+          collection_id: "collection-1",
+          name: "Finance",
+          description: "Finance policy set",
+          owner_id: "user-1",
+          owner_email: "owner@example.com",
+          document_count: 2,
+          indexed_count: 2,
+          access_policy: "org_wide",
+          is_dynamic: false,
+          last_rule_evaluated_at: null,
+          created_at: NOW,
+          updated_at: NOW,
+        },
+      ],
+      total: 1,
+    });
+    mockApi.listAvailableConnectorConnections.mockResolvedValue({
+      items: [
+        {
+          id: "connector-1",
+          provider_key: "confluence",
+          provider: {
+            key: "confluence",
+            display_name: "Confluence",
+            enabled_by_default: true,
+            has_oauth: true,
+            capabilities: {
+              auth_type: "oauth2",
+              capabilities: [],
+              rate_limits: [],
+              export_formats: [],
+              max_page_size: null,
+              notes: null,
+            },
+            config_schema: {
+              type: "object",
+              properties: {},
+            },
+          },
+          display_name: "Confluence workspace",
+          external_account_id: "acct-1",
+          collection_id: null,
+          status: "active",
+          auth_config: { space_keys: ["ENG"] },
+          last_sync_at: NOW,
+          error_message: null,
+          source_count: 3,
+          indexed_document_count: 4,
+          sync_job_count: 1,
+          created_at: NOW,
+          updated_at: NOW,
+        },
+      ],
+      total: 1,
+    });
     mockApi.previewWorkflowPlan.mockImplementation(
-      async (payload: { request?: { objective?: string; mode?: string } }) =>
+      async (payload: { request?: AgentRuntimeRequest }) =>
         makePlanPreview({
           objective:
             payload.request?.objective ??
@@ -227,23 +324,20 @@ describe("AgentWorkspacePage", () => {
             (payload.request?.mode as WorkflowPlanPreviewResponse["mode"]) ??
             "compare",
           request: {
-            objective:
-              payload.request?.objective ??
-              "Build an audit evidence pack from the selected sources with citations.",
-            mode:
-              (payload.request?.mode as WorkflowPlanPreviewResponse["mode"]) ??
-              "compare",
-            question:
-              payload.request?.objective ??
-              "Build an audit evidence pack from the selected sources with citations.",
-            document_query:
-              payload.request?.objective ??
-              "Build an audit evidence pack from the selected sources with citations.",
-            rerank: true,
-            budget: {
-              max_steps: 12,
-              max_tool_calls: 30,
-            },
+            ...(payload.request ?? {
+              objective:
+                "Build an audit evidence pack from the selected sources with citations.",
+              mode: "compare",
+              question:
+                "Build an audit evidence pack from the selected sources with citations.",
+              document_query:
+                "Build an audit evidence pack from the selected sources with citations.",
+              rerank: true,
+              budget: {
+                max_steps: 12,
+                max_tool_calls: 30,
+              },
+            }),
           },
         }),
     );
@@ -330,8 +424,26 @@ describe("AgentWorkspacePage", () => {
     it("renders tool call row", async () => {
       mockApi.getAgentRun.mockResolvedValue(makeDetailResponse());
       renderPage();
+      await screen.findByText("Q3 revenue was $42M.");
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /tool call log/i }));
       await waitFor(() => {
-        expect(screen.getByText(/Tool calls \(1\)/)).toBeInTheDocument();
+        expect(screen.getByText(/fetch_document/i)).toBeInTheDocument();
+      });
+    });
+
+    it("renders effective policy in its own tab", async () => {
+      mockApi.getAgentRun.mockResolvedValue(makeDetailResponse());
+      renderPage();
+      await screen.findByText("Q3 revenue was $42M.");
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole("button", { name: /effective policy/i }),
+      );
+      await waitFor(() => {
+        expect(
+          screen.getByRole("heading", { name: /effective policy/i }),
+        ).toBeInTheDocument();
       });
     });
 
@@ -505,6 +617,9 @@ describe("AgentWorkspacePage", () => {
       mockApi.listAgentRuns.mockResolvedValue(makeListResponse([]));
       renderPage();
       await user.click(
+        screen.getByRole("button", { name: /audit evidence pack/i }),
+      );
+      await user.click(
         screen.getByRole("button", { name: /policy comparison/i }),
       );
       const textarea = screen.getByPlaceholderText(
@@ -531,6 +646,93 @@ describe("AgentWorkspacePage", () => {
             request: expect.objectContaining({
               objective: "Check compliance docs",
               mode: "compare",
+            }),
+          }),
+        );
+      });
+    });
+
+    it("passes selected document scope through to the workflow request", async () => {
+      const user = userEvent.setup();
+      mockApi.createAgentRun.mockResolvedValue({
+        run: { run_id: "run-scope-docs", status: "queued" },
+      });
+      mockApi.getAgentRun.mockResolvedValue(
+        makeDetailResponse({ run_id: "run-scope-docs" }),
+      );
+      mockApi.listAgentRuns.mockResolvedValue(makeListResponse([]));
+
+      renderPage();
+      await user.type(
+        screen.getByPlaceholderText(
+          /describe what the workflow should accomplish/i,
+        ),
+        "Summarise selected docs",
+      );
+      await user.click(screen.getByRole("button", { name: /select scope/i }));
+      await user.click(screen.getByRole("button", { name: /files/i }));
+      await user.click(screen.getByRole("button", { name: /policy\.pdf/i }));
+      await user.click(screen.getByRole("button", { name: /apply/i }));
+      await user.click(screen.getByRole("button", { name: /preview plan/i }));
+      await waitFor(() => {
+        expect(mockApi.previewWorkflowPlan).toHaveBeenCalled();
+      });
+      await user.click(
+        screen.getByRole("button", { name: /execute workflow/i }),
+      );
+
+      await waitFor(() => {
+        expect(mockApi.createAgentRun).toHaveBeenCalledWith(
+          expect.objectContaining({
+            agentic_mode: true,
+            request: expect.objectContaining({
+              document_ids: ["doc-1"],
+              source_scope: undefined,
+            }),
+          }),
+        );
+      });
+    });
+
+    it("passes selected connector scope through to the workflow request", async () => {
+      const user = userEvent.setup();
+      mockApi.createAgentRun.mockResolvedValue({
+        run: { run_id: "run-scope-connectors", status: "queued" },
+      });
+      mockApi.getAgentRun.mockResolvedValue(
+        makeDetailResponse({ run_id: "run-scope-connectors" }),
+      );
+      mockApi.listAgentRuns.mockResolvedValue(makeListResponse([]));
+
+      renderPage();
+      await user.type(
+        screen.getByPlaceholderText(
+          /describe what the workflow should accomplish/i,
+        ),
+        "Summarise selected connectors",
+      );
+      await user.click(screen.getByRole("button", { name: /select scope/i }));
+      await user.click(screen.getByRole("button", { name: /connectors/i }));
+      await user.click(screen.getByRole("button", { name: /eng/i }));
+      await user.click(screen.getByRole("button", { name: /apply/i }));
+      await user.click(screen.getByRole("button", { name: /preview plan/i }));
+      await waitFor(() => {
+        expect(mockApi.previewWorkflowPlan).toHaveBeenCalled();
+      });
+      await user.click(
+        screen.getByRole("button", { name: /execute workflow/i }),
+      );
+
+      await waitFor(() => {
+        expect(mockApi.createAgentRun).toHaveBeenCalledWith(
+          expect.objectContaining({
+            agentic_mode: true,
+            request: expect.objectContaining({
+              source_scope: {
+                mode: "connector_sources",
+                connection_ids: ["connector-1"],
+                provider_source_ids: ["ENG"],
+              },
             }),
           }),
         );

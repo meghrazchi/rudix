@@ -1641,9 +1641,6 @@ export function ChatPage() {
     if (scopeMode === "connectors" && !hasConnectorScopeSelection) {
       return "Select at least one connector source to use connector scope.";
     }
-    if (scopeMode === "documents" && filteredSelectedDocumentIds.length === 0) {
-      return "Select at least one file to scope retrieval.";
-    }
     return null;
   }, [
     scopeMode,
@@ -1651,7 +1648,6 @@ export function ChatPage() {
     selectedCollectionDocsQuery.isLoading,
     collectionDocumentIdSet,
     hasConnectorScopeSelection,
-    filteredSelectedDocumentIds.length,
   ]);
   const contextModalOffset = (contextPage - 1) * CONTEXT_MODAL_PAGE_SIZE;
   const contextModalQuery = useQuery({
@@ -2289,7 +2285,9 @@ export function ChatPage() {
       if (fileCount > 0) {
         parts.push(tc("documentsSelected", { count: fileCount }));
       } else {
-        parts.push(tc("selectDocuments"));
+        parts.push(
+          tc("scopeAllDocuments", { count: totalDocumentsInAllScope }),
+        );
       }
     }
     if (scopeMode === "connectors") {
