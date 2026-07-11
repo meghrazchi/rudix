@@ -423,7 +423,7 @@ describe("ChatPage", () => {
     const contextDialog = await openContextSelector();
     expect(
       within(contextDialog).getByText(
-        "All documents are included in this search.",
+        "If no document is selected, all documents will be included.",
       ),
     ).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");

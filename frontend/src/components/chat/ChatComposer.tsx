@@ -260,6 +260,7 @@ export function ChatComposer({
                   scopeConnectors: t("scopeConnectors"),
                   scopeNoRag: t("scopeNoRag"),
                   selectDocuments: tPage("selectDocuments"),
+                  documentSearchPlaceholder: tPage("contextSearchPlaceholder"),
                   selectCollections: t("selectCollections"),
                   selectConnectors: t("selectConnectors"),
                   loadingDocuments: tPage("loadingDocuments"),
@@ -271,7 +272,7 @@ export function ChatComposer({
                   noConnectors: tPage("noConnectors"),
                   documentSelected: tPage("documentSelected"),
                   documentSelect: tPage("documentSelect"),
-                  allDocumentsHint: tPage("scopeAllDocumentsHint"),
+                  allDocumentsHint: t("scopeAllDocumentsHint"),
                   cancel: tPage("cancel"),
                   apply: tPage("apply"),
                 }}
@@ -291,6 +292,7 @@ export function ChatComposer({
                 onToggleConnectorConnection={onToggleConnectorConnection}
                 onToggleProviderSource={onToggleProviderSource}
                 onToggleDocument={onToggleDocument}
+                onDocumentSearchQueryChange={_setDocumentSearchQuery}
                 getDocumentSubtitle={(document) =>
                   document.updated_at
                     ? tPage("documentChunks", {

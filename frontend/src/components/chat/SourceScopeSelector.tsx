@@ -51,6 +51,7 @@ type ScopeLabels = {
   scopeConnectors: string;
   scopeNoRag: string;
   selectDocuments: string;
+  documentSearchPlaceholder: string;
   selectCollections: string;
   selectConnectors: string;
   loadingDocuments: string;
@@ -87,6 +88,7 @@ type SourceScopeSelectorProps = {
   onToggleConnectorConnection: (connectionId: string) => void;
   onToggleProviderSource: (providerSourceId: string) => void;
   onToggleDocument: (documentId: string) => void;
+  onDocumentSearchQueryChange?: (value: string) => void;
   getDocumentSubtitle?: (document: ScopeDocument) => string;
 };
 
@@ -166,6 +168,7 @@ export function SourceScopeSelector({
   onToggleConnectorConnection,
   onToggleProviderSource,
   onToggleDocument,
+  onDocumentSearchQueryChange,
   getDocumentSubtitle,
 }: SourceScopeSelectorProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -358,6 +361,8 @@ export function SourceScopeSelector({
 
       {isOpen && (
         <div
+          role="menu"
+          aria-label={labels.triggerAriaLabel}
           style={menuStyle}
           className="z-50 overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-2xl"
         >
@@ -365,6 +370,7 @@ export function SourceScopeSelector({
             <div className="flex w-44 flex-shrink-0 flex-col border-r border-[#ece8f7] bg-[#f7f5ff] py-2">
               <button
                 type="button"
+                aria-label={labels.scopeAllDocuments}
                 onClick={() => {
                   setDraftScopeMode("all");
                   setActiveScopeSubmenu(null);
@@ -382,6 +388,7 @@ export function SourceScopeSelector({
               </button>
               <button
                 type="button"
+                aria-label={labels.selectDocuments}
                 onClick={() => {
                   setDraftScopeMode("documents");
                   setActiveScopeSubmenu("documents");
@@ -404,17 +411,17 @@ export function SourceScopeSelector({
               </button>
               <button
                 type="button"
-                disabled={isCollectionsLoading && collections.length === 0}
+                aria-label={labels.scopeCollection}
+                disabled={collections.length === 0}
                 onClick={() => {
-                  if (isCollectionsLoading && collections.length === 0) return;
+                  if (collections.length === 0) return;
                   setDraftScopeMode("collection");
                   setActiveScopeSubmenu("collections");
                 }}
                 className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${
-                  draftScopeMode === "collection" &&
-                  !(isCollectionsLoading && collections.length === 0)
+                  draftScopeMode === "collection" && collections.length > 0
                     ? "border-y border-[#d7d4e8] bg-white font-semibold text-[#3525cd] shadow-sm"
-                    : isCollectionsLoading && collections.length === 0
+                    : collections.length === 0
                       ? "cursor-not-allowed text-[#9a96ad] opacity-50"
                       : "text-[#464555] hover:bg-[#ece8ff]/50"
                 }`}
@@ -422,8 +429,8 @@ export function SourceScopeSelector({
                 <span className="material-symbols-outlined text-[17px]">
                   folder_special
                 </span>
-                <span className="flex-1">{labels.selectCollections}</span>
-                {!(isCollectionsLoading && collections.length === 0) && (
+                <span className="flex-1">{labels.scopeCollection}</span>
+                {collections.length > 0 && (
                   <span className="material-symbols-outlined text-[15px] text-[#6a6780]">
                     chevron_right
                   </span>
@@ -431,14 +438,10 @@ export function SourceScopeSelector({
               </button>
               <button
                 type="button"
-                disabled={
-                  isConnectorsLoading && connectorConnections.length === 0
-                }
+                aria-label={labels.scopeConnectors}
+                disabled={connectorConnections.length === 0}
                 onClick={() => {
-                  if (
-                    isConnectorsLoading &&
-                    connectorConnections.length === 0
-                  ) {
+                  if (connectorConnections.length === 0) {
                     return;
                   }
                   setDraftScopeMode("connectors");
@@ -446,9 +449,9 @@ export function SourceScopeSelector({
                 }}
                 className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${
                   draftScopeMode === "connectors" &&
-                  !(isConnectorsLoading && connectorConnections.length === 0)
+                  connectorConnections.length > 0
                     ? "border-y border-[#d7d4e8] bg-white font-semibold text-[#3525cd] shadow-sm"
-                    : isConnectorsLoading && connectorConnections.length === 0
+                    : connectorConnections.length === 0
                       ? "cursor-not-allowed text-[#9a96ad] opacity-50"
                       : "text-[#464555] hover:bg-[#ece8ff]/50"
                 }`}
@@ -456,10 +459,8 @@ export function SourceScopeSelector({
                 <span className="material-symbols-outlined text-[17px]">
                   hub
                 </span>
-                <span className="flex-1">{labels.selectConnectors}</span>
-                {!(
-                  isConnectorsLoading && connectorConnections.length === 0
-                ) && (
+                <span className="flex-1">{labels.scopeConnectors}</span>
+                {!(connectorConnections.length === 0) && (
                   <span className="material-symbols-outlined text-[15px] text-[#6a6780]">
                     chevron_right
                   </span>
@@ -496,10 +497,11 @@ export function SourceScopeSelector({
                     <input
                       type="text"
                       value={documentSearchQuery}
-                      onChange={(event) =>
-                        setDocumentSearchQuery(event.target.value)
-                      }
-                      placeholder={labels.selectDocuments}
+                      onChange={(event) => {
+                        setDocumentSearchQuery(event.target.value);
+                        onDocumentSearchQueryChange?.(event.target.value);
+                      }}
+                      placeholder={labels.documentSearchPlaceholder}
                       className="h-9 w-full rounded-lg border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                     />
                   </div>

@@ -1186,6 +1186,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           scopeConnectors: "Connectors",
           scopeNoRag: "No RAG",
           selectDocuments: "Files",
+          documentSearchPlaceholder: "Search indexed documents…",
           selectCollections: "Collections",
           selectConnectors: "Connectors",
           loadingDocuments: "Loading documents…",
