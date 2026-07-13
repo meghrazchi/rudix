@@ -124,6 +124,7 @@ describe("app route protection", () => {
       "/graph",
       "/chat",
       "/evaluations",
+      "/reports",
       "/rag-pipeline",
       "/settings",
       "/admin",
@@ -136,6 +137,22 @@ describe("app route protection", () => {
 });
 
 describe("permission-aware navigation", () => {
+  it("shows reports navigation to normal users and reviewers", () => {
+    for (const role of ["member", "reviewer"] as const) {
+      const nav = buildNavigationItems("/reports", {
+        userId: "u-1",
+        email: null,
+        role,
+        organizationId: "org-1",
+        organizationName: "Org 1",
+      });
+      expect(nav.find((item) => item.key === "reports")).toMatchObject({
+        hidden: false,
+        disabled: false,
+        isActive: true,
+      });
+    }
+  });
   it("disables admin nav item for member role", () => {
     const nav = buildNavigationItems("/dashboard", {
       userId: "u-1",

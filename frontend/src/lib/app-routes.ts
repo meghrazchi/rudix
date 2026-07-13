@@ -13,6 +13,7 @@ export type AppRouteKey =
   | "chat"
   | "agent-workspace"
   | "evaluations"
+  | "reports"
   | "pipeline"
   | "connectors"
   | "settings"
@@ -121,6 +122,15 @@ export const APP_ROUTES: AppRouteMeta[] = [
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
     requiredPermission: "evaluations:view",
+  },
+  {
+    key: "reports",
+    href: "/reports",
+    label: "Reports",
+    description: "Understand quality, health, adoption, and access trends",
+    matchPrefixes: ["/reports"],
+    requiresOrganization: true,
+    allowedRoles: ["owner", "admin", "member", "viewer", "reviewer"],
   },
   {
     key: "pipeline",

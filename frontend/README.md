@@ -39,6 +39,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/graph/entities/[entityId]`
   - `/chat`
   - `/evaluations`
+  - `/reports` with role-aware report navigation and shared global filters
   - `/rag-pipeline` Pipeline Explorer
   - `/settings`
   - `/admin` (owner/admin roles only)
@@ -97,6 +98,12 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - admin-only usage window selector (7d / 30d / 90d) for `/admin/usage` aggregation when enabled
   - explicit loading/error states with retry actions for each KPI card
   - empty state with document/chat call-to-actions when no activity exists
+- Reports area behavior:
+  - `/reports` provides the shared report shell; section routes include Answer Quality, Source Health, Usage & Adoption, Permissions & Access, Feedback & Issues, and Knowledge Gaps
+  - members/viewers receive personal sections; reviewers also receive Source Health and Knowledge Gaps; owners/admins receive every section
+  - date, workspace, team, user, collection, connector, language, model/provider, and confidence filters are URL-backed and preserved while navigating between sections
+  - reusable primitives live in `src/components/reports/report-ui.tsx`: `ReportHeader`, `KpiCard`, `ChartCard`, `ReportDataTable`, `DetailDrawer`, `StatusBadge`, `RecommendedActionCard`, and `PartialDataState`
+  - report screens reuse the shared loading, empty, error, and forbidden state components under `src/components/states`; report data must remain role- and organization-scoped when endpoints are connected
 - Product analytics behavior:
   - privacy-aware consent-gated tracking for activation and feature usage
   - optional Matomo script loading when `NEXT_PUBLIC_ANALYTICS_ENABLED=true` and Matomo env vars are configured
