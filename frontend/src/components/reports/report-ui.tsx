@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { AlertTriangle, ArrowRight, X } from "lucide-react";
 
@@ -33,13 +34,15 @@ export function KpiCard({
   value,
   change,
   description,
+  href,
 }: {
   label: string;
   value: string;
   change?: string;
   description?: string;
+  href?: string;
 }) {
-  return (
+  const card = (
     <article className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm">
       <p className="text-xs font-semibold text-[#68647b]">{label}</p>
       <div className="mt-2 flex items-end justify-between gap-3">
@@ -53,16 +56,29 @@ export function KpiCard({
       ) : null}
     </article>
   );
+  return href ? (
+    <Link
+      href={href}
+      className="rounded-xl transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3525cd]"
+      aria-label={`Open ${label} report`}
+    >
+      {card}
+    </Link>
+  ) : (
+    card
+  );
 }
 
 export function ChartCard({
   title,
   description,
   children,
+  href,
 }: {
   title: string;
   description?: string;
   children: ReactNode;
+  href?: string;
 }) {
   return (
     <section className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm">
@@ -71,6 +87,14 @@ export function ChartCard({
         <p className="mt-1 text-xs text-[#68647b]">{description}</p>
       ) : null}
       <div className="mt-4 min-h-44">{children}</div>
+      {href ? (
+        <Link
+          href={href}
+          className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#3525cd]"
+        >
+          Open detailed report <ArrowRight className="h-3 w-3" aria-hidden />
+        </Link>
+      ) : null}
     </section>
   );
 }
@@ -140,10 +164,16 @@ export function RecommendedActionCard({
   title,
   description,
   action,
+  priority,
+  impact,
+  related,
 }: {
   title: string;
   description: string;
   action?: ReactNode;
+  priority?: "High" | "Medium" | "Low";
+  impact?: string;
+  related?: string;
 }) {
   return (
     <aside className="rounded-xl border border-[#cfc9ff] bg-[#f2efff] p-4">
@@ -154,7 +184,17 @@ export function RecommendedActionCard({
         />
         <div>
           <h2 className="font-bold text-[#2a2640]">{title}</h2>
+          {priority || impact ? (
+            <p className="mt-1 text-xs font-semibold text-[#5d58a8]">
+              {[priority ? `${priority} priority` : null, impact]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          ) : null}
           <p className="mt-1 text-sm text-[#5f5b72]">{description}</p>
+          {related ? (
+            <p className="mt-2 text-xs text-[#68647b]">Related: {related}</p>
+          ) : null}
           {action ? <div className="mt-3">{action}</div> : null}
         </div>
       </div>

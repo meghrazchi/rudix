@@ -14,6 +14,7 @@ import {
 import { EmptyState } from "@/components/states/EmptyState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
+import { ReportsOverviewDashboard } from "@/components/reports/ReportsOverviewDashboard";
 
 export function ReportSectionPage({ slug }: { slug?: string }) {
   const { state } = useAuthSession();
@@ -36,6 +37,12 @@ export function ReportSectionPage({ slug }: { slug?: string }) {
         backLabel="Back to reports"
       />
     );
+  }
+  if (
+    section.id === "overview" &&
+    (state.session.role === "admin" || state.session.role === "owner")
+  ) {
+    return <ReportsOverviewDashboard />;
   }
   return (
     <main className="grid gap-5">
