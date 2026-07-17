@@ -11,6 +11,7 @@ This folder contains a production-ready backend skeleton for the AI Document Q&A
 - Celery worker scaffold with RabbitMQ/Redis wiring.
 - Client scaffolds for Qdrant, MinIO, and ClamAV.
 - Privacy-aware product analytics ingestion plus organization-level opt-out and admin-safe summaries.
+- Tenant-scoped operational report events and admin report APIs with bounded date ranges, indexed filters, pagination, and content-free payloads.
 - Dockerfile for API and worker images.
 
 ## Does not include

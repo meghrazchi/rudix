@@ -73,6 +73,7 @@ from app.interfaces.http import (
     query_analytics,
     quotas,
     rag_profiles,
+    reports,
     safety_evals,
     scim,
     security_settings,
@@ -127,6 +128,7 @@ protected_router.include_router(rag_profiles.router)
 protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)
 protected_router.include_router(analytics.router)
+protected_router.include_router(reports.router)
 protected_router.include_router(observability.router)
 protected_router.include_router(provider_observability.router)
 protected_router.include_router(langfuse_diagnostics.router)

@@ -1,5 +1,28 @@
 # 07 — API Design
 
+## Reports API (F349)
+
+`POST /api/v1/reports/events` records a typed, content-free reporting fact. Supported
+categories are question, answer, citation, confidence, feedback, indexing,
+connector sync, permission, export, and audit. The strict request schema rejects
+unknown fields, so questions, answers, source text, snippets, credentials, and
+arbitrary metadata cannot enter or leave the reporting store.
+
+`GET /api/v1/reports` returns a stable envelope with `metrics`, `chart`, `table`,
+`action_items`, and `pagination`. Both endpoints require an organization owner or
+admin. Organization scope always comes from the authenticated principal and cannot
+be overridden by a query parameter.
+
+Filters: `from`, `to`, `category`, `workspace_id`, `collection_id`, `connector_id`,
+`user_id`, `team_id`, and `source_id`. Table controls: `page` (1-based), `page_size`
+(maximum 200), `sort`, and `direction`. Date ranges are limited to 366 days. The
+event table has composite tenant/date indexes for the high-cardinality dimensions.
+
+Report rows contain identifiers and numeric operational facts only; they never
+contain filenames, source titles/URLs, questions, answers, citations snippets, or
+document content. Frontends must resolve any source label through its existing
+permission-checked source endpoint.
+
 FastAPI exposes the production backend API.
 
 ## API principles

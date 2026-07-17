@@ -1,5 +1,14 @@
 # 11 — Security and Production Checklist
 
+## Reporting safety (F349)
+
+- Derive report organization scope only from the authenticated principal.
+- Limit report access and event ingestion to organization owners/admins.
+- Keep report facts content-free; reject arbitrary metadata and private source text.
+- Return only opaque resource identifiers and numeric operational measurements.
+- Resolve source labels or details through existing permission-checked APIs, never by joining private source content into report responses.
+- Bound date ranges and page sizes and retain composite tenant/date indexes.
+
 ## Security goals
 
 1. Users can access only their own organization documents.

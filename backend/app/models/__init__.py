@@ -88,6 +88,7 @@ from app.models.quality_gate import QualityGate, QualityGateRun
 from app.models.query_analytics import KnowledgeGap
 from app.models.quotas import OrgQuotaChangeLog, OrgQuotaOverride, OrgQuotaPolicy, OrgQuotaUsage
 from app.models.rag_profile import RagProfile, RagProfileCollectionOverride, RagProfileVersion
+from app.models.report import ReportEvent
 from app.models.safety_eval import SafetyEvalCase, SafetyEvalResult, SafetyEvalRun
 from app.models.service_account import ServiceAccount, ServiceAccountToken
 from app.models.usage import AuditLog, UsageEvent
@@ -190,6 +191,7 @@ __all__ = [
     "RagProfile",
     "RagProfileCollectionOverride",
     "RagProfileVersion",
+    "ReportEvent",
     "ResourceAccessDeny",
     "ResourceAccessGrant",
     "RolePermission",
