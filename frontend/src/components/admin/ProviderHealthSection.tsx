@@ -1,6 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useLocale } from "next-intl";
+import type { SupportedLocale } from "@/i18n/routing";
+import { getAdminObservabilityTranslations } from "./admin-observability-translations";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -49,12 +52,6 @@ function statusBadgeClass(s: CardStatus): string {
   return "bg-slate-200 text-slate-700";
 }
 
-function statusBadgeLabel(s: CardStatus): string {
-  if (s === "healthy") return "Healthy";
-  if (s === "degraded") return "Degraded";
-  return "No data";
-}
-
 function MetricRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm">
@@ -65,12 +62,13 @@ function MetricRow({ label, value }: { label: string; value: string }) {
 }
 
 function SloSuggestionItem({ suggestion }: { suggestion: SloSuggestion }) {
+  const t = getAdminObservabilityTranslations(useLocale() as SupportedLocale);
   const metricLabel: Record<string, string> = {
-    failure_rate: "Failure rate",
-    timeout_rate: "Timeout rate",
-    fallback_rate: "Fallback rate",
-    avg_latency_ms: "Avg latency",
-    p95_latency_ms: "P95 latency",
+    failure_rate: t.errorRate,
+    timeout_rate: t.timedOut,
+    fallback_rate: t.fallback,
+    avg_latency_ms: t.avgLatency,
+    p95_latency_ms: t.p95Latency,
   };
   const label = metricLabel[suggestion.metric] ?? suggestion.metric;
   const current =
@@ -96,6 +94,8 @@ function SloSuggestionItem({ suggestion }: { suggestion: SloSuggestion }) {
 }
 
 function ProviderCard({ card }: { card: ProviderHealthCard }) {
+  const locale = useLocale() as SupportedLocale;
+  const t = getAdminObservabilityTranslations(locale);
   const cardStatus = resolveCardStatus(card);
 
   return (
@@ -106,51 +106,54 @@ function ProviderCard({ card }: { card: ProviderHealthCard }) {
             {card.provider_key}
           </h3>
           <p className="mt-0.5 text-xs text-[#6d6985]">
-            {formatCount(card.total_events)} events
+            {formatCount(card.total_events)} {t.events}
           </p>
         </div>
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${statusBadgeClass(cardStatus)}`}
         >
-          {statusBadgeLabel(cardStatus)}
+          {cardStatus === "healthy"
+            ? t.healthy
+            : cardStatus === "degraded"
+              ? t.degraded
+              : t.noData}
         </span>
       </div>
 
       {card.total_events === 0 ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          No provider telemetry in the selected range. Signals appear once F228
-          usage events are recorded.
+          {t.providerMissing}
         </p>
       ) : (
         <dl className="space-y-2">
           <MetricRow
-            label="Failed events"
+            label={t.failedEvents}
             value={`${formatCount(card.failed_events)} (${formatPct(card.failure_rate)})`}
           />
           <MetricRow
-            label="Timed out"
+            label={t.timedOut}
             value={`${formatCount(card.timed_out_events)} (${formatPct(card.timeout_rate)})`}
           />
           <MetricRow
-            label="Fallback used"
+            label={t.fallback}
             value={`${formatCount(card.fallback_events)} (${formatPct(card.fallback_rate)})`}
           />
           <MetricRow
-            label="Retry events"
+            label={t.retryEvents}
             value={`${formatCount(card.retry_events)} (${formatPct(card.retry_rate)})`}
           />
           {card.avg_retry_count != null ? (
             <MetricRow
-              label="Avg retries / event"
+              label={t.avgRetries}
               value={card.avg_retry_count.toFixed(2)}
             />
           ) : null}
           <MetricRow
-            label="Avg latency"
+            label={t.avgLatency}
             value={formatMs(card.avg_latency_ms)}
           />
           <MetricRow
-            label="P95 latency"
+            label={t.p95Latency}
             value={formatMs(card.p95_latency_ms)}
           />
         </dl>
@@ -159,7 +162,7 @@ function ProviderCard({ card }: { card: ProviderHealthCard }) {
       {card.slo_suggestions.length > 0 ? (
         <div className="mt-4">
           <p className="mb-2 text-xs font-semibold tracking-wide text-amber-700 uppercase">
-            SLO suggestions
+            {t.slo}
           </p>
           <ul className="space-y-2">
             {card.slo_suggestions.map((s) => (
@@ -177,19 +180,23 @@ function SnapshotMeta({
 }: {
   snapshot: ProviderObservabilitySnapshot;
 }) {
+  const t = getAdminObservabilityTranslations(useLocale() as SupportedLocale);
   const dt = new Date(snapshot.generated_at);
   const label = Number.isNaN(dt.getTime())
     ? snapshot.generated_at
     : dt.toLocaleString();
   return (
     <p className="text-xs text-[#6a6780]">
-      Provider snapshot at {label} — range {snapshot.range.from} to{" "}
-      {snapshot.range.to}
+      {t.providerSnapshot} <bdi dir="ltr">{label}</bdi> — {t.range}{" "}
+      <bdi dir="ltr">
+        {snapshot.range.from} – {snapshot.range.to}
+      </bdi>
     </p>
   );
 }
 
 export function ProviderHealthSection({ timeRange }: { timeRange: TimeRange }) {
+  const t = getAdminObservabilityTranslations(useLocale() as SupportedLocale);
   const query = useQuery({
     queryKey: queryKeys.admin.providerObservability(timeRange),
     queryFn: () => getProviderObservabilitySnapshot(timeRange),
@@ -200,7 +207,7 @@ export function ProviderHealthSection({ timeRange }: { timeRange: TimeRange }) {
       <LoadingState
         compact
         className="rounded-2xl border border-[#d7d4e8] bg-white px-5 py-8 shadow-sm"
-        title="Loading provider health..."
+        title={t.loadingProviders}
       />
     );
   }
@@ -228,12 +235,9 @@ export function ProviderHealthSection({ timeRange }: { timeRange: TimeRange }) {
         <div className="mb-4 flex items-start justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold text-[#2a2640]">
-              Provider health
+              {t.providerHealth}
             </h2>
-            <p className="mt-1 text-sm text-[#68647b]">
-              Per-provider failure rates, latency, retries, timeouts, and
-              fallback use. Only events with provider metadata are included.
-            </p>
+            <p className="mt-1 text-sm text-[#68647b]">{t.intro}</p>
           </div>
           <button
             type="button"
@@ -241,7 +245,7 @@ export function ProviderHealthSection({ timeRange }: { timeRange: TimeRange }) {
             disabled={query.isFetching}
             className="rounded-lg border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {query.isFetching ? "Refreshing..." : "Refresh"}
+            {query.isFetching ? t.refreshing : t.refresh}
           </button>
         </div>
         <SnapshotMeta snapshot={snapshot} />
@@ -250,9 +254,7 @@ export function ProviderHealthSection({ timeRange }: { timeRange: TimeRange }) {
       {snapshot.telemetry_missing ? (
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            No provider-level telemetry in the selected range. Provider health
-            signals appear once chat requests with provider metadata are
-            recorded.
+            {t.providerMissing}
           </p>
         </div>
       ) : (

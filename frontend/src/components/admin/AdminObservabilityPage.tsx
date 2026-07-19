@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useLocale } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -21,6 +22,8 @@ import {
 import { queryKeys } from "@/lib/api/query";
 import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
+import type { SupportedLocale } from "@/i18n/routing";
+import { getAdminObservabilityTranslations } from "./admin-observability-translations";
 
 type TimeRangeOption = "7d" | "14d" | "30d" | "90d";
 
@@ -74,10 +77,14 @@ function signalBadgeClass(status: SignalStatus): string {
   return "bg-slate-200 text-slate-700";
 }
 
-function signalBadgeLabel(status: SignalStatus): string {
-  if (status === "healthy") return "Healthy";
-  if (status === "degraded") return "Degraded";
-  return "No data";
+function signalBadgeLabel(
+  status: SignalStatus,
+  locale: SupportedLocale,
+): string {
+  const t = getAdminObservabilityTranslations(locale);
+  if (status === "healthy") return t.healthy;
+  if (status === "degraded") return t.degraded;
+  return t.noData;
 }
 
 function MetricRow({
@@ -130,42 +137,40 @@ function SectionCard({
   );
 }
 
-function MissingTelemetryNotice({ entity }: { entity: string }) {
-  return (
-    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      No {entity} telemetry in the selected time range. Signals will appear once
-      events are recorded.
-    </p>
-  );
-}
-
 function ApiMetricsSection({ metrics }: { metrics: ApiMetrics }) {
+  const locale = useLocale() as SupportedLocale;
+  const t = getAdminObservabilityTranslations(locale);
   const errorStatus = resolveSignalStatus(metrics.error_rate, 0.05);
   return (
     <SectionCard
-      title="API metrics"
-      badge={signalBadgeLabel(errorStatus)}
+      title={t.apiMetrics}
+      badge={signalBadgeLabel(errorStatus, locale)}
       badgeClass={signalBadgeClass(errorStatus)}
     >
       {metrics.telemetry_missing ? (
-        <MissingTelemetryNotice entity="API audit log" />
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {t.missing}
+        </p>
       ) : (
         <dl className="space-y-2">
           <MetricRow
-            label="Total requests"
+            label={t.totalRequests}
             value={formatCount(metrics.total_requests)}
           />
           <MetricRow
-            label="Failed requests"
+            label={t.failedRequests}
             value={formatCount(metrics.failed_requests)}
           />
-          <MetricRow label="Error rate" value={formatPct(metrics.error_rate)} />
           <MetricRow
-            label="Avg latency"
+            label={t.errorRate}
+            value={formatPct(metrics.error_rate)}
+          />
+          <MetricRow
+            label={t.avgLatency}
             value={formatMs(metrics.avg_latency_ms)}
           />
           <MetricRow
-            label="P95 latency"
+            label={t.p95Latency}
             value={formatMs(metrics.p95_latency_ms)}
           />
         </dl>
@@ -175,39 +180,43 @@ function ApiMetricsSection({ metrics }: { metrics: ApiMetrics }) {
 }
 
 function LlmMetricsSection({ metrics }: { metrics: LlmMetrics }) {
+  const locale = useLocale() as SupportedLocale;
+  const t = getAdminObservabilityTranslations(locale);
   const errorStatus = resolveSignalStatus(metrics.error_rate, 0.1);
   return (
     <SectionCard
-      title="LLM metrics"
-      badge={signalBadgeLabel(errorStatus)}
+      title={t.llmMetrics}
+      badge={signalBadgeLabel(errorStatus, locale)}
       badgeClass={signalBadgeClass(errorStatus)}
     >
       {metrics.telemetry_missing ? (
-        <MissingTelemetryNotice entity="LLM usage" />
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {t.missing}
+        </p>
       ) : (
         <div className="space-y-4">
           <dl className="space-y-2">
             <MetricRow
-              label="Total LLM events"
+              label={t.totalEvents}
               value={formatCount(metrics.total_events)}
             />
             <MetricRow
-              label="Failed events"
+              label={t.failedEvents}
               value={formatCount(metrics.failed_events)}
             />
             <MetricRow
-              label="LLM error rate"
+              label={t.errorRate}
               value={formatPct(metrics.error_rate)}
             />
             <MetricRow
-              label="Avg latency"
+              label={t.avgLatency}
               value={formatMs(metrics.avg_latency_ms)}
             />
           </dl>
           {metrics.top_models.length > 0 ? (
             <div>
               <p className="mb-2 text-xs font-semibold tracking-wide text-[#5d58a8] uppercase">
-                Top models
+                {t.topModels}
               </p>
               <ul className="space-y-1">
                 {metrics.top_models.slice(0, 5).map((model) => (
@@ -219,10 +228,10 @@ function LlmMetricsSection({ metrics }: { metrics: LlmMetrics }) {
                       {model.model_name}
                     </span>
                     <span className="text-[#6d6985]">
-                      {formatCount(model.event_count)} calls
+                      {formatCount(model.event_count)} {t.calls}
                       {model.error_count > 0 ? (
                         <span className="ml-2 text-rose-600">
-                          ({model.error_count} errors)
+                          ({model.error_count} {t.errors})
                         </span>
                       ) : null}
                     </span>
@@ -238,6 +247,8 @@ function LlmMetricsSection({ metrics }: { metrics: LlmMetrics }) {
 }
 
 function IndexingMetricsSection({ metrics }: { metrics: IndexingMetrics }) {
+  const locale = useLocale() as SupportedLocale;
+  const t = getAdminObservabilityTranslations(locale);
   const successStatus: SignalStatus = metrics.telemetry_missing
     ? "missing"
     : metrics.success_rate == null
@@ -248,29 +259,34 @@ function IndexingMetricsSection({ metrics }: { metrics: IndexingMetrics }) {
 
   return (
     <SectionCard
-      title="Indexing pipeline"
-      badge={signalBadgeLabel(successStatus)}
+      title={t.pipeline}
+      badge={signalBadgeLabel(successStatus, locale)}
       badgeClass={signalBadgeClass(successStatus)}
     >
       {metrics.telemetry_missing ? (
-        <MissingTelemetryNotice entity="pipeline" />
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {t.missing}
+        </p>
       ) : (
         <dl className="space-y-2">
           <MetricRow
-            label="Total jobs"
+            label={t.totalJobs}
             value={formatCount(metrics.total_jobs)}
           />
           <MetricRow
-            label="Succeeded"
+            label={t.succeeded}
             value={formatCount(metrics.succeeded_jobs)}
           />
-          <MetricRow label="Failed" value={formatCount(metrics.failed_jobs)} />
           <MetricRow
-            label="In progress"
+            label={t.failed}
+            value={formatCount(metrics.failed_jobs)}
+          />
+          <MetricRow
+            label={t.inProgress}
             value={formatCount(metrics.in_progress_jobs)}
           />
           <MetricRow
-            label="Success rate"
+            label={t.successRate}
             value={formatPct(metrics.success_rate)}
           />
         </dl>
@@ -281,7 +297,7 @@ function IndexingMetricsSection({ metrics }: { metrics: IndexingMetrics }) {
             href="/admin/documents"
             className="text-xs font-semibold text-[#3525cd] hover:underline"
           >
-            View failed documents →
+            {t.viewFailed} →
           </Link>
         </div>
       ) : null}
@@ -290,6 +306,8 @@ function IndexingMetricsSection({ metrics }: { metrics: IndexingMetrics }) {
 }
 
 function StorageMetricsSection({ metrics }: { metrics: StorageMetrics }) {
+  const locale = useLocale() as SupportedLocale;
+  const t = getAdminObservabilityTranslations(locale);
   const failedPct =
     metrics.total_documents > 0
       ? metrics.failed_documents / metrics.total_documents
@@ -298,29 +316,29 @@ function StorageMetricsSection({ metrics }: { metrics: StorageMetrics }) {
 
   return (
     <SectionCard
-      title="Storage and documents"
-      badge={signalBadgeLabel(failedStatus)}
+      title={t.storage}
+      badge={signalBadgeLabel(failedStatus, locale)}
       badgeClass={signalBadgeClass(failedStatus)}
     >
       <dl className="space-y-2">
         <MetricRow
-          label="Total documents"
+          label={t.totalDocuments}
           value={formatCount(metrics.total_documents)}
         />
         <MetricRow
-          label="Indexed"
+          label={t.indexed}
           value={formatCount(metrics.indexed_documents)}
         />
         <MetricRow
-          label="Failed / blocked"
+          label={t.failedBlocked}
           value={formatCount(metrics.failed_documents)}
         />
         <MetricRow
-          label="Pending / processing"
+          label={t.pending}
           value={formatCount(metrics.pending_documents)}
         />
         <MetricRow
-          label="Total chunks"
+          label={t.totalChunks}
           value={formatCount(metrics.total_chunks)}
         />
       </dl>
@@ -330,7 +348,7 @@ function StorageMetricsSection({ metrics }: { metrics: StorageMetrics }) {
             href="/admin/documents"
             className="text-xs font-semibold text-[#3525cd] hover:underline"
           >
-            Review failed documents →
+            {t.reviewFailed} →
           </Link>
         </div>
       ) : null}
@@ -339,19 +357,24 @@ function StorageMetricsSection({ metrics }: { metrics: StorageMetrics }) {
 }
 
 function SnapshotTimestamp({ snapshot }: { snapshot: ObservabilitySnapshot }) {
+  const t = getAdminObservabilityTranslations(useLocale() as SupportedLocale);
   const dt = new Date(snapshot.generated_at);
   const label = Number.isNaN(dt.getTime())
     ? snapshot.generated_at
     : dt.toLocaleString();
   return (
     <p className="text-xs text-[#6a6780]">
-      Snapshot generated at {label} — range {snapshot.range.from} to{" "}
-      {snapshot.range.to}
+      {t.snapshot} <bdi dir="ltr">{label}</bdi> — {t.range}{" "}
+      <bdi dir="ltr">
+        {snapshot.range.from} – {snapshot.range.to}
+      </bdi>
     </p>
   );
 }
 
 export function AdminObservabilityPage() {
+  const locale = useLocale() as SupportedLocale;
+  const t = getAdminObservabilityTranslations(locale);
   const { state } = useAuthSession();
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
@@ -369,8 +392,8 @@ export function AdminObservabilityPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Admin observability restricted"
-          description="Only owner and admin roles can access the observability dashboard."
+          title={t.restricted}
+          description={t.restrictedDesc}
           compact={false}
         />
       </section>
@@ -383,15 +406,12 @@ export function AdminObservabilityPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-              Rudix Admin
+              {t.admin}
             </p>
             <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-              Observability
+              {t.title}
             </h1>
-            <p className="max-w-3xl text-sm text-[#68647b]">
-              API health, LLM error rates, indexing reliability, and storage
-              status across your deployment.
-            </p>
+            <p className="max-w-3xl text-sm text-[#68647b]">{t.intro}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {TIME_RANGE_OPTIONS.map((opt) => (
@@ -405,7 +425,7 @@ export function AdminObservabilityPage() {
                     : "border-[#cbc5e6] text-[#3e376f] hover:bg-[#f5f3ff]"
                 }`}
               >
-                {opt.label}
+                {opt.value.slice(0, -1)} {t.days}
               </button>
             ))}
             <button
@@ -414,7 +434,7 @@ export function AdminObservabilityPage() {
               disabled={snapshotQuery.isFetching}
               className="rounded-lg border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {snapshotQuery.isFetching ? "Refreshing..." : "Refresh"}
+              {snapshotQuery.isFetching ? t.refreshing : t.refresh}
             </button>
           </div>
         </div>
@@ -424,7 +444,7 @@ export function AdminObservabilityPage() {
         <LoadingState
           compact
           className="rounded-2xl border border-[#d7d4e8] bg-white px-5 py-8 shadow-sm"
-          title="Loading observability snapshot..."
+          title={t.loading}
         />
       ) : snapshotQuery.isError ? (
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
@@ -459,29 +479,29 @@ export function AdminObservabilityPage() {
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-lg font-bold text-[#2a2640]">
-              Related admin pages
+              {t.related}
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
                   href: "/admin/system-health",
-                  label: "System health",
-                  note: "Dependency health checks",
+                  label: t.systemHealth,
+                  note: t.intro,
                 },
                 {
                   href: "/admin/failed-jobs",
-                  label: "Failed jobs",
-                  note: "Retry and resolve failed tasks",
+                  label: t.failedJobs,
+                  note: t.intro,
                 },
                 {
                   href: "/admin/audit-logs",
-                  label: "Audit logs",
-                  note: "Full event audit trail",
+                  label: t.auditLogs,
+                  note: t.intro,
                 },
                 {
                   href: "/admin/usage",
-                  label: "Usage analytics",
-                  note: "Token and cost trends",
+                  label: t.usage,
+                  note: t.intro,
                 },
               ].map((link) => (
                 <Link
