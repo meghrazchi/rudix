@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { useLocale } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -30,14 +31,19 @@ import {
 } from "@/lib/dashboard";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { useAuthSession } from "@/lib/use-auth-session";
+import type { SupportedLocale } from "@/i18n/routing";
+import {
+  getAdminUsageMetricTitles,
+  getAdminUsageTranslations,
+} from "./admin-usage-translations";
 
-const FEATURE_AREA_OPTIONS: Array<{ value: FeatureArea; label: string }> = [
-  { value: "all", label: "All areas" },
-  { value: "chat", label: "Chat / Q&A" },
-  { value: "agent", label: "Agents" },
-  { value: "evaluation", label: "Evaluations" },
-  { value: "pipeline", label: "Indexing pipeline" },
-  { value: "api", label: "API calls" },
+const FEATURE_AREA_OPTIONS: FeatureArea[] = [
+  "all",
+  "chat",
+  "agent",
+  "evaluation",
+  "pipeline",
+  "api",
 ];
 
 type AppliedFilters = {
@@ -52,7 +58,7 @@ function trimToNull(value: string): string | null {
 }
 
 function formatPeriodLabel(start: string, end: string): string {
-  return start === end ? start : `${start} to ${end}`;
+  return start === end ? start : `${start} – ${end}`;
 }
 
 function UsageMetricCard({
@@ -70,6 +76,7 @@ function UsageMetricCard({
   error: string | null;
   estimate?: boolean;
 }) {
+  const t = getAdminUsageTranslations(useLocale() as SupportedLocale);
   return (
     <article className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
       <div className="mb-1 flex items-center gap-2">
@@ -78,15 +85,15 @@ function UsageMetricCard({
         </p>
         {estimate ? (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            estimate
+            {t.estimate}
           </span>
         ) : null}
       </div>
       {loading ? (
-        <p className="text-2xl font-extrabold text-[#2a2640]">Loading...</p>
+        <p className="text-2xl font-extrabold text-[#2a2640]">{t.loading}</p>
       ) : null}
       {!loading && error ? (
-        <p className="text-sm font-semibold text-rose-700">Unable to load</p>
+        <p className="text-sm font-semibold text-rose-700">{t.unable}</p>
       ) : null}
       {!loading && !error ? (
         <p className="text-2xl font-extrabold text-[#2a2640]">{value}</p>
@@ -103,12 +110,13 @@ function TopUsersTable({
   users: TopUserUsage[];
   loading: boolean;
 }) {
+  const t = getAdminUsageTranslations(useLocale() as SupportedLocale);
   if (loading) {
     return (
       <LoadingState
         compact
         className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-        title="Loading top users..."
+        title={t.loadingUsers}
       />
     );
   }
@@ -117,7 +125,7 @@ function TopUsersTable({
       <EmptyState
         compact
         className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
-        title="No user data in selected range."
+        title={t.noUsers}
       />
     );
   }
@@ -125,12 +133,12 @@ function TopUsersTable({
     <div className="mt-4 overflow-x-auto">
       <table className="min-w-full divide-y divide-[#e6e3f3] text-sm">
         <thead>
-          <tr className="text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-            <th className="px-3 py-2">User ID</th>
-            <th className="px-3 py-2">Questions</th>
-            <th className="px-3 py-2">Tokens in</th>
-            <th className="px-3 py-2">Tokens out</th>
-            <th className="px-3 py-2">Est. cost</th>
+          <tr className="text-start text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+            <th className="px-3 py-2">{t.userId}</th>
+            <th className="px-3 py-2">{t.questions}</th>
+            <th className="px-3 py-2">{t.tokensIn}</th>
+            <th className="px-3 py-2">{t.tokensOut}</th>
+            <th className="px-3 py-2">{t.cost}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#f0edf8]">
@@ -166,12 +174,13 @@ function TopModelsTable({
   models: TopModelUsage[];
   loading: boolean;
 }) {
+  const t = getAdminUsageTranslations(useLocale() as SupportedLocale);
   if (loading) {
     return (
       <LoadingState
         compact
         className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-        title="Loading top models..."
+        title={t.loadingModels}
       />
     );
   }
@@ -180,7 +189,7 @@ function TopModelsTable({
       <EmptyState
         compact
         className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
-        title="No model data in selected range."
+        title={t.noModels}
       />
     );
   }
@@ -188,12 +197,12 @@ function TopModelsTable({
     <div className="mt-4 overflow-x-auto">
       <table className="min-w-full divide-y divide-[#e6e3f3] text-sm">
         <thead>
-          <tr className="text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-            <th className="px-3 py-2">Model</th>
-            <th className="px-3 py-2">Events</th>
-            <th className="px-3 py-2">Tokens in</th>
-            <th className="px-3 py-2">Tokens out</th>
-            <th className="px-3 py-2">Est. cost</th>
+          <tr className="text-start text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+            <th className="px-3 py-2">{t.model}</th>
+            <th className="px-3 py-2">{t.events}</th>
+            <th className="px-3 py-2">{t.tokensIn}</th>
+            <th className="px-3 py-2">{t.tokensOut}</th>
+            <th className="px-3 py-2">{t.cost}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#f0edf8]">
@@ -255,6 +264,7 @@ function ExportSection({
   appliedFilters: AppliedFilters;
   usageRange: { from: string; to: string };
 }) {
+  const t = getAdminUsageTranslations(useLocale() as SupportedLocale);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -279,7 +289,7 @@ function ExportSection({
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      setExportError("Export failed. Please try again.");
+      setExportError(t.exportFailed);
     } finally {
       setExporting(false);
     }
@@ -287,12 +297,10 @@ function ExportSection({
 
   return (
     <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-bold text-[#2a2640]">Export</h2>
+      <h2 className="text-lg font-bold text-[#2a2640]">{t.export}</h2>
       <p className="mt-1 text-sm text-[#68647b]">
-        Download usage events for billing or ops review.{" "}
-        <span className="font-semibold text-amber-700">
-          Costs are estimates only.
-        </span>
+        {t.exportDesc}{" "}
+        <span className="font-semibold text-amber-700">{t.estimates}</span>
       </p>
       {exportError ? (
         <p className="mt-2 text-sm text-rose-700">{exportError}</p>
@@ -304,7 +312,7 @@ function ExportSection({
           disabled={exporting || dashboardQuery.isLoading}
           className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:opacity-60"
         >
-          {exporting ? "Exporting..." : "Export CSV"}
+          {exporting ? t.exporting : `${t.export} CSV`}
         </button>
         <button
           type="button"
@@ -312,7 +320,7 @@ function ExportSection({
           disabled={exporting || dashboardQuery.isLoading}
           className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f8f6ff] disabled:opacity-60"
         >
-          {exporting ? "Exporting..." : "Export JSON"}
+          {exporting ? t.exporting : `${t.export} JSON`}
         </button>
       </div>
     </section>
@@ -320,6 +328,10 @@ function ExportSection({
 }
 
 export function AdminUsagePage() {
+  const t = getAdminUsageTranslations(useLocale() as SupportedLocale);
+  const metricTitles = getAdminUsageMetricTitles(
+    useLocale() as SupportedLocale,
+  );
   const { state } = useAuthSession();
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
@@ -372,8 +384,8 @@ export function AdminUsagePage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Admin usage restricted"
-          description="Only owner and admin roles can access usage analytics."
+          title={t.restricted}
+          description={t.restrictedDesc}
           compact={false}
         />
       </section>
@@ -384,8 +396,8 @@ export function AdminUsagePage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Usage analytics unavailable"
-          description="Your role no longer has access to this analytics page."
+          title={t.unavailable}
+          description={t.unavailableDesc}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -421,20 +433,15 @@ export function AdminUsagePage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-              Rudix Admin
+              {t.admin}
             </p>
             <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-              Usage &amp; cost dashboard
+              {t.title}
             </h1>
-            <p className="max-w-3xl text-sm text-[#68647b]">
-              Review questions, tokens, estimated cost, active users, documents,
-              evaluation runs, and agent activity. Cost figures are{" "}
-              <span className="font-semibold text-amber-700">estimates</span>{" "}
-              based on recorded usage events and are not billing invoices.
-            </p>
+            <p className="max-w-3xl text-sm text-[#68647b]">{t.intro}</p>
           </div>
           <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-            Date range
+            {t.dateRange}
             <select
               value={rangePreset}
               onChange={(e) =>
@@ -459,25 +466,25 @@ export function AdminUsagePage() {
           onSubmit={applyFilters}
         >
           <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-            User ID
+            {t.userId}
             <input
               value={userIdInput}
               onChange={(e) => setUserIdInput(e.target.value)}
-              placeholder="UUID (optional)"
+              placeholder={t.uuid}
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             />
           </label>
           <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-            Model
+            {t.model}
             <input
               value={modelInput}
               onChange={(e) => setModelInput(e.target.value)}
-              placeholder="e.g. gpt-4o"
+              placeholder={t.modelExample}
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             />
           </label>
           <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-            Feature area
+            {t.feature}
             <select
               value={featureAreaInput}
               onChange={(e) =>
@@ -485,9 +492,18 @@ export function AdminUsagePage() {
               }
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             >
-              {FEATURE_AREA_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
+              {FEATURE_AREA_OPTIONS.map((opt, index) => (
+                <option key={opt} value={opt}>
+                  {
+                    [
+                      t.allAreas,
+                      t.chat,
+                      t.agents,
+                      t.evaluations,
+                      t.pipeline,
+                      t.api,
+                    ][index]
+                  }
                 </option>
               ))}
             </select>
@@ -496,14 +512,14 @@ export function AdminUsagePage() {
             type="submit"
             className="h-9 self-end rounded-lg bg-[#3525cd] px-3 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
           >
-            Apply
+            {t.apply}
           </button>
           <button
             type="button"
             onClick={clearFilters}
             className="h-9 self-end rounded-lg border border-[#d2cee6] px-3 text-sm font-semibold text-[#3f3b58] hover:bg-[#f8f6ff]"
           >
-            Reset
+            {t.reset}
           </button>
         </form>
       </section>
@@ -511,91 +527,91 @@ export function AdminUsagePage() {
       {/* Summary metric cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <UsageMetricCard
-          title="Total questions"
+          title={metricTitles[0] ?? t.questions}
           value={formatInteger(dash?.totals.questions_asked)}
-          caption="Chat/Q&A events in selected range."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Active users"
+          title={metricTitles[1] ?? t.activeUsers}
           value={formatInteger(dash?.totals.active_users)}
-          caption="Distinct users with recorded activity."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Total tokens"
+          title={metricTitles[2] ?? t.tokensIn}
           value={formatInteger(
             dash != null
               ? dash.totals.input_tokens + dash.totals.output_tokens
               : null,
           )}
-          caption="Combined input and output tokens."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Estimated cost"
+          title={metricTitles[3] ?? t.cost}
           value={formatUsd(dash?.totals.estimated_cost_usd)}
-          caption="Approximate USD based on usage events."
+          caption={t.estimates}
           loading={loading}
           error={queryError}
           estimate
         />
         <UsageMetricCard
-          title="Documents"
+          title={metricTitles[4] ?? ""}
           value={formatInteger(dash?.totals.documents)}
-          caption="Non-deleted documents in org."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Indexed documents"
+          title={metricTitles[5] ?? ""}
           value={formatInteger(dash?.totals.indexed_documents)}
-          caption="Successfully indexed documents."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Agent runs"
+          title={metricTitles[6] ?? t.agentRuns}
           value={formatInteger(dash?.totals.agent_runs)}
-          caption="agent.runtime events in range."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Evaluation runs"
+          title={metricTitles[7] ?? t.evalRuns}
           value={formatInteger(dash?.totals.evaluation_runs)}
-          caption="Evaluation events in selected range."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Indexing jobs"
+          title={metricTitles[8] ?? ""}
           value={formatInteger(dash?.totals.indexing_jobs)}
-          caption="Pipeline indexing events in range."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Failed indexing"
+          title={metricTitles[9] ?? ""}
           value={formatInteger(dash?.totals.failed_indexing_jobs)}
-          caption="Pipeline jobs that reported failure."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Average latency"
+          title={metricTitles[10] ?? t.latency}
           value={formatLatencyMs(dash?.totals.avg_latency_ms)}
-          caption="Average response latency from tracked events."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
         <UsageMetricCard
-          title="Average confidence"
+          title={metricTitles[11] ?? ""}
           value={formatPercentage(dash?.totals.avg_confidence)}
-          caption="Average answer confidence from tracked events."
+          caption={t.intro}
           loading={loading}
           error={queryError}
         />
@@ -605,10 +621,13 @@ export function AdminUsagePage() {
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-[#2a2640]">Trends by date</h2>
+            <h2 className="text-lg font-bold text-[#2a2640]">{t.trends}</h2>
             <p className="mt-1 text-sm text-[#68647b]">
-              Range: <span className="font-semibold">{usageRange.from}</span> to{" "}
-              <span className="font-semibold">{usageRange.to}</span>
+              {t.range}:{" "}
+              <span className="font-semibold" dir="ltr">
+                {usageRange.from}
+              </span>{" "}
+              – <span className="font-semibold">{usageRange.to}</span>
             </p>
           </div>
         </div>
@@ -616,7 +635,7 @@ export function AdminUsagePage() {
           <LoadingState
             compact
             className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-            title="Loading usage trends..."
+            title={t.loadingTrends}
           />
         ) : null}
         {dashboardQuery.isError ? (
@@ -635,23 +654,29 @@ export function AdminUsagePage() {
           <EmptyState
             compact
             className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
-            title="No usage events were recorded in this range."
+            title={t.noEvents}
           />
         ) : null}
         {dashboardQuery.isSuccess && dash && dash.series.length > 0 ? (
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full divide-y divide-[#e6e3f3] text-sm">
               <thead>
-                <tr className="text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  <th className="px-3 py-2">Period</th>
-                  <th className="px-3 py-2">Questions</th>
-                  <th className="px-3 py-2">Active users</th>
-                  <th className="px-3 py-2">Tokens in</th>
-                  <th className="px-3 py-2">Tokens out</th>
-                  <th className="px-3 py-2">Est. cost</th>
-                  <th className="px-3 py-2">Agent runs</th>
-                  <th className="px-3 py-2">Eval runs</th>
-                  <th className="px-3 py-2">Latency</th>
+                <tr className="text-start text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  {[
+                    t.period,
+                    t.questions,
+                    t.activeUsers,
+                    t.tokensIn,
+                    t.tokensOut,
+                    t.cost,
+                    t.agentRuns,
+                    t.evalRuns,
+                    t.latency,
+                  ].map((label) => (
+                    <th className="px-3 py-2" key={label}>
+                      {label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f0edf8]">
@@ -697,10 +722,10 @@ export function AdminUsagePage() {
       Object.keys(dash.feature_area_breakdown).length > 0 ? (
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-[#2a2640]">
-            Feature area breakdown
+            {t.featureBreakdown}
           </h2>
           <p className="mt-1 text-sm text-[#68647b]">
-            Event counts by feature area in selected range.
+            {t.featureBreakdownDesc}
           </p>
           <FeatureAreaBreakdown
             breakdown={dash.feature_area_breakdown}
@@ -711,23 +736,15 @@ export function AdminUsagePage() {
 
       {/* Top users */}
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[#2a2640]">
-          Top users by estimated cost
-        </h2>
-        <p className="mt-1 text-sm text-[#68647b]">
-          Sorted by estimated cost descending. Cost figures are estimates.
-        </p>
+        <h2 className="text-lg font-bold text-[#2a2640]">{t.topUsers}</h2>
+        <p className="mt-1 text-sm text-[#68647b]">{t.sorted}</p>
         <TopUsersTable users={dash?.top_users ?? []} loading={loading} />
       </section>
 
       {/* Top models */}
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[#2a2640]">
-          Top models by estimated cost
-        </h2>
-        <p className="mt-1 text-sm text-[#68647b]">
-          Sorted by estimated cost descending. Cost figures are estimates.
-        </p>
+        <h2 className="text-lg font-bold text-[#2a2640]">{t.topModels}</h2>
+        <p className="mt-1 text-sm text-[#68647b]">{t.sorted}</p>
         <TopModelsTable models={dash?.top_models ?? []} loading={loading} />
       </section>
 
