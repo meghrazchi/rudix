@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
-import type { SupportedLocale } from "@/i18n/routing";
-import { createAdminLandingTranslations } from "./admin-landing-translations";
 
 type CardStatus =
   | "available"
@@ -46,8 +44,8 @@ function LargeCard({
   icon: ReactNode;
   actionLabel: string;
 }) {
-  const locale = useLocale() as SupportedLocale;
-  const translations = createAdminLandingTranslations(locale);
+  const locale = useLocale();
+  const t = useTranslations("adminLanding");
   const isUnavailable = status === "unavailable";
   return (
     <div
@@ -64,30 +62,26 @@ function LargeCard({
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_CLASS[status]}`}
         >
-          {translations[status]}
+          {t(status)}
         </span>
       </div>
-      <h5 className="mb-2 text-base font-bold text-slate-900">
-        {translations.text(title)}
-      </h5>
+      <h5 className="mb-2 text-base font-bold text-slate-900">{title}</h5>
       <p className="mb-6 flex-grow text-sm leading-relaxed text-slate-500">
-        {locale === "en" ? description : translations.description}
+        {locale === "en" ? description : t("description")}
       </p>
       {isUnavailable ? (
         <Link
           href={href}
           className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-400"
         >
-          {translations.setup}
+          {t("setup")}
         </Link>
       ) : (
         <Link
           href={href}
           className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
         >
-          {locale === "en"
-            ? actionLabel
-            : `${translations.open} ${translations.text(title)}`}
+          {locale === "en" ? actionLabel : `${t("open")} ${title}`}
           <svg
             className="ml-2 h-4 w-4"
             fill="none"
@@ -120,28 +114,24 @@ function SmallCard({
   status: CardStatus;
   actionLabel: string;
 }) {
-  const locale = useLocale() as SupportedLocale;
-  const translations = createAdminLandingTranslations(locale);
+  const locale = useLocale();
+  const t = useTranslations("adminLanding");
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-indigo-500 hover:shadow-md">
       <span
         className={`mb-3 w-max rounded-full px-2 py-0.5 text-[9px] font-bold ${STATUS_CLASS[status]}`}
       >
-        {translations[status]}
+        {t(status)}
       </span>
-      <h5 className="mb-1 text-sm font-bold text-slate-900">
-        {translations.text(title)}
-      </h5>
+      <h5 className="mb-1 text-sm font-bold text-slate-900">{title}</h5>
       <p className="mb-4 flex-grow text-xs leading-relaxed text-slate-500">
-        {locale === "en" ? description : translations.description}
+        {locale === "en" ? description : t("description")}
       </p>
       <Link
         href={href}
         className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-700"
       >
-        {locale === "en"
-          ? actionLabel
-          : `${translations.open} ${translations.text(title)}`}
+        {locale === "en" ? actionLabel : `${t("open")} ${title}`}
         <svg
           className="ml-1 h-3 w-3"
           fill="none"
@@ -173,8 +163,8 @@ function HorizontalCard({
   icon: ReactNode;
   actionLabel: string;
 }) {
-  const locale = useLocale() as SupportedLocale;
-  const translations = createAdminLandingTranslations(locale);
+  const locale = useLocale();
+  const t = useTranslations("adminLanding");
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 hover:border-indigo-500 hover:shadow-md">
       <div className="flex items-start justify-between">
@@ -183,11 +173,9 @@ function HorizontalCard({
             {icon}
           </div>
           <div>
-            <h5 className="text-base font-bold text-slate-900">
-              {translations.text(title)}
-            </h5>
+            <h5 className="text-base font-bold text-slate-900">{title}</h5>
             <p className="mt-0.5 text-sm text-slate-500">
-              {locale === "en" ? description : translations.description}
+              {locale === "en" ? description : t("description")}
             </p>
           </div>
         </div>
@@ -195,7 +183,7 @@ function HorizontalCard({
           href={href}
           className="ml-4 flex-shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
         >
-          {locale === "en" ? actionLabel : translations.open}
+          {locale === "en" ? actionLabel : t("open")}
         </Link>
       </div>
     </div>
@@ -203,25 +191,20 @@ function HorizontalCard({
 }
 
 function SectionHeader({ icon, title }: { icon: ReactNode; title: string }) {
-  const translations = createAdminLandingTranslations(
-    useLocale() as SupportedLocale,
-  );
   return (
     <div className="mb-6 flex items-center space-x-2">
       <div className="rounded-lg bg-indigo-100 p-1.5 text-indigo-600">
         {icon}
       </div>
       <h4 className="text-lg font-bold tracking-tight text-slate-900">
-        {translations.text(title)}
+        {title}
       </h4>
     </div>
   );
 }
 
 export function AdminLandingPage() {
-  const translations = createAdminLandingTranslations(
-    useLocale() as SupportedLocale,
-  );
+  const t = useTranslations("adminLanding");
   const { state } = useAuthSession();
   const role = state.session?.role;
 
@@ -233,8 +216,8 @@ export function AdminLandingPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title={translations.restricted}
-          description={translations.restrictedDescription}
+          title={t("restricted")}
+          description={t("restrictedDescription")}
           compact={false}
         />
       </section>
@@ -250,18 +233,18 @@ export function AdminLandingPage() {
           <div className="relative z-10">
             <div className="mb-4 flex items-center space-x-3">
               <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-bold tracking-wider text-indigo-700 uppercase">
-                {translations.hub}
+                {t("hub")}
               </span>
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               <span className="text-xs font-medium text-slate-500 italic">
-                {translations.deployment}
+                {t("deployment")}
               </span>
             </div>
             <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-slate-900">
-              {translations.title}
+              {t("title")}
             </h1>
             <p className="max-w-2xl text-lg leading-relaxed text-slate-600">
-              {translations.intro}
+              {t("intro")}
             </p>
           </div>
         </section>
