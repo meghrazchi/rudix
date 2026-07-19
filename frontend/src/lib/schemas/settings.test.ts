@@ -12,7 +12,21 @@ import {
   inviteTeamMemberFormSchema,
   updateTeamMemberRoleFormSchema,
   toSettingsErrorState,
+  LANGUAGE_OPTIONS,
 } from "@/lib/schemas/settings";
+
+describe("dashboard display languages", () => {
+  it("offers Arabic as a profile preference", () => {
+    expect(LANGUAGE_OPTIONS).toContainEqual({
+      value: "ar",
+      label: "العربية",
+    });
+  });
+
+  it("offers Persian as a profile preference", () => {
+    expect(LANGUAGE_OPTIONS).toContainEqual({ value: "fa", label: "فارسی" });
+  });
+});
 import { ApiClientError } from "@/lib/api/errors";
 
 // ── userProfileSchema ─────────────────────────────────────────────────────────

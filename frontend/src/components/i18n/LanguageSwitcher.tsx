@@ -18,6 +18,8 @@ const LOCALE_FLAGS: Record<SupportedLocale, string> = {
   de: "🇩🇪",
   es: "🇪🇸",
   fr: "🇫🇷",
+  ar: "🇸🇦",
+  fa: "🇮🇷",
 };
 
 export function LanguageSwitcher({

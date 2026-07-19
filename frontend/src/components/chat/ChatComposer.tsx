@@ -308,7 +308,7 @@ export function ChatComposer({
                 onClick={() =>
                   setIsAdditionalSettingsOpen((previous) => !previous)
                 }
-                className="ml-auto inline-flex cursor-pointer items-center gap-2 rounded-xl border border-transparent bg-[#f5f2ff] p-2 text-xs font-bold text-[#777587] transition-all hover:bg-[#e2dfff] hover:text-[#3525cd]"
+                className="ms-auto inline-flex cursor-pointer items-center gap-2 rounded-xl border border-transparent bg-[#f5f2ff] p-2 text-xs font-bold text-[#777587] transition-all hover:bg-[#e2dfff] hover:text-[#3525cd]"
                 aria-expanded={isAdditionalSettingsOpen}
                 aria-haspopup="dialog"
                 aria-label={t("additionalSettings")}
@@ -324,7 +324,7 @@ export function ChatComposer({
             </div>
 
             {isAdditionalSettingsOpen && (
-              <div className="absolute right-3 bottom-full z-30 mb-3 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-[#d7d4e8] bg-white p-3 shadow-2xl">
+              <div className="absolute end-3 bottom-full z-30 mb-3 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-[#d7d4e8] bg-white p-3 shadow-2xl">
                 <div className="mb-3">
                   <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
                     {t("additionalSettingsTitle")}
@@ -463,10 +463,11 @@ export function ChatComposer({
                 rows={1}
                 placeholder={t("placeholder")}
                 disabled={requiresUploadedDocuments && !hasAvailableDocuments}
-                className="rudix-chat-scrollbar w-full resize-none overflow-hidden border-none bg-transparent py-3 pr-16 pl-4 text-sm text-[#2f2a46] outline-none placeholder:text-[#777587] focus:ring-0"
+                dir="auto"
+                className="rudix-chat-scrollbar w-full resize-none overflow-hidden border-none bg-transparent py-3 ps-4 pe-16 text-sm text-[#2f2a46] outline-none placeholder:text-[#777587] focus:ring-0"
               />
               <div
-                className={`absolute right-4 ${composerSendButtonPositionClass} transition-all`}
+                className={`absolute end-4 ${composerSendButtonPositionClass} transition-all`}
               >
                 {isGenerating ? (
                   <button
@@ -492,7 +493,7 @@ export function ChatComposer({
                     }`}
                   >
                     <span
-                      className="material-symbols-outlined text-[20px]"
+                      className="rtl-mirror material-symbols-outlined text-[20px]"
                       aria-hidden="true"
                     >
                       arrow_forward

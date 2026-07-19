@@ -3137,7 +3137,9 @@
     "en": "Englisch",
     "de": "Deutsch",
     "es": "Spanisch",
-    "fr": "Französisch"
+    "fr": "Französisch",
+    "ar": "Arabisch",
+    "fa": "Persisch"
   },
   "adminTeam": {
     "title": "Teamverwaltung",

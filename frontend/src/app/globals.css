@@ -31,6 +31,27 @@ body {
   font-family: var(--font-geist-sans);
 }
 
+/* Directional affordances opt in; neutral icons and brand marks never mirror. */
+[dir="rtl"] .rtl-mirror {
+  transform: scaleX(-1);
+}
+
+/* User content and technical values create their own bidi isolation boundary. */
+bdi,
+[dir="auto"] {
+  unicode-bidi: isolate;
+}
+
+code,
+pre,
+kbd,
+samp,
+.technical-text {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
+}
+
 .rudix-auth-pattern {
   background-color: #efeaff;
   background-image:

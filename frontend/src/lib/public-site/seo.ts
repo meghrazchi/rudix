@@ -12,6 +12,8 @@ import enMessages from "@/i18n/messages/en.json";
 import deMessages from "@/i18n/messages/de.json";
 import esMessages from "@/i18n/messages/es.json";
 import frMessages from "@/i18n/messages/fr.json";
+import faMessages from "@/i18n/messages/fa.json";
+import arMessages from "@/i18n/messages/ar.json";
 
 type BuildPublicMetadataOptions = {
   locale: SupportedLocale;
@@ -59,6 +61,8 @@ const PUBLIC_SEO_COPY: Record<
   de: deMessages.public.seo,
   es: esMessages.public.seo,
   fr: frMessages.public.seo,
+  ar: arMessages.public.seo,
+  fa: faMessages.public.seo,
 };
 
 export const PUBLIC_SITE_METADATA_DEFAULTS = {
@@ -103,6 +107,8 @@ function getOpenGraphLocale(locale: SupportedLocale): string {
     de: "de_DE",
     es: "es_ES",
     fr: "fr_FR",
+    ar: "ar_AR",
+    fa: "fa_IR",
   };
 
   return localeMap[locale];

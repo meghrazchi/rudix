@@ -112,7 +112,7 @@ export function ProfileMenu({
         <div
           role="menu"
           aria-label={t("profileMenuPanel")}
-          className="absolute right-0 z-50 mt-3 w-[340px] overflow-hidden rounded-[24px] border border-[#ded9ef] bg-white shadow-[0_24px_60px_rgba(40,23,90,0.16)]"
+          className="absolute end-0 z-50 mt-3 w-[min(340px,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-hidden rounded-[24px] border border-[#ded9ef] bg-white shadow-[0_24px_60px_rgba(40,23,90,0.16)]"
         >
           {/* Identity header */}
           <div className="bg-[#f7f5ff] px-4 py-4">
@@ -207,7 +207,7 @@ export function ProfileMenu({
                 onClose();
                 onSignOut();
               }}
-              className="mt-1 flex w-full items-center gap-2.5 rounded-xl border border-[#f5c6cb] bg-[#fff7f7] px-3 py-2.5 text-left text-sm font-semibold text-[#c62828] transition hover:bg-[#ffecec]"
+              className="mt-1 flex w-full items-center gap-2.5 rounded-xl border border-[#f5c6cb] bg-[#fff7f7] px-3 py-2.5 text-start text-sm font-semibold text-[#c62828] transition hover:bg-[#ffecec]"
             >
               <LogOut
                 className="h-4 w-4 shrink-0"

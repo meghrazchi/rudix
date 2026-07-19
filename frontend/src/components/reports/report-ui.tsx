@@ -92,7 +92,8 @@ export function ChartCard({
           href={href}
           className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#3525cd]"
         >
-          Open detailed report <ArrowRight className="h-3 w-3" aria-hidden />
+          Open detailed report{" "}
+          <ArrowRight className="rtl-mirror h-3 w-3" aria-hidden />
         </Link>
       ) : null}
     </section>
@@ -110,7 +111,7 @@ export function ReportDataTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-[#dfdced] bg-white shadow-sm">
-      <table className="w-full min-w-[560px] text-left text-sm">
+      <table className="w-full min-w-[560px] text-start text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-[#f7f5ff] text-xs text-[#5f5b72] uppercase">
           <tr>
@@ -179,7 +180,7 @@ export function RecommendedActionCard({
     <aside className="rounded-xl border border-[#cfc9ff] bg-[#f2efff] p-4">
       <div className="flex gap-3">
         <ArrowRight
-          className="mt-0.5 h-4 w-4 shrink-0 text-[#3525cd]"
+          className="rtl-mirror mt-0.5 h-4 w-4 shrink-0 text-[#3525cd]"
           aria-hidden
         />
         <div>
@@ -230,7 +231,7 @@ export function DetailDrawer({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-slate-950/30"
+      className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 rtl:justify-start"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();

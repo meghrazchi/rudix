@@ -117,6 +117,7 @@ describe("AppShell top bar menus", () => {
 
   afterEach(() => {
     process.env = originalEnv;
+    document.documentElement.dir = "ltr";
     vi.restoreAllMocks();
   });
 
@@ -155,6 +156,26 @@ describe("AppShell top bar menus", () => {
 
     await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the profile dropdown viewport-safe in RTL", async () => {
+    document.documentElement.dir = "rtl";
+    renderShell({
+      session: {
+        userId: "user-1",
+        email: "admin@example.com",
+        role: "owner",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-1",
+      },
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Profile menu" }));
+
+    const menu = screen.getByRole("menu", { name: "Profile menu panel" });
+    expect(menu).toHaveClass("end-0");
+    expect(menu.className).toContain("max-w-[calc(100vw-1rem)]");
   });
 
   it("shows help menu with in-app actions and external links", async () => {

@@ -8,6 +8,7 @@ import { CookieConsentBanner } from "@/components/consent/CookieConsentBanner";
 import { getFrontendRuntimeConfigErrors } from "@/lib/runtime-config";
 import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
+import { getLocaleDirection } from "@/i18n/direction";
 
 import "./globals.css";
 
@@ -34,7 +35,11 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={getHtmlLang(locale)} className="h-full antialiased">
+    <html
+      lang={getHtmlLang(locale)}
+      dir={getLocaleDirection(locale)}
+      className="h-full antialiased"
+    >
       <head>
         {/* eslint-disable-next-line @next/next/google-font-display, @next/next/no-page-custom-font */}
         <link

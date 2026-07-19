@@ -318,7 +318,7 @@ export function NotificationCenter({
       ref={menuRef}
       role="menu"
       aria-label="Notifications menu"
-      className="absolute right-0 z-50 mt-2 w-[380px] rounded-xl border border-[#d7d4e8] bg-white shadow-xl"
+      className="absolute end-0 z-50 mt-2 w-[min(380px,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] rounded-xl border border-[#d7d4e8] bg-white shadow-xl"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#ebe8f4] px-4 py-3">

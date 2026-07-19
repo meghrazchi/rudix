@@ -60,12 +60,14 @@ describe("resolveLocale", () => {
 });
 
 describe("SUPPORTED_LOCALES", () => {
-  it("includes exactly en, de, es, fr", () => {
-    expect(SUPPORTED_LOCALES).toHaveLength(4);
+  it("includes the shipped LTR locales and direction-ready RTL locales", () => {
+    expect(SUPPORTED_LOCALES).toHaveLength(6);
     expect(SUPPORTED_LOCALES).toContain("en");
     expect(SUPPORTED_LOCALES).toContain("de");
     expect(SUPPORTED_LOCALES).toContain("es");
     expect(SUPPORTED_LOCALES).toContain("fr");
+    expect(SUPPORTED_LOCALES).toContain("ar");
+    expect(SUPPORTED_LOCALES).toContain("fa");
   });
 
   it("has en as the default locale", () => {

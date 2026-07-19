@@ -329,10 +329,10 @@ function NavList({
               className={
                 collapsed
                   ? item.isActive
-                    ? "flex justify-center rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] py-2 text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
+                    ? "flex justify-center rounded-lg border-s-4 border-[#3525cd] bg-[#ece8ff] py-2 text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                     : "flex justify-center rounded-lg py-2 text-[#56536a] transition hover:bg-[#eceaf8] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                   : item.isActive
-                    ? "rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
+                    ? "rounded-lg border-s-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                     : "rounded-lg px-3 py-2 text-sm font-semibold text-[#56536a] transition hover:bg-[#eceaf8] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
               }
             >
@@ -717,7 +717,7 @@ export function AppShell({
       />
       <div className="flex h-full w-full">
         <aside
-          className={`relative hidden shrink-0 flex-col border-r border-[#d7d4e7] bg-[#f7f5ff] py-6 transition-all duration-200 lg:flex ${sidebarCollapsed ? "w-14 px-2" : "w-64 px-5"}`}
+          className={`relative hidden shrink-0 flex-col border-e border-[#d7d4e7] bg-[#f7f5ff] py-6 transition-all duration-200 lg:flex ${sidebarCollapsed ? "w-14 px-2" : "w-64 px-5"}`}
         >
           {/* floating toggle button on the right edge */}
           <button
@@ -727,9 +727,9 @@ export function AppShell({
               sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")
             }
             title={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
-            className="absolute top-6 -right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#d7d4e7] bg-white text-[#56536a] shadow-sm transition hover:bg-[#eceaf8] hover:text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
+            className="absolute -end-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#d7d4e7] bg-white text-[#56536a] shadow-sm transition hover:bg-[#eceaf8] hover:text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
           >
-            <span className="material-symbols-outlined text-[16px]">
+            <span className="rtl-mirror material-symbols-outlined text-[16px]">
               {sidebarCollapsed ? "chevron_right" : "chevron_left"}
             </span>
           </button>
@@ -789,7 +789,7 @@ export function AppShell({
               role="dialog"
               aria-modal="true"
               aria-label={t("navigationMenu")}
-              className="h-full w-[280px] border-r border-[#d7d4e7] bg-[#f7f5ff] px-4 py-5"
+              className="h-full w-[280px] border-e border-[#d7d4e7] bg-[#f7f5ff] px-4 py-5"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-5 flex items-center justify-between">
@@ -1050,18 +1050,18 @@ export function AppShell({
                   type="button"
                   onClick={openCommandMenu}
                   aria-label={t("openSearch")}
-                  className="relative hidden h-11 items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] pr-2 pl-10 text-left text-sm font-medium text-[#4a4662] transition outline-none hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:inline-flex sm:w-72 lg:w-[26rem]"
+                  className="relative hidden h-11 items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] ps-10 pe-2 text-start text-sm font-medium text-[#4a4662] transition outline-none hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:inline-flex sm:w-72 lg:w-[26rem]"
                 >
                   <span
                     aria-hidden="true"
-                    className="material-symbols-outlined absolute left-3 text-[20px] text-[#777587]"
+                    className="material-symbols-outlined absolute start-3 text-[20px] text-[#777587]"
                   >
                     search
                   </span>
-                  <span className="mr-2 flex-1 truncate">
+                  <span className="me-2 flex-1 truncate">
                     {t("searchKnowledgeBase")}
                   </span>
-                  <span className="ml-2 hidden shrink-0 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#6f6b87] md:inline">
+                  <span className="ms-2 hidden shrink-0 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#6f6b87] md:inline">
                     ⌘/Ctrl K
                   </span>
                 </button>
@@ -1090,7 +1090,7 @@ export function AppShell({
                     {unreadNotificationCount > 0 ? (
                       <span
                         aria-hidden="true"
-                        className="absolute -top-1 -right-1 inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                        className="absolute -end-1 -top-1 inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white"
                       >
                         {unreadNotificationCount > 99
                           ? "99+"
@@ -1128,7 +1128,7 @@ export function AppShell({
                     <div
                       role="menu"
                       aria-label={t("help")}
-                      className="absolute right-0 z-50 mt-2 w-[260px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
+                      className="absolute end-0 z-50 mt-2 w-[260px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
                     >
                       <p className="mb-2 text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
                         {t("help")}
@@ -1261,7 +1261,7 @@ export function AppShell({
       </div>
 
       {onboardingVisible ? (
-        <div className="fixed right-4 bottom-4 z-40 w-[calc(100vw-2rem)] max-w-[340px] sm:right-5 sm:bottom-5">
+        <div className="fixed end-4 bottom-4 z-40 w-[calc(100vw-2rem)] max-w-[340px] sm:end-5 sm:bottom-5">
           <OnboardingChecklist
             session={session}
             state={onboardingState}

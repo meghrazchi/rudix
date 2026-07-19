@@ -181,6 +181,27 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Prefer locale-prefixed public URLs in metadata and sitemap output, with `x-default` reserved for the default locale.
 - When adding new public routes, check the layout for long German and French copy before shipping.
 
+### Right-to-left locale conventions
+
+- Locale direction is resolved by `src/i18n/direction.ts` and applied to the root
+  `<html>` element. Add a locale to `SUPPORTED_LOCALES` only after its complete message
+  catalog is present. Arabic and Persian are available through
+  `src/i18n/messages/ar.json` and `src/i18n/messages/fa.json`; RTL detection also
+  supports Hebrew, Urdu, and
+  related RTL language tags, including region variants such as `ar-SA` and `fa-IR`.
+- Prefer Tailwind logical utilities (`ms`/`me`, `ps`/`pe`, `start`/`end`,
+  `border-s`/`border-e`, and `text-start`/`text-end`) for layout. Avoid physical
+  left/right utilities unless the content is intrinsically directional.
+- Add `rtl-mirror` only to semantic direction controls such as back/forward arrows and
+  chevrons. Do not mirror logos, status icons, media controls, or neutral symbols.
+- Wrap user-generated titles, source names, citations, and messages with `BidiText` (or
+  use `dir="auto"`). Wrap URLs, emails, code, file paths, API keys, IDs, dates, and
+  technical numbers with `TechnicalText`; code elements are LTR by default.
+- Test every new shared component under both `<div dir="ltr">` and `<div dir="rtl">`.
+  Keyboard order must follow DOM order; do not reverse DOM order solely for appearance.
+  Add Playwright screenshots for public navigation, the app shell, chat, reports, and
+  any new drawer or modal in both directions.
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)

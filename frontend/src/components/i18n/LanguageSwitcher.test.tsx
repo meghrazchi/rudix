@@ -34,6 +34,8 @@ vi.mock("next-intl", () => ({
       de: "German",
       es: "Spanish",
       fr: "French",
+      ar: "Arabic",
+      fa: "Persian",
     };
     return labels[key] ?? key;
   },
@@ -46,7 +48,7 @@ describe("LanguageSwitcher (select variant)", () => {
     document.cookie = `${LOCALE_COOKIE_NAME}=en; path=/`;
   });
 
-  it("renders a select with all four locale options", () => {
+  it("renders the LTR and RTL locale options", () => {
     render(<LanguageSwitcher />);
     const select = screen.getByRole("combobox", {
       name: "Select display language",
@@ -56,6 +58,8 @@ describe("LanguageSwitcher (select variant)", () => {
     expect(screen.getByRole("option", { name: /German/ })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /Spanish/ })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /French/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Arabic/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Persian/ })).toBeInTheDocument();
   });
 
   it("shows the current locale as selected", () => {
@@ -73,6 +77,24 @@ describe("LanguageSwitcher (select variant)", () => {
     expect(document.cookie).toContain(`${LOCALE_COOKIE_NAME}=de`);
     expect(mockRefresh).toHaveBeenCalled();
   });
+
+  it("selects Persian through the public locale router", async () => {
+    render(<LanguageSwitcher />);
+
+    await userEvent.selectOptions(screen.getByRole("combobox"), "fa");
+
+    expect(document.cookie).toContain(`${LOCALE_COOKIE_NAME}=fa`);
+    expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  it("selects Arabic through the public locale router", async () => {
+    render(<LanguageSwitcher />);
+
+    await userEvent.selectOptions(screen.getByRole("combobox"), "ar");
+
+    expect(document.cookie).toContain(`${LOCALE_COOKIE_NAME}=ar`);
+    expect(mockRefresh).toHaveBeenCalled();
+  });
 });
 
 describe("LanguageSwitcher (buttons variant)", () => {
@@ -87,6 +109,8 @@ describe("LanguageSwitcher (buttons variant)", () => {
     expect(screen.getByRole("button", { name: /DE/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ES/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /FR/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /AR/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /FA/ })).toBeInTheDocument();
   });
 
   it("marks the current locale button with aria-current", () => {

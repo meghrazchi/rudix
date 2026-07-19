@@ -455,6 +455,40 @@ describe("UserProfilePage", () => {
     ).toBeInTheDocument();
   });
 
+  it("applies Persian language and RTL direction when preferences are saved", async () => {
+    renderTab();
+
+    const langSelect = await screen.findByLabelText("Display Language");
+    await userEvent.selectOptions(langSelect, "fa");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Update Profile" }),
+    );
+
+    await waitFor(() => {
+      expect(document.cookie).toContain("NEXT_LOCALE=fa");
+      expect(document.documentElement).toHaveAttribute("lang", "fa");
+      expect(document.documentElement).toHaveAttribute("dir", "rtl");
+      expect(mockState.refresh).toHaveBeenCalled();
+    });
+  });
+
+  it("applies Arabic language and RTL direction when preferences are saved", async () => {
+    renderTab();
+
+    const langSelect = await screen.findByLabelText("Display Language");
+    await userEvent.selectOptions(langSelect, "ar");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Update Profile" }),
+    );
+
+    await waitFor(() => {
+      expect(document.cookie).toContain("NEXT_LOCALE=ar");
+      expect(document.documentElement).toHaveAttribute("lang", "ar");
+      expect(document.documentElement).toHaveAttribute("dir", "rtl");
+      expect(mockState.refresh).toHaveBeenCalled();
+    });
+  });
+
   it("discards personal preference changes", async () => {
     renderTab();
 

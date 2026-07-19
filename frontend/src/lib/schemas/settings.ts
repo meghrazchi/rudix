@@ -212,6 +212,8 @@ export const LANGUAGE_OPTIONS = [
   { value: "de", label: "Deutsch" },
   { value: "es", label: "Español" },
   { value: "fr", label: "Français" },
+  { value: "ar", label: "العربية" },
+  { value: "fa", label: "فارسی" },
 ] as const satisfies { value: string; label: string }[];
 
 export const TIMEZONE_OPTIONS = [

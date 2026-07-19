@@ -56,7 +56,13 @@ import {
   TIMEZONE_OPTIONS,
   type ProfileUiPreferences,
 } from "@/lib/schemas/settings";
-import { isValidLocale, LOCALE_COOKIE_NAME } from "@/i18n/routing";
+import {
+  isValidLocale,
+  LOCALE_COOKIE_NAME,
+  type SupportedLocale,
+} from "@/i18n/routing";
+import { getLocaleDirection } from "@/i18n/direction";
+import { getHtmlLang } from "@/lib/i18n-format";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -88,6 +94,12 @@ const THEME_ICONS = {
 } as const;
 
 const VALID_ROLES = ["owner", "admin", "member", "viewer"] as const;
+
+function applyDisplayLanguage(locale: SupportedLocale): void {
+  document.cookie = `${LOCALE_COOKIE_NAME}=${locale}; path=/; samesite=lax; max-age=${60 * 60 * 24 * 365}`;
+  document.documentElement.lang = getHtmlLang(locale);
+  document.documentElement.dir = getLocaleDirection(locale);
+}
 type ValidRole = (typeof VALID_ROLES)[number];
 
 const changePasswordSchema = z
@@ -346,6 +358,18 @@ export function UserProfilePage() {
       saveProfileUiPreferences(personalValues);
       lastSavedPersonalRef.current = personalValues;
       personalForm.reset(personalValues);
+      const selectedDisplayLanguage = isValidLocale(personalValues.language)
+        ? personalValues.language
+        : null;
+      // Display language is a personal UI preference and must not depend on an
+      // unrelated profile or retrieval-settings endpoint succeeding.
+      if (
+        selectedDisplayLanguage !== null &&
+        selectedDisplayLanguage !== previousLanguage
+      ) {
+        applyDisplayLanguage(selectedDisplayLanguage);
+        router.refresh();
+      }
 
       // Save name via /me if available and changed
       if (
@@ -367,16 +391,6 @@ export function UserProfilePage() {
           ? t("savedSuccessfully")
           : t("savedLocally"),
       );
-
-      if (
-        personalValues.language !== previousLanguage &&
-        isValidLocale(personalValues.language)
-      ) {
-        document.cookie = `${LOCALE_COOKIE_NAME}=${personalValues.language}; path=/; samesite=lax; max-age=${60 * 60 * 24 * 365}`;
-        setTimeout(() => {
-          window.location.reload();
-        }, 800);
-      }
     } finally {
       setIsSavingAll(false);
     }
@@ -856,7 +870,7 @@ export function UserProfilePage() {
                 <select
                   id="language"
                   {...personalForm.register("language")}
-                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+                  className="w-full max-w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-start text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   {LANGUAGE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -876,7 +890,7 @@ export function UserProfilePage() {
                 <select
                   id="timezone"
                   {...personalForm.register("timezone")}
-                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+                  className="w-full max-w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-start text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   {TIMEZONE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>

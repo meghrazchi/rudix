@@ -3137,7 +3137,9 @@
     "en": "Inglés",
     "de": "Alemán",
     "es": "Español",
-    "fr": "Francés"
+    "fr": "Francés",
+    "ar": "Árabe",
+    "fa": "Persa"
   },
   "adminTeam": {
     "title": "Gestión del equipo",

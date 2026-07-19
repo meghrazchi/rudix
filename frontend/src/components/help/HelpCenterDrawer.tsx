@@ -166,7 +166,7 @@ export function HelpCenterDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={t("helpCenterTitle")}
-        className="absolute top-0 right-0 flex h-full w-full max-w-sm flex-col border-l border-[#d7d4e8] bg-white shadow-2xl sm:max-w-md"
+        className="absolute end-0 top-0 flex h-full w-full max-w-sm flex-col border-s border-[#d7d4e8] bg-white shadow-2xl sm:max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -6,6 +6,8 @@ const LOCALE_DATE_OPTIONS: Record<SupportedLocale, Intl.DateTimeFormatOptions> =
     de: { day: "numeric", month: "long", year: "numeric" },
     es: { day: "numeric", month: "long", year: "numeric" },
     fr: { day: "numeric", month: "long", year: "numeric" },
+    ar: { day: "numeric", month: "long", year: "numeric" },
+    fa: { day: "numeric", month: "long", year: "numeric" },
   };
 
 const LOCALE_TIME_OPTIONS: Record<SupportedLocale, Intl.DateTimeFormatOptions> =
@@ -14,6 +16,8 @@ const LOCALE_TIME_OPTIONS: Record<SupportedLocale, Intl.DateTimeFormatOptions> =
     de: { hour: "2-digit", minute: "2-digit", hour12: false },
     es: { hour: "2-digit", minute: "2-digit", hour12: false },
     fr: { hour: "2-digit", minute: "2-digit", hour12: false },
+    ar: { hour: "2-digit", minute: "2-digit", hour12: false },
+    fa: { hour: "2-digit", minute: "2-digit", hour12: false },
   };
 
 export function formatDate(
@@ -99,6 +103,8 @@ export function getHtmlLang(locale: SupportedLocale): string {
     de: "de-DE",
     es: "es-ES",
     fr: "fr-FR",
+    ar: "ar",
+    fa: "fa",
   };
   return langMap[locale];
 }
@@ -121,4 +127,6 @@ const SUPPORTED_LOCALES_FOR_HREFLANG: SupportedLocale[] = [
   "de",
   "es",
   "fr",
+  "ar",
+  "fa",
 ];
