@@ -4674,5 +4674,143 @@
       "permissionRequired": "برای دسترسی به این صفحه به مجوز roles:view نیاز دارید.",
       "accessDenied": "به مدیریت نقش‌ها دسترسی ندارید."
     }
+  },
+  "adminPermissions": {
+    "adminEyebrow": "مدیریت",
+    "title": "مدیریت دسترسی",
+    "description": "ماتریس مجوز نقش‌ها و دسترسی‌ها و ممنوعیت‌های صریح در سطح منابع را مدیریت کنید.",
+    "securityNoteLabel": "نکته امنیتی:",
+    "securityNote": "مجوزدهی سمت سرور منبع اصلی تصمیم‌گیری است. بررسی‌های رابط کاربری فقط برای تجربه کاربر هستند و جایگزین کنترل سمت سرور نمی‌شوند. تغییرات ناامن به‌طور خودکار مسدود می‌شوند.",
+    "cancel": "لغو",
+    "saving": "در حال ذخیره…",
+    "saveChanges": "ذخیره تغییرات",
+    "confirmChange": "تأیید تغییر",
+    "permission": "مجوز",
+    "select": "انتخاب…",
+    "all": "همه",
+    "never": "هرگز",
+    "revoke": "لغو",
+    "revoking": "در حال لغو…",
+    "view": "مشاهده",
+    "optional": "(اختیاری)",
+    "showing": "نمایش {count} از {total}",
+    "tabs": {
+      "roleMatrix": "ماتریس نقش‌ها",
+      "resourceGrants": "دسترسی‌های منابع",
+      "resourceDenies": "ممنوعیت‌های منابع",
+      "conflicts": "تعارض‌ها",
+      "accessDebugger": "اشکال‌زدای دسترسی",
+      "ariaLabel": "زبانه‌های مجوزها"
+    },
+    "statuses": {
+      "active": "فعال",
+      "revoked": "لغوشده",
+      "expired": "منقضی‌شده"
+    },
+    "conflictStatuses": {
+      "open": "باز",
+      "investigating": "در حال بررسی",
+      "resolved": "حل‌شده",
+      "dismissed": "ردشده"
+    },
+    "severities": {
+      "info": "اطلاعات",
+      "warning": "هشدار",
+      "blocking": "مسدودکننده",
+      "security_risk": "خطر امنیتی"
+    },
+    "outcomes": {
+      "allow": "مجاز",
+      "deny": "غیرمجاز",
+      "neutral": "خنثی",
+      "skip": "ردشده"
+    },
+    "columns": {
+      "principal": "هویت",
+      "principalType": "نوع هویت",
+      "principalValue": "مقدار هویت",
+      "resource": "منبع",
+      "resourceType": "نوع منبع",
+      "resourceId": "شناسه منبع",
+      "action": "عملیات",
+      "reason": "دلیل",
+      "status": "وضعیت",
+      "expires": "انقضا",
+      "subject": "موضوع",
+      "detected": "شناسایی‌شده",
+      "grantId": "شناسه دسترسی",
+      "denyId": "شناسه ممنوعیت",
+      "type": "نوع",
+      "severity": "شدت"
+    },
+    "filters": {
+      "allResourceTypes": "همه انواع منبع",
+      "allStatuses": "همه وضعیت‌ها",
+      "allSeverities": "همه شدت‌ها"
+    },
+    "matrix": {
+      "notGranted": "اعطا نشده",
+      "granted": "اعطاشده",
+      "grantedOverridden": "اعطاشده (پیش‌فرض تغییر کرده)",
+      "descriptionBefore": "ماتریس نقش‌ها مجوزهای هر نقش داخلی را نشان می‌دهد. خانه‌های دارای",
+      "descriptionAfter": "با پیش‌فرض‌های Rudix تفاوت دارند.",
+      "editing": "ویرایش: {role}",
+      "editRolePermissions": "ویرایش مجوز نقش‌ها",
+      "editRole": "ویرایش {role}",
+      "confirmOwnerTitle": "تأیید تغییر نقش مالک",
+      "confirmOwnerDescription": "در حال تغییر نقش مالک هستید. این تغییر بر همه مالکان سازمان اثر می‌گذارد. مطمئن هستید؟"
+    },
+    "access": {
+      "grant": "دسترسی",
+      "deny": "ممنوعیت",
+      "grantAction": "دسترسی",
+      "denyAction": "ممنوعیت",
+      "add": "+ افزودن {kind}",
+      "new": "{kind} جدید منبع",
+      "create": "ایجاد {kind}",
+      "empty": "هیچ مورد {kind} با فیلترها مطابقت ندارد.",
+      "emptyGrants": "هیچ دسترسی‌ای با فیلترها مطابقت ندارد.",
+      "emptyDenies": "هیچ ممنوعیتی با فیلترها مطابقت ندارد.",
+      "principalPlaceholder": "برای نمونه، UUID کاربر یا نام تیم",
+      "blankAll": "(خالی = همه)",
+      "resourceIdPlaceholder": "برای اعمال روی همه خالی بگذارید",
+      "reasonPlaceholder": "یادداشت ممیزی اختیاری",
+      "revokeTitle": "{kind} لغو شود؟",
+      "allParenthetical": "(همه)"
+    },
+    "conflicts": {
+      "detailTitle": "جزئیات تعارض",
+      "noSummary": "خلاصه‌ای موجود نیست",
+      "suggestedRemediation": "راهکار پیشنهادی",
+      "updateStatus": "به‌روزرسانی وضعیت",
+      "resolutionPlaceholder": "یادداشت حل مشکل (اختیاری)",
+      "markInvestigating": "علامت‌گذاری در حال بررسی",
+      "markResolved": "علامت‌گذاری حل‌شده",
+      "dismiss": "رد کردن",
+      "scanning": "در حال اسکن…",
+      "runScan": "اجرای اسکن",
+      "scanComplete": "اسکن کامل شد — {detected} تعارض شناسایی و {created} مورد ایجاد شد.",
+      "empty": "هیچ تعارضی با فیلترهای فعلی مطابقت ندارد.",
+      "runAScan": "یک اسکن اجرا کنید",
+      "emptySuffix": "تا تعارض‌های جدید شناسایی شوند."
+    },
+    "debugger": {
+      "description": "موتور خط‌مشی را برای هر کاربر شبیه‌سازی کنید تا دلیل مجاز یا غیرمجاز بودن دسترسی را ببینید. فقط فراداده ساختاری بازگردانده می‌شود و محتوای منبع نمایش داده نمی‌شود.",
+      "checkAccess": "بررسی دسترسی",
+      "subjectUserId": "شناسه کاربر موضوع",
+      "subjectPlaceholder": "UUID کاربر مورد بررسی",
+      "resourcePlaceholder": "برای بررسی دسترسی عمومی خالی بگذارید",
+      "checking": "در حال بررسی…",
+      "subjectRequired": "شناسه کاربر موضوع الزامی است.",
+      "rule": "قانون",
+      "policyTrace": "ردیابی خط‌مشی",
+      "howToGrant": "روش اعطای دسترسی",
+      "requestId": "شناسه درخواست"
+    },
+    "errors": {
+      "rolesViewRequired": "به مجوز roles:view نیاز دارید.",
+      "securityViewRequired": "به مجوز security_center:view نیاز دارید.",
+      "pagePermissionRequired": "برای دسترسی به این صفحه به مجوز roles:view نیاز دارید."
+    }
   }
 }

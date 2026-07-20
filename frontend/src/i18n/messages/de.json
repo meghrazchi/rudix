@@ -4674,5 +4674,143 @@
       "permissionRequired": "Sie benötigen die Berechtigung roles:view, um auf diese Seite zuzugreifen.",
       "accessDenied": "Sie haben keinen Zugriff auf die Rollenverwaltung."
     }
+  },
+  "adminPermissions": {
+    "adminEyebrow": "Administration",
+    "title": "Zugriffsverwaltung",
+    "description": "Verwalten Sie die Rollen-Berechtigungsmatrix sowie explizite Freigaben und Sperren auf Ressourcenebene.",
+    "securityNoteLabel": "Sicherheitshinweis:",
+    "securityNote": "Die Backend-Autorisierung ist maßgeblich. Berechtigungsprüfungen im Frontend dienen nur der Benutzerführung und ersetzen niemals die Backend-Durchsetzung. Unsichere Änderungen werden automatisch blockiert.",
+    "cancel": "Abbrechen",
+    "saving": "Wird gespeichert…",
+    "saveChanges": "Änderungen speichern",
+    "confirmChange": "Änderung bestätigen",
+    "permission": "Berechtigung",
+    "select": "Auswählen…",
+    "all": "alle",
+    "never": "nie",
+    "revoke": "Widerrufen",
+    "revoking": "Wird widerrufen…",
+    "view": "Anzeigen",
+    "optional": "(optional)",
+    "showing": "{count} von {total} angezeigt",
+    "tabs": {
+      "roleMatrix": "Rollenmatrix",
+      "resourceGrants": "Ressourcenfreigaben",
+      "resourceDenies": "Ressourcensperren",
+      "conflicts": "Konflikte",
+      "accessDebugger": "Zugriffsdiagnose",
+      "ariaLabel": "Berechtigungsregisterkarten"
+    },
+    "statuses": {
+      "active": "Aktiv",
+      "revoked": "Widerrufen",
+      "expired": "Abgelaufen"
+    },
+    "conflictStatuses": {
+      "open": "Offen",
+      "investigating": "In Prüfung",
+      "resolved": "Gelöst",
+      "dismissed": "Verworfen"
+    },
+    "severities": {
+      "info": "Info",
+      "warning": "Warnung",
+      "blocking": "Blockierend",
+      "security_risk": "Sicherheitsrisiko"
+    },
+    "outcomes": {
+      "allow": "Erlaubt",
+      "deny": "Verweigert",
+      "neutral": "Neutral",
+      "skip": "Übersprungen"
+    },
+    "columns": {
+      "principal": "Identität",
+      "principalType": "Identitätstyp",
+      "principalValue": "Identitätswert",
+      "resource": "Ressource",
+      "resourceType": "Ressourcentyp",
+      "resourceId": "Ressourcen-ID",
+      "action": "Aktion",
+      "reason": "Grund",
+      "status": "Status",
+      "expires": "Läuft ab",
+      "subject": "Subjekt",
+      "detected": "Erkannt",
+      "grantId": "Freigabe-ID",
+      "denyId": "Sperr-ID",
+      "type": "Typ",
+      "severity": "Schweregrad"
+    },
+    "filters": {
+      "allResourceTypes": "Alle Ressourcentypen",
+      "allStatuses": "Alle Status",
+      "allSeverities": "Alle Schweregrade"
+    },
+    "matrix": {
+      "notGranted": "Nicht gewährt",
+      "granted": "Gewährt",
+      "grantedOverridden": "Gewährt (Standard überschrieben)",
+      "descriptionBefore": "Die Rollenmatrix zeigt die Berechtigungen jeder integrierten Rolle. Mit",
+      "descriptionAfter": "markierte Zellen weichen von den Rudix-Standardwerten ab.",
+      "editing": "Bearbeiten: {role}",
+      "editRolePermissions": "Rollenberechtigungen bearbeiten",
+      "editRole": "{role} bearbeiten",
+      "confirmOwnerTitle": "Änderung der Inhaberrolle bestätigen",
+      "confirmOwnerDescription": "Sie ändern die Inhaberrolle. Dies betrifft alle Inhaber der Organisation. Sind Sie sicher?"
+    },
+    "access": {
+      "grant": "Freigabe",
+      "deny": "Sperre",
+      "grantAction": "Freigabe",
+      "denyAction": "Sperre",
+      "add": "+ {kind} hinzufügen",
+      "new": "Neue Ressourcen-{kind}",
+      "create": "{kind} erstellen",
+      "empty": "Keine Einträge für {kind} entsprechen den Filtern.",
+      "emptyGrants": "Keine Freigaben entsprechen den Filtern.",
+      "emptyDenies": "Keine Sperren entsprechen den Filtern.",
+      "principalPlaceholder": "z. B. Benutzer-UUID oder Teamname",
+      "blankAll": "(leer = alle)",
+      "resourceIdPlaceholder": "Leer lassen, um alle einzuschließen",
+      "reasonPlaceholder": "Optionale Auditnotiz",
+      "revokeTitle": "{kind} widerrufen?",
+      "allParenthetical": "(alle)"
+    },
+    "conflicts": {
+      "detailTitle": "Konfliktdetails",
+      "noSummary": "Keine Zusammenfassung verfügbar",
+      "suggestedRemediation": "Empfohlene Behebung",
+      "updateStatus": "Status aktualisieren",
+      "resolutionPlaceholder": "Lösungsnotiz (optional)",
+      "markInvestigating": "Als in Prüfung markieren",
+      "markResolved": "Als gelöst markieren",
+      "dismiss": "Verwerfen",
+      "scanning": "Wird geprüft…",
+      "runScan": "Prüfung starten",
+      "scanComplete": "Prüfung abgeschlossen — {detected} Konflikte erkannt, {created} neu.",
+      "empty": "Keine Konflikte entsprechen den aktuellen Filtern.",
+      "runAScan": "Prüfung starten",
+      "emptySuffix": "um neue Konflikte zu erkennen."
+    },
+    "debugger": {
+      "description": "Simulieren Sie die Richtlinien-Engine für einen Benutzer, um nachzuvollziehen, warum Zugriff erlaubt oder verweigert wird. Es werden nur strukturelle Zugriffsmetadaten zurückgegeben.",
+      "checkAccess": "Zugriff prüfen",
+      "subjectUserId": "Benutzer-ID des Subjekts",
+      "subjectPlaceholder": "UUID des zu prüfenden Benutzers",
+      "resourcePlaceholder": "Leer lassen, um allgemeinen Ressourcenzugriff zu prüfen",
+      "checking": "Wird geprüft…",
+      "subjectRequired": "Die Benutzer-ID ist erforderlich.",
+      "rule": "Regel",
+      "policyTrace": "Richtlinienablauf",
+      "howToGrant": "Zugriff gewähren",
+      "requestId": "Anfrage-ID"
+    },
+    "errors": {
+      "rolesViewRequired": "Sie benötigen die Berechtigung roles:view.",
+      "securityViewRequired": "Sie benötigen die Berechtigung security_center:view.",
+      "pagePermissionRequired": "Sie benötigen die Berechtigung roles:view, um auf diese Seite zuzugreifen."
+    }
   }
 }

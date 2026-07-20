@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -91,6 +92,7 @@ function groupByCategory(permissions: string[]): Record<string, string[]> {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations("adminPermissions");
   const cls =
     status === "active"
       ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
@@ -101,7 +103,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${cls}`}
     >
-      {status}
+      {t(`statuses.${status}`)}
     </span>
   );
 }
@@ -113,12 +115,13 @@ function PermissionDot({
   has: boolean;
   overridden: boolean;
 }) {
+  const t = useTranslations("adminPermissions");
   if (!has) {
     return (
       <span
         className="inline-block h-4 w-4 rounded-full border border-[#d7d4e8] bg-white"
-        title="Not granted"
-        aria-label="not granted"
+        title={t("matrix.notGranted")}
+        aria-label={t("matrix.notGranted")}
       />
     );
   }
@@ -126,8 +129,8 @@ function PermissionDot({
     return (
       <span
         className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-400"
-        title="Granted (overridden from default)"
-        aria-label="granted, overridden"
+        title={t("matrix.grantedOverridden")}
+        aria-label={t("matrix.grantedOverridden")}
       >
         <svg
           className="h-2.5 w-2.5 text-white"
@@ -142,8 +145,8 @@ function PermissionDot({
   return (
     <span
       className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#3525cd]"
-      title="Granted"
-      aria-label="granted"
+      title={t("matrix.granted")}
+      aria-label={t("matrix.granted")}
     >
       <svg
         className="h-2.5 w-2.5 text-white"
@@ -165,6 +168,7 @@ function PermissionDot({
 // ── Role matrix tab ────────────────────────────────────────────────────────────
 
 function RoleMatrixTab({ canManage }: { canManage: boolean }) {
+  const t = useTranslations("adminPermissions");
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: QUERY_ROLE_MATRIX,
@@ -198,8 +202,8 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
     if (isForbiddenError(error)) {
       return (
         <ForbiddenState
-          title="Role Matrix"
-          description="You need roles:view permission."
+          title={t("tabs.roleMatrix")}
+          description={t("errors.rolesViewRequired")}
           requestId={extractRequestIdFromError(error)}
           backHref="/admin"
         />
@@ -240,10 +244,9 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-[#68647b]">
-        The role matrix shows which permissions each built-in role holds. Cells
-        marked with{" "}
+        {t("matrix.descriptionBefore")}{" "}
         <span className="inline-block h-3 w-3 rounded-full bg-amber-400 align-middle" />{" "}
-        differ from the canonical defaults shipped with Rudix.
+        {t("matrix.descriptionAfter")}
       </p>
 
       {editing ? (
@@ -251,7 +254,7 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold text-[#2a2640]">
-                Editing: {editing.role.label}
+                {t("matrix.editing", { role: editing.role.label })}
               </h3>
               <p className="text-sm text-[#68647b]">
                 {editing.role.description}
@@ -315,7 +318,7 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
               disabled={saveMutation.isPending}
               className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-50"
             >
-              {saveMutation.isPending ? "Saving…" : "Save changes"}
+              {saveMutation.isPending ? t("saving") : t("saveChanges")}
             </button>
             <button
               type="button"
@@ -326,7 +329,7 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
               disabled={saveMutation.isPending}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </div>
@@ -336,7 +339,7 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
             <thead>
               <tr className="border-b border-[#d7d4e8] bg-[#f9f8ff]">
                 <th className="sticky left-0 bg-[#f9f8ff] px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Permission
+                  {t("permission")}
                 </th>
                 {roles.map((r) => (
                   <th
@@ -389,7 +392,7 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
       {!editing && canManage && (
         <div>
           <p className="mb-3 text-sm font-medium text-[#2a2640]">
-            Edit role permissions
+            {t("matrix.editRolePermissions")}
           </p>
           <div className="flex flex-wrap gap-3">
             {roles.map((r) => (
@@ -399,7 +402,7 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
                 onClick={() => startEdit(r)}
                 className="rounded-lg border border-[#d7d4e8] bg-white px-3 py-1.5 text-sm font-medium text-[#3525cd] transition hover:border-[#3525cd] hover:bg-[#f0eeff]"
               >
-                Edit {r.label}
+                {t("matrix.editRole", { role: r.label })}
               </button>
             ))}
           </div>
@@ -414,11 +417,10 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
         >
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="mb-2 text-base font-semibold text-[#2a2640]">
-              Confirm owner role change
+              {t("matrix.confirmOwnerTitle")}
             </h3>
             <p className="mb-4 text-sm text-[#68647b]">
-              You are modifying the <strong>Owner</strong> role. This affects
-              all organization owners. Are you sure?
+              {t("matrix.confirmOwnerDescription")}
             </p>
             {editError && (
               <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -437,7 +439,7 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
                 disabled={saveMutation.isPending}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
               >
-                {saveMutation.isPending ? "Saving…" : "Confirm change"}
+                {saveMutation.isPending ? t("saving") : t("confirmChange")}
               </button>
               <button
                 type="button"
@@ -448,7 +450,7 @@ function RoleMatrixTab({ canManage }: { canManage: boolean }) {
                 disabled={saveMutation.isPending}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
               >
-                Cancel
+                {t("cancel")}
               </button>
             </div>
           </div>
@@ -467,6 +469,7 @@ function ResourceAccessTab({
   kind: "grant" | "deny";
   canManage: boolean;
 }) {
+  const t = useTranslations("adminPermissions");
   const queryClient = useQueryClient();
   const queryKey = kind === "grant" ? QUERY_GRANTS : QUERY_DENIES;
   const [resourceTypeFilter, setResourceTypeFilter] = useState("");
@@ -544,7 +547,8 @@ function ResourceAccessTab({
     });
   }
 
-  const kindLabel = kind === "grant" ? "Grant" : "Deny";
+  const kindLabel = t(`access.${kind}`);
+  const kindActionLabel = t(`access.${kind}Action`);
   const items = data?.items ?? [];
 
   return (
@@ -555,7 +559,7 @@ function ResourceAccessTab({
           onChange={(e) => setResourceTypeFilter(e.target.value)}
           className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-sm focus:border-[#3525cd] focus:outline-none"
         >
-          <option value="">All resource types</option>
+          <option value="">{t("filters.allResourceTypes")}</option>
           {RESOURCE_TYPES.map((rt) => (
             <option key={rt} value={rt}>
               {rt}
@@ -567,10 +571,10 @@ function ResourceAccessTab({
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-sm focus:border-[#3525cd] focus:outline-none"
         >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="revoked">Revoked</option>
-          <option value="expired">Expired</option>
+          <option value="">{t("filters.allStatuses")}</option>
+          <option value="active">{t("statuses.active")}</option>
+          <option value="revoked">{t("statuses.revoked")}</option>
+          <option value="expired">{t("statuses.expired")}</option>
         </select>
         <span className="flex-1" />
         {canManage && !showForm && (
@@ -582,7 +586,7 @@ function ResourceAccessTab({
             }}
             className="rounded-lg bg-[#3525cd] px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
           >
-            + Add {kindLabel}
+            {t("access.add", { kind: kindActionLabel })}
           </button>
         )}
       </div>
@@ -593,13 +597,14 @@ function ResourceAccessTab({
           className="space-y-4 rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
         >
           <h3 className="text-sm font-semibold text-[#2a2640]">
-            New resource {kindLabel.toLowerCase()}
+            {t("access.new", { kind: kindLabel })}
           </h3>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-                Principal type <span className="text-red-500">*</span>
+                {t("columns.principalType")}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <select
                 value={formPrincipalType}
@@ -615,20 +620,22 @@ function ResourceAccessTab({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-                Principal value <span className="text-red-500">*</span>
+                {t("columns.principalValue")}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formPrincipalValue}
                 onChange={(e) => setFormPrincipalValue(e.target.value)}
                 required
-                placeholder="e.g. user-uuid or team-name"
+                placeholder={t("access.principalPlaceholder")}
                 className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-                Resource type <span className="text-red-500">*</span>
+                {t("columns.resourceType")}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <select
                 value={formResourceType}
@@ -636,7 +643,7 @@ function ResourceAccessTab({
                 required
                 className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
               >
-                <option value="">Select…</option>
+                <option value="">{t("select")}</option>
                 {RESOURCE_TYPES.map((rt) => (
                   <option key={rt} value={rt}>
                     {rt}
@@ -646,20 +653,20 @@ function ResourceAccessTab({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-                Resource ID{" "}
-                <span className="text-[#68647b]">(blank = all)</span>
+                {t("columns.resourceId")}{" "}
+                <span className="text-[#68647b]">{t("access.blankAll")}</span>
               </label>
               <input
                 type="text"
                 value={formResourceId}
                 onChange={(e) => setFormResourceId(e.target.value)}
-                placeholder="Leave blank to apply to all"
+                placeholder={t("access.resourceIdPlaceholder")}
                 className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-                Action <span className="text-red-500">*</span>
+                {t("columns.action")} <span className="text-red-500">*</span>
               </label>
               <select
                 value={formAction}
@@ -675,14 +682,14 @@ function ResourceAccessTab({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-                Reason
+                {t("columns.reason")}
               </label>
               <input
                 type="text"
                 value={formReason}
                 onChange={(e) => setFormReason(e.target.value)}
                 maxLength={1024}
-                placeholder="Optional audit note"
+                placeholder={t("access.reasonPlaceholder")}
                 className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
               />
             </div>
@@ -701,8 +708,8 @@ function ResourceAccessTab({
               className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-50"
             >
               {createMutation.isPending
-                ? "Saving…"
-                : `Create ${kindLabel.toLowerCase()}`}
+                ? t("saving")
+                : t("access.create", { kind: kindLabel })}
             </button>
             <button
               type="button"
@@ -714,7 +721,7 @@ function ResourceAccessTab({
               disabled={createMutation.isPending}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </form>
@@ -726,7 +733,7 @@ function ResourceAccessTab({
         <ErrorState description={getApiErrorMessage(error)} />
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#d7d4e8] p-8 text-center text-sm text-[#68647b]">
-          No {kindLabel.toLowerCase()}s match the selected filters.
+          {t(kind === "grant" ? "access.emptyGrants" : "access.emptyDenies")}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-[#d7d4e8] bg-white shadow-sm">
@@ -734,22 +741,22 @@ function ResourceAccessTab({
             <thead>
               <tr className="border-b border-[#d7d4e8] bg-[#f9f8ff]">
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Principal
+                  {t("columns.principal")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Resource type
+                  {t("columns.resourceType")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Resource ID
+                  {t("columns.resourceId")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Action
+                  {t("columns.action")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Status
+                  {t("columns.status")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Expires
+                  {t("columns.expires")}
                 </th>
                 {canManage && (
                   <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase" />
@@ -775,7 +782,7 @@ function ResourceAccessTab({
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-[#68647b]">
                     {item.resource_id ?? (
-                      <span className="text-[#a09dbf] italic">all</span>
+                      <span className="text-[#a09dbf] italic">{t("all")}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-[#2a2640]">
@@ -788,7 +795,9 @@ function ResourceAccessTab({
                     {item.expires_at ? (
                       new Date(item.expires_at).toLocaleDateString()
                     ) : (
-                      <span className="text-[#a09dbf] italic">never</span>
+                      <span className="text-[#a09dbf] italic">
+                        {t("never")}
+                      </span>
                     )}
                   </td>
                   {canManage && (
@@ -802,7 +811,7 @@ function ResourceAccessTab({
                           }}
                           className="text-xs font-medium text-red-600 hover:underline"
                         >
-                          Revoke
+                          {t("revoke")}
                         </button>
                       )}
                     </td>
@@ -812,7 +821,7 @@ function ResourceAccessTab({
             </tbody>
           </table>
           <div className="border-t border-[#d7d4e8] px-4 py-2 text-xs text-[#68647b]">
-            Showing {items.length} of {data?.total ?? 0}
+            {t("showing", { count: items.length, total: data?.total ?? 0 })}
           </div>
         </div>
       )}
@@ -825,16 +834,18 @@ function ResourceAccessTab({
         >
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="mb-2 text-base font-semibold text-[#2a2640]">
-              Revoke {kindLabel.toLowerCase()}?
+              {t("access.revokeTitle", { kind: kindLabel })}
             </h3>
             <p className="mb-1 text-sm text-[#68647b]">
-              Principal: <strong>{revokeTarget.principal_value}</strong>
+              {t("columns.principal")}:{" "}
+              <strong>{revokeTarget.principal_value}</strong>
             </p>
             <p className="mb-4 text-sm text-[#68647b]">
-              Resource: <strong>{revokeTarget.resource_type}</strong>
+              {t("columns.resource")}:{" "}
+              <strong>{revokeTarget.resource_type}</strong>
               {revokeTarget.resource_id
                 ? ` / ${revokeTarget.resource_id}`
-                : " (all)"}
+                : ` ${t("access.allParenthetical")}`}
             </p>
             {revokeError && (
               <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -848,7 +859,7 @@ function ResourceAccessTab({
                 disabled={revokeMutation.isPending}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
               >
-                {revokeMutation.isPending ? "Revoking…" : "Revoke"}
+                {revokeMutation.isPending ? t("revoking") : t("revoke")}
               </button>
               <button
                 type="button"
@@ -859,7 +870,7 @@ function ResourceAccessTab({
                 disabled={revokeMutation.isPending}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
               >
-                Cancel
+                {t("cancel")}
               </button>
             </div>
           </div>
@@ -879,17 +890,19 @@ const SEVERITY_STYLES: Record<ConflictSeverity, string> = {
 };
 
 function SeverityBadge({ severity }: { severity: ConflictSeverity }) {
+  const t = useTranslations("adminPermissions");
   const cls = SEVERITY_STYLES[severity] ?? "bg-slate-50 text-slate-700";
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${cls}`}
     >
-      {severity.replace("_", " ")}
+      {t(`severities.${severity}`)}
     </span>
   );
 }
 
 function ConflictStatusBadge({ status }: { status: ConflictStatus }) {
+  const t = useTranslations("adminPermissions");
   const cls =
     status === "open"
       ? "bg-red-50 text-red-700 border border-red-100"
@@ -902,7 +915,7 @@ function ConflictStatusBadge({ status }: { status: ConflictStatus }) {
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${cls}`}
     >
-      {status}
+      {t(`conflictStatuses.${status}`)}
     </span>
   );
 }
@@ -918,6 +931,7 @@ function ConflictDrawer({
   onClose: () => void;
   canManage: boolean;
 }) {
+  const t = useTranslations("adminPermissions");
   const queryClient = useQueryClient();
   const {
     data: conflict,
@@ -946,13 +960,13 @@ function ConflictDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/30"
+      className="fixed inset-0 z-50 flex justify-end bg-black/30 rtl:justify-start"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="relative flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#d7d4e8] px-6 py-4">
           <h2 className="text-base font-semibold text-[#2a2640]">
-            Conflict Detail
+            {t("conflicts.detailTitle")}
           </h2>
           <button
             type="button"
@@ -979,7 +993,7 @@ function ConflictDrawer({
                   {conflict.conflict_type.replace(/_/g, " ")}
                 </p>
                 <p className="mt-1 text-sm text-[#2a2640]">
-                  {conflict.conflict_summary ?? "No summary available"}
+                  {conflict.conflict_summary ?? t("conflicts.noSummary")}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -990,24 +1004,34 @@ function ConflictDrawer({
 
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[#d7d4e8] bg-[#f9f8ff] p-4 text-xs">
               <div>
-                <dt className="font-bold text-[#5d58a8] uppercase">Subject</dt>
+                <dt className="font-bold text-[#5d58a8] uppercase">
+                  {t("columns.subject")}
+                </dt>
                 <dd className="mt-0.5 font-mono break-all text-[#2a2640]">
                   {conflict.subject_value}
                 </dd>
               </div>
               <div>
-                <dt className="font-bold text-[#5d58a8] uppercase">Resource</dt>
+                <dt className="font-bold text-[#5d58a8] uppercase">
+                  {t("columns.resource")}
+                </dt>
                 <dd className="mt-0.5 font-mono break-all text-[#2a2640]">
                   {conflict.resource_type}
-                  {conflict.resource_id ? `/${conflict.resource_id}` : " (all)"}
+                  {conflict.resource_id
+                    ? `/${conflict.resource_id}`
+                    : ` ${t("access.allParenthetical")}`}
                 </dd>
               </div>
               <div>
-                <dt className="font-bold text-[#5d58a8] uppercase">Action</dt>
+                <dt className="font-bold text-[#5d58a8] uppercase">
+                  {t("columns.action")}
+                </dt>
                 <dd className="mt-0.5 text-[#2a2640]">{conflict.action}</dd>
               </div>
               <div>
-                <dt className="font-bold text-[#5d58a8] uppercase">Detected</dt>
+                <dt className="font-bold text-[#5d58a8] uppercase">
+                  {t("columns.detected")}
+                </dt>
                 <dd className="mt-0.5 text-[#68647b]">
                   {new Date(conflict.detected_at).toLocaleString()}
                 </dd>
@@ -1015,7 +1039,7 @@ function ConflictDrawer({
               {conflict.grant_id && (
                 <div>
                   <dt className="font-bold text-[#5d58a8] uppercase">
-                    Grant ID
+                    {t("columns.grantId")}
                   </dt>
                   <dd className="mt-0.5 font-mono break-all text-[#68647b]">
                     {conflict.grant_id}
@@ -1025,7 +1049,7 @@ function ConflictDrawer({
               {conflict.deny_id && (
                 <div>
                   <dt className="font-bold text-[#5d58a8] uppercase">
-                    Deny ID
+                    {t("columns.denyId")}
                   </dt>
                   <dd className="mt-0.5 font-mono break-all text-[#68647b]">
                     {conflict.deny_id}
@@ -1037,7 +1061,7 @@ function ConflictDrawer({
             {conflict.remediation.length > 0 && (
               <div>
                 <p className="mb-2 text-xs font-bold text-[#5d58a8] uppercase">
-                  Suggested remediation
+                  {t("conflicts.suggestedRemediation")}
                 </p>
                 <ul className="space-y-1.5">
                   {conflict.remediation.map((r, i) => (
@@ -1058,12 +1082,12 @@ function ConflictDrawer({
               conflict.status !== "dismissed" && (
                 <div className="space-y-3 rounded-xl border border-[#d7d4e8] bg-white p-4">
                   <p className="text-xs font-bold text-[#5d58a8] uppercase">
-                    Update status
+                    {t("conflicts.updateStatus")}
                   </p>
                   <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="Resolution note (optional)"
+                    placeholder={t("conflicts.resolutionPlaceholder")}
                     rows={2}
                     maxLength={1024}
                     className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
@@ -1081,7 +1105,7 @@ function ConflictDrawer({
                         disabled={statusMutation.isPending}
                         className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                       >
-                        Mark investigating
+                        {t("conflicts.markInvestigating")}
                       </button>
                     )}
                     <button
@@ -1090,7 +1114,7 @@ function ConflictDrawer({
                       disabled={statusMutation.isPending}
                       className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                     >
-                      Mark resolved
+                      {t("conflicts.markResolved")}
                     </button>
                     <button
                       type="button"
@@ -1098,7 +1122,7 @@ function ConflictDrawer({
                       disabled={statusMutation.isPending}
                       className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                     >
-                      Dismiss
+                      {t("conflicts.dismiss")}
                     </button>
                   </div>
                 </div>
@@ -1113,6 +1137,7 @@ function ConflictDrawer({
 // ── Conflicts tab ──────────────────────────────────────────────────────────────
 
 function ConflictsTab({ canManage }: { canManage: boolean }) {
+  const t = useTranslations("adminPermissions");
   const queryClient = useQueryClient();
   const [severityFilter, setSeverityFilter] = useState<ConflictSeverity | "">(
     "",
@@ -1154,11 +1179,11 @@ function ConflictsTab({ canManage }: { canManage: boolean }) {
           }
           className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-sm focus:border-[#3525cd] focus:outline-none"
         >
-          <option value="">All severities</option>
-          <option value="info">Info</option>
-          <option value="warning">Warning</option>
-          <option value="blocking">Blocking</option>
-          <option value="security_risk">Security risk</option>
+          <option value="">{t("filters.allSeverities")}</option>
+          <option value="info">{t("severities.info")}</option>
+          <option value="warning">{t("severities.warning")}</option>
+          <option value="blocking">{t("severities.blocking")}</option>
+          <option value="security_risk">{t("severities.security_risk")}</option>
         </select>
         <select
           value={statusFilter}
@@ -1167,18 +1192,20 @@ function ConflictsTab({ canManage }: { canManage: boolean }) {
           }
           className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-sm focus:border-[#3525cd] focus:outline-none"
         >
-          <option value="">All statuses</option>
-          <option value="open">Open</option>
-          <option value="investigating">Investigating</option>
-          <option value="resolved">Resolved</option>
-          <option value="dismissed">Dismissed</option>
+          <option value="">{t("filters.allStatuses")}</option>
+          <option value="open">{t("conflictStatuses.open")}</option>
+          <option value="investigating">
+            {t("conflictStatuses.investigating")}
+          </option>
+          <option value="resolved">{t("conflictStatuses.resolved")}</option>
+          <option value="dismissed">{t("conflictStatuses.dismissed")}</option>
         </select>
         <select
           value={resourceTypeFilter}
           onChange={(e) => setResourceTypeFilter(e.target.value)}
           className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-sm focus:border-[#3525cd] focus:outline-none"
         >
-          <option value="">All resource types</option>
+          <option value="">{t("filters.allResourceTypes")}</option>
           {[
             "document",
             "collection",
@@ -1205,15 +1232,19 @@ function ConflictsTab({ canManage }: { canManage: boolean }) {
             disabled={scanMutation.isPending}
             className="rounded-lg border border-[#d7d4e8] bg-white px-3 py-1.5 text-sm font-semibold text-[#3525cd] transition hover:border-[#3525cd] hover:bg-[#f0eeff] disabled:opacity-50"
           >
-            {scanMutation.isPending ? "Scanning…" : "Run scan"}
+            {scanMutation.isPending
+              ? t("conflicts.scanning")
+              : t("conflicts.runScan")}
           </button>
         )}
       </div>
 
       {scanMutation.isSuccess && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
-          Scan complete — {scanMutation.data.conflicts_detected} conflicts
-          detected, {scanMutation.data.conflicts_created} new.{" "}
+          {t("conflicts.scanComplete", {
+            detected: scanMutation.data.conflicts_detected,
+            created: scanMutation.data.conflicts_created,
+          })}{" "}
           <span className="text-xs text-emerald-600">
             ({scanMutation.data.scan_duration_ms}ms)
           </span>
@@ -1225,8 +1256,8 @@ function ConflictsTab({ canManage }: { canManage: boolean }) {
       ) : error ? (
         isForbiddenError(error) ? (
           <ForbiddenState
-            title="Permission Conflicts"
-            description="You need security_center:view permission."
+            title={t("tabs.conflicts")}
+            description={t("errors.securityViewRequired")}
             requestId={extractRequestIdFromError(error)}
             backHref="/admin"
           />
@@ -1235,17 +1266,17 @@ function ConflictsTab({ canManage }: { canManage: boolean }) {
         )
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#d7d4e8] p-8 text-center text-sm text-[#68647b]">
-          No conflicts match the current filters.{" "}
+          {t("conflicts.empty")}{" "}
           {canManage && (
             <button
               type="button"
               onClick={() => scanMutation.mutate()}
               className="text-[#3525cd] underline"
             >
-              Run a scan
+              {t("conflicts.runAScan")}
             </button>
           )}{" "}
-          to detect new conflicts.
+          {t("conflicts.emptySuffix")}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-[#d7d4e8] bg-white shadow-sm">
@@ -1253,22 +1284,22 @@ function ConflictsTab({ canManage }: { canManage: boolean }) {
             <thead>
               <tr className="border-b border-[#d7d4e8] bg-[#f9f8ff]">
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Type
+                  {t("columns.type")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Subject
+                  {t("columns.subject")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Resource
+                  {t("columns.resource")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Severity
+                  {t("columns.severity")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Status
+                  {t("columns.status")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-[#5d58a8] uppercase">
-                  Detected
+                  {t("columns.detected")}
                 </th>
                 <th className="px-4 py-3" />
               </tr>
@@ -1312,7 +1343,7 @@ function ConflictsTab({ canManage }: { canManage: boolean }) {
                       }}
                       className="text-xs font-medium text-[#3525cd] hover:underline"
                     >
-                      View
+                      {t("view")}
                     </button>
                   </td>
                 </tr>
@@ -1320,7 +1351,7 @@ function ConflictsTab({ canManage }: { canManage: boolean }) {
             </tbody>
           </table>
           <div className="border-t border-[#d7d4e8] px-4 py-2 text-xs text-[#68647b]">
-            Showing {items.length} of {data?.total ?? 0}
+            {t("showing", { count: items.length, total: data?.total ?? 0 })}
           </div>
         </div>
       )}
@@ -1367,6 +1398,7 @@ const ACTIONS_FOR_EXPLAIN = [
 ];
 
 function TraceStepRow({ step }: { step: TraceStep }) {
+  const t = useTranslations("adminPermissions");
   const dotCls =
     step.outcome === "allow"
       ? "bg-emerald-400"
@@ -1387,7 +1419,7 @@ function TraceStepRow({ step }: { step: TraceStep }) {
                 : "text-slate-400"
           }`}
         >
-          {step.outcome}
+          {t(`outcomes.${step.outcome}`)}
         </span>
         {step.detail && (
           <span className="ml-2 text-[#68647b]">({step.detail})</span>
@@ -1398,6 +1430,7 @@ function TraceStepRow({ step }: { step: TraceStep }) {
 }
 
 function AccessDebuggerTab() {
+  const t = useTranslations("adminPermissions");
   const [subjectUserId, setSubjectUserId] = useState("");
   const [resourceType, setResourceType] = useState("document");
   const [action, setAction] = useState("view");
@@ -1426,7 +1459,7 @@ function AccessDebuggerTab() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!subjectUserId.trim()) {
-      setFormError("Subject user ID is required.");
+      setFormError(t("debugger.subjectRequired"));
       return;
     }
     debugMutation.mutate();
@@ -1434,34 +1467,33 @@ function AccessDebuggerTab() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-[#68647b]">
-        Simulate the policy engine for any user in your organisation to see
-        exactly why access is allowed or denied. Only structural access metadata
-        is returned — no resource content is exposed.
-      </p>
+      <p className="text-sm text-[#68647b]">{t("debugger.description")}</p>
 
       <form
         onSubmit={handleSubmit}
         className="space-y-4 rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
       >
-        <h3 className="text-sm font-semibold text-[#2a2640]">Check access</h3>
+        <h3 className="text-sm font-semibold text-[#2a2640]">
+          {t("debugger.checkAccess")}
+        </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-              Subject user ID <span className="text-red-500">*</span>
+              {t("debugger.subjectUserId")}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={subjectUserId}
               onChange={(e) => setSubjectUserId(e.target.value)}
               required
-              placeholder="UUID of the user to check"
+              placeholder={t("debugger.subjectPlaceholder")}
               className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 font-mono text-sm focus:border-[#3525cd] focus:outline-none"
             />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-              Resource type
+              {t("columns.resourceType")}
             </label>
             <select
               value={resourceType}
@@ -1477,7 +1509,7 @@ function AccessDebuggerTab() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-              Action
+              {t("columns.action")}
             </label>
             <select
               value={action}
@@ -1493,13 +1525,14 @@ function AccessDebuggerTab() {
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-medium text-[#2a2640]">
-              Resource ID <span className="text-[#68647b]">(optional)</span>
+              {t("columns.resourceId")}{" "}
+              <span className="text-[#68647b]">{t("optional")}</span>
             </label>
             <input
               type="text"
               value={resourceId}
               onChange={(e) => setResourceId(e.target.value)}
-              placeholder="Leave blank to check generic resource access"
+              placeholder={t("debugger.resourcePlaceholder")}
               className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 font-mono text-sm focus:border-[#3525cd] focus:outline-none"
             />
           </div>
@@ -1516,7 +1549,9 @@ function AccessDebuggerTab() {
           disabled={debugMutation.isPending}
           className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-50"
         >
-          {debugMutation.isPending ? "Checking…" : "Check access"}
+          {debugMutation.isPending
+            ? t("debugger.checking")
+            : t("debugger.checkAccess")}
         </button>
       </form>
 
@@ -1533,13 +1568,13 @@ function AccessDebuggerTab() {
               {result.decision === "allow" ? "✓" : "✗"} {result.decision}
             </span>
             <div className="text-xs text-[#68647b]">
-              Rule:{" "}
+              {t("debugger.rule")}:{" "}
               <span className="font-mono text-[#2a2640]">
                 {result.matched_rule}
               </span>
               {result.deny_reason && (
                 <span className="ml-3">
-                  Reason:{" "}
+                  {t("columns.reason")}:{" "}
                   <span className="font-mono text-red-700">
                     {result.deny_reason}
                   </span>
@@ -1550,7 +1585,7 @@ function AccessDebuggerTab() {
 
           <div>
             <p className="mb-2 text-xs font-bold text-[#5d58a8] uppercase">
-              Policy trace
+              {t("debugger.policyTrace")}
             </p>
             <div className="divide-y divide-[#ede9fb] rounded-lg border border-[#d7d4e8] bg-[#f9f8ff] px-4 py-3">
               {result.trace.map((step, i) => (
@@ -1562,7 +1597,7 @@ function AccessDebuggerTab() {
           {result.remediation.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-bold text-[#5d58a8] uppercase">
-                How to grant access
+                {t("debugger.howToGrant")}
               </p>
               <ul className="space-y-1.5">
                 {result.remediation.map((r, i) => (
@@ -1579,7 +1614,7 @@ function AccessDebuggerTab() {
           )}
 
           <p className="text-[10px] text-[#a09dbf]">
-            Request ID: {result.request_id}
+            {t("debugger.requestId")}: {result.request_id}
           </p>
         </div>
       )}
@@ -1590,6 +1625,7 @@ function AccessDebuggerTab() {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export function AdminPermissionsPage() {
+  const t = useTranslations("adminPermissions");
   const { hasPermission } = usePermissions();
   const canView = hasPermission("roles:view");
   const canManage = hasPermission("roles:manage");
@@ -1599,45 +1635,40 @@ export function AdminPermissionsPage() {
   if (!canView) {
     return (
       <ForbiddenState
-        title="Access Management"
-        description="You need the roles:view permission to access this page."
+        title={t("title")}
+        description={t("errors.pagePermissionRequired")}
         backHref="/dashboard"
       />
     );
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "role-matrix", label: "Role Matrix" },
-    { id: "resource-grants", label: "Resource Grants" },
-    { id: "resource-denies", label: "Resource Denies" },
-    { id: "conflicts", label: "Conflicts" },
-    { id: "access-debugger", label: "Access Debugger" },
+    { id: "role-matrix", label: t("tabs.roleMatrix") },
+    { id: "resource-grants", label: t("tabs.resourceGrants") },
+    { id: "resource-denies", label: t("tabs.resourceDenies") },
+    { id: "conflicts", label: t("tabs.conflicts") },
+    { id: "access-debugger", label: t("tabs.accessDebugger") },
   ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-8">
       <div>
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Admin
+          {t("adminEyebrow")}
         </p>
-        <h1 className="text-2xl font-extrabold text-[#2a2640]">
-          Access Management
-        </h1>
-        <p className="mt-1 text-sm text-[#68647b]">
-          Manage the role permission matrix and explicit resource-level grants
-          and denies for your organization.
-        </p>
+        <h1 className="text-2xl font-extrabold text-[#2a2640]">{t("title")}</h1>
+        <p className="mt-1 text-sm text-[#68647b]">{t("description")}</p>
       </div>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <strong>Security note:</strong> Backend authorization is the source of
-        truth. Frontend permission checks are for UX only and never replace
-        backend enforcement. Unsafe changes (removing the last owner, locking
-        out all admins) are blocked automatically.
+        <strong>{t("securityNoteLabel")}</strong> {t("securityNote")}
       </div>
 
       <div className="border-b border-[#d7d4e8]">
-        <nav className="-mb-px flex gap-6" aria-label="Permissions tabs">
+        <nav
+          className="-mb-px flex gap-6 overflow-x-auto"
+          aria-label={t("tabs.ariaLabel")}
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}

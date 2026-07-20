@@ -4674,5 +4674,143 @@
       "permissionRequired": "تحتاج إلى إذن roles:view للوصول إلى هذه الصفحة.",
       "accessDenied": "لا يمكنك الوصول إلى إدارة الأدوار."
     }
+  },
+  "adminPermissions": {
+    "adminEyebrow": "الإدارة",
+    "title": "إدارة الوصول",
+    "description": "أدر مصفوفة أذونات الأدوار ومنح الموارد ورفضها بشكل صريح.",
+    "securityNoteLabel": "ملاحظة أمنية:",
+    "securityNote": "تفويض الخادم هو مصدر الحقيقة. فحوصات الواجهة لتحسين التجربة فقط ولا تستبدل فرض الصلاحيات في الخادم. تُحظر التغييرات غير الآمنة تلقائيًا.",
+    "cancel": "إلغاء",
+    "saving": "جارٍ الحفظ…",
+    "saveChanges": "حفظ التغييرات",
+    "confirmChange": "تأكيد التغيير",
+    "permission": "الإذن",
+    "select": "تحديد…",
+    "all": "الكل",
+    "never": "أبدًا",
+    "revoke": "إلغاء",
+    "revoking": "جارٍ الإلغاء…",
+    "view": "عرض",
+    "optional": "(اختياري)",
+    "showing": "عرض {count} من {total}",
+    "tabs": {
+      "roleMatrix": "مصفوفة الأدوار",
+      "resourceGrants": "منح الموارد",
+      "resourceDenies": "رفض الموارد",
+      "conflicts": "التعارضات",
+      "accessDebugger": "مصصح الوصول",
+      "ariaLabel": "علامات تبويب الأذونات"
+    },
+    "statuses": {
+      "active": "نشط",
+      "revoked": "ملغى",
+      "expired": "منتهي"
+    },
+    "conflictStatuses": {
+      "open": "مفتوح",
+      "investigating": "قيد التحقيق",
+      "resolved": "محلول",
+      "dismissed": "مرفوض"
+    },
+    "severities": {
+      "info": "معلومات",
+      "warning": "تحذير",
+      "blocking": "حاجب",
+      "security_risk": "خطر أمني"
+    },
+    "outcomes": {
+      "allow": "سماح",
+      "deny": "رفض",
+      "neutral": "محايد",
+      "skip": "متجاوز"
+    },
+    "columns": {
+      "principal": "الهوية",
+      "principalType": "نوع الهوية",
+      "principalValue": "قيمة الهوية",
+      "resource": "المورد",
+      "resourceType": "نوع المورد",
+      "resourceId": "معرّف المورد",
+      "action": "الإجراء",
+      "reason": "السبب",
+      "status": "الحالة",
+      "expires": "الانتهاء",
+      "subject": "الموضوع",
+      "detected": "تاريخ الاكتشاف",
+      "grantId": "معرّف المنح",
+      "denyId": "معرّف الرفض",
+      "type": "النوع",
+      "severity": "الخطورة"
+    },
+    "filters": {
+      "allResourceTypes": "كل أنواع الموارد",
+      "allStatuses": "كل الحالات",
+      "allSeverities": "كل درجات الخطورة"
+    },
+    "matrix": {
+      "notGranted": "غير ممنوح",
+      "granted": "ممنوح",
+      "grantedOverridden": "ممنوح (تم تجاوز الافتراضي)",
+      "descriptionBefore": "تعرض مصفوفة الأدوار أذونات كل دور مضمن. الخلايا المميزة بـ",
+      "descriptionAfter": "تختلف عن إعدادات Rudix الافتراضية.",
+      "editing": "تعديل: {role}",
+      "editRolePermissions": "تعديل أذونات الأدوار",
+      "editRole": "تعديل {role}",
+      "confirmOwnerTitle": "تأكيد تغيير دور المالك",
+      "confirmOwnerDescription": "أنت تعدّل دور المالك، مما يؤثر في كل مالكي المؤسسة. هل أنت متأكد؟"
+    },
+    "access": {
+      "grant": "منح",
+      "deny": "رفض",
+      "grantAction": "منح",
+      "denyAction": "رفض",
+      "add": "+ إضافة {kind}",
+      "new": "{kind} مورد جديد",
+      "create": "إنشاء {kind}",
+      "empty": "لا توجد إدخالات {kind} تطابق عوامل التصفية.",
+      "emptyGrants": "لا توجد عمليات منح تطابق عوامل التصفية.",
+      "emptyDenies": "لا توجد عمليات رفض تطابق عوامل التصفية.",
+      "principalPlaceholder": "مثال: UUID المستخدم أو اسم الفريق",
+      "blankAll": "(فارغ = الكل)",
+      "resourceIdPlaceholder": "اتركه فارغًا للتطبيق على الكل",
+      "reasonPlaceholder": "ملاحظة تدقيق اختيارية",
+      "revokeTitle": "إلغاء {kind}؟",
+      "allParenthetical": "(الكل)"
+    },
+    "conflicts": {
+      "detailTitle": "تفاصيل التعارض",
+      "noSummary": "لا يتوفر ملخص",
+      "suggestedRemediation": "المعالجة المقترحة",
+      "updateStatus": "تحديث الحالة",
+      "resolutionPlaceholder": "ملاحظة الحل (اختياري)",
+      "markInvestigating": "وضع علامة قيد التحقيق",
+      "markResolved": "وضع علامة محلول",
+      "dismiss": "رفض",
+      "scanning": "جارٍ الفحص…",
+      "runScan": "تشغيل الفحص",
+      "scanComplete": "اكتمل الفحص — تم اكتشاف {detected} تعارضًا، منها {created} جديد.",
+      "empty": "لا توجد تعارضات تطابق عوامل التصفية الحالية.",
+      "runAScan": "شغّل فحصًا",
+      "emptySuffix": "لاكتشاف تعارضات جديدة."
+    },
+    "debugger": {
+      "description": "حاكِ محرك السياسات لأي مستخدم لمعرفة سبب السماح بالوصول أو رفضه. تُعاد بيانات الوصول البنيوية فقط ولا يُكشف محتوى الموارد.",
+      "checkAccess": "التحقق من الوصول",
+      "subjectUserId": "معرّف المستخدم موضوع الفحص",
+      "subjectPlaceholder": "UUID المستخدم المطلوب فحصه",
+      "resourcePlaceholder": "اتركه فارغًا لفحص الوصول العام",
+      "checking": "جارٍ التحقق…",
+      "subjectRequired": "معرّف المستخدم مطلوب.",
+      "rule": "القاعدة",
+      "policyTrace": "تتبع السياسة",
+      "howToGrant": "كيفية منح الوصول",
+      "requestId": "معرّف الطلب"
+    },
+    "errors": {
+      "rolesViewRequired": "تحتاج إلى إذن roles:view.",
+      "securityViewRequired": "تحتاج إلى إذن security_center:view.",
+      "pagePermissionRequired": "تحتاج إلى إذن roles:view للوصول إلى هذه الصفحة."
+    }
   }
 }

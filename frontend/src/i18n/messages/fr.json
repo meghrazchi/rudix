@@ -4674,5 +4674,143 @@
       "permissionRequired": "L’autorisation roles:view est nécessaire pour accéder à cette page.",
       "accessDenied": "Vous n’avez pas accès à la gestion des rôles."
     }
+  },
+  "adminPermissions": {
+    "adminEyebrow": "Administration",
+    "title": "Gestion des accès",
+    "description": "Gérez la matrice des autorisations des rôles ainsi que les autorisations et refus explicites par ressource.",
+    "securityNoteLabel": "Note de sécurité :",
+    "securityNote": "L’autorisation du backend fait foi. Les contrôles du frontend servent uniquement à l’expérience utilisateur et ne remplacent jamais l’application côté backend. Les modifications dangereuses sont bloquées automatiquement.",
+    "cancel": "Annuler",
+    "saving": "Enregistrement…",
+    "saveChanges": "Enregistrer",
+    "confirmChange": "Confirmer",
+    "permission": "Autorisation",
+    "select": "Sélectionner…",
+    "all": "tous",
+    "never": "jamais",
+    "revoke": "Révoquer",
+    "revoking": "Révocation…",
+    "view": "Voir",
+    "optional": "(facultatif)",
+    "showing": "{count} sur {total} affichés",
+    "tabs": {
+      "roleMatrix": "Matrice des rôles",
+      "resourceGrants": "Autorisations de ressources",
+      "resourceDenies": "Refus de ressources",
+      "conflicts": "Conflits",
+      "accessDebugger": "Débogueur d’accès",
+      "ariaLabel": "Onglets des autorisations"
+    },
+    "statuses": {
+      "active": "Actif",
+      "revoked": "Révoqué",
+      "expired": "Expiré"
+    },
+    "conflictStatuses": {
+      "open": "Ouvert",
+      "investigating": "En cours d’analyse",
+      "resolved": "Résolu",
+      "dismissed": "Rejeté"
+    },
+    "severities": {
+      "info": "Information",
+      "warning": "Avertissement",
+      "blocking": "Bloquant",
+      "security_risk": "Risque de sécurité"
+    },
+    "outcomes": {
+      "allow": "Autoriser",
+      "deny": "Refuser",
+      "neutral": "Neutre",
+      "skip": "Ignoré"
+    },
+    "columns": {
+      "principal": "Principal",
+      "principalType": "Type de principal",
+      "principalValue": "Valeur du principal",
+      "resource": "Ressource",
+      "resourceType": "Type de ressource",
+      "resourceId": "ID de ressource",
+      "action": "Action",
+      "reason": "Motif",
+      "status": "Statut",
+      "expires": "Expiration",
+      "subject": "Sujet",
+      "detected": "Détecté",
+      "grantId": "ID d’autorisation",
+      "denyId": "ID de refus",
+      "type": "Type",
+      "severity": "Gravité"
+    },
+    "filters": {
+      "allResourceTypes": "Tous les types de ressources",
+      "allStatuses": "Tous les statuts",
+      "allSeverities": "Toutes les gravités"
+    },
+    "matrix": {
+      "notGranted": "Non accordé",
+      "granted": "Accordé",
+      "grantedOverridden": "Accordé (valeur par défaut remplacée)",
+      "descriptionBefore": "La matrice indique les autorisations de chaque rôle intégré. Les cellules marquées par",
+      "descriptionAfter": "diffèrent des valeurs par défaut de Rudix.",
+      "editing": "Modification : {role}",
+      "editRolePermissions": "Modifier les autorisations des rôles",
+      "editRole": "Modifier {role}",
+      "confirmOwnerTitle": "Confirmer la modification du rôle propriétaire",
+      "confirmOwnerDescription": "Vous modifiez le rôle Propriétaire. Cela affecte tous les propriétaires de l’organisation. Continuer ?"
+    },
+    "access": {
+      "grant": "Autorisation",
+      "deny": "Refus",
+      "grantAction": "Autorisation",
+      "denyAction": "Refus",
+      "add": "+ Ajouter : {kind}",
+      "new": "Nouvelle entrée : {kind}",
+      "create": "Créer : {kind}",
+      "empty": "Aucune entrée « {kind} » ne correspond aux filtres.",
+      "emptyGrants": "Aucune autorisation ne correspond aux filtres.",
+      "emptyDenies": "Aucun refus ne correspond aux filtres.",
+      "principalPlaceholder": "p. ex. UUID utilisateur ou nom d’équipe",
+      "blankAll": "(vide = tous)",
+      "resourceIdPlaceholder": "Laisser vide pour appliquer à tous",
+      "reasonPlaceholder": "Note d’audit facultative",
+      "revokeTitle": "Révoquer : {kind} ?",
+      "allParenthetical": "(tous)"
+    },
+    "conflicts": {
+      "detailTitle": "Détail du conflit",
+      "noSummary": "Aucun résumé disponible",
+      "suggestedRemediation": "Correction suggérée",
+      "updateStatus": "Mettre à jour le statut",
+      "resolutionPlaceholder": "Note de résolution (facultatif)",
+      "markInvestigating": "Marquer en cours d’analyse",
+      "markResolved": "Marquer comme résolu",
+      "dismiss": "Rejeter",
+      "scanning": "Analyse…",
+      "runScan": "Lancer l’analyse",
+      "scanComplete": "Analyse terminée — {detected} conflits détectés, {created} nouveaux.",
+      "empty": "Aucun conflit ne correspond aux filtres actuels.",
+      "runAScan": "Lancer une analyse",
+      "emptySuffix": "pour détecter de nouveaux conflits."
+    },
+    "debugger": {
+      "description": "Simulez le moteur de règles pour comprendre pourquoi l’accès est autorisé ou refusé. Seules les métadonnées structurelles sont renvoyées ; aucun contenu n’est exposé.",
+      "checkAccess": "Vérifier l’accès",
+      "subjectUserId": "ID de l’utilisateur sujet",
+      "subjectPlaceholder": "UUID de l’utilisateur à vérifier",
+      "resourcePlaceholder": "Laisser vide pour vérifier l’accès générique",
+      "checking": "Vérification…",
+      "subjectRequired": "L’ID de l’utilisateur sujet est obligatoire.",
+      "rule": "Règle",
+      "policyTrace": "Trace de la règle",
+      "howToGrant": "Comment accorder l’accès",
+      "requestId": "ID de requête"
+    },
+    "errors": {
+      "rolesViewRequired": "L’autorisation roles:view est nécessaire.",
+      "securityViewRequired": "L’autorisation security_center:view est nécessaire.",
+      "pagePermissionRequired": "L’autorisation roles:view est nécessaire pour accéder à cette page."
+    }
   }
 }

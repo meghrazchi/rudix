@@ -4674,5 +4674,143 @@
       "permissionRequired": "You need the roles:view permission to access this page.",
       "accessDenied": "You do not have access to role management."
     }
+  },
+  "adminPermissions": {
+    "adminEyebrow": "Admin",
+    "title": "Access Management",
+    "description": "Manage the role permission matrix and explicit resource-level grants and denies for your organization.",
+    "securityNoteLabel": "Security note:",
+    "securityNote": "Backend authorization is the source of truth. Frontend permission checks are for UX only and never replace backend enforcement. Unsafe changes are blocked automatically.",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "saveChanges": "Save changes",
+    "confirmChange": "Confirm change",
+    "permission": "Permission",
+    "select": "Select…",
+    "all": "all",
+    "never": "never",
+    "revoke": "Revoke",
+    "revoking": "Revoking…",
+    "view": "View",
+    "optional": "(optional)",
+    "showing": "Showing {count} of {total}",
+    "tabs": {
+      "roleMatrix": "Role Matrix",
+      "resourceGrants": "Resource Grants",
+      "resourceDenies": "Resource Denies",
+      "conflicts": "Conflicts",
+      "accessDebugger": "Access Debugger",
+      "ariaLabel": "Permissions tabs"
+    },
+    "statuses": {
+      "active": "Active",
+      "revoked": "Revoked",
+      "expired": "Expired"
+    },
+    "conflictStatuses": {
+      "open": "Open",
+      "investigating": "Investigating",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed"
+    },
+    "severities": {
+      "info": "Info",
+      "warning": "Warning",
+      "blocking": "Blocking",
+      "security_risk": "Security risk"
+    },
+    "outcomes": {
+      "allow": "Allow",
+      "deny": "Deny",
+      "neutral": "Neutral",
+      "skip": "Skipped"
+    },
+    "columns": {
+      "principal": "Principal",
+      "principalType": "Principal type",
+      "principalValue": "Principal value",
+      "resource": "Resource",
+      "resourceType": "Resource type",
+      "resourceId": "Resource ID",
+      "action": "Action",
+      "reason": "Reason",
+      "status": "Status",
+      "expires": "Expires",
+      "subject": "Subject",
+      "detected": "Detected",
+      "grantId": "Grant ID",
+      "denyId": "Deny ID",
+      "type": "Type",
+      "severity": "Severity"
+    },
+    "filters": {
+      "allResourceTypes": "All resource types",
+      "allStatuses": "All statuses",
+      "allSeverities": "All severities"
+    },
+    "matrix": {
+      "notGranted": "Not granted",
+      "granted": "Granted",
+      "grantedOverridden": "Granted (overridden from default)",
+      "descriptionBefore": "The role matrix shows which permissions each built-in role holds. Cells marked with",
+      "descriptionAfter": "differ from the canonical defaults shipped with Rudix.",
+      "editing": "Editing: {role}",
+      "editRolePermissions": "Edit role permissions",
+      "editRole": "Edit {role}",
+      "confirmOwnerTitle": "Confirm owner role change",
+      "confirmOwnerDescription": "You are modifying the Owner role. This affects all organization owners. Are you sure?"
+    },
+    "access": {
+      "grant": "grant",
+      "deny": "deny",
+      "grantAction": "Grant",
+      "denyAction": "Deny",
+      "add": "+ Add {kind}",
+      "new": "New resource {kind}",
+      "create": "Create {kind}",
+      "empty": "No {kind} entries match the selected filters.",
+      "emptyGrants": "No grants match the selected filters.",
+      "emptyDenies": "No deny entries match the selected filters.",
+      "principalPlaceholder": "e.g. user-uuid or team-name",
+      "blankAll": "(blank = all)",
+      "resourceIdPlaceholder": "Leave blank to apply to all",
+      "reasonPlaceholder": "Optional audit note",
+      "revokeTitle": "Revoke {kind}?",
+      "allParenthetical": "(all)"
+    },
+    "conflicts": {
+      "detailTitle": "Conflict Detail",
+      "noSummary": "No summary available",
+      "suggestedRemediation": "Suggested remediation",
+      "updateStatus": "Update status",
+      "resolutionPlaceholder": "Resolution note (optional)",
+      "markInvestigating": "Mark investigating",
+      "markResolved": "Mark resolved",
+      "dismiss": "Dismiss",
+      "scanning": "Scanning…",
+      "runScan": "Run scan",
+      "scanComplete": "Scan complete — {detected} conflicts detected, {created} new.",
+      "empty": "No conflicts match the current filters.",
+      "runAScan": "Run a scan",
+      "emptySuffix": "to detect new conflicts."
+    },
+    "debugger": {
+      "description": "Simulate the policy engine for any user in your organization to see exactly why access is allowed or denied. Only structural access metadata is returned — no resource content is exposed.",
+      "checkAccess": "Check access",
+      "subjectUserId": "Subject user ID",
+      "subjectPlaceholder": "UUID of the user to check",
+      "resourcePlaceholder": "Leave blank to check generic resource access",
+      "checking": "Checking…",
+      "subjectRequired": "Subject user ID is required.",
+      "rule": "Rule",
+      "policyTrace": "Policy trace",
+      "howToGrant": "How to grant access",
+      "requestId": "Request ID"
+    },
+    "errors": {
+      "rolesViewRequired": "You need roles:view permission.",
+      "securityViewRequired": "You need security_center:view permission.",
+      "pagePermissionRequired": "You need the roles:view permission to access this page."
+    }
   }
 }
