@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   DEFAULT_PROVIDER_SECURITY,
@@ -130,6 +131,7 @@ function resolveToolDanger(
 }
 
 export function AdminGovernancePage() {
+  const t = useTranslations("adminGovernance");
   const { state } = useAuthSession();
   const queryClient = useQueryClient();
   const role = state.session?.role;
@@ -227,8 +229,8 @@ export function AdminGovernancePage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Admin governance restricted"
-          description="Only owner and admin roles can manage agent and MCP policy."
+          title={t("restricted")}
+          description={t("restrictedDescription")}
           compact={false}
         />
       </section>
@@ -239,8 +241,8 @@ export function AdminGovernancePage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Governance settings unavailable"
-          description="Your role no longer has access to governance settings."
+          title={t("unavailable")}
+          description={t("unavailableDescription")}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -251,8 +253,8 @@ export function AdminGovernancePage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <LoadingState
-          title="Loading governance settings"
-          description="Preparing organization policy configuration."
+          title={t("loading")}
+          description={t("loadingDescription")}
           compact={false}
         />
       </section>
@@ -263,7 +265,7 @@ export function AdminGovernancePage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ErrorState
-          title="Unable to load governance settings"
+          title={t("loadError")}
           description={getApiErrorMessage(governanceQuery.error)}
           compact={false}
           requestId={extractRequestIdFromError(governanceQuery.error)}
@@ -282,22 +284,17 @@ export function AdminGovernancePage() {
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Rudix Admin
+          {t("eyebrow")}
         </p>
         <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-          Agent and MCP governance
+          {t("title")}
         </h1>
-        <p className="max-w-3xl text-sm text-[#68647b]">
-          Control organization-level agent mode, MCP exposure, tool allowlists,
-          and execution budgets.
-        </p>
+        <p className="max-w-3xl text-sm text-[#68647b]">{t("description")}</p>
       </header>
 
       {warnings.length > 0 ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <h2 className="text-sm font-bold text-amber-900">
-            Governance warnings
-          </h2>
+          <h2 className="text-sm font-bold text-amber-900">{t("warnings")}</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
             {warnings.map((warning) => (
               <li key={warning}>{warning}</li>
@@ -308,7 +305,7 @@ export function AdminGovernancePage() {
 
       {mutationError ? (
         <ErrorState
-          title="Unable to save governance policy"
+          title={t("saveError")}
           description={mutationError}
           compact={false}
         />
@@ -316,11 +313,13 @@ export function AdminGovernancePage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-[#2a2640]">Policy toggles</h2>
+          <h2 className="text-lg font-bold text-[#2a2640]">
+            {t("policyToggles")}
+          </h2>
           <div className="mt-3 space-y-3">
             <label className="flex items-center justify-between rounded-lg border border-[#e1dff0] p-3">
               <span className="text-sm font-medium text-[#3d3953]">
-                Enable agentic mode
+                {t("enableAgenticMode")}
               </span>
               <input
                 type="checkbox"
@@ -335,7 +334,7 @@ export function AdminGovernancePage() {
             </label>
             <label className="flex items-center justify-between rounded-lg border border-[#e1dff0] p-3">
               <span className="text-sm font-medium text-[#3d3953]">
-                Allow MCP exposure for this organization
+                {t("allowMcpExposure")}
               </span>
               <input
                 type="checkbox"
@@ -350,7 +349,7 @@ export function AdminGovernancePage() {
             </label>
             <label className="flex items-center justify-between rounded-lg border border-[#e1dff0] p-3">
               <span className="text-sm font-medium text-[#3d3953]">
-                Allow side-effect tools
+                {t("allowSideEffects")}
               </span>
               <input
                 type="checkbox"
@@ -370,53 +369,60 @@ export function AdminGovernancePage() {
                   checked={sideEffectAck}
                   onChange={(event) => setSideEffectAck(event.target.checked)}
                 />
-                <span>
-                  I acknowledge side-effect tools can modify data and should be
-                  protected by approvals.
-                </span>
+                <span>{t("sideEffectAcknowledgement")}</span>
               </label>
             ) : null}
           </div>
         </article>
 
         <article className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-[#2a2640]">MCP endpoint</h2>
+          <h2 className="text-lg font-bold text-[#2a2640]">
+            {t("mcpEndpoint")}
+          </h2>
           {mcpStatus ? (
             <dl className="mt-3 grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 text-sm">
-              <dt className="font-medium text-[#6a6780]">MCP feature flag</dt>
+              <dt className="font-medium text-[#6a6780]">
+                {t("mcpFeatureFlag")}
+              </dt>
               <dd className="font-semibold text-[#2a2640]">
-                {mcpStatus.feature_enable_mcp ? "Enabled" : "Disabled"}
+                {mcpStatus.feature_enable_mcp ? t("enabled") : t("disabled")}
               </dd>
-              <dt className="font-medium text-[#6a6780]">Transport</dt>
+              <dt className="font-medium text-[#6a6780]">{t("transport")}</dt>
               <dd className="font-semibold text-[#2a2640]">
                 {mcpStatus.mcp_transport}
               </dd>
-              <dt className="font-medium text-[#6a6780]">Endpoint</dt>
+              <dt className="font-medium text-[#6a6780]">{t("endpoint")}</dt>
               <dd className="font-semibold text-[#2a2640]">
                 {mcpStatus.mcp_http_host}:{mcpStatus.mcp_http_port}
                 {mcpStatus.mcp_http_path}
               </dd>
-              <dt className="font-medium text-[#6a6780]">Auth required</dt>
+              <dt className="font-medium text-[#6a6780]">
+                {t("authRequired")}
+              </dt>
               <dd className="font-semibold text-[#2a2640]">
-                {mcpStatus.mcp_auth_required ? "Yes" : "No"}
+                {mcpStatus.mcp_auth_required ? t("yes") : t("no")}
               </dd>
-              <dt className="font-medium text-[#6a6780]">Rate limit</dt>
+              <dt className="font-medium text-[#6a6780]">{t("rateLimit")}</dt>
               <dd className="font-semibold text-[#2a2640]">
-                {mcpStatus.mcp_rate_limit_enabled ? "Enabled" : "Disabled"}
+                {mcpStatus.mcp_rate_limit_enabled
+                  ? t("enabled")
+                  : t("disabled")}
               </dd>
               <dt className="font-medium text-[#6a6780]">
-                External connectors
+                {t("externalConnectors")}
               </dt>
               <dd className="font-semibold text-[#2a2640]">
                 {mcpStatus.feature_enable_external_mcp_connectors
-                  ? `Enabled (${mcpStatus.configured_global_external_servers} global)`
-                  : "Disabled"}
+                  ? t("enabledGlobal", {
+                      count: mcpStatus.configured_global_external_servers,
+                    })
+                  : t("disabled")}
               </dd>
             </dl>
           ) : (
             <EmptyState
-              title="MCP status unavailable"
-              description="No MCP status payload was returned by the backend."
+              title={t("mcpUnavailable")}
+              description={t("mcpUnavailableDescription")}
               compact
             />
           )}
@@ -433,9 +439,11 @@ export function AdminGovernancePage() {
       />
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[#2a2640]">Tool allowlist</h2>
+        <h2 className="text-lg font-bold text-[#2a2640]">
+          {t("toolAllowlist")}
+        </h2>
         <p className="mt-1 text-sm text-[#68647b]">
-          Only selected tools are available to the organization agent runtime.
+          {t("toolAllowlistDescription")}
         </p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {tools.map((tool) => {
@@ -475,7 +483,7 @@ export function AdminGovernancePage() {
                         : "bg-emerald-100 text-emerald-800"
                     }`}
                   >
-                    {tool.effect_policy}
+                    {t(`effect.${tool.effect_policy}`)}
                   </span>
                 </span>
               </label>
@@ -485,10 +493,10 @@ export function AdminGovernancePage() {
       </section>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[#2a2640]">Budgets</h2>
+        <h2 className="text-lg font-bold text-[#2a2640]">{t("budgets")}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <BudgetInput
-            label="Max steps"
+            label={t("budget.maxSteps")}
             value={String(policy.budgets.max_steps)}
             onChange={(value) =>
               setDraftPolicy({
@@ -501,7 +509,7 @@ export function AdminGovernancePage() {
             }
           />
           <BudgetInput
-            label="Max tool calls / run"
+            label={t("budget.maxToolCalls")}
             value={String(policy.budgets.max_tool_calls_per_run)}
             onChange={(value) =>
               setDraftPolicy({
@@ -516,7 +524,7 @@ export function AdminGovernancePage() {
             }
           />
           <BudgetInput
-            label="Max tool timeout (ms)"
+            label={t("budget.maxTimeout")}
             value={String(policy.budgets.max_tool_timeout_ms)}
             onChange={(value) =>
               setDraftPolicy({
@@ -530,7 +538,7 @@ export function AdminGovernancePage() {
             }
           />
           <BudgetInput
-            label="Max input bytes"
+            label={t("budget.maxInputBytes")}
             value={String(policy.budgets.max_tool_input_bytes)}
             onChange={(value) =>
               setDraftPolicy({
@@ -544,7 +552,7 @@ export function AdminGovernancePage() {
             }
           />
           <BudgetInput
-            label="Max output bytes"
+            label={t("budget.maxOutputBytes")}
             value={String(policy.budgets.max_tool_output_bytes)}
             onChange={(value) =>
               setDraftPolicy({
@@ -558,7 +566,7 @@ export function AdminGovernancePage() {
             }
           />
           <BudgetInput
-            label="Max retry attempts"
+            label={t("budget.maxRetries")}
             value={String(policy.budgets.max_tool_retry_attempts)}
             onChange={(value) =>
               setDraftPolicy({
@@ -573,7 +581,7 @@ export function AdminGovernancePage() {
             }
           />
           <BudgetInput
-            label="Max total tokens (optional)"
+            label={t("budget.maxTokens")}
             value={String(policy.budgets.max_total_tokens ?? "")}
             onChange={(value) =>
               setDraftPolicy({
@@ -586,7 +594,7 @@ export function AdminGovernancePage() {
             }
           />
           <BudgetInput
-            label="Max total cost USD (optional)"
+            label={t("budget.maxCost")}
             value={String(policy.budgets.max_total_cost_usd ?? "")}
             onChange={(value) =>
               setDraftPolicy({
@@ -604,10 +612,12 @@ export function AdminGovernancePage() {
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-bold text-[#2a2640]">
-            External MCP servers
+            {t("externalServers")}
           </h2>
           <span className="text-sm font-semibold text-[#6a6780]">
-            {policy.external_mcp_servers.length} configured
+            {t("configuredCount", {
+              count: policy.external_mcp_servers.length,
+            })}
           </span>
         </div>
         {policy.external_mcp_servers.length > 0 ? (
@@ -637,7 +647,7 @@ export function AdminGovernancePage() {
                     }
                     className="rounded-md border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
                   >
-                    Remove
+                    {t("remove")}
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-[#6a6780]">
@@ -650,15 +660,15 @@ export function AdminGovernancePage() {
           </div>
         ) : (
           <EmptyState
-            title="No external MCP servers"
-            description="Add an approved server configuration for this organization."
+            title={t("noExternalServers")}
+            description={t("noExternalServersDescription")}
             compact
           />
         )}
 
         <div className="mt-4 rounded-lg border border-dashed border-[#d2cee6] p-3">
           <h3 className="text-sm font-bold text-[#3d3953]">
-            Add external server
+            {t("addExternalServer")}
           </h3>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <input
@@ -669,7 +679,7 @@ export function AdminGovernancePage() {
                   server_id: event.target.value,
                 }))
               }
-              placeholder="server_id"
+              placeholder={t("serverIdPlaceholder")}
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm"
             />
             <input
@@ -680,7 +690,7 @@ export function AdminGovernancePage() {
                   base_url: event.target.value,
                 }))
               }
-              placeholder="https://server.example.com/mcp"
+              placeholder={t("serverUrlPlaceholder")}
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm"
             />
             <select
@@ -694,9 +704,9 @@ export function AdminGovernancePage() {
               }
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm"
             >
-              <option value="none">auth: none</option>
-              <option value="bearer">auth: bearer</option>
-              <option value="header">auth: header</option>
+              <option value="none">{t("auth.none")}</option>
+              <option value="bearer">{t("auth.bearer")}</option>
+              <option value="header">{t("auth.header")}</option>
             </select>
             <input
               value={newServer.auth_secret_ref}
@@ -706,7 +716,7 @@ export function AdminGovernancePage() {
                   auth_secret_ref: event.target.value,
                 }))
               }
-              placeholder="secret ref"
+              placeholder={t("secretRefPlaceholder")}
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm"
             />
             <input
@@ -717,7 +727,7 @@ export function AdminGovernancePage() {
                   auth_header_name: event.target.value,
                 }))
               }
-              placeholder="auth header name (optional)"
+              placeholder={t("authHeaderPlaceholder")}
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm"
             />
             <input
@@ -728,7 +738,7 @@ export function AdminGovernancePage() {
                   allow_tools: event.target.value,
                 }))
               }
-              placeholder="allow tools (comma list)"
+              placeholder={t("allowToolsPlaceholder")}
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm"
             />
           </div>
@@ -744,7 +754,7 @@ export function AdminGovernancePage() {
                   }))
                 }
               />
-              Enabled
+              {t("enabled")}
             </label>
             <label className="inline-flex items-center gap-1">
               <input
@@ -757,7 +767,7 @@ export function AdminGovernancePage() {
                   }))
                 }
               />
-              Expose on MCP surface
+              {t("exposeMcpSurface")}
             </label>
             <label className="inline-flex items-center gap-1">
               <input
@@ -770,7 +780,7 @@ export function AdminGovernancePage() {
                   }))
                 }
               />
-              Require approvals for side effects
+              {t("requireApprovals")}
             </label>
           </div>
           <button
@@ -808,7 +818,7 @@ export function AdminGovernancePage() {
             }}
             className="mt-3 rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
           >
-            Add server
+            {t("addServer")}
           </button>
         </div>
       </section>
@@ -819,7 +829,7 @@ export function AdminGovernancePage() {
           onClick={() => setDraftPolicy(clonePolicy(policy))}
           className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f8f6ff]"
         >
-          Reset
+          {t("reset")}
         </button>
         <button
           type="button"
@@ -827,7 +837,7 @@ export function AdminGovernancePage() {
           disabled={saveMutation.isPending}
           className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:opacity-60"
         >
-          {saveMutation.isPending ? "Saving..." : "Save governance policy"}
+          {saveMutation.isPending ? t("saving") : t("savePolicy")}
         </button>
       </div>
     </section>
