@@ -4630,5 +4630,49 @@
       "process": "Proceso",
       "obligation": "Obligación"
     }
+  },
+  "adminRoles": {
+    "adminEyebrow": "Administración",
+    "title": "Roles y permisos",
+    "description": "Gestiona los roles integrados y crea roles personalizados para tu organización.",
+    "createRole": "Crear rol",
+    "createRoleWithPlus": "+ Crear rol",
+    "builtInRoles": "Roles integrados",
+    "customRoles": "Roles personalizados",
+    "builtInBadge": "Integrado",
+    "basedOn": "Basado en {role}",
+    "morePermissions": "+{count} más",
+    "viewPermissions": "Ver permisos",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "permissions": "Permisos",
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "empty": "Aún no hay roles personalizados.",
+    "createOne": "Crea uno",
+    "emptySuffix": "para ampliar el conjunto de roles integrados.",
+    "form": {
+      "createTitle": "Crear rol personalizado",
+      "editTitle": "Editar rol personalizado",
+      "name": "Nombre",
+      "namePlaceholder": "p. ej., Analista de solo lectura",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Descripción opcional",
+      "baseRole": "Basado en un rol (opcional)",
+      "none": "Ninguno",
+      "inheritanceHelp": "Hereda los permisos del rol seleccionado además de los indicados abajo.",
+      "saving": "Guardando…",
+      "saveChanges": "Guardar cambios"
+    },
+    "deleteDialog": {
+      "title": "¿Eliminar “{name}”?",
+      "description": "Los miembros asignados a este rol volverán a su rol integrado base. Esta acción no se puede deshacer.",
+      "deleting": "Eliminando…",
+      "confirm": "Eliminar rol"
+    },
+    "errors": {
+      "permissionRequired": "Necesitas el permiso roles:view para acceder a esta página.",
+      "accessDenied": "No tienes acceso a la gestión de roles."
+    }
   }
 }

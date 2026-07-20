@@ -4630,5 +4630,49 @@
       "process": "فرایند",
       "obligation": "تعهد"
     }
+  },
+  "adminRoles": {
+    "adminEyebrow": "مدیریت",
+    "title": "نقش‌ها و مجوزها",
+    "description": "نقش‌های داخلی را مدیریت و برای سازمان خود نقش‌های سفارشی ایجاد کنید.",
+    "createRole": "ایجاد نقش",
+    "createRoleWithPlus": "+ ایجاد نقش",
+    "builtInRoles": "نقش‌های داخلی",
+    "customRoles": "نقش‌های سفارشی",
+    "builtInBadge": "داخلی",
+    "basedOn": "بر پایه {role}",
+    "morePermissions": "+{count} مورد دیگر",
+    "viewPermissions": "مشاهده مجوزها",
+    "edit": "ویرایش",
+    "delete": "حذف",
+    "permissions": "مجوزها",
+    "close": "بستن",
+    "cancel": "لغو",
+    "empty": "هنوز نقش سفارشی‌ای وجود ندارد.",
+    "createOne": "یک نقش ایجاد کنید",
+    "emptySuffix": "تا مجموعه نقش‌های داخلی را گسترش دهید.",
+    "form": {
+      "createTitle": "ایجاد نقش سفارشی",
+      "editTitle": "ویرایش نقش سفارشی",
+      "name": "نام",
+      "namePlaceholder": "برای نمونه، تحلیل‌گر فقط‌خواندنی",
+      "description": "توضیحات",
+      "descriptionPlaceholder": "توضیحات اختیاری",
+      "baseRole": "بر پایه نقش (اختیاری)",
+      "none": "هیچ‌کدام",
+      "inheritanceHelp": "علاوه بر مجوزهای زیر، مجوزهای نقش انتخاب‌شده را نیز به ارث می‌برد.",
+      "saving": "در حال ذخیره…",
+      "saveChanges": "ذخیره تغییرات"
+    },
+    "deleteDialog": {
+      "title": "«{name}» حذف شود؟",
+      "description": "اعضای دارای این نقش به نقش داخلی پایه خود بازمی‌گردند. این عملیات قابل بازگشت نیست.",
+      "deleting": "در حال حذف…",
+      "confirm": "حذف نقش"
+    },
+    "errors": {
+      "permissionRequired": "برای دسترسی به این صفحه به مجوز roles:view نیاز دارید.",
+      "accessDenied": "به مدیریت نقش‌ها دسترسی ندارید."
+    }
   }
 }

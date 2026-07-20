@@ -4630,5 +4630,49 @@
       "process": "Prozess",
       "obligation": "Verpflichtung"
     }
+  },
+  "adminRoles": {
+    "adminEyebrow": "Administration",
+    "title": "Rollen & Berechtigungen",
+    "description": "Verwalten Sie integrierte Rollen und erstellen Sie benutzerdefinierte Rollen für Ihre Organisation.",
+    "createRole": "Rolle erstellen",
+    "createRoleWithPlus": "+ Rolle erstellen",
+    "builtInRoles": "Integrierte Rollen",
+    "customRoles": "Benutzerdefinierte Rollen",
+    "builtInBadge": "Integriert",
+    "basedOn": "Basiert auf {role}",
+    "morePermissions": "+{count} weitere",
+    "viewPermissions": "Berechtigungen anzeigen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "permissions": "Berechtigungen",
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "empty": "Noch keine benutzerdefinierten Rollen.",
+    "createOne": "Erstellen Sie eine",
+    "emptySuffix": "und erweitern Sie die integrierten Rollen.",
+    "form": {
+      "createTitle": "Benutzerdefinierte Rolle erstellen",
+      "editTitle": "Benutzerdefinierte Rolle bearbeiten",
+      "name": "Name",
+      "namePlaceholder": "z. B. Analyst mit Lesezugriff",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Optionale Beschreibung",
+      "baseRole": "Basiert auf Rolle (optional)",
+      "none": "Keine",
+      "inheritanceHelp": "Erbt zusätzlich zu den unten gewählten Berechtigungen die Berechtigungen der ausgewählten Rolle.",
+      "saving": "Wird gespeichert…",
+      "saveChanges": "Änderungen speichern"
+    },
+    "deleteDialog": {
+      "title": "„{name}“ löschen?",
+      "description": "Mitglieder mit dieser Rolle fallen auf ihre integrierte Basisrolle zurück. Dies kann nicht rückgängig gemacht werden.",
+      "deleting": "Wird gelöscht…",
+      "confirm": "Rolle löschen"
+    },
+    "errors": {
+      "permissionRequired": "Sie benötigen die Berechtigung roles:view, um auf diese Seite zuzugreifen.",
+      "accessDenied": "Sie haben keinen Zugriff auf die Rollenverwaltung."
+    }
   }
 }

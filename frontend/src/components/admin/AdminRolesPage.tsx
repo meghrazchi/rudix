@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -88,12 +89,13 @@ function BuiltinRoleCard({
   role: BuiltinRole;
   onView: (role: BuiltinRole) => void;
 }) {
+  const t = useTranslations("adminRoles");
   return (
     <div className="rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <div className="mb-1 flex items-center gap-2">
         <span className="font-semibold text-[#2a2640]">{role.label}</span>
         <span className="rounded-full bg-[#f0eeff] px-2 py-0.5 text-xs font-medium text-[#5d58a8]">
-          Built-in
+          {t("builtInBadge")}
         </span>
       </div>
       <p className="mb-3 text-sm text-[#68647b]">{role.description}</p>
@@ -108,7 +110,7 @@ function BuiltinRoleCard({
         ))}
         {role.permissions.length > 5 && (
           <span className="rounded bg-[#f5f3ff] px-2 py-0.5 text-xs text-[#4d4880]">
-            +{role.permissions.length - 5} more
+            {t("morePermissions", { count: role.permissions.length - 5 })}
           </span>
         )}
       </div>
@@ -117,7 +119,7 @@ function BuiltinRoleCard({
         onClick={() => onView(role)}
         className="text-sm font-medium text-[#3525cd] hover:underline"
       >
-        View permissions
+        {t("viewPermissions")}
       </button>
     </div>
   );
@@ -134,13 +136,14 @@ function CustomRoleCard({
   onDelete: (role: CustomRole) => void;
   canManage: boolean;
 }) {
+  const t = useTranslations("adminRoles");
   return (
     <div className="rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <div className="mb-1 flex items-center gap-2">
         <span className="font-semibold text-[#2a2640]">{role.name}</span>
         {role.base_role && (
           <span className="rounded-full bg-[#e8f5e9] px-2 py-0.5 text-xs font-medium text-[#2e7d32]">
-            Based on {role.base_role}
+            {t("basedOn", { role: role.base_role })}
           </span>
         )}
       </div>
@@ -158,7 +161,7 @@ function CustomRoleCard({
         ))}
         {role.permissions.length > 5 && (
           <span className="rounded bg-[#f5f3ff] px-2 py-0.5 text-xs text-[#4d4880]">
-            +{role.permissions.length - 5} more
+            {t("morePermissions", { count: role.permissions.length - 5 })}
           </span>
         )}
       </div>
@@ -169,14 +172,14 @@ function CustomRoleCard({
             onClick={() => onEdit(role)}
             className="text-sm font-medium text-[#3525cd] hover:underline"
           >
-            Edit
+            {t("edit")}
           </button>
           <button
             type="button"
             onClick={() => onDelete(role)}
             className="text-sm font-medium text-red-600 hover:underline"
           >
-            Delete
+            {t("delete")}
           </button>
         </div>
       )}
@@ -197,6 +200,7 @@ function RoleFormPanel({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useTranslations("adminRoles");
   const [name, setName] = useState(existingRole?.name ?? "");
   const [description, setDescription] = useState(
     existingRole?.description ?? "",
@@ -269,16 +273,16 @@ function RoleFormPanel({
   ];
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-lg flex-col border-l border-[#d7d4e8] bg-white shadow-xl">
+    <aside className="fixed inset-y-0 end-0 z-40 flex w-full max-w-lg flex-col border-s border-[#d7d4e8] bg-white shadow-xl">
       <div className="flex items-center justify-between border-b border-[#d7d4e8] px-6 py-4">
         <h2 className="text-lg font-semibold text-[#2a2640]">
-          {mode === "create" ? "Create Custom Role" : "Edit Custom Role"}
+          {mode === "create" ? t("form.createTitle") : t("form.editTitle")}
         </h2>
         <button
           type="button"
           onClick={onClose}
           className="text-[#68647b] hover:text-[#2a2640]"
-          aria-label="Close"
+          aria-label={t("close")}
         >
           ✕
         </button>
@@ -291,7 +295,7 @@ function RoleFormPanel({
         <div className="flex-1 space-y-5 px-6 py-5">
           <div>
             <label className="mb-1 block text-sm font-medium text-[#2a2640]">
-              Name <span className="text-red-500">*</span>
+              {t("form.name")} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -300,13 +304,13 @@ function RoleFormPanel({
               maxLength={64}
               required
               className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
-              placeholder="e.g. Read-only analyst"
+              placeholder={t("form.namePlaceholder")}
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-[#2a2640]">
-              Description
+              {t("form.description")}
             </label>
             <textarea
               value={description}
@@ -314,20 +318,20 @@ function RoleFormPanel({
               rows={2}
               maxLength={512}
               className="w-full resize-none rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
-              placeholder="Optional description"
+              placeholder={t("form.descriptionPlaceholder")}
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-[#2a2640]">
-              Based on role (optional)
+              {t("form.baseRole")}
             </label>
             <select
               value={baseRole}
               onChange={(e) => setBaseRole(e.target.value)}
               className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
             >
-              <option value="">None</option>
+              <option value="">{t("form.none")}</option>
               {BUILTIN_ROLES.map((r) => (
                 <option key={r} value={r}>
                   {r}
@@ -335,14 +339,13 @@ function RoleFormPanel({
               ))}
             </select>
             <p className="mt-1 text-xs text-[#68647b]">
-              Inherits the selected role&apos;s permissions in addition to those
-              below.
+              {t("form.inheritanceHelp")}
             </p>
           </div>
 
           <div>
             <p className="mb-2 text-sm font-medium text-[#2a2640]">
-              Permissions
+              {t("permissions")}
             </p>
             <div className="space-y-4">
               {Object.entries(grouped).map(([category, entries]) => (
@@ -379,10 +382,10 @@ function RoleFormPanel({
             className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-50"
           >
             {isPending
-              ? "Saving…"
+              ? t("form.saving")
               : mode === "create"
-                ? "Create role"
-                : "Save changes"}
+                ? t("createRole")
+                : t("form.saveChanges")}
           </button>
           <button
             type="button"
@@ -390,7 +393,7 @@ function RoleFormPanel({
             disabled={isPending}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
           >
-            Cancel
+            {t("cancel")}
           </button>
         </div>
       </form>
@@ -407,11 +410,12 @@ function BuiltinRolePanel({
   allPermissions: PermissionEntry[];
   onClose: () => void;
 }) {
+  const t = useTranslations("adminRoles");
   const grouped = groupPermissions(allPermissions);
   const rolePerms = new Set(role.permissions);
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-lg flex-col border-l border-[#d7d4e8] bg-white shadow-xl">
+    <aside className="fixed inset-y-0 end-0 z-40 flex w-full max-w-lg flex-col border-s border-[#d7d4e8] bg-white shadow-xl">
       <div className="flex items-center justify-between border-b border-[#d7d4e8] px-6 py-4">
         <div>
           <h2 className="text-lg font-semibold text-[#2a2640]">{role.label}</h2>
@@ -421,7 +425,7 @@ function BuiltinRolePanel({
           type="button"
           onClick={onClose}
           className="text-[#68647b] hover:text-[#2a2640]"
-          aria-label="Close"
+          aria-label={t("close")}
         >
           ✕
         </button>
@@ -451,6 +455,7 @@ function BuiltinRolePanel({
 }
 
 export function AdminRolesPage() {
+  const t = useTranslations("adminRoles");
   const { hasPermission } = usePermissions();
   const canView = hasPermission("roles:view");
   const canManage = hasPermission("roles:manage");
@@ -487,8 +492,8 @@ export function AdminRolesPage() {
   if (!canView) {
     return (
       <ForbiddenState
-        title="Roles &amp; Permissions"
-        description="You need the roles:view permission to access this page."
+        title={t("title")}
+        description={t("errors.permissionRequired")}
         requestId={forbiddenRequestId}
         backHref="/dashboard"
       />
@@ -504,8 +509,8 @@ export function AdminRolesPage() {
     if (isForbiddenError(loadError)) {
       return (
         <ForbiddenState
-          title="Roles &amp; Permissions"
-          description="You do not have access to role management."
+          title={t("title")}
+          description={t("errors.accessDenied")}
           requestId={extractRequestIdFromError(loadError)}
           backHref="/dashboard"
         />
@@ -522,14 +527,12 @@ export function AdminRolesPage() {
       <div className="flex items-start justify-between">
         <div>
           <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-            Admin
+            {t("adminEyebrow")}
           </p>
           <h1 className="text-2xl font-extrabold text-[#2a2640]">
-            Roles &amp; Permissions
+            {t("title")}
           </h1>
-          <p className="mt-1 text-sm text-[#68647b]">
-            Manage built-in roles and create custom roles for your organization.
-          </p>
+          <p className="mt-1 text-sm text-[#68647b]">{t("description")}</p>
         </div>
         {canManage && (
           <button
@@ -537,14 +540,14 @@ export function AdminRolesPage() {
             onClick={() => setPanel({ kind: "create" })}
             className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
           >
-            + Create role
+            {t("createRoleWithPlus")}
           </button>
         )}
       </div>
 
       <section>
         <h2 className="mb-4 text-base font-semibold text-[#2a2640]">
-          Built-in roles
+          {t("builtInRoles")}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {roles.builtin_roles.map((role) => (
@@ -559,14 +562,14 @@ export function AdminRolesPage() {
 
       <section>
         <h2 className="mb-4 text-base font-semibold text-[#2a2640]">
-          Custom roles
+          {t("customRoles")}
           <span className="ml-2 text-sm font-normal text-[#68647b]">
             ({roles.custom_roles.length})
           </span>
         </h2>
         {roles.custom_roles.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#d7d4e8] p-8 text-center text-sm text-[#68647b]">
-            No custom roles yet.
+            {t("empty")}
             {canManage && (
               <>
                 {" "}
@@ -575,9 +578,9 @@ export function AdminRolesPage() {
                   onClick={() => setPanel({ kind: "create" })}
                   className="font-medium text-[#3525cd] hover:underline"
                 >
-                  Create one
+                  {t("createOne")}
                 </button>{" "}
-                to extend the built-in role set.
+                {t("emptySuffix")}
               </>
             )}
           </div>
@@ -611,11 +614,10 @@ export function AdminRolesPage() {
               id="delete-dialog-title"
               className="mb-2 text-base font-semibold text-[#2a2640]"
             >
-              Delete &ldquo;{deleteTarget.name}&rdquo;?
+              {t("deleteDialog.title", { name: deleteTarget.name })}
             </h3>
             <p className="mb-4 text-sm text-[#68647b]">
-              Members assigned this role will fall back to their base built-in
-              role. This cannot be undone.
+              {t("deleteDialog.description")}
             </p>
             {deleteError && (
               <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -629,7 +631,9 @@ export function AdminRolesPage() {
                 disabled={deleteMutation.isPending}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
               >
-                {deleteMutation.isPending ? "Deleting…" : "Delete role"}
+                {deleteMutation.isPending
+                  ? t("deleteDialog.deleting")
+                  : t("deleteDialog.confirm")}
               </button>
               <button
                 type="button"
@@ -640,7 +644,7 @@ export function AdminRolesPage() {
                 disabled={deleteMutation.isPending}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
               >
-                Cancel
+                {t("cancel")}
               </button>
             </div>
           </div>

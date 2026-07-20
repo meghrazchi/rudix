@@ -4630,5 +4630,49 @@
       "process": "عملية",
       "obligation": "التزام"
     }
+  },
+  "adminRoles": {
+    "adminEyebrow": "الإدارة",
+    "title": "الأدوار والأذونات",
+    "description": "أدر الأدوار المضمنة وأنشئ أدوارًا مخصصة لمؤسستك.",
+    "createRole": "إنشاء دور",
+    "createRoleWithPlus": "+ إنشاء دور",
+    "builtInRoles": "الأدوار المضمنة",
+    "customRoles": "الأدوار المخصصة",
+    "builtInBadge": "مضمن",
+    "basedOn": "استنادًا إلى {role}",
+    "morePermissions": "+{count} أخرى",
+    "viewPermissions": "عرض الأذونات",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "permissions": "الأذونات",
+    "close": "إغلاق",
+    "cancel": "إلغاء",
+    "empty": "لا توجد أدوار مخصصة بعد.",
+    "createOne": "أنشئ دورًا",
+    "emptySuffix": "لتوسيع مجموعة الأدوار المضمنة.",
+    "form": {
+      "createTitle": "إنشاء دور مخصص",
+      "editTitle": "تعديل الدور المخصص",
+      "name": "الاسم",
+      "namePlaceholder": "مثال: محلل للقراءة فقط",
+      "description": "الوصف",
+      "descriptionPlaceholder": "وصف اختياري",
+      "baseRole": "استنادًا إلى دور (اختياري)",
+      "none": "لا شيء",
+      "inheritanceHelp": "يرث أذونات الدور المحدد بالإضافة إلى الأذونات أدناه.",
+      "saving": "جارٍ الحفظ…",
+      "saveChanges": "حفظ التغييرات"
+    },
+    "deleteDialog": {
+      "title": "حذف «{name}»؟",
+      "description": "سيعود الأعضاء المسند إليهم هذا الدور إلى دورهم المضمن الأساسي. لا يمكن التراجع عن هذا الإجراء.",
+      "deleting": "جارٍ الحذف…",
+      "confirm": "حذف الدور"
+    },
+    "errors": {
+      "permissionRequired": "تحتاج إلى إذن roles:view للوصول إلى هذه الصفحة.",
+      "accessDenied": "لا يمكنك الوصول إلى إدارة الأدوار."
+    }
   }
 }

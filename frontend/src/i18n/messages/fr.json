@@ -4630,5 +4630,49 @@
       "process": "Processus",
       "obligation": "Obligation"
     }
+  },
+  "adminRoles": {
+    "adminEyebrow": "Administration",
+    "title": "Rôles et autorisations",
+    "description": "Gérez les rôles intégrés et créez des rôles personnalisés pour votre organisation.",
+    "createRole": "Créer un rôle",
+    "createRoleWithPlus": "+ Créer un rôle",
+    "builtInRoles": "Rôles intégrés",
+    "customRoles": "Rôles personnalisés",
+    "builtInBadge": "Intégré",
+    "basedOn": "Basé sur {role}",
+    "morePermissions": "+{count} autres",
+    "viewPermissions": "Voir les autorisations",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "permissions": "Autorisations",
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "empty": "Aucun rôle personnalisé.",
+    "createOne": "Créez-en un",
+    "emptySuffix": "pour compléter les rôles intégrés.",
+    "form": {
+      "createTitle": "Créer un rôle personnalisé",
+      "editTitle": "Modifier le rôle personnalisé",
+      "name": "Nom",
+      "namePlaceholder": "p. ex. Analyste en lecture seule",
+      "description": "Description",
+      "descriptionPlaceholder": "Description facultative",
+      "baseRole": "Basé sur un rôle (facultatif)",
+      "none": "Aucun",
+      "inheritanceHelp": "Hérite des autorisations du rôle sélectionné en plus de celles ci-dessous.",
+      "saving": "Enregistrement…",
+      "saveChanges": "Enregistrer les modifications"
+    },
+    "deleteDialog": {
+      "title": "Supprimer « {name} » ?",
+      "description": "Les membres affectés à ce rôle reprendront leur rôle intégré de base. Cette action est irréversible.",
+      "deleting": "Suppression…",
+      "confirm": "Supprimer le rôle"
+    },
+    "errors": {
+      "permissionRequired": "L’autorisation roles:view est nécessaire pour accéder à cette page.",
+      "accessDenied": "Vous n’avez pas accès à la gestion des rôles."
+    }
   }
 }

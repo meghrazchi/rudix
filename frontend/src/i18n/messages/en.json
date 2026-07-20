@@ -4630,5 +4630,49 @@
       "process": "Process",
       "obligation": "Obligation"
     }
+  },
+  "adminRoles": {
+    "adminEyebrow": "Admin",
+    "title": "Roles & Permissions",
+    "description": "Manage built-in roles and create custom roles for your organization.",
+    "createRole": "Create role",
+    "createRoleWithPlus": "+ Create role",
+    "builtInRoles": "Built-in roles",
+    "customRoles": "Custom roles",
+    "builtInBadge": "Built-in",
+    "basedOn": "Based on {role}",
+    "morePermissions": "+{count} more",
+    "viewPermissions": "View permissions",
+    "edit": "Edit",
+    "delete": "Delete",
+    "permissions": "Permissions",
+    "close": "Close",
+    "cancel": "Cancel",
+    "empty": "No custom roles yet.",
+    "createOne": "Create one",
+    "emptySuffix": "to extend the built-in role set.",
+    "form": {
+      "createTitle": "Create Custom Role",
+      "editTitle": "Edit Custom Role",
+      "name": "Name",
+      "namePlaceholder": "e.g. Read-only analyst",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "baseRole": "Based on role (optional)",
+      "none": "None",
+      "inheritanceHelp": "Inherits the selected role's permissions in addition to those below.",
+      "saving": "Saving…",
+      "saveChanges": "Save changes"
+    },
+    "deleteDialog": {
+      "title": "Delete “{name}”?",
+      "description": "Members assigned this role will fall back to their base built-in role. This cannot be undone.",
+      "deleting": "Deleting…",
+      "confirm": "Delete role"
+    },
+    "errors": {
+      "permissionRequired": "You need the roles:view permission to access this page.",
+      "accessDenied": "You do not have access to role management."
+    }
   }
 }
