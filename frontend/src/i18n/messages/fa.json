@@ -3177,13 +3177,17 @@
       "changeRole": "ذخیره",
       "sendInvite": "ارسال دعوت‌نامه",
       "sending": "در حال ارسال…",
-      "cancel": "لغو"
+      "cancel": "لغو",
+      "working": "در حال انجام…",
+      "saving": "در حال ذخیره…"
     },
     "inviteDialog": {
       "title": "دعوت عضو تیم",
       "emailLabel": "نشانی ایمیل",
       "emailPlaceholder": "colleague@company.com",
-      "roleLabel": "نقش"
+      "roleLabel": "نقش",
+      "nameLabel": "نام کامل",
+      "namePlaceholder": "جین اسمیت"
     },
     "confirmRemove": {
       "title": "{name} حذف شود؟",
@@ -3208,16 +3212,61 @@
       "memberRemoved": "عضو حذف شد.",
       "memberDeactivated": "عضو غیرفعال شد.",
       "inviteResent": "دعوت‌نامه دوباره ارسال شد.",
-      "inviteRevoked": "دعوت‌نامه لغو شد."
+      "inviteRevoked": "دعوت‌نامه لغو شد.",
+      "passwordUpdated": "گذرواژه به‌روزرسانی شد."
     },
     "errors": {
       "forbidden": "مدیریت تیم فقط برای مالکان و مدیران سازمان در دسترس است.",
-      "forbiddenTitle": "مدیریت تیم محدود است"
+      "forbiddenTitle": "مدیریت تیم محدود است",
+      "accessDenied": "دسترسی رد شد",
+      "noPermission": "اجازه مدیریت اعضای تیم را ندارید."
     },
     "pagination": {
       "of": "از",
       "previous": "قبلی",
-      "next": "بعدی"
+      "next": "بعدی",
+      "range": "{start}–{end} از {total}"
+    },
+    "optional": "(اختیاری)",
+    "closeDialog": "بستن پنجره",
+    "roleFor": "نقش برای {email}",
+    "roles": {
+      "owner": "مالک",
+      "admin": "مدیر",
+      "member": "عضو",
+      "viewer": "مشاهده‌گر",
+      "reviewer": "بازبین",
+      "developer": "توسعه‌دهنده",
+      "securityAdmin": "مدیر امنیت",
+      "billingAdmin": "مدیر صورتحساب"
+    },
+    "password": {
+      "title": "تنظیم گذرواژه",
+      "dialogLabel": "تنظیم گذرواژه عضو",
+      "newPassword": "گذرواژه جدید",
+      "minCharacters": "حداقل ۸ نویسه",
+      "confirm": "تأیید گذرواژه",
+      "repeat": "تکرار گذرواژه",
+      "show": "نمایش گذرواژه",
+      "hide": "پنهان کردن گذرواژه"
+    },
+    "loading": {
+      "team": "در حال بارگذاری مدیریت تیم…",
+      "members": "در حال بارگذاری اعضا…",
+      "invitations": "در حال بارگذاری دعوت‌نامه‌ها…"
+    },
+    "backToDashboard": "بازگشت به داشبورد",
+    "onboarding": {
+      "title": "تیم خود را دعوت کنید",
+      "description": "همکاری با دیگران اثربخش‌تر است. هم‌تیمی‌ها را دعوت کنید تا به پایگاه دانش و گفت‌وگو دسترسی داشته باشند و سند اضافه کنند.",
+      "action": "ارسال دعوت‌نامه"
+    },
+    "searchMembers": "جست‌وجوی اعضا",
+    "validation": {
+      "emailRequired": "ایمیل الزامی است",
+      "emailInvalid": "یک نشانی ایمیل معتبر وارد کنید",
+      "passwordLength": "گذرواژه باید حداقل ۸ نویسه باشد",
+      "passwordMismatch": "گذرواژه‌ها یکسان نیستند"
     }
   },
   "help": {

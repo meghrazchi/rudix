@@ -3177,13 +3177,17 @@
       "changeRole": "Save",
       "sendInvite": "Send invite",
       "sending": "Sending…",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "working": "Working…",
+      "saving": "Saving…"
     },
     "inviteDialog": {
       "title": "Invite team member",
       "emailLabel": "Email address",
       "emailPlaceholder": "colleague@company.com",
-      "roleLabel": "Role"
+      "roleLabel": "Role",
+      "nameLabel": "Full name",
+      "namePlaceholder": "Jane Smith"
     },
     "confirmRemove": {
       "title": "Remove {name}?",
@@ -3208,16 +3212,61 @@
       "memberRemoved": "Member removed.",
       "memberDeactivated": "Member deactivated.",
       "inviteResent": "Invitation resent.",
-      "inviteRevoked": "Invitation revoked."
+      "inviteRevoked": "Invitation revoked.",
+      "passwordUpdated": "Password updated."
     },
     "errors": {
       "forbidden": "Team management is only available to organization owners and admins.",
-      "forbiddenTitle": "Team management restricted"
+      "forbiddenTitle": "Team management restricted",
+      "accessDenied": "Access denied",
+      "noPermission": "You do not have permission to manage team members."
     },
     "pagination": {
       "of": "of",
       "previous": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "range": "{start}–{end} of {total}"
+    },
+    "optional": "(optional)",
+    "closeDialog": "Close dialog",
+    "roleFor": "Role for {email}",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Member",
+      "viewer": "Viewer",
+      "reviewer": "Reviewer",
+      "developer": "Developer",
+      "securityAdmin": "Security Admin",
+      "billingAdmin": "Billing Admin"
+    },
+    "password": {
+      "title": "Set password",
+      "dialogLabel": "Set member password",
+      "newPassword": "New password",
+      "minCharacters": "Min 8 characters",
+      "confirm": "Confirm password",
+      "repeat": "Repeat password",
+      "show": "Show password",
+      "hide": "Hide password"
+    },
+    "loading": {
+      "team": "Loading team management…",
+      "members": "Loading members…",
+      "invitations": "Loading invitations…"
+    },
+    "backToDashboard": "Back to dashboard",
+    "onboarding": {
+      "title": "Invite your team",
+      "description": "Collaborating with others is more powerful. Invite teammates so they can access the knowledge base, chat, and contribute documents.",
+      "action": "Send an invite"
+    },
+    "searchMembers": "Search members",
+    "validation": {
+      "emailRequired": "Email is required",
+      "emailInvalid": "Enter a valid email address",
+      "passwordLength": "Password must be at least 8 characters",
+      "passwordMismatch": "Passwords do not match"
     }
   },
   "help": {

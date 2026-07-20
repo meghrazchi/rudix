@@ -3177,13 +3177,17 @@
       "changeRole": "Guardar",
       "sendInvite": "Enviar invitación",
       "sending": "Enviando…",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "working": "Procesando…",
+      "saving": "Guardando…"
     },
     "inviteDialog": {
       "title": "Invitar miembro al equipo",
       "emailLabel": "Correo electrónico",
       "emailPlaceholder": "colega@empresa.com",
-      "roleLabel": "Rol"
+      "roleLabel": "Rol",
+      "nameLabel": "Nombre completo",
+      "namePlaceholder": "Jane Smith"
     },
     "confirmRemove": {
       "title": "¿Eliminar a {name}?",
@@ -3208,16 +3212,61 @@
       "memberRemoved": "Miembro eliminado.",
       "memberDeactivated": "Miembro desactivado.",
       "inviteResent": "Invitación reenviada.",
-      "inviteRevoked": "Invitación revocada."
+      "inviteRevoked": "Invitación revocada.",
+      "passwordUpdated": "Contraseña actualizada."
     },
     "errors": {
       "forbidden": "La gestión del equipo solo está disponible para propietarios y administradores de la organización.",
-      "forbiddenTitle": "Gestión del equipo restringida"
+      "forbiddenTitle": "Gestión del equipo restringida",
+      "accessDenied": "Acceso denegado",
+      "noPermission": "No tiene permiso para gestionar miembros del equipo."
     },
     "pagination": {
       "of": "de",
       "previous": "Anterior",
-      "next": "Siguiente"
+      "next": "Siguiente",
+      "range": "{start}–{end} de {total}"
+    },
+    "optional": "(opcional)",
+    "closeDialog": "Cerrar diálogo",
+    "roleFor": "Rol de {email}",
+    "roles": {
+      "owner": "Propietario",
+      "admin": "Administrador",
+      "member": "Miembro",
+      "viewer": "Lector",
+      "reviewer": "Revisor",
+      "developer": "Desarrollador",
+      "securityAdmin": "Administrador de seguridad",
+      "billingAdmin": "Administrador de facturación"
+    },
+    "password": {
+      "title": "Establecer contraseña",
+      "dialogLabel": "Establecer contraseña del miembro",
+      "newPassword": "Nueva contraseña",
+      "minCharacters": "Mínimo 8 caracteres",
+      "confirm": "Confirmar contraseña",
+      "repeat": "Repetir contraseña",
+      "show": "Mostrar contraseña",
+      "hide": "Ocultar contraseña"
+    },
+    "loading": {
+      "team": "Cargando gestión del equipo…",
+      "members": "Cargando miembros…",
+      "invitations": "Cargando invitaciones…"
+    },
+    "backToDashboard": "Volver al panel",
+    "onboarding": {
+      "title": "Invite a su equipo",
+      "description": "La colaboración es más potente. Invite a sus compañeros para que accedan a la base de conocimiento, al chat y aporten documentos.",
+      "action": "Enviar una invitación"
+    },
+    "searchMembers": "Buscar miembros",
+    "validation": {
+      "emailRequired": "El correo es obligatorio",
+      "emailInvalid": "Introduzca un correo electrónico válido",
+      "passwordLength": "La contraseña debe tener al menos 8 caracteres",
+      "passwordMismatch": "Las contraseñas no coinciden"
     }
   },
   "help": {

@@ -3177,13 +3177,17 @@
       "changeRole": "حفظ",
       "sendInvite": "إرسال الدعوة",
       "sending": "جارٍ الإرسال…",
-      "cancel": "إلغاء"
+      "cancel": "إلغاء",
+      "working": "جارٍ التنفيذ…",
+      "saving": "جارٍ الحفظ…"
     },
     "inviteDialog": {
       "title": "دعوة عضو إلى الفريق",
       "emailLabel": "عنوان البريد الإلكتروني",
       "emailPlaceholder": "colleague@company.com",
-      "roleLabel": "الدور"
+      "roleLabel": "الدور",
+      "nameLabel": "الاسم الكامل",
+      "namePlaceholder": "جين سميث"
     },
     "confirmRemove": {
       "title": "هل تريد إزالة {name}؟",
@@ -3208,16 +3212,61 @@
       "memberRemoved": "تمت إزالة العضو.",
       "memberDeactivated": "تم إلغاء تنشيط العضو.",
       "inviteResent": "تمت إعادة إرسال الدعوة.",
-      "inviteRevoked": "تم إلغاء الدعوة."
+      "inviteRevoked": "تم إلغاء الدعوة.",
+      "passwordUpdated": "تم تحديث كلمة المرور."
     },
     "errors": {
       "forbidden": "إدارة الفريق متاحة فقط لمالكي المؤسسة ومسؤوليها.",
-      "forbiddenTitle": "إدارة الفريق مقيّدة"
+      "forbiddenTitle": "إدارة الفريق مقيّدة",
+      "accessDenied": "تم رفض الوصول",
+      "noPermission": "ليست لديك صلاحية إدارة أعضاء الفريق."
     },
     "pagination": {
       "of": "من",
       "previous": "السابق",
-      "next": "التالي"
+      "next": "التالي",
+      "range": "{start}–{end} من {total}"
+    },
+    "optional": "(اختياري)",
+    "closeDialog": "إغلاق مربع الحوار",
+    "roleFor": "دور {email}",
+    "roles": {
+      "owner": "المالك",
+      "admin": "المسؤول",
+      "member": "عضو",
+      "viewer": "مشاهد",
+      "reviewer": "مراجع",
+      "developer": "مطوّر",
+      "securityAdmin": "مسؤول الأمان",
+      "billingAdmin": "مسؤول الفوترة"
+    },
+    "password": {
+      "title": "تعيين كلمة المرور",
+      "dialogLabel": "تعيين كلمة مرور العضو",
+      "newPassword": "كلمة المرور الجديدة",
+      "minCharacters": "8 أحرف على الأقل",
+      "confirm": "تأكيد كلمة المرور",
+      "repeat": "إعادة كلمة المرور",
+      "show": "إظهار كلمة المرور",
+      "hide": "إخفاء كلمة المرور"
+    },
+    "loading": {
+      "team": "جارٍ تحميل إدارة الفريق…",
+      "members": "جارٍ تحميل الأعضاء…",
+      "invitations": "جارٍ تحميل الدعوات…"
+    },
+    "backToDashboard": "العودة إلى لوحة المعلومات",
+    "onboarding": {
+      "title": "ادعُ فريقك",
+      "description": "يصبح التعاون أكثر فاعلية. ادعُ زملاءك للوصول إلى قاعدة المعرفة والدردشة والمساهمة بالمستندات.",
+      "action": "إرسال دعوة"
+    },
+    "searchMembers": "البحث عن الأعضاء",
+    "validation": {
+      "emailRequired": "البريد الإلكتروني مطلوب",
+      "emailInvalid": "أدخل عنوان بريد إلكتروني صالحًا",
+      "passwordLength": "يجب ألا تقل كلمة المرور عن 8 أحرف",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين"
     }
   },
   "help": {

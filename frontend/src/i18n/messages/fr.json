@@ -3177,13 +3177,17 @@
       "changeRole": "Enregistrer",
       "sendInvite": "Envoyer l'invitation",
       "sending": "Envoi…",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "working": "Traitement…",
+      "saving": "Enregistrement…"
     },
     "inviteDialog": {
       "title": "Inviter un membre de l'équipe",
       "emailLabel": "Adresse e-mail",
       "emailPlaceholder": "collegue@entreprise.fr",
-      "roleLabel": "Rôle"
+      "roleLabel": "Rôle",
+      "nameLabel": "Nom complet",
+      "namePlaceholder": "Jane Smith"
     },
     "confirmRemove": {
       "title": "Retirer {name}?",
@@ -3208,16 +3212,61 @@
       "memberRemoved": "Membre retiré.",
       "memberDeactivated": "Membre désactivé.",
       "inviteResent": "Invitation renvoyée.",
-      "inviteRevoked": "Invitation révoquée."
+      "inviteRevoked": "Invitation révoquée.",
+      "passwordUpdated": "Mot de passe mis à jour."
     },
     "errors": {
       "forbidden": "La gestion de l'équipe est réservée aux propriétaires et administrateurs de l'organisation.",
-      "forbiddenTitle": "Gestion de l'équipe restreinte"
+      "forbiddenTitle": "Gestion de l'équipe restreinte",
+      "accessDenied": "Accès refusé",
+      "noPermission": "Vous n’avez pas l’autorisation de gérer les membres de l’équipe."
     },
     "pagination": {
       "of": "sur",
       "previous": "Précédent",
-      "next": "Suivant"
+      "next": "Suivant",
+      "range": "{start}–{end} sur {total}"
+    },
+    "optional": "(facultatif)",
+    "closeDialog": "Fermer la boîte de dialogue",
+    "roleFor": "Rôle de {email}",
+    "roles": {
+      "owner": "Propriétaire",
+      "admin": "Administrateur",
+      "member": "Membre",
+      "viewer": "Lecteur",
+      "reviewer": "Réviseur",
+      "developer": "Développeur",
+      "securityAdmin": "Administrateur de sécurité",
+      "billingAdmin": "Administrateur de facturation"
+    },
+    "password": {
+      "title": "Définir le mot de passe",
+      "dialogLabel": "Définir le mot de passe du membre",
+      "newPassword": "Nouveau mot de passe",
+      "minCharacters": "8 caractères minimum",
+      "confirm": "Confirmer le mot de passe",
+      "repeat": "Répéter le mot de passe",
+      "show": "Afficher le mot de passe",
+      "hide": "Masquer le mot de passe"
+    },
+    "loading": {
+      "team": "Chargement de la gestion d’équipe…",
+      "members": "Chargement des membres…",
+      "invitations": "Chargement des invitations…"
+    },
+    "backToDashboard": "Retour au tableau de bord",
+    "onboarding": {
+      "title": "Invitez votre équipe",
+      "description": "La collaboration est plus efficace. Invitez vos collègues à accéder à la base de connaissances et au chat, et à ajouter des documents.",
+      "action": "Envoyer une invitation"
+    },
+    "searchMembers": "Rechercher des membres",
+    "validation": {
+      "emailRequired": "L’e-mail est obligatoire",
+      "emailInvalid": "Saisissez une adresse e-mail valide",
+      "passwordLength": "Le mot de passe doit contenir au moins 8 caractères",
+      "passwordMismatch": "Les mots de passe ne correspondent pas"
     }
   },
   "help": {

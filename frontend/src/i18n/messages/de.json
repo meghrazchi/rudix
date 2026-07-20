@@ -3177,13 +3177,17 @@
       "changeRole": "Speichern",
       "sendInvite": "Einladung senden",
       "sending": "Sendet…",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "working": "Wird ausgeführt…",
+      "saving": "Wird gespeichert…"
     },
     "inviteDialog": {
       "title": "Teammitglied einladen",
       "emailLabel": "E-Mail-Adresse",
       "emailPlaceholder": "kollege@unternehmen.de",
-      "roleLabel": "Rolle"
+      "roleLabel": "Rolle",
+      "nameLabel": "Vollständiger Name",
+      "namePlaceholder": "Jane Smith"
     },
     "confirmRemove": {
       "title": "{name} entfernen?",
@@ -3208,16 +3212,61 @@
       "memberRemoved": "Mitglied entfernt.",
       "memberDeactivated": "Mitglied deaktiviert.",
       "inviteResent": "Einladung erneut gesendet.",
-      "inviteRevoked": "Einladung widerrufen."
+      "inviteRevoked": "Einladung widerrufen.",
+      "passwordUpdated": "Passwort aktualisiert."
     },
     "errors": {
       "forbidden": "Teamverwaltung ist nur für Organisationsinhaber und Administratoren verfügbar.",
-      "forbiddenTitle": "Teamverwaltung eingeschränkt"
+      "forbiddenTitle": "Teamverwaltung eingeschränkt",
+      "accessDenied": "Zugriff verweigert",
+      "noPermission": "Sie haben keine Berechtigung, Teammitglieder zu verwalten."
     },
     "pagination": {
       "of": "von",
       "previous": "Zurück",
-      "next": "Weiter"
+      "next": "Weiter",
+      "range": "{start}–{end} von {total}"
+    },
+    "optional": "(optional)",
+    "closeDialog": "Dialog schließen",
+    "roleFor": "Rolle für {email}",
+    "roles": {
+      "owner": "Inhaber",
+      "admin": "Administrator",
+      "member": "Mitglied",
+      "viewer": "Betrachter",
+      "reviewer": "Prüfer",
+      "developer": "Entwickler",
+      "securityAdmin": "Sicherheitsadministrator",
+      "billingAdmin": "Abrechnungsadministrator"
+    },
+    "password": {
+      "title": "Passwort festlegen",
+      "dialogLabel": "Mitgliedspasswort festlegen",
+      "newPassword": "Neues Passwort",
+      "minCharacters": "Mindestens 8 Zeichen",
+      "confirm": "Passwort bestätigen",
+      "repeat": "Passwort wiederholen",
+      "show": "Passwort anzeigen",
+      "hide": "Passwort ausblenden"
+    },
+    "loading": {
+      "team": "Teamverwaltung wird geladen…",
+      "members": "Mitglieder werden geladen…",
+      "invitations": "Einladungen werden geladen…"
+    },
+    "backToDashboard": "Zurück zum Dashboard",
+    "onboarding": {
+      "title": "Laden Sie Ihr Team ein",
+      "description": "Zusammenarbeit ist wirkungsvoller. Laden Sie Teammitglieder ein, damit sie auf die Wissensdatenbank und den Chat zugreifen und Dokumente beitragen können.",
+      "action": "Einladung senden"
+    },
+    "searchMembers": "Mitglieder suchen",
+    "validation": {
+      "emailRequired": "E-Mail ist erforderlich",
+      "emailInvalid": "Geben Sie eine gültige E-Mail-Adresse ein",
+      "passwordLength": "Das Passwort muss mindestens 8 Zeichen lang sein",
+      "passwordMismatch": "Passwörter stimmen nicht überein"
     }
   },
   "help": {
