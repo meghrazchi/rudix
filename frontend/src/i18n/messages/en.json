@@ -4961,5 +4961,80 @@
       "removeFailed": "Failed to remove SSO configuration.",
       "testFailed": "Connection test failed."
     }
+  },
+  "adminScim": {
+    "title": "SCIM Provisioning & Domain Verification",
+    "description": "Automate user lifecycle via SCIM 2.0 and verify organization-owned domains.",
+    "provisioning": {
+      "title": "SCIM 2.0 Provisioning",
+      "description": "Connect your identity provider (Okta, Azure AD, etc.) to automatically provision and deprovision users."
+    },
+    "statuses": {
+      "active": "Active",
+      "notConfigured": "Not configured"
+    },
+    "domainStatuses": {
+      "pending": "pending",
+      "verified": "verified",
+      "failed": "failed"
+    },
+    "fields": {
+      "baseUrl": "SCIM Base URL",
+      "tokenHint": "Token (last 4 chars)"
+    },
+    "stats": {
+      "provisioned": "Provisioned",
+      "deprovisioned": "Deprovisioned"
+    },
+    "sync": {
+      "lastSync": "Last sync:",
+      "error": "Error"
+    },
+    "actions": {
+      "rotateToken": "Rotate Token",
+      "disableScim": "Disable SCIM",
+      "enableScim": "Enable SCIM",
+      "enabling": "Enabling…",
+      "disabling": "Disabling…",
+      "rotating": "Rotating…",
+      "addDomain": "Add Domain",
+      "adding": "Adding…",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "hide": "Hide",
+      "instructions": "Instructions",
+      "checking": "Checking…",
+      "checkDns": "Check DNS",
+      "remove": "Remove",
+      "cancel": "Cancel"
+    },
+    "token": {
+      "saveWarning": "Save your SCIM bearer token — it will not be shown again.",
+      "instructions": "Paste this token into your identity provider's SCIM configuration as the Bearer Token.",
+      "dismiss": "I've saved it, dismiss"
+    },
+    "domains": {
+      "title": "Domain Verification",
+      "description": "Verify your organization owns a domain before enforcing domain-based access controls.",
+      "empty": "No domains added yet. Add a domain above to start verification.",
+      "lastChecked": "Last checked: {date}",
+      "dnsInstructions": "Add the following DNS TXT record to verify ownership:",
+      "name": "Name",
+      "value": "Value",
+      "propagationHelp": "After adding the record, click “Check DNS” to verify. DNS propagation can take up to 48 hours."
+    },
+    "disable": {
+      "title": "Disable SCIM?",
+      "description": "This will remove your SCIM configuration and bearer token. Provisioned users will not be removed but future sync events will fail."
+    },
+    "rotate": {
+      "title": "Rotate SCIM token?",
+      "description": "The current bearer token will be invalidated immediately. You must update your identity provider configuration with the new token before the next sync."
+    },
+    "errors": {
+      "permissionRequired": "Only organization owners and administrators can access SCIM provisioning.",
+      "loadFailed": "Failed to load SCIM configuration.",
+      "ownerOnly": "Only owners can configure SCIM provisioning."
+    }
   }
 }

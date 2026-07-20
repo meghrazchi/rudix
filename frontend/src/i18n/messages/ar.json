@@ -4961,5 +4961,80 @@
       "removeFailed": "تعذر إزالة إعدادات SSO.",
       "testFailed": "فشل اختبار الاتصال."
     }
+  },
+  "adminScim": {
+    "title": "توفير SCIM والتحقق من النطاق",
+    "description": "أتمت دورة حياة المستخدم عبر SCIM 2.0 وتحقق من النطاقات المملوكة للمؤسسة.",
+    "provisioning": {
+      "title": "توفير SCIM 2.0",
+      "description": "اربط موفر الهوية لتوفير المستخدمين وإلغاء توفيرهم تلقائيًا."
+    },
+    "statuses": {
+      "active": "نشط",
+      "notConfigured": "غير مهيأ"
+    },
+    "domainStatuses": {
+      "pending": "قيد الانتظار",
+      "verified": "تم التحقق",
+      "failed": "فشل"
+    },
+    "fields": {
+      "baseUrl": "عنوان SCIM الأساسي",
+      "tokenHint": "الرمز (آخر 4 أحرف)"
+    },
+    "stats": {
+      "provisioned": "تم توفيرهم",
+      "deprovisioned": "أُلغي توفيرهم"
+    },
+    "sync": {
+      "lastSync": "آخر مزامنة:",
+      "error": "خطأ"
+    },
+    "actions": {
+      "rotateToken": "تدوير الرمز",
+      "disableScim": "تعطيل SCIM",
+      "enableScim": "تفعيل SCIM",
+      "enabling": "جارٍ التفعيل…",
+      "disabling": "جارٍ التعطيل…",
+      "rotating": "جارٍ التدوير…",
+      "addDomain": "إضافة نطاق",
+      "adding": "جارٍ الإضافة…",
+      "copy": "نسخ",
+      "copied": "تم النسخ!",
+      "hide": "إخفاء",
+      "instructions": "التعليمات",
+      "checking": "جارٍ التحقق…",
+      "checkDns": "فحص DNS",
+      "remove": "إزالة",
+      "cancel": "إلغاء"
+    },
+    "token": {
+      "saveWarning": "احفظ رمز Bearer الخاص بـ SCIM — لن يظهر مرة أخرى.",
+      "instructions": "الصق الرمز بصفته Bearer Token في إعدادات SCIM لدى موفر الهوية.",
+      "dismiss": "حفظته، إغلاق"
+    },
+    "domains": {
+      "title": "التحقق من النطاق",
+      "description": "تحقق من ملكية مؤسستك للنطاق قبل فرض ضوابط الوصول المستندة إليه.",
+      "empty": "لم تُضف نطاقات بعد. أضف نطاقًا أعلاه لبدء التحقق.",
+      "lastChecked": "آخر فحص: {date}",
+      "dnsInstructions": "أضف سجل DNS TXT التالي:",
+      "name": "الاسم",
+      "value": "القيمة",
+      "propagationHelp": "بعد إضافة السجل، انقر على «فحص DNS». قد يستغرق الانتشار حتى 48 ساعة."
+    },
+    "disable": {
+      "title": "تعطيل SCIM؟",
+      "description": "ستُزال إعدادات SCIM ورمز Bearer. لن يُحذف المستخدمون الموفرون، لكن عمليات المزامنة المستقبلية ستفشل."
+    },
+    "rotate": {
+      "title": "تدوير رمز SCIM؟",
+      "description": "سيُبطل الرمز الحالي فورًا. حدّث موفر الهوية قبل المزامنة التالية."
+    },
+    "errors": {
+      "permissionRequired": "يمكن لمالكي المؤسسة والمشرفين فقط الوصول إلى توفير SCIM.",
+      "loadFailed": "تعذر تحميل إعدادات SCIM.",
+      "ownerOnly": "يمكن للمالكين فقط إعداد SCIM."
+    }
   }
 }

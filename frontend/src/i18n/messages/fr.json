@@ -4961,5 +4961,80 @@
       "removeFailed": "Impossible de supprimer la configuration SSO.",
       "testFailed": "Le test de connexion a échoué."
     }
+  },
+  "adminScim": {
+    "title": "Provisionnement SCIM et vérification des domaines",
+    "description": "Automatisez le cycle de vie des utilisateurs via SCIM 2.0 et vérifiez les domaines de l’organisation.",
+    "provisioning": {
+      "title": "Provisionnement SCIM 2.0",
+      "description": "Connectez votre fournisseur d’identité pour provisionner et déprovisionner automatiquement les utilisateurs."
+    },
+    "statuses": {
+      "active": "Actif",
+      "notConfigured": "Non configuré"
+    },
+    "domainStatuses": {
+      "pending": "En attente",
+      "verified": "Vérifié",
+      "failed": "Échoué"
+    },
+    "fields": {
+      "baseUrl": "URL de base SCIM",
+      "tokenHint": "Jeton (4 derniers caractères)"
+    },
+    "stats": {
+      "provisioned": "Provisionnés",
+      "deprovisioned": "Déprovisionnés"
+    },
+    "sync": {
+      "lastSync": "Dernière synchronisation :",
+      "error": "Erreur"
+    },
+    "actions": {
+      "rotateToken": "Renouveler le jeton",
+      "disableScim": "Désactiver SCIM",
+      "enableScim": "Activer SCIM",
+      "enabling": "Activation…",
+      "disabling": "Désactivation…",
+      "rotating": "Renouvellement…",
+      "addDomain": "Ajouter un domaine",
+      "adding": "Ajout…",
+      "copy": "Copier",
+      "copied": "Copié !",
+      "hide": "Masquer",
+      "instructions": "Instructions",
+      "checking": "Vérification…",
+      "checkDns": "Vérifier le DNS",
+      "remove": "Supprimer",
+      "cancel": "Annuler"
+    },
+    "token": {
+      "saveWarning": "Enregistrez votre jeton Bearer SCIM — il ne sera plus affiché.",
+      "instructions": "Collez ce jeton comme jeton Bearer dans la configuration SCIM de votre fournisseur d’identité.",
+      "dismiss": "Je l’ai enregistré, fermer"
+    },
+    "domains": {
+      "title": "Vérification des domaines",
+      "description": "Vérifiez que votre organisation possède un domaine avant d’appliquer les contrôles associés.",
+      "empty": "Aucun domaine ajouté. Ajoutez-en un ci-dessus pour commencer.",
+      "lastChecked": "Dernière vérification : {date}",
+      "dnsInstructions": "Ajoutez l’enregistrement DNS TXT suivant :",
+      "name": "Nom",
+      "value": "Valeur",
+      "propagationHelp": "Après l’ajout, cliquez sur « Vérifier le DNS ». La propagation peut prendre jusqu’à 48 heures."
+    },
+    "disable": {
+      "title": "Désactiver SCIM ?",
+      "description": "La configuration SCIM et le jeton Bearer seront supprimés. Les utilisateurs provisionnés resteront, mais les prochaines synchronisations échoueront."
+    },
+    "rotate": {
+      "title": "Renouveler le jeton SCIM ?",
+      "description": "Le jeton actuel sera immédiatement invalidé. Mettez à jour votre fournisseur avant la prochaine synchronisation."
+    },
+    "errors": {
+      "permissionRequired": "Seuls les propriétaires et administrateurs peuvent accéder au provisionnement SCIM.",
+      "loadFailed": "Impossible de charger la configuration SCIM.",
+      "ownerOnly": "Seuls les propriétaires peuvent configurer SCIM."
+    }
   }
 }

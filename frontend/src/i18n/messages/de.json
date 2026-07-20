@@ -4961,5 +4961,80 @@
       "removeFailed": "SSO-Konfiguration konnte nicht entfernt werden.",
       "testFailed": "Verbindungstest fehlgeschlagen."
     }
+  },
+  "adminScim": {
+    "title": "SCIM-Bereitstellung & Domainverifizierung",
+    "description": "Automatisieren Sie den Benutzerlebenszyklus über SCIM 2.0 und verifizieren Sie organisationseigene Domains.",
+    "provisioning": {
+      "title": "SCIM-2.0-Bereitstellung",
+      "description": "Verbinden Sie Ihren Identitätsanbieter, um Benutzer automatisch bereitzustellen und zu deaktivieren."
+    },
+    "statuses": {
+      "active": "Aktiv",
+      "notConfigured": "Nicht konfiguriert"
+    },
+    "domainStatuses": {
+      "pending": "Ausstehend",
+      "verified": "Verifiziert",
+      "failed": "Fehlgeschlagen"
+    },
+    "fields": {
+      "baseUrl": "SCIM-Basis-URL",
+      "tokenHint": "Token (letzte 4 Zeichen)"
+    },
+    "stats": {
+      "provisioned": "Bereitgestellt",
+      "deprovisioned": "Deaktiviert"
+    },
+    "sync": {
+      "lastSync": "Letzte Synchronisierung:",
+      "error": "Fehler"
+    },
+    "actions": {
+      "rotateToken": "Token rotieren",
+      "disableScim": "SCIM deaktivieren",
+      "enableScim": "SCIM aktivieren",
+      "enabling": "Wird aktiviert…",
+      "disabling": "Wird deaktiviert…",
+      "rotating": "Wird rotiert…",
+      "addDomain": "Domain hinzufügen",
+      "adding": "Wird hinzugefügt…",
+      "copy": "Kopieren",
+      "copied": "Kopiert!",
+      "hide": "Ausblenden",
+      "instructions": "Anweisungen",
+      "checking": "Wird geprüft…",
+      "checkDns": "DNS prüfen",
+      "remove": "Entfernen",
+      "cancel": "Abbrechen"
+    },
+    "token": {
+      "saveWarning": "Speichern Sie Ihr SCIM-Bearer-Token — es wird nicht erneut angezeigt.",
+      "instructions": "Fügen Sie dieses Token als Bearer-Token in die SCIM-Konfiguration Ihres Identitätsanbieters ein.",
+      "dismiss": "Ich habe es gespeichert, schließen"
+    },
+    "domains": {
+      "title": "Domainverifizierung",
+      "description": "Bestätigen Sie den Besitz einer Domain, bevor Sie domainbasierte Zugriffskontrollen erzwingen.",
+      "empty": "Noch keine Domains hinzugefügt. Fügen Sie oben eine Domain hinzu.",
+      "lastChecked": "Zuletzt geprüft: {date}",
+      "dnsInstructions": "Fügen Sie den folgenden DNS-TXT-Eintrag hinzu:",
+      "name": "Name",
+      "value": "Wert",
+      "propagationHelp": "Klicken Sie nach dem Hinzufügen auf „DNS prüfen“. Die DNS-Weitergabe kann bis zu 48 Stunden dauern."
+    },
+    "disable": {
+      "title": "SCIM deaktivieren?",
+      "description": "Dadurch werden die SCIM-Konfiguration und das Bearer-Token entfernt. Bereitgestellte Benutzer bleiben bestehen, zukünftige Synchronisierungen schlagen jedoch fehl."
+    },
+    "rotate": {
+      "title": "SCIM-Token rotieren?",
+      "description": "Das aktuelle Token wird sofort ungültig. Aktualisieren Sie Ihren Identitätsanbieter vor der nächsten Synchronisierung."
+    },
+    "errors": {
+      "permissionRequired": "Nur Organisationsinhaber und Administratoren können auf die SCIM-Bereitstellung zugreifen.",
+      "loadFailed": "SCIM-Konfiguration konnte nicht geladen werden.",
+      "ownerOnly": "Nur Inhaber können die SCIM-Bereitstellung konfigurieren."
+    }
   }
 }

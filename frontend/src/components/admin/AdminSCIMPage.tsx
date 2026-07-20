@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   checkDomainVerification,
@@ -28,6 +29,7 @@ const SCIM_KEY = ["scim-config"] as const;
 const DOMAINS_KEY = ["scim-domain-verifications"] as const;
 
 export function AdminSCIMPage() {
+  const t = useTranslations("adminScim");
   const { state } = useAuthSession();
   const queryClient = useQueryClient();
   const role = state.session?.role;
@@ -150,18 +152,29 @@ export function AdminSCIMPage() {
     },
   });
 
-  if (!isAdmin) return <ForbiddenState />;
+  if (!isAdmin)
+    return (
+      <ForbiddenState
+        title={t("title")}
+        description={t("errors.permissionRequired")}
+      />
+    );
   if (configQuery.isLoading || domainsQuery.isLoading) return <LoadingState />;
   if (
     (configQuery.isError && isForbiddenError(configQuery.error)) ||
     (domainsQuery.isError && isForbiddenError(domainsQuery.error))
   )
-    return <ForbiddenState />;
+    return (
+      <ForbiddenState
+        title={t("title")}
+        description={t("errors.permissionRequired")}
+      />
+    );
   if (configQuery.isError)
     return (
       <ErrorState
         error={configQuery.error}
-        description="Failed to load SCIM configuration."
+        description={t("errors.loadFailed")}
         onRetry={() => void configQuery.refetch()}
       />
     );
@@ -176,13 +189,8 @@ export function AdminSCIMPage() {
   return (
     <div className="space-y-8 p-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#2a2640]">
-          SCIM Provisioning &amp; Domain Verification
-        </h1>
-        <p className="mt-1 text-sm text-[#68647b]">
-          Automate user lifecycle via SCIM 2.0 and verify organization-owned
-          domains.
-        </p>
+        <h1 className="text-2xl font-bold text-[#2a2640]">{t("title")}</h1>
+        <p className="mt-1 text-sm text-[#68647b]">{t("description")}</p>
       </div>
 
       {actionError ? (
@@ -196,20 +204,19 @@ export function AdminSCIMPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold text-[#2a2640]">
-              SCIM 2.0 Provisioning
+              {t("provisioning.title")}
             </h2>
             <p className="mt-0.5 text-xs text-[#68647b]">
-              Connect your identity provider (Okta, Azure AD, etc.) to
-              automatically provision and deprovision users.
+              {t("provisioning.description")}
             </p>
           </div>
           {config ? (
             <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-              Active
+              {t("statuses.active")}
             </span>
           ) : (
             <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-              Not configured
+              {t("statuses.notConfigured")}
             </span>
           )}
         </div>
@@ -217,24 +224,24 @@ export function AdminSCIMPage() {
         {config ? (
           <div className="space-y-4">
             <ReadField
-              label="SCIM Base URL"
+              label={t("fields.baseUrl")}
               value={config.scim_base_url}
               mono
             />
             <ReadField
-              label="Token (last 4 chars)"
+              label={t("fields.tokenHint")}
               value={`…${config.token_hint}`}
               mono
             />
 
             <div className="grid grid-cols-2 gap-4 text-sm">
               <StatCard
-                label="Provisioned"
+                label={t("stats.provisioned")}
                 value={config.provisioned_count}
                 color="emerald"
               />
               <StatCard
-                label="Deprovisioned"
+                label={t("stats.deprovisioned")}
                 value={config.deprovisioned_count}
                 color="amber"
               />
@@ -242,13 +249,13 @@ export function AdminSCIMPage() {
 
             {config.last_sync_at ? (
               <p className="text-xs text-[#68647b]">
-                Last sync:{" "}
+                {t("sync.lastSync")}{" "}
                 <span className="font-medium">
                   {new Date(config.last_sync_at).toLocaleString()}
                 </span>
                 {config.last_sync_error ? (
                   <span className="ml-2 text-rose-600">
-                    Error: {config.last_sync_error}
+                    {t("sync.error")}: {config.last_sync_error}
                   </span>
                 ) : null}
               </p>
@@ -262,7 +269,7 @@ export function AdminSCIMPage() {
                   disabled={isBusy}
                   className="rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
                 >
-                  Rotate Token
+                  {t("actions.rotateToken")}
                 </button>
                 <button
                   type="button"
@@ -270,7 +277,7 @@ export function AdminSCIMPage() {
                   disabled={isBusy}
                   className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
                 >
-                  Disable SCIM
+                  {t("actions.disableScim")}
                 </button>
               </div>
             ) : null}
@@ -282,12 +289,12 @@ export function AdminSCIMPage() {
             disabled={isBusy}
             className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
           >
-            {enableMutation.isPending ? "Enabling…" : "Enable SCIM"}
+            {enableMutation.isPending
+              ? t("actions.enabling")
+              : t("actions.enableScim")}
           </button>
         ) : (
-          <p className="text-sm text-[#68647b]">
-            Only owners can configure SCIM provisioning.
-          </p>
+          <p className="text-sm text-[#68647b]">{t("errors.ownerOnly")}</p>
         )}
       </section>
 
@@ -295,19 +302,16 @@ export function AdminSCIMPage() {
       {newToken ? (
         <section className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
           <p className="text-sm font-semibold text-emerald-800">
-            Save your SCIM bearer token — it will not be shown again.
+            {t("token.saveWarning")}
           </p>
           <CopyField value={newToken} />
-          <p className="text-xs text-emerald-700">
-            Paste this token into your identity provider&apos;s SCIM
-            configuration as the Bearer Token.
-          </p>
+          <p className="text-xs text-emerald-700">{t("token.instructions")}</p>
           <button
             type="button"
             onClick={() => setNewToken(null)}
             className="text-xs font-semibold text-emerald-700 underline"
           >
-            I&apos;ve saved it, dismiss
+            {t("token.dismiss")}
           </button>
         </section>
       ) : null}
@@ -316,11 +320,10 @@ export function AdminSCIMPage() {
       <section className="space-y-5 rounded-xl border border-[#d7d4e8] bg-white p-6">
         <div>
           <h2 className="text-base font-semibold text-[#2a2640]">
-            Domain Verification
+            {t("domains.title")}
           </h2>
           <p className="mt-0.5 text-xs text-[#68647b]">
-            Verify your organization owns a domain before enforcing domain-based
-            access controls.
+            {t("domains.description")}
           </p>
         </div>
 
@@ -342,7 +345,9 @@ export function AdminSCIMPage() {
               disabled={!newDomain.trim() || initiateMutation.isPending}
               className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
             >
-              {initiateMutation.isPending ? "Adding…" : "Add Domain"}
+              {initiateMutation.isPending
+                ? t("actions.adding")
+                : t("actions.addDomain")}
             </button>
           </div>
         ) : null}
@@ -354,9 +359,7 @@ export function AdminSCIMPage() {
         ) : null}
 
         {domains.length === 0 ? (
-          <p className="text-sm text-[#a09cb8]">
-            No domains added yet. Add a domain above to start verification.
-          </p>
+          <p className="text-sm text-[#a09cb8]">{t("domains.empty")}</p>
         ) : (
           <div className="space-y-3">
             {domains.map((d) => (
@@ -381,10 +384,12 @@ export function AdminSCIMPage() {
 
       {showDisableConfirm ? (
         <ConfirmModal
-          title="Disable SCIM?"
-          body="This will remove your SCIM configuration and bearer token. Provisioned users will not be removed but future sync events will fail."
+          title={t("disable.title")}
+          body={t("disable.description")}
           confirmLabel={
-            disableMutation.isPending ? "Disabling…" : "Disable SCIM"
+            disableMutation.isPending
+              ? t("actions.disabling")
+              : t("actions.disableScim")
           }
           confirmVariant="danger"
           isBusy={disableMutation.isPending}
@@ -395,9 +400,13 @@ export function AdminSCIMPage() {
 
       {showRotateConfirm ? (
         <ConfirmModal
-          title="Rotate SCIM token?"
-          body="The current bearer token will be invalidated immediately. You must update your identity provider configuration with the new token before the next sync."
-          confirmLabel={rotateMutation.isPending ? "Rotating…" : "Rotate Token"}
+          title={t("rotate.title")}
+          body={t("rotate.description")}
+          confirmLabel={
+            rotateMutation.isPending
+              ? t("actions.rotating")
+              : t("actions.rotateToken")
+          }
           confirmVariant="warning"
           isBusy={rotateMutation.isPending}
           onConfirm={() => rotateMutation.mutate()}
@@ -419,6 +428,7 @@ function ReadField({
   value: string;
   mono?: boolean;
 }) {
+  const t = useTranslations("adminScim");
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -446,7 +456,7 @@ function ReadField({
           onClick={handleCopy}
           className="shrink-0 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] transition hover:bg-[#f5f3ff]"
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("actions.copied") : t("actions.copy")}
         </button>
       </div>
     </div>
@@ -454,6 +464,7 @@ function ReadField({
 }
 
 function CopyField({ value }: { value: string }) {
+  const t = useTranslations("adminScim");
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -473,7 +484,7 @@ function CopyField({ value }: { value: string }) {
         onClick={handleCopy}
         className="shrink-0 rounded border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
       >
-        {copied ? "Copied!" : "Copy"}
+        {copied ? t("actions.copied") : t("actions.copy")}
       </button>
     </div>
   );
@@ -518,6 +529,7 @@ function DomainVerificationCard({
   onCheck: () => void;
   onDelete: () => void;
 }) {
+  const t = useTranslations("adminScim");
   const [showInstructions, setShowInstructions] = useState(false);
 
   const statusColors = {
@@ -535,7 +547,7 @@ function DomainVerificationCard({
               statusColors[record.status]
             }`}
           >
-            {record.status}
+            {t(`domainStatuses.${record.status}`)}
           </span>
           <span className="text-sm font-medium text-[#2a2640]">
             {record.domain}
@@ -548,7 +560,7 @@ function DomainVerificationCard({
               onClick={() => setShowInstructions((p) => !p)}
               className="rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] transition hover:bg-[#f5f3ff]"
             >
-              {showInstructions ? "Hide" : "Instructions"}
+              {showInstructions ? t("actions.hide") : t("actions.instructions")}
             </button>
             {record.status !== "verified" ? (
               <button
@@ -557,7 +569,7 @@ function DomainVerificationCard({
                 disabled={isChecking}
                 className="rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
               >
-                {isChecking ? "Checking…" : "Check DNS"}
+                {isChecking ? t("actions.checking") : t("actions.checkDns")}
               </button>
             ) : null}
             <button
@@ -566,7 +578,7 @@ function DomainVerificationCard({
               disabled={isDeleting}
               className="rounded border border-rose-200 px-2 py-1 text-xs text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
             >
-              {isDeleting ? "…" : "Remove"}
+              {isDeleting ? "…" : t("actions.remove")}
             </button>
           </div>
         ) : null}
@@ -578,19 +590,21 @@ function DomainVerificationCard({
 
       {record.last_checked_at ? (
         <p className="text-xs text-[#a09cb8]">
-          Last checked: {new Date(record.last_checked_at).toLocaleString()}
+          {t("domains.lastChecked", {
+            date: new Date(record.last_checked_at).toLocaleString(),
+          })}
         </p>
       ) : null}
 
       {showInstructions ? (
         <div className="space-y-2 rounded-lg border border-[#d7d4e8] bg-white p-3 text-xs">
           <p className="font-semibold text-[#2a2640]">
-            Add the following DNS TXT record to verify ownership:
+            {t("domains.dnsInstructions")}
           </p>
           <div className="space-y-1">
             <div className="flex gap-2">
               <span className="w-20 shrink-0 font-semibold text-[#6a6780] uppercase">
-                Name
+                {t("domains.name")}
               </span>
               <code className="break-all text-[#2a2640]">
                 {record.txt_record_name}
@@ -598,17 +612,14 @@ function DomainVerificationCard({
             </div>
             <div className="flex gap-2">
               <span className="w-20 shrink-0 font-semibold text-[#6a6780] uppercase">
-                Value
+                {t("domains.value")}
               </span>
               <code className="break-all text-[#2a2640]">
                 {record.txt_record_value}
               </code>
             </div>
           </div>
-          <p className="text-[#a09cb8]">
-            After adding the record, click &quot;Check DNS&quot; to verify. DNS
-            propagation can take up to 48 hours.
-          </p>
+          <p className="text-[#a09cb8]">{t("domains.propagationHelp")}</p>
         </div>
       ) : null}
     </div>
@@ -632,6 +643,7 @@ function ConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("adminScim");
   const btnColor =
     confirmVariant === "danger"
       ? "bg-rose-600 hover:bg-rose-700"
@@ -657,7 +669,7 @@ function ConfirmModal({
             disabled={isBusy}
             className="flex-1 rounded-lg border border-[#d2cee6] py-2 text-sm font-semibold text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
           >
-            Cancel
+            {t("actions.cancel")}
           </button>
         </div>
       </div>
