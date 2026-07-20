@@ -3335,7 +3335,42 @@
     "configurable": "قابل تنظیم",
     "open": "باز کردن",
     "setup": "مشاهده تنظیمات",
-    "description": "این قابلیت مدیریتی را برای سازمان خود بررسی و مدیریت کنید."
+    "description": "این قابلیت مدیریتی را برای سازمان خود بررسی و مدیریت کنید.",
+    "openCard": "باز کردن {title}",
+    "sections": {
+      "analyticsInsights": "تحلیل و بینش",
+      "securityCompliance": "امنیت و انطباق",
+      "aiModelManagement": "مدیریت هوش مصنوعی و مدل‌ها",
+      "operationsInfrastructure": "عملیات و زیرساخت",
+      "identityAccess": "هویت و دسترسی"
+    },
+    "cards": {
+      "usageAnalytics": "تحلیل استفاده",
+      "observabilityDashboard": "داشبورد مشاهده‌پذیری",
+      "serviceMonitoring": "پایش سرویس‌ها",
+      "auditLogs": "گزارش‌های ممیزی",
+      "securityCenter": "مرکز امنیت",
+      "agentGovernance": "حاکمیت عامل‌ها",
+      "orgMemory": "حافظه سازمان",
+      "modelProviderSettings": "تنظیمات ارائه‌دهنده مدل",
+      "modelDiagnostics": "عیب‌یابی مدل",
+      "safetyEvaluations": "ارزیابی‌های ایمنی",
+      "systemHealth": "سلامت سیستم",
+      "feedbackReviewQueue": "صف بررسی بازخورد",
+      "documentDeletion": "حذف اسناد",
+      "featureFlags": "پرچم‌های قابلیت",
+      "failedJobs": "کارهای ناموفق",
+      "statusIncidents": "وضعیت و رخدادها",
+      "quotasRateLimits": "سهمیه‌ها و محدودیت نرخ",
+      "dataPortability": "انتقال‌پذیری داده",
+      "teamManagement": "مدیریت تیم",
+      "apiAccessKeys": "کلیدهای دسترسی API",
+      "rolesPermissions": "نقش‌ها و مجوزها",
+      "accessManagement": "مدیریت دسترسی",
+      "accessDebugger": "عیب‌یاب دسترسی",
+      "ssoSaml": "ورود یکپارچه / SAML",
+      "scimProvisioning": "تأمین کاربران SCIM"
+    }
   },
   "adminUsage": {
     "admin": "مدیریت Rudix",

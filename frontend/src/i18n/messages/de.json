@@ -3335,7 +3335,42 @@
     "configurable": "KONFIGURIERBAR",
     "open": "Öffnen",
     "setup": "Einrichtung anzeigen",
-    "description": "Diese administrative Funktion für Ihre Organisation prüfen und verwalten."
+    "description": "Diese administrative Funktion für Ihre Organisation prüfen und verwalten.",
+    "openCard": "{title} öffnen",
+    "sections": {
+      "analyticsInsights": "Analysen & Einblicke",
+      "securityCompliance": "Sicherheit & Compliance",
+      "aiModelManagement": "KI- & Modellverwaltung",
+      "operationsInfrastructure": "Betrieb & Infrastruktur",
+      "identityAccess": "Identität & Zugriff"
+    },
+    "cards": {
+      "usageAnalytics": "Nutzungsanalyse",
+      "observabilityDashboard": "Observability-Dashboard",
+      "serviceMonitoring": "Dienstüberwachung",
+      "auditLogs": "Auditprotokolle",
+      "securityCenter": "Sicherheitscenter",
+      "agentGovernance": "Agent-Governance",
+      "orgMemory": "Organisationsgedächtnis",
+      "modelProviderSettings": "Modellanbieter-Einstellungen",
+      "modelDiagnostics": "Modelldiagnose",
+      "safetyEvaluations": "Sicherheitsbewertungen",
+      "systemHealth": "Systemzustand",
+      "feedbackReviewQueue": "Feedback-Prüfwarteschlange",
+      "documentDeletion": "Dokumentlöschung",
+      "featureFlags": "Funktionsschalter",
+      "failedJobs": "Fehlgeschlagene Aufträge",
+      "statusIncidents": "Status & Vorfälle",
+      "quotasRateLimits": "Kontingente & Ratenbegrenzungen",
+      "dataPortability": "Datenportabilität",
+      "teamManagement": "Teamverwaltung",
+      "apiAccessKeys": "API-Zugriffsschlüssel",
+      "rolesPermissions": "Rollen & Berechtigungen",
+      "accessManagement": "Zugriffsverwaltung",
+      "accessDebugger": "Zugriffsdiagnose",
+      "ssoSaml": "SSO / SAML",
+      "scimProvisioning": "SCIM-Bereitstellung"
+    }
   },
   "adminUsage": {
     "admin": "Rudix-Administration",

@@ -3335,7 +3335,42 @@
     "configurable": "قابل للتهيئة",
     "open": "فتح",
     "setup": "عرض الإعداد",
-    "description": "راجع هذه الإمكانية الإدارية وأدرها لمؤسستك."
+    "description": "راجع هذه الإمكانية الإدارية وأدرها لمؤسستك.",
+    "openCard": "فتح {title}",
+    "sections": {
+      "analyticsInsights": "التحليلات والرؤى",
+      "securityCompliance": "الأمان والامتثال",
+      "aiModelManagement": "إدارة الذكاء الاصطناعي والنماذج",
+      "operationsInfrastructure": "العمليات والبنية التحتية",
+      "identityAccess": "الهوية والوصول"
+    },
+    "cards": {
+      "usageAnalytics": "تحليلات الاستخدام",
+      "observabilityDashboard": "لوحة قابلية المراقبة",
+      "serviceMonitoring": "مراقبة الخدمات",
+      "auditLogs": "سجلات التدقيق",
+      "securityCenter": "مركز الأمان",
+      "agentGovernance": "حوكمة الوكلاء",
+      "orgMemory": "ذاكرة المؤسسة",
+      "modelProviderSettings": "إعدادات موفر النماذج",
+      "modelDiagnostics": "تشخيص النماذج",
+      "safetyEvaluations": "تقييمات السلامة",
+      "systemHealth": "سلامة النظام",
+      "feedbackReviewQueue": "قائمة مراجعة الملاحظات",
+      "documentDeletion": "حذف المستندات",
+      "featureFlags": "علامات الميزات",
+      "failedJobs": "المهام الفاشلة",
+      "statusIncidents": "الحالة والحوادث",
+      "quotasRateLimits": "الحصص وحدود المعدل",
+      "dataPortability": "قابلية نقل البيانات",
+      "teamManagement": "إدارة الفريق",
+      "apiAccessKeys": "مفاتيح وصول API",
+      "rolesPermissions": "الأدوار والأذونات",
+      "accessManagement": "إدارة الوصول",
+      "accessDebugger": "تشخيص الوصول",
+      "ssoSaml": "تسجيل الدخول الموحد / SAML",
+      "scimProvisioning": "توفير SCIM"
+    }
   },
   "adminUsage": {
     "admin": "إدارة Rudix",

@@ -3335,7 +3335,42 @@
     "configurable": "CONFIGURABLE",
     "open": "Open",
     "setup": "View setup details",
-    "description": "Review and manage this administrative capability for your organization."
+    "description": "Review and manage this administrative capability for your organization.",
+    "openCard": "Open {title}",
+    "sections": {
+      "analyticsInsights": "Analytics & Insights",
+      "securityCompliance": "Security & Compliance",
+      "aiModelManagement": "AI & Model Management",
+      "operationsInfrastructure": "Operations & Infrastructure",
+      "identityAccess": "Identity & Access"
+    },
+    "cards": {
+      "usageAnalytics": "Usage Analytics",
+      "observabilityDashboard": "Observability Dashboard",
+      "serviceMonitoring": "Service Monitoring",
+      "auditLogs": "Audit Logs",
+      "securityCenter": "Security Center",
+      "agentGovernance": "Agent Governance",
+      "orgMemory": "Org Memory",
+      "modelProviderSettings": "Model Provider Settings",
+      "modelDiagnostics": "Model Diagnostics",
+      "safetyEvaluations": "Safety Evaluations",
+      "systemHealth": "System Health",
+      "feedbackReviewQueue": "Feedback Review Queue",
+      "documentDeletion": "Document Deletion",
+      "featureFlags": "Feature Flags",
+      "failedJobs": "Failed Jobs",
+      "statusIncidents": "Status & Incidents",
+      "quotasRateLimits": "Quotas & Rate Limits",
+      "dataPortability": "Data Portability",
+      "teamManagement": "Team Management",
+      "apiAccessKeys": "API Access Keys",
+      "rolesPermissions": "Roles & Permissions",
+      "accessManagement": "Access Management",
+      "accessDebugger": "Access Debugger",
+      "ssoSaml": "SSO / SAML",
+      "scimProvisioning": "SCIM Provisioning"
+    }
   },
   "adminUsage": {
     "admin": "Rudix Admin",

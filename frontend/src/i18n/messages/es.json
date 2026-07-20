@@ -3335,7 +3335,42 @@
     "configurable": "CONFIGURABLE",
     "open": "Abrir",
     "setup": "Ver configuración",
-    "description": "Revise y gestione esta función administrativa para su organización."
+    "description": "Revise y gestione esta función administrativa para su organización.",
+    "openCard": "Abrir {title}",
+    "sections": {
+      "analyticsInsights": "Análisis e información",
+      "securityCompliance": "Seguridad y cumplimiento",
+      "aiModelManagement": "Gestión de IA y modelos",
+      "operationsInfrastructure": "Operaciones e infraestructura",
+      "identityAccess": "Identidad y acceso"
+    },
+    "cards": {
+      "usageAnalytics": "Análisis de uso",
+      "observabilityDashboard": "Panel de observabilidad",
+      "serviceMonitoring": "Supervisión de servicios",
+      "auditLogs": "Registros de auditoría",
+      "securityCenter": "Centro de seguridad",
+      "agentGovernance": "Gobernanza de agentes",
+      "orgMemory": "Memoria de la organización",
+      "modelProviderSettings": "Configuración del proveedor de modelos",
+      "modelDiagnostics": "Diagnóstico de modelos",
+      "safetyEvaluations": "Evaluaciones de seguridad",
+      "systemHealth": "Estado del sistema",
+      "feedbackReviewQueue": "Cola de revisión de comentarios",
+      "documentDeletion": "Eliminación de documentos",
+      "featureFlags": "Funciones experimentales",
+      "failedJobs": "Trabajos fallidos",
+      "statusIncidents": "Estado e incidentes",
+      "quotasRateLimits": "Cuotas y límites de frecuencia",
+      "dataPortability": "Portabilidad de datos",
+      "teamManagement": "Gestión del equipo",
+      "apiAccessKeys": "Claves de acceso API",
+      "rolesPermissions": "Roles y permisos",
+      "accessManagement": "Gestión de acceso",
+      "accessDebugger": "Depurador de acceso",
+      "ssoSaml": "SSO / SAML",
+      "scimProvisioning": "Aprovisionamiento SCIM"
+    }
   },
   "adminUsage": {
     "admin": "Administración de Rudix",

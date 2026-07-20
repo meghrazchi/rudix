@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { canViewAdminUsage } from "@/lib/dashboard";
@@ -14,6 +14,40 @@ type CardStatus =
   | "online"
   | "active"
   | "configurable";
+
+type CardKey =
+  | "usageAnalytics"
+  | "observabilityDashboard"
+  | "serviceMonitoring"
+  | "auditLogs"
+  | "securityCenter"
+  | "agentGovernance"
+  | "orgMemory"
+  | "modelProviderSettings"
+  | "modelDiagnostics"
+  | "safetyEvaluations"
+  | "systemHealth"
+  | "feedbackReviewQueue"
+  | "documentDeletion"
+  | "featureFlags"
+  | "failedJobs"
+  | "statusIncidents"
+  | "quotasRateLimits"
+  | "dataPortability"
+  | "teamManagement"
+  | "apiAccessKeys"
+  | "rolesPermissions"
+  | "accessManagement"
+  | "accessDebugger"
+  | "ssoSaml"
+  | "scimProvisioning";
+
+type SectionKey =
+  | "analyticsInsights"
+  | "securityCompliance"
+  | "aiModelManagement"
+  | "operationsInfrastructure"
+  | "identityAccess";
 
 const STATUS_CLASS: Record<CardStatus, string> = {
   available: "text-emerald-600 bg-emerald-50 border border-emerald-100",
@@ -30,22 +64,18 @@ function trimToNull(value: string | undefined): string | null {
 }
 
 function LargeCard({
-  title,
-  description,
+  cardKey,
   href,
   status,
   icon,
-  actionLabel,
 }: {
-  title: string;
-  description: string;
+  cardKey: CardKey;
   href: string;
   status: CardStatus;
   icon: ReactNode;
-  actionLabel: string;
 }) {
-  const locale = useLocale();
   const t = useTranslations("adminLanding");
+  const title = t(`cards.${cardKey}`);
   const isUnavailable = status === "unavailable";
   return (
     <div
@@ -67,7 +97,7 @@ function LargeCard({
       </div>
       <h5 className="mb-2 text-base font-bold text-slate-900">{title}</h5>
       <p className="mb-6 flex-grow text-sm leading-relaxed text-slate-500">
-        {locale === "en" ? description : t("description")}
+        {t("description")}
       </p>
       {isUnavailable ? (
         <Link
@@ -81,7 +111,7 @@ function LargeCard({
           href={href}
           className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
         >
-          {locale === "en" ? actionLabel : `${t("open")} ${title}`}
+          {t("openCard", { title })}
           <svg
             className="ml-2 h-4 w-4"
             fill="none"
@@ -102,20 +132,16 @@ function LargeCard({
 }
 
 function SmallCard({
-  title,
-  description,
+  cardKey,
   href,
   status,
-  actionLabel,
 }: {
-  title: string;
-  description: string;
+  cardKey: CardKey;
   href: string;
   status: CardStatus;
-  actionLabel: string;
 }) {
-  const locale = useLocale();
   const t = useTranslations("adminLanding");
+  const title = t(`cards.${cardKey}`);
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-indigo-500 hover:shadow-md">
       <span
@@ -125,13 +151,13 @@ function SmallCard({
       </span>
       <h5 className="mb-1 text-sm font-bold text-slate-900">{title}</h5>
       <p className="mb-4 flex-grow text-xs leading-relaxed text-slate-500">
-        {locale === "en" ? description : t("description")}
+        {t("description")}
       </p>
       <Link
         href={href}
         className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-700"
       >
-        {locale === "en" ? actionLabel : `${t("open")} ${title}`}
+        {t("openCard", { title })}
         <svg
           className="ml-1 h-3 w-3"
           fill="none"
@@ -151,20 +177,16 @@ function SmallCard({
 }
 
 function HorizontalCard({
-  title,
-  description,
+  cardKey,
   href,
   icon,
-  actionLabel,
 }: {
-  title: string;
-  description: string;
+  cardKey: CardKey;
   href: string;
   icon: ReactNode;
-  actionLabel: string;
 }) {
-  const locale = useLocale();
   const t = useTranslations("adminLanding");
+  const title = t(`cards.${cardKey}`);
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 hover:border-indigo-500 hover:shadow-md">
       <div className="flex items-start justify-between">
@@ -174,30 +196,35 @@ function HorizontalCard({
           </div>
           <div>
             <h5 className="text-base font-bold text-slate-900">{title}</h5>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {locale === "en" ? description : t("description")}
-            </p>
+            <p className="mt-0.5 text-sm text-slate-500">{t("description")}</p>
           </div>
         </div>
         <Link
           href={href}
           className="ml-4 flex-shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
         >
-          {locale === "en" ? actionLabel : t("open")}
+          {t("open")}
         </Link>
       </div>
     </div>
   );
 }
 
-function SectionHeader({ icon, title }: { icon: ReactNode; title: string }) {
+function SectionHeader({
+  icon,
+  sectionKey,
+}: {
+  icon: ReactNode;
+  sectionKey: SectionKey;
+}) {
+  const t = useTranslations("adminLanding");
   return (
     <div className="mb-6 flex items-center space-x-2">
       <div className="rounded-lg bg-indigo-100 p-1.5 text-indigo-600">
         {icon}
       </div>
       <h4 className="text-lg font-bold tracking-tight text-slate-900">
-        {title}
+        {t(`sections.${sectionKey}`)}
       </h4>
     </div>
   );
@@ -253,7 +280,7 @@ export function AdminLandingPage() {
           {/* Analytics & Insights */}
           <div>
             <SectionHeader
-              title="Analytics & Insights"
+              sectionKey="analyticsInsights"
               icon={
                 <svg
                   className="h-5 w-5"
@@ -272,11 +299,9 @@ export function AdminLandingPage() {
             />
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <LargeCard
-                title="Usage Analytics"
-                description="Inspect token consumption, estimated cost distributions, top users, and performance trends over time."
+                cardKey="usageAnalytics"
                 href="/admin/usage"
                 status="available"
-                actionLabel="Open Usage"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -294,11 +319,9 @@ export function AdminLandingPage() {
                 }
               />
               <LargeCard
-                title="Observability Dashboard"
-                description="API error rates, LLM health, indexing reliability, and storage metrics in one consolidated view."
+                cardKey="observabilityDashboard"
                 href="/admin/observability"
                 status="available"
-                actionLabel="Open Dashboard"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -316,11 +339,9 @@ export function AdminLandingPage() {
                 }
               />
               <LargeCard
-                title="Service Monitoring"
-                description="External service monitoring and alerting dashboards for incident response and uptime visibility."
+                cardKey="serviceMonitoring"
                 href="/admin/monitoring"
                 status={monitoringUrl ? "available" : "unavailable"}
-                actionLabel="Open Monitoring"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -343,7 +364,7 @@ export function AdminLandingPage() {
           {/* Security & Compliance */}
           <div>
             <SectionHeader
-              title="Security & Compliance"
+              sectionKey="securityCompliance"
               icon={
                 <svg
                   className="h-5 w-5"
@@ -362,11 +383,9 @@ export function AdminLandingPage() {
             />
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <LargeCard
-                title="Audit Logs"
-                description="Immutable review of security and product activity across all administrative and operational events."
+                cardKey="auditLogs"
                 href="/admin/audit-logs"
                 status="available"
-                actionLabel="Open Logs"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -384,11 +403,9 @@ export function AdminLandingPage() {
                 }
               />
               <LargeCard
-                title="Security Center"
-                description="Monitor security posture, active access controls, active warnings, and unresolved vulnerability flags."
+                cardKey="securityCenter"
                 href="/admin/security-center"
                 status="available"
-                actionLabel="Open Security"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -406,11 +423,9 @@ export function AdminLandingPage() {
                 }
               />
               <LargeCard
-                title="Agent Governance"
-                description="Manage agent modes, MCP tool exposure, tool allowlists, provider security, and runtime budgets."
+                cardKey="agentGovernance"
                 href="/admin/governance"
                 status="available"
-                actionLabel="Manage Policies"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -434,11 +449,9 @@ export function AdminLandingPage() {
                 }
               />
               <LargeCard
-                title="Org Memory"
-                description="Review reusable workflow memory, verified knowledge links, and source-scoped defaults."
+                cardKey="orgMemory"
                 href="/admin/memory"
                 status="available"
-                actionLabel="Open Memory"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -461,7 +474,7 @@ export function AdminLandingPage() {
           {/* AI & Model Management */}
           <div>
             <SectionHeader
-              title="AI & Model Management"
+              sectionKey="aiModelManagement"
               icon={
                 <svg
                   className="h-5 w-5"
@@ -480,11 +493,9 @@ export function AdminLandingPage() {
             />
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <LargeCard
-                title="Model Provider Settings"
-                description="Configure org-scoped LLM providers, models, timeouts, retry policies, and fallback chains."
+                cardKey="modelProviderSettings"
                 href="/admin/model-provider"
                 status="available"
-                actionLabel="Configure Providers"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -502,11 +513,9 @@ export function AdminLandingPage() {
                 }
               />
               <LargeCard
-                title="Model Diagnostics"
-                description="Test provider connectivity, inspect capability badges, and verify model health before deployments."
+                cardKey="modelDiagnostics"
                 href="/admin/model-diagnostics"
                 status="available"
-                actionLabel="Run Diagnostics"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -524,11 +533,9 @@ export function AdminLandingPage() {
                 }
               />
               <LargeCard
-                title="Safety Evaluations"
-                description="Run AI safety red-team evaluation suites, review violation reports, and track evaluation run history."
+                cardKey="safetyEvaluations"
                 href="/admin/safety-evals"
                 status="available"
-                actionLabel="View Evaluations"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -551,7 +558,7 @@ export function AdminLandingPage() {
           {/* Operations & Infrastructure */}
           <div>
             <SectionHeader
-              title="Operations & Infrastructure"
+              sectionKey="operationsInfrastructure"
               icon={
                 <svg
                   className="h-5 w-5"
@@ -570,60 +577,44 @@ export function AdminLandingPage() {
             />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <SmallCard
-                title="System Health"
-                description="Live API readiness and service status from deployed environment."
+                cardKey="systemHealth"
                 href="/admin/system-health"
                 status="online"
-                actionLabel="Open Health"
               />
               <SmallCard
-                title="Feedback Review Queue"
-                description="Triage answer feedback, assign severity, and resolve knowledge gaps."
+                cardKey="feedbackReviewQueue"
                 href="/admin/feedback-review"
                 status="available"
-                actionLabel="View Queue"
               />
               <SmallCard
-                title="Document Deletion"
-                description="Monitor and retry deletions in progress, failed, or blocked by retention policy."
+                cardKey="documentDeletion"
                 href="/admin/documents/deletion"
                 status="active"
-                actionLabel="Open Status"
               />
               <SmallCard
-                title="Feature Flags"
-                description="Override environment-level flags per org and audit rollout changes."
+                cardKey="featureFlags"
                 href="/admin/feature-flags"
                 status="configurable"
-                actionLabel="Manage Flags"
               />
               <SmallCard
-                title="Failed Jobs"
-                description="Inspect failed background tasks, view error details, and trigger bulk retries."
+                cardKey="failedJobs"
                 href="/admin/failed-jobs"
                 status="available"
-                actionLabel="View Jobs"
               />
               <SmallCard
-                title="Status & Incidents"
-                description="Manage incidents, service snapshots, and the public status banner."
+                cardKey="statusIncidents"
                 href="/admin/status"
                 status="available"
-                actionLabel="Open Status"
               />
               <SmallCard
-                title="Quotas & Rate Limits"
-                description="Manage org quota policies, usage overrides, and rate-limit warnings."
+                cardKey="quotasRateLimits"
                 href="/admin/quotas"
                 status="configurable"
-                actionLabel="Manage Quotas"
               />
               <SmallCard
-                title="Data Portability"
-                description="Request sanitized workspace exports, validate imports, and download completed artifacts."
+                cardKey="dataPortability"
                 href="/admin/portability"
                 status="available"
-                actionLabel="Open Portability"
               />
             </div>
           </div>
@@ -631,7 +622,7 @@ export function AdminLandingPage() {
           {/* Identity & Access */}
           <div className="pb-12">
             <SectionHeader
-              title="Identity & Access"
+              sectionKey="identityAccess"
               icon={
                 <svg
                   className="h-5 w-5"
@@ -650,10 +641,8 @@ export function AdminLandingPage() {
             />
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <HorizontalCard
-                title="Team Management"
-                description="Invite members, manage roles, and track pending invitations."
+                cardKey="teamManagement"
                 href="/admin/team"
-                actionLabel="Open Team"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -671,10 +660,8 @@ export function AdminLandingPage() {
                 }
               />
               <HorizontalCard
-                title="API Access Keys"
-                description="Create scoped keys for programmatic and integration access."
+                cardKey="apiAccessKeys"
                 href="/admin/api-keys"
-                actionLabel="Manage Keys"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -692,10 +679,8 @@ export function AdminLandingPage() {
                 }
               />
               <HorizontalCard
-                title="Roles & Permissions"
-                description="Manage built-in roles, create custom permission sets, and audit role assignments."
+                cardKey="rolesPermissions"
                 href="/admin/roles"
-                actionLabel="Manage Roles"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -713,10 +698,8 @@ export function AdminLandingPage() {
                 }
               />
               <HorizontalCard
-                title="Access Management"
-                description="View and edit the role permission matrix. Grant or revoke explicit resource-level access for users, teams, and groups."
+                cardKey="accessManagement"
                 href="/admin/permissions"
-                actionLabel="Manage Access"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -734,10 +717,8 @@ export function AdminLandingPage() {
                 }
               />
               <HorizontalCard
-                title="Access Debugger"
-                description="Simulate the authorization policy engine to see exactly why a user can or cannot access any resource. Full reason chain and audit log."
+                cardKey="accessDebugger"
                 href="/admin/access-debugger"
-                actionLabel="Open Debugger"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -755,10 +736,8 @@ export function AdminLandingPage() {
                 }
               />
               <HorizontalCard
-                title="SSO / SAML"
-                description="Configure enterprise single sign-on, SAML settings, and email-domain discovery."
+                cardKey="ssoSaml"
                 href="/admin/sso"
-                actionLabel="Configure SSO"
                 icon={
                   <svg
                     className="h-6 w-6"
@@ -776,10 +755,8 @@ export function AdminLandingPage() {
                 }
               />
               <HorizontalCard
-                title="SCIM Provisioning"
-                description="Configure automated user provisioning, domain verification, and deprovisioning policies."
+                cardKey="scimProvisioning"
                 href="/admin/scim"
-                actionLabel="Configure SCIM"
                 icon={
                   <svg
                     className="h-6 w-6"

@@ -3335,7 +3335,42 @@
     "configurable": "CONFIGURABLE",
     "open": "Ouvrir",
     "setup": "Voir la configuration",
-    "description": "Consultez et gérez cette fonction administrative pour votre organisation."
+    "description": "Consultez et gérez cette fonction administrative pour votre organisation.",
+    "openCard": "Ouvrir {title}",
+    "sections": {
+      "analyticsInsights": "Analyses et perspectives",
+      "securityCompliance": "Sécurité et conformité",
+      "aiModelManagement": "Gestion de l’IA et des modèles",
+      "operationsInfrastructure": "Opérations et infrastructure",
+      "identityAccess": "Identité et accès"
+    },
+    "cards": {
+      "usageAnalytics": "Analyse de l’utilisation",
+      "observabilityDashboard": "Tableau d’observabilité",
+      "serviceMonitoring": "Surveillance des services",
+      "auditLogs": "Journaux d’audit",
+      "securityCenter": "Centre de sécurité",
+      "agentGovernance": "Gouvernance des agents",
+      "orgMemory": "Mémoire de l’organisation",
+      "modelProviderSettings": "Paramètres du fournisseur de modèles",
+      "modelDiagnostics": "Diagnostic des modèles",
+      "safetyEvaluations": "Évaluations de sécurité",
+      "systemHealth": "État du système",
+      "feedbackReviewQueue": "File de révision des retours",
+      "documentDeletion": "Suppression de documents",
+      "featureFlags": "Fonctionnalités expérimentales",
+      "failedJobs": "Tâches échouées",
+      "statusIncidents": "État et incidents",
+      "quotasRateLimits": "Quotas et limites de débit",
+      "dataPortability": "Portabilité des données",
+      "teamManagement": "Gestion de l’équipe",
+      "apiAccessKeys": "Clés d’accès API",
+      "rolesPermissions": "Rôles et autorisations",
+      "accessManagement": "Gestion des accès",
+      "accessDebugger": "Diagnostic des accès",
+      "ssoSaml": "SSO / SAML",
+      "scimProvisioning": "Provisionnement SCIM"
+    }
   },
   "adminUsage": {
     "admin": "Administration Rudix",

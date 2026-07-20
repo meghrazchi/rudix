@@ -47,26 +47,23 @@ describe("AdminLandingPage", () => {
       "href",
       "/admin/usage",
     );
-    expect(screen.getByRole("link", { name: /Open Logs/i })).toHaveAttribute(
-      "href",
-      "/admin/audit-logs",
-    );
+    expect(
+      screen.getByRole("link", { name: /Open Audit Logs/i }),
+    ).toHaveAttribute("href", "/admin/audit-logs");
     expect(
       screen.getByRole("link", { name: /Open Security/i }),
     ).toHaveAttribute("href", "/admin/security-center");
-    expect(screen.getByRole("link", { name: /Open Health/i })).toHaveAttribute(
-      "href",
-      "/admin/system-health",
-    );
     expect(
-      screen.getByRole("link", { name: /Manage Policies/i }),
+      screen.getByRole("link", { name: /Open System Health/i }),
+    ).toHaveAttribute("href", "/admin/system-health");
+    expect(
+      screen.getByRole("link", { name: /Open Agent Governance/i }),
     ).toHaveAttribute("href", "/admin/governance");
-    expect(screen.getByRole("link", { name: /Open Memory/i })).toHaveAttribute(
-      "href",
-      "/admin/memory",
-    );
     expect(
-      screen.getByRole("link", { name: /Open Portability/i }),
+      screen.getByRole("link", { name: /Open Org Memory/i }),
+    ).toHaveAttribute("href", "/admin/memory");
+    expect(
+      screen.getByRole("link", { name: /Open Data Portability/i }),
     ).toHaveAttribute("href", "/admin/portability");
     expect(screen.getAllByText(/unavailable/i).length).toBeGreaterThan(0);
   });
@@ -111,7 +108,7 @@ describe("AdminLandingPage", () => {
       screen.queryByText("Unavailable in this deployment"),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Open Monitoring" }),
+      screen.getByRole("link", { name: "Open Service Monitoring" }),
     ).toHaveAttribute("href", "/admin/monitoring");
   });
 });
