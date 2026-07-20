@@ -2519,7 +2519,81 @@
   },
   "pipeline": {
     "title": "RAG Pipeline",
-    "description": "Configure and monitor your retrieval pipeline"
+    "description": "Configure and monitor your retrieval pipeline",
+    "loading": "Loading…",
+    "loadRun": "Load Run",
+    "refresh": "Refresh",
+    "run": "Run",
+    "type": "Type",
+    "status": "Status",
+    "filters": {
+      "runId": "Pipeline run ID",
+      "document": "Document filter"
+    },
+    "messages": {
+      "sampleGraph": "Showing sample graph. Enter a run ID to load backend data.",
+      "resolving": "Resolving pipeline run from linked resource…"
+    },
+    "deepLink": {
+      "document": "Document: {id}",
+      "chatMessage": "Chat message: {id}",
+      "evaluationRun": "Evaluation run: {id}"
+    },
+    "errors": {
+      "runForbidden": "You do not have permission to view this pipeline run. Check your role or organization scope.",
+      "graphFallback": "Could not load backend run graph. Fallback sample data is displayed.",
+      "nodeForbidden": "You do not have permission to inspect this node detail.",
+      "nodeFallback": "Node detail is unavailable for this run. Showing a best-effort preview.",
+      "runNotFound": "No pipeline run was found yet for this resource. Retry after processing completes.",
+      "resolveFailed": "Could not resolve the pipeline run from this link. Enter a run ID to inspect the graph.",
+      "actionBlocked": "Action blocked"
+    },
+    "empty": {
+      "filteredTitle": "Run type is filtered out",
+      "filteredDescription": "Current run type ({type}) is filtered out. Update the run type filter to view this graph.",
+      "noNodes": "No nodes match the current document filter."
+    },
+    "node": {
+      "selected": "Node selected",
+      "duration": "Duration",
+      "started": "Started",
+      "completed": "Completed",
+      "inputs": "Inputs",
+      "outputs": "Outputs",
+      "config": "Config",
+      "metrics": "Metrics",
+      "logs": "Logs",
+      "loading": "Loading node detail…",
+      "noLogs": "No logs available.",
+      "error": "Error",
+      "noData": "No data.",
+      "fallbackDescription": "Node-specific execution data and metrics are shown here when run events are available.",
+      "executionNode": "Execution node"
+    },
+    "sections": {
+      "ingestion": "Ingestion",
+      "query": "Query",
+      "evaluation": "Evaluation"
+    },
+    "statuses": {
+      "completed": "Success",
+      "running": "Processing",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "pending": "Queued"
+    },
+    "runTypes": {
+      "all": "All run types",
+      "document": {
+        "process": "Document processing (document.process)"
+      },
+      "chat": {
+        "answer": "Chat answer (chat.answer)"
+      },
+      "evaluation": {
+        "run": "Evaluation run (evaluation.run)"
+      }
+    }
   },
   "settings": {
     "title": "Settings",

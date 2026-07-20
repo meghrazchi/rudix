@@ -2519,7 +2519,81 @@
   },
   "pipeline": {
     "title": "Pipeline RAG",
-    "description": "Configurez et surveillez votre pipeline de récupération"
+    "description": "Configurez et surveillez votre pipeline de récupération",
+    "loading": "Chargement…",
+    "loadRun": "Charger l’exécution",
+    "refresh": "Actualiser",
+    "run": "Exécution",
+    "type": "Type",
+    "status": "Statut",
+    "filters": {
+      "runId": "ID d’exécution",
+      "document": "Filtre de document"
+    },
+    "messages": {
+      "sampleGraph": "Un graphe d’exemple est affiché. Saisissez un ID d’exécution pour charger les données.",
+      "resolving": "Résolution de l’exécution depuis la ressource liée…"
+    },
+    "deepLink": {
+      "document": "Document : {id}",
+      "chatMessage": "Message de chat : {id}",
+      "evaluationRun": "Exécution d’évaluation : {id}"
+    },
+    "errors": {
+      "runForbidden": "Vous n’êtes pas autorisé à consulter cette exécution. Vérifiez votre rôle ou le périmètre de l’organisation.",
+      "graphFallback": "Impossible de charger le graphe du backend. Des données d’exemple sont affichées.",
+      "nodeForbidden": "Vous n’êtes pas autorisé à inspecter ce nœud.",
+      "nodeFallback": "Les détails du nœud sont indisponibles. Un aperçu est affiché.",
+      "runNotFound": "Aucune exécution n’a encore été trouvée pour cette ressource. Réessayez après le traitement.",
+      "resolveFailed": "Impossible de résoudre l’exécution depuis ce lien. Saisissez un ID.",
+      "actionBlocked": "Action bloquée"
+    },
+    "empty": {
+      "filteredTitle": "Le type d’exécution est filtré",
+      "filteredDescription": "Le type actuel ({type}) est filtré. Modifiez le filtre pour afficher le graphe.",
+      "noNodes": "Aucun nœud ne correspond au filtre de document."
+    },
+    "node": {
+      "selected": "Nœud sélectionné",
+      "duration": "Durée",
+      "started": "Démarré",
+      "completed": "Terminé",
+      "inputs": "Entrées",
+      "outputs": "Sorties",
+      "config": "Configuration",
+      "metrics": "Métriques",
+      "logs": "Journaux",
+      "loading": "Chargement du détail du nœud…",
+      "noLogs": "Aucun journal disponible.",
+      "error": "Erreur",
+      "noData": "Aucune donnée.",
+      "fallbackDescription": "Les données et métriques propres au nœud sont affichées lorsque les événements d’exécution sont disponibles.",
+      "executionNode": "Nœud d’exécution"
+    },
+    "sections": {
+      "ingestion": "Ingestion",
+      "query": "Requête",
+      "evaluation": "Évaluation"
+    },
+    "statuses": {
+      "completed": "Réussi",
+      "running": "Traitement",
+      "failed": "Échoué",
+      "skipped": "Ignoré",
+      "pending": "En attente"
+    },
+    "runTypes": {
+      "all": "Tous les types",
+      "document": {
+        "process": "Traitement de document (document.process)"
+      },
+      "chat": {
+        "answer": "Réponse de chat (chat.answer)"
+      },
+      "evaluation": {
+        "run": "Exécution d’évaluation (evaluation.run)"
+      }
+    }
   },
   "settings": {
     "title": "Paramètres",

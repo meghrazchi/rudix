@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
 import {
@@ -53,16 +54,12 @@ function toRunTypeFilter(context: PipelineExplorerQueryContext): RunTypeFilter {
   return context.runType ?? "all";
 }
 
-const RUN_TYPE_FILTER_OPTIONS: Array<{ value: RunTypeFilter; label: string }> =
-  [
-    { value: "all", label: "All run types" },
-    {
-      value: "document.process",
-      label: "Document processing (document.process)",
-    },
-    { value: "chat.answer", label: "Chat answer (chat.answer)" },
-    { value: "evaluation.run", label: "Evaluation run (evaluation.run)" },
-  ];
+const RUN_TYPE_FILTER_OPTIONS: RunTypeFilter[] = [
+  "all",
+  "document.process",
+  "chat.answer",
+  "evaluation.run",
+];
 
 const SECTION_ORDER: PipelineNode["section"][] = [
   "ingestion",
@@ -181,9 +178,10 @@ function normalizePipelineGraph(
 function normalizeNodeDetailPayload(
   rawDetail: PipelineNodeDetailResponse | unknown,
   fallbackNode: PipelineNode,
+  fallbackDescription: string,
 ): PipelineNodeDetailResponse {
   const detail = asObject(rawDetail);
-  const base = deriveNodeDetail(fallbackNode);
+  const base = deriveNodeDetail(fallbackNode, fallbackDescription);
 
   return {
     node_id: asNonEmptyString(detail.node_id) ?? base.node_id,
@@ -222,7 +220,6 @@ function fallbackGraphByFilter(
 }
 
 type StatusMeta = {
-  label: string;
   badgeClass: string;
   nodeClass: string;
 };
@@ -239,27 +236,22 @@ type FlowNode = Node<FlowNodeData, "pipelineNode">;
 
 const statusMeta: Record<PipelineNodeStatus, StatusMeta> = {
   completed: {
-    label: "SUCCESS",
     badgeClass: "bg-emerald-100 text-emerald-800",
     nodeClass: "border-emerald-300 bg-white",
   },
   running: {
-    label: "PROCESSING",
     badgeClass: "bg-blue-100 text-blue-800",
     nodeClass: "border-[#3a57d4] bg-white shadow-md",
   },
   failed: {
-    label: "FAILED",
     badgeClass: "bg-rose-100 text-rose-800",
     nodeClass: "border-rose-400 bg-rose-50",
   },
   skipped: {
-    label: "SKIPPED",
     badgeClass: "bg-amber-100 text-amber-800",
     nodeClass: "border-amber-300 bg-amber-50",
   },
   pending: {
-    label: "QUEUED",
     badgeClass: "bg-[#eceaf7] text-[#69657f]",
     nodeClass: "border-[#d4d0e8] bg-white/90",
   },
@@ -269,12 +261,6 @@ const sectionX: Record<PipelineNode["section"], number> = {
   ingestion: 40,
   query: 420,
   evaluation: 800,
-};
-
-const sectionLabel: Record<PipelineNode["section"], string> = {
-  ingestion: "Ingestion",
-  query: "Query",
-  evaluation: "Evaluation",
 };
 
 const nodeTypes = {
@@ -301,14 +287,15 @@ function formatDuration(durationMs: number | null | undefined): string {
   return `${durationMs.toLocaleString()} ms`;
 }
 
-function deriveNodeDetail(node: PipelineNode): PipelineNodeDetailResponse {
+function deriveNodeDetail(
+  node: PipelineNode,
+  fallbackDescription: string,
+): PipelineNodeDetailResponse {
   return {
     ...fallbackNodeDetail,
     node_id: node.id,
     title: node.label,
-    description:
-      node.description ??
-      "Node-specific execution data and metrics are shown here when run events are available.",
+    description: node.description ?? fallbackDescription,
     status: node.status,
     metrics: {
       ...(node.metrics ?? {}),
@@ -341,6 +328,7 @@ function matchesDocumentFilter(node: PipelineNode, filter: string): boolean {
 function buildFlowNodes(
   nodes: PipelineNode[],
   selectedNodeId: string,
+  fallbackDescription: string,
 ): FlowNode[] {
   const grouped = {
     ingestion: [] as PipelineNode[],
@@ -364,7 +352,7 @@ function buildFlowNodes(
         selected: node.id === selectedNodeId,
         data: {
           label: node.label,
-          description: node.description ?? "Execution node",
+          description: node.description ?? fallbackDescription,
           duration: formatDuration(node.duration_ms),
           status: node.status,
           section,
@@ -401,6 +389,7 @@ function buildFlowEdges(
 }
 
 function PipelineFlowNode({ data, selected }: NodeProps<FlowNode>) {
+  const t = useTranslations("pipeline");
   const meta = statusMeta[data.status];
 
   return (
@@ -424,13 +413,13 @@ function PipelineFlowNode({ data, selected }: NodeProps<FlowNode>) {
         <div>
           <p className="text-base font-bold text-[#222033]">{data.label}</p>
           <p className="text-[11px] font-bold tracking-wide text-[#7a768f] uppercase">
-            {sectionLabel[data.section]}
+            {t(`sections.${data.section}`)}
           </p>
         </div>
         <span
           className={`rounded px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${meta.badgeClass}`}
         >
-          {meta.label}
+          {t(`statuses.${data.status}`)}
         </span>
       </div>
 
@@ -449,6 +438,7 @@ function PipelineFlowNode({ data, selected }: NodeProps<FlowNode>) {
 }
 
 export function RagPipelinePage() {
+  const t = useTranslations("pipeline");
   const searchParams = useSearchParams();
   const deepLinkContext = useMemo(
     () => parsePipelineExplorerQuery(searchParams),
@@ -471,7 +461,7 @@ export function RagPipelinePage() {
   const [loadingGraph, setLoadingGraph] = useState(false);
   const [loadingNode, setLoadingNode] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(
-    "Showing sample graph. Enter a run id to load backend data.",
+    t("messages.sampleGraph"),
   );
   const [forbiddenState, setForbiddenState] = useState<{
     description: string;
@@ -520,14 +510,19 @@ export function RagPipelinePage() {
       return nodeDetail;
     }
     if (selectedNode.id !== nodeDetail.node_id) {
-      return deriveNodeDetail(selectedNode);
+      return deriveNodeDetail(selectedNode, t("node.fallbackDescription"));
     }
     return nodeDetail;
-  }, [effectiveSelectedNodeId, filteredNodes, nodeDetail]);
+  }, [effectiveSelectedNodeId, filteredNodes, nodeDetail, t]);
 
   const flowNodes = useMemo(
-    () => buildFlowNodes(filteredNodes, effectiveSelectedNodeId),
-    [effectiveSelectedNodeId, filteredNodes],
+    () =>
+      buildFlowNodes(
+        filteredNodes,
+        effectiveSelectedNodeId,
+        t("node.executionNode"),
+      ),
+    [effectiveSelectedNodeId, filteredNodes, t],
   );
   const flowEdges = useMemo(
     () => buildFlowEdges(filteredEdges, filteredNodes),
@@ -538,19 +533,24 @@ export function RagPipelinePage() {
   const deepLinkDetails = useMemo(() => {
     const details: string[] = [];
     if (deepLinkContext.documentId) {
-      details.push(`Document: ${deepLinkContext.documentId}`);
+      details.push(t("deepLink.document", { id: deepLinkContext.documentId }));
     }
     if (deepLinkContext.chatMessageId) {
-      details.push(`Chat message: ${deepLinkContext.chatMessageId}`);
+      details.push(
+        t("deepLink.chatMessage", { id: deepLinkContext.chatMessageId }),
+      );
     }
     if (deepLinkContext.evaluationRunId) {
-      details.push(`Evaluation run: ${deepLinkContext.evaluationRunId}`);
+      details.push(
+        t("deepLink.evaluationRun", { id: deepLinkContext.evaluationRunId }),
+      );
     }
     return details;
   }, [
     deepLinkContext.chatMessageId,
     deepLinkContext.documentId,
     deepLinkContext.evaluationRunId,
+    t,
   ]);
 
   const loadGraph = useCallback(
@@ -562,12 +562,12 @@ export function RagPipelinePage() {
         const firstNode = currentFallbackGraph.nodes[0];
         if (firstNode) {
           setSelectedNodeId(firstNode.id);
-          setNodeDetail(deriveNodeDetail(firstNode));
+          setNodeDetail(
+            deriveNodeDetail(firstNode, t("node.fallbackDescription")),
+          );
         }
         setForbiddenState(null);
-        setErrorText(
-          "Showing sample graph. Enter a run id to load backend data.",
-        );
+        setErrorText(t("messages.sampleGraph"));
         return;
       }
 
@@ -582,34 +582,35 @@ export function RagPipelinePage() {
         const firstNode = loaded.nodes[0];
         if (firstNode) {
           setSelectedNodeId(firstNode.id);
-          setNodeDetail(deriveNodeDetail(firstNode));
+          setNodeDetail(
+            deriveNodeDetail(firstNode, t("node.fallbackDescription")),
+          );
         }
       } catch (error) {
         setGraph(currentFallbackGraph);
         const firstNode = currentFallbackGraph.nodes[0];
         if (firstNode) {
           setSelectedNodeId(firstNode.id);
-          setNodeDetail(deriveNodeDetail(firstNode));
+          setNodeDetail(
+            deriveNodeDetail(firstNode, t("node.fallbackDescription")),
+          );
         }
 
         if (isForbiddenError(error)) {
           setForbiddenState({
-            description:
-              "You do not have permission to view this pipeline run. Check your role or organization scope.",
+            description: t("errors.runForbidden"),
             requestId: extractRequestIdFromError(error),
           });
         } else if (isApiClientError(error) && error.status === 401) {
           setErrorText(getApiErrorMessage(error));
         } else {
-          setErrorText(
-            "Could not load backend run graph. Fallback sample data is displayed.",
-          );
+          setErrorText(t("errors.graphFallback"));
         }
       } finally {
         setLoadingGraph(false);
       }
     },
-    [runId, runTypeFilter],
+    [runId, runTypeFilter, t],
   );
 
   const applySampleGraph = useCallback(
@@ -619,15 +620,15 @@ export function RagPipelinePage() {
       const firstNode = sampleGraph.nodes[0];
       if (firstNode) {
         setSelectedNodeId(firstNode.id);
-        setNodeDetail(deriveNodeDetail(firstNode));
-      }
-      if (showDefaultMessage) {
-        setErrorText(
-          "Showing sample graph. Enter a run id to load backend data.",
+        setNodeDetail(
+          deriveNodeDetail(firstNode, t("node.fallbackDescription")),
         );
       }
+      if (showDefaultMessage) {
+        setErrorText(t("messages.sampleGraph"));
+      }
     },
-    [],
+    [t],
   );
 
   const applyDeepLinkResolvedRun = useCallback(
@@ -641,12 +642,12 @@ export function RagPipelinePage() {
 
   const beginDeepLinkResolution = useCallback(() => {
     setRunId("");
-    setErrorText("Resolving pipeline run from linked resource...");
-  }, []);
+    setErrorText(t("messages.resolving"));
+  }, [t]);
 
   async function selectNode(node: PipelineNode) {
     setSelectedNodeId(node.id);
-    setNodeDetail(deriveNodeDetail(node));
+    setNodeDetail(deriveNodeDetail(node, t("node.fallbackDescription")));
 
     const effectiveRunId = runId.trim();
     if (!effectiveRunId) {
@@ -656,23 +657,22 @@ export function RagPipelinePage() {
     setLoadingNode(true);
     try {
       const detail = await fetchPipelineNodeDetail(effectiveRunId, node.id);
-      setNodeDetail(normalizeNodeDetailPayload(detail, node));
+      setNodeDetail(
+        normalizeNodeDetailPayload(detail, node, t("node.fallbackDescription")),
+      );
       setForbiddenState(null);
       setErrorText(null);
     } catch (error) {
-      setNodeDetail(deriveNodeDetail(node));
+      setNodeDetail(deriveNodeDetail(node, t("node.fallbackDescription")));
       if (isForbiddenError(error)) {
         setForbiddenState({
-          description:
-            "You do not have permission to inspect this node detail.",
+          description: t("errors.nodeForbidden"),
           requestId: extractRequestIdFromError(error),
         });
       } else if (isApiClientError(error) && error.status === 401) {
         setErrorText(getApiErrorMessage(error));
       } else {
-        setErrorText(
-          "Node detail endpoint not available for this run. Showing best-effort preview.",
-        );
+        setErrorText(t("errors.nodeFallback"));
       }
     } finally {
       setLoadingNode(false);
@@ -754,8 +754,7 @@ export function RagPipelinePage() {
         }
         if (isForbiddenError(error)) {
           setForbiddenState({
-            description:
-              "You do not have permission to view this pipeline run. Check your role or organization scope.",
+            description: t("errors.runForbidden"),
             requestId: extractRequestIdFromError(error),
           });
           setErrorText(null);
@@ -766,14 +765,10 @@ export function RagPipelinePage() {
           return;
         }
         if (isApiClientError(error) && error.status === 404) {
-          setErrorText(
-            "No pipeline run was found yet for this resource. Retry after processing completes.",
-          );
+          setErrorText(t("errors.runNotFound"));
           return;
         }
-        setErrorText(
-          "Could not resolve pipeline run from this link. Enter a run ID to inspect the graph.",
-        );
+        setErrorText(t("errors.resolveFailed"));
       }
     })();
 
@@ -785,6 +780,7 @@ export function RagPipelinePage() {
     beginDeepLinkResolution,
     deepLinkContext,
     loadGraph,
+    t,
   ]);
 
   return (
@@ -810,7 +806,7 @@ export function RagPipelinePage() {
             <input
               value={runId}
               onChange={(event) => setRunId(event.target.value)}
-              placeholder="Pipeline run id"
+              placeholder={t("filters.runId")}
               className="h-10 min-w-[180px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
             />
             <select
@@ -821,15 +817,15 @@ export function RagPipelinePage() {
               className="h-10 min-w-[142px] rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
             >
               {RUN_TYPE_FILTER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+                <option key={option} value={option}>
+                  {t(`runTypes.${option}`)}
                 </option>
               ))}
             </select>
             <input
               value={documentFilter}
               onChange={(event) => setDocumentFilter(event.target.value)}
-              placeholder="Document filter"
+              placeholder={t("filters.document")}
               className="h-10 min-w-[150px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
             />
             <div className="ml-auto flex shrink-0 gap-2">
@@ -838,7 +834,7 @@ export function RagPipelinePage() {
                 disabled={loadingGraph}
                 className="h-10 rounded-lg bg-[#3525cd] px-5 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
               >
-                {loadingGraph ? "Loading..." : "Load Run"}
+                {loadingGraph ? t("loading") : t("loadRun")}
               </button>
               <button
                 type="button"
@@ -846,15 +842,21 @@ export function RagPipelinePage() {
                 disabled={loadingGraph}
                 className="h-10 rounded-lg border border-[#d2cee6] bg-white px-4 text-sm font-semibold whitespace-nowrap text-[#3525cd] transition hover:bg-[#f5f3ff] disabled:opacity-60"
               >
-                Refresh
+                {t("refresh")}
               </button>
             </div>
           </form>
 
           <div className="flex flex-wrap items-center gap-3 border-b border-[#e8e4f5] bg-[#f8f6ff] px-4 py-2 text-xs font-semibold tracking-wide text-[#5f5b72] uppercase">
-            <span>Run: {runLabel}</span>
-            <span>Type: {graph.pipeline_type}</span>
-            <span>Status: {graph.status}</span>
+            <span>
+              {t("run")}: {runLabel}
+            </span>
+            <span>
+              {t("type")}: {graph.pipeline_type}
+            </span>
+            <span>
+              {t("status")}: {graph.status}
+            </span>
             <ContextualHelpLink
               topic="rag-pipeline"
               className="ml-auto normal-case"
@@ -878,7 +880,7 @@ export function RagPipelinePage() {
             <div className="border-b border-[#e8e4f5] bg-[#f5f3ff] p-3">
               <ForbiddenState
                 compact
-                title="Action blocked"
+                title={t("errors.actionBlocked")}
                 description={forbiddenState.description}
                 requestId={forbiddenState.requestId}
               />
@@ -895,13 +897,15 @@ export function RagPipelinePage() {
             {runTypeMismatch ? (
               <div className="p-6">
                 <EmptyState
-                  title="Run type is filtered out"
-                  description={`Current run type (${graph.pipeline_type}) is filtered out. Update the run type filter to view this graph.`}
+                  title={t("empty.filteredTitle")}
+                  description={t("empty.filteredDescription", {
+                    type: graph.pipeline_type,
+                  })}
                 />
               </div>
             ) : flowNodes.length === 0 ? (
               <div className="p-6">
-                <EmptyState title="No nodes match the current document filter." />
+                <EmptyState title={t("empty.noNodes")} />
               </div>
             ) : (
               <ReactFlowProvider>
@@ -957,7 +961,7 @@ export function RagPipelinePage() {
       <aside className="w-full max-w-full border-t border-[#d8d5e8] bg-white lg:w-[420px] lg:border-t-0">
         <div className="border-b border-[#d8d5e8] px-5 py-4">
           <div className="mb-2 text-xs font-bold tracking-wide text-[#3525cd] uppercase">
-            Node Selected
+            {t("node.selected")}
           </div>
           <h3 className="text-xl font-bold text-[#2d2a3f]">
             {displayedNodeDetail.title}
@@ -970,39 +974,45 @@ export function RagPipelinePage() {
         <div className="max-h-[calc(100vh-280px)] space-y-5 overflow-auto px-5 py-5">
           <div className="grid grid-cols-2 gap-3">
             <MetricCard
-              label="Status"
-              value={statusMeta[displayedNodeDetail.status].label}
+              label={t("status")}
+              value={t(`statuses.${displayedNodeDetail.status}`)}
             />
             <MetricCard
-              label="Duration"
+              label={t("node.duration")}
               value={formatDuration(displayedNodeDetail.duration_ms)}
             />
             <MetricCard
-              label="Started"
+              label={t("node.started")}
               value={displayedNodeDetail.started_at ?? "-"}
               mono
             />
             <MetricCard
-              label="Completed"
+              label={t("node.completed")}
               value={displayedNodeDetail.completed_at ?? "-"}
               mono
             />
           </div>
 
-          <KeyValueSection title="Inputs" values={displayedNodeDetail.inputs} />
           <KeyValueSection
-            title="Outputs"
+            title={t("node.inputs")}
+            values={displayedNodeDetail.inputs}
+          />
+          <KeyValueSection
+            title={t("node.outputs")}
             values={displayedNodeDetail.outputs}
           />
-          <KeyValueSection title="Config" values={displayedNodeDetail.config} />
           <KeyValueSection
-            title="Metrics"
+            title={t("node.config")}
+            values={displayedNodeDetail.config}
+          />
+          <KeyValueSection
+            title={t("node.metrics")}
             values={displayedNodeDetail.metrics}
           />
 
           <section>
             <h4 className="mb-2 text-xs font-bold tracking-wide text-[#66637a] uppercase">
-              Logs
+              {t("node.logs")}
             </h4>
             <div
               className="space-y-1 rounded-xl bg-[#2f2b3f] p-3 text-xs text-[#efeefe]"
@@ -1014,12 +1024,12 @@ export function RagPipelinePage() {
               {loadingNode ? (
                 <LoadingState
                   compact
-                  title="Loading node detail..."
+                  title={t("node.loading")}
                   className="rounded bg-[#2f2b3f] px-0 py-0 text-xs text-[#efeefe]"
                 />
               ) : null}
               {displayedNodeDetail.logs.length === 0 && !loadingNode ? (
-                <p>No logs available.</p>
+                <p>{t("node.noLogs")}</p>
               ) : null}
               {displayedNodeDetail.logs.map((line) => (
                 <p key={line}>- {line}</p>
@@ -1030,7 +1040,7 @@ export function RagPipelinePage() {
           {displayedNodeDetail.error_message ? (
             <section className="rounded-xl border border-rose-200 bg-rose-50 p-3">
               <h4 className="mb-1 text-xs font-bold tracking-wide text-rose-700 uppercase">
-                Error
+                {t("node.error")}
               </h4>
               <p className="text-sm text-rose-800">
                 {displayedNodeDetail.error_message}
@@ -1075,6 +1085,7 @@ type KeyValueSectionProps = {
 };
 
 function KeyValueSection({ title, values }: KeyValueSectionProps) {
+  const t = useTranslations("pipeline");
   const entries = Object.entries(values);
   return (
     <section>
@@ -1084,7 +1095,7 @@ function KeyValueSection({ title, values }: KeyValueSectionProps) {
       <div className="overflow-hidden rounded-xl border border-[#dcd7ea] bg-white">
         {entries.length === 0 ? (
           <div className="p-2">
-            <EmptyState compact title="No data." />
+            <EmptyState compact title={t("node.noData")} />
           </div>
         ) : (
           entries.map(([key, value]) => (

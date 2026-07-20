@@ -99,7 +99,7 @@ describe("RagPipelinePage", () => {
 
     expect(
       screen.getByText(
-        "Showing sample graph. Enter a run id to load backend data.",
+        "Showing sample graph. Enter a run ID to load backend data.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upload" })).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe("RagPipelinePage", () => {
     render(<RagPipelinePage />);
 
     await userEvent.type(
-      screen.getByPlaceholderText("Pipeline run id"),
+      screen.getByPlaceholderText("Pipeline run ID"),
       "run-abc",
     );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
@@ -194,7 +194,7 @@ describe("RagPipelinePage", () => {
     await waitFor(() => {
       expect(mockedFetchPipelineRunGraph).toHaveBeenCalledWith("run-url-1");
     });
-    expect(screen.getByPlaceholderText("Pipeline run id")).toHaveValue(
+    expect(screen.getByPlaceholderText("Pipeline run ID")).toHaveValue(
       "run-url-1",
     );
     expect(screen.getByRole("combobox")).toHaveValue("chat.answer");
@@ -239,7 +239,7 @@ describe("RagPipelinePage", () => {
     render(<RagPipelinePage />);
 
     await userEvent.type(
-      screen.getByPlaceholderText("Pipeline run id"),
+      screen.getByPlaceholderText("Pipeline run ID"),
       "run-forbidden",
     );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
@@ -267,7 +267,7 @@ describe("RagPipelinePage", () => {
     render(<RagPipelinePage />);
 
     await userEvent.type(
-      screen.getByPlaceholderText("Pipeline run id"),
+      screen.getByPlaceholderText("Pipeline run ID"),
       "run-unauthorized",
     );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
@@ -345,7 +345,7 @@ describe("RagPipelinePage", () => {
     render(<RagPipelinePage />);
 
     await userEvent.type(
-      screen.getByPlaceholderText("Pipeline run id"),
+      screen.getByPlaceholderText("Pipeline run ID"),
       "run-malformed",
     );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));

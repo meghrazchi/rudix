@@ -2519,7 +2519,81 @@
   },
   "pipeline": {
     "title": "RAG-Pipeline",
-    "description": "Ihre Abruf-Pipeline konfigurieren und überwachen"
+    "description": "Ihre Abruf-Pipeline konfigurieren und überwachen",
+    "loading": "Wird geladen…",
+    "loadRun": "Lauf laden",
+    "refresh": "Aktualisieren",
+    "run": "Lauf",
+    "type": "Typ",
+    "status": "Status",
+    "filters": {
+      "runId": "Pipeline-Lauf-ID",
+      "document": "Dokumentfilter"
+    },
+    "messages": {
+      "sampleGraph": "Beispielgraph wird angezeigt. Geben Sie eine Lauf-ID ein, um Backenddaten zu laden.",
+      "resolving": "Pipeline-Lauf aus verknüpfter Ressource wird ermittelt…"
+    },
+    "deepLink": {
+      "document": "Dokument: {id}",
+      "chatMessage": "Chatnachricht: {id}",
+      "evaluationRun": "Evaluierungslauf: {id}"
+    },
+    "errors": {
+      "runForbidden": "Sie dürfen diesen Pipeline-Lauf nicht anzeigen. Prüfen Sie Rolle oder Organisationsumfang.",
+      "graphFallback": "Backend-Laufgraph konnte nicht geladen werden. Beispieldaten werden angezeigt.",
+      "nodeForbidden": "Sie dürfen diese Knotendetails nicht prüfen.",
+      "nodeFallback": "Knotendetails sind für diesen Lauf nicht verfügbar. Eine Vorschau wird angezeigt.",
+      "runNotFound": "Für diese Ressource wurde noch kein Pipeline-Lauf gefunden. Versuchen Sie es nach der Verarbeitung erneut.",
+      "resolveFailed": "Pipeline-Lauf konnte über diesen Link nicht ermittelt werden. Geben Sie eine Lauf-ID ein.",
+      "actionBlocked": "Aktion blockiert"
+    },
+    "empty": {
+      "filteredTitle": "Lauftyp ist ausgefiltert",
+      "filteredDescription": "Der aktuelle Lauftyp ({type}) ist ausgefiltert. Ändern Sie den Filter.",
+      "noNodes": "Keine Knoten entsprechen dem Dokumentfilter."
+    },
+    "node": {
+      "selected": "Knoten ausgewählt",
+      "duration": "Dauer",
+      "started": "Gestartet",
+      "completed": "Abgeschlossen",
+      "inputs": "Eingaben",
+      "outputs": "Ausgaben",
+      "config": "Konfiguration",
+      "metrics": "Metriken",
+      "logs": "Protokolle",
+      "loading": "Knotendetails werden geladen…",
+      "noLogs": "Keine Protokolle verfügbar.",
+      "error": "Fehler",
+      "noData": "Keine Daten.",
+      "fallbackDescription": "Knotenspezifische Ausführungsdaten und Metriken werden angezeigt, sobald Laufereignisse verfügbar sind.",
+      "executionNode": "Ausführungsknoten"
+    },
+    "sections": {
+      "ingestion": "Aufnahme",
+      "query": "Abfrage",
+      "evaluation": "Evaluierung"
+    },
+    "statuses": {
+      "completed": "Erfolgreich",
+      "running": "Verarbeitung",
+      "failed": "Fehlgeschlagen",
+      "skipped": "Übersprungen",
+      "pending": "In Warteschlange"
+    },
+    "runTypes": {
+      "all": "Alle Lauftypen",
+      "document": {
+        "process": "Dokumentverarbeitung (document.process)"
+      },
+      "chat": {
+        "answer": "Chatantwort (chat.answer)"
+      },
+      "evaluation": {
+        "run": "Evaluierungslauf (evaluation.run)"
+      }
+    }
   },
   "settings": {
     "title": "Einstellungen",

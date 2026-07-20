@@ -126,7 +126,7 @@ describe("RagPipelinePage auth integration (MSW)", () => {
     render(<RagPipelinePage />);
 
     await userEvent.type(
-      screen.getByPlaceholderText("Pipeline run id"),
+      screen.getByPlaceholderText("Pipeline run ID"),
       "run-auth-1",
     );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
@@ -160,7 +160,7 @@ describe("RagPipelinePage auth integration (MSW)", () => {
     render(<RagPipelinePage />);
 
     await userEvent.type(
-      screen.getByPlaceholderText("Pipeline run id"),
+      screen.getByPlaceholderText("Pipeline run ID"),
       "run-403",
     );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
@@ -186,7 +186,7 @@ describe("RagPipelinePage auth integration (MSW)", () => {
     render(<RagPipelinePage />);
 
     await userEvent.type(
-      screen.getByPlaceholderText("Pipeline run id"),
+      screen.getByPlaceholderText("Pipeline run ID"),
       "run-401",
     );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));

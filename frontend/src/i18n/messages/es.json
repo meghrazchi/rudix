@@ -2519,7 +2519,81 @@
   },
   "pipeline": {
     "title": "Canalización RAG",
-    "description": "Configure y monitorear tu recuperación canalización"
+    "description": "Configure y monitorear tu recuperación canalización",
+    "loading": "Cargando…",
+    "loadRun": "Cargar ejecución",
+    "refresh": "Actualizar",
+    "run": "Ejecución",
+    "type": "Tipo",
+    "status": "Estado",
+    "filters": {
+      "runId": "ID de ejecución",
+      "document": "Filtro de documentos"
+    },
+    "messages": {
+      "sampleGraph": "Se muestra un grafo de ejemplo. Introduzca un ID de ejecución para cargar datos.",
+      "resolving": "Resolviendo la ejecución desde el recurso vinculado…"
+    },
+    "deepLink": {
+      "document": "Documento: {id}",
+      "chatMessage": "Mensaje de chat: {id}",
+      "evaluationRun": "Ejecución de evaluación: {id}"
+    },
+    "errors": {
+      "runForbidden": "No tiene permiso para ver esta ejecución. Compruebe su rol o el ámbito de la organización.",
+      "graphFallback": "No se pudo cargar el grafo del backend. Se muestran datos de ejemplo.",
+      "nodeForbidden": "No tiene permiso para inspeccionar este nodo.",
+      "nodeFallback": "El detalle del nodo no está disponible. Se muestra una vista previa.",
+      "runNotFound": "Aún no se encontró una ejecución para este recurso. Reintente al finalizar el procesamiento.",
+      "resolveFailed": "No se pudo resolver la ejecución desde este enlace. Introduzca un ID.",
+      "actionBlocked": "Acción bloqueada"
+    },
+    "empty": {
+      "filteredTitle": "El tipo de ejecución está filtrado",
+      "filteredDescription": "El tipo actual ({type}) está filtrado. Actualice el filtro para ver el grafo.",
+      "noNodes": "Ningún nodo coincide con el filtro de documentos."
+    },
+    "node": {
+      "selected": "Nodo seleccionado",
+      "duration": "Duración",
+      "started": "Iniciado",
+      "completed": "Completado",
+      "inputs": "Entradas",
+      "outputs": "Salidas",
+      "config": "Configuración",
+      "metrics": "Métricas",
+      "logs": "Registros",
+      "loading": "Cargando detalle del nodo…",
+      "noLogs": "No hay registros disponibles.",
+      "error": "Error",
+      "noData": "Sin datos.",
+      "fallbackDescription": "Los datos y métricas específicos del nodo aparecen cuando hay eventos de ejecución disponibles.",
+      "executionNode": "Nodo de ejecución"
+    },
+    "sections": {
+      "ingestion": "Ingesta",
+      "query": "Consulta",
+      "evaluation": "Evaluación"
+    },
+    "statuses": {
+      "completed": "Correcto",
+      "running": "Procesando",
+      "failed": "Fallido",
+      "skipped": "Omitido",
+      "pending": "En cola"
+    },
+    "runTypes": {
+      "all": "Todos los tipos",
+      "document": {
+        "process": "Procesamiento de documentos (document.process)"
+      },
+      "chat": {
+        "answer": "Respuesta de chat (chat.answer)"
+      },
+      "evaluation": {
+        "run": "Ejecución de evaluación (evaluation.run)"
+      }
+    }
   },
   "settings": {
     "title": "Configuración",
