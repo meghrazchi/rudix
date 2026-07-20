@@ -5036,5 +5036,47 @@
       "loadFailed": "SCIM-Konfiguration konnte nicht geladen werden.",
       "ownerOnly": "Nur Inhaber können die SCIM-Bereitstellung konfigurieren."
     }
+  },
+  "adminSystemHealth": {
+    "eyebrow": "Rudix-Administration",
+    "title": "Systemzustand",
+    "description": "Überwachen Sie die API-Bereitschaft und den Zustand zentraler Abhängigkeiten.",
+    "restrictedTitle": "Systemzustand eingeschränkt",
+    "restrictedDescription": "Nur Inhaber und Administratoren können den Systemzustand aufrufen.",
+    "autoRefresh": "Automatische Aktualisierung: {interval}",
+    "disabled": "deaktiviert",
+    "refreshing": "Wird aktualisiert...",
+    "refreshChecks": "Prüfungen aktualisieren",
+    "apiHealth": "API-Zustand (/health)",
+    "readiness": "Bereitschaft (/ready)",
+    "loading": "Systemzustand wird geladen...",
+    "updated": "Aktualisiert: {timestamp}",
+    "failedDependencies": "Fehlgeschlagene Abhängigkeiten:",
+    "allHealthy": "Alle gemeldeten Abhängigkeiten sind fehlerfrei.",
+    "dependencyCard": "Abhängigkeitskarte für {dependency}",
+    "notReported": "Vom Backend nicht gemeldet.",
+    "noDetail": "Keine Details angegeben.",
+    "dependencies": {
+      "postgresql": "PostgreSQL",
+      "redis": "Redis",
+      "rabbitmq": "RabbitMQ",
+      "minio": "MinIO",
+      "qdrant": "Qdrant",
+      "openai": "OpenAI-Konfiguration"
+    },
+    "states": {
+      "healthy": "Fehlerfrei",
+      "degraded": "Beeinträchtigt",
+      "unavailable": "Nicht verfügbar"
+    },
+    "statuses": {
+      "ok": "OK",
+      "healthy": "Fehlerfrei",
+      "ready": "Bereit",
+      "degraded": "Beeinträchtigt",
+      "error": "Fehler",
+      "failed": "Fehlgeschlagen",
+      "unknown": "Unbekannt"
+    }
   }
 }

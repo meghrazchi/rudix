@@ -5036,5 +5036,47 @@
       "loadFailed": "Impossible de charger la configuration SCIM.",
       "ownerOnly": "Seuls les propriétaires peuvent configurer SCIM."
     }
+  },
+  "adminSystemHealth": {
+    "eyebrow": "Administration Rudix",
+    "title": "État du système",
+    "description": "Surveillez la disponibilité de l’API et l’état des dépendances principales.",
+    "restrictedTitle": "État du système restreint",
+    "restrictedDescription": "Seuls les propriétaires et administrateurs peuvent consulter l’état du système.",
+    "autoRefresh": "Actualisation automatique : {interval}",
+    "disabled": "désactivée",
+    "refreshing": "Actualisation...",
+    "refreshChecks": "Actualiser les contrôles",
+    "apiHealth": "État de l’API (/health)",
+    "readiness": "Disponibilité (/ready)",
+    "loading": "Chargement de l’état du système...",
+    "updated": "Mis à jour : {timestamp}",
+    "failedDependencies": "Dépendances en échec :",
+    "allHealthy": "Toutes les dépendances signalées sont opérationnelles.",
+    "dependencyCard": "Carte de dépendance {dependency}",
+    "notReported": "Non signalé par le backend.",
+    "noDetail": "Aucun détail fourni.",
+    "dependencies": {
+      "postgresql": "PostgreSQL",
+      "redis": "Redis",
+      "rabbitmq": "RabbitMQ",
+      "minio": "MinIO",
+      "qdrant": "Qdrant",
+      "openai": "Configuration OpenAI"
+    },
+    "states": {
+      "healthy": "Opérationnel",
+      "degraded": "Dégradé",
+      "unavailable": "Indisponible"
+    },
+    "statuses": {
+      "ok": "OK",
+      "healthy": "Opérationnel",
+      "ready": "Prêt",
+      "degraded": "Dégradé",
+      "error": "Erreur",
+      "failed": "Échec",
+      "unknown": "Inconnu"
+    }
   }
 }

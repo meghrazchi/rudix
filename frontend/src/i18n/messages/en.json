@@ -5036,5 +5036,47 @@
       "loadFailed": "Failed to load SCIM configuration.",
       "ownerOnly": "Only owners can configure SCIM provisioning."
     }
+  },
+  "adminSystemHealth": {
+    "eyebrow": "Rudix Admin",
+    "title": "System health",
+    "description": "Monitor API readiness and core dependency health for operations.",
+    "restrictedTitle": "Admin health restricted",
+    "restrictedDescription": "Only owner and admin roles can access system health.",
+    "autoRefresh": "Auto-refresh: {interval}",
+    "disabled": "disabled",
+    "refreshing": "Refreshing...",
+    "refreshChecks": "Refresh checks",
+    "apiHealth": "API Health (/health)",
+    "readiness": "Readiness (/ready)",
+    "loading": "Loading health status...",
+    "updated": "Updated: {timestamp}",
+    "failedDependencies": "Failed dependencies:",
+    "allHealthy": "All reported dependencies are healthy.",
+    "dependencyCard": "{dependency} dependency card",
+    "notReported": "Not reported by backend.",
+    "noDetail": "No detail provided.",
+    "dependencies": {
+      "postgresql": "PostgreSQL",
+      "redis": "Redis",
+      "rabbitmq": "RabbitMQ",
+      "minio": "MinIO",
+      "qdrant": "Qdrant",
+      "openai": "OpenAI Config"
+    },
+    "states": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "unavailable": "Unavailable"
+    },
+    "statuses": {
+      "ok": "OK",
+      "healthy": "Healthy",
+      "ready": "Ready",
+      "degraded": "Degraded",
+      "error": "Error",
+      "failed": "Failed",
+      "unknown": "Unknown"
+    }
   }
 }

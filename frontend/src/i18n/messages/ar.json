@@ -5036,5 +5036,47 @@
       "loadFailed": "تعذر تحميل إعدادات SCIM.",
       "ownerOnly": "يمكن للمالكين فقط إعداد SCIM."
     }
+  },
+  "adminSystemHealth": {
+    "eyebrow": "إدارة Rudix",
+    "title": "صحة النظام",
+    "description": "راقب جاهزية API وصحة التبعيات الأساسية للعمليات.",
+    "restrictedTitle": "الوصول إلى صحة النظام مقيّد",
+    "restrictedDescription": "يمكن للمالكين والمشرفين فقط الوصول إلى صحة النظام.",
+    "autoRefresh": "التحديث التلقائي: {interval}",
+    "disabled": "معطّل",
+    "refreshing": "جارٍ التحديث...",
+    "refreshChecks": "تحديث الفحوصات",
+    "apiHealth": "صحة API (/health)",
+    "readiness": "الجاهزية (/ready)",
+    "loading": "جارٍ تحميل حالة الصحة...",
+    "updated": "آخر تحديث: {timestamp}",
+    "failedDependencies": "التبعيات الفاشلة:",
+    "allHealthy": "كل التبعيات المُبلغ عنها سليمة.",
+    "dependencyCard": "بطاقة تبعية {dependency}",
+    "notReported": "لم يبلغ عنها الخادم.",
+    "noDetail": "لم تُقدم تفاصيل.",
+    "dependencies": {
+      "postgresql": "PostgreSQL",
+      "redis": "Redis",
+      "rabbitmq": "RabbitMQ",
+      "minio": "MinIO",
+      "qdrant": "Qdrant",
+      "openai": "إعداد OpenAI"
+    },
+    "states": {
+      "healthy": "سليم",
+      "degraded": "متدهور",
+      "unavailable": "غير متاح"
+    },
+    "statuses": {
+      "ok": "سليم",
+      "healthy": "سليم",
+      "ready": "جاهز",
+      "degraded": "متدهور",
+      "error": "خطأ",
+      "failed": "فشل",
+      "unknown": "غير معروف"
+    }
   }
 }

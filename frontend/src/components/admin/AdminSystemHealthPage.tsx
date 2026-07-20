@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -27,7 +28,7 @@ type DependencyState = "healthy" | "degraded" | "unavailable";
 
 type DependencyDescriptor = {
   key: DependencyKey;
-  label: string;
+  labelKey: string;
   aliases: string[];
 };
 
@@ -46,32 +47,32 @@ const REFRESH_INTERVAL_MS = (() => {
 const DEPENDENCY_DESCRIPTORS: DependencyDescriptor[] = [
   {
     key: "postgresql",
-    label: "PostgreSQL",
+    labelKey: "postgresql",
     aliases: ["postgresql", "postgres", "database", "db"],
   },
   {
     key: "redis",
-    label: "Redis",
+    labelKey: "redis",
     aliases: ["redis", "cache"],
   },
   {
     key: "rabbitmq",
-    label: "RabbitMQ",
+    labelKey: "rabbitmq",
     aliases: ["rabbitmq", "rabbit", "queue", "broker"],
   },
   {
     key: "minio",
-    label: "MinIO",
+    labelKey: "minio",
     aliases: ["minio", "object_storage", "storage", "blob"],
   },
   {
     key: "qdrant",
-    label: "Qdrant",
+    labelKey: "qdrant",
     aliases: ["qdrant", "vector_store", "vector", "vectordb"],
   },
   {
     key: "openai",
-    label: "OpenAI Config",
+    labelKey: "openai",
     aliases: ["openai", "openai_config", "llm", "provider", "openai_provider"],
   },
 ];
@@ -225,6 +226,7 @@ function HealthSection({
   error: unknown;
   onRetry: () => void;
 }) {
+  const t = useTranslations("adminSystemHealth");
   if (isLoading) {
     return (
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
@@ -232,7 +234,7 @@ function HealthSection({
         <LoadingState
           compact
           className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-          title="Loading health status..."
+          title={t("loading")}
         />
       </section>
     );
@@ -265,21 +267,21 @@ function HealthSection({
             response?.status,
           )}`}
         >
-          {response?.status ?? "unknown"}
+          {t(`statuses.${response?.status ?? "unknown"}`)}
         </span>
       </div>
       <p className="mt-2 text-xs text-[#6a6780]">
-        Updated: {formatTimestamp(response?.timestamp)}
+        {t("updated", { timestamp: formatTimestamp(response?.timestamp) })}
       </p>
 
       {failedDependencies.length > 0 ? (
         <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          Failed dependencies:{" "}
+          {t("failedDependencies")}{" "}
           <span className="font-semibold">{failedDependencies.join(", ")}</span>
         </p>
       ) : (
         <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          All reported dependencies are healthy.
+          {t("allHealthy")}
         </p>
       )}
 
@@ -291,30 +293,31 @@ function HealthSection({
             ? sanitizeDependencyMetadata(dependency.metadata)
             : [];
 
+          const dependencyLabel = t(`dependencies.${descriptor.labelKey}`);
           return (
             <article
               key={descriptor.key}
               className={`rounded-xl border p-3 ${dependencyCardClass(state)}`}
-              aria-label={`${descriptor.label} dependency card`}
+              aria-label={t("dependencyCard", { dependency: dependencyLabel })}
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold text-[#2a2640]">
-                  {descriptor.label}
+                  {dependencyLabel}
                 </p>
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${dependencyBadgeClass(
                     state,
                   )}`}
                 >
-                  {state}
+                  {t(`states.${state}`)}
                 </span>
               </div>
               <p className="mt-2 text-xs text-[#4d4963]">
                 {dependency?.detail?.trim()
                   ? dependency.detail
                   : state === "unavailable"
-                    ? "Not reported by backend."
-                    : "No detail provided."}
+                    ? t("notReported")
+                    : t("noDetail")}
               </p>
               {metadataEntries.length > 0 ? (
                 <dl className="mt-2 space-y-1 text-[11px] text-[#5f5b72]">
@@ -338,6 +341,7 @@ function HealthSection({
 }
 
 export function AdminSystemHealthPage() {
+  const t = useTranslations("adminSystemHealth");
   const { state } = useAuthSession();
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
@@ -369,8 +373,8 @@ export function AdminSystemHealthPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Admin health restricted"
-          description="Only owner and admin roles can access system health."
+          title={t("restrictedTitle")}
+          description={t("restrictedDescription")}
           compact={false}
         />
       </section>
@@ -383,18 +387,23 @@ export function AdminSystemHealthPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-              Rudix Admin
+              {t("eyebrow")}
             </p>
             <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-              System health
+              {t("title")}
             </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
-              Monitor API readiness and core dependency health for operations.
+              {t("description")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-2 py-1 text-xs font-semibold text-[#5f5a74]">
-              Auto-refresh: {formatRefreshIntervalLabel(REFRESH_INTERVAL_MS)}
+              {t("autoRefresh", {
+                interval:
+                  REFRESH_INTERVAL_MS > 0
+                    ? formatRefreshIntervalLabel(REFRESH_INTERVAL_MS)
+                    : t("disabled"),
+              })}
             </span>
             <button
               type="button"
@@ -405,8 +414,8 @@ export function AdminSystemHealthPage() {
               className="rounded-lg border border-[#cbc5e6] px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {healthQuery.isFetching || readinessQuery.isFetching
-                ? "Refreshing..."
-                : "Refresh checks"}
+                ? t("refreshing")
+                : t("refreshChecks")}
             </button>
           </div>
         </div>
@@ -414,7 +423,7 @@ export function AdminSystemHealthPage() {
 
       <div className="grid gap-4">
         <HealthSection
-          title="API Health (/health)"
+          title={t("apiHealth")}
           response={healthQuery.data}
           isLoading={healthQuery.isLoading}
           isError={healthQuery.isError}
@@ -424,7 +433,7 @@ export function AdminSystemHealthPage() {
           }}
         />
         <HealthSection
-          title="Readiness (/ready)"
+          title={t("readiness")}
           response={readinessQuery.data}
           isLoading={readinessQuery.isLoading}
           isError={readinessQuery.isError}

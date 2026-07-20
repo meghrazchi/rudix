@@ -5036,5 +5036,47 @@
       "loadFailed": "بارگیری پیکربندی SCIM ناموفق بود.",
       "ownerOnly": "فقط مالکان می‌توانند SCIM را پیکربندی کنند."
     }
+  },
+  "adminSystemHealth": {
+    "eyebrow": "مدیریت Rudix",
+    "title": "سلامت سیستم",
+    "description": "آمادگی API و سلامت وابستگی‌های اصلی را برای عملیات پایش کنید.",
+    "restrictedTitle": "دسترسی به سلامت سیستم محدود است",
+    "restrictedDescription": "فقط مالکان و مدیران می‌توانند به سلامت سیستم دسترسی داشته باشند.",
+    "autoRefresh": "به‌روزرسانی خودکار: {interval}",
+    "disabled": "غیرفعال",
+    "refreshing": "در حال به‌روزرسانی...",
+    "refreshChecks": "به‌روزرسانی بررسی‌ها",
+    "apiHealth": "سلامت API (/health)",
+    "readiness": "آمادگی (/ready)",
+    "loading": "در حال بارگیری وضعیت سلامت...",
+    "updated": "به‌روزرسانی: {timestamp}",
+    "failedDependencies": "وابستگی‌های ناموفق:",
+    "allHealthy": "همه وابستگی‌های گزارش‌شده سالم هستند.",
+    "dependencyCard": "کارت وابستگی {dependency}",
+    "notReported": "توسط سمت سرور گزارش نشده است.",
+    "noDetail": "جزئیاتی ارائه نشده است.",
+    "dependencies": {
+      "postgresql": "PostgreSQL",
+      "redis": "Redis",
+      "rabbitmq": "RabbitMQ",
+      "minio": "MinIO",
+      "qdrant": "Qdrant",
+      "openai": "پیکربندی OpenAI"
+    },
+    "states": {
+      "healthy": "سالم",
+      "degraded": "دارای اختلال",
+      "unavailable": "در دسترس نیست"
+    },
+    "statuses": {
+      "ok": "سالم",
+      "healthy": "سالم",
+      "ready": "آماده",
+      "degraded": "دارای اختلال",
+      "error": "خطا",
+      "failed": "ناموفق",
+      "unknown": "نامشخص"
+    }
   }
 }
