@@ -360,7 +360,7 @@ describe("AgentWorkspacePage", () => {
       await waitFor(() => {
         expect(screen.getByText("Analyse compliance docs")).toBeInTheDocument();
       });
-      expect(screen.getByText("completed")).toBeInTheDocument();
+      expect(screen.getByText("Completed")).toBeInTheDocument();
     });
 
     it("shows total count in heading", async () => {

@@ -4135,5 +4135,199 @@
     },
     "revoking": "Revoking…",
     "revokeKey": "Revoke key"
+  },
+  "agentWorkspace": {
+    "page": {
+      "eyebrow": "Agent Workspace",
+      "title": "Agentic workflows with traceable execution",
+      "description": "Build a plan, execute grounded work, inspect the reasoning trail, and review approvals without losing audit context."
+    },
+    "statuses": {
+      "queued": "Queued",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "changes_requested": "Changes requested"
+    },
+    "risk": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "inputs": "Inputs",
+    "surface": "Surface",
+    "effect": "Effect",
+    "inputShort": "In",
+    "outputShort": "Out",
+    "outputs": "Outputs",
+    "error": "Error",
+    "loadingRun": "Loading run…",
+    "loadingRuns": "Loading runs…",
+    "untitledRun": "Untitled run",
+    "viewTrace": "View trace",
+    "cancelling": "Cancelling…",
+    "cancelRun": "Cancel run",
+    "steps": "Steps",
+    "toolCalls": "Tool calls",
+    "cost": "Cost",
+    "started": "Started",
+    "runFailed": "Run failed",
+    "traceId": "Trace ID",
+    "reasoningTimeline": "Reasoning Timeline",
+    "toolCallLog": "Tool Call Log",
+    "effectivePolicy": "Effective Policy",
+    "finalAnswer": "Final answer",
+    "noResponse": "No response",
+    "citations": "Citations ({count})",
+    "source": "Source {number}",
+    "newRun": "New run",
+    "selectRun": "Select or start a run to inspect it here",
+    "recentRuns": "Recent runs",
+    "total": "{count} total",
+    "cancel": "Cancel",
+    "apply": "Apply",
+    "noAnswer": {
+      "title": "No answer found",
+      "description": "The agent could not find relevant information in the available sources."
+    },
+    "noTools": {
+      "title": "No tool calls",
+      "description": "This run has not invoked any tools yet."
+    },
+    "noRuns": {
+      "title": "No runs yet",
+      "description": "Start your first agent run above."
+    },
+    "approval": {
+      "required": "Approval required",
+      "optionalReason": "Optional reason…",
+      "approve": "Approve",
+      "reject": "Reject",
+      "reason": "Reason",
+      "humanRequired": "Human-in-the-loop required",
+      "waiting": "{count, plural, one {# action is} other {# actions are}} waiting for approval.",
+      "history": "Approval history"
+    },
+    "queue": {
+      "expired": "Expired",
+      "expiresIn": "Expires in {minutes}m {seconds}s",
+      "run": "Run",
+      "id": "ID",
+      "reasonOptional": "Reason (optional)…",
+      "approving": "Approving…",
+      "requestChanges": "Request changes",
+      "requesting": "Requesting…",
+      "rejecting": "Rejecting…",
+      "addReason": "Add reason",
+      "addComment": "Add comment",
+      "comment": "Comment",
+      "commentPlaceholder": "Leave a comment without deciding…",
+      "posting": "Posting…",
+      "postComment": "Post comment",
+      "commentPosted": "Comment posted.",
+      "title": "Approval queue",
+      "loading": "Loading approvals…",
+      "emptyTitle": "No pending approvals",
+      "emptyDescription": "Agent actions requiring approval will appear here."
+    },
+    "builder": {
+      "knowledgeSource": "Knowledge source",
+      "organizationScope": "Scoped to the current organization",
+      "workflowPreset": "Workflow preset",
+      "objective": "Objective",
+      "objectivePlaceholder": "Describe what the workflow should accomplish…",
+      "executionMode": "Execution Mode",
+      "budgetControls": "Budget controls",
+      "softCaps": "Soft caps",
+      "maxSteps": "Max steps",
+      "maxToolCalls": "Max tool calls",
+      "maxCost": "Max cost (USD)",
+      "estimate": "Estimate",
+      "estimateSummary": "Likely about {steps} steps and up to {cost} based on current caps.",
+      "planPreview": "Plan preview",
+      "approvalGated": "This plan includes approval-gated actions.",
+      "buildingPlan": "Building plan…",
+      "previewPlan": "Preview plan",
+      "startingRun": "Starting run…",
+      "executeWorkflow": "Execute workflow"
+    },
+    "scope": {
+      "title": "Scope",
+      "selectScope": "Select scope",
+      "allDocuments": "All accessible documents",
+      "collection": "Collection",
+      "collections": "Collections",
+      "connectors": "Connectors",
+      "noRag": "No RAG",
+      "files": "Files",
+      "searchDocuments": "Search indexed documents…",
+      "loadingDocuments": "Loading documents…",
+      "loadingCollections": "Loading collections…",
+      "loadingConnectors": "Loading connectors…",
+      "noDocuments": "No indexed documents found.",
+      "noCollections": "No collections found.",
+      "noConnectors": "No connectors found.",
+      "selected": "Selected",
+      "select": "Select",
+      "allHint": "All accessible content is included when nothing is selected.",
+      "selectedDocuments": "{count, plural, one {# selected document} other {# selected documents}}",
+      "selectedCollections": "{count, plural, one {# selected collection} other {# selected collections}}",
+      "selectedConnectors": "{count, plural, one {# selected connector} other {# selected connectors}}"
+    },
+    "modes": {
+      "auto": {
+        "label": "Auto",
+        "description": "Let the agent decide"
+      },
+      "answer": {
+        "label": "Answer",
+        "description": "Grounded answer from sources"
+      },
+      "summarize": {
+        "label": "Summarize",
+        "description": "Condense source material"
+      },
+      "compare": {
+        "label": "Compare",
+        "description": "Side-by-side comparison"
+      }
+    },
+    "presets": {
+      "audit_evidence_pack": {
+        "label": "Audit evidence pack",
+        "description": "Collect evidence and ground it in the selected sources.",
+        "objective": "Build an audit evidence pack from the selected sources with citations."
+      },
+      "policy_comparison": {
+        "label": "Policy comparison",
+        "description": "Compare policies and surface the material differences.",
+        "objective": "Compare the relevant policies and surface the material differences with citations."
+      },
+      "contract_obligation_analysis": {
+        "label": "Contract analysis",
+        "description": "Analyse obligations and cite the controlling clauses.",
+        "objective": "Analyse contract obligations across the available agreements and cite the source clauses."
+      },
+      "onboarding_faq_preparation": {
+        "label": "Onboarding FAQ",
+        "description": "Prepare a grounded FAQ from onboarding material.",
+        "objective": "Prepare an onboarding FAQ from the selected onboarding sources with grounded citations."
+      },
+      "connector_content_summarization": {
+        "label": "Connector summary",
+        "description": "Summarise connector content into a reusable workflow output.",
+        "objective": "Summarise the selected connector content into a reusable workflow output with citations."
+      },
+      "low_confidence_answer_investigation": {
+        "label": "Confidence review",
+        "description": "Verify a weak answer and explain the trust gap.",
+        "objective": "Investigate the low-confidence answer, verify the evidence, and explain the trust gaps."
+      }
+    }
   }
 }

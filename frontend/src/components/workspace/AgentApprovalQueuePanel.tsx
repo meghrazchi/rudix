@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -31,6 +32,7 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 function RiskBadge({ level }: { level: string | null }) {
+  const t = useTranslations("agentWorkspace");
   if (!level) return null;
   const cls =
     RISK_COLORS[level.toLowerCase()] ??
@@ -39,7 +41,7 @@ function RiskBadge({ level }: { level: string | null }) {
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${cls}`}
     >
-      {level}
+      {t(`risk.${level.toLowerCase()}`)}
     </span>
   );
 }
@@ -58,20 +60,20 @@ function useNow(): number {
 }
 
 function ExpiryCountdown({ expiresAt }: { expiresAt: string | null }) {
+  const t = useTranslations("agentWorkspace");
   const now = useNow();
   if (!expiresAt) return null;
   const diff = new Date(expiresAt).getTime() - now;
   if (diff <= 0) {
     return (
-      <span className="text-[11px] font-semibold text-rose-600">Expired</span>
+      <span className="text-[11px] font-semibold text-rose-600">
+        {t("queue.expired")}
+      </span>
     );
   }
   const minutes = Math.floor(diff / 60_000);
   const seconds = Math.floor((diff % 60_000) / 1000);
-  const label =
-    minutes > 0
-      ? `Expires in ${minutes}m ${seconds}s`
-      : `Expires in ${seconds}s`;
+  const label = t("queue.expiresIn", { minutes, seconds });
   const urgent = diff < 120_000;
   return (
     <span
@@ -85,6 +87,7 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: string | null }) {
 // ── Single approval card ───────────────────────────────────────────────────────
 
 function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
+  const t = useTranslations("agentWorkspace");
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
   const [showReason, setShowReason] = useState(false);
@@ -167,7 +170,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-[#2a2640]">
-              Approval required
+              {t("approval.required")}
             </span>
             <RiskBadge level={item.risk_level} />
             {item.tool_name && (
@@ -179,7 +182,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
 
           {item.run_objective && (
             <p className="mt-0.5 text-[11px] text-[#777587]">
-              Run:{" "}
+              {t("queue.run")}:{" "}
               <span className="font-medium text-[#464555]">
                 {item.run_objective}
               </span>
@@ -195,7 +198,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
           <div className="mt-1 flex flex-wrap gap-3">
             <ExpiryCountdown expiresAt={item.expires_at} />
             <span className="text-[11px] text-[#9993b0]">
-              ID: {item.approval_id.slice(0, 8)}…
+              {t("queue.id")}: {item.approval_id.slice(0, 8)}…
             </span>
           </div>
         </div>
@@ -207,7 +210,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Reason (optional)…"
+            placeholder={t("queue.reasonOptional")}
             maxLength={600}
             rows={2}
             className="w-full resize-none rounded border border-[#d7d4e8] px-2 py-1.5 text-sm outline-none focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
@@ -219,12 +222,12 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
             type="button"
             onClick={() => handleDecide("approved")}
             disabled={isPending}
-            aria-label="Approve"
+            aria-label={t("approval.approve")}
             className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
             {isPending && pendingDecision === "approved"
-              ? "Approving…"
-              : "Approve"}
+              ? t("queue.approving")
+              : t("approval.approve")}
           </button>
 
           <button
@@ -234,12 +237,12 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
               handleDecide("changes_requested");
             }}
             disabled={isPending}
-            aria-label="Request changes"
+            aria-label={t("queue.requestChanges")}
             className="rounded border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-60"
           >
             {isPending && pendingDecision === "changes_requested"
-              ? "Requesting…"
-              : "Request changes"}
+              ? t("queue.requesting")
+              : t("queue.requestChanges")}
           </button>
 
           <button
@@ -249,12 +252,12 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
               handleDecide("rejected");
             }}
             disabled={isPending}
-            aria-label="Reject"
+            aria-label={t("approval.reject")}
             className="rounded border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
           >
             {isPending && pendingDecision === "rejected"
-              ? "Rejecting…"
-              : "Reject"}
+              ? t("queue.rejecting")
+              : t("approval.reject")}
           </button>
 
           {!showReason && (
@@ -263,7 +266,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
               onClick={() => setShowReason((v) => !v)}
               className="rounded border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs text-[#777587] hover:bg-[#f5f2ff]"
             >
-              Add reason
+              {t("queue.addReason")}
             </button>
           )}
 
@@ -274,10 +277,10 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
               setCommentSent(false);
             }}
             disabled={isPending}
-            aria-label="Add comment"
+            aria-label={t("queue.addComment")}
             className="rounded border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs text-[#777587] hover:bg-[#f5f2ff] disabled:opacity-60"
           >
-            Comment
+            {t("queue.comment")}
           </button>
         </div>
 
@@ -294,7 +297,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Leave a comment without deciding…"
+            placeholder={t("queue.commentPlaceholder")}
             maxLength={1000}
             rows={2}
             className="w-full resize-none rounded border border-[#d7d4e8] px-2 py-1.5 text-sm outline-none focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
@@ -306,7 +309,9 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
               disabled={commentMutation.isPending || !comment.trim()}
               className="rounded bg-[#3525cd] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2a1eb0] disabled:opacity-60"
             >
-              {commentMutation.isPending ? "Posting…" : "Post comment"}
+              {commentMutation.isPending
+                ? t("queue.posting")
+                : t("queue.postComment")}
             </button>
             <button
               type="button"
@@ -317,7 +322,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
               }}
               className="rounded border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs text-[#777587] hover:bg-[#f5f2ff]"
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
           {commentError && (
@@ -328,7 +333,9 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
         </div>
       )}
       {commentSent && (
-        <p className="text-[11px] text-emerald-700">Comment posted.</p>
+        <p className="text-[11px] text-emerald-700">
+          {t("queue.commentPosted")}
+        </p>
       )}
     </div>
   );
@@ -337,6 +344,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
 // ── Panel ──────────────────────────────────────────────────────────────────────
 
 export function AgentApprovalQueuePanel() {
+  const t = useTranslations("agentWorkspace");
   const queueQuery = useQuery({
     queryKey: queryKeys.agent.approvals({
       status: "pending",
@@ -352,12 +360,12 @@ export function AgentApprovalQueuePanel() {
 
   return (
     <section
-      aria-label="Approval queue"
+      aria-label={t("queue.title")}
       className="rounded-xl border border-[#d7d4e8] bg-white p-4 shadow-sm"
     >
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-          Approval queue
+          {t("queue.title")}
           {total > 0 && (
             <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
               {total}
@@ -372,7 +380,7 @@ export function AgentApprovalQueuePanel() {
       </div>
 
       {queueQuery.isLoading && (
-        <LoadingState title="Loading approvals…" compact />
+        <LoadingState title={t("queue.loading")} compact />
       )}
 
       {queueQuery.isError && (
@@ -385,8 +393,8 @@ export function AgentApprovalQueuePanel() {
 
       {!queueQuery.isLoading && !queueQuery.isError && items.length === 0 && (
         <EmptyState
-          title="No pending approvals"
-          description="Agent actions requiring approval will appear here."
+          title={t("queue.emptyTitle")}
+          description={t("queue.emptyDescription")}
           compact
         />
       )}

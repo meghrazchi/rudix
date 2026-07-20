@@ -4135,5 +4135,199 @@
     },
     "revoking": "Wird widerrufen…",
     "revokeKey": "Schlüssel widerrufen"
+  },
+  "agentWorkspace": {
+    "page": {
+      "eyebrow": "Agenten-Arbeitsbereich",
+      "title": "Agentische Workflows mit nachvollziehbarer Ausführung",
+      "description": "Planen und führen Sie fundierte Arbeit aus, prüfen Sie den Denkpfad und Freigaben im Auditkontext."
+    },
+    "statuses": {
+      "queued": "In Warteschlange",
+      "running": "Läuft",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen",
+      "pending": "{count} Aktion(en) warten auf Freigabe.",
+      "approved": "Freigeben",
+      "rejected": "Ablehnen",
+      "changes_requested": "Änderungen anfordern"
+    },
+    "risk": {
+      "critical": "Kritisch",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
+    "inputs": "Eingaben",
+    "surface": "Oberfläche",
+    "effect": "Wirkung",
+    "inputShort": "Ein",
+    "outputShort": "Aus",
+    "outputs": "Ausgaben",
+    "error": "Fehler",
+    "loadingRun": "Lauf wird geladen…",
+    "loadingRuns": "Läufe werden geladen…",
+    "untitledRun": "Unbenannter Lauf",
+    "viewTrace": "Trace anzeigen",
+    "cancelling": "Wird abgebrochen…",
+    "cancelRun": "Lauf abbrechen",
+    "steps": "Schritte",
+    "toolCalls": "Tool-Aufrufe",
+    "cost": "Kosten",
+    "started": "Gestartet",
+    "runFailed": "Lauf fehlgeschlagen",
+    "traceId": "Trace-ID",
+    "reasoningTimeline": "Denkverlauf",
+    "toolCallLog": "Tool-Aufrufprotokoll",
+    "effectivePolicy": "Wirksame Richtlinie",
+    "finalAnswer": "Endgültige Antwort",
+    "noResponse": "Keine Antwort",
+    "citations": "Zitate ({count})",
+    "source": "Quelle {number}",
+    "newRun": "Neuer Lauf",
+    "selectRun": "Lauf auswählen oder starten, um ihn hier zu prüfen",
+    "recentRuns": "Letzte Läufe",
+    "total": "{count} insgesamt",
+    "cancel": "Abbrechen",
+    "apply": "Anwenden",
+    "noAnswer": {
+      "title": "Keine Antwort",
+      "description": "Keine Antwort"
+    },
+    "noTools": {
+      "title": "Tool-Aufrufe",
+      "description": "Tool-Aufrufe"
+    },
+    "noRuns": {
+      "title": "Lauf auswählen oder starten, um ihn hier zu prüfen",
+      "description": "Lauf auswählen oder starten, um ihn hier zu prüfen"
+    },
+    "approval": {
+      "required": "Freigabe erforderlich",
+      "optionalReason": "Optionaler Grund…",
+      "approve": "Freigeben",
+      "reject": "Ablehnen",
+      "reason": "Grund",
+      "humanRequired": "Menschliche Prüfung erforderlich",
+      "waiting": "{count} Aktion(en) warten auf Freigabe.",
+      "history": "Freigabeverlauf"
+    },
+    "queue": {
+      "expired": "Abgelaufen",
+      "expiresIn": "Läuft in {minutes}m {seconds}s ab",
+      "run": "Lauf",
+      "id": "ID",
+      "reasonOptional": "Grund (optional)…",
+      "approving": "Wird freigegeben…",
+      "requestChanges": "Änderungen anfordern",
+      "requesting": "Wird angefordert…",
+      "rejecting": "Wird abgelehnt…",
+      "addReason": "Grund hinzufügen",
+      "addComment": "Kommentar hinzufügen",
+      "comment": "Kommentar",
+      "commentPlaceholder": "Kommentar ohne Entscheidung hinterlassen…",
+      "posting": "Wird veröffentlicht…",
+      "postComment": "Kommentar senden",
+      "commentPosted": "Kommentar gesendet.",
+      "title": "Freigabewarteschlange",
+      "loading": "Freigaben werden geladen…",
+      "emptyTitle": "Keine ausstehenden Freigaben",
+      "emptyDescription": "Freigabepflichtige Agentenaktionen erscheinen hier."
+    },
+    "builder": {
+      "knowledgeSource": "Wissensquelle",
+      "organizationScope": "Auf die aktuelle Organisation beschränkt",
+      "workflowPreset": "Workflow-Vorlage",
+      "objective": "Ziel",
+      "objectivePlaceholder": "Beschreiben Sie das Ziel des Workflows…",
+      "executionMode": "Ausführungsmodus",
+      "budgetControls": "Budgetkontrollen",
+      "softCaps": "Weiche Grenzen",
+      "maxSteps": "Max. Schritte",
+      "maxToolCalls": "Max. Tool-Aufrufe",
+      "maxCost": "Max. Kosten (USD)",
+      "estimate": "Schätzung",
+      "estimateSummary": "Etwa {steps} Schritte und bis zu {cost} gemäß den aktuellen Grenzen.",
+      "planPreview": "Planvorschau",
+      "approvalGated": "Dieser Plan enthält freigabepflichtige Aktionen.",
+      "buildingPlan": "Plan wird erstellt…",
+      "previewPlan": "Planvorschau",
+      "startingRun": "Lauf wird gestartet…",
+      "executeWorkflow": "Workflow ausführen"
+    },
+    "scope": {
+      "title": "Umfang",
+      "selectScope": "Umfang auswählen",
+      "allDocuments": "Alle zugänglichen Dokumente",
+      "collection": "Sammlung",
+      "collections": "Sammlungen",
+      "connectors": "Konnektoren",
+      "noRag": "Kein RAG",
+      "files": "Dateien",
+      "searchDocuments": "Indizierte Dokumente suchen…",
+      "loadingDocuments": "Dokumente werden geladen…",
+      "loadingCollections": "Sammlungen werden geladen…",
+      "loadingConnectors": "Konnektoren werden geladen…",
+      "noDocuments": "Keine indizierten Dokumente gefunden.",
+      "noCollections": "Keine Sammlungen gefunden.",
+      "noConnectors": "Keine Konnektoren gefunden.",
+      "selected": "Ausgewählt",
+      "select": "Auswählen",
+      "allHint": "Wenn nichts ausgewählt ist, werden alle zugänglichen Inhalte einbezogen.",
+      "selectedDocuments": "{count} ausgewählte Dokumente",
+      "selectedCollections": "{count} ausgewählte Sammlungen",
+      "selectedConnectors": "{count} ausgewählte Konnektoren"
+    },
+    "modes": {
+      "auto": {
+        "label": "Auto",
+        "description": "Agent entscheidet"
+      },
+      "answer": {
+        "label": "Antwort",
+        "description": "Fundierte Antwort aus Quellen"
+      },
+      "summarize": {
+        "label": "Zusammenfassen",
+        "description": "Quellenmaterial verdichten"
+      },
+      "compare": {
+        "label": "Vergleichen",
+        "description": "Direkter Vergleich"
+      }
+    },
+    "presets": {
+      "audit_evidence_pack": {
+        "label": "Audit-Nachweispaket",
+        "description": "Wissensquelle — Audit-Nachweispaket",
+        "objective": "Ziel: Audit-Nachweispaket"
+      },
+      "policy_comparison": {
+        "label": "Richtlinienvergleich",
+        "description": "Wissensquelle — Richtlinienvergleich",
+        "objective": "Ziel: Richtlinienvergleich"
+      },
+      "contract_obligation_analysis": {
+        "label": "Vertragsanalyse",
+        "description": "Wissensquelle — Vertragsanalyse",
+        "objective": "Ziel: Vertragsanalyse"
+      },
+      "onboarding_faq_preparation": {
+        "label": "Onboarding-FAQ",
+        "description": "Wissensquelle — Onboarding-FAQ",
+        "objective": "Ziel: Onboarding-FAQ"
+      },
+      "connector_content_summarization": {
+        "label": "Konnektorübersicht",
+        "description": "Wissensquelle — Konnektorübersicht",
+        "objective": "Ziel: Konnektorübersicht"
+      },
+      "low_confidence_answer_investigation": {
+        "label": "Vertrauensprüfung",
+        "description": "Wissensquelle — Vertrauensprüfung",
+        "objective": "Ziel: Vertrauensprüfung"
+      }
+    }
   }
 }

@@ -126,7 +126,7 @@ describe("AgentApprovalQueuePanel", () => {
         ).toBeInTheDocument(),
       );
       expect(screen.getByText("file_write")).toBeInTheDocument();
-      expect(screen.getByText("high")).toBeInTheDocument();
+      expect(screen.getByText("High")).toBeInTheDocument();
       expect(
         screen.getByText("Summarise quarterly results"),
       ).toBeInTheDocument();

@@ -4135,5 +4135,199 @@
     },
     "revoking": "Revocando…",
     "revokeKey": "Revocar clave"
+  },
+  "agentWorkspace": {
+    "page": {
+      "eyebrow": "Espacio de agentes",
+      "title": "Flujos de agentes con ejecución trazable",
+      "description": "Cree un plan, ejecute trabajo fundamentado, inspeccione el razonamiento y revise aprobaciones conservando el contexto de auditoría."
+    },
+    "statuses": {
+      "queued": "En cola",
+      "running": "En ejecución",
+      "completed": "Completada",
+      "failed": "Fallida",
+      "cancelled": "Cancelada",
+      "pending": "{count} acciones esperan aprobación.",
+      "approved": "Aprobar",
+      "rejected": "Rechazar",
+      "changes_requested": "Solicitar cambios"
+    },
+    "risk": {
+      "critical": "Crítico",
+      "high": "Alto",
+      "medium": "Medio",
+      "low": "Bajo"
+    },
+    "inputs": "Entradas",
+    "surface": "Superficie",
+    "effect": "Efecto",
+    "inputShort": "Entrada",
+    "outputShort": "Salida",
+    "outputs": "Salidas",
+    "error": "Error",
+    "loadingRun": "Cargando ejecución…",
+    "loadingRuns": "Cargando ejecuciones…",
+    "untitledRun": "Ejecución sin título",
+    "viewTrace": "Ver traza",
+    "cancelling": "Cancelando…",
+    "cancelRun": "Cancelar ejecución",
+    "steps": "Pasos",
+    "toolCalls": "Llamadas a herramientas",
+    "cost": "Coste",
+    "started": "Iniciado",
+    "runFailed": "La ejecución falló",
+    "traceId": "ID de traza",
+    "reasoningTimeline": "Cronología del razonamiento",
+    "toolCallLog": "Registro de herramientas",
+    "effectivePolicy": "Política efectiva",
+    "finalAnswer": "Respuesta final",
+    "noResponse": "Sin respuesta",
+    "citations": "Citas ({count})",
+    "source": "Fuente {number}",
+    "newRun": "Nueva ejecución",
+    "selectRun": "Seleccione o inicie una ejecución para inspeccionarla aquí",
+    "recentRuns": "Ejecuciones recientes",
+    "total": "{count} en total",
+    "cancel": "Cancelar",
+    "apply": "Aplicar",
+    "noAnswer": {
+      "title": "Sin respuesta",
+      "description": "Sin respuesta"
+    },
+    "noTools": {
+      "title": "Llamadas a herramientas",
+      "description": "Llamadas a herramientas"
+    },
+    "noRuns": {
+      "title": "Seleccione o inicie una ejecución para inspeccionarla aquí",
+      "description": "Seleccione o inicie una ejecución para inspeccionarla aquí"
+    },
+    "approval": {
+      "required": "Aprobación necesaria",
+      "optionalReason": "Motivo opcional…",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "reason": "Motivo",
+      "humanRequired": "Se requiere intervención humana",
+      "waiting": "{count} acciones esperan aprobación.",
+      "history": "Historial de aprobaciones"
+    },
+    "queue": {
+      "expired": "Caducado",
+      "expiresIn": "Vence en {minutes}m {seconds}s",
+      "run": "Ejecución",
+      "id": "ID",
+      "reasonOptional": "Motivo (opcional)…",
+      "approving": "Aprobando…",
+      "requestChanges": "Solicitar cambios",
+      "requesting": "Solicitando…",
+      "rejecting": "Rechazando…",
+      "addReason": "Añadir motivo",
+      "addComment": "Añadir comentario",
+      "comment": "Comentario",
+      "commentPlaceholder": "Deje un comentario sin decidir…",
+      "posting": "Publicando…",
+      "postComment": "Publicar comentario",
+      "commentPosted": "Comentario publicado.",
+      "title": "Cola de aprobaciones",
+      "loading": "Cargando aprobaciones…",
+      "emptyTitle": "No hay aprobaciones pendientes",
+      "emptyDescription": "Las acciones del agente que requieran aprobación aparecerán aquí."
+    },
+    "builder": {
+      "knowledgeSource": "Fuente de conocimiento",
+      "organizationScope": "Limitado a la organización actual",
+      "workflowPreset": "Plantilla de flujo",
+      "objective": "Objetivo",
+      "objectivePlaceholder": "Describa lo que debe lograr el flujo…",
+      "executionMode": "Modo de ejecución",
+      "budgetControls": "Controles de presupuesto",
+      "softCaps": "Límites flexibles",
+      "maxSteps": "Pasos máximos",
+      "maxToolCalls": "Llamadas máximas",
+      "maxCost": "Coste máximo (USD)",
+      "estimate": "Estimación",
+      "estimateSummary": "Unos {steps} pasos y hasta {cost} según los límites actuales.",
+      "planPreview": "Vista previa del plan",
+      "approvalGated": "Este plan incluye acciones sujetas a aprobación.",
+      "buildingPlan": "Creando plan…",
+      "previewPlan": "Vista previa",
+      "startingRun": "Iniciando ejecución…",
+      "executeWorkflow": "Ejecutar flujo"
+    },
+    "scope": {
+      "title": "Alcance",
+      "selectScope": "Seleccionar alcance",
+      "allDocuments": "Todos los documentos accesibles",
+      "collection": "Colección",
+      "collections": "Colecciones",
+      "connectors": "Conectores",
+      "noRag": "Sin RAG",
+      "files": "Archivos",
+      "searchDocuments": "Buscar documentos indexados…",
+      "loadingDocuments": "Cargando documentos…",
+      "loadingCollections": "Cargando colecciones…",
+      "loadingConnectors": "Cargando conectores…",
+      "noDocuments": "No se encontraron documentos indexados.",
+      "noCollections": "No se encontraron colecciones.",
+      "noConnectors": "No se encontraron conectores.",
+      "selected": "Seleccionado",
+      "select": "Seleccionar",
+      "allHint": "Se incluye todo el contenido accesible si no se selecciona nada.",
+      "selectedDocuments": "{count} documentos seleccionados",
+      "selectedCollections": "{count} colecciones seleccionadas",
+      "selectedConnectors": "{count} conectores seleccionados"
+    },
+    "modes": {
+      "auto": {
+        "label": "Auto",
+        "description": "Dejar que el agente decida"
+      },
+      "answer": {
+        "label": "Respuesta",
+        "description": "Respuesta basada en fuentes"
+      },
+      "summarize": {
+        "label": "Resumir",
+        "description": "Condensar material de origen"
+      },
+      "compare": {
+        "label": "Comparar",
+        "description": "Comparación en paralelo"
+      }
+    },
+    "presets": {
+      "audit_evidence_pack": {
+        "label": "Paquete de evidencias",
+        "description": "Fuente de conocimiento — Paquete de evidencias",
+        "objective": "Objetivo: Paquete de evidencias"
+      },
+      "policy_comparison": {
+        "label": "Comparación de políticas",
+        "description": "Fuente de conocimiento — Comparación de políticas",
+        "objective": "Objetivo: Comparación de políticas"
+      },
+      "contract_obligation_analysis": {
+        "label": "Análisis contractual",
+        "description": "Fuente de conocimiento — Análisis contractual",
+        "objective": "Objetivo: Análisis contractual"
+      },
+      "onboarding_faq_preparation": {
+        "label": "Preguntas de incorporación",
+        "description": "Fuente de conocimiento — Preguntas de incorporación",
+        "objective": "Objetivo: Preguntas de incorporación"
+      },
+      "connector_content_summarization": {
+        "label": "Resumen de conectores",
+        "description": "Fuente de conocimiento — Resumen de conectores",
+        "objective": "Objetivo: Resumen de conectores"
+      },
+      "low_confidence_answer_investigation": {
+        "label": "Revisión de confianza",
+        "description": "Fuente de conocimiento — Revisión de confianza",
+        "objective": "Objetivo: Revisión de confianza"
+      }
+    }
   }
 }

@@ -4135,5 +4135,199 @@
     },
     "revoking": "Révocation…",
     "revokeKey": "Révoquer la clé"
+  },
+  "agentWorkspace": {
+    "page": {
+      "eyebrow": "Espace agent",
+      "title": "Workflows agentiques avec exécution traçable",
+      "description": "Créez un plan, exécutez un travail fondé, inspectez le raisonnement et révisez les approbations sans perdre le contexte d’audit."
+    },
+    "statuses": {
+      "queued": "En attente",
+      "running": "En cours",
+      "completed": "Terminée",
+      "failed": "Échouée",
+      "cancelled": "Annulée",
+      "pending": "{count} actions attendent une approbation.",
+      "approved": "Approuver",
+      "rejected": "Rejeter",
+      "changes_requested": "Demander des modifications"
+    },
+    "risk": {
+      "critical": "Critique",
+      "high": "Élevé",
+      "medium": "Moyen",
+      "low": "Faible"
+    },
+    "inputs": "Entrées",
+    "surface": "Surface",
+    "effect": "Effet",
+    "inputShort": "Entrée",
+    "outputShort": "Sortie",
+    "outputs": "Sorties",
+    "error": "Erreur",
+    "loadingRun": "Chargement de l’exécution…",
+    "loadingRuns": "Chargement des exécutions…",
+    "untitledRun": "Exécution sans titre",
+    "viewTrace": "Voir la trace",
+    "cancelling": "Annulation…",
+    "cancelRun": "Annuler l’exécution",
+    "steps": "Étapes",
+    "toolCalls": "Appels d’outils",
+    "cost": "Coût",
+    "started": "Démarré",
+    "runFailed": "Échec de l’exécution",
+    "traceId": "ID de trace",
+    "reasoningTimeline": "Chronologie du raisonnement",
+    "toolCallLog": "Journal des appels d’outils",
+    "effectivePolicy": "Politique effective",
+    "finalAnswer": "Réponse finale",
+    "noResponse": "Aucune réponse",
+    "citations": "Citations ({count})",
+    "source": "Source {number}",
+    "newRun": "Nouvelle exécution",
+    "selectRun": "Sélectionnez ou démarrez une exécution pour l’inspecter ici",
+    "recentRuns": "Exécutions récentes",
+    "total": "{count} au total",
+    "cancel": "Annuler",
+    "apply": "Appliquer",
+    "noAnswer": {
+      "title": "Aucune réponse",
+      "description": "Aucune réponse"
+    },
+    "noTools": {
+      "title": "Appels d’outils",
+      "description": "Appels d’outils"
+    },
+    "noRuns": {
+      "title": "Sélectionnez ou démarrez une exécution pour l’inspecter ici",
+      "description": "Sélectionnez ou démarrez une exécution pour l’inspecter ici"
+    },
+    "approval": {
+      "required": "Approbation requise",
+      "optionalReason": "Motif facultatif…",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "reason": "Motif",
+      "humanRequired": "Intervention humaine requise",
+      "waiting": "{count} actions attendent une approbation.",
+      "history": "Historique des approbations"
+    },
+    "queue": {
+      "expired": "Expiré",
+      "expiresIn": "Expire dans {minutes}m {seconds}s",
+      "run": "Exécution",
+      "id": "ID",
+      "reasonOptional": "Motif (facultatif)…",
+      "approving": "Approbation…",
+      "requestChanges": "Demander des modifications",
+      "requesting": "Demande…",
+      "rejecting": "Rejet…",
+      "addReason": "Ajouter un motif",
+      "addComment": "Ajouter un commentaire",
+      "comment": "Commentaire",
+      "commentPlaceholder": "Laisser un commentaire sans décider…",
+      "posting": "Publication…",
+      "postComment": "Publier le commentaire",
+      "commentPosted": "Commentaire publié.",
+      "title": "File d’approbation",
+      "loading": "Chargement des approbations…",
+      "emptyTitle": "Aucune approbation en attente",
+      "emptyDescription": "Les actions de l’agent nécessitant une approbation apparaîtront ici."
+    },
+    "builder": {
+      "knowledgeSource": "Source de connaissances",
+      "organizationScope": "Limité à l’organisation actuelle",
+      "workflowPreset": "Préréglage du workflow",
+      "objective": "Objectif",
+      "objectivePlaceholder": "Décrivez ce que le workflow doit accomplir…",
+      "executionMode": "Mode d’exécution",
+      "budgetControls": "Contrôles budgétaires",
+      "softCaps": "Limites souples",
+      "maxSteps": "Étapes max.",
+      "maxToolCalls": "Appels d’outils max.",
+      "maxCost": "Coût max. (USD)",
+      "estimate": "Estimation",
+      "estimateSummary": "Environ {steps} étapes et jusqu’à {cost} selon les limites actuelles.",
+      "planPreview": "Aperçu du plan",
+      "approvalGated": "Ce plan comprend des actions soumises à approbation.",
+      "buildingPlan": "Création du plan…",
+      "previewPlan": "Aperçu du plan",
+      "startingRun": "Démarrage…",
+      "executeWorkflow": "Exécuter le workflow"
+    },
+    "scope": {
+      "title": "Périmètre",
+      "selectScope": "Sélectionner le périmètre",
+      "allDocuments": "Tous les documents accessibles",
+      "collection": "Collection",
+      "collections": "Collections",
+      "connectors": "Connecteurs",
+      "noRag": "Sans RAG",
+      "files": "Fichiers",
+      "searchDocuments": "Rechercher des documents indexés…",
+      "loadingDocuments": "Chargement des documents…",
+      "loadingCollections": "Chargement des collections…",
+      "loadingConnectors": "Chargement des connecteurs…",
+      "noDocuments": "Aucun document indexé trouvé.",
+      "noCollections": "Aucune collection trouvée.",
+      "noConnectors": "Aucun connecteur trouvé.",
+      "selected": "Sélectionné",
+      "select": "Sélectionner",
+      "allHint": "Tout le contenu accessible est inclus si rien n’est sélectionné.",
+      "selectedDocuments": "{count} documents sélectionnés",
+      "selectedCollections": "{count} collections sélectionnées",
+      "selectedConnectors": "{count} connecteurs sélectionnés"
+    },
+    "modes": {
+      "auto": {
+        "label": "Auto",
+        "description": "Laisser l’agent décider"
+      },
+      "answer": {
+        "label": "Réponse",
+        "description": "Réponse fondée sur les sources"
+      },
+      "summarize": {
+        "label": "Résumer",
+        "description": "Condenser les sources"
+      },
+      "compare": {
+        "label": "Comparer",
+        "description": "Comparaison côte à côte"
+      }
+    },
+    "presets": {
+      "audit_evidence_pack": {
+        "label": "Dossier de preuves d’audit",
+        "description": "Source de connaissances — Dossier de preuves d’audit",
+        "objective": "Objectif: Dossier de preuves d’audit"
+      },
+      "policy_comparison": {
+        "label": "Comparaison des politiques",
+        "description": "Source de connaissances — Comparaison des politiques",
+        "objective": "Objectif: Comparaison des politiques"
+      },
+      "contract_obligation_analysis": {
+        "label": "Analyse contractuelle",
+        "description": "Source de connaissances — Analyse contractuelle",
+        "objective": "Objectif: Analyse contractuelle"
+      },
+      "onboarding_faq_preparation": {
+        "label": "FAQ d’intégration",
+        "description": "Source de connaissances — FAQ d’intégration",
+        "objective": "Objectif: FAQ d’intégration"
+      },
+      "connector_content_summarization": {
+        "label": "Résumé des connecteurs",
+        "description": "Source de connaissances — Résumé des connecteurs",
+        "objective": "Objectif: Résumé des connecteurs"
+      },
+      "low_confidence_answer_investigation": {
+        "label": "Examen de confiance",
+        "description": "Source de connaissances — Examen de confiance",
+        "objective": "Objectif: Examen de confiance"
+      }
+    }
   }
 }

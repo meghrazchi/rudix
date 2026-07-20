@@ -4135,5 +4135,199 @@
     },
     "revoking": "در حال لغو…",
     "revokeKey": "لغو کلید"
+  },
+  "agentWorkspace": {
+    "page": {
+      "eyebrow": "فضای کاری عامل",
+      "title": "گردش‌کارهای عامل‌گرا با اجرای قابل ردیابی",
+      "description": "برنامه بسازید، کار مبتنی بر منابع را اجرا کنید، مسیر استدلال را بررسی کنید و تأییدها را بدون از دست دادن زمینه ممیزی مرور کنید."
+    },
+    "statuses": {
+      "queued": "در صف",
+      "running": "در حال اجرا",
+      "completed": "تکمیل‌شده",
+      "failed": "ناموفق",
+      "cancelled": "لغوشده",
+      "pending": "{count} اقدام در انتظار تأیید است.",
+      "approved": "تأیید",
+      "rejected": "رد",
+      "changes_requested": "درخواست تغییر"
+    },
+    "risk": {
+      "critical": "بحرانی",
+      "high": "زیاد",
+      "medium": "متوسط",
+      "low": "کم"
+    },
+    "inputs": "ورودی‌ها",
+    "surface": "سطح",
+    "effect": "اثر",
+    "inputShort": "ورودی",
+    "outputShort": "خروجی",
+    "outputs": "خروجی‌ها",
+    "error": "خطا",
+    "loadingRun": "در حال بارگذاری اجرا…",
+    "loadingRuns": "در حال بارگذاری اجراها…",
+    "untitledRun": "اجرای بدون عنوان",
+    "viewTrace": "مشاهده ردگیری",
+    "cancelling": "در حال لغو…",
+    "cancelRun": "لغو اجرا",
+    "steps": "گام‌ها",
+    "toolCalls": "فراخوانی ابزارها",
+    "cost": "هزینه",
+    "started": "شروع‌شده",
+    "runFailed": "اجرا ناموفق بود",
+    "traceId": "شناسه ردگیری",
+    "reasoningTimeline": "خط زمانی استدلال",
+    "toolCallLog": "گزارش فراخوانی ابزار",
+    "effectivePolicy": "سیاست مؤثر",
+    "finalAnswer": "پاسخ نهایی",
+    "noResponse": "بدون پاسخ",
+    "citations": "ارجاعات ({count})",
+    "source": "منبع {number}",
+    "newRun": "اجرای جدید",
+    "selectRun": "برای بررسی، یک اجرا را انتخاب یا آغاز کنید",
+    "recentRuns": "اجراهای اخیر",
+    "total": "مجموع {count}",
+    "cancel": "لغو",
+    "apply": "اعمال",
+    "noAnswer": {
+      "title": "بدون پاسخ",
+      "description": "بدون پاسخ"
+    },
+    "noTools": {
+      "title": "فراخوانی ابزارها",
+      "description": "فراخوانی ابزارها"
+    },
+    "noRuns": {
+      "title": "برای بررسی، یک اجرا را انتخاب یا آغاز کنید",
+      "description": "برای بررسی، یک اجرا را انتخاب یا آغاز کنید"
+    },
+    "approval": {
+      "required": "تأیید لازم است",
+      "optionalReason": "دلیل اختیاری…",
+      "approve": "تأیید",
+      "reject": "رد",
+      "reason": "دلیل",
+      "humanRequired": "مداخله انسانی لازم است",
+      "waiting": "{count} اقدام در انتظار تأیید است.",
+      "history": "تاریخچه تأیید"
+    },
+    "queue": {
+      "expired": "منقضی‌شده",
+      "expiresIn": "انقضا تا {minutes} دقیقه و {seconds} ثانیه",
+      "run": "اجرا",
+      "id": "شناسه",
+      "reasonOptional": "دلیل (اختیاری)…",
+      "approving": "در حال تأیید…",
+      "requestChanges": "درخواست تغییر",
+      "requesting": "در حال درخواست…",
+      "rejecting": "در حال رد…",
+      "addReason": "افزودن دلیل",
+      "addComment": "افزودن نظر",
+      "comment": "نظر",
+      "commentPlaceholder": "بدون تصمیم‌گیری نظر بگذارید…",
+      "posting": "در حال ارسال…",
+      "postComment": "ارسال نظر",
+      "commentPosted": "نظر ارسال شد.",
+      "title": "صف تأیید",
+      "loading": "در حال بارگذاری تأییدها…",
+      "emptyTitle": "تأیید در انتظاری نیست",
+      "emptyDescription": "اقدام‌های عامل که نیازمند تأیید باشند اینجا نمایش داده می‌شوند."
+    },
+    "builder": {
+      "knowledgeSource": "منبع دانش",
+      "organizationScope": "محدود به سازمان فعلی",
+      "workflowPreset": "الگوی گردش‌کار",
+      "objective": "هدف",
+      "objectivePlaceholder": "توضیح دهید گردش‌کار چه کاری باید انجام دهد…",
+      "executionMode": "حالت اجرا",
+      "budgetControls": "کنترل بودجه",
+      "softCaps": "سقف‌های نرم",
+      "maxSteps": "حداکثر گام‌ها",
+      "maxToolCalls": "حداکثر فراخوانی ابزار",
+      "maxCost": "حداکثر هزینه (دلار)",
+      "estimate": "برآورد",
+      "estimateSummary": "حدود {steps} گام و تا {cost} بر اساس سقف‌های فعلی.",
+      "planPreview": "پیش‌نمایش برنامه",
+      "approvalGated": "این برنامه شامل اقدام‌های نیازمند تأیید است.",
+      "buildingPlan": "در حال ساخت برنامه…",
+      "previewPlan": "پیش‌نمایش برنامه",
+      "startingRun": "در حال آغاز اجرا…",
+      "executeWorkflow": "اجرای گردش‌کار"
+    },
+    "scope": {
+      "title": "دامنه",
+      "selectScope": "انتخاب دامنه",
+      "allDocuments": "همه اسناد قابل دسترس",
+      "collection": "مجموعه",
+      "collections": "مجموعه‌ها",
+      "connectors": "اتصال‌دهنده‌ها",
+      "noRag": "بدون RAG",
+      "files": "فایل‌ها",
+      "searchDocuments": "جست‌وجوی اسناد نمایه‌شده…",
+      "loadingDocuments": "در حال بارگذاری اسناد…",
+      "loadingCollections": "در حال بارگذاری مجموعه‌ها…",
+      "loadingConnectors": "در حال بارگذاری اتصال‌دهنده‌ها…",
+      "noDocuments": "سند نمایه‌شده‌ای یافت نشد.",
+      "noCollections": "مجموعه‌ای یافت نشد.",
+      "noConnectors": "اتصال‌دهنده‌ای یافت نشد.",
+      "selected": "انتخاب‌شده",
+      "select": "انتخاب",
+      "allHint": "وقتی چیزی انتخاب نشده باشد، همه محتوای قابل دسترس لحاظ می‌شود.",
+      "selectedDocuments": "{count} سند انتخاب‌شده",
+      "selectedCollections": "{count} مجموعه انتخاب‌شده",
+      "selectedConnectors": "{count} اتصال‌دهنده انتخاب‌شده"
+    },
+    "modes": {
+      "auto": {
+        "label": "خودکار",
+        "description": "عامل تصمیم بگیرد"
+      },
+      "answer": {
+        "label": "پاسخ",
+        "description": "پاسخ مبتنی بر منابع"
+      },
+      "summarize": {
+        "label": "خلاصه‌سازی",
+        "description": "فشرده‌سازی محتوای منابع"
+      },
+      "compare": {
+        "label": "مقایسه",
+        "description": "مقایسه کنار هم"
+      }
+    },
+    "presets": {
+      "audit_evidence_pack": {
+        "label": "بسته شواهد ممیزی",
+        "description": "منبع دانش — بسته شواهد ممیزی",
+        "objective": "هدف: بسته شواهد ممیزی"
+      },
+      "policy_comparison": {
+        "label": "مقایسه سیاست‌ها",
+        "description": "منبع دانش — مقایسه سیاست‌ها",
+        "objective": "هدف: مقایسه سیاست‌ها"
+      },
+      "contract_obligation_analysis": {
+        "label": "تحلیل قرارداد",
+        "description": "منبع دانش — تحلیل قرارداد",
+        "objective": "هدف: تحلیل قرارداد"
+      },
+      "onboarding_faq_preparation": {
+        "label": "پرسش‌های متداول ورود",
+        "description": "منبع دانش — پرسش‌های متداول ورود",
+        "objective": "هدف: پرسش‌های متداول ورود"
+      },
+      "connector_content_summarization": {
+        "label": "خلاصه اتصال‌دهنده",
+        "description": "منبع دانش — خلاصه اتصال‌دهنده",
+        "objective": "هدف: خلاصه اتصال‌دهنده"
+      },
+      "low_confidence_answer_investigation": {
+        "label": "بررسی اطمینان",
+        "description": "منبع دانش — بررسی اطمینان",
+        "objective": "هدف: بررسی اطمینان"
+      }
+    }
   }
 }

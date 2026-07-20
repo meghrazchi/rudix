@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 
 import { AgentApprovalQueuePanel } from "@/components/workspace/AgentApprovalQueuePanel";
 import { EffectivePolicyPanel } from "@/components/admin/agent-policy/EffectivePolicyPanel";
@@ -41,26 +42,10 @@ const RUN_LIST_LIMIT = 20;
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
 
 const WORKFLOW_MODE_OPTIONS = [
-  {
-    value: "auto",
-    label: "Auto",
-    description: "Let the agent decide",
-  },
-  {
-    value: "answer",
-    label: "Answer",
-    description: "Grounded answer from sources",
-  },
-  {
-    value: "summarize",
-    label: "Summarize",
-    description: "Condense source material",
-  },
-  {
-    value: "compare",
-    label: "Compare",
-    description: "Side-by-side comparison",
-  },
+  { value: "auto" },
+  { value: "answer" },
+  { value: "summarize" },
+  { value: "compare" },
 ] as const;
 
 type WorkflowScopeMode =
@@ -72,64 +57,37 @@ type WorkflowScopeMode =
 
 const WORKFLOW_PRESETS: {
   workflowType: WorkflowType;
-  label: string;
-  description: string;
   mode: AgentRuntimeMode;
-  objective: string;
   rerank: boolean;
 }[] = [
   {
     workflowType: "audit_evidence_pack",
-    label: "Audit evidence pack",
-    description: "Collect evidence and ground it in the selected sources.",
     mode: "compare",
-    objective:
-      "Build an audit evidence pack from the selected sources with citations.",
     rerank: true,
   },
   {
     workflowType: "policy_comparison",
-    label: "Policy comparison",
-    description: "Compare policies and surface the material differences.",
     mode: "compare",
-    objective:
-      "Compare the relevant policies and surface the material differences with citations.",
     rerank: true,
   },
   {
     workflowType: "contract_obligation_analysis",
-    label: "Contract analysis",
-    description: "Analyse obligations and cite the controlling clauses.",
     mode: "compare",
-    objective:
-      "Analyse contract obligations across the available agreements and cite the source clauses.",
     rerank: true,
   },
   {
     workflowType: "onboarding_faq_preparation",
-    label: "Onboarding FAQ",
-    description: "Prepare a grounded FAQ from onboarding material.",
     mode: "summarize",
-    objective:
-      "Prepare an onboarding FAQ from the selected onboarding sources with grounded citations.",
     rerank: false,
   },
   {
     workflowType: "connector_content_summarization",
-    label: "Connector summary",
-    description: "Summarise connector content into a reusable workflow output.",
     mode: "summarize",
-    objective:
-      "Summarise the selected connector content into a reusable workflow output with citations.",
     rerank: true,
   },
   {
     workflowType: "low_confidence_answer_investigation",
-    label: "Confidence review",
-    description: "Verify a weak answer and explain the trust gap.",
     mode: "answer",
-    objective:
-      "Investigate the low-confidence answer, verify the evidence, and explain the trust gaps.",
     rerank: true,
   },
 ];
@@ -145,13 +103,14 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations("agentWorkspace");
   const cls =
     STATUS_BADGE[status] ?? "bg-[#e4e1ee] text-[#464555] border-[#d7d4e8]";
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${cls}`}
     >
-      {status}
+      {t(`statuses.${status}`)}
     </span>
   );
 }
@@ -160,10 +119,10 @@ function isTerminal(status: string): boolean {
   return TERMINAL_STATUSES.has(status);
 }
 
-function formatTs(value: string | null | undefined): string {
+function formatTs(value: string | null | undefined, locale: string): string {
   if (!value) return "—";
   try {
-    return new Date(value).toLocaleString();
+    return new Date(value).toLocaleString(locale);
   } catch {
     return value;
   }
@@ -230,7 +189,7 @@ function getBudgetEstimate(
   objective: string,
   maxSteps: number,
   maxTotalCostUsd: number,
-): { steps: number; costUsd: number; summary: string } {
+): { steps: number; costUsd: number } {
   const trimmed = objective.trim();
   const contentFactor = trimmed.length > 0 ? Math.ceil(trimmed.length / 80) : 4;
   const steps = Math.min(maxSteps, Math.max(4, contentFactor));
@@ -239,42 +198,13 @@ function getBudgetEstimate(
   return {
     steps,
     costUsd,
-    summary: `Likely about ${steps} steps and up to ${formatMoney(costUsd)} based on current caps.`,
   };
-}
-
-function getWorkflowScopeLabel(
-  scopeMode: WorkflowScopeMode,
-  params: {
-    documentCount: number;
-    collectionCount: number;
-    connectorCount: number;
-  },
-): string {
-  switch (scopeMode) {
-    case "none":
-      return "No RAG";
-    case "documents":
-      return params.documentCount > 0
-        ? `${params.documentCount} selected document${params.documentCount === 1 ? "" : "s"}`
-        : "All accessible documents";
-    case "collection":
-      return params.collectionCount > 0
-        ? `${params.collectionCount} selected collection${params.collectionCount === 1 ? "" : "s"}`
-        : "Collections";
-    case "connectors":
-      return params.connectorCount > 0
-        ? `${params.connectorCount} selected connector${params.connectorCount === 1 ? "" : "s"}`
-        : "Connectors";
-    case "all":
-    default:
-      return "All accessible documents";
-  }
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function StepRow({ step }: { step: AgentRunDetailResponse["steps"][number] }) {
+  const t = useTranslations("agentWorkspace");
   const [expanded, setExpanded] = useState(false);
   const hasInputs = Object.keys(step.inputs ?? {}).length > 0;
   const hasOutputs = Object.keys(step.outputs ?? {}).length > 0;
@@ -334,7 +264,7 @@ function StepRow({ step }: { step: AgentRunDetailResponse["steps"][number] }) {
           {hasInputs && (
             <div className="mb-2">
               <p className="mb-1 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-                Inputs
+                {t("inputs")}
               </p>
               <div className="space-y-0.5">
                 {safeObjectEntries(step.inputs).map(([k, v]) => (
@@ -352,7 +282,7 @@ function StepRow({ step }: { step: AgentRunDetailResponse["steps"][number] }) {
           {hasOutputs && (
             <div>
               <p className="mb-1 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-                Outputs
+                {t("outputs")}
               </p>
               <div className="space-y-0.5">
                 {safeObjectEntries(step.outputs).map(([k, v]) => (
@@ -378,6 +308,7 @@ function ToolCallRow({
 }: {
   toolCall: AgentRunDetailResponse["tool_calls"][number];
 }) {
+  const t = useTranslations("agentWorkspace");
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -408,20 +339,20 @@ function ToolCallRow({
         <div className="space-y-2 border-t border-[#e4e1f2] px-3 pt-2 pb-3">
           <div className="flex flex-wrap gap-3 text-[11px] text-[#68647b]">
             <span>
-              Surface:{" "}
+              {t("surface")}:{" "}
               <span className="font-semibold text-[#2a2640]">
                 {toolCall.surface}
               </span>
             </span>
             <span>
-              Effect:{" "}
+              {t("effect")}:{" "}
               <span className="font-semibold text-[#2a2640]">
                 {toolCall.effect_policy}
               </span>
             </span>
             {toolCall.input_size_bytes != null && (
               <span>
-                In:{" "}
+                {t("inputShort")}:{" "}
                 <span className="font-semibold text-[#2a2640]">
                   {toolCall.input_size_bytes}B
                 </span>
@@ -429,7 +360,7 @@ function ToolCallRow({
             )}
             {toolCall.output_size_bytes != null && (
               <span>
-                Out:{" "}
+                {t("outputShort")}:{" "}
                 <span className="font-semibold text-[#2a2640]">
                   {toolCall.output_size_bytes}B
                 </span>
@@ -439,7 +370,7 @@ function ToolCallRow({
           {Object.keys(toolCall.output ?? {}).length > 0 && (
             <div>
               <p className="mb-1 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-                Output
+                {t("outputs")}
               </p>
               <div className="space-y-0.5">
                 {safeObjectEntries(toolCall.output).map(([k, v]) => (
@@ -457,7 +388,7 @@ function ToolCallRow({
           {Object.keys(toolCall.error ?? {}).length > 0 && (
             <div>
               <p className="mb-1 text-[10px] font-bold tracking-wide text-rose-500 uppercase">
-                Error
+                {t("error")}
               </p>
               <div className="space-y-0.5">
                 {safeObjectEntries(toolCall.error).map(([k, v]) => (
@@ -487,6 +418,7 @@ function ApprovalRow({
   runId: string;
   onDecided: () => void;
 }) {
+  const t = useTranslations("agentWorkspace");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -512,7 +444,7 @@ function ApprovalRow({
           pending_actions
         </span>
         <span className="text-sm font-semibold text-[#2a2640]">
-          Approval required
+          {t("approval.required")}
         </span>
         <StatusBadge status={approval.status} />
       </div>
@@ -527,7 +459,7 @@ function ApprovalRow({
             type="text"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Optional reason…"
+            placeholder={t("approval.optionalReason")}
             maxLength={600}
             className="w-full rounded border border-[#d7d4e8] px-2 py-1 text-sm outline-none focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
           />
@@ -538,7 +470,7 @@ function ApprovalRow({
               disabled={decideMutation.isPending}
               className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
             >
-              Approve
+              {t("approval.approve")}
             </button>
             <button
               type="button"
@@ -546,7 +478,7 @@ function ApprovalRow({
               disabled={decideMutation.isPending}
               className="rounded border border-[#d7d4e8] px-3 py-1 text-xs font-semibold text-[#464555] hover:bg-[#f5f2ff] disabled:opacity-60"
             >
-              Reject
+              {t("approval.reject")}
             </button>
           </div>
           {error && <p className="text-[11px] text-rose-700">{error}</p>}
@@ -554,7 +486,7 @@ function ApprovalRow({
       )}
       {!isPending && approval.decision_reason && (
         <p className="mt-1 text-[11px] text-[#68647b]">
-          Reason: {approval.decision_reason}
+          {t("approval.reason")}: {approval.decision_reason}
         </p>
       )}
     </div>
@@ -564,6 +496,8 @@ function ApprovalRow({
 // ── Run detail pane ────────────────────────────────────────────────────────────
 
 function RunDetailPane({ runId }: { runId: string }) {
+  const t = useTranslations("agentWorkspace");
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"reasoning" | "tools" | "policy">(
     "reasoning",
@@ -592,7 +526,7 @@ function RunDetailPane({ runId }: { runId: string }) {
   const run = runQuery.data;
 
   if (runQuery.isLoading) {
-    return <LoadingState title="Loading run…" />;
+    return <LoadingState title={t("loadingRun")} />;
   }
 
   if (runQuery.isError) {
@@ -636,7 +570,7 @@ function RunDetailPane({ runId }: { runId: string }) {
             )}
           </div>
           <h2 className="mt-2 text-[22px] font-extrabold tracking-tight text-[#2a2640]">
-            {run.objective ?? "Untitled run"}
+            {run.objective ?? t("untitledRun")}
           </h2>
           {run.objective && (
             <p className="mt-1 max-w-3xl text-sm leading-6 text-[#68647b]">
@@ -652,7 +586,7 @@ function RunDetailPane({ runId }: { runId: string }) {
             <span className="material-symbols-outlined text-[14px]">
               timeline
             </span>
-            View trace
+            {t("viewTrace")}
           </Link>
           {canCancel && (
             <button
@@ -661,7 +595,7 @@ function RunDetailPane({ runId }: { runId: string }) {
               disabled={cancelMutation.isPending}
               className="rounded-full border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs font-semibold text-[#464555] hover:bg-[#f5f2ff] disabled:opacity-60"
             >
-              {cancelMutation.isPending ? "Cancelling…" : "Cancel run"}
+              {cancelMutation.isPending ? t("cancelling") : t("cancelRun")}
             </button>
           )}
         </div>
@@ -676,7 +610,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
           <p className="text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-            Steps
+            {t("steps")}
           </p>
           <p className="mt-1 text-lg font-bold text-[#2a2640]">
             {run.steps.length}
@@ -684,7 +618,7 @@ function RunDetailPane({ runId }: { runId: string }) {
         </div>
         <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
           <p className="text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-            Tool calls
+            {t("toolCalls")}
           </p>
           <p className="mt-1 text-lg font-bold text-[#2a2640]">
             {run.tool_calls.length}
@@ -692,7 +626,7 @@ function RunDetailPane({ runId }: { runId: string }) {
         </div>
         <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
           <p className="text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-            Cost
+            {t("cost")}
           </p>
           <p className="mt-1 text-lg font-bold text-[#2a2640]">
             {formatCost(run.total_cost_usd ? Number(run.total_cost_usd) : null)}
@@ -700,10 +634,10 @@ function RunDetailPane({ runId }: { runId: string }) {
         </div>
         <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
           <p className="text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-            Started
+            {t("started")}
           </p>
           <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-            {formatTs(run.started_at)}
+            {formatTs(run.started_at, locale)}
           </p>
         </div>
       </div>
@@ -719,12 +653,10 @@ function RunDetailPane({ runId }: { runId: string }) {
                 </span>
                 <div>
                   <p className="text-sm font-bold text-amber-950">
-                    Human-in-the-loop required
+                    {t("approval.humanRequired")}
                   </p>
                   <p className="text-[12px] text-amber-900">
-                    {pendingApprovals.length} action
-                    {pendingApprovals.length === 1 ? "" : "s"} are waiting for
-                    approval.
+                    {t("approval.waiting", { count: pendingApprovals.length })}
                   </p>
                 </div>
               </div>
@@ -753,11 +685,13 @@ function RunDetailPane({ runId }: { runId: string }) {
           role="alert"
           className="rounded-lg border border-rose-200 bg-rose-50 p-3"
         >
-          <p className="text-sm font-semibold text-rose-800">Run failed</p>
+          <p className="text-sm font-semibold text-rose-800">
+            {t("runFailed")}
+          </p>
           <p className="mt-1 text-[12px] text-rose-700">{run.error_message}</p>
           {run.trace_request_id && (
             <p className="mt-2 font-mono text-[11px] text-rose-600">
-              Trace ID: {run.trace_request_id}
+              {t("traceId")}: {run.trace_request_id}
             </p>
           )}
         </div>
@@ -773,7 +707,7 @@ function RunDetailPane({ runId }: { runId: string }) {
               : "text-[#68647b] hover:text-[#2a2640]"
           }`}
         >
-          Reasoning Timeline
+          {t("reasoningTimeline")}
         </button>
         <button
           type="button"
@@ -784,7 +718,7 @@ function RunDetailPane({ runId }: { runId: string }) {
               : "text-[#68647b] hover:text-[#2a2640]"
           }`}
         >
-          Tool Call Log
+          {t("toolCallLog")}
           <span className="ml-2 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold text-[#3525cd]">
             {run.tool_calls.length}
           </span>
@@ -798,7 +732,7 @@ function RunDetailPane({ runId }: { runId: string }) {
               : "text-[#68647b] hover:text-[#2a2640]"
           }`}
         >
-          Effective Policy
+          {t("effectivePolicy")}
         </button>
       </div>
 
@@ -807,18 +741,18 @@ function RunDetailPane({ runId }: { runId: string }) {
           <div className="rounded-xl border border-[#e4e1f2] bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-                Final answer
+                {t("finalAnswer")}
               </h3>
               {completedAnswer && (
                 <span className="text-[11px] text-[#777587]">
-                  {notFound ? "No response" : "Completed"}
+                  {notFound ? t("noResponse") : t("statuses.completed")}
                 </span>
               )}
             </div>
             {notFound ? (
               <EmptyState
-                title="No answer found"
-                description="The agent could not find relevant information in the available sources."
+                title={t("noAnswer.title")}
+                description={t("noAnswer.description")}
                 compact
               />
             ) : answer ? (
@@ -841,7 +775,7 @@ function RunDetailPane({ runId }: { runId: string }) {
                 {citations.length > 0 && (
                   <div className="mt-4">
                     <p className="mb-2 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-                      Citations ({citations.length})
+                      {t("citations", { count: citations.length })}
                     </p>
                     <ol className="space-y-2">
                       {citations.map((c, i) => {
@@ -851,7 +785,7 @@ function RunDetailPane({ runId }: { runId: string }) {
                             ? citation.title
                             : typeof citation.document_id === "string"
                               ? citation.document_id
-                              : `Source ${i + 1}`;
+                              : t("source", { number: i + 1 });
                         const snippet =
                           typeof citation.snippet === "string"
                             ? citation.snippet
@@ -884,7 +818,7 @@ function RunDetailPane({ runId }: { runId: string }) {
           {run.steps.length > 0 && (
             <div>
               <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-                Reasoning timeline
+                {t("reasoningTimeline")}
               </h3>
               <div className="space-y-1.5">
                 {run.steps.map((step) => (
@@ -897,7 +831,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       ) : activeTab === "tools" ? (
         <section>
           <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-            Tool call log
+            {t("toolCallLog")}
           </h3>
           {run.tool_calls.length > 0 ? (
             <div className="space-y-1.5">
@@ -907,8 +841,8 @@ function RunDetailPane({ runId }: { runId: string }) {
             </div>
           ) : (
             <EmptyState
-              title="No tool calls"
-              description="This run has not invoked any tools yet."
+              title={t("noTools.title")}
+              description={t("noTools.description")}
               compact
             />
           )}
@@ -916,7 +850,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       ) : (
         <section>
           <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-            Effective policy
+            {t("effectivePolicy")}
           </h3>
           <EffectivePolicyPanel runId={runId} />
         </section>
@@ -926,7 +860,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       {historicalApprovals.length > 0 && (
         <section>
           <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-            Approval history
+            {t("approval.history")}
           </h3>
           <div className="space-y-1.5">
             {historicalApprovals.map((a) => (
@@ -955,6 +889,8 @@ function RunListItem({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+  const t = useTranslations("agentWorkspace");
+  const locale = useLocale();
   return (
     <button
       type="button"
@@ -968,10 +904,10 @@ function RunListItem({
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12px] font-semibold text-[#2a2640]">
-            {run.objective ?? "Untitled run"}
+            {run.objective ?? t("untitledRun")}
           </p>
           <p className="mt-0.5 text-[10px] text-[#9993b0]">
-            {formatTs(run.created_at)}
+            {formatTs(run.created_at, locale)}
           </p>
         </div>
         <StatusBadge status={run.status} />
@@ -992,6 +928,7 @@ type NewRunFormProps = {
 };
 
 function NewRunForm({ onRunCreated }: NewRunFormProps) {
+  const t = useTranslations("agentWorkspace");
   const [workflowType, setWorkflowType] = useState<WorkflowType>(
     "audit_evidence_pack",
   );
@@ -1019,6 +956,9 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
   const [executionError, setExecutionError] = useState<string | null>(null);
 
   const preset = findWorkflowPreset(workflowType);
+  const presetLabel = t(`presets.${workflowType}.label`);
+  const presetDescription = t(`presets.${workflowType}.description`);
+  const presetObjective = t(`presets.${workflowType}.objective`);
   const indexedDocumentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
       status: "indexed",
@@ -1057,27 +997,36 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
     [connectorConnectionsQuery.data?.items],
   );
   const budgetEstimate = getBudgetEstimate(
-    objective || preset.objective,
+    objective || presetObjective,
     maxSteps,
     maxTotalCostUsd,
   );
 
-  const scopeSummary = useMemo(
-    () =>
-      getWorkflowScopeLabel(scopeMode, {
-        documentCount: selectedDocumentIds.length,
-        collectionCount: selectedCollectionIds.length,
-        connectorCount:
-          selectedConnectorIds.length + selectedProviderSourceIds.length,
-      }),
-    [
-      scopeMode,
-      selectedCollectionIds.length,
-      selectedConnectorIds.length,
-      selectedProviderSourceIds.length,
-      selectedDocumentIds.length,
-    ],
-  );
+  const scopeSummary = useMemo(() => {
+    const connectorCount =
+      selectedConnectorIds.length + selectedProviderSourceIds.length;
+    if (scopeMode === "none") return t("scope.noRag");
+    if (scopeMode === "documents" && selectedDocumentIds.length > 0)
+      return t("scope.selectedDocuments", {
+        count: selectedDocumentIds.length,
+      });
+    if (scopeMode === "collection" && selectedCollectionIds.length > 0)
+      return t("scope.selectedCollections", {
+        count: selectedCollectionIds.length,
+      });
+    if (scopeMode === "connectors" && connectorCount > 0)
+      return t("scope.selectedConnectors", { count: connectorCount });
+    if (scopeMode === "collection") return t("scope.collections");
+    if (scopeMode === "connectors") return t("scope.connectors");
+    return t("scope.allDocuments");
+  }, [
+    scopeMode,
+    selectedCollectionIds.length,
+    selectedConnectorIds.length,
+    selectedProviderSourceIds.length,
+    selectedDocumentIds.length,
+    t,
+  ]);
 
   const buildSourceScopePayload = (): ChatSourceScopeRequest | null => {
     if (scopeMode === "none") {
@@ -1103,10 +1052,10 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
   };
 
   const buildRequest = () => ({
-    objective: objective.trim() || preset.objective,
+    objective: objective.trim() || presetObjective,
     mode,
-    question: objective.trim() || preset.objective,
-    document_query: objective.trim() || preset.objective,
+    question: objective.trim() || presetObjective,
+    document_query: objective.trim() || presetObjective,
     document_ids:
       scopeMode === "documents" && selectedDocumentIds.length > 0
         ? selectedDocumentIds
@@ -1161,13 +1110,13 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
-              Knowledge source
+              {t("builder.knowledgeSource")}
             </p>
             <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-              All accessible documents
+              {t("scope.allDocuments")}
             </p>
             <p className="text-[11px] text-[#68647b]">
-              Scoped to the current organization
+              {t("builder.organizationScope")}
             </p>
           </div>
           <span className="material-symbols-outlined text-[#3525cd]">
@@ -1177,31 +1126,30 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
       </div>
 
       <SourceScopeSelector
-        headingLabel="Scope"
+        headingLabel={t("scope.title")}
         triggerLabel={scopeSummary}
         labels={{
-          triggerAriaLabel: "Select scope",
-          scopeAllDocuments: "All accessible documents",
-          scopeCollection: "Collection",
-          scopeConnectors: "Connectors",
-          scopeNoRag: "No RAG",
-          selectDocuments: "Files",
-          documentSearchPlaceholder: "Search indexed documents…",
-          selectCollections: "Collections",
-          selectConnectors: "Connectors",
-          loadingDocuments: "Loading documents…",
-          loadingCollections: "Loading collections…",
-          loadingConnectors: "Loading connectors…",
-          noDocumentsAvailable: "No indexed documents found.",
-          noDocumentsMatch: "No indexed documents found.",
-          noCollections: "No collections found.",
-          noConnectors: "No connectors found.",
-          documentSelected: "Selected",
-          documentSelect: "Select",
-          allDocumentsHint:
-            "All accessible content is included when nothing is selected.",
-          cancel: "Cancel",
-          apply: "Apply",
+          triggerAriaLabel: t("scope.selectScope"),
+          scopeAllDocuments: t("scope.allDocuments"),
+          scopeCollection: t("scope.collection"),
+          scopeConnectors: t("scope.connectors"),
+          scopeNoRag: t("scope.noRag"),
+          selectDocuments: t("scope.files"),
+          documentSearchPlaceholder: t("scope.searchDocuments"),
+          selectCollections: t("scope.collections"),
+          selectConnectors: t("scope.connectors"),
+          loadingDocuments: t("scope.loadingDocuments"),
+          loadingCollections: t("scope.loadingCollections"),
+          loadingConnectors: t("scope.loadingConnectors"),
+          noDocumentsAvailable: t("scope.noDocuments"),
+          noDocumentsMatch: t("scope.noDocuments"),
+          noCollections: t("scope.noCollections"),
+          noConnectors: t("scope.noConnectors"),
+          documentSelected: t("scope.selected"),
+          documentSelect: t("scope.select"),
+          allDocumentsHint: t("scope.allHint"),
+          cancel: t("cancel"),
+          apply: t("apply"),
         }}
         scopeMode={scopeMode}
         onScopeModeChange={(nextScopeMode) => {
@@ -1274,7 +1222,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
 
       <div className="relative">
         <p className="mb-1 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-          Workflow preset
+          {t("builder.workflowPreset")}
         </p>
         <button
           type="button"
@@ -1291,10 +1239,10 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#2a2640]">
-                {preset.label}
+                {presetLabel}
               </p>
               <p className="truncate text-[11px] text-[#68647b]">
-                {preset.description}
+                {presetDescription}
               </p>
             </div>
           </div>
@@ -1318,7 +1266,9 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
                     onClick={() => {
                       setWorkflowType(workflow.workflowType);
                       setMode(workflow.mode);
-                      setObjective(workflow.objective);
+                      setObjective(
+                        t(`presets.${workflow.workflowType}.objective`),
+                      );
                       setPreview(null);
                       setPreviewError(null);
                       setExecutionError(null);
@@ -1341,14 +1291,14 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
                           active ? "text-[#3525cd]" : "text-[#2a2640]"
                         }`}
                       >
-                        {workflow.label}
+                        {t(`presets.${workflow.workflowType}.label`)}
                       </p>
                       <p className="text-[10px] leading-4 text-[#68647b]">
-                        {workflow.description}
+                        {t(`presets.${workflow.workflowType}.description`)}
                       </p>
                     </div>
                     <span className="ml-auto text-[10px] font-semibold text-[#777587] uppercase">
-                      {workflow.mode}
+                      {t(`modes.${workflow.mode}.label`)}
                     </span>
                   </button>
                 );
@@ -1363,7 +1313,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           htmlFor="agent-objective"
           className="mb-1 block text-[11px] font-bold tracking-wide text-[#9993b0] uppercase"
         >
-          Objective
+          {t("builder.objective")}
         </label>
         <textarea
           id="agent-objective"
@@ -1376,7 +1326,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           }}
           rows={4}
           maxLength={4000}
-          placeholder="Describe what the workflow should accomplish…"
+          placeholder={t("builder.objectivePlaceholder")}
           className="w-full resize-none rounded-2xl border border-[#d7d4e8] bg-white px-4 py-3 text-sm text-[#2a2640] outline-none placeholder:text-[#b0adbe] focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
         />
         <p className="mt-1 text-right text-[10px] text-[#b0adbe]">
@@ -1386,7 +1336,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
 
       <div>
         <p className="mb-1 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-          Execution Mode
+          {t("builder.executionMode")}
         </p>
         <div className="grid grid-cols-2 gap-1 rounded-lg border border-[#d7d4e8] bg-[#faf9ff] p-1 sm:grid-cols-4">
           {WORKFLOW_MODE_OPTIONS.map((m) => (
@@ -1399,14 +1349,14 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
                 setPreviewError(null);
                 setExecutionError(null);
               }}
-              title={m.description}
+              title={t(`modes.${m.value}.description`)}
               className={`flex min-h-12 items-center justify-center rounded-md px-2 py-1.5 text-center text-[11px] font-semibold transition-colors ${
                 mode === m.value
                   ? "bg-[#3525cd] text-white shadow-sm"
                   : "text-[#68647b] hover:bg-white hover:text-[#2a2640]"
               }`}
             >
-              <span>{m.label}</span>
+              <span>{t(`modes.${m.value}.label`)}</span>
             </button>
           ))}
         </div>
@@ -1415,16 +1365,16 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
       <div className="rounded-2xl border border-[#e4e1f2] bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-            Budget controls
+            {t("builder.budgetControls")}
           </p>
           <span className="text-[10px] font-semibold text-[#777587] uppercase">
-            Soft caps
+            {t("builder.softCaps")}
           </span>
         </div>
         <div className="space-y-4">
           <div>
             <div className="mb-1 flex items-center justify-between text-[11px] text-[#68647b]">
-              <span>Max steps</span>
+              <span>{t("builder.maxSteps")}</span>
               <span className="font-semibold text-[#3525cd]">{maxSteps}</span>
             </div>
             <input
@@ -1443,7 +1393,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           </div>
           <div>
             <div className="mb-1 flex items-center justify-between text-[11px] text-[#68647b]">
-              <span>Max tool calls</span>
+              <span>{t("builder.maxToolCalls")}</span>
               <span className="font-semibold text-[#3525cd]">
                 {maxToolCalls}
               </span>
@@ -1464,7 +1414,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           </div>
           <div>
             <div className="mb-1 flex items-center justify-between text-[11px] text-[#68647b]">
-              <span>Max cost (USD)</span>
+              <span>{t("builder.maxCost")}</span>
               <span className="font-semibold text-[#3525cd]">
                 {formatMoney(maxTotalCostUsd)}
               </span>
@@ -1489,10 +1439,13 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
               <span className="material-symbols-outlined text-[14px]">
                 info
               </span>
-              Estimate
+              {t("builder.estimate")}
             </div>
             <p className="text-[11px] leading-5 text-[#68647b]">
-              {budgetEstimate.summary}
+              {t("builder.estimateSummary", {
+                steps: budgetEstimate.steps,
+                cost: formatMoney(budgetEstimate.costUsd),
+              })}
             </p>
           </div>
         </div>
@@ -1503,12 +1456,12 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
             <div className="min-w-0">
               <p className="text-[10px] font-bold tracking-wide text-emerald-800 uppercase">
-                Plan preview
+                {t("builder.planPreview")}
               </p>
               <p className="mt-1 text-sm font-semibold text-emerald-950 sm:text-base">
                 {preview.workflow_type
-                  ? findWorkflowPreset(preview.workflow_type).label
-                  : preset.label}
+                  ? t(`presets.${preview.workflow_type}.label`)
+                  : presetLabel}
               </p>
             </div>
             <div className="inline-flex w-fit max-w-full items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
@@ -1520,7 +1473,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           </p>
           {preview.requires_approval ? (
             <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-              This plan includes approval-gated actions.
+              {t("builder.approvalGated")}
             </p>
           ) : null}
           <div className="mt-4 space-y-2">
@@ -1567,7 +1520,9 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           disabled={!canPreview}
           className="flex-1 rounded-full border border-[#d7d4e8] bg-white px-4 py-3 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {previewMutation.isPending ? "Building plan…" : "Preview plan"}
+          {previewMutation.isPending
+            ? t("builder.buildingPlan")
+            : t("builder.previewPlan")}
         </button>
         <button
           type="button"
@@ -1575,7 +1530,9 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
           disabled={!canExecute}
           className="flex-1 rounded-full bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white hover:bg-[#2a1da8] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {createMutation.isPending ? "Starting run…" : "Execute workflow"}
+          {createMutation.isPending
+            ? t("builder.startingRun")
+            : t("builder.executeWorkflow")}
         </button>
       </div>
     </div>
@@ -1585,6 +1542,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export function AgentWorkspacePage() {
+  const t = useTranslations("agentWorkspace");
   const [explicitSelectedRunId, setExplicitSelectedRunId] = useState<
     string | null
   >(null);
@@ -1617,14 +1575,13 @@ export function AgentWorkspacePage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-bold tracking-[0.25em] text-[#777587] uppercase">
-              Agent Workspace
+              {t("page.eyebrow")}
             </p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-[#2a2640]">
-              Agentic workflows with traceable execution
+              {t("page.title")}
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#68647b]">
-              Build a plan, execute grounded work, inspect the reasoning trail,
-              and review approvals without losing audit context.
+              {t("page.description")}
             </p>
           </div>
         </div>
@@ -1636,7 +1593,7 @@ export function AgentWorkspacePage() {
         <aside className="space-y-4">
           <section className="rounded-3xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-              New run
+              {t("newRun")}
             </h2>
             <NewRunForm onRunCreated={handleRunCreated} />
           </section>
@@ -1653,7 +1610,7 @@ export function AgentWorkspacePage() {
                 robot_2
               </span>
               <p className="mt-2 text-sm font-semibold text-[#9993b0]">
-                Select or start a run to inspect it here
+                {t("selectRun")}
               </p>
             </section>
           )}
@@ -1663,17 +1620,17 @@ export function AgentWorkspacePage() {
           <section className="flex h-full flex-col rounded-3xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
-                Recent runs
+                {t("recentRuns")}
               </h2>
               {runsQuery.data && (
                 <span className="text-[10px] font-semibold text-[#777587]">
-                  {runsQuery.data.total} total
+                  {t("total", { count: runsQuery.data.total })}
                 </span>
               )}
             </div>
 
             {runsQuery.isLoading && (
-              <LoadingState title="Loading runs…" compact />
+              <LoadingState title={t("loadingRuns")} compact />
             )}
             {runsQuery.isError && (
               <ErrorState
@@ -1686,8 +1643,8 @@ export function AgentWorkspacePage() {
               !runsQuery.isError &&
               runs.length === 0 && (
                 <EmptyState
-                  title="No runs yet"
-                  description="Start your first agent run above."
+                  title={t("noRuns.title")}
+                  description={t("noRuns.description")}
                   compact
                 />
               )}

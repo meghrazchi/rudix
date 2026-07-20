@@ -4135,5 +4135,199 @@
     },
     "revoking": "جارٍ الإلغاء…",
     "revokeKey": "إلغاء المفتاح"
+  },
+  "agentWorkspace": {
+    "page": {
+      "eyebrow": "مساحة عمل الوكلاء",
+      "title": "سير عمل الوكلاء بتنفيذ قابل للتتبع",
+      "description": "أنشئ خطة ونفّذ عملاً مستندًا إلى المصادر وافحص مسار الاستدلال وراجع الموافقات مع الحفاظ على سياق التدقيق."
+    },
+    "statuses": {
+      "queued": "في الانتظار",
+      "running": "قيد التشغيل",
+      "completed": "مكتمل",
+      "failed": "فشل",
+      "cancelled": "ملغى",
+      "pending": "هناك {count} إجراء بانتظار الموافقة.",
+      "approved": "موافقة",
+      "rejected": "رفض",
+      "changes_requested": "طلب تغييرات"
+    },
+    "risk": {
+      "critical": "حرج",
+      "high": "مرتفع",
+      "medium": "متوسط",
+      "low": "منخفض"
+    },
+    "inputs": "المدخلات",
+    "surface": "الواجهة",
+    "effect": "التأثير",
+    "inputShort": "الإدخال",
+    "outputShort": "الإخراج",
+    "outputs": "المخرجات",
+    "error": "خطأ",
+    "loadingRun": "جارٍ تحميل التشغيل…",
+    "loadingRuns": "جارٍ تحميل عمليات التشغيل…",
+    "untitledRun": "تشغيل بلا عنوان",
+    "viewTrace": "عرض التتبع",
+    "cancelling": "جارٍ الإلغاء…",
+    "cancelRun": "إلغاء التشغيل",
+    "steps": "الخطوات",
+    "toolCalls": "استدعاءات الأدوات",
+    "cost": "التكلفة",
+    "started": "بدأ",
+    "runFailed": "فشل التشغيل",
+    "traceId": "معرّف التتبع",
+    "reasoningTimeline": "الخط الزمني للاستدلال",
+    "toolCallLog": "سجل استدعاءات الأدوات",
+    "effectivePolicy": "السياسة الفعلية",
+    "finalAnswer": "الإجابة النهائية",
+    "noResponse": "لا توجد استجابة",
+    "citations": "الاستشهادات ({count})",
+    "source": "المصدر {number}",
+    "newRun": "تشغيل جديد",
+    "selectRun": "اختر تشغيلًا أو ابدأ تشغيلًا لفحصه هنا",
+    "recentRuns": "عمليات التشغيل الأخيرة",
+    "total": "الإجمالي {count}",
+    "cancel": "إلغاء",
+    "apply": "تطبيق",
+    "noAnswer": {
+      "title": "لا توجد استجابة",
+      "description": "لا توجد استجابة"
+    },
+    "noTools": {
+      "title": "استدعاءات الأدوات",
+      "description": "استدعاءات الأدوات"
+    },
+    "noRuns": {
+      "title": "اختر تشغيلًا أو ابدأ تشغيلًا لفحصه هنا",
+      "description": "اختر تشغيلًا أو ابدأ تشغيلًا لفحصه هنا"
+    },
+    "approval": {
+      "required": "الموافقة مطلوبة",
+      "optionalReason": "سبب اختياري…",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "reason": "السبب",
+      "humanRequired": "التدخل البشري مطلوب",
+      "waiting": "هناك {count} إجراء بانتظار الموافقة.",
+      "history": "سجل الموافقات"
+    },
+    "queue": {
+      "expired": "منتهي الصلاحية",
+      "expiresIn": "ينتهي خلال {minutes}د {seconds}ث",
+      "run": "التشغيل",
+      "id": "المعرّف",
+      "reasonOptional": "السبب (اختياري)…",
+      "approving": "جارٍ الاعتماد…",
+      "requestChanges": "طلب تغييرات",
+      "requesting": "جارٍ الطلب…",
+      "rejecting": "جارٍ الرفض…",
+      "addReason": "إضافة سبب",
+      "addComment": "إضافة تعليق",
+      "comment": "تعليق",
+      "commentPlaceholder": "اترك تعليقًا دون اتخاذ قرار…",
+      "posting": "جارٍ النشر…",
+      "postComment": "نشر التعليق",
+      "commentPosted": "تم نشر التعليق.",
+      "title": "قائمة الموافقات",
+      "loading": "جارٍ تحميل الموافقات…",
+      "emptyTitle": "لا توجد موافقات معلّقة",
+      "emptyDescription": "ستظهر هنا إجراءات الوكيل التي تتطلب موافقة."
+    },
+    "builder": {
+      "knowledgeSource": "مصدر المعرفة",
+      "organizationScope": "محدد بالمؤسسة الحالية",
+      "workflowPreset": "قالب سير العمل",
+      "objective": "الهدف",
+      "objectivePlaceholder": "صف ما ينبغي أن ينجزه سير العمل…",
+      "executionMode": "وضع التنفيذ",
+      "budgetControls": "ضوابط الميزانية",
+      "softCaps": "حدود مرنة",
+      "maxSteps": "الحد الأقصى للخطوات",
+      "maxToolCalls": "الحد الأقصى لاستدعاءات الأدوات",
+      "maxCost": "الحد الأقصى للتكلفة (USD)",
+      "estimate": "تقدير",
+      "estimateSummary": "نحو {steps} خطوات وبتكلفة تصل إلى {cost} وفق الحدود الحالية.",
+      "planPreview": "معاينة الخطة",
+      "approvalGated": "تتضمن هذه الخطة إجراءات تتطلب الموافقة.",
+      "buildingPlan": "جارٍ بناء الخطة…",
+      "previewPlan": "معاينة الخطة",
+      "startingRun": "جارٍ بدء التشغيل…",
+      "executeWorkflow": "تنفيذ سير العمل"
+    },
+    "scope": {
+      "title": "النطاق",
+      "selectScope": "تحديد النطاق",
+      "allDocuments": "جميع المستندات المتاحة",
+      "collection": "مجموعة",
+      "collections": "المجموعات",
+      "connectors": "الموصلات",
+      "noRag": "بدون RAG",
+      "files": "الملفات",
+      "searchDocuments": "البحث في المستندات المفهرسة…",
+      "loadingDocuments": "جارٍ تحميل المستندات…",
+      "loadingCollections": "جارٍ تحميل المجموعات…",
+      "loadingConnectors": "جارٍ تحميل الموصلات…",
+      "noDocuments": "لم يتم العثور على مستندات مفهرسة.",
+      "noCollections": "لم يتم العثور على مجموعات.",
+      "noConnectors": "لم يتم العثور على موصلات.",
+      "selected": "محدد",
+      "select": "تحديد",
+      "allHint": "يتم تضمين كل المحتوى المتاح عند عدم تحديد أي عنصر.",
+      "selectedDocuments": "{count} مستند محدد",
+      "selectedCollections": "{count} مجموعة محددة",
+      "selectedConnectors": "{count} موصل محدد"
+    },
+    "modes": {
+      "auto": {
+        "label": "تلقائي",
+        "description": "دع الوكيل يقرر"
+      },
+      "answer": {
+        "label": "إجابة",
+        "description": "إجابة مستندة إلى المصادر"
+      },
+      "summarize": {
+        "label": "تلخيص",
+        "description": "اختصار محتوى المصادر"
+      },
+      "compare": {
+        "label": "مقارنة",
+        "description": "مقارنة جنبًا إلى جنب"
+      }
+    },
+    "presets": {
+      "audit_evidence_pack": {
+        "label": "حزمة أدلة التدقيق",
+        "description": "مصدر المعرفة — حزمة أدلة التدقيق",
+        "objective": "الهدف: حزمة أدلة التدقيق"
+      },
+      "policy_comparison": {
+        "label": "مقارنة السياسات",
+        "description": "مصدر المعرفة — مقارنة السياسات",
+        "objective": "الهدف: مقارنة السياسات"
+      },
+      "contract_obligation_analysis": {
+        "label": "تحليل العقود",
+        "description": "مصدر المعرفة — تحليل العقود",
+        "objective": "الهدف: تحليل العقود"
+      },
+      "onboarding_faq_preparation": {
+        "label": "أسئلة الإعداد الشائعة",
+        "description": "مصدر المعرفة — أسئلة الإعداد الشائعة",
+        "objective": "الهدف: أسئلة الإعداد الشائعة"
+      },
+      "connector_content_summarization": {
+        "label": "ملخص الموصل",
+        "description": "مصدر المعرفة — ملخص الموصل",
+        "objective": "الهدف: ملخص الموصل"
+      },
+      "low_confidence_answer_investigation": {
+        "label": "مراجعة الثقة",
+        "description": "مصدر المعرفة — مراجعة الثقة",
+        "objective": "الهدف: مراجعة الثقة"
+      }
+    }
   }
 }
