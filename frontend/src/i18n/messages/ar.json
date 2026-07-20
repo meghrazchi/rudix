@@ -4812,5 +4812,86 @@
       "securityViewRequired": "تحتاج إلى إذن security_center:view.",
       "pagePermissionRequired": "تحتاج إلى إذن roles:view للوصول إلى هذه الصفحة."
     }
+  },
+  "adminAccessDebugger": {
+    "eyebrow": "الإدارة · الأمان",
+    "title": "مصصح الوصول",
+    "description": "حاكِ محرك سياسة التفويض لمعرفة سبب قدرة المستخدم على الوصول إلى مورد أو عدم قدرته. تُعاد بيانات الوصول البنيوية فقط وتُسجل كل محاكاة في سجل التدقيق.",
+    "securityNoteLabel": "ملاحظة أمنية:",
+    "securityNote": "تحاكي هذه الأداة منطق تفويض الإنتاج باستخدام بيانات قاعدة البيانات الحقيقية، بما فيها المنح والرفض وقوائم ACL وعضوية المجموعات. تطابق النتائج ما يفرضه الخادم. كل المحاكاة معزولة حسب المؤسسة ومسجلة.",
+    "showLess": "عرض أقل",
+    "more": "+{count} أخرى",
+    "statuses": {
+      "allowed": "مسموح",
+      "inherited": "مسموح (عبر المجموعة)",
+      "denied": "مرفوض",
+      "restricted": "مقيّد (ACL للموصل)",
+      "unavailable": "غير متاح",
+      "staleAcl": "ACL قديمة",
+      "unknown": "غير معروف"
+    },
+    "outcomes": {
+      "allow": "سماح",
+      "deny": "رفض",
+      "pass": "اجتياز",
+      "skip": "متجاوز",
+      "neutral": "محايد"
+    },
+    "layers": {
+      "organizationMembership": "عضوية المؤسسة",
+      "rolePermissions": "الدور والأذونات",
+      "customPermission": "إذن مخصص",
+      "collectionPolicy": "سياسة المجموعة",
+      "resourceAcl": "ACL المورد",
+      "connectorAcl": "ACL الموصل",
+      "sourceOwnership": "ملكية المصدر",
+      "graphAcl": "ACL الرسم البياني",
+      "sharePolicy": "سياسة المشاركة",
+      "systemPolicy": "سياسة النظام"
+    },
+    "links": {
+      "auditLogs": "عرض سجلات التدقيق",
+      "accessManagement": "عرض إدارة الوصول"
+    },
+    "userSearch": {
+      "placeholder": "البحث بالاسم أو البريد الإلكتروني…",
+      "ariaLabel": "البحث عن مستخدم",
+      "clear": "مسح تحديد المستخدم",
+      "searching": "جارٍ البحث…",
+      "empty": "لم يتم العثور على مستخدمين"
+    },
+    "result": {
+      "rule": "القاعدة",
+      "reason": "السبب",
+      "subject": "الموضوع",
+      "resource": "المورد",
+      "reasonChain": "سلسلة الأسباب",
+      "howToGrant": "كيفية منح الوصول",
+      "troubleshoot": "استكشاف الأخطاء",
+      "effectivePermissions": "الأذونات الفعلية ({count})",
+      "policyTrace": "تتبع السياسة ({count} قواعد)",
+      "requestId": "معرّف الطلب"
+    },
+    "empty": {
+      "title": "لا توجد محاكاة بعد",
+      "description": "حدد مستخدمًا ونوع مورد وإجراءً، ثم انقر على محاكاة لعرض قرار الوصول الكامل."
+    },
+    "form": {
+      "title": "معلمات المحاكاة",
+      "subjectUser": "المستخدم موضوع الفحص",
+      "resourceType": "نوع المورد",
+      "action": "الإجراء",
+      "resourceId": "معرّف المورد",
+      "resourceIdOptional": "(اختياري — يحمّل ACL الحقيقية)",
+      "resourceIdPlaceholder": "UUID للمورد المحدد",
+      "resourceIdHelp": "عند توفيره، تحمّل المحاكاة عمليات المنح والرفض وعضويات المجموعات الحقيقية لهذا المورد.",
+      "simulate": "محاكاة",
+      "simulating": "جارٍ المحاكاة…",
+      "simulatingAccess": "جارٍ محاكاة الوصول"
+    },
+    "errors": {
+      "permissionRequired": "تحتاج إلى إذن security_center:view لاستخدام مصصح الوصول.",
+      "selectUser": "حدد المستخدم موضوع الفحص أولًا."
+    }
   }
 }

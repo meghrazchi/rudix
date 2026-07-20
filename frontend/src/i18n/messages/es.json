@@ -4812,5 +4812,86 @@
       "securityViewRequired": "Necesitas el permiso security_center:view.",
       "pagePermissionRequired": "Necesitas el permiso roles:view para acceder a esta página."
     }
+  },
+  "adminAccessDebugger": {
+    "eyebrow": "Administración · Seguridad",
+    "title": "Depurador de acceso",
+    "description": "Simula el motor de políticas de autorización para saber exactamente por qué un usuario puede o no acceder a un recurso. Solo se devuelven metadatos estructurales y cada simulación queda auditada.",
+    "securityNoteLabel": "Nota de seguridad:",
+    "securityNote": "Esta herramienta simula la autorización de producción con metadatos reales de la base de datos, incluidas concesiones, denegaciones, ACL y pertenencias a colecciones. Los resultados coinciden con el backend. Todas las simulaciones están aisladas por organización y auditadas.",
+    "showLess": "Mostrar menos",
+    "more": "+{count} más",
+    "statuses": {
+      "allowed": "Permitido",
+      "inherited": "Permitido (mediante colección)",
+      "denied": "Denegado",
+      "restricted": "Restringido (ACL del conector)",
+      "unavailable": "No disponible",
+      "staleAcl": "ACL desactualizada",
+      "unknown": "Desconocido"
+    },
+    "outcomes": {
+      "allow": "Permitir",
+      "deny": "Denegar",
+      "pass": "Superado",
+      "skip": "Omitido",
+      "neutral": "Neutral"
+    },
+    "layers": {
+      "organizationMembership": "Pertenencia a la organización",
+      "rolePermissions": "Rol y permisos",
+      "customPermission": "Permiso personalizado",
+      "collectionPolicy": "Política de colección",
+      "resourceAcl": "ACL del recurso",
+      "connectorAcl": "ACL del conector",
+      "sourceOwnership": "Propiedad de la fuente",
+      "graphAcl": "ACL del grafo",
+      "sharePolicy": "Política de uso compartido",
+      "systemPolicy": "Política del sistema"
+    },
+    "links": {
+      "auditLogs": "Ver registros de auditoría",
+      "accessManagement": "Ver gestión de acceso"
+    },
+    "userSearch": {
+      "placeholder": "Buscar por nombre o correo…",
+      "ariaLabel": "Buscar usuario",
+      "clear": "Borrar selección",
+      "searching": "Buscando…",
+      "empty": "No se encontraron usuarios"
+    },
+    "result": {
+      "rule": "Regla",
+      "reason": "Motivo",
+      "subject": "Sujeto",
+      "resource": "Recurso",
+      "reasonChain": "Cadena de motivos",
+      "howToGrant": "Cómo conceder acceso",
+      "troubleshoot": "Solucionar problemas",
+      "effectivePermissions": "Permisos efectivos ({count})",
+      "policyTrace": "Traza de política ({count} reglas)",
+      "requestId": "ID de solicitud"
+    },
+    "empty": {
+      "title": "Aún no hay simulación",
+      "description": "Selecciona un usuario, tipo de recurso y acción y pulsa Simular para ver la decisión completa."
+    },
+    "form": {
+      "title": "Parámetros de simulación",
+      "subjectUser": "Usuario sujeto",
+      "resourceType": "Tipo de recurso",
+      "action": "Acción",
+      "resourceId": "ID del recurso",
+      "resourceIdOptional": "(opcional — carga la ACL real)",
+      "resourceIdPlaceholder": "UUID del recurso específico",
+      "resourceIdHelp": "Si se indica, el simulador carga las concesiones, denegaciones y pertenencias reales de este recurso.",
+      "simulate": "Simular",
+      "simulating": "Simulando…",
+      "simulatingAccess": "Simulando acceso"
+    },
+    "errors": {
+      "permissionRequired": "Necesitas el permiso security_center:view para usar el depurador de acceso.",
+      "selectUser": "Selecciona primero un usuario sujeto."
+    }
   }
 }

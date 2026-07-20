@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -50,68 +51,69 @@ const ACTIONS = [
 
 const STATUS_CONFIG: Record<
   ExtendedStatus,
-  { label: string; color: string; bg: string; icon: string }
+  { labelKey: string; color: string; bg: string; icon: string }
 > = {
   allowed: {
-    label: "Allowed",
+    labelKey: "allowed",
     color: "text-emerald-700",
     bg: "bg-emerald-50 border-emerald-200",
     icon: "✓",
   },
   inherited: {
-    label: "Allowed (via collection)",
+    labelKey: "inherited",
     color: "text-emerald-700",
     bg: "bg-emerald-50 border-emerald-200",
     icon: "↑",
   },
   denied: {
-    label: "Denied",
+    labelKey: "denied",
     color: "text-red-700",
     bg: "bg-red-50 border-red-200",
     icon: "✗",
   },
   restricted: {
-    label: "Restricted (connector ACL)",
+    labelKey: "restricted",
     color: "text-amber-700",
     bg: "bg-amber-50 border-amber-200",
     icon: "⊘",
   },
   unavailable: {
-    label: "Unavailable",
+    labelKey: "unavailable",
     color: "text-slate-600",
     bg: "bg-slate-50 border-slate-200",
     icon: "—",
   },
   stale_acl: {
-    label: "Stale ACL",
+    labelKey: "staleAcl",
     color: "text-amber-700",
     bg: "bg-amber-50 border-amber-200",
     icon: "⚠",
   },
   unknown: {
-    label: "Unknown",
+    labelKey: "unknown",
     color: "text-slate-600",
     bg: "bg-slate-50 border-slate-200",
     icon: "?",
   },
 };
 
-const LAYER_LABELS: Record<string, string> = {
-  organization_membership: "Organization Membership",
-  role: "Role & Permissions",
-  custom_permission: "Custom Permission",
-  collection_policy: "Collection Policy",
-  document_acl: "Resource ACL",
-  connector_acl: "Connector ACL",
-  source_ownership: "Source Ownership",
-  graph_acl: "Graph ACL",
-  share_policy: "Share Policy",
-  system_policy: "System Policy",
+const LAYER_KEYS: Record<string, string> = {
+  organization_membership: "organizationMembership",
+  role: "rolePermissions",
+  custom_permission: "customPermission",
+  collection_policy: "collectionPolicy",
+  document_acl: "resourceAcl",
+  connector_acl: "connectorAcl",
+  source_ownership: "sourceOwnership",
+  graph_acl: "graphAcl",
+  share_policy: "sharePolicy",
+  system_policy: "systemPolicy",
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function TraceStepRow({ step }: { step: SimulateTraceStep }) {
+  const t = useTranslations("adminAccessDebugger");
   const dot =
     step.outcome === "allow"
       ? "bg-emerald-400"
@@ -130,7 +132,7 @@ function TraceStepRow({ step }: { step: SimulateTraceStep }) {
       <div className="flex-1 text-xs">
         <span className="font-mono text-[#2a2640]">{step.rule}</span>
         <span className={`ml-2 font-bold uppercase ${label}`}>
-          {step.outcome}
+          {t(`outcomes.${step.outcome}`)}
         </span>
         {step.detail && (
           <span className="ml-2 text-[#68647b]">({step.detail})</span>
@@ -141,6 +143,7 @@ function TraceStepRow({ step }: { step: SimulateTraceStep }) {
 }
 
 function ReasonChainRow({ entry }: { entry: ReasonChainEntry }) {
+  const t = useTranslations("adminAccessDebugger");
   const isTerminal = entry.outcome !== "pass";
   return (
     <div
@@ -165,7 +168,9 @@ function ReasonChainRow({ entry }: { entry: ReasonChainEntry }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold text-[#2a2640]">
-          {LAYER_LABELS[entry.layer] ?? entry.layer}
+          {LAYER_KEYS[entry.layer]
+            ? t(`layers.${LAYER_KEYS[entry.layer]}`)
+            : entry.layer}
         </p>
         {entry.detail && (
           <p className="text-[11px] text-[#68647b]">{entry.detail}</p>
@@ -180,13 +185,14 @@ function ReasonChainRow({ entry }: { entry: ReasonChainEntry }) {
               : "bg-slate-100 text-slate-500"
         }`}
       >
-        {entry.outcome}
+        {t(`outcomes.${entry.outcome}`)}
       </span>
     </div>
   );
 }
 
 function PermissionsPanel({ permissions }: { permissions: string[] }) {
+  const t = useTranslations("adminAccessDebugger");
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? permissions : permissions.slice(0, 8);
   return (
@@ -207,7 +213,9 @@ function PermissionsPanel({ permissions }: { permissions: string[] }) {
           onClick={() => setExpanded((e) => !e)}
           className="mt-2 text-xs text-[#3525cd] hover:underline"
         >
-          {expanded ? "Show less" : `+${permissions.length - 8} more`}
+          {expanded
+            ? t("showLess")
+            : t("more", { count: permissions.length - 8 })}
         </button>
       )}
     </div>
@@ -215,6 +223,7 @@ function PermissionsPanel({ permissions }: { permissions: string[] }) {
 }
 
 function TroubleshootingLinks({ links }: { links: TroubleshootingLink[] }) {
+  const t = useTranslations("adminAccessDebugger");
   return (
     <div className="flex flex-wrap gap-3">
       {links.map((link) => (
@@ -223,7 +232,11 @@ function TroubleshootingLinks({ links }: { links: TroubleshootingLink[] }) {
           href={link.href}
           className="inline-flex items-center gap-1 rounded-lg border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs font-medium text-[#3525cd] transition hover:border-[#3525cd] hover:bg-[#f0eeff]"
         >
-          {link.label}
+          {link.href === "/admin/audit-logs"
+            ? t("links.auditLogs")
+            : link.href === "/admin/permissions"
+              ? t("links.accessManagement")
+              : link.label}
           <svg
             className="h-3 w-3"
             fill="none"
@@ -252,6 +265,7 @@ function UserSelector({
   value: OrgMemberResult | null;
   onSelect: (user: OrgMemberResult | null) => void;
 }) {
+  const t = useTranslations("adminAccessDebugger");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -294,10 +308,10 @@ function UserSelector({
           }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder="Search by name or email…"
+          placeholder={t("userSearch.placeholder")}
           role="combobox"
           className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 pr-8 text-sm focus:border-[#3525cd] focus:outline-none"
-          aria-label="Search user"
+          aria-label={t("userSearch.ariaLabel")}
           aria-autocomplete="list"
           aria-controls="user-search-listbox"
           aria-expanded={open}
@@ -306,8 +320,8 @@ function UserSelector({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute top-1/2 right-2 -translate-y-1/2 text-[#a09dbf] hover:text-[#2a2640]"
-            aria-label="Clear user selection"
+            className="absolute end-2 top-1/2 -translate-y-1/2 text-[#a09dbf] hover:text-[#2a2640]"
+            aria-label={t("userSearch.clear")}
           >
             ✕
           </button>
@@ -321,10 +335,14 @@ function UserSelector({
           role="listbox"
         >
           {isFetching && (
-            <p className="px-4 py-3 text-xs text-[#68647b]">Searching…</p>
+            <p className="px-4 py-3 text-xs text-[#68647b]">
+              {t("userSearch.searching")}
+            </p>
           )}
           {!isFetching && data?.items.length === 0 && (
-            <p className="px-4 py-3 text-xs text-[#68647b]">No users found</p>
+            <p className="px-4 py-3 text-xs text-[#68647b]">
+              {t("userSearch.empty")}
+            </p>
           )}
           {!isFetching &&
             data?.items.map((user) => (
@@ -347,7 +365,7 @@ function UserSelector({
                     {user.email}
                   </p>
                 </div>
-                <span className="ml-auto shrink-0 rounded-full bg-[#ede9fb] px-2 py-0.5 text-[10px] font-semibold text-[#5d58a8]">
+                <span className="ms-auto shrink-0 rounded-full bg-[#ede9fb] px-2 py-0.5 text-[10px] font-semibold text-[#5d58a8]">
                   {user.role}
                 </span>
               </button>
@@ -365,6 +383,7 @@ function UserSelector({
 // ── Result panel ───────────────────────────────────────────────────────────────
 
 function ResultPanel({ result }: { result: SimulateAccessResponse }) {
+  const t = useTranslations("adminAccessDebugger");
   const cfg = STATUS_CONFIG[result.extended_status] ?? STATUS_CONFIG.unknown;
   const [showTrace, setShowTrace] = useState(false);
   const [showPerms, setShowPerms] = useState(false);
@@ -380,15 +399,17 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
             {cfg.icon}
           </div>
           <div className="flex-1">
-            <p className={`text-lg font-bold ${cfg.color}`}>{cfg.label}</p>
+            <p className={`text-lg font-bold ${cfg.color}`}>
+              {t(`statuses.${cfg.labelKey}`)}
+            </p>
             <p className="mt-0.5 text-xs text-[#68647b]">
-              Rule:{" "}
+              {t("result.rule")}:{" "}
               <span className="font-mono text-[#2a2640]">
                 {result.matched_rule}
               </span>
               {result.deny_reason && (
                 <span className="ml-3">
-                  Reason:{" "}
+                  {t("result.reason")}:{" "}
                   <span className="font-mono text-red-700">
                     {result.deny_reason}
                   </span>
@@ -402,7 +423,7 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
         <div className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
           <div className="rounded-lg bg-white/70 px-3 py-2">
             <p className="text-[10px] font-bold text-[#5d58a8] uppercase">
-              Subject
+              {t("result.subject")}
             </p>
             <p className="mt-1 font-semibold text-[#2a2640]">
               {result.subject_display_name ?? result.subject_email}
@@ -414,7 +435,7 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
           </div>
           <div className="rounded-lg bg-white/70 px-3 py-2">
             <p className="text-[10px] font-bold text-[#5d58a8] uppercase">
-              Resource
+              {t("result.resource")}
             </p>
             <p className="mt-1 font-semibold text-[#2a2640]">
               {result.resource_type}
@@ -435,7 +456,7 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
       {result.reason_chain.length > 0 && (
         <div className="rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <p className="mb-3 text-xs font-bold text-[#5d58a8] uppercase">
-            Reason Chain
+            {t("result.reasonChain")}
           </p>
           <div className="space-y-2">
             {result.reason_chain.map((entry, i) => (
@@ -449,7 +470,7 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
       {result.remediation.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <p className="mb-2 text-xs font-bold text-amber-700 uppercase">
-            How to grant access
+            {t("result.howToGrant")}
           </p>
           <ul className="space-y-1.5">
             {result.remediation.map((r, i) => (
@@ -469,7 +490,7 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
       {result.troubleshooting_links.length > 0 && (
         <div className="rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <p className="mb-3 text-xs font-bold text-[#5d58a8] uppercase">
-            Troubleshoot
+            {t("result.troubleshoot")}
           </p>
           <TroubleshootingLinks links={result.troubleshooting_links} />
         </div>
@@ -484,7 +505,9 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
             className="flex w-full items-center justify-between text-xs font-bold text-[#5d58a8] uppercase"
           >
             <span>
-              Effective permissions ({result.effective_permissions.length})
+              {t("result.effectivePermissions", {
+                count: result.effective_permissions.length,
+              })}
             </span>
             <span>{showPerms ? "▲" : "▼"}</span>
           </button>
@@ -504,7 +527,9 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
             onClick={() => setShowTrace((v) => !v)}
             className="flex w-full items-center justify-between text-xs font-bold text-[#5d58a8] uppercase"
           >
-            <span>Policy trace ({result.trace.length} rules)</span>
+            <span>
+              {t("result.policyTrace", { count: result.trace.length })}
+            </span>
             <span>{showTrace ? "▲" : "▼"}</span>
           </button>
           {showTrace && (
@@ -518,7 +543,7 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
       )}
 
       <p className="text-[10px] text-[#a09dbf]">
-        Request ID: {result.request_id}
+        {t("result.requestId")}: {result.request_id}
       </p>
     </div>
   );
@@ -527,6 +552,7 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
 // ── Empty state ────────────────────────────────────────────────────────────────
 
 function EmptyState() {
+  const t = useTranslations("adminAccessDebugger");
   return (
     <div
       className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#d7d4e8] bg-[#f9f8ff] px-8 py-16 text-center"
@@ -545,11 +571,8 @@ function EmptyState() {
           strokeWidth={1.5}
         />
       </svg>
-      <p className="text-sm font-semibold text-[#2a2640]">No simulation yet</p>
-      <p className="mt-1 text-xs text-[#68647b]">
-        Select a user, resource type, and action, then click{" "}
-        <strong>Simulate</strong> to see the full access decision.
-      </p>
+      <p className="text-sm font-semibold text-[#2a2640]">{t("empty.title")}</p>
+      <p className="mt-1 text-xs text-[#68647b]">{t("empty.description")}</p>
     </div>
   );
 }
@@ -557,6 +580,7 @@ function EmptyState() {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export function AdminAccessDebuggerPage() {
+  const t = useTranslations("adminAccessDebugger");
   const { hasPermission } = usePermissions();
 
   const [selectedUser, setSelectedUser] = useState<OrgMemberResult | null>(
@@ -589,8 +613,8 @@ export function AdminAccessDebuggerPage() {
   if (!hasPermission("security_center:view")) {
     return (
       <ForbiddenState
-        title="Access Debugger"
-        description="You need the security_center:view permission to use the Access Debugger."
+        title={t("title")}
+        description={t("errors.permissionRequired")}
         backHref="/admin"
       />
     );
@@ -599,7 +623,7 @@ export function AdminAccessDebuggerPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedUser) {
-      setFormError("Select a subject user first.");
+      setFormError(t("errors.selectUser"));
       return;
     }
     simulateMutation.mutate();
@@ -610,25 +634,15 @@ export function AdminAccessDebuggerPage() {
       {/* Header */}
       <div>
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Admin · Security
+          {t("eyebrow")}
         </p>
-        <h1 className="text-2xl font-extrabold text-[#2a2640]">
-          Access Debugger
-        </h1>
-        <p className="mt-1 text-sm text-[#68647b]">
-          Simulate the authorization policy engine to see exactly why a user can
-          or cannot access a resource. Only structural access metadata is
-          returned — no resource content is exposed. Every simulation is
-          audit-logged.
-        </p>
+        <h1 className="text-2xl font-extrabold text-[#2a2640]">{t("title")}</h1>
+        <p className="mt-1 text-sm text-[#68647b]">{t("description")}</p>
       </div>
 
       {/* Security note */}
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <strong>Security note:</strong> This tool simulates production
-        authorization logic using real DB metadata (grants, denies, ACLs,
-        collection memberships). Results match what the backend enforces. All
-        simulations are tenant-scoped and audit-logged.
+        <strong>{t("securityNoteLabel")}</strong> {t("securityNote")}
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
@@ -639,19 +653,19 @@ export function AdminAccessDebuggerPage() {
             className="space-y-5 rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
           >
             <h2 className="text-sm font-bold text-[#2a2640]">
-              Simulation parameters
+              {t("form.title")}
             </h2>
 
             <div className="space-y-1">
               <label className="block text-xs font-medium text-[#2a2640]">
-                Subject user <span className="text-red-500">*</span>
+                {t("form.subjectUser")} <span className="text-red-500">*</span>
               </label>
               <UserSelector value={selectedUser} onSelect={setSelectedUser} />
             </div>
 
             <div className="space-y-1">
               <label className="block text-xs font-medium text-[#2a2640]">
-                Resource type
+                {t("form.resourceType")}
               </label>
               <select
                 value={resourceType}
@@ -668,7 +682,7 @@ export function AdminAccessDebuggerPage() {
 
             <div className="space-y-1">
               <label className="block text-xs font-medium text-[#2a2640]">
-                Action
+                {t("form.action")}
               </label>
               <select
                 value={action}
@@ -685,21 +699,20 @@ export function AdminAccessDebuggerPage() {
 
             <div className="space-y-1">
               <label className="block text-xs font-medium text-[#2a2640]">
-                Resource ID{" "}
+                {t("form.resourceId")}{" "}
                 <span className="font-normal text-[#68647b]">
-                  (optional — loads real ACL)
+                  {t("form.resourceIdOptional")}
                 </span>
               </label>
               <input
                 type="text"
                 value={resourceId}
                 onChange={(e) => setResourceId(e.target.value)}
-                placeholder="UUID of the specific resource"
+                placeholder={t("form.resourceIdPlaceholder")}
                 className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 font-mono text-sm focus:border-[#3525cd] focus:outline-none"
               />
               <p className="text-[10px] text-[#a09dbf]">
-                When provided, the simulator loads the real grants, denies, and
-                collection memberships for this resource.
+                {t("form.resourceIdHelp")}
               </p>
             </div>
 
@@ -717,7 +730,9 @@ export function AdminAccessDebuggerPage() {
               disabled={simulateMutation.isPending || !selectedUser}
               className="w-full rounded-lg bg-[#3525cd] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-50"
             >
-              {simulateMutation.isPending ? "Simulating…" : "Simulate"}
+              {simulateMutation.isPending
+                ? t("form.simulating")
+                : t("form.simulate")}
             </button>
           </form>
         </div>
@@ -729,10 +744,10 @@ export function AdminAccessDebuggerPage() {
               className="flex h-48 items-center justify-center rounded-xl border border-[#d7d4e8] bg-white"
               role="status"
               aria-live="polite"
-              aria-label="Simulating access"
+              aria-label={t("form.simulatingAccess")}
               data-testid="loading-state"
             >
-              <p className="text-sm text-[#68647b]">Simulating…</p>
+              <p className="text-sm text-[#68647b]">{t("form.simulating")}</p>
             </div>
           )}
           {!simulateMutation.isPending && result && (

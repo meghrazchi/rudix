@@ -4812,5 +4812,86 @@
       "securityViewRequired": "L’autorisation security_center:view est nécessaire.",
       "pagePermissionRequired": "L’autorisation roles:view est nécessaire pour accéder à cette page."
     }
+  },
+  "adminAccessDebugger": {
+    "eyebrow": "Administration · Sécurité",
+    "title": "Débogueur d’accès",
+    "description": "Simulez le moteur de règles d’autorisation pour comprendre précisément pourquoi un utilisateur peut ou non accéder à une ressource. Seules les métadonnées structurelles sont renvoyées et chaque simulation est auditée.",
+    "securityNoteLabel": "Note de sécurité :",
+    "securityNote": "Cet outil simule l’autorisation de production avec de vraies métadonnées de base de données : autorisations, refus, ACL et appartenances aux collections. Les résultats correspondent à l’application du backend. Toutes les simulations sont isolées par organisation et auditées.",
+    "showLess": "Afficher moins",
+    "more": "+{count} autres",
+    "statuses": {
+      "allowed": "Autorisé",
+      "inherited": "Autorisé (via la collection)",
+      "denied": "Refusé",
+      "restricted": "Restreint (ACL du connecteur)",
+      "unavailable": "Indisponible",
+      "staleAcl": "ACL obsolète",
+      "unknown": "Inconnu"
+    },
+    "outcomes": {
+      "allow": "Autoriser",
+      "deny": "Refuser",
+      "pass": "Validé",
+      "skip": "Ignoré",
+      "neutral": "Neutre"
+    },
+    "layers": {
+      "organizationMembership": "Appartenance à l’organisation",
+      "rolePermissions": "Rôle et autorisations",
+      "customPermission": "Autorisation personnalisée",
+      "collectionPolicy": "Règle de collection",
+      "resourceAcl": "ACL de ressource",
+      "connectorAcl": "ACL du connecteur",
+      "sourceOwnership": "Propriété de la source",
+      "graphAcl": "ACL du graphe",
+      "sharePolicy": "Règle de partage",
+      "systemPolicy": "Règle système"
+    },
+    "links": {
+      "auditLogs": "Voir les journaux d’audit",
+      "accessManagement": "Voir la gestion des accès"
+    },
+    "userSearch": {
+      "placeholder": "Rechercher par nom ou e-mail…",
+      "ariaLabel": "Rechercher un utilisateur",
+      "clear": "Effacer la sélection",
+      "searching": "Recherche…",
+      "empty": "Aucun utilisateur trouvé"
+    },
+    "result": {
+      "rule": "Règle",
+      "reason": "Motif",
+      "subject": "Sujet",
+      "resource": "Ressource",
+      "reasonChain": "Chaîne de décision",
+      "howToGrant": "Comment accorder l’accès",
+      "troubleshoot": "Dépannage",
+      "effectivePermissions": "Autorisations effectives ({count})",
+      "policyTrace": "Trace de la règle ({count} règles)",
+      "requestId": "ID de requête"
+    },
+    "empty": {
+      "title": "Aucune simulation",
+      "description": "Sélectionnez un utilisateur, un type de ressource et une action, puis cliquez sur Simuler pour afficher la décision complète."
+    },
+    "form": {
+      "title": "Paramètres de simulation",
+      "subjectUser": "Utilisateur sujet",
+      "resourceType": "Type de ressource",
+      "action": "Action",
+      "resourceId": "ID de ressource",
+      "resourceIdOptional": "(facultatif — charge l’ACL réelle)",
+      "resourceIdPlaceholder": "UUID de la ressource",
+      "resourceIdHelp": "Lorsqu’il est fourni, le simulateur charge les autorisations, refus et appartenances réels de cette ressource.",
+      "simulate": "Simuler",
+      "simulating": "Simulation…",
+      "simulatingAccess": "Simulation de l’accès"
+    },
+    "errors": {
+      "permissionRequired": "L’autorisation security_center:view est nécessaire pour utiliser le débogueur d’accès.",
+      "selectUser": "Sélectionnez d’abord un utilisateur sujet."
+    }
   }
 }

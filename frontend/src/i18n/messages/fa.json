@@ -4812,5 +4812,86 @@
       "securityViewRequired": "به مجوز security_center:view نیاز دارید.",
       "pagePermissionRequired": "برای دسترسی به این صفحه به مجوز roles:view نیاز دارید."
     }
+  },
+  "adminAccessDebugger": {
+    "eyebrow": "مدیریت · امنیت",
+    "title": "اشکال‌زدای دسترسی",
+    "description": "موتور خط‌مشی مجوز را شبیه‌سازی کنید تا دقیقاً ببینید چرا کاربر می‌تواند یا نمی‌تواند به منبعی دسترسی داشته باشد. فقط فراداده ساختاری بازگردانده می‌شود و هر شبیه‌سازی ثبت ممیزی می‌شود.",
+    "securityNoteLabel": "نکته امنیتی:",
+    "securityNote": "این ابزار منطق مجوزدهی عملیاتی را با فراداده واقعی پایگاه داده، شامل دسترسی‌ها، ممنوعیت‌ها، ACLها و عضویت مجموعه‌ها شبیه‌سازی می‌کند. نتایج با کنترل سمت سرور یکسان‌اند. همه شبیه‌سازی‌ها سازمان‌محور و ثبت‌شده هستند.",
+    "showLess": "نمایش کمتر",
+    "more": "+{count} مورد دیگر",
+    "statuses": {
+      "allowed": "مجاز",
+      "inherited": "مجاز (از طریق مجموعه)",
+      "denied": "غیرمجاز",
+      "restricted": "محدود (ACL اتصال‌دهنده)",
+      "unavailable": "در دسترس نیست",
+      "staleAcl": "ACL قدیمی",
+      "unknown": "نامشخص"
+    },
+    "outcomes": {
+      "allow": "مجاز",
+      "deny": "غیرمجاز",
+      "pass": "عبور",
+      "skip": "ردشده",
+      "neutral": "خنثی"
+    },
+    "layers": {
+      "organizationMembership": "عضویت سازمان",
+      "rolePermissions": "نقش و مجوزها",
+      "customPermission": "مجوز سفارشی",
+      "collectionPolicy": "خط‌مشی مجموعه",
+      "resourceAcl": "ACL منبع",
+      "connectorAcl": "ACL اتصال‌دهنده",
+      "sourceOwnership": "مالکیت منبع",
+      "graphAcl": "ACL گراف",
+      "sharePolicy": "خط‌مشی اشتراک‌گذاری",
+      "systemPolicy": "خط‌مشی سیستم"
+    },
+    "links": {
+      "auditLogs": "مشاهده گزارش‌های ممیزی",
+      "accessManagement": "مشاهده مدیریت دسترسی"
+    },
+    "userSearch": {
+      "placeholder": "جستجو با نام یا ایمیل…",
+      "ariaLabel": "جستجوی کاربر",
+      "clear": "پاک کردن انتخاب کاربر",
+      "searching": "در حال جستجو…",
+      "empty": "کاربری پیدا نشد"
+    },
+    "result": {
+      "rule": "قانون",
+      "reason": "دلیل",
+      "subject": "موضوع",
+      "resource": "منبع",
+      "reasonChain": "زنجیره دلایل",
+      "howToGrant": "روش اعطای دسترسی",
+      "troubleshoot": "عیب‌یابی",
+      "effectivePermissions": "مجوزهای مؤثر ({count})",
+      "policyTrace": "ردیابی خط‌مشی ({count} قانون)",
+      "requestId": "شناسه درخواست"
+    },
+    "empty": {
+      "title": "هنوز شبیه‌سازی‌ای انجام نشده",
+      "description": "کاربر، نوع منبع و عملیات را انتخاب کنید و سپس روی شبیه‌سازی کلیک کنید تا تصمیم کامل دسترسی نمایش داده شود."
+    },
+    "form": {
+      "title": "پارامترهای شبیه‌سازی",
+      "subjectUser": "کاربر موضوع",
+      "resourceType": "نوع منبع",
+      "action": "عملیات",
+      "resourceId": "شناسه منبع",
+      "resourceIdOptional": "(اختیاری — ACL واقعی را بارگیری می‌کند)",
+      "resourceIdPlaceholder": "UUID منبع مشخص",
+      "resourceIdHelp": "در صورت ارائه، شبیه‌ساز دسترسی‌ها، ممنوعیت‌ها و عضویت‌های واقعی این منبع را بارگیری می‌کند.",
+      "simulate": "شبیه‌سازی",
+      "simulating": "در حال شبیه‌سازی…",
+      "simulatingAccess": "در حال شبیه‌سازی دسترسی"
+    },
+    "errors": {
+      "permissionRequired": "برای استفاده از اشکال‌زدای دسترسی به مجوز security_center:view نیاز دارید.",
+      "selectUser": "ابتدا کاربر موضوع را انتخاب کنید."
+    }
   }
 }

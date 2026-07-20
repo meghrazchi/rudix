@@ -4812,5 +4812,86 @@
       "securityViewRequired": "You need security_center:view permission.",
       "pagePermissionRequired": "You need the roles:view permission to access this page."
     }
+  },
+  "adminAccessDebugger": {
+    "eyebrow": "Admin · Security",
+    "title": "Access Debugger",
+    "description": "Simulate the authorization policy engine to see exactly why a user can or cannot access a resource. Only structural access metadata is returned — no resource content is exposed. Every simulation is audit-logged.",
+    "securityNoteLabel": "Security note:",
+    "securityNote": "This tool simulates production authorization logic using real database metadata, including grants, denies, ACLs, and collection memberships. Results match backend enforcement. All simulations are tenant-scoped and audit-logged.",
+    "showLess": "Show less",
+    "more": "+{count} more",
+    "statuses": {
+      "allowed": "Allowed",
+      "inherited": "Allowed (via collection)",
+      "denied": "Denied",
+      "restricted": "Restricted (connector ACL)",
+      "unavailable": "Unavailable",
+      "staleAcl": "Stale ACL",
+      "unknown": "Unknown"
+    },
+    "outcomes": {
+      "allow": "Allow",
+      "deny": "Deny",
+      "pass": "Pass",
+      "skip": "Skipped",
+      "neutral": "Neutral"
+    },
+    "layers": {
+      "organizationMembership": "Organization Membership",
+      "rolePermissions": "Role & Permissions",
+      "customPermission": "Custom Permission",
+      "collectionPolicy": "Collection Policy",
+      "resourceAcl": "Resource ACL",
+      "connectorAcl": "Connector ACL",
+      "sourceOwnership": "Source Ownership",
+      "graphAcl": "Graph ACL",
+      "sharePolicy": "Share Policy",
+      "systemPolicy": "System Policy"
+    },
+    "links": {
+      "auditLogs": "View audit logs",
+      "accessManagement": "View access management"
+    },
+    "userSearch": {
+      "placeholder": "Search by name or email…",
+      "ariaLabel": "Search user",
+      "clear": "Clear user selection",
+      "searching": "Searching…",
+      "empty": "No users found"
+    },
+    "result": {
+      "rule": "Rule",
+      "reason": "Reason",
+      "subject": "Subject",
+      "resource": "Resource",
+      "reasonChain": "Reason Chain",
+      "howToGrant": "How to grant access",
+      "troubleshoot": "Troubleshoot",
+      "effectivePermissions": "Effective permissions ({count})",
+      "policyTrace": "Policy trace ({count} rules)",
+      "requestId": "Request ID"
+    },
+    "empty": {
+      "title": "No simulation yet",
+      "description": "Select a user, resource type, and action, then click Simulate to see the full access decision."
+    },
+    "form": {
+      "title": "Simulation parameters",
+      "subjectUser": "Subject user",
+      "resourceType": "Resource type",
+      "action": "Action",
+      "resourceId": "Resource ID",
+      "resourceIdOptional": "(optional — loads real ACL)",
+      "resourceIdPlaceholder": "UUID of the specific resource",
+      "resourceIdHelp": "When provided, the simulator loads the real grants, denies, and collection memberships for this resource.",
+      "simulate": "Simulate",
+      "simulating": "Simulating…",
+      "simulatingAccess": "Simulating access"
+    },
+    "errors": {
+      "permissionRequired": "You need the security_center:view permission to use the Access Debugger.",
+      "selectUser": "Select a subject user first."
+    }
   }
 }

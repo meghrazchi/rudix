@@ -4812,5 +4812,86 @@
       "securityViewRequired": "Sie benötigen die Berechtigung security_center:view.",
       "pagePermissionRequired": "Sie benötigen die Berechtigung roles:view, um auf diese Seite zuzugreifen."
     }
+  },
+  "adminAccessDebugger": {
+    "eyebrow": "Administration · Sicherheit",
+    "title": "Zugriffsdiagnose",
+    "description": "Simulieren Sie die Autorisierungsrichtlinien, um genau zu sehen, warum ein Benutzer auf eine Ressource zugreifen kann oder nicht. Es werden nur strukturelle Zugriffsmetadaten zurückgegeben. Jede Simulation wird protokolliert.",
+    "securityNoteLabel": "Sicherheitshinweis:",
+    "securityNote": "Dieses Werkzeug simuliert die Produktionsautorisierung mit echten Datenbankmetadaten wie Freigaben, Sperren, ACLs und Sammlungsmitgliedschaften. Die Ergebnisse entsprechen der Backend-Durchsetzung. Alle Simulationen sind mandantenbezogen und werden protokolliert.",
+    "showLess": "Weniger anzeigen",
+    "more": "+{count} weitere",
+    "statuses": {
+      "allowed": "Erlaubt",
+      "inherited": "Erlaubt (über Sammlung)",
+      "denied": "Verweigert",
+      "restricted": "Eingeschränkt (Connector-ACL)",
+      "unavailable": "Nicht verfügbar",
+      "staleAcl": "Veraltete ACL",
+      "unknown": "Unbekannt"
+    },
+    "outcomes": {
+      "allow": "Erlaubt",
+      "deny": "Verweigert",
+      "pass": "Bestanden",
+      "skip": "Übersprungen",
+      "neutral": "Neutral"
+    },
+    "layers": {
+      "organizationMembership": "Organisationsmitgliedschaft",
+      "rolePermissions": "Rolle & Berechtigungen",
+      "customPermission": "Benutzerdefinierte Berechtigung",
+      "collectionPolicy": "Sammlungsrichtlinie",
+      "resourceAcl": "Ressourcen-ACL",
+      "connectorAcl": "Connector-ACL",
+      "sourceOwnership": "Quelleneigentum",
+      "graphAcl": "Graph-ACL",
+      "sharePolicy": "Freigaberichtlinie",
+      "systemPolicy": "Systemrichtlinie"
+    },
+    "links": {
+      "auditLogs": "Auditprotokolle anzeigen",
+      "accessManagement": "Zugriffsverwaltung anzeigen"
+    },
+    "userSearch": {
+      "placeholder": "Nach Name oder E-Mail suchen…",
+      "ariaLabel": "Benutzer suchen",
+      "clear": "Benutzerauswahl löschen",
+      "searching": "Suche…",
+      "empty": "Keine Benutzer gefunden"
+    },
+    "result": {
+      "rule": "Regel",
+      "reason": "Grund",
+      "subject": "Subjekt",
+      "resource": "Ressource",
+      "reasonChain": "Begründungskette",
+      "howToGrant": "Zugriff gewähren",
+      "troubleshoot": "Fehlerbehebung",
+      "effectivePermissions": "Effektive Berechtigungen ({count})",
+      "policyTrace": "Richtlinienablauf ({count} Regeln)",
+      "requestId": "Anfrage-ID"
+    },
+    "empty": {
+      "title": "Noch keine Simulation",
+      "description": "Wählen Sie Benutzer, Ressourcentyp und Aktion aus und klicken Sie auf „Simulieren“, um die vollständige Zugriffsentscheidung anzuzeigen."
+    },
+    "form": {
+      "title": "Simulationsparameter",
+      "subjectUser": "Betroffener Benutzer",
+      "resourceType": "Ressourcentyp",
+      "action": "Aktion",
+      "resourceId": "Ressourcen-ID",
+      "resourceIdOptional": "(optional — lädt echte ACL)",
+      "resourceIdPlaceholder": "UUID der konkreten Ressource",
+      "resourceIdHelp": "Falls angegeben, lädt die Simulation echte Freigaben, Sperren und Sammlungsmitgliedschaften dieser Ressource.",
+      "simulate": "Simulieren",
+      "simulating": "Simulation läuft…",
+      "simulatingAccess": "Zugriff wird simuliert"
+    },
+    "errors": {
+      "permissionRequired": "Sie benötigen die Berechtigung security_center:view, um die Zugriffsdiagnose zu verwenden.",
+      "selectUser": "Wählen Sie zuerst einen Benutzer aus."
+    }
   }
 }
