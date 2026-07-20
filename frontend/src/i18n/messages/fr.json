@@ -4070,5 +4070,70 @@
       "medium": "Moyenne",
       "low": "Faible"
     }
+  },
+  "adminApiKeys": {
+    "title": "Clés API",
+    "description": "Gérez les clés API limitées par portée pour l’accès programmatique à Rudix.",
+    "admin": "Administration",
+    "loading": "Chargement des clés API…",
+    "errors": {
+      "permissionRequired": "Vous avez besoin de l’autorisation api_keys:list pour accéder à cette page.",
+      "forbidden": "Vous n’avez pas accès à la gestion des clés API."
+    },
+    "copyKey": "Copier la clé",
+    "copied": "Copiée !",
+    "created": {
+      "title": "Clé API créée — copiez-la maintenant",
+      "description": "C’est la seule fois où la clé complète est affichée. Conservez-la en lieu sûr."
+    },
+    "prefix": "Préfixe",
+    "scopes": "Portées",
+    "done": "Terminé",
+    "form": {
+      "createTitle": "Créer une clé API",
+      "editTitle": "Modifier la clé API",
+      "name": "Nom",
+      "namePlaceholder": "p. ex. clé d’intégration CI",
+      "description": "Description",
+      "descriptionPlaceholder": "Description facultative",
+      "scopesHint": "Les portées ne peuvent pas être modifiées après la création. Faites pivoter la clé pour les changer."
+    },
+    "close": "Fermer",
+    "saving": "Enregistrement…",
+    "createKey": "Créer une clé",
+    "createKeyWithPlus": "+ Créer une clé",
+    "saveChanges": "Enregistrer les modifications",
+    "cancel": "Annuler",
+    "scopeLabels": {
+      "documentsRead": "Documents — lecture",
+      "documentsWrite": "Documents — écriture",
+      "chatWrite": "Chat — écriture",
+      "evaluationsRun": "Évaluations — exécuter",
+      "webhooksManage": "Webhooks — gérer",
+      "connectorsManage": "Connecteurs — gérer"
+    },
+    "statuses": {
+      "active": "Active",
+      "revoked": "Révoquée"
+    },
+    "lastUsed": "Dernière utilisation",
+    "neverUsed": "Jamais utilisée",
+    "expires": "Expire",
+    "edit": "Modifier",
+    "rotate": "Faire pivoter",
+    "revoke": "Révoquer",
+    "activeKeys": "Clés actives",
+    "revokedKeys": "Clés révoquées",
+    "empty": {
+      "noActive": "Aucune clé API active.",
+      "createOne": "En créer une",
+      "enableAccess": "pour activer l’accès programmatique."
+    },
+    "revokeDialog": {
+      "title": "Révoquer « {name} » ?",
+      "description": "La clé cessera immédiatement de fonctionner. Cette action est irréversible."
+    },
+    "revoking": "Révocation…",
+    "revokeKey": "Révoquer la clé"
   }
 }

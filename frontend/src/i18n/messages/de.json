@@ -4070,5 +4070,70 @@
       "medium": "Mittel",
       "low": "Niedrig"
     }
+  },
+  "adminApiKeys": {
+    "title": "API-Schlüssel",
+    "description": "Bereichsbezogene API-Schlüssel für den programmatischen Zugriff auf Rudix verwalten.",
+    "admin": "Administration",
+    "loading": "API-Schlüssel werden geladen…",
+    "errors": {
+      "permissionRequired": "Sie benötigen die Berechtigung api_keys:list, um auf diese Seite zuzugreifen.",
+      "forbidden": "Sie haben keinen Zugriff auf die API-Schlüsselverwaltung."
+    },
+    "copyKey": "Schlüssel kopieren",
+    "copied": "Kopiert!",
+    "created": {
+      "title": "API-Schlüssel erstellt — jetzt kopieren",
+      "description": "Der vollständige Schlüssel wird nur jetzt angezeigt. Bewahren Sie ihn sicher auf."
+    },
+    "prefix": "Präfix",
+    "scopes": "Berechtigungsbereiche",
+    "done": "Fertig",
+    "form": {
+      "createTitle": "API-Schlüssel erstellen",
+      "editTitle": "API-Schlüssel bearbeiten",
+      "name": "Name",
+      "namePlaceholder": "z. B. CI-Integrationsschlüssel",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Optionale Beschreibung",
+      "scopesHint": "Berechtigungsbereiche können nach der Erstellung nicht geändert werden. Rotieren Sie den Schlüssel, um sie zu ändern."
+    },
+    "close": "Schließen",
+    "saving": "Wird gespeichert…",
+    "createKey": "Schlüssel erstellen",
+    "createKeyWithPlus": "+ Schlüssel erstellen",
+    "saveChanges": "Änderungen speichern",
+    "cancel": "Abbrechen",
+    "scopeLabels": {
+      "documentsRead": "Dokumente — lesen",
+      "documentsWrite": "Dokumente — schreiben",
+      "chatWrite": "Chat — schreiben",
+      "evaluationsRun": "Evaluierungen — ausführen",
+      "webhooksManage": "Webhooks — verwalten",
+      "connectorsManage": "Konnektoren — verwalten"
+    },
+    "statuses": {
+      "active": "Aktiv",
+      "revoked": "Widerrufen"
+    },
+    "lastUsed": "Zuletzt verwendet",
+    "neverUsed": "Nie verwendet",
+    "expires": "Läuft ab",
+    "edit": "Bearbeiten",
+    "rotate": "Rotieren",
+    "revoke": "Widerrufen",
+    "activeKeys": "Aktive Schlüssel",
+    "revokedKeys": "Widerrufene Schlüssel",
+    "empty": {
+      "noActive": "Keine aktiven API-Schlüssel.",
+      "createOne": "Jetzt erstellen",
+      "enableAccess": "um programmatischen Zugriff zu ermöglichen."
+    },
+    "revokeDialog": {
+      "title": "„{name}“ widerrufen?",
+      "description": "Der Schlüssel funktioniert sofort nicht mehr. Dies kann nicht rückgängig gemacht werden."
+    },
+    "revoking": "Wird widerrufen…",
+    "revokeKey": "Schlüssel widerrufen"
   }
 }

@@ -4070,5 +4070,70 @@
       "medium": "Medium",
       "low": "Low"
     }
+  },
+  "adminApiKeys": {
+    "title": "API Keys",
+    "description": "Manage scoped API keys for programmatic access to Rudix.",
+    "admin": "Admin",
+    "loading": "Loading API keys…",
+    "errors": {
+      "permissionRequired": "You need the api_keys:list permission to access this page.",
+      "forbidden": "You do not have access to API key management."
+    },
+    "copyKey": "Copy key",
+    "copied": "Copied!",
+    "created": {
+      "title": "API key created — copy it now",
+      "description": "This is the only time the full key is shown. Store it somewhere safe."
+    },
+    "prefix": "Prefix",
+    "scopes": "Scopes",
+    "done": "Done",
+    "form": {
+      "createTitle": "Create API Key",
+      "editTitle": "Edit API Key",
+      "name": "Name",
+      "namePlaceholder": "e.g. CI integration key",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "scopesHint": "Scopes cannot be changed after creation. Rotate the key to change scopes."
+    },
+    "close": "Close",
+    "saving": "Saving…",
+    "createKey": "Create key",
+    "createKeyWithPlus": "+ Create key",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "scopeLabels": {
+      "documentsRead": "Documents — read",
+      "documentsWrite": "Documents — write",
+      "chatWrite": "Chat — write",
+      "evaluationsRun": "Evaluations — run",
+      "webhooksManage": "Webhooks — manage",
+      "connectorsManage": "Connectors — manage"
+    },
+    "statuses": {
+      "active": "Active",
+      "revoked": "Revoked"
+    },
+    "lastUsed": "Last used",
+    "neverUsed": "Never used",
+    "expires": "Expires",
+    "edit": "Edit",
+    "rotate": "Rotate",
+    "revoke": "Revoke",
+    "activeKeys": "Active keys",
+    "revokedKeys": "Revoked keys",
+    "empty": {
+      "noActive": "No active API keys.",
+      "createOne": "Create one",
+      "enableAccess": "to enable programmatic access."
+    },
+    "revokeDialog": {
+      "title": "Revoke “{name}”?",
+      "description": "The key will stop working immediately. This cannot be undone."
+    },
+    "revoking": "Revoking…",
+    "revokeKey": "Revoke key"
   }
 }

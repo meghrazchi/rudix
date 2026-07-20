@@ -4070,5 +4070,70 @@
       "medium": "متوسطة",
       "low": "منخفضة"
     }
+  },
+  "adminApiKeys": {
+    "title": "مفاتيح API",
+    "description": "إدارة مفاتيح API محددة النطاق للوصول البرمجي إلى Rudix.",
+    "admin": "الإدارة",
+    "loading": "جارٍ تحميل مفاتيح API…",
+    "errors": {
+      "permissionRequired": "تحتاج إلى صلاحية api_keys:list للوصول إلى هذه الصفحة.",
+      "forbidden": "ليس لديك حق الوصول إلى إدارة مفاتيح API."
+    },
+    "copyKey": "نسخ المفتاح",
+    "copied": "تم النسخ!",
+    "created": {
+      "title": "تم إنشاء مفتاح API — انسخه الآن",
+      "description": "هذه هي المرة الوحيدة التي يظهر فيها المفتاح كاملاً. احفظه في مكان آمن."
+    },
+    "prefix": "البادئة",
+    "scopes": "النطاقات",
+    "done": "تم",
+    "form": {
+      "createTitle": "إنشاء مفتاح API",
+      "editTitle": "تعديل مفتاح API",
+      "name": "الاسم",
+      "namePlaceholder": "مثال: مفتاح تكامل CI",
+      "description": "الوصف",
+      "descriptionPlaceholder": "وصف اختياري",
+      "scopesHint": "لا يمكن تغيير النطاقات بعد الإنشاء. دوّر المفتاح لتغييرها."
+    },
+    "close": "إغلاق",
+    "saving": "جارٍ الحفظ…",
+    "createKey": "إنشاء مفتاح",
+    "createKeyWithPlus": "+ إنشاء مفتاح",
+    "saveChanges": "حفظ التغييرات",
+    "cancel": "إلغاء",
+    "scopeLabels": {
+      "documentsRead": "المستندات — قراءة",
+      "documentsWrite": "المستندات — كتابة",
+      "chatWrite": "الدردشة — كتابة",
+      "evaluationsRun": "التقييمات — تشغيل",
+      "webhooksManage": "خطافات الويب — إدارة",
+      "connectorsManage": "الموصلات — إدارة"
+    },
+    "statuses": {
+      "active": "نشط",
+      "revoked": "ملغى"
+    },
+    "lastUsed": "آخر استخدام",
+    "neverUsed": "لم يُستخدم قط",
+    "expires": "ينتهي",
+    "edit": "تعديل",
+    "rotate": "تدوير",
+    "revoke": "إلغاء",
+    "activeKeys": "المفاتيح النشطة",
+    "revokedKeys": "المفاتيح الملغاة",
+    "empty": {
+      "noActive": "لا توجد مفاتيح API نشطة.",
+      "createOne": "أنشئ مفتاحًا",
+      "enableAccess": "لتمكين الوصول البرمجي."
+    },
+    "revokeDialog": {
+      "title": "هل تريد إلغاء “{name}”؟",
+      "description": "سيتوقف المفتاح عن العمل فورًا. لا يمكن التراجع عن ذلك."
+    },
+    "revoking": "جارٍ الإلغاء…",
+    "revokeKey": "إلغاء المفتاح"
   }
 }

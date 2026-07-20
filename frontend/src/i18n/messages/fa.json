@@ -4070,5 +4070,70 @@
       "medium": "متوسط",
       "low": "کم"
     }
+  },
+  "adminApiKeys": {
+    "title": "کلیدهای API",
+    "description": "کلیدهای API محدوده‌دار را برای دسترسی برنامه‌نویسی به Rudix مدیریت کنید.",
+    "admin": "مدیریت",
+    "loading": "در حال بارگذاری کلیدهای API…",
+    "errors": {
+      "permissionRequired": "برای دسترسی به این صفحه به مجوز api_keys:list نیاز دارید.",
+      "forbidden": "به مدیریت کلیدهای API دسترسی ندارید."
+    },
+    "copyKey": "کپی کلید",
+    "copied": "کپی شد!",
+    "created": {
+      "title": "کلید API ساخته شد — اکنون آن را کپی کنید",
+      "description": "این تنها باری است که کلید کامل نمایش داده می‌شود. آن را در مکانی امن نگه دارید."
+    },
+    "prefix": "پیشوند",
+    "scopes": "محدوده‌ها",
+    "done": "تمام",
+    "form": {
+      "createTitle": "ساخت کلید API",
+      "editTitle": "ویرایش کلید API",
+      "name": "نام",
+      "namePlaceholder": "برای نمونه، کلید یکپارچه‌سازی CI",
+      "description": "توضیحات",
+      "descriptionPlaceholder": "توضیحات اختیاری",
+      "scopesHint": "محدوده‌ها پس از ساخت قابل تغییر نیستند. برای تغییر محدوده‌ها، کلید را بچرخانید."
+    },
+    "close": "بستن",
+    "saving": "در حال ذخیره…",
+    "createKey": "ساخت کلید",
+    "createKeyWithPlus": "+ ساخت کلید",
+    "saveChanges": "ذخیره تغییرات",
+    "cancel": "لغو",
+    "scopeLabels": {
+      "documentsRead": "اسناد — خواندن",
+      "documentsWrite": "اسناد — نوشتن",
+      "chatWrite": "گفت‌وگو — نوشتن",
+      "evaluationsRun": "ارزیابی‌ها — اجرا",
+      "webhooksManage": "وب‌هوک‌ها — مدیریت",
+      "connectorsManage": "اتصال‌دهنده‌ها — مدیریت"
+    },
+    "statuses": {
+      "active": "فعال",
+      "revoked": "لغوشده"
+    },
+    "lastUsed": "آخرین استفاده",
+    "neverUsed": "هرگز استفاده نشده",
+    "expires": "انقضا",
+    "edit": "ویرایش",
+    "rotate": "چرخاندن",
+    "revoke": "لغو",
+    "activeKeys": "کلیدهای فعال",
+    "revokedKeys": "کلیدهای لغوشده",
+    "empty": {
+      "noActive": "کلید API فعالی وجود ندارد.",
+      "createOne": "یکی بسازید",
+      "enableAccess": "تا دسترسی برنامه‌نویسی فعال شود."
+    },
+    "revokeDialog": {
+      "title": "کلید «{name}» لغو شود؟",
+      "description": "کلید بلافاصله از کار می‌افتد. این کار قابل بازگشت نیست."
+    },
+    "revoking": "در حال لغو…",
+    "revokeKey": "لغو کلید"
   }
 }

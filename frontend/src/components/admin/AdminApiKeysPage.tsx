@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocale, useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -22,13 +23,13 @@ import { usePermissions } from "@/lib/use-permissions";
 
 const QUERY_API_KEYS = ["admin", "api_keys", "list"] as const;
 
-const SCOPE_LABELS: Record<string, string> = {
-  "documents:read": "Documents — read",
-  "documents:write": "Documents — write",
-  "chat:write": "Chat — write",
-  "evaluations:run": "Evaluations — run",
-  "webhooks:manage": "Webhooks — manage",
-  "connectors:manage": "Connectors — manage",
+const SCOPE_KEYS: Record<string, string> = {
+  "documents:read": "documentsRead",
+  "documents:write": "documentsWrite",
+  "chat:write": "chatWrite",
+  "evaluations:run": "evaluationsRun",
+  "webhooks:manage": "webhooksManage",
+  "connectors:manage": "connectorsManage",
 };
 
 type PanelState =
@@ -38,6 +39,7 @@ type PanelState =
   | { kind: "created"; result: ApiKeyCreated };
 
 function CopyButton({ value }: { value: string }) {
+  const t = useTranslations("adminApiKeys");
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -49,7 +51,7 @@ function CopyButton({ value }: { value: string }) {
       }}
       className="rounded bg-[#3525cd] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#2b1fa8]"
     >
-      {copied ? "Copied!" : "Copy key"}
+      {copied ? t("copied") : t("copyKey")}
     </button>
   );
 }
@@ -61,6 +63,7 @@ function CreatedKeyBanner({
   result: ApiKeyCreated;
   onClose: () => void;
 }) {
+  const t = useTranslations("adminApiKeys");
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
@@ -73,10 +76,10 @@ function CreatedKeyBanner({
           id="created-key-title"
           className="mb-1 text-base font-semibold text-[#2a2640]"
         >
-          API key created — copy it now
+          {t("created.title")}
         </h3>
         <p className="mb-4 text-sm text-[#68647b]">
-          This is the only time the full key is shown. Store it somewhere safe.
+          {t("created.description")}
         </p>
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#d7d4e8] bg-[#f9f8ff] px-3 py-2">
           <code className="flex-1 font-mono text-sm break-all text-[#2a2640]">
@@ -85,11 +88,13 @@ function CreatedKeyBanner({
           <CopyButton value={result.raw_key} />
         </div>
         <div className="mb-4 text-sm text-[#68647b]">
-          <span className="font-medium text-[#2a2640]">Prefix:</span>{" "}
+          <span className="font-medium text-[#2a2640]">{t("prefix")}:</span>{" "}
           <code className="font-mono">{result.key_prefix}</code>
           {result.scopes.length > 0 && (
             <>
-              <span className="ml-4 font-medium text-[#2a2640]">Scopes:</span>{" "}
+              <span className="ml-4 font-medium text-[#2a2640]">
+                {t("scopes")}:
+              </span>{" "}
               {result.scopes.join(", ")}
             </>
           )}
@@ -99,7 +104,7 @@ function CreatedKeyBanner({
           onClick={onClose}
           className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
         >
-          Done
+          {t("done")}
         </button>
       </div>
     </div>
@@ -117,6 +122,7 @@ function ApiKeyFormPanel({
   onClose: () => void;
   onSaved: (result?: ApiKeyCreated) => void;
 }) {
+  const t = useTranslations("adminApiKeys");
   const [name, setName] = useState(existingKey?.name ?? "");
   const [description, setDescription] = useState(
     existingKey?.description ?? "",
@@ -177,13 +183,13 @@ function ApiKeyFormPanel({
     <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-[#d7d4e8] bg-white shadow-xl">
       <div className="flex items-center justify-between border-b border-[#d7d4e8] px-6 py-4">
         <h2 className="text-lg font-semibold text-[#2a2640]">
-          {mode === "create" ? "Create API Key" : "Edit API Key"}
+          {mode === "create" ? t("form.createTitle") : t("form.editTitle")}
         </h2>
         <button
           type="button"
           onClick={onClose}
           className="text-[#68647b] hover:text-[#2a2640]"
-          aria-label="Close"
+          aria-label={t("close")}
         >
           ✕
         </button>
@@ -196,7 +202,7 @@ function ApiKeyFormPanel({
         <div className="flex-1 space-y-5 px-6 py-5">
           <div>
             <label className="mb-1 block text-sm font-medium text-[#2a2640]">
-              Name <span className="text-red-500">*</span>
+              {t("form.name")} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -205,13 +211,13 @@ function ApiKeyFormPanel({
               maxLength={256}
               required
               className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
-              placeholder="e.g. CI integration key"
+              placeholder={t("form.namePlaceholder")}
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-[#2a2640]">
-              Description
+              {t("form.description")}
             </label>
             <textarea
               value={description}
@@ -219,13 +225,15 @@ function ApiKeyFormPanel({
               rows={2}
               maxLength={1024}
               className="w-full resize-none rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
-              placeholder="Optional description"
+              placeholder={t("form.descriptionPlaceholder")}
             />
           </div>
 
           {mode === "create" && (
             <div>
-              <p className="mb-2 text-sm font-medium text-[#2a2640]">Scopes</p>
+              <p className="mb-2 text-sm font-medium text-[#2a2640]">
+                {t("scopes")}
+              </p>
               <div className="space-y-2 rounded-lg bg-[#f9f8ff] p-3">
                 {VALID_SCOPES.map((scope) => (
                   <label
@@ -239,14 +247,15 @@ function ApiKeyFormPanel({
                       onChange={(e) => toggleScope(scope, e.target.checked)}
                     />
                     <span className="text-sm text-[#2a2640]">
-                      {SCOPE_LABELS[scope] ?? scope}
+                      {SCOPE_KEYS[scope]
+                        ? t(`scopeLabels.${SCOPE_KEYS[scope]}`)
+                        : scope}
                     </span>
                   </label>
                 ))}
               </div>
               <p className="mt-1 text-xs text-[#68647b]">
-                Scopes cannot be changed after creation. Rotate the key to
-                change scopes.
+                {t("form.scopesHint")}
               </p>
             </div>
           )}
@@ -265,10 +274,10 @@ function ApiKeyFormPanel({
             className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-50"
           >
             {isPending
-              ? "Saving…"
+              ? t("saving")
               : mode === "create"
-                ? "Create key"
-                : "Save changes"}
+                ? t("createKey")
+                : t("saveChanges")}
           </button>
           <button
             type="button"
@@ -276,7 +285,7 @@ function ApiKeyFormPanel({
             disabled={isPending}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
           >
-            Cancel
+            {t("cancel")}
           </button>
         </div>
       </form>
@@ -297,6 +306,8 @@ function ApiKeyCard({
   onRevoke: (key: ApiKey) => void;
   onRotate: (key: ApiKey) => void;
 }) {
+  const t = useTranslations("adminApiKeys");
+  const locale = useLocale();
   const isRevoked = apiKey.status === "revoked";
 
   return (
@@ -313,11 +324,11 @@ function ApiKeyCard({
             <span className="font-semibold text-[#2a2640]">{apiKey.name}</span>
             {isRevoked ? (
               <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                Revoked
+                {t("statuses.revoked")}
               </span>
             ) : (
               <span className="rounded-full bg-[#e8f5e9] px-2 py-0.5 text-xs font-medium text-[#2e7d32]">
-                Active
+                {t("statuses.active")}
               </span>
             )}
           </div>
@@ -331,25 +342,25 @@ function ApiKeyCard({
 
       <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-[#68647b]">
         <span>
-          Prefix:{" "}
+          {t("prefix")}:{" "}
           <code className="font-mono text-[#2a2640]">{apiKey.key_prefix}…</code>
         </span>
         {apiKey.last_used_at ? (
           <span>
-            Last used:{" "}
-            {new Date(apiKey.last_used_at).toLocaleDateString(undefined, {
+            {t("lastUsed")}:{" "}
+            {new Date(apiKey.last_used_at).toLocaleDateString(locale, {
               month: "short",
               day: "numeric",
               year: "numeric",
             })}
           </span>
         ) : (
-          <span>Never used</span>
+          <span>{t("neverUsed")}</span>
         )}
         {apiKey.expires_at && (
           <span>
-            Expires:{" "}
-            {new Date(apiKey.expires_at).toLocaleDateString(undefined, {
+            {t("expires")}:{" "}
+            {new Date(apiKey.expires_at).toLocaleDateString(locale, {
               month: "short",
               day: "numeric",
               year: "numeric",
@@ -378,21 +389,21 @@ function ApiKeyCard({
             onClick={() => onEdit(apiKey)}
             className="text-sm font-medium text-[#3525cd] hover:underline"
           >
-            Edit
+            {t("edit")}
           </button>
           <button
             type="button"
             onClick={() => onRotate(apiKey)}
             className="text-sm font-medium text-[#3525cd] hover:underline"
           >
-            Rotate
+            {t("rotate")}
           </button>
           <button
             type="button"
             onClick={() => onRevoke(apiKey)}
             className="text-sm font-medium text-red-600 hover:underline"
           >
-            Revoke
+            {t("revoke")}
           </button>
         </div>
       )}
@@ -401,6 +412,7 @@ function ApiKeyCard({
 }
 
 export function AdminApiKeysPage() {
+  const t = useTranslations("adminApiKeys");
   const { hasPermission } = usePermissions();
   const canList = hasPermission("api_keys:list");
   const canManage =
@@ -441,21 +453,21 @@ export function AdminApiKeysPage() {
   if (!canList) {
     return (
       <ForbiddenState
-        title="API Keys"
-        description="You need the api_keys:list permission to access this page."
+        title={t("title")}
+        description={t("errors.permissionRequired")}
         backHref="/dashboard"
       />
     );
   }
 
-  if (keysQuery.isLoading) return <LoadingState />;
+  if (keysQuery.isLoading) return <LoadingState title={t("loading")} />;
 
   if (keysQuery.isError) {
     if (isForbiddenError(keysQuery.error)) {
       return (
         <ForbiddenState
-          title="API Keys"
-          description="You do not have access to API key management."
+          title={t("title")}
+          description={t("errors.forbidden")}
           requestId={extractRequestIdFromError(keysQuery.error)}
           backHref="/dashboard"
         />
@@ -473,12 +485,12 @@ export function AdminApiKeysPage() {
       <div className="flex items-start justify-between">
         <div>
           <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-            Admin
+            {t("admin")}
           </p>
-          <h1 className="text-2xl font-extrabold text-[#2a2640]">API Keys</h1>
-          <p className="mt-1 text-sm text-[#68647b]">
-            Manage scoped API keys for programmatic access to Rudix.
-          </p>
+          <h1 className="text-2xl font-extrabold text-[#2a2640]">
+            {t("title")}
+          </h1>
+          <p className="mt-1 text-sm text-[#68647b]">{t("description")}</p>
         </div>
         {canManage && (
           <button
@@ -486,21 +498,21 @@ export function AdminApiKeysPage() {
             onClick={() => setPanel({ kind: "create" })}
             className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
           >
-            + Create key
+            {t("createKeyWithPlus")}
           </button>
         )}
       </div>
 
       <section>
         <h2 className="mb-4 text-base font-semibold text-[#2a2640]">
-          Active keys
+          {t("activeKeys")}
           <span className="ml-2 text-sm font-normal text-[#68647b]">
             ({activeKeys.length})
           </span>
         </h2>
         {activeKeys.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#d7d4e8] p-8 text-center text-sm text-[#68647b]">
-            No active API keys.
+            {t("empty.noActive")}
             {canManage && (
               <>
                 {" "}
@@ -509,9 +521,9 @@ export function AdminApiKeysPage() {
                   onClick={() => setPanel({ kind: "create" })}
                   className="font-medium text-[#3525cd] hover:underline"
                 >
-                  Create one
+                  {t("empty.createOne")}
                 </button>{" "}
-                to enable programmatic access.
+                {t("empty.enableAccess")}
               </>
             )}
           </div>
@@ -537,7 +549,7 @@ export function AdminApiKeysPage() {
       {revokedKeys.length > 0 && (
         <section>
           <h2 className="mb-4 text-base font-semibold text-[#2a2640]">
-            Revoked keys
+            {t("revokedKeys")}
             <span className="ml-2 text-sm font-normal text-[#68647b]">
               ({revokedKeys.length})
             </span>
@@ -570,10 +582,10 @@ export function AdminApiKeysPage() {
               id="revoke-dialog-title"
               className="mb-2 text-base font-semibold text-[#2a2640]"
             >
-              Revoke &ldquo;{revokeTarget.name}&rdquo;?
+              {t("revokeDialog.title", { name: revokeTarget.name })}
             </h3>
             <p className="mb-4 text-sm text-[#68647b]">
-              The key will stop working immediately. This cannot be undone.
+              {t("revokeDialog.description")}
             </p>
             {revokeError && (
               <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -587,7 +599,7 @@ export function AdminApiKeysPage() {
                 disabled={revokeMutation.isPending}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
               >
-                {revokeMutation.isPending ? "Revoking…" : "Revoke key"}
+                {revokeMutation.isPending ? t("revoking") : t("revokeKey")}
               </button>
               <button
                 type="button"
@@ -598,7 +610,7 @@ export function AdminApiKeysPage() {
                 disabled={revokeMutation.isPending}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
               >
-                Cancel
+                {t("cancel")}
               </button>
             </div>
           </div>

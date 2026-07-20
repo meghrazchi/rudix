@@ -4070,5 +4070,70 @@
       "medium": "Media",
       "low": "Baja"
     }
+  },
+  "adminApiKeys": {
+    "title": "Claves API",
+    "description": "Gestione claves API con ámbitos para el acceso programático a Rudix.",
+    "admin": "Administración",
+    "loading": "Cargando claves API…",
+    "errors": {
+      "permissionRequired": "Necesita el permiso api_keys:list para acceder a esta página.",
+      "forbidden": "No tiene acceso a la gestión de claves API."
+    },
+    "copyKey": "Copiar clave",
+    "copied": "¡Copiada!",
+    "created": {
+      "title": "Clave API creada — cópiela ahora",
+      "description": "Esta es la única vez que se muestra la clave completa. Guárdela en un lugar seguro."
+    },
+    "prefix": "Prefijo",
+    "scopes": "Ámbitos",
+    "done": "Listo",
+    "form": {
+      "createTitle": "Crear clave API",
+      "editTitle": "Editar clave API",
+      "name": "Nombre",
+      "namePlaceholder": "p. ej., clave de integración CI",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Descripción opcional",
+      "scopesHint": "Los ámbitos no se pueden cambiar tras la creación. Rote la clave para cambiarlos."
+    },
+    "close": "Cerrar",
+    "saving": "Guardando…",
+    "createKey": "Crear clave",
+    "createKeyWithPlus": "+ Crear clave",
+    "saveChanges": "Guardar cambios",
+    "cancel": "Cancelar",
+    "scopeLabels": {
+      "documentsRead": "Documentos — lectura",
+      "documentsWrite": "Documentos — escritura",
+      "chatWrite": "Chat — escritura",
+      "evaluationsRun": "Evaluaciones — ejecutar",
+      "webhooksManage": "Webhooks — gestionar",
+      "connectorsManage": "Conectores — gestionar"
+    },
+    "statuses": {
+      "active": "Activa",
+      "revoked": "Revocada"
+    },
+    "lastUsed": "Último uso",
+    "neverUsed": "Nunca utilizada",
+    "expires": "Vence",
+    "edit": "Editar",
+    "rotate": "Rotar",
+    "revoke": "Revocar",
+    "activeKeys": "Claves activas",
+    "revokedKeys": "Claves revocadas",
+    "empty": {
+      "noActive": "No hay claves API activas.",
+      "createOne": "Crear una",
+      "enableAccess": "para habilitar el acceso programático."
+    },
+    "revokeDialog": {
+      "title": "¿Revocar “{name}”?",
+      "description": "La clave dejará de funcionar inmediatamente. Esta acción no se puede deshacer."
+    },
+    "revoking": "Revocando…",
+    "revokeKey": "Revocar clave"
   }
 }
