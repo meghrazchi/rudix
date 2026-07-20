@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -175,6 +176,7 @@ function resultPillClass(result: AuditLogListItemResponse["result"]): string {
 
 function buildRelatedLinks(
   event: AuditLogListItemResponse,
+  t: ReturnType<typeof useTranslations>,
 ): Array<{ href: string; label: string }> {
   const links: Array<{ href: string; label: string }> = [];
   const documentId =
@@ -183,7 +185,7 @@ function buildRelatedLinks(
   if (documentId) {
     links.push({
       href: `/documents/${encodeURIComponent(documentId)}`,
-      label: "Open document",
+      label: t("openDocument"),
     });
   }
 
@@ -193,7 +195,7 @@ function buildRelatedLinks(
       ? trimToNull(event.resource_id)
       : null);
   if (collectionId) {
-    links.push({ href: "/collections", label: "Open collections" });
+    links.push({ href: "/collections", label: t("openCollections") });
   }
 
   const sessionId =
@@ -204,14 +206,17 @@ function buildRelatedLinks(
   if (sessionId) {
     links.push({
       href: `/chat?session_id=${encodeURIComponent(sessionId)}`,
-      label: "Open chat session",
+      label: t("openChatSession"),
     });
   }
 
   return links;
 }
 
-function getActorLabel(item: AuditLogListItemResponse): string {
+function getActorLabel(
+  item: AuditLogListItemResponse,
+  systemLabel: string,
+): string {
   if (item.user_id) {
     return item.user_id;
   }
@@ -219,10 +224,11 @@ function getActorLabel(item: AuditLogListItemResponse): string {
   if (typeof actorEmail === "string" && actorEmail.trim().length > 0) {
     return actorEmail;
   }
-  return "System";
+  return systemLabel;
 }
 
 export function AdminAuditLogsPage() {
+  const t = useTranslations("adminAuditLogs");
   const { state } = useAuthSession();
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
@@ -333,8 +339,8 @@ export function AdminAuditLogsPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Admin audit logs restricted"
-          description="Only owner and admin roles can access audit logs."
+          title={t("restricted")}
+          description={t("restrictedDescription")}
           compact={false}
         />
       </section>
@@ -345,8 +351,8 @@ export function AdminAuditLogsPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Audit logs unavailable"
-          description="Your role no longer has access to audit logs."
+          title={t("unavailable")}
+          description={t("unavailableDescription")}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -373,9 +379,11 @@ export function AdminAuditLogsPage() {
     ? summarizeBeforeAfter(selectedSanitizedMetadata)
     : null;
   const selectedRelatedLinks = selectedEvent
-    ? buildRelatedLinks(selectedEvent)
+    ? buildRelatedLinks(selectedEvent, t)
     : [];
-  const uniqueActors = new Set(rows.map((item) => getActorLabel(item))).size;
+  const uniqueActors = new Set(
+    rows.map((item) => getActorLabel(item, t("system"))),
+  ).size;
   const securityAlerts = rows.filter((item) => {
     const severity =
       typeof item.severity === "string" ? item.severity.toLowerCase() : "";
@@ -462,14 +470,13 @@ export function AdminAuditLogsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-semibold tracking-[0.16em] text-[#3525cd] uppercase">
-              Compliance &amp; Governance
+              {t("eyebrow")}
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-[#1b1b24]">
-              Audit logs
+              {t("title")}
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-[#464555]">
-              Track and inspect immutable system events across your organization
-              for security and compliance audits.
+              {t("description")}
             </p>
           </div>
 
@@ -483,8 +490,8 @@ export function AdminAuditLogsPage() {
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-4 text-xs font-semibold tracking-wide text-[#38485d] uppercase hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {exportMutation.isPending
-                    ? "Preparing export..."
-                    : "Export CSV"}
+                    ? t("preparingExport")
+                    : t("exportCsv")}
                 </button>
                 <button
                   type="button"
@@ -492,7 +499,7 @@ export function AdminAuditLogsPage() {
                   disabled={exportMutation.isPending}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-4 text-xs font-semibold tracking-wide text-[#38485d] uppercase hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Export JSON
+                  {t("exportJson")}
                 </button>
               </>
             ) : null}
@@ -509,7 +516,7 @@ export function AdminAuditLogsPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-xl border border-[#c7c4d8] bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Total events
+            {t("totalEvents")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-[#1b1b24]">
             {formatInteger(pageTotal)}
@@ -518,7 +525,7 @@ export function AdminAuditLogsPage() {
 
         <article className="rounded-xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-rose-700 uppercase">
-            Security alerts
+            {t("securityAlerts")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-rose-700">
             {formatInteger(securityAlerts)}
@@ -527,7 +534,7 @@ export function AdminAuditLogsPage() {
 
         <article className="rounded-xl border border-[#c7c4d8] bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Unique actors (page)
+            {t("uniqueActors")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-[#1b1b24]">
             {formatInteger(uniqueActors)}
@@ -536,10 +543,10 @@ export function AdminAuditLogsPage() {
 
         <article className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-emerald-700 uppercase">
-            Export status
+            {t("exportStatus")}
           </p>
           <p className="mt-2 text-lg font-semibold text-emerald-700">
-            {exportsEnabled ? "Ready" : "Disabled"}
+            {exportsEnabled ? t("ready") : t("disabled")}
           </p>
         </article>
       </section>
@@ -549,19 +556,19 @@ export function AdminAuditLogsPage() {
           <div className="flex flex-wrap items-end gap-3">
             <label className="min-w-[240px] flex-1 space-y-1">
               <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Search actor / ID
+                {t("searchActor")}
               </span>
               <input
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="req_9a21b... / actor / document"
+                placeholder={t("searchPlaceholder")}
                 className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
               />
             </label>
 
             <label className="w-[190px] space-y-1">
               <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Date range
+                {t("dateRange")}
               </span>
               <select
                 value={rangePreset}
@@ -573,7 +580,7 @@ export function AdminAuditLogsPage() {
               >
                 {DASHBOARD_RANGE_PRESETS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(`ranges.${option.value}`)}
                   </option>
                 ))}
               </select>
@@ -581,34 +588,36 @@ export function AdminAuditLogsPage() {
 
             <label className="w-[190px] space-y-1">
               <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Action type
+                {t("actionType")}
               </span>
               <select
                 value={actionInput}
                 onChange={(event) => setActionInput(event.target.value)}
                 className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
               >
-                <option value="">All actions</option>
-                <option value="auth.login.succeeded">Login</option>
-                <option value="document.upload.accepted">Upload</option>
-                <option value="collection.policy.updated">Policy change</option>
-                <option value="chat.query.completed">Chat query</option>
+                <option value="">{t("allActions")}</option>
+                <option value="auth.login.succeeded">{t("login")}</option>
+                <option value="document.upload.accepted">{t("upload")}</option>
+                <option value="collection.policy.updated">
+                  {t("policyChange")}
+                </option>
+                <option value="chat.query.completed">{t("chatQuery")}</option>
               </select>
             </label>
 
             <label className="w-[170px] space-y-1">
               <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Severity
+                {t("severity")}
               </span>
               <select
                 value={severityInput}
                 onChange={(event) => setSeverityInput(event.target.value)}
                 className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
               >
-                <option value="">All levels</option>
-                <option value="info">Info</option>
-                <option value="warning">Warning</option>
-                <option value="critical">Critical</option>
+                <option value="">{t("allLevels")}</option>
+                <option value="info">{t("info")}</option>
+                <option value="warning">{t("warning")}</option>
+                <option value="critical">{t("critical")}</option>
               </select>
             </label>
 
@@ -617,51 +626,51 @@ export function AdminAuditLogsPage() {
               onClick={() => setShowAdvancedFilters((current) => !current)}
               className="h-10 rounded-lg border border-[#c7c4d8] px-3 text-xs font-semibold tracking-wide text-[#38485d] uppercase hover:bg-[#f5f2ff]"
             >
-              {showAdvancedFilters ? "Hide advanced" : "Advanced filters"}
+              {showAdvancedFilters ? t("hideAdvanced") : t("advancedFilters")}
             </button>
             <button
               type="submit"
               className="h-10 rounded-lg bg-[#3525cd] px-4 text-xs font-semibold tracking-wide text-white uppercase hover:bg-[#2b1fa8]"
             >
-              Apply filters
+              {t("applyFilters")}
             </button>
             <button
               type="button"
               onClick={clearFilters}
               className="h-10 px-2 text-xs font-semibold tracking-wide text-[#3525cd] uppercase hover:underline"
             >
-              Clear filters
+              {t("clearFilters")}
             </button>
           </div>
 
           {showAdvancedFilters ? (
             <div className="grid gap-3 border-t border-[#e4e1ee] pt-3 sm:grid-cols-2 xl:grid-cols-4">
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Organization
+                {t("organization")}
                 <input
                   value={organizationIdInput}
                   onChange={(event) =>
                     setOrganizationIdInput(event.target.value)
                   }
-                  placeholder="Current org UUID"
+                  placeholder={t("organizationPlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Actor
+                {t("actor")}
                 <input
                   value={actorInput}
                   onChange={(event) => setActorInput(event.target.value)}
-                  placeholder="UUID, email, or system"
+                  placeholder={t("actorPlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Result
+                {t("result")}
                 <select
-                  aria-label="Result"
+                  aria-label={t("result")}
                   value={resultFilterInput}
                   onChange={(event) =>
                     setResultFilterInput(
@@ -670,79 +679,79 @@ export function AdminAuditLogsPage() {
                   }
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 >
-                  <option value="all">All results</option>
-                  <option value="success">Success</option>
-                  <option value="failure">Failure</option>
-                  <option value="unknown">Unknown</option>
+                  <option value="all">{t("allResults")}</option>
+                  <option value="success">{t("success")}</option>
+                  <option value="failure">{t("failure")}</option>
+                  <option value="unknown">{t("unknown")}</option>
                 </select>
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Entity
+                {t("entity")}
                 <input
                   value={entityInput}
                   onChange={(event) => setEntityInput(event.target.value)}
-                  placeholder="document, collection..."
+                  placeholder={t("entityPlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Resource ID
+                {t("resourceId")}
                 <input
                   value={resourceIdInput}
                   onChange={(event) => setResourceIdInput(event.target.value)}
-                  placeholder="Entity UUID"
+                  placeholder={t("resourcePlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Document ID
+                {t("documentId")}
                 <input
                   value={documentIdInput}
                   onChange={(event) => setDocumentIdInput(event.target.value)}
-                  placeholder="Document UUID"
+                  placeholder={t("documentPlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Collection ID
+                {t("collectionId")}
                 <input
                   value={collectionIdInput}
                   onChange={(event) => setCollectionIdInput(event.target.value)}
-                  placeholder="Collection UUID"
+                  placeholder={t("collectionPlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                IP Address
+                {t("ipAddress")}
                 <input
                   value={ipAddressInput}
                   onChange={(event) => setIpAddressInput(event.target.value)}
-                  placeholder="IP or subnet fragment"
+                  placeholder={t("ipPlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Session ID
+                {t("sessionId")}
                 <input
                   value={sessionIdInput}
                   onChange={(event) => setSessionIdInput(event.target.value)}
-                  placeholder="Session / JTI"
+                  placeholder={t("sessionPlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
 
               <label className="grid gap-1 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Request ID
+                {t("requestId")}
                 <input
                   value={requestIdInput}
                   onChange={(event) => setRequestIdInput(event.target.value)}
-                  placeholder="Trace request ID"
+                  placeholder={t("requestPlaceholder")}
                   className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
                 />
               </label>
@@ -755,12 +764,15 @@ export function AdminAuditLogsPage() {
         <section className="overflow-hidden rounded-xl border border-[#c7c4d8] bg-white shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#e4e1ee] bg-[#f5f2ff] px-4 py-3">
             <h2 className="text-lg font-semibold text-[#1b1b24]">
-              Audit events
+              {t("auditEvents")}
             </h2>
             {auditQuery.isSuccess ? (
               <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Showing {formatInteger(pageStart)}-{formatInteger(pageEnd)} of{" "}
-                {formatInteger(pageTotal)}
+                {t("showingCompact", {
+                  start: formatInteger(pageStart),
+                  end: formatInteger(pageEnd),
+                  total: formatInteger(pageTotal),
+                })}
               </p>
             ) : null}
           </div>
@@ -769,15 +781,15 @@ export function AdminAuditLogsPage() {
             <EmptyState
               compact
               className="m-4 rounded-lg border border-dashed border-[#d7d4e8] bg-[#fcfbff] px-3 py-3"
-              title="Audit log endpoint is not configured for this deployment."
-              description="Enable GET /admin/audit-logs in the backend to populate this page."
+              title={t("endpointUnavailable")}
+              description={t("endpointUnavailableDescription")}
             />
           ) : null}
           {auditQuery.isLoading ? (
             <LoadingState
               compact
               className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-              title="Loading audit events..."
+              title={t("loading")}
             />
           ) : null}
           {auditQuery.isError && !endpointUnavailable ? (
@@ -796,7 +808,7 @@ export function AdminAuditLogsPage() {
             <EmptyState
               compact
               className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
-              title="No audit events match the current filters."
+              title={t("empty")}
             />
           ) : null}
 
@@ -806,13 +818,13 @@ export function AdminAuditLogsPage() {
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="border-b border-[#e4e1ee] bg-[#fcf8ff]">
                     <tr className="text-left text-[11px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      <th className="px-4 py-3">Timestamp (UTC)</th>
-                      <th className="px-4 py-3">Actor</th>
-                      <th className="px-4 py-3">Action</th>
-                      <th className="px-4 py-3">Entity</th>
-                      <th className="px-4 py-3 text-center">Result</th>
-                      <th className="px-4 py-3">IP address</th>
-                      <th className="px-4 py-3">Details</th>
+                      <th className="px-4 py-3">{t("timestampUtc")}</th>
+                      <th className="px-4 py-3">{t("actor")}</th>
+                      <th className="px-4 py-3">{t("action")}</th>
+                      <th className="px-4 py-3">{t("entity")}</th>
+                      <th className="px-4 py-3 text-center">{t("result")}</th>
+                      <th className="px-4 py-3">{t("ipAddress")}</th>
+                      <th className="px-4 py-3">{t("details")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#ece9f5]">
@@ -834,7 +846,7 @@ export function AdminAuditLogsPage() {
                             {formatTimestamp(item.created_at)}
                           </td>
                           <td className="px-4 py-3 text-sm font-medium text-[#1b1b24]">
-                            {getActorLabel(item)}
+                            {getActorLabel(item, t("system"))}
                           </td>
                           <td className="px-4 py-3">
                             <span className="rounded border border-[#c7c4d8] bg-[#f5f2ff] px-2 py-1 font-mono text-[11px] text-[#2b1fa8] uppercase">
@@ -851,7 +863,7 @@ export function AdminAuditLogsPage() {
                                 item.result,
                               )}`}
                             >
-                              {item.result ?? "unknown"}
+                              {t(item.result ?? "unknown")}
                             </span>
                           </td>
                           <td className="px-4 py-3 font-mono text-xs text-[#464555]">
@@ -866,7 +878,7 @@ export function AdminAuditLogsPage() {
                               }}
                               className="rounded-lg border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f2ff]"
                             >
-                              View details
+                              {t("viewDetails")}
                             </button>
                           </td>
                         </tr>
@@ -878,8 +890,11 @@ export function AdminAuditLogsPage() {
 
               <div className="flex items-center justify-between gap-3 border-t border-[#e4e1ee] px-4 py-3">
                 <p className="text-sm text-[#464555]">
-                  Showing {formatInteger(pageStart)} to {formatInteger(pageEnd)}{" "}
-                  of {formatInteger(pageTotal)} events
+                  {t("showingEvents", {
+                    start: formatInteger(pageStart),
+                    end: formatInteger(pageEnd),
+                    total: formatInteger(pageTotal),
+                  })}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -892,7 +907,7 @@ export function AdminAuditLogsPage() {
                     disabled={!hasPreviousPage || auditQuery.isFetching}
                     className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Previous
+                    {t("previous")}
                   </button>
                   <button
                     type="button"
@@ -902,7 +917,7 @@ export function AdminAuditLogsPage() {
                     disabled={!hasNextPage || auditQuery.isFetching}
                     className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Next
+                    {t("next")}
                   </button>
                 </div>
               </div>
@@ -914,7 +929,7 @@ export function AdminAuditLogsPage() {
           <>
             <button
               type="button"
-              aria-label="Close event details"
+              aria-label={t("closeEventDetails")}
               onClick={closeSelectedEvent}
               className="absolute inset-0 z-10 bg-[#17172a]/15 xl:bg-transparent"
             />
@@ -930,7 +945,7 @@ export function AdminAuditLogsPage() {
                 <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e4e1ee] pb-3">
                   <div>
                     <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      Event details
+                      {t("eventDetails")}
                     </p>
                     <h3
                       id="audit-event-details-title"
@@ -945,18 +960,18 @@ export function AdminAuditLogsPage() {
                     onClick={closeSelectedEvent}
                     className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#38485d] hover:bg-[#f5f2ff]"
                   >
-                    Close
+                    {t("close")}
                   </button>
                 </div>
 
                 <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs font-semibold tracking-[0.08em] text-emerald-700 uppercase">
-                  Verified immutable record
+                  {t("verifiedRecord")}
                 </div>
 
                 <dl className="grid gap-2 text-sm">
                   <div>
                     <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      Request ID
+                      {t("requestId")}
                     </dt>
                     <dd className="font-mono text-xs text-[#302f39]">
                       {sanitizeRequestId(selectedEvent.request_id) ?? "-"}
@@ -964,7 +979,7 @@ export function AdminAuditLogsPage() {
                   </div>
                   <div>
                     <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      Organization
+                      {t("organization")}
                     </dt>
                     <dd className="text-[#302f39]">
                       {selectedEvent.organization_id}
@@ -972,15 +987,15 @@ export function AdminAuditLogsPage() {
                   </div>
                   <div>
                     <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      Actor
+                      {t("actor")}
                     </dt>
                     <dd className="text-[#302f39]">
-                      {getActorLabel(selectedEvent)}
+                      {getActorLabel(selectedEvent, t("system"))}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      Result / Severity
+                      {t("resultSeverity")}
                     </dt>
                     <dd className="text-[#302f39]">
                       {(selectedEvent.result ?? "unknown").toUpperCase()} /{" "}
@@ -989,7 +1004,7 @@ export function AdminAuditLogsPage() {
                   </div>
                   <div>
                     <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      IP / Session
+                      {t("ipSession")}
                     </dt>
                     <dd className="font-mono text-xs text-[#302f39]">
                       {selectedEvent.ip_address ?? "-"} /{" "}
@@ -998,7 +1013,7 @@ export function AdminAuditLogsPage() {
                   </div>
                   <div>
                     <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      Timestamp
+                      {t("timestamp")}
                     </dt>
                     <dd className="text-[#302f39]">
                       {formatTimestamp(selectedEvent.created_at)}
@@ -1009,7 +1024,7 @@ export function AdminAuditLogsPage() {
                 {selectedRelatedLinks.length > 0 ? (
                   <div className="mt-5">
                     <h4 className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      Related links
+                      {t("relatedLinks")}
                     </h4>
                     <div className="mt-2 grid gap-2">
                       {selectedRelatedLinks.map((link) => (
@@ -1031,12 +1046,12 @@ export function AdminAuditLogsPage() {
                   selectedBeforeAfter.changedFields.length > 0) ? (
                   <div className="mt-5 space-y-3">
                     <h4 className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      Before/after summary
+                      {t("beforeAfterSummary")}
                     </h4>
                     {selectedBeforeAfter.changedFields.length > 0 ? (
                       <div>
                         <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                          Changed fields
+                          {t("changedFields")}
                         </p>
                         <p className="text-sm text-[#302f39]">
                           {selectedBeforeAfter.changedFields.join(", ")}
@@ -1046,7 +1061,7 @@ export function AdminAuditLogsPage() {
                     {selectedBeforeAfter.before != null ? (
                       <div>
                         <p className="text-[10px] font-semibold tracking-[0.08em] text-rose-700 uppercase">
-                          Before
+                          {t("before")}
                         </p>
                         <pre className="mt-1 overflow-x-auto rounded-lg bg-[#1f1f29] p-3 font-mono text-xs text-rose-100">
                           {JSON.stringify(selectedBeforeAfter.before, null, 2)}
@@ -1056,7 +1071,7 @@ export function AdminAuditLogsPage() {
                     {selectedBeforeAfter.after != null ? (
                       <div>
                         <p className="text-[10px] font-semibold tracking-[0.08em] text-emerald-700 uppercase">
-                          After
+                          {t("after")}
                         </p>
                         <pre className="mt-1 overflow-x-auto rounded-lg bg-[#1f1f29] p-3 font-mono text-xs text-emerald-100">
                           {JSON.stringify(selectedBeforeAfter.after, null, 2)}
@@ -1068,7 +1083,7 @@ export function AdminAuditLogsPage() {
 
                 <div className="mt-5">
                   <h4 className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Sanitized metadata
+                    {t("sanitizedMetadata")}
                   </h4>
                   <pre className="mt-2 overflow-x-auto rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3 text-xs text-[#302f39]">
                     {JSON.stringify(selectedSanitizedMetadata, null, 2)}
@@ -1080,10 +1095,7 @@ export function AdminAuditLogsPage() {
         ) : null}
       </div>
 
-      <p className="text-xs text-[#68647b]">
-        Exports include sanitized metadata only. Secrets and raw private
-        document content are excluded.
-      </p>
+      <p className="text-xs text-[#68647b]">{t("exportNotice")}</p>
     </section>
   );
 }
