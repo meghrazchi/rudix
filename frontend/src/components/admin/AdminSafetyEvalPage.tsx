@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -89,6 +90,7 @@ type RunDetailPanelProps = {
 };
 
 function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
+  const t = useTranslations("adminSafetyEvals");
   const panelRef = useRef<HTMLElement | null>(null);
   useOverlayFocus({
     isOpen: true,
@@ -116,13 +118,13 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
       <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e4e1ee] pb-3">
         <div>
           <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Run detail
+            {t("runDetail")}
           </p>
           <h3
             id="safety-run-detail-title"
             className="mt-1 text-base font-semibold text-[#1b1b24]"
           >
-            Safety eval results
+            {t("results")}
           </h3>
         </div>
         <button
@@ -131,12 +133,12 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
           onClick={onClose}
           className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#38485d] hover:bg-[#f5f2ff]"
         >
-          Close
+          {t("close")}
         </button>
       </div>
 
       {detailQuery.isLoading ? (
-        <LoadingState compact title="Loading run results..." />
+        <LoadingState compact title={t("loadingResults")} />
       ) : null}
 
       {detailQuery.isError ? (
@@ -152,25 +154,25 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
           <dl className="grid grid-cols-2 gap-2 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3 text-xs">
             <div>
               <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Status
+                {t("status")}
               </dt>
               <dd className="mt-0.5">
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${runStatusClass(run.status)}`}
                 >
-                  {run.status}
+                  {t(`statuses.${run.status}`)}
                 </span>
               </dd>
             </div>
             <div>
               <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Pass rate
+                {t("passRate")}
               </dt>
               <dd className="mt-0.5">{passRateBadge(run.pass_rate)}</dd>
             </div>
             <div>
               <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Pass / Fail
+                {t("passFail")}
               </dt>
               <dd className="mt-0.5 font-mono text-[#302f39]">
                 {run.pass_count ?? "—"} / {run.fail_count ?? "—"}
@@ -178,16 +180,16 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
             </div>
             <div>
               <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Suite
+                {t("suite")}
               </dt>
               <dd className="mt-0.5 text-[#302f39]">
-                {run.suite_name ?? "All"}
+                {run.suite_name ?? t("all")}
               </dd>
             </div>
             {run.completed_at ? (
               <div className="col-span-2">
                 <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                  Completed
+                  {t("completed")}
                 </dt>
                 <dd className="mt-0.5 font-mono text-[#302f39]">
                   {formatTimestamp(run.completed_at)}
@@ -199,7 +201,7 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
           {results.length > 0 ? (
             <div>
               <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Case results ({results.length})
+                {t("caseResults", { count: results.length })}
               </h4>
               <div className="space-y-2">
                 {results.map((r) => (
@@ -220,12 +222,12 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${severityClass(r.severity)}`}
                         >
-                          {r.severity}
+                          {t(`severity.${r.severity}`)}
                         </span>
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${passFailClass(r.passed)}`}
                         >
-                          {r.passed ? "PASS" : "FAIL"}
+                          {r.passed ? t("pass") : t("fail")}
                         </span>
                       </div>
                     </div>
@@ -245,7 +247,7 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
           ) : null}
 
           {run.status === "completed" && results.length === 0 ? (
-            <EmptyState compact title="No cases were scored in this run." />
+            <EmptyState compact title={t("noScoredCases")} />
           ) : null}
         </section>
       ) : null}
@@ -254,6 +256,7 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
 }
 
 export function AdminSafetyEvalPage() {
+  const t = useTranslations("adminSafetyEvals");
   const { state } = useAuthSession();
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
@@ -318,8 +321,8 @@ export function AdminSafetyEvalPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Safety evaluation restricted"
-          description="Only owner and admin roles can access safety evaluations."
+          title={t("restricted")}
+          description={t("restrictedDescription")}
           compact={false}
         />
       </section>
@@ -330,8 +333,8 @@ export function AdminSafetyEvalPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Safety evaluation unavailable"
-          description="Your role no longer has access to this page."
+          title={t("unavailable")}
+          description={t("unavailableDescription")}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -361,15 +364,13 @@ export function AdminSafetyEvalPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-semibold tracking-[0.16em] text-[#3525cd] uppercase">
-              AI Safety
+              {t("eyebrow")}
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-[#1b1b24]">
-              Safety eval suite
+              {t("title")}
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-[#464555]">
-              Red-team evaluation covering prompt injection, cross-tenant
-              leakage, unsupported claims, malicious document instructions, and
-              unsafe output transformations.
+              {t("description")}
             </p>
           </div>
           <button
@@ -382,7 +383,7 @@ export function AdminSafetyEvalPage() {
             }
             className="h-10 rounded-lg bg-[#3525cd] px-4 text-xs font-semibold tracking-wide text-white uppercase hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {triggerMutation.isPending ? "Queuing..." : "Run safety eval"}
+            {triggerMutation.isPending ? t("queuing") : t("runEval")}
           </button>
         </div>
         {triggerMutation.isError ? (
@@ -392,7 +393,7 @@ export function AdminSafetyEvalPage() {
         ) : null}
         {triggerMutation.isSuccess ? (
           <p className="mt-3 text-sm text-emerald-700">
-            Run queued — {triggerMutation.data.message}
+            {t("runQueued")} — {triggerMutation.data.message}
           </p>
         ) : null}
       </header>
@@ -400,7 +401,7 @@ export function AdminSafetyEvalPage() {
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-[#c7c4d8] bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Total cases
+            {t("totalCases")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-[#1b1b24]">
             {totalCases}
@@ -408,7 +409,7 @@ export function AdminSafetyEvalPage() {
         </article>
         <article className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-emerald-700 uppercase">
-            All-pass runs (page)
+            {t("allPassRuns")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-emerald-700">
             {passedRuns}
@@ -416,7 +417,7 @@ export function AdminSafetyEvalPage() {
         </article>
         <article className="rounded-xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-rose-700 uppercase">
-            Regressions (page)
+            {t("regressions")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-rose-700">
             {failedRuns}
@@ -427,12 +428,12 @@ export function AdminSafetyEvalPage() {
       {latestRun?.status === "completed" && latestRun.pass_rate != null ? (
         <section className="rounded-xl border border-[#c7c4d8] bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-sm font-semibold text-[#1b1b24]">
-            Latest run summary
+            {t("latestSummary")}
           </h2>
           <div className="flex flex-wrap items-center gap-6">
             <div>
               <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Pass rate
+                {t("passRate")}
               </p>
               <p className="mt-1 font-mono text-2xl font-semibold">
                 {passRateBadge(latestRun.pass_rate)}
@@ -440,7 +441,7 @@ export function AdminSafetyEvalPage() {
             </div>
             <div>
               <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Pass / Fail / Total
+                {t("passFailTotal")}
               </p>
               <p className="mt-1 font-mono text-lg font-semibold text-[#302f39]">
                 {latestRun.pass_count} / {latestRun.fail_count} /{" "}
@@ -450,7 +451,7 @@ export function AdminSafetyEvalPage() {
             {latestRun.suite_name ? (
               <div>
                 <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                  Suite
+                  {t("suite")}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-[#302f39]">
                   {latestRun.suite_name}
@@ -459,7 +460,7 @@ export function AdminSafetyEvalPage() {
             ) : null}
             <div>
               <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Completed
+                {t("completed")}
               </p>
               <p className="mt-1 font-mono text-sm text-[#464555]">
                 {formatTimestamp(latestRun.completed_at)}
@@ -473,7 +474,7 @@ export function AdminSafetyEvalPage() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="min-w-[200px] flex-1 space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Filter by suite
+              {t("filterSuite")}
             </span>
             <input
               value={suiteNameFilter}
@@ -481,7 +482,7 @@ export function AdminSafetyEvalPage() {
                 setSuiteNameFilter(e.target.value);
                 setOffset(0);
               }}
-              placeholder="e.g. prompt_injection"
+              placeholder={t("suitePlaceholder")}
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             />
           </label>
@@ -494,7 +495,7 @@ export function AdminSafetyEvalPage() {
               }}
               className="h-10 px-2 text-xs font-semibold text-[#3525cd] uppercase hover:underline"
             >
-              Clear
+              {t("clear")}
             </button>
           ) : null}
         </div>
@@ -504,11 +505,15 @@ export function AdminSafetyEvalPage() {
         <section className="overflow-hidden rounded-xl border border-[#c7c4d8] bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e4e1ee] bg-[#f5f2ff] px-4 py-3">
             <h2 className="text-lg font-semibold text-[#1b1b24]">
-              Eval run history
+              {t("history")}
             </h2>
             {runsQuery.isSuccess ? (
               <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Showing {pageStart}–{pageEnd} of {pageTotal}
+                {t("showingCompact", {
+                  start: pageStart,
+                  end: pageEnd,
+                  total: pageTotal,
+                })}
               </p>
             ) : null}
           </div>
@@ -517,7 +522,7 @@ export function AdminSafetyEvalPage() {
             <LoadingState
               compact
               className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
-              title="Loading safety eval runs..."
+              title={t("loadingRuns")}
             />
           ) : null}
 
@@ -538,7 +543,7 @@ export function AdminSafetyEvalPage() {
             <EmptyState
               compact
               className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
-              title="No safety eval runs yet. Click 'Run safety eval' to start."
+              title={t("emptyRuns")}
             />
           ) : null}
 
@@ -548,12 +553,12 @@ export function AdminSafetyEvalPage() {
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="border-b border-[#e4e1ee] bg-[#fcf8ff]">
                     <tr className="text-left text-[11px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      <th className="px-4 py-3">Started</th>
-                      <th className="px-4 py-3">Suite</th>
-                      <th className="px-4 py-3 text-center">Status</th>
-                      <th className="px-4 py-3 text-center">Pass rate</th>
-                      <th className="px-4 py-3">Pass / Fail / Total</th>
-                      <th className="px-4 py-3">Actions</th>
+                      <th className="px-4 py-3">{t("started")}</th>
+                      <th className="px-4 py-3">{t("suite")}</th>
+                      <th className="px-4 py-3 text-center">{t("status")}</th>
+                      <th className="px-4 py-3 text-center">{t("passRate")}</th>
+                      <th className="px-4 py-3">{t("passFailTotal")}</th>
+                      <th className="px-4 py-3">{t("actions")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#ece9f5]">
@@ -572,14 +577,16 @@ export function AdminSafetyEvalPage() {
                           </td>
                           <td className="px-4 py-3 text-sm text-[#302f39]">
                             {run.suite_name ?? (
-                              <span className="text-[#777587]">All suites</span>
+                              <span className="text-[#777587]">
+                                {t("allSuites")}
+                              </span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span
                               className={`rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide uppercase ${runStatusClass(run.status)}`}
                             >
-                              {run.status}
+                              {t(`statuses.${run.status}`)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -598,7 +605,7 @@ export function AdminSafetyEvalPage() {
                               }}
                               className="rounded-lg border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f2ff]"
                             >
-                              View
+                              {t("view")}
                             </button>
                           </td>
                         </tr>
@@ -610,7 +617,11 @@ export function AdminSafetyEvalPage() {
 
               <div className="flex items-center justify-between gap-3 border-t border-[#e4e1ee] px-4 py-3">
                 <p className="text-sm text-[#464555]">
-                  Showing {pageStart} to {pageEnd} of {pageTotal} runs
+                  {t("showingRuns", {
+                    start: pageStart,
+                    end: pageEnd,
+                    total: pageTotal,
+                  })}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -621,7 +632,7 @@ export function AdminSafetyEvalPage() {
                     disabled={!hasPreviousPage || runsQuery.isFetching}
                     className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Previous
+                    {t("previous")}
                   </button>
                   <button
                     type="button"
@@ -629,7 +640,7 @@ export function AdminSafetyEvalPage() {
                     disabled={!hasNextPage || runsQuery.isFetching}
                     className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Next
+                    {t("next")}
                   </button>
                 </div>
               </div>
@@ -641,7 +652,7 @@ export function AdminSafetyEvalPage() {
           <>
             <button
               type="button"
-              aria-label="Close run detail"
+              aria-label={t("closeRunDetail")}
               onClick={closePanel}
               className="absolute inset-0 z-10 bg-[#17172a]/15 xl:bg-transparent"
             />
