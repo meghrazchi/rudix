@@ -3557,5 +3557,198 @@
       "30d": "Last 30 days",
       "90d": "Last 90 days"
     }
+  },
+  "adminSecurityCenter": {
+    "restricted": "Security center restricted",
+    "restrictedDescription": "Only owner and admin roles can access the organization security center.",
+    "unavailable": "Security center unavailable",
+    "unavailableDescription": "Your current role no longer has access to this security surface.",
+    "missingOrganization": "Organization context missing",
+    "missingOrganizationDescription": "Open this page from an active organization workspace.",
+    "title": "Organization Security Center",
+    "organizationAdmin": "Organization Admin",
+    "description": "Review key security settings, warnings, and access controls for this organization. Ensure compliance with global enterprise standards.",
+    "exportLogs": "Export Logs",
+    "postureSummary": "Security Posture Summary",
+    "authentication": "Authentication",
+    "configured": "Configured",
+    "active": "Active",
+    "rolesAccess": "Roles & Access",
+    "elevated": "{count} Elevated",
+    "unavailableShort": "Unavailable",
+    "adminOwner": "{admins} Admin · {owners} Owner",
+    "teamListingDisabled": "Team listing disabled",
+    "domainRestrictions": "Domain Restrictions",
+    "domainCount": "{count, plural, one {# Domain} other {# Domains}}",
+    "open": "Open",
+    "allowlistActive": "Allowlist active",
+    "noRestriction": "No restriction set",
+    "apiWebhooks": "API & Webhooks",
+    "keysConfigured": "Keys Configured",
+    "notConfigured": "Not Configured",
+    "dataRetention": "Data Retention",
+    "defaultPolicy": "Default Policy",
+    "auditHealth": "Audit Health",
+    "healthy": "Healthy",
+    "warning": "Warning",
+    "securityRecommendations": "Security Recommendations",
+    "viewAll": "View All",
+    "loadingSecuritySignals": "Loading security signals...",
+    "securityRateLimited": "Security signals are rate-limited",
+    "auditRateLimited": "Audit health is rate-limited",
+    "noWarnings": "No active warnings were detected from available controls.",
+    "securityControls": "Security Controls",
+    "notApplicable": "N/A",
+    "operational": "Operational: Rudix Security Engine",
+    "compliance": "Compliance: SOC2 Type II, ISO 27001",
+    "plan": "Plan",
+    "lastPostureAudit": "Last posture audit",
+    "notAvailable": "Not available",
+    "actions": {
+      "fixNow": "Fix Now",
+      "review": "Review",
+      "learnMore": "Learn More"
+    },
+    "severity": {
+      "high": "High severity",
+      "medium": "Medium severity",
+      "info": "Info"
+    },
+    "categories": {
+      "infrastructure": "Infrastructure",
+      "identity": "Identity",
+      "policy": "Policy",
+      "aiSafety": "AI Safety",
+      "integrations": "Integrations",
+      "security": "Security"
+    },
+    "controls": {
+      "sessionPolicy": {
+        "label": "Session policy",
+        "description": "Timeout, MFA, SSO requirement, and invite-only controls."
+      },
+      "domainRestrictions": {
+        "label": "Domain restrictions",
+        "description": "Allowed domains for login and membership."
+      },
+      "roleSettings": {
+        "label": "Role settings",
+        "description": "Role assignment and team access controls."
+      },
+      "dataRetention": {
+        "label": "Data retention",
+        "description": "Retention window and source download policy."
+      },
+      "auditLogs": {
+        "label": "Audit logs",
+        "description": "Search and export organization audit evidence."
+      },
+      "apiKeys": {
+        "label": "API keys",
+        "description": "Manage API keys and rotation policy when available."
+      },
+      "webhooks": {
+        "label": "Webhooks",
+        "description": "Manage webhook endpoints and delivery posture when available."
+      },
+      "sso": {
+        "label": "SSO",
+        "description": "Open SSO setup and identity provider controls."
+      },
+      "billing": {
+        "label": "Billing and plan controls",
+        "description": "Open plan and billing controls when configured."
+      }
+    },
+    "warnings": {
+      "sessions-visibility-gap": {
+        "title": "Session visibility is unavailable",
+        "description": "Active session telemetry is deployment-controlled. Enable the sessions endpoint for incident response coverage."
+      },
+      "mfa-disabled": {
+        "title": "MFA is not required",
+        "description": "Require MFA for all privileged users to reduce account takeover risk."
+      },
+      "sso-optional": {
+        "title": "SSO is optional",
+        "description": "If your organization has an identity provider, enforce SSO for centralized access revocation."
+      },
+      "domain-allowlist-empty": {
+        "title": "No email domain restrictions",
+        "description": "No login domain allowlist is configured. Restrict domains if your policy requires controlled tenant access."
+      },
+      "session-timeout-weak": {
+        "title": "Session timeout is not strict",
+        "description": "Set a bounded session timeout (for example 8h or 24h) for lower token persistence risk."
+      },
+      "retention-unbounded": {
+        "title": "No data retention limit configured",
+        "description": "Retention is unlimited. Define retention days to align audit and data lifecycle controls."
+      },
+      "source-download-open": {
+        "title": "Source downloads allowed for all roles",
+        "description": "Allowing source downloads for all roles can increase document exfiltration risk."
+      },
+      "prompt-injection-disabled": {
+        "title": "Prompt-injection protection is inactive",
+        "description": "Enable guardrails for retrieval-side prompt injection defenses."
+      },
+      "citation-validation-disabled": {
+        "title": "Citation validation is inactive",
+        "description": "Enable citation validation to reduce unsupported responses in regulated workflows."
+      },
+      "tenant-isolation-inactive": {
+        "title": "Tenant isolation signal is inactive",
+        "description": "Tenant isolation must remain active to prevent cross-organization access exposure."
+      },
+      "output-validation-disabled": {
+        "title": "Output validation is inactive",
+        "description": "Enable output validation for safer generated answers and tool responses."
+      },
+      "audit-events-empty": {
+        "title": "No recent audit activity",
+        "description": "No events were found in the selected period. Verify auditing instrumentation and traffic assumptions."
+      },
+      "audit-control-gaps": {
+        "title": "Audit control coverage has gaps",
+        "description": "No recent events detected for: {controls}."
+      },
+      "api-keys-control-missing": {
+        "title": "API key control is not configured",
+        "description": "No API key management link is configured in this deployment. Add it when API key management is available."
+      },
+      "webhooks-control-missing": {
+        "title": "Webhook control is not configured",
+        "description": "No webhook management link is configured in this deployment. Add it when webhook management is available."
+      }
+    },
+    "auditRules": {
+      "auth-login-logout": "login and logout",
+      "token-refresh-failure": "token refresh failures",
+      "upload-delete": "upload and delete",
+      "policy-changes": "policy changes",
+      "chat-export-share": "chat, export, and share",
+      "api-key-webhook": "API key and webhook actions",
+      "admin-changes": "admin changes"
+    },
+    "recommendations": {
+      "auditReview": {
+        "title": "Review audit logs on a fixed cadence",
+        "description": "Use audit search and export to review access, policy changes, and privileged actions on a recurring schedule."
+      }
+    },
+    "summaries": {
+      "noRetention": "No retention limit configured",
+      "retentionDays": "{count} day retention",
+      "loadingRetention": "Loading retention policy",
+      "deploymentUnavailable": "Unavailable in this deployment",
+      "loadingSessions": "Loading sessions",
+      "sessionTelemetryUnavailable": "Session telemetry unavailable",
+      "activeSessions": "{count} active sessions",
+      "sessionEndpointUnavailable": "Session endpoint unavailable",
+      "loadingAudit": "Loading audit health",
+      "auditUnavailable": "Audit health unavailable",
+      "auditEvents": "{events} events, {failures} failures"
+    }
   }
 }

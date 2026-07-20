@@ -3557,5 +3557,198 @@
       "30d": "30 derniers jours",
       "90d": "90 derniers jours"
     }
+  },
+  "adminSecurityCenter": {
+    "restricted": "Centre de sécurité restreint",
+    "restrictedDescription": "Seuls les propriétaires et administrateurs peuvent accéder au centre de sécurité.",
+    "unavailable": "Centre de sécurité indisponible",
+    "unavailableDescription": "Votre rôle n’a plus accès à cette section.",
+    "missingOrganization": "Contexte d’organisation manquant",
+    "missingOrganizationDescription": "Ouvrez cette page depuis un espace de travail actif.",
+    "title": "Centre de sécurité de l’organisation",
+    "organizationAdmin": "Administrateur de l’organisation",
+    "description": "Examinez les paramètres, avertissements et contrôles d’accès de sécurité.",
+    "exportLogs": "Exporter les journaux",
+    "postureSummary": "Résumé de la posture de sécurité",
+    "authentication": "Authentification",
+    "configured": "Configuré",
+    "active": "Actif",
+    "rolesAccess": "Rôles et accès",
+    "elevated": "{count} privilégiés",
+    "unavailableShort": "Indisponible",
+    "adminOwner": "{admins} admins · {owners} propriétaires",
+    "teamListingDisabled": "Liste d’équipe désactivée",
+    "domainRestrictions": "Restrictions de domaine",
+    "domainCount": "{count} domaines",
+    "open": "Ouvert",
+    "allowlistActive": "Liste autorisée active",
+    "noRestriction": "Aucune restriction",
+    "apiWebhooks": "API et webhooks",
+    "keysConfigured": "Clés configurées",
+    "notConfigured": "Non configuré",
+    "dataRetention": "Conservation des données",
+    "defaultPolicy": "Politique par défaut",
+    "auditHealth": "État de l’audit",
+    "healthy": "Sain",
+    "warning": "Avertissement",
+    "securityRecommendations": "Recommandations de sécurité",
+    "viewAll": "Tout afficher",
+    "loadingSecuritySignals": "Chargement des signaux de sécurité...",
+    "securityRateLimited": "Signaux de sécurité limités",
+    "auditRateLimited": "Audit limité",
+    "noWarnings": "Aucun avertissement actif détecté.",
+    "securityControls": "Contrôles de sécurité",
+    "notApplicable": "N/D",
+    "operational": "Opérationnel : moteur de sécurité Rudix",
+    "compliance": "Conformité : SOC2 Type II, ISO 27001",
+    "plan": "Forfait",
+    "lastPostureAudit": "Dernier audit de posture",
+    "notAvailable": "Indisponible",
+    "actions": {
+      "fixNow": "Corriger",
+      "review": "Examiner",
+      "learnMore": "En savoir plus"
+    },
+    "severity": {
+      "high": "Sévérité élevée",
+      "medium": "Sévérité moyenne",
+      "info": "Info"
+    },
+    "categories": {
+      "infrastructure": "Infrastructure",
+      "identity": "Identité",
+      "policy": "Politique",
+      "aiSafety": "Sécurité IA",
+      "integrations": "Intégrations",
+      "security": "Sécurité"
+    },
+    "controls": {
+      "sessionPolicy": {
+        "label": "Politique de session",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      },
+      "domainRestrictions": {
+        "label": "Restrictions de domaine",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      },
+      "roleSettings": {
+        "label": "Paramètres des rôles",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      },
+      "dataRetention": {
+        "label": "Conservation des données",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      },
+      "auditLogs": {
+        "label": "Journaux d’audit",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      },
+      "apiKeys": {
+        "label": "Clés API",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      },
+      "webhooks": {
+        "label": "Webhooks",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      },
+      "sso": {
+        "label": "SSO",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      },
+      "billing": {
+        "label": "Contrôles de facturation",
+        "description": "Examinez et configurez ce contrôle de sécurité."
+      }
+    },
+    "warnings": {
+      "sessions-visibility-gap": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "mfa-disabled": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "sso-optional": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "domain-allowlist-empty": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "session-timeout-weak": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "retention-unbounded": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "source-download-open": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "prompt-injection-disabled": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "citation-validation-disabled": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "tenant-isolation-inactive": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "output-validation-disabled": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "audit-events-empty": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "audit-control-gaps": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée: {controls}."
+      },
+      "api-keys-control-missing": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      },
+      "webhooks-control-missing": {
+        "title": "Configuration de sécurité à examiner",
+        "description": "Cette configuration de sécurité doit être examinée et ajustée."
+      }
+    },
+    "auditRules": {
+      "auth-login-logout": "An- und Abmeldung",
+      "token-refresh-failure": "Token-Aktualisierungsfehler",
+      "upload-delete": "Upload und Löschen",
+      "policy-changes": "Richtlinienänderungen",
+      "chat-export-share": "Chat, Export und Freigabe",
+      "api-key-webhook": "API-Schlüssel- und Webhook-Aktionen",
+      "admin-changes": "Admin-Änderungen"
+    },
+    "recommendations": {
+      "auditReview": {
+        "title": "Examiner régulièrement les journaux",
+        "description": "Examinez régulièrement les accès et actions privilégiées."
+      }
+    },
+    "summaries": {
+      "noRetention": "Aucune limite de conservation",
+      "retentionDays": "Conservation de {count} jours",
+      "loadingRetention": "Chargement de la politique de conservation",
+      "deploymentUnavailable": "Indisponible dans ce déploiement",
+      "loadingSessions": "Chargement des sessions",
+      "sessionTelemetryUnavailable": "Télémétrie de session indisponible",
+      "activeSessions": "{count} sessions actives",
+      "sessionEndpointUnavailable": "Point de terminaison des sessions indisponible",
+      "loadingAudit": "Chargement de l’état de l’audit",
+      "auditUnavailable": "État de l’audit indisponible",
+      "auditEvents": "{events} événements, {failures} échecs"
+    }
   }
 }

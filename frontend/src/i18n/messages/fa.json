@@ -3557,5 +3557,198 @@
       "30d": "۳۰ روز گذشته",
       "90d": "۹۰ روز گذشته"
     }
+  },
+  "adminSecurityCenter": {
+    "restricted": "دسترسی به مرکز امنیت محدود است",
+    "restrictedDescription": "فقط مالک و مدیر می‌توانند به مرکز امنیت دسترسی داشته باشند.",
+    "unavailable": "مرکز امنیت در دسترس نیست",
+    "unavailableDescription": "نقش شما دیگر به این بخش دسترسی ندارد.",
+    "missingOrganization": "زمینه سازمان موجود نیست",
+    "missingOrganizationDescription": "این صفحه را از فضای کاری فعال باز کنید.",
+    "title": "مرکز امنیت سازمان",
+    "organizationAdmin": "مدیر سازمان",
+    "description": "تنظیمات، هشدارها و کنترل‌های دسترسی امنیتی سازمان را بررسی کنید.",
+    "exportLogs": "خروجی گزارش‌ها",
+    "postureSummary": "خلاصه وضعیت امنیت",
+    "authentication": "احراز هویت",
+    "configured": "پیکربندی‌شده",
+    "active": "فعال",
+    "rolesAccess": "نقش‌ها و دسترسی",
+    "elevated": "{count} دسترسی ویژه",
+    "unavailableShort": "در دسترس نیست",
+    "adminOwner": "{admins} مدیر · {owners} مالک",
+    "teamListingDisabled": "فهرست تیم غیرفعال است",
+    "domainRestrictions": "محدودیت دامنه",
+    "domainCount": "{count} دامنه",
+    "open": "باز",
+    "allowlistActive": "فهرست مجاز فعال",
+    "noRestriction": "بدون محدودیت",
+    "apiWebhooks": "API و وب‌هوک‌ها",
+    "keysConfigured": "کلیدها پیکربندی شده‌اند",
+    "notConfigured": "پیکربندی نشده",
+    "dataRetention": "نگهداری داده",
+    "defaultPolicy": "خط‌مشی پیش‌فرض",
+    "auditHealth": "سلامت حسابرسی",
+    "healthy": "سالم",
+    "warning": "هشدار",
+    "securityRecommendations": "توصیه‌های امنیتی",
+    "viewAll": "مشاهده همه",
+    "loadingSecuritySignals": "در حال بارگیری نشانه‌های امنیتی...",
+    "securityRateLimited": "نشانه‌های امنیتی محدود شده‌اند",
+    "auditRateLimited": "حسابرسی محدود شده است",
+    "noWarnings": "هشدار فعالی شناسایی نشد.",
+    "securityControls": "کنترل‌های امنیتی",
+    "notApplicable": "ناموجود",
+    "operational": "عملیاتی: موتور امنیت Rudix",
+    "compliance": "انطباق: SOC2 Type II، ISO 27001",
+    "plan": "طرح",
+    "lastPostureAudit": "آخرین حسابرسی وضعیت",
+    "notAvailable": "در دسترس نیست",
+    "actions": {
+      "fixNow": "رفع فوری",
+      "review": "بررسی",
+      "learnMore": "بیشتر بدانید"
+    },
+    "severity": {
+      "high": "شدت بالا",
+      "medium": "شدت متوسط",
+      "info": "اطلاعات"
+    },
+    "categories": {
+      "infrastructure": "زیرساخت",
+      "identity": "هویت",
+      "policy": "خط‌مشی",
+      "aiSafety": "ایمنی هوش مصنوعی",
+      "integrations": "یکپارچه‌سازی‌ها",
+      "security": "امنیت"
+    },
+    "controls": {
+      "sessionPolicy": {
+        "label": "خط‌مشی نشست",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      },
+      "domainRestrictions": {
+        "label": "محدودیت‌های دامنه",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      },
+      "roleSettings": {
+        "label": "تنظیمات نقش‌ها",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      },
+      "dataRetention": {
+        "label": "نگهداری داده",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      },
+      "auditLogs": {
+        "label": "گزارش‌های حسابرسی",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      },
+      "apiKeys": {
+        "label": "کلیدهای API",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      },
+      "webhooks": {
+        "label": "وب‌هوک‌ها",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      },
+      "sso": {
+        "label": "SSO",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      },
+      "billing": {
+        "label": "کنترل‌های صورتحساب",
+        "description": "این کنترل امنیتی را بررسی و پیکربندی کنید."
+      }
+    },
+    "warnings": {
+      "sessions-visibility-gap": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "mfa-disabled": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "sso-optional": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "domain-allowlist-empty": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "session-timeout-weak": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "retention-unbounded": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "source-download-open": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "prompt-injection-disabled": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "citation-validation-disabled": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "tenant-isolation-inactive": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "output-validation-disabled": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "audit-events-empty": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "audit-control-gaps": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود: {controls}."
+      },
+      "api-keys-control-missing": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      },
+      "webhooks-control-missing": {
+        "title": "پیکربندی امنیتی نیازمند بررسی است",
+        "description": "این پیکربندی امنیتی باید بررسی و اصلاح شود."
+      }
+    },
+    "auditRules": {
+      "auth-login-logout": "An- und Abmeldung",
+      "token-refresh-failure": "Token-Aktualisierungsfehler",
+      "upload-delete": "Upload und Löschen",
+      "policy-changes": "Richtlinienänderungen",
+      "chat-export-share": "Chat, Export und Freigabe",
+      "api-key-webhook": "API-Schlüssel- und Webhook-Aktionen",
+      "admin-changes": "Admin-Änderungen"
+    },
+    "recommendations": {
+      "auditReview": {
+        "title": "بررسی دوره‌ای گزارش‌های حسابرسی",
+        "description": "دسترسی‌ها و اقدامات ویژه را به‌طور منظم بررسی کنید."
+      }
+    },
+    "summaries": {
+      "noRetention": "بدون محدودیت نگهداری",
+      "retentionDays": "نگهداری {count} روزه",
+      "loadingRetention": "در حال بارگیری خط‌مشی نگهداری",
+      "deploymentUnavailable": "در این استقرار در دسترس نیست",
+      "loadingSessions": "در حال بارگیری نشست‌ها",
+      "sessionTelemetryUnavailable": "تله‌متری نشست در دسترس نیست",
+      "activeSessions": "{count} نشست فعال",
+      "sessionEndpointUnavailable": "نقطه پایانی نشست در دسترس نیست",
+      "loadingAudit": "در حال بارگیری سلامت حسابرسی",
+      "auditUnavailable": "سلامت حسابرسی در دسترس نیست",
+      "auditEvents": "{events} رویداد، {failures} خطا"
+    }
   }
 }

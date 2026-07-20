@@ -3557,5 +3557,198 @@
       "30d": "Letzte 30 Tage",
       "90d": "Letzte 90 Tage"
     }
+  },
+  "adminSecurityCenter": {
+    "restricted": "Sicherheitscenter eingeschränkt",
+    "restrictedDescription": "Nur Eigentümer und Administratoren können auf das Sicherheitscenter zugreifen.",
+    "unavailable": "Sicherheitscenter nicht verfügbar",
+    "unavailableDescription": "Ihre Rolle hat keinen Zugriff mehr auf diesen Sicherheitsbereich.",
+    "missingOrganization": "Organisationskontext fehlt",
+    "missingOrganizationDescription": "Öffnen Sie diese Seite aus einem aktiven Organisationsarbeitsbereich.",
+    "title": "Sicherheitscenter der Organisation",
+    "organizationAdmin": "Organisationsadministrator",
+    "description": "Prüfen Sie Sicherheitseinstellungen, Warnungen und Zugriffskontrollen Ihrer Organisation.",
+    "exportLogs": "Protokolle exportieren",
+    "postureSummary": "Zusammenfassung der Sicherheitslage",
+    "authentication": "Authentifizierung",
+    "configured": "Konfiguriert",
+    "active": "Aktiv",
+    "rolesAccess": "Rollen und Zugriff",
+    "elevated": "{count} privilegiert",
+    "unavailableShort": "Nicht verfügbar",
+    "adminOwner": "{admins} Admin · {owners} Eigentümer",
+    "teamListingDisabled": "Teamliste deaktiviert",
+    "domainRestrictions": "Domain-Einschränkungen",
+    "domainCount": "{count} Domains",
+    "open": "Offen",
+    "allowlistActive": "Positivliste aktiv",
+    "noRestriction": "Keine Einschränkung",
+    "apiWebhooks": "API und Webhooks",
+    "keysConfigured": "Schlüssel konfiguriert",
+    "notConfigured": "Nicht konfiguriert",
+    "dataRetention": "Datenaufbewahrung",
+    "defaultPolicy": "Standardrichtlinie",
+    "auditHealth": "Audit-Zustand",
+    "healthy": "Gesund",
+    "warning": "Warnung",
+    "securityRecommendations": "Sicherheitsempfehlungen",
+    "viewAll": "Alle anzeigen",
+    "loadingSecuritySignals": "Sicherheitssignale werden geladen...",
+    "securityRateLimited": "Sicherheitssignale sind ratenbegrenzt",
+    "auditRateLimited": "Audit-Zustand ist ratenbegrenzt",
+    "noWarnings": "Keine aktiven Warnungen erkannt.",
+    "securityControls": "Sicherheitskontrollen",
+    "notApplicable": "k. A.",
+    "operational": "Betriebsbereit: Rudix Security Engine",
+    "compliance": "Compliance: SOC2 Typ II, ISO 27001",
+    "plan": "Plan",
+    "lastPostureAudit": "Letztes Sicherheitsaudit",
+    "notAvailable": "Nicht verfügbar",
+    "actions": {
+      "fixNow": "Jetzt beheben",
+      "review": "Prüfen",
+      "learnMore": "Mehr erfahren"
+    },
+    "severity": {
+      "high": "Hoher Schweregrad",
+      "medium": "Mittlerer Schweregrad",
+      "info": "Info"
+    },
+    "categories": {
+      "infrastructure": "Infrastruktur",
+      "identity": "Identität",
+      "policy": "Richtlinie",
+      "aiSafety": "KI-Sicherheit",
+      "integrations": "Integrationen",
+      "security": "Sicherheit"
+    },
+    "controls": {
+      "sessionPolicy": {
+        "label": "Session policy",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      },
+      "domainRestrictions": {
+        "label": "Domain restrictions",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      },
+      "roleSettings": {
+        "label": "Role settings",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      },
+      "dataRetention": {
+        "label": "Data retention",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      },
+      "auditLogs": {
+        "label": "Audit logs",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      },
+      "apiKeys": {
+        "label": "API keys",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      },
+      "webhooks": {
+        "label": "Webhooks",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      },
+      "sso": {
+        "label": "SSO",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      },
+      "billing": {
+        "label": "Billing and plan controls",
+        "description": "Diese Sicherheitskontrolle prüfen und konfigurieren."
+      }
+    },
+    "warnings": {
+      "sessions-visibility-gap": {
+        "title": "Sitzungssichtbarkeit fehlt",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "mfa-disabled": {
+        "title": "MFA ist nicht erforderlich",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "sso-optional": {
+        "title": "SSO ist optional",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "domain-allowlist-empty": {
+        "title": "Keine Domain-Einschränkungen",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "session-timeout-weak": {
+        "title": "Sitzungszeitlimit ist zu schwach",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "retention-unbounded": {
+        "title": "Keine Aufbewahrungsgrenze",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "source-download-open": {
+        "title": "Quelldownloads für alle Rollen",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "prompt-injection-disabled": {
+        "title": "Prompt-Injection-Schutz inaktiv",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "citation-validation-disabled": {
+        "title": "Zitationsprüfung inaktiv",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "tenant-isolation-inactive": {
+        "title": "Mandantenisolation inaktiv",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "output-validation-disabled": {
+        "title": "Ausgabeprüfung inaktiv",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "audit-events-empty": {
+        "title": "Keine aktuelle Audit-Aktivität",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "audit-control-gaps": {
+        "title": "Lücken in der Audit-Abdeckung",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden: {controls}."
+      },
+      "api-keys-control-missing": {
+        "title": "API-Schlüsselkontrolle fehlt",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      },
+      "webhooks-control-missing": {
+        "title": "Webhook-Kontrolle fehlt",
+        "description": "Diese Sicherheitskonfiguration sollte geprüft und angepasst werden."
+      }
+    },
+    "auditRules": {
+      "auth-login-logout": "An- und Abmeldung",
+      "token-refresh-failure": "Token-Aktualisierungsfehler",
+      "upload-delete": "Upload und Löschen",
+      "policy-changes": "Richtlinienänderungen",
+      "chat-export-share": "Chat, Export und Freigabe",
+      "api-key-webhook": "API-Schlüssel- und Webhook-Aktionen",
+      "admin-changes": "Admin-Änderungen"
+    },
+    "recommendations": {
+      "auditReview": {
+        "title": "Audit-Protokolle regelmäßig prüfen",
+        "description": "Prüfen Sie Zugriffe und privilegierte Aktionen regelmäßig."
+      }
+    },
+    "summaries": {
+      "noRetention": "Keine Aufbewahrungsgrenze",
+      "retentionDays": "{count} Tage Aufbewahrung",
+      "loadingRetention": "Aufbewahrungsrichtlinie wird geladen",
+      "deploymentUnavailable": "In dieser Bereitstellung nicht verfügbar",
+      "loadingSessions": "Sitzungen werden geladen",
+      "sessionTelemetryUnavailable": "Sitzungstelemetrie nicht verfügbar",
+      "activeSessions": "{count} aktive Sitzungen",
+      "sessionEndpointUnavailable": "Sitzungsendpunkt nicht verfügbar",
+      "loadingAudit": "Audit-Zustand wird geladen",
+      "auditUnavailable": "Audit-Zustand nicht verfügbar",
+      "auditEvents": "{events} Ereignisse, {failures} Fehler"
+    }
   }
 }

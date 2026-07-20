@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -73,35 +74,29 @@ const AUDIT_PAGE_LIMIT = 100;
 
 const AUDIT_HEALTH_RULES: Array<{
   key: string;
-  label: string;
   matches: (action: string) => boolean;
 }> = [
   {
     key: "auth-login-logout",
-    label: "Login and logout",
     matches: (action) =>
       action.startsWith("auth.login.") || action.startsWith("auth.logout."),
   },
   {
     key: "token-refresh-failure",
-    label: "Token refresh failures",
     matches: (action) => action === "auth.refresh.failed",
   },
   {
     key: "upload-delete",
-    label: "Upload and delete",
     matches: (action) =>
       action.startsWith("document.upload.") ||
       action.startsWith("document.delete."),
   },
   {
     key: "policy-changes",
-    label: "Policy changes",
     matches: (action) => action.includes("policy"),
   },
   {
     key: "chat-export-share",
-    label: "Chat, export, and share",
     matches: (action) =>
       action.startsWith("chat.") ||
       action.includes("export") ||
@@ -109,13 +104,11 @@ const AUDIT_HEALTH_RULES: Array<{
   },
   {
     key: "api-key-webhook",
-    label: "API key and webhook actions",
     matches: (action) =>
       action.includes("api_key") || action.includes("webhook"),
   },
   {
     key: "admin-changes",
-    label: "Admin changes",
     matches: (action) => action.startsWith("admin."),
   },
 ];
@@ -132,9 +125,12 @@ function isExternalHref(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
-function formatTimestamp(value: string | null | undefined): string {
+function formatTimestamp(
+  value: string | null | undefined,
+  unavailableLabel: string,
+): string {
   if (!value) {
-    return "Not available";
+    return unavailableLabel;
   }
   const parsed = Date.parse(value);
   if (Number.isNaN(parsed)) {
@@ -157,31 +153,33 @@ function summarizeAuditHealth(items: AuditLogListItemResponse[]): {
 
   const missingControls = AUDIT_HEALTH_RULES.filter((rule) => {
     return !items.some((item) => rule.matches(item.action.toLowerCase()));
-  }).map((rule) => rule.label);
+  }).map((rule) => rule.key);
 
   return { failedCount, severeCount, missingControls };
 }
 
-function buildWarnings(params: {
-  loginPolicy: Awaited<ReturnType<typeof getLoginPolicy>> | undefined;
-  posture: Awaited<ReturnType<typeof getSecurityPosture>> | undefined;
-  organizationSettings:
-    | Awaited<ReturnType<typeof getOrganizationSettings>>
-    | undefined;
-  auditItems: AuditLogListItemResponse[];
-  missingAuditControls: string[];
-  sessionsConfigured: boolean;
-  apiKeysUrl: string | null;
-  webhooksUrl: string | null;
-}): SecurityWarning[] {
+function buildWarnings(
+  params: {
+    loginPolicy: Awaited<ReturnType<typeof getLoginPolicy>> | undefined;
+    posture: Awaited<ReturnType<typeof getSecurityPosture>> | undefined;
+    organizationSettings:
+      | Awaited<ReturnType<typeof getOrganizationSettings>>
+      | undefined;
+    auditItems: AuditLogListItemResponse[];
+    missingAuditControls: string[];
+    sessionsConfigured: boolean;
+    apiKeysUrl: string | null;
+    webhooksUrl: string | null;
+  },
+  t: ReturnType<typeof useTranslations>,
+): SecurityWarning[] {
   const warnings: SecurityWarning[] = [];
 
   if (!params.sessionsConfigured) {
     warnings.push({
       id: "sessions-visibility-gap",
-      title: "Session visibility is unavailable",
-      description:
-        "Active session telemetry is deployment-controlled. Enable the sessions endpoint for incident response coverage.",
+      title: "",
+      description: "",
       severity: "medium",
       href: "/settings?tab=security",
     });
@@ -191,9 +189,8 @@ function buildWarnings(params: {
     if (!params.loginPolicy.mfa_required) {
       warnings.push({
         id: "mfa-disabled",
-        title: "MFA is not required",
-        description:
-          "Require MFA for all privileged users to reduce account takeover risk.",
+        title: "",
+        description: "",
         severity: "high",
         href: "/settings?tab=security",
       });
@@ -201,9 +198,8 @@ function buildWarnings(params: {
     if (!params.loginPolicy.sso_required) {
       warnings.push({
         id: "sso-optional",
-        title: "SSO is optional",
-        description:
-          "If your organization has an identity provider, enforce SSO for centralized access revocation.",
+        title: "",
+        description: "",
         severity: "medium",
         href: "/settings?tab=security",
       });
@@ -211,9 +207,8 @@ function buildWarnings(params: {
     if (params.loginPolicy.domain_allowlist.length === 0) {
       warnings.push({
         id: "domain-allowlist-empty",
-        title: "No email domain restrictions",
-        description:
-          "No login domain allowlist is configured. Restrict domains if your policy requires controlled tenant access.",
+        title: "",
+        description: "",
         severity: "medium",
         href: "/settings?tab=organization",
       });
@@ -224,9 +219,8 @@ function buildWarnings(params: {
     ) {
       warnings.push({
         id: "session-timeout-weak",
-        title: "Session timeout is not strict",
-        description:
-          "Set a bounded session timeout (for example 8h or 24h) for lower token persistence risk.",
+        title: "",
+        description: "",
         severity: "medium",
         href: "/settings?tab=security",
       });
@@ -237,9 +231,8 @@ function buildWarnings(params: {
     if (params.organizationSettings.retention_days == null) {
       warnings.push({
         id: "retention-unbounded",
-        title: "No data retention limit configured",
-        description:
-          "Retention is unlimited. Define retention days to align audit and data lifecycle controls.",
+        title: "",
+        description: "",
         severity: "high",
         href: "/settings?tab=organization",
       });
@@ -247,9 +240,8 @@ function buildWarnings(params: {
     if (params.organizationSettings.source_download === "all") {
       warnings.push({
         id: "source-download-open",
-        title: "Source downloads allowed for all roles",
-        description:
-          "Allowing source downloads for all roles can increase document exfiltration risk.",
+        title: "",
+        description: "",
         severity: "medium",
         href: "/settings?tab=organization",
       });
@@ -260,36 +252,32 @@ function buildWarnings(params: {
     if (params.posture.prompt_injection_protection === false) {
       warnings.push({
         id: "prompt-injection-disabled",
-        title: "Prompt-injection protection is inactive",
-        description:
-          "Enable guardrails for retrieval-side prompt injection defenses.",
+        title: "",
+        description: "",
         severity: "high",
       });
     }
     if (params.posture.citation_validation === false) {
       warnings.push({
         id: "citation-validation-disabled",
-        title: "Citation validation is inactive",
-        description:
-          "Enable citation validation to reduce unsupported responses in regulated workflows.",
+        title: "",
+        description: "",
         severity: "high",
       });
     }
     if (params.posture.tenant_isolation === false) {
       warnings.push({
         id: "tenant-isolation-inactive",
-        title: "Tenant isolation signal is inactive",
-        description:
-          "Tenant isolation must remain active to prevent cross-organization access exposure.",
+        title: "",
+        description: "",
         severity: "high",
       });
     }
     if (params.posture.output_validation === false) {
       warnings.push({
         id: "output-validation-disabled",
-        title: "Output validation is inactive",
-        description:
-          "Enable output validation for safer generated answers and tool responses.",
+        title: "",
+        description: "",
         severity: "medium",
       });
     }
@@ -298,9 +286,8 @@ function buildWarnings(params: {
   if (params.auditItems.length === 0) {
     warnings.push({
       id: "audit-events-empty",
-      title: "No recent audit activity",
-      description:
-        "No events were found in the selected period. Verify auditing instrumentation and traffic assumptions.",
+      title: "",
+      description: "",
       severity: "medium",
       href: "/admin/audit-logs",
     });
@@ -309,8 +296,8 @@ function buildWarnings(params: {
   if (params.missingAuditControls.length > 0) {
     warnings.push({
       id: "audit-control-gaps",
-      title: "Audit control coverage has gaps",
-      description: `No recent events detected for: ${params.missingAuditControls.join(", ")}.`,
+      title: "",
+      description: "",
       severity: "medium",
       href: "/admin/audit-logs",
     });
@@ -319,9 +306,8 @@ function buildWarnings(params: {
   if (!params.apiKeysUrl) {
     warnings.push({
       id: "api-keys-control-missing",
-      title: "API key control is not configured",
-      description:
-        "No API key management link is configured in this deployment. Add it when API key management is available.",
+      title: "",
+      description: "",
       severity: "low",
     });
   }
@@ -329,18 +315,31 @@ function buildWarnings(params: {
   if (!params.webhooksUrl) {
     warnings.push({
       id: "webhooks-control-missing",
-      title: "Webhook control is not configured",
-      description:
-        "No webhook management link is configured in this deployment. Add it when webhook management is available.",
+      title: "",
+      description: "",
       severity: "low",
     });
   }
 
-  return warnings;
+  const missingControls = params.missingAuditControls
+    .map((key) => t(`auditRules.${key}`))
+    .join(", ");
+
+  return warnings.map((warning) => ({
+    ...warning,
+    title: t(`warnings.${warning.id}.title`),
+    description:
+      warning.id === "audit-control-gaps"
+        ? t("warnings.audit-control-gaps.description", {
+            controls: missingControls,
+          })
+        : t(`warnings.${warning.id}.description`),
+  }));
 }
 
 function buildRecommendations(
   warnings: SecurityWarning[],
+  t: ReturnType<typeof useTranslations>,
 ): RecommendationItem[] {
   const recommendations = new Map<string, RecommendationItem>();
 
@@ -359,9 +358,8 @@ function buildRecommendations(
   if (!recommendations.has("audit-review")) {
     recommendations.set("audit-review", {
       id: "audit-review",
-      title: "Review audit logs on a fixed cadence",
-      description:
-        "Use audit search and export to review access, policy changes, and privileged actions on a recurring schedule.",
+      title: t("recommendations.auditReview.title"),
+      description: t("recommendations.auditReview.description"),
       href: "/admin/audit-logs",
     });
   }
@@ -400,7 +398,10 @@ function ActionLink({
   );
 }
 
-function getRecommendationStyle(severity: WarningSeverity): {
+function getRecommendationStyle(
+  severity: WarningSeverity,
+  t: ReturnType<typeof useTranslations>,
+): {
   borderClass: string;
   iconBgClass: string;
   badgeClass: string;
@@ -413,8 +414,8 @@ function getRecommendationStyle(severity: WarningSeverity): {
       borderClass: "border-l-rose-600",
       iconBgClass: "bg-rose-100 text-rose-800",
       badgeClass: "bg-rose-100 text-rose-800",
-      badgeLabel: "HIGH SEVERITY",
-      actionLabel: "Fix Now",
+      badgeLabel: t("severity.high"),
+      actionLabel: t("actions.fixNow"),
       actionVariant: "primary",
     };
   }
@@ -423,8 +424,8 @@ function getRecommendationStyle(severity: WarningSeverity): {
       borderClass: "border-l-amber-500",
       iconBgClass: "bg-amber-100 text-amber-800",
       badgeClass: "bg-amber-100 text-amber-800",
-      badgeLabel: "MEDIUM SEVERITY",
-      actionLabel: "Review",
+      badgeLabel: t("severity.medium"),
+      actionLabel: t("actions.review"),
       actionVariant: "outline",
     };
   }
@@ -432,31 +433,36 @@ function getRecommendationStyle(severity: WarningSeverity): {
     borderClass: "border-l-[#3525cd]",
     iconBgClass: "bg-[#e2dfff] text-[#0f0069]",
     badgeClass: "bg-[#e2dfff] text-[#0f0069]",
-    badgeLabel: "INFO",
-    actionLabel: "Learn More",
+    badgeLabel: t("severity.info"),
+    actionLabel: t("actions.learnMore"),
     actionVariant: "link",
   };
 }
 
-function getWarningCategory(id: string): string {
-  if (id.startsWith("audit")) return "Infrastructure";
+function getWarningCategory(
+  id: string,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  if (id.startsWith("audit")) return t("categories.infrastructure");
   if (
     id.includes("mfa") ||
     id.includes("sso") ||
     id.includes("session") ||
     id.includes("domain")
   )
-    return "Identity";
-  if (id.includes("retention") || id.includes("source")) return "Policy";
+    return t("categories.identity");
+  if (id.includes("retention") || id.includes("source"))
+    return t("categories.policy");
   if (
     id.includes("injection") ||
     id.includes("citation") ||
     id.includes("isolation") ||
     id.includes("validation")
   )
-    return "AI Safety";
-  if (id.includes("api") || id.includes("webhook")) return "Integrations";
-  return "Security";
+    return t("categories.aiSafety");
+  if (id.includes("api") || id.includes("webhook"))
+    return t("categories.integrations");
+  return t("categories.security");
 }
 
 function getControlIcon(id: string) {
@@ -485,6 +491,7 @@ function getControlIcon(id: string) {
 }
 
 export function AdminSecurityCenterPage() {
+  const t = useTranslations("adminSecurityCenter");
   const { state } = useAuthSession();
   const session = state.session;
   const role = session?.role;
@@ -602,8 +609,8 @@ export function AdminSecurityCenterPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Security center restricted"
-          description="Only owner and admin roles can access the organization security center."
+          title={t("restricted")}
+          description={t("restrictedDescription")}
           compact={false}
         />
       </section>
@@ -614,8 +621,8 @@ export function AdminSecurityCenterPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Security center unavailable"
-          description="Your current role no longer has access to this security surface."
+          title={t("unavailable")}
+          description={t("unavailableDescription")}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -630,8 +637,8 @@ export function AdminSecurityCenterPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ErrorState
-          title="Organization context missing"
-          description="Open this page from an active organization workspace."
+          title={t("missingOrganization")}
+          description={t("missingOrganizationDescription")}
         />
       </section>
     );
@@ -656,17 +663,20 @@ export function AdminSecurityCenterPage() {
   const teamMembers = teamQuery.data?.items ?? [];
   const auditItems = auditQuery.data?.items ?? [];
   const auditHealth = summarizeAuditHealth(auditItems);
-  const warnings = buildWarnings({
-    loginPolicy: loginPolicyQuery.data,
-    posture: postureQuery.data,
-    organizationSettings: organizationSettingsQuery.data,
-    auditItems,
-    missingAuditControls: auditHealth.missingControls,
-    sessionsConfigured: securityCapabilities.sessionsEnabled,
-    apiKeysUrl: apiKeysHref,
-    webhooksUrl: webhooksHref,
-  });
-  const recommendations = buildRecommendations(warnings);
+  const warnings = buildWarnings(
+    {
+      loginPolicy: loginPolicyQuery.data,
+      posture: postureQuery.data,
+      organizationSettings: organizationSettingsQuery.data,
+      auditItems,
+      missingAuditControls: auditHealth.missingControls,
+      sessionsConfigured: securityCapabilities.sessionsEnabled,
+      apiKeysUrl: apiKeysHref,
+      webhooksUrl: webhooksHref,
+    },
+    t,
+  );
+  const recommendations = buildRecommendations(warnings, t);
 
   const adminCount = teamMembers.filter((m) => m.role === "admin").length;
   const ownerCount = teamMembers.filter((m) => m.role === "owner").length;
@@ -695,82 +705,88 @@ export function AdminSecurityCenterPage() {
   }> = [
     {
       id: "session-policy",
-      label: "Session policy",
-      description: "Timeout, MFA, SSO requirement, and invite-only controls.",
+      label: t("controls.sessionPolicy.label"),
+      description: t("controls.sessionPolicy.description"),
       href: "/settings?tab=security",
     },
     {
       id: "domain-restrictions",
-      label: "Domain restrictions",
-      description: "Allowed domains for login and membership.",
+      label: t("controls.domainRestrictions.label"),
+      description: t("controls.domainRestrictions.description"),
       href: "/settings?tab=organization",
     },
     {
       id: "role-settings",
-      label: "Role settings",
-      description: "Role assignment and team access controls.",
+      label: t("controls.roleSettings.label"),
+      description: t("controls.roleSettings.description"),
       href: "/settings?tab=organization",
     },
     {
       id: "retention",
-      label: "Data retention",
-      description: "Retention window and source download policy.",
+      label: t("controls.dataRetention.label"),
+      description: t("controls.dataRetention.description"),
       href: "/settings?tab=organization",
     },
     {
       id: "audit",
-      label: "Audit logs",
-      description: "Search and export organization audit evidence.",
+      label: t("controls.auditLogs.label"),
+      description: t("controls.auditLogs.description"),
       href: "/admin/audit-logs",
     },
     {
       id: "api-keys",
-      label: "API keys",
-      description: "Manage API keys and rotation policy when available.",
+      label: t("controls.apiKeys.label"),
+      description: t("controls.apiKeys.description"),
       href: apiKeysHref,
     },
     {
       id: "webhooks",
-      label: "Webhooks",
-      description:
-        "Manage webhook endpoints and delivery posture when available.",
+      label: t("controls.webhooks.label"),
+      description: t("controls.webhooks.description"),
       href: webhooksHref,
     },
     {
       id: "sso",
-      label: "SSO",
-      description: "Open SSO setup and identity provider controls.",
+      label: t("controls.sso.label"),
+      description: t("controls.sso.description"),
       href: ssoHref,
     },
     {
       id: "billing",
-      label: "Billing and plan controls",
-      description: "Open plan and billing controls when configured.",
+      label: t("controls.billing.label"),
+      description: t("controls.billing.description"),
       href: billingControlsHref,
     },
   ];
 
   const retentionSummary = organizationSettingsQuery.data
     ? organizationSettingsQuery.data.retention_days == null
-      ? "No retention limit configured"
-      : `${organizationSettingsQuery.data.retention_days} day retention`
+      ? t("summaries.noRetention")
+      : t("summaries.retentionDays", {
+          count: organizationSettingsQuery.data.retention_days,
+        })
     : organizationCapabilities.settingsEnabled
-      ? "Loading retention policy"
-      : "Unavailable in this deployment";
+      ? t("summaries.loadingRetention")
+      : t("summaries.deploymentUnavailable");
 
   const sessionSummary = securityCapabilities.sessionsEnabled
     ? sessionsQuery.isLoading
-      ? "Loading sessions"
+      ? t("summaries.loadingSessions")
       : sessionsQuery.isError
-        ? "Session telemetry unavailable"
-        : `${sessionsQuery.data?.length ?? 0} active sessions`
-    : "Session endpoint unavailable";
+        ? t("summaries.sessionTelemetryUnavailable")
+        : t("summaries.activeSessions", {
+            count: sessionsQuery.data?.length ?? 0,
+          })
+    : t("summaries.sessionEndpointUnavailable");
 
   const auditSummary = auditQuery.isLoading
-    ? "Loading audit health"
+    ? t("summaries.loadingAudit")
     : auditQuery.isError
-      ? "Audit health unavailable"
-      : `${auditQuery.data?.total ?? 0} events, ${auditHealth.failedCount} failures`;
+      ? t("summaries.auditUnavailable")
+      : t("summaries.auditEvents", {
+          events: auditQuery.data?.total ?? 0,
+          failures: auditHealth.failedCount,
+        });
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
@@ -779,17 +795,14 @@ export function AdminSecurityCenterPage() {
         <div>
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-              Organization Security Center
+              {t("title")}
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3525cd]/20 bg-[#e2dfff]/40 px-3 py-1 text-xs font-semibold text-[#3525cd]">
               <ShieldCheck className="h-3 w-3" aria-hidden />
-              Organization Admin
+              {t("organizationAdmin")}
             </span>
           </div>
-          <p className="max-w-2xl text-sm text-[#68647b]">
-            Review key security settings, warnings, and access controls for this
-            organization. Ensure compliance with global enterprise standards.
-          </p>
+          <p className="max-w-2xl text-sm text-[#68647b]">{t("description")}</p>
         </div>
         <div className="flex gap-2">
           <Link
@@ -797,7 +810,7 @@ export function AdminSecurityCenterPage() {
             className="inline-flex items-center gap-2 rounded-lg border border-[#d7d4e8] bg-white px-4 py-2 text-sm font-medium text-[#2a2640] transition-colors hover:bg-[#f5f2ff]"
           >
             <Download className="h-4 w-4" aria-hidden />
-            Export Logs
+            {t("exportLogs")}
           </Link>
         </div>
       </header>
@@ -807,20 +820,20 @@ export function AdminSecurityCenterPage() {
         <div className="mb-4 flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-[#3525cd]" aria-hidden />
           <h2 className="text-lg font-bold text-[#2a2640]">
-            Security Posture Summary
+            {t("postureSummary")}
           </h2>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
             <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
-              Authentication
+              {t("authentication")}
             </p>
             <div className="flex items-center justify-between gap-1">
               <p className="truncate text-sm font-bold text-[#2a2640]">
-                {runtimeConfig.authProviderRaw || "Configured"}
+                {runtimeConfig.authProviderRaw || t("configured")}
               </p>
               <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-emerald-800 uppercase">
-                ACTIVE
+                {t("active")}
               </span>
             </div>
             <p className="mt-2 text-[10px] text-[#6a6780]">{sessionSummary}</p>
@@ -828,17 +841,17 @@ export function AdminSecurityCenterPage() {
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
             <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
-              Roles &amp; Access
+              {t("rolesAccess")}
             </p>
             <p className="text-sm font-bold text-[#2a2640]">
               {teamCapabilities.listMembersEnabled
-                ? `${elevatedCount} Elevated`
-                : "Unavailable"}
+                ? t("elevated", { count: elevatedCount })
+                : t("unavailableShort")}
             </p>
             <p className="text-[10px] text-[#6a6780]">
               {teamCapabilities.listMembersEnabled
-                ? `${adminCount} Admin · ${ownerCount} Owner`
-                : "Team listing disabled"}
+                ? t("adminOwner", { admins: adminCount, owners: ownerCount })
+                : t("teamListingDisabled")}
             </p>
             {teamCapabilities.listMembersEnabled && totalMembers > 0 && (
               <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#f0ecf9]">
@@ -852,7 +865,7 @@ export function AdminSecurityCenterPage() {
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
             <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
-              Domain Restrictions
+              {t("domainRestrictions")}
             </p>
             <div className="flex items-center gap-1.5">
               <Globe
@@ -861,23 +874,23 @@ export function AdminSecurityCenterPage() {
               />
               <p className="text-sm font-bold text-[#2a2640]">
                 {allowedDomainList.length > 0
-                  ? `${allowedDomainList.length} Domain${allowedDomainList.length !== 1 ? "s" : ""}`
-                  : "Open"}
+                  ? t("domainCount", { count: allowedDomainList.length })
+                  : t("open")}
               </p>
             </div>
             <p className="mt-2 text-[10px] text-[#6a6780]">
               {allowedDomainList.length > 0
-                ? "Allowlist active"
-                : "No restriction set"}
+                ? t("allowlistActive")
+                : t("noRestriction")}
             </p>
           </article>
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
             <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
-              API &amp; Webhooks
+              {t("apiWebhooks")}
             </p>
             <p className="text-sm font-bold text-[#2a2640]">
-              {apiKeysHref ? "Keys Configured" : "Not Configured"}
+              {apiKeysHref ? t("keysConfigured") : t("notConfigured")}
             </p>
             <div className="mt-2 flex gap-1">
               <span
@@ -894,12 +907,12 @@ export function AdminSecurityCenterPage() {
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
             <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
-              Data Retention
+              {t("dataRetention")}
             </p>
             <p className="text-sm font-bold text-[#2a2640]">
               {organizationSettingsQuery.data?.retention_days != null
                 ? `${organizationSettingsQuery.data.retention_days}d`
-                : "Default Policy"}
+                : t("defaultPolicy")}
             </p>
             <p className="mt-2 text-[10px] text-[#6a6780]">
               {retentionSummary}
@@ -908,7 +921,7 @@ export function AdminSecurityCenterPage() {
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
             <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
-              Audit Health
+              {t("auditHealth")}
             </p>
             <div className="flex items-center gap-1.5">
               {isAuditHealthy ? (
@@ -922,7 +935,7 @@ export function AdminSecurityCenterPage() {
               <p
                 className={`text-sm font-bold ${isAuditHealthy ? "text-emerald-700" : "text-amber-700"}`}
               >
-                {isAuditHealthy ? "Healthy" : "Warning"}
+                {isAuditHealthy ? t("healthy") : t("warning")}
               </p>
             </div>
             <p className="mt-2 text-[10px] text-[#6a6780]">{auditSummary}</p>
@@ -938,14 +951,14 @@ export function AdminSecurityCenterPage() {
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-rose-600" aria-hidden />
               <h2 className="text-lg font-bold text-[#2a2640]">
-                Security Recommendations
+                {t("securityRecommendations")}
               </h2>
             </div>
             <Link
               href="/admin/audit-logs"
               className="text-sm font-bold text-[#3525cd] hover:underline"
             >
-              View All
+              {t("viewAll")}
             </Link>
           </div>
 
@@ -953,7 +966,7 @@ export function AdminSecurityCenterPage() {
             organizationSettingsQuery.isLoading ||
             postureQuery.isLoading ||
             (teamCapabilities.listMembersEnabled && teamQuery.isLoading)) && (
-            <LoadingState compact title="Loading security signals..." />
+            <LoadingState compact title={t("loadingSecuritySignals")} />
           )}
 
           {(loginPolicyQuery.isError ||
@@ -1009,7 +1022,7 @@ export function AdminSecurityCenterPage() {
             teamQuery.error.status === 429) ? (
             <RateLimitState
               compact
-              title="Security signals are rate-limited"
+              title={t("securityRateLimited")}
               onRetry={() => {
                 void loginPolicyQuery.refetch();
                 void organizationSettingsQuery.refetch();
@@ -1025,7 +1038,7 @@ export function AdminSecurityCenterPage() {
               <div className="mt-4">
                 <RateLimitState
                   compact
-                  title="Audit health is rate-limited"
+                  title={t("auditRateLimited")}
                   onRetry={() => {
                     void auditQuery.refetch();
                   }}
@@ -1038,14 +1051,14 @@ export function AdminSecurityCenterPage() {
             !postureQuery.isLoading &&
             warnings.length === 0 && (
               <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                No active warnings were detected from available controls.
+                {t("noWarnings")}
               </p>
             )}
 
           <div className="space-y-3">
             {displayItems.map((item) => {
-              const style = getRecommendationStyle(item.severity);
-              const category = getWarningCategory(item.id);
+              const style = getRecommendationStyle(item.severity, t);
+              const category = getWarningCategory(item.id, t);
               return (
                 <article
                   key={item.id}
@@ -1100,7 +1113,7 @@ export function AdminSecurityCenterPage() {
           <div className="mb-4 flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-[#6a6780]" aria-hidden />
             <h2 className="text-lg font-bold text-[#2a2640]">
-              Security Controls
+              {t("securityControls")}
             </h2>
           </div>
           <div className="space-y-3">
@@ -1128,7 +1141,7 @@ export function AdminSecurityCenterPage() {
                     />
                   ) : (
                     <span className="ml-auto shrink-0 rounded-lg bg-[#f0ecf9] px-2 py-1 text-[10px] font-semibold text-[#6a6780]">
-                      N/A
+                      {t("notApplicable")}
                     </span>
                   )}
                 </>
@@ -1172,21 +1185,24 @@ export function AdminSecurityCenterPage() {
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-            Operational: Rudix Security Engine
+            {t("operational")}
           </div>
-          <div>Compliance: SOC2 Type II, ISO 27001</div>
+          <div>{t("compliance")}</div>
           {organizationProfileQuery.data?.plan && (
             <div className="flex items-center gap-1">
               <Link2 className="h-3.5 w-3.5 text-[#5d58a8]" aria-hidden />
-              <span className="font-semibold text-[#2a2640]">Plan:</span>
+              <span className="font-semibold text-[#2a2640]">{t("plan")}:</span>
               <span>{organizationProfileQuery.data.plan}</span>
             </div>
           )}
         </div>
         <div>
-          Last posture audit:{" "}
+          {t("lastPostureAudit")}:{" "}
           <span className="font-mono text-xs text-[#3525cd]">
-            {formatTimestamp(postureQuery.data?.last_audit_at)}
+            {formatTimestamp(
+              postureQuery.data?.last_audit_at,
+              t("notAvailable"),
+            )}
           </span>
         </div>
       </footer>

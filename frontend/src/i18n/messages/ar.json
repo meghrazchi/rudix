@@ -3557,5 +3557,198 @@
       "30d": "آخر 30 يومًا",
       "90d": "آخر 90 يومًا"
     }
+  },
+  "adminSecurityCenter": {
+    "restricted": "مركز الأمان مقيّد",
+    "restrictedDescription": "يمكن للمالكين والمسؤولين فقط الوصول إلى مركز الأمان.",
+    "unavailable": "مركز الأمان غير متاح",
+    "unavailableDescription": "لم يعد دورك يملك صلاحية الوصول إلى هذا القسم.",
+    "missingOrganization": "سياق المؤسسة مفقود",
+    "missingOrganizationDescription": "افتح هذه الصفحة من مساحة عمل نشطة.",
+    "title": "مركز أمان المؤسسة",
+    "organizationAdmin": "مسؤول المؤسسة",
+    "description": "راجع إعدادات الأمان والتحذيرات وعناصر التحكم في الوصول.",
+    "exportLogs": "تصدير السجلات",
+    "postureSummary": "ملخص الوضع الأمني",
+    "authentication": "المصادقة",
+    "configured": "مهيأ",
+    "active": "نشط",
+    "rolesAccess": "الأدوار والوصول",
+    "elevated": "{count} بصلاحيات مرتفعة",
+    "unavailableShort": "غير متاح",
+    "adminOwner": "{admins} مسؤول · {owners} مالك",
+    "teamListingDisabled": "قائمة الفريق معطلة",
+    "domainRestrictions": "قيود النطاق",
+    "domainCount": "{count} نطاقات",
+    "open": "مفتوح",
+    "allowlistActive": "قائمة السماح نشطة",
+    "noRestriction": "لا توجد قيود",
+    "apiWebhooks": "API وخطافات الويب",
+    "keysConfigured": "المفاتيح مهيأة",
+    "notConfigured": "غير مهيأ",
+    "dataRetention": "الاحتفاظ بالبيانات",
+    "defaultPolicy": "السياسة الافتراضية",
+    "auditHealth": "سلامة التدقيق",
+    "healthy": "سليم",
+    "warning": "تحذير",
+    "securityRecommendations": "توصيات الأمان",
+    "viewAll": "عرض الكل",
+    "loadingSecuritySignals": "جارٍ تحميل إشارات الأمان...",
+    "securityRateLimited": "إشارات الأمان محدودة المعدل",
+    "auditRateLimited": "التدقيق محدود المعدل",
+    "noWarnings": "لم يتم اكتشاف تحذيرات نشطة.",
+    "securityControls": "عناصر التحكم الأمنية",
+    "notApplicable": "غير متاح",
+    "operational": "تشغيلي: محرك أمان Rudix",
+    "compliance": "الامتثال: SOC2 Type II، ISO 27001",
+    "plan": "الخطة",
+    "lastPostureAudit": "آخر تدقيق للوضع",
+    "notAvailable": "غير متاح",
+    "actions": {
+      "fixNow": "الإصلاح الآن",
+      "review": "مراجعة",
+      "learnMore": "معرفة المزيد"
+    },
+    "severity": {
+      "high": "خطورة عالية",
+      "medium": "خطورة متوسطة",
+      "info": "معلومات"
+    },
+    "categories": {
+      "infrastructure": "البنية التحتية",
+      "identity": "الهوية",
+      "policy": "السياسة",
+      "aiSafety": "أمان الذكاء الاصطناعي",
+      "integrations": "التكاملات",
+      "security": "الأمان"
+    },
+    "controls": {
+      "sessionPolicy": {
+        "label": "سياسة الجلسة",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      },
+      "domainRestrictions": {
+        "label": "قيود النطاق",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      },
+      "roleSettings": {
+        "label": "إعدادات الأدوار",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      },
+      "dataRetention": {
+        "label": "الاحتفاظ بالبيانات",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      },
+      "auditLogs": {
+        "label": "سجلات التدقيق",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      },
+      "apiKeys": {
+        "label": "مفاتيح API",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      },
+      "webhooks": {
+        "label": "خطافات الويب",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      },
+      "sso": {
+        "label": "SSO",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      },
+      "billing": {
+        "label": "عناصر تحكم الفوترة",
+        "description": "راجع عنصر التحكم الأمني هذا وقم بتهيئته."
+      }
+    },
+    "warnings": {
+      "sessions-visibility-gap": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "mfa-disabled": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "sso-optional": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "domain-allowlist-empty": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "session-timeout-weak": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "retention-unbounded": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "source-download-open": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "prompt-injection-disabled": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "citation-validation-disabled": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "tenant-isolation-inactive": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "output-validation-disabled": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "audit-events-empty": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "audit-control-gaps": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله: {controls}."
+      },
+      "api-keys-control-missing": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      },
+      "webhooks-control-missing": {
+        "title": "إعداد أمني يحتاج إلى مراجعة",
+        "description": "يجب مراجعة هذا الإعداد الأمني وتعديله."
+      }
+    },
+    "auditRules": {
+      "auth-login-logout": "An- und Abmeldung",
+      "token-refresh-failure": "Token-Aktualisierungsfehler",
+      "upload-delete": "Upload und Löschen",
+      "policy-changes": "Richtlinienänderungen",
+      "chat-export-share": "Chat, Export und Freigabe",
+      "api-key-webhook": "API-Schlüssel- und Webhook-Aktionen",
+      "admin-changes": "Admin-Änderungen"
+    },
+    "recommendations": {
+      "auditReview": {
+        "title": "مراجعة سجلات التدقيق دوريًا",
+        "description": "راجع الوصول والإجراءات ذات الصلاحيات بانتظام."
+      }
+    },
+    "summaries": {
+      "noRetention": "لا يوجد حد للاحتفاظ",
+      "retentionDays": "احتفاظ لمدة {count} يومًا",
+      "loadingRetention": "جارٍ تحميل سياسة الاحتفاظ",
+      "deploymentUnavailable": "غير متاح في هذا النشر",
+      "loadingSessions": "جارٍ تحميل الجلسات",
+      "sessionTelemetryUnavailable": "بيانات الجلسة غير متاحة",
+      "activeSessions": "{count} جلسات نشطة",
+      "sessionEndpointUnavailable": "نقطة نهاية الجلسات غير متاحة",
+      "loadingAudit": "جارٍ تحميل سلامة التدقيق",
+      "auditUnavailable": "سلامة التدقيق غير متاحة",
+      "auditEvents": "{events} أحداث، {failures} حالات فشل"
+    }
   }
 }
