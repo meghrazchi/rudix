@@ -5267,5 +5267,70 @@
     "pagination": {
       "range": "{start}–{end} من {total}"
     }
+  },
+  "adminFeatureFlags": {
+    "badges": {
+      "enabled": "مفعّل",
+      "disabled": "معطّل",
+      "orgOverride": "تجاوز المؤسسة",
+      "envDefault": "إعداد البيئة"
+    },
+    "modal": {
+      "enableTitle": "تفعيل «{label}»",
+      "disableTitle": "تعطيل «{label}»",
+      "description": "سيؤدي هذا إلى تجاوز الإعداد الافتراضي للبيئة في مؤسستك.",
+      "reasonOptional": "السبب (اختياري)",
+      "reasonPlaceholder": "لماذا يلزم هذا التغيير؟"
+    },
+    "actions": {
+      "cancel": "إلغاء",
+      "saving": "جارٍ الحفظ…",
+      "confirm": "تأكيد",
+      "disable": "تعطيل",
+      "enable": "تفعيل",
+      "resetDefault": "إعادة إلى الافتراضي"
+    },
+    "access": {
+      "restrictedTitle": "منطقة الإدارة مقيّدة",
+      "restrictedDescription": "يمكن للمالك والمسؤول فقط إدارة علامات الميزات.",
+      "deniedTitle": "تم رفض الوصول",
+      "deniedDescription": "ليس لديك إذن لإدارة علامات الميزات."
+    },
+    "states": {
+      "loading": "جارٍ تحميل علامات الميزات…"
+    },
+    "header": {
+      "eyebrow": "علامات الميزات",
+      "title": "عناصر التحكم في الطرح",
+      "description": "تجاوز إعدادات البيئة على مستوى المؤسسة. تُدقّق التغييرات ويمكن التراجع عنها بإزالة التجاوز."
+    },
+    "table": {
+      "flag": "الميزة",
+      "status": "الحالة",
+      "source": "المصدر",
+      "envDefault": "إعداد البيئة",
+      "reason": "السبب",
+      "actions": "الإجراءات"
+    },
+    "flags": {
+      "agents": "وضع الوكلاء",
+      "mcp": "تكامل MCP",
+      "connectors": "الموصلات",
+      "evaluations": "التقييمات",
+      "chunking_profiles": "ملفات تعريف التجزئة",
+      "adaptive_chunking": "التجزئة التكيفية",
+      "graph_rag": "Graph RAG",
+      "graph_extraction": "استخراج الرسم البياني",
+      "graph_explorer": "مستكشف الرسم البياني",
+      "advanced_pdf_extraction": "استخراج PDF المتقدم",
+      "language_aware_rag": "RAG المدرك للغة",
+      "pipeline_explorer": "مستكشف خط المعالجة",
+      "local_llm_profiles": "ملفات LLM المحلية",
+      "experimental_profiles": "الملفات التجريبية",
+      "provider_fallback": "المزود الاحتياطي",
+      "external_mcp_connectors": "موصلات MCP الخارجية",
+      "query_rewrite_preview": "معاينة إعادة صياغة الاستعلام",
+      "org_memory": "ذاكرة المؤسسة"
+    }
   }
 }

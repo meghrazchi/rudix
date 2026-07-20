@@ -5267,5 +5267,70 @@
     "pagination": {
       "range": "{start}–{end} از {total}"
     }
+  },
+  "adminFeatureFlags": {
+    "badges": {
+      "enabled": "فعال",
+      "disabled": "غیرفعال",
+      "orgOverride": "تنظیم سازمان",
+      "envDefault": "پیش‌فرض محیط"
+    },
+    "modal": {
+      "enableTitle": "فعال‌سازی «{label}»",
+      "disableTitle": "غیرفعال‌سازی «{label}»",
+      "description": "این کار پیش‌فرض محیط را برای سازمان شما بازنویسی می‌کند.",
+      "reasonOptional": "دلیل (اختیاری)",
+      "reasonPlaceholder": "چرا این تغییر لازم است؟"
+    },
+    "actions": {
+      "cancel": "انصراف",
+      "saving": "در حال ذخیره…",
+      "confirm": "تأیید",
+      "disable": "غیرفعال کردن",
+      "enable": "فعال کردن",
+      "resetDefault": "بازنشانی به پیش‌فرض"
+    },
+    "access": {
+      "restrictedTitle": "بخش مدیریت محدود است",
+      "restrictedDescription": "فقط مالک و مدیر می‌توانند پرچم‌های قابلیت را مدیریت کنند.",
+      "deniedTitle": "دسترسی رد شد",
+      "deniedDescription": "شما اجازه مدیریت پرچم‌های قابلیت را ندارید."
+    },
+    "states": {
+      "loading": "در حال بارگذاری پرچم‌های قابلیت…"
+    },
+    "header": {
+      "eyebrow": "پرچم‌های قابلیت",
+      "title": "کنترل‌های انتشار",
+      "description": "پیش‌فرض‌های محیط را در سطح سازمان بازنویسی کنید. تغییرات ثبت می‌شوند و با حذف تنظیم سازمان قابل بازگشت هستند."
+    },
+    "table": {
+      "flag": "قابلیت",
+      "status": "وضعیت",
+      "source": "منبع",
+      "envDefault": "پیش‌فرض محیط",
+      "reason": "دلیل",
+      "actions": "عملیات"
+    },
+    "flags": {
+      "agents": "حالت عامل‌محور",
+      "mcp": "یکپارچه‌سازی MCP",
+      "connectors": "اتصال‌دهنده‌ها",
+      "evaluations": "ارزیابی‌ها",
+      "chunking_profiles": "پروفایل‌های بخش‌بندی",
+      "adaptive_chunking": "بخش‌بندی تطبیقی",
+      "graph_rag": "Graph RAG",
+      "graph_extraction": "استخراج گراف",
+      "graph_explorer": "مرورگر گراف",
+      "advanced_pdf_extraction": "استخراج پیشرفته PDF",
+      "language_aware_rag": "RAG آگاه از زبان",
+      "pipeline_explorer": "مرورگر خط پردازش",
+      "local_llm_profiles": "پروفایل‌های LLM محلی",
+      "experimental_profiles": "پروفایل‌های آزمایشی",
+      "provider_fallback": "ارائه‌دهنده جایگزین",
+      "external_mcp_connectors": "اتصال‌دهنده‌های MCP خارجی",
+      "query_rewrite_preview": "پیش‌نمایش بازنویسی پرس‌وجو",
+      "org_memory": "حافظه سازمان"
+    }
   }
 }

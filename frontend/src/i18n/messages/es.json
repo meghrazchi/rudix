@@ -5267,5 +5267,70 @@
     "pagination": {
       "range": "{start}–{end} de {total}"
     }
+  },
+  "adminFeatureFlags": {
+    "badges": {
+      "enabled": "Activado",
+      "disabled": "Desactivado",
+      "orgOverride": "Anulación de la organización",
+      "envDefault": "Valor del entorno"
+    },
+    "modal": {
+      "enableTitle": "Activar \"{label}\"",
+      "disableTitle": "Desactivar \"{label}\"",
+      "description": "Esto anulará el valor predeterminado del entorno para tu organización.",
+      "reasonOptional": "Motivo (opcional)",
+      "reasonPlaceholder": "¿Por qué se necesita este cambio?"
+    },
+    "actions": {
+      "cancel": "Cancelar",
+      "saving": "Guardando…",
+      "confirm": "Confirmar",
+      "disable": "Desactivar",
+      "enable": "Activar",
+      "resetDefault": "Restablecer valor"
+    },
+    "access": {
+      "restrictedTitle": "Área de administración restringida",
+      "restrictedDescription": "Solo los propietarios y administradores pueden gestionar las funciones experimentales.",
+      "deniedTitle": "Acceso denegado",
+      "deniedDescription": "No tienes permiso para gestionar las funciones experimentales."
+    },
+    "states": {
+      "loading": "Cargando funciones experimentales…"
+    },
+    "header": {
+      "eyebrow": "Funciones experimentales",
+      "title": "Controles de despliegue",
+      "description": "Anula los valores del entorno en la organización. Los cambios se auditan y pueden revertirse eliminando la anulación."
+    },
+    "table": {
+      "flag": "Función",
+      "status": "Estado",
+      "source": "Origen",
+      "envDefault": "Valor del entorno",
+      "reason": "Motivo",
+      "actions": "Acciones"
+    },
+    "flags": {
+      "agents": "Modo de agentes",
+      "mcp": "Integración MCP",
+      "connectors": "Conectores",
+      "evaluations": "Evaluaciones",
+      "chunking_profiles": "Perfiles de fragmentación",
+      "adaptive_chunking": "Fragmentación adaptativa",
+      "graph_rag": "Graph RAG",
+      "graph_extraction": "Extracción de grafos",
+      "graph_explorer": "Explorador de grafos",
+      "advanced_pdf_extraction": "Extracción avanzada de PDF",
+      "language_aware_rag": "RAG sensible al idioma",
+      "pipeline_explorer": "Explorador de canalización",
+      "local_llm_profiles": "Perfiles LLM locales",
+      "experimental_profiles": "Perfiles experimentales",
+      "provider_fallback": "Proveedor alternativo",
+      "external_mcp_connectors": "Conectores MCP externos",
+      "query_rewrite_preview": "Vista previa de reescritura",
+      "org_memory": "Memoria de la organización"
+    }
   }
 }

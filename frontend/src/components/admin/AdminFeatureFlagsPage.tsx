@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -10,7 +11,6 @@ import { LoadingState } from "@/components/states/LoadingState";
 import {
   ALL_FLAG_NAMES,
   clearAdminFeatureFlag,
-  FLAG_LABELS,
   listAdminFeatureFlags,
   setAdminFeatureFlag,
   type FeatureFlagDetail,
@@ -23,6 +23,7 @@ import { isForbiddenError } from "@/lib/forbidden";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 function FlagBadge({ enabled }: { enabled: boolean }) {
+  const t = useTranslations("adminFeatureFlags");
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
@@ -31,12 +32,13 @@ function FlagBadge({ enabled }: { enabled: boolean }) {
           : "bg-rose-100 text-rose-800"
       }`}
     >
-      {enabled ? "Enabled" : "Disabled"}
+      {enabled ? t("badges.enabled") : t("badges.disabled")}
     </span>
   );
 }
 
 function SourceBadge({ hasOverride }: { hasOverride: boolean }) {
+  const t = useTranslations("adminFeatureFlags");
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
@@ -45,7 +47,7 @@ function SourceBadge({ hasOverride }: { hasOverride: boolean }) {
           : "bg-slate-100 text-slate-600"
       }`}
     >
-      {hasOverride ? "Org override" : "Env default"}
+      {hasOverride ? t("badges.orgOverride") : t("badges.envDefault")}
     </span>
   );
 }
@@ -66,27 +68,27 @@ function OverrideModal({
   onCancel: () => void;
   isSaving: boolean;
 }) {
+  const t = useTranslations("adminFeatureFlags");
   const [reason, setReason] = useState(state.flag.override_reason ?? "");
-  const label =
-    FLAG_LABELS[state.flag.name as keyof typeof FLAG_LABELS] ?? state.flag.name;
+  const label = t(`flags.${state.flag.name}`);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-md rounded-2xl border border-[#d7d4e8] bg-white p-6 shadow-xl">
         <h2 className="mb-1 text-lg font-bold text-[#2a2640]">
-          {state.pendingEnabled ? "Enable" : "Disable"} &quot;{label}&quot;
+          {state.pendingEnabled
+            ? t("modal.enableTitle", { label })
+            : t("modal.disableTitle", { label })}
         </h2>
-        <p className="mb-4 text-sm text-[#6b6895]">
-          This will override the environment default for your organization.
-        </p>
+        <p className="mb-4 text-sm text-[#6b6895]">{t("modal.description")}</p>
         <label className="mb-1 block text-xs font-semibold text-[#2a2640]">
-          Reason (optional)
+          {t("modal.reasonOptional")}
         </label>
         <textarea
           className="mb-4 w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm text-[#2a2640] focus:ring-2 focus:ring-[#5d58a8] focus:outline-none"
           rows={3}
           maxLength={500}
-          placeholder="Why is this change needed?"
+          placeholder={t("modal.reasonPlaceholder")}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
@@ -97,7 +99,7 @@ function OverrideModal({
             onClick={onCancel}
             disabled={isSaving}
           >
-            Cancel
+            {t("actions.cancel")}
           </button>
           <button
             type="button"
@@ -109,7 +111,7 @@ function OverrideModal({
             onClick={() => onConfirm(reason.trim())}
             disabled={isSaving}
           >
-            {isSaving ? "Saving…" : "Confirm"}
+            {isSaving ? t("actions.saving") : t("actions.confirm")}
           </button>
         </div>
       </div>
@@ -118,6 +120,7 @@ function OverrideModal({
 }
 
 export function AdminFeatureFlagsPage() {
+  const t = useTranslations("adminFeatureFlags");
   const { state } = useAuthSession();
   const role = state.session?.role;
   const queryClient = useQueryClient();
@@ -167,8 +170,8 @@ export function AdminFeatureFlagsPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Admin area restricted"
-          description="Only owner and admin roles can manage feature flags."
+          title={t("access.restrictedTitle")}
+          description={t("access.restrictedDescription")}
           compact={false}
         />
       </section>
@@ -178,7 +181,7 @@ export function AdminFeatureFlagsPage() {
   if (isLoading) {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
-        <LoadingState title="Loading feature flags…" />
+        <LoadingState title={t("states.loading")} />
       </section>
     );
   }
@@ -188,8 +191,8 @@ export function AdminFeatureFlagsPage() {
       return (
         <section className="px-4 py-5 lg:px-8 lg:py-8">
           <ForbiddenState
-            title="Access denied"
-            description="You do not have permission to manage feature flags."
+            title={t("access.deniedTitle")}
+            description={t("access.deniedDescription")}
             compact={false}
           />
         </section>
@@ -223,15 +226,12 @@ export function AdminFeatureFlagsPage() {
 
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Feature flags
+          {t("header.eyebrow")}
         </p>
         <h1 className="mb-1 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-          Rollout controls
+          {t("header.title")}
         </h1>
-        <p className="text-sm text-[#6b6895]">
-          Override environment defaults at the organization level. Changes are
-          audited and can be reverted by clearing the override.
-        </p>
+        <p className="text-sm text-[#6b6895]">{t("header.description")}</p>
       </header>
 
       {errorMsg && (
@@ -244,23 +244,23 @@ export function AdminFeatureFlagsPage() {
         <table className="w-full text-sm">
           <thead className="border-b border-[#d7d4e8] bg-[#f4f3fb]">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b6895]">
-                Flag
+              <th className="px-4 py-3 text-start text-xs font-semibold text-[#6b6895]">
+                {t("table.flag")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b6895]">
-                Status
+              <th className="px-4 py-3 text-start text-xs font-semibold text-[#6b6895]">
+                {t("table.status")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b6895]">
-                Source
+              <th className="px-4 py-3 text-start text-xs font-semibold text-[#6b6895]">
+                {t("table.source")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b6895]">
-                Env default
+              <th className="px-4 py-3 text-start text-xs font-semibold text-[#6b6895]">
+                {t("table.envDefault")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b6895]">
-                Reason
+              <th className="px-4 py-3 text-start text-xs font-semibold text-[#6b6895]">
+                {t("table.reason")}
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-[#6b6895]">
-                Actions
+              <th className="px-4 py-3 text-end text-xs font-semibold text-[#6b6895]">
+                {t("table.actions")}
               </th>
             </tr>
           </thead>
@@ -268,7 +268,7 @@ export function AdminFeatureFlagsPage() {
             {ALL_FLAG_NAMES.map((name) => {
               const flag = flagMap.get(name);
               if (!flag) return null;
-              const label = FLAG_LABELS[name] ?? name;
+              const label = t(`flags.${name}`);
               const isMutating =
                 (setMutation.isPending &&
                   setMutation.variables?.flagName === name) ||
@@ -278,7 +278,7 @@ export function AdminFeatureFlagsPage() {
                 <tr key={name} className="hover:bg-[#f9f8fe]">
                   <td className="px-4 py-3 font-medium text-[#2a2640]">
                     <span>{label}</span>
-                    <span className="ml-2 font-mono text-[11px] text-[#9893c4]">
+                    <span className="ms-2 font-mono text-[11px] text-[#9893c4]">
                       {name}
                     </span>
                   </td>
@@ -305,7 +305,7 @@ export function AdminFeatureFlagsPage() {
                             setModal({ flag, pendingEnabled: false })
                           }
                         >
-                          Disable
+                          {t("actions.disable")}
                         </button>
                       ) : (
                         <button
@@ -316,7 +316,7 @@ export function AdminFeatureFlagsPage() {
                             setModal({ flag, pendingEnabled: true })
                           }
                         >
-                          Enable
+                          {t("actions.enable")}
                         </button>
                       )}
                       {flag.has_org_override && (
@@ -326,7 +326,7 @@ export function AdminFeatureFlagsPage() {
                           disabled={isMutating}
                           onClick={() => clearMutation.mutate(name)}
                         >
-                          Reset to default
+                          {t("actions.resetDefault")}
                         </button>
                       )}
                     </div>

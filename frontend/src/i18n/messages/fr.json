@@ -5267,5 +5267,70 @@
     "pagination": {
       "range": "{start}–{end} sur {total}"
     }
+  },
+  "adminFeatureFlags": {
+    "badges": {
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "orgOverride": "Dérogation de l’organisation",
+      "envDefault": "Valeur de l’environnement"
+    },
+    "modal": {
+      "enableTitle": "Activer « {label} »",
+      "disableTitle": "Désactiver « {label} »",
+      "description": "Cette action remplacera la valeur par défaut de l’environnement pour votre organisation.",
+      "reasonOptional": "Motif (facultatif)",
+      "reasonPlaceholder": "Pourquoi ce changement est-il nécessaire ?"
+    },
+    "actions": {
+      "cancel": "Annuler",
+      "saving": "Enregistrement…",
+      "confirm": "Confirmer",
+      "disable": "Désactiver",
+      "enable": "Activer",
+      "resetDefault": "Rétablir la valeur"
+    },
+    "access": {
+      "restrictedTitle": "Zone d’administration restreinte",
+      "restrictedDescription": "Seuls les propriétaires et les administrateurs peuvent gérer les fonctionnalités.",
+      "deniedTitle": "Accès refusé",
+      "deniedDescription": "Vous n’êtes pas autorisé à gérer les fonctionnalités."
+    },
+    "states": {
+      "loading": "Chargement des fonctionnalités…"
+    },
+    "header": {
+      "eyebrow": "Fonctionnalités",
+      "title": "Contrôles de déploiement",
+      "description": "Remplacez les valeurs de l’environnement au niveau de l’organisation. Les changements sont audités et peuvent être annulés en supprimant la dérogation."
+    },
+    "table": {
+      "flag": "Fonctionnalité",
+      "status": "État",
+      "source": "Source",
+      "envDefault": "Valeur de l’environnement",
+      "reason": "Motif",
+      "actions": "Actions"
+    },
+    "flags": {
+      "agents": "Mode agentique",
+      "mcp": "Intégration MCP",
+      "connectors": "Connecteurs",
+      "evaluations": "Évaluations",
+      "chunking_profiles": "Profils de découpage",
+      "adaptive_chunking": "Découpage adaptatif",
+      "graph_rag": "Graph RAG",
+      "graph_extraction": "Extraction de graphe",
+      "graph_explorer": "Explorateur de graphe",
+      "advanced_pdf_extraction": "Extraction PDF avancée",
+      "language_aware_rag": "RAG sensible à la langue",
+      "pipeline_explorer": "Explorateur de pipeline",
+      "local_llm_profiles": "Profils LLM locaux",
+      "experimental_profiles": "Profils expérimentaux",
+      "provider_fallback": "Repli de fournisseur",
+      "external_mcp_connectors": "Connecteurs MCP externes",
+      "query_rewrite_preview": "Aperçu de la reformulation",
+      "org_memory": "Mémoire de l’organisation"
+    }
   }
 }

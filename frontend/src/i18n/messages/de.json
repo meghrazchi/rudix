@@ -5267,5 +5267,70 @@
     "pagination": {
       "range": "{start}–{end} von {total}"
     }
+  },
+  "adminFeatureFlags": {
+    "badges": {
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert",
+      "orgOverride": "Organisationsvorgabe",
+      "envDefault": "Umgebungsstandard"
+    },
+    "modal": {
+      "enableTitle": "„{label}“ aktivieren",
+      "disableTitle": "„{label}“ deaktivieren",
+      "description": "Dadurch wird der Umgebungsstandard für Ihre Organisation überschrieben.",
+      "reasonOptional": "Grund (optional)",
+      "reasonPlaceholder": "Warum ist diese Änderung erforderlich?"
+    },
+    "actions": {
+      "cancel": "Abbrechen",
+      "saving": "Wird gespeichert…",
+      "confirm": "Bestätigen",
+      "disable": "Deaktivieren",
+      "enable": "Aktivieren",
+      "resetDefault": "Auf Standard zurücksetzen"
+    },
+    "access": {
+      "restrictedTitle": "Adminbereich eingeschränkt",
+      "restrictedDescription": "Nur Eigentümer und Administratoren können Feature-Flags verwalten.",
+      "deniedTitle": "Zugriff verweigert",
+      "deniedDescription": "Sie sind nicht berechtigt, Feature-Flags zu verwalten."
+    },
+    "states": {
+      "loading": "Feature-Flags werden geladen…"
+    },
+    "header": {
+      "eyebrow": "Feature-Flags",
+      "title": "Einführungssteuerung",
+      "description": "Überschreiben Sie Umgebungsstandards auf Organisationsebene. Änderungen werden protokolliert und können durch Entfernen der Vorgabe rückgängig gemacht werden."
+    },
+    "table": {
+      "flag": "Flag",
+      "status": "Status",
+      "source": "Quelle",
+      "envDefault": "Umgebungsstandard",
+      "reason": "Grund",
+      "actions": "Aktionen"
+    },
+    "flags": {
+      "agents": "Agentenmodus",
+      "mcp": "MCP-Integration",
+      "connectors": "Konnektoren",
+      "evaluations": "Evaluierungen",
+      "chunking_profiles": "Chunking-Profile",
+      "adaptive_chunking": "Adaptives Chunking",
+      "graph_rag": "Graph RAG",
+      "graph_extraction": "Graph-Extraktion",
+      "graph_explorer": "Graph-Explorer",
+      "advanced_pdf_extraction": "Erweiterte PDF-Extraktion",
+      "language_aware_rag": "Sprachsensitives RAG",
+      "pipeline_explorer": "Pipeline-Explorer",
+      "local_llm_profiles": "Lokale LLM-Profile",
+      "experimental_profiles": "Experimentelle Profile",
+      "provider_fallback": "Provider-Fallback",
+      "external_mcp_connectors": "Externe MCP-Konnektoren",
+      "query_rewrite_preview": "Vorschau der Anfrageumschreibung",
+      "org_memory": "Organisationsgedächtnis"
+    }
   }
 }

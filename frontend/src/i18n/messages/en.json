@@ -5267,5 +5267,70 @@
     "pagination": {
       "range": "{start}–{end} of {total}"
     }
+  },
+  "adminFeatureFlags": {
+    "badges": {
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "orgOverride": "Org override",
+      "envDefault": "Env default"
+    },
+    "modal": {
+      "enableTitle": "Enable \"{label}\"",
+      "disableTitle": "Disable \"{label}\"",
+      "description": "This will override the environment default for your organization.",
+      "reasonOptional": "Reason (optional)",
+      "reasonPlaceholder": "Why is this change needed?"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "confirm": "Confirm",
+      "disable": "Disable",
+      "enable": "Enable",
+      "resetDefault": "Reset to default"
+    },
+    "access": {
+      "restrictedTitle": "Admin area restricted",
+      "restrictedDescription": "Only owner and admin roles can manage feature flags.",
+      "deniedTitle": "Access denied",
+      "deniedDescription": "You do not have permission to manage feature flags."
+    },
+    "states": {
+      "loading": "Loading feature flags…"
+    },
+    "header": {
+      "eyebrow": "Feature flags",
+      "title": "Rollout controls",
+      "description": "Override environment defaults at the organization level. Changes are audited and can be reverted by clearing the override."
+    },
+    "table": {
+      "flag": "Flag",
+      "status": "Status",
+      "source": "Source",
+      "envDefault": "Env default",
+      "reason": "Reason",
+      "actions": "Actions"
+    },
+    "flags": {
+      "agents": "Agentic mode",
+      "mcp": "MCP integration",
+      "connectors": "Connectors",
+      "evaluations": "Evaluations",
+      "chunking_profiles": "Chunking profiles",
+      "adaptive_chunking": "Adaptive chunking",
+      "graph_rag": "Graph RAG",
+      "graph_extraction": "Graph extraction",
+      "graph_explorer": "Graph explorer",
+      "advanced_pdf_extraction": "Advanced PDF extraction",
+      "language_aware_rag": "Language-aware RAG",
+      "pipeline_explorer": "Pipeline explorer",
+      "local_llm_profiles": "Local LLM profiles",
+      "experimental_profiles": "Experimental profiles",
+      "provider_fallback": "Provider fallback",
+      "external_mcp_connectors": "External MCP connectors",
+      "query_rewrite_preview": "Query rewrite preview",
+      "org_memory": "Organization memory"
+    }
   }
 }
