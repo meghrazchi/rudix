@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   getEffectiveModelProviderPolicy,
@@ -64,6 +65,7 @@ function formatCommaList(values: string[]): string {
 }
 
 export function AdminModelProviderPage() {
+  const t = useTranslations("adminModelProvider");
   const { state } = useAuthSession();
   const queryClient = useQueryClient();
   const role = state.session?.role;
@@ -134,8 +136,8 @@ export function AdminModelProviderPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Model provider settings restricted"
-          description="Only owner and admin roles can manage model provider configuration."
+          title={t("restricted")}
+          description={t("restrictedDescription")}
           compact={false}
         />
       </section>
@@ -146,8 +148,8 @@ export function AdminModelProviderPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Model provider settings unavailable"
-          description="Your role no longer has access to model provider settings."
+          title={t("unavailable")}
+          description={t("unavailableDescription")}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -158,8 +160,8 @@ export function AdminModelProviderPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <LoadingState
-          title="Loading model provider settings"
-          description="Preparing organization model provider configuration."
+          title={t("loading")}
+          description={t("loadingDescription")}
           compact={false}
         />
       </section>
@@ -170,7 +172,7 @@ export function AdminModelProviderPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ErrorState
-          title="Unable to load model provider settings"
+          title={t("loadError")}
           description={getApiErrorMessage(effectivePolicyQuery.error)}
           compact={false}
           requestId={extractRequestIdFromError(effectivePolicyQuery.error)}
@@ -242,16 +244,12 @@ export function AdminModelProviderPage() {
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Rudix Admin
+          {t("eyebrow")}
         </p>
         <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-          Model provider settings
+          {t("title")}
         </h1>
-        <p className="max-w-3xl text-sm text-[#68647b]">
-          Configure the LLM provider, models, timeout, retry policy, and
-          fallback behavior for this organization. API keys are managed in
-          environment variables and are never stored or displayed here.
-        </p>
+        <p className="max-w-3xl text-sm text-[#68647b]">{t("description")}</p>
       </header>
 
       {/* Effective policy summary */}
@@ -259,7 +257,7 @@ export function AdminModelProviderPage() {
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-bold text-[#2a2640]">
-              Effective policy
+              {t("effectivePolicy")}
             </h2>
             <span
               className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -269,19 +267,25 @@ export function AdminModelProviderPage() {
               }`}
             >
               {effectivePolicy.source === "org_override"
-                ? "Org override"
-                : "System default"}
+                ? t("orgOverride")
+                : t("systemDefault")}
             </span>
           </div>
           <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
-            <PolicyField label="Provider" value={effectivePolicy.provider} />
-            <PolicyField label="LLM model" value={effectivePolicy.llm_model} />
             <PolicyField
-              label="Embedding model"
+              label={t("fields.provider")}
+              value={effectivePolicy.provider}
+            />
+            <PolicyField
+              label={t("fields.llmModel")}
+              value={effectivePolicy.llm_model}
+            />
+            <PolicyField
+              label={t("fields.embeddingModel")}
               value={effectivePolicy.embedding_model}
             />
             <PolicyField
-              label="Max tokens"
+              label={t("fields.maxTokens")}
               value={
                 effectivePolicy.max_tokens != null
                   ? String(effectivePolicy.max_tokens)
@@ -289,19 +293,19 @@ export function AdminModelProviderPage() {
               }
             />
             <PolicyField
-              label="Timeout (s)"
+              label={t("fields.timeout")}
               value={String(effectivePolicy.timeout_seconds)}
             />
             <PolicyField
-              label="Max retries"
+              label={t("fields.maxRetries")}
               value={String(effectivePolicy.max_retries)}
             />
             <PolicyField
-              label="Fallback model"
+              label={t("fields.fallbackModel")}
               value={effectivePolicy.fallback_model ?? "—"}
             />
             <PolicyField
-              label="Disabled models"
+              label={t("fields.disabledModels")}
               value={
                 effectivePolicy.disabled_models.length > 0
                   ? effectivePolicy.disabled_models.join(", ")
@@ -309,8 +313,8 @@ export function AdminModelProviderPage() {
               }
             />
             <PolicyField
-              label="LLM key configured"
-              value={effectivePolicy.llm_key_configured ? "Yes" : "No"}
+              label={t("fields.keyConfigured")}
+              value={effectivePolicy.llm_key_configured ? t("yes") : t("no")}
               highlight={
                 effectivePolicy.llm_key_configured ? "success" : "warning"
               }
@@ -318,8 +322,7 @@ export function AdminModelProviderPage() {
           </dl>
           {!effectivePolicy.llm_key_configured ? (
             <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              No LLM API key is set in the environment. LLM calls will fail
-              until a key is configured in the deployment environment.
+              {t("missingKeyWarning")}
             </p>
           ) : null}
         </section>
@@ -333,7 +336,7 @@ export function AdminModelProviderPage() {
             onClick={openEditor}
             className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
           >
-            {existingSettings ? "Edit org overrides" : "Create org overrides"}
+            {existingSettings ? t("editOverrides") : t("createOverrides")}
           </button>
           {existingSettings ? (
             <button
@@ -341,18 +344,17 @@ export function AdminModelProviderPage() {
               onClick={() => setShowResetConfirm(true)}
               className="rounded-lg border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
             >
-              Reset to system defaults
+              {t("resetDefaults")}
             </button>
           ) : null}
         </div>
       ) : (
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-[#2a2640]">
-            {existingSettings ? "Edit org overrides" : "Create org overrides"}
+            {existingSettings ? t("editOverrides") : t("createOverrides")}
           </h2>
           <p className="mt-1 text-sm text-[#68647b]">
-            Leave a field blank to inherit the system default. API keys are
-            configured in environment variables only.
+            {t("editorDescription")}
           </p>
 
           {updateError ? (
@@ -363,57 +365,57 @@ export function AdminModelProviderPage() {
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <SettingsInput
-              label="Provider"
+              label={t("fields.provider")}
               placeholder="openai"
               value={draft.provider}
               onChange={(v) => setDraft({ ...draft, provider: v })}
             />
             <SettingsInput
-              label="LLM model"
+              label={t("fields.llmModel")}
               placeholder="gpt-4o"
               value={draft.llm_model}
               onChange={(v) => setDraft({ ...draft, llm_model: v })}
             />
             <SettingsInput
-              label="Embedding model"
+              label={t("fields.embeddingModel")}
               placeholder="text-embedding-3-small"
               value={draft.embedding_model}
               onChange={(v) => setDraft({ ...draft, embedding_model: v })}
             />
             <SettingsInput
-              label="Max tokens (optional)"
+              label={t("fields.maxTokensOptional")}
               placeholder="4096"
               value={draft.max_tokens}
               onChange={(v) => setDraft({ ...draft, max_tokens: v })}
             />
             <SettingsInput
-              label="Timeout seconds (optional)"
+              label={t("fields.timeoutOptional")}
               placeholder="30"
               value={draft.timeout_seconds}
               onChange={(v) => setDraft({ ...draft, timeout_seconds: v })}
             />
             <SettingsInput
-              label="Max retries (0–10, optional)"
+              label={t("fields.maxRetriesOptional")}
               placeholder="2"
               value={draft.max_retries}
               onChange={(v) => setDraft({ ...draft, max_retries: v })}
             />
             <SettingsInput
-              label="Fallback model (optional)"
+              label={t("fields.fallbackOptional")}
               placeholder="gpt-3.5-turbo"
               value={draft.fallback_model}
               onChange={(v) => setDraft({ ...draft, fallback_model: v })}
             />
             <SettingsInput
-              label="Disabled models (comma-separated)"
+              label={t("fields.disabledModelsComma")}
               placeholder="davinci, curie"
               value={draft.disabled_models}
               onChange={(v) => setDraft({ ...draft, disabled_models: v })}
             />
             <div className="sm:col-span-2">
               <SettingsInput
-                label="Change note (optional)"
-                placeholder="Reason for this update"
+                label={t("fields.changeNote")}
+                placeholder={t("changeNotePlaceholder")}
                 value={draft.change_note}
                 onChange={(v) => setDraft({ ...draft, change_note: v })}
               />
@@ -427,14 +429,14 @@ export function AdminModelProviderPage() {
               disabled={updateMutation.isPending}
               className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:opacity-60"
             >
-              {updateMutation.isPending ? "Saving..." : "Save settings"}
+              {updateMutation.isPending ? t("saving") : t("saveSettings")}
             </button>
             <button
               type="button"
               onClick={() => setDraft(null)}
               className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f8f6ff]"
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </section>
@@ -444,12 +446,9 @@ export function AdminModelProviderPage() {
       {showResetConfirm ? (
         <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
           <h2 className="text-base font-bold text-rose-900">
-            Reset to system defaults?
+            {t("resetTitle")}
           </h2>
-          <p className="mt-1 text-sm text-rose-800">
-            This will remove all org overrides. The effective policy will fall
-            back to system environment defaults.
-          </p>
+          <p className="mt-1 text-sm text-rose-800">{t("resetDescription")}</p>
           {resetError ? (
             <p className="mt-2 text-sm text-rose-700">{resetError}</p>
           ) : null}
@@ -457,7 +456,7 @@ export function AdminModelProviderPage() {
             <input
               value={resetNote}
               onChange={(event) => setResetNote(event.target.value)}
-              placeholder="Optional reason for reset"
+              placeholder={t("resetReasonPlaceholder")}
               className="h-9 flex-1 rounded-lg border border-rose-200 bg-white px-3 text-sm"
             />
             <button
@@ -466,7 +465,7 @@ export function AdminModelProviderPage() {
               disabled={resetMutation.isPending}
               className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-60"
             >
-              {resetMutation.isPending ? "Resetting..." : "Confirm reset"}
+              {resetMutation.isPending ? t("resetting") : t("confirmReset")}
             </button>
             <button
               type="button"
@@ -476,7 +475,7 @@ export function AdminModelProviderPage() {
               }}
               className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </section>
@@ -486,9 +485,11 @@ export function AdminModelProviderPage() {
       {changeLogQuery.data && changeLogQuery.data.total > 0 ? (
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-bold text-[#2a2640]">Change history</h2>
+            <h2 className="text-lg font-bold text-[#2a2640]">
+              {t("changeHistory")}
+            </h2>
             <span className="text-sm text-[#6a6780]">
-              {changeLogQuery.data.total} entries
+              {t("entries", { count: changeLogQuery.data.total })}
             </span>
           </div>
           <div className="mt-3 divide-y divide-[#f0eeff]">
@@ -508,7 +509,9 @@ export function AdminModelProviderPage() {
                   ) : null}
                   <p className="text-xs text-[#6a6780]">
                     {new Date(entry.created_at).toLocaleString()}
-                    {entry.changed_by_id ? ` · by ${entry.changed_by_id}` : ""}
+                    {entry.changed_by_id
+                      ? ` · ${t("changedBy", { id: entry.changed_by_id })}`
+                      : ""}
                   </p>
                 </div>
               </div>
