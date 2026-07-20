@@ -5160,7 +5160,9 @@
       "rejected": "Rejected",
       "duplicate": "Duplicate"
     },
-    "statusPills": { "new": "new" },
+    "statusPills": {
+      "new": "new"
+    },
     "severities": {
       "low": "Low",
       "medium": "Medium",
@@ -5217,6 +5219,53 @@
       "submitted": "Submitted",
       "answerPreview": "Answer preview",
       "actions": "Actions"
+    }
+  },
+  "adminDocumentDeletion": {
+    "access": {
+      "adminRequired": "Admin access required",
+      "adminRequiredDescription": "You do not have permission to view the deletion status dashboard.",
+      "denied": "Access denied",
+      "deniedDescription": "You do not have permission to view document deletion status."
+    },
+    "header": {
+      "title": "Document deletion status",
+      "description": "Documents in deletion lifecycle states. Retry stuck or failed cleanups."
+    },
+    "actions": {
+      "allDocuments": "All documents",
+      "retry": "Retry",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "statuses": {
+      "delete_requested": "Delete requested",
+      "deleting": "Deleting",
+      "retained_by_policy": "Retained",
+      "failed": "Failed cleanup"
+    },
+    "filters": {
+      "includeFailed": "Include documents with failed cleanup"
+    },
+    "feedback": {
+      "retryQueued": "Retry queued for document {documentId}. Status: {status}."
+    },
+    "fields": {
+      "trace": "Trace",
+      "filename": "Filename",
+      "type": "Type",
+      "status": "Status",
+      "requestedAt": "Requested at",
+      "holdError": "Hold / error",
+      "actions": "Actions"
+    },
+    "states": {
+      "loading": "Loading deletion status...",
+      "emptyTitle": "No documents in deletion states",
+      "emptyDescription": "All document deletions have completed cleanly. No pending or stuck operations."
+    },
+    "pagination": {
+      "range": "{start}–{end} of {total}"
     }
   }
 }

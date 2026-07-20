@@ -5149,7 +5149,9 @@
       "minConfidence": "Min confidence",
       "maxConfidence": "Max confidence"
     },
-    "statusPills": { "new": "Nouveau" },
+    "statusPills": {
+      "new": "Nouveau"
+    },
     "statuses": {
       "new": "New",
       "triaged": "Triaged",
@@ -5217,6 +5219,53 @@
       "submitted": "Submitted",
       "answerPreview": "Answer preview",
       "actions": "Actions"
+    }
+  },
+  "adminDocumentDeletion": {
+    "access": {
+      "adminRequired": "Accès administrateur requis",
+      "adminRequiredDescription": "Vous n’êtes pas autorisé à consulter le tableau de bord de l’état des suppressions.",
+      "denied": "Accès refusé",
+      "deniedDescription": "Vous n’êtes pas autorisé à consulter l’état de suppression des documents."
+    },
+    "header": {
+      "title": "État de suppression des documents",
+      "description": "Documents aux différentes étapes du cycle de suppression. Relancez les nettoyages bloqués ou échoués."
+    },
+    "actions": {
+      "allDocuments": "Tous les documents",
+      "retry": "Réessayer",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "statuses": {
+      "delete_requested": "Suppression demandée",
+      "deleting": "Suppression en cours",
+      "retained_by_policy": "Conservé",
+      "failed": "Nettoyage échoué"
+    },
+    "filters": {
+      "includeFailed": "Inclure les documents dont le nettoyage a échoué"
+    },
+    "feedback": {
+      "retryQueued": "Nouvelle tentative mise en file pour le document {documentId}. État : {status}."
+    },
+    "fields": {
+      "trace": "Trace",
+      "filename": "Nom du fichier",
+      "type": "Type",
+      "status": "État",
+      "requestedAt": "Demandé le",
+      "holdError": "Blocage / erreur",
+      "actions": "Actions"
+    },
+    "states": {
+      "loading": "Chargement de l’état des suppressions...",
+      "emptyTitle": "Aucun document en cours de suppression",
+      "emptyDescription": "Toutes les suppressions de documents se sont terminées correctement. Aucune opération n’est en attente ou bloquée."
+    },
+    "pagination": {
+      "range": "{start}–{end} sur {total}"
     }
   }
 }

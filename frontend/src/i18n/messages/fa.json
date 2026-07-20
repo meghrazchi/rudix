@@ -5149,7 +5149,9 @@
       "minConfidence": "Min confidence",
       "maxConfidence": "Max confidence"
     },
-    "statusPills": { "new": "جدید" },
+    "statusPills": {
+      "new": "جدید"
+    },
     "statuses": {
       "new": "جدید",
       "triaged": "دسته‌بندی‌شده",
@@ -5217,6 +5219,53 @@
       "submitted": "Submitted",
       "answerPreview": "Answer preview",
       "actions": "Actions"
+    }
+  },
+  "adminDocumentDeletion": {
+    "access": {
+      "adminRequired": "دسترسی مدیر لازم است",
+      "adminRequiredDescription": "شما اجازه مشاهده داشبورد وضعیت حذف را ندارید.",
+      "denied": "دسترسی رد شد",
+      "deniedDescription": "شما اجازه مشاهده وضعیت حذف اسناد را ندارید."
+    },
+    "header": {
+      "title": "وضعیت حذف اسناد",
+      "description": "اسناد در مراحل چرخه حذف. پاک‌سازی‌های متوقف‌شده یا ناموفق را دوباره اجرا کنید."
+    },
+    "actions": {
+      "allDocuments": "همه اسناد",
+      "retry": "تلاش دوباره",
+      "previous": "قبلی",
+      "next": "بعدی"
+    },
+    "statuses": {
+      "delete_requested": "درخواست حذف",
+      "deleting": "در حال حذف",
+      "retained_by_policy": "نگهداری‌شده",
+      "failed": "پاک‌سازی ناموفق"
+    },
+    "filters": {
+      "includeFailed": "نمایش اسناد با پاک‌سازی ناموفق"
+    },
+    "feedback": {
+      "retryQueued": "تلاش دوباره برای سند {documentId} در صف قرار گرفت. وضعیت: {status}."
+    },
+    "fields": {
+      "trace": "ردیابی",
+      "filename": "نام فایل",
+      "type": "نوع",
+      "status": "وضعیت",
+      "requestedAt": "زمان درخواست",
+      "holdError": "توقف / خطا",
+      "actions": "عملیات"
+    },
+    "states": {
+      "loading": "در حال بارگذاری وضعیت حذف...",
+      "emptyTitle": "سندی در وضعیت حذف نیست",
+      "emptyDescription": "همه حذف‌های اسناد با موفقیت تکمیل شده‌اند. هیچ عملیات معلق یا متوقف‌شده‌ای وجود ندارد."
+    },
+    "pagination": {
+      "range": "{start}–{end} از {total}"
     }
   }
 }

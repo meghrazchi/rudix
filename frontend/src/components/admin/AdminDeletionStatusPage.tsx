@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -64,6 +65,7 @@ type DeletionStatusSummary = {
 };
 
 export function AdminDeletionStatusPage() {
+  const t = useTranslations("adminDocumentDeletion");
   const { state } = useAuthSession();
   const queryClient = useQueryClient();
 
@@ -99,7 +101,10 @@ export function AdminDeletionStatusPage() {
     mutationFn: (documentId: string) => retryDeleteDocument(documentId),
     onSuccess: async (result) => {
       setFeedback(
-        `Retry queued for document ${result.document_id}. Status: ${result.status}.`,
+        t("feedback.retryQueued", {
+          documentId: result.document_id,
+          status: t(`statuses.${result.status}`),
+        }),
       );
       setFeedbackRequestId(null);
       setRetryingId(null);
@@ -133,8 +138,8 @@ export function AdminDeletionStatusPage() {
   if (!canView) {
     return (
       <ForbiddenState
-        title="Admin access required"
-        description="You do not have permission to view the deletion status dashboard."
+        title={t("access.adminRequired")}
+        description={t("access.adminRequiredDescription")}
       />
     );
   }
@@ -144,18 +149,17 @@ export function AdminDeletionStatusPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-[#1b1b24]">
-            Document deletion status
+            {t("header.title")}
           </h1>
           <p className="mt-1 text-sm text-[#6a6780]">
-            Documents in deletion lifecycle states. Retry stuck or failed
-            cleanups.
+            {t("header.description")}
           </p>
         </div>
         <Link
           href="/documents"
           className="rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9]"
         >
-          All documents
+          {t("actions.allDocuments")}
         </Link>
       </div>
 
@@ -164,16 +168,24 @@ export function AdminDeletionStatusPage() {
           [
             {
               key: "delete_requested",
-              label: "Delete requested",
+              label: t("statuses.delete_requested"),
               color: "text-rose-600",
             },
-            { key: "deleting", label: "Deleting", color: "text-slate-700" },
+            {
+              key: "deleting",
+              label: t("statuses.deleting"),
+              color: "text-slate-700",
+            },
             {
               key: "retained_by_policy",
-              label: "Retained",
+              label: t("statuses.retained_by_policy"),
               color: "text-yellow-700",
             },
-            { key: "failed", label: "Failed cleanup", color: "text-rose-800" },
+            {
+              key: "failed",
+              label: t("statuses.failed"),
+              color: "text-rose-800",
+            },
           ] as const
         ).map(({ key, label, color }) => (
           <div
@@ -201,7 +213,7 @@ export function AdminDeletionStatusPage() {
             }}
             className="h-4 w-4 rounded border-[#c9c6dc] accent-[#3525cd]"
           />
-          Include documents with failed cleanup
+          {t("filters.includeFailed")}
         </label>
         {feedback ? (
           <p
@@ -209,20 +221,22 @@ export function AdminDeletionStatusPage() {
             className="rounded-lg border border-[#ddd7f6] bg-[#f3f1ff] px-3 py-1.5 text-sm text-[#3f3778]"
           >
             {feedback}
-            {feedbackRequestId ? ` (Trace: ${feedbackRequestId})` : ""}
+            {feedbackRequestId
+              ? ` (${t("fields.trace")}: ${feedbackRequestId})`
+              : ""}
           </p>
         ) : null}
       </div>
 
       {listQuery.isLoading ? (
-        <LoadingState title="Loading deletion status..." />
+        <LoadingState title={t("states.loading")} />
       ) : null}
 
       {listQuery.isError && listForbidden ? (
         <ForbiddenState
           compact
-          title="Access denied"
-          description="You do not have permission to view document deletion status."
+          title={t("access.denied")}
+          description={t("access.deniedDescription")}
           requestId={extractRequestIdFromError(listQuery.error)}
         />
       ) : null}
@@ -237,23 +251,23 @@ export function AdminDeletionStatusPage() {
 
       {!listQuery.isLoading && !listQuery.isError && items.length === 0 ? (
         <EmptyState
-          title="No documents in deletion states"
-          description="All document deletions have completed cleanly. No pending or stuck operations."
+          title={t("states.emptyTitle")}
+          description={t("states.emptyDescription")}
         />
       ) : null}
 
       {!listQuery.isLoading && !listQuery.isError && items.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-[#e5e3f1]">
           <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse bg-white text-left text-sm">
+            <table className="min-w-full border-collapse bg-white text-start text-sm">
               <thead className="border-b border-[#e5e3f1] bg-[#f8f7ff]">
                 <tr className="text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase">
-                  <th className="px-4 py-3">Filename</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Requested at</th>
-                  <th className="px-4 py-3">Hold / error</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3">{t("fields.filename")}</th>
+                  <th className="px-4 py-3">{t("fields.type")}</th>
+                  <th className="px-4 py-3">{t("fields.status")}</th>
+                  <th className="px-4 py-3">{t("fields.requestedAt")}</th>
+                  <th className="px-4 py-3">{t("fields.holdError")}</th>
+                  <th className="px-4 py-3 text-end">{t("fields.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#ece9f6]">
@@ -277,7 +291,7 @@ export function AdminDeletionStatusPage() {
                       <span
                         className={`inline-block rounded-full px-2 py-1 text-xs font-bold tracking-wide uppercase ${statusBadgeClass(item.status)}`}
                       >
-                        {item.status.replace(/_/g, " ")}
+                        {t(`statuses.${item.status}`)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-[#68647b]">
@@ -295,7 +309,7 @@ export function AdminDeletionStatusPage() {
                         </p>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-end">
                       {isRetryable(item) ? (
                         <button
                           type="button"
@@ -313,7 +327,7 @@ export function AdminDeletionStatusPage() {
                           <span className="material-symbols-outlined text-[14px]">
                             refresh
                           </span>
-                          Retry
+                          {t("actions.retry")}
                         </button>
                       ) : (
                         <span className="text-xs text-[#9e9bb5]">—</span>
@@ -332,13 +346,17 @@ export function AdminDeletionStatusPage() {
               onClick={() => setOffset((o) => Math.max(0, o - PAGE_LIMIT))}
               className="flex items-center gap-1 rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span className="material-symbols-outlined text-[18px]">
+              <span className="material-symbols-outlined text-[18px] rtl:rotate-180">
                 chevron_left
               </span>
-              Previous
+              {t("actions.previous")}
             </button>
             <p className="text-sm text-[#6a6780]">
-              {offset + 1}–{Math.min(offset + PAGE_LIMIT, total)} of {total}
+              {t("pagination.range", {
+                start: offset + 1,
+                end: Math.min(offset + PAGE_LIMIT, total),
+                total,
+              })}
             </p>
             <button
               type="button"
@@ -346,8 +364,8 @@ export function AdminDeletionStatusPage() {
               onClick={() => setOffset((o) => o + PAGE_LIMIT)}
               className="flex items-center gap-1 rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Next
-              <span className="material-symbols-outlined text-[18px]">
+              {t("actions.next")}
+              <span className="material-symbols-outlined text-[18px] rtl:rotate-180">
                 chevron_right
               </span>
             </button>

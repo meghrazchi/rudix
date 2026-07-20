@@ -5149,7 +5149,9 @@
       "minConfidence": "Min confidence",
       "maxConfidence": "Max confidence"
     },
-    "statusPills": { "new": "جديد" },
+    "statusPills": {
+      "new": "جديد"
+    },
     "statuses": {
       "new": "جديد",
       "triaged": "تم الفرز",
@@ -5217,6 +5219,53 @@
       "submitted": "Submitted",
       "answerPreview": "Answer preview",
       "actions": "Actions"
+    }
+  },
+  "adminDocumentDeletion": {
+    "access": {
+      "adminRequired": "يلزم وصول المسؤول",
+      "adminRequiredDescription": "ليس لديك إذن لعرض لوحة حالة الحذف.",
+      "denied": "تم رفض الوصول",
+      "deniedDescription": "ليس لديك إذن لعرض حالة حذف المستندات."
+    },
+    "header": {
+      "title": "حالة حذف المستندات",
+      "description": "المستندات في مراحل دورة الحذف. أعد محاولة عمليات التنظيف المتوقفة أو الفاشلة."
+    },
+    "actions": {
+      "allDocuments": "كل المستندات",
+      "retry": "إعادة المحاولة",
+      "previous": "السابق",
+      "next": "التالي"
+    },
+    "statuses": {
+      "delete_requested": "طُلب الحذف",
+      "deleting": "جارٍ الحذف",
+      "retained_by_policy": "محتفظ به",
+      "failed": "فشل التنظيف"
+    },
+    "filters": {
+      "includeFailed": "تضمين المستندات التي فشل تنظيفها"
+    },
+    "feedback": {
+      "retryQueued": "تمت إضافة إعادة محاولة المستند {documentId} إلى قائمة الانتظار. الحالة: {status}."
+    },
+    "fields": {
+      "trace": "التتبع",
+      "filename": "اسم الملف",
+      "type": "النوع",
+      "status": "الحالة",
+      "requestedAt": "وقت الطلب",
+      "holdError": "تعليق / خطأ",
+      "actions": "الإجراءات"
+    },
+    "states": {
+      "loading": "جارٍ تحميل حالة الحذف...",
+      "emptyTitle": "لا توجد مستندات في حالات الحذف",
+      "emptyDescription": "اكتملت جميع عمليات حذف المستندات بنجاح. لا توجد عمليات معلقة أو متوقفة."
+    },
+    "pagination": {
+      "range": "{start}–{end} من {total}"
     }
   }
 }

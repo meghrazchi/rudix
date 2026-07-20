@@ -5149,7 +5149,9 @@
       "minConfidence": "Min confidence",
       "maxConfidence": "Max confidence"
     },
-    "statusPills": { "new": "Nuevo" },
+    "statusPills": {
+      "new": "Nuevo"
+    },
     "statuses": {
       "new": "New",
       "triaged": "Triaged",
@@ -5217,6 +5219,53 @@
       "submitted": "Submitted",
       "answerPreview": "Answer preview",
       "actions": "Actions"
+    }
+  },
+  "adminDocumentDeletion": {
+    "access": {
+      "adminRequired": "Se requiere acceso de administrador",
+      "adminRequiredDescription": "No tienes permiso para ver el panel de estado de eliminación.",
+      "denied": "Acceso denegado",
+      "deniedDescription": "No tienes permiso para ver el estado de eliminación de documentos."
+    },
+    "header": {
+      "title": "Estado de eliminación de documentos",
+      "description": "Documentos en estados del ciclo de eliminación. Reintenta las limpiezas bloqueadas o fallidas."
+    },
+    "actions": {
+      "allDocuments": "Todos los documentos",
+      "retry": "Reintentar",
+      "previous": "Anterior",
+      "next": "Siguiente"
+    },
+    "statuses": {
+      "delete_requested": "Eliminación solicitada",
+      "deleting": "Eliminando",
+      "retained_by_policy": "Retenido",
+      "failed": "Limpieza fallida"
+    },
+    "filters": {
+      "includeFailed": "Incluir documentos cuya limpieza falló"
+    },
+    "feedback": {
+      "retryQueued": "Se puso en cola el reintento del documento {documentId}. Estado: {status}."
+    },
+    "fields": {
+      "trace": "Traza",
+      "filename": "Nombre de archivo",
+      "type": "Tipo",
+      "status": "Estado",
+      "requestedAt": "Solicitado el",
+      "holdError": "Retención / error",
+      "actions": "Acciones"
+    },
+    "states": {
+      "loading": "Cargando el estado de eliminación...",
+      "emptyTitle": "No hay documentos en estados de eliminación",
+      "emptyDescription": "Todas las eliminaciones de documentos finalizaron correctamente. No hay operaciones pendientes ni bloqueadas."
+    },
+    "pagination": {
+      "range": "{start}–{end} de {total}"
     }
   }
 }

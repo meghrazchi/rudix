@@ -5149,7 +5149,9 @@
       "minConfidence": "Min confidence",
       "maxConfidence": "Max confidence"
     },
-    "statusPills": { "new": "Neu" },
+    "statusPills": {
+      "new": "Neu"
+    },
     "statuses": {
       "new": "New",
       "triaged": "Triaged",
@@ -5217,6 +5219,53 @@
       "submitted": "Submitted",
       "answerPreview": "Answer preview",
       "actions": "Actions"
+    }
+  },
+  "adminDocumentDeletion": {
+    "access": {
+      "adminRequired": "Administratorzugriff erforderlich",
+      "adminRequiredDescription": "Sie sind nicht berechtigt, die Übersicht zum Löschstatus anzuzeigen.",
+      "denied": "Zugriff verweigert",
+      "deniedDescription": "Sie sind nicht berechtigt, den Status der Dokumentlöschung anzuzeigen."
+    },
+    "header": {
+      "title": "Status der Dokumentlöschung",
+      "description": "Dokumente in verschiedenen Phasen des Löschvorgangs. Starten Sie festhängende oder fehlgeschlagene Bereinigungen erneut."
+    },
+    "actions": {
+      "allDocuments": "Alle Dokumente",
+      "retry": "Erneut versuchen",
+      "previous": "Zurück",
+      "next": "Weiter"
+    },
+    "statuses": {
+      "delete_requested": "Löschung angefordert",
+      "deleting": "Wird gelöscht",
+      "retained_by_policy": "Aufbewahrt",
+      "failed": "Bereinigung fehlgeschlagen"
+    },
+    "filters": {
+      "includeFailed": "Dokumente mit fehlgeschlagener Bereinigung einschließen"
+    },
+    "feedback": {
+      "retryQueued": "Erneuter Versuch für Dokument {documentId} eingereiht. Status: {status}."
+    },
+    "fields": {
+      "trace": "Trace",
+      "filename": "Dateiname",
+      "type": "Typ",
+      "status": "Status",
+      "requestedAt": "Angefordert am",
+      "holdError": "Sperre / Fehler",
+      "actions": "Aktionen"
+    },
+    "states": {
+      "loading": "Löschstatus wird geladen...",
+      "emptyTitle": "Keine Dokumente in Löschzuständen",
+      "emptyDescription": "Alle Dokumentlöschungen wurden erfolgreich abgeschlossen. Es gibt keine ausstehenden oder festhängenden Vorgänge."
+    },
+    "pagination": {
+      "range": "{start}–{end} von {total}"
     }
   }
 }
