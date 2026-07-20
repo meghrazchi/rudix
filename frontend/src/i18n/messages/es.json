@@ -4893,5 +4893,73 @@
       "permissionRequired": "Necesitas el permiso security_center:view para usar el depurador de acceso.",
       "selectUser": "Selecciona primero un usuario sujeto."
     }
+  },
+  "adminSso": {
+    "title": "SSO empresarial / SAML",
+    "description": "Configura el inicio de sesión único para que los usuarios de tu dominio se autentiquen mediante tu proveedor de identidad.",
+    "statuses": {
+      "enabled": "Activado",
+      "disabled": "Desactivado"
+    },
+    "actions": {
+      "edit": "Editar",
+      "remove": "Eliminar",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "cancel": "Cancelar",
+      "testing": "Probando...",
+      "testConnection": "Probar conexión",
+      "saving": "Guardando...",
+      "saveConfiguration": "Guardar configuración"
+    },
+    "fields": {
+      "spEntityId": "ID de entidad SP",
+      "acsUrl": "URL de ACS",
+      "idpMetadataUrl": "URL de metadatos del IdP",
+      "idpSsoUrl": "URL SSO del IdP",
+      "idpEntityId": "ID de entidad del IdP",
+      "emailDomain": "Dominio de correo",
+      "ssoType": "Tipo de SSO",
+      "idpMetadataXml": "XML de metadatos del IdP",
+      "idpSsoUrlOptional": "URL SSO del IdP (opcional)",
+      "idpEntityIdOptional": "ID de entidad del IdP (opcional)",
+      "changeNoteOptional": "Nota del cambio (opcional)"
+    },
+    "hints": {
+      "emailDomain": "p. ej., company.com",
+      "metadataUrl": "URL del endpoint XML de metadatos SAML del IdP",
+      "metadataXml": "Pega el contenido XML completo del IdP",
+      "overrideMetadata": "Reemplaza el valor obtenido de los metadatos"
+    },
+    "form": {
+      "enableSso": "Activar SSO para este dominio (los usuarios serán redirigidos al IdP)",
+      "metadataInput": "Entrada de metadatos del IdP",
+      "metadataUrl": "URL de metadatos",
+      "pasteXml": "Pegar XML",
+      "changeNotePlaceholder": "Describe los cambios realizados"
+    },
+    "lastTest": {
+      "label": "Última prueba:",
+      "success": "correcta",
+      "failure": "fallida",
+      "at": "el {date}"
+    },
+    "connection": {
+      "succeeded": "Conexión correcta",
+      "failed": "Error de conexión"
+    },
+    "delete": {
+      "title": "¿Eliminar SSO?",
+      "description": "Se eliminará la configuración SSO de tu organización. Los usuarios que ya hayan iniciado sesión mediante SSO no se verán afectados hasta que caduque su sesión.",
+      "removing": "Eliminando...",
+      "confirm": "Eliminar SSO"
+    },
+    "errors": {
+      "permissionRequired": "Solo los propietarios y administradores pueden acceder a la configuración SSO.",
+      "loadFailed": "No se pudo cargar la configuración SSO.",
+      "saveFailed": "No se pudo guardar la configuración SSO.",
+      "removeFailed": "No se pudo eliminar la configuración SSO.",
+      "testFailed": "La prueba de conexión falló."
+    }
   }
 }

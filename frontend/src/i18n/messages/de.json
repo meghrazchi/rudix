@@ -4893,5 +4893,73 @@
       "permissionRequired": "Sie benötigen die Berechtigung security_center:view, um die Zugriffsdiagnose zu verwenden.",
       "selectUser": "Wählen Sie zuerst einen Benutzer aus."
     }
+  },
+  "adminSso": {
+    "title": "Enterprise-SSO / SAML",
+    "description": "Konfigurieren Sie Single Sign-on, damit sich Benutzer Ihrer Domain über Ihren Identitätsanbieter authentifizieren.",
+    "statuses": {
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert"
+    },
+    "actions": {
+      "edit": "Bearbeiten",
+      "remove": "Entfernen",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "cancel": "Abbrechen",
+      "testing": "Wird getestet...",
+      "testConnection": "Verbindung testen",
+      "saving": "Wird gespeichert...",
+      "saveConfiguration": "Konfiguration speichern"
+    },
+    "fields": {
+      "spEntityId": "SP-Entitäts-ID",
+      "acsUrl": "ACS-URL",
+      "idpMetadataUrl": "IdP-Metadaten-URL",
+      "idpSsoUrl": "IdP-SSO-URL",
+      "idpEntityId": "IdP-Entitäts-ID",
+      "emailDomain": "E-Mail-Domain",
+      "ssoType": "SSO-Typ",
+      "idpMetadataXml": "IdP-Metadaten-XML",
+      "idpSsoUrlOptional": "IdP-SSO-URL (optional)",
+      "idpEntityIdOptional": "IdP-Entitäts-ID (optional)",
+      "changeNoteOptional": "Änderungsnotiz (optional)"
+    },
+    "hints": {
+      "emailDomain": "z. B. company.com",
+      "metadataUrl": "URL zum SAML-Metadaten-XML-Endpunkt Ihres IdP",
+      "metadataXml": "Fügen Sie den vollständigen XML-Inhalt Ihres IdP ein",
+      "overrideMetadata": "Aus Metadaten gelesenen Wert überschreiben"
+    },
+    "form": {
+      "enableSso": "SSO für diese Domain aktivieren (Benutzer werden zum IdP weitergeleitet)",
+      "metadataInput": "IdP-Metadateneingabe",
+      "metadataUrl": "Metadaten-URL",
+      "pasteXml": "XML einfügen",
+      "changeNotePlaceholder": "Beschreiben Sie Ihre Änderungen"
+    },
+    "lastTest": {
+      "label": "Letzter Test:",
+      "success": "erfolgreich",
+      "failure": "fehlgeschlagen",
+      "at": "am {date}"
+    },
+    "connection": {
+      "succeeded": "Verbindung erfolgreich",
+      "failed": "Verbindung fehlgeschlagen"
+    },
+    "delete": {
+      "title": "SSO entfernen?",
+      "description": "Dadurch wird die SSO-Konfiguration Ihrer Organisation entfernt. Bereits über SSO angemeldete Benutzer sind erst nach Ablauf ihrer Sitzung betroffen.",
+      "removing": "Wird entfernt...",
+      "confirm": "SSO entfernen"
+    },
+    "errors": {
+      "permissionRequired": "Nur Organisationsinhaber und Administratoren können auf die SSO-Konfiguration zugreifen.",
+      "loadFailed": "SSO-Konfiguration konnte nicht geladen werden.",
+      "saveFailed": "SSO-Konfiguration konnte nicht gespeichert werden.",
+      "removeFailed": "SSO-Konfiguration konnte nicht entfernt werden.",
+      "testFailed": "Verbindungstest fehlgeschlagen."
+    }
   }
 }

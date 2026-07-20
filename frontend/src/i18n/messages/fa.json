@@ -4893,5 +4893,73 @@
       "permissionRequired": "برای استفاده از اشکال‌زدای دسترسی به مجوز security_center:view نیاز دارید.",
       "selectUser": "ابتدا کاربر موضوع را انتخاب کنید."
     }
+  },
+  "adminSso": {
+    "title": "ورود یکپارچه سازمانی / SAML",
+    "description": "ورود یکپارچه را پیکربندی کنید تا کاربران دامنه شما از طریق ارائه‌دهنده هویت احراز هویت شوند.",
+    "statuses": {
+      "enabled": "فعال",
+      "disabled": "غیرفعال"
+    },
+    "actions": {
+      "edit": "ویرایش",
+      "remove": "حذف",
+      "copy": "کپی",
+      "copied": "کپی شد",
+      "cancel": "لغو",
+      "testing": "در حال آزمایش...",
+      "testConnection": "آزمایش اتصال",
+      "saving": "در حال ذخیره...",
+      "saveConfiguration": "ذخیره پیکربندی"
+    },
+    "fields": {
+      "spEntityId": "شناسه موجودیت SP",
+      "acsUrl": "نشانی ACS",
+      "idpMetadataUrl": "نشانی فراداده IdP",
+      "idpSsoUrl": "نشانی SSO ارائه‌دهنده هویت",
+      "idpEntityId": "شناسه موجودیت IdP",
+      "emailDomain": "دامنه ایمیل",
+      "ssoType": "نوع SSO",
+      "idpMetadataXml": "XML فراداده IdP",
+      "idpSsoUrlOptional": "نشانی SSO ارائه‌دهنده هویت (اختیاری)",
+      "idpEntityIdOptional": "شناسه موجودیت IdP (اختیاری)",
+      "changeNoteOptional": "یادداشت تغییر (اختیاری)"
+    },
+    "hints": {
+      "emailDomain": "برای نمونه company.com",
+      "metadataUrl": "نشانی نقطه پایانی XML فراداده SAML ارائه‌دهنده هویت",
+      "metadataXml": "محتوای کامل XML ارائه‌دهنده هویت را وارد کنید",
+      "overrideMetadata": "مقدار استخراج‌شده از فراداده را بازنویسی می‌کند"
+    },
+    "form": {
+      "enableSso": "فعال‌سازی SSO برای این دامنه (کاربران به ارائه‌دهنده هویت هدایت می‌شوند)",
+      "metadataInput": "ورودی فراداده IdP",
+      "metadataUrl": "نشانی فراداده",
+      "pasteXml": "چسباندن XML",
+      "changeNotePlaceholder": "تغییرات انجام‌شده را توضیح دهید"
+    },
+    "lastTest": {
+      "label": "آخرین آزمایش:",
+      "success": "موفق",
+      "failure": "ناموفق",
+      "at": "در {date}"
+    },
+    "connection": {
+      "succeeded": "اتصال موفق بود",
+      "failed": "اتصال ناموفق بود"
+    },
+    "delete": {
+      "title": "SSO حذف شود؟",
+      "description": "پیکربندی SSO سازمان شما حذف می‌شود. کاربرانی که اکنون با SSO وارد شده‌اند تا پایان نشست خود تحت تأثیر قرار نمی‌گیرند.",
+      "removing": "در حال حذف...",
+      "confirm": "حذف SSO"
+    },
+    "errors": {
+      "permissionRequired": "فقط مالکان و مدیران سازمان می‌توانند به پیکربندی SSO دسترسی داشته باشند.",
+      "loadFailed": "بارگیری پیکربندی SSO ناموفق بود.",
+      "saveFailed": "ذخیره پیکربندی SSO ناموفق بود.",
+      "removeFailed": "حذف پیکربندی SSO ناموفق بود.",
+      "testFailed": "آزمایش اتصال ناموفق بود."
+    }
   }
 }

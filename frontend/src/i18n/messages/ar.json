@@ -4893,5 +4893,73 @@
       "permissionRequired": "تحتاج إلى إذن security_center:view لاستخدام مصصح الوصول.",
       "selectUser": "حدد المستخدم موضوع الفحص أولًا."
     }
+  },
+  "adminSso": {
+    "title": "تسجيل الدخول الموحد للمؤسسات / SAML",
+    "description": "هيّئ تسجيل الدخول الموحد كي يصادق مستخدمو نطاقك عبر موفر الهوية.",
+    "statuses": {
+      "enabled": "مفعّل",
+      "disabled": "معطّل"
+    },
+    "actions": {
+      "edit": "تعديل",
+      "remove": "إزالة",
+      "copy": "نسخ",
+      "copied": "تم النسخ",
+      "cancel": "إلغاء",
+      "testing": "جارٍ الاختبار...",
+      "testConnection": "اختبار الاتصال",
+      "saving": "جارٍ الحفظ...",
+      "saveConfiguration": "حفظ الإعدادات"
+    },
+    "fields": {
+      "spEntityId": "معرّف كيان SP",
+      "acsUrl": "عنوان ACS",
+      "idpMetadataUrl": "عنوان بيانات IdP الوصفية",
+      "idpSsoUrl": "عنوان SSO لموفر الهوية",
+      "idpEntityId": "معرّف كيان IdP",
+      "emailDomain": "نطاق البريد الإلكتروني",
+      "ssoType": "نوع SSO",
+      "idpMetadataXml": "XML لبيانات IdP الوصفية",
+      "idpSsoUrlOptional": "عنوان SSO لموفر الهوية (اختياري)",
+      "idpEntityIdOptional": "معرّف كيان IdP (اختياري)",
+      "changeNoteOptional": "ملاحظة التغيير (اختياري)"
+    },
+    "hints": {
+      "emailDomain": "مثال: company.com",
+      "metadataUrl": "عنوان نقطة نهاية XML لبيانات SAML الوصفية لدى موفر الهوية",
+      "metadataXml": "الصق محتوى XML الكامل من موفر الهوية",
+      "overrideMetadata": "يتجاوز القيمة المستخرجة من البيانات الوصفية"
+    },
+    "form": {
+      "enableSso": "تفعيل SSO لهذا النطاق (سيُعاد توجيه المستخدمين إلى موفر الهوية)",
+      "metadataInput": "إدخال بيانات IdP الوصفية",
+      "metadataUrl": "عنوان البيانات الوصفية",
+      "pasteXml": "لصق XML",
+      "changeNotePlaceholder": "صف التغييرات التي أجريتها"
+    },
+    "lastTest": {
+      "label": "آخر اختبار:",
+      "success": "ناجح",
+      "failure": "فاشل",
+      "at": "في {date}"
+    },
+    "connection": {
+      "succeeded": "نجح الاتصال",
+      "failed": "فشل الاتصال"
+    },
+    "delete": {
+      "title": "إزالة SSO؟",
+      "description": "سيؤدي ذلك إلى إزالة إعدادات SSO لمؤسستك. لن يتأثر المستخدمون المسجلون حاليًا عبر SSO حتى تنتهي جلستهم.",
+      "removing": "جارٍ الإزالة...",
+      "confirm": "إزالة SSO"
+    },
+    "errors": {
+      "permissionRequired": "يمكن لمالكي المؤسسة والمشرفين فقط الوصول إلى إعدادات SSO.",
+      "loadFailed": "تعذر تحميل إعدادات SSO.",
+      "saveFailed": "تعذر حفظ إعدادات SSO.",
+      "removeFailed": "تعذر إزالة إعدادات SSO.",
+      "testFailed": "فشل اختبار الاتصال."
+    }
   }
 }

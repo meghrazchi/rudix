@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   deleteSSOConfig,
@@ -73,6 +74,7 @@ function getFallbackErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function AdminSSOPage() {
+  const t = useTranslations("adminSso");
   const { state } = useAuthSession();
   const queryClient = useQueryClient();
   const role = state.session?.role;
@@ -103,9 +105,7 @@ export function AdminSSOPage() {
       setSubmitError(null);
     },
     onError: (err) => {
-      setSubmitError(
-        getFallbackErrorMessage(err, "Failed to save SSO configuration."),
-      );
+      setSubmitError(getFallbackErrorMessage(err, t("errors.saveFailed")));
     },
   });
 
@@ -117,9 +117,7 @@ export function AdminSSOPage() {
       setDraft(null);
     },
     onError: (err) => {
-      setSubmitError(
-        getFallbackErrorMessage(err, "Failed to remove SSO configuration."),
-      );
+      setSubmitError(getFallbackErrorMessage(err, t("errors.removeFailed")));
     },
   });
 
@@ -138,19 +136,30 @@ export function AdminSSOPage() {
       queryClient.invalidateQueries({ queryKey: ssoKey });
     },
     onError: (err) => {
-      setSubmitError(getFallbackErrorMessage(err, "Connection test failed."));
+      setSubmitError(getFallbackErrorMessage(err, t("errors.testFailed")));
     },
   });
 
-  if (!isAdmin) return <ForbiddenState />;
+  if (!isAdmin)
+    return (
+      <ForbiddenState
+        title={t("title")}
+        description={t("errors.permissionRequired")}
+      />
+    );
   if (configQuery.isLoading) return <LoadingState />;
   if (configQuery.isError && isForbiddenError(configQuery.error))
-    return <ForbiddenState />;
+    return (
+      <ForbiddenState
+        title={t("title")}
+        description={t("errors.permissionRequired")}
+      />
+    );
   if (configQuery.isError)
     return (
       <ErrorState
         error={configQuery.error}
-        description="Failed to load SSO configuration."
+        description={t("errors.loadFailed")}
         onRetry={() => void configQuery.refetch()}
       />
     );
@@ -200,13 +209,8 @@ export function AdminSSOPage() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#2a2640]">
-          Enterprise SSO / SAML
-        </h1>
-        <p className="mt-1 text-sm text-[#68647b]">
-          Configure single sign-on so users from your domain authenticate
-          through your identity provider.
-        </p>
+        <h1 className="text-2xl font-bold text-[#2a2640]">{t("title")}</h1>
+        <p className="mt-1 text-sm text-[#68647b]">{t("description")}</p>
       </div>
 
       {config && !isEditing ? (
@@ -254,6 +258,7 @@ function SSOConfigReadView({
   onEdit: () => void;
   onDeleteClick: () => void;
 }) {
+  const t = useTranslations("adminSso");
   return (
     <div className="space-y-4 rounded-xl border border-[#d7d4e8] bg-white p-6">
       <div className="flex items-center justify-between">
@@ -265,7 +270,7 @@ function SSOConfigReadView({
                 : "bg-slate-100 text-slate-600"
             }`}
           >
-            {config.enabled ? "Enabled" : "Disabled"}
+            {config.enabled ? t("statuses.enabled") : t("statuses.disabled")}
           </span>
           <span className="text-sm font-medium text-[#2a2640]">
             {config.domain}
@@ -281,38 +286,50 @@ function SSOConfigReadView({
               onClick={onEdit}
               className="rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff]"
             >
-              Edit
+              {t("actions.edit")}
             </button>
             <button
               type="button"
               onClick={onDeleteClick}
               className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
             >
-              Remove
+              {t("actions.remove")}
             </button>
           </div>
         ) : null}
       </div>
 
-      <ReadField label="SP Entity ID" value={config.sp_entity_id} mono />
-      <ReadField label="ACS URL" value={config.sp_acs_url} mono />
+      <ReadField
+        label={t("fields.spEntityId")}
+        value={config.sp_entity_id}
+        mono
+      />
+      <ReadField label={t("fields.acsUrl")} value={config.sp_acs_url} mono />
       {config.idp_metadata_url ? (
         <ReadField
-          label="IdP Metadata URL"
+          label={t("fields.idpMetadataUrl")}
           value={config.idp_metadata_url}
           mono
         />
       ) : null}
       {config.idp_sso_url ? (
-        <ReadField label="IdP SSO URL" value={config.idp_sso_url} mono />
+        <ReadField
+          label={t("fields.idpSsoUrl")}
+          value={config.idp_sso_url}
+          mono
+        />
       ) : null}
       {config.idp_entity_id ? (
-        <ReadField label="IdP Entity ID" value={config.idp_entity_id} mono />
+        <ReadField
+          label={t("fields.idpEntityId")}
+          value={config.idp_entity_id}
+          mono
+        />
       ) : null}
 
       {config.last_test_at ? (
         <div className="flex items-center gap-2 text-xs text-[#68647b]">
-          <span>Last test:</span>
+          <span>{t("lastTest.label")}</span>
           <span
             className={
               config.last_test_result === "success"
@@ -320,9 +337,15 @@ function SSOConfigReadView({
                 : "font-semibold text-rose-700"
             }
           >
-            {config.last_test_result}
+            {config.last_test_result === "success"
+              ? t("lastTest.success")
+              : t("lastTest.failure")}
           </span>
-          <span>at {new Date(config.last_test_at).toLocaleString()}</span>
+          <span>
+            {t("lastTest.at", {
+              date: new Date(config.last_test_at).toLocaleString(),
+            })}
+          </span>
         </div>
       ) : null}
     </div>
@@ -338,6 +361,7 @@ function ReadField({
   value: string;
   mono?: boolean;
 }) {
+  const t = useTranslations("adminSso");
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -365,7 +389,7 @@ function ReadField({
           onClick={handleCopy}
           className="shrink-0 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] transition hover:bg-[#f5f3ff]"
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("actions.copied") : t("actions.copy")}
         </button>
       </div>
     </div>
@@ -393,10 +417,15 @@ function SSOConfigForm({
   onSave: () => void;
   onCancel?: () => void;
 }) {
+  const t = useTranslations("adminSso");
   return (
     <div className="space-y-5 rounded-xl border border-[#d7d4e8] bg-white p-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label="Email Domain" required hint="e.g. company.com">
+        <FormField
+          label={t("fields.emailDomain")}
+          required
+          hint={t("hints.emailDomain")}
+        >
           <input
             type="text"
             disabled={!isOwner || isBusy}
@@ -407,7 +436,7 @@ function SSOConfigForm({
           />
         </FormField>
 
-        <FormField label="SSO Type">
+        <FormField label={t("fields.ssoType")}>
           <select
             disabled={!isOwner || isBusy}
             value={draft.sso_type}
@@ -432,13 +461,13 @@ function SSOConfigForm({
           className="h-4 w-4 rounded border-[#d2cee6]"
         />
         <label htmlFor="sso-enabled" className="text-sm text-[#2a2640]">
-          Enable SSO for this domain (users will be redirected to your IdP)
+          {t("form.enableSso")}
         </label>
       </div>
 
       <div>
         <p className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-          IdP Metadata Input
+          {t("form.metadataInput")}
         </p>
         <div className="mb-3 flex gap-3 text-sm">
           <label className="flex cursor-pointer items-center gap-1.5">
@@ -448,7 +477,7 @@ function SSOConfigForm({
               checked={draft.input_mode === "url"}
               onChange={() => onFieldChange("input_mode", "url")}
             />
-            Metadata URL
+            {t("form.metadataUrl")}
           </label>
           <label className="flex cursor-pointer items-center gap-1.5">
             <input
@@ -457,14 +486,14 @@ function SSOConfigForm({
               checked={draft.input_mode === "xml"}
               onChange={() => onFieldChange("input_mode", "xml")}
             />
-            Paste XML
+            {t("form.pasteXml")}
           </label>
         </div>
 
         {draft.input_mode === "url" ? (
           <FormField
-            label="IdP Metadata URL"
-            hint="URL to your IdP's SAML metadata XML endpoint"
+            label={t("fields.idpMetadataUrl")}
+            hint={t("hints.metadataUrl")}
           >
             <input
               type="url"
@@ -479,8 +508,8 @@ function SSOConfigForm({
           </FormField>
         ) : (
           <FormField
-            label="IdP Metadata XML"
-            hint="Paste the full XML content from your IdP"
+            label={t("fields.idpMetadataXml")}
+            hint={t("hints.metadataXml")}
           >
             <textarea
               disabled={!isOwner || isBusy}
@@ -498,8 +527,8 @@ function SSOConfigForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField
-          label="IdP SSO URL (optional)"
-          hint="Override parsed from metadata"
+          label={t("fields.idpSsoUrlOptional")}
+          hint={t("hints.overrideMetadata")}
         >
           <input
             type="url"
@@ -512,8 +541,8 @@ function SSOConfigForm({
         </FormField>
 
         <FormField
-          label="IdP Entity ID (optional)"
-          hint="Override parsed from metadata"
+          label={t("fields.idpEntityIdOptional")}
+          hint={t("hints.overrideMetadata")}
         >
           <input
             type="text"
@@ -526,13 +555,13 @@ function SSOConfigForm({
         </FormField>
       </div>
 
-      <FormField label="Change Note (optional)">
+      <FormField label={t("fields.changeNoteOptional")}>
         <input
           type="text"
           disabled={!isOwner || isBusy}
           value={draft.change_note}
           onChange={(e) => onFieldChange("change_note", e.target.value)}
-          placeholder="Describe what you changed"
+          placeholder={t("form.changeNotePlaceholder")}
           className="h-9 w-full rounded-lg border border-[#d2cee6] px-3 text-sm disabled:opacity-50"
         />
       </FormField>
@@ -546,7 +575,10 @@ function SSOConfigForm({
           }`}
         >
           <span className="font-semibold">
-            {testResult.success ? "Connection succeeded" : "Connection failed"}:
+            {testResult.success
+              ? t("connection.succeeded")
+              : t("connection.failed")}
+            :
           </span>{" "}
           {testResult.detail}
         </div>
@@ -566,7 +598,7 @@ function SSOConfigForm({
             disabled={isBusy}
             className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
           >
-            {testMutationLabel(isBusy)}
+            {isBusy ? t("actions.testing") : t("actions.testConnection")}
           </button>
           <button
             type="button"
@@ -574,7 +606,7 @@ function SSOConfigForm({
             disabled={isBusy || !draft.domain.trim()}
             className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
           >
-            {upsertMutationLabel(isBusy)}
+            {isBusy ? t("actions.saving") : t("actions.saveConfiguration")}
           </button>
           {onCancel ? (
             <button
@@ -583,21 +615,13 @@ function SSOConfigForm({
               disabled={isBusy}
               className="text-sm text-[#68647b] underline decoration-[#bdb7e5] disabled:opacity-60"
             >
-              Cancel
+              {t("actions.cancel")}
             </button>
           ) : null}
         </div>
       ) : null}
     </div>
   );
-}
-
-function testMutationLabel(isBusy: boolean): string {
-  return isBusy ? "Testing..." : "Test Connection";
-}
-
-function upsertMutationLabel(isBusy: boolean): string {
-  return isBusy ? "Saving..." : "Save Configuration";
 }
 
 function FormField({
@@ -615,7 +639,7 @@ function FormField({
     <div>
       <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
         {label}
-        {required ? <span className="ml-1 text-rose-500">*</span> : null}
+        {required ? <span className="ms-1 text-rose-500">*</span> : null}
       </label>
       {children}
       {hint ? <p className="mt-0.5 text-xs text-[#a09cb8]">{hint}</p> : null}
@@ -632,15 +656,14 @@ function DeleteConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("adminSso");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-[#d7d4e8] bg-white p-6 shadow-xl">
-        <h2 className="mb-2 text-lg font-bold text-[#2a2640]">Remove SSO?</h2>
-        <p className="mb-5 text-sm text-[#68647b]">
-          This will remove the SSO configuration for your organization. Users
-          currently logged in via SSO will not be affected until their session
-          expires.
-        </p>
+        <h2 className="mb-2 text-lg font-bold text-[#2a2640]">
+          {t("delete.title")}
+        </h2>
+        <p className="mb-5 text-sm text-[#68647b]">{t("delete.description")}</p>
         <div className="flex gap-3">
           <button
             type="button"
@@ -648,7 +671,7 @@ function DeleteConfirmModal({
             disabled={isBusy}
             className="flex-1 rounded-lg bg-rose-600 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60"
           >
-            {isBusy ? "Removing..." : "Remove SSO"}
+            {isBusy ? t("delete.removing") : t("delete.confirm")}
           </button>
           <button
             type="button"
@@ -656,7 +679,7 @@ function DeleteConfirmModal({
             disabled={isBusy}
             className="flex-1 rounded-lg border border-[#d2cee6] py-2 text-sm font-semibold text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
           >
-            Cancel
+            {t("actions.cancel")}
           </button>
         </div>
       </div>

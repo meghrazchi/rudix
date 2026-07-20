@@ -4893,5 +4893,73 @@
       "permissionRequired": "You need the security_center:view permission to use the Access Debugger.",
       "selectUser": "Select a subject user first."
     }
+  },
+  "adminSso": {
+    "title": "Enterprise SSO / SAML",
+    "description": "Configure single sign-on so users from your domain authenticate through your identity provider.",
+    "statuses": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "actions": {
+      "edit": "Edit",
+      "remove": "Remove",
+      "copy": "Copy",
+      "copied": "Copied",
+      "cancel": "Cancel",
+      "testing": "Testing...",
+      "testConnection": "Test Connection",
+      "saving": "Saving...",
+      "saveConfiguration": "Save Configuration"
+    },
+    "fields": {
+      "spEntityId": "SP Entity ID",
+      "acsUrl": "ACS URL",
+      "idpMetadataUrl": "IdP Metadata URL",
+      "idpSsoUrl": "IdP SSO URL",
+      "idpEntityId": "IdP Entity ID",
+      "emailDomain": "Email Domain",
+      "ssoType": "SSO Type",
+      "idpMetadataXml": "IdP Metadata XML",
+      "idpSsoUrlOptional": "IdP SSO URL (optional)",
+      "idpEntityIdOptional": "IdP Entity ID (optional)",
+      "changeNoteOptional": "Change Note (optional)"
+    },
+    "hints": {
+      "emailDomain": "e.g. company.com",
+      "metadataUrl": "URL to your IdP's SAML metadata XML endpoint",
+      "metadataXml": "Paste the full XML content from your IdP",
+      "overrideMetadata": "Override parsed from metadata"
+    },
+    "form": {
+      "enableSso": "Enable SSO for this domain (users will be redirected to your IdP)",
+      "metadataInput": "IdP Metadata Input",
+      "metadataUrl": "Metadata URL",
+      "pasteXml": "Paste XML",
+      "changeNotePlaceholder": "Describe what you changed"
+    },
+    "lastTest": {
+      "label": "Last test:",
+      "success": "success",
+      "failure": "failure",
+      "at": "at {date}"
+    },
+    "connection": {
+      "succeeded": "Connection succeeded",
+      "failed": "Connection failed"
+    },
+    "delete": {
+      "title": "Remove SSO?",
+      "description": "This will remove the SSO configuration for your organization. Users currently logged in via SSO will not be affected until their session expires.",
+      "removing": "Removing...",
+      "confirm": "Remove SSO"
+    },
+    "errors": {
+      "permissionRequired": "Only organization owners and administrators can access SSO configuration.",
+      "loadFailed": "Failed to load SSO configuration.",
+      "saveFailed": "Failed to save SSO configuration.",
+      "removeFailed": "Failed to remove SSO configuration.",
+      "testFailed": "Connection test failed."
+    }
   }
 }
