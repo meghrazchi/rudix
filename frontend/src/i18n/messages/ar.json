@@ -4329,5 +4329,97 @@
         "objective": "الهدف: مراجعة الثقة"
       }
     }
+  },
+  "graphExplorer": {
+    "eyebrow": "رسم المؤسسة البياني",
+    "title": "مستكشف الرسم البياني",
+    "description": "ابحث عن الكيانات المدعومة بالأدلة وافحص العلاقات وافتح أدلة المصدر من الواجهة نفسها.",
+    "entities": "الكيانات",
+    "relationships": "العلاقات",
+    "id": "المعرّف",
+    "filter": "تصفية",
+    "reset": "إعادة تعيين",
+    "clearFilters": "مسح عوامل التصفية",
+    "previous": "السابق",
+    "next": "التالي",
+    "backToDashboard": "العودة إلى لوحة المعلومات",
+    "search": "بحث",
+    "results": "النتائج",
+    "matchingEntities": "{count} كيان مطابق",
+    "loading": "جارٍ تحميل مستكشف الرسم…",
+    "entityResults": "نتائج الكيانات",
+    "showingEntities": "عرض {shown} من {total} كيان",
+    "pageOf": "الصفحة {page} من {pages}",
+    "filterHint": "استخدم عوامل التصفية لحصر الرسم في السجلات المدعومة بالأدلة.",
+    "overview": {
+      "title": "نظرة عامة على الرسم",
+      "avgConfidence": "متوسط الثقة {value}",
+      "lowConfidence": "ثقة منخفضة",
+      "belowThreshold": "كيانات دون الحد",
+      "entityTypes": "أنواع الكيانات"
+    },
+    "relationship": {
+      "description": "تصفح علاقات الكيانات الخاصة بالمؤسسة.",
+      "loading": "جارٍ تحميل العلاقات…",
+      "emptyTitle": "لم يتم العثور على علاقات",
+      "emptyDescription": "وسّع عوامل التصفية أو انتظر اكتمال استخراج الكيانات.",
+      "showing": "عرض {shown} من {total} علاقة"
+    },
+    "filters": {
+      "relationshipType": "نوع العلاقة",
+      "minConfidence": "الحد الأدنى للثقة",
+      "searchPlaceholder": "اسم الكيان أو الاسم البديل أو المصدر الخارجي",
+      "entityType": "نوع الكيان",
+      "allEntityTypes": "جميع أنواع الكيانات",
+      "minimumConfidence": "الحد الأدنى للثقة",
+      "sourceDocument": "المستند المصدر",
+      "documentId": "معرّف المستند",
+      "sourceConnector": "موصل المصدر",
+      "relationshipDirection": "اتجاه العلاقة"
+    },
+    "directions": {
+      "both": "الاتجاهان",
+      "out": "صادر",
+      "in": "وارد"
+    },
+    "columns": {
+      "fromEntity": "الكيان المصدر",
+      "relation": "العلاقة",
+      "toEntity": "الكيان الهدف",
+      "confidence": "الثقة",
+      "status": "الحالة",
+      "entity": "الكيان",
+      "aliases": "الأسماء البديلة",
+      "evidence": "الأدلة",
+      "documents": "المستندات",
+      "updated": "تم التحديث"
+    },
+    "errors": {
+      "restrictedTitle": "مستكشف الرسم مقيّد",
+      "restrictedDescription": "ليست لديك صلاحية عرض بيانات الرسم لهذه المؤسسة.",
+      "unavailable": "مستكشف الرسم غير متاح"
+    },
+    "empty": {
+      "title": "لم يتم العثور على كيانات",
+      "description": "وسّع البحث أو اخفض الثقة أو امسح عوامل تصفية العلاقات."
+    },
+    "entityTypes": {
+      "entity": "كيان",
+      "person": "شخص",
+      "organization": "مؤسسة",
+      "customer": "عميل",
+      "vendor": "مورّد",
+      "product": "منتج",
+      "project": "مشروع",
+      "policy": "سياسة",
+      "contract": "عقد",
+      "control": "ضابط",
+      "requirement": "متطلب",
+      "risk": "مخاطر",
+      "ticket": "تذكرة",
+      "system": "نظام",
+      "process": "عملية",
+      "obligation": "التزام"
+    }
   }
 }

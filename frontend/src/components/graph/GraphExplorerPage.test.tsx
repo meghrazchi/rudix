@@ -168,7 +168,7 @@ describe("GraphExplorerPage", () => {
     );
     renderPage();
 
-    expect(screen.getByText("Loading graph explorer...")).toBeInTheDocument();
+    expect(screen.getByText("Loading graph explorer…")).toBeInTheDocument();
   });
 
   it("shows forbidden state for 403 responses", async () => {

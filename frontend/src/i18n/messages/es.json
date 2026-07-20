@@ -4329,5 +4329,97 @@
         "objective": "Objetivo: Revisión de confianza"
       }
     }
+  },
+  "graphExplorer": {
+    "eyebrow": "Grafo empresarial",
+    "title": "Explorador de grafos",
+    "description": "Busque entidades respaldadas por evidencias, inspeccione relaciones y abra las fuentes desde la misma interfaz.",
+    "entities": "Entidades",
+    "relationships": "Relaciones",
+    "id": "ID",
+    "filter": "Filtrar",
+    "reset": "Restablecer",
+    "clearFilters": "Borrar filtros",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "backToDashboard": "Volver al panel",
+    "search": "Buscar",
+    "results": "Resultados",
+    "matchingEntities": "{count} entidades coincidentes",
+    "loading": "Cargando explorador…",
+    "entityResults": "Resultados de entidades",
+    "showingEntities": "Mostrando {shown} de {total} entidades",
+    "pageOf": "Página {page} de {pages}",
+    "filterHint": "Use los filtros para limitar el grafo a registros respaldados por evidencias.",
+    "overview": {
+      "title": "Resumen del grafo",
+      "avgConfidence": "Confianza media {value}",
+      "lowConfidence": "Confianza baja",
+      "belowThreshold": "Entidades bajo el umbral",
+      "entityTypes": "Tipos de entidad"
+    },
+    "relationship": {
+      "description": "Explore relaciones de entidades limitadas a la organización.",
+      "loading": "Cargando relaciones…",
+      "emptyTitle": "No se encontraron relaciones",
+      "emptyDescription": "Amplíe los filtros o espere a que finalice la extracción.",
+      "showing": "Mostrando {shown} de {total} relaciones"
+    },
+    "filters": {
+      "relationshipType": "Tipo de relación",
+      "minConfidence": "Confianza mínima",
+      "searchPlaceholder": "Nombre, alias o fuente externa",
+      "entityType": "Tipo de entidad",
+      "allEntityTypes": "Todos los tipos",
+      "minimumConfidence": "Confianza mínima",
+      "sourceDocument": "Documento de origen",
+      "documentId": "ID del documento",
+      "sourceConnector": "Conector de origen",
+      "relationshipDirection": "Dirección de relación"
+    },
+    "directions": {
+      "both": "Ambas direcciones",
+      "out": "Saliente",
+      "in": "Entrante"
+    },
+    "columns": {
+      "fromEntity": "Entidad de origen",
+      "relation": "Relación",
+      "toEntity": "Entidad de destino",
+      "confidence": "Confianza",
+      "status": "Estado",
+      "entity": "Entidad",
+      "aliases": "Alias",
+      "evidence": "Evidencia",
+      "documents": "Documentos",
+      "updated": "Actualizado"
+    },
+    "errors": {
+      "restrictedTitle": "Explorador restringido",
+      "restrictedDescription": "No tiene permiso para ver los datos del grafo de esta organización.",
+      "unavailable": "Explorador no disponible"
+    },
+    "empty": {
+      "title": "No se encontraron entidades",
+      "description": "Amplíe la búsqueda, reduzca la confianza o borre los filtros de relación."
+    },
+    "entityTypes": {
+      "entity": "Entidad",
+      "person": "Persona",
+      "organization": "Organización",
+      "customer": "Cliente",
+      "vendor": "Proveedor",
+      "product": "Producto",
+      "project": "Proyecto",
+      "policy": "Política",
+      "contract": "Contrato",
+      "control": "Control",
+      "requirement": "Requisito",
+      "risk": "Riesgo",
+      "ticket": "Ticket",
+      "system": "Sistema",
+      "process": "Proceso",
+      "obligation": "Obligación"
+    }
   }
 }

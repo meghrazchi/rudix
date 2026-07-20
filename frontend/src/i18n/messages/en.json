@@ -4329,5 +4329,97 @@
         "objective": "Investigate the low-confidence answer, verify the evidence, and explain the trust gaps."
       }
     }
+  },
+  "graphExplorer": {
+    "eyebrow": "Enterprise Graph",
+    "title": "Graph explorer",
+    "description": "Search evidence-backed entities, inspect relationships, and open source evidence from the same interface.",
+    "entities": "Entities",
+    "relationships": "Relationships",
+    "id": "ID",
+    "filter": "Filter",
+    "reset": "Reset",
+    "clearFilters": "Clear filters",
+    "previous": "Previous",
+    "next": "Next",
+    "backToDashboard": "Back to dashboard",
+    "search": "Search",
+    "results": "Results",
+    "matchingEntities": "{count} matching entities",
+    "loading": "Loading graph explorer…",
+    "entityResults": "Entity results",
+    "showingEntities": "Showing {shown} of {total} entities",
+    "pageOf": "Page {page} of {pages}",
+    "filterHint": "Use the filters to narrow the graph to evidence-backed records.",
+    "overview": {
+      "title": "Graph overview",
+      "avgConfidence": "Avg confidence {value}",
+      "lowConfidence": "Low confidence",
+      "belowThreshold": "Entities below threshold",
+      "entityTypes": "Entity types"
+    },
+    "relationship": {
+      "description": "Browse organization-scoped entity relationships.",
+      "loading": "Loading relationships…",
+      "emptyTitle": "No relationships found",
+      "emptyDescription": "Try broadening filters or waiting for entity extraction to complete.",
+      "showing": "Showing {shown} of {total} relationships"
+    },
+    "filters": {
+      "relationshipType": "Relationship type",
+      "minConfidence": "Min confidence",
+      "searchPlaceholder": "Entity name, alias, or external source",
+      "entityType": "Entity type",
+      "allEntityTypes": "All entity types",
+      "minimumConfidence": "Minimum confidence",
+      "sourceDocument": "Source document",
+      "documentId": "Document ID",
+      "sourceConnector": "Source connector",
+      "relationshipDirection": "Relationship direction"
+    },
+    "directions": {
+      "both": "Both directions",
+      "out": "Outgoing",
+      "in": "Incoming"
+    },
+    "columns": {
+      "fromEntity": "From entity",
+      "relation": "Relation",
+      "toEntity": "To entity",
+      "confidence": "Confidence",
+      "status": "Status",
+      "entity": "Entity",
+      "aliases": "Aliases",
+      "evidence": "Evidence",
+      "documents": "Documents",
+      "updated": "Updated"
+    },
+    "errors": {
+      "restrictedTitle": "Graph explorer restricted",
+      "restrictedDescription": "You do not have permission to view graph data for this organization.",
+      "unavailable": "Graph explorer unavailable"
+    },
+    "empty": {
+      "title": "No graph entities found",
+      "description": "Try broadening the search query, lowering confidence, or clearing relationship filters."
+    },
+    "entityTypes": {
+      "entity": "Entity",
+      "person": "Person",
+      "organization": "Organization",
+      "customer": "Customer",
+      "vendor": "Vendor",
+      "product": "Product",
+      "project": "Project",
+      "policy": "Policy",
+      "contract": "Contract",
+      "control": "Control",
+      "requirement": "Requirement",
+      "risk": "Risk",
+      "ticket": "Ticket",
+      "system": "System",
+      "process": "Process",
+      "obligation": "Obligation"
+    }
   }
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -60,7 +61,7 @@ const ENTITY_TYPES = [
   "Obligation",
 ];
 
-function formatDate(value: string | null | undefined): string {
+function formatDate(value: string | null | undefined, locale: string): string {
   if (!value) {
     return "—";
   }
@@ -70,7 +71,7 @@ function formatDate(value: string | null | undefined): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -196,28 +197,33 @@ function GraphStatsPanel({
   onTypeClick: (type: string) => void;
   activeType: string;
 }) {
+  const t = useTranslations("graphExplorer");
   return (
     <div className="space-y-4 rounded-3xl border border-[#d7d4e8] bg-white p-6 shadow-sm">
-      <h2 className="text-base font-bold text-[#2a2640]">Graph overview</h2>
+      <h2 className="text-base font-bold text-[#2a2640]">
+        {t("overview.title")}
+      </h2>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard
-          label="Entities"
+          label={t("entities")}
           value={stats.total_entities}
-          sub={`Avg confidence ${formatConfidence(stats.avg_confidence)}`}
+          sub={t("overview.avgConfidence", {
+            value: formatConfidence(stats.avg_confidence),
+          })}
         />
-        <StatCard label="Relationships" value={stats.total_relations} />
+        <StatCard label={t("relationships")} value={stats.total_relations} />
         <StatCard
-          label="Low confidence"
+          label={t("overview.lowConfidence")}
           value={stats.low_confidence_count}
-          sub="Entities below threshold"
+          sub={t("overview.belowThreshold")}
         />
       </div>
 
       {stats.entities_by_type.length > 0 ? (
         <div>
           <p className="mb-2 text-xs font-bold tracking-[0.12em] text-[#5d58a8] uppercase">
-            Entity types
+            {t("overview.entityTypes")}
           </p>
           <div className="flex flex-wrap gap-2">
             {stats.entities_by_type.map((item) => (
@@ -251,6 +257,8 @@ function GraphStatsPanel({
 // ------------------------------------------------------------------
 
 function SearchResultRow({ item }: { item: GraphEntitySearchItem }) {
+  const t = useTranslations("graphExplorer");
+  const locale = useLocale();
   const aliasPreview =
     item.aliases.length > 0 ? item.aliases.slice(0, 3).join(", ") : "—";
 
@@ -274,10 +282,16 @@ function SearchResultRow({ item }: { item: GraphEntitySearchItem }) {
                   item.entity_type,
                 )}`}
               >
-                {entityTypeLabel(item.entity_type)}
+                {ENTITY_TYPES.includes(entityTypeLabel(item.entity_type))
+                  ? t(
+                      `entityTypes.${entityTypeLabel(item.entity_type).toLowerCase()}`,
+                    )
+                  : entityTypeLabel(item.entity_type)}
               </span>
             </div>
-            <p className="mt-1 text-xs text-[#68647b]">ID: {item.entity_id}</p>
+            <p className="mt-1 text-xs text-[#68647b]">
+              {t("id")}: {item.entity_id}
+            </p>
           </div>
         </div>
       </td>
@@ -292,7 +306,7 @@ function SearchResultRow({ item }: { item: GraphEntitySearchItem }) {
         {item.related_document_count}
       </td>
       <td className="px-4 py-4 text-sm text-[#4d4861]">
-        {formatDate(item.last_updated_at)}
+        {formatDate(item.last_updated_at, locale)}
       </td>
       <td className="px-4 py-4 text-sm text-[#4d4861]">
         {item.resolution_status ?? "—"}
@@ -338,6 +352,7 @@ function RelationshipRow({ item }: { item: GraphRelationItem }) {
 }
 
 function RelationshipsTab() {
+  const t = useTranslations("graphExplorer");
   const [draftFilters, setDraftFilters] = useState<RelFilters>({
     relType: "",
     minConfidence: "",
@@ -387,14 +402,16 @@ function RelationshipsTab() {
     <section className="space-y-4 rounded-3xl border border-[#d7d4e8] bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-[#2a2640]">Relationships</h2>
+          <h2 className="text-lg font-bold text-[#2a2640]">
+            {t("relationships")}
+          </h2>
           <p className="text-sm text-[#68647b]">
-            Browse org-scoped entity relationships.
+            {t("relationship.description")}
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-            Relationship type
+            {t("filters.relationshipType")}
             <input
               value={draftFilters.relType}
               onChange={(event) =>
@@ -408,7 +425,7 @@ function RelationshipsTab() {
             />
           </label>
           <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-            Min confidence
+            {t("filters.minConfidence")}
             <input
               type="number"
               min="0"
@@ -430,33 +447,33 @@ function RelationshipsTab() {
             onClick={onApply}
             className="rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
           >
-            Filter
+            {t("filter")}
           </button>
           <button
             type="button"
             onClick={onReset}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#433e59] transition hover:bg-slate-50"
           >
-            Reset
+            {t("reset")}
           </button>
         </div>
       </div>
 
       {query.isLoading && !query.data ? (
-        <LoadingState title="Loading relationships..." />
+        <LoadingState title={t("relationship.loading")} />
       ) : null}
 
       {!query.isLoading && items.length === 0 ? (
         <EmptyState
-          title="No relationships found"
-          description="Try broadening filters or waiting for entity extraction to complete."
+          title={t("relationship.emptyTitle")}
+          description={t("relationship.emptyDescription")}
           action={
             <button
               type="button"
               onClick={onReset}
               className="rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
             >
-              Clear filters
+              {t("clearFilters")}
             </button>
           }
         />
@@ -468,11 +485,11 @@ function RelationshipsTab() {
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">
-                  <th className="px-4 py-3">From entity</th>
-                  <th className="px-4 py-3">Relation</th>
-                  <th className="px-4 py-3">To entity</th>
-                  <th className="px-4 py-3">Confidence</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">{t("columns.fromEntity")}</th>
+                  <th className="px-4 py-3">{t("columns.relation")}</th>
+                  <th className="px-4 py-3">{t("columns.toEntity")}</th>
+                  <th className="px-4 py-3">{t("columns.confidence")}</th>
+                  <th className="px-4 py-3">{t("columns.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -490,9 +507,7 @@ function RelationshipsTab() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 text-sm text-[#68647b]">
-            <p>
-              Showing {items.length} of {total.toLocaleString()} relationships
-            </p>
+            <p>{t("relationship.showing", { shown: items.length, total })}</p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -500,7 +515,7 @@ function RelationshipsTab() {
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-[#433e59] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Previous
+                {t("previous")}
               </button>
               <button
                 type="button"
@@ -508,7 +523,7 @@ function RelationshipsTab() {
                 onClick={() => setPage((p) => p + 1)}
                 className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-[#433e59] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Next
+                {t("next")}
               </button>
             </div>
           </div>
@@ -523,6 +538,7 @@ function RelationshipsTab() {
 // ------------------------------------------------------------------
 
 export function GraphExplorerPage() {
+  const t = useTranslations("graphExplorer");
   const [activeTab, setActiveTab] = useState<ExplorerTab>("entities");
   const [draftFilters, setDraftFilters] =
     useState<DraftFilters>(createInitialFilters);
@@ -579,11 +595,11 @@ export function GraphExplorerPage() {
   if (isForbidden) {
     return (
       <ForbiddenState
-        title="Graph explorer restricted"
-        description="You do not have permission to view graph data for this organization."
+        title={t("errors.restrictedTitle")}
+        description={t("errors.restrictedDescription")}
         requestId={requestId}
         backHref="/dashboard"
-        backLabel="Back to dashboard"
+        backLabel={t("backToDashboard")}
       />
     );
   }
@@ -591,7 +607,7 @@ export function GraphExplorerPage() {
   if (query.error) {
     return (
       <ErrorState
-        title="Graph explorer unavailable"
+        title={t("errors.unavailable")}
         description={getApiErrorMessage(query.error)}
         error={query.error}
         requestId={requestId}
@@ -608,20 +624,17 @@ export function GraphExplorerPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-              Enterprise Graph
+              {t("eyebrow")}
             </p>
             <h1 className="mt-2 text-3xl font-extrabold text-[#2a2640]">
-              Graph explorer
+              {t("title")}
             </h1>
-            <p className="mt-2 text-sm text-[#68647b]">
-              Search evidence-backed entities, inspect relationships, and open
-              source evidence from the same interface.
-            </p>
+            <p className="mt-2 text-sm text-[#68647b]">{t("description")}</p>
           </div>
           {activeTab === "entities" ? (
             <div className="rounded-2xl bg-[#f5f3ff] px-4 py-3 text-sm text-[#4d4880]">
-              <p className="font-semibold">Results</p>
-              <p>{total.toLocaleString()} matching entities</p>
+              <p className="font-semibold">{t("results")}</p>
+              <p>{t("matchingEntities", { count: total })}</p>
             </div>
           ) : null}
         </div>
@@ -630,7 +643,7 @@ export function GraphExplorerPage() {
           <>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-                Search
+                {t("search")}
                 <input
                   value={draftFilters.query}
                   onChange={(event) =>
@@ -639,13 +652,13 @@ export function GraphExplorerPage() {
                       query: event.target.value,
                     }))
                   }
-                  placeholder="Entity name, alias, or external source"
+                  placeholder={t("filters.searchPlaceholder")}
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-[#2a2640] transition outline-none focus:border-[#3525cd]"
                 />
               </label>
 
               <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-                Entity type
+                {t("filters.entityType")}
                 <select
                   value={draftFilters.entityType}
                   onChange={(event) =>
@@ -658,14 +671,16 @@ export function GraphExplorerPage() {
                 >
                   {ENTITY_TYPES.map((entityType) => (
                     <option key={entityType || "all"} value={entityType}>
-                      {entityType || "All entity types"}
+                      {entityType
+                        ? t(`entityTypes.${entityType.toLowerCase()}`)
+                        : t("filters.allEntityTypes")}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-                Minimum confidence
+                {t("filters.minimumConfidence")}
                 <input
                   type="number"
                   min="0"
@@ -684,7 +699,7 @@ export function GraphExplorerPage() {
               </label>
 
               <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-                Source document
+                {t("filters.sourceDocument")}
                 <input
                   value={draftFilters.sourceDocumentId}
                   onChange={(event) =>
@@ -693,13 +708,13 @@ export function GraphExplorerPage() {
                       sourceDocumentId: event.target.value,
                     }))
                   }
-                  placeholder="Document ID"
+                  placeholder={t("filters.documentId")}
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-[#2a2640] transition outline-none focus:border-[#3525cd]"
                 />
               </label>
 
               <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-                Source connector
+                {t("filters.sourceConnector")}
                 <input
                   value={draftFilters.sourceConnector}
                   onChange={(event) =>
@@ -714,7 +729,7 @@ export function GraphExplorerPage() {
               </label>
 
               <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-                Relationship type
+                {t("filters.relationshipType")}
                 <input
                   value={draftFilters.relType}
                   onChange={(event) =>
@@ -729,7 +744,7 @@ export function GraphExplorerPage() {
               </label>
 
               <label className="grid gap-1 text-sm font-semibold text-[#433e59]">
-                Relationship direction
+                {t("filters.relationshipDirection")}
                 <select
                   value={draftFilters.relationshipDirection}
                   onChange={(event) =>
@@ -741,9 +756,9 @@ export function GraphExplorerPage() {
                   }
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-[#2a2640] transition outline-none focus:border-[#3525cd]"
                 >
-                  <option value="both">Both directions</option>
-                  <option value="out">Outgoing</option>
-                  <option value="in">Incoming</option>
+                  <option value="both">{t("directions.both")}</option>
+                  <option value="out">{t("directions.out")}</option>
+                  <option value="in">{t("directions.in")}</option>
                 </select>
               </label>
             </div>
@@ -754,14 +769,14 @@ export function GraphExplorerPage() {
                 onClick={onSubmit}
                 className="rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
               >
-                Search
+                {t("search")}
               </button>
               <button
                 type="button"
                 onClick={onReset}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#433e59] transition hover:bg-slate-50"
               >
-                Reset
+                {t("reset")}
               </button>
             </div>
           </>
@@ -779,8 +794,8 @@ export function GraphExplorerPage() {
       <div className="flex gap-1 rounded-2xl border border-[#d7d4e8] bg-[#f5f3ff] p-1">
         {(
           [
-            { id: "entities" as const, label: "Entities" },
-            { id: "relationships" as const, label: "Relationships" },
+            { id: "entities" as const, label: t("entities") },
+            { id: "relationships" as const, label: t("relationships") },
           ] as const
         ).map((tab) => (
           <button
@@ -800,21 +815,19 @@ export function GraphExplorerPage() {
 
       {activeTab === "entities" ? (
         <>
-          {isInitialLoading ? (
-            <LoadingState title="Loading graph explorer..." />
-          ) : null}
+          {isInitialLoading ? <LoadingState title={t("loading")} /> : null}
 
           {!isInitialLoading && items.length === 0 ? (
             <EmptyState
-              title="No graph entities found"
-              description="Try broadening the search query, lowering confidence, or clearing relationship filters."
+              title={t("empty.title")}
+              description={t("empty.description")}
               action={
                 <button
                   type="button"
                   onClick={onReset}
                   className="rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
                 >
-                  Clear filters
+                  {t("clearFilters")}
                 </button>
               }
             />
@@ -825,10 +838,10 @@ export function GraphExplorerPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-[#2a2640]">
-                    Entity results
+                    {t("entityResults")}
                   </h2>
                   <p className="text-sm text-[#68647b]">
-                    Showing {items.length} of {total.toLocaleString()} entities
+                    {t("showingEntities", { shown: items.length, total })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -840,7 +853,7 @@ export function GraphExplorerPage() {
                     }
                     className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-[#433e59] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Previous
+                    {t("previous")}
                   </button>
                   <button
                     type="button"
@@ -848,7 +861,7 @@ export function GraphExplorerPage() {
                     onClick={() => setPage((current) => current + 1)}
                     className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-[#433e59] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Next
+                    {t("next")}
                   </button>
                 </div>
               </div>
@@ -857,13 +870,13 @@ export function GraphExplorerPage() {
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead className="bg-slate-50">
                     <tr className="text-left text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">
-                      <th className="px-4 py-3">Entity</th>
-                      <th className="px-4 py-3">Confidence</th>
-                      <th className="px-4 py-3">Aliases</th>
-                      <th className="px-4 py-3">Evidence</th>
-                      <th className="px-4 py-3">Documents</th>
-                      <th className="px-4 py-3">Updated</th>
-                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">{t("columns.entity")}</th>
+                      <th className="px-4 py-3">{t("columns.confidence")}</th>
+                      <th className="px-4 py-3">{t("columns.aliases")}</th>
+                      <th className="px-4 py-3">{t("columns.evidence")}</th>
+                      <th className="px-4 py-3">{t("columns.documents")}</th>
+                      <th className="px-4 py-3">{t("columns.updated")}</th>
+                      <th className="px-4 py-3">{t("columns.status")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
@@ -876,12 +889,12 @@ export function GraphExplorerPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 text-sm text-[#68647b]">
                 <p>
-                  Page {page + 1} of {Math.max(1, Math.ceil(total / PAGE_SIZE))}
+                  {t("pageOf", {
+                    page: page + 1,
+                    pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+                  })}
                 </p>
-                <p>
-                  Use the filters to narrow the graph to evidence-backed
-                  records.
-                </p>
+                <p>{t("filterHint")}</p>
               </div>
             </section>
           ) : null}

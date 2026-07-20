@@ -4329,5 +4329,97 @@
         "objective": "Ziel: Vertrauensprüfung"
       }
     }
+  },
+  "graphExplorer": {
+    "eyebrow": "Unternehmensgraph",
+    "title": "Graph-Explorer",
+    "description": "Durchsuchen Sie belegte Entitäten, prüfen Sie Beziehungen und öffnen Sie Quelldaten in derselben Oberfläche.",
+    "entities": "Entitäten",
+    "relationships": "Beziehungen",
+    "id": "ID",
+    "filter": "Filtern",
+    "reset": "Zurücksetzen",
+    "clearFilters": "Filter löschen",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "backToDashboard": "Zurück zum Dashboard",
+    "search": "Suchen",
+    "results": "Ergebnisse",
+    "matchingEntities": "{count} passende Entitäten",
+    "loading": "Graph-Explorer wird geladen…",
+    "entityResults": "Entitätsergebnisse",
+    "showingEntities": "{shown} von {total} Entitäten",
+    "pageOf": "Seite {page} von {pages}",
+    "filterHint": "Verwenden Sie Filter, um den Graphen auf belegte Datensätze einzugrenzen.",
+    "overview": {
+      "title": "Graphübersicht",
+      "avgConfidence": "Durchschn. Konfidenz {value}",
+      "lowConfidence": "Niedrige Konfidenz",
+      "belowThreshold": "Entitäten unter dem Schwellenwert",
+      "entityTypes": "Entitätstypen"
+    },
+    "relationship": {
+      "description": "Organisationsbezogene Entitätsbeziehungen durchsuchen.",
+      "loading": "Beziehungen werden geladen…",
+      "emptyTitle": "Keine Beziehungen gefunden",
+      "emptyDescription": "Erweitern Sie die Filter oder warten Sie auf den Abschluss der Extraktion.",
+      "showing": "{shown} von {total} Beziehungen"
+    },
+    "filters": {
+      "relationshipType": "Beziehungstyp",
+      "minConfidence": "Min. Konfidenz",
+      "searchPlaceholder": "Entitätsname, Alias oder externe Quelle",
+      "entityType": "Entitätstyp",
+      "allEntityTypes": "Alle Entitätstypen",
+      "minimumConfidence": "Mindestkonfidenz",
+      "sourceDocument": "Quelldokument",
+      "documentId": "Dokument-ID",
+      "sourceConnector": "Quellkonnektor",
+      "relationshipDirection": "Beziehungsrichtung"
+    },
+    "directions": {
+      "both": "Beide Richtungen",
+      "out": "Ausgehend",
+      "in": "Eingehend"
+    },
+    "columns": {
+      "fromEntity": "Von Entität",
+      "relation": "Beziehung",
+      "toEntity": "Zu Entität",
+      "confidence": "Konfidenz",
+      "status": "Status",
+      "entity": "Entität",
+      "aliases": "Aliasse",
+      "evidence": "Nachweise",
+      "documents": "Dokumente",
+      "updated": "Aktualisiert"
+    },
+    "errors": {
+      "restrictedTitle": "Graph-Explorer eingeschränkt",
+      "restrictedDescription": "Sie dürfen die Graphdaten dieser Organisation nicht anzeigen.",
+      "unavailable": "Graph-Explorer nicht verfügbar"
+    },
+    "empty": {
+      "title": "Keine Graphentitäten gefunden",
+      "description": "Erweitern Sie die Suche, senken Sie die Konfidenz oder löschen Sie Beziehungsfilter."
+    },
+    "entityTypes": {
+      "entity": "Entität",
+      "person": "Person",
+      "organization": "Organisation",
+      "customer": "Kunde",
+      "vendor": "Anbieter",
+      "product": "Produkt",
+      "project": "Projekt",
+      "policy": "Richtlinie",
+      "contract": "Vertrag",
+      "control": "Kontrolle",
+      "requirement": "Anforderung",
+      "risk": "Risiko",
+      "ticket": "Ticket",
+      "system": "System",
+      "process": "Prozess",
+      "obligation": "Verpflichtung"
+    }
   }
 }

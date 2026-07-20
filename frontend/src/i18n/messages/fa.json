@@ -4329,5 +4329,97 @@
         "objective": "هدف: بررسی اطمینان"
       }
     }
+  },
+  "graphExplorer": {
+    "eyebrow": "گراف سازمانی",
+    "title": "کاوشگر گراف",
+    "description": "موجودیت‌های مبتنی بر شواهد را جست‌وجو کنید، روابط را بررسی کنید و شواهد منبع را از همان رابط باز کنید.",
+    "entities": "موجودیت‌ها",
+    "relationships": "روابط",
+    "id": "شناسه",
+    "filter": "فیلتر",
+    "reset": "بازنشانی",
+    "clearFilters": "پاک کردن فیلترها",
+    "previous": "قبلی",
+    "next": "بعدی",
+    "backToDashboard": "بازگشت به داشبورد",
+    "search": "جست‌وجو",
+    "results": "نتایج",
+    "matchingEntities": "{count} موجودیت منطبق",
+    "loading": "در حال بارگذاری کاوشگر گراف…",
+    "entityResults": "نتایج موجودیت‌ها",
+    "showingEntities": "نمایش {shown} از {total} موجودیت",
+    "pageOf": "صفحه {page} از {pages}",
+    "filterHint": "برای محدود کردن گراف به رکوردهای مبتنی بر شواهد از فیلترها استفاده کنید.",
+    "overview": {
+      "title": "نمای کلی گراف",
+      "avgConfidence": "میانگین اطمینان {value}",
+      "lowConfidence": "اطمینان پایین",
+      "belowThreshold": "موجودیت‌های پایین‌تر از آستانه",
+      "entityTypes": "انواع موجودیت"
+    },
+    "relationship": {
+      "description": "روابط موجودیت‌های محدود به سازمان را مرور کنید.",
+      "loading": "در حال بارگذاری روابط…",
+      "emptyTitle": "رابطه‌ای یافت نشد",
+      "emptyDescription": "فیلترها را گسترده‌تر کنید یا تا پایان استخراج موجودیت منتظر بمانید.",
+      "showing": "نمایش {shown} از {total} رابطه"
+    },
+    "filters": {
+      "relationshipType": "نوع رابطه",
+      "minConfidence": "حداقل اطمینان",
+      "searchPlaceholder": "نام موجودیت، نام مستعار یا منبع خارجی",
+      "entityType": "نوع موجودیت",
+      "allEntityTypes": "همه انواع موجودیت",
+      "minimumConfidence": "حداقل اطمینان",
+      "sourceDocument": "سند منبع",
+      "documentId": "شناسه سند",
+      "sourceConnector": "اتصال‌دهنده منبع",
+      "relationshipDirection": "جهت رابطه"
+    },
+    "directions": {
+      "both": "هر دو جهت",
+      "out": "خروجی",
+      "in": "ورودی"
+    },
+    "columns": {
+      "fromEntity": "موجودیت مبدأ",
+      "relation": "رابطه",
+      "toEntity": "موجودیت مقصد",
+      "confidence": "اطمینان",
+      "status": "وضعیت",
+      "entity": "موجودیت",
+      "aliases": "نام‌های مستعار",
+      "evidence": "شواهد",
+      "documents": "اسناد",
+      "updated": "به‌روزرسانی"
+    },
+    "errors": {
+      "restrictedTitle": "دسترسی به کاوشگر گراف محدود است",
+      "restrictedDescription": "اجازه مشاهده داده‌های گراف این سازمان را ندارید.",
+      "unavailable": "کاوشگر گراف در دسترس نیست"
+    },
+    "empty": {
+      "title": "موجودیتی در گراف یافت نشد",
+      "description": "جست‌وجو را گسترده‌تر کنید، حد اطمینان را کاهش دهید یا فیلترهای رابطه را پاک کنید."
+    },
+    "entityTypes": {
+      "entity": "موجودیت",
+      "person": "شخص",
+      "organization": "سازمان",
+      "customer": "مشتری",
+      "vendor": "فروشنده",
+      "product": "محصول",
+      "project": "پروژه",
+      "policy": "سیاست",
+      "contract": "قرارداد",
+      "control": "کنترل",
+      "requirement": "الزام",
+      "risk": "ریسک",
+      "ticket": "تیکت",
+      "system": "سیستم",
+      "process": "فرایند",
+      "obligation": "تعهد"
+    }
   }
 }
