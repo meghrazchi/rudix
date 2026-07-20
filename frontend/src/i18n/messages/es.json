@@ -3888,5 +3888,45 @@
       "disabledModelsComma": "Modelos desactivados (separados por comas)",
       "changeNote": "Nota de cambio (opcional)"
     }
+  },
+  "adminModelDiagnostics": {
+    "restricted": "Diagnóstico de modelos restringido",
+    "restrictedDescription": "Debes iniciar sesión para ver el diagnóstico de proveedores.",
+    "unavailable": "Diagnóstico de modelos no disponible",
+    "unavailableDescription": "Tu rol no tiene acceso al diagnóstico de proveedores.",
+    "loading": "Cargando diagnóstico de proveedores",
+    "loadingDescription": "Obteniendo la configuración del proveedor.",
+    "loadError": "No se pudo cargar el diagnóstico",
+    "eyebrow": "Administración de Rudix",
+    "title": "Diagnóstico de proveedores de modelos",
+    "description": "Comprueba que los proveedores de generación y embeddings estén configurados y accesibles. Nunca se muestran claves API ni URL base.",
+    "adminDescription": "Usa Probar conexión para ejecutar una comprobación en vivo.",
+    "empty": "No se encontró configuración de proveedores.",
+    "generation": "Generación",
+    "embeddings": "Embeddings",
+    "providerHeading": "Proveedor de {name}",
+    "configured": "Configurado",
+    "notConfigured": "No configurado",
+    "taskAssignments": "Asignaciones de tareas",
+    "capabilitiesTitle": "Capacidades",
+    "capabilities": {
+      "jsonMode": "Modo JSON",
+      "toolCalling": "Llamada a herramientas",
+      "streaming": "Transmisión",
+      "embedding": "Embedding"
+    },
+    "contextWindow": "{count}k de contexto",
+    "reindexWarning": "La dimensión del modelo de embeddings no coincide con el almacén vectorial. Se requiere una reindexación completa.",
+    "credentialsWarning": "Las credenciales del proveedor no están configuradas en el entorno. Las llamadas fallarán hasta configurarlas.",
+    "testing": "Probando…",
+    "testConnection": "Probar conexión",
+    "statuses": {
+      "ok": "Conectado",
+      "configuration_error": "No configurado",
+      "unknown_provider": "Proveedor desconocido",
+      "unreachable": "Inaccesible",
+      "timeout": "Tiempo agotado",
+      "error": "Error"
+    }
   }
 }

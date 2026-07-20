@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   getModelProviderDiagnostics,
@@ -21,11 +22,6 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 
-const PROVIDER_KEY_LABELS: Record<string, string> = {
-  chat: "Generation",
-  embeddings: "Embeddings",
-};
-
 const STATUS_COLORS: Record<ProviderTestStatus, string> = {
   ok: "bg-emerald-100 text-emerald-800",
   configuration_error: "bg-amber-100 text-amber-800",
@@ -35,21 +31,13 @@ const STATUS_COLORS: Record<ProviderTestStatus, string> = {
   error: "bg-red-100 text-red-800",
 };
 
-const STATUS_LABELS: Record<ProviderTestStatus, string> = {
-  ok: "Connected",
-  configuration_error: "Not configured",
-  unknown_provider: "Unknown provider",
-  unreachable: "Unreachable",
-  timeout: "Timed out",
-  error: "Error",
-};
-
 function CapabilityBadges({ cap }: { cap: CapabilitySummary }) {
+  const t = useTranslations("adminModelDiagnostics");
   const badges: { label: string; active: boolean }[] = [
-    { label: "JSON mode", active: cap.supports_json_mode },
-    { label: "Tool calling", active: cap.supports_tool_calling },
-    { label: "Streaming", active: cap.supports_streaming },
-    { label: "Embedding", active: cap.is_embedding_model },
+    { label: t("capabilities.jsonMode"), active: cap.supports_json_mode },
+    { label: t("capabilities.toolCalling"), active: cap.supports_tool_calling },
+    { label: t("capabilities.streaming"), active: cap.supports_streaming },
+    { label: t("capabilities.embedding"), active: cap.is_embedding_model },
   ];
 
   return (
@@ -73,7 +61,9 @@ function CapabilityBadges({ cap }: { cap: CapabilitySummary }) {
       )}
       {cap.context_window != null && (
         <span className="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-          {(cap.context_window / 1000).toFixed(0)}k ctx
+          {t("contextWindow", {
+            count: (cap.context_window / 1000).toFixed(0),
+          })}
         </span>
       )}
     </div>
@@ -85,9 +75,10 @@ type TestResultPanelProps = {
 };
 
 function TestResultPanel({ result }: TestResultPanelProps) {
+  const t = useTranslations("adminModelDiagnostics");
   const statusClass =
     STATUS_COLORS[result.status] ?? "bg-gray-100 text-gray-700";
-  const statusLabel = STATUS_LABELS[result.status] ?? result.status;
+  const statusLabel = t(`statuses.${result.status}`);
 
   return (
     <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -123,14 +114,20 @@ function ProviderCardPanel({
   isTesting,
   onTest,
 }: ProviderCardProps) {
-  const title = PROVIDER_KEY_LABELS[card.provider_key] ?? card.provider_key;
+  const t = useTranslations("adminModelDiagnostics");
+  const title =
+    card.provider_key === "chat"
+      ? t("generation")
+      : card.provider_key === "embeddings"
+        ? t("embeddings")
+        : card.provider_key;
 
   return (
     <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-            {title} provider
+            {t("providerHeading", { name: title })}
           </p>
           <h2 className="mt-0.5 text-lg font-bold text-[#2a2640]">
             {card.model_name || "—"}
@@ -144,13 +141,13 @@ function ProviderCardPanel({
               : "bg-amber-100 text-amber-800"
           }`}
         >
-          {card.is_configured ? "Configured" : "Not configured"}
+          {card.is_configured ? t("configured") : t("notConfigured")}
         </span>
       </div>
 
       <div className="mt-3">
         <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-          Task assignments
+          {t("taskAssignments")}
         </p>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {card.task_assignments.map((task) => (
@@ -167,7 +164,7 @@ function ProviderCardPanel({
       {card.capability != null && (
         <div className="mt-3">
           <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-            Capabilities
+            {t("capabilitiesTitle")}
           </p>
           <CapabilityBadges cap={card.capability} />
         </div>
@@ -175,16 +172,13 @@ function ProviderCardPanel({
 
       {card.reindex_required && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Embedding model dimension does not match the configured vector store
-          size. A full re-index is required before this model can be used.
+          {t("reindexWarning")}
         </div>
       )}
 
       {!card.is_configured && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Provider credentials are not set in the deployment environment. LLM
-          calls will fail until the required environment variables are
-          configured.
+          {t("credentialsWarning")}
         </div>
       )}
 
@@ -196,7 +190,7 @@ function ProviderCardPanel({
             disabled={isTesting}
             className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f8f6ff] disabled:opacity-60"
           >
-            {isTesting ? "Testing…" : "Test connection"}
+            {isTesting ? t("testing") : t("testConnection")}
           </button>
           {testResult != null && <TestResultPanel result={testResult} />}
         </div>
@@ -206,6 +200,7 @@ function ProviderCardPanel({
 }
 
 export function AdminModelDiagnosticsPage() {
+  const t = useTranslations("adminModelDiagnostics");
   const { state } = useAuthSession();
   const role = state.session?.role;
   const isAuthenticated = state.status === "authenticated";
@@ -254,8 +249,8 @@ export function AdminModelDiagnosticsPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Model diagnostics restricted"
-          description="You must be signed in to view model provider diagnostics."
+          title={t("restricted")}
+          description={t("restrictedDescription")}
           compact={false}
         />
       </section>
@@ -271,8 +266,8 @@ export function AdminModelDiagnosticsPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Model diagnostics unavailable"
-          description="Your role does not have access to model provider diagnostics."
+          title={t("unavailable")}
+          description={t("unavailableDescription")}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -283,8 +278,8 @@ export function AdminModelDiagnosticsPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <LoadingState
-          title="Loading provider diagnostics"
-          description="Fetching model provider configuration."
+          title={t("loading")}
+          description={t("loadingDescription")}
           compact={false}
         />
       </section>
@@ -295,7 +290,7 @@ export function AdminModelDiagnosticsPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ErrorState
-          title="Unable to load provider diagnostics"
+          title={t("loadError")}
           description={getApiErrorMessage(diagnosticsQuery.error)}
           compact={false}
           requestId={extractRequestIdFromError(diagnosticsQuery.error)}
@@ -311,25 +306,20 @@ export function AdminModelDiagnosticsPage() {
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Rudix Admin
+          {t("eyebrow")}
         </p>
         <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-          Model provider diagnostics
+          {t("title")}
         </h1>
         <p className="max-w-3xl text-sm text-[#68647b]">
-          Verify that generation and embedding providers are configured and
-          reachable. API keys and base URLs are never displayed here.
-          {isAdmin
-            ? " Use Test connection to run a live connectivity probe."
-            : ""}
+          {t("description")}
+          {isAdmin ? ` ${t("adminDescription")}` : ""}
         </p>
       </header>
 
       {providers.length === 0 ? (
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-[#68647b]">
-            No provider configuration found.
-          </p>
+          <p className="text-sm text-[#68647b]">{t("empty")}</p>
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">

@@ -3888,5 +3888,45 @@
       "disabledModelsComma": "مدل‌های غیرفعال (با ویرگول)",
       "changeNote": "یادداشت تغییر (اختیاری)"
     }
+  },
+  "adminModelDiagnostics": {
+    "restricted": "دسترسی به عیب‌یابی مدل محدود است",
+    "restrictedDescription": "برای مشاهده عیب‌یابی ارائه‌دهنده مدل باید وارد شوید.",
+    "unavailable": "عیب‌یابی مدل در دسترس نیست",
+    "unavailableDescription": "نقش شما به عیب‌یابی ارائه‌دهنده دسترسی ندارد.",
+    "loading": "در حال بارگیری عیب‌یابی ارائه‌دهنده",
+    "loadingDescription": "در حال دریافت پیکربندی ارائه‌دهنده مدل.",
+    "loadError": "بارگیری عیب‌یابی ارائه‌دهنده ممکن نیست",
+    "eyebrow": "مدیریت Rudix",
+    "title": "عیب‌یابی ارائه‌دهنده مدل",
+    "description": "پیکربندی و دسترسی‌پذیری ارائه‌دهندگان تولید و تعبیه‌سازی را بررسی کنید. کلیدهای API و نشانی‌های پایه نمایش داده نمی‌شوند.",
+    "adminDescription": "برای بررسی زنده از «آزمایش اتصال» استفاده کنید.",
+    "empty": "پیکربندی ارائه‌دهنده‌ای یافت نشد.",
+    "generation": "تولید",
+    "embeddings": "تعبیه‌سازی",
+    "providerHeading": "ارائه‌دهنده {name}",
+    "configured": "پیکربندی‌شده",
+    "notConfigured": "پیکربندی‌نشده",
+    "taskAssignments": "تخصیص وظایف",
+    "capabilitiesTitle": "قابلیت‌ها",
+    "capabilities": {
+      "jsonMode": "حالت JSON",
+      "toolCalling": "فراخوانی ابزار",
+      "streaming": "پخش جریانی",
+      "embedding": "تعبیه‌سازی"
+    },
+    "contextWindow": "زمینه {count}k",
+    "reindexWarning": "بُعد مدل تعبیه‌سازی با اندازه مخزن برداری مطابقت ندارد. بازفهرست‌سازی کامل لازم است.",
+    "credentialsWarning": "اعتبارنامه ارائه‌دهنده در محیط استقرار تنظیم نشده است. فراخوانی‌ها تا زمان پیکربندی ناموفق خواهند بود.",
+    "testing": "در حال آزمایش…",
+    "testConnection": "آزمایش اتصال",
+    "statuses": {
+      "ok": "متصل",
+      "configuration_error": "پیکربندی‌نشده",
+      "unknown_provider": "ارائه‌دهنده ناشناخته",
+      "unreachable": "غیرقابل دسترسی",
+      "timeout": "پایان مهلت",
+      "error": "خطا"
+    }
   }
 }

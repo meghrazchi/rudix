@@ -3888,5 +3888,45 @@
       "disabledModelsComma": "Disabled models (comma-separated)",
       "changeNote": "Change note (optional)"
     }
+  },
+  "adminModelDiagnostics": {
+    "restricted": "Model diagnostics restricted",
+    "restrictedDescription": "You must be signed in to view model provider diagnostics.",
+    "unavailable": "Model diagnostics unavailable",
+    "unavailableDescription": "Your role does not have access to model provider diagnostics.",
+    "loading": "Loading provider diagnostics",
+    "loadingDescription": "Fetching model provider configuration.",
+    "loadError": "Unable to load provider diagnostics",
+    "eyebrow": "Rudix Admin",
+    "title": "Model provider diagnostics",
+    "description": "Verify that generation and embedding providers are configured and reachable. API keys and base URLs are never displayed here.",
+    "adminDescription": "Use Test connection to run a live connectivity probe.",
+    "empty": "No provider configuration found.",
+    "generation": "Generation",
+    "embeddings": "Embeddings",
+    "providerHeading": "{name} provider",
+    "configured": "Configured",
+    "notConfigured": "Not configured",
+    "taskAssignments": "Task assignments",
+    "capabilitiesTitle": "Capabilities",
+    "capabilities": {
+      "jsonMode": "JSON mode",
+      "toolCalling": "Tool calling",
+      "streaming": "Streaming",
+      "embedding": "Embedding"
+    },
+    "contextWindow": "{count}k context",
+    "reindexWarning": "Embedding model dimension does not match the configured vector store size. A full re-index is required before this model can be used.",
+    "credentialsWarning": "Provider credentials are not set in the deployment environment. Calls will fail until the required environment variables are configured.",
+    "testing": "Testing…",
+    "testConnection": "Test connection",
+    "statuses": {
+      "ok": "Connected",
+      "configuration_error": "Not configured",
+      "unknown_provider": "Unknown provider",
+      "unreachable": "Unreachable",
+      "timeout": "Timed out",
+      "error": "Error"
+    }
   }
 }

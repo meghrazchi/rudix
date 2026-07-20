@@ -3888,5 +3888,45 @@
       "disabledModelsComma": "Deaktivierte Modelle (kommagetrennt)",
       "changeNote": "Änderungsnotiz (optional)"
     }
+  },
+  "adminModelDiagnostics": {
+    "restricted": "Modelldiagnose eingeschränkt",
+    "restrictedDescription": "Sie müssen angemeldet sein, um die Modellanbieter-Diagnose anzuzeigen.",
+    "unavailable": "Modelldiagnose nicht verfügbar",
+    "unavailableDescription": "Ihre Rolle hat keinen Zugriff auf die Modellanbieter-Diagnose.",
+    "loading": "Anbieterdiagnose wird geladen",
+    "loadingDescription": "Modellanbieter-Konfiguration wird abgerufen.",
+    "loadError": "Anbieterdiagnose konnte nicht geladen werden",
+    "eyebrow": "Rudix-Administration",
+    "title": "Modellanbieter-Diagnose",
+    "description": "Prüfen Sie, ob Generierungs- und Einbettungsanbieter konfiguriert und erreichbar sind. API-Schlüssel und Basis-URLs werden nie angezeigt.",
+    "adminDescription": "Verwenden Sie „Verbindung testen“ für eine Live-Prüfung.",
+    "empty": "Keine Anbieter-Konfiguration gefunden.",
+    "generation": "Generierung",
+    "embeddings": "Einbettungen",
+    "providerHeading": "Anbieter für {name}",
+    "configured": "Konfiguriert",
+    "notConfigured": "Nicht konfiguriert",
+    "taskAssignments": "Aufgabenzuweisungen",
+    "capabilitiesTitle": "Funktionen",
+    "capabilities": {
+      "jsonMode": "JSON-Modus",
+      "toolCalling": "Werkzeugaufrufe",
+      "streaming": "Streaming",
+      "embedding": "Einbettung"
+    },
+    "contextWindow": "{count}k Kontext",
+    "reindexWarning": "Die Dimension des Einbettungsmodells stimmt nicht mit dem Vektorspeicher überein. Eine vollständige Neuindizierung ist erforderlich.",
+    "credentialsWarning": "Anbieter-Zugangsdaten sind in der Bereitstellungsumgebung nicht gesetzt. Aufrufe schlagen bis zur Konfiguration fehl.",
+    "testing": "Test läuft…",
+    "testConnection": "Verbindung testen",
+    "statuses": {
+      "ok": "Verbunden",
+      "configuration_error": "Nicht konfiguriert",
+      "unknown_provider": "Unbekannter Anbieter",
+      "unreachable": "Nicht erreichbar",
+      "timeout": "Zeitüberschreitung",
+      "error": "Fehler"
+    }
   }
 }

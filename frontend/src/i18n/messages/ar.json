@@ -3888,5 +3888,45 @@
       "disabledModelsComma": "النماذج المعطلة (مفصولة بفواصل)",
       "changeNote": "ملاحظة التغيير (اختياري)"
     }
+  },
+  "adminModelDiagnostics": {
+    "restricted": "تشخيص النماذج مقيّد",
+    "restrictedDescription": "يجب تسجيل الدخول لعرض تشخيص مزوّد النماذج.",
+    "unavailable": "تشخيص النماذج غير متاح",
+    "unavailableDescription": "لا يملك دورك صلاحية الوصول إلى تشخيص المزوّد.",
+    "loading": "جارٍ تحميل تشخيص المزوّد",
+    "loadingDescription": "جارٍ جلب تكوين مزوّد النماذج.",
+    "loadError": "تعذر تحميل تشخيص المزوّد",
+    "eyebrow": "إدارة Rudix",
+    "title": "تشخيص مزوّد النماذج",
+    "description": "تحقق من تهيئة مزوّدي التوليد والتضمين وإمكانية الوصول إليهما. لا تُعرض مفاتيح API أو عناوين URL الأساسية.",
+    "adminDescription": "استخدم اختبار الاتصال لإجراء فحص مباشر.",
+    "empty": "لم يتم العثور على تكوين مزوّد.",
+    "generation": "التوليد",
+    "embeddings": "التضمين",
+    "providerHeading": "مزوّد {name}",
+    "configured": "مهيأ",
+    "notConfigured": "غير مهيأ",
+    "taskAssignments": "تعيينات المهام",
+    "capabilitiesTitle": "الإمكانات",
+    "capabilities": {
+      "jsonMode": "وضع JSON",
+      "toolCalling": "استدعاء الأدوات",
+      "streaming": "البث",
+      "embedding": "التضمين"
+    },
+    "contextWindow": "سياق {count}k",
+    "reindexWarning": "لا يتطابق بُعد نموذج التضمين مع حجم مخزن المتجهات. يلزم إعادة فهرسة كاملة.",
+    "credentialsWarning": "بيانات اعتماد المزوّد غير مضبوطة في بيئة النشر. ستفشل الاستدعاءات حتى تتم تهيئتها.",
+    "testing": "جارٍ الاختبار…",
+    "testConnection": "اختبار الاتصال",
+    "statuses": {
+      "ok": "متصل",
+      "configuration_error": "غير مهيأ",
+      "unknown_provider": "مزوّد غير معروف",
+      "unreachable": "يتعذر الوصول",
+      "timeout": "انتهت المهلة",
+      "error": "خطأ"
+    }
   }
 }

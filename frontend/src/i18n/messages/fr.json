@@ -3888,5 +3888,45 @@
       "disabledModelsComma": "Modèles désactivés (séparés par des virgules)",
       "changeNote": "Note de modification (facultative)"
     }
+  },
+  "adminModelDiagnostics": {
+    "restricted": "Diagnostic des modèles restreint",
+    "restrictedDescription": "Vous devez être connecté pour consulter le diagnostic des fournisseurs.",
+    "unavailable": "Diagnostic des modèles indisponible",
+    "unavailableDescription": "Votre rôle n’a pas accès au diagnostic des fournisseurs.",
+    "loading": "Chargement du diagnostic des fournisseurs",
+    "loadingDescription": "Récupération de la configuration des fournisseurs.",
+    "loadError": "Impossible de charger le diagnostic",
+    "eyebrow": "Administration Rudix",
+    "title": "Diagnostic des fournisseurs de modèles",
+    "description": "Vérifiez que les fournisseurs de génération et d’intégration sont configurés et accessibles. Les clés API et URL de base ne sont jamais affichées.",
+    "adminDescription": "Utilisez Tester la connexion pour lancer une vérification en direct.",
+    "empty": "Aucune configuration de fournisseur trouvée.",
+    "generation": "Génération",
+    "embeddings": "Intégrations",
+    "providerHeading": "Fournisseur de {name}",
+    "configured": "Configuré",
+    "notConfigured": "Non configuré",
+    "taskAssignments": "Affectations de tâches",
+    "capabilitiesTitle": "Capacités",
+    "capabilities": {
+      "jsonMode": "Mode JSON",
+      "toolCalling": "Appel d’outils",
+      "streaming": "Diffusion",
+      "embedding": "Intégration"
+    },
+    "contextWindow": "{count}k de contexte",
+    "reindexWarning": "La dimension du modèle d’intégration ne correspond pas au stockage vectoriel. Une réindexation complète est requise.",
+    "credentialsWarning": "Les identifiants du fournisseur ne sont pas définis dans l’environnement. Les appels échoueront jusqu’à leur configuration.",
+    "testing": "Test en cours…",
+    "testConnection": "Tester la connexion",
+    "statuses": {
+      "ok": "Connecté",
+      "configuration_error": "Non configuré",
+      "unknown_provider": "Fournisseur inconnu",
+      "unreachable": "Inaccessible",
+      "timeout": "Délai dépassé",
+      "error": "Erreur"
+    }
   }
 }
