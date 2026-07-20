@@ -10,6 +10,7 @@ import React, {
 } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { CreateVerifiedAnswerModal } from "@/components/verified-answers/CreateVerifiedAnswerModal";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -145,6 +146,7 @@ function ConvertToEvalModal({
   onClose,
   onConverted,
 }: ConvertModalProps) {
+  const t = useTranslations("adminFeedbackReview");
   const [evalSetId, setEvalSetId] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">(
     "medium",
@@ -177,7 +179,7 @@ function ConvertToEvalModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Convert to evaluation case"
+      aria-label={t("convert.title")}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={(e) => {
         if (e.currentTarget === e.target) onClose();
@@ -186,12 +188,12 @@ function ConvertToEvalModal({
       <div className="w-full max-w-md rounded-2xl border border-[#d7d4e8] bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-[#e2dff1] px-5 py-4">
           <h2 className="text-base font-semibold text-[#2a2640]">
-            Convert to evaluation case
+            {t("convert.title")}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("actions.close")}
             className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff]"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
@@ -201,17 +203,19 @@ function ConvertToEvalModal({
         <div className="space-y-4 px-5 py-4">
           <label className="block space-y-1">
             <span className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
-              Evaluation dataset
+              {t("convert.dataset")}
             </span>
             {evalSetsQuery.isLoading ? (
-              <p className="text-sm text-[#777587]">Loading datasets…</p>
+              <p className="text-sm text-[#777587]">
+                {t("convert.loadingDatasets")}
+              </p>
             ) : (
               <select
                 value={evalSetId}
                 onChange={(e) => setEvalSetId(e.target.value)}
                 className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
               >
-                <option value="">Select a dataset…</option>
+                <option value="">{t("convert.selectDataset")}</option>
                 {evalSetsQuery.data?.items.map((s) => (
                   <option key={s.evaluation_set_id} value={s.evaluation_set_id}>
                     {s.name}
@@ -223,7 +227,7 @@ function ConvertToEvalModal({
 
           <label className="block space-y-1">
             <span className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
-              Difficulty
+              {t("convert.difficulty")}
             </span>
             <select
               value={difficulty}
@@ -232,15 +236,15 @@ function ConvertToEvalModal({
               }
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
+              <option value="easy">{t("difficulty.easy")}</option>
+              <option value="medium">{t("difficulty.medium")}</option>
+              <option value="hard">{t("difficulty.hard")}</option>
             </select>
           </label>
 
           <label className="block space-y-1">
             <span className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
-              Reviewer notes (optional)
+              {t("convert.reviewerNotesOptional")}
             </span>
             <textarea
               value={notes}
@@ -260,7 +264,7 @@ function ConvertToEvalModal({
               disabled={convertMutation.isPending}
               className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-xs text-[#6a6780] hover:bg-[#f5f2ff] disabled:opacity-50"
             >
-              Cancel
+              {t("actions.cancel")}
             </button>
             <button
               type="button"
@@ -268,7 +272,9 @@ function ConvertToEvalModal({
               disabled={!evalSetId || convertMutation.isPending}
               className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a1eb5] disabled:opacity-50"
             >
-              {convertMutation.isPending ? "Converting…" : "Convert"}
+              {convertMutation.isPending
+                ? t("convert.converting")
+                : t("actions.convert")}
             </button>
           </div>
         </div>
@@ -300,6 +306,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
     },
     ref,
   ) {
+    const t = useTranslations("adminFeedbackReview");
     const [statusInput, setStatusInput] = useState<FeedbackReviewStatus>(
       item.status,
     );
@@ -335,18 +342,18 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
         role="dialog"
         aria-modal="true"
         aria-labelledby="review-detail-title"
-        className="absolute top-3 right-0 z-20 max-h-[min(85vh,760px)] w-full max-w-[440px] overflow-y-auto rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-2xl"
+        className="absolute end-0 top-3 z-20 max-h-[min(85vh,760px)] w-full max-w-[440px] overflow-y-auto rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-2xl"
       >
         <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e4e1ee] pb-3">
           <div>
             <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Review detail
+              {t("detail.reviewDetail")}
             </p>
             <h3
               id="review-detail-title"
               className="mt-1 text-base font-semibold text-[#1b1b24]"
             >
-              Feedback item
+              {t("detail.feedbackItem")}
             </h3>
           </div>
           <button
@@ -355,26 +362,26 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
             onClick={onClose}
             className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#38485d] hover:bg-[#f5f2ff]"
           >
-            Close
+            {t("actions.close")}
           </button>
         </div>
 
         {item.feedback ? (
           <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
             <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Original feedback
+              {t("detail.originalFeedback")}
             </h4>
             <dl className="grid gap-1 text-sm">
               <div className="flex gap-2">
                 <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                  Rating
+                  {t("fields.rating")}
                 </dt>
                 <dd className="text-[#302f39]">{item.feedback.rating}</dd>
               </div>
               {item.feedback.category ? (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Category
+                    {t("fields.category")}
                   </dt>
                   <dd className="text-[#302f39] capitalize">
                     {categoryLabel(item.feedback.category)}
@@ -384,7 +391,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               {item.feedback.reason ? (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Reason
+                    {t("fields.reason")}
                   </dt>
                   <dd className="text-[#302f39]">{item.feedback.reason}</dd>
                 </div>
@@ -392,7 +399,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               {item.feedback.comment ? (
                 <div>
                   <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Comment
+                    {t("fields.comment")}
                   </dt>
                   <dd className="mt-1 text-sm text-[#302f39]">
                     {item.feedback.comment}
@@ -402,7 +409,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               {item.feedback.model_name ? (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Model
+                    {t("fields.model")}
                   </dt>
                   <dd className="font-mono text-xs text-[#464555]">
                     {item.feedback.model_name}
@@ -412,7 +419,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               {item.feedback.llm_provider ? (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Provider
+                    {t("fields.provider")}
                   </dt>
                   <dd className="font-mono text-xs text-[#464555]">
                     {item.feedback.llm_provider}
@@ -422,7 +429,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               {item.feedback.confidence_score != null ? (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Confidence
+                    {t("fields.confidence")}
                   </dt>
                   <dd className="text-[#302f39]">
                     {(item.feedback.confidence_score * 100).toFixed(1)}%
@@ -432,17 +439,19 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               {item.feedback.citations ? (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Citations
+                    {t("fields.citations")}
                   </dt>
                   <dd className="text-[#302f39]">
-                    {item.feedback.citations.length} captured
+                    {t("detail.capturedCount", {
+                      count: item.feedback.citations.length,
+                    })}
                   </dd>
                 </div>
               ) : null}
               {item.feedback.trace_id ? (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Trace
+                    {t("fields.trace")}
                   </dt>
                   <dd className="font-mono text-xs text-[#464555]">
                     {item.feedback.trace_id}
@@ -452,22 +461,25 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               {item.feedback.trust_metadata ? (
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                    Trust
+                    {t("fields.trust")}
                   </dt>
                   <dd className="text-[#302f39]">
-                    {Object.keys(item.feedback.trust_metadata).length} fields
+                    {t("detail.fieldsCount", {
+                      count: Object.keys(item.feedback.trust_metadata).length,
+                    })}
                   </dd>
                 </div>
               ) : null}
               {isRedacted ? (
                 <p className="mt-1 text-[10px] text-[#777587] italic">
-                  Diagnostics redacted on{" "}
-                  {formatTimestamp(item.feedback.redacted_at!)}
+                  {t("detail.diagnosticsRedacted", {
+                    date: formatTimestamp(item.feedback.redacted_at!),
+                  })}
                 </p>
               ) : null}
               {isConverted ? (
                 <p className="mt-1 text-[10px] text-violet-700">
-                  Converted to eval case{" "}
+                  {t("detail.convertedToEval")}{" "}
                   <span className="font-mono">
                     {item.feedback.converted_to_eval_question_id}
                   </span>
@@ -481,7 +493,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
         {item.feedback?.question_text && !isRedacted ? (
           <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
             <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Captured question
+              {t("detail.capturedQuestion")}
             </h4>
             <p className="text-sm text-[#302f39]">
               {item.feedback.question_text}
@@ -492,7 +504,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
         {item.feedback?.answer_text && !isRedacted ? (
           <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
             <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Captured answer
+              {t("detail.capturedAnswer")}
             </h4>
             <p className="line-clamp-6 text-sm text-[#302f39]">
               {item.feedback.answer_text}
@@ -503,14 +515,15 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
         {item.message && !item.feedback?.question_text ? (
           <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
             <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Original answer
+              {t("detail.originalAnswer")}
             </h4>
             <p className="text-sm text-[#302f39]">
               {item.message.content_preview}
             </p>
             {item.message.confidence_score != null ? (
               <p className="mt-2 text-xs text-[#777587]">
-                Confidence: {(item.message.confidence_score * 100).toFixed(1)}%
+                {t("fields.confidence")}:{" "}
+                {(item.message.confidence_score * 100).toFixed(1)}%
                 {item.message.model_name ? ` · ${item.message.model_name}` : ""}
                 {item.message.latency_ms != null
                   ? ` · ${item.message.latency_ms} ms`
@@ -529,7 +542,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
                 onClick={() => onConvert(item.review_id)}
                 className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100"
               >
-                Convert to eval case
+                {t("actions.convertToEval")}
               </button>
             ) : null}
             <button
@@ -537,7 +550,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               onClick={() => onSaveAsKnowledgeCard(item.review_id)}
               className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
             >
-              Save as knowledge card
+              {t("actions.saveKnowledgeCard")}
             </button>
             {!isRedacted && item.feedback ? (
               <button
@@ -545,7 +558,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
                 onClick={() => onRedact(item.feedback!.feedback_id)}
                 className="rounded-lg border border-[#c7c4d8] px-3 py-1.5 text-xs font-semibold text-[#777587] hover:bg-[#f5f2ff]"
               >
-                Redact diagnostics
+                {t("actions.redactDiagnostics")}
               </button>
             ) : null}
           </div>
@@ -553,12 +566,12 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
 
         <section className="space-y-3">
           <h4 className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Triage actions
+            {t("detail.triageActions")}
           </h4>
 
           <label className="block space-y-1">
             <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Status
+              {t("fields.status")}
             </span>
             <select
               value={statusInput}
@@ -567,27 +580,27 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               }
               className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
-              <option value="new">New</option>
-              <option value="triaged">Triaged</option>
-              <option value="accepted">Accepted</option>
+              <option value="new">{t("statuses.new")}</option>
+              <option value="triaged">{t("statuses.triaged")}</option>
+              <option value="accepted">{t("statuses.accepted")}</option>
               <option value="needs_document_update">
-                Needs document update
+                {t("statuses.needsDocumentUpdate")}
               </option>
               <option value="needs_prompt_retrieval_fix">
-                Needs prompt/retrieval fix
+                {t("statuses.needsPromptRetrievalFix")}
               </option>
               <option value="converted_to_evaluation">
-                Converted to evaluation
+                {t("statuses.convertedToEvaluation")}
               </option>
-              <option value="resolved">Resolved</option>
-              <option value="rejected">Rejected</option>
-              <option value="duplicate">Duplicate</option>
+              <option value="resolved">{t("statuses.resolved")}</option>
+              <option value="rejected">{t("statuses.rejected")}</option>
+              <option value="duplicate">{t("statuses.duplicate")}</option>
             </select>
           </label>
 
           <label className="block space-y-1">
             <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Severity
+              {t("fields.severity")}
             </span>
             <select
               value={severityInput}
@@ -596,15 +609,15 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               }
               className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
+              <option value="low">{t("severities.low")}</option>
+              <option value="medium">{t("severities.medium")}</option>
+              <option value="high">{t("severities.high")}</option>
             </select>
           </label>
 
           <label className="block space-y-1">
             <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Reviewer notes
+              {t("fields.reviewerNotes")}
             </span>
             <textarea
               value={notesInput}
@@ -617,36 +630,36 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
 
           <label className="block space-y-1">
             <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Assignee reviewer ID
+              {t("fields.assigneeReviewerId")}
             </span>
             <input
               value={reviewerInput}
               onChange={(e) => setReviewerInput(e.target.value)}
-              placeholder="UUID (optional)"
+              placeholder={t("placeholders.optionalUuid")}
               className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             />
           </label>
 
           <label className="block space-y-1">
             <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Linked eval question ID
+              {t("fields.linkedEvalQuestionId")}
             </span>
             <input
               value={evalQuestionId}
               onChange={(e) => setEvalQuestionId(e.target.value)}
-              placeholder="UUID (optional)"
+              placeholder={t("placeholders.optionalUuid")}
               className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             />
           </label>
 
           <label className="block space-y-1">
             <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Linked document ID
+              {t("fields.linkedDocumentId")}
             </span>
             <input
               value={linkedDocId}
               onChange={(e) => setLinkedDocId(e.target.value)}
-              placeholder="UUID (optional)"
+              placeholder={t("placeholders.optionalUuid")}
               className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             />
           </label>
@@ -657,21 +670,21 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
             disabled={isUpdating}
             className="w-full rounded-lg bg-[#3525cd] px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isUpdating ? "Saving..." : "Save changes"}
+            {isUpdating ? t("actions.saving") : t("actions.saveChanges")}
           </button>
 
           <div className="rounded-lg border border-[#e4e1ee] bg-[#faf9ff] px-3 py-2 text-xs text-[#777587]">
             <p>
-              <span className="font-semibold">Review ID:</span>{" "}
+              <span className="font-semibold">{t("fields.reviewId")}:</span>{" "}
               <span className="font-mono">{item.review_id}</span>
             </p>
             <p>
-              <span className="font-semibold">Created:</span>{" "}
+              <span className="font-semibold">{t("fields.created")}:</span>{" "}
               {formatTimestamp(item.created_at)}
             </p>
             {item.resolved_at ? (
               <p>
-                <span className="font-semibold">Resolved:</span>{" "}
+                <span className="font-semibold">{t("fields.resolved")}:</span>{" "}
                 {formatTimestamp(item.resolved_at)}
               </p>
             ) : null}
@@ -683,6 +696,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
 );
 
 export function AdminFeedbackReviewPage() {
+  const t = useTranslations("adminFeedbackReview");
   const { state } = useAuthSession();
   const role = state.session?.role;
   const isAdminUser = canViewFeedbackReview(role);
@@ -784,8 +798,8 @@ export function AdminFeedbackReviewPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Feedback review queue restricted"
-          description="Only owner and admin roles can access the feedback review queue."
+          title={t("access.restrictedTitle")}
+          description={t("access.restrictedDescription")}
           compact={false}
         />
       </section>
@@ -796,8 +810,8 @@ export function AdminFeedbackReviewPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Feedback review queue unavailable"
-          description="Your role no longer has access to this queue."
+          title={t("access.unavailableTitle")}
+          description={t("access.unavailableDescription")}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -882,14 +896,13 @@ export function AdminFeedbackReviewPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-semibold tracking-[0.16em] text-[#3525cd] uppercase">
-              Quality &amp; Knowledge Gaps
+              {t("header.eyebrow")}
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-[#1b1b24]">
-              Feedback review queue
+              {t("header.title")}
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-[#464555]">
-              Triage answer feedback, assign severity, convert failures to
-              evaluation cases, and track resolution of knowledge gaps.
+              {t("header.description")}
             </p>
           </div>
           <button
@@ -897,7 +910,7 @@ export function AdminFeedbackReviewPage() {
             onClick={() => triggerCsvDownload(exportUrl)}
             className="h-10 rounded-lg border border-[#c7c4d8] bg-white px-4 text-xs font-semibold tracking-wide text-[#38485d] uppercase hover:bg-[#f5f2ff]"
           >
-            Export CSV
+            {t("actions.exportCsv")}
           </button>
         </div>
       </header>
@@ -905,7 +918,7 @@ export function AdminFeedbackReviewPage() {
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-rose-700 uppercase">
-            Open items (page)
+            {t("stats.openItems")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-rose-700">
             {openCount}
@@ -913,7 +926,7 @@ export function AdminFeedbackReviewPage() {
         </article>
         <article className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-amber-700 uppercase">
-            High severity (page)
+            {t("stats.highSeverity")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-amber-700">
             {highSeverityCount}
@@ -921,7 +934,7 @@ export function AdminFeedbackReviewPage() {
         </article>
         <article className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-emerald-700 uppercase">
-            Resolved (page)
+            {t("stats.resolved")}
           </p>
           <p className="mt-2 font-mono text-3xl font-semibold text-emerald-700">
             {resolvedCount}
@@ -936,7 +949,7 @@ export function AdminFeedbackReviewPage() {
         >
           <label className="w-[180px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Status
+              {t("fields.status")}
             </span>
             <select
               value={statusInput}
@@ -945,64 +958,64 @@ export function AdminFeedbackReviewPage() {
               }
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
-              <option value="">All statuses</option>
-              <option value="new">New</option>
-              <option value="triaged">Triaged</option>
-              <option value="accepted">Accepted</option>
+              <option value="">{t("filters.allStatuses")}</option>
+              <option value="new">{t("statuses.new")}</option>
+              <option value="triaged">{t("statuses.triaged")}</option>
+              <option value="accepted">{t("statuses.accepted")}</option>
               <option value="needs_document_update">
-                Needs document update
+                {t("statuses.needsDocumentUpdate")}
               </option>
               <option value="needs_prompt_retrieval_fix">
-                Needs prompt/retrieval fix
+                {t("statuses.needsPromptRetrievalFix")}
               </option>
               <option value="converted_to_evaluation">
-                Converted to evaluation
+                {t("statuses.convertedToEvaluation")}
               </option>
-              <option value="resolved">Resolved</option>
-              <option value="rejected">Rejected</option>
-              <option value="duplicate">Duplicate</option>
+              <option value="resolved">{t("statuses.resolved")}</option>
+              <option value="rejected">{t("statuses.rejected")}</option>
+              <option value="duplicate">{t("statuses.duplicate")}</option>
             </select>
           </label>
 
           <label className="w-[180px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Category
+              {t("fields.category")}
             </span>
             <input
               value={categoryInput}
               onChange={(e) => setCategoryInput(e.target.value)}
-              placeholder="e.g. wrong_answer"
+              placeholder={t("placeholders.category")}
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             />
           </label>
 
           <label className="w-[220px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Workspace ID
+              {t("fields.workspaceId")}
             </span>
             <input
               value={workspaceInput}
               onChange={(e) => setWorkspaceInput(e.target.value)}
-              placeholder="Current workspace"
+              placeholder={t("placeholders.currentWorkspace")}
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             />
           </label>
 
           <label className="w-[220px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Document ID
+              {t("fields.documentId")}
             </span>
             <input
               value={documentInput}
               onChange={(e) => setDocumentInput(e.target.value)}
-              placeholder="Document UUID"
+              placeholder={t("placeholders.documentUuid")}
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             />
           </label>
 
           <label className="w-[180px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Model
+              {t("fields.model")}
             </span>
             <input
               value={modelInput}
@@ -1014,7 +1027,7 @@ export function AdminFeedbackReviewPage() {
 
           <label className="w-[120px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Min confidence
+              {t("fields.minConfidence")}
             </span>
             <input
               value={confidenceMinInput}
@@ -1027,7 +1040,7 @@ export function AdminFeedbackReviewPage() {
 
           <label className="w-[120px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Max confidence
+              {t("fields.maxConfidence")}
             </span>
             <input
               value={confidenceMaxInput}
@@ -1040,7 +1053,7 @@ export function AdminFeedbackReviewPage() {
 
           <label className="w-[150px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Severity
+              {t("fields.severity")}
             </span>
             <select
               value={severityInput}
@@ -1049,16 +1062,16 @@ export function AdminFeedbackReviewPage() {
               }
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
-              <option value="">All severities</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="">{t("filters.allSeverities")}</option>
+              <option value="high">{t("severities.high")}</option>
+              <option value="medium">{t("severities.medium")}</option>
+              <option value="low">{t("severities.low")}</option>
             </select>
           </label>
 
           <label className="w-[140px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Rating
+              {t("fields.rating")}
             </span>
             <select
               value={ratingInput}
@@ -1067,28 +1080,38 @@ export function AdminFeedbackReviewPage() {
               }
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
-              <option value="">All ratings</option>
-              <option value="down">Thumbs down</option>
-              <option value="up">Thumbs up</option>
+              <option value="">{t("filters.allRatings")}</option>
+              <option value="down">{t("ratings.down")}</option>
+              <option value="up">{t("ratings.up")}</option>
             </select>
           </label>
 
           <label className="min-w-[180px] flex-1 space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-              Reason
+              {t("fields.reason")}
             </span>
             <select
               value={reasonInput}
               onChange={(e) => setReasonInput(e.target.value)}
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
-              <option value="">All reasons</option>
-              <option value="wrong_citation">Wrong citation</option>
-              <option value="hallucination">Hallucination</option>
-              <option value="outdated_source">Outdated source</option>
-              <option value="missing_document">Missing document</option>
-              <option value="unsafe_content">Unsafe content</option>
-              <option value="other">Other</option>
+              <option value="">{t("filters.allReasons")}</option>
+              <option value="wrong_citation">
+                {t("reasons.wrongCitation")}
+              </option>
+              <option value="hallucination">
+                {t("reasons.hallucination")}
+              </option>
+              <option value="outdated_source">
+                {t("reasons.outdatedSource")}
+              </option>
+              <option value="missing_document">
+                {t("reasons.missingDocument")}
+              </option>
+              <option value="unsafe_content">
+                {t("reasons.unsafeContent")}
+              </option>
+              <option value="other">{t("reasons.other")}</option>
             </select>
           </label>
 
@@ -1096,14 +1119,14 @@ export function AdminFeedbackReviewPage() {
             type="submit"
             className="h-10 rounded-lg bg-[#3525cd] px-4 text-xs font-semibold tracking-wide text-white uppercase hover:bg-[#2b1fa8]"
           >
-            Apply
+            {t("actions.apply")}
           </button>
           <button
             type="button"
             onClick={clearFilters}
             className="h-10 px-2 text-xs font-semibold tracking-wide text-[#3525cd] uppercase hover:underline"
           >
-            Clear
+            {t("actions.clear")}
           </button>
         </form>
       </section>
@@ -1112,11 +1135,15 @@ export function AdminFeedbackReviewPage() {
         <section className="overflow-hidden rounded-xl border border-[#c7c4d8] bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e4e1ee] bg-[#f5f2ff] px-4 py-3">
             <h2 className="text-lg font-semibold text-[#1b1b24]">
-              Review queue
+              {t("queue.title")}
             </h2>
             {listQuery.isSuccess ? (
               <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Showing {pageStart}–{pageEnd} of {pageTotal}
+                {t("queue.showingRange", {
+                  start: pageStart,
+                  end: pageEnd,
+                  total: pageTotal,
+                })}
               </p>
             ) : null}
           </div>
@@ -1125,7 +1152,7 @@ export function AdminFeedbackReviewPage() {
             <LoadingState
               compact
               className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-              title="Loading feedback items..."
+              title={t("queue.loading")}
             />
           ) : null}
 
@@ -1146,7 +1173,7 @@ export function AdminFeedbackReviewPage() {
             <EmptyState
               compact
               className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
-              title="No feedback items match the current filters."
+              title={t("queue.empty")}
             />
           ) : null}
 
@@ -1155,14 +1182,18 @@ export function AdminFeedbackReviewPage() {
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="border-b border-[#e4e1ee] bg-[#fcf8ff]">
-                    <tr className="text-left text-[11px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                      <th className="px-4 py-3">Submitted</th>
-                      <th className="px-4 py-3">Rating</th>
-                      <th className="px-4 py-3">Category</th>
-                      <th className="px-4 py-3 text-center">Status</th>
-                      <th className="px-4 py-3 text-center">Severity</th>
-                      <th className="px-4 py-3">Answer preview</th>
-                      <th className="px-4 py-3">Actions</th>
+                    <tr className="text-start text-[11px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                      <th className="px-4 py-3">{t("table.submitted")}</th>
+                      <th className="px-4 py-3">{t("fields.rating")}</th>
+                      <th className="px-4 py-3">{t("fields.category")}</th>
+                      <th className="px-4 py-3 text-center">
+                        {t("fields.status")}
+                      </th>
+                      <th className="px-4 py-3 text-center">
+                        {t("fields.severity")}
+                      </th>
+                      <th className="px-4 py-3">{t("table.answerPreview")}</th>
+                      <th className="px-4 py-3">{t("table.actions")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#ece9f5]">
@@ -1182,10 +1213,12 @@ export function AdminFeedbackReviewPage() {
                           </td>
                           <td className="px-4 py-3 text-sm font-medium">
                             {item.feedback?.rating === "down" ? (
-                              <span className="text-rose-700">Thumbs down</span>
+                              <span className="text-rose-700">
+                                {t("ratings.down")}
+                              </span>
                             ) : item.feedback?.rating === "up" ? (
                               <span className="text-emerald-700">
-                                Thumbs up
+                                {t("ratings.up")}
                               </span>
                             ) : (
                               <span className="text-[#777587]">—</span>
@@ -1198,14 +1231,18 @@ export function AdminFeedbackReviewPage() {
                             <span
                               className={`rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide uppercase ${statusPillClass(item.status)}`}
                             >
-                              {item.status.replace(/_/g, " ")}
+                              {item.status === "new"
+                                ? t("statusPills.new")
+                                : t(
+                                    `statuses.${({ needs_document_update: "needsDocumentUpdate", needs_prompt_retrieval_fix: "needsPromptRetrievalFix", converted_to_evaluation: "convertedToEvaluation", eval_created: "convertedToEvaluation", needs_document: "needsDocumentUpdate", fixed: "resolved" } as Record<string, string>)[item.status] ?? item.status}`,
+                                  )}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span
                               className={`rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide uppercase ${severityPillClass(item.severity)}`}
                             >
-                              {item.severity}
+                              {t(`severities.${item.severity}`)}
                             </span>
                           </td>
                           <td className="max-w-[240px] px-4 py-3 text-xs text-[#464555]">
@@ -1224,7 +1261,7 @@ export function AdminFeedbackReviewPage() {
                               }}
                               className="rounded-lg border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f2ff]"
                             >
-                              Review
+                              {t("actions.review")}
                             </button>
                           </td>
                         </tr>
@@ -1236,7 +1273,11 @@ export function AdminFeedbackReviewPage() {
 
               <div className="flex items-center justify-between gap-3 border-t border-[#e4e1ee] px-4 py-3">
                 <p className="text-sm text-[#464555]">
-                  Showing {pageStart} to {pageEnd} of {pageTotal} items
+                  {t("queue.showingItems", {
+                    start: pageStart,
+                    end: pageEnd,
+                    total: pageTotal,
+                  })}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -1247,7 +1288,7 @@ export function AdminFeedbackReviewPage() {
                     disabled={!hasPreviousPage || listQuery.isFetching}
                     className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Previous
+                    {t("actions.previous")}
                   </button>
                   <button
                     type="button"
@@ -1255,7 +1296,7 @@ export function AdminFeedbackReviewPage() {
                     disabled={!hasNextPage || listQuery.isFetching}
                     className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Next
+                    {t("actions.next")}
                   </button>
                 </div>
               </div>
@@ -1267,7 +1308,7 @@ export function AdminFeedbackReviewPage() {
           <>
             <button
               type="button"
-              aria-label="Close review detail"
+              aria-label={t("detail.closeReviewDetail")}
               onClick={closePanel}
               className="absolute inset-0 z-10 bg-[#17172a]/15 xl:bg-transparent"
             />

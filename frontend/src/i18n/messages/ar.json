@@ -5078,5 +5078,145 @@
       "failed": "فشل",
       "unknown": "غير معروف"
     }
+  },
+  "adminFeedbackReview": {
+    "convert": {
+      "title": "Convert to evaluation case",
+      "dataset": "Evaluation dataset",
+      "loadingDatasets": "Loading datasets…",
+      "selectDataset": "Select a dataset…",
+      "difficulty": "Difficulty",
+      "reviewerNotesOptional": "Reviewer notes (optional)",
+      "converting": "Converting…"
+    },
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "actions": {
+      "close": "إغلاق",
+      "cancel": "إلغاء",
+      "convert": "تحويل",
+      "convertToEval": "تحويل إلى حالة تقييم",
+      "saveKnowledgeCard": "حفظ كبطاقة معرفة",
+      "redactDiagnostics": "حجب بيانات التشخيص",
+      "saving": "Saving...",
+      "saveChanges": "حفظ التغييرات",
+      "exportCsv": "تصدير CSV",
+      "apply": "تطبيق",
+      "clear": "مسح",
+      "review": "مراجعة",
+      "previous": "السابق",
+      "next": "التالي"
+    },
+    "detail": {
+      "reviewDetail": "Review detail",
+      "feedbackItem": "Feedback item",
+      "originalFeedback": "Original feedback",
+      "capturedCount": "{count} captured",
+      "fieldsCount": "{count} fields",
+      "diagnosticsRedacted": "Diagnostics redacted on {date}",
+      "convertedToEval": "Converted to eval case",
+      "capturedQuestion": "Captured question",
+      "capturedAnswer": "Captured answer",
+      "originalAnswer": "Original answer",
+      "triageActions": "Triage actions",
+      "closeReviewDetail": "Close review detail"
+    },
+    "fields": {
+      "rating": "التقييم",
+      "category": "الفئة",
+      "reason": "السبب",
+      "comment": "التعليق",
+      "model": "النموذج",
+      "provider": "المزود",
+      "confidence": "الثقة",
+      "citations": "الاستشهادات",
+      "trace": "Trace",
+      "trust": "Trust",
+      "status": "الحالة",
+      "severity": "الخطورة",
+      "reviewerNotes": "ملاحظات المراجع",
+      "assigneeReviewerId": "Assignee reviewer ID",
+      "linkedEvalQuestionId": "Linked eval question ID",
+      "linkedDocumentId": "Linked document ID",
+      "reviewId": "Review ID",
+      "created": "Created",
+      "resolved": "Resolved",
+      "workspaceId": "Workspace ID",
+      "documentId": "Document ID",
+      "minConfidence": "Min confidence",
+      "maxConfidence": "Max confidence"
+    },
+    "statusPills": { "new": "جديد" },
+    "statuses": {
+      "new": "جديد",
+      "triaged": "تم الفرز",
+      "accepted": "مقبول",
+      "needsDocumentUpdate": "يتطلب تحديث المستند",
+      "needsPromptRetrievalFix": "يتطلب إصلاح الموجه/الاسترجاع",
+      "convertedToEvaluation": "تم التحويل إلى تقييم",
+      "resolved": "تم الحل",
+      "rejected": "مرفوض",
+      "duplicate": "مكرر"
+    },
+    "severities": {
+      "low": "منخفض",
+      "medium": "متوسط",
+      "high": "مرتفع"
+    },
+    "placeholders": {
+      "optionalUuid": "UUID (optional)",
+      "category": "e.g. wrong_answer",
+      "currentWorkspace": "Current workspace",
+      "documentUuid": "Document UUID"
+    },
+    "access": {
+      "restrictedTitle": "Feedback review queue restricted",
+      "restrictedDescription": "Only owner and admin roles can access the feedback review queue.",
+      "unavailableTitle": "Feedback review queue unavailable",
+      "unavailableDescription": "Your role no longer has access to this queue."
+    },
+    "header": {
+      "eyebrow": "الجودة وفجوات المعرفة",
+      "title": "قائمة مراجعة الملاحظات",
+      "description": "راجع ملاحظات الإجابات وحدد مستوى الخطورة وحوّل الإخفاقات إلى حالات تقييم وتابع معالجة فجوات المعرفة."
+    },
+    "stats": {
+      "openItems": "Open items (page)",
+      "highSeverity": "High severity (page)",
+      "resolved": "Resolved (page)"
+    },
+    "filters": {
+      "allStatuses": "كل الحالات",
+      "allSeverities": "كل مستويات الخطورة",
+      "allRatings": "كل التقييمات",
+      "allReasons": "كل الأسباب"
+    },
+    "ratings": {
+      "down": "عدم إعجاب",
+      "up": "إعجاب"
+    },
+    "reasons": {
+      "wrongCitation": "Wrong citation",
+      "hallucination": "Hallucination",
+      "outdatedSource": "Outdated source",
+      "missingDocument": "Missing document",
+      "unsafeContent": "Unsafe content",
+      "other": "Other"
+    },
+    "queue": {
+      "title": "قائمة المراجعة",
+      "showingRange": "Showing {start}–{end} of {total}",
+      "loading": "جارٍ تحميل الملاحظات...",
+      "empty": "لا توجد ملاحظات تطابق عوامل التصفية الحالية.",
+      "showingItems": "Showing {start} to {end} of {total} items"
+    },
+    "table": {
+      "submitted": "Submitted",
+      "answerPreview": "Answer preview",
+      "actions": "Actions"
+    }
   }
 }

@@ -5078,5 +5078,145 @@
       "failed": "ناموفق",
       "unknown": "نامشخص"
     }
+  },
+  "adminFeedbackReview": {
+    "convert": {
+      "title": "Convert to evaluation case",
+      "dataset": "Evaluation dataset",
+      "loadingDatasets": "Loading datasets…",
+      "selectDataset": "Select a dataset…",
+      "difficulty": "Difficulty",
+      "reviewerNotesOptional": "Reviewer notes (optional)",
+      "converting": "Converting…"
+    },
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "actions": {
+      "close": "بستن",
+      "cancel": "انصراف",
+      "convert": "تبدیل",
+      "convertToEval": "تبدیل به مورد ارزیابی",
+      "saveKnowledgeCard": "ذخیره به‌عنوان کارت دانش",
+      "redactDiagnostics": "حذف اطلاعات تشخیصی",
+      "saving": "Saving...",
+      "saveChanges": "ذخیره تغییرات",
+      "exportCsv": "خروجی CSV",
+      "apply": "اعمال",
+      "clear": "پاک کردن",
+      "review": "بررسی",
+      "previous": "قبلی",
+      "next": "بعدی"
+    },
+    "detail": {
+      "reviewDetail": "Review detail",
+      "feedbackItem": "Feedback item",
+      "originalFeedback": "Original feedback",
+      "capturedCount": "{count} captured",
+      "fieldsCount": "{count} fields",
+      "diagnosticsRedacted": "Diagnostics redacted on {date}",
+      "convertedToEval": "Converted to eval case",
+      "capturedQuestion": "Captured question",
+      "capturedAnswer": "Captured answer",
+      "originalAnswer": "Original answer",
+      "triageActions": "Triage actions",
+      "closeReviewDetail": "Close review detail"
+    },
+    "fields": {
+      "rating": "امتیاز",
+      "category": "دسته‌بندی",
+      "reason": "دلیل",
+      "comment": "نظر",
+      "model": "مدل",
+      "provider": "ارائه‌دهنده",
+      "confidence": "اطمینان",
+      "citations": "ارجاعات",
+      "trace": "Trace",
+      "trust": "Trust",
+      "status": "وضعیت",
+      "severity": "شدت",
+      "reviewerNotes": "یادداشت‌های بازبین",
+      "assigneeReviewerId": "Assignee reviewer ID",
+      "linkedEvalQuestionId": "Linked eval question ID",
+      "linkedDocumentId": "Linked document ID",
+      "reviewId": "Review ID",
+      "created": "Created",
+      "resolved": "Resolved",
+      "workspaceId": "Workspace ID",
+      "documentId": "Document ID",
+      "minConfidence": "Min confidence",
+      "maxConfidence": "Max confidence"
+    },
+    "statusPills": { "new": "جدید" },
+    "statuses": {
+      "new": "جدید",
+      "triaged": "دسته‌بندی‌شده",
+      "accepted": "پذیرفته‌شده",
+      "needsDocumentUpdate": "نیازمند به‌روزرسانی سند",
+      "needsPromptRetrievalFix": "نیازمند اصلاح پرامپت/بازیابی",
+      "convertedToEvaluation": "تبدیل‌شده به ارزیابی",
+      "resolved": "حل‌شده",
+      "rejected": "ردشده",
+      "duplicate": "تکراری"
+    },
+    "severities": {
+      "low": "کم",
+      "medium": "متوسط",
+      "high": "زیاد"
+    },
+    "placeholders": {
+      "optionalUuid": "UUID (optional)",
+      "category": "e.g. wrong_answer",
+      "currentWorkspace": "Current workspace",
+      "documentUuid": "Document UUID"
+    },
+    "access": {
+      "restrictedTitle": "Feedback review queue restricted",
+      "restrictedDescription": "Only owner and admin roles can access the feedback review queue.",
+      "unavailableTitle": "Feedback review queue unavailable",
+      "unavailableDescription": "Your role no longer has access to this queue."
+    },
+    "header": {
+      "eyebrow": "کیفیت و شکاف‌های دانشی",
+      "title": "صف بررسی بازخورد",
+      "description": "بازخورد پاسخ‌ها را بررسی کنید، شدت را تعیین کنید، خطاها را به موارد ارزیابی تبدیل کنید و رفع شکاف‌های دانشی را پیگیری کنید."
+    },
+    "stats": {
+      "openItems": "Open items (page)",
+      "highSeverity": "High severity (page)",
+      "resolved": "Resolved (page)"
+    },
+    "filters": {
+      "allStatuses": "همه وضعیت‌ها",
+      "allSeverities": "همه شدت‌ها",
+      "allRatings": "همه امتیازها",
+      "allReasons": "همه دلایل"
+    },
+    "ratings": {
+      "down": "نپسندیدم",
+      "up": "پسندیدم"
+    },
+    "reasons": {
+      "wrongCitation": "Wrong citation",
+      "hallucination": "Hallucination",
+      "outdatedSource": "Outdated source",
+      "missingDocument": "Missing document",
+      "unsafeContent": "Unsafe content",
+      "other": "Other"
+    },
+    "queue": {
+      "title": "صف بررسی",
+      "showingRange": "Showing {start}–{end} of {total}",
+      "loading": "در حال بارگذاری بازخوردها...",
+      "empty": "هیچ بازخوردی با فیلترهای فعلی مطابقت ندارد.",
+      "showingItems": "Showing {start} to {end} of {total} items"
+    },
+    "table": {
+      "submitted": "Submitted",
+      "answerPreview": "Answer preview",
+      "actions": "Actions"
+    }
   }
 }

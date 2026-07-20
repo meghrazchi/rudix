@@ -5078,5 +5078,145 @@
       "failed": "Fehlgeschlagen",
       "unknown": "Unbekannt"
     }
+  },
+  "adminFeedbackReview": {
+    "convert": {
+      "title": "Convert to evaluation case",
+      "dataset": "Evaluation dataset",
+      "loadingDatasets": "Loading datasets…",
+      "selectDataset": "Select a dataset…",
+      "difficulty": "Difficulty",
+      "reviewerNotesOptional": "Reviewer notes (optional)",
+      "converting": "Converting…"
+    },
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "actions": {
+      "close": "Schließen",
+      "cancel": "Abbrechen",
+      "convert": "Convert",
+      "convertToEval": "Convert to eval case",
+      "saveKnowledgeCard": "Save as knowledge card",
+      "redactDiagnostics": "Redact diagnostics",
+      "saving": "Saving...",
+      "saveChanges": "Änderungen speichern",
+      "exportCsv": "CSV exportieren",
+      "apply": "Anwenden",
+      "clear": "Zurücksetzen",
+      "review": "Prüfen",
+      "previous": "Zurück",
+      "next": "Weiter"
+    },
+    "detail": {
+      "reviewDetail": "Review detail",
+      "feedbackItem": "Feedback item",
+      "originalFeedback": "Original feedback",
+      "capturedCount": "{count} captured",
+      "fieldsCount": "{count} fields",
+      "diagnosticsRedacted": "Diagnostics redacted on {date}",
+      "convertedToEval": "Converted to eval case",
+      "capturedQuestion": "Captured question",
+      "capturedAnswer": "Captured answer",
+      "originalAnswer": "Original answer",
+      "triageActions": "Triage actions",
+      "closeReviewDetail": "Close review detail"
+    },
+    "fields": {
+      "rating": "Rating",
+      "category": "Category",
+      "reason": "Reason",
+      "comment": "Comment",
+      "model": "Model",
+      "provider": "Provider",
+      "confidence": "Confidence",
+      "citations": "Citations",
+      "trace": "Trace",
+      "trust": "Trust",
+      "status": "Status",
+      "severity": "Severity",
+      "reviewerNotes": "Reviewer notes",
+      "assigneeReviewerId": "Assignee reviewer ID",
+      "linkedEvalQuestionId": "Linked eval question ID",
+      "linkedDocumentId": "Linked document ID",
+      "reviewId": "Review ID",
+      "created": "Created",
+      "resolved": "Resolved",
+      "workspaceId": "Workspace ID",
+      "documentId": "Document ID",
+      "minConfidence": "Min confidence",
+      "maxConfidence": "Max confidence"
+    },
+    "statusPills": { "new": "Neu" },
+    "statuses": {
+      "new": "New",
+      "triaged": "Triaged",
+      "accepted": "Accepted",
+      "needsDocumentUpdate": "Needs document update",
+      "needsPromptRetrievalFix": "Needs prompt/retrieval fix",
+      "convertedToEvaluation": "Converted to evaluation",
+      "resolved": "Resolved",
+      "rejected": "Rejected",
+      "duplicate": "Duplicate"
+    },
+    "severities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "placeholders": {
+      "optionalUuid": "UUID (optional)",
+      "category": "e.g. wrong_answer",
+      "currentWorkspace": "Current workspace",
+      "documentUuid": "Document UUID"
+    },
+    "access": {
+      "restrictedTitle": "Feedback review queue restricted",
+      "restrictedDescription": "Only owner and admin roles can access the feedback review queue.",
+      "unavailableTitle": "Feedback review queue unavailable",
+      "unavailableDescription": "Your role no longer has access to this queue."
+    },
+    "header": {
+      "eyebrow": "Quality & Knowledge Gaps",
+      "title": "Feedback-Prüfwarteschlange",
+      "description": "Prüfen Sie Antwortfeedback, weisen Sie Schweregrade zu, wandeln Sie Fehler in Evaluierungsfälle um und verfolgen Sie die Behebung von Wissenslücken."
+    },
+    "stats": {
+      "openItems": "Open items (page)",
+      "highSeverity": "High severity (page)",
+      "resolved": "Resolved (page)"
+    },
+    "filters": {
+      "allStatuses": "All statuses",
+      "allSeverities": "All severities",
+      "allRatings": "All ratings",
+      "allReasons": "All reasons"
+    },
+    "ratings": {
+      "down": "Thumbs down",
+      "up": "Thumbs up"
+    },
+    "reasons": {
+      "wrongCitation": "Wrong citation",
+      "hallucination": "Hallucination",
+      "outdatedSource": "Outdated source",
+      "missingDocument": "Missing document",
+      "unsafeContent": "Unsafe content",
+      "other": "Other"
+    },
+    "queue": {
+      "title": "Prüfwarteschlange",
+      "showingRange": "Showing {start}–{end} of {total}",
+      "loading": "Feedback wird geladen...",
+      "empty": "Keine Feedback-Einträge entsprechen den aktuellen Filtern.",
+      "showingItems": "Showing {start} to {end} of {total} items"
+    },
+    "table": {
+      "submitted": "Submitted",
+      "answerPreview": "Answer preview",
+      "actions": "Actions"
+    }
   }
 }
