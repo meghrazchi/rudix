@@ -2300,9 +2300,144 @@
   },
   "evaluations": {
     "title": "Evaluaciones",
-    "description": "Evaluar tu RAG canalización calidad",
-    "runEvaluation": "Run evaluación",
-    "noEvaluations": "No evaluaciones yet"
+    "description": "Evalúa la calidad de tu canalización RAG",
+    "runEvaluation": "Ejecutar evaluación",
+    "noEvaluations": "Aún no hay evaluaciones",
+    "header": {
+      "title": "Controla la calidad RAG antes de publicar respuestas",
+      "description": "Mide la calidad de recuperación, fundamentación, latencia y regresiones en los conjuntos de evaluación.",
+      "readOnly": "Puedes revisar los resultados, pero solo propietarios y administradores pueden iniciar ejecuciones."
+    },
+    "startRun": "Iniciar evaluación",
+    "newSet": "Nuevo conjunto",
+    "pipelineExplorer": "Explorador de canalización",
+    "actionRestricted": "Esta acción está restringida.",
+    "unavailable": "No disponible",
+    "unavailablePayload": "Esta métrica no está disponible en la respuesta actual.",
+    "active": "Activa",
+    "compare": "Comparar",
+    "comparing": "Comparando",
+    "recentRuns": "Ejecuciones recientes",
+    "selectedSet": "Conjunto seleccionado",
+    "configuredLlm": "LLM: Configurado",
+    "configuredReranker": "Reranker: Configurado",
+    "statuses": {
+      "queued": "En cola",
+      "running": "En ejecución",
+      "completed": "Completada",
+      "failed": "Fallida",
+      "cancelled": "Cancelada",
+      "unknown": "Desconocida"
+    },
+    "columns": {
+      "name": "Nombre",
+      "author": "Autor",
+      "questions": "Preguntas",
+      "p95Latency": "Latencia P95",
+      "score": "Puntuación",
+      "status": "Estado",
+      "run": "Ejecución",
+      "dataset": "Conjunto de datos",
+      "regressions": "Regresiones",
+      "startedBy": "Iniciada por",
+      "duration": "Duración",
+      "created": "Creada"
+    },
+    "kpis": {
+      "ariaLabel": "Métricas de calidad de evaluación",
+      "hitRateAt10": "Tasa de acierto @ 10",
+      "hitRateHelper": "Fragmentos relevantes recuperados para las preguntas evaluadas",
+      "precision": "Precisión",
+      "precisionHelper": "Precisión de fundamentación de citas",
+      "recall": "Cobertura",
+      "recallHelper": "Cobertura de casos exitosos",
+      "faithfulness": "Fidelidad",
+      "faithfulnessHelper": "Puntuación de fidelidad de fundamentación"
+    },
+    "sets": {
+      "title": "Conjuntos de evaluación",
+      "emptyTitle": "Aún no hay conjuntos de evaluación",
+      "emptyDescription": "Crea un conjunto para organizar preguntas de prueba y respuestas esperadas."
+    },
+    "runs": {
+      "emptyTitle": "Aún no hay ejecuciones",
+      "emptyDescription": "Inicia la primera cuando un conjunto tenga casos de prueba.",
+      "noMatchTitle": "Ninguna ejecución coincide con los filtros",
+      "noMatchDescription": "Restablece o ajusta los filtros para ver ejecuciones.",
+      "viewAll": "Ver todas las ejecuciones",
+      "caption": "Ejecuciones con estado, puntuación, regresiones, responsable, duración y fecha de creación.",
+      "recentEmptyTitle": "No hay ejecuciones recientes",
+      "recentEmptyDescription": "Las ejecuciones recientes aparecerán aquí."
+    },
+    "insights": {
+      "latenciesP95": "Latencias (P95)",
+      "retrieval": "Recuperación",
+      "generation": "Generación",
+      "coldStart": "Inicio en frío",
+      "warm": "En caliente",
+      "context": "Contexto",
+      "hallucinationRisk": "Riesgo de alucinación",
+      "breakdown": "Desglose",
+      "noPriorDelta": "Sin comparación anterior",
+      "decrease": "Disminución {value}%",
+      "increase": "Aumento {value}%",
+      "nextScheduled": "Próxima ejecución programada",
+      "triggerManually": "Activar manualmente",
+      "quickStart": "Iniciar evaluación",
+      "nightlyBaseline": "Línea base nocturna"
+    },
+    "filters": {
+      "ariaLabel": "Filtros de ejecuciones",
+      "searchRuns": "Buscar ejecuciones",
+      "searchPlaceholder": "Nombre o ID",
+      "allStatuses": "Todos los estados",
+      "allDatasets": "Todos los conjuntos",
+      "owner": "Responsable",
+      "allOwners": "Todos los responsables",
+      "dateFrom": "Desde",
+      "dateTo": "Hasta",
+      "sortRuns": "Ordenar ejecuciones",
+      "newest": "Más recientes",
+      "oldest": "Más antiguas",
+      "scoreHigh": "Mayor puntuación",
+      "scoreLow": "Menor puntuación",
+      "statusAz": "Estado A–Z",
+      "reset": "Restablecer filtros"
+    },
+    "inspector": {
+      "title": "Inspector de ejecuciones",
+      "description": "Busca, filtra y compara ejecuciones antes de analizar los casos fallidos.",
+      "runDetail": "Detalle de ejecución",
+      "comparisonView": "Vista comparativa",
+      "selectSecondRun": "Selecciona arriba una segunda ejecución para comparar",
+      "noRunTitle": "Ninguna ejecución seleccionada",
+      "noRunDescription": "Selecciona una ejecución reciente o inicia una nueva para consultar los detalles de calidad."
+    },
+    "onboarding": {
+      "title": "Crea primero tu base de conocimiento",
+      "description": "Sube e indexa documentos y conversa con ellos antes de configurar evaluaciones.",
+      "uploadDocuments": "Subir documentos",
+      "goToChat": "Ir al chat"
+    },
+    "pagination": {
+      "page": "Página",
+      "of": "de",
+      "previous": "Anterior",
+      "next": "Siguiente"
+    },
+    "errors": {
+      "accessRestrictedTitle": "El acceso a evaluaciones está restringido",
+      "accessRestrictedDescription": "Tu rol no permite ver las evaluaciones de esta organización.",
+      "backendUnavailableTitle": "El servicio de evaluaciones no está disponible",
+      "backendUnavailableDescription": "Los endpoints de evaluación no están disponibles temporalmente. Inténtalo de nuevo en breve.",
+      "runPermission": "Solo propietarios y administradores pueden iniciar evaluaciones.",
+      "runRestrictedTitle": "El detalle está restringido",
+      "runRestrictedDescription": "No tienes permiso para inspeccionar esta ejecución.",
+      "runNotFoundTitle": "Ejecución no encontrada o inaccesible",
+      "runNotFoundDescription": "Puede pertenecer a otra organización o haber sido eliminada.",
+      "createSetPermission": "Solo propietarios y administradores pueden crear conjuntos de evaluación.",
+      "setNameRequired": "El nombre del conjunto es obligatorio."
+    }
   },
   "collections": {
     "title": "Colecciones",

@@ -2302,7 +2302,142 @@
     "title": "Evaluations",
     "description": "Evaluate your RAG pipeline quality",
     "runEvaluation": "Run evaluation",
-    "noEvaluations": "No evaluations yet"
+    "noEvaluations": "No evaluations yet",
+    "header": {
+      "title": "Track RAG quality before shipping answers",
+      "description": "Measure retrieval quality, grounding, latency, and regressions across evaluation datasets.",
+      "readOnly": "Your role can review evaluation results but only owner/admin can start new runs."
+    },
+    "startRun": "Start evaluation run",
+    "newSet": "New Set",
+    "pipelineExplorer": "Pipeline Explorer",
+    "actionRestricted": "This action is restricted.",
+    "unavailable": "Unavailable",
+    "unavailablePayload": "This metric is unavailable in the current response.",
+    "active": "Active",
+    "compare": "Compare",
+    "comparing": "Comparing",
+    "recentRuns": "Recent Runs",
+    "selectedSet": "Selected set",
+    "configuredLlm": "LLM: Configured",
+    "configuredReranker": "Reranker: Configured",
+    "statuses": {
+      "queued": "Queued",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "unknown": "Unknown"
+    },
+    "columns": {
+      "name": "Name",
+      "author": "Author",
+      "questions": "Questions",
+      "p95Latency": "P95 latency",
+      "score": "Score",
+      "status": "Status",
+      "run": "Run",
+      "dataset": "Dataset",
+      "regressions": "Regressions",
+      "startedBy": "Started by",
+      "duration": "Duration",
+      "created": "Created"
+    },
+    "kpis": {
+      "ariaLabel": "Evaluation quality metrics",
+      "hitRateAt10": "Hit Rate @ 10",
+      "hitRateHelper": "Retrieved relevant chunks for evaluated questions",
+      "precision": "Precision",
+      "precisionHelper": "Citation-grounding precision",
+      "recall": "Recall",
+      "recallHelper": "Case success coverage",
+      "faithfulness": "Faithfulness",
+      "faithfulnessHelper": "Grounding faithfulness score"
+    },
+    "sets": {
+      "title": "Evaluation Sets",
+      "emptyTitle": "No evaluation sets yet",
+      "emptyDescription": "Create an evaluation set to organize test questions and expected answers."
+    },
+    "runs": {
+      "emptyTitle": "No evaluation runs yet",
+      "emptyDescription": "Start your first run once a dataset has test cases.",
+      "noMatchTitle": "No runs match these filters",
+      "noMatchDescription": "Reset or adjust the filters to see evaluation runs.",
+      "viewAll": "View all runs",
+      "caption": "Evaluation runs with status, score, regressions, owner, duration, and created time.",
+      "recentEmptyTitle": "No recent evaluation runs",
+      "recentEmptyDescription": "Recent evaluation runs will appear here."
+    },
+    "insights": {
+      "latenciesP95": "Latencies (P95)",
+      "retrieval": "Retrieval",
+      "generation": "Generation",
+      "coldStart": "Cold start",
+      "warm": "Warm",
+      "context": "Context",
+      "hallucinationRisk": "Hallucination risk",
+      "breakdown": "Breakdown",
+      "noPriorDelta": "No prior delta",
+      "decrease": "Decrease {value}%",
+      "increase": "Increase {value}%",
+      "nextScheduled": "Next scheduled run",
+      "triggerManually": "Trigger manually",
+      "quickStart": "Start an evaluation run",
+      "nightlyBaseline": "Nightly Baseline"
+    },
+    "filters": {
+      "ariaLabel": "Evaluation run filters",
+      "searchRuns": "Search runs",
+      "searchPlaceholder": "Run name or ID",
+      "allStatuses": "All statuses",
+      "allDatasets": "All datasets",
+      "owner": "Owner",
+      "allOwners": "All owners",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "sortRuns": "Sort runs",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "scoreHigh": "Highest score",
+      "scoreLow": "Lowest score",
+      "statusAz": "Status A–Z",
+      "reset": "Reset filters"
+    },
+    "inspector": {
+      "title": "Run inspector",
+      "description": "Search, filter, and compare runs before drilling into failed cases.",
+      "runDetail": "Run detail",
+      "comparisonView": "Comparison view",
+      "selectSecondRun": "Select a second run in the table above to compare",
+      "noRunTitle": "No run selected",
+      "noRunDescription": "Select a recent run or start a new run to inspect evaluation quality details."
+    },
+    "onboarding": {
+      "title": "Build your knowledge base first",
+      "description": "Upload and index documents, then chat with them before setting up evaluations. The Getting Started checklist walks you through each step.",
+      "uploadDocuments": "Upload documents",
+      "goToChat": "Go to Chat"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "errors": {
+      "accessRestrictedTitle": "Evaluation access is restricted",
+      "accessRestrictedDescription": "Your role does not have permission to view evaluations in this organization.",
+      "backendUnavailableTitle": "Evaluation backend is currently unavailable",
+      "backendUnavailableDescription": "Evaluation endpoints are temporarily unavailable. Retry shortly.",
+      "runPermission": "Only owners and admins can start evaluation runs.",
+      "runRestrictedTitle": "Run detail is restricted",
+      "runRestrictedDescription": "You do not have permission to inspect this evaluation run.",
+      "runNotFoundTitle": "Run not found or inaccessible",
+      "runNotFoundDescription": "The run may belong to a different organization or was removed.",
+      "createSetPermission": "Only owners and admins can create evaluation sets.",
+      "setNameRequired": "Set name is required."
+    }
   },
   "collections": {
     "title": "Collections",

@@ -2299,10 +2299,145 @@
     }
   },
   "evaluations": {
-    "title": "Auswertungen",
-    "description": "Qualität Ihrer RAG-Pipeline bewerten",
-    "runEvaluation": "Auswertung starten",
-    "noEvaluations": "Noch keine Auswertungen"
+    "title": "Evaluierungen",
+    "description": "Bewerten Sie die Qualität Ihrer RAG-Pipeline",
+    "runEvaluation": "Evaluierung ausführen",
+    "noEvaluations": "Noch keine Evaluierungen",
+    "header": {
+      "title": "RAG-Qualität vor der Veröffentlichung prüfen",
+      "description": "Messen Sie Retrieval-Qualität, Fundierung, Latenz und Regressionen über Evaluierungsdatensätze hinweg.",
+      "readOnly": "Sie können Ergebnisse prüfen, aber nur Inhaber und Administratoren können Läufe starten."
+    },
+    "startRun": "Evaluierungslauf starten",
+    "newSet": "Neuer Satz",
+    "pipelineExplorer": "Pipeline-Explorer",
+    "actionRestricted": "Diese Aktion ist eingeschränkt.",
+    "unavailable": "Nicht verfügbar",
+    "unavailablePayload": "Diese Kennzahl ist in der aktuellen Antwort nicht verfügbar.",
+    "active": "Aktiv",
+    "compare": "Vergleichen",
+    "comparing": "Wird verglichen",
+    "recentRuns": "Letzte Läufe",
+    "selectedSet": "Ausgewählter Satz",
+    "configuredLlm": "LLM: Konfiguriert",
+    "configuredReranker": "Reranker: Konfiguriert",
+    "statuses": {
+      "queued": "In Warteschlange",
+      "running": "Läuft",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen",
+      "unknown": "Unbekannt"
+    },
+    "columns": {
+      "name": "Name",
+      "author": "Autor",
+      "questions": "Fragen",
+      "p95Latency": "P95-Latenz",
+      "score": "Bewertung",
+      "status": "Status",
+      "run": "Lauf",
+      "dataset": "Datensatz",
+      "regressions": "Regressionen",
+      "startedBy": "Gestartet von",
+      "duration": "Dauer",
+      "created": "Erstellt"
+    },
+    "kpis": {
+      "ariaLabel": "Kennzahlen zur Evaluierungsqualität",
+      "hitRateAt10": "Trefferquote @ 10",
+      "hitRateHelper": "Relevante Chunks für evaluierte Fragen abgerufen",
+      "precision": "Präzision",
+      "precisionHelper": "Präzision der Zitatfundierung",
+      "recall": "Recall",
+      "recallHelper": "Abdeckung erfolgreicher Fälle",
+      "faithfulness": "Faktentreue",
+      "faithfulnessHelper": "Bewertung der Fundierungstreue"
+    },
+    "sets": {
+      "title": "Evaluierungssätze",
+      "emptyTitle": "Noch keine Evaluierungssätze",
+      "emptyDescription": "Erstellen Sie einen Evaluierungssatz für Testfragen und erwartete Antworten."
+    },
+    "runs": {
+      "emptyTitle": "Noch keine Evaluierungsläufe",
+      "emptyDescription": "Starten Sie den ersten Lauf, sobald ein Datensatz Testfälle enthält.",
+      "noMatchTitle": "Keine Läufe entsprechen diesen Filtern",
+      "noMatchDescription": "Setzen Sie die Filter zurück oder passen Sie sie an.",
+      "viewAll": "Alle Läufe anzeigen",
+      "caption": "Evaluierungsläufe mit Status, Bewertung, Regressionen, Verantwortlichem, Dauer und Erstellungszeit.",
+      "recentEmptyTitle": "Keine aktuellen Evaluierungsläufe",
+      "recentEmptyDescription": "Aktuelle Evaluierungsläufe werden hier angezeigt."
+    },
+    "insights": {
+      "latenciesP95": "Latenzen (P95)",
+      "retrieval": "Retrieval",
+      "generation": "Generierung",
+      "coldStart": "Kaltstart",
+      "warm": "Warm",
+      "context": "Kontext",
+      "hallucinationRisk": "Halluzinationsrisiko",
+      "breakdown": "Aufschlüsselung",
+      "noPriorDelta": "Kein vorheriger Vergleich",
+      "decrease": "Abnahme {value}%",
+      "increase": "Zunahme {value}%",
+      "nextScheduled": "Nächster geplanter Lauf",
+      "triggerManually": "Manuell auslösen",
+      "quickStart": "Evaluierungslauf starten",
+      "nightlyBaseline": "Nächtliche Baseline"
+    },
+    "filters": {
+      "ariaLabel": "Filter für Evaluierungsläufe",
+      "searchRuns": "Läufe suchen",
+      "searchPlaceholder": "Laufname oder ID",
+      "allStatuses": "Alle Status",
+      "allDatasets": "Alle Datensätze",
+      "owner": "Verantwortlicher",
+      "allOwners": "Alle Verantwortlichen",
+      "dateFrom": "Von",
+      "dateTo": "Bis",
+      "sortRuns": "Läufe sortieren",
+      "newest": "Neueste zuerst",
+      "oldest": "Älteste zuerst",
+      "scoreHigh": "Höchste Bewertung",
+      "scoreLow": "Niedrigste Bewertung",
+      "statusAz": "Status A–Z",
+      "reset": "Filter zurücksetzen"
+    },
+    "inspector": {
+      "title": "Laufinspektor",
+      "description": "Suchen, filtern und vergleichen Sie Läufe, bevor Sie fehlerhafte Fälle untersuchen.",
+      "runDetail": "Laufdetails",
+      "comparisonView": "Vergleichsansicht",
+      "selectSecondRun": "Wählen Sie oben einen zweiten Lauf zum Vergleichen aus",
+      "noRunTitle": "Kein Lauf ausgewählt",
+      "noRunDescription": "Wählen Sie einen Lauf aus oder starten Sie einen neuen, um Qualitätsdetails zu prüfen."
+    },
+    "onboarding": {
+      "title": "Erstellen Sie zuerst Ihre Wissensbasis",
+      "description": "Laden Sie Dokumente hoch, indexieren Sie sie und chatten Sie damit, bevor Sie Evaluierungen einrichten.",
+      "uploadDocuments": "Dokumente hochladen",
+      "goToChat": "Zum Chat"
+    },
+    "pagination": {
+      "page": "Seite",
+      "of": "von",
+      "previous": "Zurück",
+      "next": "Weiter"
+    },
+    "errors": {
+      "accessRestrictedTitle": "Zugriff auf Evaluierungen eingeschränkt",
+      "accessRestrictedDescription": "Ihre Rolle darf Evaluierungen in dieser Organisation nicht anzeigen.",
+      "backendUnavailableTitle": "Evaluierungs-Backend derzeit nicht verfügbar",
+      "backendUnavailableDescription": "Die Evaluierungsendpunkte sind vorübergehend nicht verfügbar. Versuchen Sie es gleich erneut.",
+      "runPermission": "Nur Inhaber und Administratoren können Evaluierungsläufe starten.",
+      "runRestrictedTitle": "Laufdetails eingeschränkt",
+      "runRestrictedDescription": "Sie dürfen diesen Evaluierungslauf nicht prüfen.",
+      "runNotFoundTitle": "Lauf nicht gefunden oder nicht zugänglich",
+      "runNotFoundDescription": "Der Lauf gehört möglicherweise zu einer anderen Organisation oder wurde entfernt.",
+      "createSetPermission": "Nur Inhaber und Administratoren können Evaluierungssätze erstellen.",
+      "setNameRequired": "Der Name des Satzes ist erforderlich."
+    }
   },
   "collections": {
     "title": "Sammlungen",

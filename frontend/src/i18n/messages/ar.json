@@ -2300,9 +2300,144 @@
   },
   "evaluations": {
     "title": "التقييمات",
-    "description": "قيّم جودة مسار RAG لديك",
-    "runEvaluation": "تشغيل تقييم",
-    "noEvaluations": "لا توجد تقييمات بعد"
+    "description": "قيّم جودة مسار RAG",
+    "runEvaluation": "تشغيل التقييم",
+    "noEvaluations": "لا توجد تقييمات بعد",
+    "header": {
+      "title": "راقب جودة RAG قبل نشر الإجابات",
+      "description": "قِس جودة الاسترجاع والاستناد وزمن الاستجابة والتراجعات عبر مجموعات بيانات التقييم.",
+      "readOnly": "يمكنك مراجعة النتائج، لكن لا يمكن بدء عمليات التشغيل إلا للمالكين والمشرفين."
+    },
+    "startRun": "بدء تشغيل التقييم",
+    "newSet": "مجموعة جديدة",
+    "pipelineExplorer": "مستكشف المسار",
+    "actionRestricted": "هذا الإجراء مقيّد.",
+    "unavailable": "غير متاح",
+    "unavailablePayload": "هذا المقياس غير متاح في الاستجابة الحالية.",
+    "active": "نشط",
+    "compare": "مقارنة",
+    "comparing": "قيد المقارنة",
+    "recentRuns": "عمليات التشغيل الأخيرة",
+    "selectedSet": "المجموعة المحددة",
+    "configuredLlm": "LLM: مهيأ",
+    "configuredReranker": "معيد الترتيب: مهيأ",
+    "statuses": {
+      "queued": "في قائمة الانتظار",
+      "running": "قيد التشغيل",
+      "completed": "مكتمل",
+      "failed": "فشل",
+      "cancelled": "ملغى",
+      "unknown": "غير معروف"
+    },
+    "columns": {
+      "name": "الاسم",
+      "author": "المؤلف",
+      "questions": "الأسئلة",
+      "p95Latency": "زمن P95",
+      "score": "النتيجة",
+      "status": "الحالة",
+      "run": "التشغيل",
+      "dataset": "مجموعة البيانات",
+      "regressions": "التراجعات",
+      "startedBy": "بدأه",
+      "duration": "المدة",
+      "created": "تاريخ الإنشاء"
+    },
+    "kpis": {
+      "ariaLabel": "مقاييس جودة التقييم",
+      "hitRateAt10": "معدل الإصابة @ 10",
+      "hitRateHelper": "المقاطع ذات الصلة المسترجعة للأسئلة المقيمة",
+      "precision": "الدقة",
+      "precisionHelper": "دقة استناد الاقتباسات",
+      "recall": "الاستدعاء",
+      "recallHelper": "تغطية الحالات الناجحة",
+      "faithfulness": "الوفاء",
+      "faithfulnessHelper": "درجة الوفاء بالمصادر"
+    },
+    "sets": {
+      "title": "مجموعات التقييم",
+      "emptyTitle": "لا توجد مجموعات تقييم بعد",
+      "emptyDescription": "أنشئ مجموعة لتنظيم أسئلة الاختبار والإجابات المتوقعة."
+    },
+    "runs": {
+      "emptyTitle": "لا توجد عمليات تقييم بعد",
+      "emptyDescription": "ابدأ أول تشغيل بعد إضافة حالات اختبار إلى مجموعة البيانات.",
+      "noMatchTitle": "لا توجد عمليات تطابق عوامل التصفية",
+      "noMatchDescription": "أعد ضبط عوامل التصفية أو عدّلها لعرض عمليات التشغيل.",
+      "viewAll": "عرض كل عمليات التشغيل",
+      "caption": "عمليات التقييم مع الحالة والنتيجة والتراجعات والمسؤول والمدة ووقت الإنشاء.",
+      "recentEmptyTitle": "لا توجد عمليات تقييم حديثة",
+      "recentEmptyDescription": "ستظهر عمليات التقييم الحديثة هنا."
+    },
+    "insights": {
+      "latenciesP95": "أزمنة الاستجابة (P95)",
+      "retrieval": "الاسترجاع",
+      "generation": "التوليد",
+      "coldStart": "بدء بارد",
+      "warm": "دافئ",
+      "context": "السياق",
+      "hallucinationRisk": "خطر الهلوسة",
+      "breakdown": "التفصيل",
+      "noPriorDelta": "لا توجد مقارنة سابقة",
+      "decrease": "انخفاض {value}٪",
+      "increase": "ارتفاع {value}٪",
+      "nextScheduled": "التشغيل المجدول التالي",
+      "triggerManually": "تشغيل يدوي",
+      "quickStart": "بدء تشغيل التقييم",
+      "nightlyBaseline": "خط الأساس الليلي"
+    },
+    "filters": {
+      "ariaLabel": "عوامل تصفية عمليات التقييم",
+      "searchRuns": "البحث في العمليات",
+      "searchPlaceholder": "اسم التشغيل أو المعرّف",
+      "allStatuses": "كل الحالات",
+      "allDatasets": "كل مجموعات البيانات",
+      "owner": "المسؤول",
+      "allOwners": "كل المسؤولين",
+      "dateFrom": "من",
+      "dateTo": "إلى",
+      "sortRuns": "ترتيب العمليات",
+      "newest": "الأحدث أولاً",
+      "oldest": "الأقدم أولاً",
+      "scoreHigh": "أعلى نتيجة",
+      "scoreLow": "أدنى نتيجة",
+      "statusAz": "الحالة أبجديًا",
+      "reset": "إعادة ضبط التصفية"
+    },
+    "inspector": {
+      "title": "فاحص التشغيل",
+      "description": "ابحث عن عمليات التشغيل وصفّها وقارنها قبل تحليل الحالات الفاشلة.",
+      "runDetail": "تفاصيل التشغيل",
+      "comparisonView": "عرض المقارنة",
+      "selectSecondRun": "حدد عملية تشغيل ثانية من الجدول أعلاه للمقارنة",
+      "noRunTitle": "لم يتم تحديد تشغيل",
+      "noRunDescription": "حدد تشغيلًا حديثًا أو ابدأ تشغيلًا جديدًا لفحص تفاصيل الجودة."
+    },
+    "onboarding": {
+      "title": "أنشئ قاعدة المعرفة أولاً",
+      "description": "ارفع المستندات وافهرسها ثم تحاور معها قبل إعداد التقييمات.",
+      "uploadDocuments": "رفع المستندات",
+      "goToChat": "الانتقال إلى الدردشة"
+    },
+    "pagination": {
+      "page": "الصفحة",
+      "of": "من",
+      "previous": "السابق",
+      "next": "التالي"
+    },
+    "errors": {
+      "accessRestrictedTitle": "الوصول إلى التقييمات مقيّد",
+      "accessRestrictedDescription": "لا يسمح دورك بعرض تقييمات هذه المؤسسة.",
+      "backendUnavailableTitle": "خدمة التقييم غير متاحة حاليًا",
+      "backendUnavailableDescription": "نقاط نهاية التقييم غير متاحة مؤقتًا. حاول مجددًا بعد قليل.",
+      "runPermission": "يمكن للمالكين والمشرفين فقط بدء عمليات التقييم.",
+      "runRestrictedTitle": "تفاصيل التشغيل مقيّدة",
+      "runRestrictedDescription": "ليس لديك إذن لفحص عملية التقييم هذه.",
+      "runNotFoundTitle": "التشغيل غير موجود أو يتعذر الوصول إليه",
+      "runNotFoundDescription": "قد ينتمي التشغيل إلى مؤسسة أخرى أو يكون قد حُذف.",
+      "createSetPermission": "يمكن للمالكين والمشرفين فقط إنشاء مجموعات التقييم.",
+      "setNameRequired": "اسم المجموعة مطلوب."
+    }
   },
   "collections": {
     "title": "المجموعات",

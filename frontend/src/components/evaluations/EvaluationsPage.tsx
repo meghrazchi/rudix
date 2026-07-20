@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   CreateEvaluationSetDialog,
@@ -368,6 +369,7 @@ function nextRunEtaLabel(): string {
 }
 
 export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
+  const t = useTranslations("evaluations");
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -880,12 +882,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const kpiItems: EvaluationKpiItem[] = [
     {
       id: "retrieval-hit-rate",
-      label: "Hit Rate @ 10",
+      label: t("kpis.hitRateAt10"),
       value:
         activeRunSummaryItem?.retrievalHitRate != null
           ? `${((normalizeRate(activeRunSummaryItem.retrievalHitRate) ?? 0) * 100).toFixed(1)}%`
           : "N/A",
-      helper: "Retrieved relevant chunks for evaluated questions",
+      helper: t("kpis.hitRateHelper"),
       trendLabel: resolveKpiTrendLabel(retrievalDelta),
       trendTone:
         retrievalDelta == null
@@ -901,14 +903,14 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     },
     {
       id: "citation-accuracy",
-      label: "Precision",
+      label: t("kpis.precision"),
       value:
         activeRunSummaryItem?.citationAccuracy != null
           ? (normalizeRate(activeRunSummaryItem.citationAccuracy) ?? 0).toFixed(
               2,
             )
           : "N/A",
-      helper: "Citation-grounding precision",
+      helper: t("kpis.precisionHelper"),
       trendLabel: resolveKpiTrendLabel(citationDelta),
       trendTone:
         citationDelta == null
@@ -924,12 +926,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     },
     {
       id: "pass-rate",
-      label: "Recall",
+      label: t("kpis.recall"),
       value:
         activeRunSummaryItem?.passRate != null
           ? (normalizeRate(activeRunSummaryItem.passRate) ?? 0).toFixed(2)
           : "N/A",
-      helper: "Case success coverage",
+      helper: t("kpis.recallHelper"),
       trendLabel: resolveKpiTrendLabel(passRateDelta),
       trendTone:
         passRateDelta == null
@@ -945,12 +947,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     },
     {
       id: "faithfulness",
-      label: "Faithfulness",
+      label: t("kpis.faithfulness"),
       value:
         runDetail?.summary != null
           ? `${((normalizeRate(metricFromSummary(runDetail.summary, ["faithfulness_score"])) ?? 0) * 100).toFixed(1)}%`
           : "N/A",
-      helper: "Grounding faithfulness score",
+      helper: t("kpis.faithfulnessHelper"),
       trendLabel: resolveKpiTrendLabel(faithfulnessDelta),
       trendTone: "muted",
       sparkline: "wave",
@@ -984,7 +986,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       return {
         setId: setItem.evaluation_set_id,
         name: setItem.name,
-        author: latestRun?.startedBy ?? "Unavailable",
+        author: latestRun?.startedBy ?? t("unavailable"),
         questionCount: setItem.question_count,
         latencyMs: latestRun?.latencyMsAverage ?? null,
         score: latestRun?.score ?? null,
@@ -992,7 +994,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         statusTone: setStatusToneFromScore(latestRun?.score ?? null),
       };
     });
-  }, [latestRunByDataset, setItems]);
+  }, [latestRunByDataset, setItems, t]);
 
   const recentRunItems = useMemo(
     () =>
@@ -1002,10 +1004,10 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         status: run.status,
         createdAt: run.createdAt,
         durationMs: run.durationMs,
-        modelLabel: run.source === "live" ? "LLM: Configured" : null,
-        rerankerLabel: run.source === "live" ? "Reranker: Configured" : null,
+        modelLabel: run.source === "live" ? t("configuredLlm") : null,
+        rerankerLabel: run.source === "live" ? t("configuredReranker") : null,
       })),
-    [runsSortedByUpdated],
+    [runsSortedByUpdated, t],
   );
 
   const listForbidden =
@@ -1014,8 +1016,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Evaluation access is restricted"
-          description="Your role does not have permission to view evaluations in this organization."
+          title={t("errors.accessRestrictedTitle")}
+          description={t("errors.accessRestrictedDescription")}
           requestId={extractRequestIdFromError(
             setsQuery.error ?? questionsQuery.error,
           )}
@@ -1034,7 +1036,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       <EvaluationsPageHeader
         canRun={canRun}
         canCreateSet={canCreateSet}
-        runDisabledReason="Only owner/admin can start evaluation runs."
+        runDisabledReason={t("errors.runPermission")}
         onStartRun={() => {
           setRunError(null);
           setIsRunDialogOpen(true);
@@ -1047,8 +1049,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
       {listUnavailable ? (
         <ErrorState
-          title="Evaluation backend is currently unavailable"
-          description="Evaluation endpoints are temporarily unavailable. Retry shortly."
+          title={t("errors.backendUnavailableTitle")}
+          description={t("errors.backendUnavailableDescription")}
           error={setsQuery.error}
           onRetry={() => void setsQuery.refetch()}
         />
@@ -1127,7 +1129,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         nextRunLabel={
           selectedSet?.name
             ? `${selectedSet.name} Baseline`
-            : "Nightly Baseline"
+            : t("insights.nightlyBaseline")
         }
         nextRunEta={nextRunEtaLabel()}
         onTriggerRun={() => {
@@ -1142,10 +1144,10 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-gray-900">Run inspector</h2>
-          <p className="text-sm text-gray-500">
-            Search, filter, and compare runs before drilling into failed cases.
-          </p>
+          <h2 className="text-lg font-semibold text-gray-900">
+            {t("inspector.title")}
+          </h2>
+          <p className="text-sm text-gray-500">{t("inspector.description")}</p>
         </div>
 
         <EvaluationRunsFilterBar
@@ -1169,15 +1171,15 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           <div className="space-y-3">
             <EmptyState
               compact
-              title="No evaluation runs yet"
-              description="Start your first run once a dataset has test cases."
+              title={t("runs.emptyTitle")}
+              description={t("runs.emptyDescription")}
             />
             <OnboardingCtaBanner
-              title="Build your knowledge base first"
-              description="Upload and index documents, then chat with them before setting up evaluations. The Getting Started checklist walks you through each step."
-              actionLabel="Upload documents"
+              title={t("onboarding.title")}
+              description={t("onboarding.description")}
+              actionLabel={t("onboarding.uploadDocuments")}
               actionHref="/documents"
-              secondaryLabel="Go to Chat"
+              secondaryLabel={t("onboarding.goToChat")}
               secondaryHref="/chat"
             />
           </div>
@@ -1211,15 +1213,15 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           isForbiddenError(runDetailQuery.error) ? (
             <ForbiddenState
               compact
-              title="Run detail is restricted"
-              description="You do not have permission to inspect this evaluation run."
+              title={t("errors.runRestrictedTitle")}
+              description={t("errors.runRestrictedDescription")}
               requestId={extractRequestIdFromError(runDetailQuery.error)}
             />
           ) : isApiClientError(runDetailQuery.error) &&
             runDetailQuery.error.status === 404 ? (
             <EmptyState
-              title="Run not found or inaccessible"
-              description="The run may belong to a different organization or was removed."
+              title={t("errors.runNotFoundTitle")}
+              description={t("errors.runNotFoundDescription")}
             />
           ) : (
             <ErrorState
@@ -1240,7 +1242,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     : "border-[#cbc6dd] text-[#403b5f] hover:bg-gray-50"
                 }`}
               >
-                Run detail
+                {t("inspector.runDetail")}
               </button>
               {compareRunId && (
                 <button
@@ -1248,12 +1250,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                   onClick={() => {}}
                   className="rounded border border-[#8b5cf6] bg-[#8b5cf6] px-3 py-1.5 text-xs font-semibold text-white"
                 >
-                  Comparison view
+                  {t("inspector.comparisonView")}
                 </button>
               )}
               {!compareRunId && filteredRuns.length > 1 && (
                 <span className="text-xs text-gray-400">
-                  Select a second run in the table above to compare
+                  {t("inspector.selectSecondRun")}
                 </span>
               )}
             </div>
@@ -1288,10 +1290,10 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#ddd8ec] bg-white px-3 py-2">
                   <p className="text-sm text-[#66627d]">
-                    Page{" "}
+                    {t("pagination.page")}{" "}
                     {Math.floor(resultOffset / EVALUATION_RESULTS_PAGE_SIZE) +
                       1}{" "}
-                    of{" "}
+                    {t("pagination.of")}{" "}
                     {Math.max(
                       1,
                       Math.ceil(
@@ -1315,7 +1317,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                       }
                       className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Previous
+                      {t("pagination.previous")}
                     </button>
                     <button
                       type="button"
@@ -1332,7 +1334,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                       }
                       className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Next
+                      {t("pagination.next")}
                     </button>
                   </div>
                 </div>
@@ -1342,8 +1344,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         ) : null
       ) : (
         <EmptyState
-          title="No run selected"
-          description="Select a recent run or start a new run to inspect evaluation quality details."
+          title={t("inspector.noRunTitle")}
+          description={t("inspector.noRunDescription")}
         />
       )}
 
@@ -1419,13 +1421,13 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         }}
         onSubmit={() => {
           if (!canCreateSet) {
-            setCreateSetError("Only owner/admin can create evaluation sets.");
+            setCreateSetError(t("errors.createSetPermission"));
             return;
           }
 
           const normalizedName = createSetName.trim();
           if (!normalizedName) {
-            setCreateSetError("Set name is required.");
+            setCreateSetError(t("errors.setNameRequired"));
             return;
           }
 
@@ -1441,7 +1443,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         containerRef={runModalRef}
         isOpen={isRunDialogOpen}
         isSubmitting={runMutation.isPending}
-        setName={selectedSet?.name ?? "Selected set"}
+        setName={selectedSet?.name ?? t("selectedSet")}
         topK={runTopK}
         rerank={runRerank}
         modelName={runModelName}

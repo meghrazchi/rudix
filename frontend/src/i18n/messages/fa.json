@@ -2300,9 +2300,144 @@
   },
   "evaluations": {
     "title": "ارزیابی‌ها",
-    "description": "کیفیت خط لوله RAG خود را ارزیابی کنید",
+    "description": "کیفیت خط لوله RAG را ارزیابی کنید",
     "runEvaluation": "اجرای ارزیابی",
-    "noEvaluations": "هنوز ارزیابی‌ای وجود ندارد"
+    "noEvaluations": "هنوز ارزیابی‌ای وجود ندارد",
+    "header": {
+      "title": "پیش از انتشار پاسخ‌ها، کیفیت RAG را بررسی کنید",
+      "description": "کیفیت بازیابی، استنادپذیری، تأخیر و پسرفت‌ها را در مجموعه‌داده‌های ارزیابی اندازه‌گیری کنید.",
+      "readOnly": "می‌توانید نتایج را ببینید، اما فقط مالکان و مدیران می‌توانند اجرا را آغاز کنند."
+    },
+    "startRun": "شروع اجرای ارزیابی",
+    "newSet": "مجموعه جدید",
+    "pipelineExplorer": "کاوشگر خط لوله",
+    "actionRestricted": "این عملیات محدود شده است.",
+    "unavailable": "در دسترس نیست",
+    "unavailablePayload": "این شاخص در پاسخ فعلی موجود نیست.",
+    "active": "فعال",
+    "compare": "مقایسه",
+    "comparing": "در حال مقایسه",
+    "recentRuns": "اجراهای اخیر",
+    "selectedSet": "مجموعه انتخاب‌شده",
+    "configuredLlm": "LLM: پیکربندی‌شده",
+    "configuredReranker": "بازرتبه‌بند: پیکربندی‌شده",
+    "statuses": {
+      "queued": "در صف",
+      "running": "در حال اجرا",
+      "completed": "تکمیل‌شده",
+      "failed": "ناموفق",
+      "cancelled": "لغوشده",
+      "unknown": "نامشخص"
+    },
+    "columns": {
+      "name": "نام",
+      "author": "نویسنده",
+      "questions": "پرسش‌ها",
+      "p95Latency": "تأخیر P95",
+      "score": "امتیاز",
+      "status": "وضعیت",
+      "run": "اجرا",
+      "dataset": "مجموعه‌داده",
+      "regressions": "پسرفت‌ها",
+      "startedBy": "اجراکننده",
+      "duration": "مدت",
+      "created": "ایجادشده"
+    },
+    "kpis": {
+      "ariaLabel": "شاخص‌های کیفیت ارزیابی",
+      "hitRateAt10": "نرخ موفقیت @ 10",
+      "hitRateHelper": "بخش‌های مرتبط بازیابی‌شده برای پرسش‌های ارزیابی",
+      "precision": "دقت",
+      "precisionHelper": "دقت استناد به منابع",
+      "recall": "بازیابی",
+      "recallHelper": "پوشش موارد موفق",
+      "faithfulness": "وفاداری",
+      "faithfulnessHelper": "امتیاز وفاداری به منبع"
+    },
+    "sets": {
+      "title": "مجموعه‌های ارزیابی",
+      "emptyTitle": "هنوز مجموعه ارزیابی وجود ندارد",
+      "emptyDescription": "برای سازمان‌دهی پرسش‌های آزمایشی و پاسخ‌های مورد انتظار، یک مجموعه بسازید."
+    },
+    "runs": {
+      "emptyTitle": "هنوز اجرای ارزیابی وجود ندارد",
+      "emptyDescription": "وقتی مجموعه‌داده دارای موارد آزمایشی شد، نخستین اجرا را آغاز کنید.",
+      "noMatchTitle": "هیچ اجرایی با فیلترها مطابقت ندارد",
+      "noMatchDescription": "برای دیدن اجراها، فیلترها را بازنشانی یا اصلاح کنید.",
+      "viewAll": "مشاهده همه اجراها",
+      "caption": "اجراهای ارزیابی همراه با وضعیت، امتیاز، پسرفت، مسئول، مدت و زمان ایجاد.",
+      "recentEmptyTitle": "اجرای ارزیابی اخیری وجود ندارد",
+      "recentEmptyDescription": "اجراهای ارزیابی اخیر اینجا نمایش داده می‌شوند."
+    },
+    "insights": {
+      "latenciesP95": "تأخیرها (P95)",
+      "retrieval": "بازیابی",
+      "generation": "تولید",
+      "coldStart": "شروع سرد",
+      "warm": "گرم",
+      "context": "زمینه",
+      "hallucinationRisk": "خطر توهم",
+      "breakdown": "جزئیات",
+      "noPriorDelta": "بدون مقایسه قبلی",
+      "decrease": "کاهش {value}٪",
+      "increase": "افزایش {value}٪",
+      "nextScheduled": "اجرای برنامه‌ریزی‌شده بعدی",
+      "triggerManually": "اجرای دستی",
+      "quickStart": "شروع اجرای ارزیابی",
+      "nightlyBaseline": "خط مبنای شبانه"
+    },
+    "filters": {
+      "ariaLabel": "فیلترهای اجرای ارزیابی",
+      "searchRuns": "جستجوی اجراها",
+      "searchPlaceholder": "نام یا شناسه اجرا",
+      "allStatuses": "همه وضعیت‌ها",
+      "allDatasets": "همه مجموعه‌داده‌ها",
+      "owner": "مسئول",
+      "allOwners": "همه مسئولان",
+      "dateFrom": "از",
+      "dateTo": "تا",
+      "sortRuns": "مرتب‌سازی اجراها",
+      "newest": "جدیدترین",
+      "oldest": "قدیمی‌ترین",
+      "scoreHigh": "بیشترین امتیاز",
+      "scoreLow": "کمترین امتیاز",
+      "statusAz": "وضعیت الفبا",
+      "reset": "بازنشانی فیلترها"
+    },
+    "inspector": {
+      "title": "بازرس اجرا",
+      "description": "پیش از بررسی موارد ناموفق، اجراها را جستجو، فیلتر و مقایسه کنید.",
+      "runDetail": "جزئیات اجرا",
+      "comparisonView": "نمای مقایسه",
+      "selectSecondRun": "برای مقایسه، اجرای دوم را از جدول بالا انتخاب کنید",
+      "noRunTitle": "اجرایی انتخاب نشده است",
+      "noRunDescription": "برای بررسی جزئیات کیفیت، یک اجرای اخیر را انتخاب یا اجرای جدیدی آغاز کنید."
+    },
+    "onboarding": {
+      "title": "ابتدا پایگاه دانش خود را بسازید",
+      "description": "پیش از تنظیم ارزیابی‌ها، اسناد را بارگذاری و نمایه‌سازی کنید و با آن‌ها گفتگو کنید.",
+      "uploadDocuments": "بارگذاری اسناد",
+      "goToChat": "رفتن به گفتگو"
+    },
+    "pagination": {
+      "page": "صفحه",
+      "of": "از",
+      "previous": "قبلی",
+      "next": "بعدی"
+    },
+    "errors": {
+      "accessRestrictedTitle": "دسترسی به ارزیابی‌ها محدود است",
+      "accessRestrictedDescription": "نقش شما اجازه مشاهده ارزیابی‌های این سازمان را ندارد.",
+      "backendUnavailableTitle": "سرویس ارزیابی اکنون در دسترس نیست",
+      "backendUnavailableDescription": "نقاط پایانی ارزیابی موقتاً در دسترس نیستند. کمی بعد دوباره تلاش کنید.",
+      "runPermission": "فقط مالکان و مدیران می‌توانند ارزیابی را اجرا کنند.",
+      "runRestrictedTitle": "جزئیات اجرا محدود است",
+      "runRestrictedDescription": "اجازه بررسی این اجرای ارزیابی را ندارید.",
+      "runNotFoundTitle": "اجرا پیدا نشد یا در دسترس نیست",
+      "runNotFoundDescription": "ممکن است اجرا متعلق به سازمان دیگری باشد یا حذف شده باشد.",
+      "createSetPermission": "فقط مالکان و مدیران می‌توانند مجموعه ارزیابی بسازند.",
+      "setNameRequired": "نام مجموعه الزامی است."
+    }
   },
   "collections": {
     "title": "مجموعه‌ها",

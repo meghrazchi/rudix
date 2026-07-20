@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -11,8 +14,6 @@ import {
   formatDateTime,
   formatDuration,
   formatPercent,
-  runStatusLabel,
-  runStatusScreenReaderText,
 } from "@/components/evaluations/evaluation-view-model";
 
 type KpiTone = "default" | "good" | "warn" | "bad";
@@ -227,8 +228,9 @@ export function EvaluationStatusBadge({
 }: {
   status: EvaluationRunStatus;
 }) {
+  const t = useTranslations("evaluations");
   return (
-    <span className={statusBadgeClass(status)}>{runStatusLabel(status)}</span>
+    <span className={statusBadgeClass(status)}>{t(`statuses.${status}`)}</span>
   );
 }
 
@@ -239,19 +241,19 @@ export function EvaluationsPageHeader({
   onCreateSet,
   runDisabledReason,
 }: EvaluationPageHeaderProps) {
+  const t = useTranslations("evaluations");
   return (
     <header className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold text-gray-900">
-              Track RAG quality before shipping answers
+              {t("header.title")}
             </h1>
             <ContextualHelpLink topic="run-evaluations" />
           </div>
           <p className="mt-1 text-sm text-gray-500">
-            Measure retrieval, grounding, citations, latency, and cost to catch
-            weak answers before production.
+            {t("header.description")}
           </p>
         </div>
 
@@ -261,11 +263,11 @@ export function EvaluationsPageHeader({
             onClick={onStartRun}
             disabled={!canRun}
             title={
-              !canRun ? (runDisabledReason ?? "Action restricted") : undefined
+              !canRun ? (runDisabledReason ?? t("actionRestricted")) : undefined
             }
             className="rounded-lg bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Start evaluation run
+            {t("startRun")}
           </button>
           {canCreateSet ? (
             <button
@@ -273,22 +275,21 @@ export function EvaluationsPageHeader({
               onClick={onCreateSet}
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
-              New Set
+              {t("newSet")}
             </button>
           ) : null}
           <Link
             href="/rag-pipeline"
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Pipeline Explorer
+            {t("pipelineExplorer")}
           </Link>
         </div>
       </div>
 
       {!canRun ? (
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Your role can review evaluation results but only owner/admin can start
-          new runs.
+          {t("header.readOnly")}
         </p>
       ) : null}
     </header>
@@ -296,9 +297,10 @@ export function EvaluationsPageHeader({
 }
 
 export function EvaluationKpiGrid({ items }: { items: EvaluationKpiItem[] }) {
+  const t = useTranslations("evaluations");
   return (
     <section
-      aria-label="Evaluation summary KPIs"
+      aria-label={t("kpis.ariaLabel")}
       className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4"
     >
       {items.map((item) => {
@@ -336,7 +338,7 @@ export function EvaluationKpiGrid({ items }: { items: EvaluationKpiItem[] }) {
 
             {item.unavailable ? (
               <p className="mt-2 text-xs text-gray-500">
-                Unavailable in current payload.
+                {t("unavailablePayload")}
               </p>
             ) : null}
           </article>
@@ -353,17 +355,18 @@ export function EvaluationSetsOverviewTable({
   onSelectSet,
   onCreateSet,
 }: SetsOverviewTableProps) {
+  const t = useTranslations("evaluations");
   if (rows.length === 0) {
     return (
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-100 px-6 py-5">
-          <h2 className="text-lg font-bold text-gray-800">Evaluation Sets</h2>
+          <h2 className="text-lg font-bold text-gray-800">{t("sets.title")}</h2>
         </div>
         <div className="p-5">
           <EmptyState
             compact
-            title="No evaluation sets yet"
-            description="Create a set to start evaluating answer quality and regressions."
+            title={t("sets.emptyTitle")}
+            description={t("sets.emptyDescription")}
           />
         </div>
       </section>
@@ -373,14 +376,14 @@ export function EvaluationSetsOverviewTable({
   return (
     <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-        <h2 className="text-lg font-bold text-gray-800">Evaluation Sets</h2>
+        <h2 className="text-lg font-bold text-gray-800">{t("sets.title")}</h2>
         {canCreateSet ? (
           <button
             type="button"
             onClick={onCreateSet}
             className="rounded-lg bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
           >
-            New Set
+            {t("newSet")}
           </button>
         ) : null}
       </div>
@@ -389,12 +392,12 @@ export function EvaluationSetsOverviewTable({
         <table className="min-w-full border-collapse text-left">
           <thead className="bg-gray-50 text-[10px] font-bold tracking-wider text-gray-500 uppercase">
             <tr>
-              <th className="px-6 py-3">Name</th>
-              <th className="px-6 py-3">Author</th>
-              <th className="px-6 py-3">Questions</th>
-              <th className="px-6 py-3">P95 Latency</th>
-              <th className="px-6 py-3">Score</th>
-              <th className="px-6 py-3">Status</th>
+              <th className="px-6 py-3">{t("columns.name")}</th>
+              <th className="px-6 py-3">{t("columns.author")}</th>
+              <th className="px-6 py-3">{t("columns.questions")}</th>
+              <th className="px-6 py-3">{t("columns.p95Latency")}</th>
+              <th className="px-6 py-3">{t("columns.score")}</th>
+              <th className="px-6 py-3">{t("columns.status")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-sm">
@@ -474,18 +477,19 @@ export function RecentRunsPanel({
   activeRunId,
   onSelectRun,
 }: RecentRunsPanelProps) {
+  const t = useTranslations("evaluations");
   return (
     <section className="flex h-full flex-col rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-100 px-6 py-5">
-        <h2 className="text-lg font-bold text-gray-800">Recent Runs</h2>
+        <h2 className="text-lg font-bold text-gray-800">{t("recentRuns")}</h2>
       </div>
 
       <div className="flex-1 space-y-3 p-4">
         {items.length === 0 ? (
           <EmptyState
             compact
-            title="No runs yet"
-            description="Queue a run to start tracking quality changes."
+            title={t("runs.recentEmptyTitle")}
+            description={t("runs.recentEmptyDescription")}
           />
         ) : (
           items.map((item) => {
@@ -549,7 +553,7 @@ export function RecentRunsPanel({
           href="#evaluation-inspector"
           className="block w-full py-4 text-center text-sm font-semibold text-indigo-600 hover:bg-gray-50"
         >
-          View all runs
+          {t("runs.viewAll")}
         </a>
       </div>
     </section>
@@ -566,6 +570,7 @@ export function EvaluationInsightsRow({
   onTriggerRun,
   triggerDisabled,
 }: InsightsRowProps) {
+  const t = useTranslations("evaluations");
   const risk =
     hallucinationRisk == null || !Number.isFinite(hallucinationRisk)
       ? null
@@ -576,14 +581,14 @@ export function EvaluationInsightsRow({
     <section className="grid grid-cols-1 gap-8 xl:grid-cols-12">
       <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm xl:col-span-4">
         <h3 className="mb-6 text-sm font-medium text-gray-500">
-          Latencies (P95)
+          {t("insights.latenciesP95")}
         </h3>
 
         <div className="space-y-6">
           <div>
             <div className="mb-2 flex justify-between">
               <span className="text-sm font-semibold text-gray-700">
-                Retrieval
+                {t("insights.retrieval")}
               </span>
               <span className="text-sm font-bold text-gray-900">
                 {asRoundedMs(retrievalP95Ms)}
@@ -605,7 +610,7 @@ export function EvaluationInsightsRow({
           <div>
             <div className="mb-2 flex justify-between">
               <span className="text-sm font-semibold text-gray-700">
-                Generation
+                {t("insights.generation")}
               </span>
               <span className="text-sm font-bold text-gray-900">
                 {asRoundedMs(generationP95Ms)}
@@ -626,10 +631,12 @@ export function EvaluationInsightsRow({
 
           <div className="flex gap-4 pt-1 text-[10px] font-bold tracking-wide text-gray-500 uppercase">
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-sm bg-indigo-900" /> Cold start
+              <span className="h-2 w-2 rounded-sm bg-indigo-900" />{" "}
+              {t("insights.coldStart")}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-sm bg-indigo-200" /> Warm
+              <span className="h-2 w-2 rounded-sm bg-indigo-200" />{" "}
+              {t("insights.warm")}
             </span>
           </div>
         </div>
@@ -638,12 +645,12 @@ export function EvaluationInsightsRow({
       <article className="relative rounded-xl border border-gray-200 bg-white p-6 shadow-sm xl:col-span-4">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm leading-tight font-medium text-gray-500">
-            Context
+            {t("insights.context")}
             <br />
-            Hallucination Risk
+            {t("insights.hallucinationRisk")}
           </h3>
           <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold tracking-wide text-gray-500 uppercase">
-            Breakdown
+            {t("insights.breakdown")}
           </span>
         </div>
 
@@ -680,8 +687,13 @@ export function EvaluationInsightsRow({
 
           <p className="text-xs text-gray-500">
             {hallucinationRiskDelta == null
-              ? "No prior run delta available"
-              : `${hallucinationRiskDelta < 0 ? "Decrease" : "Increase"} of ${Math.abs(hallucinationRiskDelta * 100).toFixed(1)}% from previous run`}
+              ? t("insights.noPriorDelta")
+              : t(
+                  hallucinationRiskDelta < 0
+                    ? "insights.decrease"
+                    : "insights.increase",
+                  { value: Math.abs(hallucinationRiskDelta * 100).toFixed(1) },
+                )}
           </p>
         </div>
       </article>
@@ -696,7 +708,7 @@ export function EvaluationInsightsRow({
 
         <div>
           <span className="mb-1 block text-xs font-medium text-indigo-200">
-            Next Scheduled Run
+            {t("insights.nextScheduled")}
           </span>
           <h3 className="mb-6 text-2xl font-bold">{nextRunLabel}</h3>
           <div className="mb-8 flex items-center gap-2">
@@ -714,14 +726,14 @@ export function EvaluationInsightsRow({
             disabled={triggerDisabled}
             className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-indigo-900 shadow-sm hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Trigger Manually
+            {t("insights.triggerManually")}
           </button>
           <button
             type="button"
             onClick={onTriggerRun}
             disabled={triggerDisabled}
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500 text-lg font-bold text-white shadow-lg hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="Quick start evaluation run"
+            aria-label={t("insights.quickStart")}
           >
             +
           </button>
@@ -746,27 +758,28 @@ export function EvaluationRunsFilterBar({
   onChange,
   onReset,
 }: RunsFilterBarProps) {
+  const t = useTranslations("evaluations");
   return (
     <section
-      aria-label="Run filters"
+      aria-label={t("filters.ariaLabel")}
       className="rounded-xl border border-gray-200 bg-white p-4"
     >
       <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
         <label className="grid gap-1 text-xs font-semibold text-gray-600">
-          <span>Search runs</span>
+          <span>{t("filters.searchRuns")}</span>
           <input
             type="search"
             value={filters.query}
             onChange={(event) =>
               onChange({ ...filters, query: event.target.value })
             }
-            placeholder="Run name, run ID, or dataset"
+            placeholder={t("filters.searchPlaceholder")}
             className="h-9 rounded-lg border border-gray-300 bg-gray-50 px-2 text-sm font-medium text-gray-900"
           />
         </label>
 
         <label className="grid gap-1 text-xs font-semibold text-gray-600">
-          <span>Status</span>
+          <span>{t("columns.status")}</span>
           <select
             value={filters.status}
             onChange={(event) =>
@@ -777,18 +790,26 @@ export function EvaluationRunsFilterBar({
             }
             className="h-9 rounded-lg border border-gray-300 bg-gray-50 px-2 text-sm font-medium text-gray-900"
           >
-            <option value="all">All statuses</option>
-            <option value="queued">Queued</option>
-            <option value="running">Running</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="unknown">Unknown</option>
+            <option value="all">{t("filters.allStatuses")}</option>
+            {(
+              [
+                "queued",
+                "running",
+                "completed",
+                "failed",
+                "cancelled",
+                "unknown",
+              ] as const
+            ).map((status) => (
+              <option key={status} value={status}>
+                {t(`statuses.${status}`)}
+              </option>
+            ))}
           </select>
         </label>
 
         <label className="grid gap-1 text-xs font-semibold text-gray-600">
-          <span>Dataset</span>
+          <span>{t("columns.dataset")}</span>
           <select
             value={filters.datasetId}
             onChange={(event) =>
@@ -799,7 +820,7 @@ export function EvaluationRunsFilterBar({
             }
             className="h-9 rounded-lg border border-gray-300 bg-gray-50 px-2 text-sm font-medium text-gray-900"
           >
-            <option value="all">All datasets</option>
+            <option value="all">{t("filters.allDatasets")}</option>
             {datasetOptions.map((dataset) => (
               <option key={dataset.id} value={dataset.id}>
                 {dataset.name}
@@ -809,7 +830,7 @@ export function EvaluationRunsFilterBar({
         </label>
 
         <label className="grid gap-1 text-xs font-semibold text-gray-600">
-          <span>Owner</span>
+          <span>{t("filters.owner")}</span>
           <select
             value={filters.owner}
             onChange={(event) =>
@@ -820,17 +841,17 @@ export function EvaluationRunsFilterBar({
             }
             className="h-9 rounded-lg border border-gray-300 bg-gray-50 px-2 text-sm font-medium text-gray-900"
           >
-            <option value="all">All owners</option>
+            <option value="all">{t("filters.allOwners")}</option>
             {ownerOptions.map((owner) => (
               <option key={owner} value={owner}>
-                {owner === "unavailable" ? "Unavailable" : owner}
+                {owner === "unavailable" ? t("unavailable") : owner}
               </option>
             ))}
           </select>
         </label>
 
         <label className="grid gap-1 text-xs font-semibold text-gray-600">
-          <span>Date from</span>
+          <span>{t("filters.dateFrom")}</span>
           <input
             type="date"
             value={filters.dateFrom}
@@ -842,7 +863,7 @@ export function EvaluationRunsFilterBar({
         </label>
 
         <label className="grid gap-1 text-xs font-semibold text-gray-600">
-          <span>Date to</span>
+          <span>{t("filters.dateTo")}</span>
           <input
             type="date"
             value={filters.dateTo}
@@ -854,7 +875,7 @@ export function EvaluationRunsFilterBar({
         </label>
 
         <label className="grid gap-1 text-xs font-semibold text-gray-600 xl:col-span-2">
-          <span>Sort runs</span>
+          <span>{t("filters.sortRuns")}</span>
           <select
             value={filters.sortBy}
             onChange={(event) =>
@@ -865,11 +886,11 @@ export function EvaluationRunsFilterBar({
             }
             className="h-9 rounded-lg border border-gray-300 bg-gray-50 px-2 text-sm font-medium text-gray-900"
           >
-            <option value="created_desc">Newest first</option>
-            <option value="created_asc">Oldest first</option>
-            <option value="score_desc">Score high to low</option>
-            <option value="score_asc">Score low to high</option>
-            <option value="status_asc">Status A-Z</option>
+            <option value="created_desc">{t("filters.newest")}</option>
+            <option value="created_asc">{t("filters.oldest")}</option>
+            <option value="score_desc">{t("filters.scoreHigh")}</option>
+            <option value="score_asc">{t("filters.scoreLow")}</option>
+            <option value="status_asc">{t("filters.statusAz")}</option>
           </select>
         </label>
 
@@ -879,7 +900,7 @@ export function EvaluationRunsFilterBar({
             onClick={onReset}
             className="h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Reset filters
+            {t("filters.reset")}
           </button>
         </div>
       </div>
@@ -902,12 +923,13 @@ export function EvaluationRunsTable({
   onSelectRun,
   onCompareWith,
 }: RunsTableProps) {
+  const t = useTranslations("evaluations");
   if (runs.length === 0) {
     return (
       <EmptyState
         compact
-        title="No evaluation runs match the current filters."
-        description="Start a run or adjust filters to populate this list."
+        title={t("runs.noMatchTitle")}
+        description={t("runs.noMatchDescription")}
       />
     );
   }
@@ -915,39 +937,36 @@ export function EvaluationRunsTable({
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
       <table className="min-w-full divide-y divide-gray-100 text-sm">
-        <caption className="sr-only">
-          Evaluation runs with status, score, regressions, owner, duration, and
-          created time.
-        </caption>
+        <caption className="sr-only">{t("runs.caption")}</caption>
         <thead className="bg-gray-50">
           <tr>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Run
+              {t("columns.run")}
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Dataset
+              {t("columns.dataset")}
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Status
+              {t("columns.status")}
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Score
+              {t("columns.score")}
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Regressions
+              {t("columns.regressions")}
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Started by
+              {t("columns.startedBy")}
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Duration
+              {t("columns.duration")}
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Created
+              {t("columns.created")}
             </th>
             {onCompareWith && (
               <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                Compare
+                {t("compare")}
               </th>
             )}
           </tr>
@@ -986,18 +1005,15 @@ export function EvaluationRunsTable({
                 </td>
                 <td className="px-3 py-2 align-top">
                   <EvaluationStatusBadge status={run.status} />
-                  <span className="sr-only">
-                    {runStatusScreenReaderText(run.status)}
-                  </span>
                 </td>
                 <td className="px-3 py-2 align-top text-gray-700">
                   {formatPercent(run.score)}
                 </td>
                 <td className="px-3 py-2 align-top text-gray-700">
-                  {run.regressions == null ? "Unavailable" : run.regressions}
+                  {run.regressions == null ? t("unavailable") : run.regressions}
                 </td>
                 <td className="px-3 py-2 align-top text-gray-700">
-                  {run.startedBy ?? "Unavailable"}
+                  {run.startedBy ?? t("unavailable")}
                 </td>
                 <td className="px-3 py-2 align-top text-gray-700">
                   {formatDuration(run.durationMs)}
@@ -1008,7 +1024,9 @@ export function EvaluationRunsTable({
                 {onCompareWith && (
                   <td className="px-3 py-2 align-top">
                     {isActive ? (
-                      <span className="text-xs text-gray-400">Active</span>
+                      <span className="text-xs text-gray-400">
+                        {t("active")}
+                      </span>
                     ) : (
                       <button
                         type="button"
@@ -1019,7 +1037,7 @@ export function EvaluationRunsTable({
                             : "border-[#cbc6dd] text-[#403b5f] hover:bg-gray-50"
                         }`}
                       >
-                        {isCompare ? "Comparing" : "Compare"}
+                        {isCompare ? t("comparing") : t("compare")}
                       </button>
                     )}
                   </td>

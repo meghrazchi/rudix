@@ -2301,8 +2301,143 @@
   "evaluations": {
     "title": "Évaluations",
     "description": "Évaluez la qualité de votre pipeline RAG",
-    "runEvaluation": "Run évaluation",
-    "noEvaluations": "No évaluations yet"
+    "runEvaluation": "Lancer l’évaluation",
+    "noEvaluations": "Aucune évaluation",
+    "header": {
+      "title": "Contrôlez la qualité RAG avant de publier les réponses",
+      "description": "Mesurez la qualité de recherche, l’ancrage, la latence et les régressions sur les jeux d’évaluation.",
+      "readOnly": "Vous pouvez consulter les résultats, mais seuls les propriétaires et administrateurs peuvent lancer des exécutions."
+    },
+    "startRun": "Lancer une évaluation",
+    "newSet": "Nouveau jeu",
+    "pipelineExplorer": "Explorateur de pipeline",
+    "actionRestricted": "Cette action est restreinte.",
+    "unavailable": "Indisponible",
+    "unavailablePayload": "Cette métrique n’est pas disponible dans la réponse actuelle.",
+    "active": "Active",
+    "compare": "Comparer",
+    "comparing": "Comparaison",
+    "recentRuns": "Exécutions récentes",
+    "selectedSet": "Jeu sélectionné",
+    "configuredLlm": "LLM : configuré",
+    "configuredReranker": "Reranker : configuré",
+    "statuses": {
+      "queued": "En attente",
+      "running": "En cours",
+      "completed": "Terminée",
+      "failed": "Échouée",
+      "cancelled": "Annulée",
+      "unknown": "Inconnue"
+    },
+    "columns": {
+      "name": "Nom",
+      "author": "Auteur",
+      "questions": "Questions",
+      "p95Latency": "Latence P95",
+      "score": "Score",
+      "status": "Statut",
+      "run": "Exécution",
+      "dataset": "Jeu de données",
+      "regressions": "Régressions",
+      "startedBy": "Lancée par",
+      "duration": "Durée",
+      "created": "Créée"
+    },
+    "kpis": {
+      "ariaLabel": "Métriques de qualité des évaluations",
+      "hitRateAt10": "Taux de succès @ 10",
+      "hitRateHelper": "Passages pertinents récupérés pour les questions évaluées",
+      "precision": "Précision",
+      "precisionHelper": "Précision de l’ancrage des citations",
+      "recall": "Rappel",
+      "recallHelper": "Couverture des cas réussis",
+      "faithfulness": "Fidélité",
+      "faithfulnessHelper": "Score de fidélité de l’ancrage"
+    },
+    "sets": {
+      "title": "Jeux d’évaluation",
+      "emptyTitle": "Aucun jeu d’évaluation",
+      "emptyDescription": "Créez un jeu pour organiser les questions de test et les réponses attendues."
+    },
+    "runs": {
+      "emptyTitle": "Aucune exécution d’évaluation",
+      "emptyDescription": "Lancez la première lorsqu’un jeu contient des cas de test.",
+      "noMatchTitle": "Aucune exécution ne correspond aux filtres",
+      "noMatchDescription": "Réinitialisez ou ajustez les filtres pour afficher les exécutions.",
+      "viewAll": "Voir toutes les exécutions",
+      "caption": "Exécutions avec statut, score, régressions, responsable, durée et date de création.",
+      "recentEmptyTitle": "Aucune exécution récente",
+      "recentEmptyDescription": "Les exécutions récentes apparaîtront ici."
+    },
+    "insights": {
+      "latenciesP95": "Latences (P95)",
+      "retrieval": "Recherche",
+      "generation": "Génération",
+      "coldStart": "Démarrage à froid",
+      "warm": "À chaud",
+      "context": "Contexte",
+      "hallucinationRisk": "Risque d’hallucination",
+      "breakdown": "Détail",
+      "noPriorDelta": "Aucune comparaison antérieure",
+      "decrease": "Baisse de {value}%",
+      "increase": "Hausse de {value}%",
+      "nextScheduled": "Prochaine exécution planifiée",
+      "triggerManually": "Déclencher manuellement",
+      "quickStart": "Lancer une évaluation",
+      "nightlyBaseline": "Référence nocturne"
+    },
+    "filters": {
+      "ariaLabel": "Filtres des exécutions",
+      "searchRuns": "Rechercher des exécutions",
+      "searchPlaceholder": "Nom ou ID",
+      "allStatuses": "Tous les statuts",
+      "allDatasets": "Tous les jeux",
+      "owner": "Responsable",
+      "allOwners": "Tous les responsables",
+      "dateFrom": "Du",
+      "dateTo": "Au",
+      "sortRuns": "Trier les exécutions",
+      "newest": "Plus récentes",
+      "oldest": "Plus anciennes",
+      "scoreHigh": "Score le plus élevé",
+      "scoreLow": "Score le plus faible",
+      "statusAz": "Statut A–Z",
+      "reset": "Réinitialiser les filtres"
+    },
+    "inspector": {
+      "title": "Inspecteur d’exécution",
+      "description": "Recherchez, filtrez et comparez les exécutions avant d’analyser les cas en échec.",
+      "runDetail": "Détail de l’exécution",
+      "comparisonView": "Vue comparative",
+      "selectSecondRun": "Sélectionnez ci-dessus une seconde exécution à comparer",
+      "noRunTitle": "Aucune exécution sélectionnée",
+      "noRunDescription": "Sélectionnez une exécution récente ou lancez-en une nouvelle pour consulter les détails de qualité."
+    },
+    "onboarding": {
+      "title": "Créez d’abord votre base de connaissances",
+      "description": "Importez et indexez des documents, puis interrogez-les avant de configurer les évaluations.",
+      "uploadDocuments": "Importer des documents",
+      "goToChat": "Accéder au chat"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "sur",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "errors": {
+      "accessRestrictedTitle": "L’accès aux évaluations est restreint",
+      "accessRestrictedDescription": "Votre rôle ne permet pas de consulter les évaluations de cette organisation.",
+      "backendUnavailableTitle": "Le service d’évaluation est indisponible",
+      "backendUnavailableDescription": "Les points d’accès d’évaluation sont temporairement indisponibles. Réessayez bientôt.",
+      "runPermission": "Seuls les propriétaires et administrateurs peuvent lancer des évaluations.",
+      "runRestrictedTitle": "Le détail est restreint",
+      "runRestrictedDescription": "Vous n’êtes pas autorisé à inspecter cette exécution.",
+      "runNotFoundTitle": "Exécution introuvable ou inaccessible",
+      "runNotFoundDescription": "Elle peut appartenir à une autre organisation ou avoir été supprimée.",
+      "createSetPermission": "Seuls les propriétaires et administrateurs peuvent créer des jeux d’évaluation.",
+      "setNameRequired": "Le nom du jeu est obligatoire."
+    }
   },
   "collections": {
     "title": "Collections",
