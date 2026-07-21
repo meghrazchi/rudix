@@ -5515,5 +5515,109 @@
     "pagination": {
       "summary": "الإجمالي {total} — الصفحة {page} من {totalPages}"
     }
+  },
+  "adminQuotas": {
+    "quotaTypes": {
+      "seats": "المقاعد",
+      "uploads": "عمليات الرفع",
+      "questions": "أسئلة الدردشة",
+      "tokens": "الرموز",
+      "storage_bytes": "التخزين (بايت)",
+      "evaluations": "التقييمات",
+      "api_calls": "استدعاءات API",
+      "connectors": "الموصلات",
+      "agent_runs": "تشغيلات الوكلاء"
+    },
+    "resetWindows": {
+      "per_minute": "في الدقيقة",
+      "per_hour": "في الساعة",
+      "per_day": "في اليوم",
+      "per_month": "في الشهر",
+      "none": "بدون إعادة تعيين (حد دائم)"
+    },
+    "values": {
+      "noLimit": "بلا حد",
+      "orgWide": "المؤسسة بالكامل",
+      "unlimited": "غير محدود",
+      "never": "أبدًا",
+      "required": "مطلوب"
+    },
+    "access": {
+      "restrictedTitle": "إدارة الحصص مقيّدة",
+      "restrictedDescription": "يمكن للمالك والمسؤول فقط عرض إعدادات الحصص.",
+      "unavailableTitle": "إدارة الحصص غير متاحة",
+      "unavailableDescription": "لم يعد دورك يملك حق الوصول إلى إعدادات الحصص."
+    },
+    "states": {
+      "loadingTitle": "جارٍ تحميل بيانات الحصص",
+      "loadingDescription": "جارٍ إعداد تكوين حصص المؤسسة.",
+      "errorTitle": "تعذر تحميل بيانات الحصص"
+    },
+    "header": {
+      "title": "الحصص وحدود المعدل",
+      "description": "أدر حدود الرفع والدردشة والرموز والتخزين وواجهة API في مؤسستك.",
+      "overage": "تم اكتشاف تجاوز — تم تخطي حد واحد أو أكثر."
+    },
+    "actions": {
+      "resetDefaults": "إعادة إلى الافتراضي",
+      "edit": "تعديل",
+      "cancel": "إلغاء",
+      "saving": "جارٍ الحفظ…",
+      "saveLimit": "حفظ الحد",
+      "resetting": "جارٍ إعادة التعيين…",
+      "addOverride": "إضافة استثناء",
+      "delete": "حذف",
+      "createOverride": "إنشاء استثناء",
+      "deleting": "جارٍ الحذف…"
+    },
+    "fields": {
+      "quotaType": "نوع الحصة",
+      "currentUsage": "الاستخدام الحالي",
+      "softLimit": "الحد المرن",
+      "hardLimit": "الحد الصارم",
+      "resetWindow": "فترة إعادة التعيين",
+      "status": "الحالة",
+      "actions": "الإجراءات",
+      "target": "الهدف",
+      "hardLimitOverride": "استثناء الحد الصارم",
+      "expires": "ينتهي",
+      "reason": "السبب"
+    },
+    "statuses": {
+      "overLimit": "تجاوز الحد",
+      "softExceeded": "تجاوز الحد المرن",
+      "nearLimit": "قريب من الحد",
+      "ok": "سليم"
+    },
+    "edit": {
+      "title": "تعديل الحد — {quotaType}",
+      "softLimitWarn": "الحد المرن (تحذير)",
+      "noSoftLimit": "بلا حد مرن",
+      "hardLimitBlock": "الحد الصارم (حظر)",
+      "noHardLimit": "بلا حد صارم",
+      "changeNoteOptional": "ملاحظة التغيير (اختيارية)",
+      "changeReason": "سبب التغيير"
+    },
+    "reset": {
+      "title": "إعادة تعيين سياسة الحصص؟",
+      "description": "يؤدي هذا إلى حذف كل الحدود المخصصة واستعادة إعدادات النظام بلا حدود."
+    },
+    "overrides": {
+      "title": "الاستثناءات اليدوية",
+      "empty": "لا توجد استثناءات مهيأة."
+    },
+    "override": {
+      "title": "إنشاء استثناء",
+      "hardLimitHint": "الحد الصارم (فارغ = غير محدود)",
+      "expiresOptional": "ينتهي في (اختياري)"
+    },
+    "delete": {
+      "title": "حذف الاستثناء؟",
+      "description": "لا يمكن التراجع عن هذا الإجراء."
+    },
+    "history": {
+      "title": "سجل التغييرات",
+      "noNote": "بلا ملاحظة"
+    }
   }
 }

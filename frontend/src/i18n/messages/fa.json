@@ -5515,5 +5515,109 @@
     "pagination": {
       "summary": "مجموع {total} — صفحه {page} از {totalPages}"
     }
+  },
+  "adminQuotas": {
+    "quotaTypes": {
+      "seats": "ظرفیت کاربران",
+      "uploads": "بارگذاری‌ها",
+      "questions": "پرسش‌های چت",
+      "tokens": "توکن‌ها",
+      "storage_bytes": "فضای ذخیره‌سازی (بایت)",
+      "evaluations": "ارزیابی‌ها",
+      "api_calls": "فراخوانی‌های API",
+      "connectors": "اتصال‌دهنده‌ها",
+      "agent_runs": "اجرای عامل‌ها"
+    },
+    "resetWindows": {
+      "per_minute": "در دقیقه",
+      "per_hour": "در ساعت",
+      "per_day": "در روز",
+      "per_month": "در ماه",
+      "none": "بدون بازنشانی (سقف دائمی)"
+    },
+    "values": {
+      "noLimit": "بدون محدودیت",
+      "orgWide": "کل سازمان",
+      "unlimited": "نامحدود",
+      "never": "هرگز",
+      "required": "الزامی"
+    },
+    "access": {
+      "restrictedTitle": "مدیریت سهمیه محدود است",
+      "restrictedDescription": "فقط مالک و مدیر می‌توانند پیکربندی سهمیه را مشاهده کنند.",
+      "unavailableTitle": "مدیریت سهمیه در دسترس نیست",
+      "unavailableDescription": "نقش شما دیگر به تنظیمات سهمیه دسترسی ندارد."
+    },
+    "states": {
+      "loadingTitle": "در حال بارگذاری داده‌های سهمیه",
+      "loadingDescription": "در حال آماده‌سازی پیکربندی سهمیه سازمان.",
+      "errorTitle": "بارگذاری داده‌های سهمیه ممکن نیست"
+    },
+    "header": {
+      "title": "سهمیه‌ها و محدودیت نرخ",
+      "description": "محدودیت‌های بارگذاری، چت، توکن، فضای ذخیره‌سازی و API سازمان را مدیریت کنید.",
+      "overage": "تجاوز از سهمیه شناسایی شد — یک یا چند محدودیت رد شده است."
+    },
+    "actions": {
+      "resetDefaults": "بازنشانی به پیش‌فرض",
+      "edit": "ویرایش",
+      "cancel": "انصراف",
+      "saving": "در حال ذخیره…",
+      "saveLimit": "ذخیره محدودیت",
+      "resetting": "در حال بازنشانی…",
+      "addOverride": "افزودن استثنا",
+      "delete": "حذف",
+      "createOverride": "ایجاد استثنا",
+      "deleting": "در حال حذف…"
+    },
+    "fields": {
+      "quotaType": "نوع سهمیه",
+      "currentUsage": "مصرف فعلی",
+      "softLimit": "محدودیت نرم",
+      "hardLimit": "محدودیت قطعی",
+      "resetWindow": "بازه بازنشانی",
+      "status": "وضعیت",
+      "actions": "عملیات",
+      "target": "هدف",
+      "hardLimitOverride": "استثنای محدودیت قطعی",
+      "expires": "انقضا",
+      "reason": "دلیل"
+    },
+    "statuses": {
+      "overLimit": "بیش از محدودیت",
+      "softExceeded": "محدودیت نرم رد شده",
+      "nearLimit": "نزدیک محدودیت",
+      "ok": "مجاز"
+    },
+    "edit": {
+      "title": "ویرایش محدودیت — {quotaType}",
+      "softLimitWarn": "محدودیت نرم (هشدار)",
+      "noSoftLimit": "بدون محدودیت نرم",
+      "hardLimitBlock": "محدودیت قطعی (مسدودسازی)",
+      "noHardLimit": "بدون محدودیت قطعی",
+      "changeNoteOptional": "یادداشت تغییر (اختیاری)",
+      "changeReason": "دلیل تغییر"
+    },
+    "reset": {
+      "title": "سیاست سهمیه بازنشانی شود؟",
+      "description": "همه محدودیت‌های سفارشی حذف و پیش‌فرض‌های بدون محدودیت سیستم بازیابی می‌شوند."
+    },
+    "overrides": {
+      "title": "استثناهای دستی",
+      "empty": "هیچ استثنایی تنظیم نشده است."
+    },
+    "override": {
+      "title": "ایجاد استثنا",
+      "hardLimitHint": "محدودیت قطعی (خالی = نامحدود)",
+      "expiresOptional": "زمان انقضا (اختیاری)"
+    },
+    "delete": {
+      "title": "استثنا حذف شود؟",
+      "description": "این عمل قابل بازگشت نیست."
+    },
+    "history": {
+      "title": "تاریخچه تغییرات",
+      "noNote": "بدون یادداشت"
+    }
   }
 }

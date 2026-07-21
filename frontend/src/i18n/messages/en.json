@@ -5515,5 +5515,109 @@
     "pagination": {
       "summary": "{total} total — page {page} of {totalPages}"
     }
+  },
+  "adminQuotas": {
+    "quotaTypes": {
+      "seats": "Seats",
+      "uploads": "Uploads",
+      "questions": "Chat Questions",
+      "tokens": "Tokens",
+      "storage_bytes": "Storage (bytes)",
+      "evaluations": "Evaluations",
+      "api_calls": "API Calls",
+      "connectors": "Connectors",
+      "agent_runs": "Agent Runs"
+    },
+    "resetWindows": {
+      "per_minute": "Per minute",
+      "per_hour": "Per hour",
+      "per_day": "Per day",
+      "per_month": "Per month",
+      "none": "No reset (permanent cap)"
+    },
+    "values": {
+      "noLimit": "No limit",
+      "orgWide": "Org-wide",
+      "unlimited": "Unlimited",
+      "never": "Never",
+      "required": "Required"
+    },
+    "access": {
+      "restrictedTitle": "Quota management restricted",
+      "restrictedDescription": "Only owner and admin roles can view quota configuration.",
+      "unavailableTitle": "Quota management unavailable",
+      "unavailableDescription": "Your role no longer has access to quota settings."
+    },
+    "states": {
+      "loadingTitle": "Loading quota data",
+      "loadingDescription": "Preparing organization quota configuration.",
+      "errorTitle": "Unable to load quota data"
+    },
+    "header": {
+      "title": "Quotas & Rate Limits",
+      "description": "Manage upload, chat, token, storage, and API limits for your organization.",
+      "overage": "Overage detected — one or more limits exceeded."
+    },
+    "actions": {
+      "resetDefaults": "Reset to defaults",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "saveLimit": "Save limit",
+      "resetting": "Resetting…",
+      "addOverride": "Add override",
+      "delete": "Delete",
+      "createOverride": "Create override",
+      "deleting": "Deleting…"
+    },
+    "fields": {
+      "quotaType": "Quota type",
+      "currentUsage": "Current usage",
+      "softLimit": "Soft limit",
+      "hardLimit": "Hard limit",
+      "resetWindow": "Reset window",
+      "status": "Status",
+      "actions": "Actions",
+      "target": "Target",
+      "hardLimitOverride": "Hard limit override",
+      "expires": "Expires",
+      "reason": "Reason"
+    },
+    "statuses": {
+      "overLimit": "Over limit",
+      "softExceeded": "Soft limit exceeded",
+      "nearLimit": "Near limit",
+      "ok": "OK"
+    },
+    "edit": {
+      "title": "Edit limit — {quotaType}",
+      "softLimitWarn": "Soft limit (warn)",
+      "noSoftLimit": "No soft limit",
+      "hardLimitBlock": "Hard limit (block)",
+      "noHardLimit": "No hard limit",
+      "changeNoteOptional": "Change note (optional)",
+      "changeReason": "Reason for change"
+    },
+    "reset": {
+      "title": "Reset quota policy?",
+      "description": "This removes all custom limits and reverts the organization to system defaults (no limits)."
+    },
+    "overrides": {
+      "title": "Manual overrides",
+      "empty": "No overrides configured."
+    },
+    "override": {
+      "title": "Create override",
+      "hardLimitHint": "Hard limit override (blank = unlimited)",
+      "expiresOptional": "Expires at (optional)"
+    },
+    "delete": {
+      "title": "Delete override?",
+      "description": "This action cannot be undone."
+    },
+    "history": {
+      "title": "Change history",
+      "noNote": "No note"
+    }
   }
 }

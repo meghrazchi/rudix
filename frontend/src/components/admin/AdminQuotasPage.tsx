@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   createQuotaOverride,
@@ -30,26 +31,6 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 
-const QUOTA_TYPE_LABELS: Record<QuotaType, string> = {
-  seats: "Seats",
-  uploads: "Uploads",
-  questions: "Chat Questions",
-  tokens: "Tokens",
-  storage_bytes: "Storage (bytes)",
-  evaluations: "Evaluations",
-  api_calls: "API Calls",
-  connectors: "Connectors",
-  agent_runs: "Agent Runs",
-};
-
-const RESET_WINDOW_LABELS: Record<ResetWindow, string> = {
-  per_minute: "Per minute",
-  per_hour: "Per hour",
-  per_day: "Per day",
-  per_month: "Per month",
-  none: "No reset (permanent cap)",
-};
-
 type EditDraft = {
   quota_type: QuotaType;
   soft_limit: string;
@@ -74,9 +55,10 @@ function UsageBar({
   soft: number | null;
   hard: number | null;
 }) {
+  const t = useTranslations("adminQuotas");
   const limit = hard ?? soft;
   if (!limit || limit === 0)
-    return <span className="text-xs text-gray-400">No limit</span>;
+    return <span className="text-xs text-gray-400">{t("values.noLimit")}</span>;
   const pct = Math.min(100, Math.round((value / limit) * 100));
   const color =
     pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-400" : "bg-emerald-500";
@@ -94,6 +76,7 @@ function UsageBar({
 }
 
 export function AdminQuotasPage() {
+  const t = useTranslations("adminQuotas");
   const { state } = useAuthSession();
   const queryClient = useQueryClient();
   const role = state.session?.role;
@@ -184,8 +167,8 @@ export function AdminQuotasPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Quota management restricted"
-          description="Only owner and admin roles can view quota configuration."
+          title={t("access.restrictedTitle")}
+          description={t("access.restrictedDescription")}
           compact={false}
         />
       </section>
@@ -196,8 +179,8 @@ export function AdminQuotasPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Quota management unavailable"
-          description="Your role no longer has access to quota settings."
+          title={t("access.unavailableTitle")}
+          description={t("access.unavailableDescription")}
           requestId={extractRequestIdFromError(forbiddenError)}
         />
       </section>
@@ -208,8 +191,8 @@ export function AdminQuotasPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <LoadingState
-          title="Loading quota data"
-          description="Preparing organization quota configuration."
+          title={t("states.loadingTitle")}
+          description={t("states.loadingDescription")}
           compact={false}
         />
       </section>
@@ -220,7 +203,7 @@ export function AdminQuotasPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ErrorState
-          title="Unable to load quota data"
+          title={t("states.errorTitle")}
           description={getApiErrorMessage(usageQuery.error)}
           compact={false}
           requestId={extractRequestIdFromError(usageQuery.error)}
@@ -284,14 +267,13 @@ export function AdminQuotasPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Quotas &amp; Rate Limits
+            {t("header.title")}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage upload, chat, token, storage, and API limits for your
-            organization.
+            {t("header.description")}
             {dashboard.has_overages && (
-              <span className="ml-2 font-medium text-red-600 dark:text-red-400">
-                Overage detected — one or more limits exceeded.
+              <span className="ms-2 font-medium text-red-600 dark:text-red-400">
+                {t("header.overage")}
               </span>
             )}
           </p>
@@ -302,7 +284,7 @@ export function AdminQuotasPage() {
             className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
             onClick={() => setResetConfirm(true)}
           >
-            Reset to defaults
+            {t("actions.resetDefaults")}
           </button>
         )}
       </div>
@@ -312,27 +294,27 @@ export function AdminQuotasPage() {
         <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
-                Quota type
+              <th className="px-4 py-3 text-start font-medium text-gray-600 dark:text-gray-300">
+                {t("fields.quotaType")}
               </th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
-                Current usage
+              <th className="px-4 py-3 text-start font-medium text-gray-600 dark:text-gray-300">
+                {t("fields.currentUsage")}
               </th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
-                Soft limit
+              <th className="px-4 py-3 text-start font-medium text-gray-600 dark:text-gray-300">
+                {t("fields.softLimit")}
               </th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
-                Hard limit
+              <th className="px-4 py-3 text-start font-medium text-gray-600 dark:text-gray-300">
+                {t("fields.hardLimit")}
               </th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
-                Reset window
+              <th className="px-4 py-3 text-start font-medium text-gray-600 dark:text-gray-300">
+                {t("fields.resetWindow")}
               </th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
-                Status
+              <th className="px-4 py-3 text-start font-medium text-gray-600 dark:text-gray-300">
+                {t("fields.status")}
               </th>
               {isAdminUser && (
-                <th className="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">
-                  Actions
+                <th className="px-4 py-3 text-end font-medium text-gray-600 dark:text-gray-300">
+                  {t("fields.actions")}
                 </th>
               )}
             </tr>
@@ -341,7 +323,7 @@ export function AdminQuotasPage() {
             {dashboard.quota_usage.map((item) => (
               <tr key={item.quota_type}>
                 <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
-                  {QUOTA_TYPE_LABELS[item.quota_type as QuotaType]}
+                  {t(`quotaTypes.${item.quota_type}`)}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-col gap-1">
@@ -370,30 +352,29 @@ export function AdminQuotasPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                  {RESET_WINDOW_LABELS[item.reset_window as ResetWindow] ??
-                    item.reset_window}
+                  {t(`resetWindows.${item.reset_window}`)}
                 </td>
                 <td className="px-4 py-3">
                   {item.over_hard_limit ? (
                     <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                      Over limit
+                      {t("statuses.overLimit")}
                     </span>
                   ) : item.over_soft_limit ? (
                     <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      Soft limit exceeded
+                      {t("statuses.softExceeded")}
                     </span>
                   ) : item.near_limit ? (
                     <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                      Near limit
+                      {t("statuses.nearLimit")}
                     </span>
                   ) : (
                     <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      OK
+                      {t("statuses.ok")}
                     </span>
                   )}
                 </td>
                 {isAdminUser && (
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     <button
                       type="button"
                       className="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
@@ -401,7 +382,7 @@ export function AdminQuotasPage() {
                         openEditDraft(item.quota_type as QuotaType)
                       }
                     >
-                      Edit
+                      {t("actions.edit")}
                     </button>
                   </td>
                 )}
@@ -416,12 +397,14 @@ export function AdminQuotasPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-900">
             <h2 className="mb-4 text-base font-semibold text-gray-900 dark:text-gray-100">
-              Edit limit — {QUOTA_TYPE_LABELS[editDraft.quota_type]}
+              {t("edit.title", {
+                quotaType: t(`quotaTypes.${editDraft.quota_type}`),
+              })}
             </h2>
             <div className="space-y-3">
               <label className="block">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Soft limit (warn)
+                  {t("edit.softLimitWarn")}
                 </span>
                 <input
                   type="number"
@@ -432,13 +415,13 @@ export function AdminQuotasPage() {
                       (d) => d && { ...d, soft_limit: e.target.value },
                     )
                   }
-                  placeholder="No soft limit"
+                  placeholder={t("edit.noSoftLimit")}
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
                 />
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Hard limit (block)
+                  {t("edit.hardLimitBlock")}
                 </span>
                 <input
                   type="number"
@@ -449,13 +432,13 @@ export function AdminQuotasPage() {
                       (d) => d && { ...d, hard_limit: e.target.value },
                     )
                   }
-                  placeholder="No hard limit"
+                  placeholder={t("edit.noHardLimit")}
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
                 />
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Reset window
+                  {t("fields.resetWindow")}
                 </span>
                 <select
                   value={editDraft.reset_window}
@@ -472,14 +455,14 @@ export function AdminQuotasPage() {
                 >
                   {RESET_WINDOWS.map((w) => (
                     <option key={w} value={w}>
-                      {RESET_WINDOW_LABELS[w]}
+                      {t(`resetWindows.${w}`)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Change note (optional)
+                  {t("edit.changeNoteOptional")}
                 </span>
                 <input
                   type="text"
@@ -489,7 +472,7 @@ export function AdminQuotasPage() {
                       (d) => d && { ...d, change_note: e.target.value },
                     )
                   }
-                  placeholder="Reason for change"
+                  placeholder={t("edit.changeReason")}
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
                 />
               </label>
@@ -505,7 +488,7 @@ export function AdminQuotasPage() {
                 className="rounded border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600"
                 onClick={() => setEditDraft(null)}
               >
-                Cancel
+                {t("actions.cancel")}
               </button>
               <button
                 type="button"
@@ -513,7 +496,9 @@ export function AdminQuotasPage() {
                 disabled={updateMutation.isPending}
                 onClick={submitEdit}
               >
-                {updateMutation.isPending ? "Saving…" : "Save limit"}
+                {updateMutation.isPending
+                  ? t("actions.saving")
+                  : t("actions.saveLimit")}
               </button>
             </div>
           </div>
@@ -525,11 +510,10 @@ export function AdminQuotasPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl dark:bg-gray-900">
             <h2 className="mb-2 text-base font-semibold text-gray-900 dark:text-gray-100">
-              Reset quota policy?
+              {t("reset.title")}
             </h2>
             <p className="mb-4 text-sm text-gray-500">
-              This removes all custom limits and reverts the org to system
-              defaults (no limits).
+              {t("reset.description")}
             </p>
             {resetMutation.error && (
               <p className="mb-3 text-xs text-red-600 dark:text-red-400">
@@ -542,7 +526,7 @@ export function AdminQuotasPage() {
                 className="rounded border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600"
                 onClick={() => setResetConfirm(false)}
               >
-                Cancel
+                {t("actions.cancel")}
               </button>
               <button
                 type="button"
@@ -550,7 +534,9 @@ export function AdminQuotasPage() {
                 disabled={resetMutation.isPending}
                 onClick={() => resetMutation.mutate()}
               >
-                {resetMutation.isPending ? "Resetting…" : "Reset to defaults"}
+                {resetMutation.isPending
+                  ? t("actions.resetting")
+                  : t("actions.resetDefaults")}
               </button>
             </div>
           </div>
@@ -561,7 +547,7 @@ export function AdminQuotasPage() {
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            Manual overrides
+            {t("overrides.title")}
           </h2>
           {isOwner && (
             <button
@@ -576,34 +562,34 @@ export function AdminQuotasPage() {
                 })
               }
             >
-              Add override
+              {t("actions.addOverride")}
             </button>
           )}
         </div>
         {overrides.length === 0 ? (
-          <p className="text-sm text-gray-500">No overrides configured.</p>
+          <p className="text-sm text-gray-500">{t("overrides.empty")}</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300">
-                    Quota type
+                  <th className="px-4 py-2.5 text-start font-medium text-gray-600 dark:text-gray-300">
+                    {t("fields.quotaType")}
                   </th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300">
-                    Target
+                  <th className="px-4 py-2.5 text-start font-medium text-gray-600 dark:text-gray-300">
+                    {t("fields.target")}
                   </th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300">
-                    Hard limit override
+                  <th className="px-4 py-2.5 text-start font-medium text-gray-600 dark:text-gray-300">
+                    {t("fields.hardLimitOverride")}
                   </th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300">
-                    Expires
+                  <th className="px-4 py-2.5 text-start font-medium text-gray-600 dark:text-gray-300">
+                    {t("fields.expires")}
                   </th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-600 dark:text-gray-300">
-                    Reason
+                  <th className="px-4 py-2.5 text-start font-medium text-gray-600 dark:text-gray-300">
+                    {t("fields.reason")}
                   </th>
                   {isOwner && (
-                    <th className="px-4 py-2.5 text-right font-medium text-gray-600 dark:text-gray-300" />
+                    <th className="px-4 py-2.5 text-end font-medium text-gray-600 dark:text-gray-300" />
                   )}
                 </tr>
               </thead>
@@ -611,34 +597,34 @@ export function AdminQuotasPage() {
                 {overrides.map((o) => (
                   <tr key={o.override_id}>
                     <td className="px-4 py-2.5 text-gray-800 dark:text-gray-200">
-                      {QUOTA_TYPE_LABELS[o.quota_type as QuotaType]}
+                      {t(`quotaTypes.${o.quota_type}`)}
                     </td>
                     <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
                       {o.target_user_id
                         ? o.target_user_id.slice(0, 8) + "…"
-                        : "Org-wide"}
+                        : t("values.orgWide")}
                     </td>
                     <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
                       {o.hard_limit_override != null
                         ? o.hard_limit_override.toLocaleString()
-                        : "Unlimited"}
+                        : t("values.unlimited")}
                     </td>
                     <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
                       {o.expires_at
                         ? new Date(o.expires_at).toLocaleDateString()
-                        : "Never"}
+                        : t("values.never")}
                     </td>
                     <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
                       {o.reason}
                     </td>
                     {isOwner && (
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-4 py-2.5 text-end">
                         <button
                           type="button"
                           className="text-xs text-red-600 hover:underline dark:text-red-400"
                           onClick={() => setDeleteOverrideId(o.override_id)}
                         >
-                          Delete
+                          {t("actions.delete")}
                         </button>
                       </td>
                     )}
@@ -655,12 +641,12 @@ export function AdminQuotasPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-900">
             <h2 className="mb-4 text-base font-semibold text-gray-900 dark:text-gray-100">
-              Create override
+              {t("override.title")}
             </h2>
             <div className="space-y-3">
               <label className="block">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Quota type
+                  {t("fields.quotaType")}
                 </span>
                 <select
                   value={overrideDraft.quota_type}
@@ -674,14 +660,14 @@ export function AdminQuotasPage() {
                 >
                   {QUOTA_TYPES.map((qt) => (
                     <option key={qt} value={qt}>
-                      {QUOTA_TYPE_LABELS[qt]}
+                      {t(`quotaTypes.${qt}`)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Hard limit override (blank = unlimited)
+                  {t("override.hardLimitHint")}
                 </span>
                 <input
                   type="number"
@@ -692,13 +678,13 @@ export function AdminQuotasPage() {
                       (d) => d && { ...d, hard_limit_override: e.target.value },
                     )
                   }
-                  placeholder="Unlimited"
+                  placeholder={t("values.unlimited")}
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
                 />
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Reason
+                  {t("fields.reason")}
                 </span>
                 <input
                   type="text"
@@ -708,13 +694,13 @@ export function AdminQuotasPage() {
                       (d) => d && { ...d, reason: e.target.value },
                     )
                   }
-                  placeholder="Required"
+                  placeholder={t("values.required")}
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
                 />
               </label>
               <label className="block">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Expires at (optional)
+                  {t("override.expiresOptional")}
                 </span>
                 <input
                   type="datetime-local"
@@ -739,7 +725,7 @@ export function AdminQuotasPage() {
                 className="rounded border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600"
                 onClick={() => setOverrideDraft(null)}
               >
-                Cancel
+                {t("actions.cancel")}
               </button>
               <button
                 type="button"
@@ -751,8 +737,8 @@ export function AdminQuotasPage() {
                 onClick={submitOverride}
               >
                 {createOverrideMutation.isPending
-                  ? "Saving…"
-                  : "Create override"}
+                  ? t("actions.saving")
+                  : t("actions.createOverride")}
               </button>
             </div>
           </div>
@@ -764,10 +750,10 @@ export function AdminQuotasPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl dark:bg-gray-900">
             <h2 className="mb-2 text-base font-semibold text-gray-900 dark:text-gray-100">
-              Delete override?
+              {t("delete.title")}
             </h2>
             <p className="mb-4 text-sm text-gray-500">
-              This action cannot be undone.
+              {t("delete.description")}
             </p>
             {deleteOverrideMutation.error && (
               <p className="mb-3 text-xs text-red-600">
@@ -780,7 +766,7 @@ export function AdminQuotasPage() {
                 className="rounded border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600"
                 onClick={() => setDeleteOverrideId(null)}
               >
-                Cancel
+                {t("actions.cancel")}
               </button>
               <button
                 type="button"
@@ -788,7 +774,9 @@ export function AdminQuotasPage() {
                 disabled={deleteOverrideMutation.isPending}
                 onClick={() => deleteOverrideMutation.mutate(deleteOverrideId)}
               >
-                {deleteOverrideMutation.isPending ? "Deleting…" : "Delete"}
+                {deleteOverrideMutation.isPending
+                  ? t("actions.deleting")
+                  : t("actions.delete")}
               </button>
             </div>
           </div>
@@ -799,7 +787,7 @@ export function AdminQuotasPage() {
       {changeLog.length > 0 && (
         <div>
           <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">
-            Change history
+            {t("history.title")}
           </h2>
           <ol className="space-y-2">
             {changeLog.map((entry) => (
@@ -812,9 +800,9 @@ export function AdminQuotasPage() {
                 </span>
                 <div>
                   <span className="text-gray-700 dark:text-gray-300">
-                    {entry.change_note ?? "No note"}
+                    {entry.change_note ?? t("history.noNote")}
                   </span>
-                  <span className="ml-2 text-xs text-gray-400">
+                  <span className="ms-2 text-xs text-gray-400">
                     {new Date(entry.created_at).toLocaleString()}
                   </span>
                 </div>

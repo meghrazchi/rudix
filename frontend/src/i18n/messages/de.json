@@ -5515,5 +5515,109 @@
     "pagination": {
       "summary": "{total} insgesamt — Seite {page} von {totalPages}"
     }
+  },
+  "adminQuotas": {
+    "quotaTypes": {
+      "seats": "Plätze",
+      "uploads": "Uploads",
+      "questions": "Chatfragen",
+      "tokens": "Token",
+      "storage_bytes": "Speicher (Bytes)",
+      "evaluations": "Evaluierungen",
+      "api_calls": "API-Aufrufe",
+      "connectors": "Konnektoren",
+      "agent_runs": "Agentenläufe"
+    },
+    "resetWindows": {
+      "per_minute": "Pro Minute",
+      "per_hour": "Pro Stunde",
+      "per_day": "Pro Tag",
+      "per_month": "Pro Monat",
+      "none": "Keine Zurücksetzung (dauerhafte Obergrenze)"
+    },
+    "values": {
+      "noLimit": "Kein Limit",
+      "orgWide": "Organisationsweit",
+      "unlimited": "Unbegrenzt",
+      "never": "Nie",
+      "required": "Erforderlich"
+    },
+    "access": {
+      "restrictedTitle": "Kontingentverwaltung eingeschränkt",
+      "restrictedDescription": "Nur Eigentümer und Administratoren können die Kontingentkonfiguration anzeigen.",
+      "unavailableTitle": "Kontingentverwaltung nicht verfügbar",
+      "unavailableDescription": "Ihre Rolle hat keinen Zugriff mehr auf die Kontingenteinstellungen."
+    },
+    "states": {
+      "loadingTitle": "Kontingentdaten werden geladen",
+      "loadingDescription": "Die Kontingentkonfiguration der Organisation wird vorbereitet.",
+      "errorTitle": "Kontingentdaten konnten nicht geladen werden"
+    },
+    "header": {
+      "title": "Kontingente und Ratenlimits",
+      "description": "Verwalten Sie Upload-, Chat-, Token-, Speicher- und API-Limits Ihrer Organisation.",
+      "overage": "Überschreitung erkannt — mindestens ein Limit wurde überschritten."
+    },
+    "actions": {
+      "resetDefaults": "Auf Standard zurücksetzen",
+      "edit": "Bearbeiten",
+      "cancel": "Abbrechen",
+      "saving": "Wird gespeichert…",
+      "saveLimit": "Limit speichern",
+      "resetting": "Wird zurückgesetzt…",
+      "addOverride": "Ausnahme hinzufügen",
+      "delete": "Löschen",
+      "createOverride": "Ausnahme erstellen",
+      "deleting": "Wird gelöscht…"
+    },
+    "fields": {
+      "quotaType": "Kontingenttyp",
+      "currentUsage": "Aktuelle Nutzung",
+      "softLimit": "Weiches Limit",
+      "hardLimit": "Hartes Limit",
+      "resetWindow": "Rücksetzzeitraum",
+      "status": "Status",
+      "actions": "Aktionen",
+      "target": "Ziel",
+      "hardLimitOverride": "Ausnahme für hartes Limit",
+      "expires": "Läuft ab",
+      "reason": "Grund"
+    },
+    "statuses": {
+      "overLimit": "Limit überschritten",
+      "softExceeded": "Weiches Limit überschritten",
+      "nearLimit": "Nahe am Limit",
+      "ok": "OK"
+    },
+    "edit": {
+      "title": "Limit bearbeiten — {quotaType}",
+      "softLimitWarn": "Weiches Limit (Warnung)",
+      "noSoftLimit": "Kein weiches Limit",
+      "hardLimitBlock": "Hartes Limit (Blockierung)",
+      "noHardLimit": "Kein hartes Limit",
+      "changeNoteOptional": "Änderungsnotiz (optional)",
+      "changeReason": "Grund der Änderung"
+    },
+    "reset": {
+      "title": "Kontingentrichtlinie zurücksetzen?",
+      "description": "Dadurch werden alle benutzerdefinierten Limits entfernt und die Systemstandards ohne Limits wiederhergestellt."
+    },
+    "overrides": {
+      "title": "Manuelle Ausnahmen",
+      "empty": "Keine Ausnahmen konfiguriert."
+    },
+    "override": {
+      "title": "Ausnahme erstellen",
+      "hardLimitHint": "Hartes Limit (leer = unbegrenzt)",
+      "expiresOptional": "Läuft ab am (optional)"
+    },
+    "delete": {
+      "title": "Ausnahme löschen?",
+      "description": "Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "history": {
+      "title": "Änderungsverlauf",
+      "noNote": "Keine Notiz"
+    }
   }
 }

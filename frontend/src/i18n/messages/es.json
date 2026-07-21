@@ -5515,5 +5515,109 @@
     "pagination": {
       "summary": "{total} en total — página {page} de {totalPages}"
     }
+  },
+  "adminQuotas": {
+    "quotaTypes": {
+      "seats": "Puestos",
+      "uploads": "Cargas",
+      "questions": "Preguntas de chat",
+      "tokens": "Tokens",
+      "storage_bytes": "Almacenamiento (bytes)",
+      "evaluations": "Evaluaciones",
+      "api_calls": "Llamadas API",
+      "connectors": "Conectores",
+      "agent_runs": "Ejecuciones de agentes"
+    },
+    "resetWindows": {
+      "per_minute": "Por minuto",
+      "per_hour": "Por hora",
+      "per_day": "Por día",
+      "per_month": "Por mes",
+      "none": "Sin restablecimiento (límite permanente)"
+    },
+    "values": {
+      "noLimit": "Sin límite",
+      "orgWide": "Toda la organización",
+      "unlimited": "Ilimitado",
+      "never": "Nunca",
+      "required": "Obligatorio"
+    },
+    "access": {
+      "restrictedTitle": "Gestión de cuotas restringida",
+      "restrictedDescription": "Solo propietarios y administradores pueden ver la configuración de cuotas.",
+      "unavailableTitle": "Gestión de cuotas no disponible",
+      "unavailableDescription": "Tu rol ya no tiene acceso a la configuración de cuotas."
+    },
+    "states": {
+      "loadingTitle": "Cargando datos de cuotas",
+      "loadingDescription": "Preparando la configuración de cuotas de la organización.",
+      "errorTitle": "No se pudieron cargar los datos de cuotas"
+    },
+    "header": {
+      "title": "Cuotas y límites de frecuencia",
+      "description": "Gestiona los límites de carga, chat, tokens, almacenamiento y API de tu organización.",
+      "overage": "Se detectó un exceso: se superó uno o más límites."
+    },
+    "actions": {
+      "resetDefaults": "Restablecer valores",
+      "edit": "Editar",
+      "cancel": "Cancelar",
+      "saving": "Guardando…",
+      "saveLimit": "Guardar límite",
+      "resetting": "Restableciendo…",
+      "addOverride": "Añadir excepción",
+      "delete": "Eliminar",
+      "createOverride": "Crear excepción",
+      "deleting": "Eliminando…"
+    },
+    "fields": {
+      "quotaType": "Tipo de cuota",
+      "currentUsage": "Uso actual",
+      "softLimit": "Límite flexible",
+      "hardLimit": "Límite estricto",
+      "resetWindow": "Ventana de restablecimiento",
+      "status": "Estado",
+      "actions": "Acciones",
+      "target": "Destino",
+      "hardLimitOverride": "Excepción del límite estricto",
+      "expires": "Caduca",
+      "reason": "Motivo"
+    },
+    "statuses": {
+      "overLimit": "Límite superado",
+      "softExceeded": "Límite flexible superado",
+      "nearLimit": "Cerca del límite",
+      "ok": "Correcto"
+    },
+    "edit": {
+      "title": "Editar límite — {quotaType}",
+      "softLimitWarn": "Límite flexible (aviso)",
+      "noSoftLimit": "Sin límite flexible",
+      "hardLimitBlock": "Límite estricto (bloqueo)",
+      "noHardLimit": "Sin límite estricto",
+      "changeNoteOptional": "Nota del cambio (opcional)",
+      "changeReason": "Motivo del cambio"
+    },
+    "reset": {
+      "title": "¿Restablecer la política de cuotas?",
+      "description": "Elimina todos los límites personalizados y restaura los valores del sistema sin límites."
+    },
+    "overrides": {
+      "title": "Excepciones manuales",
+      "empty": "No hay excepciones configuradas."
+    },
+    "override": {
+      "title": "Crear excepción",
+      "hardLimitHint": "Límite estricto (vacío = ilimitado)",
+      "expiresOptional": "Caduca el (opcional)"
+    },
+    "delete": {
+      "title": "¿Eliminar la excepción?",
+      "description": "Esta acción no se puede deshacer."
+    },
+    "history": {
+      "title": "Historial de cambios",
+      "noNote": "Sin nota"
+    }
   }
 }

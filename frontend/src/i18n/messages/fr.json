@@ -5515,5 +5515,109 @@
     "pagination": {
       "summary": "{total} au total — page {page} sur {totalPages}"
     }
+  },
+  "adminQuotas": {
+    "quotaTypes": {
+      "seats": "Sièges",
+      "uploads": "Téléversements",
+      "questions": "Questions de chat",
+      "tokens": "Jetons",
+      "storage_bytes": "Stockage (octets)",
+      "evaluations": "Évaluations",
+      "api_calls": "Appels API",
+      "connectors": "Connecteurs",
+      "agent_runs": "Exécutions d’agents"
+    },
+    "resetWindows": {
+      "per_minute": "Par minute",
+      "per_hour": "Par heure",
+      "per_day": "Par jour",
+      "per_month": "Par mois",
+      "none": "Aucune réinitialisation (plafond permanent)"
+    },
+    "values": {
+      "noLimit": "Aucune limite",
+      "orgWide": "Toute l’organisation",
+      "unlimited": "Illimité",
+      "never": "Jamais",
+      "required": "Obligatoire"
+    },
+    "access": {
+      "restrictedTitle": "Gestion des quotas restreinte",
+      "restrictedDescription": "Seuls les propriétaires et administrateurs peuvent consulter la configuration des quotas.",
+      "unavailableTitle": "Gestion des quotas indisponible",
+      "unavailableDescription": "Votre rôle n’a plus accès aux paramètres de quotas."
+    },
+    "states": {
+      "loadingTitle": "Chargement des quotas",
+      "loadingDescription": "Préparation de la configuration des quotas de l’organisation.",
+      "errorTitle": "Impossible de charger les quotas"
+    },
+    "header": {
+      "title": "Quotas et limites de débit",
+      "description": "Gérez les limites de téléversement, de chat, de jetons, de stockage et d’API de votre organisation.",
+      "overage": "Dépassement détecté — une ou plusieurs limites ont été dépassées."
+    },
+    "actions": {
+      "resetDefaults": "Rétablir les valeurs",
+      "edit": "Modifier",
+      "cancel": "Annuler",
+      "saving": "Enregistrement…",
+      "saveLimit": "Enregistrer la limite",
+      "resetting": "Réinitialisation…",
+      "addOverride": "Ajouter une dérogation",
+      "delete": "Supprimer",
+      "createOverride": "Créer la dérogation",
+      "deleting": "Suppression…"
+    },
+    "fields": {
+      "quotaType": "Type de quota",
+      "currentUsage": "Utilisation actuelle",
+      "softLimit": "Limite souple",
+      "hardLimit": "Limite stricte",
+      "resetWindow": "Période de réinitialisation",
+      "status": "État",
+      "actions": "Actions",
+      "target": "Cible",
+      "hardLimitOverride": "Dérogation à la limite stricte",
+      "expires": "Expiration",
+      "reason": "Motif"
+    },
+    "statuses": {
+      "overLimit": "Limite dépassée",
+      "softExceeded": "Limite souple dépassée",
+      "nearLimit": "Proche de la limite",
+      "ok": "OK"
+    },
+    "edit": {
+      "title": "Modifier la limite — {quotaType}",
+      "softLimitWarn": "Limite souple (avertissement)",
+      "noSoftLimit": "Aucune limite souple",
+      "hardLimitBlock": "Limite stricte (blocage)",
+      "noHardLimit": "Aucune limite stricte",
+      "changeNoteOptional": "Note de modification (facultative)",
+      "changeReason": "Motif de la modification"
+    },
+    "reset": {
+      "title": "Réinitialiser la politique de quotas ?",
+      "description": "Supprime toutes les limites personnalisées et rétablit les valeurs système sans limites."
+    },
+    "overrides": {
+      "title": "Dérogations manuelles",
+      "empty": "Aucune dérogation configurée."
+    },
+    "override": {
+      "title": "Créer une dérogation",
+      "hardLimitHint": "Limite stricte (vide = illimité)",
+      "expiresOptional": "Expire le (facultatif)"
+    },
+    "delete": {
+      "title": "Supprimer la dérogation ?",
+      "description": "Cette action est irréversible."
+    },
+    "history": {
+      "title": "Historique des modifications",
+      "noNote": "Aucune note"
+    }
   }
 }
