@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -11,7 +12,6 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import {
   DEFAULT_WORKSPACE_EXPORT_SECTIONS,
-  WORKSPACE_EXPORT_SECTION_LABELS,
   createWorkspaceExport,
   createWorkspaceImport,
   downloadWorkspacePortabilityArtifact,
@@ -23,14 +23,14 @@ import {
 import { canViewAdminUsage, formatInteger } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
 
-function formatTimestamp(value: string | null): string {
-  if (!value) return "N/A";
+function formatTimestamp(value: string | null, unavailable: string): string {
+  if (!value) return unavailable;
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? value : new Date(timestamp).toLocaleString();
 }
 
-function formatBytes(value: number | null): string {
-  if (value == null || !Number.isFinite(value)) return "N/A";
+function formatBytes(value: number | null, unavailable: string): string {
+  if (value == null || !Number.isFinite(value)) return unavailable;
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
@@ -61,22 +61,19 @@ function statusClass(status: WorkspacePortabilityStatus): string {
   return "bg-amber-100 text-amber-800";
 }
 
-function sectionLabel(section: string): string {
-  return (
-    WORKSPACE_EXPORT_SECTION_LABELS[section as WorkspaceExportSection] ??
-    section.replace(/_/g, " ")
-  );
-}
-
-function parseImportArtifact(input: string): Record<string, unknown> {
+function parseImportArtifact(
+  input: string,
+  objectRequiredMessage: string,
+): Record<string, unknown> {
   const parsed = JSON.parse(input) as unknown;
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new Error("Import artifact must be a JSON object.");
+    throw new Error(objectRequiredMessage);
   }
   return parsed as Record<string, unknown>;
 }
 
 export function AdminWorkspacePortabilityPage() {
+  const t = useTranslations("adminPortability");
   const { state } = useAuthSession();
   const queryClient = useQueryClient();
   const isAdminUser = canViewAdminUsage(state.session?.role);
@@ -146,7 +143,7 @@ export function AdminWorkspacePortabilityPage() {
   function handleExport(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     if (selectedSections.length === 0) {
-      setFormError("Select at least one export section.");
+      setFormError(t("validation.selectSection"));
       return;
     }
     exportMutation.mutate();
@@ -155,10 +152,15 @@ export function AdminWorkspacePortabilityPage() {
   function handleImport(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     try {
-      const artifact = parseImportArtifact(importText);
+      const artifact = parseImportArtifact(
+        importText,
+        t("validation.objectRequired"),
+      );
       importMutation.mutate(artifact);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Invalid JSON.");
+      setFormError(
+        error instanceof Error ? error.message : t("validation.invalidJson"),
+      );
     }
   }
 
@@ -166,8 +168,8 @@ export function AdminWorkspacePortabilityPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Workspace portability restricted"
-          description="Only owner and admin roles can request workspace import or export jobs."
+          title={t("access.restrictedTitle")}
+          description={t("access.restrictedDescription")}
           compact={false}
         />
       </section>
@@ -182,23 +184,20 @@ export function AdminWorkspacePortabilityPage() {
         <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 lg:flex-row lg:items-end">
           <div>
             <p className="text-xs font-bold tracking-[0.18em] text-indigo-600 uppercase">
-              Workspace Portability
+              {t("header.eyebrow")}
             </p>
             <h1 className="mt-2 text-3xl font-extrabold text-slate-950">
-              Import and export data
+              {t("header.title")}
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Request sanitized workspace exports, validate import artifacts,
-              and download job outputs. Exports exclude document files,
-              embeddings, API key hashes, webhook secrets, and connector
-              credentials.
+              {t("header.description")}
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
             <span className="font-semibold text-slate-900">
               {formatInteger(jobsQuery.data?.total ?? 0)}
             </span>{" "}
-            jobs tracked
+            {t("header.jobsTracked")}
           </div>
         </header>
 
@@ -216,14 +215,14 @@ export function AdminWorkspacePortabilityPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-950">
-                  Request export
+                  {t("export.title")}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Choose the workspace sections to package into a JSON artifact.
+                  {t("export.description")}
                 </p>
               </div>
               <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 uppercase">
-                Sanitized
+                {t("export.sanitized")}
               </span>
             </div>
 
@@ -239,13 +238,13 @@ export function AdminWorkspacePortabilityPage() {
                     onChange={() => toggleSection(section)}
                     className="h-4 w-4 rounded border-slate-300 text-indigo-600"
                   />
-                  {WORKSPACE_EXPORT_SECTION_LABELS[section]}
+                  {t(`sections.${section}`)}
                 </label>
               ))}
             </div>
 
             <label className="mt-5 block text-sm font-medium text-slate-700">
-              Max rows per section
+              {t("export.maxRows")}
               <input
                 type="number"
                 min={1}
@@ -264,8 +263,8 @@ export function AdminWorkspacePortabilityPage() {
               className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
             >
               {exportMutation.isPending
-                ? "Creating export..."
-                : "Create export job"}
+                ? t("actions.creatingExport")
+                : t("actions.createExport")}
             </button>
           </form>
 
@@ -274,11 +273,10 @@ export function AdminWorkspacePortabilityPage() {
             className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
           >
             <h2 className="text-lg font-bold text-slate-950">
-              Validate import
+              {t("import.title")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Paste a Rudix workspace export JSON. Validation always runs before
-              any records are created.
+              {t("import.description")}
             </p>
             <textarea
               value={importText}
@@ -295,8 +293,7 @@ export function AdminWorkspacePortabilityPage() {
                 onChange={(event) => setApplyImport(event.target.checked)}
                 className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600"
               />
-              Apply validated records for collections, metadata fields, and
-              evaluation datasets
+              {t("import.applyRecords")}
             </label>
             <button
               type="submit"
@@ -306,8 +303,8 @@ export function AdminWorkspacePortabilityPage() {
               className="mt-6 inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
             >
               {importMutation.isPending
-                ? "Validating import..."
-                : "Validate import"}
+                ? t("actions.validatingImport")
+                : t("actions.validateImport")}
             </button>
           </form>
         </section>
@@ -315,62 +312,62 @@ export function AdminWorkspacePortabilityPage() {
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-950">Job status</h2>
-              <p className="text-sm text-slate-500">
-                Recent export and import jobs for this organization.
-              </p>
+              <h2 className="text-lg font-bold text-slate-950">
+                {t("jobs.title")}
+              </h2>
+              <p className="text-sm text-slate-500">{t("jobs.description")}</p>
             </div>
             <button
               type="button"
               onClick={() => void jobsQuery.refetch()}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
-              Refresh
+              {t("actions.refresh")}
             </button>
           </div>
 
           <div className="p-6">
             {jobsQuery.isLoading ? (
               <LoadingState
-                title="Loading portability jobs"
-                description="Fetching the latest import and export activity."
+                title={t("states.loadingTitle")}
+                description={t("states.loadingDescription")}
               />
             ) : jobsQuery.isError ? (
               <ErrorState
-                title="Unable to load portability jobs"
+                title={t("states.errorTitle")}
                 error={jobsQuery.error}
                 onRetry={() => void jobsQuery.refetch()}
               />
             ) : jobs.length === 0 ? (
               <EmptyState
-                title="No portability jobs yet"
-                description="Create an export or validate an import to start tracking jobs here."
+                title={t("states.emptyTitle")}
+                description={t("states.emptyDescription")}
               />
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="text-left text-xs font-bold tracking-wide text-slate-500 uppercase">
+                  <thead className="text-start text-xs font-bold tracking-wide text-slate-500 uppercase">
                     <tr>
-                      <th className="px-3 py-2">Type</th>
-                      <th className="px-3 py-2">Status</th>
-                      <th className="px-3 py-2">Sections</th>
-                      <th className="px-3 py-2">Records</th>
-                      <th className="px-3 py-2">Artifact</th>
-                      <th className="px-3 py-2">Created</th>
-                      <th className="px-3 py-2">Actions</th>
+                      <th className="px-3 py-2">{t("fields.type")}</th>
+                      <th className="px-3 py-2">{t("fields.status")}</th>
+                      <th className="px-3 py-2">{t("fields.sections")}</th>
+                      <th className="px-3 py-2">{t("fields.records")}</th>
+                      <th className="px-3 py-2">{t("fields.artifact")}</th>
+                      <th className="px-3 py-2">{t("fields.created")}</th>
+                      <th className="px-3 py-2">{t("fields.actions")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {jobs.map((job) => (
                       <tr key={job.job_id} className="align-top">
                         <td className="px-3 py-3 font-medium text-slate-900">
-                          {job.job_type}
+                          {t(`jobTypes.${job.job_type}`)}
                         </td>
                         <td className="px-3 py-3">
                           <span
                             className={`rounded-full px-2 py-1 text-xs font-semibold ${statusClass(job.status)}`}
                           >
-                            {job.status.replace(/_/g, " ")}
+                            {t(`statuses.${job.status}`)}
                           </span>
                           {job.validation_errors.length > 0 ? (
                             <p className="mt-2 text-xs text-rose-700">
@@ -385,25 +382,37 @@ export function AdminWorkspacePortabilityPage() {
                         </td>
                         <td className="max-w-xs px-3 py-3 text-slate-600">
                           {job.requested_sections
-                            .map(sectionLabel)
-                            .join(", ") || "N/A"}
+                            .map((section) =>
+                              t.has(`sections.${section}`)
+                                ? t(`sections.${section}`)
+                                : section.replace(/_/g, " "),
+                            )
+                            .join(", ") || t("values.unavailable")}
                         </td>
                         <td className="px-3 py-3 text-slate-600">
                           {formatInteger(job.records_processed)}
                           {job.records_failed > 0
-                            ? ` / ${formatInteger(job.records_failed)} failed`
+                            ? t("jobs.failedRecords", {
+                                count: formatInteger(job.records_failed),
+                              })
                             : ""}
                         </td>
                         <td className="px-3 py-3 text-slate-600">
                           <span className="block">
-                            {job.artifact_filename ?? "N/A"}
+                            {job.artifact_filename ?? t("values.unavailable")}
                           </span>
                           <span className="text-xs text-slate-400">
-                            {formatBytes(job.artifact_size_bytes)}
+                            {formatBytes(
+                              job.artifact_size_bytes,
+                              t("values.unavailable"),
+                            )}
                           </span>
                         </td>
                         <td className="px-3 py-3 text-slate-600">
-                          {formatTimestamp(job.created_at)}
+                          {formatTimestamp(
+                            job.created_at,
+                            t("values.unavailable"),
+                          )}
                         </td>
                         <td className="px-3 py-3">
                           <button
@@ -415,7 +424,7 @@ export function AdminWorkspacePortabilityPage() {
                             onClick={() => downloadMutation.mutate(job)}
                             className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
                           >
-                            Download
+                            {t("actions.download")}
                           </button>
                         </td>
                       </tr>

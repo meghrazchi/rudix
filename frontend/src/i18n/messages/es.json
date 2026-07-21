@@ -5619,5 +5619,89 @@
       "title": "Historial de cambios",
       "noNote": "Sin nota"
     }
+  },
+  "adminPortability": {
+    "access": {
+      "restrictedTitle": "Portabilidad del espacio restringida",
+      "restrictedDescription": "Solo propietarios y administradores pueden solicitar trabajos de importación o exportación."
+    },
+    "header": {
+      "eyebrow": "Portabilidad del espacio",
+      "title": "Importar y exportar datos",
+      "description": "Solicita exportaciones depuradas, valida artefactos de importación y descarga resultados. Las exportaciones excluyen archivos, incrustaciones, hashes de claves API, secretos de webhooks y credenciales de conectores.",
+      "jobsTracked": "trabajos registrados"
+    },
+    "export": {
+      "title": "Solicitar exportación",
+      "description": "Elige las secciones que se incluirán en un artefacto JSON.",
+      "sanitized": "Depurado",
+      "maxRows": "Filas máximas por sección"
+    },
+    "import": {
+      "title": "Validar importación",
+      "description": "Pega un JSON de exportación de Rudix. La validación siempre se ejecuta antes de crear registros.",
+      "applyRecords": "Aplicar registros validados de colecciones, campos de metadatos y conjuntos de evaluación"
+    },
+    "actions": {
+      "creatingExport": "Creando exportación...",
+      "createExport": "Crear trabajo de exportación",
+      "validatingImport": "Validando importación...",
+      "validateImport": "Validar importación",
+      "refresh": "Actualizar",
+      "download": "Descargar"
+    },
+    "sections": {
+      "collections": "Colecciones",
+      "document_metadata": "Metadatos de documentos",
+      "chat_transcripts": "Transcripciones de chat",
+      "evaluation_datasets": "Conjuntos de evaluación",
+      "evaluation_results": "Resultados de evaluación",
+      "audit_logs": "Registros de auditoría",
+      "settings": "Configuración",
+      "api_metadata": "Metadatos de API",
+      "webhook_metadata": "Metadatos de webhooks"
+    },
+    "validation": {
+      "selectSection": "Selecciona al menos una sección para exportar.",
+      "objectRequired": "El artefacto de importación debe ser un objeto JSON.",
+      "invalidJson": "JSON no válido."
+    },
+    "jobs": {
+      "title": "Estado de trabajos",
+      "description": "Trabajos recientes de importación y exportación de esta organización.",
+      "failedRecords": " / {count} fallidos"
+    },
+    "states": {
+      "loadingTitle": "Cargando trabajos de portabilidad",
+      "loadingDescription": "Obteniendo la actividad más reciente.",
+      "errorTitle": "No se pudieron cargar los trabajos",
+      "emptyTitle": "Aún no hay trabajos de portabilidad",
+      "emptyDescription": "Crea una exportación o valida una importación para empezar a registrar trabajos."
+    },
+    "fields": {
+      "type": "Tipo",
+      "status": "Estado",
+      "sections": "Secciones",
+      "records": "Registros",
+      "artifact": "Artefacto",
+      "created": "Creado",
+      "actions": "Acciones"
+    },
+    "jobTypes": {
+      "export": "Exportación",
+      "import": "Importación"
+    },
+    "statuses": {
+      "queued": "En cola",
+      "running": "En curso",
+      "validated": "Validado",
+      "completed": "Completado",
+      "failed": "Fallido",
+      "validation_failed": "Validación fallida",
+      "expired": "Caducado"
+    },
+    "values": {
+      "unavailable": "No disponible"
+    }
   }
 }

@@ -5619,5 +5619,89 @@
       "title": "تاریخچه تغییرات",
       "noNote": "بدون یادداشت"
     }
+  },
+  "adminPortability": {
+    "access": {
+      "restrictedTitle": "انتقال‌پذیری فضای کاری محدود است",
+      "restrictedDescription": "فقط مالک و مدیر می‌توانند کارهای ورود یا خروج فضای کاری را درخواست کنند."
+    },
+    "header": {
+      "eyebrow": "انتقال‌پذیری فضای کاری",
+      "title": "ورود و خروج داده‌ها",
+      "description": "خروجی پاک‌سازی‌شده درخواست کنید، فایل‌های ورود را اعتبارسنجی و نتیجه کارها را دانلود کنید. خروجی شامل فایل اسناد، بردارها، هش کلیدهای API، اسرار وب‌هوک و اطلاعات ورود اتصال‌دهنده‌ها نیست.",
+      "jobsTracked": "کار پیگیری‌شده"
+    },
+    "export": {
+      "title": "درخواست خروجی",
+      "description": "بخش‌های فضای کاری را برای بسته‌بندی در فایل JSON انتخاب کنید.",
+      "sanitized": "پاک‌سازی‌شده",
+      "maxRows": "حداکثر ردیف در هر بخش"
+    },
+    "import": {
+      "title": "اعتبارسنجی ورود",
+      "description": "فایل JSON خروجی فضای کاری Rudix را وارد کنید. اعتبارسنجی همیشه پیش از ایجاد رکوردها انجام می‌شود.",
+      "applyRecords": "اعمال رکوردهای معتبر مجموعه‌ها، فیلدهای فراداده و مجموعه‌داده‌های ارزیابی"
+    },
+    "actions": {
+      "creatingExport": "در حال ایجاد خروجی...",
+      "createExport": "ایجاد کار خروجی",
+      "validatingImport": "در حال اعتبارسنجی ورود...",
+      "validateImport": "اعتبارسنجی ورود",
+      "refresh": "تازه‌سازی",
+      "download": "دانلود"
+    },
+    "sections": {
+      "collections": "مجموعه‌ها",
+      "document_metadata": "فراداده اسناد",
+      "chat_transcripts": "رونوشت گفتگوها",
+      "evaluation_datasets": "مجموعه‌داده‌های ارزیابی",
+      "evaluation_results": "نتایج ارزیابی",
+      "audit_logs": "گزارش‌های ممیزی",
+      "settings": "تنظیمات",
+      "api_metadata": "فراداده API",
+      "webhook_metadata": "فراداده وب‌هوک"
+    },
+    "validation": {
+      "selectSection": "حداقل یک بخش خروجی را انتخاب کنید.",
+      "objectRequired": "فایل ورود باید یک شیء JSON باشد.",
+      "invalidJson": "JSON نامعتبر است."
+    },
+    "jobs": {
+      "title": "وضعیت کارها",
+      "description": "کارهای اخیر ورود و خروج این سازمان.",
+      "failedRecords": " / {count} ناموفق"
+    },
+    "states": {
+      "loadingTitle": "در حال بارگذاری کارهای انتقال",
+      "loadingDescription": "در حال دریافت آخرین فعالیت‌های ورود و خروج.",
+      "errorTitle": "بارگذاری کارهای انتقال ممکن نیست",
+      "emptyTitle": "هنوز کار انتقالی وجود ندارد",
+      "emptyDescription": "برای شروع پیگیری، یک خروجی ایجاد یا ورودی را اعتبارسنجی کنید."
+    },
+    "fields": {
+      "type": "نوع",
+      "status": "وضعیت",
+      "sections": "بخش‌ها",
+      "records": "رکوردها",
+      "artifact": "فایل",
+      "created": "ایجادشده",
+      "actions": "عملیات"
+    },
+    "jobTypes": {
+      "export": "خروجی",
+      "import": "ورودی"
+    },
+    "statuses": {
+      "queued": "در صف",
+      "running": "در حال اجرا",
+      "validated": "اعتبارسنجی‌شده",
+      "completed": "تکمیل‌شده",
+      "failed": "ناموفق",
+      "validation_failed": "اعتبارسنجی ناموفق",
+      "expired": "منقضی‌شده"
+    },
+    "values": {
+      "unavailable": "ناموجود"
+    }
   }
 }

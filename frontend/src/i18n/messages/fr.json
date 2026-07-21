@@ -5619,5 +5619,89 @@
       "title": "Historique des modifications",
       "noNote": "Aucune note"
     }
+  },
+  "adminPortability": {
+    "access": {
+      "restrictedTitle": "Portabilité de l’espace restreinte",
+      "restrictedDescription": "Seuls les propriétaires et administrateurs peuvent demander des tâches d’importation ou d’exportation."
+    },
+    "header": {
+      "eyebrow": "Portabilité de l’espace",
+      "title": "Importer et exporter des données",
+      "description": "Demandez des exports assainis, validez les artefacts d’importation et téléchargez les résultats. Les exports excluent les fichiers, incorporations, empreintes de clés API, secrets de webhooks et identifiants des connecteurs.",
+      "jobsTracked": "tâches suivies"
+    },
+    "export": {
+      "title": "Demander un export",
+      "description": "Choisissez les sections à regrouper dans un artefact JSON.",
+      "sanitized": "Assaini",
+      "maxRows": "Nombre maximal de lignes par section"
+    },
+    "import": {
+      "title": "Valider l’importation",
+      "description": "Collez un export JSON d’espace Rudix. La validation est toujours exécutée avant la création des enregistrements.",
+      "applyRecords": "Appliquer les enregistrements validés pour les collections, métadonnées et jeux d’évaluation"
+    },
+    "actions": {
+      "creatingExport": "Création de l’export...",
+      "createExport": "Créer la tâche d’export",
+      "validatingImport": "Validation de l’importation...",
+      "validateImport": "Valider l’importation",
+      "refresh": "Actualiser",
+      "download": "Télécharger"
+    },
+    "sections": {
+      "collections": "Collections",
+      "document_metadata": "Métadonnées des documents",
+      "chat_transcripts": "Transcriptions de chat",
+      "evaluation_datasets": "Jeux d’évaluation",
+      "evaluation_results": "Résultats d’évaluation",
+      "audit_logs": "Journaux d’audit",
+      "settings": "Paramètres",
+      "api_metadata": "Métadonnées API",
+      "webhook_metadata": "Métadonnées des webhooks"
+    },
+    "validation": {
+      "selectSection": "Sélectionnez au moins une section à exporter.",
+      "objectRequired": "L’artefact d’importation doit être un objet JSON.",
+      "invalidJson": "JSON non valide."
+    },
+    "jobs": {
+      "title": "État des tâches",
+      "description": "Tâches récentes d’importation et d’exportation de cette organisation.",
+      "failedRecords": " / {count} en échec"
+    },
+    "states": {
+      "loadingTitle": "Chargement des tâches de portabilité",
+      "loadingDescription": "Récupération des dernières activités d’importation et d’exportation.",
+      "errorTitle": "Impossible de charger les tâches",
+      "emptyTitle": "Aucune tâche de portabilité",
+      "emptyDescription": "Créez un export ou validez une importation pour commencer le suivi."
+    },
+    "fields": {
+      "type": "Type",
+      "status": "État",
+      "sections": "Sections",
+      "records": "Enregistrements",
+      "artifact": "Artefact",
+      "created": "Créé",
+      "actions": "Actions"
+    },
+    "jobTypes": {
+      "export": "Exportation",
+      "import": "Importation"
+    },
+    "statuses": {
+      "queued": "En file",
+      "running": "En cours",
+      "validated": "Validé",
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "validation_failed": "Validation échouée",
+      "expired": "Expiré"
+    },
+    "values": {
+      "unavailable": "Indisponible"
+    }
   }
 }

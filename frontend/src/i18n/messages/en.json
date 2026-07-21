@@ -5619,5 +5619,89 @@
       "title": "Change history",
       "noNote": "No note"
     }
+  },
+  "adminPortability": {
+    "access": {
+      "restrictedTitle": "Workspace portability restricted",
+      "restrictedDescription": "Only owner and admin roles can request workspace import or export jobs."
+    },
+    "header": {
+      "eyebrow": "Workspace Portability",
+      "title": "Import and export data",
+      "description": "Request sanitized workspace exports, validate import artifacts, and download job outputs. Exports exclude document files, embeddings, API key hashes, webhook secrets, and connector credentials.",
+      "jobsTracked": "jobs tracked"
+    },
+    "export": {
+      "title": "Request export",
+      "description": "Choose the workspace sections to package into a JSON artifact.",
+      "sanitized": "Sanitized",
+      "maxRows": "Max rows per section"
+    },
+    "import": {
+      "title": "Validate import",
+      "description": "Paste a Rudix workspace export JSON. Validation always runs before any records are created.",
+      "applyRecords": "Apply validated records for collections, metadata fields, and evaluation datasets"
+    },
+    "actions": {
+      "creatingExport": "Creating export...",
+      "createExport": "Create export job",
+      "validatingImport": "Validating import...",
+      "validateImport": "Validate import",
+      "refresh": "Refresh",
+      "download": "Download"
+    },
+    "sections": {
+      "collections": "Collections",
+      "document_metadata": "Document metadata",
+      "chat_transcripts": "Chat transcripts",
+      "evaluation_datasets": "Evaluation datasets",
+      "evaluation_results": "Evaluation results",
+      "audit_logs": "Audit logs",
+      "settings": "Settings",
+      "api_metadata": "API metadata",
+      "webhook_metadata": "Webhook metadata"
+    },
+    "validation": {
+      "selectSection": "Select at least one export section.",
+      "objectRequired": "Import artifact must be a JSON object.",
+      "invalidJson": "Invalid JSON."
+    },
+    "jobs": {
+      "title": "Job status",
+      "description": "Recent export and import jobs for this organization.",
+      "failedRecords": " / {count} failed"
+    },
+    "states": {
+      "loadingTitle": "Loading portability jobs",
+      "loadingDescription": "Fetching the latest import and export activity.",
+      "errorTitle": "Unable to load portability jobs",
+      "emptyTitle": "No portability jobs yet",
+      "emptyDescription": "Create an export or validate an import to start tracking jobs here."
+    },
+    "fields": {
+      "type": "Type",
+      "status": "Status",
+      "sections": "Sections",
+      "records": "Records",
+      "artifact": "Artifact",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "jobTypes": {
+      "export": "Export",
+      "import": "Import"
+    },
+    "statuses": {
+      "queued": "Queued",
+      "running": "Running",
+      "validated": "Validated",
+      "completed": "Completed",
+      "failed": "Failed",
+      "validation_failed": "Validation failed",
+      "expired": "Expired"
+    },
+    "values": {
+      "unavailable": "N/A"
+    }
   }
 }

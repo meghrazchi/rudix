@@ -5619,5 +5619,89 @@
       "title": "سجل التغييرات",
       "noNote": "بلا ملاحظة"
     }
+  },
+  "adminPortability": {
+    "access": {
+      "restrictedTitle": "نقل مساحة العمل مقيّد",
+      "restrictedDescription": "يمكن للمالك والمسؤول فقط طلب مهام استيراد أو تصدير مساحة العمل."
+    },
+    "header": {
+      "eyebrow": "قابلية نقل مساحة العمل",
+      "title": "استيراد البيانات وتصديرها",
+      "description": "اطلب صادرات منقحة وتحقق من ملفات الاستيراد ونزّل نتائج المهام. تستبعد الصادرات ملفات المستندات والتضمينات وبصمات مفاتيح API وأسرار الويب هوك وبيانات اعتماد الموصلات.",
+      "jobsTracked": "مهمة متتبعة"
+    },
+    "export": {
+      "title": "طلب تصدير",
+      "description": "اختر أقسام مساحة العمل لتجميعها في ملف JSON.",
+      "sanitized": "منقح",
+      "maxRows": "الحد الأقصى للصفوف في كل قسم"
+    },
+    "import": {
+      "title": "التحقق من الاستيراد",
+      "description": "الصق ملف تصدير مساحة Rudix بصيغة JSON. يتم التحقق دائمًا قبل إنشاء أي سجلات.",
+      "applyRecords": "تطبيق السجلات المتحقق منها للمجموعات وحقول البيانات الوصفية ومجموعات التقييم"
+    },
+    "actions": {
+      "creatingExport": "جارٍ إنشاء التصدير...",
+      "createExport": "إنشاء مهمة تصدير",
+      "validatingImport": "جارٍ التحقق من الاستيراد...",
+      "validateImport": "التحقق من الاستيراد",
+      "refresh": "تحديث",
+      "download": "تنزيل"
+    },
+    "sections": {
+      "collections": "المجموعات",
+      "document_metadata": "بيانات المستندات الوصفية",
+      "chat_transcripts": "نصوص المحادثات",
+      "evaluation_datasets": "مجموعات بيانات التقييم",
+      "evaluation_results": "نتائج التقييم",
+      "audit_logs": "سجلات التدقيق",
+      "settings": "الإعدادات",
+      "api_metadata": "بيانات API الوصفية",
+      "webhook_metadata": "بيانات الويب هوك الوصفية"
+    },
+    "validation": {
+      "selectSection": "حدد قسم تصدير واحدًا على الأقل.",
+      "objectRequired": "يجب أن يكون ملف الاستيراد كائن JSON.",
+      "invalidJson": "JSON غير صالح."
+    },
+    "jobs": {
+      "title": "حالة المهام",
+      "description": "مهام الاستيراد والتصدير الأخيرة لهذه المؤسسة.",
+      "failedRecords": " / {count} فاشل"
+    },
+    "states": {
+      "loadingTitle": "جارٍ تحميل مهام النقل",
+      "loadingDescription": "جارٍ جلب أحدث نشاط للاستيراد والتصدير.",
+      "errorTitle": "تعذر تحميل مهام النقل",
+      "emptyTitle": "لا توجد مهام نقل بعد",
+      "emptyDescription": "أنشئ تصديرًا أو تحقق من استيراد لبدء تتبع المهام."
+    },
+    "fields": {
+      "type": "النوع",
+      "status": "الحالة",
+      "sections": "الأقسام",
+      "records": "السجلات",
+      "artifact": "الملف",
+      "created": "تاريخ الإنشاء",
+      "actions": "الإجراءات"
+    },
+    "jobTypes": {
+      "export": "تصدير",
+      "import": "استيراد"
+    },
+    "statuses": {
+      "queued": "في قائمة الانتظار",
+      "running": "قيد التشغيل",
+      "validated": "تم التحقق",
+      "completed": "مكتمل",
+      "failed": "فاشل",
+      "validation_failed": "فشل التحقق",
+      "expired": "منتهي الصلاحية"
+    },
+    "values": {
+      "unavailable": "غير متاح"
+    }
   }
 }

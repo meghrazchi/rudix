@@ -5619,5 +5619,89 @@
       "title": "Änderungsverlauf",
       "noNote": "Keine Notiz"
     }
+  },
+  "adminPortability": {
+    "access": {
+      "restrictedTitle": "Arbeitsbereichsportabilität eingeschränkt",
+      "restrictedDescription": "Nur Eigentümer und Administratoren können Import- oder Exportaufträge anfordern."
+    },
+    "header": {
+      "eyebrow": "Arbeitsbereichsportabilität",
+      "title": "Daten importieren und exportieren",
+      "description": "Fordern Sie bereinigte Exporte an, validieren Sie Importartefakte und laden Sie Auftragsergebnisse herunter. Exporte enthalten keine Dokumentdateien, Einbettungen, API-Schlüssel-Hashes, Webhook-Geheimnisse oder Zugangsdaten für Konnektoren.",
+      "jobsTracked": "Aufträge erfasst"
+    },
+    "export": {
+      "title": "Export anfordern",
+      "description": "Wählen Sie die Bereiche aus, die in ein JSON-Artefakt gepackt werden sollen.",
+      "sanitized": "Bereinigt",
+      "maxRows": "Maximale Zeilen pro Bereich"
+    },
+    "import": {
+      "title": "Import validieren",
+      "description": "Fügen Sie einen Rudix-Arbeitsbereichsexport im JSON-Format ein. Die Validierung erfolgt immer vor dem Erstellen von Datensätzen.",
+      "applyRecords": "Validierte Datensätze für Sammlungen, Metadatenfelder und Evaluierungsdatensätze anwenden"
+    },
+    "actions": {
+      "creatingExport": "Export wird erstellt...",
+      "createExport": "Exportauftrag erstellen",
+      "validatingImport": "Import wird validiert...",
+      "validateImport": "Import validieren",
+      "refresh": "Aktualisieren",
+      "download": "Herunterladen"
+    },
+    "sections": {
+      "collections": "Sammlungen",
+      "document_metadata": "Dokumentmetadaten",
+      "chat_transcripts": "Chatprotokolle",
+      "evaluation_datasets": "Evaluierungsdatensätze",
+      "evaluation_results": "Evaluierungsergebnisse",
+      "audit_logs": "Audit-Protokolle",
+      "settings": "Einstellungen",
+      "api_metadata": "API-Metadaten",
+      "webhook_metadata": "Webhook-Metadaten"
+    },
+    "validation": {
+      "selectSection": "Wählen Sie mindestens einen Exportbereich aus.",
+      "objectRequired": "Das Importartefakt muss ein JSON-Objekt sein.",
+      "invalidJson": "Ungültiges JSON."
+    },
+    "jobs": {
+      "title": "Auftragsstatus",
+      "description": "Aktuelle Import- und Exportaufträge dieser Organisation.",
+      "failedRecords": " / {count} fehlgeschlagen"
+    },
+    "states": {
+      "loadingTitle": "Portabilitätsaufträge werden geladen",
+      "loadingDescription": "Die neuesten Import- und Exportaktivitäten werden abgerufen.",
+      "errorTitle": "Portabilitätsaufträge konnten nicht geladen werden",
+      "emptyTitle": "Noch keine Portabilitätsaufträge",
+      "emptyDescription": "Erstellen Sie einen Export oder validieren Sie einen Import, um Aufträge zu erfassen."
+    },
+    "fields": {
+      "type": "Typ",
+      "status": "Status",
+      "sections": "Bereiche",
+      "records": "Datensätze",
+      "artifact": "Artefakt",
+      "created": "Erstellt",
+      "actions": "Aktionen"
+    },
+    "jobTypes": {
+      "export": "Export",
+      "import": "Import"
+    },
+    "statuses": {
+      "queued": "Eingereiht",
+      "running": "Läuft",
+      "validated": "Validiert",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "validation_failed": "Validierung fehlgeschlagen",
+      "expired": "Abgelaufen"
+    },
+    "values": {
+      "unavailable": "Nicht verfügbar"
+    }
   }
 }
