@@ -5412,5 +5412,108 @@
     "pagination": {
       "summary": "مجموع {total} — صفحه {page} از {totalPages}"
     }
+  },
+  "adminStatus": {
+    "statuses": {
+      "investigating": "در حال بررسی",
+      "identified": "شناسایی‌شده",
+      "monitoring": "در حال پایش",
+      "resolved": "حل‌شده"
+    },
+    "severities": {
+      "critical": "بحرانی",
+      "high": "زیاد",
+      "medium": "متوسط",
+      "low": "کم"
+    },
+    "values": {
+      "yes": "بله",
+      "no": "خیر"
+    },
+    "drawer": {
+      "title": "جزئیات رخداد",
+      "closeDrawer": "بستن جزئیات",
+      "quickUpdate": "به‌روزرسانی سریع",
+      "changeStatus": "تغییر وضعیت…",
+      "changeSeverity": "تغییر شدت…",
+      "addNote": "افزودن یادداشت",
+      "notePlaceholder": "شرح دهید چه اتفاقی افتاده یا آخرین وضعیت چیست…",
+      "noteText": "متن یادداشت",
+      "optionalStatus": "تغییر اختیاری وضعیت همراه یادداشت",
+      "noStatusChange": "بدون تغییر وضعیت",
+      "notesTimeline": "خط زمانی یادداشت‌ها"
+    },
+    "actions": {
+      "close": "بستن",
+      "saving": "در حال ذخیره…",
+      "apply": "اعمال",
+      "posting": "در حال ارسال…",
+      "postNote": "ارسال یادداشت",
+      "cancel": "انصراف",
+      "creating": "در حال ایجاد…",
+      "createIncident": "ایجاد رخداد",
+      "view": "مشاهده",
+      "refresh": "تازه‌سازی",
+      "refreshing": "در حال تازه‌سازی…",
+      "newIncident": "+ رخداد جدید",
+      "previous": "قبلی",
+      "next": "بعدی"
+    },
+    "fields": {
+      "status": "وضعیت",
+      "severity": "شدت",
+      "publicBanner": "بنر عمومی",
+      "started": "شروع",
+      "resolved": "حل‌شده",
+      "affectedServices": "سرویس‌های تحت تأثیر",
+      "titleRequired": "عنوان *",
+      "title": "عنوان"
+    },
+    "create": {
+      "title": "رخداد جدید",
+      "titlePlaceholder": "شرح کوتاه مشکل",
+      "affectedServices": "سرویس‌های تحت تأثیر (با ویرگول جدا کنید)",
+      "servicesPlaceholder": "مثلاً چت، جستجو، نمایه‌سازی",
+      "messageOptional": "پیام (اختیاری)",
+      "messagePlaceholder": "پیام قابل مشاهده برای کاربران",
+      "showBanner": "نمایش به‌صورت بنر درون‌برنامه‌ای"
+    },
+    "states": {
+      "loadingDetail": "در حال بارگذاری…",
+      "loadingStatus": "در حال بارگذاری وضعیت…",
+      "loadingIncidents": "در حال بارگذاری رخدادها…",
+      "empty": "هیچ رخدادی با فیلترهای فعلی مطابقت ندارد."
+    },
+    "metrics": {
+      "overall": "کلی",
+      "operational": "عملیاتی",
+      "degraded": "مختل",
+      "activeIncidents": "رخدادهای فعال",
+      "resolved24h": "حل‌شده (۲۴ ساعت)",
+      "openFailedJobs": "کارهای ناموفق باز"
+    },
+    "table": {
+      "bannerActive": "بنر عمومی فعال است",
+      "notShown": "به کاربران نمایش داده نمی‌شود",
+      "affected": "تحت تأثیر",
+      "banner": "بنر"
+    },
+    "access": {
+      "restrictedTitle": "دسترسی مدیر محدود است",
+      "restrictedDescription": "فقط مالک و مدیر می‌توانند به صفحه وضعیت دسترسی داشته باشند."
+    },
+    "header": {
+      "eyebrow": "مدیریت Rudix",
+      "title": "وضعیت سیستم",
+      "description": "رخدادهای فعال، سلامت سرویس‌ها و بازه‌های نگهداری. رخدادها را عمومی کنید تا به‌صورت بنر به کاربران نمایش داده شوند."
+    },
+    "filters": {
+      "allStatuses": "همه وضعیت‌ها",
+      "activeOnly": "فقط فعال",
+      "allSeverities": "همه شدت‌ها"
+    },
+    "pagination": {
+      "summary": "مجموع {total} — صفحه {page} از {totalPages}"
+    }
   }
 }

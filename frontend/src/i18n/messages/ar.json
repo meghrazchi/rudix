@@ -5412,5 +5412,108 @@
     "pagination": {
       "summary": "الإجمالي {total} — الصفحة {page} من {totalPages}"
     }
+  },
+  "adminStatus": {
+    "statuses": {
+      "investigating": "قيد التحقيق",
+      "identified": "تم التحديد",
+      "monitoring": "قيد المراقبة",
+      "resolved": "تم الحل"
+    },
+    "severities": {
+      "critical": "حرجة",
+      "high": "مرتفعة",
+      "medium": "متوسطة",
+      "low": "منخفضة"
+    },
+    "values": {
+      "yes": "نعم",
+      "no": "لا"
+    },
+    "drawer": {
+      "title": "تفاصيل الحادث",
+      "closeDrawer": "إغلاق التفاصيل",
+      "quickUpdate": "تحديث سريع",
+      "changeStatus": "تغيير الحالة…",
+      "changeSeverity": "تغيير الخطورة…",
+      "addNote": "إضافة ملاحظة",
+      "notePlaceholder": "صِف ما يحدث أو أضف تحديثًا…",
+      "noteText": "نص الملاحظة",
+      "optionalStatus": "تحديث الحالة اختياريًا مع الملاحظة",
+      "noStatusChange": "بدون تغيير الحالة",
+      "notesTimeline": "الخط الزمني للملاحظات"
+    },
+    "actions": {
+      "close": "إغلاق",
+      "saving": "جارٍ الحفظ…",
+      "apply": "تطبيق",
+      "posting": "جارٍ النشر…",
+      "postNote": "نشر الملاحظة",
+      "cancel": "إلغاء",
+      "creating": "جارٍ الإنشاء…",
+      "createIncident": "إنشاء حادث",
+      "view": "عرض",
+      "refresh": "تحديث",
+      "refreshing": "جارٍ التحديث…",
+      "newIncident": "+ حادث جديد",
+      "previous": "السابق",
+      "next": "التالي"
+    },
+    "fields": {
+      "status": "الحالة",
+      "severity": "الخطورة",
+      "publicBanner": "لافتة عامة",
+      "started": "بدأ",
+      "resolved": "تم الحل",
+      "affectedServices": "الخدمات المتأثرة",
+      "titleRequired": "العنوان *",
+      "title": "العنوان"
+    },
+    "create": {
+      "title": "حادث جديد",
+      "titlePlaceholder": "وصف موجز للمشكلة",
+      "affectedServices": "الخدمات المتأثرة (مفصولة بفواصل)",
+      "servicesPlaceholder": "مثال: الدردشة، البحث، الفهرسة",
+      "messageOptional": "الرسالة (اختيارية)",
+      "messagePlaceholder": "رسالة ظاهرة للمستخدمين",
+      "showBanner": "العرض كلافتة داخل التطبيق"
+    },
+    "states": {
+      "loadingDetail": "جارٍ التحميل…",
+      "loadingStatus": "جارٍ تحميل الحالة…",
+      "loadingIncidents": "جارٍ تحميل الحوادث…",
+      "empty": "لا توجد حوادث تطابق عوامل التصفية الحالية."
+    },
+    "metrics": {
+      "overall": "الإجمالي",
+      "operational": "يعمل",
+      "degraded": "متدهور",
+      "activeIncidents": "الحوادث النشطة",
+      "resolved24h": "تم الحل (24 ساعة)",
+      "openFailedJobs": "المهام الفاشلة المفتوحة"
+    },
+    "table": {
+      "bannerActive": "اللافتة العامة نشطة",
+      "notShown": "غير ظاهر للمستخدمين",
+      "affected": "المتأثرة",
+      "banner": "اللافتة"
+    },
+    "access": {
+      "restrictedTitle": "وصول المسؤول مقيّد",
+      "restrictedDescription": "يمكن للمالك والمسؤول فقط الوصول إلى صفحة الحالة."
+    },
+    "header": {
+      "eyebrow": "إدارة Rudix",
+      "title": "حالة النظام",
+      "description": "الحوادث النشطة وصحة الخدمات ونوافذ الصيانة. اجعل الحوادث عامة لعرض لافتات داخل التطبيق للمستخدمين."
+    },
+    "filters": {
+      "allStatuses": "كل الحالات",
+      "activeOnly": "النشطة فقط",
+      "allSeverities": "كل مستويات الخطورة"
+    },
+    "pagination": {
+      "summary": "الإجمالي {total} — الصفحة {page} من {totalPages}"
+    }
   }
 }

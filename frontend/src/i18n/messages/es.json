@@ -5412,5 +5412,108 @@
     "pagination": {
       "summary": "{total} en total — página {page} de {totalPages}"
     }
+  },
+  "adminStatus": {
+    "statuses": {
+      "investigating": "Investigando",
+      "identified": "Identificado",
+      "monitoring": "Supervisando",
+      "resolved": "Resuelto"
+    },
+    "severities": {
+      "critical": "Crítica",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja"
+    },
+    "values": {
+      "yes": "Sí",
+      "no": "No"
+    },
+    "drawer": {
+      "title": "Detalle del incidente",
+      "closeDrawer": "Cerrar detalle",
+      "quickUpdate": "Actualización rápida",
+      "changeStatus": "Cambiar estado…",
+      "changeSeverity": "Cambiar gravedad…",
+      "addNote": "Añadir nota",
+      "notePlaceholder": "Describe lo que ocurre o una actualización…",
+      "noteText": "Texto de la nota",
+      "optionalStatus": "Actualizar opcionalmente el estado con la nota",
+      "noStatusChange": "Sin cambio de estado",
+      "notesTimeline": "Cronología de notas"
+    },
+    "actions": {
+      "close": "Cerrar",
+      "saving": "Guardando…",
+      "apply": "Aplicar",
+      "posting": "Publicando…",
+      "postNote": "Publicar nota",
+      "cancel": "Cancelar",
+      "creating": "Creando…",
+      "createIncident": "Crear incidente",
+      "view": "Ver",
+      "refresh": "Actualizar",
+      "refreshing": "Actualizando…",
+      "newIncident": "+ Nuevo incidente",
+      "previous": "Anterior",
+      "next": "Siguiente"
+    },
+    "fields": {
+      "status": "Estado",
+      "severity": "Gravedad",
+      "publicBanner": "Aviso público",
+      "started": "Inicio",
+      "resolved": "Resuelto",
+      "affectedServices": "Servicios afectados",
+      "titleRequired": "Título *",
+      "title": "Título"
+    },
+    "create": {
+      "title": "Nuevo incidente",
+      "titlePlaceholder": "Descripción breve del problema",
+      "affectedServices": "Servicios afectados (separados por comas)",
+      "servicesPlaceholder": "p. ej., chat, búsqueda, indexación",
+      "messageOptional": "Mensaje (opcional)",
+      "messagePlaceholder": "Mensaje visible para usuarios",
+      "showBanner": "Mostrar como aviso dentro de la aplicación"
+    },
+    "states": {
+      "loadingDetail": "Cargando…",
+      "loadingStatus": "Cargando estado…",
+      "loadingIncidents": "Cargando incidentes…",
+      "empty": "Ningún incidente coincide con los filtros actuales."
+    },
+    "metrics": {
+      "overall": "General",
+      "operational": "Operativo",
+      "degraded": "Degradado",
+      "activeIncidents": "Incidentes activos",
+      "resolved24h": "Resueltos (24 h)",
+      "openFailedJobs": "Trabajos fallidos abiertos"
+    },
+    "table": {
+      "bannerActive": "Aviso público activo",
+      "notShown": "No se muestra a los usuarios",
+      "affected": "Afectados",
+      "banner": "Aviso"
+    },
+    "access": {
+      "restrictedTitle": "Acceso de administrador restringido",
+      "restrictedDescription": "Solo propietarios y administradores pueden acceder a la página de estado."
+    },
+    "header": {
+      "eyebrow": "Administración de Rudix",
+      "title": "Estado del sistema",
+      "description": "Incidentes activos, salud de servicios y ventanas de mantenimiento. Marca incidentes como públicos para mostrarlos a los usuarios."
+    },
+    "filters": {
+      "allStatuses": "Todos los estados",
+      "activeOnly": "Solo activos",
+      "allSeverities": "Todas las gravedades"
+    },
+    "pagination": {
+      "summary": "{total} en total — página {page} de {totalPages}"
+    }
   }
 }

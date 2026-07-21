@@ -5412,5 +5412,108 @@
     "pagination": {
       "summary": "{total} insgesamt — Seite {page} von {totalPages}"
     }
+  },
+  "adminStatus": {
+    "statuses": {
+      "investigating": "Wird untersucht",
+      "identified": "Identifiziert",
+      "monitoring": "Wird überwacht",
+      "resolved": "Behoben"
+    },
+    "severities": {
+      "critical": "Kritisch",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
+    "values": {
+      "yes": "Ja",
+      "no": "Nein"
+    },
+    "drawer": {
+      "title": "Vorfallsdetails",
+      "closeDrawer": "Detailansicht schließen",
+      "quickUpdate": "Schnellaktualisierung",
+      "changeStatus": "Status ändern…",
+      "changeSeverity": "Schweregrad ändern…",
+      "addNote": "Notiz hinzufügen",
+      "notePlaceholder": "Beschreiben Sie den aktuellen Stand oder eine Aktualisierung…",
+      "noteText": "Notiztext",
+      "optionalStatus": "Status optional mit der Notiz aktualisieren",
+      "noStatusChange": "Keine Statusänderung",
+      "notesTimeline": "Notizverlauf"
+    },
+    "actions": {
+      "close": "Schließen",
+      "saving": "Wird gespeichert…",
+      "apply": "Anwenden",
+      "posting": "Wird veröffentlicht…",
+      "postNote": "Notiz veröffentlichen",
+      "cancel": "Abbrechen",
+      "creating": "Wird erstellt…",
+      "createIncident": "Vorfall erstellen",
+      "view": "Anzeigen",
+      "refresh": "Aktualisieren",
+      "refreshing": "Wird aktualisiert…",
+      "newIncident": "+ Neuer Vorfall",
+      "previous": "Zurück",
+      "next": "Weiter"
+    },
+    "fields": {
+      "status": "Status",
+      "severity": "Schweregrad",
+      "publicBanner": "Öffentlicher Hinweis",
+      "started": "Beginn",
+      "resolved": "Behoben",
+      "affectedServices": "Betroffene Dienste",
+      "titleRequired": "Titel *",
+      "title": "Titel"
+    },
+    "create": {
+      "title": "Neuer Vorfall",
+      "titlePlaceholder": "Kurze Beschreibung des Problems",
+      "affectedServices": "Betroffene Dienste (kommagetrennt)",
+      "servicesPlaceholder": "z. B. Chat, Suche, Indizierung",
+      "messageOptional": "Nachricht (optional)",
+      "messagePlaceholder": "Für Benutzer sichtbare Nachricht",
+      "showBanner": "Als In-App-Hinweis anzeigen"
+    },
+    "states": {
+      "loadingDetail": "Wird geladen…",
+      "loadingStatus": "Status wird geladen…",
+      "loadingIncidents": "Vorfälle werden geladen…",
+      "empty": "Keine Vorfälle entsprechen den aktuellen Filtern."
+    },
+    "metrics": {
+      "overall": "Gesamt",
+      "operational": "Betriebsbereit",
+      "degraded": "Beeinträchtigt",
+      "activeIncidents": "Aktive Vorfälle",
+      "resolved24h": "Behoben (24 Std.)",
+      "openFailedJobs": "Offene fehlgeschlagene Aufträge"
+    },
+    "table": {
+      "bannerActive": "Öffentlicher Hinweis aktiv",
+      "notShown": "Nicht für Benutzer sichtbar",
+      "affected": "Betroffen",
+      "banner": "Hinweis"
+    },
+    "access": {
+      "restrictedTitle": "Administratorzugriff eingeschränkt",
+      "restrictedDescription": "Nur Eigentümer und Administratoren können die Statusseite öffnen."
+    },
+    "header": {
+      "eyebrow": "Rudix-Administration",
+      "title": "Systemstatus",
+      "description": "Aktive Vorfälle, Dienstzustand und Wartungsfenster. Öffentliche Vorfälle werden Benutzern als In-App-Hinweis angezeigt."
+    },
+    "filters": {
+      "allStatuses": "Alle Status",
+      "activeOnly": "Nur aktive",
+      "allSeverities": "Alle Schweregrade"
+    },
+    "pagination": {
+      "summary": "{total} insgesamt — Seite {page} von {totalPages}"
+    }
   }
 }

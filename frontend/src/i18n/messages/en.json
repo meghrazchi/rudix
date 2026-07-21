@@ -5412,5 +5412,108 @@
     "pagination": {
       "summary": "{total} total — page {page} of {totalPages}"
     }
+  },
+  "adminStatus": {
+    "statuses": {
+      "investigating": "Investigating",
+      "identified": "Identified",
+      "monitoring": "Monitoring",
+      "resolved": "Resolved"
+    },
+    "severities": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "values": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "drawer": {
+      "title": "Incident detail",
+      "closeDrawer": "Close drawer",
+      "quickUpdate": "Quick update",
+      "changeStatus": "Change status…",
+      "changeSeverity": "Change severity…",
+      "addNote": "Add note",
+      "notePlaceholder": "Describe what's happening or an update…",
+      "noteText": "Note text",
+      "optionalStatus": "Optionally update status with note",
+      "noStatusChange": "No status change",
+      "notesTimeline": "Notes timeline"
+    },
+    "actions": {
+      "close": "Close",
+      "saving": "Saving…",
+      "apply": "Apply",
+      "posting": "Posting…",
+      "postNote": "Post note",
+      "cancel": "Cancel",
+      "creating": "Creating…",
+      "createIncident": "Create incident",
+      "view": "View",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "newIncident": "+ New incident",
+      "previous": "Prev",
+      "next": "Next"
+    },
+    "fields": {
+      "status": "Status",
+      "severity": "Severity",
+      "publicBanner": "Public banner",
+      "started": "Started",
+      "resolved": "Resolved",
+      "affectedServices": "Affected services",
+      "titleRequired": "Title *",
+      "title": "Title"
+    },
+    "create": {
+      "title": "New incident",
+      "titlePlaceholder": "Brief description of the issue",
+      "affectedServices": "Affected services (comma-separated)",
+      "servicesPlaceholder": "e.g. chat, search, indexing",
+      "messageOptional": "Message (optional)",
+      "messagePlaceholder": "User-visible message",
+      "showBanner": "Show as in-app banner to users"
+    },
+    "states": {
+      "loadingDetail": "Loading…",
+      "loadingStatus": "Loading status…",
+      "loadingIncidents": "Loading incidents…",
+      "empty": "No incidents match the current filters."
+    },
+    "metrics": {
+      "overall": "Overall",
+      "operational": "Operational",
+      "degraded": "Degraded",
+      "activeIncidents": "Active incidents",
+      "resolved24h": "Resolved (24 h)",
+      "openFailedJobs": "Open failed jobs"
+    },
+    "table": {
+      "bannerActive": "Public banner active",
+      "notShown": "Not shown to users",
+      "affected": "Affected",
+      "banner": "Banner"
+    },
+    "access": {
+      "restrictedTitle": "Admin access restricted",
+      "restrictedDescription": "Only owner and admin roles can access the status page."
+    },
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "System status",
+      "description": "Active incidents, service health, and maintenance windows. Mark incidents as public to show in-app banners to users."
+    },
+    "filters": {
+      "allStatuses": "All statuses",
+      "activeOnly": "Active only",
+      "allSeverities": "All severities"
+    },
+    "pagination": {
+      "summary": "{total} total — page {page} of {totalPages}"
+    }
   }
 }

@@ -5412,5 +5412,108 @@
     "pagination": {
       "summary": "{total} au total — page {page} sur {totalPages}"
     }
+  },
+  "adminStatus": {
+    "statuses": {
+      "investigating": "En cours d’investigation",
+      "identified": "Identifié",
+      "monitoring": "Sous surveillance",
+      "resolved": "Résolu"
+    },
+    "severities": {
+      "critical": "Critique",
+      "high": "Élevée",
+      "medium": "Moyenne",
+      "low": "Faible"
+    },
+    "values": {
+      "yes": "Oui",
+      "no": "Non"
+    },
+    "drawer": {
+      "title": "Détail de l’incident",
+      "closeDrawer": "Fermer le panneau",
+      "quickUpdate": "Mise à jour rapide",
+      "changeStatus": "Modifier l’état…",
+      "changeSeverity": "Modifier la gravité…",
+      "addNote": "Ajouter une note",
+      "notePlaceholder": "Décrivez la situation ou une mise à jour…",
+      "noteText": "Texte de la note",
+      "optionalStatus": "Mettre éventuellement à jour l’état avec la note",
+      "noStatusChange": "Aucun changement d’état",
+      "notesTimeline": "Chronologie des notes"
+    },
+    "actions": {
+      "close": "Fermer",
+      "saving": "Enregistrement…",
+      "apply": "Appliquer",
+      "posting": "Publication…",
+      "postNote": "Publier la note",
+      "cancel": "Annuler",
+      "creating": "Création…",
+      "createIncident": "Créer l’incident",
+      "view": "Afficher",
+      "refresh": "Actualiser",
+      "refreshing": "Actualisation…",
+      "newIncident": "+ Nouvel incident",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "fields": {
+      "status": "État",
+      "severity": "Gravité",
+      "publicBanner": "Bannière publique",
+      "started": "Début",
+      "resolved": "Résolu",
+      "affectedServices": "Services concernés",
+      "titleRequired": "Titre *",
+      "title": "Titre"
+    },
+    "create": {
+      "title": "Nouvel incident",
+      "titlePlaceholder": "Brève description du problème",
+      "affectedServices": "Services concernés (séparés par des virgules)",
+      "servicesPlaceholder": "ex. chat, recherche, indexation",
+      "messageOptional": "Message (facultatif)",
+      "messagePlaceholder": "Message visible par les utilisateurs",
+      "showBanner": "Afficher une bannière dans l’application"
+    },
+    "states": {
+      "loadingDetail": "Chargement…",
+      "loadingStatus": "Chargement de l’état…",
+      "loadingIncidents": "Chargement des incidents…",
+      "empty": "Aucun incident ne correspond aux filtres actuels."
+    },
+    "metrics": {
+      "overall": "Global",
+      "operational": "Opérationnel",
+      "degraded": "Dégradé",
+      "activeIncidents": "Incidents actifs",
+      "resolved24h": "Résolus (24 h)",
+      "openFailedJobs": "Tâches échouées ouvertes"
+    },
+    "table": {
+      "bannerActive": "Bannière publique active",
+      "notShown": "Non affiché aux utilisateurs",
+      "affected": "Concernés",
+      "banner": "Bannière"
+    },
+    "access": {
+      "restrictedTitle": "Accès administrateur restreint",
+      "restrictedDescription": "Seuls les propriétaires et administrateurs peuvent accéder à la page d’état."
+    },
+    "header": {
+      "eyebrow": "Administration Rudix",
+      "title": "État du système",
+      "description": "Incidents actifs, état des services et fenêtres de maintenance. Rendez un incident public pour afficher une bannière aux utilisateurs."
+    },
+    "filters": {
+      "allStatuses": "Tous les états",
+      "activeOnly": "Actifs uniquement",
+      "allSeverities": "Toutes les gravités"
+    },
+    "pagination": {
+      "summary": "{total} au total — page {page} sur {totalPages}"
+    }
   }
 }
