@@ -10,6 +10,7 @@ import {
 
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { trackFeatureEvent } from "@/lib/analytics";
 import type { AnalyticsEventPayload } from "@/lib/analytics";
@@ -305,6 +306,7 @@ export function CitationPreviewDrawer({
   initialIndex = 0,
   onClose,
 }: Props) {
+  const t = useTranslations("chat.citationPreview");
   const visibleCitations = useMemo(
     () => citations.slice(0, MAX_CITATIONS_TO_RENDER),
     [citations],
@@ -407,7 +409,7 @@ export function CitationPreviewDrawer({
     doc?.filename ??
     citation?.source_title ??
     citation?.filename ??
-    "Document";
+    t("documentFallback");
   const displayFileType = doc?.document_type ?? doc?.file_type ?? null;
   const displayStatus = doc?.status ?? null;
   const displayLanguage = doc?.language?.trim().toUpperCase() ?? null;
@@ -448,7 +450,7 @@ export function CitationPreviewDrawer({
   const sourceLinkLabel =
     doc?.source_provider_label ??
     sourceProvider ??
-    (sourceProviderKey ? null : "Uploaded file");
+    (sourceProviderKey ? null : t("uploadedFile"));
 
   const viewInDocsHref =
     citation?.document_id && citation.chunk_id != null
@@ -562,37 +564,33 @@ export function CitationPreviewDrawer({
 
   const warningMessages = [
     freshnessState === "stale" || citation.doc_stale_warning
-      ? "This source is stale. It may reflect content that has not been reviewed recently."
+      ? t("warnings.stale")
       : null,
     freshnessState === "expired" || citation.doc_expired_warning
-      ? "This source is expired. It may no longer reflect the current policy or source of truth."
+      ? t("warnings.expired")
       : null,
     freshnessState === "deprecated" || citation.doc_deprecated_warning
-      ? "This source is deprecated or superseded. Prefer a current source when available."
+      ? t("warnings.deprecated")
       : null,
     freshnessState === "unreviewed" || citation.doc_unreviewed_warning
-      ? "This source has not been reviewed yet, so its accuracy is not confirmed."
+      ? t("warnings.unreviewed")
       : null,
     citation?.doc_ocr_low_confidence_warning ||
     doc?.ocr_quality_status === "low"
-      ? "This source was extracted via low-confidence OCR. The text may contain errors and the answer reliability may be reduced."
+      ? t("warnings.lowOcr")
       : null,
     citation?.table_low_confidence_warning ||
     (citation?.table_extraction_confidence != null &&
       citation.table_extraction_confidence < 0.4)
-      ? "This citation comes from a low-confidence table extraction, so the highlighted passage may be incomplete."
+      ? t("warnings.lowTable")
       : null,
-    citation?.doc_extraction_warning
-      ? "This source had extraction quality issues, so the evidence preview may be incomplete or noisy."
-      : null,
-    citation?.doc_processing_warning
-      ? "This source was only partially processed, so some surrounding text may be unavailable."
-      : null,
+    citation?.doc_extraction_warning ? t("warnings.extraction") : null,
+    citation?.doc_processing_warning ? t("warnings.processing") : null,
   ].filter((message): message is string => Boolean(message));
   const excerptCard = highlightText ? (
     <div className="rounded-xl border border-[#e4e1ee] bg-[#faf9ff] p-3">
       <p className="mb-1 text-[10px] font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
-        Cited excerpt
+        {t("citedExcerpt")}
       </p>
       <p
         lang={displayLanguage?.toLowerCase() ?? undefined}
@@ -602,7 +600,7 @@ export function CitationPreviewDrawer({
       </p>
       {highlightUnavailable ? (
         <p className="mt-2 text-xs text-[#6a6780]">
-          Exact highlight unavailable. Showing the cited excerpt as received.
+          {t("highlightUnavailable")}
         </p>
       ) : null}
     </div>
@@ -611,74 +609,71 @@ export function CitationPreviewDrawer({
   const previewFallback = isCitationDeleted
     ? {
         icon: "delete",
-        title: "Citation deleted",
-        message:
-          "This citation points to a source that has been deleted or retained under deletion policy.",
+        title: t("fallback.deletedTitle"),
+        message: t("fallback.deletedMessage"),
         action: null,
       }
     : isCitationStale
       ? {
           icon: "history",
-          title: "Citation re-indexed",
-          message:
-            "This citation points to source content that has been re-indexed and is no longer available in its original form.",
-          action: "Try again",
+          title: t("fallback.reindexedTitle"),
+          message: t("fallback.reindexedMessage"),
+          action: t("tryAgain"),
         }
       : isCitationNotIndexed
         ? {
             icon: "search_off",
-            title: "Citation not indexed yet",
-            message:
-              "This citation points to content that is not fully indexed yet. A safe excerpt is still available below.",
-            action: "Try again",
+            title: t("fallback.notIndexedTitle"),
+            message: t("fallback.notIndexedMessage"),
+            action: t("tryAgain"),
           }
         : null;
 
   const sourceSummary = [
     {
-      label: "Document title",
+      label: t("fields.documentTitle"),
       value: displayFilename,
     },
     {
-      label: "Owner",
+      label: t("fields.owner"),
       value: documentOwner ?? "-",
     },
     {
-      label: "Type",
+      label: t("fields.type"),
       value: displayFileType?.toUpperCase() ?? "-",
     },
     {
-      label: "Version",
+      label: t("fields.version"),
       value: documentVersion ?? "-",
     },
     {
-      label: "Last updated",
+      label: t("fields.lastUpdated"),
       value: formatDate(documentLastUpdatedAt),
     },
     {
-      label: "Last indexed",
+      label: t("fields.lastIndexed"),
       value: formatDate(documentLastIndexedAt),
     },
     {
-      label: "Last synced",
+      label: t("fields.lastSynced"),
       value: formatDate(sourceLastSyncedAt),
     },
     {
-      label: "Connector",
+      label: t("fields.connector"),
       value: sourceLinkLabel ?? "-",
     },
     {
-      label: "Trust",
+      label: t("fields.trust"),
       value: doc?.source_trust_status ?? citation.source_trust_status ?? "-",
     },
     {
-      label: "Freshness",
+      label: t("fields.freshness"),
       value: freshnessState ?? "-",
     },
   ];
   const helpTextId = "citation-preview-help";
   const previewLimitNotice = previewHasMoreCitations
-    ? `Showing the first ${MAX_CITATIONS_TO_RENDER} citations to keep the preview responsive.`
+    ? t("previewLimit", { count: MAX_CITATIONS_TO_RENDER })
     : null;
 
   async function handleCopySourceLink(): Promise<void> {
@@ -735,11 +730,11 @@ export function CitationPreviewDrawer({
           ref={containerRef}
           role="dialog"
           aria-modal="true"
-          aria-label={`Citation preview: ${displayFilename}`}
+          aria-label={t("dialogLabel", { filename: displayFilename })}
           aria-describedby={helpTextId}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={handleKeyDown}
-          className="flex h-full w-full max-w-none flex-col overflow-hidden rounded-none border-l border-[#d7d4e8] bg-white shadow-2xl outline-none sm:max-w-[48rem] sm:rounded-l-2xl"
+          className="flex h-full w-full max-w-none flex-col overflow-hidden rounded-none border-s border-[#d7d4e8] bg-white shadow-2xl outline-none sm:max-w-[48rem] sm:rounded-s-2xl"
         >
           <div className="flex shrink-0 items-center gap-3 border-b border-[#e4e1ee] px-5 py-4">
             <span
@@ -750,7 +745,7 @@ export function CitationPreviewDrawer({
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-                Citation preview
+                {t("title")}
               </p>
               <h2 className="truncate text-base font-semibold text-[#1b1b24]">
                 {displayFilename}
@@ -780,7 +775,9 @@ export function CitationPreviewDrawer({
                   </span>
                 ) : null}
                 {freshness ? (
-                  <span className={freshness.className}>{freshness.label}</span>
+                  <span className={freshness.className}>
+                    {t(`freshness.${freshnessState ?? "unknown"}`)}
+                  </span>
                 ) : null}
                 {citation.doc_ocr_quality_status &&
                 citation.doc_ocr_quality_status !== "not_required" ? (
@@ -790,12 +787,14 @@ export function CitationPreviewDrawer({
                 ) : null}
                 {citation.page_number != null ? (
                   <span className="font-mono text-xs text-[#6a6780]">
-                    Page {citation.page_number}
+                    {t("page", { page: citation.page_number })}
                   </span>
                 ) : null}
                 {displayStatus ? (
                   <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 uppercase">
-                    {displayStatus}
+                    {t.has(`documentStatuses.${displayStatus}`)
+                      ? t(`documentStatuses.${displayStatus}`)
+                      : displayStatus}
                   </span>
                 ) : null}
               </div>
@@ -804,8 +803,8 @@ export function CitationPreviewDrawer({
               type="button"
               onClick={onClose}
               data-overlay-autofocus="true"
-              aria-label="Close citation preview"
-              className="ml-2 shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none motion-reduce:transition-none"
+              aria-label={t("close")}
+              className="ms-2 shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none motion-reduce:transition-none"
             >
               <span
                 className="material-symbols-outlined text-[20px]"
@@ -833,9 +832,7 @@ export function CitationPreviewDrawer({
               id={helpTextId}
               className="mt-3 text-[11px] leading-relaxed text-[#6a6780]"
             >
-              Use Left and Right arrows to move between citations, Home and End
-              to jump to the first or last citation, and Escape to close. The
-              highlighted excerpt shows the cited evidence.
+              {t("keyboardHelp")}
             </p>
             {previewLimitNotice ? (
               <p className="mt-1 text-[11px] text-[#6a6780]">
@@ -844,7 +841,7 @@ export function CitationPreviewDrawer({
             ) : null}
             {sourceSection ? (
               <p className="mt-2 text-[11px] text-[#6a6780]">
-                Section: {sourceSection}
+                {t("section", { section: sourceSection })}
               </p>
             ) : null}
           </div>
@@ -861,28 +858,28 @@ export function CitationPreviewDrawer({
               >
                 warning
               </span>
-              <p className="text-[11px] text-amber-800">
-                This citation references a source that may be stale, expired,
-                deprecated, or still under review.
-              </p>
+              <p className="text-[11px] text-amber-800">{t("sourceWarning")}</p>
             </div>
           ) : null}
 
           {hasSiblings ? (
             <div className="flex shrink-0 items-center justify-between border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-2">
               <span className="text-[11px] font-semibold text-[#6a6780]">
-                Citation {safeActiveIndex + 1} of {visibleCitations.length}
+                {t("position", {
+                  current: safeActiveIndex + 1,
+                  total: visibleCitations.length,
+                })}
               </span>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   disabled={!canGoPrev}
                   onClick={() => setActiveIndex((current) => current - 1)}
-                  aria-label="Previous citation"
+                  aria-label={t("previous")}
                   className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
                 >
                   <span
-                    className="material-symbols-outlined text-[18px]"
+                    className="material-symbols-outlined text-[18px] rtl:rotate-180"
                     aria-hidden="true"
                   >
                     chevron_left
@@ -892,11 +889,11 @@ export function CitationPreviewDrawer({
                   type="button"
                   disabled={!canGoNext}
                   onClick={() => setActiveIndex((current) => current + 1)}
-                  aria-label="Next citation"
+                  aria-label={t("next")}
                   className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
                 >
                   <span
-                    className="material-symbols-outlined text-[18px]"
+                    className="material-symbols-outlined text-[18px] rtl:rotate-180"
                     aria-hidden="true"
                   >
                     chevron_right
@@ -911,25 +908,32 @@ export function CitationPreviewDrawer({
               {citation.chunk_id ? (
                 <span
                   className="font-mono"
-                  title={`Chunk ID: ${citation.chunk_id}`}
+                  title={t("chunkId", { id: citation.chunk_id })}
                 >
-                  Chunk: {citation.chunk_id.slice(0, 8)}&hellip;
+                  {t("chunkShort", { id: citation.chunk_id.slice(0, 8) })}
                 </span>
               ) : null}
               {documentLastIndexedAt || doc?.created_at ? (
                 <span>
-                  Indexed:{" "}
-                  {formatDate(documentLastIndexedAt ?? doc?.created_at)}
+                  {t("indexed", {
+                    date: formatDate(documentLastIndexedAt ?? doc?.created_at),
+                  })}
                 </span>
               ) : null}
               {citation.rerank_score != null ? (
-                <span>Rerank: {formatScore(citation.rerank_score)}</span>
+                <span>
+                  {t("rerank", { score: formatScore(citation.rerank_score) })}
+                </span>
               ) : citation.similarity_score != null ? (
                 <span>
-                  Similarity: {formatScore(citation.similarity_score)}
+                  {t("similarity", {
+                    score: formatScore(citation.similarity_score),
+                  })}
                 </span>
               ) : citation.score != null ? (
-                <span>Score: {formatScore(citation.score)}</span>
+                <span>
+                  {t("score", { score: formatScore(citation.score) })}
+                </span>
               ) : null}
             </div>
           </div>
@@ -960,10 +964,10 @@ export function CitationPreviewDrawer({
                   visibility_off
                 </span>
                 <p className="text-sm font-semibold text-[#1b1b24]">
-                  Citation unavailable
+                  {t("states.citationUnavailable")}
                 </p>
                 <p className="max-w-sm text-xs text-[#6a6780]">
-                  A safe preview is not available for this citation.
+                  {t("states.citationUnavailableDescription")}
                 </p>
               </div>
             ) : isPermissionDenied ? (
@@ -975,14 +979,13 @@ export function CitationPreviewDrawer({
                   lock
                 </span>
                 <p className="text-sm font-semibold text-[#1b1b24]">
-                  Access restricted
+                  {t("states.accessRestricted")}
                 </p>
                 <p className="max-w-sm text-xs text-[#6a6780]">
-                  You do not have permission to view this document. Contact an
-                  administrator if you believe this is an error.
+                  {t("states.accessRestrictedDescription")}
                 </p>
                 {excerptCard ? (
-                  <div className="mt-1 w-full max-w-2xl text-left">
+                  <div className="mt-1 w-full max-w-2xl text-start">
                     {excerptCard}
                   </div>
                 ) : null}
@@ -996,13 +999,13 @@ export function CitationPreviewDrawer({
                   delete
                 </span>
                 <p className="text-sm font-semibold text-[#1b1b24]">
-                  Document unavailable
+                  {t("states.documentUnavailable")}
                 </p>
                 <p className="max-w-sm text-xs text-[#6a6780]">
-                  This document has been deleted or is no longer available.
+                  {t("states.documentUnavailableDescription")}
                 </p>
                 {excerptCard ? (
-                  <div className="mt-1 w-full max-w-2xl text-left">
+                  <div className="mt-1 w-full max-w-2xl text-start">
                     {excerptCard}
                   </div>
                 ) : null}
@@ -1040,7 +1043,7 @@ export function CitationPreviewDrawer({
               <div className="flex min-h-[40vh] items-center justify-center p-8">
                 <span
                   className="material-symbols-outlined animate-spin text-[32px] text-[#3525cd] motion-reduce:animate-none"
-                  aria-label="Loading"
+                  aria-label={t("loading")}
                 >
                   progress_activity
                 </span>
@@ -1048,10 +1051,10 @@ export function CitationPreviewDrawer({
             ) : isError ? (
               <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 p-8 text-center">
                 <p className="text-sm text-[#777587]">
-                  Failed to load citation metadata.
+                  {t("states.loadFailed")}
                 </p>
                 {excerptCard ? (
-                  <div className="w-full max-w-2xl text-left">
+                  <div className="w-full max-w-2xl text-start">
                     {excerptCard}
                   </div>
                 ) : null}
@@ -1060,7 +1063,7 @@ export function CitationPreviewDrawer({
                   onClick={() => void docQuery.refetch()}
                   className="text-xs font-semibold text-[#3525cd] hover:underline focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                 >
-                  Try again
+                  {t("tryAgain")}
                 </button>
               </div>
             ) : (
@@ -1068,11 +1071,11 @@ export function CitationPreviewDrawer({
                 <div className="rounded-xl border border-[#e4e1ee] bg-[#faf9ff] p-3">
                   <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-semibold tracking-wide text-[#6a6780] uppercase">
                     {citation.page_number != null ? (
-                      <span>Page {citation.page_number}</span>
+                      <span>{t("page", { page: citation.page_number })}</span>
                     ) : null}
                     {citation.chunk_id ? (
                       <span className="font-mono">
-                        Chunk {citation.chunk_id.slice(0, 8)}&hellip;
+                        {t("chunk", { id: citation.chunk_id.slice(0, 8) })}
                       </span>
                     ) : null}
                     {sourceSection ? (
@@ -1087,7 +1090,7 @@ export function CitationPreviewDrawer({
                     </div>
                   ) : (
                     <div className="rounded-lg border border-[#d9d5ec] bg-white p-3 text-sm text-[#6a6780]">
-                      Exact page rendering is not available for this source.
+                      {t("states.pageUnavailable")}
                     </div>
                   )}
                 </div>
@@ -1095,24 +1098,28 @@ export function CitationPreviewDrawer({
                 {citation.is_table_chunk ? (
                   <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
                     <p className="font-semibold tracking-wide uppercase">
-                      Table evidence
+                      {t("table.title")}
                     </p>
                     <p className="mt-1">
                       {citation.table_caption
                         ? citation.table_caption
-                        : "Table extraction"}
+                        : t("table.extraction")}
                       {citation.table_row_count != null ||
                       citation.table_col_count != null ? (
                         <>
                           {" "}
-                          ({citation.table_row_count ?? "?"} rows ×{" "}
-                          {citation.table_col_count ?? "?"} columns)
+                          {t("table.dimensions", {
+                            rows: citation.table_row_count ?? "?",
+                            columns: citation.table_col_count ?? "?",
+                          })}
                         </>
                       ) : null}
                     </p>
                     {citation.table_headers?.length ? (
                       <p className="mt-1">
-                        Headers: {citation.table_headers.join(", ")}
+                        {t("table.headers", {
+                          headers: citation.table_headers.join(", "),
+                        })}
                       </p>
                     ) : null}
                   </div>
@@ -1135,7 +1142,7 @@ export function CitationPreviewDrawer({
                 >
                   content_copy
                 </span>
-                {copied ? "Copied" : "Copy source link"}
+                {copied ? t("copied") : t("copySourceLink")}
               </button>
               <button
                 type="button"
@@ -1149,7 +1156,7 @@ export function CitationPreviewDrawer({
                 >
                   download
                 </span>
-                Download original
+                {t("downloadOriginal")}
               </button>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -1159,7 +1166,9 @@ export function CitationPreviewDrawer({
                   target="_blank"
                   rel="noreferrer"
                   onClick={handleOpenSourceLink}
-                  aria-label={`Open source for ${displayFilename}`}
+                  aria-label={t("openSourceLabel", {
+                    filename: displayFilename,
+                  })}
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none motion-reduce:transition-none"
                 >
                   <span
@@ -1168,18 +1177,20 @@ export function CitationPreviewDrawer({
                   >
                     open_in_new
                   </span>
-                  Open source
+                  {t("openSource")}
                 </a>
               ) : sourceProviderKey &&
                 sourceProviderKey.toLowerCase() !== "upload" ? (
                 <p className="rounded-xl border border-dashed border-[#d2cee6] px-4 py-3 text-center text-xs text-[#777587] sm:flex-1">
-                  Connector source link is not available for your access level.
+                  {t("connectorLinkUnavailable")}
                 </p>
               ) : null}
               {viewInDocsHref ? (
                 <Link
                   href={viewInDocsHref}
-                  aria-label={`View citation in documents for ${displayFilename}`}
+                  aria-label={t("viewDocumentsLabel", {
+                    filename: displayFilename,
+                  })}
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none motion-reduce:transition-none"
                 >
                   <span
@@ -1188,11 +1199,11 @@ export function CitationPreviewDrawer({
                   >
                     open_in_new
                   </span>
-                  View in documents
+                  {t("viewDocuments")}
                 </Link>
               ) : (
                 <p className="rounded-xl border border-[#d2cee6] px-4 py-3 text-center text-xs text-[#777587] sm:flex-1">
-                  Document link unavailable.
+                  {t("documentLinkUnavailable")}
                 </p>
               )}
             </div>

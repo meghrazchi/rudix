@@ -1629,17 +1629,17 @@ export function ChatPage() {
   const scopeWarning = useMemo<string | null>(() => {
     if (scopeMode === "collection") {
       if (selectedCollectionIds.length === 0)
-        return "Select at least one collection to scope retrieval.";
+        return tc("scopeSelectCollectionWarning");
       if (selectedCollectionDocsQuery.isLoading) return null;
       if (
         collectionDocumentIdSet !== null &&
         collectionDocumentIdSet.size === 0
       ) {
-        return "The selected collections have no indexed documents.";
+        return tc("scopeEmptyCollectionsWarning");
       }
     }
     if (scopeMode === "connectors" && !hasConnectorScopeSelection) {
-      return "Select at least one connector source to use connector scope.";
+      return tc("scopeSelectConnectorWarning");
     }
     return null;
   }, [
@@ -1648,6 +1648,7 @@ export function ChatPage() {
     selectedCollectionDocsQuery.isLoading,
     collectionDocumentIdSet,
     hasConnectorScopeSelection,
+    tc,
   ]);
   const contextModalOffset = (contextPage - 1) * CONTEXT_MODAL_PAGE_SIZE;
   const contextModalQuery = useQuery({
@@ -2819,12 +2820,12 @@ export function ChatPage() {
                                       handleRenameCancel();
                                     }
                                   }}
-                                  aria-label="Session title"
+                                  aria-label={tc("sessionTitleLabel")}
                                   className="h-9 min-w-0 flex-1 rounded-xl border border-[#cfc9e6] bg-white px-3 text-sm text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
                                 />
                                 <button
                                   type="button"
-                                  aria-label="Cancel rename"
+                                  aria-label={tc("cancelRename")}
                                   onClick={handleRenameCancel}
                                   className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d7d4e8] bg-white text-[#6a6780] transition hover:bg-[#f5f2ff] hover:text-[#3525cd]"
                                 >
@@ -2837,7 +2838,7 @@ export function ChatPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  aria-label="Save rename"
+                                  aria-label={tc("saveRename")}
                                   onClick={() =>
                                     handleRenameSave(session.session_id)
                                   }
@@ -2870,7 +2871,7 @@ export function ChatPage() {
                                   setPendingQuestion(null);
                                   replaceSessionParamInUrl(session.session_id);
                                 }}
-                                className="w-full cursor-pointer px-3 py-2 pr-10 text-left text-sm"
+                                className="w-full cursor-pointer px-3 py-2 pe-10 text-start text-sm"
                               >
                                 <p
                                   className={`truncate font-semibold ${isActive ? "text-[#2f2a46]" : "text-[#4f4b63]"}`}
@@ -2882,12 +2883,12 @@ export function ChatPage() {
                             {editingSessionId === session.session_id ? null : (
                               <div
                                 ref={isSessionMenuOpen ? sessionMenuRef : null}
-                                className="absolute top-1 right-1 flex items-start gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+                                className="absolute end-1 top-1 flex items-start gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <button
                                   type="button"
-                                  aria-label="Session actions"
+                                  aria-label={tc("sessionActions")}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenSessionMenuId((current) =>
@@ -2906,7 +2907,7 @@ export function ChatPage() {
                                   </span>
                                 </button>
                                 {isSessionMenuOpen ? (
-                                  <div className="absolute top-8 right-0 z-20 w-44 overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-lg">
+                                  <div className="absolute end-0 top-8 z-20 w-44 overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-lg">
                                     <button
                                       type="button"
                                       role="menuitem"
@@ -2917,7 +2918,7 @@ export function ChatPage() {
                                           session.title ?? null,
                                         );
                                       }}
-                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-[#3e376f] hover:bg-[#f5f2ff]"
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm text-[#3e376f] hover:bg-[#f5f2ff]"
                                     >
                                       <span
                                         className="material-symbols-outlined text-[16px]"
@@ -2925,12 +2926,12 @@ export function ChatPage() {
                                       >
                                         edit
                                       </span>
-                                      Rename session
+                                      {tc("renameSession")}
                                     </button>
                                     <button
                                       type="button"
                                       role="menuitem"
-                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-rose-700 hover:bg-rose-50"
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm text-rose-700 hover:bg-rose-50"
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         setOpenSessionMenuId(null);
@@ -2943,7 +2944,7 @@ export function ChatPage() {
                                       >
                                         delete
                                       </span>
-                                      Delete session
+                                      {tc("deleteSession")}
                                     </button>
                                   </div>
                                 ) : null}
@@ -2987,9 +2988,9 @@ export function ChatPage() {
                   {!debouncedSearchQuery ? (
                     <div className="mt-3 px-1">
                       <OnboardingCtaBanner
-                        title="Start by uploading a document"
-                        description="Add a PDF, DOCX, or text file to your knowledge base first, then ask questions here."
-                        actionLabel="Go to Documents"
+                        title={tc("onboardingTitle")}
+                        description={tc("onboardingDescription")}
+                        actionLabel={tc("onboardingAction")}
                         actionHref="/documents"
                       />
                     </div>
@@ -3160,7 +3161,7 @@ export function ChatPage() {
                               </p>
                             </article>
                             <div className="mr-2 flex items-center gap-2 text-[10px] font-bold tracking-widest text-[#777587] uppercase">
-                              <span>You</span>
+                              <span>{tc("you")}</span>
                             </div>
                           </div>
 
@@ -3377,7 +3378,16 @@ export function ChatPage() {
                                                 ) && (
                                                   <button
                                                     type="button"
-                                                    aria-label={`Preview ${citation.filename ?? "document"}`}
+                                                    aria-label={tc(
+                                                      "previewCitation",
+                                                      {
+                                                        filename:
+                                                          citation.filename ??
+                                                          tc(
+                                                            "documentFallback",
+                                                          ),
+                                                      },
+                                                    )}
                                                     onClick={() => {
                                                       const siblings =
                                                         turn.response.citations.filter(
@@ -3452,7 +3462,7 @@ export function ChatPage() {
                                   <div className="group relative">
                                     <button
                                       type="button"
-                                      aria-label="Explain this answer"
+                                      aria-label={tc("explainAnswer")}
                                       aria-expanded={
                                         openTrustPanelMessageId ===
                                         turn.response.message_id
@@ -3493,7 +3503,7 @@ export function ChatPage() {
                                   <div className="group relative">
                                     <button
                                       type="button"
-                                      aria-label="Copy answer"
+                                      aria-label={tc("copyAnswer")}
                                       onClick={() => {
                                         const md = formatAnswerAsMarkdown({
                                           question: turn.question,
@@ -3535,7 +3545,7 @@ export function ChatPage() {
                                   <div className="group relative">
                                     <button
                                       type="button"
-                                      aria-label="Share answer"
+                                      aria-label={tc("shareAnswer")}
                                       onClick={() =>
                                         setAnswerShareMessageId(
                                           turn.response.message_id,
@@ -3560,7 +3570,7 @@ export function ChatPage() {
                                     <div className="group relative">
                                       <button
                                         type="button"
-                                        aria-label="Mark answer helpful"
+                                        aria-label={tc("markHelpful")}
                                         onClick={() => {
                                           const msgId =
                                             turn.response.message_id;
@@ -3594,7 +3604,7 @@ export function ChatPage() {
                                     <div className="group relative">
                                       <button
                                         type="button"
-                                        aria-label="Report an issue"
+                                        aria-label={tc("reportIssue")}
                                         onClick={() =>
                                           setFeedbackModalMessageId(
                                             turn.response.message_id,
@@ -3619,7 +3629,7 @@ export function ChatPage() {
                                   <div className="group relative">
                                     <button
                                       type="button"
-                                      aria-label="Regenerate answer"
+                                      aria-label={tc("regenerateAnswer")}
                                       onClick={() => {
                                         void submitQuestionText(
                                           turn.question,
@@ -3663,7 +3673,7 @@ export function ChatPage() {
                             </p>
                           </article>
                           <div className="mr-2 flex items-center gap-2 text-[10px] font-bold tracking-widest text-[#777587] uppercase">
-                            <span>You</span>
+                            <span>{tc("you")}</span>
                           </div>
                         </div>
                         {CHAT_WEBSOCKET_ENABLED &&
@@ -3802,8 +3812,8 @@ export function ChatPage() {
                 }}
                 aria-label={
                   activePreviewCitation
-                    ? "Close citation details"
-                    : "Close Knowledge Hub"
+                    ? tc("closeCitationDetails")
+                    : tc("closeKnowledgeHub")
                 }
                 className="cursor-pointer rounded-full p-2 text-[#777587] transition-colors hover:bg-[#f0ecf9] hover:text-[#1b1b24]"
               >
@@ -5172,7 +5182,7 @@ export function ChatPage() {
             ref={trustPanelModalRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Answer Explanation"
+            aria-label={tc("answerExplanation")}
             className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-[#d7d4e8] bg-[#fcf8ff] shadow-[0_30px_90px_rgba(15,10,40,0.35)]"
           >
             <div className="flex items-center justify-between gap-4 border-b border-[#e4e1ee] bg-white px-6 py-4 md:px-8">
@@ -5201,7 +5211,7 @@ export function ChatPage() {
                       )
                     }
                     className="inline-flex items-center gap-1 rounded-lg border border-[#d7d4e8] bg-white px-3 py-2 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-                    aria-label="Save as knowledge card"
+                    aria-label={tc("saveKnowledgeCard")}
                   >
                     <span
                       className="material-symbols-outlined text-[14px]"
@@ -5215,7 +5225,7 @@ export function ChatPage() {
                 <button
                   type="button"
                   data-overlay-autofocus="true"
-                  aria-label="Close answer explanation"
+                  aria-label={tc("closeAnswerExplanation")}
                   onClick={() => setOpenTrustPanelMessageId(null)}
                   className="rounded-lg p-2 text-[#6a6780] transition-colors hover:bg-[#f5f2ff] hover:text-[#2f2a46]"
                 >

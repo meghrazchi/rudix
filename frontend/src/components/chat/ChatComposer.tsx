@@ -1,9 +1,10 @@
 "use client";
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
+import { getLocaleDirection } from "@/i18n/direction";
 import {
   SourceScopeSelector,
   type SourceScopeMode,
@@ -148,6 +149,8 @@ export function ChatComposer({
   onStop,
   onSubmit,
 }: ChatComposerProps) {
+  const locale = useLocale();
+  const localeDirection = getLocaleDirection(locale);
   const t = useTranslations("chat.composer");
   const tPage = useTranslations("chat.page");
   const tLang = useTranslations("languageSwitcher");
@@ -236,7 +239,10 @@ export function ChatComposer({
   }, [question]);
 
   return (
-    <div className="shrink-0 border-t border-[#e4e1ee] bg-white p-4 shadow-[0_-18px_42px_rgba(27,27,36,0.04)] lg:p-6">
+    <div
+      dir={localeDirection}
+      className="shrink-0 border-t border-[#e4e1ee] bg-white p-4 shadow-[0_-18px_42px_rgba(27,27,36,0.04)] lg:p-6"
+    >
       <div
         ref={settingsPanelRef}
         className="relative mx-auto max-w-4xl overflow-visible"
@@ -408,7 +414,7 @@ export function ChatComposer({
                         className="peer sr-only"
                       />
                       <span className="h-3.5 w-7 rounded-full bg-[#c7c4d8] transition peer-checked:bg-[#3525cd]" />
-                      <span className="absolute left-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5" />
+                      <span className="absolute start-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5 rtl:peer-checked:-translate-x-3.5" />
                     </span>
                   </label>
 
@@ -434,7 +440,7 @@ export function ChatComposer({
                         className="peer sr-only"
                       />
                       <span className="h-3.5 w-7 rounded-full bg-[#c7c4d8] transition peer-checked:bg-[#3525cd] peer-disabled:opacity-50" />
-                      <span className="absolute left-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5 peer-disabled:opacity-80" />
+                      <span className="absolute start-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5 peer-disabled:opacity-80 rtl:peer-checked:-translate-x-3.5" />
                     </span>
                   </label>
                 </div>
@@ -463,8 +469,11 @@ export function ChatComposer({
                 rows={1}
                 placeholder={t("placeholder")}
                 disabled={requiresUploadedDocuments && !hasAvailableDocuments}
-                dir="auto"
-                className="rudix-chat-scrollbar w-full resize-none overflow-hidden border-none bg-transparent py-3 ps-4 pe-16 text-sm text-[#2f2a46] outline-none placeholder:text-[#777587] focus:ring-0"
+                lang={locale}
+                dir={question.trim() ? "auto" : localeDirection}
+                className={`rudix-chat-scrollbar w-full resize-none overflow-hidden border-none bg-transparent py-3 text-start text-sm text-[#2f2a46] outline-none [unicode-bidi:plaintext] placeholder:text-start placeholder:text-[#777587] focus:ring-0 ${
+                  localeDirection === "rtl" ? "pr-4 pl-16" : "pr-16 pl-4"
+                }`}
               />
               <div
                 className={`absolute end-4 ${composerSendButtonPositionClass} transition-all`}
