@@ -2045,7 +2045,8 @@
         "embedded": "Incrustado",
         "upserted": "Insertado/actualizado en Qdrant",
         "graphExtraction": "Extracción de grafo",
-        "readyForChat": "Listo para chat"
+        "readyForChat": "Listo para chat",
+        "readyForChatDescription": "El documento está disponible para consultas de chat basadas en recuperación."
       },
       "rec": {
         "retryIndexing": "Reintenta la indexación después de validar la disponibilidad del proveedor y el estado de la cola.",
@@ -2063,7 +2064,75 @@
       "retryChunkLoad": "Reintentar carga de fragmentos",
       "deleteConfirm": "¿Eliminar el documento \"{filename}\"? Esta acción no se puede deshacer.",
       "forceReindex": "Forzar reindexación",
-      "reindexDefaultProfile": "el perfil predeterminado del sistema"
+      "reindexDefaultProfile": "el perfil predeterminado del sistema",
+      "feedbackGraphReindex": "Reindexación del grafo en cola. Estado: {queueStatus}.",
+      "feedbackQualitySaved": "Metadatos de calidad guardados.",
+      "copyDocumentId": "Copiar ID del documento",
+      "copyChecksum": "Copiar suma de comprobación",
+      "graphReindex": "Reindexar grafo",
+      "graphStatus": "grafo {status}",
+      "chunkIdTitle": "ID del fragmento: {id}",
+      "chunkIdShort": "Fragmento: {id}…",
+      "previewCitation": "Vista previa de cita",
+      "freshnessWarning": "Este documento está marcado como {status}. Los metadatos de vigencia advierten a los lectores y pueden excluirlo de la recuperación.",
+      "qualityWarning": "Este documento está marcado como {status}. La calidad influye en la clasificación, los avisos y los flujos de revisión.",
+      "qualityWorkflow": "Flujo de calidad",
+      "qualityWorkflowDescription": "Actualiza el estado que controla la preferencia de recuperación y los avisos de fuentes.",
+      "saveQuality": "Guardar calidad",
+      "qualityState": "Estado de calidad",
+      "qualityOwnerId": "ID del responsable de calidad",
+      "reviewerId": "ID del revisor",
+      "reviewDue": "Revisión pendiente",
+      "reviewDate": "Fecha de revisión",
+      "expiryDate": "Fecha de caducidad",
+      "trustLevel": "Nivel de confianza",
+      "qualityNotes": "Notas de calidad",
+      "quality": "Calidad",
+      "qualityOwner": "Responsable de calidad",
+      "reviewer": "Revisor",
+      "tabVersions": "versiones",
+      "tabMetadata": "metadatos",
+      "traceId": "ID de traza",
+      "selectOcrLanguage": "Seleccionar idioma de OCR",
+      "selectOverrideLanguage": "Seleccionar idioma de reemplazo",
+      "versionHistory": "Historial de versiones",
+      "versionHistoryDescription": "Se registra una versión nueva con cada carga y reindexación. El índice vectorial sirve actualmente la versión <active>activa</active>.",
+      "statuses": {
+        "uploaded": "Cargado",
+        "processing": "Procesando",
+        "indexed": "Indexado",
+        "failed": "Fallido",
+        "deleting": "Eliminando",
+        "deleted": "Eliminado",
+        "delete_requested": "Eliminación solicitada",
+        "retained_by_policy": "Retenido por política"
+      },
+      "graphStatuses": {
+        "not_started": "no iniciado",
+        "pending": "pendiente",
+        "extracting": "extrayendo",
+        "completed": "completado",
+        "failed": "fallido",
+        "skipped": "omitido"
+      },
+      "freshnessStatuses": {
+        "trusted": "confiable",
+        "current": "actual",
+        "needs_review": "requiere revisión",
+        "stale": "desactualizado",
+        "expired": "caducado",
+        "archived": "archivado"
+      },
+      "qualityStates": {
+        "draft": "borrador",
+        "verified": "verificado",
+        "reviewed": "revisado",
+        "unreviewed": "sin revisar",
+        "stale": "desactualizado",
+        "expired": "caducado",
+        "deprecated": "obsoleto",
+        "archived": "archivado"
+      }
     }
   },
   "chat": {

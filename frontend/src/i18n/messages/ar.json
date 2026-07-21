@@ -2045,7 +2045,8 @@
         "embedded": "تم التضمين",
         "upserted": "تم الإدراج أو التحديث في Qdrant",
         "graphExtraction": "استخراج الرسم البياني",
-        "readyForChat": "جاهز للدردشة"
+        "readyForChat": "جاهز للدردشة",
+        "readyForChatDescription": "المستند متاح لاستعلامات الدردشة المدعومة بالاسترجاع."
       },
       "rec": {
         "retryIndexing": "أعد محاولة الفهرسة بعد التحقق من توفر الموفر وسلامة قائمة الانتظار.",
@@ -2063,7 +2064,75 @@
       "retryChunkLoad": "إعادة محاولة تحميل المقاطع",
       "deleteConfirm": "حذف المستند \"{filename}\"؟ لا يمكن التراجع عن هذا الإجراء.",
       "forceReindex": "إعادة فهرسة قسرية",
-      "reindexDefaultProfile": "ملف النظام التعريفي الافتراضي"
+      "reindexDefaultProfile": "ملف النظام التعريفي الافتراضي",
+      "feedbackGraphReindex": "تمت إضافة إعادة فهرسة الرسم إلى القائمة. حالة القائمة: {queueStatus}.",
+      "feedbackQualitySaved": "تم حفظ بيانات الجودة.",
+      "copyDocumentId": "نسخ معرّف المستند",
+      "copyChecksum": "نسخ المجموع الاختباري",
+      "graphReindex": "إعادة فهرسة الرسم",
+      "graphStatus": "الرسم {status}",
+      "chunkIdTitle": "معرّف المقطع: {id}",
+      "chunkIdShort": "المقطع: {id}…",
+      "previewCitation": "معاينة الاستشهاد",
+      "freshnessWarning": "هذا المستند مميز بالحالة {status}. تُستخدم بيانات الحداثة لتحذير القراء وقد تستبعد المستند من الاسترجاع.",
+      "qualityWarning": "هذا المستند مميز بالحالة {status}. تؤثر الجودة في ترتيب الاسترجاع والتحذيرات وعمليات المراجعة.",
+      "qualityWorkflow": "سير عمل الجودة",
+      "qualityWorkflowDescription": "حدّث الحالة التي تتحكم في أولوية الاسترجاع وتحذيرات المصدر.",
+      "saveQuality": "حفظ الجودة",
+      "qualityState": "حالة الجودة",
+      "qualityOwnerId": "معرّف مسؤول الجودة",
+      "reviewerId": "معرّف المراجع",
+      "reviewDue": "موعد المراجعة",
+      "reviewDate": "تاريخ المراجعة",
+      "expiryDate": "تاريخ الانتهاء",
+      "trustLevel": "مستوى الثقة",
+      "qualityNotes": "ملاحظات الجودة",
+      "quality": "الجودة",
+      "qualityOwner": "مسؤول الجودة",
+      "reviewer": "المراجع",
+      "tabVersions": "الإصدارات",
+      "tabMetadata": "البيانات الوصفية",
+      "traceId": "معرّف التتبع",
+      "selectOcrLanguage": "اختيار لغة OCR",
+      "selectOverrideLanguage": "اختيار اللغة البديلة",
+      "versionHistory": "سجل الإصدارات",
+      "versionHistoryDescription": "يُسجَّل إصدار جديد عند كل رفع وإعادة فهرسة. الإصدار <active>النشط</active> هو الذي يقدمه فهرس المتجهات حاليًا.",
+      "statuses": {
+        "uploaded": "تم الرفع",
+        "processing": "قيد المعالجة",
+        "indexed": "مفهرس",
+        "failed": "فاشل",
+        "deleting": "جارٍ الحذف",
+        "deleted": "محذوف",
+        "delete_requested": "طُلب الحذف",
+        "retained_by_policy": "محتفظ به وفق السياسة"
+      },
+      "graphStatuses": {
+        "not_started": "لم يبدأ",
+        "pending": "معلق",
+        "extracting": "جارٍ الاستخراج",
+        "completed": "مكتمل",
+        "failed": "فاشل",
+        "skipped": "تم التخطي"
+      },
+      "freshnessStatuses": {
+        "trusted": "موثوق",
+        "current": "حالي",
+        "needs_review": "يحتاج مراجعة",
+        "stale": "قديم",
+        "expired": "منتهي",
+        "archived": "مؤرشف"
+      },
+      "qualityStates": {
+        "draft": "مسودة",
+        "verified": "تم التحقق",
+        "reviewed": "تمت المراجعة",
+        "unreviewed": "غير مراجع",
+        "stale": "قديم",
+        "expired": "منتهي",
+        "deprecated": "مهمل",
+        "archived": "مؤرشف"
+      }
     }
   },
   "chat": {

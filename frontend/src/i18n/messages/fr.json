@@ -2045,7 +2045,8 @@
         "embedded": "Vectorisé",
         "upserted": "Upserté vers Qdrant",
         "graphExtraction": "Extraction de graphe",
-        "readyForChat": "Prêt pour le chat"
+        "readyForChat": "Prêt pour le chat",
+        "readyForChatDescription": "Le document est disponible pour les requêtes de chat fondées sur la recherche."
       },
       "rec": {
         "retryIndexing": "Réessayez l’indexation après avoir validé la disponibilité du fournisseur et la santé de la file.",
@@ -2063,7 +2064,75 @@
       "retryChunkLoad": "Retry fragment load",
       "deleteConfirm": "Supprimer le document « {filename} » ? Cette action est irréversible.",
       "forceReindex": "Forcer la réindexation",
-      "reindexDefaultProfile": "le profil système par défaut"
+      "reindexDefaultProfile": "le profil système par défaut",
+      "feedbackGraphReindex": "Réindexation du graphe mise en file. État : {queueStatus}.",
+      "feedbackQualitySaved": "Métadonnées de qualité enregistrées.",
+      "copyDocumentId": "Copier l’ID du document",
+      "copyChecksum": "Copier la somme de contrôle",
+      "graphReindex": "Réindexer le graphe",
+      "graphStatus": "graphe {status}",
+      "chunkIdTitle": "ID du segment : {id}",
+      "chunkIdShort": "Segment : {id}…",
+      "previewCitation": "Aperçu de la citation",
+      "freshnessWarning": "Ce document est marqué {status}. Les métadonnées d’actualité avertissent les lecteurs et peuvent exclure le document de la recherche.",
+      "qualityWarning": "Ce document est marqué {status}. La qualité influence le classement, les avertissements et les processus de révision.",
+      "qualityWorkflow": "Processus qualité",
+      "qualityWorkflowDescription": "Mettez à jour l’état qui détermine la préférence de recherche et les avertissements de source.",
+      "saveQuality": "Enregistrer la qualité",
+      "qualityState": "État de qualité",
+      "qualityOwnerId": "ID du responsable qualité",
+      "reviewerId": "ID du réviseur",
+      "reviewDue": "Révision attendue",
+      "reviewDate": "Date de révision",
+      "expiryDate": "Date d’expiration",
+      "trustLevel": "Niveau de confiance",
+      "qualityNotes": "Notes de qualité",
+      "quality": "Qualité",
+      "qualityOwner": "Responsable qualité",
+      "reviewer": "Réviseur",
+      "tabVersions": "versions",
+      "tabMetadata": "métadonnées",
+      "traceId": "ID de trace",
+      "selectOcrLanguage": "Sélectionner la langue OCR",
+      "selectOverrideLanguage": "Sélectionner la langue de remplacement",
+      "versionHistory": "Historique des versions",
+      "versionHistoryDescription": "Une nouvelle version est enregistrée à chaque téléversement et réindexation. La version <active>active</active> est actuellement servie par l’index vectoriel.",
+      "statuses": {
+        "uploaded": "Téléversé",
+        "processing": "Traitement",
+        "indexed": "Indexé",
+        "failed": "Échoué",
+        "deleting": "Suppression",
+        "deleted": "Supprimé",
+        "delete_requested": "Suppression demandée",
+        "retained_by_policy": "Conservé par la politique"
+      },
+      "graphStatuses": {
+        "not_started": "non démarré",
+        "pending": "en attente",
+        "extracting": "extraction",
+        "completed": "terminé",
+        "failed": "échoué",
+        "skipped": "ignoré"
+      },
+      "freshnessStatuses": {
+        "trusted": "fiable",
+        "current": "actuel",
+        "needs_review": "révision requise",
+        "stale": "obsolète",
+        "expired": "expiré",
+        "archived": "archivé"
+      },
+      "qualityStates": {
+        "draft": "brouillon",
+        "verified": "vérifié",
+        "reviewed": "révisé",
+        "unreviewed": "non révisé",
+        "stale": "obsolète",
+        "expired": "expiré",
+        "deprecated": "déprécié",
+        "archived": "archivé"
+      }
     }
   },
   "chat": {

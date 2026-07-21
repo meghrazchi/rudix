@@ -2045,7 +2045,8 @@
         "embedded": "Eingebettet",
         "upserted": "In Qdrant hochgeladen",
         "graphExtraction": "Graph-Extraktion",
-        "readyForChat": "Bereit für den Chat"
+        "readyForChat": "Bereit für den Chat",
+        "readyForChatDescription": "Das Dokument ist für abrufgestützte Chatanfragen verfügbar."
       },
       "rec": {
         "retryIndexing": "Indizierung nach Überprüfung der Anbieterverfügbarkeit und Warteschlangengesundheit erneut versuchen.",
@@ -2063,7 +2064,75 @@
       "retryChunkLoad": "Blöcke neu laden",
       "deleteConfirm": "Dokument \"{filename}\" löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "forceReindex": "Neuindizierung erzwingen",
-      "reindexDefaultProfile": "das Standard-Systemprofil"
+      "reindexDefaultProfile": "das Standard-Systemprofil",
+      "feedbackGraphReindex": "Graph-Neuindizierung eingereiht. Warteschlangenstatus: {queueStatus}.",
+      "feedbackQualitySaved": "Qualitätsmetadaten gespeichert.",
+      "copyDocumentId": "Dokument-ID kopieren",
+      "copyChecksum": "Prüfsumme kopieren",
+      "graphReindex": "Graph neu indizieren",
+      "graphStatus": "Graph: {status}",
+      "chunkIdTitle": "Chunk-ID: {id}",
+      "chunkIdShort": "Chunk: {id}…",
+      "previewCitation": "Zitatvorschau",
+      "freshnessWarning": "Dieses Dokument ist als {status} markiert. Aktualitätsmetadaten warnen Leser und können das Dokument von der Suche ausschließen.",
+      "qualityWarning": "Dieses Dokument ist als {status} markiert. Der Qualitätsstatus beeinflusst Ranking, Warnhinweise und Prüfabläufe.",
+      "qualityWorkflow": "Qualitätsworkflow",
+      "qualityWorkflowDescription": "Aktualisieren Sie den Status für Suchpräferenz und Quellenwarnungen.",
+      "saveQuality": "Qualität speichern",
+      "qualityState": "Qualitätsstatus",
+      "qualityOwnerId": "ID des Qualitätsverantwortlichen",
+      "reviewerId": "Prüfer-ID",
+      "reviewDue": "Prüfung fällig",
+      "reviewDate": "Prüfdatum",
+      "expiryDate": "Ablaufdatum",
+      "trustLevel": "Vertrauensstufe",
+      "qualityNotes": "Qualitätsnotizen",
+      "quality": "Qualität",
+      "qualityOwner": "Qualitätsverantwortlicher",
+      "reviewer": "Prüfer",
+      "tabVersions": "Versionen",
+      "tabMetadata": "Metadaten",
+      "traceId": "Trace-ID",
+      "selectOcrLanguage": "OCR-Sprache auswählen",
+      "selectOverrideLanguage": "Überschreibungssprache auswählen",
+      "versionHistory": "Versionsverlauf",
+      "versionHistoryDescription": "Bei jedem Upload und jeder Neuindizierung wird eine neue Version erfasst. Die <active>aktive</active> Version wird aktuell vom Vektorindex bereitgestellt.",
+      "statuses": {
+        "uploaded": "Hochgeladen",
+        "processing": "In Verarbeitung",
+        "indexed": "Indiziert",
+        "failed": "Fehlgeschlagen",
+        "deleting": "Wird gelöscht",
+        "deleted": "Gelöscht",
+        "delete_requested": "Löschung angefordert",
+        "retained_by_policy": "Durch Richtlinie aufbewahrt"
+      },
+      "graphStatuses": {
+        "not_started": "nicht gestartet",
+        "pending": "ausstehend",
+        "extracting": "wird extrahiert",
+        "completed": "abgeschlossen",
+        "failed": "fehlgeschlagen",
+        "skipped": "übersprungen"
+      },
+      "freshnessStatuses": {
+        "trusted": "vertrauenswürdig",
+        "current": "aktuell",
+        "needs_review": "Prüfung erforderlich",
+        "stale": "veraltet",
+        "expired": "abgelaufen",
+        "archived": "archiviert"
+      },
+      "qualityStates": {
+        "draft": "Entwurf",
+        "verified": "verifiziert",
+        "reviewed": "geprüft",
+        "unreviewed": "ungeprüft",
+        "stale": "veraltet",
+        "expired": "abgelaufen",
+        "deprecated": "veraltet (nicht empfohlen)",
+        "archived": "archiviert"
+      }
     }
   },
   "chat": {

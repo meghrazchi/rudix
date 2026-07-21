@@ -317,7 +317,7 @@ function buildLifecycleTimeline(
     steps.push({
       key: "ready_for_chat",
       label: labels.ready_for_chat,
-      description: "Document is available for retrieval-backed chat queries.",
+      description: labels.ready_for_chat_description,
       state: "completed",
       timestamp: detail.updated_at ?? null,
       documentId: detail.document_id,
@@ -371,6 +371,7 @@ type LifecycleLabels = {
   index: string;
   extract_entities: string;
   ready_for_chat: string;
+  ready_for_chat_description: string;
 };
 
 function normalizeLifecycleLabel(
@@ -554,6 +555,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     index: td("lifecycle.upserted"),
     extract_entities: td("lifecycle.graphExtraction"),
     ready_for_chat: td("lifecycle.readyForChat"),
+    ready_for_chat_description: td("lifecycle.readyForChatDescription"),
   };
 
   const noChunkMessages: NoChunksMessages = {
@@ -808,7 +810,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     mutationFn: () => reindexDocumentGraph(documentId),
     onSuccess: async (result) => {
       setActionFeedback(
-        `Graph re-index queued. Queue status: ${result.queue_status}.`,
+        td("feedbackGraphReindex", { queueStatus: result.queue_status }),
       );
       setActionRequestId(null);
       await invalidateAfterMutation(queryClient, "document.graph.reindex");
@@ -879,7 +881,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     mutationFn: (payload: AdminTrustStatusRequest) =>
       updateDocumentTrustStatus(documentId, payload),
     onSuccess: async () => {
-      setActionFeedback("Quality metadata saved.");
+      setActionFeedback(td("feedbackQualitySaved"));
       setActionRequestId(null);
       await queryClient.invalidateQueries({
         queryKey: queryKeys.documents.detail(documentId),
@@ -1064,7 +1066,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                 className="rounded-lg border border-[#ddd7f6] bg-[#f3f1ff] px-3 py-2 text-sm text-[#3f3778]"
               >
                 {actionFeedback}
-                {actionRequestId ? ` (Trace ID: ${actionRequestId})` : ""}
+                {actionRequestId
+                  ? ` (${td("traceId")}: ${actionRequestId})`
+                  : ""}
               </p>
             ) : null}
 
@@ -1076,11 +1080,13 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       {detail.filename}
                     </h2>
                     <span className={statusBadge(currentStatus)}>
-                      {currentStatus}
+                      {td(`statuses.${currentStatus}`)}
                     </span>
                     {graphStatus ? (
                       <span className={graphStatusBadge(graphStatus)}>
-                        graph {graphStatus}
+                        {td("graphStatus", {
+                          status: td(`graphStatuses.${graphStatus}`),
+                        })}
                       </span>
                     ) : null}
                   </div>
@@ -1090,7 +1096,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     </span>
                     <button
                       type="button"
-                      aria-label="Copy document id"
+                      aria-label={td("copyDocumentId")}
                       onClick={() => {
                         void copyMetadataValue(
                           detail.document_id,
@@ -1122,7 +1128,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     </span>
                     <button
                       type="button"
-                      aria-label="Copy checksum"
+                      aria-label={td("copyChecksum")}
                       disabled={!detail.checksum}
                       onClick={() => {
                         void copyMetadataValue(
@@ -1297,7 +1303,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                               </span>
                               {graphReindexMutation.isPending
                                 ? td("reindexQueueing")
-                                : "Graph re-index"}
+                                : td("graphReindex")}
                             </button>
                           </>
                         ) : null}
@@ -1364,9 +1370,11 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                 ) : null}
                 <p
                   className="mt-2 font-mono text-[10px] text-[#6a6780]"
-                  title={`Chunk ID: ${highlightedChunkId}`}
+                  title={td("chunkIdTitle", { id: highlightedChunkId })}
                 >
-                  Chunk: {highlightedChunkId.slice(0, 16)}&hellip;
+                  {td("chunkIdShort", {
+                    id: highlightedChunkId.slice(0, 16),
+                  })}
                 </p>
                 <button
                   type="button"
@@ -1396,7 +1404,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   >
                     visibility
                   </span>
-                  Preview citation
+                  {td("previewCitation")}
                 </button>
                 {activeTab !== "chunks" ? (
                   <button
@@ -1417,10 +1425,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   detail.review_status,
                 ) ? (
                   <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    This document is marked{" "}
-                    {detail.review_status.replaceAll("_", " ")}. Freshness
-                    metadata is used to warn readers and can exclude the
-                    document from retrieval.
+                    {td("freshnessWarning", {
+                      status: td(`freshnessStatuses.${detail.review_status}`),
+                    })}
                   </p>
                 ) : null}
                 {detail.quality_state &&
@@ -1433,10 +1440,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   "archived",
                 ].includes(detail.quality_state) ? (
                   <p className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-800">
-                    This document is marked{" "}
-                    {detail.quality_state.replaceAll("_", " ")}. Quality state
-                    influences retrieval ranking, warning banners, and bulk
-                    review workflows.
+                    {td("qualityWarning", {
+                      status: td(`qualityStates.${detail.quality_state}`),
+                    })}
                   </p>
                 ) : null}
                 {capabilities.canEditQuality ? (
@@ -1444,11 +1450,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h4 className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          Quality workflow
+                          {td("qualityWorkflow")}
                         </h4>
                         <p className="mt-1 text-sm text-[#605d73]">
-                          Update the state that drives retrieval preference and
-                          source warnings.
+                          {td("qualityWorkflowDescription")}
                         </p>
                       </div>
                       <button
@@ -1460,13 +1465,13 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {qualityMutation.isPending
-                          ? "Saving..."
-                          : "Save quality"}
+                          ? td("saving")
+                          : td("saveQuality")}
                       </button>
                     </div>
                     <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Quality state
+                        {td("qualityState")}
                         <select
                           value={qualityStateDraft}
                           onChange={(event) =>
@@ -1487,13 +1492,13 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             "archived",
                           ].map((option) => (
                             <option key={option} value={option}>
-                              {option}
+                              {td(`qualityStates.${option}`)}
                             </option>
                           ))}
                         </select>
                       </label>
                       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Quality owner id
+                        {td("qualityOwnerId")}
                         <input
                           type="text"
                           value={qualityOwnerDraft}
@@ -1504,7 +1509,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         />
                       </label>
                       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Reviewer id
+                        {td("reviewerId")}
                         <input
                           type="text"
                           value={qualityReviewerDraft}
@@ -1515,7 +1520,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         />
                       </label>
                       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Review due
+                        {td("reviewDue")}
                         <input
                           type="date"
                           value={qualityDueDateDraft}
@@ -1526,7 +1531,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         />
                       </label>
                       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Review date
+                        {td("reviewDate")}
                         <input
                           type="date"
                           value={qualityReviewDateDraft}
@@ -1537,7 +1542,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         />
                       </label>
                       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Expiry date
+                        {td("expiryDate")}
                         <input
                           type="date"
                           value={qualityExpiryDateDraft}
@@ -1548,7 +1553,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         />
                       </label>
                       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Trust level
+                        {td("trustLevel")}
                         <input
                           type="text"
                           value={qualityTrustLevelDraft}
@@ -1560,7 +1565,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       </label>
                     </div>
                     <label className="mt-3 grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Quality notes
+                      {td("qualityNotes")}
                       <textarea
                         value={qualityNotesDraft}
                         onChange={(event) =>
@@ -1591,39 +1596,41 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     value={formatDate(detail.updated_at)}
                   />
                   <MetricCard
-                    label="Quality"
-                    value={detail.quality_state ?? "unreviewed"}
+                    label={td("quality")}
+                    value={td(
+                      `qualityStates.${detail.quality_state ?? "unreviewed"}`,
+                    )}
                     valueClass={qualityBadge(detail.quality_state)}
                     plain={false}
                   />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   <MetricCard
-                    label="Quality owner"
+                    label={td("qualityOwner")}
                     value={detail.review_owner_id ?? "-"}
                     mono
                   />
                   <MetricCard
-                    label="Reviewer"
+                    label={td("reviewer")}
                     value={detail.trusted_by_id ?? "-"}
                     mono
                   />
                   <MetricCard
-                    label="Review due"
+                    label={td("reviewDue")}
                     value={formatDate(detail.review_due_date)}
                   />
                   <MetricCard
-                    label="Expiry date"
+                    label={td("expiryDate")}
                     value={formatDate(detail.expiry_date)}
                   />
                   <MetricCard
-                    label="Trust level"
+                    label={td("trustLevel")}
                     value={detail.trust_level ?? "-"}
                   />
                 </div>
                 {detail.quality_notes ? (
                   <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
-                    <p className="font-semibold">Quality notes</p>
+                    <p className="font-semibold">{td("qualityNotes")}</p>
                     <p className="mt-1 whitespace-pre-wrap">
                       {detail.quality_notes}
                     </p>
@@ -1658,12 +1665,12 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           : tabKey === "chunks"
                             ? td("tabChunks")
                             : tabKey === "versions"
-                              ? "Versions"
+                              ? td("tabVersions")
                               : tabKey === "metadata"
-                                ? "Metadata"
+                                ? td("tabMetadata")
                                 : td("tabErrors")}
                         {tabKey === "errors" ? (
-                          <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                          <span className="ms-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
                             {errorRows.length}
                           </span>
                         ) : null}
@@ -2026,7 +2033,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                             e.target.value,
                                           )
                                         }
-                                        aria-label="Select OCR language"
+                                        aria-label={td("selectOcrLanguage")}
                                         className="flex-1 cursor-pointer rounded border border-[#c7c4d8] bg-white px-2 py-1 text-xs font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                                       >
                                         <option value="">
@@ -2135,7 +2142,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                       onChange={(e) =>
                                         setLangOverrideValue(e.target.value)
                                       }
-                                      aria-label="Select override language"
+                                      aria-label={td("selectOverrideLanguage")}
                                       className="flex-1 cursor-pointer rounded border border-[#c7c4d8] bg-white px-2 py-1 text-xs font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                                     >
                                       <option value="">
@@ -2585,15 +2592,16 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       <section className="space-y-3">
                         <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
                           <h3 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Version history
+                            {td("versionHistory")}
                           </h3>
                           <p className="mb-4 text-xs text-[#69637f]">
-                            A new version is recorded on every upload and
-                            re-index. The{" "}
-                            <span className="font-semibold text-emerald-700">
-                              active
-                            </span>{" "}
-                            version is what the vector index currently serves.
+                            {td.rich("versionHistoryDescription", {
+                              active: (chunks) => (
+                                <span className="font-semibold text-emerald-700">
+                                  {chunks}
+                                </span>
+                              ),
+                            })}
                           </p>
                           <DocumentVersionHistoryPanel
                             documentId={documentId}
@@ -2620,7 +2628,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   {td("lifecycleTitle")}
                 </h3>
                 <ol className="relative space-y-3">
-                  <div className="absolute top-1 bottom-1 left-[11px] w-[2px] bg-[#e1e0eb]" />
+                  <div className="absolute start-[11px] top-1 bottom-1 w-[2px] bg-[#e1e0eb]" />
                   {lifecycle.map((step) => (
                     <li
                       key={step.key}

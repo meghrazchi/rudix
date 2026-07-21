@@ -2045,7 +2045,8 @@
         "embedded": "تعبیه‌سازی‌شده",
         "upserted": "در Qdrant درج یا به‌روزرسانی شد",
         "graphExtraction": "استخراج گراف",
-        "readyForChat": "آماده گفت‌وگو"
+        "readyForChat": "آماده گفت‌وگو",
+        "readyForChatDescription": "سند برای پرس‌وجوهای چت مبتنی بر بازیابی آماده است."
       },
       "rec": {
         "retryIndexing": "پس از بررسی دسترس‌پذیری ارائه‌دهنده و سلامت صف، نمایه‌سازی را دوباره امتحان کنید.",
@@ -2063,7 +2064,75 @@
       "retryChunkLoad": "تلاش دوباره برای بارگذاری بخش‌ها",
       "deleteConfirm": "سند «{filename}» حذف شود؟ این اقدام قابل بازگشت نیست.",
       "forceReindex": "بازنمایه‌سازی اجباری",
-      "reindexDefaultProfile": "پروفایل پیش‌فرض سیستم"
+      "reindexDefaultProfile": "پروفایل پیش‌فرض سیستم",
+      "feedbackGraphReindex": "نمایه‌سازی دوباره گراف در صف قرار گرفت. وضعیت صف: {queueStatus}.",
+      "feedbackQualitySaved": "فراداده کیفیت ذخیره شد.",
+      "copyDocumentId": "کپی شناسه سند",
+      "copyChecksum": "کپی جمع کنترلی",
+      "graphReindex": "نمایه‌سازی دوباره گراف",
+      "graphStatus": "گراف {status}",
+      "chunkIdTitle": "شناسه بخش: {id}",
+      "chunkIdShort": "بخش: {id}…",
+      "previewCitation": "پیش‌نمایش ارجاع",
+      "freshnessWarning": "این سند با وضعیت {status} علامت‌گذاری شده است. فراداده تازگی به خوانندگان هشدار می‌دهد و می‌تواند سند را از بازیابی حذف کند.",
+      "qualityWarning": "این سند با وضعیت {status} علامت‌گذاری شده است. کیفیت بر رتبه‌بندی بازیابی، هشدارها و گردش‌کارهای بررسی اثر دارد.",
+      "qualityWorkflow": "گردش‌کار کیفیت",
+      "qualityWorkflowDescription": "وضعیتی را که اولویت بازیابی و هشدارهای منبع را کنترل می‌کند به‌روز کنید.",
+      "saveQuality": "ذخیره کیفیت",
+      "qualityState": "وضعیت کیفیت",
+      "qualityOwnerId": "شناسه مسئول کیفیت",
+      "reviewerId": "شناسه بازبین",
+      "reviewDue": "مهلت بررسی",
+      "reviewDate": "تاریخ بررسی",
+      "expiryDate": "تاریخ انقضا",
+      "trustLevel": "سطح اعتماد",
+      "qualityNotes": "یادداشت‌های کیفیت",
+      "quality": "کیفیت",
+      "qualityOwner": "مسئول کیفیت",
+      "reviewer": "بازبین",
+      "tabVersions": "نسخه‌ها",
+      "tabMetadata": "فراداده",
+      "traceId": "شناسه ردیابی",
+      "selectOcrLanguage": "انتخاب زبان OCR",
+      "selectOverrideLanguage": "انتخاب زبان جایگزین",
+      "versionHistory": "تاریخچه نسخه‌ها",
+      "versionHistoryDescription": "با هر بارگذاری و نمایه‌سازی دوباره، نسخه‌ای جدید ثبت می‌شود. نسخه <active>فعال</active> همان نسخه‌ای است که نمایه برداری ارائه می‌کند.",
+      "statuses": {
+        "uploaded": "بارگذاری‌شده",
+        "processing": "در حال پردازش",
+        "indexed": "نمایه‌شده",
+        "failed": "ناموفق",
+        "deleting": "در حال حذف",
+        "deleted": "حذف‌شده",
+        "delete_requested": "درخواست حذف",
+        "retained_by_policy": "نگهداری‌شده طبق سیاست"
+      },
+      "graphStatuses": {
+        "not_started": "شروع‌نشده",
+        "pending": "در انتظار",
+        "extracting": "در حال استخراج",
+        "completed": "تکمیل‌شده",
+        "failed": "ناموفق",
+        "skipped": "ردشده"
+      },
+      "freshnessStatuses": {
+        "trusted": "قابل اعتماد",
+        "current": "به‌روز",
+        "needs_review": "نیازمند بررسی",
+        "stale": "قدیمی",
+        "expired": "منقضی",
+        "archived": "بایگانی‌شده"
+      },
+      "qualityStates": {
+        "draft": "پیش‌نویس",
+        "verified": "تأییدشده",
+        "reviewed": "بررسی‌شده",
+        "unreviewed": "بررسی‌نشده",
+        "stale": "قدیمی",
+        "expired": "منقضی",
+        "deprecated": "منسوخ",
+        "archived": "بایگانی‌شده"
+      }
     }
   },
   "chat": {

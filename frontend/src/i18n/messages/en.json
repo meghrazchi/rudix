@@ -2045,7 +2045,8 @@
         "embedded": "Embedded",
         "upserted": "Upserted to Qdrant",
         "graphExtraction": "Graph extraction",
-        "readyForChat": "Ready for chat"
+        "readyForChat": "Ready for chat",
+        "readyForChatDescription": "Document is available for retrieval-backed chat queries."
       },
       "rec": {
         "retryIndexing": "Retry indexing after validating provider availability and queue health.",
@@ -2063,7 +2064,75 @@
       "retryChunkLoad": "Retry chunk load",
       "deleteConfirm": "Delete document \"{filename}\"? This action cannot be undone.",
       "forceReindex": "Force re-index",
-      "reindexDefaultProfile": "the system default profile"
+      "reindexDefaultProfile": "the system default profile",
+      "feedbackGraphReindex": "Graph re-index queued. Queue status: {queueStatus}.",
+      "feedbackQualitySaved": "Quality metadata saved.",
+      "copyDocumentId": "Copy document id",
+      "copyChecksum": "Copy checksum",
+      "graphReindex": "Graph re-index",
+      "graphStatus": "graph {status}",
+      "chunkIdTitle": "Chunk ID: {id}",
+      "chunkIdShort": "Chunk: {id}…",
+      "previewCitation": "Preview citation",
+      "freshnessWarning": "This document is marked {status}. Freshness metadata is used to warn readers and can exclude the document from retrieval.",
+      "qualityWarning": "This document is marked {status}. Quality state influences retrieval ranking, warning banners, and bulk review workflows.",
+      "qualityWorkflow": "Quality workflow",
+      "qualityWorkflowDescription": "Update the state that drives retrieval preference and source warnings.",
+      "saveQuality": "Save quality",
+      "qualityState": "Quality state",
+      "qualityOwnerId": "Quality owner ID",
+      "reviewerId": "Reviewer ID",
+      "reviewDue": "Review due",
+      "reviewDate": "Review date",
+      "expiryDate": "Expiry date",
+      "trustLevel": "Trust level",
+      "qualityNotes": "Quality notes",
+      "quality": "Quality",
+      "qualityOwner": "Quality owner",
+      "reviewer": "Reviewer",
+      "tabVersions": "versions",
+      "tabMetadata": "metadata",
+      "traceId": "Trace ID",
+      "selectOcrLanguage": "Select OCR language",
+      "selectOverrideLanguage": "Select override language",
+      "versionHistory": "Version history",
+      "versionHistoryDescription": "A new version is recorded on every upload and re-index. The <active>active</active> version is what the vector index currently serves.",
+      "statuses": {
+        "uploaded": "Uploaded",
+        "processing": "Processing",
+        "indexed": "Indexed",
+        "failed": "Failed",
+        "deleting": "Deleting",
+        "deleted": "Deleted",
+        "delete_requested": "Delete requested",
+        "retained_by_policy": "Retained by policy"
+      },
+      "graphStatuses": {
+        "not_started": "not started",
+        "pending": "pending",
+        "extracting": "extracting",
+        "completed": "completed",
+        "failed": "failed",
+        "skipped": "skipped"
+      },
+      "freshnessStatuses": {
+        "trusted": "trusted",
+        "current": "current",
+        "needs_review": "needs review",
+        "stale": "stale",
+        "expired": "expired",
+        "archived": "archived"
+      },
+      "qualityStates": {
+        "draft": "draft",
+        "verified": "verified",
+        "reviewed": "reviewed",
+        "unreviewed": "unreviewed",
+        "stale": "stale",
+        "expired": "expired",
+        "deprecated": "deprecated",
+        "archived": "archived"
+      }
     }
   },
   "chat": {
