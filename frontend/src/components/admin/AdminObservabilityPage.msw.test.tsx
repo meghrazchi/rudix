@@ -169,7 +169,7 @@ describe("AdminObservabilityPage MSW", () => {
     renderPage();
     expect(
       await screen.findByText(
-        /No API audit log telemetry in the selected time range/i,
+        /No telemetry is available in the selected time range/i,
       ),
     ).toBeInTheDocument();
   });
@@ -181,7 +181,7 @@ describe("AdminObservabilityPage MSW", () => {
     renderPage();
     expect(
       await screen.findByText(
-        /No LLM usage telemetry in the selected time range/i,
+        /No telemetry is available in the selected time range/i,
       ),
     ).toBeInTheDocument();
   });
@@ -235,9 +235,7 @@ describe("AdminObservabilityPage MSW", () => {
 
   it("shows snapshot timestamp from generated_at", async () => {
     renderPage();
-    expect(
-      await screen.findByText(/Snapshot generated at/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Snapshot generated/)).toBeInTheDocument();
   });
 
   it("renders related admin page links", async () => {
