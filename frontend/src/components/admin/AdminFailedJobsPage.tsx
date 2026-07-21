@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -24,19 +25,19 @@ import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const JOB_TYPE_OPTIONS = [
-  { value: "", label: "All types" },
-  { value: "extraction", label: "Extraction" },
-  { value: "deletion_cleanup", label: "Deletion cleanup" },
-  { value: "reindex", label: "Reindex" },
-  { value: "evaluation", label: "Evaluation" },
+  "",
+  "extraction",
+  "deletion_cleanup",
+  "reindex",
+  "evaluation",
 ];
 
-const STATUS_OPTIONS: { value: FailedJobStatus | ""; label: string }[] = [
-  { value: "", label: "All statuses" },
-  { value: "failed", label: "Failed" },
-  { value: "retrying", label: "Retrying" },
-  { value: "resolved", label: "Resolved" },
-  { value: "cancelled", label: "Cancelled" },
+const STATUS_OPTIONS: (FailedJobStatus | "")[] = [
+  "",
+  "failed",
+  "retrying",
+  "resolved",
+  "cancelled",
 ];
 
 function statusBadgeClass(status: string): string {
@@ -55,11 +56,12 @@ function statusBadgeClass(status: string): string {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations("adminFailedJobs");
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${statusBadgeClass(status)}`}
     >
-      {status}
+      {t.has(`statuses.${status}`) ? t(`statuses.${status}`) : status}
     </span>
   );
 }
@@ -79,6 +81,7 @@ function JobDetailDrawer({
   onClose: () => void;
   onAction: () => void;
 }) {
+  const t = useTranslations("adminFailedJobs");
   const queryClient = useQueryClient();
   const detailQuery = useQuery({
     queryKey: queryKeys.admin.failedJobDetail(jobId),
@@ -135,29 +138,35 @@ function JobDetailDrawer({
       className="fixed inset-0 z-40 flex justify-end"
       role="dialog"
       aria-modal="true"
-      aria-label="Job detail"
+      aria-label={t("drawer.title")}
     >
       <button
         type="button"
         className="absolute inset-0 bg-black/30"
         onClick={onClose}
-        aria-label="Close drawer"
+        aria-label={t("drawer.closeDrawer")}
       />
       <aside className="relative z-50 flex h-full w-full max-w-lg flex-col overflow-y-auto bg-white shadow-2xl">
         <header className="flex items-center justify-between border-b border-[#e4e1f2] px-5 py-4">
-          <h2 className="text-lg font-bold text-[#2a2640]">Job detail</h2>
+          <h2 className="text-lg font-bold text-[#2a2640]">
+            {t("drawer.title")}
+          </h2>
           <button
             type="button"
             onClick={onClose}
             className="rounded p-1 text-[#6d6985] hover:bg-[#f5f3ff] hover:text-[#2a2640]"
-            aria-label="Close"
+            aria-label={t("actions.close")}
           >
             ✕
           </button>
         </header>
 
         {detailQuery.isLoading ? (
-          <LoadingState compact title="Loading job detail…" className="p-8" />
+          <LoadingState
+            compact
+            title={t("states.loadingDetail")}
+            className="p-8"
+          />
         ) : detailQuery.isError ? (
           <div className="p-5">
             <ErrorState
@@ -171,36 +180,48 @@ function JobDetailDrawer({
           <div className="flex flex-1 flex-col gap-5 p-5">
             <section className="space-y-2">
               <dl className="space-y-1 text-sm">
-                <DrawerRow label="Status">
+                <DrawerRow label={t("fields.status")}>
                   <StatusBadge status={job.status} />
                 </DrawerRow>
-                <DrawerRow label="Job type">{job.job_type}</DrawerRow>
-                <DrawerRow label="Task name">
+                <DrawerRow label={t("fields.jobType")}>
+                  {t.has(`jobTypes.${job.job_type}`)
+                    ? t(`jobTypes.${job.job_type}`)
+                    : job.job_type}
+                </DrawerRow>
+                <DrawerRow label={t("fields.taskName")}>
                   <code className="rounded bg-[#f3f1ff] px-1 text-xs text-[#3525cd]">
                     {job.task_name}
                   </code>
                 </DrawerRow>
-                <DrawerRow label="Queue">{job.queue_name ?? "—"}</DrawerRow>
-                <DrawerRow label="Attempts">{job.attempt_count}</DrawerRow>
-                <DrawerRow label="Retryable">
-                  {job.is_retryable ? "Yes" : "No — non-idempotent"}
+                <DrawerRow label={t("fields.queue")}>
+                  {job.queue_name ?? "—"}
+                </DrawerRow>
+                <DrawerRow label={t("fields.attempts")}>
+                  {job.attempt_count}
+                </DrawerRow>
+                <DrawerRow label={t("fields.retryable")}>
+                  {job.is_retryable
+                    ? t("values.yes")
+                    : t("values.notIdempotent")}
                 </DrawerRow>
                 {job.entity_type ? (
-                  <DrawerRow label={`Related ${job.entity_type}`}>
+                  <DrawerRow
+                    label={t("fields.relatedEntity", { type: job.entity_type })}
+                  >
                     <span className="font-mono text-xs">{job.entity_id}</span>
                   </DrawerRow>
                 ) : null}
-                <DrawerRow label="Error code">
+                <DrawerRow label={t("fields.errorCode")}>
                   {job.error_code ?? "—"}
                 </DrawerRow>
-                <DrawerRow label="Last attempted">
+                <DrawerRow label={t("fields.lastAttempted")}>
                   {formatDateTime(job.last_attempted_at)}
                 </DrawerRow>
-                <DrawerRow label="Created">
+                <DrawerRow label={t("fields.created")}>
                   {formatDateTime(job.created_at)}
                 </DrawerRow>
                 {job.resolved_at ? (
-                  <DrawerRow label="Resolved">
+                  <DrawerRow label={t("fields.resolved")}>
                     {formatDateTime(job.resolved_at)}
                   </DrawerRow>
                 ) : null}
@@ -210,7 +231,7 @@ function JobDetailDrawer({
             {job.error_message ? (
               <section>
                 <p className="mb-1 text-xs font-semibold tracking-wide text-[#5d58a8] uppercase">
-                  Error message
+                  {t("fields.errorMessage")}
                 </p>
                 <pre className="max-h-32 overflow-auto rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-xs whitespace-pre-wrap text-[#4f4b68]">
                   {job.error_message}
@@ -226,7 +247,9 @@ function JobDetailDrawer({
                   disabled={isBusy}
                   className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2a1db0] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {retryMutation.isPending ? "Retrying…" : "Retry"}
+                  {retryMutation.isPending
+                    ? t("actions.retrying")
+                    : t("actions.retry")}
                 </button>
               ) : null}
               {job.status !== "cancelled" && job.status !== "resolved" ? (
@@ -236,7 +259,9 @@ function JobDetailDrawer({
                   disabled={isBusy}
                   className="rounded-lg border border-[#cbc5e6] px-4 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {cancelMutation.isPending ? "Cancelling…" : "Cancel"}
+                  {cancelMutation.isPending
+                    ? t("actions.cancelling")
+                    : t("actions.cancel")}
                 </button>
               ) : null}
               {job.status !== "resolved" ? (
@@ -246,7 +271,9 @@ function JobDetailDrawer({
                   disabled={isBusy}
                   className="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {resolveMutation.isPending ? "Resolving…" : "Mark resolved"}
+                  {resolveMutation.isPending
+                    ? t("actions.resolving")
+                    : t("actions.markResolved")}
                 </button>
               ) : null}
             </section>
@@ -266,7 +293,7 @@ function JobDetailDrawer({
             {job.audit_log.length > 0 ? (
               <section>
                 <p className="mb-2 text-xs font-semibold tracking-wide text-[#5d58a8] uppercase">
-                  Audit log
+                  {t("drawer.auditLog")}
                 </p>
                 <ul className="space-y-1">
                   {job.audit_log.map((entry) => (
@@ -278,11 +305,11 @@ function JobDetailDrawer({
                         {entry.action}
                       </span>
                       {entry.note ? (
-                        <span className="ml-1 text-[#6d6985]">
+                        <span className="ms-1 text-[#6d6985]">
                           ({entry.note})
                         </span>
                       ) : null}
-                      <span className="ml-2 text-[#8d8aa3]">
+                      <span className="ms-2 text-[#8d8aa3]">
                         {formatDateTime(entry.created_at)}
                       </span>
                     </li>
@@ -307,7 +334,7 @@ function DrawerRow({
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2">
       <dt className="shrink-0 text-[#4f4b68]">{label}</dt>
-      <dd className="text-right text-[#2f2a46]">{children}</dd>
+      <dd className="text-end text-[#2f2a46]">{children}</dd>
     </div>
   );
 }
@@ -331,6 +358,7 @@ function JobRow({
   onSelect: (checked: boolean) => void;
   onOpen: () => void;
 }) {
+  const t = useTranslations("adminFailedJobs");
   return (
     <tr className="border-b border-[#e4e1f2] hover:bg-[#faf9ff]">
       <td className="px-3 py-2 text-center">
@@ -338,14 +366,18 @@ function JobRow({
           type="checkbox"
           checked={selected}
           onChange={(e) => onSelect(e.target.checked)}
-          aria-label={`Select job ${job.id}`}
+          aria-label={t("table.selectJob", { id: job.id })}
           className="accent-[#3525cd]"
         />
       </td>
       <td className="px-3 py-2">
         <StatusBadge status={job.status} />
       </td>
-      <td className="px-3 py-2 text-sm text-[#2f2a46]">{job.job_type}</td>
+      <td className="px-3 py-2 text-sm text-[#2f2a46]">
+        {t.has(`jobTypes.${job.job_type}`)
+          ? t(`jobTypes.${job.job_type}`)
+          : job.job_type}
+      </td>
       <td className="px-3 py-2">
         <code className="rounded bg-[#f3f1ff] px-1 text-xs text-[#3525cd]">
           {job.task_name}
@@ -360,13 +392,13 @@ function JobRow({
       <td className="px-3 py-2 text-sm text-[#6d6985]">
         {formatDateTime(job.created_at)}
       </td>
-      <td className="px-3 py-2 text-right">
+      <td className="px-3 py-2 text-end">
         <button
           type="button"
           onClick={onOpen}
           className="rounded border border-[#cbc5e6] px-2 py-0.5 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
         >
-          View
+          {t("actions.view")}
         </button>
       </td>
     </tr>
@@ -374,6 +406,7 @@ function JobRow({
 }
 
 export function AdminFailedJobsPage() {
+  const t = useTranslations("adminFailedJobs");
   const { state } = useAuthSession();
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
@@ -420,8 +453,8 @@ export function AdminFailedJobsPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Admin access restricted"
-          description="Only owner and admin roles can access the failed jobs dashboard."
+          title={t("access.restrictedTitle")}
+          description={t("access.restrictedDescription")}
           compact={false}
         />
       </section>
@@ -468,14 +501,13 @@ export function AdminFailedJobsPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-              Rudix Admin
+              {t("header.eyebrow")}
             </p>
             <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-              Failed jobs
+              {t("header.title")}
             </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
-              Inspect and safely retry failed background jobs — extraction,
-              chunking, indexing, evaluation, and deletion tasks.
+              {t("header.description")}
             </p>
           </div>
           <button
@@ -484,7 +516,9 @@ export function AdminFailedJobsPage() {
             disabled={listQuery.isFetching}
             className="rounded-lg border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {listQuery.isFetching ? "Refreshing…" : "Refresh"}
+            {listQuery.isFetching
+              ? t("actions.refreshing")
+              : t("actions.refresh")}
           </button>
         </div>
       </header>
@@ -492,7 +526,7 @@ export function AdminFailedJobsPage() {
       <div className="rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
         <div className="flex flex-wrap items-end gap-3 border-b border-[#e4e1f2] px-5 py-4">
           <label className="flex flex-col gap-1 text-xs font-semibold text-[#4f4b68]">
-            Job type
+            {t("fields.jobType")}
             <select
               value={jobTypeFilter}
               onChange={(e) => {
@@ -502,16 +536,16 @@ export function AdminFailedJobsPage() {
               }}
               className="rounded-lg border border-[#cbc5e6] px-2 py-1.5 text-sm text-[#2f2a46] focus:border-[#3525cd] focus:outline-none"
             >
-              {JOB_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+              {JOB_TYPE_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {value ? t(`jobTypes.${value}`) : t("filters.allTypes")}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="flex flex-col gap-1 text-xs font-semibold text-[#4f4b68]">
-            Status
+            {t("fields.status")}
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -521,9 +555,9 @@ export function AdminFailedJobsPage() {
               }}
               className="rounded-lg border border-[#cbc5e6] px-2 py-1.5 text-sm text-[#2f2a46] focus:border-[#3525cd] focus:outline-none"
             >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+              {STATUS_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {value ? t(`statuses.${value}`) : t("filters.allStatuses")}
                 </option>
               ))}
             </select>
@@ -540,10 +574,10 @@ export function AdminFailedJobsPage() {
               }}
               className="accent-[#3525cd]"
             />
-            Retryable only
+            {t("filters.retryableOnly")}
           </label>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ms-auto flex items-center gap-2">
             {selectedIds.size > 0 ? (
               <button
                 type="button"
@@ -552,8 +586,8 @@ export function AdminFailedJobsPage() {
                 className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2a1db0] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {bulkRetryMutation.isPending
-                  ? "Retrying…"
-                  : `Bulk retry (${selectedIds.size})`}
+                  ? t("actions.retrying")
+                  : t("actions.bulkRetry", { count: selectedIds.size })}
               </button>
             ) : null}
           </div>
@@ -568,7 +602,7 @@ export function AdminFailedJobsPage() {
         {listQuery.isLoading ? (
           <LoadingState
             compact
-            title="Loading failed jobs…"
+            title={t("states.loadingList")}
             className="px-5 py-8"
           />
         ) : listQuery.isError ? (
@@ -582,11 +616,11 @@ export function AdminFailedJobsPage() {
           </div>
         ) : items.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-[#6d6985]">
-            No failed jobs match the current filters.
+            {t("states.empty")}
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-start text-sm">
               <thead className="border-b border-[#e4e1f2] bg-[#faf9ff] text-xs font-semibold tracking-wide text-[#5d58a8] uppercase">
                 <tr>
                   <th className="px-3 py-2 text-center">
@@ -594,16 +628,18 @@ export function AdminFailedJobsPage() {
                       type="checkbox"
                       checked={allPageSelected}
                       onChange={(e) => toggleAll(e.target.checked)}
-                      aria-label="Select all on page"
+                      aria-label={t("table.selectAll")}
                       className="accent-[#3525cd]"
                     />
                   </th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Task</th>
-                  <th className="px-3 py-2">Error code</th>
-                  <th className="px-3 py-2 text-center">Attempts</th>
-                  <th className="px-3 py-2">Created</th>
+                  <th className="px-3 py-2">{t("fields.status")}</th>
+                  <th className="px-3 py-2">{t("fields.type")}</th>
+                  <th className="px-3 py-2">{t("fields.task")}</th>
+                  <th className="px-3 py-2">{t("fields.errorCode")}</th>
+                  <th className="px-3 py-2 text-center">
+                    {t("fields.attempts")}
+                  </th>
+                  <th className="px-3 py-2">{t("fields.created")}</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -625,7 +661,7 @@ export function AdminFailedJobsPage() {
         {total > 25 ? (
           <div className="flex items-center justify-between border-t border-[#e4e1f2] px-5 py-3">
             <p className="text-xs text-[#6d6985]">
-              {total.toLocaleString()} total — page {page} of {totalPages}
+              {t("pagination.summary", { total, page, totalPages })}
             </p>
             <div className="flex gap-2">
               <button
@@ -634,7 +670,10 @@ export function AdminFailedJobsPage() {
                 disabled={page === 1}
                 className="rounded border border-[#cbc5e6] px-2 py-0.5 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                ← Prev
+                <span aria-hidden="true" className="rtl:rotate-180">
+                  ←
+                </span>{" "}
+                {t("actions.previous")}
               </button>
               <button
                 type="button"
@@ -642,7 +681,10 @@ export function AdminFailedJobsPage() {
                 disabled={page === totalPages}
                 className="rounded border border-[#cbc5e6] px-2 py-0.5 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Next →
+                {t("actions.next")}{" "}
+                <span aria-hidden="true" className="rtl:rotate-180">
+                  →
+                </span>
               </button>
             </div>
           </div>

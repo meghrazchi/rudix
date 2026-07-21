@@ -5332,5 +5332,85 @@
       "query_rewrite_preview": "Vista previa de reescritura",
       "org_memory": "Memoria de la organización"
     }
+  },
+  "adminFailedJobs": {
+    "statuses": {
+      "failed": "Fallido",
+      "retrying": "Reintentando",
+      "resolved": "Resuelto",
+      "cancelled": "Cancelado"
+    },
+    "jobTypes": {
+      "extraction": "Extracción",
+      "deletion_cleanup": "Limpieza de eliminación",
+      "reindex": "Reindexación",
+      "evaluation": "Evaluación"
+    },
+    "drawer": {
+      "title": "Detalle del trabajo",
+      "closeDrawer": "Cerrar detalle",
+      "auditLog": "Registro de auditoría"
+    },
+    "actions": {
+      "close": "Cerrar",
+      "retry": "Reintentar",
+      "retrying": "Reintentando…",
+      "cancel": "Cancelar",
+      "cancelling": "Cancelando…",
+      "resolving": "Resolviendo…",
+      "markResolved": "Marcar como resuelto",
+      "view": "Ver",
+      "refresh": "Actualizar",
+      "refreshing": "Actualizando…",
+      "bulkRetry": "Reintentar selección ({count})",
+      "previous": "Anterior",
+      "next": "Siguiente"
+    },
+    "fields": {
+      "status": "Estado",
+      "jobType": "Tipo de trabajo",
+      "taskName": "Nombre de tarea",
+      "queue": "Cola",
+      "attempts": "Intentos",
+      "retryable": "Reintentable",
+      "relatedEntity": "{type} relacionado",
+      "errorCode": "Código de error",
+      "lastAttempted": "Último intento",
+      "created": "Creado",
+      "resolved": "Resuelto",
+      "errorMessage": "Mensaje de error",
+      "type": "Tipo",
+      "task": "Tarea"
+    },
+    "values": {
+      "yes": "Sí",
+      "notIdempotent": "No — no idempotente"
+    },
+    "states": {
+      "loadingDetail": "Cargando detalle del trabajo…",
+      "loadingList": "Cargando trabajos fallidos…",
+      "empty": "Ningún trabajo fallido coincide con los filtros actuales."
+    },
+    "access": {
+      "restrictedTitle": "Acceso de administrador restringido",
+      "restrictedDescription": "Solo propietarios y administradores pueden acceder al panel de trabajos fallidos."
+    },
+    "header": {
+      "eyebrow": "Administración de Rudix",
+      "title": "Trabajos fallidos",
+      "description": "Inspecciona y reintenta con seguridad trabajos en segundo plano de extracción, fragmentación, indexación, evaluación y eliminación."
+    },
+    "filters": {
+      "allTypes": "Todos los tipos",
+      "allStatuses": "Todos los estados",
+      "retryableOnly": "Solo reintentables"
+    },
+    "table": {
+      "selectJob": "Seleccionar trabajo {id}",
+      "selectAll": "Seleccionar todos en la página"
+    },
+    "pagination": {
+      "summary": "{total} en total — página {page} de {totalPages}"
+    }
   }
 }

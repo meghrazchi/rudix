@@ -5332,5 +5332,85 @@
       "query_rewrite_preview": "Query rewrite preview",
       "org_memory": "Organization memory"
     }
+  },
+  "adminFailedJobs": {
+    "statuses": {
+      "failed": "failed",
+      "retrying": "retrying",
+      "resolved": "resolved",
+      "cancelled": "cancelled"
+    },
+    "jobTypes": {
+      "extraction": "Extraction",
+      "deletion_cleanup": "Deletion cleanup",
+      "reindex": "Reindex",
+      "evaluation": "Evaluation"
+    },
+    "drawer": {
+      "title": "Job detail",
+      "closeDrawer": "Close drawer",
+      "auditLog": "Audit log"
+    },
+    "actions": {
+      "close": "Close",
+      "retry": "Retry",
+      "retrying": "Retrying…",
+      "cancel": "Cancel",
+      "cancelling": "Cancelling…",
+      "resolving": "Resolving…",
+      "markResolved": "Mark resolved",
+      "view": "View",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "bulkRetry": "Bulk retry ({count})",
+      "previous": "Prev",
+      "next": "Next"
+    },
+    "fields": {
+      "status": "Status",
+      "jobType": "Job type",
+      "taskName": "Task name",
+      "queue": "Queue",
+      "attempts": "Attempts",
+      "retryable": "Retryable",
+      "relatedEntity": "Related {type}",
+      "errorCode": "Error code",
+      "lastAttempted": "Last attempted",
+      "created": "Created",
+      "resolved": "Resolved",
+      "errorMessage": "Error message",
+      "type": "Type",
+      "task": "Task"
+    },
+    "values": {
+      "yes": "Yes",
+      "notIdempotent": "No — non-idempotent"
+    },
+    "states": {
+      "loadingDetail": "Loading job detail…",
+      "loadingList": "Loading failed jobs…",
+      "empty": "No failed jobs match the current filters."
+    },
+    "access": {
+      "restrictedTitle": "Admin access restricted",
+      "restrictedDescription": "Only owner and admin roles can access the failed jobs dashboard."
+    },
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Failed jobs",
+      "description": "Inspect and safely retry failed background jobs — extraction, chunking, indexing, evaluation, and deletion tasks."
+    },
+    "filters": {
+      "allTypes": "All types",
+      "allStatuses": "All statuses",
+      "retryableOnly": "Retryable only"
+    },
+    "table": {
+      "selectJob": "Select job {id}",
+      "selectAll": "Select all on page"
+    },
+    "pagination": {
+      "summary": "{total} total — page {page} of {totalPages}"
+    }
   }
 }

@@ -5332,5 +5332,85 @@
       "query_rewrite_preview": "Vorschau der Anfrageumschreibung",
       "org_memory": "Organisationsgedächtnis"
     }
+  },
+  "adminFailedJobs": {
+    "statuses": {
+      "failed": "Fehlgeschlagen",
+      "retrying": "Wird wiederholt",
+      "resolved": "Behoben",
+      "cancelled": "Abgebrochen"
+    },
+    "jobTypes": {
+      "extraction": "Extraktion",
+      "deletion_cleanup": "Löschbereinigung",
+      "reindex": "Neuindizierung",
+      "evaluation": "Evaluierung"
+    },
+    "drawer": {
+      "title": "Auftragsdetails",
+      "closeDrawer": "Detailansicht schließen",
+      "auditLog": "Audit-Protokoll"
+    },
+    "actions": {
+      "close": "Schließen",
+      "retry": "Erneut versuchen",
+      "retrying": "Wird wiederholt…",
+      "cancel": "Abbrechen",
+      "cancelling": "Wird abgebrochen…",
+      "resolving": "Wird behoben…",
+      "markResolved": "Als behoben markieren",
+      "view": "Anzeigen",
+      "refresh": "Aktualisieren",
+      "refreshing": "Wird aktualisiert…",
+      "bulkRetry": "Auswahl wiederholen ({count})",
+      "previous": "Zurück",
+      "next": "Weiter"
+    },
+    "fields": {
+      "status": "Status",
+      "jobType": "Auftragstyp",
+      "taskName": "Taskname",
+      "queue": "Warteschlange",
+      "attempts": "Versuche",
+      "retryable": "Wiederholbar",
+      "relatedEntity": "Zugehörige Entität: {type}",
+      "errorCode": "Fehlercode",
+      "lastAttempted": "Letzter Versuch",
+      "created": "Erstellt",
+      "resolved": "Behoben",
+      "errorMessage": "Fehlermeldung",
+      "type": "Typ",
+      "task": "Task"
+    },
+    "values": {
+      "yes": "Ja",
+      "notIdempotent": "Nein — nicht idempotent"
+    },
+    "states": {
+      "loadingDetail": "Auftragsdetails werden geladen…",
+      "loadingList": "Fehlgeschlagene Aufträge werden geladen…",
+      "empty": "Keine fehlgeschlagenen Aufträge entsprechen den aktuellen Filtern."
+    },
+    "access": {
+      "restrictedTitle": "Administratorzugriff eingeschränkt",
+      "restrictedDescription": "Nur Eigentümer und Administratoren können das Dashboard für fehlgeschlagene Aufträge öffnen."
+    },
+    "header": {
+      "eyebrow": "Rudix-Administration",
+      "title": "Fehlgeschlagene Aufträge",
+      "description": "Prüfen Sie fehlgeschlagene Hintergrundaufträge und wiederholen Sie Extraktion, Chunking, Indizierung, Evaluierung und Löschung sicher."
+    },
+    "filters": {
+      "allTypes": "Alle Typen",
+      "allStatuses": "Alle Status",
+      "retryableOnly": "Nur wiederholbare"
+    },
+    "table": {
+      "selectJob": "Auftrag {id} auswählen",
+      "selectAll": "Alle auf dieser Seite auswählen"
+    },
+    "pagination": {
+      "summary": "{total} insgesamt — Seite {page} von {totalPages}"
+    }
   }
 }

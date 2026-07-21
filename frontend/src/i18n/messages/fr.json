@@ -5332,5 +5332,85 @@
       "query_rewrite_preview": "Aperçu de la reformulation",
       "org_memory": "Mémoire de l’organisation"
     }
+  },
+  "adminFailedJobs": {
+    "statuses": {
+      "failed": "Échoué",
+      "retrying": "Nouvelle tentative",
+      "resolved": "Résolu",
+      "cancelled": "Annulé"
+    },
+    "jobTypes": {
+      "extraction": "Extraction",
+      "deletion_cleanup": "Nettoyage de suppression",
+      "reindex": "Réindexation",
+      "evaluation": "Évaluation"
+    },
+    "drawer": {
+      "title": "Détail de la tâche",
+      "closeDrawer": "Fermer le panneau",
+      "auditLog": "Journal d’audit"
+    },
+    "actions": {
+      "close": "Fermer",
+      "retry": "Réessayer",
+      "retrying": "Nouvelle tentative…",
+      "cancel": "Annuler",
+      "cancelling": "Annulation…",
+      "resolving": "Résolution…",
+      "markResolved": "Marquer comme résolu",
+      "view": "Afficher",
+      "refresh": "Actualiser",
+      "refreshing": "Actualisation…",
+      "bulkRetry": "Réessayer la sélection ({count})",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "fields": {
+      "status": "État",
+      "jobType": "Type de tâche",
+      "taskName": "Nom de la tâche",
+      "queue": "File",
+      "attempts": "Tentatives",
+      "retryable": "Réessayable",
+      "relatedEntity": "{type} associé",
+      "errorCode": "Code d’erreur",
+      "lastAttempted": "Dernière tentative",
+      "created": "Créé",
+      "resolved": "Résolu",
+      "errorMessage": "Message d’erreur",
+      "type": "Type",
+      "task": "Tâche"
+    },
+    "values": {
+      "yes": "Oui",
+      "notIdempotent": "Non — non idempotent"
+    },
+    "states": {
+      "loadingDetail": "Chargement du détail…",
+      "loadingList": "Chargement des tâches échouées…",
+      "empty": "Aucune tâche échouée ne correspond aux filtres actuels."
+    },
+    "access": {
+      "restrictedTitle": "Accès administrateur restreint",
+      "restrictedDescription": "Seuls les propriétaires et administrateurs peuvent accéder au tableau des tâches échouées."
+    },
+    "header": {
+      "eyebrow": "Administration Rudix",
+      "title": "Tâches échouées",
+      "description": "Inspectez et relancez en toute sécurité les tâches d’extraction, de découpage, d’indexation, d’évaluation et de suppression."
+    },
+    "filters": {
+      "allTypes": "Tous les types",
+      "allStatuses": "Tous les états",
+      "retryableOnly": "Réessayables uniquement"
+    },
+    "table": {
+      "selectJob": "Sélectionner la tâche {id}",
+      "selectAll": "Tout sélectionner sur la page"
+    },
+    "pagination": {
+      "summary": "{total} au total — page {page} sur {totalPages}"
+    }
   }
 }

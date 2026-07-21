@@ -5332,5 +5332,85 @@
       "query_rewrite_preview": "پیش‌نمایش بازنویسی پرس‌وجو",
       "org_memory": "حافظه سازمان"
     }
+  },
+  "adminFailedJobs": {
+    "statuses": {
+      "failed": "ناموفق",
+      "retrying": "در حال تلاش دوباره",
+      "resolved": "حل‌شده",
+      "cancelled": "لغوشده"
+    },
+    "jobTypes": {
+      "extraction": "استخراج",
+      "deletion_cleanup": "پاک‌سازی حذف",
+      "reindex": "نمایه‌سازی دوباره",
+      "evaluation": "ارزیابی"
+    },
+    "drawer": {
+      "title": "جزئیات کار",
+      "closeDrawer": "بستن جزئیات",
+      "auditLog": "گزارش ممیزی"
+    },
+    "actions": {
+      "close": "بستن",
+      "retry": "تلاش دوباره",
+      "retrying": "در حال تلاش دوباره…",
+      "cancel": "لغو",
+      "cancelling": "در حال لغو…",
+      "resolving": "در حال حل…",
+      "markResolved": "علامت‌گذاری به‌عنوان حل‌شده",
+      "view": "مشاهده",
+      "refresh": "تازه‌سازی",
+      "refreshing": "در حال تازه‌سازی…",
+      "bulkRetry": "تلاش دوباره گروهی ({count})",
+      "previous": "قبلی",
+      "next": "بعدی"
+    },
+    "fields": {
+      "status": "وضعیت",
+      "jobType": "نوع کار",
+      "taskName": "نام وظیفه",
+      "queue": "صف",
+      "attempts": "تلاش‌ها",
+      "retryable": "قابل تلاش دوباره",
+      "relatedEntity": "{type} مرتبط",
+      "errorCode": "کد خطا",
+      "lastAttempted": "آخرین تلاش",
+      "created": "ایجادشده",
+      "resolved": "حل‌شده",
+      "errorMessage": "پیام خطا",
+      "type": "نوع",
+      "task": "وظیفه"
+    },
+    "values": {
+      "yes": "بله",
+      "notIdempotent": "خیر — غیرتکرارپذیر"
+    },
+    "states": {
+      "loadingDetail": "در حال بارگذاری جزئیات کار…",
+      "loadingList": "در حال بارگذاری کارهای ناموفق…",
+      "empty": "هیچ کار ناموفقی با فیلترهای فعلی مطابقت ندارد."
+    },
+    "access": {
+      "restrictedTitle": "دسترسی مدیر محدود است",
+      "restrictedDescription": "فقط مالک و مدیر می‌توانند به داشبورد کارهای ناموفق دسترسی داشته باشند."
+    },
+    "header": {
+      "eyebrow": "مدیریت Rudix",
+      "title": "کارهای ناموفق",
+      "description": "کارهای پس‌زمینه ناموفق شامل استخراج، بخش‌بندی، نمایه‌سازی، ارزیابی و حذف را بررسی و با ایمنی دوباره اجرا کنید."
+    },
+    "filters": {
+      "allTypes": "همه نوع‌ها",
+      "allStatuses": "همه وضعیت‌ها",
+      "retryableOnly": "فقط قابل تلاش دوباره"
+    },
+    "table": {
+      "selectJob": "انتخاب کار {id}",
+      "selectAll": "انتخاب همه موارد صفحه"
+    },
+    "pagination": {
+      "summary": "مجموع {total} — صفحه {page} از {totalPages}"
+    }
   }
 }

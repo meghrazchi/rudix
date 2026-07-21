@@ -5332,5 +5332,85 @@
       "query_rewrite_preview": "معاينة إعادة صياغة الاستعلام",
       "org_memory": "ذاكرة المؤسسة"
     }
+  },
+  "adminFailedJobs": {
+    "statuses": {
+      "failed": "فاشل",
+      "retrying": "جارٍ إعادة المحاولة",
+      "resolved": "تم الحل",
+      "cancelled": "ملغى"
+    },
+    "jobTypes": {
+      "extraction": "الاستخراج",
+      "deletion_cleanup": "تنظيف الحذف",
+      "reindex": "إعادة الفهرسة",
+      "evaluation": "التقييم"
+    },
+    "drawer": {
+      "title": "تفاصيل المهمة",
+      "closeDrawer": "إغلاق التفاصيل",
+      "auditLog": "سجل التدقيق"
+    },
+    "actions": {
+      "close": "إغلاق",
+      "retry": "إعادة المحاولة",
+      "retrying": "جارٍ إعادة المحاولة…",
+      "cancel": "إلغاء",
+      "cancelling": "جارٍ الإلغاء…",
+      "resolving": "جارٍ الحل…",
+      "markResolved": "وضع علامة تم الحل",
+      "view": "عرض",
+      "refresh": "تحديث",
+      "refreshing": "جارٍ التحديث…",
+      "bulkRetry": "إعادة محاولة المحدد ({count})",
+      "previous": "السابق",
+      "next": "التالي"
+    },
+    "fields": {
+      "status": "الحالة",
+      "jobType": "نوع المهمة",
+      "taskName": "اسم المهمة",
+      "queue": "قائمة الانتظار",
+      "attempts": "المحاولات",
+      "retryable": "قابل لإعادة المحاولة",
+      "relatedEntity": "{type} المرتبط",
+      "errorCode": "رمز الخطأ",
+      "lastAttempted": "آخر محاولة",
+      "created": "تاريخ الإنشاء",
+      "resolved": "تم الحل",
+      "errorMessage": "رسالة الخطأ",
+      "type": "النوع",
+      "task": "المهمة"
+    },
+    "values": {
+      "yes": "نعم",
+      "notIdempotent": "لا — غير متكرر بأمان"
+    },
+    "states": {
+      "loadingDetail": "جارٍ تحميل تفاصيل المهمة…",
+      "loadingList": "جارٍ تحميل المهام الفاشلة…",
+      "empty": "لا توجد مهام فاشلة تطابق عوامل التصفية الحالية."
+    },
+    "access": {
+      "restrictedTitle": "وصول المسؤول مقيّد",
+      "restrictedDescription": "يمكن للمالك والمسؤول فقط الوصول إلى لوحة المهام الفاشلة."
+    },
+    "header": {
+      "eyebrow": "إدارة Rudix",
+      "title": "المهام الفاشلة",
+      "description": "افحص مهام الخلفية الفاشلة وأعد محاولة مهام الاستخراج والتجزئة والفهرسة والتقييم والحذف بأمان."
+    },
+    "filters": {
+      "allTypes": "كل الأنواع",
+      "allStatuses": "كل الحالات",
+      "retryableOnly": "القابلة لإعادة المحاولة فقط"
+    },
+    "table": {
+      "selectJob": "تحديد المهمة {id}",
+      "selectAll": "تحديد الكل في الصفحة"
+    },
+    "pagination": {
+      "summary": "الإجمالي {total} — الصفحة {page} من {totalPages}"
+    }
   }
 }
