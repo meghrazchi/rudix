@@ -2,15 +2,6 @@
 
 import { useAuthSession } from "@/lib/use-auth-session";
 import { canViewReportSection, findReportSection } from "@/lib/reports";
-import {
-  ChartCard,
-  KpiCard,
-  PartialDataState,
-  RecommendedActionCard,
-  ReportDataTable,
-  ReportHeader,
-  StatusBadge,
-} from "@/components/reports/report-ui";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -20,6 +11,12 @@ import {
   FeedbackIssuesDashboard,
   SourceHealthDashboard,
 } from "@/components/reports/ReportReferenceDashboards";
+import {
+  KnowledgeGapsDashboard,
+  PermissionsAccessDashboard,
+  PersonalReportsOverview,
+  UsageAdoptionDashboard,
+} from "@/components/reports/ReportOperationalDashboards";
 
 export function ReportSectionPage({ slug }: { slug?: string }) {
   const { state } = useAuthSession();
@@ -51,67 +48,10 @@ export function ReportSectionPage({ slug }: { slug?: string }) {
   }
   if (section.id === "answer-quality") return <AnswerQualityDashboard />;
   if (section.id === "source-health") return <SourceHealthDashboard />;
+  if (section.id === "usage-adoption") return <UsageAdoptionDashboard />;
+  if (section.id === "permissions-access")
+    return <PermissionsAccessDashboard />;
   if (section.id === "feedback-issues") return <FeedbackIssuesDashboard />;
-  return (
-    <main className="grid gap-6">
-      <div>
-        <ReportHeader title={section.label} description={section.description} />
-      </div>
-      <PartialDataState message="Some report data sources are not connected yet. Available metrics are shown without estimates." />
-      <section
-        aria-label="Key performance indicators"
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        <KpiCard
-          label="Questions"
-          value="—"
-          description="No report data in this period"
-        />
-        <KpiCard
-          label="Average confidence"
-          value="—"
-          description="Waiting for answer metrics"
-        />
-        <KpiCard
-          label="Helpful feedback"
-          value="—"
-          description="Waiting for feedback events"
-        />
-        <KpiCard
-          label="Active sources"
-          value="—"
-          description="Waiting for source metrics"
-        />
-      </section>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-        <ChartCard
-          title={`${section.label} trend`}
-          description="Updates when report data becomes available."
-        >
-          <EmptyState
-            compact
-            title="No trend data"
-            description="Try another date range or broaden the global filters."
-          />
-        </ChartCard>
-        <RecommendedActionCard
-          title="Connect report data"
-          description="This shell is ready for the section-specific metrics endpoint. Filters and role scope will be applied consistently."
-        />
-      </div>
-      <ReportDataTable
-        caption={`${section.label} details`}
-        columns={["Metric", "Status", "Scope"]}
-        rows={[
-          [
-            "Report data",
-            <StatusBadge key="status" label="Awaiting data" tone="neutral" />,
-            state.session.role === "admin" || state.session.role === "owner"
-              ? "Workspace"
-              : "Personal",
-          ],
-        ]}
-      />
-    </main>
-  );
+  if (section.id === "knowledge-gaps") return <KnowledgeGapsDashboard />;
+  return <PersonalReportsOverview />;
 }
