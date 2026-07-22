@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, FileUp, MessageSquareText } from "lucide-react";
 import { useReportFilters } from "@/components/reports/ReportFilters";
 import {
@@ -23,10 +23,6 @@ import {
 } from "@/lib/reports-overview";
 import { serializeReportFilters, type ReportFilters } from "@/lib/reports";
 
-const format = new Intl.NumberFormat("en", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
 const links = {
   quality: "/reports/answer-quality",
   sources: "/reports/source-health",
@@ -46,13 +42,19 @@ function Bars({
 }: {
   items: Array<{ label: string; value: number; tone?: string }>;
 }) {
+  const t = useTranslations("reports.overview");
+  const locale = useLocale();
+  const format = new Intl.NumberFormat(locale, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
   const max = Math.max(1, ...items.map((item) => item.value));
   if (!items.some((item) => item.value > 0))
     return (
       <EmptyState
         compact
-        title="No activity in this period"
-        description="Broaden the filters or start using the workspace."
+        title={t("emptyChart.title")}
+        description={t("emptyChart.description")}
       />
     );
   return (
@@ -103,7 +105,13 @@ function DashboardLink({
 }
 
 export function ReportsOverviewDashboard() {
-  const t = useTranslations("reports");
+  const t = useTranslations("reports.overview");
+  const tReports = useTranslations("reports");
+  const locale = useLocale();
+  const format = new Intl.NumberFormat(locale, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
   const { filters } = useReportFilters();
   const query = useQuery({
     queryKey: ["reports-overview", filters],
@@ -112,15 +120,15 @@ export function ReportsOverviewDashboard() {
   if (query.isLoading)
     return (
       <LoadingState
-        title="Loading reports overview"
-        description="Calculating workspace health and recommendations."
+        title={t("loading.title")}
+        description={t("loading.description")}
       />
     );
   if (query.isError || !query.data)
     return (
       <ErrorState
-        title="Reports overview unavailable"
-        description="We could not load workspace health right now."
+        title={t("error.title")}
+        description={t("error.description")}
         onRetry={() => void query.refetch()}
       />
     );
@@ -136,109 +144,113 @@ export function ReportsOverviewDashboard() {
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title={t("sections.overview.label")}
-        description={t("sections.overview.description")}
+        title={tReports("sections.overview.label")}
+        description={tReports("sections.overview.description")}
       />
       {data.unavailable.length ? (
         <PartialDataState
-          message={`${data.unavailable.join(", ")} data is temporarily unavailable. Available metrics remain exact.`}
+          message={t("partialData", {
+            sources: data.unavailable
+              .map((source) => t(`dataSources.${source}`))
+              .join(", "),
+          })}
         />
       ) : null}
       {empty ? (
         <EmptyState
-          title="Build your first workspace report"
-          description="Upload a source and ask a question to start measuring answer quality, coverage, and adoption."
+          title={t("empty.title")}
+          description={t("empty.description")}
           action={
             <div className="flex flex-wrap justify-center gap-2">
               <DashboardLink href="/documents">
                 <FileUp className="h-3 w-3" aria-hidden />
-                Upload sources
+                {t("empty.uploadSources")}
               </DashboardLink>
               <DashboardLink href="/chat">
                 <MessageSquareText className="h-3 w-3" aria-hidden />
-                Ask a question
+                {t("empty.askQuestion")}
               </DashboardLink>
             </div>
           }
         />
       ) : null}
       <section
-        aria-label="Key performance indicators"
+        aria-label={t("kpis.ariaLabel")}
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8"
       >
         <KpiCard
-          label="Questions asked"
+          label={t("kpis.questions.label")}
           value={format.format(kpis.questions)}
           href={href(links.usage)}
-          description="Selected period"
+          description={t("kpis.questions.description")}
         />
         <KpiCard
-          label="Trusted answers"
+          label={t("kpis.trusted.label")}
           value={format.format(kpis.trustedAnswers)}
           href={href(links.quality)}
-          description="High-confidence answers"
+          description={t("kpis.trusted.description")}
         />
         <KpiCard
-          label="Low-confidence"
+          label={t("kpis.lowConfidence.label")}
           value={format.format(kpis.lowConfidence)}
           href={href(links.quality)}
-          description="Needs quality review"
+          description={t("kpis.lowConfidence.description")}
         />
         <KpiCard
-          label="Citation issues"
+          label={t("kpis.citations.label")}
           value={format.format(kpis.citationIssues)}
           href={href(links.quality)}
-          description="Validation failures"
+          description={t("kpis.citations.description")}
         />
         <KpiCard
-          label="Sources to review"
+          label={t("kpis.sources.label")}
           value={format.format(kpis.sourcesNeedingReview)}
           href={href(links.sources)}
-          description="Freshness or processing"
+          description={t("kpis.sources.description")}
         />
         <KpiCard
-          label="Active users"
+          label={t("kpis.users.label")}
           value={format.format(kpis.activeUsers)}
           href={href(links.usage)}
-          description="Unique users"
+          description={t("kpis.users.description")}
         />
         <KpiCard
-          label="Failed indexing"
+          label={t("kpis.indexing.label")}
           value={format.format(kpis.failedIndexingJobs)}
           href={href(links.sources)}
-          description="Open failed jobs"
+          description={t("kpis.indexing.description")}
         />
         <KpiCard
-          label="Permission conflicts"
+          label={t("kpis.permissions.label")}
           value={format.format(kpis.permissionConflicts)}
           href={href(links.permissions)}
-          description="Open conflicts"
+          description={t("kpis.permissions.description")}
         />
       </section>
 
       <section
-        aria-label="Workspace health charts"
+        aria-label={t("charts.ariaLabel")}
         className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
       >
         <ChartCard
-          title="Answer confidence"
-          description="Trust distribution"
+          title={t("charts.confidence.title")}
+          description={t("charts.confidence.description")}
           href={href(links.quality)}
         >
           <Bars
             items={[
               {
-                label: "High",
+                label: t("levels.high"),
                 value: trust?.high_count ?? 0,
                 tone: "bg-emerald-500",
               },
               {
-                label: "Medium",
+                label: t("levels.medium"),
                 value: trust?.medium_count ?? 0,
                 tone: "bg-amber-500",
               },
               {
-                label: "Low",
+                label: t("levels.low"),
                 value: trust?.low_count ?? 0,
                 tone: "bg-rose-500",
               },
@@ -246,8 +258,8 @@ export function ReportsOverviewDashboard() {
           />
         </ChartCard>
         <ChartCard
-          title="Questions over time"
-          description="Questions by reporting period"
+          title={t("charts.questions.title")}
+          description={t("charts.questions.description")}
           href={href(links.usage)}
         >
           <Bars
@@ -258,22 +270,31 @@ export function ReportsOverviewDashboard() {
           />
         </ChartCard>
         <ChartCard
-          title="Source health"
-          description="Warnings that can affect answers"
+          title={t("charts.sources.title")}
+          description={t("charts.sources.description")}
           href={href(links.sources)}
         >
           <Bars
             items={[
-              { label: "Stale", value: warnings?.stale_source_count ?? 0 },
-              { label: "OCR", value: warnings?.ocr_count ?? 0 },
-              { label: "Extraction", value: warnings?.extraction_count ?? 0 },
-              { label: "Processing", value: warnings?.processing_count ?? 0 },
+              {
+                label: t("warnings.stale"),
+                value: warnings?.stale_source_count ?? 0,
+              },
+              { label: t("warnings.ocr"), value: warnings?.ocr_count ?? 0 },
+              {
+                label: t("warnings.extraction"),
+                value: warnings?.extraction_count ?? 0,
+              },
+              {
+                label: t("warnings.processing"),
+                value: warnings?.processing_count ?? 0,
+              },
             ]}
           />
         </ChartCard>
         <ChartCard
-          title="Feedback categories"
-          description="Most common feedback themes"
+          title={t("charts.feedback.title")}
+          description={t("charts.feedback.description")}
           href={href(links.feedback)}
         >
           <Bars
@@ -283,8 +304,8 @@ export function ReportsOverviewDashboard() {
           />
         </ChartCard>
         <ChartCard
-          title="Active users"
-          description="Unique users by reporting period"
+          title={t("charts.users.title")}
+          description={t("charts.users.description")}
           href={href(links.usage)}
         >
           <Bars
@@ -295,8 +316,8 @@ export function ReportsOverviewDashboard() {
           />
         </ChartCard>
         <ChartCard
-          title="Top knowledge gaps"
-          description="Repeated unanswered topics"
+          title={t("charts.gaps.title")}
+          description={t("charts.gaps.description")}
           href={href(links.gaps)}
         >
           <Bars
@@ -307,14 +328,14 @@ export function ReportsOverviewDashboard() {
           />
         </ChartCard>
         <ChartCard
-          title="Connector sync health"
-          description="Indexing jobs in this period"
+          title={t("charts.connectors.title")}
+          description={t("charts.connectors.description")}
           href={href(links.sources)}
         >
           <Bars
             items={[
               {
-                label: "Healthy",
+                label: t("status.healthy"),
                 value: Math.max(
                   0,
                   (data.usage?.totals.indexing_jobs ?? 0) -
@@ -323,7 +344,7 @@ export function ReportsOverviewDashboard() {
                 tone: "bg-emerald-500",
               },
               {
-                label: "Failed",
+                label: t("status.failed"),
                 value: kpis.failedIndexingJobs,
                 tone: "bg-rose-500",
               },
@@ -331,14 +352,14 @@ export function ReportsOverviewDashboard() {
           />
         </ChartCard>
         <ChartCard
-          title="Permission warnings"
-          description="Open access conflicts by severity"
+          title={t("charts.permissions.title")}
+          description={t("charts.permissions.description")}
           href={href(links.permissions)}
         >
           <Bars
             items={["security_risk", "blocking", "warning", "info"].map(
               (severity) => ({
-                label: severity.replace("_", " "),
+                label: t(`severity.${severity}`),
                 value:
                   data.conflicts?.items.filter(
                     (item) => item.severity === severity,
@@ -358,10 +379,14 @@ export function ReportsOverviewDashboard() {
             id="recommended-actions-title"
             className="text-lg font-extrabold text-[#2a2640]"
           >
-            Recommended actions
+            {t("actions.title")}
           </h2>
           <StatusBadge
-            label={actions.length ? `${actions.length} to review` : "All clear"}
+            label={
+              actions.length
+                ? t("actions.toReview", { count: actions.length })
+                : t("actions.allClear")
+            }
             tone={actions.length ? "warning" : "healthy"}
           />
         </div>
@@ -369,15 +394,23 @@ export function ReportsOverviewDashboard() {
           <div className="grid gap-3 lg:grid-cols-2">
             {actions.map((item) => (
               <RecommendedActionCard
-                key={item.title}
-                title={item.title}
-                description={item.reason}
-                priority={item.priority}
-                impact={item.impact}
-                related={item.related}
+                key={item.id}
+                title={t(`actions.items.${item.id}.title`)}
+                description={t(`actions.items.${item.id}.reason`, {
+                  count: item.count,
+                })}
+                priority={
+                  item.priority === "High"
+                    ? t("levels.high")
+                    : t("levels.medium")
+                }
+                prioritySuffix={t("actions.prioritySuffix")}
+                impact={t(`actions.items.${item.id}.impact`)}
+                related={t(`actions.items.${item.id}.related`)}
+                relatedPrefix={t("actions.relatedPrefix")}
                 action={
                   <DashboardLink href={href(item.href)}>
-                    {item.cta}
+                    {t(`actions.items.${item.id}.cta`)}
                   </DashboardLink>
                 }
               />
@@ -386,8 +419,8 @@ export function ReportsOverviewDashboard() {
         ) : (
           <EmptyState
             compact
-            title="No urgent actions"
-            description="No indexing, citation, source, or permission issues need attention in this period."
+            title={t("actions.empty.title")}
+            description={t("actions.empty.description")}
           />
         )}
       </section>

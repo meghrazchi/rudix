@@ -86,6 +86,7 @@ function ReportBarChart({
   values: number[];
   labels: string[];
 }) {
+  const t = useTranslations("reports.pages.chart");
   const data = labels.map((label, index) => ({
     label,
     value: values[index] ?? 0,
@@ -121,7 +122,7 @@ function ReportBarChart({
           <Tooltip
             cursor={{ fill: "#f7f5ff" }}
             contentStyle={chartTooltipStyle}
-            formatter={(value) => [`${value}%`, "Score"]}
+            formatter={(value) => [`${value}%`, t("score")]}
           />
           <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={64}>
             {data.map((item, index) => (
@@ -143,6 +144,7 @@ function FeedbackCategoryChart({
 }: {
   data: ReadonlyArray<readonly [string, number]>;
 }) {
+  const t = useTranslations("reports.pages.chart");
   const chartData = data.map(([label, value]) => ({ label, value }));
   const summary = chartData
     .map((item) => `${item.label}: ${item.value}%`)
@@ -174,7 +176,7 @@ function FeedbackCategoryChart({
           <Tooltip
             cursor={{ fill: "#f7f5ff" }}
             contentStyle={chartTooltipStyle}
-            formatter={(value) => [`${value}%`, "Feedback"]}
+            formatter={(value) => [`${value}%`, t("feedback")]}
           />
           <Bar
             dataKey="value"
@@ -229,6 +231,7 @@ function Panel({
 
 export function AnswerQualityDashboard() {
   const t = useTranslations("reports");
+  const p = useTranslations("reports.pages.quality");
   const { trust, analytics, gaps } = useReportBackendData();
   const accuracy = trust?.avg_citation_support_score;
   const confidence = trust?.avg_confidence_score;
@@ -251,49 +254,48 @@ export function AnswerQualityDashboard() {
         description={t("sections.answer-quality.description")}
       />
       <section
-        aria-label="Answer quality key metrics"
+        aria-label={p("metrics")}
         className="grid gap-4 sm:grid-cols-2 lg:gap-5 xl:grid-cols-4"
       >
         <MetricCard
-          label="Citation accuracy"
+          label={p("citationAccuracy")}
           value={accuracy == null ? "—" : `${(accuracy * 100).toFixed(1)}%`}
-          detail="Average citation support"
+          detail={p("averageSupport")}
           icon={<ShieldCheck className="h-5 w-5" />}
         />
         <MetricCard
-          label="Missing citations"
+          label={p("missingCitations")}
           value={String(trust?.warnings.citation_validation_failed_count ?? 0)}
-          detail="Backend validation failures"
+          detail={p("validationFailures")}
           tone="danger"
           icon={<Link2Off className="h-5 w-5" />}
         />
         <MetricCard
-          label="Avg. citation support"
+          label={p("averageCitation")}
           value={trust?.avg_verification_support_score?.toFixed(2) ?? "—"}
-          detail="Verification support score"
+          detail={p("verificationScore")}
           icon={<FileText className="h-5 w-5" />}
         />
         <MetricCard
-          label="Hallucination risk"
+          label={p("hallucinationRisk")}
           value={String(analytics?.low_confidence_queries ?? 0)}
-          detail="Low-confidence answers"
+          detail={p("lowConfidenceAnswers")}
           tone="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
         />
       </section>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <Panel
-          title="Confidence Score Distribution"
-          description="Probability frequency for all retrieval responses"
+          title={p("distributionTitle")}
+          description={p("distributionDescription")}
         >
           <ReportBarChart values={trendValues} labels={trendLabels} />
         </Panel>
         <div className="grid gap-5">
           <section className="rounded-xl bg-[#4434c7] p-4 text-white shadow-lg sm:p-5 lg:p-6">
-            <h2 className="text-lg font-bold">Model Confidence</h2>
+            <h2 className="text-lg font-bold">{p("modelConfidence")}</h2>
             <p className="mt-1 text-sm text-indigo-100">
-              Average reliability across {trust?.total_answers ?? 0} answers in
-              the selected period.
+              {p("reliability", { count: trust?.total_answers ?? 0 })}
             </p>
             <div className="mt-6 flex items-center gap-4">
               <strong className="text-4xl">
@@ -307,7 +309,7 @@ export function AnswerQualityDashboard() {
               </span>
             </div>
           </section>
-          <Panel title="Top Knowledge Gaps">
+          <Panel title={p("topGaps")}>
             <ul className="grid gap-3 text-sm text-[#403c52]">
               {(gaps?.items ?? []).map((gap) => (
                 <li
@@ -325,20 +327,18 @@ export function AnswerQualityDashboard() {
       <section aria-labelledby="query-analysis" className="grid gap-4">
         <div>
           <h2 id="query-analysis" className="text-lg font-bold text-[#2a2640]">
-            Daily Quality Analysis
+            {p("dailyTitle")}
           </h2>
-          <p className="text-sm text-[#777287]">
-            Aggregated answer quality returned by the trust analytics API.
-          </p>
+          <p className="text-sm text-[#777287]">{p("dailyDescription")}</p>
         </div>
         <ReportDataTable
-          caption="Daily quality analysis"
+          caption={p("dailyCaption")}
           columns={[
-            "Date",
-            "Answers",
-            "Not found",
-            "Confidence",
-            "Citation support",
+            p("date"),
+            p("answers"),
+            p("notFound"),
+            p("confidence"),
+            p("citationSupport"),
           ]}
           rows={queryRows}
         />
@@ -349,6 +349,7 @@ export function AnswerQualityDashboard() {
 
 export function SourceHealthDashboard() {
   const t = useTranslations("reports");
+  const p = useTranslations("reports.pages.sources");
   const { trust, failedJobs, usage } = useReportBackendData();
   const trends = trust?.daily_trends ?? [];
   const failed = failedJobs?.items ?? [];
@@ -359,41 +360,41 @@ export function SourceHealthDashboard() {
         description={t("sections.source-health.description")}
       />
       <section
-        aria-label="Source health key metrics"
+        aria-label={p("metrics")}
         className="grid gap-4 sm:grid-cols-2 lg:gap-5 xl:grid-cols-4"
       >
         <MetricCard
-          label="Questions asked"
+          label={p("questions")}
           value={String(usage?.totals.questions_asked ?? 0)}
-          detail="Selected period"
+          detail={p("selectedPeriod")}
           icon={<MessageSquareText className="h-5 w-5" />}
         />
         <MetricCard
-          label="Trusted answers"
+          label={p("trusted")}
           value={String(trust?.trust_distribution.high_count ?? 0)}
-          detail="High-trust answers"
+          detail={p("highTrust")}
           tone="success"
           icon={<ShieldCheck className="h-5 w-5" />}
         />
         <MetricCard
-          label="Low confidence"
+          label={p("lowConfidence")}
           value={String(trust?.trust_distribution.low_count ?? 0)}
-          detail="Low-trust answers"
+          detail={p("lowTrust")}
           tone="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
         />
         <MetricCard
-          label="Citation issues"
+          label={p("citationIssues")}
           value={String(trust?.warnings.citation_validation_failed_count ?? 0)}
-          detail="Citation validation failures"
+          detail={p("citationFailures")}
           tone="danger"
           icon={<Link2Off className="h-5 w-5" />}
         />
       </section>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <Panel
-          title="Retrieval Volatility"
-          description="Hourly confidence score fluctuations across clusters"
+          title={p("volatilityTitle")}
+          description={p("volatilityDescription")}
         >
           <ReportBarChart
             values={trends.map((point) =>
@@ -403,23 +404,27 @@ export function SourceHealthDashboard() {
           />
         </Panel>
         <section className="rounded-xl bg-[#4434c7] p-4 text-white shadow-lg sm:p-5 lg:p-6">
-          <h2 className="text-lg font-bold">Recommended Tasks</h2>
+          <h2 className="text-lg font-bold">{p("tasks")}</h2>
           <p className="mt-1 text-sm text-indigo-100">
-            Insights derived from retrieval failures
+            {p("tasksDescription")}
           </p>
           <div className="mt-5 grid gap-3">
             {[
               [
-                `Review ${failedJobs?.total ?? 0} failed jobs`,
-                "Restore incomplete source coverage",
+                p("reviewJobs", { count: failedJobs?.total ?? 0 }),
+                p("restoreCoverage"),
               ],
               [
-                `Refresh ${trust?.warnings.stale_source_count ?? 0} stale sources`,
-                "Reduce stale-answer warnings",
+                p("refreshSources", {
+                  count: trust?.warnings.stale_source_count ?? 0,
+                }),
+                p("reduceStale"),
               ],
               [
-                `Review ${trust?.warnings.extraction_count ?? 0} extraction warnings`,
-                "Improve indexed evidence",
+                p("reviewWarnings", {
+                  count: trust?.warnings.extraction_count ?? 0,
+                }),
+                p("improveEvidence"),
               ],
             ].map(([title, detail]) => (
               <div
@@ -438,7 +443,7 @@ export function SourceHealthDashboard() {
             href="/admin/failed-jobs"
             className="mt-5 w-full rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-[#4434c7]"
           >
-            Open failed jobs
+            {p("openJobs")}
           </Link>
         </section>
       </div>
@@ -449,23 +454,30 @@ export function SourceHealthDashboard() {
               id="integrity-heading"
               className="text-lg font-bold text-[#2a2640]"
             >
-              Source Processing Health
+              {p("processingTitle")}
             </h2>
             <p className="text-sm text-[#777287]">
-              Organization-scoped failed jobs and trust warnings
+              {p("processingDescription")}
             </p>
           </div>
         </div>
         <ReportDataTable
-          caption="Source processing health"
-          columns={["Job", "Type", "Attempts", "Queue", "Status", "Retryable"]}
+          caption={p("tableCaption")}
+          columns={[
+            p("job"),
+            p("type"),
+            p("attempts"),
+            p("queue"),
+            p("status"),
+            p("retryable"),
+          ]}
           rows={failed.map((job) => [
             job.task_name,
             job.job_type,
             String(job.attempt_count),
             job.queue_name ?? "—",
             <StatusBadge key={job.id} label={job.status} tone="critical" />,
-            job.is_retryable ? "Yes" : "No",
+            job.is_retryable ? p("yes") : p("no"),
           ])}
         />
       </section>
@@ -475,6 +487,7 @@ export function SourceHealthDashboard() {
 
 export function FeedbackIssuesDashboard() {
   const t = useTranslations("reports");
+  const p = useTranslations("reports.pages.feedback");
   const { feedbackMetrics, feedbackItems } = useReportBackendData();
   const items = feedbackItems?.items ?? [];
   const categories: Array<readonly [string, number]> = (
@@ -486,10 +499,12 @@ export function FeedbackIssuesDashboard() {
   const feedbackRows: ReactNode[][] = items.map((item) => [
     item.message?.content_preview ??
       item.feedback?.comment ??
-      "Feedback details unavailable",
+      p("detailsUnavailable"),
     <StatusBadge
       key={`${item.review_id}-category`}
-      label={item.feedback?.category?.replaceAll("_", " ") ?? "Uncategorized"}
+      label={
+        item.feedback?.category?.replaceAll("_", " ") ?? p("uncategorized")
+      }
       tone={item.severity === "high" ? "critical" : "neutral"}
     />,
     item.status.replaceAll("_", " "),
@@ -502,48 +517,54 @@ export function FeedbackIssuesDashboard() {
         description={t("sections.feedback-issues.description")}
       />
       <section
-        aria-label="Feedback key metrics"
+        aria-label={p("metrics")}
         className="grid gap-4 sm:grid-cols-2 lg:gap-5 xl:grid-cols-4"
       >
         <MetricCard
-          label="Total feedback"
+          label={p("total")}
           value={String(
             feedbackMetrics?.total_feedback ?? feedbackItems?.total ?? 0,
           )}
-          detail={`${feedbackMetrics?.period_days ?? 30}-day backend total`}
+          detail={p("periodTotal", {
+            count: feedbackMetrics?.period_days ?? 30,
+          })}
           icon={<MessageSquareText className="h-5 w-5" />}
         />
         <MetricCard
-          label="New issues"
+          label={p("newIssues")}
           value={String(newIssues)}
-          detail={`${items.filter((item) => item.severity === "high").length} high severity`}
+          detail={p("highSeverity", {
+            count: items.filter((item) => item.severity === "high").length,
+          })}
           tone="danger"
           icon={<XCircle className="h-5 w-5" />}
         />
         <MetricCard
-          label="Triaged"
+          label={p("triaged")}
           value={String(triaged)}
-          detail="Triaged queue items"
+          detail={p("triagedItems")}
           tone="success"
           icon={<CheckCircle2 className="h-5 w-5" />}
         />
         <MetricCard
-          label="Accepted"
+          label={p("accepted")}
           value={String(accepted)}
-          detail="Accepted feedback items"
+          detail={p("acceptedItems")}
           tone="warning"
           icon={<TrendingUp className="h-5 w-5" />}
         />
       </section>
       <div className="grid gap-5 xl:grid-cols-[minmax(300px,5fr)_minmax(0,7fr)]">
-        <Panel title="Feedback by Category">
+        <Panel title={p("byCategory")}>
           <FeedbackCategoryChart data={categories} />
           <div className="mt-5 flex gap-2 rounded-lg border border-[#dfdced] bg-[#f7f5ff] p-3 text-sm text-[#5f5b72]">
             <Sparkles className="h-4 w-4 shrink-0 text-[#6254d9]" />
             <p>
-              <strong>Backend insight:</strong>{" "}
-              {categories[0]?.[0] ?? "No category"} is the most frequent
-              category with {categories[0]?.[1] ?? 0} reports.
+              <strong>{p("insight")}</strong>{" "}
+              {p("frequentCategory", {
+                category: categories[0]?.[0] ?? p("noCategory"),
+                count: categories[0]?.[1] ?? 0,
+              })}
             </p>
           </div>
         </Panel>
@@ -556,16 +577,18 @@ export function FeedbackIssuesDashboard() {
               id="feedback-queue"
               className="text-lg font-bold text-[#2a2640]"
             >
-              Feedback Queue
+              {p("queueTitle")}
             </h2>
             <p className="text-sm text-[#777287]">
-              Showing {items.length} of {feedbackItems?.total ?? 0} active
-              issues
+              {p("showing", {
+                shown: items.length,
+                total: feedbackItems?.total ?? 0,
+              })}
             </p>
           </div>
           <ReportDataTable
-            caption="Feedback queue"
-            columns={["Feedback", "Category", "Status", "Query"]}
+            caption={p("queueCaption")}
+            columns={[p("feedback"), p("category"), p("status"), p("query")]}
             rows={feedbackRows}
           />
         </section>
@@ -574,15 +597,15 @@ export function FeedbackIssuesDashboard() {
         <div className="flex gap-5">
           <span className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-[#6254d9]" />
-            Feedback review enabled
+            {p("reviewEnabled")}
           </span>
-          <span>Organization-scoped feedback queue</span>
+          <span>{p("organizationQueue")}</span>
         </div>
         <Link
           href="/admin/feedback-review"
           className="rounded-lg bg-[#4434c7] px-4 py-2 font-bold text-white"
         >
-          Open feedback review
+          {p("openReview")}
         </Link>
       </footer>
     </main>

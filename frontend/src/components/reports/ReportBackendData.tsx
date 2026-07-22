@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { createContext, useContext, type ReactNode } from "react";
 import { useReportFilters } from "@/components/reports/ReportFilters";
 import { PartialDataState } from "@/components/reports/report-ui";
@@ -20,6 +21,7 @@ export function ReportBackendDataProvider({
 }: {
   children: ReactNode;
 }) {
+  const t = useTranslations("reports.pages.backend");
   const { filters } = useReportFilters();
   const query = useQuery({
     queryKey: ["report-detail-data", filters],
@@ -29,16 +31,16 @@ export function ReportBackendDataProvider({
   if (query.isLoading) {
     return (
       <LoadingState
-        title="Loading report data"
-        description="Applying your filters to organization-scoped metrics."
+        title={t("loading")}
+        description={t("loadingDescription")}
       />
     );
   }
   if (query.isError || !query.data) {
     return (
       <ErrorState
-        title="Report data unavailable"
-        description="The report could not be loaded from the backend."
+        title={t("error")}
+        description={t("errorDescription")}
         onRetry={() => void query.refetch()}
       />
     );
@@ -49,7 +51,9 @@ export function ReportBackendDataProvider({
       <div className="grid gap-6">
         {query.data.unavailable.length ? (
           <PartialDataState
-            message={`${query.data.unavailable.join(", ")} could not be loaded for your current role or filter scope.`}
+            message={t("partial", {
+              sources: query.data.unavailable.join(", "),
+            })}
           />
         ) : null}
         {children}

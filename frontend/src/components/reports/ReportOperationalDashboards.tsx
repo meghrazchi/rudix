@@ -59,22 +59,23 @@ function ReportLink({ href, label }: { href: string; label: string }) {
 
 export function PersonalReportsOverview() {
   const t = useTranslations("reports");
+  const p = useTranslations("reports.pages");
   const reports = [
     {
-      title: "Answer quality",
-      description: "Review confidence, grounding, and citation support.",
+      title: t("sections.answer-quality.label"),
+      description: p("personal.answerQuality"),
       href: "/reports/answer-quality",
       icon: <ShieldCheck className="h-5 w-5" aria-hidden />,
     },
     {
-      title: "Usage & adoption",
-      description: "Understand questions, activity, and feature engagement.",
+      title: t("sections.usage-adoption.label"),
+      description: p("personal.usage"),
       href: "/reports/usage-adoption",
       icon: <Users className="h-5 w-5" aria-hidden />,
     },
     {
-      title: "Feedback & issues",
-      description: "Follow feedback themes and reported answer issues.",
+      title: t("sections.feedback-issues.label"),
+      description: p("personal.feedback"),
       href: "/reports/feedback-issues",
       icon: <MessageSquareText className="h-5 w-5" aria-hidden />,
     },
@@ -86,7 +87,7 @@ export function PersonalReportsOverview() {
         description={t("sections.overview.description")}
       />
       <section
-        aria-label="Available reports"
+        aria-label={p("personal.available")}
         className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
       >
         {reports.map((report) => (
@@ -104,7 +105,7 @@ export function PersonalReportsOverview() {
               {report.description}
             </p>
             <div className="mt-5">
-              <ReportLink href={report.href} label="Open report" />
+              <ReportLink href={report.href} label={p("personal.open")} />
             </div>
           </article>
         ))}
@@ -115,6 +116,7 @@ export function PersonalReportsOverview() {
 
 export function UsageAdoptionDashboard() {
   const t = useTranslations("reports");
+  const p = useTranslations("reports.pages.usage");
   const { usage } = useReportBackendData();
   const totals = usage?.totals;
   const usageTrend = (usage?.series ?? []).map((point) => ({
@@ -134,39 +136,39 @@ export function UsageAdoptionDashboard() {
         description={t("sections.usage-adoption.description")}
       />
       <section
-        aria-label="Usage key metrics"
+        aria-label={p("metrics")}
         className="grid gap-4 sm:grid-cols-2 lg:gap-5 xl:grid-cols-4"
       >
         <KpiCard
-          label="Questions asked"
+          label={p("questions")}
           value={compactNumber.format(questions)}
-          description="Selected period"
+          description={p("selectedPeriod")}
         />
         <KpiCard
-          label="Active users"
+          label={p("activeUsers")}
           value={compactNumber.format(users)}
-          description="Unique users"
+          description={p("uniqueUsers")}
         />
         <KpiCard
-          label="Agent runs"
+          label={p("agentRuns")}
           value={compactNumber.format(totals?.agent_runs ?? 0)}
-          description="Agent workflow adoption"
+          description={p("agentAdoption")}
         />
         <KpiCard
-          label="Questions per user"
+          label={p("questionsPerUser")}
           value={users ? (questions / users).toFixed(1) : "0"}
-          description="Average engagement"
+          description={p("averageEngagement")}
         />
       </section>
-      <section className="grid gap-5 xl:grid-cols-2" aria-label="Usage charts">
+      <section className="grid gap-5 xl:grid-cols-2" aria-label={p("charts")}>
         <ChartCard
-          title="Questions and active users"
-          description="Weekly activity in the selected period"
+          title={p("activityTitle")}
+          description={p("activityDescription")}
         >
           <div
             className="h-72"
             role="img"
-            aria-label="Questions and active users returned by the usage API"
+            aria-label={p("activityAria")}
             data-chart-library="recharts"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -206,13 +208,13 @@ export function UsageAdoptionDashboard() {
           </div>
         </ChartCard>
         <ChartCard
-          title="Feature adoption"
-          description="Share of active users using each workflow"
+          title={p("adoptionTitle")}
+          description={p("adoptionDescription")}
         >
           <div
             className="h-72"
             role="img"
-            aria-label="Feature adoption returned by the usage API"
+            aria-label={p("adoptionAria")}
             data-chart-library="recharts"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -232,7 +234,7 @@ export function UsageAdoptionDashboard() {
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  formatter={(value) => [`${value}%`, "Adoption"]}
+                  formatter={(value) => [`${value}%`, p("adoption")]}
                 />
                 <Bar
                   dataKey="adoption"
@@ -246,13 +248,13 @@ export function UsageAdoptionDashboard() {
         </ChartCard>
       </section>
       <ReportDataTable
-        caption="Top user adoption"
-        columns={["User", "Active identities", "Questions", "Adoption"]}
+        caption={p("tableCaption")}
+        columns={[p("user"), p("identities"), p("questions"), p("adoption")]}
         rows={(usage?.top_users ?? []).map((user) => [
           user.user_id,
           "1",
           compactNumber.format(user.questions),
-          <StatusBadge key={user.user_id} label="Active" tone="healthy" />,
+          <StatusBadge key={user.user_id} label={p("active")} tone="healthy" />,
         ])}
       />
     </main>
@@ -261,6 +263,7 @@ export function UsageAdoptionDashboard() {
 
 export function PermissionsAccessDashboard() {
   const t = useTranslations("reports");
+  const p = useTranslations("reports.pages.permissions");
   const { conflicts } = useReportBackendData();
   const items = conflicts?.items ?? [];
   const blocking = items.filter((item) =>
@@ -269,9 +272,9 @@ export function PermissionsAccessDashboard() {
   const warning = items.filter((item) => item.severity === "warning").length;
   const other = Math.max(0, (conflicts?.total ?? 0) - blocking - warning);
   const accessRisk = [
-    { name: "Other", value: other, color: "#10b981" },
-    { name: "Warning", value: warning, color: "#f59e0b" },
-    { name: "Critical", value: blocking, color: "#f43f5e" },
+    { name: p("other"), value: other, color: "#10b981" },
+    { name: p("warning"), value: warning, color: "#f59e0b" },
+    { name: p("critical"), value: blocking, color: "#f43f5e" },
   ];
   return (
     <main className="grid gap-6">
@@ -280,39 +283,39 @@ export function PermissionsAccessDashboard() {
         description={t("sections.permissions-access.description")}
       />
       <section
-        aria-label="Access key metrics"
+        aria-label={p("metrics")}
         className="grid gap-4 sm:grid-cols-2 lg:gap-5 xl:grid-cols-4"
       >
         <KpiCard
-          label="Open conflicts"
+          label={p("openConflicts")}
           value={String(conflicts?.total ?? 0)}
-          description="Needs review"
+          description={p("needsReview")}
         />
         <KpiCard
-          label="Blocking conflicts"
+          label={p("blockingConflicts")}
           value={String(blocking)}
-          description="Immediate attention"
+          description={p("immediateAttention")}
         />
         <KpiCard
-          label="Warnings"
+          label={p("warnings")}
           value={String(warning)}
-          description="Permission anomalies"
+          description={p("anomalies")}
         />
         <KpiCard
-          label="Loaded conflicts"
+          label={p("loadedConflicts")}
           value={String(items.length)}
-          description="Current backend page"
+          description={p("backendPage")}
         />
       </section>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <ChartCard
-          title="Access posture"
-          description="Current permission health across workspace resources"
+          title={p("postureTitle")}
+          description={p("postureDescription")}
         >
           <div
             className="h-72"
             role="img"
-            aria-label="Permission conflict severity distribution returned by the backend"
+            aria-label={p("postureAria")}
             data-chart-library="recharts"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -331,26 +334,29 @@ export function PermissionsAccessDashboard() {
                 </Pie>
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  formatter={(value) => [`${value}%`, "Resources"]}
+                  formatter={(value) => [`${value}%`, p("resources")]}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </ChartCard>
         <RecommendedActionCard
-          title="Resolve blocking conflicts"
-          description={`${blocking} access rule${blocking === 1 ? "" : "s"} can expose or hide sources incorrectly. Review matched grants and denies before the next permission sync.`}
-          priority="High"
-          impact="Restore safe source access"
-          related="Admin permissions"
+          title={p("actionTitle")}
+          description={p("actionDescription", { count: blocking })}
+          priority={p("high")}
+          impact={p("actionImpact")}
+          related={p("actionRelated")}
           action={
-            <ReportLink href="/admin/permissions" label="Review conflicts" />
+            <ReportLink
+              href="/admin/permissions"
+              label={p("reviewConflicts")}
+            />
           }
         />
       </div>
       <ReportDataTable
-        caption="Permission conflicts"
-        columns={["Conflict", "Resource", "Severity", "Status"]}
+        caption={p("tableCaption")}
+        columns={[p("conflict"), p("resource"), p("severity"), p("status")]}
         rows={items.map((item) => [
           item.conflict_summary ?? item.conflict_type,
           `${item.resource_type}${item.resource_id ? ` · ${item.resource_id}` : ""}`,
@@ -374,6 +380,7 @@ export function PermissionsAccessDashboard() {
 
 export function KnowledgeGapsDashboard() {
   const t = useTranslations("reports");
+  const p = useTranslations("reports.pages.gaps");
   const { gaps, analytics } = useReportBackendData();
   const items = gaps?.items ?? [];
   const gapTopics = items.map((item) => ({
@@ -390,39 +397,36 @@ export function KnowledgeGapsDashboard() {
         description={t("sections.knowledge-gaps.description")}
       />
       <section
-        aria-label="Knowledge gap key metrics"
+        aria-label={p("metrics")}
         className="grid gap-4 sm:grid-cols-2 lg:gap-5 xl:grid-cols-4"
       >
         <KpiCard
-          label="Open gaps"
+          label={p("openGaps")}
           value={String(gaps?.total ?? 0)}
-          description="Across all collections"
+          description={p("allCollections")}
         />
         <KpiCard
-          label="Unanswered queries"
+          label={p("unanswered")}
           value={String(analytics?.unanswered_queries ?? 0)}
-          description="Selected period"
+          description={p("selectedPeriod")}
         />
         <KpiCard
-          label="Low-confidence topics"
+          label={p("lowConfidence")}
           value={String(lowConfidence)}
-          description="Needs stronger evidence"
+          description={p("strongerEvidence")}
         />
         <KpiCard
-          label="Loaded topics"
+          label={p("loadedTopics")}
           value={String(items.length)}
-          description="Prioritized backend results"
+          description={p("backendResults")}
         />
       </section>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-        <ChartCard
-          title="Top gap topics"
-          description="Occurrences grouped by knowledge area"
-        >
+        <ChartCard title={p("chartTitle")} description={p("chartDescription")}>
           <div
             className="h-72"
             role="img"
-            aria-label="Top knowledge gaps returned by the backend"
+            aria-label={p("chartAria")}
             data-chart-library="recharts"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -454,20 +458,24 @@ export function KnowledgeGapsDashboard() {
           </div>
         </ChartCard>
         <RecommendedActionCard
-          title={`Add guidance for ${items[0]?.topic_label ?? "the leading gap"}`}
-          description={`${items[0]?.topic_label ?? "The leading topic"} is the largest unresolved cluster in the current filtered results.`}
-          priority="High"
-          impact={`Address ${items[0]?.occurrence_count ?? 0} recurring queries`}
-          related={items[0]?.collection_id ?? "Unassigned collection"}
-          action={<ReportLink href="/documents" label="Add source" />}
+          title={p("actionTitle", {
+            topic: items[0]?.topic_label ?? p("leadingGap"),
+          })}
+          description={p("actionDescription", {
+            topic: items[0]?.topic_label ?? p("leadingTopic"),
+          })}
+          priority={p("high")}
+          impact={p("actionImpact", { count: items[0]?.occurrence_count ?? 0 })}
+          related={items[0]?.collection_id ?? p("unassigned")}
+          action={<ReportLink href="/documents" label={p("addSource")} />}
         />
       </div>
       <ReportDataTable
-        caption="Knowledge gap details"
-        columns={["Topic", "Example query", "Occurrences", "Status"]}
+        caption={p("tableCaption")}
+        columns={[p("topic"), p("example"), p("occurrences"), p("status")]}
         rows={items.map((item) => [
           item.topic_label,
-          item.example_query ?? "No example query stored",
+          item.example_query ?? p("noExample"),
           String(item.occurrence_count),
           <StatusBadge
             key={item.gap_id}

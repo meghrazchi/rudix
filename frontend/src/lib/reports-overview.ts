@@ -54,13 +54,10 @@ export type ReportsOverviewKpis = {
 };
 
 export type OverviewAction = {
-  title: string;
-  reason: string;
+  id: "permissions" | "indexing" | "citations" | "sources";
+  count: number;
   priority: "High" | "Medium" | "Low";
-  impact: string;
-  related: string;
   href: string;
-  cta: string;
 };
 
 export function calculateOverviewKpis(
@@ -95,43 +92,31 @@ export function buildRecommendedActions(
   const actions: OverviewAction[] = [];
   if (kpis.permissionConflicts > 0)
     actions.push({
-      title: "Resolve permission conflicts",
-      reason: `${kpis.permissionConflicts} open conflict${kpis.permissionConflicts === 1 ? "" : "s"} may prevent the right people from reaching sources.`,
+      id: "permissions",
+      count: kpis.permissionConflicts,
       priority: "High",
-      impact: "Restore safe access",
-      related: "Permissions & Access",
       href: "/reports/permissions-access",
-      cta: "Review conflicts",
     });
   if (kpis.failedIndexingJobs > 0)
     actions.push({
-      title: "Retry failed indexing jobs",
-      reason: `${kpis.failedIndexingJobs} source job${kpis.failedIndexingJobs === 1 ? "" : "s"} failed and may leave answers incomplete.`,
+      id: "indexing",
+      count: kpis.failedIndexingJobs,
       priority: "High",
-      impact: "Improve source coverage",
-      related: "Source Health",
       href: "/reports/source-health",
-      cta: "Inspect failed jobs",
     });
   if (kpis.citationIssues > 0)
     actions.push({
-      title: "Review citation issues",
-      reason: `${kpis.citationIssues} answer${kpis.citationIssues === 1 ? "" : "s"} did not pass citation validation.`,
+      id: "citations",
+      count: kpis.citationIssues,
       priority: "Medium",
-      impact: "Increase answer trust",
-      related: "Answer Quality",
       href: "/reports/answer-quality",
-      cta: "Review answers",
     });
   if (kpis.sourcesNeedingReview > 0)
     actions.push({
-      title: "Refresh unhealthy sources",
-      reason: `${kpis.sourcesNeedingReview} source warning${kpis.sourcesNeedingReview === 1 ? "" : "s"} need review.`,
+      id: "sources",
+      count: kpis.sourcesNeedingReview,
       priority: "Medium",
-      impact: "Reduce stale answers",
-      related: "Source Health",
       href: "/reports/source-health",
-      cta: "Review sources",
     });
   return actions.slice(0, 4);
 }
@@ -172,14 +157,14 @@ export async function getReportsOverview(
   const results = await Promise.allSettled(calls);
   const names = [
     "usage",
-    "answer analytics",
+    "answerAnalytics",
     "trends",
     "trust",
     "indexing",
     "permissions",
-    "knowledge gaps",
-    "feedback metrics",
-    "feedback queue",
+    "knowledgeGaps",
+    "feedbackMetrics",
+    "feedbackQueue",
   ];
   const value = <T>(index: number): T | null =>
     results[index]?.status === "fulfilled" ? (results[index].value as T) : null;

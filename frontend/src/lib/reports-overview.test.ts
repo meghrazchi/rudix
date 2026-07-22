@@ -44,11 +44,11 @@ describe("reports overview calculations", () => {
 
   it("builds prioritized, actionable recommendations", () => {
     const actions = buildRecommendedActions(calculateOverviewKpis(data));
-    expect(actions.map((action) => action.title)).toEqual([
-      "Resolve permission conflicts",
-      "Retry failed indexing jobs",
-      "Review citation issues",
-      "Refresh unhealthy sources",
+    expect(actions.map((action) => action.id)).toEqual([
+      "permissions",
+      "indexing",
+      "citations",
+      "sources",
     ]);
     expect(actions[0]).toMatchObject({
       priority: "High",

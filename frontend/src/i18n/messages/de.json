@@ -6010,6 +6010,15 @@
     }
   },
   "reports": {
+    "common": {
+      "eyebrow": "Berichte",
+      "openReport": "Bericht {label} öffnen",
+      "openDetailedReport": "Detailbericht öffnen",
+      "priority": "Priorität",
+      "related": "Zugehörig:",
+      "partialData": "Unvollständige Daten.",
+      "closeDetails": "Details schließen"
+    },
     "sectionsLabel": "Berichtsbereiche",
     "sections": {
       "overview": {
@@ -6077,10 +6086,20 @@
           "all": "Alle Arbeitsbereiche",
           "current": "Aktueller Arbeitsbereich"
         },
-        "team": { "all": "Alle Teams", "mine": "Mein Team" },
-        "user": { "all": "Alle Benutzer", "me": "Ich" },
-        "collection": { "all": "Alle Sammlungen" },
-        "connector": { "all": "Alle Konnektoren" },
+        "team": {
+          "all": "Alle Teams",
+          "mine": "Mein Team"
+        },
+        "user": {
+          "all": "Alle Benutzer",
+          "me": "Ich"
+        },
+        "collection": {
+          "all": "Alle Sammlungen"
+        },
+        "connector": {
+          "all": "Alle Konnektoren"
+        },
         "language": {
           "all": "Alle Sprachen",
           "en": "Englisch",
@@ -6088,13 +6107,363 @@
           "es": "Spanisch",
           "fr": "Französisch"
         },
-        "model": { "all": "Alle Modelle / Anbieter" },
+        "model": {
+          "all": "Alle Modelle / Anbieter"
+        },
         "confidence": {
           "all": "Alle Konfidenzstufen",
           "high": "Hoch",
           "medium": "Mittel",
           "low": "Niedrig"
         }
+      }
+    },
+    "overview": {
+      "dataSources": {
+        "usage": "Nutzung",
+        "answerAnalytics": "Antwortanalyse",
+        "trends": "Trends",
+        "trust": "Vertrauen",
+        "indexing": "Indexierung",
+        "permissions": "Berechtigungen",
+        "knowledgeGaps": "Wissenslücken",
+        "feedbackMetrics": "Feedbackkennzahlen",
+        "feedbackQueue": "Feedbackwarteschlange"
+      },
+      "loading": {
+        "title": "Berichtsübersicht wird geladen",
+        "description": "Arbeitsbereichsstatus und Empfehlungen werden berechnet."
+      },
+      "error": {
+        "title": "Berichtsübersicht nicht verfügbar",
+        "description": "Der Arbeitsbereichsstatus konnte nicht geladen werden."
+      },
+      "partialData": "{sources} ist vorübergehend nicht verfügbar. Verfügbare Kennzahlen bleiben exakt.",
+      "empty": {
+        "title": "Ersten Arbeitsbereichsbericht erstellen",
+        "description": "Laden Sie eine Quelle hoch und stellen Sie eine Frage, um Qualität, Abdeckung und Nutzung zu messen.",
+        "uploadSources": "Quellen hochladen",
+        "askQuestion": "Frage stellen"
+      },
+      "emptyChart": {
+        "title": "Keine Aktivität in diesem Zeitraum",
+        "description": "Erweitern Sie die Filter oder nutzen Sie den Arbeitsbereich."
+      },
+      "kpis": {
+        "ariaLabel": "Leistungskennzahlen",
+        "questions": {
+          "label": "Gestellte Fragen",
+          "description": "Ausgewählter Zeitraum"
+        },
+        "trusted": {
+          "label": "Vertrauenswürdige Antworten",
+          "description": "Antworten mit hoher Konfidenz"
+        },
+        "lowConfidence": {
+          "label": "Niedrige Konfidenz",
+          "description": "Qualitätsprüfung erforderlich"
+        },
+        "citations": {
+          "label": "Zitierprobleme",
+          "description": "Validierungsfehler"
+        },
+        "sources": {
+          "label": "Zu prüfende Quellen",
+          "description": "Aktualität oder Verarbeitung"
+        },
+        "users": {
+          "label": "Aktive Benutzer",
+          "description": "Eindeutige Benutzer"
+        },
+        "indexing": {
+          "label": "Fehlgeschlagene Indexierung",
+          "description": "Offene fehlgeschlagene Aufträge"
+        },
+        "permissions": {
+          "label": "Berechtigungskonflikte",
+          "description": "Offene Konflikte"
+        }
+      },
+      "charts": {
+        "ariaLabel": "Diagramme zum Arbeitsbereichsstatus",
+        "confidence": {
+          "title": "Antwortkonfidenz",
+          "description": "Vertrauensverteilung"
+        },
+        "questions": {
+          "title": "Fragen im Zeitverlauf",
+          "description": "Fragen nach Berichtszeitraum"
+        },
+        "sources": {
+          "title": "Quellenstatus",
+          "description": "Warnungen mit Einfluss auf Antworten"
+        },
+        "feedback": {
+          "title": "Feedbackkategorien",
+          "description": "Häufigste Feedbackthemen"
+        },
+        "users": {
+          "title": "Aktive Benutzer",
+          "description": "Eindeutige Benutzer nach Zeitraum"
+        },
+        "gaps": {
+          "title": "Wichtigste Wissenslücken",
+          "description": "Wiederkehrende unbeantwortete Themen"
+        },
+        "connectors": {
+          "title": "Konnektor-Synchronisierung",
+          "description": "Indexierungsaufträge in diesem Zeitraum"
+        },
+        "permissions": {
+          "title": "Berechtigungswarnungen",
+          "description": "Offene Zugriffskonflikte nach Schweregrad"
+        }
+      },
+      "levels": {
+        "high": "Hoch",
+        "medium": "Mittel",
+        "low": "Niedrig"
+      },
+      "warnings": {
+        "stale": "Veraltet",
+        "ocr": "OCR",
+        "extraction": "Extraktion",
+        "processing": "Verarbeitung"
+      },
+      "status": {
+        "healthy": "Fehlerfrei",
+        "failed": "Fehlgeschlagen"
+      },
+      "severity": {
+        "security_risk": "Sicherheitsrisiko",
+        "blocking": "Blockierend",
+        "warning": "Warnung",
+        "info": "Info"
+      },
+      "actions": {
+        "title": "Empfohlene Maßnahmen",
+        "toReview": "{count} zu prüfen",
+        "allClear": "Alles in Ordnung",
+        "prioritySuffix": "Priorität",
+        "relatedPrefix": "Zugehörig:",
+        "empty": {
+          "title": "Keine dringenden Maßnahmen",
+          "description": "In diesem Zeitraum müssen keine Indexierungs-, Zitier-, Quellen- oder Berechtigungsprobleme bearbeitet werden."
+        },
+        "items": {
+          "permissions": {
+            "title": "Berechtigungskonflikte lösen",
+            "reason": "{count} offene Konflikte können den Quellenzugriff verhindern.",
+            "impact": "Sicheren Zugriff wiederherstellen",
+            "related": "Berechtigungen & Zugriff",
+            "cta": "Konflikte prüfen"
+          },
+          "indexing": {
+            "title": "Fehlgeschlagene Indexierung wiederholen",
+            "reason": "{count} fehlgeschlagene Quellenaufträge können Antworten unvollständig lassen.",
+            "impact": "Quellenabdeckung verbessern",
+            "related": "Quellenstatus",
+            "cta": "Fehler prüfen"
+          },
+          "citations": {
+            "title": "Zitierprobleme prüfen",
+            "reason": "{count} Antworten haben die Zitierprüfung nicht bestanden.",
+            "impact": "Vertrauen erhöhen",
+            "related": "Antwortqualität",
+            "cta": "Antworten prüfen"
+          },
+          "sources": {
+            "title": "Fehlerhafte Quellen aktualisieren",
+            "reason": "{count} Quellenwarnungen müssen geprüft werden.",
+            "impact": "Veraltete Antworten reduzieren",
+            "related": "Quellenstatus",
+            "cta": "Quellen prüfen"
+          }
+        }
+      }
+    },
+    "pages": {
+      "chart": {
+        "score": "Score",
+        "feedback": "Feedback"
+      },
+      "backend": {
+        "loading": "Loading report data",
+        "loadingDescription": "Applying your filters to organization-scoped metrics.",
+        "error": "Report data unavailable",
+        "errorDescription": "The report could not be loaded from the backend.",
+        "partial": "{sources} could not be loaded for your current role or filter scope."
+      },
+      "personal": {
+        "answerQuality": "Review confidence, grounding, and citation support.",
+        "usage": "Understand questions, activity, and feature engagement.",
+        "feedback": "Follow feedback themes and reported answer issues.",
+        "available": "Available reports",
+        "open": "Open report"
+      },
+      "usage": {
+        "metrics": "Usage key metrics",
+        "questions": "Questions asked",
+        "selectedPeriod": "Selected period",
+        "activeUsers": "Active users",
+        "uniqueUsers": "Unique users",
+        "agentRuns": "Agent runs",
+        "agentAdoption": "Agent workflow adoption",
+        "questionsPerUser": "Questions per user",
+        "averageEngagement": "Average engagement",
+        "charts": "Usage charts",
+        "activityTitle": "Questions and active users",
+        "activityDescription": "Weekly activity in the selected period",
+        "activityAria": "Questions and active users returned by the usage API",
+        "adoptionTitle": "Feature adoption",
+        "adoptionDescription": "Share of active users using each workflow",
+        "adoptionAria": "Feature adoption returned by the usage API",
+        "adoption": "Adoption",
+        "tableCaption": "Top user adoption",
+        "user": "User",
+        "identities": "Active identities",
+        "active": "Active"
+      },
+      "permissions": {
+        "other": "Other",
+        "warning": "Warning",
+        "critical": "Critical",
+        "metrics": "Access key metrics",
+        "openConflicts": "Open conflicts",
+        "needsReview": "Needs review",
+        "blockingConflicts": "Blocking conflicts",
+        "immediateAttention": "Immediate attention",
+        "warnings": "Warnings",
+        "anomalies": "Permission anomalies",
+        "loadedConflicts": "Loaded conflicts",
+        "backendPage": "Current backend page",
+        "postureTitle": "Access posture",
+        "postureDescription": "Current permission health across workspace resources",
+        "postureAria": "Permission conflict severity distribution returned by the backend",
+        "resources": "Resources",
+        "actionTitle": "Resolve blocking conflicts",
+        "actionDescription": "{count, plural, one {# access rule can expose or hide sources incorrectly. Review matched grants and denies before the next permission sync.} other {# access rules can expose or hide sources incorrectly. Review matched grants and denies before the next permission sync.}}",
+        "high": "High",
+        "actionImpact": "Restore safe source access",
+        "actionRelated": "Admin permissions",
+        "reviewConflicts": "Review conflicts",
+        "tableCaption": "Permission conflicts",
+        "conflict": "Conflict",
+        "resource": "Resource",
+        "severity": "Severity",
+        "status": "Status"
+      },
+      "gaps": {
+        "metrics": "Knowledge gap key metrics",
+        "openGaps": "Open gaps",
+        "allCollections": "Across all collections",
+        "unanswered": "Unanswered queries",
+        "selectedPeriod": "Selected period",
+        "lowConfidence": "Low-confidence topics",
+        "strongerEvidence": "Needs stronger evidence",
+        "loadedTopics": "Loaded topics",
+        "backendResults": "Prioritized backend results",
+        "chartTitle": "Top gap topics",
+        "chartDescription": "Occurrences grouped by knowledge area",
+        "chartAria": "Top knowledge gaps returned by the backend",
+        "actionTitle": "Add guidance for {topic}",
+        "actionDescription": "{topic} is the largest unresolved cluster in the current filtered results.",
+        "leadingGap": "the leading gap",
+        "leadingTopic": "The leading topic",
+        "high": "High",
+        "actionImpact": "Address {count} recurring queries",
+        "unassigned": "Unassigned collection",
+        "addSource": "Add source",
+        "tableCaption": "Knowledge gap details",
+        "topic": "Topic",
+        "example": "Example query",
+        "occurrences": "Occurrences",
+        "status": "Status",
+        "noExample": "No example query stored"
+      },
+      "quality": {
+        "metrics": "Answer quality key metrics",
+        "citationAccuracy": "Citation accuracy",
+        "averageSupport": "Average citation support",
+        "missingCitations": "Missing citations",
+        "validationFailures": "Backend validation failures",
+        "averageCitation": "Avg. citation support",
+        "verificationScore": "Verification support score",
+        "hallucinationRisk": "Hallucination risk",
+        "lowConfidenceAnswers": "Low-confidence answers",
+        "distributionTitle": "Confidence Score Distribution",
+        "distributionDescription": "Probability frequency for all retrieval responses",
+        "modelConfidence": "Model Confidence",
+        "reliability": "Average reliability across {count} answers in the selected period.",
+        "topGaps": "Top Knowledge Gaps",
+        "dailyTitle": "Daily Quality Analysis",
+        "dailyDescription": "Aggregated answer quality returned by the trust analytics API.",
+        "dailyCaption": "Daily quality analysis",
+        "date": "Date",
+        "answers": "Answers",
+        "notFound": "Not found",
+        "confidence": "Confidence",
+        "citationSupport": "Citation support"
+      },
+      "sources": {
+        "metrics": "Source health key metrics",
+        "questions": "Questions asked",
+        "selectedPeriod": "Selected period",
+        "trusted": "Trusted answers",
+        "highTrust": "High-trust answers",
+        "lowConfidence": "Low confidence",
+        "lowTrust": "Low-trust answers",
+        "citationIssues": "Citation issues",
+        "citationFailures": "Citation validation failures",
+        "volatilityTitle": "Retrieval Volatility",
+        "volatilityDescription": "Hourly confidence score fluctuations across clusters",
+        "tasks": "Recommended Tasks",
+        "tasksDescription": "Insights derived from retrieval failures",
+        "reviewJobs": "Review {count} failed jobs",
+        "restoreCoverage": "Restore incomplete source coverage",
+        "refreshSources": "Refresh {count} stale sources",
+        "reduceStale": "Reduce stale-answer warnings",
+        "reviewWarnings": "Review {count} extraction warnings",
+        "improveEvidence": "Improve indexed evidence",
+        "openJobs": "Open failed jobs",
+        "processingTitle": "Source Processing Health",
+        "processingDescription": "Organization-scoped failed jobs and trust warnings",
+        "tableCaption": "Source processing health",
+        "job": "Job",
+        "type": "Type",
+        "attempts": "Attempts",
+        "queue": "Queue",
+        "status": "Status",
+        "retryable": "Retryable",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "feedback": {
+        "detailsUnavailable": "Feedback details unavailable",
+        "uncategorized": "Uncategorized",
+        "metrics": "Feedback key metrics",
+        "total": "Total feedback",
+        "periodTotal": "{count}-day backend total",
+        "newIssues": "New issues",
+        "highSeverity": "{count} high severity",
+        "triaged": "Triaged",
+        "triagedItems": "Triaged queue items",
+        "accepted": "Accepted",
+        "acceptedItems": "Accepted feedback items",
+        "byCategory": "Feedback by Category",
+        "insight": "Backend insight:",
+        "frequentCategory": "{category} is the most frequent category with {count} reports.",
+        "noCategory": "No category",
+        "queueTitle": "Feedback Queue",
+        "showing": "Showing {shown} of {total} active issues",
+        "queueCaption": "Feedback queue",
+        "feedback": "Feedback",
+        "category": "Category",
+        "status": "Status",
+        "query": "Query",
+        "reviewEnabled": "Feedback review enabled",
+        "organizationQueue": "Organization-scoped feedback queue",
+        "openReview": "Open feedback review"
       }
     }
   }

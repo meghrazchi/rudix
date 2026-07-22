@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { AlertTriangle, ArrowRight, X } from "lucide-react";
 
 export function ReportHeader({
   title,
   description,
-  eyebrow = "Reports",
+  eyebrow,
   actions,
 }: {
   title: string;
@@ -13,11 +14,12 @@ export function ReportHeader({
   eyebrow?: string;
   actions?: ReactNode;
 }) {
+  const t = useTranslations("reports.common");
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <p className="text-xs font-bold tracking-[0.16em] text-[#5d58a8] uppercase">
-          {eyebrow}
+          {eyebrow ?? t("eyebrow")}
         </p>
         <h1 className="mt-1 text-2xl font-extrabold text-[#2a2640] sm:text-3xl">
           {title}
@@ -42,6 +44,7 @@ export function KpiCard({
   description?: string;
   href?: string;
 }) {
+  const t = useTranslations("reports.common");
   const card = (
     <article className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm lg:p-5">
       <p className="text-xs font-semibold text-[#68647b]">{label}</p>
@@ -60,7 +63,7 @@ export function KpiCard({
     <Link
       href={href}
       className="rounded-xl transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3525cd]"
-      aria-label={`Open ${label} report`}
+      aria-label={t("openReport", { label })}
     >
       {card}
     </Link>
@@ -80,6 +83,7 @@ export function ChartCard({
   children: ReactNode;
   href?: string;
 }) {
+  const t = useTranslations("reports.common");
   return (
     <section className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm lg:p-5">
       <h2 className="font-bold text-[#2a2640]">{title}</h2>
@@ -92,7 +96,7 @@ export function ChartCard({
           href={href}
           className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#3525cd]"
         >
-          Open detailed report{" "}
+          {t("openDetailedReport")}{" "}
           <ArrowRight className="rtl-mirror h-3 w-3" aria-hidden />
         </Link>
       ) : null}
@@ -171,14 +175,19 @@ export function RecommendedActionCard({
   priority,
   impact,
   related,
+  prioritySuffix,
+  relatedPrefix,
 }: {
   title: string;
   description: string;
   action?: ReactNode;
-  priority?: "High" | "Medium" | "Low";
+  priority?: string;
   impact?: string;
   related?: string;
+  prioritySuffix?: string;
+  relatedPrefix?: string;
 }) {
+  const t = useTranslations("reports.common");
   return (
     <aside className="rounded-xl border border-[#cfc9ff] bg-[#f2efff] p-4">
       <div className="flex gap-3">
@@ -190,14 +199,21 @@ export function RecommendedActionCard({
           <h2 className="font-bold text-[#2a2640]">{title}</h2>
           {priority || impact ? (
             <p className="mt-1 text-xs font-semibold text-[#5d58a8]">
-              {[priority ? `${priority} priority` : null, impact]
+              {[
+                priority
+                  ? `${priority} ${prioritySuffix ?? t("priority")}`
+                  : null,
+                impact,
+              ]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
           ) : null}
           <p className="mt-1 text-sm text-[#5f5b72]">{description}</p>
           {related ? (
-            <p className="mt-2 text-xs text-[#68647b]">Related: {related}</p>
+            <p className="mt-2 text-xs text-[#68647b]">
+              {relatedPrefix ?? t("related")} {related}
+            </p>
           ) : null}
           {action ? <div className="mt-3">{action}</div> : null}
         </div>
@@ -207,6 +223,7 @@ export function RecommendedActionCard({
 }
 
 export function PartialDataState({ message }: { message: string }) {
+  const t = useTranslations("reports.common");
   return (
     <div
       role="status"
@@ -214,7 +231,7 @@ export function PartialDataState({ message }: { message: string }) {
     >
       <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
       <p>
-        <strong>Partial data.</strong> {message}
+        <strong>{t("partialData")}</strong> {message}
       </p>
     </div>
   );
@@ -231,6 +248,7 @@ export function DetailDrawer({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const t = useTranslations("reports.common");
   if (!open) return null;
   return (
     <div
@@ -250,7 +268,7 @@ export function DetailDrawer({
           <h2 className="text-lg font-bold text-[#2a2640]">{title}</h2>
           <button
             type="button"
-            aria-label="Close details"
+            aria-label={t("closeDetails")}
             onClick={onClose}
             className="rounded-lg p-2 hover:bg-slate-100"
           >
