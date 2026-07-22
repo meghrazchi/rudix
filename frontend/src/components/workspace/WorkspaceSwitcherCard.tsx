@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   getOrganizationCapabilities,
@@ -32,6 +33,8 @@ function isForbiddenOrMissing(error: unknown): boolean {
 }
 
 export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
+  const t = useTranslations("workspaceSwitcher");
+  const tRoles = useTranslations("appShell.roles");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -93,16 +96,16 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
           >
             warning
           </span>
-          <p className="text-xs font-bold text-amber-800">No workspace</p>
+          <p className="text-xs font-bold text-amber-800">{t("noWorkspace")}</p>
         </div>
         <p className="mt-1 text-xs text-amber-700">
-          Your account is not assigned to a workspace yet.
+          {t("noWorkspaceDescription")}
         </p>
         <Link
           href="/organization-onboarding"
           className="mt-2 block rounded-lg bg-amber-600 px-3 py-1.5 text-center text-xs font-semibold text-white transition hover:bg-amber-700"
         >
-          Set up workspace
+          {t("setUpWorkspace")}
         </Link>
       </div>
     );
@@ -115,7 +118,9 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
         onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Workspace: ${orgName ?? "Unknown"}. Open workspace menu.`}
+        aria-label={t("buttonAriaLabel", {
+          organization: orgName ?? t("unknownWorkspace"),
+        })}
         className={`w-full rounded-xl border p-3 text-left transition ${
           open
             ? "border-[#3525cd] bg-[#f8f6ff]"
@@ -137,7 +142,9 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
             </p>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-slate-500">
-                {roleDisplayLabel(session.role)}
+                {tRoles.has(session.role)
+                  ? tRoles(session.role)
+                  : roleDisplayLabel(session.role)}
               </span>
               {planLabel ? (
                 <>
@@ -152,9 +159,9 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
               ) : null}
               {isForbiddenOrg ? (
                 <span
-                  aria-label="Workspace access issue"
+                  aria-label={t("accessIssue")}
                   className="material-symbols-outlined text-[14px] text-amber-500"
-                  title="Workspace access issue"
+                  title={t("accessIssue")}
                 >
                   warning
                 </span>
@@ -171,12 +178,12 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
       {open ? (
         <div
           role="menu"
-          aria-label="Workspace menu"
+          aria-label={t("menuAriaLabel")}
           className="absolute right-0 bottom-full left-0 z-50 mb-1 overflow-hidden rounded-xl border border-[#d7d4e8] bg-white shadow-xl"
         >
           <div className="border-b border-[#f0eeff] px-3 py-2.5">
             <p className="text-[10px] font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
-              Current workspace
+              {t("currentWorkspace")}
             </p>
             <p className="mt-0.5 truncate text-sm font-semibold text-[#2a2640]">
               {orgName}
@@ -189,7 +196,7 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
             {isForbiddenOrg ? (
               <p className="mt-1 text-[11px] text-amber-600">
                 {getApiErrorMessage(profileQuery.error) ||
-                  "Workspace access issue detected."}
+                  t("accessIssueDetected")}
               </p>
             ) : null}
           </div>
@@ -204,7 +211,7 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                 >
                   <OrgSettingsSvg className="h-3.5 w-3.5 shrink-0 text-[#5d58a8]" />
-                  Organization settings
+                  {t("organizationSettings")}
                 </Link>
                 <Link
                   href="/settings?tab=security"
@@ -213,7 +220,7 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                 >
                   <SecuritySvg className="h-3.5 w-3.5 shrink-0 text-[#5d58a8]" />
-                  Security settings
+                  {t("securitySettings")}
                 </Link>
                 <div className="my-1 border-t border-[#f0eeff]" />
               </>
@@ -226,7 +233,7 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
             >
               <SwitchSvg className="h-3.5 w-3.5 shrink-0 text-[#5d58a8]" />
-              Sign in to another workspace
+              {t("signInAnotherWorkspace")}
             </Link>
           </div>
         </div>

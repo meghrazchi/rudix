@@ -3487,6 +3487,20 @@
       }
     }
   },
+  "workspaceSwitcher": {
+    "noWorkspace": "Aucun espace de travail",
+    "noWorkspaceDescription": "Votre compte n’est pas encore associé à un espace de travail.",
+    "setUpWorkspace": "Configurer l’espace de travail",
+    "buttonAriaLabel": "Espace de travail : {organization}. Ouvrir le menu de l’espace de travail.",
+    "unknownWorkspace": "Inconnu",
+    "accessIssue": "Problème d’accès à l’espace de travail",
+    "menuAriaLabel": "Menu de l’espace de travail",
+    "currentWorkspace": "Espace de travail actuel",
+    "accessIssueDetected": "Un problème d’accès à l’espace de travail a été détecté.",
+    "organizationSettings": "Paramètres de l’organisation",
+    "securitySettings": "Paramètres de sécurité",
+    "signInAnotherWorkspace": "Se connecter à un autre espace de travail"
+  },
   "appShell": {
     "searchKnowledgeBase": "Rechercher dans la base de connaissances...",
     "searchAriaLabel": "Rechercher dans les pages, documents et chats",

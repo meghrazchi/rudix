@@ -3487,6 +3487,20 @@
       }
     }
   },
+  "workspaceSwitcher": {
+    "noWorkspace": "بدون فضای کاری",
+    "noWorkspaceDescription": "حساب شما هنوز به فضای کاری اختصاص داده نشده است.",
+    "setUpWorkspace": "راه‌اندازی فضای کاری",
+    "buttonAriaLabel": "فضای کاری: {organization}. باز کردن منوی فضای کاری.",
+    "unknownWorkspace": "نامشخص",
+    "accessIssue": "مشکل دسترسی به فضای کاری",
+    "menuAriaLabel": "منوی فضای کاری",
+    "currentWorkspace": "فضای کاری فعلی",
+    "accessIssueDetected": "مشکل دسترسی به فضای کاری شناسایی شد.",
+    "organizationSettings": "تنظیمات سازمان",
+    "securitySettings": "تنظیمات امنیتی",
+    "signInAnotherWorkspace": "ورود به فضای کاری دیگر"
+  },
   "appShell": {
     "searchKnowledgeBase": "جست‌وجوی پایگاه دانش...",
     "searchAriaLabel": "جست‌وجو در صفحات، اسناد و گفت‌وگوها",

@@ -3487,6 +3487,20 @@
       }
     }
   },
+  "workspaceSwitcher": {
+    "noWorkspace": "لا توجد مساحة عمل",
+    "noWorkspaceDescription": "لم يتم تعيين حسابك إلى مساحة عمل بعد.",
+    "setUpWorkspace": "إعداد مساحة العمل",
+    "buttonAriaLabel": "مساحة العمل: {organization}. فتح قائمة مساحة العمل.",
+    "unknownWorkspace": "غير معروف",
+    "accessIssue": "مشكلة في الوصول إلى مساحة العمل",
+    "menuAriaLabel": "قائمة مساحة العمل",
+    "currentWorkspace": "مساحة العمل الحالية",
+    "accessIssueDetected": "تم اكتشاف مشكلة في الوصول إلى مساحة العمل.",
+    "organizationSettings": "إعدادات المؤسسة",
+    "securitySettings": "إعدادات الأمان",
+    "signInAnotherWorkspace": "تسجيل الدخول إلى مساحة عمل أخرى"
+  },
   "appShell": {
     "searchKnowledgeBase": "البحث في قاعدة المعرفة...",
     "searchAriaLabel": "البحث عبر الصفحات والمستندات والمحادثات",
