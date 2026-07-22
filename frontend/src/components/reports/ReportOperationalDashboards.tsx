@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowRight,
   MessageSquareText,
@@ -41,11 +41,6 @@ const tooltipStyle = {
 };
 
 const axisTick = { fill: "#777287", fontSize: 11 };
-const compactNumber = new Intl.NumberFormat("en", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
-
 function ReportLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
@@ -117,6 +112,11 @@ export function PersonalReportsOverview() {
 export function UsageAdoptionDashboard() {
   const t = useTranslations("reports");
   const p = useTranslations("reports.pages.usage");
+  const locale = useLocale();
+  const compactNumber = new Intl.NumberFormat(locale, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
   const { usage } = useReportBackendData();
   const totals = usage?.totals;
   const usageTrend = (usage?.series ?? []).map((point) => ({
