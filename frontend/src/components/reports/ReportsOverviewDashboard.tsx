@@ -132,7 +132,7 @@ export function ReportsOverviewDashboard() {
   const href = (pathname: string) => reportHref(pathname, filters);
 
   return (
-    <main className="grid gap-5">
+    <main className="grid gap-6">
       <ReportHeader
         title="Reports overview"
         description="Monitor answer quality, source health, adoption, feedback, and access from one workspace-wide view."

@@ -119,9 +119,9 @@ export function GlobalReportFilters() {
   return (
     <section
       aria-label="Global report filters"
-      className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm"
+      className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm lg:p-5"
     >
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="text-sm font-bold text-[#2a2640]">Global filters</h2>
         <button
           type="button"
@@ -132,7 +132,7 @@ export function GlobalReportFilters() {
           Reset
         </button>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {REPORT_FILTER_KEYS.map((key) => (
           <label
             className="grid gap-1 text-xs font-semibold text-[#5f5b72]"

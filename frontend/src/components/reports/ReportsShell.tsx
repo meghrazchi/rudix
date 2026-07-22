@@ -32,10 +32,10 @@ function ReportsShellContent({ children }: { children: React.ReactNode }) {
   const sections = getVisibleReportSections(state.session.role);
   const query = searchParams.toString();
   return (
-    <div className="grid gap-5">
+    <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <nav
         aria-label="Report sections"
-        className="overflow-x-auto border-b border-[#dfdced]"
+        className="overflow-x-auto border-b border-[#dfdced] pb-px"
       >
         <div className="flex min-w-max gap-1">
           {sections.map((section) => {
@@ -58,6 +58,6 @@ function ReportsShellContent({ children }: { children: React.ReactNode }) {
       </nav>
       <GlobalReportFilters />
       {children}
-    </div>
+    </section>
   );
 }

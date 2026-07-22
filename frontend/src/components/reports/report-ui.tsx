@@ -43,7 +43,7 @@ export function KpiCard({
   href?: string;
 }) {
   const card = (
-    <article className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm">
+    <article className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm lg:p-5">
       <p className="text-xs font-semibold text-[#68647b]">{label}</p>
       <div className="mt-2 flex items-end justify-between gap-3">
         <p className="text-2xl font-extrabold text-[#2a2640]">{value}</p>
@@ -81,7 +81,7 @@ export function ChartCard({
   href?: string;
 }) {
   return (
-    <section className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm lg:p-5">
       <h2 className="font-bold text-[#2a2640]">{title}</h2>
       {description ? (
         <p className="mt-1 text-xs text-[#68647b]">{description}</p>
@@ -116,7 +116,7 @@ export function ReportDataTable({
         <thead className="bg-[#f7f5ff] text-xs text-[#5f5b72] uppercase">
           <tr>
             {columns.map((column) => (
-              <th className="px-4 py-3 font-bold" key={column}>
+              <th className="px-3 py-3 font-bold sm:px-4" key={column}>
                 {column}
               </th>
             ))}
@@ -126,7 +126,10 @@ export function ReportDataTable({
           {rows.map((row, rowIndex) => (
             <tr key={rowIndex}>
               {row.map((cell, cellIndex) => (
-                <td className="px-4 py-3 text-[#403c52]" key={cellIndex}>
+                <td
+                  className="px-3 py-3.5 text-[#403c52] sm:px-4"
+                  key={cellIndex}
+                >
                   {cell}
                 </td>
               ))}

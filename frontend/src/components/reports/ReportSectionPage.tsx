@@ -15,6 +15,11 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { ReportsOverviewDashboard } from "@/components/reports/ReportsOverviewDashboard";
+import {
+  AnswerQualityDashboard,
+  FeedbackIssuesDashboard,
+  SourceHealthDashboard,
+} from "@/components/reports/ReportReferenceDashboards";
 
 export function ReportSectionPage({ slug }: { slug?: string }) {
   const { state } = useAuthSession();
@@ -44,8 +49,11 @@ export function ReportSectionPage({ slug }: { slug?: string }) {
   ) {
     return <ReportsOverviewDashboard />;
   }
+  if (section.id === "answer-quality") return <AnswerQualityDashboard />;
+  if (section.id === "source-health") return <SourceHealthDashboard />;
+  if (section.id === "feedback-issues") return <FeedbackIssuesDashboard />;
   return (
-    <main className="grid gap-5">
+    <main className="grid gap-6">
       <div>
         <ReportHeader title={section.label} description={section.description} />
       </div>

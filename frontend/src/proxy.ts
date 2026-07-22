@@ -1,15 +1,33 @@
 import createMiddleware from "next-intl/middleware";
 import { type NextRequest, NextResponse } from "next/server";
 
+import {
+  isAuthenticatedAppPath,
+  parseLocalePrefixedAppPath,
+} from "./lib/app-route-paths";
 import { LOCALE_COOKIE_NAME, resolveLocale, routing } from "./i18n/routing";
 
 const intlMiddleware = createMiddleware(routing);
 
-const APP_ROUTE_RE =
-  /^\/(dashboard|chat|admin|documents|collections|connectors|evaluations|graph|rag-pipeline|settings|user|workspace|api)\b/;
-
 export function proxy(request: NextRequest): NextResponse {
-  if (!APP_ROUTE_RE.test(request.nextUrl.pathname)) {
+  const localizedAppPath = parseLocalePrefixedAppPath(request.nextUrl.pathname);
+
+  // Authenticated app routes intentionally keep locale state in a cookie, not
+  // in the URL. Normalize old/bookmarked locale-prefixed app links.
+  if (localizedAppPath) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = localizedAppPath.pathname;
+    const response = NextResponse.redirect(redirectUrl);
+    response.cookies.set(LOCALE_COOKIE_NAME, localizedAppPath.locale, {
+      path: "/",
+      sameSite: "lax",
+      httpOnly: false,
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return response;
+  }
+
+  if (!isAuthenticatedAppPath(request.nextUrl.pathname)) {
     return intlMiddleware(request) as NextResponse;
   }
 
