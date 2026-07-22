@@ -6284,8 +6284,8 @@
     },
     "pages": {
       "chart": {
-        "score": "Score",
-        "feedback": "Feedback"
+        "score": "النتيجة",
+        "feedback": "الملاحظات"
       },
       "backend": {
         "loading": "Loading report data",
@@ -6382,28 +6382,28 @@
         "noExample": "No example query stored"
       },
       "quality": {
-        "metrics": "Answer quality key metrics",
-        "citationAccuracy": "Citation accuracy",
-        "averageSupport": "Average citation support",
-        "missingCitations": "Missing citations",
-        "validationFailures": "Backend validation failures",
-        "averageCitation": "Avg. citation support",
-        "verificationScore": "Verification support score",
-        "hallucinationRisk": "Hallucination risk",
-        "lowConfidenceAnswers": "Low-confidence answers",
-        "distributionTitle": "Confidence Score Distribution",
-        "distributionDescription": "Probability frequency for all retrieval responses",
-        "modelConfidence": "Model Confidence",
-        "reliability": "Average reliability across {count} answers in the selected period.",
-        "topGaps": "Top Knowledge Gaps",
-        "dailyTitle": "Daily Quality Analysis",
-        "dailyDescription": "Aggregated answer quality returned by the trust analytics API.",
-        "dailyCaption": "Daily quality analysis",
-        "date": "Date",
-        "answers": "Answers",
-        "notFound": "Not found",
-        "confidence": "Confidence",
-        "citationSupport": "Citation support"
+        "metrics": "مؤشرات جودة الإجابات الرئيسية",
+        "citationAccuracy": "دقة الاستشهادات",
+        "averageSupport": "متوسط دعم الاستشهادات",
+        "missingCitations": "استشهادات مفقودة",
+        "validationFailures": "إخفاقات التحقق في الخادم",
+        "averageCitation": "متوسط دعم الاستشهاد",
+        "verificationScore": "درجة دعم التحقق",
+        "hallucinationRisk": "مخاطر الهلوسة",
+        "lowConfidenceAnswers": "إجابات منخفضة الثقة",
+        "distributionTitle": "توزيع درجات الثقة",
+        "distributionDescription": "تكرار الاحتمالات لجميع الإجابات المسترجعة",
+        "modelConfidence": "ثقة النموذج",
+        "reliability": "متوسط موثوقية {count} إجابة خلال الفترة المحددة.",
+        "topGaps": "أهم فجوات المعرفة",
+        "dailyTitle": "تحليل الجودة اليومي",
+        "dailyDescription": "جودة الإجابات المجمّعة من واجهة تحليلات الثقة.",
+        "dailyCaption": "تحليل الجودة اليومي",
+        "date": "التاريخ",
+        "answers": "الإجابات",
+        "notFound": "غير موجود",
+        "confidence": "الثقة",
+        "citationSupport": "دعم الاستشهاد"
       },
       "sources": {
         "metrics": "Source health key metrics",

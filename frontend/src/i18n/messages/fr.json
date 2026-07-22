@@ -6285,7 +6285,7 @@
     "pages": {
       "chart": {
         "score": "Score",
-        "feedback": "Feedback"
+        "feedback": "Avis"
       },
       "backend": {
         "loading": "Loading report data",
@@ -6382,28 +6382,28 @@
         "noExample": "No example query stored"
       },
       "quality": {
-        "metrics": "Answer quality key metrics",
-        "citationAccuracy": "Citation accuracy",
-        "averageSupport": "Average citation support",
-        "missingCitations": "Missing citations",
-        "validationFailures": "Backend validation failures",
-        "averageCitation": "Avg. citation support",
-        "verificationScore": "Verification support score",
-        "hallucinationRisk": "Hallucination risk",
-        "lowConfidenceAnswers": "Low-confidence answers",
-        "distributionTitle": "Confidence Score Distribution",
-        "distributionDescription": "Probability frequency for all retrieval responses",
-        "modelConfidence": "Model Confidence",
-        "reliability": "Average reliability across {count} answers in the selected period.",
-        "topGaps": "Top Knowledge Gaps",
-        "dailyTitle": "Daily Quality Analysis",
-        "dailyDescription": "Aggregated answer quality returned by the trust analytics API.",
-        "dailyCaption": "Daily quality analysis",
+        "metrics": "Indicateurs clés de qualité des réponses",
+        "citationAccuracy": "Précision des citations",
+        "averageSupport": "Prise en charge moyenne des citations",
+        "missingCitations": "Citations manquantes",
+        "validationFailures": "Échecs de validation du backend",
+        "averageCitation": "Prise en charge moy. des citations",
+        "verificationScore": "Score de prise en charge de la vérification",
+        "hallucinationRisk": "Risque d’hallucination",
+        "lowConfidenceAnswers": "Réponses à faible confiance",
+        "distributionTitle": "Répartition des scores de confiance",
+        "distributionDescription": "Fréquence de probabilité de toutes les réponses récupérées",
+        "modelConfidence": "Confiance du modèle",
+        "reliability": "Fiabilité moyenne de {count} réponses sur la période sélectionnée.",
+        "topGaps": "Principales lacunes de connaissances",
+        "dailyTitle": "Analyse quotidienne de la qualité",
+        "dailyDescription": "Qualité agrégée renvoyée par l’API d’analyse de confiance.",
+        "dailyCaption": "Analyse quotidienne de la qualité",
         "date": "Date",
-        "answers": "Answers",
-        "notFound": "Not found",
-        "confidence": "Confidence",
-        "citationSupport": "Citation support"
+        "answers": "Réponses",
+        "notFound": "Introuvable",
+        "confidence": "Confiance",
+        "citationSupport": "Prise en charge des citations"
       },
       "sources": {
         "metrics": "Source health key metrics",

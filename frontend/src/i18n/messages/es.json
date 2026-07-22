@@ -6284,8 +6284,8 @@
     },
     "pages": {
       "chart": {
-        "score": "Score",
-        "feedback": "Feedback"
+        "score": "Puntuación",
+        "feedback": "Comentarios"
       },
       "backend": {
         "loading": "Loading report data",
@@ -6382,28 +6382,28 @@
         "noExample": "No example query stored"
       },
       "quality": {
-        "metrics": "Answer quality key metrics",
-        "citationAccuracy": "Citation accuracy",
-        "averageSupport": "Average citation support",
-        "missingCitations": "Missing citations",
-        "validationFailures": "Backend validation failures",
-        "averageCitation": "Avg. citation support",
-        "verificationScore": "Verification support score",
-        "hallucinationRisk": "Hallucination risk",
-        "lowConfidenceAnswers": "Low-confidence answers",
-        "distributionTitle": "Confidence Score Distribution",
-        "distributionDescription": "Probability frequency for all retrieval responses",
-        "modelConfidence": "Model Confidence",
-        "reliability": "Average reliability across {count} answers in the selected period.",
-        "topGaps": "Top Knowledge Gaps",
-        "dailyTitle": "Daily Quality Analysis",
-        "dailyDescription": "Aggregated answer quality returned by the trust analytics API.",
-        "dailyCaption": "Daily quality analysis",
-        "date": "Date",
-        "answers": "Answers",
-        "notFound": "Not found",
-        "confidence": "Confidence",
-        "citationSupport": "Citation support"
+        "metrics": "Métricas clave de calidad de respuestas",
+        "citationAccuracy": "Precisión de citas",
+        "averageSupport": "Soporte medio de citas",
+        "missingCitations": "Citas ausentes",
+        "validationFailures": "Fallos de validación del backend",
+        "averageCitation": "Soporte medio de citas",
+        "verificationScore": "Puntuación de soporte de verificación",
+        "hallucinationRisk": "Riesgo de alucinación",
+        "lowConfidenceAnswers": "Respuestas de baja confianza",
+        "distributionTitle": "Distribución de puntuaciones de confianza",
+        "distributionDescription": "Frecuencia de probabilidad de todas las respuestas recuperadas",
+        "modelConfidence": "Confianza del modelo",
+        "reliability": "Fiabilidad media de {count} respuestas en el período seleccionado.",
+        "topGaps": "Principales brechas de conocimiento",
+        "dailyTitle": "Análisis diario de calidad",
+        "dailyDescription": "Calidad agregada devuelta por la API de análisis de confianza.",
+        "dailyCaption": "Análisis diario de calidad",
+        "date": "Fecha",
+        "answers": "Respuestas",
+        "notFound": "No encontrado",
+        "confidence": "Confianza",
+        "citationSupport": "Soporte de citas"
       },
       "sources": {
         "metrics": "Source health key metrics",
