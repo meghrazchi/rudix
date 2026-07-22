@@ -6125,7 +6125,13 @@
         "example": "Example query",
         "occurrences": "Occurrences",
         "status": "Status",
-        "noExample": "No example query stored"
+        "noExample": "No example query stored",
+        "statusLabels": {
+          "open": "Open",
+          "in_review": "In review",
+          "resolved": "Resolved",
+          "dismissed": "Dismissed"
+        }
       },
       "quality": {
         "metrics": "Answer quality key metrics",

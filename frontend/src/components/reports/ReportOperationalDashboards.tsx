@@ -479,7 +479,7 @@ export function KnowledgeGapsDashboard() {
           String(item.occurrence_count),
           <StatusBadge
             key={item.gap_id}
-            label={item.status.replaceAll("_", " ")}
+            label={p(`statusLabels.${item.status}`)}
             tone={item.status === "open" ? "critical" : "warning"}
           />,
         ])}
