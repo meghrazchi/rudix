@@ -1,16 +1,17 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
+  createSignupFormSchema,
   getSignupProviderLabel,
   getSignupSsoStartHref,
-  signupFormSchema,
   startSignupSession,
   type SignupFlowError,
   type SignupFormValues,
@@ -20,7 +21,24 @@ import type { AuthenticatedSession } from "@/lib/auth-session";
 import { trackActivationEvent } from "@/lib/analytics";
 import { useAuthSession } from "@/lib/use-auth-session";
 
-function safeErrorMessage(error: unknown): string {
+function safeErrorMessage(
+  error: unknown,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  if (error instanceof Error && "kind" in error) {
+    const kind = (error as SignupFlowError).kind;
+    const errorKeys: Record<SignupFlowError["kind"], string> = {
+      duplicate_email: "signupErrorDuplicateEmail",
+      weak_password: "signupErrorWeakPassword",
+      invite_only: "signupErrorInviteOnly",
+      provider_error: "signupErrorProvider",
+      network_failure: "signupErrorNetwork",
+      not_configured: "signupErrorNotConfigured",
+      unknown: "signupFailed",
+    };
+    return t(errorKeys[kind]);
+  }
+
   if (typeof error === "object" && error !== null && "safeMessage" in error) {
     const candidate = error as Partial<SignupFlowError> & {
       safeMessage?: unknown;
@@ -33,7 +51,7 @@ function safeErrorMessage(error: unknown): string {
     }
   }
 
-  return "Signup failed. Please try again.";
+  return t("signupFailed");
 }
 
 function resolvePostSignupTarget(
@@ -66,19 +84,21 @@ export default function SignupPage() {
 }
 
 function SignupPageFallback() {
+  const t = useTranslations("auth");
   return (
     <div
       className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       <main className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
-        <p className="text-sm text-[#68647b]">Loading sign-up...</p>
+        <p className="text-sm text-[#68647b]">{t("loadingSignUp")}</p>
       </main>
     </div>
   );
 }
 
 function SignupPageContent() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/dashboard";
@@ -86,8 +106,24 @@ function SignupPageContent() {
 
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
+  const localizedSignupFormSchema = useMemo(
+    () =>
+      createSignupFormSchema({
+        fullNameRequired: t("fullNameRequired"),
+        fullNameMinLength: t("fullNameMinLength"),
+        emailRequired: t("emailRequired"),
+        emailInvalid: t("emailInvalid"),
+        passwordRequired: t("passwordRequired"),
+        passwordMinLength: t("passwordMinLength"),
+        workspaceNameMinLength: t("workspaceNameMinLength"),
+        inviteCodeRequired: t("inviteCodeRequired"),
+        termsRequired: t("termsRequired"),
+      }),
+    [t],
+  );
+
   const form = useForm<SignupFormValues>({
-    resolver: zodResolver(signupFormSchema),
+    resolver: zodResolver(localizedSignupFormSchema),
     defaultValues: {
       fullName: "",
       email: "",
@@ -132,15 +168,13 @@ function SignupPageContent() {
         resolvePostSignupTarget(nextPath, result.nextStep, result.session),
       );
     } catch (error) {
-      setSubmissionError(safeErrorMessage(error));
+      setSubmissionError(safeErrorMessage(error, t));
     }
   }
 
   function handleStartProviderSignup() {
     if (!ssoStartHref) {
-      setSubmissionError(
-        "Provider signup is configured but no start URL is available.",
-      );
+      setSubmissionError(t("signupSsoNotConfigured"));
       return;
     }
 
@@ -164,22 +198,19 @@ function SignupPageContent() {
         <div className="mb-2 flex items-center gap-2">
           <Image
             src="/brand/rudix-mark.svg"
-            alt="Rudix logo"
+            alt={t("rudixLogo")}
             width={18}
             height={18}
             className="h-[18px] w-[18px]"
           />
           <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-            Rudix Access
+            {t("signInLabel")}
           </p>
         </div>
         <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
-          Create your account
+          {t("signUpTitle")}
         </h1>
-        <p className="mb-6 text-sm text-[#68647b]">
-          Sign up to create a new workspace or join an existing one and continue
-          to onboarding.
-        </p>
+        <p className="mb-6 text-sm text-[#68647b]">{t("signUpDescription")}</p>
 
         <form
           className="space-y-4"
@@ -189,7 +220,7 @@ function SignupPageContent() {
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block" htmlFor="fullName">
               <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                Full name
+                {t("fullName")}
               </span>
               <input
                 id="fullName"
@@ -202,7 +233,7 @@ function SignupPageContent() {
 
             <label className="block" htmlFor="email">
               <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                Email
+                {t("email")}
               </span>
               <input
                 id="email"
@@ -227,7 +258,7 @@ function SignupPageContent() {
 
           <label className="block" htmlFor="password">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Password
+              {t("password")}
             </span>
             <input
               id="password"
@@ -245,7 +276,7 @@ function SignupPageContent() {
 
           <fieldset className="rounded-lg border border-[#e0dced] bg-white p-4">
             <legend className="px-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Workspace
+              {t("workspace")}
             </legend>
             <div className="mt-2 space-y-2">
               <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
@@ -254,7 +285,7 @@ function SignupPageContent() {
                   value="create"
                   {...form.register("workspaceMode")}
                 />
-                Create a new workspace
+                {t("createWorkspace")}
               </label>
               <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
                 <input
@@ -262,14 +293,14 @@ function SignupPageContent() {
                   value="join"
                   {...form.register("workspaceMode")}
                 />
-                Join an existing workspace
+                {t("joinWorkspace")}
               </label>
             </div>
 
             {workspaceMode === "create" ? (
               <label className="mt-3 block" htmlFor="workspaceName">
                 <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Workspace name
+                  {t("workspaceName")}
                 </span>
                 <input
                   id="workspaceName"
@@ -281,7 +312,7 @@ function SignupPageContent() {
             ) : (
               <label className="mt-3 block" htmlFor="inviteCode">
                 <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Workspace invite code
+                  {t("workspaceInviteCode")}
                 </span>
                 <input
                   id="inviteCode"
@@ -310,7 +341,7 @@ function SignupPageContent() {
               {...form.register("acceptTerms")}
               className="mt-0.5"
             />
-            <span>I agree to the terms of service and privacy policy.</span>
+            <span>{t("acceptTerms")}</span>
           </label>
           {form.formState.errors.acceptTerms?.message ? (
             <p role="alert" className="text-xs text-rose-700">
@@ -333,8 +364,8 @@ function SignupPageContent() {
             className="h-10 w-full rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {form.formState.isSubmitting
-              ? "Creating account..."
-              : "Create account"}
+              ? t("creatingAccount")
+              : t("createAccount")}
           </button>
         </form>
 
@@ -343,13 +374,13 @@ function SignupPageContent() {
             href="/login"
             className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
           >
-            Already have an account? Sign in
+            {t("alreadyHaveAccount")} {t("signIn")}
           </Link>
           <Link
             href="/"
             className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
           >
-            Back to public home
+            {t("backToHome")}
           </Link>
         </div>
 
@@ -360,7 +391,7 @@ function SignupPageContent() {
               onClick={handleStartProviderSignup}
               className="h-10 w-full rounded-lg border border-[#d2cee6] bg-white px-5 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff]"
             >
-              Continue with {providerLabel}
+              {t("continueWith", { provider: providerLabel })}
             </button>
           </div>
         ) : null}

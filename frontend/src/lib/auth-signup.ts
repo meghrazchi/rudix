@@ -7,58 +7,88 @@ import { getAuthClientConfig, getLoginProviderLabel } from "@/lib/auth-login";
 
 const APP_ROLES: AppRole[] = ["owner", "admin", "member", "viewer"];
 
-export const signupFormSchema = z
-  .object({
-    fullName: z
-      .string()
-      .trim()
-      .min(1, "Full name is required")
-      .min(2, "Full name must be at least 2 characters"),
-    email: z
-      .string()
-      .trim()
-      .min(1, "Email is required")
-      .email("Enter a valid email address"),
-    password: z
-      .string()
-      .min(1, "Password is required")
-      .min(8, "Password must be at least 8 characters"),
-    workspaceMode: z.enum(["create", "join"]),
-    workspaceName: z.string().trim().optional(),
-    inviteCode: z.string().trim().optional(),
-    acceptTerms: z.boolean(),
-  })
-  .superRefine((value, context) => {
-    if (
-      value.workspaceMode === "create" &&
-      !(value.workspaceName && value.workspaceName.length >= 2)
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["workspaceName"],
-        message: "Workspace name must be at least 2 characters",
-      });
-    }
+export type SignupValidationMessages = {
+  fullNameRequired: string;
+  fullNameMinLength: string;
+  emailRequired: string;
+  emailInvalid: string;
+  passwordRequired: string;
+  passwordMinLength: string;
+  workspaceNameMinLength: string;
+  inviteCodeRequired: string;
+  termsRequired: string;
+};
 
-    if (
-      value.workspaceMode === "join" &&
-      !(value.inviteCode && value.inviteCode.length >= 4)
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["inviteCode"],
-        message: "Invite code is required to join a workspace",
-      });
-    }
+const DEFAULT_SIGNUP_VALIDATION_MESSAGES: SignupValidationMessages = {
+  fullNameRequired: "Full name is required",
+  fullNameMinLength: "Full name must be at least 2 characters",
+  emailRequired: "Email is required",
+  emailInvalid: "Enter a valid email address",
+  passwordRequired: "Password is required",
+  passwordMinLength: "Password must be at least 8 characters",
+  workspaceNameMinLength: "Workspace name must be at least 2 characters",
+  inviteCodeRequired: "Invite code is required to join a workspace",
+  termsRequired: "You must accept the terms to create an account",
+};
 
-    if (!value.acceptTerms) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["acceptTerms"],
-        message: "You must accept the terms to create an account",
-      });
-    }
-  });
+export function createSignupFormSchema(messages: SignupValidationMessages) {
+  return z
+    .object({
+      fullName: z
+        .string()
+        .trim()
+        .min(1, messages.fullNameRequired)
+        .min(2, messages.fullNameMinLength),
+      email: z
+        .string()
+        .trim()
+        .min(1, messages.emailRequired)
+        .email(messages.emailInvalid),
+      password: z
+        .string()
+        .min(1, messages.passwordRequired)
+        .min(8, messages.passwordMinLength),
+      workspaceMode: z.enum(["create", "join"]),
+      workspaceName: z.string().trim().optional(),
+      inviteCode: z.string().trim().optional(),
+      acceptTerms: z.boolean(),
+    })
+    .superRefine((value, context) => {
+      if (
+        value.workspaceMode === "create" &&
+        !(value.workspaceName && value.workspaceName.length >= 2)
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["workspaceName"],
+          message: messages.workspaceNameMinLength,
+        });
+      }
+
+      if (
+        value.workspaceMode === "join" &&
+        !(value.inviteCode && value.inviteCode.length >= 4)
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["inviteCode"],
+          message: messages.inviteCodeRequired,
+        });
+      }
+
+      if (!value.acceptTerms) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["acceptTerms"],
+          message: messages.termsRequired,
+        });
+      }
+    });
+}
+
+export const signupFormSchema = createSignupFormSchema(
+  DEFAULT_SIGNUP_VALIDATION_MESSAGES,
+);
 
 export type SignupFormValues = z.infer<typeof signupFormSchema>;
 
