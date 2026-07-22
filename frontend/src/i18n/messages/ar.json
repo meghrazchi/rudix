@@ -3487,6 +3487,77 @@
       }
     }
   },
+  "onboardingChecklist": {
+    "title": "بدء الاستخدام",
+    "openChecklist": "فتح قائمة بدء الاستخدام",
+    "checklistAriaLabel": "قائمة بدء الاستخدام",
+    "stepsDone": "اكتملت {completed} من {total} خطوات",
+    "allComplete": "اكتملت جميع الخطوات!",
+    "collapseChecklist": "طي القائمة",
+    "dismissChecklist": "إغلاق القائمة (يمكن فتحها مجددًا من المساعدة)",
+    "dismissTitle": "إغلاق — فتح مجددًا من المساعدة",
+    "setupProgress": "اكتمل الإعداد بنسبة {progress}%",
+    "setupSteps": "خطوات الإعداد",
+    "complete": "(مكتمل)",
+    "loading": "جارٍ التحميل…",
+    "loadSampleDataset": "تحميل بيانات نموذجية",
+    "markDone": "وضع علامة مكتمل",
+    "startTour": "بدء الجولة الإرشادية",
+    "replayTour": "إعادة الجولة الإرشادية",
+    "steps": {
+      "create_workspace": {
+        "title": "أنشئ مساحة عملك",
+        "description": "مساحة عمل مؤسستك جاهزة.",
+        "action": "فتح مساحة العمل"
+      },
+      "upload_document": {
+        "title": "ارفع مستندك الأول",
+        "description": "أضف ملف PDF أو DOCX أو ملفًا نصيًا إلى قاعدة المعرفة.",
+        "action": "الانتقال إلى المستندات"
+      },
+      "wait_for_indexing": {
+        "title": "انتظر الفهرسة",
+        "description": "يعالج Rudix مستندك ويضمّنه للبحث بالذكاء الاصطناعي.",
+        "action": "التحقق من الحالة"
+      },
+      "invite_team": {
+        "title": "ادعُ فريقك",
+        "description": "أضف أعضاء للتعاون في مساحة العمل.",
+        "action": "إدارة الفريق"
+      },
+      "ask_question": {
+        "title": "اطرح سؤالك الأول",
+        "description": "اسأل قاعدة المعرفة للحصول على إجابات موثّقة.",
+        "action": "الانتقال إلى الدردشة"
+      },
+      "inspect_citations": {
+        "title": "راجع الاستشهادات",
+        "description": "افتح استشهادًا للتحقق من مصدر الإجابة.",
+        "action": "فتح الدردشة"
+      },
+      "review_security": {
+        "title": "راجع إعدادات الأمان",
+        "description": "اضبط الجلسات والسياسات وسلامة الذكاء الاصطناعي.",
+        "action": "الانتقال إلى الأمان"
+      }
+    },
+    "tour": {
+      "welcomeTitle": "مرحبًا بك في Rudix",
+      "welcomeDescription": "تعرّف على الأجزاء الرئيسية في مساحة RAG المؤسسية.",
+      "knowledgeBaseTitle": "قاعدة المعرفة",
+      "knowledgeBaseDescription": "ارفع ملفات PDF وDOCX وغيرها؛ يقسّمها Rudix ويفهرسها تلقائيًا للبحث بالذكاء الاصطناعي.",
+      "chatTitle": "واجهة الدردشة",
+      "chatDescription": "اطرح الأسئلة واحصل على إجابات موثّقة مع استشهادات دقيقة.",
+      "settingsTitle": "الإعدادات",
+      "settingsDescription": "أدر فريقك وسياسات الأمان والفوترة من الإعدادات.",
+      "progressTitle": "تقدمك",
+      "progressDescription": "أعد فتح هذه القائمة من المساعدة لمتابعة تقدم الإعداد.",
+      "next": "التالي ←",
+      "back": "→ رجوع",
+      "done": "تم",
+      "skip": "تخطي الجولة"
+    }
+  },
   "workspaceSwitcher": {
     "noWorkspace": "لا توجد مساحة عمل",
     "noWorkspaceDescription": "لم يتم تعيين حسابك إلى مساحة عمل بعد.",

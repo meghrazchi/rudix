@@ -3487,6 +3487,77 @@
       }
     }
   },
+  "onboardingChecklist": {
+    "title": "Erste Schritte",
+    "openChecklist": "Checkliste für erste Schritte öffnen",
+    "checklistAriaLabel": "Checkliste für erste Schritte",
+    "stepsDone": "{completed} von {total} Schritten erledigt",
+    "allComplete": "Alle Schritte abgeschlossen!",
+    "collapseChecklist": "Checkliste einklappen",
+    "dismissChecklist": "Checkliste schließen (über Hilfe erneut öffnen)",
+    "dismissTitle": "Schließen — über Hilfe erneut öffnen",
+    "setupProgress": "Einrichtung zu {progress} % abgeschlossen",
+    "setupSteps": "Einrichtungsschritte",
+    "complete": "(abgeschlossen)",
+    "loading": "Wird geladen…",
+    "loadSampleDataset": "Beispieldatensatz laden",
+    "markDone": "Als erledigt markieren",
+    "startTour": "Geführte Tour starten",
+    "replayTour": "Geführte Tour wiederholen",
+    "steps": {
+      "create_workspace": {
+        "title": "Arbeitsbereich erstellen",
+        "description": "Der Arbeitsbereich Ihrer Organisation ist bereit.",
+        "action": "Arbeitsbereich öffnen"
+      },
+      "upload_document": {
+        "title": "Erstes Dokument hochladen",
+        "description": "Fügen Sie Ihrer Wissensdatenbank eine PDF-, DOCX- oder Textdatei hinzu.",
+        "action": "Zu Dokumente"
+      },
+      "wait_for_indexing": {
+        "title": "Auf Indizierung warten",
+        "description": "Rudix verarbeitet und bettet Ihr Dokument für die KI-Suche ein.",
+        "action": "Status prüfen"
+      },
+      "invite_team": {
+        "title": "Team einladen",
+        "description": "Fügen Sie Mitglieder zur Zusammenarbeit hinzu.",
+        "action": "Team verwalten"
+      },
+      "ask_question": {
+        "title": "Erste Frage stellen",
+        "description": "Erhalten Sie fundierte Antworten aus Ihrer Wissensdatenbank.",
+        "action": "Zum Chat"
+      },
+      "inspect_citations": {
+        "title": "Quellenangaben prüfen",
+        "description": "Öffnen Sie eine Quellenangabe, um die Herkunft der Antwort zu prüfen.",
+        "action": "Chat öffnen"
+      },
+      "review_security": {
+        "title": "Sicherheitseinstellungen prüfen",
+        "description": "Konfigurieren Sie Sitzungen, Richtlinien und KI-Sicherheit.",
+        "action": "Zur Sicherheit"
+      }
+    },
+    "tour": {
+      "welcomeTitle": "Willkommen bei Rudix",
+      "welcomeDescription": "Wir zeigen Ihnen die wichtigsten Bereiche Ihres Enterprise-RAG-Arbeitsbereichs.",
+      "knowledgeBaseTitle": "Wissensdatenbank",
+      "knowledgeBaseDescription": "Laden Sie PDF-, DOCX- und weitere Dateien hoch. Rudix segmentiert und indiziert sie automatisch für die KI-Suche.",
+      "chatTitle": "Chat",
+      "chatDescription": "Stellen Sie Fragen und erhalten Sie fundierte Antworten mit genauen Quellenangaben.",
+      "settingsTitle": "Einstellungen",
+      "settingsDescription": "Verwalten Sie Team, Sicherheitsrichtlinien und Abrechnung in den Einstellungen.",
+      "progressTitle": "Ihr Fortschritt",
+      "progressDescription": "Öffnen Sie diese Checkliste jederzeit über Hilfe erneut.",
+      "next": "Weiter →",
+      "back": "← Zurück",
+      "done": "Fertig",
+      "skip": "Tour überspringen"
+    }
+  },
   "workspaceSwitcher": {
     "noWorkspace": "Kein Arbeitsbereich",
     "noWorkspaceDescription": "Ihr Konto ist noch keinem Arbeitsbereich zugewiesen.",

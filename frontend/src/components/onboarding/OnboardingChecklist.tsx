@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { listChatSessions } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
@@ -34,6 +35,7 @@ export function OnboardingChecklist({
   onStateChange,
   onDismiss,
 }: OnboardingChecklistProps) {
+  const t = useTranslations("onboardingChecklist");
   const [expanded, setExpanded] = useState(true);
   const [tourRunning, setTourRunning] = useState(false);
 
@@ -157,51 +159,46 @@ export function OnboardingChecklist({
       tour.setOptions({
         steps: [
           {
-            title: "Welcome to Rudix",
-            intro:
-              "Let us walk you through the key parts of your enterprise RAG workspace.",
+            title: t("tour.welcomeTitle"),
+            intro: t("tour.welcomeDescription"),
           },
           {
             element:
               document.querySelector<HTMLElement>(
                 '[data-onboarding="nav-documents"]',
               ) ?? undefined,
-            title: "Knowledge base",
-            intro:
-              "Upload PDFs, DOCX files, and more. Rudix chunks and indexes them automatically for AI-powered search.",
+            title: t("tour.knowledgeBaseTitle"),
+            intro: t("tour.knowledgeBaseDescription"),
           },
           {
             element:
               document.querySelector<HTMLElement>(
                 '[data-onboarding="nav-chat"]',
               ) ?? undefined,
-            title: "Chat interface",
-            intro:
-              "Ask questions and get grounded answers with citations back to the exact source passages in your documents.",
+            title: t("tour.chatTitle"),
+            intro: t("tour.chatDescription"),
           },
           {
             element:
               document.querySelector<HTMLElement>(
                 '[data-onboarding="nav-settings"]',
               ) ?? undefined,
-            title: "Settings",
-            intro:
-              "Manage your team, configure security policies, and review billing from the settings page.",
+            title: t("tour.settingsTitle"),
+            intro: t("tour.settingsDescription"),
           },
           {
             element:
               document.querySelector<HTMLElement>(
                 '[data-onboarding="checklist-trigger"]',
               ) ?? undefined,
-            title: "Your progress",
-            intro:
-              "Reopen this checklist anytime from the Help menu to track your setup progress.",
+            title: t("tour.progressTitle"),
+            intro: t("tour.progressDescription"),
           },
         ],
-        nextLabel: "Next →",
-        prevLabel: "← Back",
-        doneLabel: "Done",
-        skipLabel: "Skip tour",
+        nextLabel: t("tour.next"),
+        prevLabel: t("tour.back"),
+        doneLabel: t("tour.done"),
+        skipLabel: t("tour.skip"),
         showProgress: true,
         showBullets: false,
         exitOnOverlayClick: true,
@@ -225,7 +222,7 @@ export function OnboardingChecklist({
     } catch {
       setTourRunning(false);
     }
-  }, [tourRunning, state, onStateChange, session.userId]);
+  }, [tourRunning, state, onStateChange, session.userId, t]);
 
   const hasNoDocuments = (documentsQuery.data?.total ?? 0) === 0;
 
@@ -235,16 +232,19 @@ export function OnboardingChecklist({
         type="button"
         data-onboarding="checklist-trigger"
         onClick={() => setExpanded(true)}
-        aria-label="Open getting started checklist"
+        aria-label={t("openChecklist")}
         className="flex w-full items-center gap-3 rounded-2xl border border-[#d7d4e8] bg-white px-4 py-3 shadow-xl transition hover:bg-[#f5f3ff]"
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#ece9ff]">
           <ChecklistSvg />
         </span>
         <div className="min-w-0 flex-1 text-left">
-          <p className="text-sm font-bold text-[#2a2640]">Getting started</p>
+          <p className="text-sm font-bold text-[#2a2640]">{t("title")}</p>
           <p className="text-xs text-[#68647b]">
-            {completedCount} of {visibleSteps.length} steps done
+            {t("stepsDone", {
+              completed: completedCount,
+              total: visibleSteps.length,
+            })}
           </p>
         </div>
         <ChevronUpSvg className="h-4 w-4 text-[#3525cd]" />
@@ -255,16 +255,19 @@ export function OnboardingChecklist({
   return (
     <div
       role="region"
-      aria-label="Getting started checklist"
+      aria-label={t("checklistAriaLabel")}
       className="overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-xl"
     >
       <div className="flex items-center justify-between gap-2 bg-[#3525cd] px-4 py-3">
         <div>
-          <p className="text-sm font-bold text-white">Getting started</p>
+          <p className="text-sm font-bold text-white">{t("title")}</p>
           <p className="text-xs text-[#c4bcff]">
             {allComplete
-              ? "All steps complete!"
-              : `${completedCount} of ${visibleSteps.length} steps done`}
+              ? t("allComplete")
+              : t("stepsDone", {
+                  completed: completedCount,
+                  total: visibleSteps.length,
+                })}
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -272,7 +275,7 @@ export function OnboardingChecklist({
             type="button"
             onClick={() => setExpanded(false)}
             className="rounded p-1 text-[#c4bcff] transition hover:bg-[#4535e0] hover:text-white"
-            aria-label="Collapse checklist"
+            aria-label={t("collapseChecklist")}
           >
             <ChevronDownSvg className="h-4 w-4" />
           </button>
@@ -280,8 +283,8 @@ export function OnboardingChecklist({
             type="button"
             onClick={handleDismiss}
             className="rounded p-1 text-[#c4bcff] transition hover:bg-[#4535e0] hover:text-white"
-            aria-label="Dismiss getting started checklist (reopen from Help menu)"
-            title="Dismiss — reopen from Help menu"
+            aria-label={t("dismissChecklist")}
+            title={t("dismissTitle")}
           >
             <CloseSvg className="h-4 w-4" />
           </button>
@@ -294,7 +297,7 @@ export function OnboardingChecklist({
         aria-valuenow={progress}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`Setup ${progress}% complete`}
+        aria-label={t("setupProgress", { progress })}
       >
         <div
           className="h-full bg-[#3525cd] transition-all duration-500"
@@ -304,7 +307,7 @@ export function OnboardingChecklist({
 
       <ol
         className="max-h-[360px] overflow-auto px-3 py-2"
-        aria-label="Setup steps"
+        aria-label={t("setupSteps")}
       >
         {visibleSteps.map((step) => {
           const done = isStepComplete(
@@ -339,11 +342,13 @@ export function OnboardingChecklist({
                 <p
                   className={`text-sm font-semibold ${done ? "text-[#7a7693] line-through" : "text-[#2a2640]"}`}
                 >
-                  {step.title}
-                  {done ? <span className="sr-only"> (complete)</span> : null}
+                  {t(`steps.${step.id}.title`)}
+                  {done ? (
+                    <span className="sr-only"> {t("complete")}</span>
+                  ) : null}
                 </p>
                 <p className="mt-0.5 text-xs text-[#68647b]">
-                  {step.description}
+                  {t(`steps.${step.id}.description`)}
                 </p>
                 {!done ? (
                   <div className="mt-1.5 flex flex-wrap items-center gap-3">
@@ -352,7 +357,7 @@ export function OnboardingChecklist({
                         href={step.href}
                         className="text-xs font-semibold text-[#3525cd] hover:underline"
                       >
-                        {step.actionLabel} →
+                        {t(`steps.${step.id}.action`)} →
                       </Link>
                     ) : null}
                     {showSampleDocs ? (
@@ -363,8 +368,8 @@ export function OnboardingChecklist({
                         className="text-xs font-semibold text-[#7c3aed] hover:underline disabled:opacity-50"
                       >
                         {sampleMutation.isPending
-                          ? "Loading…"
-                          : "Load sample dataset"}
+                          ? t("loading")
+                          : t("loadSampleDataset")}
                       </button>
                     ) : null}
                     {!step.autoDetectable ? (
@@ -373,7 +378,7 @@ export function OnboardingChecklist({
                         onClick={() => markManualDone(step.id)}
                         className="text-xs text-[#7a7693] hover:text-[#3525cd] hover:underline"
                       >
-                        Mark done
+                        {t("markDone")}
                       </button>
                     ) : null}
                   </div>
@@ -391,7 +396,7 @@ export function OnboardingChecklist({
           disabled={tourRunning}
           className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-xs font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {state.tourSeen ? "Replay guided tour" : "Start guided tour"}
+          {state.tourSeen ? t("replayTour") : t("startTour")}
         </button>
       </div>
     </div>

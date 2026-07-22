@@ -3487,6 +3487,77 @@
       }
     }
   },
+  "onboardingChecklist": {
+    "title": "شروع کار",
+    "openChecklist": "باز کردن فهرست شروع کار",
+    "checklistAriaLabel": "فهرست شروع کار",
+    "stepsDone": "{completed} از {total} مرحله انجام شده",
+    "allComplete": "همه مراحل تکمیل شدند!",
+    "collapseChecklist": "بستن فهرست",
+    "dismissChecklist": "کنار گذاشتن فهرست (باز کردن دوباره از راهنما)",
+    "dismissTitle": "کنار گذاشتن — باز کردن دوباره از راهنما",
+    "setupProgress": "راه‌اندازی {progress}٪ تکمیل شده",
+    "setupSteps": "مراحل راه‌اندازی",
+    "complete": "(تکمیل‌شده)",
+    "loading": "در حال بارگذاری…",
+    "loadSampleDataset": "بارگذاری داده‌های نمونه",
+    "markDone": "علامت‌گذاری به‌عنوان انجام‌شده",
+    "startTour": "شروع راهنمای گام‌به‌گام",
+    "replayTour": "تکرار راهنمای گام‌به‌گام",
+    "steps": {
+      "create_workspace": {
+        "title": "فضای کاری خود را بسازید",
+        "description": "فضای کاری سازمان شما آماده است.",
+        "action": "باز کردن فضای کاری"
+      },
+      "upload_document": {
+        "title": "اولین سند را بارگذاری کنید",
+        "description": "یک فایل PDF، DOCX یا متنی به پایگاه دانش اضافه کنید.",
+        "action": "رفتن به اسناد"
+      },
+      "wait_for_indexing": {
+        "title": "منتظر نمایه‌سازی بمانید",
+        "description": "Rudix سند شما را برای جست‌وجوی هوش مصنوعی پردازش می‌کند.",
+        "action": "بررسی وضعیت"
+      },
+      "invite_team": {
+        "title": "تیم خود را دعوت کنید",
+        "description": "اعضا را برای همکاری در این فضای کاری اضافه کنید.",
+        "action": "مدیریت تیم"
+      },
+      "ask_question": {
+        "title": "اولین پرسش را مطرح کنید",
+        "description": "از پایگاه دانش پاسخ‌های مستند دریافت کنید.",
+        "action": "رفتن به گفت‌وگو"
+      },
+      "inspect_citations": {
+        "title": "ارجاعات را بررسی کنید",
+        "description": "برای بررسی منبع پاسخ، یک ارجاع را باز کنید.",
+        "action": "باز کردن گفت‌وگو"
+      },
+      "review_security": {
+        "title": "تنظیمات امنیتی را بررسی کنید",
+        "description": "نشست‌ها، سیاست‌ها و ایمنی هوش مصنوعی را پیکربندی کنید.",
+        "action": "رفتن به امنیت"
+      }
+    },
+    "tour": {
+      "welcomeTitle": "به Rudix خوش آمدید",
+      "welcomeDescription": "بخش‌های اصلی فضای کاری RAG سازمانی خود را مرور کنید.",
+      "knowledgeBaseTitle": "پایگاه دانش",
+      "knowledgeBaseDescription": "فایل‌های PDF، DOCX و بیشتر را بارگذاری کنید؛ Rudix آن‌ها را خودکار قطعه‌بندی و نمایه می‌کند.",
+      "chatTitle": "رابط گفت‌وگو",
+      "chatDescription": "پرسش کنید و پاسخ‌های مستند با ارجاع دقیق دریافت کنید.",
+      "settingsTitle": "تنظیمات",
+      "settingsDescription": "تیم، سیاست‌های امنیتی و صورت‌حساب را از تنظیمات مدیریت کنید.",
+      "progressTitle": "پیشرفت شما",
+      "progressDescription": "برای پیگیری پیشرفت، این فهرست را از منوی راهنما دوباره باز کنید.",
+      "next": "بعدی ←",
+      "back": "→ بازگشت",
+      "done": "پایان",
+      "skip": "رد کردن راهنما"
+    }
+  },
   "workspaceSwitcher": {
     "noWorkspace": "بدون فضای کاری",
     "noWorkspaceDescription": "حساب شما هنوز به فضای کاری اختصاص داده نشده است.",

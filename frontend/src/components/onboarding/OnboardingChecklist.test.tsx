@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextIntlClientProvider } from "next-intl";
 
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import type { AuthenticatedSession } from "@/lib/auth-session";
@@ -11,6 +12,7 @@ import {
   createDefaultOnboardingState,
   type OnboardingState,
 } from "@/lib/onboarding";
+import enMessages from "@/i18n/messages/en.json";
 
 const mockApi = vi.hoisted(() => ({
   getOnboardingConfig: vi.fn(),
@@ -111,14 +113,16 @@ function renderChecklist({
 }: RenderProps = {}) {
   const qc = makeQueryClient();
   render(
-    <QueryClientProvider client={qc}>
-      <OnboardingChecklist
-        session={session}
-        state={state}
-        onStateChange={onStateChange}
-        onDismiss={onDismiss}
-      />
-    </QueryClientProvider>,
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <QueryClientProvider client={qc}>
+        <OnboardingChecklist
+          session={session}
+          state={state}
+          onStateChange={onStateChange}
+          onDismiss={onDismiss}
+        />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
   return { qc, onStateChange, onDismiss };
 }

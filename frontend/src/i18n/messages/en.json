@@ -3487,6 +3487,77 @@
       }
     }
   },
+  "onboardingChecklist": {
+    "title": "Getting started",
+    "openChecklist": "Open getting started checklist",
+    "checklistAriaLabel": "Getting started checklist",
+    "stepsDone": "{completed} of {total} steps done",
+    "allComplete": "All steps complete!",
+    "collapseChecklist": "Collapse checklist",
+    "dismissChecklist": "Dismiss getting started checklist (reopen from Help menu)",
+    "dismissTitle": "Dismiss — reopen from Help menu",
+    "setupProgress": "Setup {progress}% complete",
+    "setupSteps": "Setup steps",
+    "complete": "(complete)",
+    "loading": "Loading…",
+    "loadSampleDataset": "Load sample dataset",
+    "markDone": "Mark done",
+    "startTour": "Start guided tour",
+    "replayTour": "Replay guided tour",
+    "steps": {
+      "create_workspace": {
+        "title": "Create your workspace",
+        "description": "Your organization workspace is ready.",
+        "action": "Open workspace"
+      },
+      "upload_document": {
+        "title": "Upload your first document",
+        "description": "Add a PDF, DOCX, or text file to your knowledge base.",
+        "action": "Go to Documents"
+      },
+      "wait_for_indexing": {
+        "title": "Wait for indexing",
+        "description": "Rudix processes and embeds your document for AI search.",
+        "action": "Check status"
+      },
+      "invite_team": {
+        "title": "Invite your team",
+        "description": "Add members to collaborate in this workspace.",
+        "action": "Manage team"
+      },
+      "ask_question": {
+        "title": "Ask your first question",
+        "description": "Chat with your knowledge base to get grounded answers.",
+        "action": "Go to Chat"
+      },
+      "inspect_citations": {
+        "title": "Inspect citations",
+        "description": "Open a source citation to verify where the answer came from.",
+        "action": "Open Chat"
+      },
+      "review_security": {
+        "title": "Review security settings",
+        "description": "Configure sessions, policies, and AI safety posture.",
+        "action": "Go to Security"
+      }
+    },
+    "tour": {
+      "welcomeTitle": "Welcome to Rudix",
+      "welcomeDescription": "Let us walk you through the key parts of your enterprise RAG workspace.",
+      "knowledgeBaseTitle": "Knowledge base",
+      "knowledgeBaseDescription": "Upload PDFs, DOCX files, and more. Rudix chunks and indexes them automatically for AI-powered search.",
+      "chatTitle": "Chat interface",
+      "chatDescription": "Ask questions and get grounded answers with citations to the exact source passages in your documents.",
+      "settingsTitle": "Settings",
+      "settingsDescription": "Manage your team, configure security policies, and review billing from Settings.",
+      "progressTitle": "Your progress",
+      "progressDescription": "Reopen this checklist anytime from the Help menu to track your setup progress.",
+      "next": "Next →",
+      "back": "← Back",
+      "done": "Done",
+      "skip": "Skip tour"
+    }
+  },
   "workspaceSwitcher": {
     "noWorkspace": "No workspace",
     "noWorkspaceDescription": "Your account is not assigned to a workspace yet.",

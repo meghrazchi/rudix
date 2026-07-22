@@ -3487,6 +3487,77 @@
       }
     }
   },
+  "onboardingChecklist": {
+    "title": "Bien démarrer",
+    "openChecklist": "Ouvrir la liste de démarrage",
+    "checklistAriaLabel": "Liste de démarrage",
+    "stepsDone": "{completed} étapes sur {total} terminées",
+    "allComplete": "Toutes les étapes sont terminées !",
+    "collapseChecklist": "Réduire la liste",
+    "dismissChecklist": "Fermer la liste (la rouvrir depuis Aide)",
+    "dismissTitle": "Fermer — rouvrir depuis Aide",
+    "setupProgress": "Configuration terminée à {progress} %",
+    "setupSteps": "Étapes de configuration",
+    "complete": "(terminé)",
+    "loading": "Chargement…",
+    "loadSampleDataset": "Charger les données d’exemple",
+    "markDone": "Marquer comme terminé",
+    "startTour": "Démarrer la visite guidée",
+    "replayTour": "Revoir la visite guidée",
+    "steps": {
+      "create_workspace": {
+        "title": "Créez votre espace de travail",
+        "description": "L’espace de travail de votre organisation est prêt.",
+        "action": "Ouvrir l’espace"
+      },
+      "upload_document": {
+        "title": "Importez votre premier document",
+        "description": "Ajoutez un fichier PDF, DOCX ou texte à votre base de connaissances.",
+        "action": "Voir les documents"
+      },
+      "wait_for_indexing": {
+        "title": "Attendez l’indexation",
+        "description": "Rudix traite et vectorise votre document pour la recherche IA.",
+        "action": "Vérifier l’état"
+      },
+      "invite_team": {
+        "title": "Invitez votre équipe",
+        "description": "Ajoutez des membres pour collaborer dans cet espace.",
+        "action": "Gérer l’équipe"
+      },
+      "ask_question": {
+        "title": "Posez votre première question",
+        "description": "Interrogez votre base pour obtenir des réponses fondées.",
+        "action": "Accéder au chat"
+      },
+      "inspect_citations": {
+        "title": "Vérifiez les citations",
+        "description": "Ouvrez une citation pour vérifier l’origine de la réponse.",
+        "action": "Ouvrir le chat"
+      },
+      "review_security": {
+        "title": "Vérifiez la sécurité",
+        "description": "Configurez les sessions, les politiques et la sécurité de l’IA.",
+        "action": "Voir la sécurité"
+      }
+    },
+    "tour": {
+      "welcomeTitle": "Bienvenue dans Rudix",
+      "welcomeDescription": "Découvrez les éléments essentiels de votre espace RAG d’entreprise.",
+      "knowledgeBaseTitle": "Base de connaissances",
+      "knowledgeBaseDescription": "Importez des fichiers PDF, DOCX et plus encore. Rudix les segmente et les indexe automatiquement.",
+      "chatTitle": "Interface de chat",
+      "chatDescription": "Posez des questions et obtenez des réponses fondées avec des citations précises.",
+      "settingsTitle": "Paramètres",
+      "settingsDescription": "Gérez votre équipe, la sécurité et la facturation depuis les paramètres.",
+      "progressTitle": "Votre progression",
+      "progressDescription": "Rouvrez cette liste depuis le menu Aide pour suivre votre progression.",
+      "next": "Suivant →",
+      "back": "← Retour",
+      "done": "Terminé",
+      "skip": "Ignorer la visite"
+    }
+  },
   "workspaceSwitcher": {
     "noWorkspace": "Aucun espace de travail",
     "noWorkspaceDescription": "Votre compte n’est pas encore associé à un espace de travail.",
