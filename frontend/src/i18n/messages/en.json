@@ -6085,7 +6085,19 @@
         "conflict": "Conflict",
         "resource": "Resource",
         "severity": "Severity",
-        "status": "Status"
+        "status": "Status",
+        "severityLabels": {
+          "info": "Info",
+          "warning": "Warning",
+          "blocking": "Blocking",
+          "security_risk": "Security risk"
+        },
+        "statusLabels": {
+          "open": "Open",
+          "investigating": "Investigating",
+          "resolved": "Resolved",
+          "dismissed": "Dismissed"
+        }
       },
       "gaps": {
         "metrics": "Knowledge gap key metrics",

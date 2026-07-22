@@ -362,7 +362,7 @@ export function PermissionsAccessDashboard() {
           `${item.resource_type}${item.resource_id ? ` · ${item.resource_id}` : ""}`,
           <StatusBadge
             key={item.id}
-            label={item.severity.replaceAll("_", " ")}
+            label={p(`severityLabels.${item.severity}`)}
             tone={
               ["blocking", "security_risk"].includes(item.severity)
                 ? "critical"
@@ -371,7 +371,7 @@ export function PermissionsAccessDashboard() {
                   : "neutral"
             }
           />,
-          item.status,
+          p(`statusLabels.${item.status}`),
         ])}
       />
     </main>
