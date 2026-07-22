@@ -62,7 +62,8 @@
     "vitest": "^4.1.5"
   },
   "overrides": {
-    "js-yaml": "4.2.0",
-    "postcss": "8.5.15"
+    "js-yaml": "4.3.0",
+    "postcss": "8.5.15",
+    "sharp": "0.35.3"
   }
 }

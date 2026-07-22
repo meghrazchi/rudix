@@ -20,6 +20,7 @@ import {
   calculateOverviewKpis,
   getReportsOverview,
 } from "@/lib/reports-overview";
+import { serializeReportFilters, type ReportFilters } from "@/lib/reports";
 
 const format = new Intl.NumberFormat("en", {
   notation: "compact",
@@ -33,6 +34,11 @@ const links = {
   feedback: "/reports/feedback-issues",
   gaps: "/reports/knowledge-gaps",
 };
+
+function reportHref(pathname: string, filters: ReportFilters): string {
+  const query = serializeReportFilters(filters).toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
 
 function Bars({
   items,
@@ -123,6 +129,7 @@ export function ReportsOverviewDashboard() {
     kpis.questions === 0 && (data.usage?.totals.documents ?? 0) === 0;
   const trust = data.trust?.trust_distribution;
   const warnings = data.trust?.warnings;
+  const href = (pathname: string) => reportHref(pathname, filters);
 
   return (
     <main className="grid gap-5">
@@ -160,49 +167,49 @@ export function ReportsOverviewDashboard() {
         <KpiCard
           label="Questions asked"
           value={format.format(kpis.questions)}
-          href={links.usage}
+          href={href(links.usage)}
           description="Selected period"
         />
         <KpiCard
           label="Trusted answers"
           value={format.format(kpis.trustedAnswers)}
-          href={links.quality}
+          href={href(links.quality)}
           description="High-confidence answers"
         />
         <KpiCard
           label="Low-confidence"
           value={format.format(kpis.lowConfidence)}
-          href={links.quality}
+          href={href(links.quality)}
           description="Needs quality review"
         />
         <KpiCard
           label="Citation issues"
           value={format.format(kpis.citationIssues)}
-          href={links.quality}
+          href={href(links.quality)}
           description="Validation failures"
         />
         <KpiCard
           label="Sources to review"
           value={format.format(kpis.sourcesNeedingReview)}
-          href={links.sources}
+          href={href(links.sources)}
           description="Freshness or processing"
         />
         <KpiCard
           label="Active users"
           value={format.format(kpis.activeUsers)}
-          href={links.usage}
+          href={href(links.usage)}
           description="Unique users"
         />
         <KpiCard
           label="Failed indexing"
           value={format.format(kpis.failedIndexingJobs)}
-          href={links.sources}
+          href={href(links.sources)}
           description="Open failed jobs"
         />
         <KpiCard
           label="Permission conflicts"
           value={format.format(kpis.permissionConflicts)}
-          href={links.permissions}
+          href={href(links.permissions)}
           description="Open conflicts"
         />
       </section>
@@ -214,7 +221,7 @@ export function ReportsOverviewDashboard() {
         <ChartCard
           title="Answer confidence"
           description="Trust distribution"
-          href={links.quality}
+          href={href(links.quality)}
         >
           <Bars
             items={[
@@ -239,7 +246,7 @@ export function ReportsOverviewDashboard() {
         <ChartCard
           title="Questions over time"
           description="Questions by reporting period"
-          href={links.usage}
+          href={href(links.usage)}
         >
           <Bars
             items={(data.usage?.series ?? []).slice(-7).map((point) => ({
@@ -251,7 +258,7 @@ export function ReportsOverviewDashboard() {
         <ChartCard
           title="Source health"
           description="Warnings that can affect answers"
-          href={links.sources}
+          href={href(links.sources)}
         >
           <Bars
             items={[
@@ -265,7 +272,7 @@ export function ReportsOverviewDashboard() {
         <ChartCard
           title="Feedback categories"
           description="Most common feedback themes"
-          href={links.feedback}
+          href={href(links.feedback)}
         >
           <Bars
             items={(data.analytics?.top_feedback_categories ?? [])
@@ -276,7 +283,7 @@ export function ReportsOverviewDashboard() {
         <ChartCard
           title="Active users"
           description="Unique users by reporting period"
-          href={links.usage}
+          href={href(links.usage)}
         >
           <Bars
             items={(data.usage?.series ?? []).slice(-7).map((point) => ({
@@ -288,7 +295,7 @@ export function ReportsOverviewDashboard() {
         <ChartCard
           title="Top knowledge gaps"
           description="Repeated unanswered topics"
-          href={links.gaps}
+          href={href(links.gaps)}
         >
           <Bars
             items={(data.gaps?.items ?? []).map((gap) => ({
@@ -300,7 +307,7 @@ export function ReportsOverviewDashboard() {
         <ChartCard
           title="Connector sync health"
           description="Indexing jobs in this period"
-          href={links.sources}
+          href={href(links.sources)}
         >
           <Bars
             items={[
@@ -324,7 +331,7 @@ export function ReportsOverviewDashboard() {
         <ChartCard
           title="Permission warnings"
           description="Open access conflicts by severity"
-          href={links.permissions}
+          href={href(links.permissions)}
         >
           <Bars
             items={["security_risk", "blocking", "warning", "info"].map(
@@ -367,7 +374,9 @@ export function ReportsOverviewDashboard() {
                 impact={item.impact}
                 related={item.related}
                 action={
-                  <DashboardLink href={item.href}>{item.cta}</DashboardLink>
+                  <DashboardLink href={href(item.href)}>
+                    {item.cta}
+                  </DashboardLink>
                 }
               />
             ))}

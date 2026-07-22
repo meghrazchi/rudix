@@ -4,6 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReportsOverviewDashboard } from "@/components/reports/ReportsOverviewDashboard";
 
 const mocks = vi.hoisted(() => ({ getReportsOverview: vi.fn() }));
+const filters = {
+  date: "7d",
+  workspace: "all",
+  team: "all",
+  user: "all",
+  collection: "all",
+  connector: "all",
+  language: "de",
+  model: "gpt-5",
+  confidence: "low",
+};
 vi.mock("@/lib/reports-overview", async (importOriginal) => {
   const original =
     await importOriginal<typeof import("@/lib/reports-overview")>();
@@ -11,17 +22,7 @@ vi.mock("@/lib/reports-overview", async (importOriginal) => {
 });
 vi.mock("@/components/reports/ReportFilters", () => ({
   useReportFilters: () => ({
-    filters: {
-      date: "30d",
-      workspace: "all",
-      team: "all",
-      user: "all",
-      collection: "all",
-      connector: "all",
-      language: "all",
-      model: "all",
-      confidence: "all",
-    },
+    filters,
   }),
 }));
 
@@ -88,6 +89,21 @@ describe("ReportsOverviewDashboard", () => {
     expect(
       screen.getByRole("heading", { name: "Permission warnings" }),
     ).toBeInTheDocument();
+    expect(mocks.getReportsOverview).toHaveBeenCalledWith(filters);
+  });
+
+  it("preserves global filters in KPI, chart, and action links", async () => {
+    renderDashboard();
+    const query = "date=7d&language=de&model=gpt-5&confidence=low";
+    expect(
+      await screen.findByRole("link", { name: "Open Questions asked report" }),
+    ).toHaveAttribute("href", `/reports/usage-adoption?${query}`);
+    expect(
+      screen.getAllByRole("link", { name: /Open detailed report/ })[0],
+    ).toHaveAttribute("href", `/reports/answer-quality?${query}`);
+    expect(
+      screen.getByRole("link", { name: /Review conflicts/ }),
+    ).toHaveAttribute("href", `/reports/permissions-access?${query}`);
   });
 
   it("renders clear recommended actions with CTAs", async () => {
@@ -97,7 +113,10 @@ describe("ReportsOverviewDashboard", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Review conflicts/ }),
-    ).toHaveAttribute("href", "/reports/permissions-access");
+    ).toHaveAttribute(
+      "href",
+      "/reports/permissions-access?date=7d&language=de&model=gpt-5&confidence=low",
+    );
     expect(
       screen.getByText("High priority · Restore safe access"),
     ).toBeInTheDocument();

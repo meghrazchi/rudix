@@ -103,6 +103,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - owners/admins receive a workspace health overview with eight linked KPIs, answer/adoption/source/feedback/access charts, and prioritized recommended actions; empty workspaces guide users to upload a source or ask a question
   - members/viewers receive personal sections; reviewers also receive Source Health and Knowledge Gaps; owners/admins receive every section
   - date, workspace, team, user, collection, connector, language, model/provider, and confidence filters are URL-backed and preserved while navigating between sections
+  - overview KPI, chart, and recommended-action links preserve the active global filter context when opening detailed reports
   - reusable primitives live in `src/components/reports/report-ui.tsx`: `ReportHeader`, `KpiCard`, `ChartCard`, `ReportDataTable`, `DetailDrawer`, `StatusBadge`, `RecommendedActionCard`, and `PartialDataState`
   - report screens reuse the shared loading, empty, error, and forbidden state components under `src/components/states`; report data must remain role- and organization-scoped when endpoints are connected
 - Product analytics behavior:
