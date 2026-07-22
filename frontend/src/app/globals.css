@@ -5,10 +5,17 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --font-geist-sans: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-geist-sans:
+    "Inter Variable", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-geist-mono:
     "SFMono-Regular", "SF Mono", "Menlo", "Monaco", Consolas, "Liberation Mono",
     monospace;
+}
+
+html:lang(fa),
+html:lang(ar) {
+  --font-geist-sans:
+    "Vazirmatn Variable", "Vazirmatn", "Tahoma", "Arial", sans-serif;
 }
 
 @theme inline {
@@ -333,7 +340,7 @@ samp,
   padding: 18px 18px 14px;
   min-width: 280px;
   max-width: 360px;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-geist-sans);
 }
 
 .introjs-arrow.top,
@@ -390,7 +397,7 @@ samp,
   border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-geist-sans);
   padding: 6px 14px;
   text-shadow: none;
   transition:

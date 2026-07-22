@@ -208,10 +208,7 @@ export default function OrganizationOnboardingPage() {
 
   if (state.status !== "authenticated" || loadingDraft) {
     return (
-      <div
-        className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6"
-        style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-      >
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6">
         <div className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 text-center shadow-sm">
           <h1 className="text-2xl font-bold text-[#2a2640]">
             Preparing organization setup
@@ -225,10 +222,7 @@ export default function OrganizationOnboardingPage() {
   }
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6 py-8"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6 py-8">
       <main className="w-full max-w-3xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
         <div className="mb-2 flex items-center gap-2">
           <Image

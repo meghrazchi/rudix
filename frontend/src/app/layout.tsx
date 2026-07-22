@@ -10,6 +10,8 @@ import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
 import { getLocaleDirection } from "@/i18n/direction";
 
+import "@fontsource-variable/inter";
+import "@fontsource-variable/vazirmatn";
 import "./globals.css";
 
 export const metadata: Metadata = {

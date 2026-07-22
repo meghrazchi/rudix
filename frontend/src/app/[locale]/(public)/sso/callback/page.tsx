@@ -110,10 +110,7 @@ function SSOCallbackShell({
   message: string | null;
 }) {
   return (
-    <div
-      className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6">
       <main className="w-full max-w-md rounded-2xl border border-[#d7d4e8] bg-white p-8 text-center shadow-sm">
         <div className="mb-4 flex justify-center">
           <Image

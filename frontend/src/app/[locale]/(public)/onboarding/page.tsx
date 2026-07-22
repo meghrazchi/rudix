@@ -21,10 +21,7 @@ export default function OnboardingPage() {
   }, [router, state.status]);
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6">
       <div className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 text-center shadow-sm">
         <h1 className="text-2xl font-bold text-[#2a2640]">
           Redirecting to organization onboarding

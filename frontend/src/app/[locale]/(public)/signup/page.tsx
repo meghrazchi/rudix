@@ -86,10 +86,7 @@ export default function SignupPage() {
 function SignupPageFallback() {
   const t = useTranslations("auth");
   return (
-    <div
-      className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6">
       <main className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
         <p className="text-sm text-[#68647b]">{t("loadingSignUp")}</p>
       </main>
@@ -190,10 +187,7 @@ function SignupPageContent() {
   }
 
   return (
-    <div
-      className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6 py-8"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6 py-8">
       <main className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
         <div className="mb-2 flex items-center gap-2">
           <Image

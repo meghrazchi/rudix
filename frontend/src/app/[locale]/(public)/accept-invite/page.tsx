@@ -111,10 +111,7 @@ function AcceptInviteContent() {
   }
 
   return (
-    <div
-      className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6">
       <main className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
         <div className="mb-5 flex items-center gap-2">
           <Image
@@ -331,10 +328,7 @@ function AcceptInviteContent() {
 
 function AcceptInviteFallback() {
   return (
-    <div
-      className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6">
       <main className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
         <p className="text-sm text-[#68647b]">Loading&hellip;</p>
       </main>

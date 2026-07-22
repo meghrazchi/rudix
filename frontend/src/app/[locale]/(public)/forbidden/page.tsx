@@ -14,10 +14,7 @@ export default async function ForbiddenPage({
   );
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6">
       <main className="w-full max-w-xl">
         <ForbiddenState
           title="Forbidden"

@@ -28,10 +28,7 @@ function FullScreenStatus({
   subtitle: string;
 }) {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6 text-center"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6 text-center">
       <div className="max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-8 shadow-sm">
         <div className="mb-2 flex items-center justify-center gap-2">
           <Image

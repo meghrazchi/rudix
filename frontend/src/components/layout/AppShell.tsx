@@ -694,10 +694,7 @@ export function AppShell({
     getCommandSectionLabel(section);
 
   return (
-    <div
-      className="h-screen overflow-hidden bg-[#f5f4ff] text-[#1b1b24]"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-    >
+    <div className="h-screen overflow-hidden bg-[#f5f4ff] text-[#1b1b24]">
       <SkipLink />
       {/* Polite live region for route change announcements */}
       <div
