@@ -6209,7 +6209,21 @@
         "query": "Query",
         "reviewEnabled": "Feedback review enabled",
         "organizationQueue": "Organization-scoped feedback queue",
-        "openReview": "Open feedback review"
+        "openReview": "Open feedback review",
+        "statusLabels": {
+          "new": "New",
+          "triaged": "Triaged",
+          "accepted": "Accepted",
+          "rejected": "Rejected",
+          "needs_document_update": "Needs document update",
+          "needs_prompt_retrieval_fix": "Needs prompt/retrieval fix",
+          "converted_to_evaluation": "Converted to evaluation",
+          "resolved": "Resolved",
+          "needs_document": "Needs document",
+          "eval_created": "Evaluation created",
+          "fixed": "Fixed",
+          "duplicate": "Duplicate"
+        }
       }
     },
     "sectionsLabel": "Report sections",

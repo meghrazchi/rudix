@@ -507,7 +507,7 @@ export function FeedbackIssuesDashboard() {
       }
       tone={item.severity === "high" ? "critical" : "neutral"}
     />,
-    item.status.replaceAll("_", " "),
+    p(`statusLabels.${item.status}`),
     item.review_id,
   ]);
   return (
