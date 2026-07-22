@@ -6008,5 +6008,91 @@
     "values": {
       "unavailable": "Indisponible"
     }
+  },
+  "reports": {
+    "sectionsLabel": "Sections des rapports",
+    "sections": {
+      "overview": {
+        "label": "Vue d’ensemble",
+        "description": "Suivez la qualité, les sources, l’adoption, les avis et les accès dans une vue unique."
+      },
+      "answer-quality": {
+        "label": "Qualité des réponses",
+        "description": "Analysez la confiance, la précision des citations et l’ancrage des réponses."
+      },
+      "source-health": {
+        "label": "État des sources",
+        "description": "Surveillez la stabilité, la fraîcheur et l’intégrité des citations des sources."
+      },
+      "usage-adoption": {
+        "label": "Usage et adoption",
+        "description": "Suivez l’activité, les utilisateurs récurrents et l’adoption des parcours clés."
+      },
+      "permissions-access": {
+        "label": "Autorisations et accès",
+        "description": "Examinez les accès, les conflits d’autorisation et la sécurité globale."
+      },
+      "feedback-issues": {
+        "label": "Avis et problèmes",
+        "description": "Analysez les avis, traitez les problèmes et transformez les échecs récurrents en évaluations."
+      },
+      "knowledge-gaps": {
+        "label": "Lacunes de connaissances",
+        "description": "Repérez les sujets sans réponse et priorisez les sources améliorant la couverture."
+      }
+    },
+    "states": {
+      "loadingReports": "Chargement des rapports",
+      "loadingReportsDescription": "Application de vos accès et filtres enregistrés.",
+      "loadingReport": "Chargement du rapport",
+      "notFound": "Rapport introuvable",
+      "notFoundDescription": "Cette section n’existe pas ou n’est pas encore disponible.",
+      "unavailable": "Rapport indisponible",
+      "unavailableDescription": "Votre rôle ne permet pas d’afficher cette section.",
+      "back": "Retour aux rapports"
+    },
+    "filters": {
+      "ariaLabel": "Filtres globaux des rapports",
+      "title": "Filtres globaux",
+      "reset": "Réinitialiser",
+      "labels": {
+        "date": "Période",
+        "workspace": "Espace de travail",
+        "team": "Équipe",
+        "user": "Utilisateur",
+        "collection": "Collection",
+        "connector": "Connecteur",
+        "language": "Langue",
+        "model": "Modèle / fournisseur",
+        "confidence": "Confiance"
+      },
+      "options": {
+        "date": {
+          "7d": "7 derniers jours",
+          "30d": "30 derniers jours",
+          "90d": "90 derniers jours",
+          "all": "Toute la période"
+        },
+        "workspace": { "all": "Tous les espaces", "current": "Espace actuel" },
+        "team": { "all": "Toutes les équipes", "mine": "Mon équipe" },
+        "user": { "all": "Tous les utilisateurs", "me": "Moi" },
+        "collection": { "all": "Toutes les collections" },
+        "connector": { "all": "Tous les connecteurs" },
+        "language": {
+          "all": "Toutes les langues",
+          "en": "Anglais",
+          "de": "Allemand",
+          "es": "Espagnol",
+          "fr": "Français"
+        },
+        "model": { "all": "Tous les modèles / fournisseurs" },
+        "confidence": {
+          "all": "Tous les niveaux",
+          "high": "Élevée",
+          "medium": "Moyenne",
+          "low": "Faible"
+        }
+      }
+    }
   }
 }

@@ -63,7 +63,7 @@ describe("reference report dashboards", () => {
     ).toHaveClass("gap-4", "lg:gap-5");
     expect(container.querySelector("article")).toHaveClass("p-4", "sm:p-5");
     expect(
-      screen.getByRole("heading", { name: "Answer Quality" }),
+      screen.getByRole("heading", { name: "Answer quality" }),
     ).toBeInTheDocument();
     expect(screen.getByText("94.2%")).toBeInTheDocument();
     expect(
@@ -77,7 +77,7 @@ describe("reference report dashboards", () => {
   it("renders source health recommendations and integrity table", () => {
     const { container } = render(<SourceHealthDashboard />);
     expect(
-      screen.getByRole("heading", { name: "Source Health" }),
+      screen.getByRole("heading", { name: "Source health" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Retrieval Volatility" }),
@@ -93,7 +93,7 @@ describe("reference report dashboards", () => {
   it("renders feedback categories and queue", () => {
     const { container } = render(<FeedbackIssuesDashboard />);
     expect(
-      screen.getByRole("heading", { name: "Feedback & Issues" }),
+      screen.getByRole("heading", { name: "Feedback & issues" }),
     ).toBeInTheDocument();
     expect(
       container.querySelector('[data-chart-library="recharts"]'),

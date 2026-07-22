@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ArrowRight,
   MessageSquareText,
@@ -57,6 +58,7 @@ function ReportLink({ href, label }: { href: string; label: string }) {
 }
 
 export function PersonalReportsOverview() {
+  const t = useTranslations("reports");
   const reports = [
     {
       title: "Answer quality",
@@ -80,8 +82,8 @@ export function PersonalReportsOverview() {
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title="Reports overview"
-        description="Open your available quality, activity, and feedback reports from one place."
+        title={t("sections.overview.label")}
+        description={t("sections.overview.description")}
       />
       <section
         aria-label="Available reports"
@@ -112,6 +114,7 @@ export function PersonalReportsOverview() {
 }
 
 export function UsageAdoptionDashboard() {
+  const t = useTranslations("reports");
   const { usage } = useReportBackendData();
   const totals = usage?.totals;
   const usageTrend = (usage?.series ?? []).map((point) => ({
@@ -127,8 +130,8 @@ export function UsageAdoptionDashboard() {
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title="Usage & Adoption"
-        description="Track workspace activity, returning users, and engagement with core Rudix workflows."
+        title={t("sections.usage-adoption.label")}
+        description={t("sections.usage-adoption.description")}
       />
       <section
         aria-label="Usage key metrics"
@@ -257,6 +260,7 @@ export function UsageAdoptionDashboard() {
 }
 
 export function PermissionsAccessDashboard() {
+  const t = useTranslations("reports");
   const { conflicts } = useReportBackendData();
   const items = conflicts?.items ?? [];
   const blocking = items.filter((item) =>
@@ -272,8 +276,8 @@ export function PermissionsAccessDashboard() {
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title="Permissions & Access"
-        description="Review workspace access, permission conflicts, and organization-wide security posture."
+        title={t("sections.permissions-access.label")}
+        description={t("sections.permissions-access.description")}
       />
       <section
         aria-label="Access key metrics"
@@ -369,6 +373,7 @@ export function PermissionsAccessDashboard() {
 }
 
 export function KnowledgeGapsDashboard() {
+  const t = useTranslations("reports");
   const { gaps, analytics } = useReportBackendData();
   const items = gaps?.items ?? [];
   const gapTopics = items.map((item) => ({
@@ -381,8 +386,8 @@ export function KnowledgeGapsDashboard() {
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title="Knowledge Gaps"
-        description="Identify recurring unanswered topics and prioritize the sources that will improve coverage most."
+        title={t("sections.knowledge-gaps.label")}
+        description={t("sections.knowledge-gaps.description")}
       />
       <section
         aria-label="Knowledge gap key metrics"

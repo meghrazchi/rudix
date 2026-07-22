@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ArrowRight, FileUp, MessageSquareText } from "lucide-react";
 import { useReportFilters } from "@/components/reports/ReportFilters";
 import {
@@ -102,6 +103,7 @@ function DashboardLink({
 }
 
 export function ReportsOverviewDashboard() {
+  const t = useTranslations("reports");
   const { filters } = useReportFilters();
   const query = useQuery({
     queryKey: ["reports-overview", filters],
@@ -134,8 +136,8 @@ export function ReportsOverviewDashboard() {
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title="Reports overview"
-        description="Monitor answer quality, source health, adoption, feedback, and access from one workspace-wide view."
+        title={t("sections.overview.label")}
+        description={t("sections.overview.description")}
       />
       {data.unavailable.length ? (
         <PartialDataState

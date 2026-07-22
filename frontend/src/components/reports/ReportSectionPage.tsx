@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { canViewReportSection, findReportSection } from "@/lib/reports";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -20,24 +21,25 @@ import {
 } from "@/components/reports/ReportOperationalDashboards";
 
 export function ReportSectionPage({ slug }: { slug?: string }) {
+  const t = useTranslations("reports");
   const { state } = useAuthSession();
   const section = findReportSection(slug);
   if (state.status === "loading")
-    return <LoadingState title="Loading report" />;
+    return <LoadingState title={t("states.loadingReport")} />;
   if (!section)
     return (
       <EmptyState
-        title="Report not found"
-        description="This report section does not exist or is not available yet."
+        title={t("states.notFound")}
+        description={t("states.notFoundDescription")}
       />
     );
   if (!state.session || !canViewReportSection(state.session.role, section)) {
     return (
       <ForbiddenState
-        title="Report unavailable"
-        description="Your role does not have permission to view this report section."
+        title={t("states.unavailable")}
+        description={t("states.unavailableDescription")}
         backHref="/reports"
-        backLabel="Back to reports"
+        backLabel={t("states.back")}
       />
     );
   }

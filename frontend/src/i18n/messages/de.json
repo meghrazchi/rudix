@@ -6008,5 +6008,94 @@
     "values": {
       "unavailable": "Nicht verfügbar"
     }
+  },
+  "reports": {
+    "sectionsLabel": "Berichtsbereiche",
+    "sections": {
+      "overview": {
+        "label": "Übersicht",
+        "description": "Antwortqualität, Quellenstatus, Nutzung, Feedback und Zugriff zentral überwachen."
+      },
+      "answer-quality": {
+        "label": "Antwortqualität",
+        "description": "Konfidenz, Zitiergenauigkeit und Fundierung von Antworten nachvollziehen."
+      },
+      "source-health": {
+        "label": "Quellenstatus",
+        "description": "Abrufstabilität, Aktualität und Zitierintegrität verbundener Quellen überwachen."
+      },
+      "usage-adoption": {
+        "label": "Nutzung & Akzeptanz",
+        "description": "Aktivität, wiederkehrende Benutzer und die Nutzung zentraler Abläufe verfolgen."
+      },
+      "permissions-access": {
+        "label": "Berechtigungen & Zugriff",
+        "description": "Zugriff, Berechtigungskonflikte und die Sicherheitslage prüfen."
+      },
+      "feedback-issues": {
+        "label": "Feedback & Probleme",
+        "description": "Feedbackthemen verstehen, Antwortprobleme priorisieren und wiederkehrende Fehler auswerten."
+      },
+      "knowledge-gaps": {
+        "label": "Wissenslücken",
+        "description": "Wiederkehrende unbeantwortete Themen erkennen und hilfreiche Quellen priorisieren."
+      }
+    },
+    "states": {
+      "loadingReports": "Berichte werden geladen",
+      "loadingReportsDescription": "Berichtszugriff und gespeicherte Filter werden angewendet.",
+      "loadingReport": "Bericht wird geladen",
+      "notFound": "Bericht nicht gefunden",
+      "notFoundDescription": "Dieser Berichtsbereich existiert nicht oder ist noch nicht verfügbar.",
+      "unavailable": "Bericht nicht verfügbar",
+      "unavailableDescription": "Ihre Rolle darf diesen Berichtsbereich nicht anzeigen.",
+      "back": "Zurück zu Berichten"
+    },
+    "filters": {
+      "ariaLabel": "Globale Berichtsfilter",
+      "title": "Globale Filter",
+      "reset": "Zurücksetzen",
+      "labels": {
+        "date": "Zeitraum",
+        "workspace": "Arbeitsbereich",
+        "team": "Team",
+        "user": "Benutzer",
+        "collection": "Sammlung",
+        "connector": "Konnektor",
+        "language": "Sprache",
+        "model": "Modell / Anbieter",
+        "confidence": "Konfidenz"
+      },
+      "options": {
+        "date": {
+          "7d": "Letzte 7 Tage",
+          "30d": "Letzte 30 Tage",
+          "90d": "Letzte 90 Tage",
+          "all": "Gesamter Zeitraum"
+        },
+        "workspace": {
+          "all": "Alle Arbeitsbereiche",
+          "current": "Aktueller Arbeitsbereich"
+        },
+        "team": { "all": "Alle Teams", "mine": "Mein Team" },
+        "user": { "all": "Alle Benutzer", "me": "Ich" },
+        "collection": { "all": "Alle Sammlungen" },
+        "connector": { "all": "Alle Konnektoren" },
+        "language": {
+          "all": "Alle Sprachen",
+          "en": "Englisch",
+          "de": "Deutsch",
+          "es": "Spanisch",
+          "fr": "Französisch"
+        },
+        "model": { "all": "Alle Modelle / Anbieter" },
+        "confidence": {
+          "all": "Alle Konfidenzstufen",
+          "high": "Hoch",
+          "medium": "Mittel",
+          "low": "Niedrig"
+        }
+      }
+    }
   }
 }

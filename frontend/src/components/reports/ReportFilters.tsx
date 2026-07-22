@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   createContext,
   useCallback,
@@ -63,17 +64,6 @@ export function useReportFilters(): FilterContextValue {
   return value;
 }
 
-const LABELS: Record<ReportFilterKey, string> = {
-  date: "Date range",
-  workspace: "Workspace",
-  team: "Team",
-  user: "User",
-  collection: "Collection",
-  connector: "Connector",
-  language: "Language",
-  model: "Model / provider",
-  confidence: "Confidence",
-};
 const OPTIONS: Record<ReportFilterKey, Array<[string, string]>> = {
   date: [
     ["7d", "Last 7 days"],
@@ -112,24 +102,25 @@ const OPTIONS: Record<ReportFilterKey, Array<[string, string]>> = {
 };
 
 export function GlobalReportFilters() {
+  const t = useTranslations("reports.filters");
   const { filters, setFilter, resetFilters } = useReportFilters();
   const changed = REPORT_FILTER_KEYS.some(
     (key) => filters[key] !== DEFAULT_REPORT_FILTERS[key],
   );
   return (
     <section
-      aria-label="Global report filters"
+      aria-label={t("ariaLabel")}
       className="rounded-xl border border-[#dfdced] bg-white p-4 shadow-sm lg:p-5"
     >
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-sm font-bold text-[#2a2640]">Global filters</h2>
+        <h2 className="text-sm font-bold text-[#2a2640]">{t("title")}</h2>
         <button
           type="button"
           onClick={resetFilters}
           disabled={!changed}
           className="text-xs font-bold text-[#3525cd] disabled:text-slate-400"
         >
-          Reset
+          {t("reset")}
         </button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -138,16 +129,16 @@ export function GlobalReportFilters() {
             className="grid gap-1 text-xs font-semibold text-[#5f5b72]"
             key={key}
           >
-            {LABELS[key]}
+            {t(`labels.${key}`)}
             <select
-              aria-label={LABELS[key]}
+              aria-label={t(`labels.${key}`)}
               value={filters[key]}
               onChange={(event) => setFilter(key, event.target.value)}
               className="min-w-0 rounded-lg border border-[#d7d4e7] bg-white px-3 py-2 text-sm text-[#2a2640]"
             >
-              {OPTIONS[key].map(([value, label]) => (
+              {OPTIONS[key].map(([value]) => (
                 <option value={value} key={value}>
-                  {label}
+                  {t(`options.${key}.${value}`)}
                 </option>
               ))}
             </select>

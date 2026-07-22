@@ -6008,5 +6008,94 @@
     "values": {
       "unavailable": "N/A"
     }
+  },
+  "reports": {
+    "sectionsLabel": "Report sections",
+    "sections": {
+      "overview": {
+        "label": "Overview",
+        "description": "Monitor answer quality, source health, adoption, feedback, and access from one workspace-wide view."
+      },
+      "answer-quality": {
+        "label": "Answer quality",
+        "description": "Trace confidence, citation accuracy, and grounding quality across retrieval responses."
+      },
+      "source-health": {
+        "label": "Source health",
+        "description": "Monitor retrieval stability, source freshness, and citation integrity across connected knowledge."
+      },
+      "usage-adoption": {
+        "label": "Usage & adoption",
+        "description": "Track workspace activity, returning users, and engagement with core Rudix workflows."
+      },
+      "permissions-access": {
+        "label": "Permissions & access",
+        "description": "Review workspace access, permission conflicts, and organization-wide security posture."
+      },
+      "feedback-issues": {
+        "label": "Feedback & issues",
+        "description": "Understand feedback themes, triage reported answer issues, and turn recurring failures into evaluation cases."
+      },
+      "knowledge-gaps": {
+        "label": "Knowledge gaps",
+        "description": "Identify recurring unanswered topics and prioritize the sources that will improve coverage most."
+      }
+    },
+    "states": {
+      "loadingReports": "Loading reports",
+      "loadingReportsDescription": "Applying your report access and saved filters.",
+      "loadingReport": "Loading report",
+      "notFound": "Report not found",
+      "notFoundDescription": "This report section does not exist or is not available yet.",
+      "unavailable": "Report unavailable",
+      "unavailableDescription": "Your role does not have permission to view this report section.",
+      "back": "Back to reports"
+    },
+    "filters": {
+      "ariaLabel": "Global report filters",
+      "title": "Global filters",
+      "reset": "Reset",
+      "labels": {
+        "date": "Date range",
+        "workspace": "Workspace",
+        "team": "Team",
+        "user": "User",
+        "collection": "Collection",
+        "connector": "Connector",
+        "language": "Language",
+        "model": "Model / provider",
+        "confidence": "Confidence"
+      },
+      "options": {
+        "date": {
+          "7d": "Last 7 days",
+          "30d": "Last 30 days",
+          "90d": "Last 90 days",
+          "all": "All time"
+        },
+        "workspace": {
+          "all": "All workspaces",
+          "current": "Current workspace"
+        },
+        "team": { "all": "All teams", "mine": "My team" },
+        "user": { "all": "All users", "me": "Me" },
+        "collection": { "all": "All collections" },
+        "connector": { "all": "All connectors" },
+        "language": {
+          "all": "All languages",
+          "en": "English",
+          "de": "German",
+          "es": "Spanish",
+          "fr": "French"
+        },
+        "model": { "all": "All models / providers" },
+        "confidence": {
+          "all": "All confidence",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        }
+      }
+    }
   }
 }

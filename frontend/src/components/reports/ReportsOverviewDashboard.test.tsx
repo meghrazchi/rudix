@@ -81,7 +81,7 @@ describe("ReportsOverviewDashboard", () => {
 
   it("renders all KPI links and health charts", async () => {
     renderDashboard();
-    await screen.findByRole("heading", { name: "Reports overview" });
+    await screen.findByRole("heading", { name: "Overview" });
     expect(screen.getAllByRole("link", { name: /report/i })).toHaveLength(16);
     expect(
       screen.getByRole("heading", { name: "Answer confidence" }),

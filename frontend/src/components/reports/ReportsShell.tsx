@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { getVisibleReportSections } from "@/lib/reports";
@@ -22,11 +23,12 @@ function ReportsShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { state } = useAuthSession();
+  const t = useTranslations("reports");
   if (state.status === "loading" || !state.session)
     return (
       <LoadingState
-        title="Loading reports"
-        description="Applying your report access and saved filters."
+        title={t("states.loadingReports")}
+        description={t("states.loadingReportsDescription")}
       />
     );
   const sections = getVisibleReportSections(state.session.role);
@@ -34,7 +36,7 @@ function ReportsShellContent({ children }: { children: React.ReactNode }) {
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <nav
-        aria-label="Report sections"
+        aria-label={t("sectionsLabel")}
         className="overflow-x-auto border-b border-[#dfdced] pb-px"
       >
         <div className="flex min-w-max gap-1">
@@ -50,7 +52,7 @@ function ReportsShellContent({ children }: { children: React.ReactNode }) {
                 aria-current={active ? "page" : undefined}
                 className={`border-b-2 px-3 py-2 text-sm font-semibold ${active ? "border-[#3525cd] text-[#3525cd]" : "border-transparent text-[#68647b] hover:text-[#2a2640]"}`}
               >
-                {section.label}
+                {t(`sections.${section.id}.label`)}
               </Link>
             );
           })}

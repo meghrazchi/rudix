@@ -38,12 +38,12 @@ vi.mock("@/components/reports/ReportBackendData", () => ({
 describe("ReportSectionPage route wiring", () => {
   it.each([
     [undefined, "Reports overview"],
-    ["answer-quality", "Answer Quality"],
-    ["source-health", "Source Health"],
-    ["usage-adoption", "Usage & Adoption"],
-    ["permissions-access", "Permissions & Access"],
-    ["feedback-issues", "Feedback & Issues"],
-    ["knowledge-gaps", "Knowledge Gaps"],
+    ["answer-quality", "Answer quality"],
+    ["source-health", "Source health"],
+    ["usage-adoption", "Usage & adoption"],
+    ["permissions-access", "Permissions & access"],
+    ["feedback-issues", "Feedback & issues"],
+    ["knowledge-gaps", "Knowledge gaps"],
   ])("wires %s to its report dashboard", (slug, heading) => {
     render(<ReportSectionPage slug={slug} />);
 

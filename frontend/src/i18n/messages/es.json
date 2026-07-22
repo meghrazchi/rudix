@@ -6008,5 +6008,94 @@
     "values": {
       "unavailable": "No disponible"
     }
+  },
+  "reports": {
+    "sectionsLabel": "Secciones de informes",
+    "sections": {
+      "overview": {
+        "label": "Resumen",
+        "description": "Supervisa calidad, fuentes, adopción, comentarios y acceso desde una sola vista."
+      },
+      "answer-quality": {
+        "label": "Calidad de respuestas",
+        "description": "Analiza la confianza, precisión de citas y fundamentación de las respuestas."
+      },
+      "source-health": {
+        "label": "Estado de fuentes",
+        "description": "Supervisa estabilidad, vigencia e integridad de citas de las fuentes conectadas."
+      },
+      "usage-adoption": {
+        "label": "Uso y adopción",
+        "description": "Sigue la actividad, usuarios recurrentes y adopción de flujos principales."
+      },
+      "permissions-access": {
+        "label": "Permisos y acceso",
+        "description": "Revisa accesos, conflictos de permisos y postura de seguridad."
+      },
+      "feedback-issues": {
+        "label": "Comentarios y problemas",
+        "description": "Comprende temas, prioriza problemas y convierte fallos recurrentes en evaluaciones."
+      },
+      "knowledge-gaps": {
+        "label": "Brechas de conocimiento",
+        "description": "Identifica temas sin respuesta y prioriza las fuentes que mejoran la cobertura."
+      }
+    },
+    "states": {
+      "loadingReports": "Cargando informes",
+      "loadingReportsDescription": "Aplicando el acceso y los filtros guardados.",
+      "loadingReport": "Cargando informe",
+      "notFound": "Informe no encontrado",
+      "notFoundDescription": "Esta sección no existe o aún no está disponible.",
+      "unavailable": "Informe no disponible",
+      "unavailableDescription": "Tu rol no tiene permiso para ver esta sección.",
+      "back": "Volver a informes"
+    },
+    "filters": {
+      "ariaLabel": "Filtros globales de informes",
+      "title": "Filtros globales",
+      "reset": "Restablecer",
+      "labels": {
+        "date": "Intervalo de fechas",
+        "workspace": "Espacio de trabajo",
+        "team": "Equipo",
+        "user": "Usuario",
+        "collection": "Colección",
+        "connector": "Conector",
+        "language": "Idioma",
+        "model": "Modelo / proveedor",
+        "confidence": "Confianza"
+      },
+      "options": {
+        "date": {
+          "7d": "Últimos 7 días",
+          "30d": "Últimos 30 días",
+          "90d": "Últimos 90 días",
+          "all": "Todo el período"
+        },
+        "workspace": {
+          "all": "Todos los espacios",
+          "current": "Espacio actual"
+        },
+        "team": { "all": "Todos los equipos", "mine": "Mi equipo" },
+        "user": { "all": "Todos los usuarios", "me": "Yo" },
+        "collection": { "all": "Todas las colecciones" },
+        "connector": { "all": "Todos los conectores" },
+        "language": {
+          "all": "Todos los idiomas",
+          "en": "Inglés",
+          "de": "Alemán",
+          "es": "Español",
+          "fr": "Francés"
+        },
+        "model": { "all": "Todos los modelos / proveedores" },
+        "confidence": {
+          "all": "Todos los niveles",
+          "high": "Alta",
+          "medium": "Media",
+          "low": "Baja"
+        }
+      }
+    }
   }
 }

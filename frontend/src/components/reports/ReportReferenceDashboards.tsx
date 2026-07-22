@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -227,6 +228,7 @@ function Panel({
 }
 
 export function AnswerQualityDashboard() {
+  const t = useTranslations("reports");
   const { trust, analytics, gaps } = useReportBackendData();
   const accuracy = trust?.avg_citation_support_score;
   const confidence = trust?.avg_confidence_score;
@@ -245,8 +247,8 @@ export function AnswerQualityDashboard() {
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title="Answer Quality"
-        description="Trace confidence, citation accuracy, and grounding quality across retrieval responses."
+        title={t("sections.answer-quality.label")}
+        description={t("sections.answer-quality.description")}
       />
       <section
         aria-label="Answer quality key metrics"
@@ -346,14 +348,15 @@ export function AnswerQualityDashboard() {
 }
 
 export function SourceHealthDashboard() {
+  const t = useTranslations("reports");
   const { trust, failedJobs, usage } = useReportBackendData();
   const trends = trust?.daily_trends ?? [];
   const failed = failedJobs?.items ?? [];
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title="Source Health"
-        description="Monitor retrieval stability, source freshness, and citation integrity across connected knowledge."
+        title={t("sections.source-health.label")}
+        description={t("sections.source-health.description")}
       />
       <section
         aria-label="Source health key metrics"
@@ -471,6 +474,7 @@ export function SourceHealthDashboard() {
 }
 
 export function FeedbackIssuesDashboard() {
+  const t = useTranslations("reports");
   const { feedbackMetrics, feedbackItems } = useReportBackendData();
   const items = feedbackItems?.items ?? [];
   const categories: Array<readonly [string, number]> = (
@@ -494,8 +498,8 @@ export function FeedbackIssuesDashboard() {
   return (
     <main className="grid gap-6">
       <ReportHeader
-        title="Feedback & Issues"
-        description="Understand feedback themes, triage reported answer issues, and turn recurring failures into evaluation cases."
+        title={t("sections.feedback-issues.label")}
+        description={t("sections.feedback-issues.description")}
       />
       <section
         aria-label="Feedback key metrics"
