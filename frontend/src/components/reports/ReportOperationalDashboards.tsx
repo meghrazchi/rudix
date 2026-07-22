@@ -29,6 +29,7 @@ import {
   ReportHeader,
   StatusBadge,
 } from "@/components/reports/report-ui";
+import { useReportBackendData } from "@/components/reports/ReportBackendData";
 
 const tooltipStyle = {
   border: "1px solid #dfdced",
@@ -39,6 +40,10 @@ const tooltipStyle = {
 };
 
 const axisTick = { fill: "#777287", fontSize: 11 };
+const compactNumber = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
 
 function ReportLink({ href, label }: { href: string; label: string }) {
   return (
@@ -106,21 +111,19 @@ export function PersonalReportsOverview() {
   );
 }
 
-const usageTrend = [
-  { period: "Week 1", questions: 320, users: 42 },
-  { period: "Week 2", questions: 460, users: 58 },
-  { period: "Week 3", questions: 515, users: 64 },
-  { period: "Week 4", questions: 690, users: 81 },
-];
-
-const featureAdoption = [
-  { feature: "Chat", adoption: 88 },
-  { feature: "Search", adoption: 71 },
-  { feature: "Collections", adoption: 56 },
-  { feature: "Evaluations", adoption: 34 },
-];
-
 export function UsageAdoptionDashboard() {
+  const { usage } = useReportBackendData();
+  const totals = usage?.totals;
+  const usageTrend = (usage?.series ?? []).map((point) => ({
+    period: point.period_start,
+    questions: point.questions_asked,
+    users: point.active_users,
+  }));
+  const featureAdoption = Object.entries(
+    usage?.feature_area_breakdown ?? {},
+  ).map(([feature, adoption]) => ({ feature, adoption }));
+  const questions = totals?.questions_asked ?? 0;
+  const users = totals?.active_users ?? 0;
   return (
     <main className="grid gap-6">
       <ReportHeader
@@ -133,25 +136,22 @@ export function UsageAdoptionDashboard() {
       >
         <KpiCard
           label="Questions asked"
-          value="1,985"
-          change="+18%"
+          value={compactNumber.format(questions)}
           description="Selected period"
         />
         <KpiCard
           label="Active users"
-          value="81"
-          change="+12%"
+          value={compactNumber.format(users)}
           description="Unique users"
         />
         <KpiCard
-          label="Returning users"
-          value="68%"
-          change="+5%"
-          description="Used Rudix more than once"
+          label="Agent runs"
+          value={compactNumber.format(totals?.agent_runs ?? 0)}
+          description="Agent workflow adoption"
         />
         <KpiCard
           label="Questions per user"
-          value="24.5"
+          value={users ? (questions / users).toFixed(1) : "0"}
           description="Average engagement"
         />
       </section>
@@ -163,7 +163,7 @@ export function UsageAdoptionDashboard() {
           <div
             className="h-72"
             role="img"
-            aria-label="Questions and active users increased throughout the period"
+            aria-label="Questions and active users returned by the usage API"
             data-chart-library="recharts"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -209,7 +209,7 @@ export function UsageAdoptionDashboard() {
           <div
             className="h-72"
             role="img"
-            aria-label="Chat has the highest feature adoption at 88 percent"
+            aria-label="Feature adoption returned by the usage API"
             data-chart-library="recharts"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -243,46 +243,32 @@ export function UsageAdoptionDashboard() {
         </ChartCard>
       </section>
       <ReportDataTable
-        caption="Team adoption"
-        columns={["Team", "Active users", "Questions", "Adoption"]}
-        rows={[
-          [
-            "Operations",
-            "28",
-            "740",
-            <StatusBadge key="high" label="High" tone="healthy" />,
-          ],
-          [
-            "Customer success",
-            "24",
-            "615",
-            <StatusBadge key="growing" label="Growing" tone="healthy" />,
-          ],
-          [
-            "Finance",
-            "17",
-            "390",
-            <StatusBadge key="steady" label="Steady" tone="neutral" />,
-          ],
-          [
-            "Legal",
-            "12",
-            "240",
-            <StatusBadge key="review" label="Needs support" tone="warning" />,
-          ],
-        ]}
+        caption="Top user adoption"
+        columns={["User", "Active identities", "Questions", "Adoption"]}
+        rows={(usage?.top_users ?? []).map((user) => [
+          user.user_id,
+          "1",
+          compactNumber.format(user.questions),
+          <StatusBadge key={user.user_id} label="Active" tone="healthy" />,
+        ])}
       />
     </main>
   );
 }
 
-const accessRisk = [
-  { name: "Healthy", value: 76, color: "#10b981" },
-  { name: "Warning", value: 17, color: "#f59e0b" },
-  { name: "Critical", value: 7, color: "#f43f5e" },
-];
-
 export function PermissionsAccessDashboard() {
+  const { conflicts } = useReportBackendData();
+  const items = conflicts?.items ?? [];
+  const blocking = items.filter((item) =>
+    ["blocking", "security_risk"].includes(item.severity),
+  ).length;
+  const warning = items.filter((item) => item.severity === "warning").length;
+  const other = Math.max(0, (conflicts?.total ?? 0) - blocking - warning);
+  const accessRisk = [
+    { name: "Other", value: other, color: "#10b981" },
+    { name: "Warning", value: warning, color: "#f59e0b" },
+    { name: "Critical", value: blocking, color: "#f43f5e" },
+  ];
   return (
     <main className="grid gap-6">
       <ReportHeader
@@ -294,21 +280,24 @@ export function PermissionsAccessDashboard() {
         className="grid gap-4 sm:grid-cols-2 lg:gap-5 xl:grid-cols-4"
       >
         <KpiCard
-          label="Workspace members"
-          value="124"
-          description="Active identities"
+          label="Open conflicts"
+          value={String(conflicts?.total ?? 0)}
+          description="Needs review"
         />
-        <KpiCard label="Open conflicts" value="9" description="Needs review" />
         <KpiCard
           label="Blocking conflicts"
-          value="2"
+          value={String(blocking)}
           description="Immediate attention"
         />
         <KpiCard
-          label="Resolved this month"
-          value="31"
-          change="+8"
-          description="Access remediations"
+          label="Warnings"
+          value={String(warning)}
+          description="Permission anomalies"
+        />
+        <KpiCard
+          label="Loaded conflicts"
+          value={String(items.length)}
+          description="Current backend page"
         />
       </section>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
@@ -319,7 +308,7 @@ export function PermissionsAccessDashboard() {
           <div
             className="h-72"
             role="img"
-            aria-label="Access posture is 76 percent healthy, 17 percent warning, and 7 percent critical"
+            aria-label="Permission conflict severity distribution returned by the backend"
             data-chart-library="recharts"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -346,7 +335,7 @@ export function PermissionsAccessDashboard() {
         </ChartCard>
         <RecommendedActionCard
           title="Resolve blocking conflicts"
-          description="Two access rules can expose or hide sources incorrectly. Review the matched grants and denies before the next permission sync."
+          description={`${blocking} access rule${blocking === 1 ? "" : "s"} can expose or hide sources incorrectly. Review matched grants and denies before the next permission sync.`}
           priority="High"
           impact="Restore safe source access"
           related="Admin permissions"
@@ -358,40 +347,37 @@ export function PermissionsAccessDashboard() {
       <ReportDataTable
         caption="Permission conflicts"
         columns={["Conflict", "Resource", "Severity", "Status"]}
-        rows={[
-          [
-            "Grant overrides explicit deny",
-            "Finance collection",
-            <StatusBadge key="blocking" label="Blocking" tone="critical" />,
-            "Open",
-          ],
-          [
-            "Group membership mismatch",
-            "HR handbook",
-            <StatusBadge key="risk" label="Security risk" tone="critical" />,
-            "Investigating",
-          ],
-          [
-            "Stale connector ACL",
-            "Salesforce sync",
-            <StatusBadge key="warning" label="Warning" tone="warning" />,
-            "Open",
-          ],
-        ]}
+        rows={items.map((item) => [
+          item.conflict_summary ?? item.conflict_type,
+          `${item.resource_type}${item.resource_id ? ` · ${item.resource_id}` : ""}`,
+          <StatusBadge
+            key={item.id}
+            label={item.severity.replaceAll("_", " ")}
+            tone={
+              ["blocking", "security_risk"].includes(item.severity)
+                ? "critical"
+                : item.severity === "warning"
+                  ? "warning"
+                  : "neutral"
+            }
+          />,
+          item.status,
+        ])}
       />
     </main>
   );
 }
 
-const gapTopics = [
-  { topic: "Security", occurrences: 38 },
-  { topic: "Onboarding", occurrences: 31 },
-  { topic: "API", occurrences: 24 },
-  { topic: "Benefits", occurrences: 18 },
-  { topic: "Procurement", occurrences: 12 },
-];
-
 export function KnowledgeGapsDashboard() {
+  const { gaps, analytics } = useReportBackendData();
+  const items = gaps?.items ?? [];
+  const gapTopics = items.map((item) => ({
+    topic: item.topic_label,
+    occurrences: item.occurrence_count,
+  }));
+  const lowConfidence = items.filter(
+    (item) => item.gap_type === "low_confidence",
+  ).length;
   return (
     <main className="grid gap-6">
       <ReportHeader
@@ -404,24 +390,23 @@ export function KnowledgeGapsDashboard() {
       >
         <KpiCard
           label="Open gaps"
-          value="47"
+          value={String(gaps?.total ?? 0)}
           description="Across all collections"
         />
         <KpiCard
           label="Unanswered queries"
-          value="123"
+          value={String(analytics?.unanswered_queries ?? 0)}
           description="Selected period"
         />
         <KpiCard
           label="Low-confidence topics"
-          value="18"
+          value={String(lowConfidence)}
           description="Needs stronger evidence"
         />
         <KpiCard
-          label="Resolved this month"
-          value="22"
-          change="+6"
-          description="Coverage improvements"
+          label="Loaded topics"
+          value={String(items.length)}
+          description="Prioritized backend results"
         />
       </section>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
@@ -432,7 +417,7 @@ export function KnowledgeGapsDashboard() {
           <div
             className="h-72"
             role="img"
-            aria-label="Security is the largest knowledge gap with 38 occurrences"
+            aria-label="Top knowledge gaps returned by the backend"
             data-chart-library="recharts"
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -464,47 +449,27 @@ export function KnowledgeGapsDashboard() {
           </div>
         </ChartCard>
         <RecommendedActionCard
-          title="Add missing security guidance"
-          description="Security protocol questions account for the largest unresolved cluster and repeatedly return weak evidence."
+          title={`Add guidance for ${items[0]?.topic_label ?? "the leading gap"}`}
+          description={`${items[0]?.topic_label ?? "The leading topic"} is the largest unresolved cluster in the current filtered results.`}
           priority="High"
-          impact="Address 38 recurring queries"
-          related="Security collection"
+          impact={`Address ${items[0]?.occurrence_count ?? 0} recurring queries`}
+          related={items[0]?.collection_id ?? "Unassigned collection"}
           action={<ReportLink href="/documents" label="Add source" />}
         />
       </div>
       <ReportDataTable
         caption="Knowledge gap details"
         columns={["Topic", "Example query", "Occurrences", "Status"]}
-        rows={[
-          [
-            "Q4 security protocols",
-            "Which controls changed this quarter?",
-            "38",
-            <StatusBadge key="open" label="Open" tone="critical" />,
-          ],
-          [
-            "Remote onboarding",
-            "How do contractors receive access?",
-            "31",
-            <StatusBadge key="review" label="In review" tone="warning" />,
-          ],
-          [
-            "API deprecations",
-            "When is v11 no longer supported?",
-            "24",
-            <StatusBadge
-              key="source"
-              label="Source requested"
-              tone="neutral"
-            />,
-          ],
-          [
-            "Employee benefits",
-            "Does the plan cover remote therapy?",
-            "18",
-            <StatusBadge key="progress" label="In review" tone="warning" />,
-          ],
-        ]}
+        rows={items.map((item) => [
+          item.topic_label,
+          item.example_query ?? "No example query stored",
+          String(item.occurrence_count),
+          <StatusBadge
+            key={item.gap_id}
+            label={item.status.replaceAll("_", " ")}
+            tone={item.status === "open" ? "critical" : "warning"}
+          />,
+        ])}
       />
     </main>
   );

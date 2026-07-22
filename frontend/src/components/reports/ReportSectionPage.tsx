@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { ReportsOverviewDashboard } from "@/components/reports/ReportsOverviewDashboard";
+import { ReportBackendDataProvider } from "@/components/reports/ReportBackendData";
 import {
   AnswerQualityDashboard,
   FeedbackIssuesDashboard,
@@ -46,12 +47,41 @@ export function ReportSectionPage({ slug }: { slug?: string }) {
   ) {
     return <ReportsOverviewDashboard />;
   }
-  if (section.id === "answer-quality") return <AnswerQualityDashboard />;
-  if (section.id === "source-health") return <SourceHealthDashboard />;
-  if (section.id === "usage-adoption") return <UsageAdoptionDashboard />;
+  if (section.id === "answer-quality")
+    return (
+      <ReportBackendDataProvider>
+        <AnswerQualityDashboard />
+      </ReportBackendDataProvider>
+    );
+  if (section.id === "source-health")
+    return (
+      <ReportBackendDataProvider>
+        <SourceHealthDashboard />
+      </ReportBackendDataProvider>
+    );
+  if (section.id === "usage-adoption")
+    return (
+      <ReportBackendDataProvider>
+        <UsageAdoptionDashboard />
+      </ReportBackendDataProvider>
+    );
   if (section.id === "permissions-access")
-    return <PermissionsAccessDashboard />;
-  if (section.id === "feedback-issues") return <FeedbackIssuesDashboard />;
-  if (section.id === "knowledge-gaps") return <KnowledgeGapsDashboard />;
+    return (
+      <ReportBackendDataProvider>
+        <PermissionsAccessDashboard />
+      </ReportBackendDataProvider>
+    );
+  if (section.id === "feedback-issues")
+    return (
+      <ReportBackendDataProvider>
+        <FeedbackIssuesDashboard />
+      </ReportBackendDataProvider>
+    );
+  if (section.id === "knowledge-gaps")
+    return (
+      <ReportBackendDataProvider>
+        <KnowledgeGapsDashboard />
+      </ReportBackendDataProvider>
+    );
   return <PersonalReportsOverview />;
 }

@@ -19,6 +19,14 @@ import {
   getTrustAnalytics,
   type TrustAnalyticsResponse,
 } from "@/lib/api/trust_analytics";
+import {
+  getFeedbackMetrics,
+  type FeedbackMetricsResponse,
+} from "@/lib/api/feedback";
+import {
+  listFeedbackReviewItems,
+  type FeedbackReviewListResponse,
+} from "@/lib/api/feedback-review";
 import type { ReportFilters } from "@/lib/reports";
 
 export type ReportsOverviewData = {
@@ -29,6 +37,8 @@ export type ReportsOverviewData = {
   failedJobs: FailedJobsListResponse | null;
   conflicts: ConflictListResponse | null;
   gaps: KnowledgeGapListResponse | null;
+  feedbackMetrics: FeedbackMetricsResponse | null;
+  feedbackItems: FeedbackReviewListResponse | null;
   unavailable: string[];
 };
 
@@ -156,6 +166,8 @@ export async function getReportsOverview(
     listFailedJobs({ status: "failed", page_size: 1 }),
     listConflicts({ status: "open", page_size: 100 }),
     listKnowledgeGaps({ status: "open", limit: 5 }),
+    getFeedbackMetrics(Number.parseInt(filters.date, 10) || 30),
+    listFeedbackReviewItems({ limit: 20, offset: 0 }),
   ] as const;
   const results = await Promise.allSettled(calls);
   const names = [
@@ -166,6 +178,8 @@ export async function getReportsOverview(
     "indexing",
     "permissions",
     "knowledge gaps",
+    "feedback metrics",
+    "feedback queue",
   ];
   const value = <T>(index: number): T | null =>
     results[index]?.status === "fulfilled" ? (results[index].value as T) : null;
@@ -177,6 +191,8 @@ export async function getReportsOverview(
     failedJobs: value(4),
     conflicts: value(5),
     gaps: value(6),
+    feedbackMetrics: value(7),
+    feedbackItems: value(8),
     unavailable: names.filter(
       (_, index) => results[index]?.status === "rejected",
     ),

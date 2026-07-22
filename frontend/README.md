@@ -100,7 +100,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - empty state with document/chat call-to-actions when no activity exists
 - Reports area behavior:
   - `/reports` provides the shared report shell; section routes include Answer Quality, Source Health, Usage & Adoption, Permissions & Access, Feedback & Issues, and Knowledge Gaps
-  - every report route resolves to a dedicated responsive dashboard: personal/workspace Overview, Answer Quality, Source Health, Usage & Adoption, Permissions & Access, Feedback & Issues, and Knowledge Gaps; Answer Quality also supports an accessible query-detail drawer
+  - every report route resolves to a dedicated responsive dashboard: personal/workspace Overview, Answer Quality, Source Health, Usage & Adoption, Permissions & Access, Feedback & Issues, and Knowledge Gaps
+  - detailed report dashboards use the typed organization-scoped usage, query/trust analytics, failed-job, permission-conflict, feedback-review, and knowledge-gap API clients; URL-backed date/model filters are applied to backend requests and unavailable role-restricted sources render an explicit partial-data state
   - owners/admins receive a workspace health overview with eight linked KPIs, answer/adoption/source/feedback/access charts, and prioritized recommended actions; empty workspaces guide users to upload a source or ask a question
   - members/viewers receive personal sections; reviewers also receive Source Health and Knowledge Gaps; owners/admins receive every section
   - date, workspace, team, user, collection, connector, language, model/provider, and confidence filters are URL-backed and preserved while navigating between sections
