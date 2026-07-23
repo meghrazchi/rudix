@@ -1068,18 +1068,24 @@ export function AppShell({
                   type="button"
                   onClick={openCommandMenu}
                   aria-label={t("openSearch")}
-                  className="relative hidden h-11 items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] ps-10 pe-2 text-start text-sm font-medium text-[#4a4662] transition outline-none hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:inline-flex sm:w-72 lg:w-[26rem]"
+                  data-testid="header-search-full"
+                  className="relative hidden h-11 items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] ps-10 pe-3 text-start text-sm font-medium text-[#4a4662] transition outline-none hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:inline-flex sm:w-72 md:pe-24 lg:w-[26rem]"
                 >
                   <span
                     aria-hidden="true"
-                    className="material-symbols-outlined absolute start-3 text-[20px] text-[#777587]"
+                    data-testid="header-search-icon"
+                    className="material-symbols-outlined pointer-events-none absolute start-3 text-[20px] text-[#777587]"
                   >
                     search
                   </span>
-                  <span className="me-2 flex-1 truncate">
+                  <span className="min-w-0 flex-1 truncate">
                     {t("searchKnowledgeBase")}
                   </span>
-                  <span className="ms-2 hidden shrink-0 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#6f6b87] md:inline">
+                  <span
+                    dir="ltr"
+                    data-testid="header-command-hint"
+                    className="pointer-events-none absolute end-2 hidden rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#6f6b87] md:inline"
+                  >
                     ⌘/Ctrl K
                   </span>
                 </button>

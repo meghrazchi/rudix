@@ -65,6 +65,33 @@ function renderShell({
 }
 
 describe("AppShell top bar menus", () => {
+  it("keeps the search icon and command hint on separate anchored sides", () => {
+    renderShell({
+      session: {
+        userId: "user-search-layout",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-search-layout",
+      },
+    });
+
+    const search = screen.getByTestId("header-search-full");
+    expect(search).toHaveClass("ps-10", "md:pe-24");
+    expect(screen.getByTestId("header-search-icon")).toHaveClass(
+      "absolute",
+      "start-3",
+    );
+    expect(screen.getByTestId("header-command-hint")).toHaveClass(
+      "absolute",
+      "end-2",
+    );
+    expect(screen.getByTestId("header-command-hint")).toHaveAttribute(
+      "dir",
+      "ltr",
+    );
+  });
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
