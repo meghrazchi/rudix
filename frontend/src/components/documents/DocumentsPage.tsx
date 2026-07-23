@@ -298,6 +298,7 @@ function truncateFilename(name: string, maxLen = 28): string {
 function documentSourceLabel(
   sourceProvider: string | null | undefined,
   sourceProviderLabel: string | null | undefined,
+  localUploadLabel: string,
 ): string | null {
   if (sourceProviderLabel) return sourceProviderLabel;
   if (!sourceProvider) return null;
@@ -307,7 +308,7 @@ function documentSourceLabel(
     "microsoft-sharepoint-onedrive": "SharePoint / OneDrive",
     notion: "Notion",
     jira: "Jira",
-    upload: "Local Upload",
+    upload: localUploadLabel,
   };
   return map[sourceProvider] ?? sourceProvider.replace(/_/g, " ");
 }
@@ -407,24 +408,24 @@ export function DocumentsPage() {
     value: FreshnessFilter;
     label: string;
   }> = [
-    { value: "all", label: "All freshness" },
-    { value: "current", label: "Current" },
-    { value: "trusted", label: "Trusted" },
-    { value: "needs_review", label: "Needs review" },
-    { value: "stale", label: "Stale" },
-    { value: "expired", label: "Expired" },
-    { value: "archived", label: "Archived" },
+    { value: "all", label: tp("freshnessAll") },
+    { value: "current", label: tp("freshnessCurrent") },
+    { value: "trusted", label: tp("freshnessTrusted") },
+    { value: "needs_review", label: tp("freshnessNeedsReview") },
+    { value: "stale", label: tp("freshnessStale") },
+    { value: "expired", label: tp("freshnessExpired") },
+    { value: "archived", label: tp("freshnessArchived") },
   ];
   const qualityFilterOptions: Array<{ value: QualityFilter; label: string }> = [
-    { value: "all", label: "All quality" },
-    { value: "draft", label: "Draft" },
-    { value: "verified", label: "Verified" },
-    { value: "reviewed", label: "Reviewed" },
-    { value: "unreviewed", label: "Unreviewed" },
-    { value: "stale", label: "Stale" },
-    { value: "expired", label: "Expired" },
-    { value: "deprecated", label: "Deprecated" },
-    { value: "archived", label: "Archived" },
+    { value: "all", label: tp("qualityAll") },
+    { value: "draft", label: tp("qualityDraft") },
+    { value: "verified", label: tp("qualityVerified") },
+    { value: "reviewed", label: tp("qualityReviewed") },
+    { value: "unreviewed", label: tp("qualityUnreviewed") },
+    { value: "stale", label: tp("qualityStale") },
+    { value: "expired", label: tp("qualityExpired") },
+    { value: "deprecated", label: tp("qualityDeprecated") },
+    { value: "archived", label: tp("qualityArchived") },
   ];
 
   const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
@@ -570,10 +571,12 @@ export function DocumentsPage() {
     onSuccess: async (result, documentId) => {
       if (result.status === "retained_by_policy") {
         setActionFeedback(
-          `Document is retained by policy${result.hold_reason ? `: ${result.hold_reason}` : "."} Deletion blocked.`,
+          tp("deleteRetained", {
+            reason: result.hold_reason ?? tp("noReason"),
+          }),
         );
       } else {
-        setActionFeedback(`Deletion requested. Status: ${result.status}.`);
+        setActionFeedback(tp("deleteRequested", { status: result.status }));
       }
       setActionRequestId(null);
       if (selectedDocumentId === documentId && result.status === "deleted") {
@@ -594,10 +597,11 @@ export function DocumentsPage() {
     onSuccess: async (result) => {
       const parts: string[] = [];
       if (result.accepted > 0)
-        parts.push(`${result.accepted} queued for deletion`);
+        parts.push(tp("bulkDeleteQueued", { count: result.accepted }));
       if (result.retained > 0)
-        parts.push(`${result.retained} retained by policy`);
-      if (result.errors > 0) parts.push(`${result.errors} errors`);
+        parts.push(tp("bulkDeleteRetained", { count: result.retained }));
+      if (result.errors > 0)
+        parts.push(tp("bulkDeleteErrors", { count: result.errors }));
       setActionFeedback(parts.join(", ") + ".");
       setActionRequestId(null);
       setSelectedIds(new Set());
@@ -613,7 +617,7 @@ export function DocumentsPage() {
     mutationFn: (documentId: string) => reindexDocument(documentId),
     onSuccess: async (result, documentId) => {
       setActionFeedback(
-        `Re-index requested for ${documentId}. Queue status: ${result.queue_status}.`,
+        tp("reindexRequested", { documentId, status: result.queue_status }),
       );
       setActionRequestId(null);
       setSelectedDocumentId(documentId);
@@ -1023,7 +1027,7 @@ export function DocumentsPage() {
     });
     setUploadFeedback({
       state: "uploading",
-      message: `Starting upload queue for ${files.length} file(s).`,
+      message: tp("uploadQueueStarting", { count: files.length }),
     });
 
     for (const [index, file] of files.entries()) {
@@ -1087,7 +1091,11 @@ export function DocumentsPage() {
       });
       setUploadFeedback({
         state: "uploading",
-        message: `Uploading ${index + 1}/${files.length}: ${file.name}`,
+        message: tp("uploadingProgress", {
+          current: index + 1,
+          total: files.length,
+          filename: file.name,
+        }),
       });
 
       try {
@@ -1136,7 +1144,11 @@ export function DocumentsPage() {
         });
         setUploadFeedback({
           state: "queued",
-          message: `Queued ${result.filename} (${completed}/${files.length}).`,
+          message: tp("uploadQueued", {
+            filename: result.filename,
+            completed,
+            total: files.length,
+          }),
         });
       } catch (error) {
         uploadControllersRef.current.delete(index);
@@ -1237,7 +1249,10 @@ export function DocumentsPage() {
     if (successCount > 0 && failedCount === 0 && canceledCount === 0) {
       setUploadFeedback({
         state: "success",
-        message: `Uploaded ${successCount}/${files.length} file(s). Processing has been queued.`,
+        message: tp("uploadSuccess", {
+          success: successCount,
+          total: files.length,
+        }),
       });
       return;
     }
@@ -1245,14 +1260,18 @@ export function DocumentsPage() {
     if (successCount > 0) {
       const remainder: string[] = [];
       if (failedCount > 0) {
-        remainder.push(`${failedCount} file(s) failed`);
+        remainder.push(tp("uploadFailedCount", { count: failedCount }));
       }
       if (canceledCount > 0) {
-        remainder.push(`${canceledCount} file(s) canceled`);
+        remainder.push(tp("uploadCanceledCount", { count: canceledCount }));
       }
       setUploadFeedback({
         state: "queued",
-        message: `Uploaded ${successCount}/${files.length} file(s); ${remainder.join(" and ")}.`,
+        message: tp("uploadPartial", {
+          success: successCount,
+          total: files.length,
+          remainder: remainder.join(tp("listAnd")),
+        }),
         requestId: lastRequestId,
       });
       return;
@@ -1261,7 +1280,10 @@ export function DocumentsPage() {
     if (failedCount === 0 && canceledCount > 0) {
       setUploadFeedback({
         state: "canceled",
-        message: `Canceled ${canceledCount}/${files.length} file(s).`,
+        message: tp("uploadCanceled", {
+          canceled: canceledCount,
+          total: files.length,
+        }),
       });
       return;
     }
@@ -1271,7 +1293,7 @@ export function DocumentsPage() {
       message:
         files.length === 1 && lastFailureMessage
           ? lastFailureMessage
-          : `Upload failed for all ${files.length} file(s).`,
+          : tp("uploadAllFailed", { count: files.length }),
       requestId: lastRequestId,
     });
   }
@@ -1576,7 +1598,7 @@ export function DocumentsPage() {
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Freshness
+              {tp("freshnessLabel")}
               <select
                 value={freshnessFilter}
                 onChange={(event) => {
@@ -1593,7 +1615,7 @@ export function DocumentsPage() {
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Quality
+              {tp("qualityLabel")}
               <select
                 value={qualityFilter}
                 onChange={(event) => {
@@ -1724,11 +1746,11 @@ export function DocumentsPage() {
         !debouncedFilenameSearch ? (
           <div className="mt-4">
             <OnboardingCtaBanner
-              title="New to Rudix?"
-              description="Follow the Getting Started checklist to upload your first document, wait for indexing, and ask your first question — all in a few minutes."
-              actionLabel="Open Getting Started"
+              title={tp("onboardingTitle")}
+              description={tp("onboardingDescription")}
+              actionLabel={tp("onboardingAction")}
               actionHref="/chat"
-              secondaryLabel="Go to Chat"
+              secondaryLabel={tp("goToChat")}
               secondaryHref="/chat"
             />
           </div>
@@ -1746,7 +1768,7 @@ export function DocumentsPage() {
                       <th className="px-4 py-3">
                         <input
                           type="checkbox"
-                          aria-label="Select all"
+                          aria-label={tp("selectAll")}
                           checked={allSelectableSelected}
                           disabled={selectableDocumentIds.length === 0}
                           onChange={(e) => {
@@ -1764,8 +1786,8 @@ export function DocumentsPage() {
                     <th className="px-4 py-3">{tp("tableSource")}</th>
                     <th className="px-4 py-3">{tp("tableType")}</th>
                     <th className="px-4 py-3">{tp("tableStatus")}</th>
-                    <th className="px-4 py-3">Freshness</th>
-                    <th className="px-4 py-3">Quality</th>
+                    <th className="px-4 py-3">{tp("freshnessLabel")}</th>
+                    <th className="px-4 py-3">{tp("qualityLabel")}</th>
                     <th className="px-4 py-3 text-center">
                       {tp("tablePages")}
                     </th>
@@ -1806,7 +1828,9 @@ export function DocumentsPage() {
                           <td className="px-4 py-3">
                             <input
                               type="checkbox"
-                              aria-label={`Select ${document.filename}`}
+                              aria-label={tp("selectDocument", {
+                                filename: document.filename,
+                              })}
                               checked={selectedIds.has(document.document_id)}
                               disabled={!canDeleteDocument(document.status)}
                               onChange={(e) => {
@@ -1878,6 +1902,7 @@ export function DocumentsPage() {
                             const label = documentSourceLabel(
                               providerKey,
                               document.source_provider_label,
+                              tp("localUpload"),
                             );
                             return (
                               <div className="flex items-center gap-1.5">
@@ -1885,7 +1910,7 @@ export function DocumentsPage() {
                                   {documentSourceIcon(providerKey)}
                                 </span>
                                 <span className="text-xs whitespace-nowrap text-[#464555]">
-                                  {label ?? "Local Upload"}
+                                  {label ?? tp("localUpload")}
                                 </span>
                               </div>
                             );
@@ -1903,14 +1928,26 @@ export function DocumentsPage() {
                           <span
                             className={freshnessBadge(document.review_status)}
                           >
-                            {document.review_status ?? "current"}
+                            {
+                              freshnessFilterOptions.find(
+                                (option) =>
+                                  option.value ===
+                                  (document.review_status ?? "current"),
+                              )?.label
+                            }
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <span
                             className={qualityBadge(document.quality_state)}
                           >
-                            {document.quality_state ?? "unreviewed"}
+                            {
+                              qualityFilterOptions.find(
+                                (option) =>
+                                  option.value ===
+                                  (document.quality_state ?? "unreviewed"),
+                              )?.label
+                            }
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center font-mono text-sm text-[#1b1b24]">
@@ -1929,7 +1966,7 @@ export function DocumentsPage() {
                           <div className="flex justify-end gap-1 opacity-40 transition-opacity group-hover:opacity-100">
                             <button
                               type="button"
-                              aria-label="Inspect"
+                              aria-label={tp("inspect")}
                               onClick={() => {
                                 setSelectedDocumentId(document.document_id);
                                 setChunksOffset(0);
@@ -1943,7 +1980,7 @@ export function DocumentsPage() {
                               </span>
                             </button>
                             <Link
-                              aria-label="View detail"
+                              aria-label={tp("viewDetail")}
                               href={`/documents/${encodeURIComponent(document.document_id)}?back=${encodeURIComponent(currentListHref)}`}
                               className="rounded p-1 text-[#3525cd] hover:bg-[#3525cd]/10"
                             >
@@ -1953,7 +1990,7 @@ export function DocumentsPage() {
                             </Link>
                             <button
                               type="button"
-                              aria-label="Download"
+                              aria-label={tp("download")}
                               disabled={!downloadEnabled || downloadBusy}
                               onClick={() => {
                                 downloadMutation.mutate({
@@ -1969,7 +2006,7 @@ export function DocumentsPage() {
                             </button>
                             <button
                               type="button"
-                              aria-label="Re-index"
+                              aria-label={tp("reindex")}
                               disabled={!reindexEnabled || reindexBusy}
                               onClick={() => {
                                 reindexMutation.mutate(document.document_id);
@@ -1982,7 +2019,7 @@ export function DocumentsPage() {
                             </button>
                             <button
                               type="button"
-                              aria-label="Delete"
+                              aria-label={tp("delete")}
                               disabled={!deleteEnabled || deleteBusy}
                               onClick={() => {
                                 setDeleteModalState({
@@ -1999,8 +2036,8 @@ export function DocumentsPage() {
                             </button>
                             <button
                               type="button"
-                              aria-label="Assign collections"
-                              title="Assign to collections"
+                              aria-label={tp("assignCollections")}
+                              title={tp("assignCollections")}
                               onClick={() => {
                                 setAssignDocumentId(document.document_id);
                                 setAssignDocumentName(document.filename);
@@ -2054,7 +2091,7 @@ export function DocumentsPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e3f1] bg-[#fcfbff] px-4 py-3">
               <button
                 type="button"
-                aria-label="Previous"
+                aria-label={tp("previous")}
                 disabled={!canGoPrevDocuments}
                 onClick={() =>
                   setOffset((current) =>
@@ -2098,7 +2135,7 @@ export function DocumentsPage() {
               </div>
               <button
                 type="button"
-                aria-label="Next"
+                aria-label={tp("next")}
                 disabled={!canGoNextDocuments}
                 onClick={() =>
                   setOffset((current) => current + DOCUMENT_PAGE_SIZE)
@@ -2202,9 +2239,13 @@ export function DocumentsPage() {
                 selectedDetail.review_status,
               ) ? (
                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  This document is marked{" "}
-                  {selectedDetail.review_status.replaceAll("_", " ")}. Review
-                  status affects retrieval and answer trust.
+                  {tp("freshnessWarning", {
+                    status:
+                      freshnessFilterOptions.find(
+                        (option) =>
+                          option.value === selectedDetail.review_status,
+                      )?.label ?? selectedDetail.review_status,
+                  })}
                 </p>
               ) : null}
 
@@ -2230,8 +2271,14 @@ export function DocumentsPage() {
                   value={formatDate(selectedDetail.updated_at)}
                 />
                 <MetricCard
-                  label="Freshness"
-                  value={selectedDetail.review_status ?? "current"}
+                  label={tp("freshnessLabel")}
+                  value={
+                    freshnessFilterOptions.find(
+                      (option) =>
+                        option.value ===
+                        (selectedDetail.review_status ?? "current"),
+                    )?.label ?? tp("freshnessCurrent")
+                  }
                   valueClass={freshnessBadge(selectedDetail.review_status)}
                   plain={false}
                 />
