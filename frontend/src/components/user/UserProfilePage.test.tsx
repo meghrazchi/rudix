@@ -465,9 +465,45 @@ describe("UserProfilePage", () => {
     );
 
     await waitFor(() => {
+      expect(mockSchemas.saveProfileUiPreferences).toHaveBeenCalledWith(
+        expect.objectContaining({ language: "fa" }),
+      );
       expect(document.cookie).toContain("NEXT_LOCALE=fa");
       expect(document.documentElement).toHaveAttribute("lang", "fa");
       expect(document.documentElement).toHaveAttribute("dir", "rtl");
+      expect(mockState.refresh).toHaveBeenCalled();
+    });
+  });
+
+  it("restores English and LTR direction from an RTL dashboard", async () => {
+    mockSchemas.loadProfileUiPreferences.mockReturnValue({
+      language: "fa",
+      timezone: "",
+      dateFormat: "MMM D, YYYY",
+      theme: "light",
+      landingPage: "/dashboard",
+      keyboardShortcutHints: true,
+    });
+    document.cookie = "NEXT_LOCALE=fa; path=/";
+    document.documentElement.lang = "fa";
+    document.documentElement.dir = "rtl";
+
+    renderTab();
+
+    const langSelect = await screen.findByLabelText("Display Language");
+    expect(langSelect).toHaveValue("fa");
+    await userEvent.selectOptions(langSelect, "en");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Update Profile" }),
+    );
+
+    await waitFor(() => {
+      expect(mockSchemas.saveProfileUiPreferences).toHaveBeenCalledWith(
+        expect.objectContaining({ language: "en" }),
+      );
+      expect(document.cookie).toContain("NEXT_LOCALE=en");
+      expect(document.documentElement).toHaveAttribute("lang", "en-US");
+      expect(document.documentElement).toHaveAttribute("dir", "ltr");
       expect(mockState.refresh).toHaveBeenCalled();
     });
   });

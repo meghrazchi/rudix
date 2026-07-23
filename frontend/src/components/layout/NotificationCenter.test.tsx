@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NotificationCenter } from "@/components/layout/NotificationCenter";
+import faMessages from "@/i18n/messages/fa.json";
 import * as notifApi from "@/lib/api/notification-center";
 import type { NotificationListResponse } from "@/lib/api/notification-center";
 
@@ -84,6 +86,19 @@ describe("NotificationCenter", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("provides Persian notification copy through next-intl", () => {
+    const t = createTranslator({
+      locale: "fa",
+      messages: faMessages,
+      namespace: "notificationCenter",
+    });
+
+    expect(t("title")).toBe("اعلان‌ها");
+    expect(t("markAllRead")).toContain("همه");
+    expect(t("events.security_warning")).toBe("هشدار امنیتی");
+    expect(t("empty")).toContain("هنوز اعلانی");
   });
 
   describe("empty state", () => {
@@ -193,7 +208,7 @@ describe("NotificationCenter", () => {
       renderCenter();
 
       await screen.findByText("Document processing failed");
-      const badges = screen.getAllByText("error");
+      const badges = screen.getAllByText("Error");
       expect(badges.some((b) => b.className.includes("rose"))).toBe(true);
     });
 

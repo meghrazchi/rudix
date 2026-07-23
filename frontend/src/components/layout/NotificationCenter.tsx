@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   getUnreadCount,
   listNotifications,
@@ -71,16 +71,18 @@ function eventIconColor(eventType: NotificationEventType): string {
   }
 }
 
-function formatTime(value: string): string {
+function getRelativeTime(
+  value: string,
+): { unit: "minute" | "hour"; count: number } | Date | null {
   const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return value;
+  if (Number.isNaN(parsed)) return null;
   const diff = Date.now() - parsed;
   const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return { unit: "minute", count: 0 };
+  if (minutes < 60) return { unit: "minute", count: minutes };
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return new Date(parsed).toLocaleDateString();
+  if (hours < 24) return { unit: "hour", count: hours };
+  return new Date(parsed);
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +100,8 @@ function NotificationItem({
   onMarkUnread: (id: string) => void;
   onNavigate: () => void;
 }) {
+  const t = useTranslations("notificationCenter");
+  const format = useFormatter();
   const isExternal = notification.href
     ? isExternalHref(notification.href)
     : false;
@@ -121,7 +125,7 @@ function NotificationItem({
           <span
             className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${severityBadgeClass(notification.severity)}`}
           >
-            {notification.severity}
+            {t(`severity.${notification.severity}`)}
           </span>
         </div>
         {notification.message ? (
@@ -130,7 +134,17 @@ function NotificationItem({
           </p>
         ) : null}
         <p className="mt-1 text-[11px] text-[#9c98b0]">
-          {formatTime(notification.created_at)}
+          {(() => {
+            const relativeTime = getRelativeTime(notification.created_at);
+            if (!relativeTime) return notification.created_at;
+            if (relativeTime instanceof Date) {
+              return format.dateTime(relativeTime, { dateStyle: "medium" });
+            }
+            if (relativeTime.count === 0) return t("justNow");
+            return relativeTime.unit === "minute"
+              ? t("minutesAgo", { count: relativeTime.count })
+              : t("hoursAgo", { count: relativeTime.count });
+          })()}
         </p>
       </div>
     </div>
@@ -166,7 +180,7 @@ function NotificationItem({
             onClick={() => onMarkUnread(notification.notification_id)}
             className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[#7c78a0] hover:bg-[#ede9ff] hover:text-[#3525cd]"
           >
-            Mark unread
+            {t("markUnread")}
           </button>
         ) : (
           <button
@@ -174,7 +188,7 @@ function NotificationItem({
             onClick={() => onMarkRead(notification.notification_id)}
             className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[#7c78a0] hover:bg-[#ede9ff] hover:text-[#3525cd]"
           >
-            Mark read
+            {t("markRead")}
           </button>
         )}
       </div>
@@ -187,10 +201,13 @@ function NotificationItem({
 // ---------------------------------------------------------------------------
 
 const PREFERENCE_GROUPS = [
-  { label: "Documents", keys: ["upload_indexed", "upload_failed"] },
-  { label: "Evaluations", keys: ["evaluation_complete", "evaluation_failed"] },
+  { labelKey: "documents", keys: ["upload_indexed", "upload_failed"] },
   {
-    label: "Team & Security",
+    labelKey: "evaluations",
+    keys: ["evaluation_complete", "evaluation_failed"],
+  },
+  {
+    labelKey: "teamSecurity",
     keys: [
       "invite_received",
       "security_warning",
@@ -201,29 +218,28 @@ const PREFERENCE_GROUPS = [
 ] as const;
 
 function NotificationPreferences({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("notificationCenter");
+
   return (
     <div className="space-y-3 p-1">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-[#2f2a46]">
-          Notification preferences
+          {t("preferences")}
         </p>
         <button
           type="button"
           onClick={onClose}
           className="rounded p-0.5 text-[#7c78a0] hover:bg-[#ede9ff]"
-          aria-label="Close preferences"
+          aria-label={t("closePreferences")}
         >
           <span className="material-symbols-outlined text-[16px]">close</span>
         </button>
       </div>
-      <p className="text-xs text-[#7c78a0]">
-        Choose which notification categories you receive. Full preference
-        management will be available in a future release.
-      </p>
+      <p className="text-xs text-[#7c78a0]">{t("preferencesDescription")}</p>
       {PREFERENCE_GROUPS.map((group) => (
-        <div key={group.label}>
+        <div key={group.labelKey}>
           <p className="mb-1 text-[10px] font-bold tracking-[0.12em] text-[#5d58a8] uppercase">
-            {group.label}
+            {t(`groups.${group.labelKey}`)}
           </p>
           <div className="space-y-1">
             {group.keys.map((key) => (
@@ -237,14 +253,14 @@ function NotificationPreferences({ onClose }: { onClose: () => void }) {
                   disabled
                   className="accent-[#3525cd]"
                 />
-                {key.replace(/_/g, " ")}
+                {t(`events.${key}`)}
               </label>
             ))}
           </div>
         </div>
       ))}
       <p className="rounded-md bg-[#faf9ff] px-3 py-2 text-[10px] text-[#7c78a0]">
-        Per-category preferences are coming soon.
+        {t("preferencesComingSoon")}
       </p>
     </div>
   );
@@ -269,6 +285,7 @@ export function NotificationCenter({
   onNavigate: () => void;
   menuRef?: React.RefObject<HTMLDivElement | null>;
 }) {
+  const t = useTranslations("notificationCenter");
   const queryClient = useQueryClient();
   const [showPreferences, setShowPreferences] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -317,14 +334,14 @@ export function NotificationCenter({
     <div
       ref={menuRef}
       role="menu"
-      aria-label="Notifications menu"
+      aria-label={t("menuAriaLabel")}
       className="absolute end-0 z-50 mt-2 w-[min(380px,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] rounded-xl border border-[#d7d4e8] bg-white shadow-xl"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#ebe8f4] px-4 py-3">
         <div className="flex items-center gap-2">
           <p className="text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
-            Notifications
+            {t("title")}
           </p>
           {data && data.unread_count > 0 ? (
             <span className="inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -340,13 +357,13 @@ export function NotificationCenter({
               disabled={markAllReadMutation.isPending}
               className="rounded px-2 py-1 text-[11px] font-semibold text-[#5d58a8] hover:bg-[#f0ecff] disabled:opacity-50"
             >
-              Mark all read
+              {t("markAllRead")}
             </button>
           ) : null}
           <button
             type="button"
             onClick={() => setShowPreferences((prev) => !prev)}
-            aria-label="Notification preferences"
+            aria-label={t("preferences")}
             className="rounded p-1 text-[#7c78a0] hover:bg-[#f0ecff]"
           >
             <span className="material-symbols-outlined text-[16px]">
@@ -367,20 +384,18 @@ export function NotificationCenter({
       <div className="max-h-[420px] overflow-y-auto p-3">
         {notificationsQuery.isLoading ? (
           <p className="py-4 text-center text-sm text-[#68647b]">
-            Loading notifications…
+            {t("loading")}
           </p>
         ) : notificationsQuery.isError ? (
           <div className="space-y-2 rounded-lg border border-rose-200 bg-rose-50 p-3">
-            <p className="text-sm text-rose-700">
-              {getApiErrorMessage(notificationsQuery.error)}
-            </p>
+            <p className="text-sm text-rose-700">{t("loadError")}</p>
             <button
               type="button"
               data-menu-autofocus="true"
               onClick={() => void notificationsQuery.refetch()}
               className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100"
             >
-              Retry
+              {t("retry")}
             </button>
           </div>
         ) : !data || data.items.length === 0 ? (
@@ -388,7 +403,7 @@ export function NotificationCenter({
             data-menu-autofocus="true"
             className="py-6 text-center text-sm text-[#68647b]"
           >
-            You&apos;re all caught up — no notifications yet.
+            {t("empty")}
           </p>
         ) : (
           <ul className="space-y-2">
@@ -414,11 +429,14 @@ export function NotificationCenter({
             disabled={!hasPrev}
             className="rounded px-2 py-1 text-xs font-semibold text-[#5d58a8] hover:bg-[#f0ecff] disabled:opacity-30"
           >
-            ← Newer
+            {t("newer")}
           </button>
           <span className="text-[11px] text-[#9c98b0]">
-            {offset + 1}–{Math.min(offset + PAGE_SIZE, data.total)} of{" "}
-            {data.total}
+            {t("paginationRange", {
+              start: offset + 1,
+              end: Math.min(offset + PAGE_SIZE, data.total),
+              total: data.total,
+            })}
           </span>
           <button
             type="button"
@@ -426,7 +444,7 @@ export function NotificationCenter({
             disabled={!hasMore}
             className="rounded px-2 py-1 text-xs font-semibold text-[#5d58a8] hover:bg-[#f0ecff] disabled:opacity-30"
           >
-            Older →
+            {t("older")}
           </button>
         </div>
       ) : null}

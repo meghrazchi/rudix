@@ -1,4 +1,41 @@
 {
+  "notificationCenter": {
+    "title": "اعلان‌ها",
+    "menuAriaLabel": "منوی اعلان‌ها",
+    "severity": { "info": "اطلاع‌رسانی", "warning": "هشدار", "error": "خطا" },
+    "justNow": "همین حالا",
+    "minutesAgo": "{count} دقیقه پیش",
+    "hoursAgo": "{count} ساعت پیش",
+    "markUnread": "علامت‌گذاری به‌عنوان خوانده‌نشده",
+    "markRead": "علامت‌گذاری به‌عنوان خوانده‌شده",
+    "markAllRead": "علامت‌گذاری همه به‌عنوان خوانده‌شده",
+    "preferences": "ترجیحات اعلان‌ها",
+    "closePreferences": "بستن ترجیحات",
+    "preferencesDescription": "دسته‌بندی اعلان‌هایی را که دریافت می‌کنید انتخاب کنید. مدیریت کامل ترجیحات در نسخه‌ای آینده در دسترس خواهد بود.",
+    "groups": {
+      "documents": "اسناد",
+      "evaluations": "ارزیابی‌ها",
+      "teamSecurity": "تیم و امنیت"
+    },
+    "events": {
+      "upload_indexed": "بارگذاری نمایه‌سازی شد",
+      "upload_failed": "بارگذاری ناموفق بود",
+      "evaluation_complete": "ارزیابی تکمیل شد",
+      "evaluation_failed": "ارزیابی ناموفق بود",
+      "invite_received": "دعوت‌نامه دریافت شد",
+      "security_warning": "هشدار امنیتی",
+      "quota_warning": "هشدار سهمیه",
+      "connector_sync_issue": "مشکل همگام‌سازی اتصال‌دهنده"
+    },
+    "preferencesComingSoon": "ترجیحات هر دسته به‌زودی ارائه می‌شود.",
+    "loading": "در حال بارگذاری اعلان‌ها…",
+    "loadError": "اعلان‌ها بارگذاری نشدند.",
+    "retry": "تلاش دوباره",
+    "empty": "همه‌چیز به‌روز است؛ هنوز اعلانی وجود ندارد.",
+    "newer": "→ جدیدتر",
+    "older": "قدیمی‌تر ←",
+    "paginationRange": "{start} تا {end} از {total}"
+  },
   "common": {
     "save": "ذخیره",
     "cancel": "لغو",

@@ -1,4 +1,41 @@
 {
+  "notificationCenter": {
+    "title": "Notifications",
+    "menuAriaLabel": "Notifications menu",
+    "severity": { "info": "Info", "warning": "Warning", "error": "Error" },
+    "justNow": "Just now",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "markUnread": "Mark unread",
+    "markRead": "Mark read",
+    "markAllRead": "Mark all read",
+    "preferences": "Notification preferences",
+    "closePreferences": "Close preferences",
+    "preferencesDescription": "Choose which notification categories you receive. Full preference management will be available in a future release.",
+    "groups": {
+      "documents": "Documents",
+      "evaluations": "Evaluations",
+      "teamSecurity": "Team & Security"
+    },
+    "events": {
+      "upload_indexed": "Upload indexed",
+      "upload_failed": "Upload failed",
+      "evaluation_complete": "Evaluation complete",
+      "evaluation_failed": "Evaluation failed",
+      "invite_received": "Invite received",
+      "security_warning": "Security warning",
+      "quota_warning": "Quota warning",
+      "connector_sync_issue": "Connector sync issue"
+    },
+    "preferencesComingSoon": "Per-category preferences are coming soon.",
+    "loading": "Loading notifications…",
+    "loadError": "Notifications could not be loaded.",
+    "retry": "Retry",
+    "empty": "You're all caught up — no notifications yet.",
+    "newer": "← Newer",
+    "older": "Older →",
+    "paginationRange": "{start}–{end} of {total}"
+  },
   "common": {
     "save": "Speichern",
     "cancel": "Abbrechen",
