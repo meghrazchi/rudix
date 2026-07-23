@@ -10,7 +10,8 @@ import {
   type ReactNode,
 } from "react";
 import {
-  BarChart2,
+  ChartNoAxesCombined,
+  ClipboardCheck,
   FileText,
   Folder,
   LayoutGrid,
@@ -96,8 +97,8 @@ const NAV_ICONS: Partial<
   collections: Folder,
   graph: Network,
   chat: MessageSquare,
-  evaluations: BarChart2,
-  reports: BarChart2,
+  evaluations: ClipboardCheck,
+  reports: ChartNoAxesCombined,
   pipeline: Workflow,
   connectors: Plug,
   settings: Settings,

@@ -137,6 +137,22 @@ describe("app route protection", () => {
 });
 
 describe("permission-aware navigation", () => {
+  it("keeps the pipeline route available but hides it from navigation", () => {
+    const nav = buildNavigationItems("/dashboard", {
+      userId: "u-1",
+      email: null,
+      role: "member",
+      organizationId: "org-1",
+      organizationName: "Org 1",
+    });
+
+    expect(nav.find((item) => item.key === "pipeline")).toMatchObject({
+      hidden: true,
+      disabled: false,
+    });
+    expect(findRouteMeta("/rag-pipeline")?.key).toBe("pipeline");
+  });
+
   it("shows reports navigation to normal users and reviewers", () => {
     for (const role of ["member", "reviewer"] as const) {
       const nav = buildNavigationItems("/reports", {

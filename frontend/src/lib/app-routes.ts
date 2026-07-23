@@ -140,6 +140,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/rag-pipeline", "/pipeline-explorer"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
+    hideInNav: true,
   },
   {
     key: "connectors",
