@@ -705,7 +705,52 @@
         "fallbackEmailLabel": "Ou écrivez-nous à",
         "fallbackCta": "Contacter par e-mail",
         "unconfiguredNotice": "L’envoi du formulaire de contact n’est pas configuré pour le moment. Vous pouvez toujours joindre l’équipe via les autres moyens de contact.",
-        "retryLink": "Réessayer avec un autre moyen de contact"
+        "retryLink": "Réessayer avec un autre moyen de contact",
+        "website": "Website",
+        "teamSize": "Team size",
+        "teamSizePlaceholder": "Select team size",
+        "captchaToken": "CAPTCHA token ({provider})",
+        "captchaPlaceholder": "Optional placeholder for provider integration",
+        "captchaDescription": "Configure client-side CAPTCHA provider integration to populate this field in production deployments.",
+        "consent": "I agree that Rudix may use this information to contact me about a demo or solution discussion.",
+        "roleOptions": {
+          "cto_vp_engineering": "CTO / VP Engineering",
+          "solutions_architect": "Solutions Architect",
+          "devops_sre": "DevOps / SRE",
+          "product_management": "Product Management",
+          "security_compliance": "Security / Compliance",
+          "other": "Other"
+        },
+        "useCaseOptions": {
+          "rag_pipeline": "RAG pipeline optimization",
+          "compliance": "Automated compliance workflows",
+          "extraction": "High-volume data extraction",
+          "governance": "Governance and audit readiness",
+          "migration": "Legacy workflow migration",
+          "other": "Other"
+        },
+        "errors": {
+          "validation_failure": "Some fields need attention. Review the form and try again.",
+          "rate_limited": "Too many requests right now. Please wait a moment and retry.",
+          "network_failure": "Submission is temporarily unavailable. Please retry or use email.",
+          "not_configured": "Contact submission is not configured. Use an alternate contact option.",
+          "unknown": "Unable to submit your request right now. Please try again."
+        },
+        "successChannels": {
+          "api": "Thanks. Your request was received.",
+          "mailto": "Opening your email client with a prefilled request.",
+          "external": "Redirecting you to the configured scheduling flow."
+        },
+        "validation": {
+          "fullName": "Enter a valid full name.",
+          "workEmail": "Enter a valid work email address.",
+          "company": "Enter a valid company name.",
+          "teamSize": "Select a team size.",
+          "roleTitle": "Select your role or title.",
+          "useCase": "Select your primary use case.",
+          "message": "Enter a message of at least 10 characters.",
+          "consent": "Consent is required before submitting the request."
+        }
       },
       "goodFit": {
         "heading": "Adapté aux équipes qui ont besoin de",

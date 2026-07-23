@@ -25,12 +25,12 @@ type ContactDemoFormCardProps = {
   schedulerHref: string | null;
 };
 
-function safeErrorMessage(error: unknown): string {
+function safeErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ContactSubmissionError) {
     return error.safeMessage;
   }
 
-  return "Unable to submit your request right now. Please try again.";
+  return fallback;
 }
 
 function defaultValues(): ContactFormInputValues {
@@ -77,7 +77,7 @@ export function ContactDemoFormCard({
 
     try {
       const result = await submitContactForm(values, submissionConfig);
-      setSubmissionSuccess(result.successMessage);
+      setSubmissionSuccess(t(`successChannels.${result.channel}`));
 
       if (result.redirectTo && typeof window !== "undefined") {
         window.location.assign(result.redirectTo);
@@ -85,7 +85,11 @@ export function ContactDemoFormCard({
 
       form.reset(defaultValues());
     } catch (error) {
-      setSubmissionError(safeErrorMessage(error));
+      setSubmissionError(
+        error instanceof ContactSubmissionError
+          ? t(`errors.${error.kind}`)
+          : safeErrorMessage(error, t("errors.unknown")),
+      );
     }
   }
 
@@ -126,7 +130,7 @@ export function ContactDemoFormCard({
         noValidate
       >
         <div className="hidden" aria-hidden="true">
-          <label htmlFor="website">Website</label>
+          <label htmlFor="website">{t("website")}</label>
           <input
             id="website"
             type="text"
@@ -150,7 +154,7 @@ export function ContactDemoFormCard({
             />
             {form.formState.errors.fullName?.message ? (
               <p role="alert" className="mt-1 text-xs text-rose-700">
-                {form.formState.errors.fullName.message}
+                {t("validation.fullName")}
               </p>
             ) : null}
           </label>
@@ -168,7 +172,7 @@ export function ContactDemoFormCard({
             />
             {form.formState.errors.workEmail?.message ? (
               <p role="alert" className="mt-1 text-xs text-rose-700">
-                {form.formState.errors.workEmail.message}
+                {t("validation.workEmail")}
               </p>
             ) : null}
           </label>
@@ -186,21 +190,21 @@ export function ContactDemoFormCard({
             />
             {form.formState.errors.company?.message ? (
               <p role="alert" className="mt-1 text-xs text-rose-700">
-                {form.formState.errors.company.message}
+                {t("validation.company")}
               </p>
             ) : null}
           </label>
 
           <label htmlFor="teamSize" className="block">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
-              Team size
+              {t("teamSize")}
             </span>
             <select
               id="teamSize"
               {...form.register("teamSize")}
               className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
             >
-              <option value="">Select team size</option>
+              <option value="">{t("teamSizePlaceholder")}</option>
               {CONTACT_TEAM_SIZE_OPTIONS.map((teamSize) => (
                 <option key={teamSize} value={teamSize}>
                   {teamSize}
@@ -209,7 +213,7 @@ export function ContactDemoFormCard({
             </select>
             {form.formState.errors.teamSize?.message ? (
               <p role="alert" className="mt-1 text-xs text-rose-700">
-                {form.formState.errors.teamSize.message}
+                {t("validation.teamSize")}
               </p>
             ) : null}
           </label>
@@ -226,13 +230,13 @@ export function ContactDemoFormCard({
               <option value="">{t("rolePlaceholder")}</option>
               {CONTACT_ROLE_OPTIONS.map((roleOption) => (
                 <option key={roleOption.value} value={roleOption.label}>
-                  {roleOption.label}
+                  {t(`roleOptions.${roleOption.value}`)}
                 </option>
               ))}
             </select>
             {form.formState.errors.roleTitle?.message ? (
               <p role="alert" className="mt-1 text-xs text-rose-700">
-                {form.formState.errors.roleTitle.message}
+                {t("validation.roleTitle")}
               </p>
             ) : null}
           </label>
@@ -249,13 +253,13 @@ export function ContactDemoFormCard({
               <option value="">{t("useCasePlaceholder")}</option>
               {CONTACT_USE_CASE_OPTIONS.map((useCaseOption) => (
                 <option key={useCaseOption.value} value={useCaseOption.label}>
-                  {useCaseOption.label}
+                  {t(`useCaseOptions.${useCaseOption.value}`)}
                 </option>
               ))}
             </select>
             {form.formState.errors.useCase?.message ? (
               <p role="alert" className="mt-1 text-xs text-rose-700">
-                {form.formState.errors.useCase.message}
+                {t("validation.useCase")}
               </p>
             ) : null}
           </label>
@@ -274,7 +278,7 @@ export function ContactDemoFormCard({
           />
           {form.formState.errors.message?.message ? (
             <p role="alert" className="mt-1 text-xs text-rose-700">
-              {form.formState.errors.message.message}
+              {t("validation.message")}
             </p>
           ) : null}
         </label>
@@ -282,18 +286,19 @@ export function ContactDemoFormCard({
         {submissionConfig.captchaProvider ? (
           <label htmlFor="captchaToken" className="block">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
-              CAPTCHA token ({submissionConfig.captchaProvider})
+              {t("captchaToken", {
+                provider: submissionConfig.captchaProvider,
+              })}
             </span>
             <input
               id="captchaToken"
               type="text"
               {...form.register("captchaToken")}
               className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
-              placeholder="Optional placeholder for provider integration"
+              placeholder={t("captchaPlaceholder")}
             />
             <p className="mt-1 text-xs text-[#697189]">
-              Configure client-side CAPTCHA provider integration to populate
-              this field in production deployments.
+              {t("captchaDescription")}
             </p>
           </label>
         ) : null}
@@ -305,14 +310,11 @@ export function ContactDemoFormCard({
             {...form.register("consentAccepted")}
             className="mt-1 h-4 w-4 rounded border-[#bfc5d6] text-[#3525cd] focus:ring-[#3525cd]/30"
           />
-          <span className="text-sm text-[#4f5670]">
-            I agree that Rudix may use this information to contact me about a
-            demo or solution discussion.
-          </span>
+          <span className="text-sm text-[#4f5670]">{t("consent")}</span>
         </label>
         {form.formState.errors.consentAccepted?.message ? (
           <p role="alert" className="-mt-2 text-xs text-rose-700">
-            {form.formState.errors.consentAccepted.message}
+            {t("validation.consent")}
           </p>
         ) : null}
 

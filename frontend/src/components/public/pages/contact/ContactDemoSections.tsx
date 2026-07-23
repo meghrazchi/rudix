@@ -149,16 +149,5 @@ export function ContactMainSection({
 export function ContactMapSection() {
   return (
     <section className="mx-auto w-full max-w-7xl px-4 pb-16 lg:px-8 lg:pb-24"></section>
-    // <section className="mx-auto w-full max-w-7xl px-4 pb-16 lg:px-8 lg:pb-24">
-    //   <div className="overflow-hidden rounded-xl border border-[#d8dce8] shadow-sm">
-    //     <div className="relative h-56 bg-[radial-gradient(circle_at_top,#e4e7f4,#cfd4e7)] md:h-64">
-    //       <div className="absolute inset-0 bg-gradient-to-t from-[#10131f]/50 via-transparent to-transparent" />
-    //       <div className="absolute right-5 bottom-5 rounded-lg bg-white/90 px-4 py-3 text-sm text-[#1f2437] backdrop-blur">
-    //         <p className="font-bold">Munich HQ</p>
-    //         <p>Berg Am Laim St, Suite 3.15A, Munich 81673</p>
-    //       </div>
-    //     </div>
-    //   </div>
-    // </section>
   );
 }
