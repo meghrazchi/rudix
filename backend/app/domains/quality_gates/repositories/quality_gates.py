@@ -86,8 +86,8 @@ class QualityGateRepository:
         name: str | None = None,
         description: str | None = None,
         thresholds: dict | None = None,
-        baseline_evaluation_run_id: UUID | None | str = ...,  # type: ignore[assignment]
-        baseline_safety_run_id: UUID | None | str = ...,  # type: ignore[assignment]
+        baseline_evaluation_run_id: UUID | str | None = ...,  # type: ignore[assignment]
+        baseline_safety_run_id: UUID | str | None = ...,  # type: ignore[assignment]
     ) -> QualityGate:
         if name is not None:
             gate.name = name
