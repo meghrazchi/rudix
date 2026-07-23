@@ -2,6 +2,19 @@
 
 ## Reports API (F349)
 
+### Answer quality report (F351)
+
+`GET /api/v1/reports/answer-quality` returns the reviewer/admin answer-quality read model:
+aggregate confidence and citation metrics, confidence distribution, daily trends, low-confidence
+collections, bad-feedback categories, and a paginated answer table. It accepts bounded `from`/`to`
+ranges plus `collection_id`, `source_id`, `user_id`, `warning`, `confidence`, `sort`, `direction`,
+`page`, and `page_size` filters.
+
+`GET /api/v1/reports/answer-quality/{message_id}` returns the question, final answer, confidence
+reasons, warnings, feedback/evaluation links, and only those cited sources the viewer may access.
+Both endpoints require `reviewer`, `admin`, or `owner`; inaccessible or cross-organization details
+return `404`.
+
 `POST /api/v1/reports/events` records a typed, content-free reporting fact. Supported
 categories are question, answer, citation, confidence, feedback, indexing,
 connector sync, permission, export, and audit. The strict request schema rejects

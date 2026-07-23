@@ -21,6 +21,7 @@ ReportCategory = Literal[
 ]
 ReportSort = Literal["occurred_at", "category", "event_type", "status", "count", "value"]
 SortDirection = Literal["asc", "desc"]
+AnswerQualityLevel = Literal["high", "medium", "low", "warning", "not_found"]
 
 
 class ReportEventCreate(BaseModel):
@@ -101,3 +102,94 @@ class ReportResponse(BaseModel):
     table: list[ReportTableRow]
     action_items: list[ReportActionItem]
     pagination: ReportPage
+
+
+class AnswerQualityMetrics(BaseModel):
+    total_questions: int = 0
+    average_confidence: float | None = None
+    average_citation_support: float | None = None
+    not_found_count: int = 0
+    missing_citations_count: int = 0
+    stale_source_warning_count: int = 0
+    source_conflict_count: int = 0
+    unsupported_claims_removed: int = 0
+
+
+class AnswerQualityTrendPoint(BaseModel):
+    date: str
+    answer_count: int = 0
+    average_confidence: float | None = None
+    average_citation_support: float | None = None
+    not_found_count: int = 0
+
+
+class AnswerQualityDistributionPoint(BaseModel):
+    level: AnswerQualityLevel
+    count: int = 0
+
+
+class AnswerQualityCollectionPoint(BaseModel):
+    collection_id: UUID | None = None
+    collection_name: str
+    low_confidence_count: int = 0
+
+
+class AnswerQualityFeedbackPoint(BaseModel):
+    category: str
+    count: int = 0
+
+
+class AnswerQualityRow(BaseModel):
+    message_id: UUID
+    question: str
+    user_id: UUID
+    user_name: str
+    collection_id: UUID | None = None
+    collection_name: str | None = None
+    source_id: UUID | None = None
+    source_name: str | None = None
+    confidence: float | None = None
+    confidence_level: AnswerQualityLevel
+    citation_support_score: float | None = None
+    warnings: list[str] = Field(default_factory=list)
+    feedback_status: str | None = None
+    created_at: datetime
+
+
+class AnswerQualityReportResponse(BaseModel):
+    metrics: AnswerQualityMetrics
+    confidence_distribution: list[AnswerQualityDistributionPoint]
+    trends: list[AnswerQualityTrendPoint]
+    low_confidence_by_collection: list[AnswerQualityCollectionPoint]
+    bad_feedback_categories: list[AnswerQualityFeedbackPoint]
+    items: list[AnswerQualityRow]
+    pagination: ReportPage
+
+
+class AnswerQualitySource(BaseModel):
+    document_id: UUID
+    document_name: str
+    collection_id: UUID | None = None
+    collection_name: str | None = None
+    page_number: int | None = None
+
+
+class AnswerQualityDetailResponse(BaseModel):
+    message_id: UUID
+    question: str
+    final_answer: str
+    user_id: UUID
+    user_name: str
+    confidence: float | None = None
+    confidence_level: AnswerQualityLevel
+    citation_support_score: float | None = None
+    confidence_reasons: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    sources: list[AnswerQualitySource] = Field(default_factory=list)
+    feedback_id: UUID | None = None
+    feedback_category: str | None = None
+    feedback_comment: str | None = None
+    feedback_status: str | None = None
+    related_evaluation_case_id: UUID | None = None
+    review_item_id: UUID | None = None
+    created_at: datetime

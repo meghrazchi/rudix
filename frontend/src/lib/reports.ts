@@ -40,7 +40,7 @@ export const REPORT_SECTIONS: readonly ReportSection[] = [
     label: "Answer Quality",
     description: "Confidence, grounding, and answer-quality trends.",
     href: "/reports/answer-quality",
-    allowedRoles: PERSONAL_ROLES,
+    allowedRoles: REVIEW_ROLES,
   },
   {
     id: "source-health",

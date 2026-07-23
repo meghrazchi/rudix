@@ -9,10 +9,10 @@ import { LoadingState } from "@/components/states/LoadingState";
 import { ReportsOverviewDashboard } from "@/components/reports/ReportsOverviewDashboard";
 import { ReportBackendDataProvider } from "@/components/reports/ReportBackendData";
 import {
-  AnswerQualityDashboard,
   FeedbackIssuesDashboard,
   SourceHealthDashboard,
 } from "@/components/reports/ReportReferenceDashboards";
+import { AnswerQualityReportDashboard } from "@/components/reports/AnswerQualityReportDashboard";
 import {
   KnowledgeGapsDashboard,
   PermissionsAccessDashboard,
@@ -52,7 +52,7 @@ export function ReportSectionPage({ slug }: { slug?: string }) {
   if (section.id === "answer-quality")
     return (
       <ReportBackendDataProvider>
-        <AnswerQualityDashboard />
+        <AnswerQualityReportDashboard />
       </ReportBackendDataProvider>
     );
   if (section.id === "source-health")

@@ -7,6 +7,10 @@
 - Keep report facts content-free; reject arbitrary metadata and private source text.
 - Return only opaque resource identifiers and numeric operational measurements.
 - Resolve source labels or details through existing permission-checked APIs, never by joining private source content into report responses.
+- F351 answer-quality rows and detail drawers exclude answers backed by collections the reviewer
+  cannot access; they never partially reveal a restricted source name, answer, or citation.
+- Answer-quality content is restricted to reviewer, admin, and owner roles with organization
+  scoping on messages, trust events, feedback, citations, documents, and collections.
 - Bound date ranges and page sizes and retain composite tenant/date indexes.
 
 ## Security goals

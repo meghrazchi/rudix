@@ -32,6 +32,10 @@ import {
   listConnectorConnections,
   type ConnectorConnectionsListResponse,
 } from "@/lib/api/connectors";
+import {
+  getAnswerQualityReport,
+  type AnswerQualityReport,
+} from "@/lib/api/answer-quality";
 
 export type ReportsOverviewData = {
   usage: UsageDashboardResponse | null;
@@ -44,6 +48,7 @@ export type ReportsOverviewData = {
   feedbackMetrics: FeedbackMetricsResponse | null;
   feedbackItems: FeedbackReviewListResponse | null;
   connectors: ConnectorConnectionsListResponse | null;
+  answerQuality: AnswerQualityReport | null;
   unavailable: string[];
 };
 
@@ -159,6 +164,13 @@ export async function getReportsOverview(
     getFeedbackMetrics(Number.parseInt(filters.date, 10) || 30),
     listFeedbackReviewItems({ limit: 20, offset: 0 }),
     listConnectorConnections(),
+    getAnswerQualityReport({
+      ...range,
+      collection_id:
+        filters.collection === "all" ? undefined : filters.collection,
+      confidence: filters.confidence === "all" ? undefined : filters.confidence,
+      page_size: 50,
+    }),
   ] as const;
   const results = await Promise.allSettled(calls);
   const names = [
@@ -172,6 +184,7 @@ export async function getReportsOverview(
     "feedbackMetrics",
     "feedbackQueue",
     "connectors",
+    "answerQuality",
   ];
   const value = <T>(index: number): T | null =>
     results[index]?.status === "fulfilled" ? (results[index].value as T) : null;
@@ -186,6 +199,7 @@ export async function getReportsOverview(
     feedbackMetrics: value(7),
     feedbackItems: value(8),
     connectors: value(9),
+    answerQuality: value(10),
     unavailable: names.filter(
       (_, index) => results[index]?.status === "rejected",
     ),

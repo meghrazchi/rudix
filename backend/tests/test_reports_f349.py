@@ -29,10 +29,12 @@ from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.main import app
+from app.models.chat import ChatMessage, ChatSession
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.report import ReportEvent
+from app.models.usage import UsageEvent
 from app.models.user import User
 
 
@@ -222,3 +224,101 @@ async def test_large_report_query_remains_bounded(
     assert payload["pagination"]["total"] == 1_000
     assert len(payload["table"]) == 25
     assert len(payload["chart"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_answer_quality_metrics_filters_pagination_and_detail(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org, user, token = await seed(db_session, OrganizationRole.admin)
+    chat = ChatSession(organization_id=org.id, user_id=user.id, title="Quality")
+    db_session.add(chat)
+    await db_session.flush()
+    question = ChatMessage(chat_session_id=chat.id, role="user", content="What is the policy?")
+    low = ChatMessage(
+        chat_session_id=chat.id,
+        role="assistant",
+        content="The reviewed answer.",
+        confidence_score=0.32,
+        trust_metadata_json={
+            "confidence": {"reasons": [{"code": "weak_support", "label": "Weak support"}]}
+        },
+    )
+    high = ChatMessage(chat_session_id=chat.id, role="assistant", content="A trusted answer.")
+    db_session.add_all([question, low, high])
+    await db_session.flush()
+    now = datetime.now(tz=UTC)
+    db_session.add_all(
+        [
+            UsageEvent(
+                organization_id=org.id,
+                user_id=user.id,
+                event_type="trust.answer_metrics",
+                created_at=now,
+                metadata_json={
+                    "message_id": str(low.id),
+                    "trust_level": "low",
+                    "confidence_score": 0.32,
+                    "citation_support_score": 0.4,
+                    "citation_validation_failed": True,
+                    "stale_source_warning": True,
+                    "conflict_detected": False,
+                    "unsupported_claims_removed": 2,
+                    "not_found": False,
+                },
+            ),
+            UsageEvent(
+                organization_id=org.id,
+                user_id=user.id,
+                event_type="trust.answer_metrics",
+                created_at=now,
+                metadata_json={
+                    "message_id": str(high.id),
+                    "trust_level": "high",
+                    "confidence_score": 0.9,
+                    "citation_support_score": 1.0,
+                    "not_found": False,
+                },
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/v1/reports/answer-quality",
+        headers=headers(org, token),
+        params={"confidence": "low", "warning": "missing_citations", "page_size": 1},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["metrics"]["total_questions"] == 1
+    assert payload["metrics"]["average_confidence"] == 0.32
+    assert payload["metrics"]["missing_citations_count"] == 1
+    assert payload["metrics"]["unsupported_claims_removed"] == 2
+    assert payload["pagination"] == {"page": 1, "page_size": 1, "total": 1, "pages": 1}
+    assert payload["items"][0]["citation_support_score"] == 0.4
+
+    detail = await client.get(
+        f"/api/v1/reports/answer-quality/{low.id}", headers=headers(org, token)
+    )
+    assert detail.status_code == 200
+    assert detail.json()["question"] == "What is the policy?"
+    assert detail.json()["final_answer"] == "The reviewed answer."
+    assert detail.json()["confidence_reasons"] == ["Weak support"]
+
+
+@pytest.mark.asyncio
+async def test_answer_quality_allows_reviewer_but_rejects_member(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    reviewer_org, _reviewer, reviewer_token = await seed(db_session, OrganizationRole.reviewer)
+    reviewer_response = await client.get(
+        "/api/v1/reports/answer-quality", headers=headers(reviewer_org, reviewer_token)
+    )
+    assert reviewer_response.status_code == 200
+
+    member_org, _member, member_token = await seed(db_session, OrganizationRole.member)
+    member_response = await client.get(
+        "/api/v1/reports/answer-quality", headers=headers(member_org, member_token)
+    )
+    assert member_response.status_code == 403

@@ -12,20 +12,10 @@ describe("report role visibility", () => {
   it("limits normal users to personal report sections", () => {
     expect(
       getVisibleReportSections("member").map((section) => section.id),
-    ).toEqual([
-      "overview",
-      "answer-quality",
-      "usage-adoption",
-      "feedback-issues",
-    ]);
+    ).toEqual(["overview", "usage-adoption", "feedback-issues"]);
     expect(
       getVisibleReportSections("viewer").map((section) => section.id),
-    ).toEqual([
-      "overview",
-      "answer-quality",
-      "usage-adoption",
-      "feedback-issues",
-    ]);
+    ).toEqual(["overview", "usage-adoption", "feedback-issues"]);
   });
 
   it("allows reviewers to see review sections but not access reports", () => {
@@ -33,6 +23,7 @@ describe("report role visibility", () => {
       (section) => section.id,
     );
     expect(ids).toContain("source-health");
+    expect(ids).toContain("answer-quality");
     expect(ids).toContain("knowledge-gaps");
     expect(ids).not.toContain("permissions-access");
   });

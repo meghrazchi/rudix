@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { ReportSectionPage } from "@/components/reports/ReportSectionPage";
 
@@ -45,7 +46,11 @@ describe("ReportSectionPage route wiring", () => {
     ["feedback-issues", "Feedback & issues"],
     ["knowledge-gaps", "Knowledge gaps"],
   ])("wires %s to its report dashboard", (slug, heading) => {
-    render(<ReportSectionPage slug={slug} />);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ReportSectionPage slug={slug} />
+      </QueryClientProvider>,
+    );
 
     expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
   });

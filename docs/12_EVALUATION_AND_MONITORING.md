@@ -349,6 +349,10 @@ Unclear answer
 
 Store feedback in PostgreSQL, surface it in a reviewer queue, and use it to improve:
 
+The F351 Answer Quality report combines trust telemetry with permission-checked answer records.
+Reviewers can inspect confidence/citation trends and problematic answers, then open the existing
+review task or convert linked bad-answer feedback into an evaluation case.
+
 - Test questions.
 - Prompts.
 - Chunking.
