@@ -190,12 +190,18 @@ describe("AppShell top bar menus", () => {
       },
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "Help" }));
+    const helpButton = screen.getByRole("button", { name: "Help" });
+    const helpIcon = helpButton.querySelector("svg");
+    expect(helpIcon).toHaveClass("h-5", "w-5");
+
+    await userEvent.click(helpButton);
 
     // In-app buttons
-    expect(
-      await screen.findByRole("menuitem", { name: "Help Center" }),
-    ).toBeInTheDocument();
+    const helpCenterItem = await screen.findByRole("menuitem", {
+      name: "Help Center",
+    });
+    expect(helpCenterItem).toBeInTheDocument();
+    expect(helpCenterItem.querySelector("svg")).toHaveClass("h-4", "w-4");
     expect(
       screen.getByRole("menuitem", { name: /Keyboard shortcuts/i }),
     ).toBeInTheDocument();
@@ -214,6 +220,17 @@ describe("AppShell top bar menus", () => {
       "href",
       "https://support.example.com",
     );
+    for (const label of [
+      "Documentation",
+      "Changelog",
+      "Status",
+      "Support",
+      "Project README",
+    ]) {
+      expect(
+        screen.getByRole("menuitem", { name: label }).querySelector("svg"),
+      ).toHaveClass("h-4", "w-4");
+    }
     expect(
       screen.getByRole("menuitem", { name: "Project README" }),
     ).toHaveAttribute("href", "https://github.com/example/project#readme");

@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleHelp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useHelpCenter, type HelpTopic } from "@/lib/help-center-context";
@@ -24,12 +25,11 @@ export function ContextualHelpLink({
       title={t("openHelpForTopic")}
       className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#d3cff0] bg-[#f7f5ff] text-[#7370a0] transition hover:bg-[#eceaff] hover:text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none ${className}`}
     >
-      <span
+      <CircleHelp
         aria-hidden="true"
-        className="material-symbols-outlined text-[14px]"
-      >
-        help
-      </span>
+        className="h-3.5 w-3.5 shrink-0"
+        strokeWidth={2}
+      />
     </button>
   );
 }

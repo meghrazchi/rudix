@@ -10,11 +10,19 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Activity,
+  BookOpen,
+  BookText,
   ChartNoAxesCombined,
+  CircleHelp,
   ClipboardCheck,
   FileText,
   Folder,
+  History,
+  Keyboard,
   LayoutGrid,
+  LifeBuoy,
+  ListChecks,
   MessageSquare,
   Plug,
   Network,
@@ -102,6 +110,18 @@ const NAV_ICONS: Partial<
   pipeline: Workflow,
   connectors: Plug,
   settings: Settings,
+};
+
+const HELP_ITEM_ICONS: Record<
+  HelpMenuItem["id"],
+  ComponentType<LucideProps>
+> = {
+  docs: BookText,
+  changelog: History,
+  status: Activity,
+  support: LifeBuoy,
+  shortcuts: Keyboard,
+  readme: FileText,
 };
 
 function NavigationIcon({ routeKey }: { routeKey: AppNavigationItem["key"] }) {
@@ -1114,12 +1134,11 @@ export function AppShell({
                     data-onboarding="help-button"
                     className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                   >
-                    <span
+                    <CircleHelp
                       aria-hidden="true"
-                      className="material-symbols-outlined text-[20px]"
-                    >
-                      help_outline
-                    </span>
+                      className="h-5 w-5 shrink-0"
+                      strokeWidth={2}
+                    />
                   </button>
 
                   {openMenu === "help" ? (
@@ -1143,12 +1162,11 @@ export function AppShell({
                             }}
                             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                           >
-                            <span
+                            <BookOpen
                               aria-hidden="true"
-                              className="material-symbols-outlined text-[16px] text-[#3525cd]"
-                            >
-                              menu_book
-                            </span>
+                              className="h-4 w-4 shrink-0 text-[#3525cd]"
+                              strokeWidth={2}
+                            />
                             {t("helpCenter")}
                           </button>
                         </li>
@@ -1163,12 +1181,11 @@ export function AppShell({
                             className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                           >
                             <span className="flex items-center gap-2">
-                              <span
+                              <Keyboard
                                 aria-hidden="true"
-                                className="material-symbols-outlined text-[16px] text-[#3525cd]"
-                              >
-                                keyboard
-                              </span>
+                                className="h-4 w-4 shrink-0 text-[#3525cd]"
+                                strokeWidth={2}
+                              />
                               {helpItemLabel["shortcuts"] ??
                                 t("keyboardShortcuts")}
                             </span>
@@ -1188,19 +1205,11 @@ export function AppShell({
                             }}
                             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                           >
-                            <svg
-                              className="h-3.5 w-3.5 shrink-0 text-[#3525cd]"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2.2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden
-                            >
-                              <path d="M9 11l3 3L22 4" />
-                              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                            </svg>
+                            <ListChecks
+                              aria-hidden="true"
+                              className="h-4 w-4 shrink-0 text-[#3525cd]"
+                              strokeWidth={2}
+                            />
                             {tNav("gettingStarted")}
                           </button>
                         </li>
@@ -1208,6 +1217,7 @@ export function AppShell({
                           .filter((item) => item.id !== "shortcuts")
                           .map((item) => {
                             const external = isExternalHref(item.href);
+                            const HelpItemIcon = HELP_ITEM_ICONS[item.id];
                             return (
                               <li key={item.id}>
                                 <Link
@@ -1218,8 +1228,13 @@ export function AppShell({
                                   rel={
                                     external ? "noreferrer noopener" : undefined
                                   }
-                                  className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
+                                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                                 >
+                                  <HelpItemIcon
+                                    aria-hidden="true"
+                                    className="h-4 w-4 shrink-0 text-[#3525cd]"
+                                    strokeWidth={2}
+                                  />
                                   {helpItemLabel[item.id] ?? item.label}
                                 </Link>
                               </li>
