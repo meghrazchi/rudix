@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
+import { createTranslator } from "next-intl";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { StatusPage } from "@/components/public/pages/StatusPage";
+import faMessages from "@/i18n/messages/fa.json";
 import type { PublicStatusSnapshot } from "@/lib/api/public-status";
 
 vi.mock("@/components/public/PublicActionLink", () => ({
@@ -122,6 +124,20 @@ const MAINTENANCE_SNAPSHOT: PublicStatusSnapshot = {
 };
 
 describe("StatusPage", () => {
+  it("provides Persian status copy through next-intl", () => {
+    const t = createTranslator({
+      locale: "fa",
+      messages: faMessages,
+      namespace: "public.status",
+    });
+
+    expect(t("publicStatus")).toBe("وضعیت عمومی");
+    expect(t("states.operational")).toBe("عملیاتی");
+    expect(t("noActiveIncidents")).toBe("رخداد فعالی وجود ندارد");
+    expect(t("scheduledMaintenance")).toBe("نگه‌داری برنامه‌ریزی‌شده");
+    expect(t("refreshFailed")).toContain("داده‌های زنده");
+  });
+
   it("renders an operational snapshot", () => {
     render(<StatusPage snapshot={OPERATIONAL_SNAPSHOT} loadError={null} />);
 

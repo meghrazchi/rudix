@@ -1,5 +1,7 @@
 "use client";
 
+import { useFormatter, useTranslations } from "next-intl";
+
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import type {
@@ -29,15 +31,7 @@ const STATE_DOT_CLASSES: Record<PublicComponentState, string> = {
   unknown: "bg-slate-500",
 };
 
-const STATE_LABELS: Record<PublicComponentState, string> = {
-  operational: "Operational",
-  degraded: "Degraded",
-  outage: "Outage",
-  maintenance: "Maintenance",
-  unknown: "Unknown",
-};
-
-function formatDateTime(value: string | null): string | null {
+function parseDateTime(value: string | null): Date | null {
   if (!value) {
     return null;
   }
@@ -47,13 +41,12 @@ function formatDateTime(value: string | null): string | null {
     return null;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(parsed);
+  return parsed;
 }
 
 function StatusBadge({ state }: { state: PublicComponentState }) {
+  const t = useTranslations("public.status");
+
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold tracking-[0.12em] uppercase ${STATE_BADGE_CLASSES[state]}`}
@@ -61,7 +54,7 @@ function StatusBadge({ state }: { state: PublicComponentState }) {
       <span
         className={`h-1.5 w-1.5 rounded-full ${STATE_DOT_CLASSES[state]}`}
       />
-      {STATE_LABELS[state]}
+      {t(`states.${state}`)}
     </span>
   );
 }
@@ -88,19 +81,21 @@ function IncidentCard({
   incident: PublicStatusIncident;
   supportingText?: string;
 }) {
-  const startedAt = formatDateTime(incident.started_at);
-  const resolvedAt = formatDateTime(incident.resolved_at);
+  const t = useTranslations("public.status");
+  const format = useFormatter();
+  const startedAt = parseDateTime(incident.started_at);
+  const resolvedAt = parseDateTime(incident.resolved_at);
   const services =
     incident.affected_services.length > 0
       ? incident.affected_services.join(", ")
-      : "All public services";
+      : t("allPublicServices");
 
   return (
     <article className="rounded-2xl border border-[#dbe0ea] bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold tracking-[0.12em] text-[#6a7285] uppercase">
-            {incident.kind === "maintenance" ? "Maintenance" : "Incident"}
+            {incident.kind === "maintenance" ? t("maintenance") : t("incident")}
           </p>
           <h3 className="mt-1 text-lg font-bold text-[#11131a]">
             {incident.title}
@@ -110,33 +105,47 @@ function IncidentCard({
       </div>
 
       <p className="mt-3 text-sm leading-6 text-[#4f5669]">
-        {incident.message ?? "Update pending."}
+        {incident.message ?? t("updatePending")}
       </p>
 
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-xs font-bold tracking-[0.12em] text-[#747b8d] uppercase">
-            Services
+            {t("services")}
           </dt>
           <dd className="mt-1 text-[#2a3040]">{services}</dd>
         </div>
         <div>
           <dt className="text-xs font-bold tracking-[0.12em] text-[#747b8d] uppercase">
-            Severity
+            {t("severity")}
           </dt>
           <dd className="mt-1 text-[#2a3040]">{incident.severity}</dd>
         </div>
         <div>
           <dt className="text-xs font-bold tracking-[0.12em] text-[#747b8d] uppercase">
-            Started
+            {t("started")}
           </dt>
-          <dd className="mt-1 text-[#2a3040]">{startedAt ?? "Recently"}</dd>
+          <dd className="mt-1 text-[#2a3040]">
+            {startedAt
+              ? format.dateTime(startedAt, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : t("recently")}
+          </dd>
         </div>
         <div>
           <dt className="text-xs font-bold tracking-[0.12em] text-[#747b8d] uppercase">
-            Resolved
+            {t("resolved")}
           </dt>
-          <dd className="mt-1 text-[#2a3040]">{resolvedAt ?? "Open"}</dd>
+          <dd className="mt-1 text-[#2a3040]">
+            {resolvedAt
+              ? format.dateTime(resolvedAt, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : t("open")}
+          </dd>
         </div>
       </dl>
 
@@ -162,7 +171,9 @@ function ComponentCard({
   services: string[];
   updatedAt: string | null;
 }) {
-  const updatedLabel = formatDateTime(updatedAt);
+  const t = useTranslations("public.status");
+  const format = useFormatter();
+  const updatedDate = parseDateTime(updatedAt);
 
   return (
     <article className="rounded-2xl border border-[#dbe0ea] bg-white p-5 shadow-sm">
@@ -175,14 +186,21 @@ function ComponentCard({
       </div>
 
       <div className="mt-4 rounded-xl bg-[#f7f9fc] px-4 py-3 text-sm text-[#364155]">
-        <p className="font-semibold">Affected services</p>
+        <p className="font-semibold">{t("affectedServices")}</p>
         <p className="mt-1">
-          {services.length > 0 ? services.join(", ") : "None reported"}
+          {services.length > 0 ? services.join(", ") : t("noneReported")}
         </p>
       </div>
 
       <p className="mt-3 text-xs text-[#6b7285]">
-        {updatedLabel ? `Updated ${updatedLabel}` : "Updated recently"}
+        {updatedDate
+          ? t("updatedAt", {
+              date: format.dateTime(updatedDate, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }),
+            })
+          : t("updatedRecently")}
       </p>
     </article>
   );
@@ -204,19 +222,25 @@ function EmptySection({
 }
 
 export function StatusPage({ snapshot, loadError }: StatusPageProps) {
+  const t = useTranslations("public.status");
+  const format = useFormatter();
   const links = resolvePublicSiteLinks();
   const currentState =
     snapshot?.overall_status ?? (loadError ? "unknown" : "operational");
-  const generatedAt = formatDateTime(snapshot?.generated_at ?? null);
+  const generatedDate = parseDateTime(snapshot?.generated_at ?? null);
+  const generatedAt = generatedDate
+    ? format.dateTime(generatedDate, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
   const currentIncidents = snapshot?.current_incidents ?? [];
   const scheduledMaintenance = snapshot?.scheduled_maintenance ?? [];
   const recentHistory = snapshot?.recent_history ?? [];
 
   const heroSummary =
     snapshot?.summary ??
-    (loadError
-      ? "Live status information is temporarily unavailable. The page will recover automatically when the public status API is back online."
-      : "Rudix status information is currently unavailable.");
+    (loadError ? t("liveUnavailable") : t("statusUnavailable"));
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-14 lg:px-8 lg:py-20">
@@ -224,13 +248,13 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
         <article className="rounded-[2rem] border border-[#dbe0ea] bg-[linear-gradient(135deg,#0f172a_0%,#111827_60%,#1f2937_100%)] p-7 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-[0.12em] text-white/80 uppercase">
-              Public status
+              {t("publicStatus")}
             </span>
             <StatusBadge state={currentState} />
           </div>
 
           <h1 className="mt-5 text-4xl leading-tight font-black tracking-[-0.03em] lg:text-6xl">
-            {snapshot?.headline ?? "Status data unavailable"}
+            {snapshot?.headline ?? t("statusDataUnavailable")}
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-white/80 lg:text-base">
             {heroSummary}
@@ -241,25 +265,25 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
               href={links.contact}
               className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#111827] transition hover:bg-[#eef2f7]"
             >
-              Contact support
+              {t("contactSupport")}
             </PublicActionLink>
             <PublicActionLink
               href={links.changelog}
               className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
             >
-              View changelog
+              {t("viewChangelog")}
             </PublicActionLink>
           </div>
         </article>
 
         <aside className="rounded-[2rem] border border-[#dbe0ea] bg-white p-6 shadow-sm">
           <p className="text-xs font-bold tracking-[0.14em] text-[#667085] uppercase">
-            Snapshot
+            {t("snapshot")}
           </p>
           <dl className="mt-5 grid gap-4">
             <div className="rounded-2xl bg-[#f8fafc] px-4 py-4">
               <dt className="text-xs font-bold tracking-[0.12em] text-[#768096] uppercase">
-                Current incidents
+                {t("currentIncidents")}
               </dt>
               <dd className="mt-1 text-3xl font-black text-[#11131a]">
                 {currentIncidents.length}
@@ -267,7 +291,7 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
             </div>
             <div className="rounded-2xl bg-[#f8fafc] px-4 py-4">
               <dt className="text-xs font-bold tracking-[0.12em] text-[#768096] uppercase">
-                Scheduled maintenance
+                {t("scheduledMaintenance")}
               </dt>
               <dd className="mt-1 text-3xl font-black text-[#11131a]">
                 {scheduledMaintenance.length}
@@ -275,10 +299,10 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
             </div>
             <div className="rounded-2xl bg-[#f8fafc] px-4 py-4">
               <dt className="text-xs font-bold tracking-[0.12em] text-[#768096] uppercase">
-                Last published update
+                {t("lastPublishedUpdate")}
               </dt>
               <dd className="mt-1 text-sm font-semibold text-[#11131a]">
-                {generatedAt ?? "Recently"}
+                {generatedAt ?? t("recently")}
               </dd>
             </div>
           </dl>
@@ -289,16 +313,14 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold tracking-[0.16em] text-[#667085] uppercase">
-              Component status
+              {t("componentStatus")}
             </p>
             <h2 className="mt-2 text-2xl font-black text-[#11131a]">
-              How the public-facing Rudix services are behaving
+              {t("componentTitle")}
             </h2>
           </div>
           <p className="max-w-2xl text-sm leading-6 text-[#556074]">
-            Component states are rolled up from the latest public incidents and
-            maintenance notices. Internal hostnames, logs, and dependency names
-            are intentionally omitted.
+            {t("componentDescription")}
           </p>
         </div>
 
@@ -321,10 +343,10 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
           <div className="flex items-end justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold tracking-[0.16em] text-[#667085] uppercase">
-                Current incidents
+                {t("currentIncidents")}
               </p>
               <h2 className="mt-2 text-2xl font-black text-[#11131a]">
-                Live operational incidents
+                {t("liveIncidents")}
               </h2>
             </div>
           </div>
@@ -334,13 +356,13 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
                 <IncidentCard
                   key={`${incident.title}-${incident.started_at}`}
                   incident={incident}
-                  supportingText="We will keep this section updated until the issue is resolved."
+                  supportingText={t("incidentSupportingText")}
                 />
               ))
             ) : (
               <EmptySection
-                title="No active incidents"
-                description="There are no currently reported incidents affecting public Rudix services."
+                title={t("noActiveIncidents")}
+                description={t("noActiveIncidentsDescription")}
               />
             )}
           </div>
@@ -349,10 +371,10 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
         <div className="space-y-6">
           <div>
             <p className="text-[11px] font-bold tracking-[0.16em] text-[#667085] uppercase">
-              Scheduled maintenance
+              {t("scheduledMaintenance")}
             </p>
             <h2 className="mt-2 text-2xl font-black text-[#11131a]">
-              Planned or in-progress maintenance
+              {t("plannedMaintenance")}
             </h2>
           </div>
           <div className="space-y-4">
@@ -361,13 +383,13 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
                 <IncidentCard
                   key={`${incident.title}-${incident.started_at}`}
                   incident={incident}
-                  supportingText="Maintenance notices are published here before and during service windows when possible."
+                  supportingText={t("maintenanceSupportingText")}
                 />
               ))
             ) : (
               <EmptySection
-                title="No scheduled maintenance"
-                description="We do not have any public maintenance windows to report right now."
+                title={t("noScheduledMaintenance")}
+                description={t("noScheduledMaintenanceDescription")}
               />
             )}
           </div>
@@ -378,10 +400,10 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold tracking-[0.16em] text-[#667085] uppercase">
-              Recent history
+              {t("recentHistory")}
             </p>
             <h2 className="mt-2 text-2xl font-black text-[#11131a]">
-              Recently resolved incidents
+              {t("recentlyResolvedIncidents")}
             </h2>
           </div>
         </div>
@@ -392,14 +414,14 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
                 <IncidentCard
                   key={`${incident.title}-${incident.resolved_at ?? incident.started_at}`}
                   incident={incident}
-                  supportingText="This history is limited to public incidents from the last 30 days."
+                  supportingText={t("historySupportingText")}
                 />
               ))}
             </div>
           ) : (
             <EmptySection
-              title="No recent incidents"
-              description="There are no public incident updates in the recent history window."
+              title={t("noRecentIncidents")}
+              description={t("noRecentIncidentsDescription")}
             />
           )}
         </div>
@@ -411,8 +433,7 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
         </p>
         {loadError ? (
           <p className="mt-3 text-sm font-medium text-[#8b5e00]">
-            Live data could not be refreshed. Showing the latest public-safe
-            copy.
+            {t("refreshFailed")}
           </p>
         ) : null}
       </section>
