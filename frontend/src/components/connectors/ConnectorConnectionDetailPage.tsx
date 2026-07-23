@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -51,16 +52,18 @@ const RUN_STATUS_BADGE: Record<string, string> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatRelative(date: string | null): string {
-  if (!date) return "Never";
+function relativeTimeValue(
+  date: string | null,
+): { value: number; unit: "minute" | "hour" | "day" } | null {
+  if (!date) return null;
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins} min${mins === 1 ? "" : "s"} ago`;
+  if (mins < 1) return { value: 0, unit: "minute" };
+  if (mins < 60) return { value: -mins, unit: "minute" };
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
+  if (hrs < 24) return { value: -hrs, unit: "hour" };
   const days = Math.floor(hrs / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
+  return { value: -days, unit: "day" };
 }
 
 function formatDuration(startedAt: string | null, completedAt: string | null) {
@@ -71,41 +74,6 @@ function formatDuration(startedAt: string | null, completedAt: string | null) {
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   return `${minutes}m ${seconds % 60}s`;
-}
-
-function formatFutureRelative(date: string | null): string {
-  if (!date) {
-    return "Not scheduled";
-  }
-  const diff = new Date(date).getTime() - Date.now();
-  if (diff <= 0) {
-    return "Due now";
-  }
-  const mins = Math.round(diff / 60_000);
-  if (mins < 60) {
-    return `in ${mins} min${mins === 1 ? "" : "s"}`;
-  }
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) {
-    return `in ${hrs} hr${hrs === 1 ? "" : "s"}`;
-  }
-  return new Date(date).toLocaleString();
-}
-
-function getNextSyncAt(job: SyncJob | undefined): string {
-  if (!job) {
-    return "Not scheduled";
-  }
-  if (job.schedule.type === "manual_only") {
-    return "Manual only";
-  }
-  const intervalMinutes = job.schedule.interval_minutes ?? 60;
-  const base = job.last_run_at
-    ? new Date(job.last_run_at).getTime()
-    : Date.now();
-  return formatFutureRelative(
-    new Date(base + intervalMinutes * 60_000).toISOString(),
-  );
 }
 
 function getSyncStatusLabel({
@@ -122,31 +90,31 @@ function getSyncStatusLabel({
   activeJob: SyncJob | undefined;
 }): string {
   if (activeRun?.status === "running") {
-    return "Running";
+    return "running";
   }
   if (activeRun?.status === "queued") {
-    return "Queued";
+    return "queued";
   }
   if (connectionStatus === "revoked" || connectionStatus === "disabled") {
-    return "Disconnected";
+    return "disconnected";
   }
   if (
     diagnosticsStatus === "error" ||
     diagnosticsStatus === "expired" ||
     diagnosticsStatus === "revoked"
   ) {
-    return "Needs attention";
+    return "needsAttention";
   }
   if (latestRun?.status === "failed") {
-    return "Last sync failed";
+    return "lastSyncFailed";
   }
   if (activeJob?.status === "paused") {
-    return "Paused";
+    return "paused";
   }
   if (!activeJob) {
-    return "No schedule";
+    return "noSchedule";
   }
-  return "Healthy";
+  return "healthy";
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -172,6 +140,7 @@ function ProviderAvatar({ providerKey }: { providerKey: string }) {
 }
 
 function ConnectionStatusBadge({ status }: { status: string }) {
+  const t = useTranslations("connectors.detail");
   if (status === "active") {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
@@ -181,31 +150,34 @@ function ConnectionStatusBadge({ status }: { status: string }) {
         >
           check_circle
         </span>
-        Connected
+        {t("statuses.connected")}
       </span>
     );
   }
   if (status === "paused") {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-800">
-        Paused
+        {t("statuses.paused")}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-100 px-3 py-1 text-[11px] font-bold text-red-800">
-      {status.replace(/_/g, " ")}
+      {t.has(`statuses.${status}`)
+        ? t(`statuses.${status}`)
+        : status.replace(/_/g, " ")}
     </span>
   );
 }
 
 function RunStatusBadge({ status }: { status: string }) {
+  const t = useTranslations("connectors.detail");
   const cls = RUN_STATUS_BADGE[status] ?? "bg-[#e4e1ee] text-[#464555]";
   return (
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${cls}`}
     >
-      {status}
+      {t.has(`statuses.${status}`) ? t(`statuses.${status}`) : status}
     </span>
   );
 }
@@ -241,6 +213,7 @@ function StatCard({
 }
 
 function CurrentJobPanel({ run }: { run: SyncRun }) {
+  const t = useTranslations("connectors.detail");
   const progress =
     run.items_seen > 0
       ? Math.min(Math.round((run.items_upserted / run.items_seen) * 100), 99)
@@ -253,10 +226,10 @@ function CurrentJobPanel({ run }: { run: SyncRun }) {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h4 className="text-lg font-bold text-[#2a2640]">
-              Current Sync Job
+              {t("currentJob.title")}
             </h4>
             <p className="text-sm text-[#68647b] capitalize">
-              {run.trigger_type} sync in progress
+              {t("currentJob.inProgress", { trigger: run.trigger_type })}
             </p>
           </div>
           <div className="text-right">
@@ -264,7 +237,7 @@ function CurrentJobPanel({ run }: { run: SyncRun }) {
               {progress !== null ? `${progress}%` : "—"}
             </p>
             <p className="text-[10px] font-bold tracking-widest text-[#777587] uppercase">
-              Progress
+              {t("currentJob.progress")}
             </p>
           </div>
         </div>
@@ -284,15 +257,17 @@ function CurrentJobPanel({ run }: { run: SyncRun }) {
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 animate-pulse rounded-full bg-[#3525cd]" />
             <span className="font-medium text-[#2a2640]">
-              {run.status === "running" ? "Processing items…" : "Queued"}
+              {run.status === "running"
+                ? t("currentJob.processing")
+                : t("statuses.queued")}
             </span>
           </div>
           <span className="text-[#777587]">
-            Seen:{" "}
+            {t("table.seen")}:{" "}
             <span className="font-bold text-[#2a2640]">
               {run.items_seen.toLocaleString()}
             </span>{" "}
-            · Upserted:{" "}
+            · {t("table.upserted")}:{" "}
             <span className="font-bold text-[#2a2640]">
               {run.items_upserted.toLocaleString()}
             </span>
@@ -314,42 +289,53 @@ function CredentialPanel({
   };
   connectionStatus: string;
 }) {
+  const t = useTranslations("connectors.detail");
   const trustState =
     diagnostics.credential_status === "revoked" ||
     connectionStatus === "revoked"
-      ? "Revoked"
+      ? t("statuses.revoked")
       : diagnostics.credential_status === "error" ||
           connectionStatus === "error"
-        ? "Needs attention"
-        : "Healthy";
-  const isHealthy = trustState === "Healthy";
+        ? t("statuses.needsAttention")
+        : t("statuses.healthy");
+  const isHealthy =
+    diagnostics.credential_status !== "revoked" &&
+    connectionStatus !== "revoked" &&
+    diagnostics.credential_status !== "error" &&
+    connectionStatus !== "error";
 
   return (
     <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <h4 className="mb-5 text-lg font-bold text-[#2a2640]">
-        Credential diagnostics
+        {t("credentials.title")}
       </h4>
       <div className="space-y-4">
         <div>
           <p className="mb-1 text-[11px] font-bold tracking-[0.14em] text-[#777587] uppercase">
-            Credential Status
+            {t("credentials.status")}
           </p>
           <div className="flex items-center gap-2">
             <span
               className={`h-2 w-2 rounded-full ${isHealthy ? "bg-emerald-500" : "bg-rose-500"}`}
             />
             <span className="font-bold text-[#2a2640]">
-              {diagnostics.credential_status ?? "unknown"}
+              {diagnostics.credential_status
+                ? t.has(`statuses.${diagnostics.credential_status}`)
+                  ? t(`statuses.${diagnostics.credential_status}`)
+                  : diagnostics.credential_status
+                : t("statuses.unknown")}
             </span>
           </div>
         </div>
 
         <div>
           <p className="mb-1 text-[11px] font-bold tracking-[0.14em] text-[#777587] uppercase">
-            Granted Scopes
+            {t("credentials.scopes")}
           </p>
           {diagnostics.scopes.length === 0 ? (
-            <p className="text-sm text-[#68647b]">No scopes cached.</p>
+            <p className="text-sm text-[#68647b]">
+              {t("credentials.noScopes")}
+            </p>
           ) : (
             <div className="space-y-1">
               {diagnostics.scopes.map((scope) => (
@@ -366,7 +352,7 @@ function CredentialPanel({
 
         <div>
           <p className="mb-1 text-[11px] font-bold tracking-[0.14em] text-[#777587] uppercase">
-            Trust State
+            {t("credentials.trustState")}
           </p>
           <div
             className={`flex items-center gap-2 font-bold ${
@@ -395,6 +381,7 @@ function SchedulePanel({
   onResume: () => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("connectors.detail");
   const badgeCls = !job
     ? "bg-[#e4e1ee] text-[#464555]"
     : job.status === "active"
@@ -406,12 +393,16 @@ function SchedulePanel({
   return (
     <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
-        <h4 className="text-lg font-bold text-[#2a2640]">Sync Schedule</h4>
+        <h4 className="text-lg font-bold text-[#2a2640]">
+          {t("schedule.title")}
+        </h4>
         {job && (
           <span
             className={`rounded px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${badgeCls}`}
           >
-            {job.status}
+            {t.has(`statuses.${job.status}`)
+              ? t(`statuses.${job.status}`)
+              : job.status}
           </span>
         )}
       </div>
@@ -427,8 +418,10 @@ function SchedulePanel({
             <div>
               <p className="text-2xl font-extrabold text-[#2a2640]">
                 {job.schedule.type === "interval"
-                  ? `Every ${job.schedule.interval_minutes ?? 60} min`
-                  : "Manual only"}
+                  ? t("schedule.everyMinutes", {
+                      count: job.schedule.interval_minutes ?? 60,
+                    })
+                  : t("schedule.manualOnly")}
               </p>
               <p className="text-sm text-[#68647b]">{job.name}</p>
             </div>
@@ -439,12 +432,14 @@ function SchedulePanel({
             onClick={job.status === "active" ? onPause : onResume}
             className="mt-5 w-full rounded-xl border border-[#d7d4e8] py-2 text-sm font-bold text-[#464555] transition-colors hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {job.status === "active" ? "Pause schedule" : "Resume schedule"}
+            {job.status === "active"
+              ? t("schedule.pause")
+              : t("schedule.resume")}
           </button>
         </>
       ) : (
         <div className="rounded-xl border border-dashed border-[#d7d4e8] bg-[#faf9fe] p-4 text-sm text-[#68647b]">
-          No sync schedule configured.
+          {t("schedule.none")}
         </div>
       )}
     </div>
@@ -452,13 +447,16 @@ function SchedulePanel({
 }
 
 function RecentErrorsPanel({ runs }: { runs: SyncRun[] }) {
+  const t = useTranslations("connectors.detail");
   const errorRuns = runs
     .filter((r) => r.status === "failed" && r.error_message)
     .slice(0, 5);
 
   return (
     <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-      <h4 className="mb-5 text-lg font-bold text-[#2a2640]">Recent Errors</h4>
+      <h4 className="mb-5 text-lg font-bold text-[#2a2640]">
+        {t("errors.title")}
+      </h4>
       {errorRuns.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-emerald-600">
@@ -466,9 +464,9 @@ function RecentErrorsPanel({ runs }: { runs: SyncRun[] }) {
               task_alt
             </span>
           </div>
-          <p className="font-bold text-[#2a2640]">No recent errors</p>
+          <p className="font-bold text-[#2a2640]">{t("errors.none")}</p>
           <p className="mt-1 px-4 text-sm text-[#777587]">
-            Your connection is healthy.
+            {t("errors.healthy")}
           </p>
         </div>
       ) : (
@@ -501,8 +499,8 @@ type LogEntry = {
   message: string;
 };
 
-function fmtTime(date?: Date): string {
-  return (date ?? new Date()).toLocaleTimeString("en-US", {
+function fmtTime(locale: string, date?: Date): string {
+  return (date ?? new Date()).toLocaleTimeString(locale, {
     hour12: false,
     hour: "2-digit",
     minute: "2-digit",
@@ -511,6 +509,8 @@ function fmtTime(date?: Date): string {
 }
 
 function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
+  const t = useTranslations("connectors.detail");
+  const locale = useLocale();
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [collapsed, setCollapsed] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
@@ -545,7 +545,7 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
       dateStr?: string | null,
     ): LogEntry => ({
       id: idRef.current++,
-      timestamp: fmtTime(dateStr ? new Date(dateStr) : undefined),
+      timestamp: fmtTime(locale, dateStr ? new Date(dateStr) : undefined),
       level,
       message,
     });
@@ -560,16 +560,16 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
       newEntries.push(
         mk(
           "INFO",
-          `Starting ${run.trigger_type} sync (v${run.sync_version})…`,
+          t("log.starting", {
+            trigger: run.trigger_type,
+            version: run.sync_version,
+          }),
           run.started_at,
         ),
       );
       if (run.items_seen > 0) {
         newEntries.push(
-          mk(
-            "INFO",
-            `${run.items_seen.toLocaleString()} items discovered, indexing…`,
-          ),
+          mk("INFO", t("log.discovered", { count: run.items_seen })),
         );
       }
     } else if (statusChanged) {
@@ -577,16 +577,16 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
         newEntries.push(
           mk(
             "INFO",
-            `Sync complete — ${run.items_upserted.toLocaleString()} upserted, ${run.items_deleted.toLocaleString()} deleted.`,
+            t("log.complete", {
+              upserted: run.items_upserted,
+              deleted: run.items_deleted,
+            }),
             run.completed_at,
           ),
         );
       } else if (run.status === "failed") {
         newEntries.push(
-          mk(
-            "ERROR",
-            run.error_message ?? "Sync failed with an unknown error.",
-          ),
+          mk("ERROR", run.error_message ?? t("log.unknownError")),
         );
         for (const [key, val] of Object.entries(run.error_details ?? {})
           .filter(([, v]) => typeof v === "string" || typeof v === "number")
@@ -594,7 +594,7 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
           newEntries.push(mk("ERROR", `  ${key}: ${val}`));
         }
       } else if (run.status === "cancelled") {
-        newEntries.push(mk("WARN", "Sync was cancelled."));
+        newEntries.push(mk("WARN", t("log.cancelled")));
       }
     } else if (seenChanged) {
       const prev = prevSeenRef.current > -1 ? prevSeenRef.current : 0;
@@ -603,8 +603,14 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
         mk(
           "INFO",
           delta > 0
-            ? `+${delta.toLocaleString()} items scanned — ${run.items_upserted.toLocaleString()} indexed so far…`
-            : `${run.items_seen.toLocaleString()} items seen — ${run.items_upserted.toLocaleString()} indexed…`,
+            ? t("log.scanned", {
+                delta,
+                indexed: run.items_upserted,
+              })
+            : t("log.seen", {
+                seen: run.items_seen,
+                indexed: run.items_upserted,
+              }),
         ),
       );
     }
@@ -618,7 +624,7 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
     prevRunIdRef.current = run.id;
     prevSeenRef.current = run.items_seen;
     prevStatusRef.current = run.status;
-  }, [run]);
+  }, [locale, run, t]);
 
   // Auto-scroll to bottom on new entries
   useEffect(() => {
@@ -643,15 +649,13 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
   return (
     <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h4 className="text-lg font-bold text-[#2a2640]">
-          Live Extraction Log
-        </h4>
+        <h4 className="text-lg font-bold text-[#2a2640]">{t("log.title")}</h4>
         <div className="flex gap-1.5">
           <button
             type="button"
             onClick={handleDownload}
             disabled={entries.length === 0}
-            title="Download log"
+            title={t("log.download")}
             className="rounded border border-[#d7d4e8] p-1.5 text-[#464555] transition-colors hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <span className="material-symbols-outlined text-[18px]">
@@ -661,7 +665,7 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
-            title={collapsed ? "Expand" : "Collapse"}
+            title={collapsed ? t("log.expand") : t("log.collapse")}
             className="rounded border border-[#d7d4e8] p-1.5 text-[#464555] transition-colors hover:bg-[#f5f2ff]"
           >
             <span className="material-symbols-outlined text-[18px]">
@@ -682,9 +686,7 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
         >
           {entries.length === 0 ? (
             <span className="text-slate-500">
-              {isActive
-                ? "Initializing…"
-                : "No sync activity yet. Start a sync to see logs here."}
+              {isActive ? t("log.initializing") : t("log.empty")}
             </span>
           ) : (
             entries.map((entry) => (
@@ -707,8 +709,11 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
           )}
           {isActive && (
             <div className="flex items-center gap-2 text-slate-400">
-              <span className="text-slate-500">[{fmtTime(new Date())}]</span>{" "}
-              <span className="text-emerald-400">INFO:</span> Processing…{" "}
+              <span className="text-slate-500">
+                [{fmtTime(locale, new Date())}]
+              </span>{" "}
+              <span className="text-emerald-400">INFO:</span>{" "}
+              {t("log.processing")}{" "}
               <span className="inline-block h-[14px] w-[7px] animate-pulse bg-slate-400 align-middle" />
             </div>
           )}
@@ -733,6 +738,7 @@ function HeaderActionsMenu({
   onDisconnect: () => void;
   disconnectPending: boolean;
 }) {
+  const t = useTranslations("connectors.detail");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -752,7 +758,7 @@ function HeaderActionsMenu({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-[#d7d4e8] p-2.5 text-[#464555] transition-colors hover:bg-[#f5f2ff]"
-        aria-label="More actions"
+        aria-label={t("actions.more")}
       >
         <span className="material-symbols-outlined text-[20px]">more_vert</span>
       </button>
@@ -770,7 +776,9 @@ function HeaderActionsMenu({
             <span className="material-symbols-outlined text-[18px]">
               refresh
             </span>
-            {reconnectPending ? "Reconnecting…" : "Reconnect"}
+            {reconnectPending
+              ? t("actions.reconnecting")
+              : t("actions.reconnect")}
           </button>
           <button
             type="button"
@@ -784,7 +792,7 @@ function HeaderActionsMenu({
             <span className="material-symbols-outlined text-[18px]">
               restart_alt
             </span>
-            {fullResyncPending ? "Queuing…" : "Force full resync"}
+            {fullResyncPending ? t("actions.queuing") : t("actions.fullResync")}
           </button>
           <div className="mx-3 border-t border-[#e8e5f3]" />
           <button
@@ -799,7 +807,9 @@ function HeaderActionsMenu({
             <span className="material-symbols-outlined text-[18px]">
               link_off
             </span>
-            {disconnectPending ? "Disconnecting…" : "Disconnect"}
+            {disconnectPending
+              ? t("actions.disconnecting")
+              : t("actions.disconnect")}
           </button>
         </div>
       )}
@@ -812,6 +822,8 @@ function HeaderActionsMenu({
 type Props = { connectionId: string };
 
 export function ConnectorConnectionDetailPage({ connectionId }: Props) {
+  const t = useTranslations("connectors.detail");
+  const locale = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -926,19 +938,39 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   const latestSuccessfulRun = runs.find((run) => run.status === "completed");
   const latestFailedRun = runs.find((run) => run.status === "failed");
   const indexedItemCount = connection?.indexed_document_count ?? 0;
-  const syncStatusLabel = getSyncStatusLabel({
+  const syncStatusKey = getSyncStatusLabel({
     connectionStatus: connection?.status ?? "unknown",
     diagnosticsStatus: connection?.diagnostics?.credential_status ?? null,
     activeRun,
     latestRun,
     activeJob,
   });
-  const nextSyncLabel = getNextSyncAt(activeJob);
+  const nextSyncLabel = (() => {
+    if (!activeJob) return t("time.notScheduled");
+    if (activeJob.schedule.type === "manual_only") {
+      return t("schedule.manualOnly");
+    }
+    const intervalMinutes = activeJob.schedule.interval_minutes ?? 60;
+    const base = new Date(
+      activeJob.last_run_at ?? activeJob.created_at,
+    ).getTime();
+    const nextDate = new Date(base + intervalMinutes * 60_000);
+    return nextDate.toLocaleString(locale);
+  })();
+  const formatPastTime = (date: string | null): string => {
+    const relative = relativeTimeValue(date);
+    if (!relative) return t("time.never");
+    if (relative.value === 0) return t("time.justNow");
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(
+      relative.value,
+      relative.unit,
+    );
+  };
   const lastSyncLabel = connection?.last_sync_at
-    ? formatRelative(connection.last_sync_at)
+    ? formatPastTime(connection.last_sync_at)
     : latestSuccessfulRun?.completed_at
-      ? formatRelative(latestSuccessfulRun.completed_at)
-      : "Never";
+      ? formatPastTime(latestSuccessfulRun.completed_at)
+      : t("time.never");
   const lastError =
     connection?.error_message ?? latestFailedRun?.error_message ?? null;
 
@@ -967,7 +999,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   if (connectionQuery.isLoading) {
     return (
       <div className="max-w-7xl p-8">
-        <LoadingState title="Loading connector details…" />
+        <LoadingState title={t("loading")} />
       </div>
     );
   }
@@ -986,7 +1018,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
           <span className="material-symbols-outlined text-[18px]">
             arrow_back
           </span>
-          Back to connectors
+          {t("back")}
         </Link>
       </div>
     );
@@ -1007,7 +1039,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
             <ProviderAvatar providerKey={connection.provider_key} />
             <div>
               <p className="mb-1 text-[11px] font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-                Connector Details
+                {t("eyebrow")}
               </p>
               <h1 className="text-3xl font-extrabold text-[#2a2640]">
                 {connection.display_name}
@@ -1022,13 +1054,18 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
                 <ConnectionStatusBadge status={connection.status} />
                 {safeDiagnostics.credential_status && (
                   <span className="rounded-full border border-[#c3c0ff]/30 bg-[#c3c0ff]/20 px-3 py-1 text-[11px] font-bold text-[#3525cd]">
-                    Credential {safeDiagnostics.credential_status}
+                    {t("credentials.badge", {
+                      status: safeDiagnostics.credential_status,
+                    })}
                   </span>
                 )}
                 {safeDiagnostics.expires_at && (
                   <span className="text-[11px] font-medium text-[#777587]">
-                    Expires{" "}
-                    {new Date(safeDiagnostics.expires_at!).toLocaleString()}
+                    {t("credentials.expires", {
+                      date: new Date(
+                        safeDiagnostics.expires_at!,
+                      ).toLocaleString(locale),
+                    })}
                   </span>
                 )}
               </div>
@@ -1043,7 +1080,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
               <span className="material-symbols-outlined text-[18px]">
                 forum
               </span>
-              Ask in chat
+              {t("actions.askInChat")}
             </Link>
             <button
               type="button"
@@ -1057,10 +1094,10 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
                 sync
               </span>
               {hasActiveRun
-                ? "Syncing…"
+                ? t("actions.syncing")
                 : syncMutation.isPending
-                  ? "Starting…"
-                  : "Sync now"}
+                  ? t("actions.starting")
+                  : t("actions.syncNow")}
             </button>
             <HeaderActionsMenu
               onReconnect={() => refreshMutation.mutate()}
@@ -1082,14 +1119,26 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
 
       {/* ── Stats grid ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Sync status" value={syncStatusLabel} icon="sync" />
         <StatCard
-          label="Indexed items"
+          label={t("stats.syncStatus")}
+          value={t(`syncStates.${syncStatusKey}`)}
+          icon="sync"
+        />
+        <StatCard
+          label={t("stats.indexedItems")}
           value={indexedItemCount.toLocaleString()}
           icon="dataset"
         />
-        <StatCard label="Last sync" value={lastSyncLabel} icon="update" />
-        <StatCard label="Next sync" value={nextSyncLabel} icon="schedule" />
+        <StatCard
+          label={t("stats.lastSync")}
+          value={lastSyncLabel}
+          icon="update"
+        />
+        <StatCard
+          label={t("stats.nextSync")}
+          value={nextSyncLabel}
+          icon="schedule"
+        />
       </div>
 
       {/* ── Main 2-col layout ── */}
@@ -1105,24 +1154,24 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
             <div className="flex items-center justify-between border-b border-[#e8e5f3] px-6 py-4">
               <div>
                 <h3 className="text-lg font-bold text-[#2a2640]">
-                  Recent sync runs
+                  {t("runs.title")}
                 </h3>
                 <p className="text-sm text-[#68647b]">
-                  History of sync executions with item counts and error details.
+                  {t("runs.description")}
                 </p>
               </div>
             </div>
 
             {runsQuery.isLoading ? (
               <div className="px-6 py-4">
-                <LoadingState compact title="Loading runs…" />
+                <LoadingState compact title={t("runs.loading")} />
               </div>
             ) : runs.length === 0 ? (
               <div className="px-6 py-6">
                 <EmptyState
                   compact
-                  title="No sync runs yet"
-                  description="Trigger a sync to see run history here."
+                  title={t("runs.emptyTitle")}
+                  description={t("runs.emptyDescription")}
                 />
               </div>
             ) : (
@@ -1131,25 +1180,25 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
                   <thead className="bg-[#f5f2ff] text-[11px]">
                     <tr>
                       <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
-                        Status
+                        {t("table.status")}
                       </th>
                       <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
-                        Trigger
+                        {t("table.trigger")}
                       </th>
                       <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
-                        Seen
+                        {t("table.seen")}
                       </th>
                       <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
-                        Upserted
+                        {t("table.upserted")}
                       </th>
                       <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
-                        Deleted
+                        {t("table.deleted")}
                       </th>
                       <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
-                        Duration
+                        {t("table.duration")}
                       </th>
                       <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
-                        Started
+                        {t("table.started")}
                       </th>
                       <th className="w-16 px-6 py-3" />
                     </tr>
@@ -1192,7 +1241,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
                                 onClick={() => retryMutation.mutate(run.id)}
                                 className="text-xs font-semibold text-[#3525cd] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                               >
-                                Retry
+                                {t("actions.retry")}
                               </button>
                             )}
                             {run.error_message && (

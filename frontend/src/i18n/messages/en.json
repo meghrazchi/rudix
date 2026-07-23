@@ -2964,6 +2964,183 @@
         "soon": "Soon",
         "notifyMe": "Notify me"
       }
+    },
+    "detail": {
+      "loading": "Loading connector details…",
+      "back": "Back to connectors",
+      "eyebrow": "Connector details",
+      "statuses": {
+        "connected": "Connected",
+        "active": "Active",
+        "paused": "Paused",
+        "queued": "Queued",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "revoked": "Revoked",
+        "disabled": "Disabled",
+        "error": "Error",
+        "expired": "Expired",
+        "unknown": "Unknown",
+        "needsAttention": "Needs attention",
+        "healthy": "Healthy"
+      },
+      "syncStates": {
+        "running": "Running",
+        "queued": "Queued",
+        "disconnected": "Disconnected",
+        "needsAttention": "Needs attention",
+        "lastSyncFailed": "Last sync failed",
+        "paused": "Paused",
+        "noSchedule": "No schedule",
+        "healthy": "Healthy"
+      },
+      "time": {
+        "never": "Never",
+        "justNow": "Just now",
+        "notScheduled": "Not scheduled",
+        "dueNow": "Due now"
+      },
+      "currentJob": {
+        "title": "Current sync job",
+        "inProgress": "{trigger} sync in progress",
+        "progress": "Progress",
+        "processing": "Processing items…"
+      },
+      "credentials": {
+        "title": "Credential Diagnostics",
+        "status": "Credential Status",
+        "scopes": "Granted Scopes",
+        "noScopes": "No scopes cached.",
+        "trustState": "Trust State",
+        "badge": "Credential {status}",
+        "expires": "Expires {date}"
+      },
+      "schedule": {
+        "title": "Sync Schedule",
+        "everyMinutes": "Every {count} min",
+        "manualOnly": "Manual only",
+        "pause": "Pause schedule",
+        "resume": "Resume schedule",
+        "none": "No sync schedule configured."
+      },
+      "errors": {
+        "title": "Recent Errors",
+        "none": "No recent errors",
+        "healthy": "Your connection is healthy."
+      },
+      "log": {
+        "title": "Live Extraction Log",
+        "download": "Download log",
+        "expand": "Expand",
+        "collapse": "Collapse",
+        "initializing": "Initializing…",
+        "empty": "No sync activity yet. Start a sync to see logs here.",
+        "processing": "Processing…",
+        "starting": "Starting {trigger} sync (v{version})…",
+        "discovered": "{count} items discovered, indexing…",
+        "complete": "Sync complete — {upserted} upserted, {deleted} deleted.",
+        "unknownError": "Sync failed with an unknown error.",
+        "cancelled": "Sync was cancelled.",
+        "scanned": "+{delta} items scanned — {indexed} indexed so far…",
+        "seen": "{seen} items seen — {indexed} indexed…"
+      },
+      "actions": {
+        "more": "More actions",
+        "reconnecting": "Reconnecting…",
+        "reconnect": "Reconnect",
+        "queuing": "Queuing…",
+        "fullResync": "Force full resync",
+        "disconnecting": "Disconnecting…",
+        "disconnect": "Disconnect",
+        "askInChat": "Ask in chat",
+        "syncing": "Syncing…",
+        "starting": "Starting…",
+        "syncNow": "Sync now",
+        "retry": "Retry"
+      },
+      "stats": {
+        "syncStatus": "Sync status",
+        "indexedItems": "Indexed items",
+        "lastSync": "Last sync",
+        "nextSync": "Next sync"
+      },
+      "runs": {
+        "title": "Recent sync runs",
+        "description": "History of sync executions with item counts and error details.",
+        "loading": "Loading runs…",
+        "emptyTitle": "No sync runs yet",
+        "emptyDescription": "Trigger a sync to see run history here."
+      },
+      "table": {
+        "status": "Status",
+        "trigger": "Trigger",
+        "seen": "Seen",
+        "upserted": "Upserted",
+        "deleted": "Deleted",
+        "duration": "Duration",
+        "started": "Started"
+      },
+      "permissions": {
+        "loading": "Loading permission review…",
+        "loadError": "Unable to load permission review.",
+        "title": "Permission review",
+        "description": "Admin must confirm scope before indexing can begin",
+        "confirmed": "Confirmed",
+        "pending": "Pending review",
+        "broadTitle": "Broad permission scope detected",
+        "broadDescription": "One or more granted scopes provide access beyond the minimum required. Review the warnings below and consider narrowing the scope before confirming.",
+        "scopeWarnings": "Scope warnings",
+        "grantedScopes": "Granted scopes",
+        "sourceFilters": "Selected source filters",
+        "syncDirection": "Sync direction",
+        "retention": "Retention",
+        "access": "Access",
+        "restrictedAccess": "Restricted to assigned collection",
+        "allMembers": "All organisation members",
+        "permissionsConfirmed": "Permissions confirmed",
+        "confirmedAt": "Confirmed {date}",
+        "confirming": "Confirming…",
+        "confirmAction": "Confirm permissions and allow sync",
+        "blockedDescription": "Syncing is blocked until an admin explicitly confirms the permission scope above.",
+        "warningTypes": {
+          "write_permission": "Write access",
+          "admin_scope": "Admin scope",
+          "org_wide_access": "Org-wide access",
+          "broad_read": "Broad read"
+        }
+      },
+      "conflicts": {
+        "title": "Sync Conflicts",
+        "openCount": "{count} open",
+        "refresh": "Refresh conflicts",
+        "all": "All",
+        "loading": "Loading conflicts…",
+        "loadError": "Failed to load conflicts.",
+        "noOpen": "No open conflicts",
+        "none": "No conflicts found",
+        "clean": "Your sync is running cleanly.",
+        "nothingForFilter": "Nothing to show for this filter.",
+        "showing": "Showing {shown} of {total}",
+        "collapse": "Collapse detail",
+        "expand": "Expand detail",
+        "resolve": "Resolve",
+        "dismiss": "Dismiss",
+        "noDetail": "No detail available.",
+        "resolvedAt": "Resolved {date}",
+        "statuses": {
+          "open": "Open",
+          "resolved": "Resolved",
+          "dismissed": "Dismissed"
+        },
+        "types": {
+          "acl_changed": "ACL changed",
+          "renamed": "Renamed",
+          "moved": "Moved",
+          "permission_revoked": "Permission revoked"
+        }
+      }
     }
   },
   "pipeline": {
@@ -6114,7 +6291,10 @@
       "closeDetails": "Close details"
     },
     "pages": {
-      "chart": { "score": "Score", "feedback": "Feedback" },
+      "chart": {
+        "score": "Score",
+        "feedback": "Feedback"
+      },
       "backend": {
         "loading": "Loading report data",
         "loadingDescription": "Applying your filters to organization-scoped metrics.",

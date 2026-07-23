@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
@@ -13,13 +14,6 @@ import {
 import { queryKeys } from "@/lib/api/query";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-const CONFLICT_TYPE_LABEL: Record<string, string> = {
-  acl_changed: "ACL changed",
-  renamed: "Renamed",
-  moved: "Moved",
-  permission_revoked: "Permission revoked",
-};
 
 const CONFLICT_TYPE_ICON: Record<string, string> = {
   acl_changed: "lock_person",
@@ -35,7 +29,8 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 function ConflictTypeChip({ type }: { type: string }) {
-  const label = CONFLICT_TYPE_LABEL[type] ?? type;
+  const t = useTranslations("connectors.detail.conflicts");
+  const label = t.has(`types.${type}`) ? t(`types.${type}`) : type;
   const icon = CONFLICT_TYPE_ICON[type] ?? "warning";
   const isRevoked = type === "permission_revoked";
   return (
@@ -63,6 +58,7 @@ function ConflictRow({
   connectionId: string;
   onResolved: () => void;
 }) {
+  const t = useTranslations("connectors.detail.conflicts");
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,7 +93,9 @@ function ConflictRow({
             <span
               className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${badge}`}
             >
-              {conflict.status}
+              {t.has(`statuses.${conflict.status}`)
+                ? t(`statuses.${conflict.status}`)
+                : conflict.status}
             </span>
           </div>
           <p
@@ -116,7 +114,7 @@ function ConflictRow({
             type="button"
             onClick={() => setExpanded((v) => !v)}
             className="rounded border border-[#d7d4e8] p-1 text-[#464555] hover:bg-[#f5f2ff]"
-            aria-label={expanded ? "Collapse detail" : "Expand detail"}
+            aria-label={expanded ? t("collapse") : t("expand")}
           >
             <span className="material-symbols-outlined text-[16px]">
               {expanded ? "expand_less" : "expand_more"}
@@ -135,7 +133,7 @@ function ConflictRow({
                 }
                 className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Resolve
+                {t("resolve")}
               </button>
               <button
                 type="button"
@@ -145,7 +143,7 @@ function ConflictRow({
                 }
                 className="rounded border border-[#d7d4e8] px-2 py-1 text-[11px] font-bold text-[#464555] hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Dismiss
+                {t("dismiss")}
               </button>
             </>
           )}
@@ -155,7 +153,7 @@ function ConflictRow({
       {expanded && (
         <div className="border-t border-[#e8e5f3] bg-[#faf9fe] px-3 pt-2 pb-3">
           {Object.entries(conflict.conflict_detail).length === 0 ? (
-            <p className="text-[11px] text-[#777587]">No detail available.</p>
+            <p className="text-[11px] text-[#777587]">{t("noDetail")}</p>
           ) : (
             <dl className="space-y-1">
               {Object.entries(conflict.conflict_detail).map(([k, v]) => (
@@ -182,7 +180,9 @@ function ConflictRow({
           )}
           {conflict.resolved_at && (
             <p className="mt-2 text-[10px] text-[#777587]">
-              Resolved {new Date(conflict.resolved_at).toLocaleString()}
+              {t("resolvedAt", {
+                date: new Date(conflict.resolved_at).toLocaleString(),
+              })}
             </p>
           )}
         </div>
@@ -198,6 +198,7 @@ function ConflictRow({
 type Props = { connectionId: string };
 
 export function ConnectorConflictPanel({ connectionId }: Props) {
+  const t = useTranslations("connectors.detail.conflicts");
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<SyncConflictStatus | undefined>("open");
 
@@ -224,10 +225,10 @@ export function ConnectorConflictPanel({ connectionId }: Props) {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h4 className="text-lg font-bold text-[#2a2640]">Sync Conflicts</h4>
+          <h4 className="text-lg font-bold text-[#2a2640]">{t("title")}</h4>
           {openCount > 0 && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-              {openCount} open
+              {t("openCount", { count: openCount })}
             </span>
           )}
         </div>
@@ -236,7 +237,7 @@ export function ConnectorConflictPanel({ connectionId }: Props) {
           onClick={() => conflictsQuery.refetch()}
           disabled={conflictsQuery.isFetching}
           className="rounded border border-[#d7d4e8] p-1 text-[#464555] hover:bg-[#f5f2ff] disabled:opacity-40"
-          aria-label="Refresh conflicts"
+          aria-label={t("refresh")}
         >
           <span
             className={`material-symbols-outlined text-[18px] ${conflictsQuery.isFetching ? "animate-spin" : ""}`}
@@ -250,10 +251,10 @@ export function ConnectorConflictPanel({ connectionId }: Props) {
       <div className="mb-3 flex gap-1">
         {(
           [
-            { value: "open", label: "Open" },
-            { value: "resolved", label: "Resolved" },
-            { value: "dismissed", label: "Dismissed" },
-            { value: undefined, label: "All" },
+            { value: "open", label: t("statuses.open") },
+            { value: "resolved", label: t("statuses.resolved") },
+            { value: "dismissed", label: t("statuses.dismissed") },
+            { value: undefined, label: t("all") },
           ] as { value: SyncConflictStatus | undefined; label: string }[]
         ).map(({ value, label }) => (
           <button
@@ -274,11 +275,11 @@ export function ConnectorConflictPanel({ connectionId }: Props) {
       {/* Content */}
       {conflictsQuery.isLoading ? (
         <p className="py-4 text-center text-sm text-[#68647b]">
-          Loading conflicts…
+          {t("loading")}
         </p>
       ) : conflictsQuery.isError ? (
         <p className="py-4 text-center text-sm text-rose-600">
-          Failed to load conflicts.
+          {t("loadError")}
         </p>
       ) : conflicts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -288,12 +289,10 @@ export function ConnectorConflictPanel({ connectionId }: Props) {
             </span>
           </div>
           <p className="font-bold text-[#2a2640]">
-            {filter === "open" ? "No open conflicts" : "No conflicts found"}
+            {filter === "open" ? t("noOpen") : t("none")}
           </p>
           <p className="mt-1 text-sm text-[#777587]">
-            {filter === "open"
-              ? "Your sync is running cleanly."
-              : "Nothing to show for this filter."}
+            {filter === "open" ? t("clean") : t("nothingForFilter")}
           </p>
         </div>
       ) : (
@@ -308,7 +307,7 @@ export function ConnectorConflictPanel({ connectionId }: Props) {
           ))}
           {total > conflicts.length && (
             <p className="pt-1 text-center text-[11px] text-[#777587]">
-              Showing {conflicts.length} of {total}
+              {t("showing", { shown: conflicts.length, total })}
             </p>
           )}
         </div>
