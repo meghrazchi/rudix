@@ -3141,6 +3141,322 @@
           "permission_revoked": "مجوز لغو شده"
         }
       }
+    },
+    "setup": {
+      "loading": "در حال بارگذاری اطلاعات ارائه‌دهنده…",
+      "loadErrorTitle": "بارگذاری ارائه‌دهنده ممکن نیست",
+      "loadErrorDescription": "اطلاعات ارائه‌دهنده در دسترس نیست.",
+      "backToConnectors": "بازگشت به اتصال‌دهنده‌ها",
+      "eyebrow": "راهنمای راه‌اندازی اتصال‌دهنده",
+      "connectTitle": "اتصال {provider}",
+      "authType": "نوع احراز هویت",
+      "providerDescriptionFallback": "با راهنمای گام‌به‌گام، ارائه‌دهنده را متصل و دامنه منبع را مشخص کنید.",
+      "submitting": "در حال ارسال جزئیات اتصال…",
+      "common": {
+        "enabled": "فعال"
+      },
+      "wizard": {
+        "back": "بازگشت",
+        "cancel": "لغو",
+        "connecting": "در حال اتصال…",
+        "complete": "تکمیل اتصال",
+        "next": "بعدی"
+      },
+      "steps": {
+        "basics": "اطلاعات پایه",
+        "scope": "دامنه",
+        "permissions": "مجوزها",
+        "review": "بازبینی"
+      },
+      "validation": {
+        "required": "این فیلد الزامی است.",
+        "url": "یک نشانی کامل با http یا https وارد کنید."
+      },
+      "basics": {
+        "connectionName": "نام اتصال",
+        "namePlaceholder": "{provider} برای تیم مهندسی",
+        "tenantAccountId": "شناسه مستأجر / حساب",
+        "externalAccountId": "شناسه حساب خارجی",
+        "tenantHelper": "اطلاعات اختیاری برای تشخیص مستأجرها یا حساب‌های مختلف Microsoft 365.",
+        "accountHelper": "اطلاعات اختیاری برای تشخیص چند حساب از یک ارائه‌دهنده.",
+        "providerOverview": "نمای کلی ارائه‌دهنده",
+        "providerFallback": "این ارائه‌دهنده از طریق راهنمای مشترک اتصال‌دهنده مدیریت می‌شود.",
+        "authModel": "مدل احراز هویت"
+      },
+      "scope": {
+        "noFields": "این ارائه‌دهنده به فیلد راه‌اندازی دیگری نیاز ندارد.",
+        "title": "دامنه همگام‌سازی انتخاب‌شده",
+        "noneSelected": "دامنه منبع مشخصی انتخاب نشده است.",
+        "savedDescription": "انتخاب منبع به‌عنوان فراداده اتصال‌دهنده ذخیره و در کارهای همگام‌سازی استفاده می‌شود.",
+        "aclSummary": "فراداده ACL برای ارجاع‌های قابل‌اعتماد ثبت می‌شود.",
+        "enableField": "فعال‌سازی {field}"
+      },
+      "review": {
+        "untitled": "اتصال بدون نام",
+        "sourceScope": "دامنه منبع",
+        "noFilter": "فیلتر منبع مشخصی انتخاب نشده است.",
+        "nextTitle": "گام بعدی چیست",
+        "oauthNext": "OAuth آغاز می‌شود و پس از بازگشت از ارائه‌دهنده، اتصال ذخیره خواهد شد.",
+        "directNext": "اتصال مستقیماً با فیلدهای پیکربندی‌شده ذخیره می‌شود.",
+        "selectedAuthModel": "مدل احراز هویت انتخاب‌شده"
+      },
+      "permissions": {
+        "broadTitle": "دامنه گسترده مجوز شناسایی شد",
+        "broadDescription": "پیکربندی انتخاب‌شده دسترسی گسترده‌ای می‌دهد. هشدارها را بررسی کنید و پیش از تأیید، دامنه را تا حد امکان محدود کنید.",
+        "requestedScopes": "دامنه‌های OAuth درخواستی",
+        "noOAuthScopes": "این ارائه‌دهنده از توکن API استفاده می‌کند و دامنه OAuth درخواست نمی‌شود.",
+        "syncDirection": "جهت همگام‌سازی",
+        "syncDescription": "فقط خواندنی؛ Rudix هرگز محتوای منبع متصل را ایجاد، ویرایش یا حذف نمی‌کند.",
+        "retention": "نگهداشت",
+        "retentionDescription": "محتوای نمایه‌شده تا زمان حذف اتصال‌دهنده یا حذف سند از منبع نگهداری می‌شود.",
+        "access": "دسترسی",
+        "accessDescription": "نتایج نمایه‌شده از طریق مجموعه تعیین‌شده در دسترس همه اعضای سازمان است.",
+        "confirmTitle": "تأیید می‌کنم مجوزهای درخواستی را بررسی کرده‌ام",
+        "confirmBroad": "می‌دانم این اتصال‌دهنده دسترسی گسترده می‌خواهد و مسئولیت دامنه تنظیم‌شده را می‌پذیرم.",
+        "confirmNormal": "می‌دانم این اتصال‌دهنده به چه داده‌هایی دسترسی دارد و تأیید می‌کنم برای نمایه‌سازی مناسب است.",
+        "risks": {
+          "write_permission": "«{scope}» دسترسی نوشتن یا حذف می‌دهد؛ Rudix فقط به دسترسی خواندنی نیاز دارد.",
+          "admin_scope": "«{scope}» دسترسی مدیریتی فراتر از نیاز نمایه‌سازی می‌دهد.",
+          "org_wide_access": "«{scope}» بدون فیلتر منبع به کل سازمان دسترسی می‌دهد. آن را به پوشه‌ها یا سایت‌های مشخص محدود کنید.",
+          "broad_read": "به نظر می‌رسد «{scope}» دسترسی خواندن گسترده می‌دهد؛ حداقل دامنه موردنیاز را تأیید کنید."
+        }
+      },
+      "fields": {
+        "google_drive": {
+          "folder_ids": {
+            "label": "شناسه پوشه‌ها",
+            "description": "همگام‌سازی را به پوشه‌های مشخص Google Drive محدود کنید.",
+            "placeholder": "folder-id-1, folder-id-2"
+          },
+          "drive_ids": {
+            "label": "شناسه درایوهای مشترک",
+            "description": "همگام‌سازی را به درایوهای مشترک مشخص محدود کنید.",
+            "placeholder": "drive-id-1, drive-id-2"
+          },
+          "include_shared_drives": {
+            "label": "افزودن درایوهای مشترک",
+            "description": "محتوای درایوهای مشترک را نیز همگام کنید."
+          }
+        },
+        "notion": {
+          "page_ids": {
+            "label": "شناسه صفحه‌ها",
+            "description": "همگام‌سازی را به UUID صفحه‌های مشخص محدود کنید.",
+            "placeholder": "page-id-1, page-id-2"
+          },
+          "database_ids": {
+            "label": "شناسه پایگاه‌های داده",
+            "description": "همگام‌سازی را به UUID پایگاه‌های داده مشخص محدود کنید.",
+            "placeholder": "database-id-1, database-id-2"
+          },
+          "include_child_pages": {
+            "label": "افزودن صفحه‌های فرزند",
+            "description": "صفحه‌های فرزند را به‌صورت بازگشتی اضافه کنید."
+          },
+          "include_comments": {
+            "label": "افزودن دیدگاه‌ها",
+            "description": "دیدگاه‌های صفحه را قابل جست‌وجو کنید."
+          },
+          "include_attachments": {
+            "label": "افزودن پیوست‌ها",
+            "description": "فایل‌ها، تصاویر و PDFهای پیوست را دریافت و نمایه کنید."
+          },
+          "max_page_depth": {
+            "label": "حداکثر عمق بلوک",
+            "description": "بیشترین عمق بلوک‌های تو در تو برای پیمایش."
+          },
+          "import_property_metadata": {
+            "label": "ورود ویژگی‌های پایگاه داده",
+            "description": "مقادیر ویژگی‌ها را در فراداده قابل جست‌وجو ذخیره کنید."
+          }
+        },
+        "microsoft-sharepoint-onedrive": {
+          "site_ids": {
+            "label": "شناسه سایت‌های SharePoint",
+            "description": "از مقدار site:<site-id> استفاده کنید."
+          },
+          "drive_ids": {
+            "label": "شناسه درایوها",
+            "description": "برای کتابخانه‌ها و OneDrive از drive:<drive-id> استفاده کنید."
+          },
+          "folder_ids": {
+            "label": "شناسه پوشه‌ها",
+            "description": "برای محدودسازی از folder:<drive-id>:<folder-id> استفاده کنید."
+          },
+          "allowed_file_types": {
+            "label": "نوع فایل‌های مجاز",
+            "description": "نوع MIME یا قالب‌های خروجی مجاز برای ورود."
+          },
+          "max_file_size_mb": {
+            "label": "حداکثر اندازه فایل (MB)",
+            "description": "فایل‌های بزرگ‌تر از این حد نادیده گرفته می‌شوند."
+          },
+          "include_folder_paths": {
+            "label": "مسیرهای پوشه مجاز",
+            "description": "فقط مسیرهای مطابق این پیشوندها همگام شوند."
+          },
+          "exclude_folder_paths": {
+            "label": "مسیرهای پوشه مستثنا",
+            "description": "مسیرهای مطابق این پیشوندها نادیده گرفته شوند."
+          },
+          "sync_frequency_minutes": {
+            "label": "تناوب همگام‌سازی (دقیقه)",
+            "description": "فاصله پیشنهادی همگام‌سازی این منبع."
+          },
+          "max_downloads_per_sync": {
+            "label": "حداکثر دریافت در هر همگام‌سازی",
+            "description": "حد ایمنی تعداد فایل‌های دریافتی در یک اجرا."
+          },
+          "permission_import_behavior": {
+            "label": "رفتار ورود مجوزها",
+            "description": "ورود مجوزهای مستقیم برای ارجاع‌های آگاه از ACL را انتخاب کنید."
+          }
+        }
+      },
+      "confluenceGuide": {
+        "title": "راه‌اندازی برنامه Atlassian الزامی است",
+        "subtitle": "پیش‌نیاز یک‌باره — پیش از اتصال یک برنامه OAuth بسازید",
+        "introduction": "Rudix از طریق برنامه OAuth 2.0 (3LO) متعلق به شما در کنسول توسعه‌دهندگان Atlassian به Confluence متصل می‌شود. این مراحل را یک بار انجام دهید و سپس برای اتصال بازگردید.",
+        "open": "باز کنید",
+        "step1Title": "ساخت برنامه",
+        "step1Instruction": "روی Create → OAuth 2.0 integration کلیک کنید و نامی مانند Rudix بدهید.",
+        "step2Title": "فعال‌سازی API کانفلوئنس",
+        "step2Instruction": "در APIs and features کنار Confluence API روی Add کلیک کنید.",
+        "step3Title": "افزودن نشانی بازگشت",
+        "step3Instruction": "در Authorization این نشانی دقیق را وارد کنید:",
+        "copyCallback": "کپی نشانی بازگشت",
+        "step4Title": "اعطای مجوزها",
+        "step4Instruction": "در Confluence API → Permissions این دامنه‌های OAuth را اضافه کنید:",
+        "scopeDescription1": "خواندن صفحه‌ها، نوشته‌های وبلاگ و پیوست‌ها",
+        "scopeDescription2": "فهرست فضاهای در دسترس",
+        "scopeDescription3": "تازه‌سازی توکن‌های دسترسی بدون احراز هویت دوباره",
+        "required": "الزامی",
+        "recommended": "پیشنهادی",
+        "step5Title": "افزودن اعتبارنامه‌ها به استقرار",
+        "step5Instruction": "Client ID و Client Secret را از تنظیمات برنامه کپی و متغیر محیطی بک‌اند را تنظیم کنید:",
+        "credentialsNote": "با افزودن ورودی دیگری به آرایه، می‌توان همین اعتبارنامه‌های برنامه Atlassian را برای ارائه‌دهندگان سازگار دیگر نیز استفاده کرد.",
+        "readOnlyNote": "Rudix فقط دامنه‌های خواندنی درخواست می‌کند و نمی‌تواند محتوای Confluence را ایجاد، ویرایش یا حذف کند."
+      },
+      "capabilities": {
+        "delta_sync": {
+          "label": "همگام‌سازی افزایشی",
+          "description": "پس از نخستین همگام‌سازی کامل، فقط موارد تغییرکرده دریافت می‌شوند"
+        },
+        "webhooks": {
+          "label": "به‌روزرسانی آنی",
+          "description": "ارائه‌دهنده می‌تواند تغییرات را از طریق وب‌هوک ارسال کند"
+        },
+        "acls": {
+          "label": "آگاه از مجوزها",
+          "description": "فهرست‌های کنترل دسترسی همراه محتوا همگام می‌شوند"
+        },
+        "attachments": {
+          "label": "پیوست‌ها",
+          "description": "پیوست‌های فایل در همگام‌سازی گنجانده می‌شوند"
+        },
+        "comments": {
+          "label": "دیدگاه‌ها",
+          "description": "دیدگاه‌ها در همگام‌سازی گنجانده می‌شوند"
+        },
+        "folders": {
+          "label": "ساختار پوشه‌ها",
+          "description": "ساختار پوشه و فضا هنگام همگام‌سازی حفظ می‌شود"
+        },
+        "export_formats": {
+          "label": "قالب‌های خروجی",
+          "description": "چندین قالب خروجی محتوا در دسترس است"
+        },
+        "files": {
+          "label": "فایل‌ها",
+          "description": "فایل‌ها از طریق خط لوله مشترک اسناد نمایه می‌شوند"
+        },
+        "deletions": {
+          "label": "حذف‌ها",
+          "description": "موارد حذف‌شده منبع در همگام‌سازی اعمال می‌شوند"
+        },
+        "deep_links": {
+          "label": "پیوند مستقیم",
+          "description": "ارجاع‌ها می‌توانند مورد اصلی منبع را باز کنند"
+        },
+        "rate_limits": {
+          "label": "آگاه از محدودیت نرخ",
+          "description": "همگام‌سازی محدودیت نرخ API را رعایت و خودکار تلاش مجدد می‌کند"
+        }
+      },
+      "googleDriveGuide": {
+        "title": "راه‌اندازی پروژه Google Cloud الزامی است",
+        "subtitle": "پیش‌نیاز یک‌باره — پیش از اتصال یک برنامه OAuth بسازید",
+        "introduction": "Rudix از طریق برنامه OAuth 2.0 متعلق به شما در Google Cloud Console به Google Drive متصل می‌شود. این مراحل را یک بار انجام دهید و سپس بازگردید.",
+        "open": "باز کنید",
+        "step1Title": "ساخت پروژه",
+        "step1Instruction": "انتخاب‌گر پروژه را باز و New Project را انتخاب کنید.",
+        "step2Title": "فعال‌سازی Google Drive API",
+        "step2Instruction": "به APIs & Services → Library بروید، Google Drive API را پیدا و Enable را انتخاب کنید.",
+        "step3Title": "پیکربندی صفحه رضایت OAuth",
+        "step3Instruction": "در OAuth consent screen حالت Internal یا External را انتخاب، اطلاعات برنامه را وارد و ذخیره کنید.",
+        "step4Title": "ساخت اعتبارنامه OAuth",
+        "step4Instruction": "در Credentials یک OAuth client ID برای Web application بسازید و این نشانی بازگشت را اضافه کنید:",
+        "copyCallback": "کپی نشانی بازگشت",
+        "step5Title": "افزودن دامنه‌های OAuth",
+        "step5Instruction": "در صفحه رضایت OAuth این دامنه‌ها را اضافه کنید:",
+        "scopeDescription1": "خواندن فایل‌ها، پوشه‌ها و فراداده",
+        "scopeDescription2": "خواندن فراداده فایل بدون دریافت محتوا",
+        "required": "الزامی",
+        "recommended": "پیشنهادی",
+        "step6Title": "افزودن اعتبارنامه‌ها به استقرار",
+        "step6Instruction": "Client ID و Client Secret را کپی و متغیر محیطی بک‌اند را تنظیم کنید:",
+        "readOnlyNote": "Rudix فقط دسترسی خواندنی درخواست می‌کند و نمی‌تواند فایل‌های Drive را ایجاد، ویرایش یا حذف کند."
+      },
+      "notionGuide": {
+        "title": "راه‌اندازی یکپارچه‌سازی Notion الزامی است",
+        "subtitle": "پیش‌نیاز یک‌باره — پیش از اتصال یک یکپارچه‌سازی عمومی OAuth بسازید",
+        "introduction": "Rudix از طریق یکپارچه‌سازی عمومی OAuth 2.0 متعلق به شما در پرتال توسعه‌دهندگان Notion متصل می‌شود. این مراحل را یک بار انجام دهید و سپس بازگردید.",
+        "open": "باز کنید",
+        "step1Title": "ساخت یکپارچه‌سازی",
+        "step1Instruction": "یک یکپارچه‌سازی جدید بسازید، نام و فضای کاری را انتخاب و نوع آن را روی Public بگذارید.",
+        "step2Title": "افزودن نشانی بازگشت",
+        "step2Instruction": "در OAuth Domain & URIs این نشانی دقیق را به Redirect URIs اضافه کنید:",
+        "copyCallback": "کپی نشانی بازگشت",
+        "step3Title": "افزودن اعتبارنامه‌ها به استقرار",
+        "step3Instruction": "OAuth client ID و secret را کپی و متغیر محیطی بک‌اند را تنظیم کنید:",
+        "step4Title": "انتخاب دامنه در راهنما",
+        "step4Instruction": "در صورت نیاز همگام‌سازی را به صفحه‌ها یا پایگاه‌های داده مشخص محدود کنید. برای همه محتوای در دسترس خالی بگذارید.",
+        "readOnlyNote": "Rudix فقط دسترسی خواندنی می‌خواهد و نمی‌تواند صفحه‌ها، پایگاه‌های داده یا دیدگاه‌های Notion را تغییر دهد."
+      },
+      "microsoftGuide": {
+        "title": "راه‌اندازی مستأجر Microsoft 365 الزامی است",
+        "subtitle": "پیش‌نیاز یک‌باره — پیش از اتصال یک برنامه در Azure ثبت کنید",
+        "introduction": "Rudix از طریق Microsoft Graph به SharePoint و OneDrive متصل می‌شود. OAuth را تنظیم و سپس سایت‌ها، کتابخانه‌ها، درایوها، پوشه‌ها، نوع فایل و تناوب همگام‌سازی را انتخاب کنید.",
+        "open": "باز کنید",
+        "azurePortal": "پرتال Azure",
+        "step1Title": "ثبت برنامه",
+        "step1Instruction": "یک برنامه ثبت کنید و شناسه مستأجر، Client ID و Client Secret را یادداشت کنید.",
+        "step2Title": "افزودن نشانی بازگشت",
+        "step2Instruction": "در Authentication این نشانی دقیق را اضافه کنید:",
+        "step3Title": "اعطای مجوزهای Microsoft Graph",
+        "step3Instruction": "دامنه‌های خواندنی زیر را اضافه کنید تا Rudix مستأجر و منابع را شناسایی و اسناد را بخواند.",
+        "copyCallback": "کپی نشانی بازگشت",
+        "scopeDescription1": "تازه‌سازی دسترسی بدون احراز هویت دوباره",
+        "scopeDescription2": "خواندن فایل‌های OneDrive و کتابخانه اسناد",
+        "scopeDescription3": "شناسایی سایت‌ها و کتابخانه‌های SharePoint",
+        "scopeDescription4": "اعتبارسنجی حساب Microsoft واردشده",
+        "required": "الزامی",
+        "recommended": "پیشنهادی",
+        "step4Title": "انتخاب دامنه منبع در راهنما",
+        "step4Instruction": "سایت‌ها، کتابخانه‌ها، درایوها و پوشه‌ها را انتخاب و نوع فایل و تناوب همگام‌سازی را تنظیم کنید.",
+        "readOnlyNote": "Rudix فقط دامنه‌های خواندنی Graph را می‌خواهد و محتوای Microsoft 365 را تغییر یا حذف نمی‌کند."
+      },
+      "providers": {
+        "google_drive": {
+          "description": "پوشه‌ها و درایوهای مشترک Google Drive را همراه با مجوزها و فراداده منبع متصل کنید."
+        },
+        "notion": {
+          "description": "فضای کاری Notion را متصل و صفحه‌ها، پایگاه‌های داده و فراداده قابل جست‌وجو را نمایه کنید."
+        },
+        "microsoft-sharepoint-onedrive": {
+          "description": "سایت‌ها، کتابخانه‌ها، پوشه‌ها و محتوای OneDrive را همراه با منشأ و فراداده ACL متصل کنید."
+        }
+      }
     }
   },
   "pipeline": {

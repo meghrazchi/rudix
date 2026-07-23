@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   hasCapability,
@@ -15,8 +16,8 @@ import { queryKeys } from "@/lib/api/query";
 // ---------------------------------------------------------------------------
 
 type CapabilityMeta = {
-  label: string;
-  description: string;
+  label?: string;
+  description?: string;
   color: string;
 };
 
@@ -94,15 +95,16 @@ export function CapabilityBadge({
   capability,
   showTooltip = true,
 }: CapabilityBadgeProps) {
+  const t = useTranslations("connectors.setup.capabilities");
   const meta = CAPABILITY_META[capability];
   if (!meta) return null;
 
   return (
     <span
-      title={showTooltip ? meta.description : undefined}
+      title={showTooltip ? t(`${capability}.description`) : undefined}
       className={`inline-flex cursor-default items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.color}`}
     >
-      {meta.label}
+      {t(`${capability}.label`)}
     </span>
   );
 }

@@ -3141,6 +3141,322 @@
           "permission_revoked": "Permission revoked"
         }
       }
+    },
+    "setup": {
+      "loading": "Loading provider metadata…",
+      "loadErrorTitle": "Unable to load provider",
+      "loadErrorDescription": "Provider metadata is unavailable.",
+      "backToConnectors": "Back to connectors",
+      "eyebrow": "Connector setup wizard",
+      "connectTitle": "Connect {provider}",
+      "authType": "Auth type",
+      "providerDescriptionFallback": "Use the guided setup to connect the provider and capture source scope metadata.",
+      "submitting": "Submitting connection details…",
+      "common": {
+        "enabled": "enabled"
+      },
+      "wizard": {
+        "back": "Back",
+        "cancel": "Cancel",
+        "connecting": "Connecting…",
+        "complete": "Complete Connection",
+        "next": "Next"
+      },
+      "steps": {
+        "basics": "Basics",
+        "scope": "Scope",
+        "permissions": "Permissions",
+        "review": "Review"
+      },
+      "validation": {
+        "required": "This field is required.",
+        "url": "Use an absolute http(s) URL."
+      },
+      "basics": {
+        "connectionName": "Connection name",
+        "namePlaceholder": "{provider} for Engineering",
+        "tenantAccountId": "Tenant / account ID",
+        "externalAccountId": "External account ID",
+        "tenantHelper": "Optional metadata used to distinguish multiple Microsoft 365 tenants or accounts.",
+        "accountHelper": "Optional metadata used to distinguish multiple accounts from the same provider.",
+        "providerOverview": "Provider overview",
+        "providerFallback": "This provider is managed through the shared connector wizard.",
+        "authModel": "Auth model"
+      },
+      "scope": {
+        "noFields": "This provider does not require additional setup fields.",
+        "title": "Selected sync scope",
+        "noneSelected": "No explicit source scope selected.",
+        "savedDescription": "Source selection is saved as connector metadata and reused by sync jobs.",
+        "aclSummary": "ACL metadata will be captured for trust-aware citations.",
+        "enableField": "Enable {field}"
+      },
+      "review": {
+        "untitled": "Untitled connection",
+        "sourceScope": "Source scope",
+        "noFilter": "No explicit source filter selected.",
+        "nextTitle": "What happens next",
+        "oauthNext": "We’ll start OAuth, then save the connection once the provider redirects back.",
+        "directNext": "We’ll save the connection directly using the configured provider fields.",
+        "selectedAuthModel": "Selected auth model"
+      },
+      "permissions": {
+        "broadTitle": "Broad permission scope detected",
+        "broadDescription": "The selected configuration grants broad access. Review each warning below and narrow the scope where possible before confirming.",
+        "requestedScopes": "Requested OAuth scopes",
+        "noOAuthScopes": "This provider uses API token authentication — no OAuth scopes are requested.",
+        "syncDirection": "Sync direction",
+        "syncDescription": "Read-only. Rudix never writes, edits, or deletes content in the connected source.",
+        "retention": "Retention",
+        "retentionDescription": "Indexed content is stored until the connector is removed or a document is deleted at the source.",
+        "access": "Access",
+        "accessDescription": "Indexed results are available to all members of your organisation via the assigned collection.",
+        "confirmTitle": "I confirm I have reviewed the requested permissions",
+        "confirmBroad": "I understand this connector requests broad access and accept responsibility for the scope configured above.",
+        "confirmNormal": "I understand what data this connector will access and confirm it is appropriate for indexing.",
+        "risks": {
+          "write_permission": "'{scope}' grants write or delete access — Rudix only needs read-only scopes.",
+          "admin_scope": "'{scope}' grants admin-level access beyond what indexing requires.",
+          "org_wide_access": "'{scope}' grants access to your entire organisation with no source filter. Consider restricting to specific folders or sites.",
+          "broad_read": "'{scope}' appears to grant broad read access — confirm this is the minimum required scope."
+        }
+      },
+      "fields": {
+        "google_drive": {
+          "folder_ids": {
+            "label": "Folder IDs",
+            "description": "Limit sync to specific Google Drive folders.",
+            "placeholder": "folder-id-1, folder-id-2"
+          },
+          "drive_ids": {
+            "label": "Shared drive IDs",
+            "description": "Limit sync to specific shared drives.",
+            "placeholder": "drive-id-1, drive-id-2"
+          },
+          "include_shared_drives": {
+            "label": "Include shared drives",
+            "description": "Include content from shared drives."
+          }
+        },
+        "notion": {
+          "page_ids": {
+            "label": "Page IDs",
+            "description": "Limit sync to specific Notion page UUIDs. Leave blank for all accessible pages.",
+            "placeholder": "page-id-1, page-id-2"
+          },
+          "database_ids": {
+            "label": "Database IDs",
+            "description": "Limit sync to specific Notion database UUIDs.",
+            "placeholder": "database-id-1, database-id-2"
+          },
+          "include_child_pages": {
+            "label": "Include child pages",
+            "description": "Recursively include child pages."
+          },
+          "include_comments": {
+            "label": "Include page comments",
+            "description": "Import page comments as searchable items."
+          },
+          "include_attachments": {
+            "label": "Include file attachments",
+            "description": "Download and ingest attached file, image, and PDF blocks."
+          },
+          "max_page_depth": {
+            "label": "Maximum block depth",
+            "description": "Maximum nested-block depth to traverse."
+          },
+          "import_property_metadata": {
+            "label": "Import database properties",
+            "description": "Include database property values in searchable metadata."
+          }
+        },
+        "microsoft-sharepoint-onedrive": {
+          "site_ids": {
+            "label": "SharePoint site IDs",
+            "description": "Use site:<site-id> values. Leave blank to discover sources first."
+          },
+          "drive_ids": {
+            "label": "Drive IDs",
+            "description": "Use drive:<drive-id> values for libraries or OneDrive drives."
+          },
+          "folder_ids": {
+            "label": "Folder IDs",
+            "description": "Use folder:<drive-id>:<folder-id> values to limit sync."
+          },
+          "allowed_file_types": {
+            "label": "Allowed file types",
+            "description": "MIME types or export formats allowed for ingestion."
+          },
+          "max_file_size_mb": {
+            "label": "Maximum file size (MB)",
+            "description": "Skip downloaded files larger than this limit."
+          },
+          "include_folder_paths": {
+            "label": "Included folder paths",
+            "description": "Only sync paths matching these prefixes."
+          },
+          "exclude_folder_paths": {
+            "label": "Excluded folder paths",
+            "description": "Skip paths matching these prefixes."
+          },
+          "sync_frequency_minutes": {
+            "label": "Sync frequency (minutes)",
+            "description": "Suggested sync interval for this source."
+          },
+          "max_downloads_per_sync": {
+            "label": "Maximum downloads per sync",
+            "description": "Safety limit for files downloaded in one run."
+          },
+          "permission_import_behavior": {
+            "label": "Permission import behavior",
+            "description": "Choose whether direct permissions are imported for ACL-aware citations."
+          }
+        }
+      },
+      "confluenceGuide": {
+        "title": "Atlassian app setup required",
+        "subtitle": "One-time prerequisite — create an OAuth app before connecting",
+        "introduction": "Rudix connects to Confluence through an OAuth 2.0 (3LO) app that you own in the Atlassian Developer Console. Complete these steps once, then return here to connect.",
+        "open": "open",
+        "step1Title": "Create an app",
+        "step1Instruction": "click Create → OAuth 2.0 integration and give it a name, such as Rudix.",
+        "step2Title": "Enable Confluence API",
+        "step2Instruction": "under APIs and features, click Add next to Confluence API.",
+        "step3Title": "Add the callback URL",
+        "step3Instruction": "under Authorization, paste this exact URL:",
+        "copyCallback": "Copy callback URL",
+        "step4Title": "Grant permissions",
+        "step4Instruction": "under Confluence API → Permissions, add these OAuth scopes:",
+        "scopeDescription1": "Read pages, blog posts, and attachments",
+        "scopeDescription2": "List accessible spaces",
+        "scopeDescription3": "Refresh access tokens without re-authentication",
+        "required": "Required",
+        "recommended": "Recommended",
+        "step5Title": "Add credentials to your deployment",
+        "step5Instruction": "copy the Client ID and Client Secret from the app settings page, then set the backend environment variable:",
+        "credentialsNote": "The same Atlassian app credentials can be reused for other compatible providers by adding another entry to the array.",
+        "readOnlyNote": "Rudix requests read-only scopes only. It cannot create, edit, or delete any Confluence content."
+      },
+      "capabilities": {
+        "delta_sync": {
+          "label": "Incremental sync",
+          "description": "Only changed items are fetched after the first full sync"
+        },
+        "webhooks": {
+          "label": "Real-time updates",
+          "description": "Provider can push change notifications via webhooks"
+        },
+        "acls": {
+          "label": "Permission-aware",
+          "description": "Access control lists are synced alongside content"
+        },
+        "attachments": {
+          "label": "Attachments",
+          "description": "File attachments on items are included in sync"
+        },
+        "comments": {
+          "label": "Comments",
+          "description": "Comments on items are included in sync"
+        },
+        "folders": {
+          "label": "Folder hierarchy",
+          "description": "Folder and space structure is preserved during sync"
+        },
+        "export_formats": {
+          "label": "Export formats",
+          "description": "Multiple content export formats are available for this provider"
+        },
+        "files": {
+          "label": "Files",
+          "description": "File objects are indexed through the shared document pipeline"
+        },
+        "deletions": {
+          "label": "Deletions",
+          "description": "Deleted source items are propagated as tombstones"
+        },
+        "deep_links": {
+          "label": "Deep links",
+          "description": "Citations can open the original source item directly"
+        },
+        "rate_limits": {
+          "label": "Rate-limit aware",
+          "description": "Sync respects the provider API rate limits and retries automatically"
+        }
+      },
+      "googleDriveGuide": {
+        "title": "Google Cloud project setup required",
+        "subtitle": "One-time prerequisite — create an OAuth app before connecting",
+        "introduction": "Rudix connects to Google Drive through an OAuth 2.0 app you own in Google Cloud Console. Complete these steps once, then return here to connect.",
+        "open": "open",
+        "step1Title": "Create a project",
+        "step1Instruction": "click the project selector and choose New Project.",
+        "step2Title": "Enable the Google Drive API",
+        "step2Instruction": "go to APIs & Services → Library, find Google Drive API, and click Enable.",
+        "step3Title": "Configure the OAuth consent screen",
+        "step3Instruction": "under APIs & Services → OAuth consent screen, choose Internal or External, enter the app details, and save.",
+        "step4Title": "Create OAuth credentials",
+        "step4Instruction": "under APIs & Services → Credentials, create an OAuth client ID for a web application and add this authorized redirect URI:",
+        "copyCallback": "Copy callback URL",
+        "step5Title": "Add required OAuth scopes",
+        "step5Instruction": "on the OAuth consent screen, add these scopes:",
+        "scopeDescription1": "Read files, folders, and metadata",
+        "scopeDescription2": "Read file metadata without downloading content",
+        "required": "Required",
+        "recommended": "Recommended",
+        "step6Title": "Add credentials to your deployment",
+        "step6Instruction": "copy the Client ID and Client Secret, then set the backend environment variable:",
+        "readOnlyNote": "Rudix requests read-only scopes only. It cannot create, edit, or delete Drive files."
+      },
+      "notionGuide": {
+        "title": "Notion integration setup required",
+        "subtitle": "One-time prerequisite — create a public OAuth integration before connecting",
+        "introduction": "Rudix connects to Notion through a public OAuth 2.0 integration you own in the Notion developer portal. Complete these steps once, then return here to connect.",
+        "open": "open",
+        "step1Title": "Create an integration",
+        "step1Instruction": "create a new integration, name it, select your workspace, and set the integration type to Public.",
+        "step2Title": "Add the redirect URI",
+        "step2Instruction": "under OAuth Domain & URIs, add this exact URL to Redirect URIs:",
+        "copyCallback": "Copy callback URL",
+        "step3Title": "Add credentials to your deployment",
+        "step3Instruction": "copy the OAuth client ID and secret, then set the backend environment variable:",
+        "step4Title": "Choose scope in the wizard",
+        "step4Instruction": "optionally limit sync to specific pages or databases. Leave blank to index all accessible content.",
+        "readOnlyNote": "Rudix requests read-only access only. It cannot create, edit, or delete Notion pages, databases, or comments."
+      },
+      "microsoftGuide": {
+        "title": "Microsoft 365 tenant setup required",
+        "subtitle": "One-time prerequisite — create an Azure app registration before connecting",
+        "introduction": "Rudix connects to SharePoint and OneDrive through Microsoft Graph. Configure OAuth, then choose the sites, libraries, drives, folders, file types, and sync frequency to use.",
+        "open": "open the",
+        "azurePortal": "Azure portal",
+        "step1Title": "Register an app",
+        "step1Instruction": "create an app registration and record the tenant, client ID, and client secret.",
+        "step2Title": "Add the redirect URI",
+        "step2Instruction": "under Authentication, add this exact callback URL:",
+        "step3Title": "Grant Microsoft Graph permissions",
+        "step3Instruction": "add the read-only scopes below so Rudix can validate the tenant, discover sources, and read documents.",
+        "copyCallback": "Copy callback URL",
+        "scopeDescription1": "Refresh access without reauthorizing the app",
+        "scopeDescription2": "Read OneDrive files and document library content",
+        "scopeDescription3": "Discover SharePoint sites and libraries",
+        "scopeDescription4": "Validate the signed-in Microsoft account",
+        "required": "Required",
+        "recommended": "Recommended",
+        "step4Title": "Choose source scope in the wizard",
+        "step4Instruction": "select SharePoint sites, libraries, OneDrive drives, and folders, then configure file types and sync frequency.",
+        "readOnlyNote": "Rudix requests read-only Graph scopes only. It does not modify or delete Microsoft 365 content."
+      },
+      "providers": {
+        "google_drive": {
+          "description": "Connect Google Drive folders and shared drives while preserving permissions and source metadata."
+        },
+        "notion": {
+          "description": "Connect a Notion workspace and index pages, databases, and searchable metadata."
+        },
+        "microsoft-sharepoint-onedrive": {
+          "description": "Connect Microsoft 365 sites, libraries, folders, and OneDrive content with provenance and ACL metadata."
+        }
+      }
     }
   },
   "pipeline": {

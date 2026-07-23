@@ -8,6 +8,7 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { ConnectorWizard } from "@/components/connectors/wizard/ConnectorWizard";
 import type { ConnectorWizardConfig } from "@/components/connectors/wizard/types";
@@ -116,20 +117,6 @@ function fieldPlaceholder(
   return name.replace(/_/g, " ");
 }
 
-function externalAccountFieldLabel(providerKey: string): string {
-  if (providerKey === "microsoft-sharepoint-onedrive") {
-    return "Tenant / account ID";
-  }
-  return "External account ID";
-}
-
-function externalAccountHelperText(providerKey: string): string {
-  if (providerKey === "microsoft-sharepoint-onedrive") {
-    return "Optional metadata used to distinguish multiple Microsoft 365 tenants or accounts.";
-  }
-  return "Optional metadata used to distinguish multiple accounts from the same provider.";
-}
-
 function externalAccountPlaceholder(providerKey: string): string {
   if (providerKey === "microsoft-sharepoint-onedrive") {
     return "contoso.onmicrosoft.com or user@contoso.com";
@@ -141,20 +128,20 @@ function validateConfigField(
   field: ProviderConfigSchemaField,
   rawValue: string | boolean,
   required: boolean,
-): string | null {
+): "required" | "url" | null {
   if (field.type === "boolean") {
     return null;
   }
 
   const value = typeof rawValue === "string" ? rawValue.trim() : "";
   if (!value && required) {
-    return "This field is required.";
+    return "required";
   }
   if (!value) {
     return null;
   }
   if (field.format === "uri" && !/^https?:\/\/.+/i.test(value)) {
-    return "Use an absolute http(s) URL.";
+    return "url";
   }
   return null;
 }
@@ -202,6 +189,8 @@ function buildProviderConfig(
 function configSummary(
   provider: ProviderSummary,
   values: Record<string, string | boolean>,
+  enabledLabel: string,
+  aclSummary: string,
 ): string[] {
   const fields = provider.config_schema.properties ?? {};
   const selected: string[] = [];
@@ -211,7 +200,7 @@ function configSummary(
     const label = fieldLabel(name, field);
     if (field.type === "boolean") {
       if (Boolean(value)) {
-        selected.push(`${label}: enabled`);
+        selected.push(`${label}: ${enabledLabel}`);
       }
       continue;
     }
@@ -230,7 +219,7 @@ function configSummary(
   }
 
   if (provider.capabilities.capabilities.includes("acls")) {
-    selected.push("ACL metadata will be captured for trust-aware citations.");
+    selected.push(aclSummary);
   }
   return selected;
 }
@@ -240,6 +229,7 @@ function BasicStep({
   onChange,
   provider,
 }: WizardStepProps<ConnectorSetupState> & { provider: ProviderSummary }) {
+  const t = useTranslations("connectors.setup");
   return (
     <div className="grid gap-5 lg:grid-cols-[1.3fr,0.9fr]">
       <div className="space-y-5">
@@ -248,7 +238,7 @@ function BasicStep({
             className="block text-sm font-semibold text-[#2a2640]"
             htmlFor="connector-display-name"
           >
-            Connection name
+            {t("basics.connectionName")}
           </label>
           <input
             id="connector-display-name"
@@ -256,7 +246,9 @@ function BasicStep({
             value={state.display_name}
             onChange={(event) => onChange({ display_name: event.target.value })}
             className="mt-1.5 w-full rounded-xl border border-[#d7d4e8] bg-white px-3 py-2.5 text-sm text-[#2a2640] shadow-sm focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/20 focus:outline-none"
-            placeholder={`${provider.display_name} for Engineering`}
+            placeholder={t("basics.namePlaceholder", {
+              provider: provider.display_name,
+            })}
           />
         </div>
 
@@ -265,10 +257,14 @@ function BasicStep({
             className="block text-sm font-semibold text-[#2a2640]"
             htmlFor="connector-external-account-id"
           >
-            {externalAccountFieldLabel(provider.key)}
+            {provider.key === "microsoft-sharepoint-onedrive"
+              ? t("basics.tenantAccountId")
+              : t("basics.externalAccountId")}
           </label>
           <p className="mt-1 text-xs text-[#6a6780]">
-            {externalAccountHelperText(provider.key)}
+            {provider.key === "microsoft-sharepoint-onedrive"
+              ? t("basics.tenantHelper")
+              : t("basics.accountHelper")}
           </p>
           <input
             id="connector-external-account-id"
@@ -285,17 +281,20 @@ function BasicStep({
 
       <aside className="rounded-2xl border border-[#d7d4e8] bg-[#faf9fe] p-4">
         <h3 className="text-sm font-semibold text-[#2a2640]">
-          Provider overview
+          {t("basics.providerOverview")}
         </h3>
         <p className="mt-1 text-sm text-[#68647b]">
-          {provider.capabilities.notes ??
-            "This provider is managed through the shared connector wizard."}
+          {t.has(`providers.${provider.key}.description`)
+            ? t(`providers.${provider.key}.description`)
+            : (provider.capabilities.notes ?? t("basics.providerFallback"))}
         </p>
         <div className="mt-3">
           <ProviderCapabilityBadges provider={provider} />
         </div>
         <div className="mt-4 rounded-xl bg-white p-3 text-sm text-[#4b4860]">
-          <div className="font-semibold text-[#2a2640]">Auth model</div>
+          <div className="font-semibold text-[#2a2640]">
+            {t("basics.authModel")}
+          </div>
           <div className="mt-1 capitalize">
             {provider.capabilities.auth_type.replace(/_/g, " ")}
           </div>
@@ -310,6 +309,7 @@ function ScopeStep({
   onChange,
   provider,
 }: WizardStepProps<ConnectorSetupState> & { provider: ProviderSummary }) {
+  const t = useTranslations("connectors.setup");
   const fields = provider.config_schema.properties ?? {};
   const required = new Set(provider.config_schema.required ?? []);
 
@@ -318,7 +318,7 @@ function ScopeStep({
       <div className="space-y-4">
         {Object.keys(fields).length === 0 && (
           <div className="rounded-2xl border border-dashed border-[#d7d4e8] bg-white p-4 text-sm text-[#6a6780]">
-            This provider does not require additional setup fields.
+            {t("scope.noFields")}
           </div>
         )}
 
@@ -332,6 +332,13 @@ function ScopeStep({
           const isBoolean = field.type === "boolean";
           const isArray = field.type === "array";
           const isTextArea = name === "jql_filter" || name === "cql_filter";
+          const localizedFieldKey = `fields.${provider.key}.${name}`;
+          const localizedLabel = t.has(`${localizedFieldKey}.label`)
+            ? t(`${localizedFieldKey}.label`)
+            : fieldLabel(name, field);
+          const localizedDescription = t.has(`${localizedFieldKey}.description`)
+            ? t(`${localizedFieldKey}.description`)
+            : field.description;
 
           return (
             <div key={name}>
@@ -339,14 +346,14 @@ function ScopeStep({
                 className="block text-sm font-semibold text-[#2a2640]"
                 htmlFor={`connector-config-${name}`}
               >
-                {fieldLabel(name, field)}
+                {localizedLabel}
                 {required.has(name) && (
                   <span className="ml-1 text-[#c2410c]">*</span>
                 )}
               </label>
-              {field.description && (
+              {localizedDescription && (
                 <p className="mt-1 text-xs text-[#6a6780]">
-                  {field.description}
+                  {localizedDescription}
                 </p>
               )}
               {isBoolean ? (
@@ -366,7 +373,8 @@ function ScopeStep({
                     className="h-4 w-4 rounded border-[#bfb9d8] text-[#3525cd] focus:ring-[#3525cd]"
                   />
                   <span className="text-sm text-[#2a2640]">
-                    {field.description ?? `Enable ${fieldLabel(name, field)}`}
+                    {localizedDescription ??
+                      t("scope.enableField", { field: localizedLabel })}
                   </span>
                 </label>
               ) : (
@@ -382,7 +390,11 @@ function ScopeStep({
                       },
                     })
                   }
-                  placeholder={fieldPlaceholder(name, field)}
+                  placeholder={
+                    t.has(`${localizedFieldKey}.placeholder`)
+                      ? t(`${localizedFieldKey}.placeholder`)
+                      : fieldPlaceholder(name, field)
+                  }
                   className="mt-1.5 w-full rounded-xl border border-[#d7d4e8] bg-white px-3 py-2.5 text-sm text-[#2a2640] shadow-sm focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/20 focus:outline-none"
                 />
               )}
@@ -400,7 +412,11 @@ function ScopeStep({
                     ))}
                   </div>
                 )}
-              {error && <p className="mt-1 text-xs text-[#b42318]">{error}</p>}
+              {error && (
+                <p className="mt-1 text-xs text-[#b42318]">
+                  {t(`validation.${error}`)}
+                </p>
+              )}
             </div>
           );
         })}
@@ -408,15 +424,23 @@ function ScopeStep({
 
       <aside className="space-y-4 rounded-2xl border border-[#d7d4e8] bg-[#faf9fe] p-4">
         <h3 className="text-sm font-semibold text-[#2a2640]">
-          Selected sync scope
+          {t("scope.title")}
         </h3>
         <div className="space-y-2">
-          {configSummary(provider, state.config_values).length === 0 && (
-            <p className="text-sm text-[#68647b]">
-              No explicit source scope selected.
-            </p>
+          {configSummary(
+            provider,
+            state.config_values,
+            t("common.enabled"),
+            t("scope.aclSummary"),
+          ).length === 0 && (
+            <p className="text-sm text-[#68647b]">{t("scope.noneSelected")}</p>
           )}
-          {configSummary(provider, state.config_values).map((item) => (
+          {configSummary(
+            provider,
+            state.config_values,
+            t("common.enabled"),
+            t("scope.aclSummary"),
+          ).map((item) => (
             <div
               key={item}
               className="rounded-xl bg-white px-3 py-2 text-sm text-[#4b4860]"
@@ -426,8 +450,7 @@ function ScopeStep({
           ))}
         </div>
         <div className="rounded-xl border border-[#ece8ff] bg-white p-3 text-sm text-[#4b4860]">
-          Source selection is saved as connector metadata and reused by sync
-          jobs.
+          {t("scope.savedDescription")}
         </div>
       </aside>
     </div>
@@ -438,27 +461,33 @@ function ReviewStep({
   state,
   provider,
 }: WizardStepProps<ConnectorSetupState> & { provider: ProviderSummary }) {
-  const scope = configSummary(provider, state.config_values);
+  const t = useTranslations("connectors.setup");
+  const scope = configSummary(
+    provider,
+    state.config_values,
+    t("common.enabled"),
+    t("scope.aclSummary"),
+  );
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr,0.9fr]">
       <div className="space-y-4">
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
           <div className="text-xs font-semibold tracking-[0.18em] text-[#6a6780] uppercase">
-            Connection name
+            {t("basics.connectionName")}
           </div>
           <div className="mt-1 text-lg font-bold text-[#2a2640]">
-            {state.display_name || "Untitled connection"}
+            {state.display_name || t("review.untitled")}
           </div>
         </div>
 
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
           <div className="text-xs font-semibold tracking-[0.18em] text-[#6a6780] uppercase">
-            Source scope
+            {t("review.sourceScope")}
           </div>
           {scope.length === 0 ? (
             <div className="mt-2 text-sm text-[#68647b]">
-              No explicit source filter selected.
+              {t("review.noFilter")}
             </div>
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -477,15 +506,15 @@ function ReviewStep({
 
       <aside className="rounded-2xl border border-[#d7d4e8] bg-[#faf9fe] p-4">
         <h3 className="text-sm font-semibold text-[#2a2640]">
-          What happens next
+          {t("review.nextTitle")}
         </h3>
         <p className="mt-1 text-sm text-[#68647b]">
           {provider.capabilities.auth_type === "oauth2"
-            ? "We’ll start OAuth, then save the connection once the provider redirects back."
-            : "We’ll save the connection directly using the configured provider fields."}
+            ? t("review.oauthNext")
+            : t("review.directNext")}
         </p>
         <div className="mt-4 rounded-xl bg-white p-3 text-sm text-[#4b4860]">
-          Selected auth model:{" "}
+          {t("review.selectedAuthModel")}:{" "}
           <span className="font-semibold capitalize">
             {provider.capabilities.auth_type.replace(/_/g, " ")}
           </span>
@@ -589,6 +618,7 @@ function PermissionReviewStep({
   provider: ProviderSummary;
   scopeValues: Record<string, string | boolean>;
 }) {
+  const t = useTranslations("connectors.setup");
   const requestedScopes = useMemo(() => {
     if (provider.key === "confluence") {
       return CONFLUENCE_SCOPES.map((s) => s.scope);
@@ -622,12 +652,10 @@ function PermissionReviewStep({
           </span>
           <div>
             <div className="text-sm font-semibold text-amber-900">
-              Broad permission scope detected
+              {t("permissions.broadTitle")}
             </div>
             <p className="mt-0.5 text-sm text-amber-800">
-              The selected configuration grants broad access. Review each
-              warning below and narrow the scope where possible before
-              confirming.
+              {t("permissions.broadDescription")}
             </p>
           </div>
         </div>
@@ -635,12 +663,11 @@ function PermissionReviewStep({
 
       <div className="space-y-3 rounded-2xl border border-[#d7d4e8] bg-white p-4">
         <h3 className="text-sm font-semibold text-[#2a2640]">
-          Requested OAuth scopes
+          {t("permissions.requestedScopes")}
         </h3>
         {requestedScopes.length === 0 ? (
           <p className="text-sm text-[#68647b]">
-            This provider uses API token authentication — no OAuth scopes are
-            requested.
+            {t("permissions.noOAuthScopes")}
           </p>
         ) : (
           <div className="divide-y divide-[#f0eef9] overflow-hidden rounded-xl border border-[#d7d4e8]">
@@ -664,7 +691,9 @@ function PermissionReviewStep({
                     </div>
                     {warning && (
                       <div className="mt-0.5 text-xs text-amber-700">
-                        {warning.message}
+                        {t(`permissions.risks.${warning.code}`, {
+                          scope: warning.scope,
+                        })}
                       </div>
                     )}
                   </div>
@@ -681,11 +710,10 @@ function PermissionReviewStep({
             <span className="material-symbols-outlined text-[18px] text-[#3525cd]">
               sync_alt
             </span>
-            Sync direction
+            {t("permissions.syncDirection")}
           </div>
           <p className="mt-1.5 text-sm text-[#68647b]">
-            Read-only. Rudix never writes, edits, or deletes content in the
-            connected source.
+            {t("permissions.syncDescription")}
           </p>
         </div>
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
@@ -693,11 +721,10 @@ function PermissionReviewStep({
             <span className="material-symbols-outlined text-[18px] text-[#3525cd]">
               database
             </span>
-            Retention
+            {t("permissions.retention")}
           </div>
           <p className="mt-1.5 text-sm text-[#68647b]">
-            Indexed content is stored until the connector is removed or a
-            document is deleted at the source.
+            {t("permissions.retentionDescription")}
           </p>
         </div>
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
@@ -705,11 +732,10 @@ function PermissionReviewStep({
             <span className="material-symbols-outlined text-[18px] text-[#3525cd]">
               group
             </span>
-            Access
+            {t("permissions.access")}
           </div>
           <p className="mt-1.5 text-sm text-[#68647b]">
-            Indexed results are available to all members of your organisation
-            via the assigned collection.
+            {t("permissions.accessDescription")}
           </p>
         </div>
       </div>
@@ -729,12 +755,12 @@ function PermissionReviewStep({
         />
         <div>
           <div className="text-sm font-semibold text-[#2a2640]">
-            I confirm I have reviewed the requested permissions
+            {t("permissions.confirmTitle")}
           </div>
           <p className="mt-0.5 text-xs text-[#6a6780]">
             {isBroad
-              ? "I understand this connector requests broad access and accept responsibility for the scope configured above."
-              : "I understand what data this connector will access and confirm it is appropriate for indexing."}
+              ? t("permissions.confirmBroad")
+              : t("permissions.confirmNormal")}
           </p>
         </div>
       </label>
@@ -763,6 +789,7 @@ const CONFLUENCE_SCOPES: OAuthScope[] = [
 ];
 
 function ConfluenceSetupGuide() {
+  const t = useTranslations("connectors.setup.confluenceGuide");
   const [open, setOpen] = useState(false);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
   try {
@@ -786,11 +813,9 @@ function ConfluenceSetupGuide() {
           </span>
           <div>
             <div className="text-sm font-semibold text-blue-900">
-              Atlassian app setup required
+              {t("title")}
             </div>
-            <div className="text-xs text-blue-700">
-              One-time prerequisite — create an OAuth app before connecting
-            </div>
+            <div className="text-xs text-blue-700">{t("subtitle")}</div>
           </div>
         </div>
         <span
@@ -803,9 +828,7 @@ function ConfluenceSetupGuide() {
       {open && (
         <div className="space-y-5 border-t border-blue-200 px-5 pt-4 pb-5">
           <p className="text-sm leading-relaxed text-blue-800">
-            Rudix connects to Confluence via an OAuth 2.0 (3LO) app you own on
-            the Atlassian Developer Console. Follow these steps once, then come
-            back here to connect.
+            {t("introduction")}
           </p>
 
           <ol className="space-y-4">
@@ -815,7 +838,8 @@ function ConfluenceSetupGuide() {
                 1
               </span>
               <div className="text-sm text-blue-900">
-                <span className="font-semibold">Create an app</span> — open{" "}
+                <span className="font-semibold">{t("step1Title")}</span> —{" "}
+                {t("open")}{" "}
                 <a
                   href="https://developer.atlassian.com/console/myapps/"
                   target="_blank"
@@ -824,9 +848,7 @@ function ConfluenceSetupGuide() {
                 >
                   developer.atlassian.com/console/myapps
                 </a>
-                , click <strong>Create</strong> →{" "}
-                <strong>OAuth 2.0 integration</strong> and give it a name (e.g.{" "}
-                <em>Rudix</em>).
+                , {t("step1Instruction")}
               </div>
             </li>
 
@@ -836,9 +858,8 @@ function ConfluenceSetupGuide() {
                 2
               </span>
               <div className="text-sm text-blue-900">
-                <span className="font-semibold">Enable Confluence API</span> —
-                under <strong>APIs and features</strong>, click{" "}
-                <strong>Add</strong> next to <strong>Confluence API</strong>.
+                <span className="font-semibold">{t("step2Title")}</span> —{" "}
+                {t("step2Instruction")}
               </div>
             </li>
 
@@ -849,8 +870,8 @@ function ConfluenceSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">Add the callback URL</span> —
-                  under <strong>Authorization</strong>, paste this exact URL:
+                  <span className="font-semibold">{t("step3Title")}</span> —{" "}
+                  {t("step3Instruction")}
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2">
                   <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
@@ -858,7 +879,7 @@ function ConfluenceSetupGuide() {
                   </span>
                   <button
                     type="button"
-                    title="Copy callback URL"
+                    title={t("copyCallback")}
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
                     className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
                   >
@@ -877,12 +898,11 @@ function ConfluenceSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">Grant permissions</span> —
-                  under <strong>Confluence API → Permissions</strong>, add these
-                  OAuth scopes:
+                  <span className="font-semibold">{t("step4Title")}</span> —{" "}
+                  {t("step4Instruction")}
                 </div>
                 <div className="divide-y divide-blue-100 overflow-hidden rounded-xl border border-blue-300 bg-white">
-                  {CONFLUENCE_SCOPES.map(({ scope, required, description }) => (
+                  {CONFLUENCE_SCOPES.map(({ scope, required }, index) => (
                     <div
                       key={scope}
                       className="flex items-center gap-3 px-3 py-2.5"
@@ -891,15 +911,15 @@ function ConfluenceSetupGuide() {
                         {scope}
                       </span>
                       <span className="hidden text-xs text-[#6a6780] sm:block">
-                        {description}
+                        {t(`scopeDescription${index + 1}`)}
                       </span>
                       {required ? (
                         <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase">
-                          Required
+                          {t("required")}
                         </span>
                       ) : (
                         <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#3525cd] uppercase">
-                          Recommended
+                          {t("recommended")}
                         </span>
                       )}
                     </div>
@@ -915,12 +935,8 @@ function ConfluenceSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">
-                    Add credentials to your deployment
-                  </span>{" "}
-                  — copy the <strong>Client ID</strong> and{" "}
-                  <strong>Client Secret</strong> from the app settings page,
-                  then set the backend environment variable:
+                  <span className="font-semibold">{t("step5Title")}</span> —{" "}
+                  {t("step5Instruction")}
                 </div>
                 <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>CONNECTOR_OAUTH_CLIENTS=</div>
@@ -934,10 +950,7 @@ function ConfluenceSetupGuide() {
                     {'"client_secret":"<your-client-secret>"}]'}
                   </div>
                 </div>
-                <p className="text-xs text-blue-700">
-                  The same Atlassian app credentials can be reused for other
-                  compatible providers by adding another entry to the array.
-                </p>
+                <p className="text-xs text-blue-700">{t("credentialsNote")}</p>
               </div>
             </li>
           </ol>
@@ -946,10 +959,7 @@ function ConfluenceSetupGuide() {
             <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-blue-600">
               lock
             </span>
-            <span>
-              Rudix requests read-only scopes only. It cannot create, edit, or
-              delete any Confluence content.
-            </span>
+            <span>{t("readOnlyNote")}</span>
           </div>
         </div>
       )}
@@ -994,6 +1004,7 @@ const MICROSOFT_SHAREPOINT_ONEDRIVE_SCOPES: OAuthScope[] = [
 ];
 
 function GoogleDriveSetupGuide() {
+  const t = useTranslations("connectors.setup.googleDriveGuide");
   const [open, setOpen] = useState(false);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
   try {
@@ -1017,11 +1028,9 @@ function GoogleDriveSetupGuide() {
           </span>
           <div>
             <div className="text-sm font-semibold text-blue-900">
-              Google Cloud project setup required
+              {t("title")}
             </div>
-            <div className="text-xs text-blue-700">
-              One-time prerequisite — create an OAuth app before connecting
-            </div>
+            <div className="text-xs text-blue-700">{t("subtitle")}</div>
           </div>
         </div>
         <span
@@ -1034,9 +1043,7 @@ function GoogleDriveSetupGuide() {
       {open && (
         <div className="space-y-5 border-t border-blue-200 px-5 pt-4 pb-5">
           <p className="text-sm leading-relaxed text-blue-800">
-            Rudix connects to Google Drive via an OAuth 2.0 app you own in the
-            Google Cloud Console. Follow these steps once, then come back here
-            to connect.
+            {t("introduction")}
           </p>
 
           <ol className="space-y-4">
@@ -1045,7 +1052,8 @@ function GoogleDriveSetupGuide() {
                 1
               </span>
               <div className="text-sm text-blue-900">
-                <span className="font-semibold">Create a project</span> — open{" "}
+                <span className="font-semibold">{t("step1Title")}</span> —{" "}
+                {t("open")}{" "}
                 <a
                   href="https://console.cloud.google.com/"
                   target="_blank"
@@ -1054,8 +1062,7 @@ function GoogleDriveSetupGuide() {
                 >
                   console.cloud.google.com
                 </a>
-                , click the project selector at the top and choose{" "}
-                <strong>New Project</strong>.
+                , {t("step1Instruction")}
               </div>
             </li>
 
@@ -1064,12 +1071,8 @@ function GoogleDriveSetupGuide() {
                 2
               </span>
               <div className="text-sm text-blue-900">
-                <span className="font-semibold">
-                  Enable the Google Drive API
-                </span>{" "}
-                — navigate to <strong>APIs &amp; Services → Library</strong>,
-                search for <strong>Google Drive API</strong>, and click{" "}
-                <strong>Enable</strong>.
+                <span className="font-semibold">{t("step2Title")}</span> —{" "}
+                {t("step2Instruction")}
               </div>
             </li>
 
@@ -1078,14 +1081,8 @@ function GoogleDriveSetupGuide() {
                 3
               </span>
               <div className="text-sm text-blue-900">
-                <span className="font-semibold">
-                  Configure the OAuth consent screen
-                </span>{" "}
-                — under{" "}
-                <strong>APIs &amp; Services → OAuth consent screen</strong>,
-                select <strong>Internal</strong> (for a Workspace org) or{" "}
-                <strong>External</strong>, fill in the app name and support
-                email, then save.
+                <span className="font-semibold">{t("step3Title")}</span> —{" "}
+                {t("step3Instruction")}
               </div>
             </li>
 
@@ -1095,13 +1092,8 @@ function GoogleDriveSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">
-                    Create OAuth credentials
-                  </span>{" "}
-                  — under <strong>APIs &amp; Services → Credentials</strong>,
-                  click <strong>Create Credentials → OAuth client ID</strong>.
-                  Choose <strong>Web application</strong> and add this as an{" "}
-                  <strong>Authorized redirect URI</strong>:
+                  <span className="font-semibold">{t("step4Title")}</span> —{" "}
+                  {t("step4Instruction")}
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2">
                   <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
@@ -1109,7 +1101,7 @@ function GoogleDriveSetupGuide() {
                   </span>
                   <button
                     type="button"
-                    title="Copy callback URL"
+                    title={t("copyCallback")}
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
                     className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
                   >
@@ -1127,37 +1119,32 @@ function GoogleDriveSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">
-                    Add required OAuth scopes
-                  </span>{" "}
-                  — on the OAuth consent screen, click{" "}
-                  <strong>Add or remove scopes</strong> and add:
+                  <span className="font-semibold">{t("step5Title")}</span> —{" "}
+                  {t("step5Instruction")}
                 </div>
                 <div className="divide-y divide-blue-100 overflow-hidden rounded-xl border border-blue-300 bg-white">
-                  {GOOGLE_DRIVE_SCOPES.map(
-                    ({ scope, required, description }) => (
-                      <div
-                        key={scope}
-                        className="flex items-center gap-3 px-3 py-2.5"
-                      >
-                        <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
-                          {scope}
+                  {GOOGLE_DRIVE_SCOPES.map(({ scope, required }, index) => (
+                    <div
+                      key={scope}
+                      className="flex items-center gap-3 px-3 py-2.5"
+                    >
+                      <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
+                        {scope}
+                      </span>
+                      <span className="hidden shrink-0 text-xs text-[#6a6780] sm:block">
+                        {t(`scopeDescription${index + 1}`)}
+                      </span>
+                      {required ? (
+                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase">
+                          {t("required")}
                         </span>
-                        <span className="hidden shrink-0 text-xs text-[#6a6780] sm:block">
-                          {description}
+                      ) : (
+                        <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#3525cd] uppercase">
+                          {t("recommended")}
                         </span>
-                        {required ? (
-                          <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase">
-                            Required
-                          </span>
-                        ) : (
-                          <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#3525cd] uppercase">
-                            Recommended
-                          </span>
-                        )}
-                      </div>
-                    ),
-                  )}
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </li>
@@ -1168,12 +1155,8 @@ function GoogleDriveSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">
-                    Add credentials to your deployment
-                  </span>{" "}
-                  — copy the <strong>Client ID</strong> and{" "}
-                  <strong>Client Secret</strong> from the credentials page, then
-                  set the backend environment variable:
+                  <span className="font-semibold">{t("step6Title")}</span> —{" "}
+                  {t("step6Instruction")}
                 </div>
                 <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>CONNECTOR_OAUTH_CLIENTS=</div>
@@ -1195,10 +1178,7 @@ function GoogleDriveSetupGuide() {
             <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-blue-600">
               lock
             </span>
-            <span>
-              Rudix requests read-only scopes only. It cannot create, edit, or
-              delete any Drive files.
-            </span>
+            <span>{t("readOnlyNote")}</span>
           </div>
         </div>
       )}
@@ -1207,6 +1187,7 @@ function GoogleDriveSetupGuide() {
 }
 
 function NotionSetupGuide() {
+  const t = useTranslations("connectors.setup.notionGuide");
   const [open, setOpen] = useState(false);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
   try {
@@ -1230,12 +1211,9 @@ function NotionSetupGuide() {
           </span>
           <div>
             <div className="text-sm font-semibold text-blue-900">
-              Notion integration setup required
+              {t("title")}
             </div>
-            <div className="text-xs text-blue-700">
-              One-time prerequisite — create a public OAuth integration before
-              connecting
-            </div>
+            <div className="text-xs text-blue-700">{t("subtitle")}</div>
           </div>
         </div>
         <span
@@ -1248,9 +1226,7 @@ function NotionSetupGuide() {
       {open && (
         <div className="space-y-5 border-t border-blue-200 px-5 pt-4 pb-5">
           <p className="text-sm leading-relaxed text-blue-800">
-            Rudix connects to Notion via a public OAuth 2.0 integration you own
-            on the Notion developer portal. Follow these steps once, then come
-            back here to connect.
+            {t("introduction")}
           </p>
 
           <ol className="space-y-4">
@@ -1260,8 +1236,8 @@ function NotionSetupGuide() {
                 1
               </span>
               <div className="text-sm text-blue-900">
-                <span className="font-semibold">Create an integration</span> —
-                open{" "}
+                <span className="font-semibold">{t("step1Title")}</span> —{" "}
+                {t("open")}{" "}
                 <a
                   href="https://www.notion.so/my-integrations"
                   target="_blank"
@@ -1270,9 +1246,7 @@ function NotionSetupGuide() {
                 >
                   notion.so/my-integrations
                 </a>
-                , click <strong>+ New integration</strong>, give it a name (e.g.{" "}
-                <em>Rudix</em>), select your workspace, and set the{" "}
-                <strong>Integration type</strong> to <strong>Public</strong>.
+                , {t("step1Instruction")}
               </div>
             </li>
 
@@ -1283,9 +1257,8 @@ function NotionSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">Add the redirect URI</span> —
-                  under <strong>OAuth Domain &amp; URIs</strong>, add this exact
-                  URL to <strong>Redirect URIs</strong>:
+                  <span className="font-semibold">{t("step2Title")}</span> —{" "}
+                  {t("step2Instruction")}
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2">
                   <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
@@ -1293,7 +1266,7 @@ function NotionSetupGuide() {
                   </span>
                   <button
                     type="button"
-                    title="Copy callback URL"
+                    title={t("copyCallback")}
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
                     className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
                   >
@@ -1312,12 +1285,8 @@ function NotionSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">
-                    Add credentials to your deployment
-                  </span>{" "}
-                  — copy the <strong>OAuth client ID</strong> and{" "}
-                  <strong>OAuth client secret</strong> from the integration
-                  settings, then set the backend environment variable:
+                  <span className="font-semibold">{t("step3Title")}</span> —{" "}
+                  {t("step3Instruction")}
                 </div>
                 <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>CONNECTOR_OAUTH_CLIENTS=</div>
@@ -1341,12 +1310,8 @@ function NotionSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">
-                    Choose scope in the wizard
-                  </span>{" "}
-                  — after connecting, optionally scope the sync to specific
-                  pages or databases. Leave blank to index all content the
-                  integration can access.
+                  <span className="font-semibold">{t("step4Title")}</span> —{" "}
+                  {t("step4Instruction")}
                 </div>
                 <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>page_ids, database_ids</div>
@@ -1361,10 +1326,7 @@ function NotionSetupGuide() {
             <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-blue-600">
               lock
             </span>
-            <span>
-              Rudix requests read-only access only. It cannot create, edit, or
-              delete any Notion pages, databases, or comments.
-            </span>
+            <span>{t("readOnlyNote")}</span>
           </div>
         </div>
       )}
@@ -1373,6 +1335,7 @@ function NotionSetupGuide() {
 }
 
 function MicrosoftSharePointOneDriveSetupGuide() {
+  const t = useTranslations("connectors.setup.microsoftGuide");
   const [open, setOpen] = useState(false);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
   try {
@@ -1396,12 +1359,9 @@ function MicrosoftSharePointOneDriveSetupGuide() {
           </span>
           <div>
             <div className="text-sm font-semibold text-blue-900">
-              Microsoft 365 tenant setup required
+              {t("title")}
             </div>
-            <div className="text-xs text-blue-700">
-              One-time prerequisite - create an Azure app registration before
-              connecting
-            </div>
+            <div className="text-xs text-blue-700">{t("subtitle")}</div>
           </div>
         </div>
         <span
@@ -1414,10 +1374,7 @@ function MicrosoftSharePointOneDriveSetupGuide() {
       {open && (
         <div className="space-y-5 border-t border-blue-200 px-5 pt-4 pb-5">
           <p className="text-sm leading-relaxed text-blue-800">
-            Rudix connects to SharePoint and OneDrive through Microsoft Graph.
-            After the OAuth app is configured, choose the sites, libraries,
-            drives, and folders you want to index, then scope file types and
-            sync frequency through the shared wizard fields.
+            {t("introduction")}
           </p>
 
           <ol className="space-y-4">
@@ -1426,18 +1383,17 @@ function MicrosoftSharePointOneDriveSetupGuide() {
                 1
               </span>
               <div className="text-sm text-blue-900">
-                <span className="font-semibold">Register an app</span> - open
-                the{" "}
+                <span className="font-semibold">{t("step1Title")}</span> —{" "}
+                {t("open")}{" "}
                 <a
                   href="https://portal.azure.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline underline-offset-2 hover:text-blue-700"
                 >
-                  Azure portal
+                  {t("azurePortal")}
                 </a>
-                , create an app registration, and note the tenant, client ID,
-                and client secret for your deployment.
+                , {t("step1Instruction")}
               </div>
             </li>
 
@@ -1446,9 +1402,8 @@ function MicrosoftSharePointOneDriveSetupGuide() {
                 2
               </span>
               <div className="text-sm text-blue-900">
-                <span className="font-semibold">Add the redirect URI</span> -
-                under <strong>Authentication</strong>, add this exact callback
-                URL:
+                <span className="font-semibold">{t("step2Title")}</span> —{" "}
+                {t("step2Instruction")}
               </div>
             </li>
 
@@ -1458,11 +1413,8 @@ function MicrosoftSharePointOneDriveSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">
-                    Grant Microsoft Graph permissions
-                  </span>{" "}
-                  - add the read-only scopes below so Rudix can validate the
-                  tenant, discover sites and drives, and read document content.
+                  <span className="font-semibold">{t("step3Title")}</span> —{" "}
+                  {t("step3Instruction")}
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2">
                   <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
@@ -1470,7 +1422,7 @@ function MicrosoftSharePointOneDriveSetupGuide() {
                   </span>
                   <button
                     type="button"
-                    title="Copy callback URL"
+                    title={t("copyCallback")}
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
                     className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
                   >
@@ -1481,7 +1433,7 @@ function MicrosoftSharePointOneDriveSetupGuide() {
                 </div>
                 <div className="divide-y divide-blue-100 overflow-hidden rounded-xl border border-blue-300 bg-white">
                   {MICROSOFT_SHAREPOINT_ONEDRIVE_SCOPES.map(
-                    ({ scope, required, description }) => (
+                    ({ scope, required }, index) => (
                       <div
                         key={scope}
                         className="flex items-center gap-3 px-3 py-2.5"
@@ -1490,15 +1442,15 @@ function MicrosoftSharePointOneDriveSetupGuide() {
                           {scope}
                         </span>
                         <span className="hidden text-xs text-[#6a6780] sm:block">
-                          {description}
+                          {t(`scopeDescription${index + 1}`)}
                         </span>
                         {required ? (
                           <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase">
-                            Required
+                            {t("required")}
                           </span>
                         ) : (
                           <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#3525cd] uppercase">
-                            Recommended
+                            {t("recommended")}
                           </span>
                         )}
                       </div>
@@ -1514,12 +1466,8 @@ function MicrosoftSharePointOneDriveSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
-                  <span className="font-semibold">
-                    Choose source scope in the wizard
-                  </span>{" "}
-                  - select the SharePoint sites, document libraries, OneDrive
-                  drives, and folders to index, then set allowed file types and
-                  sync frequency.
+                  <span className="font-semibold">{t("step4Title")}</span> —{" "}
+                  {t("step4Instruction")}
                 </div>
                 <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>site_ids, drive_ids, folder_ids</div>
@@ -1535,10 +1483,7 @@ function MicrosoftSharePointOneDriveSetupGuide() {
             <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-blue-600">
               lock
             </span>
-            <span>
-              Rudix requests read-only Graph scopes only. It does not modify or
-              delete content in Microsoft 365.
-            </span>
+            <span>{t("readOnlyNote")}</span>
           </div>
         </div>
       )}
@@ -1547,6 +1492,7 @@ function MicrosoftSharePointOneDriveSetupGuide() {
 }
 
 function WizardShell({ provider }: { provider: ProviderSummary }) {
+  const t = useTranslations("connectors.setup");
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -1599,7 +1545,7 @@ function WizardShell({ provider }: { provider: ProviderSummary }) {
   const steps: ConnectorWizardConfig<ConnectorSetupState>["steps"] = [
     {
       key: "basics",
-      label: "Basics",
+      label: t("steps.basics"),
       component: (props: WizardStepProps<ConnectorSetupState>) => (
         <BasicStep {...props} provider={provider} />
       ),
@@ -1608,7 +1554,7 @@ function WizardShell({ provider }: { provider: ProviderSummary }) {
     },
     {
       key: "scope",
-      label: "Scope",
+      label: t("steps.scope"),
       component: (props: WizardStepProps<ConnectorSetupState>) => (
         <ScopeStep {...props} provider={provider} />
       ),
@@ -1628,7 +1574,7 @@ function WizardShell({ provider }: { provider: ProviderSummary }) {
     },
     {
       key: "permissions",
-      label: "Permissions",
+      label: t("steps.permissions"),
       component: (props: WizardStepProps<ConnectorSetupState>) => (
         <PermissionReviewStep
           {...props}
@@ -1640,7 +1586,7 @@ function WizardShell({ provider }: { provider: ProviderSummary }) {
     },
     {
       key: "review",
-      label: "Review",
+      label: t("steps.review"),
       component: (props: WizardStepProps<ConnectorSetupState>) => (
         <ReviewStep {...props} provider={provider} />
       ),
@@ -1665,15 +1611,14 @@ function WizardShell({ provider }: { provider: ProviderSummary }) {
         }}
       />
       {submitting && (
-        <div className="text-sm text-[#6a6780]">
-          Submitting connection details…
-        </div>
+        <div className="text-sm text-[#6a6780]">{t("submitting")}</div>
       )}
     </div>
   );
 }
 
 function ProviderLoader({ providerKey }: Props) {
+  const t = useTranslations("connectors.setup");
   const router = useRouter();
   const providerQuery = useQuery({
     queryKey: queryKeys.connectorProvider(providerKey),
@@ -1683,7 +1628,7 @@ function ProviderLoader({ providerKey }: Props) {
   if (providerQuery.isLoading) {
     return (
       <div className="rounded-2xl border border-dashed border-[#d7d4e8] bg-white p-6 text-sm text-[#68647b]">
-        Loading provider metadata…
+        {t("loading")}
       </div>
     );
   }
@@ -1693,11 +1638,9 @@ function ProviderLoader({ providerKey }: Props) {
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-900">
-          <div className="font-semibold">Unable to load provider</div>
+          <div className="font-semibold">{t("loadErrorTitle")}</div>
           <p className="mt-1">
-            {error
-              ? getApiErrorMessage(error)
-              : "Provider metadata is unavailable."}
+            {error ? getApiErrorMessage(error) : t("loadErrorDescription")}
           </p>
         </div>
         <button
@@ -1705,7 +1648,7 @@ function ProviderLoader({ providerKey }: Props) {
           onClick={() => router.push("/connectors")}
           className="rounded-xl border border-[#d7d4e8] px-4 py-2 text-sm font-semibold text-[#3525cd]"
         >
-          Back to connectors
+          {t("backToConnectors")}
         </button>
       </div>
     );
@@ -1714,24 +1657,25 @@ function ProviderLoader({ providerKey }: Props) {
   const provider = providerQuery.data;
   const authLabel = provider.capabilities.auth_type.replace(/_/g, " ");
   const description =
-    provider.capabilities.notes ??
-    "Use the guided setup to connect the provider and capture source scope metadata.";
+    (t.has(`providers.${provider.key}.description`)
+      ? t(`providers.${provider.key}.description`)
+      : provider.capabilities.notes) ?? t("providerDescriptionFallback");
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Connector setup wizard
+          {t("eyebrow")}
         </p>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-              Connect {provider.display_name}
+              {t("connectTitle", { provider: provider.display_name })}
             </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">{description}</p>
           </div>
           <div className="rounded-xl bg-[#faf9fe] px-4 py-3 text-sm text-[#4b4860]">
-            <div className="font-semibold text-[#2a2640]">Auth type</div>
+            <div className="font-semibold text-[#2a2640]">{t("authType")}</div>
             <div className="capitalize">{authLabel}</div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { ConnectorWizardConfig } from "./types";
 
 type Props<TState extends Record<string, unknown>> = {
@@ -10,6 +11,7 @@ type Props<TState extends Record<string, unknown>> = {
 export function ConnectorWizard<TState extends Record<string, unknown>>({
   config,
 }: Props<TState>) {
+  const t = useTranslations("connectors.setup.wizard");
   const { steps, initialState, onComplete, onCancel } = config;
   const [current, setCurrent] = useState(0);
   const [state, setState] = useState<TState>(initialState);
@@ -108,7 +110,7 @@ export function ConnectorWizard<TState extends Record<string, unknown>>({
           disabled={current === 0}
           className="rounded-lg border border-[#777587] px-6 py-2.5 font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-30"
         >
-          Back
+          {t("back")}
         </button>
 
         <div className="flex items-center gap-4">
@@ -118,7 +120,7 @@ export function ConnectorWizard<TState extends Record<string, unknown>>({
               onClick={onCancel}
               className="px-4 py-2.5 font-semibold text-[#464555] hover:underline"
             >
-              Cancel
+              {t("cancel")}
             </button>
           )}
 
@@ -129,7 +131,7 @@ export function ConnectorWizard<TState extends Record<string, unknown>>({
               disabled={!canProceed || completing}
               className="rounded-lg bg-[#3525cd] px-8 py-2.5 font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {completing ? "Connecting…" : `Complete Connection`}
+              {completing ? t("connecting") : t("complete")}
             </button>
           ) : (
             <button
@@ -138,7 +140,7 @@ export function ConnectorWizard<TState extends Record<string, unknown>>({
               disabled={!canProceed}
               className="rounded-lg bg-[#3525cd] px-8 py-2.5 font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Next
+              {t("next")}
             </button>
           )}
         </div>
