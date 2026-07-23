@@ -28,6 +28,10 @@ import {
   type FeedbackReviewListResponse,
 } from "@/lib/api/feedback-review";
 import type { ReportFilters } from "@/lib/reports";
+import {
+  listConnectorConnections,
+  type ConnectorConnectionsListResponse,
+} from "@/lib/api/connectors";
 
 export type ReportsOverviewData = {
   usage: UsageDashboardResponse | null;
@@ -39,6 +43,7 @@ export type ReportsOverviewData = {
   gaps: KnowledgeGapListResponse | null;
   feedbackMetrics: FeedbackMetricsResponse | null;
   feedbackItems: FeedbackReviewListResponse | null;
+  connectors: ConnectorConnectionsListResponse | null;
   unavailable: string[];
 };
 
@@ -153,6 +158,7 @@ export async function getReportsOverview(
     listKnowledgeGaps({ status: "open", limit: 5 }),
     getFeedbackMetrics(Number.parseInt(filters.date, 10) || 30),
     listFeedbackReviewItems({ limit: 20, offset: 0 }),
+    listConnectorConnections(),
   ] as const;
   const results = await Promise.allSettled(calls);
   const names = [
@@ -165,6 +171,7 @@ export async function getReportsOverview(
     "knowledgeGaps",
     "feedbackMetrics",
     "feedbackQueue",
+    "connectors",
   ];
   const value = <T>(index: number): T | null =>
     results[index]?.status === "fulfilled" ? (results[index].value as T) : null;
@@ -178,6 +185,7 @@ export async function getReportsOverview(
     gaps: value(6),
     feedbackMetrics: value(7),
     feedbackItems: value(8),
+    connectors: value(9),
     unavailable: names.filter(
       (_, index) => results[index]?.status === "rejected",
     ),

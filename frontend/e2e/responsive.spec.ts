@@ -185,6 +185,26 @@ async function waitForBoot(page: Page): Promise<void> {
 }
 
 test.describe("responsive viewport smoke tests", () => {
+  test("reports overview fits mobile, tablet, and desktop viewports", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedSession(page);
+
+    for (const viewport of Object.values(VIEWPORTS)) {
+      await page.setViewportSize(viewport);
+      await page.goto("/reports");
+      await waitForBoot(page);
+      await expect(
+        page.getByRole("heading", { name: "Overview" }),
+      ).toBeVisible();
+      const main = page.locator("main").first();
+      const box = await main.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width).toBeLessThanOrEqual(viewport.width + 1);
+    }
+  });
+
   test("mobile (375px): topbar shows Menu button and icon-only search", async ({
     page,
   }) => {

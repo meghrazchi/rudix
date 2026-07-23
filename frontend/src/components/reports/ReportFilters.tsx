@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -17,6 +18,8 @@ import {
   type ReportFilterKey,
   type ReportFilters,
 } from "@/lib/reports";
+import { listConnectorConnections } from "@/lib/api/connectors";
+import { queryKeys } from "@/lib/api/query";
 
 type FilterContextValue = {
   filters: ReportFilters;
@@ -104,6 +107,17 @@ const OPTIONS: Record<ReportFilterKey, Array<[string, string]>> = {
 export function GlobalReportFilters() {
   const t = useTranslations("reports.filters");
   const { filters, setFilter, resetFilters } = useReportFilters();
+  const connectorsQuery = useQuery({
+    queryKey: queryKeys.connectorConnections,
+    queryFn: listConnectorConnections,
+    staleTime: 60_000,
+  });
+  const connectorOptions = [
+    ...OPTIONS.connector,
+    ...(connectorsQuery.data?.items ?? []).map(
+      (connector) => [connector.id, connector.display_name] as [string, string],
+    ),
+  ];
   const changed = REPORT_FILTER_KEYS.some(
     (key) => filters[key] !== DEFAULT_REPORT_FILTERS[key],
   );
@@ -136,11 +150,15 @@ export function GlobalReportFilters() {
               onChange={(event) => setFilter(key, event.target.value)}
               className="min-w-0 rounded-lg border border-[#d7d4e7] bg-white px-3 py-2 text-sm text-[#2a2640]"
             >
-              {OPTIONS[key].map(([value]) => (
-                <option value={value} key={value}>
-                  {t(`options.${key}.${value}`)}
-                </option>
-              ))}
+              {(key === "connector" ? connectorOptions : OPTIONS[key]).map(
+                ([value, fallbackLabel]) => (
+                  <option value={value} key={value}>
+                    {key === "connector" && value !== "all"
+                      ? fallbackLabel
+                      : t(`options.${key}.${value}`)}
+                  </option>
+                ),
+              )}
             </select>
           </label>
         ))}

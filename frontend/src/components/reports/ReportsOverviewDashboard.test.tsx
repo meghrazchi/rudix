@@ -61,6 +61,13 @@ const response = {
       { gap_id: "g1", topic_label: "Expense policy", occurrence_count: 4 },
     ],
   },
+  connectors: {
+    total: 2,
+    items: [
+      { id: "connector-1", status: "active", error_message: null },
+      { id: "connector-2", status: "error", error_message: "Sync failed" },
+    ],
+  },
   trends: null,
   unavailable: [],
 };
@@ -88,6 +95,9 @@ describe("ReportsOverviewDashboard", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Permission warnings" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Healthy: 1, Failed: 1" }),
     ).toBeInTheDocument();
     expect(mocks.getReportsOverview).toHaveBeenCalledWith(filters);
   });

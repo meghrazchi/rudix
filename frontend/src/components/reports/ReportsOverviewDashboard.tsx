@@ -4,6 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, FileUp, MessageSquareText } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useReportFilters } from "@/components/reports/ReportFilters";
 import {
   ChartCard,
@@ -32,6 +42,15 @@ const links = {
   gaps: "/reports/knowledge-gaps",
 };
 
+const BAR_COLORS = {
+  default: "#6254d9",
+  healthy: "#10b981",
+  warning: "#f59e0b",
+  critical: "#f43f5e",
+} as const;
+
+type BarTone = Exclude<keyof typeof BAR_COLORS, "default">;
+
 function reportHref(pathname: string, filters: ReportFilters): string {
   const query = serializeReportFilters(filters).toString();
   return query ? `${pathname}?${query}` : pathname;
@@ -40,7 +59,7 @@ function reportHref(pathname: string, filters: ReportFilters): string {
 function Bars({
   items,
 }: {
-  items: Array<{ label: string; value: number; tone?: string }>;
+  items: Array<{ label: string; value: number; tone?: BarTone }>;
 }) {
   const t = useTranslations("reports.overview");
   const locale = useLocale();
@@ -48,7 +67,6 @@ function Bars({
     notation: "compact",
     maximumFractionDigits: 1,
   });
-  const max = Math.max(1, ...items.map((item) => item.value));
   if (!items.some((item) => item.value > 0))
     return (
       <EmptyState
@@ -59,29 +77,42 @@ function Bars({
     );
   return (
     <div
-      className="grid gap-3"
+      className="h-44 w-full"
       role="img"
       aria-label={items
         .map((item) => `${item.label}: ${item.value}`)
         .join(", ")}
     >
-      {items.map((item) => (
-        <div
-          key={item.label}
-          className="grid grid-cols-[minmax(90px,1fr)_2fr_auto] items-center gap-2 text-xs"
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={items}
+          layout="vertical"
+          margin={{ left: 4, right: 16 }}
         >
-          <span className="truncate text-[#5f5b72]">{item.label}</span>
-          <span className="h-2.5 overflow-hidden rounded-full bg-[#ece9f7]">
-            <span
-              className={`block h-full rounded-full ${item.tone ?? "bg-[#6254d9]"}`}
-              style={{ width: `${Math.max(3, (item.value / max) * 100)}%` }}
-            />
-          </span>
-          <strong className="min-w-7 text-right text-[#2a2640]">
-            {format.format(item.value)}
-          </strong>
-        </div>
-      ))}
+          <CartesianGrid horizontal={false} stroke="#ece9f7" />
+          <XAxis type="number" hide domain={[0, "dataMax"]} />
+          <YAxis
+            type="category"
+            dataKey="label"
+            width={92}
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: "#5f5b72", fontSize: 11 }}
+          />
+          <Tooltip
+            formatter={(value) => format.format(Number(value))}
+            contentStyle={{ borderRadius: 8, borderColor: "#dfdced" }}
+          />
+          <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={10}>
+            {items.map((item) => (
+              <Cell
+                key={item.label}
+                fill={item.tone ? BAR_COLORS[item.tone] : BAR_COLORS.default}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -139,6 +170,14 @@ export function ReportsOverviewDashboard() {
     kpis.questions === 0 && (data.usage?.totals.documents ?? 0) === 0;
   const trust = data.trust?.trust_distribution;
   const warnings = data.trust?.warnings;
+  const connectorItems = (data.connectors?.items ?? []).filter(
+    (connector) =>
+      filters.connector === "all" || connector.id === filters.connector,
+  );
+  const healthyConnectors = connectorItems.filter(
+    (connector) => connector.status === "active" && !connector.error_message,
+  ).length;
+  const unhealthyConnectors = connectorItems.length - healthyConnectors;
   const href = (pathname: string) => reportHref(pathname, filters);
 
   return (
@@ -242,17 +281,17 @@ export function ReportsOverviewDashboard() {
               {
                 label: t("levels.high"),
                 value: trust?.high_count ?? 0,
-                tone: "bg-emerald-500",
+                tone: "healthy",
               },
               {
                 label: t("levels.medium"),
                 value: trust?.medium_count ?? 0,
-                tone: "bg-amber-500",
+                tone: "warning",
               },
               {
                 label: t("levels.low"),
                 value: trust?.low_count ?? 0,
-                tone: "bg-rose-500",
+                tone: "critical",
               },
             ]}
           />
@@ -336,17 +375,13 @@ export function ReportsOverviewDashboard() {
             items={[
               {
                 label: t("status.healthy"),
-                value: Math.max(
-                  0,
-                  (data.usage?.totals.indexing_jobs ?? 0) -
-                    kpis.failedIndexingJobs,
-                ),
-                tone: "bg-emerald-500",
+                value: healthyConnectors,
+                tone: "healthy",
               },
               {
                 label: t("status.failed"),
-                value: kpis.failedIndexingJobs,
-                tone: "bg-rose-500",
+                value: unhealthyConnectors,
+                tone: "critical",
               },
             ]}
           />
