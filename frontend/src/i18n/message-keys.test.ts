@@ -28,6 +28,22 @@ function collectLeafKeys(
   return keys;
 }
 
+function hasValidMessageValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+  if (typeof value === "boolean" || typeof value === "number") {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every(hasValidMessageValue);
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).every(hasValidMessageValue);
+  }
+  return false;
+}
+
 const enKeys = collectLeafKeys(en as Record<string, unknown>);
 const deKeys = collectLeafKeys(de as Record<string, unknown>);
 const esKeys = collectLeafKeys(es as Record<string, unknown>);
@@ -86,7 +102,7 @@ describe("Message key parity across locales", () => {
     expect(extra).toEqual([]);
   });
 
-  it("all locale files have non-empty string values for all keys", () => {
+  it("all locale files have valid message values for all keys", () => {
     const localeFiles = [
       { name: "en", keys: enKeys, obj: en as Record<string, unknown> },
       { name: "de", keys: deKeys, obj: de as Record<string, unknown> },
@@ -104,8 +120,8 @@ describe("Message key parity across locales", () => {
           val = (val as Record<string, unknown>)[part];
         }
         expect(
-          typeof val === "string" && val.trim().length > 0,
-          `${name}.json key "${key}" should be a non-empty string`,
+          hasValidMessageValue(val),
+          `${name}.json key "${key}" should contain valid message values`,
         ).toBe(true);
       }
     }

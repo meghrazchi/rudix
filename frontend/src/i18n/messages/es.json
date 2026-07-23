@@ -151,6 +151,38 @@
     "invalidValue": "Valor no válido"
   },
   "public": {
+    "changelog": {
+      "publicChangelog": "Public changelog",
+      "heroTitle": "Release notes for product improvements, fixes, and breaking changes",
+      "heroDescription": "Public entries are curated from release tags and milestone summaries. Internal-only issue details and sensitive security information are omitted before publication.",
+      "contactTeam": "Contact the team",
+      "reviewSecurityDisclosure": "Review security disclosure",
+      "latestRelease": "Latest release",
+      "currentRelease": "Current release",
+      "date": "Date",
+      "tag": "Tag",
+      "milestone": "Milestone",
+      "sourceTag": "Source tag",
+      "releaseHistory": "Release history",
+      "historyTitle": "Current and historical release notes",
+      "historyDescription": "Each entry is written so it can ship publicly without exposing private issue details, tenant data, or pre-disclosure security context.",
+      "sourceEyebrow": "Release note source",
+      "sourceTitle": "Manual and structured updates",
+      "sourceDescription": "Keep public release notes in the typed data file. That keeps updates lightweight and avoids code-heavy page edits.",
+      "publishingEyebrow": "Publishing convention",
+      "publishingTitle": "Git tag plus milestone",
+      "publishingDescription": "Start from the release tag and milestone, then publish only public-safe summaries, categories, and safe outbound links.",
+      "disclosureEyebrow": "Disclosure guardrail",
+      "disclosureTitle": "Omit private details",
+      "disclosureDescription": "Do not publish raw issue text, customer data, secrets, or unreleased security details. Use the security disclosure route when something must stay private.",
+      "releases": [],
+      "categories": {
+        "added": "Added",
+        "improved": "Improved",
+        "fixed": "Fixed",
+        "breakingChanges": "Breaking changes"
+      }
+    },
     "nav": {
       "login": "Iniciar sesión",
       "requestDemo": "Solicitar demo",
