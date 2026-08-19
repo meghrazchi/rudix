@@ -63,7 +63,8 @@
   },
   "overrides": {
     "js-yaml": "4.3.0",
-    "postcss": "8.5.15",
+    "nanoid": "3.3.18",
+    "postcss": "8.5.18",
     "sharp": "0.35.3"
   }
 }
