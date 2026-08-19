@@ -4629,6 +4629,7 @@
       "documentDeletion": "Eliminación de documentos",
       "featureFlags": "Funciones experimentales",
       "failedJobs": "Trabajos fallidos",
+      "sourceHealth": "Estado de las fuentes",
       "statusIncidents": "Estado e incidentes",
       "quotasRateLimits": "Cuotas y límites de frecuencia",
       "dataPortability": "Portabilidad de datos",
@@ -6419,6 +6420,116 @@
     "table": {
       "selectJob": "Seleccionar trabajo {id}",
       "selectAll": "Seleccionar todos en la página"
+    },
+    "pagination": {
+      "summary": "{total} en total — página {page} de {totalPages}"
+    }
+  },
+  "adminSourceHealth": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Estado de las fuentes",
+      "description": "Comprueba si los archivos, colecciones, conectores y fuentes basadas en grafos son lo bastante fiables para respuestas de confianza, y actúa donde haga falta."
+    },
+    "access": {
+      "restrictedTitle": "Acceso de administrador restringido",
+      "restrictedDescription": "Solo los roles owner y admin pueden acceder al panel de estado de las fuentes."
+    },
+    "states": {
+      "loadingSummary": "Cargando resumen…",
+      "loadingCharts": "Cargando gráficos…",
+      "loadingList": "Cargando fuentes…",
+      "loadingDetail": "Cargando detalle del error…",
+      "empty": "Ninguna fuente coincide con los filtros actuales."
+    },
+    "metrics": {
+      "totalSources": "Fuentes totales",
+      "indexed": "Indexadas",
+      "failedIndexing": "Indexación fallida",
+      "pending": "Pendientes",
+      "ocrRequired": "Requieren OCR",
+      "ocrLowConfidence": "OCR de baja confianza",
+      "tableExtractionWarnings": "Avisos de extracción de tablas",
+      "missingMetadata": "Metadatos incompletos",
+      "stale": "Obsoletas",
+      "deprecated": "Marcadas obsoletas",
+      "expired": "Caducadas",
+      "unreviewed": "Sin revisar",
+      "needsReview": "Requieren revisión"
+    },
+    "charts": {
+      "statusDistribution": "Distribución del estado de las fuentes",
+      "indexingFailures": "Fallos de indexación (últimos 30 días)",
+      "staleByCollection": "Documentos obsoletos por colección",
+      "ocrQuality": "Calidad de OCR",
+      "reviewNeedsByOwner": "Necesidades de revisión por responsable",
+      "connectorFreshness": "Actualidad de las fuentes de conectores",
+      "empty": "Todavía no hay datos."
+    },
+    "filters": {
+      "all": "Todos",
+      "sourceType": "Tipo de fuente",
+      "status": "Estado",
+      "statusPlaceholder": "p. ej. indexed, failed",
+      "freshness": "Actualidad",
+      "ocrQuality": "Calidad de OCR",
+      "reviewStatus": "Estado de revisión",
+      "graphIndexed": "Basado en grafo",
+      "missingMetadataOnly": "Solo con metadatos incompletos",
+      "search": "Buscar",
+      "searchPlaceholder": "Buscar por nombre"
+    },
+    "sourceTypes": {
+      "file": "Archivo",
+      "connector": "Conector",
+      "collection": "Colección"
+    },
+    "table": {
+      "sourceName": "Nombre de la fuente",
+      "sourceType": "Tipo",
+      "collection": "Colección",
+      "owner": "Responsable",
+      "status": "Estado",
+      "lastIndexed": "Última indexación",
+      "lastUpdated": "Última actualización",
+      "freshness": "Actualidad",
+      "ocrQuality": "Calidad de OCR",
+      "reviewStatus": "Estado de revisión",
+      "actions": "Acciones"
+    },
+    "badges": {
+      "missingMetadata": "Metadatos incompletos"
+    },
+    "actions": {
+      "reindex": "Reindexar",
+      "ocrRetry": "Reintentar OCR",
+      "assignReviewer": "Asignar revisor",
+      "markVerified": "Marcar como verificado",
+      "markDeprecated": "Marcar como obsoleto",
+      "open": "Abrir",
+      "viewError": "Ver error",
+      "export": "Exportar",
+      "refresh": "Actualizar",
+      "refreshing": "Actualizando…",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "close": "Cerrar",
+      "save": "Guardar",
+      "saving": "Guardando…"
+    },
+    "dialog": {
+      "assignReviewerTitle": "Asignar revisor",
+      "reviewerId": "ID de usuario del revisor",
+      "reviewerIdPlaceholder": "Pega un ID de usuario",
+      "dueDate": "Fecha límite de revisión"
+    },
+    "drawer": {
+      "errorTitle": "Detalle del error de la fuente",
+      "errorMessage": "Mensaje de error",
+      "extractionWarnings": "Avisos de extracción",
+      "tableWarnings": "Avisos de extracción de tablas",
+      "tableWarningLine": "Página {page} — confianza {confidence}%",
+      "noIssues": "No hay detalles de error registrados para esta fuente."
     },
     "pagination": {
       "summary": "{total} en total — página {page} de {totalPages}"

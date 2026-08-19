@@ -184,6 +184,12 @@ export const queryKeys = {
       ["admin", "observability", params ?? {}] as const,
     trustAnalytics: (params?: Record<string, unknown>) =>
       ["admin", "trust-analytics", params ?? {}] as const,
+    sourceHealthSummary: ["admin", "source-health", "summary"] as const,
+    sourceHealthCharts: ["admin", "source-health", "charts"] as const,
+    sourceHealthSources: (params?: Record<string, unknown>) =>
+      ["admin", "source-health", "sources", params ?? {}] as const,
+    sourceHealthError: (sourceType: string, sourceId: string) =>
+      ["admin", "source-health", "error", sourceType, sourceId] as const,
     providerObservability: (params?: Record<string, unknown>) =>
       ["admin", "provider-observability", params ?? {}] as const,
     governance: ["admin", "governance"] as const,

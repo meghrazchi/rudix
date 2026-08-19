@@ -4629,6 +4629,7 @@
       "documentDeletion": "Document Deletion",
       "featureFlags": "Feature Flags",
       "failedJobs": "Failed Jobs",
+      "sourceHealth": "Source Health",
       "statusIncidents": "Status & Incidents",
       "quotasRateLimits": "Quotas & Rate Limits",
       "dataPortability": "Data Portability",
@@ -6419,6 +6420,116 @@
     "table": {
       "selectJob": "Select job {id}",
       "selectAll": "Select all on page"
+    },
+    "pagination": {
+      "summary": "{total} total — page {page} of {totalPages}"
+    }
+  },
+  "adminSourceHealth": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Source health",
+      "description": "See whether files, collections, connectors, and graph-backed sources are healthy enough for reliable answers, and act on what needs attention."
+    },
+    "access": {
+      "restrictedTitle": "Admin access restricted",
+      "restrictedDescription": "Only owner and admin roles can access the source health dashboard."
+    },
+    "states": {
+      "loadingSummary": "Loading source health summary…",
+      "loadingCharts": "Loading charts…",
+      "loadingList": "Loading sources…",
+      "loadingDetail": "Loading error detail…",
+      "empty": "No sources match the current filters."
+    },
+    "metrics": {
+      "totalSources": "Total sources",
+      "indexed": "Indexed",
+      "failedIndexing": "Failed indexing",
+      "pending": "Pending",
+      "ocrRequired": "OCR required",
+      "ocrLowConfidence": "Low OCR confidence",
+      "tableExtractionWarnings": "Table extraction warnings",
+      "missingMetadata": "Missing metadata",
+      "stale": "Stale",
+      "deprecated": "Deprecated",
+      "expired": "Expired",
+      "unreviewed": "Unreviewed",
+      "needsReview": "Needs review"
+    },
+    "charts": {
+      "statusDistribution": "Source status distribution",
+      "indexingFailures": "Indexing failures (last 30 days)",
+      "staleByCollection": "Stale documents by collection",
+      "ocrQuality": "OCR quality",
+      "reviewNeedsByOwner": "Review needs by owner",
+      "connectorFreshness": "Connector-backed freshness",
+      "empty": "No data yet."
+    },
+    "filters": {
+      "all": "All",
+      "sourceType": "Source type",
+      "status": "Status",
+      "statusPlaceholder": "e.g. indexed, failed",
+      "freshness": "Freshness",
+      "ocrQuality": "OCR quality",
+      "reviewStatus": "Review status",
+      "graphIndexed": "Graph-backed",
+      "missingMetadataOnly": "Missing metadata only",
+      "search": "Search",
+      "searchPlaceholder": "Search by name"
+    },
+    "sourceTypes": {
+      "file": "File",
+      "connector": "Connector",
+      "collection": "Collection"
+    },
+    "table": {
+      "sourceName": "Source name",
+      "sourceType": "Type",
+      "collection": "Collection",
+      "owner": "Owner",
+      "status": "Status",
+      "lastIndexed": "Last indexed",
+      "lastUpdated": "Last updated",
+      "freshness": "Freshness",
+      "ocrQuality": "OCR quality",
+      "reviewStatus": "Review status",
+      "actions": "Actions"
+    },
+    "badges": {
+      "missingMetadata": "Missing metadata"
+    },
+    "actions": {
+      "reindex": "Re-index",
+      "ocrRetry": "Retry OCR",
+      "assignReviewer": "Assign reviewer",
+      "markVerified": "Mark verified",
+      "markDeprecated": "Mark deprecated",
+      "open": "Open",
+      "viewError": "View error",
+      "export": "Export",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "previous": "Prev",
+      "next": "Next",
+      "close": "Close",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "dialog": {
+      "assignReviewerTitle": "Assign reviewer",
+      "reviewerId": "Reviewer user ID",
+      "reviewerIdPlaceholder": "Paste a user ID",
+      "dueDate": "Review due date"
+    },
+    "drawer": {
+      "errorTitle": "Source error detail",
+      "errorMessage": "Error message",
+      "extractionWarnings": "Extraction warnings",
+      "tableWarnings": "Table extraction warnings",
+      "tableWarningLine": "Page {page} — confidence {confidence}%",
+      "noIssues": "No error details recorded for this source."
     },
     "pagination": {
       "summary": "{total} total — page {page} of {totalPages}"

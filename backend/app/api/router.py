@@ -30,6 +30,7 @@ from app.interfaces.http import (
     admin_roles,
     admin_scim,
     admin_service_accounts,
+    admin_source_health,
     admin_sso,
     admin_status,
     admin_troubleshooting_bundle,
@@ -172,6 +173,7 @@ protected_router.include_router(admin_metadata.router)
 protected_router.include_router(admin_ai_response_policy.router)
 protected_router.include_router(admin_freshness.router)
 protected_router.include_router(admin_trust_analytics.router)
+protected_router.include_router(admin_source_health.router)
 protected_router.include_router(admin_troubleshooting_bundle.router)
 protected_router.include_router(admin_chat_tools.router)
 protected_router.include_router(admin_org_memory.router)

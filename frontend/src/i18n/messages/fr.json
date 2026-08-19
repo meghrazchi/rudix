@@ -4629,6 +4629,7 @@
       "documentDeletion": "Suppression de documents",
       "featureFlags": "Fonctionnalités expérimentales",
       "failedJobs": "Tâches échouées",
+      "sourceHealth": "État des sources",
       "statusIncidents": "État et incidents",
       "quotasRateLimits": "Quotas et limites de débit",
       "dataPortability": "Portabilité des données",
@@ -6419,6 +6420,116 @@
     "table": {
       "selectJob": "Sélectionner la tâche {id}",
       "selectAll": "Tout sélectionner sur la page"
+    },
+    "pagination": {
+      "summary": "{total} au total — page {page} sur {totalPages}"
+    }
+  },
+  "adminSourceHealth": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "État des sources",
+      "description": "Vérifiez si les fichiers, collections, connecteurs et sources basées sur le graphe sont assez fiables pour des réponses de confiance, et agissez si nécessaire."
+    },
+    "access": {
+      "restrictedTitle": "Accès administrateur restreint",
+      "restrictedDescription": "Seuls les rôles owner et admin peuvent accéder au tableau de bord de l'état des sources."
+    },
+    "states": {
+      "loadingSummary": "Chargement du résumé…",
+      "loadingCharts": "Chargement des graphiques…",
+      "loadingList": "Chargement des sources…",
+      "loadingDetail": "Chargement du détail de l'erreur…",
+      "empty": "Aucune source ne correspond aux filtres actuels."
+    },
+    "metrics": {
+      "totalSources": "Sources totales",
+      "indexed": "Indexées",
+      "failedIndexing": "Échecs d'indexation",
+      "pending": "En attente",
+      "ocrRequired": "OCR requis",
+      "ocrLowConfidence": "OCR à faible confiance",
+      "tableExtractionWarnings": "Avertissements d'extraction de tableaux",
+      "missingMetadata": "Métadonnées manquantes",
+      "stale": "Obsolètes",
+      "deprecated": "Marquées obsolètes",
+      "expired": "Expirées",
+      "unreviewed": "Non révisées",
+      "needsReview": "À réviser"
+    },
+    "charts": {
+      "statusDistribution": "Répartition du statut des sources",
+      "indexingFailures": "Échecs d'indexation (30 derniers jours)",
+      "staleByCollection": "Documents obsolètes par collection",
+      "ocrQuality": "Qualité OCR",
+      "reviewNeedsByOwner": "Besoins de révision par responsable",
+      "connectorFreshness": "Fraîcheur des sources connecteurs",
+      "empty": "Pas encore de données."
+    },
+    "filters": {
+      "all": "Tous",
+      "sourceType": "Type de source",
+      "status": "Statut",
+      "statusPlaceholder": "ex. indexed, failed",
+      "freshness": "Fraîcheur",
+      "ocrQuality": "Qualité OCR",
+      "reviewStatus": "Statut de révision",
+      "graphIndexed": "Basé sur le graphe",
+      "missingMetadataOnly": "Métadonnées manquantes uniquement",
+      "search": "Rechercher",
+      "searchPlaceholder": "Rechercher par nom"
+    },
+    "sourceTypes": {
+      "file": "Fichier",
+      "connector": "Connecteur",
+      "collection": "Collection"
+    },
+    "table": {
+      "sourceName": "Nom de la source",
+      "sourceType": "Type",
+      "collection": "Collection",
+      "owner": "Responsable",
+      "status": "Statut",
+      "lastIndexed": "Dernière indexation",
+      "lastUpdated": "Dernière mise à jour",
+      "freshness": "Fraîcheur",
+      "ocrQuality": "Qualité OCR",
+      "reviewStatus": "Statut de révision",
+      "actions": "Actions"
+    },
+    "badges": {
+      "missingMetadata": "Métadonnées manquantes"
+    },
+    "actions": {
+      "reindex": "Réindexer",
+      "ocrRetry": "Relancer l'OCR",
+      "assignReviewer": "Assigner un réviseur",
+      "markVerified": "Marquer comme vérifié",
+      "markDeprecated": "Marquer comme obsolète",
+      "open": "Ouvrir",
+      "viewError": "Voir l'erreur",
+      "export": "Exporter",
+      "refresh": "Actualiser",
+      "refreshing": "Actualisation…",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "close": "Fermer",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…"
+    },
+    "dialog": {
+      "assignReviewerTitle": "Assigner un réviseur",
+      "reviewerId": "ID utilisateur du réviseur",
+      "reviewerIdPlaceholder": "Collez un ID utilisateur",
+      "dueDate": "Date d'échéance de la révision"
+    },
+    "drawer": {
+      "errorTitle": "Détail de l'erreur de la source",
+      "errorMessage": "Message d'erreur",
+      "extractionWarnings": "Avertissements d'extraction",
+      "tableWarnings": "Avertissements d'extraction de tableaux",
+      "tableWarningLine": "Page {page} — confiance {confidence}%",
+      "noIssues": "Aucun détail d'erreur enregistré pour cette source."
     },
     "pagination": {
       "summary": "{total} au total — page {page} sur {totalPages}"

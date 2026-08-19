@@ -4629,6 +4629,7 @@
       "documentDeletion": "حذف المستندات",
       "featureFlags": "علامات الميزات",
       "failedJobs": "المهام الفاشلة",
+      "sourceHealth": "سلامة المصادر",
       "statusIncidents": "الحالة والحوادث",
       "quotasRateLimits": "الحصص وحدود المعدل",
       "dataPortability": "قابلية نقل البيانات",
@@ -6422,6 +6423,116 @@
     },
     "pagination": {
       "summary": "الإجمالي {total} — الصفحة {page} من {totalPages}"
+    }
+  },
+  "adminSourceHealth": {
+    "header": {
+      "eyebrow": "إدارة Rudix",
+      "title": "سلامة المصادر",
+      "description": "تحقق مما إذا كانت الملفات والمجموعات والموصلات والمصادر المعتمدة على الرسم البياني موثوقة بما يكفي لإجابات موثوقة، واتخذ إجراءً عند الحاجة."
+    },
+    "access": {
+      "restrictedTitle": "الوصول الإداري مقيد",
+      "restrictedDescription": "يمكن فقط لأدوار المالك والمسؤول الوصول إلى لوحة سلامة المصادر."
+    },
+    "states": {
+      "loadingSummary": "جارٍ تحميل الملخص…",
+      "loadingCharts": "جارٍ تحميل الرسوم البيانية…",
+      "loadingList": "جارٍ تحميل المصادر…",
+      "loadingDetail": "جارٍ تحميل تفاصيل الخطأ…",
+      "empty": "لا توجد مصادر مطابقة للفلاتر الحالية."
+    },
+    "metrics": {
+      "totalSources": "إجمالي المصادر",
+      "indexed": "مفهرسة",
+      "failedIndexing": "فشل الفهرسة",
+      "pending": "قيد الانتظار",
+      "ocrRequired": "يتطلب OCR",
+      "ocrLowConfidence": "ثقة OCR منخفضة",
+      "tableExtractionWarnings": "تحذيرات استخراج الجداول",
+      "missingMetadata": "بيانات وصفية ناقصة",
+      "stale": "قديمة",
+      "deprecated": "مهملة",
+      "expired": "منتهية الصلاحية",
+      "unreviewed": "غير مراجعة",
+      "needsReview": "تحتاج مراجعة"
+    },
+    "charts": {
+      "statusDistribution": "توزيع حالة المصادر",
+      "indexingFailures": "أخطاء الفهرسة (آخر 30 يومًا)",
+      "staleByCollection": "المستندات القديمة حسب المجموعة",
+      "ocrQuality": "جودة OCR",
+      "reviewNeedsByOwner": "احتياجات المراجعة حسب المالك",
+      "connectorFreshness": "حداثة مصادر الموصلات",
+      "empty": "لا توجد بيانات بعد."
+    },
+    "filters": {
+      "all": "الكل",
+      "sourceType": "نوع المصدر",
+      "status": "الحالة",
+      "statusPlaceholder": "مثال: indexed، failed",
+      "freshness": "الحداثة",
+      "ocrQuality": "جودة OCR",
+      "reviewStatus": "حالة المراجعة",
+      "graphIndexed": "معتمد على الرسم البياني",
+      "missingMetadataOnly": "البيانات الوصفية الناقصة فقط",
+      "search": "بحث",
+      "searchPlaceholder": "البحث بالاسم"
+    },
+    "sourceTypes": {
+      "file": "ملف",
+      "connector": "موصل",
+      "collection": "مجموعة"
+    },
+    "table": {
+      "sourceName": "اسم المصدر",
+      "sourceType": "النوع",
+      "collection": "المجموعة",
+      "owner": "المالك",
+      "status": "الحالة",
+      "lastIndexed": "آخر فهرسة",
+      "lastUpdated": "آخر تحديث",
+      "freshness": "الحداثة",
+      "ocrQuality": "جودة OCR",
+      "reviewStatus": "حالة المراجعة",
+      "actions": "الإجراءات"
+    },
+    "badges": {
+      "missingMetadata": "بيانات وصفية ناقصة"
+    },
+    "actions": {
+      "reindex": "إعادة الفهرسة",
+      "ocrRetry": "إعادة محاولة OCR",
+      "assignReviewer": "تعيين مراجع",
+      "markVerified": "وضع علامة موثّق",
+      "markDeprecated": "وضع علامة مهمل",
+      "open": "فتح",
+      "viewError": "عرض الخطأ",
+      "export": "تصدير",
+      "refresh": "تحديث",
+      "refreshing": "جارٍ التحديث…",
+      "previous": "السابق",
+      "next": "التالي",
+      "close": "إغلاق",
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ…"
+    },
+    "dialog": {
+      "assignReviewerTitle": "تعيين مراجع",
+      "reviewerId": "معرّف مستخدم المراجع",
+      "reviewerIdPlaceholder": "الصق معرّف المستخدم",
+      "dueDate": "تاريخ استحقاق المراجعة"
+    },
+    "drawer": {
+      "errorTitle": "تفاصيل خطأ المصدر",
+      "errorMessage": "رسالة الخطأ",
+      "extractionWarnings": "تحذيرات الاستخراج",
+      "tableWarnings": "تحذيرات استخراج الجداول",
+      "tableWarningLine": "صفحة {page} — الثقة {confidence}%",
+      "noIssues": "لا توجد تفاصيل أخطاء مسجلة لهذا المصدر."
+    },
+    "pagination": {
+      "summary": "الإجمالي {total} — صفحة {page} من {totalPages}"
     }
   },
   "adminStatus": {

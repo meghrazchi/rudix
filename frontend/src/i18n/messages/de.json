@@ -4629,6 +4629,7 @@
       "documentDeletion": "Dokumentlöschung",
       "featureFlags": "Funktionsschalter",
       "failedJobs": "Fehlgeschlagene Aufträge",
+      "sourceHealth": "Quellzustand",
       "statusIncidents": "Status & Vorfälle",
       "quotasRateLimits": "Kontingente & Ratenbegrenzungen",
       "dataPortability": "Datenportabilität",
@@ -6419,6 +6420,116 @@
     "table": {
       "selectJob": "Auftrag {id} auswählen",
       "selectAll": "Alle auf dieser Seite auswählen"
+    },
+    "pagination": {
+      "summary": "{total} insgesamt — Seite {page} von {totalPages}"
+    }
+  },
+  "adminSourceHealth": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Quellzustand",
+      "description": "Prüfen Sie, ob Dateien, Sammlungen, Connectors und graphbasierte Quellen zuverlässig genug für verlässliche Antworten sind, und handeln Sie bei Bedarf."
+    },
+    "access": {
+      "restrictedTitle": "Admin-Zugriff eingeschränkt",
+      "restrictedDescription": "Nur die Rollen Owner und Admin können auf das Quellzustand-Dashboard zugreifen."
+    },
+    "states": {
+      "loadingSummary": "Zusammenfassung wird geladen…",
+      "loadingCharts": "Diagramme werden geladen…",
+      "loadingList": "Quellen werden geladen…",
+      "loadingDetail": "Fehlerdetails werden geladen…",
+      "empty": "Keine Quellen entsprechen den aktuellen Filtern."
+    },
+    "metrics": {
+      "totalSources": "Quellen gesamt",
+      "indexed": "Indiziert",
+      "failedIndexing": "Fehlgeschlagene Indizierung",
+      "pending": "Ausstehend",
+      "ocrRequired": "OCR erforderlich",
+      "ocrLowConfidence": "Niedrige OCR-Konfidenz",
+      "tableExtractionWarnings": "Tabellenextraktions-Warnungen",
+      "missingMetadata": "Fehlende Metadaten",
+      "stale": "Veraltet",
+      "deprecated": "Veraltet erklärt",
+      "expired": "Abgelaufen",
+      "unreviewed": "Ungeprüft",
+      "needsReview": "Prüfung erforderlich"
+    },
+    "charts": {
+      "statusDistribution": "Verteilung des Quellstatus",
+      "indexingFailures": "Indizierungsfehler (letzte 30 Tage)",
+      "staleByCollection": "Veraltete Dokumente nach Sammlung",
+      "ocrQuality": "OCR-Qualität",
+      "reviewNeedsByOwner": "Prüfbedarf nach Verantwortlichem",
+      "connectorFreshness": "Aktualität der Connector-Quellen",
+      "empty": "Noch keine Daten."
+    },
+    "filters": {
+      "all": "Alle",
+      "sourceType": "Quelltyp",
+      "status": "Status",
+      "statusPlaceholder": "z. B. indexed, failed",
+      "freshness": "Aktualität",
+      "ocrQuality": "OCR-Qualität",
+      "reviewStatus": "Prüfstatus",
+      "graphIndexed": "Graphbasiert",
+      "missingMetadataOnly": "Nur fehlende Metadaten",
+      "search": "Suche",
+      "searchPlaceholder": "Nach Name suchen"
+    },
+    "sourceTypes": {
+      "file": "Datei",
+      "connector": "Connector",
+      "collection": "Sammlung"
+    },
+    "table": {
+      "sourceName": "Quellname",
+      "sourceType": "Typ",
+      "collection": "Sammlung",
+      "owner": "Verantwortlich",
+      "status": "Status",
+      "lastIndexed": "Zuletzt indiziert",
+      "lastUpdated": "Zuletzt aktualisiert",
+      "freshness": "Aktualität",
+      "ocrQuality": "OCR-Qualität",
+      "reviewStatus": "Prüfstatus",
+      "actions": "Aktionen"
+    },
+    "badges": {
+      "missingMetadata": "Fehlende Metadaten"
+    },
+    "actions": {
+      "reindex": "Neu indizieren",
+      "ocrRetry": "OCR erneut versuchen",
+      "assignReviewer": "Prüfer zuweisen",
+      "markVerified": "Als geprüft markieren",
+      "markDeprecated": "Als veraltet markieren",
+      "open": "Öffnen",
+      "viewError": "Fehler anzeigen",
+      "export": "Exportieren",
+      "refresh": "Aktualisieren",
+      "refreshing": "Wird aktualisiert…",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "close": "Schließen",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…"
+    },
+    "dialog": {
+      "assignReviewerTitle": "Prüfer zuweisen",
+      "reviewerId": "Benutzer-ID des Prüfers",
+      "reviewerIdPlaceholder": "Benutzer-ID einfügen",
+      "dueDate": "Fällig am"
+    },
+    "drawer": {
+      "errorTitle": "Fehlerdetails der Quelle",
+      "errorMessage": "Fehlermeldung",
+      "extractionWarnings": "Extraktionswarnungen",
+      "tableWarnings": "Tabellenextraktions-Warnungen",
+      "tableWarningLine": "Seite {page} — Konfidenz {confidence}%",
+      "noIssues": "Für diese Quelle sind keine Fehlerdetails erfasst."
     },
     "pagination": {
       "summary": "{total} insgesamt — Seite {page} von {totalPages}"

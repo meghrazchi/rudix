@@ -31,6 +31,7 @@ type CardKey =
   | "documentDeletion"
   | "featureFlags"
   | "failedJobs"
+  | "sourceHealth"
   | "statusIncidents"
   | "quotasRateLimits"
   | "dataPortability"
@@ -599,6 +600,11 @@ export function AdminLandingPage() {
               <SmallCard
                 cardKey="failedJobs"
                 href="/admin/failed-jobs"
+                status="available"
+              />
+              <SmallCard
+                cardKey="sourceHealth"
+                href="/admin/source-health"
                 status="available"
               />
               <SmallCard

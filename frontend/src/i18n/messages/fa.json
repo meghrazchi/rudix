@@ -4754,6 +4754,7 @@
       "documentDeletion": "حذف اسناد",
       "featureFlags": "پرچم‌های قابلیت",
       "failedJobs": "کارهای ناموفق",
+      "sourceHealth": "سلامت منابع",
       "statusIncidents": "وضعیت و رخدادها",
       "quotasRateLimits": "سهمیه‌ها و محدودیت نرخ",
       "dataPortability": "انتقال‌پذیری داده",
@@ -6544,6 +6545,116 @@
     "table": {
       "selectJob": "انتخاب کار {id}",
       "selectAll": "انتخاب همه موارد صفحه"
+    },
+    "pagination": {
+      "summary": "مجموع {total} — صفحه {page} از {totalPages}"
+    }
+  },
+  "adminSourceHealth": {
+    "header": {
+      "eyebrow": "مدیریت Rudix",
+      "title": "سلامت منابع",
+      "description": "بررسی کنید که آیا فایل‌ها، مجموعه‌ها، اتصال‌دهنده‌ها و منابع مبتنی بر گراف برای پاسخ‌های قابل‌اعتماد به‌اندازه کافی سالم هستند، و در صورت نیاز اقدام کنید."
+    },
+    "access": {
+      "restrictedTitle": "دسترسی مدیریتی محدود شده",
+      "restrictedDescription": "فقط نقش‌های مالک و مدیر می‌توانند به داشبورد سلامت منابع دسترسی داشته باشند."
+    },
+    "states": {
+      "loadingSummary": "در حال بارگذاری خلاصه…",
+      "loadingCharts": "در حال بارگذاری نمودارها…",
+      "loadingList": "در حال بارگذاری منابع…",
+      "loadingDetail": "در حال بارگذاری جزئیات خطا…",
+      "empty": "هیچ منبعی با فیلترهای فعلی مطابقت ندارد."
+    },
+    "metrics": {
+      "totalSources": "کل منابع",
+      "indexed": "نمایه‌سازی‌شده",
+      "failedIndexing": "نمایه‌سازی ناموفق",
+      "pending": "در انتظار",
+      "ocrRequired": "نیازمند OCR",
+      "ocrLowConfidence": "اطمینان پایین OCR",
+      "tableExtractionWarnings": "هشدارهای استخراج جدول",
+      "missingMetadata": "فراداده ناقص",
+      "stale": "قدیمی",
+      "deprecated": "منسوخ‌شده",
+      "expired": "منقضی‌شده",
+      "unreviewed": "بازبینی‌نشده",
+      "needsReview": "نیازمند بازبینی"
+    },
+    "charts": {
+      "statusDistribution": "توزیع وضعیت منابع",
+      "indexingFailures": "خطاهای نمایه‌سازی (۳۰ روز اخیر)",
+      "staleByCollection": "اسناد قدیمی به تفکیک مجموعه",
+      "ocrQuality": "کیفیت OCR",
+      "reviewNeedsByOwner": "نیاز به بازبینی به تفکیک مالک",
+      "connectorFreshness": "تازگی منابع اتصال‌دهنده",
+      "empty": "هنوز داده‌ای وجود ندارد."
+    },
+    "filters": {
+      "all": "همه",
+      "sourceType": "نوع منبع",
+      "status": "وضعیت",
+      "statusPlaceholder": "مثلاً indexed، failed",
+      "freshness": "تازگی",
+      "ocrQuality": "کیفیت OCR",
+      "reviewStatus": "وضعیت بازبینی",
+      "graphIndexed": "مبتنی بر گراف",
+      "missingMetadataOnly": "فقط فراداده ناقص",
+      "search": "جستجو",
+      "searchPlaceholder": "جستجو بر اساس نام"
+    },
+    "sourceTypes": {
+      "file": "فایل",
+      "connector": "اتصال‌دهنده",
+      "collection": "مجموعه"
+    },
+    "table": {
+      "sourceName": "نام منبع",
+      "sourceType": "نوع",
+      "collection": "مجموعه",
+      "owner": "مالک",
+      "status": "وضعیت",
+      "lastIndexed": "آخرین نمایه‌سازی",
+      "lastUpdated": "آخرین به‌روزرسانی",
+      "freshness": "تازگی",
+      "ocrQuality": "کیفیت OCR",
+      "reviewStatus": "وضعیت بازبینی",
+      "actions": "عملیات"
+    },
+    "badges": {
+      "missingMetadata": "فراداده ناقص"
+    },
+    "actions": {
+      "reindex": "نمایه‌سازی مجدد",
+      "ocrRetry": "تلاش مجدد OCR",
+      "assignReviewer": "تعیین بازبین",
+      "markVerified": "علامت‌گذاری به‌عنوان تأیید‌شده",
+      "markDeprecated": "علامت‌گذاری به‌عنوان منسوخ",
+      "open": "باز کردن",
+      "viewError": "مشاهده خطا",
+      "export": "خروجی گرفتن",
+      "refresh": "به‌روزرسانی",
+      "refreshing": "در حال به‌روزرسانی…",
+      "previous": "قبلی",
+      "next": "بعدی",
+      "close": "بستن",
+      "save": "ذخیره",
+      "saving": "در حال ذخیره…"
+    },
+    "dialog": {
+      "assignReviewerTitle": "تعیین بازبین",
+      "reviewerId": "شناسه کاربری بازبین",
+      "reviewerIdPlaceholder": "شناسه کاربر را جای‌گذاری کنید",
+      "dueDate": "تاریخ سررسید بازبینی"
+    },
+    "drawer": {
+      "errorTitle": "جزئیات خطای منبع",
+      "errorMessage": "پیام خطا",
+      "extractionWarnings": "هشدارهای استخراج",
+      "tableWarnings": "هشدارهای استخراج جدول",
+      "tableWarningLine": "صفحه {page} — اطمینان {confidence}٪",
+      "noIssues": "هیچ جزئیات خطایی برای این منبع ثبت نشده است."
     },
     "pagination": {
       "summary": "مجموع {total} — صفحه {page} از {totalPages}"

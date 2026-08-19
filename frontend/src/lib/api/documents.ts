@@ -402,6 +402,12 @@ export type AdminOcrConfigResponse = {
   ocr_quality_snapshot: OcrQualitySnapshot | null;
   updated_at: string;
 };
+export type AdminOcrRetryResponse = {
+  document_id: string;
+  ocr_quality_status: string | null;
+  ocr_avg_confidence: number | null;
+  queue_status: "queued";
+};
 export type AdminTrustStatusRequest = {
   trust_status: string;
   quality_state?: DocumentQualityState | null;
@@ -767,6 +773,17 @@ export async function configureDocumentOcr(
     {
       method: "PATCH",
       json: payload,
+    },
+  );
+}
+
+export async function retryDocumentOcr(
+  documentId: string,
+): Promise<AdminOcrRetryResponse> {
+  return apiRequest<AdminOcrRetryResponse>(
+    `/admin/documents/${encodeURIComponent(documentId)}/ocr-retry`,
+    {
+      method: "POST",
     },
   );
 }
