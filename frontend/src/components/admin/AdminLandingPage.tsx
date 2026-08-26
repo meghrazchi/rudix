@@ -17,6 +17,7 @@ type CardStatus =
 
 type CardKey =
   | "usageAnalytics"
+  | "usageAdoption"
   | "observabilityDashboard"
   | "serviceMonitoring"
   | "auditLogs"
@@ -332,6 +333,26 @@ export function AdminLandingPage() {
                   >
                     <path
                       d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
+                  </svg>
+                }
+              />
+              <LargeCard
+                cardKey="usageAdoption"
+                href="/admin/usage-adoption"
+                status="available"
+                icon={
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6-4a4 4 0 11-8 0 4 4 0 018 0z"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}

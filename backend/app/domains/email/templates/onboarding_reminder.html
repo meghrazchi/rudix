@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Finish setting up {{ org_name }}</h1>
+<p>Hi{{ " " + recipient_name if recipient_name else "" }},</p>
+<p>
+  You're part of <strong>{{ org_name }}</strong> on Rudix, but there are still
+  a few onboarding steps left — connecting a source, asking your first
+  question, or opening a citation — to get the most out of it.
+</p>
+<p>Pick up where you left off:</p>
+<a class="btn" href="{{ frontend_base_url }}">Continue Onboarding</a>
+<p style="font-size:13px; color:#6b778c;">
+  An admin sent you this reminder from the usage &amp; adoption dashboard.
+</p>
+{% endblock %}

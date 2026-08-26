@@ -4615,6 +4615,7 @@
     },
     "cards": {
       "usageAnalytics": "تحليلات الاستخدام",
+      "usageAdoption": "الاستخدام والتبني",
       "observabilityDashboard": "لوحة قابلية المراقبة",
       "serviceMonitoring": "مراقبة الخدمات",
       "auditLogs": "سجلات التدقيق",
@@ -6530,6 +6531,87 @@
       "tableWarnings": "تحذيرات استخراج الجداول",
       "tableWarningLine": "صفحة {page} — الثقة {confidence}%",
       "noIssues": "لا توجد تفاصيل أخطاء مسجلة لهذا المصدر."
+    },
+    "pagination": {
+      "summary": "الإجمالي {total} — صفحة {page} من {totalPages}"
+    }
+  },
+  "adminUsageAdoption": {
+    "header": {
+      "eyebrow": "إدارة Rudix",
+      "title": "الاستخدام والتبني",
+      "description": "تعرّف على كيفية تبني الفرق لـ Rudix — الاستخدام النشط، قمع التفعيل، وتفاعل كل مستخدم — وتصرّف حيث يتعثر الأشخاص."
+    },
+    "access": {
+      "restrictedTitle": "الوصول الإداري مقيّد",
+      "restrictedDescription": "يمكن لأدوار المالك والمسؤول فقط الوصول إلى لوحة الاستخدام والتبني."
+    },
+    "states": {
+      "loadingSummary": "جارٍ تحميل ملخص الاستخدام…",
+      "loadingCharts": "جارٍ تحميل الرسوم البيانية…",
+      "loadingUsers": "جارٍ تحميل المستخدمين…",
+      "empty": "لا يوجد مستخدمون يطابقون عوامل التصفية الحالية."
+    },
+    "metrics": {
+      "activeUsers": "المستخدمون النشطون",
+      "newUsers": "المستخدمون الجدد",
+      "returningUsers": "المستخدمون العائدون",
+      "questionsAsked": "الأسئلة المطروحة",
+      "documentsUploaded": "المستندات المرفوعة",
+      "collectionsUsed": "المجموعات المستخدَمة",
+      "connectorsUsed": "الموصلات المستخدَمة",
+      "citationClicks": "نقرات الاستشهادات",
+      "trustPanelOpens": "فتحات لوحة الثقة",
+      "feedbackSubmitted": "الملاحظات المُرسَلة",
+      "savedAnswers": "الإجابات المحفوظة",
+      "onboardingCompletionRate": "معدل إتمام التهيئة",
+      "invitationsSent": "الدعوات المُرسَلة",
+      "invitationsAccepted": "الدعوات المقبولة"
+    },
+    "charts": {
+      "activationFunnel": "قمع التفعيل",
+      "dropOffPoints": "أكبر نقاط التسرب",
+      "activeUsersTrend": "المستخدمون النشطون (آخر 30 يومًا)",
+      "questionsPerUser": "الأسئلة لكل مستخدم",
+      "featureUsage": "استخدام الميزات",
+      "roleAdoption": "التبني حسب الدور",
+      "empty": "لا توجد بيانات بعد."
+    },
+    "filters": {
+      "all": "الكل",
+      "from": "من",
+      "to": "إلى",
+      "role": "الدور"
+    },
+    "table": {
+      "user": "المستخدم",
+      "role": "الدور",
+      "lastActive": "آخر نشاط",
+      "questionsAsked": "الأسئلة المطروحة",
+      "sourcesUsed": "المصادر المستخدَمة",
+      "citationClicks": "نقرات الاستشهادات",
+      "feedback": "الملاحظات",
+      "savedAnswers": "الإجابات المحفوظة",
+      "onboarding": "التهيئة",
+      "actions": "الإجراءات"
+    },
+    "onboardingStatus": {
+      "not_started": "لم تبدأ",
+      "in_progress": "قيد التقدم",
+      "completed": "مكتملة"
+    },
+    "actions": {
+      "inviteUser": "دعوة مستخدم",
+      "export": "تصدير",
+      "refresh": "تحديث",
+      "refreshing": "جارٍ التحديث…",
+      "sendReminder": "إرسال تذكير",
+      "sendingReminder": "جارٍ الإرسال…",
+      "reminderSent": "تم إرسال التذكير",
+      "viewActivity": "عرض النشاط",
+      "viewTeamUsage": "عرض استخدام الفريق",
+      "previous": "السابق",
+      "next": "التالي"
     },
     "pagination": {
       "summary": "الإجمالي {total} — صفحة {page} من {totalPages}"

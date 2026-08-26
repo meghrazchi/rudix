@@ -4615,6 +4615,7 @@
     },
     "cards": {
       "usageAnalytics": "Nutzungsanalyse",
+      "usageAdoption": "Nutzung & Akzeptanz",
       "observabilityDashboard": "Observability-Dashboard",
       "serviceMonitoring": "Dienstüberwachung",
       "auditLogs": "Auditprotokolle",
@@ -6530,6 +6531,87 @@
       "tableWarnings": "Tabellenextraktions-Warnungen",
       "tableWarningLine": "Seite {page} — Konfidenz {confidence}%",
       "noIssues": "Für diese Quelle sind keine Fehlerdetails erfasst."
+    },
+    "pagination": {
+      "summary": "{total} insgesamt — Seite {page} von {totalPages}"
+    }
+  },
+  "adminUsageAdoption": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Nutzung & Akzeptanz",
+      "description": "Sehen Sie, wie Teams Rudix nutzen – aktive Nutzung, der Aktivierungs-Funnel und die Interaktion einzelner Nutzer – und handeln Sie dort, wo Menschen ins Stocken geraten."
+    },
+    "access": {
+      "restrictedTitle": "Admin-Zugriff eingeschränkt",
+      "restrictedDescription": "Nur die Rollen Owner und Admin haben Zugriff auf das Dashboard „Nutzung & Akzeptanz“."
+    },
+    "states": {
+      "loadingSummary": "Nutzungsübersicht wird geladen…",
+      "loadingCharts": "Diagramme werden geladen…",
+      "loadingUsers": "Nutzer werden geladen…",
+      "empty": "Keine Nutzer entsprechen den aktuellen Filtern."
+    },
+    "metrics": {
+      "activeUsers": "Aktive Nutzer",
+      "newUsers": "Neue Nutzer",
+      "returningUsers": "Wiederkehrende Nutzer",
+      "questionsAsked": "Gestellte Fragen",
+      "documentsUploaded": "Hochgeladene Dokumente",
+      "collectionsUsed": "Genutzte Sammlungen",
+      "connectorsUsed": "Genutzte Connectoren",
+      "citationClicks": "Zitat-Klicks",
+      "trustPanelOpens": "Trust-Panel geöffnet",
+      "feedbackSubmitted": "Abgegebenes Feedback",
+      "savedAnswers": "Gespeicherte Antworten",
+      "onboardingCompletionRate": "Onboarding-Abschlussquote",
+      "invitationsSent": "Gesendete Einladungen",
+      "invitationsAccepted": "Angenommene Einladungen"
+    },
+    "charts": {
+      "activationFunnel": "Aktivierungs-Funnel",
+      "dropOffPoints": "Größte Abbruchpunkte",
+      "activeUsersTrend": "Aktive Nutzer (letzte 30 Tage)",
+      "questionsPerUser": "Fragen pro Nutzer",
+      "featureUsage": "Feature-Nutzung",
+      "roleAdoption": "Akzeptanz nach Rolle",
+      "empty": "Noch keine Daten."
+    },
+    "filters": {
+      "all": "Alle",
+      "from": "Von",
+      "to": "Bis",
+      "role": "Rolle"
+    },
+    "table": {
+      "user": "Nutzer",
+      "role": "Rolle",
+      "lastActive": "Zuletzt aktiv",
+      "questionsAsked": "Gestellte Fragen",
+      "sourcesUsed": "Genutzte Quellen",
+      "citationClicks": "Zitat-Klicks",
+      "feedback": "Feedback",
+      "savedAnswers": "Gespeicherte Antworten",
+      "onboarding": "Onboarding",
+      "actions": "Aktionen"
+    },
+    "onboardingStatus": {
+      "not_started": "Nicht begonnen",
+      "in_progress": "In Bearbeitung",
+      "completed": "Abgeschlossen"
+    },
+    "actions": {
+      "inviteUser": "Nutzer einladen",
+      "export": "Exportieren",
+      "refresh": "Aktualisieren",
+      "refreshing": "Wird aktualisiert…",
+      "sendReminder": "Erinnerung senden",
+      "sendingReminder": "Wird gesendet…",
+      "reminderSent": "Erinnerung gesendet",
+      "viewActivity": "Aktivität anzeigen",
+      "viewTeamUsage": "Team-Nutzung anzeigen",
+      "previous": "Zurück",
+      "next": "Weiter"
     },
     "pagination": {
       "summary": "{total} insgesamt — Seite {page} von {totalPages}"

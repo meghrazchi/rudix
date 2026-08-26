@@ -190,6 +190,12 @@ export const queryKeys = {
       ["admin", "source-health", "sources", params ?? {}] as const,
     sourceHealthError: (sourceType: string, sourceId: string) =>
       ["admin", "source-health", "error", sourceType, sourceId] as const,
+    usageAdoptionSummary: (params?: Record<string, unknown>) =>
+      ["admin", "usage-adoption", "summary", params ?? {}] as const,
+    usageAdoptionCharts: (params?: Record<string, unknown>) =>
+      ["admin", "usage-adoption", "charts", params ?? {}] as const,
+    usageAdoptionUsers: (params?: Record<string, unknown>) =>
+      ["admin", "usage-adoption", "users", params ?? {}] as const,
     providerObservability: (params?: Record<string, unknown>) =>
       ["admin", "provider-observability", params ?? {}] as const,
     governance: ["admin", "governance"] as const,

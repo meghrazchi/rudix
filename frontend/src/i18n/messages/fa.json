@@ -4740,6 +4740,7 @@
     },
     "cards": {
       "usageAnalytics": "تحلیل استفاده",
+      "usageAdoption": "استفاده و پذیرش",
       "observabilityDashboard": "داشبورد مشاهده‌پذیری",
       "serviceMonitoring": "پایش سرویس‌ها",
       "auditLogs": "گزارش‌های ممیزی",
@@ -6655,6 +6656,87 @@
       "tableWarnings": "هشدارهای استخراج جدول",
       "tableWarningLine": "صفحه {page} — اطمینان {confidence}٪",
       "noIssues": "هیچ جزئیات خطایی برای این منبع ثبت نشده است."
+    },
+    "pagination": {
+      "summary": "مجموع {total} — صفحه {page} از {totalPages}"
+    }
+  },
+  "adminUsageAdoption": {
+    "header": {
+      "eyebrow": "مدیریت Rudix",
+      "title": "استفاده و پذیرش",
+      "description": "ببینید تیم‌ها چگونه Rudix را می‌پذیرند — استفاده فعال، قیف فعال‌سازی و تعامل هر کاربر — و در جایی که افراد متوقف می‌شوند اقدام کنید."
+    },
+    "access": {
+      "restrictedTitle": "دسترسی مدیریتی محدود شده",
+      "restrictedDescription": "فقط نقش‌های مالک و مدیر می‌توانند به داشبورد استفاده و پذیرش دسترسی داشته باشند."
+    },
+    "states": {
+      "loadingSummary": "در حال بارگذاری خلاصه استفاده…",
+      "loadingCharts": "در حال بارگذاری نمودارها…",
+      "loadingUsers": "در حال بارگذاری کاربران…",
+      "empty": "هیچ کاربری با فیلترهای فعلی مطابقت ندارد."
+    },
+    "metrics": {
+      "activeUsers": "کاربران فعال",
+      "newUsers": "کاربران جدید",
+      "returningUsers": "کاربران بازگشتی",
+      "questionsAsked": "سؤالات پرسیده‌شده",
+      "documentsUploaded": "اسناد بارگذاری‌شده",
+      "collectionsUsed": "مجموعه‌های استفاده‌شده",
+      "connectorsUsed": "اتصال‌دهنده‌های استفاده‌شده",
+      "citationClicks": "کلیک روی استنادها",
+      "trustPanelOpens": "بازکردن پنل اعتماد",
+      "feedbackSubmitted": "بازخوردهای ارسال‌شده",
+      "savedAnswers": "پاسخ‌های ذخیره‌شده",
+      "onboardingCompletionRate": "نرخ تکمیل ورود",
+      "invitationsSent": "دعوت‌های ارسال‌شده",
+      "invitationsAccepted": "دعوت‌های پذیرفته‌شده"
+    },
+    "charts": {
+      "activationFunnel": "قیف فعال‌سازی",
+      "dropOffPoints": "بزرگ‌ترین نقاط ریزش",
+      "activeUsersTrend": "کاربران فعال (۳۰ روز گذشته)",
+      "questionsPerUser": "سؤالات به ازای هر کاربر",
+      "featureUsage": "استفاده از ویژگی‌ها",
+      "roleAdoption": "پذیرش بر اساس نقش",
+      "empty": "هنوز داده‌ای وجود ندارد."
+    },
+    "filters": {
+      "all": "همه",
+      "from": "از",
+      "to": "تا",
+      "role": "نقش"
+    },
+    "table": {
+      "user": "کاربر",
+      "role": "نقش",
+      "lastActive": "آخرین فعالیت",
+      "questionsAsked": "سؤالات پرسیده‌شده",
+      "sourcesUsed": "منابع استفاده‌شده",
+      "citationClicks": "کلیک روی استنادها",
+      "feedback": "بازخورد",
+      "savedAnswers": "پاسخ‌های ذخیره‌شده",
+      "onboarding": "ورود",
+      "actions": "اقدامات"
+    },
+    "onboardingStatus": {
+      "not_started": "شروع‌نشده",
+      "in_progress": "در حال انجام",
+      "completed": "تکمیل‌شده"
+    },
+    "actions": {
+      "inviteUser": "دعوت کاربر",
+      "export": "خروجی",
+      "refresh": "بازخوانی",
+      "refreshing": "در حال بازخوانی…",
+      "sendReminder": "ارسال یادآوری",
+      "sendingReminder": "در حال ارسال…",
+      "reminderSent": "یادآوری ارسال شد",
+      "viewActivity": "مشاهده فعالیت",
+      "viewTeamUsage": "مشاهده استفاده تیم",
+      "previous": "قبلی",
+      "next": "بعدی"
     },
     "pagination": {
       "summary": "مجموع {total} — صفحه {page} از {totalPages}"

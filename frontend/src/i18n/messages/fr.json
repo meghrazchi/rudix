@@ -4615,6 +4615,7 @@
     },
     "cards": {
       "usageAnalytics": "Analyse de l’utilisation",
+      "usageAdoption": "Utilisation et adoption",
       "observabilityDashboard": "Tableau d’observabilité",
       "serviceMonitoring": "Surveillance des services",
       "auditLogs": "Journaux d’audit",
@@ -6530,6 +6531,87 @@
       "tableWarnings": "Avertissements d'extraction de tableaux",
       "tableWarningLine": "Page {page} — confiance {confidence}%",
       "noIssues": "Aucun détail d'erreur enregistré pour cette source."
+    },
+    "pagination": {
+      "summary": "{total} au total — page {page} sur {totalPages}"
+    }
+  },
+  "adminUsageAdoption": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Utilisation et adoption",
+      "description": "Découvrez comment les équipes adoptent Rudix – utilisation active, entonnoir d'activation et engagement par utilisateur – et agissez là où les utilisateurs bloquent."
+    },
+    "access": {
+      "restrictedTitle": "Accès administrateur restreint",
+      "restrictedDescription": "Seuls les rôles propriétaire et administrateur peuvent accéder au tableau de bord d'utilisation et d'adoption."
+    },
+    "states": {
+      "loadingSummary": "Chargement du résumé d'utilisation…",
+      "loadingCharts": "Chargement des graphiques…",
+      "loadingUsers": "Chargement des utilisateurs…",
+      "empty": "Aucun utilisateur ne correspond aux filtres actuels."
+    },
+    "metrics": {
+      "activeUsers": "Utilisateurs actifs",
+      "newUsers": "Nouveaux utilisateurs",
+      "returningUsers": "Utilisateurs récurrents",
+      "questionsAsked": "Questions posées",
+      "documentsUploaded": "Documents téléversés",
+      "collectionsUsed": "Collections utilisées",
+      "connectorsUsed": "Connecteurs utilisés",
+      "citationClicks": "Clics sur les citations",
+      "trustPanelOpens": "Ouvertures du panneau de confiance",
+      "feedbackSubmitted": "Retours envoyés",
+      "savedAnswers": "Réponses enregistrées",
+      "onboardingCompletionRate": "Taux d'achèvement de l'intégration",
+      "invitationsSent": "Invitations envoyées",
+      "invitationsAccepted": "Invitations acceptées"
+    },
+    "charts": {
+      "activationFunnel": "Entonnoir d'activation",
+      "dropOffPoints": "Principaux points d'abandon",
+      "activeUsersTrend": "Utilisateurs actifs (30 derniers jours)",
+      "questionsPerUser": "Questions par utilisateur",
+      "featureUsage": "Utilisation des fonctionnalités",
+      "roleAdoption": "Adoption par rôle",
+      "empty": "Pas encore de données."
+    },
+    "filters": {
+      "all": "Tous",
+      "from": "Du",
+      "to": "Au",
+      "role": "Rôle"
+    },
+    "table": {
+      "user": "Utilisateur",
+      "role": "Rôle",
+      "lastActive": "Dernière activité",
+      "questionsAsked": "Questions posées",
+      "sourcesUsed": "Sources utilisées",
+      "citationClicks": "Clics sur les citations",
+      "feedback": "Retours",
+      "savedAnswers": "Réponses enregistrées",
+      "onboarding": "Intégration",
+      "actions": "Actions"
+    },
+    "onboardingStatus": {
+      "not_started": "Non commencé",
+      "in_progress": "En cours",
+      "completed": "Terminé"
+    },
+    "actions": {
+      "inviteUser": "Inviter un utilisateur",
+      "export": "Exporter",
+      "refresh": "Actualiser",
+      "refreshing": "Actualisation…",
+      "sendReminder": "Envoyer un rappel",
+      "sendingReminder": "Envoi…",
+      "reminderSent": "Rappel envoyé",
+      "viewActivity": "Voir l'activité",
+      "viewTeamUsage": "Voir l'utilisation de l'équipe",
+      "previous": "Précédent",
+      "next": "Suivant"
     },
     "pagination": {
       "summary": "{total} au total — page {page} sur {totalPages}"

@@ -43,10 +43,12 @@ describe("AdminLandingPage", () => {
     render(<AdminLandingPage />);
 
     expect(screen.getByText(/Admin [Ll]anding/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open Usage/i })).toHaveAttribute(
-      "href",
-      "/admin/usage",
-    );
+    expect(
+      screen.getByRole("link", { name: "Open Usage Analytics" }),
+    ).toHaveAttribute("href", "/admin/usage");
+    expect(
+      screen.getByRole("link", { name: "Open Usage & Adoption" }),
+    ).toHaveAttribute("href", "/admin/usage-adoption");
     expect(
       screen.getByRole("link", { name: /Open Audit Logs/i }),
     ).toHaveAttribute("href", "/admin/audit-logs");

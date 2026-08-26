@@ -367,6 +367,7 @@ class EmailEventType(StrEnum):
     billing_warning = "billing_warning"
     quota_warning = "quota_warning"
     security_alert = "security_alert"
+    onboarding_reminder = "onboarding_reminder"
 
 
 class EmailDeliveryStatus(StrEnum):

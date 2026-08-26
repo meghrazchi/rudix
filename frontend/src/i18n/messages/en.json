@@ -4615,6 +4615,7 @@
     },
     "cards": {
       "usageAnalytics": "Usage Analytics",
+      "usageAdoption": "Usage & Adoption",
       "observabilityDashboard": "Observability Dashboard",
       "serviceMonitoring": "Service Monitoring",
       "auditLogs": "Audit Logs",
@@ -6530,6 +6531,87 @@
       "tableWarnings": "Table extraction warnings",
       "tableWarningLine": "Page {page} — confidence {confidence}%",
       "noIssues": "No error details recorded for this source."
+    },
+    "pagination": {
+      "summary": "{total} total — page {page} of {totalPages}"
+    }
+  },
+  "adminUsageAdoption": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Usage & adoption",
+      "description": "See how teams are adopting Rudix — active usage, the activation funnel, and per-user engagement — and act on where people get stuck."
+    },
+    "access": {
+      "restrictedTitle": "Admin access restricted",
+      "restrictedDescription": "Only owner and admin roles can access the usage & adoption dashboard."
+    },
+    "states": {
+      "loadingSummary": "Loading usage summary…",
+      "loadingCharts": "Loading charts…",
+      "loadingUsers": "Loading users…",
+      "empty": "No users match the current filters."
+    },
+    "metrics": {
+      "activeUsers": "Active users",
+      "newUsers": "New users",
+      "returningUsers": "Returning users",
+      "questionsAsked": "Questions asked",
+      "documentsUploaded": "Documents uploaded",
+      "collectionsUsed": "Collections used",
+      "connectorsUsed": "Connectors used",
+      "citationClicks": "Citation clicks",
+      "trustPanelOpens": "Trust panel opens",
+      "feedbackSubmitted": "Feedback submitted",
+      "savedAnswers": "Saved answers",
+      "onboardingCompletionRate": "Onboarding completion",
+      "invitationsSent": "Invitations sent",
+      "invitationsAccepted": "Invitations accepted"
+    },
+    "charts": {
+      "activationFunnel": "Activation funnel",
+      "dropOffPoints": "Biggest drop-off points",
+      "activeUsersTrend": "Active users (last 30 days)",
+      "questionsPerUser": "Questions per user",
+      "featureUsage": "Feature usage",
+      "roleAdoption": "Adoption by role",
+      "empty": "No data yet."
+    },
+    "filters": {
+      "all": "All",
+      "from": "From",
+      "to": "To",
+      "role": "Role"
+    },
+    "table": {
+      "user": "User",
+      "role": "Role",
+      "lastActive": "Last active",
+      "questionsAsked": "Questions asked",
+      "sourcesUsed": "Sources used",
+      "citationClicks": "Citation clicks",
+      "feedback": "Feedback",
+      "savedAnswers": "Saved answers",
+      "onboarding": "Onboarding",
+      "actions": "Actions"
+    },
+    "onboardingStatus": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "completed": "Completed"
+    },
+    "actions": {
+      "inviteUser": "Invite user",
+      "export": "Export",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "sendReminder": "Send reminder",
+      "sendingReminder": "Sending…",
+      "reminderSent": "Reminder sent",
+      "viewActivity": "View activity",
+      "viewTeamUsage": "View team usage",
+      "previous": "Prev",
+      "next": "Next"
     },
     "pagination": {
       "summary": "{total} total — page {page} of {totalPages}"
