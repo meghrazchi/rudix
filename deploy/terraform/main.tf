@@ -1,6 +1,14 @@
 locals {
   compose_filename   = "docker-compose.${var.environment_name}.yml"
-  infra_services     = "postgres rabbitmq redis minio qdrant minio-init"
+  # minio-init is deliberately excluded: it's a one-shot container (mc bucket
+  # setup) that exits 0 on success, but `docker compose up --wait` treats any
+  # explicitly-targeted service transitioning to "exited" as a wait failure,
+  # regardless of exit code (observed directly in a staging deploy run). It
+  # still runs correctly on its own: api/worker declare
+  # `depends_on: minio-init: condition: service_completed_successfully`,
+  # which Compose enforces via normal dependency resolution (unrelated to
+  # `--wait`) the moment the migration step below starts the api container.
+  infra_services     = "postgres rabbitmq redis minio qdrant"
   backup_check_cmd   = var.backup_check_enabled ? "test -f '${var.postgres_backup_path}' && test -f '${var.minio_backup_path}' && test -f '${var.qdrant_backup_path}'" : "echo 'Backup checks disabled for this environment.'"
   deploy_env_content = <<-EOT
 ${var.env_file_content}
