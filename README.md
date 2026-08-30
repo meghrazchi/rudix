@@ -1,10 +1,69 @@
 # Rudix
 
-Rudix is a full-stack **AI Document Q&A Assistant** built with Retrieval-Augmented Generation, also known as RAG. It allows users to upload documents, process them into searchable knowledge, and ask natural-language questions against those documents.
+**Self-hostable Retrieval-Augmented Generation (RAG) platform for AI document Q&A, enterprise knowledge search, and internal AI assistants.**
 
-The goal of Rudix is to provide reliable, source-grounded answers from uploaded files. Instead of generating responses from general model knowledge alone, Rudix retrieves relevant document chunks, sends them to an LLM, and returns answers with supporting context, citations, confidence signals, and usage metrics.
+Upload PDFs, Word documents, and text files, index them into searchable knowledge, and ask natural-language questions — Rudix answers with source-grounded citations, confidence scores, and full audit trails instead of guessing from general model knowledge. Built with **FastAPI** and **Next.js**, backed by **Qdrant** vector search, and works with **OpenAI** or fully local/offline LLMs (**Ollama**, **vLLM**, **LiteLLM**).
 
-This repository contains the backend API, frontend application, background workers, infrastructure setup, and documentation needed to understand, run, and extend the system.
+[![CI](https://github.com/meghrazchi/rudix/actions/workflows/ci.yml/badge.svg)](https://github.com/meghrazchi/rudix/actions/workflows/ci.yml)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE.md)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](backend)
+[![Next.js](https://img.shields.io/badge/frontend-Next.js-black?logo=next.js&logoColor=white)](frontend)
+[![Docker Compose](https://img.shields.io/badge/local%20dev-Docker%20Compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![Website](https://img.shields.io/badge/website-getrudix.com-4B32C3)](https://getrudix.com)
+
+If you're evaluating a **RAG framework**, an **open-source ChatGPT-for-your-documents** tool, or a **self-hosted enterprise search / knowledge assistant**, this repository contains everything needed to run, understand, and extend Rudix: the backend API, frontend application, background workers, infrastructure setup, and documentation.
+
+---
+
+## Table of Contents
+
+- [Why Rudix](#why-rudix)
+- [Business Use Cases](#business-use-cases)
+- [What Rudix Does](#what-rudix-does)
+- [Main Features](#main-features)
+- [RAG Pipeline Explorer UI](#rag-pipeline-explorer-ui-rag-pipeline)
+- [Tech Stack](#tech-stack)
+- [Repository Structure](#repository-structure)
+- [Getting Started](#getting-started)
+- [Useful Commands](#useful-commands)
+- [Local Service URLs](#local-service-urls)
+- [Deployment and CI/CD](#deployment-and-cicd)
+- [Local Model Support](#local-model-support)
+- [Agentic Mode Notes](#agentic-mode-notes)
+- [Documentation](#documentation)
+- [Security Notes](#security-notes)
+- [FAQ](#faq)
+- [Project Status](#project-status)
+- [Contributing](#contributing)
+- [License](#license)
+- [Maintainers](#maintainers)
+
+---
+
+## Why Rudix
+
+- ✅ **Grounded, cited answers** — every response traces back to the exact document and passage it came from, with confidence scoring to cut down on hallucinations.
+- 🔐 **Self-hostable and organization-scoped** — run it on your own infrastructure with per-organization data isolation, roles, and permission-aware access control.
+- 🧠 **Bring your own model** — OpenAI-compatible out of the box, with first-class support for fully local/offline inference via Ollama, vLLM, or LiteLLM (no cloud dependency required).
+- 📊 **Built-in trust and observability** — confidence calibration, source-conflict detection, audit logs, and usage/cost analytics, not bolted on after the fact.
+- 💬 **Meets people where they work** — native Slack and Microsoft Teams bot interfaces alongside the web app.
+
+---
+
+## Business Use Cases
+
+- 🏢 **Internal knowledge assistant**: Answer employee questions from SOPs, policies, handbooks, and team playbooks.
+- 🎧 **Support agent copilot**: Help support teams resolve tickets faster using product docs, runbooks, and release notes.
+- 🛡️ **Compliance and audit evidence lookup**: Retrieve cited answers from controlled documents with audit-ready traces.
+- ⚖️ **Legal and contract Q&A**: Search contracts and legal guidance to find clauses, obligations, and deadlines quickly.
+- 👥 **HR policy assistant**: Provide grounded responses for onboarding, leave, benefits, and internal process questions.
+- 🔧 **Operations and incident runbooks**: Assist DevOps/SRE with fast retrieval of troubleshooting and incident procedures.
+- 📈 **Sales enablement search**: Query battle cards, case studies, pricing collateral, and proposal templates.
+- 📑 **Procurement and vendor review**: Compare RFPs, vendor responses, and security/compliance questionnaires.
+- 🔬 **Research and analyst workspace**: Explore reports and technical docs with citations and confidence indicators.
+- 🧩 **Multi-tenant knowledge portals**: Offer organization-isolated document Q&A with role-based access control.
+- 📊 **AI operations visibility**: Monitor ingestion, indexing, failures, latency, confidence, and usage/cost trends.
+- 📈 **Privacy-aware product analytics**: Optional Matomo tracking plus admin-safe activation and feature-usage summaries.
 
 ---
 
@@ -88,28 +147,9 @@ Supported document types include:
 
 ---
 
-## Business Use Cases
+## RAG Pipeline Explorer UI (`/rag-pipeline`)
 
-- 🏢 **Internal knowledge assistant**: Answer employee questions from SOPs, policies, handbooks, and team playbooks.
-- 🎧 **Support agent copilot**: Help support teams resolve tickets faster using product docs, runbooks, and release notes.
-- 🛡️ **Compliance and audit evidence lookup**: Retrieve cited answers from controlled documents with audit-ready traces.
-- ⚖️ **Legal and contract Q&A**: Search contracts and legal guidance to find clauses, obligations, and deadlines quickly.
-- 👥 **HR policy assistant**: Provide grounded responses for onboarding, leave, benefits, and internal process questions.
-- 🔧 **Operations and incident runbooks**: Assist DevOps/SRE with fast retrieval of troubleshooting and incident procedures.
-- 📈 **Sales enablement search**: Query battle cards, case studies, pricing collateral, and proposal templates.
-- 📑 **Procurement and vendor review**: Compare RFPs, vendor responses, and security/compliance questionnaires.
-- 🔬 **Research and analyst workspace**: Explore reports and technical docs with citations and confidence indicators.
-- 🧩 **Multi-tenant knowledge portals**: Offer organization-isolated document Q&A with role-based access control.
-- 📊 **AI operations visibility**: Monitor ingestion, indexing, failures, latency, confidence, and usage/cost trends.
-- 📈 **Privacy-aware product analytics**: Optional Matomo tracking plus admin-safe activation and feature-usage summaries.
-
----
-
-## Frontend Example Page
-
-### Pipeline Explorer (`/rag-pipeline`)
-
-![Rudix Pipeline Explorer](docs/screenshots/pipeline_explorer.png)
+![Rudix Pipeline Explorer screenshot showing RAG document ingestion and query stage diagnostics](docs/screenshots/pipeline_explorer.png)
 
 The Pipeline Explorer page gives users a live view of the RAG execution flow and node-level diagnostics:
 
@@ -188,7 +228,7 @@ This page is designed for debugging pipeline behavior, validating processing pro
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/meghrazchi/rudix.git
 cd rudix
 ```
 
@@ -419,6 +459,31 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) and [`docs/11_SECURITY_AND_PRODUCTION
 
 ---
 
+## FAQ
+
+**What is Rudix?**
+Rudix is a self-hostable Retrieval-Augmented Generation (RAG) platform for document Q&A. You upload PDFs, Word documents, and text files, and Rudix answers natural-language questions about them with source citations and confidence scores.
+
+**Is Rudix open source?**
+Yes. The source code is public under the [PolyForm Noncommercial License 1.0.0](#license) — free to use, modify, and self-host for noncommercial purposes. Commercial use requires a separate license.
+
+**Can Rudix run fully offline / without OpenAI?**
+Yes. Rudix supports fully local, offline inference through any OpenAI-compatible server — Ollama, vLLM, or LiteLLM — for both generation and embeddings, with no cloud dependency required. See [Local Model Support](#local-model-support).
+
+**How is Rudix different from LangChain or LlamaIndex?**
+LangChain and LlamaIndex are libraries/frameworks you build an application on top of. Rudix is a complete, deployable application — backend API, frontend UI, background workers, auth, and infrastructure included — ready to run with `docker compose up`.
+
+**Does Rudix support multi-tenant / multi-organization deployments?**
+Yes. Rudix is organization-scoped by design, with per-organization data isolation, role-based access control, and permission-aware document retrieval.
+
+**What document types does Rudix support?**
+PDF, DOCX, and TXT out of the box, with OCR and multilingual document handling. See [What Rudix Does](#what-rudix-does).
+
+**Can I use Rudix from Slack or Microsoft Teams?**
+Yes. Rudix includes native Slack and Microsoft Teams bot interfaces with mapped-user permissions, in addition to the web app.
+
+---
+
 ## Project Status
 
 Rudix currently includes a production-oriented architecture, backend scaffold, frontend application setup, Docker Compose infrastructure, worker setup, and detailed implementation documentation.
@@ -450,6 +515,8 @@ For contribution guidelines, see:
 
 - [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)
 - [`docs/CODE_OF_CONDUCT.md`](docs/CODE_OF_CONDUCT.md)
+
+If Rudix is useful to you, consider starring the repository — it helps others discover the project.
 
 ---
 
