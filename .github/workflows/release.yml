@@ -75,6 +75,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -108,7 +113,7 @@ jobs:
             )
           fi
           docker buildx build \
-            --platform linux/amd64 \
+            --platform linux/amd64,linux/arm64 \
             --push \
             "${tags[@]}" \
             -f backend/Dockerfile \
@@ -136,7 +141,7 @@ jobs:
             staging_tags+=(--tag "${IMAGE_BASE}/frontend-staging:${GITHUB_REF_NAME}")
           fi
           docker buildx build \
-            --platform linux/amd64 \
+            --platform linux/amd64,linux/arm64 \
             --push \
             "${staging_tags[@]}" \
             -f frontend/Dockerfile \
@@ -162,7 +167,7 @@ jobs:
             prod_tags+=(--tag "${IMAGE_BASE}/frontend-production:${GITHUB_REF_NAME}")
           fi
           docker buildx build \
-            --platform linux/amd64 \
+            --platform linux/amd64,linux/arm64 \
             --push \
             "${prod_tags[@]}" \
             -f frontend/Dockerfile \
