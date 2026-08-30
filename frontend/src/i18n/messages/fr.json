@@ -4639,6 +4639,7 @@
       "rolesPermissions": "Rôles et autorisations",
       "accessManagement": "Gestion des accès",
       "accessDebugger": "Diagnostic des accès",
+      "permissionsAccessReport": "Rapport des autorisations et accès",
       "ssoSaml": "SSO / SAML",
       "scimProvisioning": "Provisionnement SCIM"
     }
@@ -6536,6 +6537,92 @@
       "summary": "{total} au total — page {page} sur {totalPages}"
     }
   },
+  "adminPermissionsAccess": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Autorisations et accès",
+      "description": "Découvrez qui peut accéder à quelles ressources, repérez les utilisateurs trop privilégiés et résolvez les conflits d'accès sur les fichiers, collections, connecteurs, citations et preuves de graphe."
+    },
+    "access": {
+      "restrictedTitle": "Accès administrateur restreint",
+      "restrictedDescription": "Seuls les utilisateurs ayant accès au centre de sécurité peuvent consulter le rapport des autorisations et accès."
+    },
+    "states": {
+      "loadingSummary": "Chargement du résumé…",
+      "loadingCharts": "Chargement des graphiques…",
+      "loadingRows": "Chargement des lignes d'accès…",
+      "empty": "Aucune ligne d'accès ne correspond aux filtres actuels."
+    },
+    "metrics": {
+      "totalUsers": "Utilisateurs au total",
+      "adminUsers": "Utilisateurs admin",
+      "externalUsers": "Utilisateurs externes",
+      "externalUsersHeuristic": "Utilisateurs externes (estimation)",
+      "broadAccessUsers": "Utilisateurs à accès étendu",
+      "permissionConflicts": "Conflits d'autorisation",
+      "orphanedGrants": "Autorisations orphelines",
+      "expiredGrants": "Autorisations expirées",
+      "connectorAclMismatches": "Incohérences d'ACL de connecteur",
+      "resourcesWithoutOwner": "Ressources sans propriétaire",
+      "unauthorizedAttempts": "Tentatives d'accès non autorisées"
+    },
+    "charts": {
+      "usersByRole": "Utilisateurs par rôle",
+      "accessDistribution": "Répartition des accès",
+      "conflictsByResourceType": "Conflits par type de ressource",
+      "broadAccessUsers": "Utilisateurs à accès étendu",
+      "failedAccessAttempts": "Tentatives d'accès échouées",
+      "empty": "Pas encore de données."
+    },
+    "accessSource": {
+      "explicit_grant": "Autorisation explicite",
+      "explicit_deny": "Refus explicite",
+      "connector_acl": "ACL du connecteur",
+      "conflict": "Conflit",
+      "inherited_org_wide": "Hérité (organisation entière)",
+      "inherited_restricted": "Hérité (restreint)"
+    },
+    "filters": {
+      "all": "Tous",
+      "role": "Rôle",
+      "accessSource": "Source d'accès",
+      "resourceType": "Type de ressource",
+      "resourceTypePlaceholder": "ex. document",
+      "conflictStatus": "Statut du conflit",
+      "search": "Rechercher",
+      "searchPlaceholder": "Rechercher par utilisateur, e-mail ou ressource"
+    },
+    "table": {
+      "user": "Utilisateur",
+      "role": "Rôle",
+      "team": "Équipe",
+      "resource": "Ressource",
+      "accessLevel": "Niveau d'accès",
+      "accessSource": "Source d'accès",
+      "conflictStatus": "Statut du conflit",
+      "lastAccess": "Dernier accès",
+      "actions": "Actions",
+      "unknownUser": "Utilisateur inconnu"
+    },
+    "actions": {
+      "manageConflicts": "Gérer les conflits",
+      "export": "Exporter",
+      "refresh": "Actualiser",
+      "refreshing": "Actualisation…",
+      "openDebugger": "Ouvrir le diagnostic des accès",
+      "reviewUser": "Vérifier les autorisations de l'utilisateur",
+      "reviewResource": "Vérifier les autorisations de la ressource",
+      "removeBroadAccess": "Supprimer l'accès étendu",
+      "removing": "Suppression…",
+      "fixConflict": "Résoudre le conflit",
+      "fixing": "Résolution…",
+      "previous": "Préc.",
+      "next": "Suiv."
+    },
+    "pagination": {
+      "summary": "{total} au total — page {page} sur {totalPages}"
+    }
+  },
   "adminUsageAdoption": {
     "header": {
       "eyebrow": "Rudix Admin",
@@ -7246,6 +7333,7 @@
         "actionImpact": "Rétablir un accès sécurisé aux sources",
         "actionRelated": "Autorisations d’administration",
         "reviewConflicts": "Examiner les conflits",
+        "viewAccessReport": "Voir le rapport d'accès complet",
         "tableCaption": "Conflits d’autorisation",
         "conflict": "Conflit",
         "resource": "Ressource",

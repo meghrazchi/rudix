@@ -26,6 +26,7 @@ from app.interfaces.http import (
     admin_onboarding,
     admin_org_memory,
     admin_permissions,
+    admin_permissions_access,
     admin_portability,
     admin_roles,
     admin_scim,
@@ -152,6 +153,7 @@ protected_router.include_router(admin_feature_flags.router)
 protected_router.include_router(admin_chunking_profiles.router)
 protected_router.include_router(admin_roles.router)
 protected_router.include_router(admin_permissions.router)
+protected_router.include_router(admin_permissions_access.router)
 protected_router.include_router(admin_portability.router)
 protected_router.include_router(admin_conflicts.router)
 protected_router.include_router(admin_access_debugger.router)

@@ -196,6 +196,12 @@ export const queryKeys = {
       ["admin", "usage-adoption", "charts", params ?? {}] as const,
     usageAdoptionUsers: (params?: Record<string, unknown>) =>
       ["admin", "usage-adoption", "users", params ?? {}] as const,
+    permissionsAccessSummary: (params?: Record<string, unknown>) =>
+      ["admin", "permissions-access", "summary", params ?? {}] as const,
+    permissionsAccessCharts: (params?: Record<string, unknown>) =>
+      ["admin", "permissions-access", "charts", params ?? {}] as const,
+    permissionsAccessRows: (params?: Record<string, unknown>) =>
+      ["admin", "permissions-access", "rows", params ?? {}] as const,
     providerObservability: (params?: Record<string, unknown>) =>
       ["admin", "provider-observability", params ?? {}] as const,
     governance: ["admin", "governance"] as const,

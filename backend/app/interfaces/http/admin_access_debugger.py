@@ -339,13 +339,27 @@ async def search_org_users(
 
     search = q.strip()
     if search:
+        try:
+            search_uuid = UUID(search)
+        except ValueError:
+            search_uuid = None
+
         pattern = f"%{search}%"
-        base_stmt = base_stmt.where(
-            or_(
-                User.email.ilike(pattern),
-                User.display_name.ilike(pattern),
+        if search_uuid is not None:
+            base_stmt = base_stmt.where(
+                or_(
+                    User.id == search_uuid,
+                    User.email.ilike(pattern),
+                    User.display_name.ilike(pattern),
+                )
             )
-        )
+        else:
+            base_stmt = base_stmt.where(
+                or_(
+                    User.email.ilike(pattern),
+                    User.display_name.ilike(pattern),
+                )
+            )
 
     result = await db.execute(base_stmt.limit(limit))
     rows = result.all()

@@ -347,10 +347,16 @@ export function PermissionsAccessDashboard() {
           impact={p("actionImpact")}
           related={p("actionRelated")}
           action={
-            <ReportLink
-              href="/admin/permissions"
-              label={p("reviewConflicts")}
-            />
+            <div className="flex flex-wrap gap-3">
+              <ReportLink
+                href="/admin/permissions"
+                label={p("reviewConflicts")}
+              />
+              <ReportLink
+                href="/admin/permissions-access"
+                label={p("viewAccessReport")}
+              />
+            </div>
           }
         />
       </div>

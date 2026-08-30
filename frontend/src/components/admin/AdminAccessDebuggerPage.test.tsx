@@ -33,6 +33,25 @@ vi.mock("@/lib/api/access-debugger", () => ({
   simulateAccess: (...args: unknown[]) => mockApi.simulateAccess(...args),
 }));
 
+// F354: report rows deep-link into this page via ?user=&resource_type=&resource=
+// &action=. Override the global next/navigation stub (which always returns
+// null) with a mutable URLSearchParams so individual tests can set the URL's
+// initial query state before rendering.
+let mockSearchParams = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockSearchParams,
+  usePathname: () => "/admin/access-debugger",
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
+
 // ── fixtures ───────────────────────────────────────────────────────────────────
 
 const USERS_RESPONSE: OrgMemberListResponse = {
@@ -132,6 +151,7 @@ describe("AdminAccessDebuggerPage", () => {
     mockPermissions.hasPermission.mockImplementation((_p: string) => true);
     mockApi.searchOrgUsers.mockResolvedValue(USERS_RESPONSE);
     mockApi.simulateAccess.mockResolvedValue(ALLOW_RESULT);
+    mockSearchParams = new URLSearchParams();
   });
 
   describe("access control", () => {
@@ -401,6 +421,53 @@ describe("AdminAccessDebuggerPage", () => {
       await userEvent.click(screen.getByRole("button", { name: /simulate/i }));
       await waitFor(() => screen.getByTestId("result-panel"));
       expect(screen.getByText(/view document details/i)).toBeTruthy();
+    });
+  });
+
+  describe("F354: URL-param prefill from report row deep links", () => {
+    it("pre-populates resource type, action, and resource id from the URL", () => {
+      mockSearchParams = new URLSearchParams({
+        resource_type: "collection",
+        action: "manage",
+        resource: "cccccccc-0000-0000-0000-000000000009",
+      });
+      renderPage();
+      expect(
+        screen.getByDisplayValue("cccccccc-0000-0000-0000-000000000009"),
+      ).toBeTruthy();
+      const resourceTypeSelect = screen.getByDisplayValue(
+        "collection",
+      ) as HTMLSelectElement;
+      expect(resourceTypeSelect.value).toBe("collection");
+      const actionSelect = screen.getByDisplayValue(
+        "manage",
+      ) as HTMLSelectElement;
+      expect(actionSelect.value).toBe("manage");
+    });
+
+    it("resolves and selects the subject user from a ?user= id via searchOrgUsers", async () => {
+      mockSearchParams = new URLSearchParams({
+        user: "00000000-0000-0000-0000-000000000002",
+      });
+      renderPage();
+      await waitFor(() =>
+        expect(mockApi.searchOrgUsers).toHaveBeenCalledWith(
+          expect.objectContaining({
+            q: "00000000-0000-0000-0000-000000000002",
+          }),
+        ),
+      );
+      await waitFor(() =>
+        expect(screen.getByDisplayValue("Bob Jones")).toBeTruthy(),
+      );
+    });
+
+    it("falls back to defaults when no URL params are present", () => {
+      renderPage();
+      const resourceTypeSelect = screen.getByDisplayValue(
+        "document",
+      ) as HTMLSelectElement;
+      expect(resourceTypeSelect.value).toBe("document");
     });
   });
 });

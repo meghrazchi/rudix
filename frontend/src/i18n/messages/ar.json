@@ -4639,6 +4639,7 @@
       "rolesPermissions": "الأدوار والأذونات",
       "accessManagement": "إدارة الوصول",
       "accessDebugger": "تشخيص الوصول",
+      "permissionsAccessReport": "تقرير الأذونات والوصول",
       "ssoSaml": "تسجيل الدخول الموحد / SAML",
       "scimProvisioning": "توفير SCIM"
     }
@@ -6536,6 +6537,92 @@
       "summary": "الإجمالي {total} — صفحة {page} من {totalPages}"
     }
   },
+  "adminPermissionsAccess": {
+    "header": {
+      "eyebrow": "إدارة Rudix",
+      "title": "الأذونات والوصول",
+      "description": "تعرّف على من يمكنه الوصول إلى أي موارد، واكتشف المستخدمين ذوي الصلاحيات الزائدة، وحلّ تعارضات الوصول عبر الملفات والمجموعات والموصلات والاستشهادات وأدلة الرسم البياني."
+    },
+    "access": {
+      "restrictedTitle": "الوصول الإداري مقيّد",
+      "restrictedDescription": "يمكن فقط للمستخدمين الذين لديهم وصول إلى مركز الأمان عرض تقرير الأذونات والوصول."
+    },
+    "states": {
+      "loadingSummary": "جارٍ تحميل الملخص…",
+      "loadingCharts": "جارٍ تحميل الرسوم البيانية…",
+      "loadingRows": "جارٍ تحميل صفوف الوصول…",
+      "empty": "لا توجد صفوف وصول مطابقة للمرشحات الحالية."
+    },
+    "metrics": {
+      "totalUsers": "إجمالي المستخدمين",
+      "adminUsers": "المستخدمون الإداريون",
+      "externalUsers": "المستخدمون الخارجيون",
+      "externalUsersHeuristic": "المستخدمون الخارجيون (تقديري)",
+      "broadAccessUsers": "مستخدمون بصلاحيات واسعة",
+      "permissionConflicts": "تعارضات الأذونات",
+      "orphanedGrants": "منح صلاحيات يتيمة",
+      "expiredGrants": "منح صلاحيات منتهية",
+      "connectorAclMismatches": "تعارضات قوائم التحكم بالوصول للموصل",
+      "resourcesWithoutOwner": "موارد بلا مالك",
+      "unauthorizedAttempts": "محاولات وصول غير مصرح بها"
+    },
+    "charts": {
+      "usersByRole": "المستخدمون حسب الدور",
+      "accessDistribution": "توزيع الوصول",
+      "conflictsByResourceType": "التعارضات حسب نوع المورد",
+      "broadAccessUsers": "مستخدمون بصلاحيات واسعة",
+      "failedAccessAttempts": "محاولات الوصول الفاشلة",
+      "empty": "لا توجد بيانات بعد."
+    },
+    "accessSource": {
+      "explicit_grant": "منح صريح",
+      "explicit_deny": "رفض صريح",
+      "connector_acl": "قائمة تحكم وصول الموصل",
+      "conflict": "تعارض",
+      "inherited_org_wide": "موروث (على مستوى المؤسسة)",
+      "inherited_restricted": "موروث (مقيّد)"
+    },
+    "filters": {
+      "all": "الكل",
+      "role": "الدور",
+      "accessSource": "مصدر الوصول",
+      "resourceType": "نوع المورد",
+      "resourceTypePlaceholder": "مثال: document",
+      "conflictStatus": "حالة التعارض",
+      "search": "بحث",
+      "searchPlaceholder": "ابحث حسب المستخدم أو البريد الإلكتروني أو المورد"
+    },
+    "table": {
+      "user": "المستخدم",
+      "role": "الدور",
+      "team": "الفريق",
+      "resource": "المورد",
+      "accessLevel": "مستوى الوصول",
+      "accessSource": "مصدر الوصول",
+      "conflictStatus": "حالة التعارض",
+      "lastAccess": "آخر وصول",
+      "actions": "الإجراءات",
+      "unknownUser": "مستخدم غير معروف"
+    },
+    "actions": {
+      "manageConflicts": "إدارة التعارضات",
+      "export": "تصدير",
+      "refresh": "تحديث",
+      "refreshing": "جارٍ التحديث…",
+      "openDebugger": "فتح مصحح الوصول",
+      "reviewUser": "مراجعة أذونات المستخدم",
+      "reviewResource": "مراجعة أذونات المورد",
+      "removeBroadAccess": "إزالة الصلاحية الواسعة",
+      "removing": "جارٍ الإزالة…",
+      "fixConflict": "إصلاح التعارض",
+      "fixing": "جارٍ الإصلاح…",
+      "previous": "السابق",
+      "next": "التالي"
+    },
+    "pagination": {
+      "summary": "الإجمالي {total} — صفحة {page} من {totalPages}"
+    }
+  },
   "adminUsageAdoption": {
     "header": {
       "eyebrow": "إدارة Rudix",
@@ -7246,6 +7333,7 @@
         "actionImpact": "استعادة الوصول الآمن إلى المصادر",
         "actionRelated": "أذونات الإدارة",
         "reviewConflicts": "مراجعة التعارضات",
+        "viewAccessReport": "عرض تقرير الوصول الكامل",
         "tableCaption": "تعارضات الأذونات",
         "conflict": "التعارض",
         "resource": "المورد",

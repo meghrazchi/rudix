@@ -4764,6 +4764,7 @@
       "rolesPermissions": "نقش‌ها و مجوزها",
       "accessManagement": "مدیریت دسترسی",
       "accessDebugger": "عیب‌یاب دسترسی",
+      "permissionsAccessReport": "گزارش مجوزها و دسترسی",
       "ssoSaml": "ورود یکپارچه / SAML",
       "scimProvisioning": "تأمین کاربران SCIM"
     }
@@ -6661,6 +6662,92 @@
       "summary": "مجموع {total} — صفحه {page} از {totalPages}"
     }
   },
+  "adminPermissionsAccess": {
+    "header": {
+      "eyebrow": "مدیریت Rudix",
+      "title": "مجوزها و دسترسی",
+      "description": "ببینید چه کسی به کدام منابع دسترسی دارد، کاربران با دسترسی بیش‌ازحد را شناسایی کنید و تعارض‌های دسترسی در فایل‌ها، مجموعه‌ها، اتصال‌دهنده‌ها، استنادها و شواهد گراف را برطرف کنید."
+    },
+    "access": {
+      "restrictedTitle": "دسترسی مدیریتی محدود شده است",
+      "restrictedDescription": "فقط کاربرانی که به مرکز امنیت دسترسی دارند می‌توانند گزارش مجوزها و دسترسی را مشاهده کنند."
+    },
+    "states": {
+      "loadingSummary": "در حال بارگذاری خلاصه…",
+      "loadingCharts": "در حال بارگذاری نمودارها…",
+      "loadingRows": "در حال بارگذاری ردیف‌های دسترسی…",
+      "empty": "هیچ ردیف دسترسی با فیلترهای فعلی مطابقت ندارد."
+    },
+    "metrics": {
+      "totalUsers": "کل کاربران",
+      "adminUsers": "کاربران مدیر",
+      "externalUsers": "کاربران خارجی",
+      "externalUsersHeuristic": "کاربران خارجی (تخمینی)",
+      "broadAccessUsers": "کاربران با دسترسی گسترده",
+      "permissionConflicts": "تعارض‌های مجوز",
+      "orphanedGrants": "مجوزهای بدون منبع",
+      "expiredGrants": "مجوزهای منقضی‌شده",
+      "connectorAclMismatches": "ناهماهنگی ACL اتصال‌دهنده",
+      "resourcesWithoutOwner": "منابع بدون مالک",
+      "unauthorizedAttempts": "تلاش‌های دسترسی غیرمجاز"
+    },
+    "charts": {
+      "usersByRole": "کاربران بر اساس نقش",
+      "accessDistribution": "توزیع دسترسی",
+      "conflictsByResourceType": "تعارض‌ها بر اساس نوع منبع",
+      "broadAccessUsers": "کاربران با دسترسی گسترده",
+      "failedAccessAttempts": "تلاش‌های ناموفق دسترسی",
+      "empty": "هنوز داده‌ای وجود ندارد."
+    },
+    "accessSource": {
+      "explicit_grant": "مجوز صریح",
+      "explicit_deny": "رد صریح",
+      "connector_acl": "ACL اتصال‌دهنده",
+      "conflict": "تعارض",
+      "inherited_org_wide": "به ارث رسیده (کل سازمان)",
+      "inherited_restricted": "به ارث رسیده (محدود)"
+    },
+    "filters": {
+      "all": "همه",
+      "role": "نقش",
+      "accessSource": "منبع دسترسی",
+      "resourceType": "نوع منبع",
+      "resourceTypePlaceholder": "مثلاً document",
+      "conflictStatus": "وضعیت تعارض",
+      "search": "جستجو",
+      "searchPlaceholder": "جستجو بر اساس کاربر، ایمیل یا منبع"
+    },
+    "table": {
+      "user": "کاربر",
+      "role": "نقش",
+      "team": "تیم",
+      "resource": "منبع",
+      "accessLevel": "سطح دسترسی",
+      "accessSource": "منبع دسترسی",
+      "conflictStatus": "وضعیت تعارض",
+      "lastAccess": "آخرین دسترسی",
+      "actions": "اقدامات",
+      "unknownUser": "کاربر ناشناس"
+    },
+    "actions": {
+      "manageConflicts": "مدیریت تعارض‌ها",
+      "export": "خروجی گرفتن",
+      "refresh": "تازه‌سازی",
+      "refreshing": "در حال تازه‌سازی…",
+      "openDebugger": "باز کردن عیب‌یاب دسترسی",
+      "reviewUser": "بررسی مجوزهای کاربر",
+      "reviewResource": "بررسی مجوزهای منبع",
+      "removeBroadAccess": "حذف دسترسی گسترده",
+      "removing": "در حال حذف…",
+      "fixConflict": "رفع تعارض",
+      "fixing": "در حال رفع…",
+      "previous": "قبلی",
+      "next": "بعدی"
+    },
+    "pagination": {
+      "summary": "مجموع {total} — صفحه {page} از {totalPages}"
+    }
+  },
   "adminUsageAdoption": {
     "header": {
       "eyebrow": "مدیریت Rudix",
@@ -7371,6 +7458,7 @@
         "actionImpact": "بازگرداندن دسترسی امن به منابع",
         "actionRelated": "مجوزهای مدیریت",
         "reviewConflicts": "بررسی تعارض‌ها",
+        "viewAccessReport": "مشاهده گزارش کامل دسترسی",
         "tableCaption": "تعارض‌های مجوز",
         "conflict": "تعارض",
         "resource": "منبع",

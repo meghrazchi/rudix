@@ -4639,6 +4639,7 @@
       "rolesPermissions": "Rollen & Berechtigungen",
       "accessManagement": "Zugriffsverwaltung",
       "accessDebugger": "Zugriffsdiagnose",
+      "permissionsAccessReport": "Berechtigungs- und Zugriffsbericht",
       "ssoSaml": "SSO / SAML",
       "scimProvisioning": "SCIM-Bereitstellung"
     }
@@ -6536,6 +6537,92 @@
       "summary": "{total} insgesamt — Seite {page} von {totalPages}"
     }
   },
+  "adminPermissionsAccess": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Berechtigungen & Zugriff",
+      "description": "Sehen Sie, wer auf welche Ressourcen zugreifen kann, erkennen Sie übermäßig berechtigte Nutzer und lösen Sie Zugriffskonflikte bei Dateien, Sammlungen, Connectors, Zitaten und Graph-Belegen."
+    },
+    "access": {
+      "restrictedTitle": "Admin-Zugriff eingeschränkt",
+      "restrictedDescription": "Nur Nutzer mit Zugriff auf das Sicherheitscenter können den Bericht zu Berechtigungen & Zugriff einsehen."
+    },
+    "states": {
+      "loadingSummary": "Zusammenfassung wird geladen…",
+      "loadingCharts": "Diagramme werden geladen…",
+      "loadingRows": "Zugriffszeilen werden geladen…",
+      "empty": "Keine Zugriffszeilen entsprechen den aktuellen Filtern."
+    },
+    "metrics": {
+      "totalUsers": "Nutzer insgesamt",
+      "adminUsers": "Admin-Nutzer",
+      "externalUsers": "Externe Nutzer",
+      "externalUsersHeuristic": "Externe Nutzer (geschätzt)",
+      "broadAccessUsers": "Nutzer mit weitreichendem Zugriff",
+      "permissionConflicts": "Berechtigungskonflikte",
+      "orphanedGrants": "Verwaiste Freigaben",
+      "expiredGrants": "Abgelaufene Freigaben",
+      "connectorAclMismatches": "Connector-ACL-Abweichungen",
+      "resourcesWithoutOwner": "Ressourcen ohne Eigentümer",
+      "unauthorizedAttempts": "Unbefugte Zugriffsversuche"
+    },
+    "charts": {
+      "usersByRole": "Nutzer nach Rolle",
+      "accessDistribution": "Zugriffsverteilung",
+      "conflictsByResourceType": "Konflikte nach Ressourcentyp",
+      "broadAccessUsers": "Nutzer mit weitreichendem Zugriff",
+      "failedAccessAttempts": "Fehlgeschlagene Zugriffsversuche",
+      "empty": "Noch keine Daten."
+    },
+    "accessSource": {
+      "explicit_grant": "Explizite Freigabe",
+      "explicit_deny": "Explizite Ablehnung",
+      "connector_acl": "Connector-ACL",
+      "conflict": "Konflikt",
+      "inherited_org_wide": "Geerbt (organisationsweit)",
+      "inherited_restricted": "Geerbt (eingeschränkt)"
+    },
+    "filters": {
+      "all": "Alle",
+      "role": "Rolle",
+      "accessSource": "Zugriffsquelle",
+      "resourceType": "Ressourcentyp",
+      "resourceTypePlaceholder": "z. B. document",
+      "conflictStatus": "Konfliktstatus",
+      "search": "Suche",
+      "searchPlaceholder": "Nach Nutzer, E-Mail oder Ressource suchen"
+    },
+    "table": {
+      "user": "Nutzer",
+      "role": "Rolle",
+      "team": "Team",
+      "resource": "Ressource",
+      "accessLevel": "Zugriffsstufe",
+      "accessSource": "Zugriffsquelle",
+      "conflictStatus": "Konfliktstatus",
+      "lastAccess": "Letzter Zugriff",
+      "actions": "Aktionen",
+      "unknownUser": "Unbekannter Nutzer"
+    },
+    "actions": {
+      "manageConflicts": "Konflikte verwalten",
+      "export": "Exportieren",
+      "refresh": "Aktualisieren",
+      "refreshing": "Wird aktualisiert…",
+      "openDebugger": "Zugriffsdiagnose öffnen",
+      "reviewUser": "Nutzerberechtigungen prüfen",
+      "reviewResource": "Ressourcenberechtigungen prüfen",
+      "removeBroadAccess": "Weitreichenden Zugriff entfernen",
+      "removing": "Wird entfernt…",
+      "fixConflict": "Konflikt beheben",
+      "fixing": "Wird behoben…",
+      "previous": "Zurück",
+      "next": "Weiter"
+    },
+    "pagination": {
+      "summary": "{total} insgesamt — Seite {page} von {totalPages}"
+    }
+  },
   "adminUsageAdoption": {
     "header": {
       "eyebrow": "Rudix Admin",
@@ -7246,6 +7333,7 @@
         "actionImpact": "Sicheren Quellenzugriff wiederherstellen",
         "actionRelated": "Admin-Berechtigungen",
         "reviewConflicts": "Konflikte prüfen",
+        "viewAccessReport": "Vollständigen Zugriffsbericht ansehen",
         "tableCaption": "Berechtigungskonflikte",
         "conflict": "Konflikt",
         "resource": "Ressource",

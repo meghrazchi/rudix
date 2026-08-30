@@ -180,6 +180,25 @@ class TestSearchOrgUsers:
         items = resp.json()["items"]
         assert any(i["display_name"] and unique_name in i["display_name"] for i in items)
 
+    async def test_search_by_exact_user_id(
+        self, debugger_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """F354: report rows link into the debugger via ?user=<uuid>, which the
+        debugger resolves through this same search endpoint — searching by the
+        raw UUID (not matching any email/display-name substring) must still
+        find the user."""
+        admin_user, org = await _seed_org(db_session, role=OrganizationRole.admin)
+        member = await _add_member(db_session, org, display_name="Bob Jones")
+
+        resp = await debugger_client.get(
+            f"/admin/access-debugger/users?q={member.id}",
+            headers=_headers(admin_user, org),
+        )
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["user_id"] == str(member.id)
+
     async def test_member_cannot_search_users(
         self, debugger_client: AsyncClient, db_session: AsyncSession
     ) -> None:

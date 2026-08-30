@@ -10,7 +10,7 @@ Covers:
 """
 
 import os
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -34,6 +34,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from datetime import UTC, datetime
+
 from app.domains.permissions.repositories.conflicts import ConflictsRepository
 from app.domains.permissions.schemas.conflicts import (
     CONFLICT_TYPES,
@@ -42,7 +44,117 @@ from app.domains.permissions.schemas.conflicts import (
     remediation_for,
 )
 from app.domains.permissions.services.conflict_detection_service import ConflictDetectionService
-from app.models.authorization import ResourceAccessDeny, ResourceAccessGrant
+from app.models.authorization import ResourceAccessDeny, ResourceAccessGrant, SourceAclMapping
+from app.models.chat import ChatMessage, ChatSession
+from app.models.citation import Citation
+from app.models.collection import Collection, CollectionDocument
+from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
+from app.models.document import Document, DocumentChunk
+from app.models.enums import ConnectorAuthType, ExternalItemType
+from app.models.organization import Organization
+from app.models.organization_member import OrganizationMember
+from app.models.user import User
+
+# ─── shared connector/collection seeding helpers (F354) ────────────────────────
+
+
+async def _seed_org(db: AsyncSession) -> Organization:
+    org = Organization(name=f"Org {uuid4()}", slug=f"org-{uuid4().hex[:8]}")
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _seed_member(db: AsyncSession, *, org_id, role: str = "member") -> User:
+    user = User(
+        organization_id=org_id,
+        external_auth_id=f"user-{uuid4()}",
+        email=f"{uuid4().hex[:8]}@example.test",
+    )
+    db.add(user)
+    await db.flush()
+    db.add(OrganizationMember(organization_id=org_id, user_id=user.id, role=role))
+    await db.flush()
+    return user
+
+
+async def _seed_connector_document(
+    db: AsyncSession,
+    *,
+    org_id,
+    connection_status: str = "active",
+) -> tuple[ConnectorConnection, ExternalItem, Document]:
+    provider = ConnectorProvider(
+        key=f"provider-{uuid4().hex[:8]}",
+        display_name="Test Provider",
+        auth_type=ConnectorAuthType.oauth2.value,
+        capabilities_json=[],
+        config_schema_json={},
+        rate_limits_json=[],
+        export_formats_json=[],
+        is_enabled=True,
+    )
+    db.add(provider)
+    await db.flush()
+
+    connection = ConnectorConnection(
+        organization_id=org_id,
+        provider_id=provider.id,
+        display_name="Test Connection",
+        status=connection_status,
+        auth_config_json={},
+    )
+    db.add(connection)
+    await db.flush()
+
+    external_item = ExternalItem(
+        organization_id=org_id,
+        connection_id=connection.id,
+        provider_item_id=f"item-{uuid4().hex[:8]}",
+        item_type=ExternalItemType.cloud_file.value,
+        title="Source Title",
+        source_url=f"https://example.test/items/{uuid4().hex[:8]}",
+        content_hash="a" * 64,
+        source_updated_at=datetime.now(UTC),
+        sync_version=1,
+        visibility="restricted",
+        metadata_json={},
+        permissions_json={},
+    )
+    db.add(external_item)
+    await db.flush()
+
+    document = Document(
+        organization_id=org_id,
+        filename="source.pdf",
+        file_type="pdf",
+        storage_bucket="documents",
+        storage_object_key=f"documents/{uuid4().hex[:8]}.pdf",
+        status="indexed",
+        connector_external_item_id=external_item.id,
+        ingestion_source="connector",
+    )
+    db.add(document)
+    await db.flush()
+
+    return connection, external_item, document
+
+
+async def _seed_document_chunk(db: AsyncSession, *, document_id) -> DocumentChunk:
+    chunk = DocumentChunk(
+        document_id=document_id,
+        page_number=1,
+        chunk_index=0,
+        text="Chunk text.",
+        token_count=10,
+        embedding_model="test-embedding",
+        index_version="v1",
+        qdrant_point_id=str(uuid4()),
+    )
+    db.add(chunk)
+    await db.flush()
+    return chunk
+
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -490,3 +602,310 @@ class TestConflictDetectionService:
         svc = ConflictDetectionService()
         result = await svc.scan(db_session, organization_id=org_id)
         assert result.conflicts_detected == 0
+
+
+# ─── F354: collection_allow_connector_acl_deny ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestCollectionAllowConnectorAclDeny:
+    async def test_member_bypassing_connector_acl_via_org_wide_collection_is_flagged(
+        self, db_session: AsyncSession
+    ) -> None:
+        org = await _seed_org(db_session)
+        allowed_user = await _seed_member(db_session, org_id=org.id, role="member")
+        bypassing_user = await _seed_member(db_session, org_id=org.id, role="member")
+        await _seed_member(db_session, org_id=org.id, role="admin")
+
+        connection, external_item, document = await _seed_connector_document(
+            db_session, org_id=org.id
+        )
+        db_session.add(
+            SourceAclMapping(
+                organization_id=org.id,
+                connector_connection_id=connection.id,
+                source_type="connector_source_item",
+                source_id=str(external_item.id),
+                user_id=allowed_user.id,
+                principal_type="user",
+                principal_value=str(allowed_user.id),
+                action="read_only",
+                acl_effect="allow",
+                is_active=True,
+            )
+        )
+        await db_session.flush()
+
+        collection = Collection(organization_id=org.id, name="Org Wide", access_policy="org_wide")
+        db_session.add(collection)
+        await db_session.flush()
+        db_session.add(CollectionDocument(collection_id=collection.id, document_id=document.id))
+        await db_session.flush()
+
+        svc = ConflictDetectionService()
+        result = await svc.scan(db_session, organization_id=org.id)
+
+        items, _ = await ConflictsRepository().list_conflicts(
+            db_session, organization_id=org.id, resource_type="document"
+        )
+        conflicts = [c for c in items if c.conflict_type == "collection_allow_connector_acl_deny"]
+        assert len(conflicts) == 1
+        assert conflicts[0].subject_value == str(bypassing_user.id)
+        assert conflicts[0].resource_id == str(document.id)
+        assert result.conflicts_detected >= 1
+
+    async def test_allowed_and_admin_users_not_flagged(self, db_session: AsyncSession) -> None:
+        org = await _seed_org(db_session)
+        allowed_user = await _seed_member(db_session, org_id=org.id, role="member")
+        await _seed_member(db_session, org_id=org.id, role="admin")
+
+        connection, external_item, document = await _seed_connector_document(
+            db_session, org_id=org.id
+        )
+        db_session.add(
+            SourceAclMapping(
+                organization_id=org.id,
+                connector_connection_id=connection.id,
+                source_type="connector_source_item",
+                source_id=str(external_item.id),
+                user_id=allowed_user.id,
+                principal_type="user",
+                principal_value=str(allowed_user.id),
+                action="read_only",
+                acl_effect="allow",
+                is_active=True,
+            )
+        )
+        await db_session.flush()
+
+        collection = Collection(organization_id=org.id, name="Org Wide", access_policy="org_wide")
+        db_session.add(collection)
+        await db_session.flush()
+        db_session.add(CollectionDocument(collection_id=collection.id, document_id=document.id))
+        await db_session.flush()
+
+        svc = ConflictDetectionService()
+        await svc.scan(db_session, organization_id=org.id)
+
+        items, _ = await ConflictsRepository().list_conflicts(
+            db_session, organization_id=org.id, resource_type="document"
+        )
+        conflicts = [c for c in items if c.conflict_type == "collection_allow_connector_acl_deny"]
+        assert conflicts == []
+
+    async def test_idempotent_rescan(self, db_session: AsyncSession) -> None:
+        org = await _seed_org(db_session)
+        allowed_user = await _seed_member(db_session, org_id=org.id, role="member")
+        await _seed_member(db_session, org_id=org.id, role="member")
+
+        connection, external_item, document = await _seed_connector_document(
+            db_session, org_id=org.id
+        )
+        db_session.add(
+            SourceAclMapping(
+                organization_id=org.id,
+                connector_connection_id=connection.id,
+                source_type="connector_source_item",
+                source_id=str(external_item.id),
+                user_id=allowed_user.id,
+                principal_type="user",
+                principal_value=str(allowed_user.id),
+                action="read_only",
+                acl_effect="allow",
+                is_active=True,
+            )
+        )
+        await db_session.flush()
+        collection = Collection(organization_id=org.id, name="Org Wide", access_policy="org_wide")
+        db_session.add(collection)
+        await db_session.flush()
+        db_session.add(CollectionDocument(collection_id=collection.id, document_id=document.id))
+        await db_session.flush()
+
+        svc = ConflictDetectionService()
+        first = await svc.scan(db_session, organization_id=org.id)
+        second = await svc.scan(db_session, organization_id=org.id)
+        assert first.conflicts_created >= 1
+        assert second.conflicts_created == 0
+
+
+# ─── F354: citation_visible_source_hidden ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestCitationVisibleSourceHidden:
+    async def test_revoked_connector_connection_flags_citation(
+        self, db_session: AsyncSession
+    ) -> None:
+        org = await _seed_org(db_session)
+        citing_user = await _seed_member(db_session, org_id=org.id, role="member")
+        _connection, _external_item, document = await _seed_connector_document(
+            db_session, org_id=org.id, connection_status="revoked"
+        )
+        chunk = await _seed_document_chunk(db_session, document_id=document.id)
+
+        session = ChatSession(organization_id=org.id, user_id=citing_user.id)
+        db_session.add(session)
+        await db_session.flush()
+        message = ChatMessage(chat_session_id=session.id, role="assistant", content="Answer text")
+        db_session.add(message)
+        await db_session.flush()
+        citation = Citation(
+            chat_message_id=message.id,
+            document_id=document.id,
+            chunk_id=chunk.id,
+            text_snippet="Cited text.",
+        )
+        db_session.add(citation)
+        await db_session.flush()
+
+        svc = ConflictDetectionService()
+        await svc.scan(db_session, organization_id=org.id)
+
+        items, _ = await ConflictsRepository().list_conflicts(
+            db_session, organization_id=org.id, resource_type="citation"
+        )
+        conflicts = [c for c in items if c.conflict_type == "citation_visible_source_hidden"]
+        assert len(conflicts) == 1
+        assert conflicts[0].subject_value == str(citing_user.id)
+        assert conflicts[0].resource_id == str(citation.id)
+        assert conflicts[0].conflict_context_json["reason"] == "connector_revoked"
+
+    async def test_explicit_deny_flags_citation_on_regular_document(
+        self, db_session: AsyncSession
+    ) -> None:
+        org = await _seed_org(db_session)
+        citing_user = await _seed_member(db_session, org_id=org.id, role="member")
+
+        document = Document(
+            organization_id=org.id,
+            filename="upload.pdf",
+            file_type="pdf",
+            storage_bucket="documents",
+            storage_object_key=f"documents/{uuid4().hex[:8]}.pdf",
+            status="indexed",
+        )
+        db_session.add(document)
+        await db_session.flush()
+        chunk = await _seed_document_chunk(db_session, document_id=document.id)
+
+        db_session.add(
+            ResourceAccessDeny(
+                organization_id=org.id,
+                principal_type="user",
+                principal_value=str(citing_user.id),
+                user_id=citing_user.id,
+                resource_type="document",
+                resource_id=str(document.id),
+                action="read_only",
+                status="active",
+            )
+        )
+        await db_session.flush()
+
+        session = ChatSession(organization_id=org.id, user_id=citing_user.id)
+        db_session.add(session)
+        await db_session.flush()
+        message = ChatMessage(chat_session_id=session.id, role="assistant", content="Answer text")
+        db_session.add(message)
+        await db_session.flush()
+        citation = Citation(
+            chat_message_id=message.id,
+            document_id=document.id,
+            chunk_id=chunk.id,
+            text_snippet="Cited text.",
+        )
+        db_session.add(citation)
+        await db_session.flush()
+
+        svc = ConflictDetectionService()
+        await svc.scan(db_session, organization_id=org.id)
+
+        items, _ = await ConflictsRepository().list_conflicts(
+            db_session, organization_id=org.id, resource_type="citation"
+        )
+        conflicts = [c for c in items if c.conflict_type == "citation_visible_source_hidden"]
+        assert len(conflicts) == 1
+        assert conflicts[0].conflict_context_json["reason"] == "explicit_deny"
+
+
+# ─── F354: graph_entity_visible_evidence_inaccessible ──────────────────────────
+
+
+@pytest.mark.asyncio
+class TestGraphEntityVisibleEvidenceInaccessible:
+    async def test_restricted_collection_document_flags_entity(
+        self, db_session: AsyncSession
+    ) -> None:
+        org = await _seed_org(db_session)
+        document = Document(
+            organization_id=org.id,
+            filename="restricted.pdf",
+            file_type="pdf",
+            storage_bucket="documents",
+            storage_object_key=f"documents/{uuid4().hex[:8]}.pdf",
+            status="indexed",
+        )
+        db_session.add(document)
+        await db_session.flush()
+
+        collection = Collection(
+            organization_id=org.id, name="Restricted", access_policy="selected_members"
+        )
+        db_session.add(collection)
+        await db_session.flush()
+        db_session.add(CollectionDocument(collection_id=collection.id, document_id=document.id))
+        await db_session.flush()
+
+        with patch(
+            "app.domains.permissions.services.conflict_detection_service._evidence_repo"
+            ".list_entities_for_documents",
+            new_callable=AsyncMock,
+        ) as mock_entities:
+            mock_entities.return_value = {str(document.id): ["entity-abc"]}
+            svc = ConflictDetectionService()
+            await svc.scan(db_session, organization_id=org.id)
+
+        items, _ = await ConflictsRepository().list_conflicts(
+            db_session, organization_id=org.id, resource_type="graph_entity"
+        )
+        conflicts = [
+            c for c in items if c.conflict_type == "graph_entity_visible_evidence_inaccessible"
+        ]
+        assert len(conflicts) == 1
+        assert conflicts[0].subject_type == "collection"
+        assert conflicts[0].subject_value == str(collection.id)
+        assert conflicts[0].resource_id == "entity-abc"
+
+    async def test_org_wide_collection_not_flagged(self, db_session: AsyncSession) -> None:
+        org = await _seed_org(db_session)
+        document = Document(
+            organization_id=org.id,
+            filename="open.pdf",
+            file_type="pdf",
+            storage_bucket="documents",
+            storage_object_key=f"documents/{uuid4().hex[:8]}.pdf",
+            status="indexed",
+        )
+        db_session.add(document)
+        await db_session.flush()
+
+        collection = Collection(organization_id=org.id, name="Open", access_policy="org_wide")
+        db_session.add(collection)
+        await db_session.flush()
+        db_session.add(CollectionDocument(collection_id=collection.id, document_id=document.id))
+        await db_session.flush()
+
+        with patch(
+            "app.domains.permissions.services.conflict_detection_service._evidence_repo"
+            ".list_entities_for_documents",
+            new_callable=AsyncMock,
+        ) as mock_entities:
+            svc = ConflictDetectionService()
+            await svc.scan(db_session, organization_id=org.id)
+            mock_entities.assert_not_called()
+
+        items, _ = await ConflictsRepository().list_conflicts(
+            db_session, organization_id=org.id, resource_type="graph_entity"
+        )
+        assert items == []

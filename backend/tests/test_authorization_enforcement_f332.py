@@ -43,6 +43,7 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 import pytest
+import pytest_asyncio
 
 from app.auth.authorization_service import AuthorizationService
 from app.auth.models import AuthenticatedPrincipal
@@ -694,6 +695,122 @@ class TestAuthorizationServiceAsync:
                 )
             assert exc_info.value.status_code == 403
             assert exc_info.value.detail == "Forbidden"
+
+
+@pytest_asyncio.fixture
+async def audit_db():
+    """A real in-memory SQLite engine + its true AsyncEngine-bound sessionmaker.
+
+    Separate from conftest.py's `db_session` fixture because that fixture only
+    exposes a `Session` instance, not the sessionmaker/engine behind it — and
+    `AsyncSession.get_bind()` returns the *sync* engine, which `async_sessionmaker`
+    rejects (`AsyncEngine expected`). `_record_deny` needs a real `async_sessionmaker`
+    to patch `SessionLocal` with, so this fixture builds one directly, mirroring
+    conftest.py's own engine-setup steps.
+    """
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import StaticPool
+
+    from app.db.base import Base
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session, session_factory
+    await engine.dispose()
+
+
+class TestAuthorizeOrRaiseAuditLogging:
+    """F354: the deny path must persist a real AUTHZ_ACCESS_DENIED audit row,
+    on its own session (surviving past the caller's request session), while
+    the bulk filter_accessible_resources path must never log anything (it's
+    normal list filtering, not a denied access attempt)."""
+
+    @pytest.mark.asyncio
+    async def test_deny_persists_audit_log_on_its_own_session(self, audit_db):
+        from fastapi import HTTPException
+        from sqlalchemy import select
+
+        from app.domains.admin.audit_events import AUTHZ_ACCESS_DENIED
+        from app.models.organization import Organization
+        from app.models.usage import AuditLog
+        from app.models.user import User
+
+        session, session_factory = audit_db
+
+        org_uuid = uuid.UUID(ORG_A)
+        user_uuid = uuid.UUID(USER_1)
+        session.add(
+            Organization(id=org_uuid, name="Audit Org", slug=f"audit-org-{org_uuid.hex[:8]}")
+        )
+        session.add(User(id=user_uuid, email="audit-user@test.com", display_name="Audit User"))
+        await session.commit()
+
+        principal = _principal("billing_admin")
+        resource = _doc_ctx()
+
+        with (
+            patch("app.auth.authorization_service.SessionLocal", session_factory),
+            patch.object(
+                AuthorizationService, "_build_subject", new_callable=AsyncMock
+            ) as mock_build,
+        ):
+            mock_build.return_value = _subject("billing_admin")
+            svc = AuthorizationService()
+            with pytest.raises(HTTPException):
+                await svc.authorize_or_raise(principal, Action.view, resource, AsyncMock())
+
+        rows = (
+            (await session.execute(select(AuditLog).where(AuditLog.action == AUTHZ_ACCESS_DENIED)))
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.organization_id == org_uuid
+        assert row.user_id == user_uuid
+        assert row.resource_type == "document"
+        assert row.resource_id == uuid.UUID(DOC_1)
+        assert row.metadata_json["action"] == "view"
+        assert row.metadata_json["matched_rule"]
+        assert row.metadata_json["deny_reason"]
+
+    @pytest.mark.asyncio
+    async def test_filter_accessible_resources_does_not_log_denials(self, audit_db):
+        from sqlalchemy import select
+
+        from app.domains.admin.audit_events import AUTHZ_ACCESS_DENIED
+        from app.models.usage import AuditLog
+
+        session, session_factory = audit_db
+
+        principal = _principal("member")
+        resources = [
+            _doc_ctx(doc_id=DOC_1),
+            _doc_ctx(doc_id=DOC_2, explicit_deny_user_ids=[USER_1]),
+        ]
+
+        with (
+            patch("app.auth.authorization_service.SessionLocal", session_factory),
+            patch.object(
+                AuthorizationService, "_build_subject", new_callable=AsyncMock
+            ) as mock_build,
+        ):
+            mock_build.return_value = _subject("member")
+            svc = AuthorizationService()
+            accessible = await svc.filter_accessible_resources(
+                principal, Action.view, resources, AsyncMock()
+            )
+
+        assert len(accessible) == 1
+        rows = (
+            (await session.execute(select(AuditLog).where(AuditLog.action == AUTHZ_ACCESS_DENIED)))
+            .scalars()
+            .all()
+        )
+        assert rows == []
 
 
 # ── ResourceContextBuilder helper tests ──────────────────────────────────────

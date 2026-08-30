@@ -43,10 +43,14 @@ from app.auth.policy_engine import (
     ResourceContext,
     SubjectContext,
 )
+from app.db.session import SessionLocal
+from app.domains.admin.audit_events import AUTHZ_ACCESS_DENIED
+from app.domains.admin.services.audit_service import AuditLogService
 from app.models.organization_member import OrganizationMember
 
 _engine = PolicyEngine()
 _permission_service = PermissionService()
+_audit_log_service = AuditLogService()
 
 
 class AuthorizationService:
@@ -147,8 +151,48 @@ class AuthorizationService:
             principal, action, resource, db_session, request_id=request_id
         )
         if result.result is PermissionResult.deny:
+            await self._record_deny(principal, action, resource, result)
             raise HTTPException(status_code=deny_status, detail=deny_detail)
         return result
+
+    async def _record_deny(
+        self,
+        principal: AuthenticatedPrincipal,
+        action: Action,
+        resource: ResourceContext,
+        result: AuthorizationResult,
+    ) -> None:
+        """Best-effort audit write for a denied access attempt.
+
+        Uses its own short-lived session/transaction rather than the caller's
+        `db_session`: the caller's session is never committed on this path
+        (it immediately raises an HTTPException), so writing through it would
+        silently roll the audit row back. Never raises — a broken audit
+        pipeline must not break authorization.
+        """
+        if principal.organization_id is None:
+            # Rule 1 (no_organization_context) denies precisely when there's
+            # no org to scope an audit row to — nothing meaningful to record.
+            return
+        try:
+            async with SessionLocal() as audit_session:
+                await _audit_log_service.record(
+                    audit_session,
+                    organization_id=principal.organization_id,
+                    user_id=principal.user_id,
+                    action=AUTHZ_ACCESS_DENIED,
+                    resource_type=str(resource.resource_type),
+                    resource_id=resource.resource_id,
+                    metadata={
+                        "action": action.value,
+                        "deny_reason": result.deny_reason.value if result.deny_reason else None,
+                        "matched_rule": result.matched_rule,
+                        "request_id": result.request_id,
+                    },
+                )
+                await audit_session.commit()
+        except Exception:
+            pass
 
     def explain_decision(self, result: AuthorizationResult) -> str:
         return _engine.explain_decision(result)

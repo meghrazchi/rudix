@@ -288,6 +288,58 @@ class EvidenceRepository:
             )
             return []
 
+    async def list_entities_for_documents(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_ids: list[str],
+        limit: int = 2000,
+    ) -> dict[str, list[str]]:
+        """Return {source_document_id: [entity_id, ...]} for evidence sourced from
+        any of the given documents.
+
+        Bounded to the given document-ID list — never crawls the full corpus.
+        Used by F354's graph_entity_visible_evidence_inaccessible conflict
+        detector, which only needs entities backed by documents already
+        identified as belonging to restricted collections.
+        """
+        driver, settings = _get_driver_and_settings()
+        if driver is None or not document_ids:
+            return {}
+
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                result = await asyncio.wait_for(
+                    session.run(
+                        """
+                        MATCH (c:Chunk {organization_id: $organization_id})
+                              -[:EVIDENCE_FOR]->(e:Entity {organization_id: $organization_id})
+                        WHERE c.source_document_id IN $document_ids
+                        RETURN DISTINCT c.source_document_id AS document_id,
+                                        e.entity_id          AS entity_id
+                        LIMIT $limit
+                        """,
+                        organization_id=str(organization_id),
+                        document_ids=list(document_ids),
+                        limit=limit,
+                    ),
+                    timeout=settings.neo4j_query_timeout_seconds,
+                )
+                records = await result.data()
+            mapping: dict[str, list[str]] = {}
+            for record in records:
+                mapping.setdefault(record["document_id"], []).append(record["entity_id"])
+            return mapping
+        except Exception as exc:
+            logger.warning(
+                "graph.evidence.list_entities_for_documents_error",
+                organization_id=str(organization_id),
+                document_count=len(document_ids),
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return {}
+
     async def delete_evidence_for_chunk(
         self,
         *,

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
@@ -582,15 +583,43 @@ function EmptyState() {
 export function AdminAccessDebuggerPage() {
   const t = useTranslations("adminAccessDebugger");
   const { hasPermission } = usePermissions();
+  const searchParams = useSearchParams();
 
   const [selectedUser, setSelectedUser] = useState<OrgMemberResult | null>(
     null,
   );
-  const [resourceType, setResourceType] = useState("document");
-  const [action, setAction] = useState("view");
-  const [resourceId, setResourceId] = useState("");
+  const [resourceType, setResourceType] = useState(
+    () => searchParams.get("resource_type") ?? "document",
+  );
+  const [action, setAction] = useState(
+    () => searchParams.get("action") ?? "view",
+  );
+  const [resourceId, setResourceId] = useState(
+    () => searchParams.get("resource") ?? "",
+  );
   const [result, setResult] = useState<SimulateAccessResponse | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // F354: report rows deep-link into the debugger via ?user=<id>&resource_type=
+  // &resource=<id>&action=. The user param is resolved through the same search
+  // endpoint UserSelector uses (extended to match by exact user_id) since only
+  // the id, not the full OrgMemberResult, travels in the URL.
+  useEffect(() => {
+    const userId = searchParams.get("user");
+    if (!userId) return;
+    let cancelled = false;
+    searchOrgUsers({ q: userId, limit: 1 }).then((res) => {
+      if (cancelled) return;
+      const match =
+        res.items.find((u) => u.user_id === userId) ?? res.items[0] ?? null;
+      if (match) setSelectedUser(match);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Only run once on mount from the URL's initial value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const simulateMutation = useMutation({
     mutationFn: () =>

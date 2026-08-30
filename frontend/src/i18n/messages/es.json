@@ -4639,6 +4639,7 @@
       "rolesPermissions": "Roles y permisos",
       "accessManagement": "Gestión de acceso",
       "accessDebugger": "Depurador de acceso",
+      "permissionsAccessReport": "Informe de permisos y acceso",
       "ssoSaml": "SSO / SAML",
       "scimProvisioning": "Aprovisionamiento SCIM"
     }
@@ -6536,6 +6537,92 @@
       "summary": "{total} en total — página {page} de {totalPages}"
     }
   },
+  "adminPermissionsAccess": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Permisos y acceso",
+      "description": "Vea quién puede acceder a qué recursos, detecte usuarios con permisos excesivos y resuelva conflictos de acceso en archivos, colecciones, conectores, citas y evidencia de grafos."
+    },
+    "access": {
+      "restrictedTitle": "Acceso de administrador restringido",
+      "restrictedDescription": "Solo los usuarios con acceso al centro de seguridad pueden ver el informe de permisos y acceso."
+    },
+    "states": {
+      "loadingSummary": "Cargando resumen…",
+      "loadingCharts": "Cargando gráficos…",
+      "loadingRows": "Cargando filas de acceso…",
+      "empty": "Ninguna fila de acceso coincide con los filtros actuales."
+    },
+    "metrics": {
+      "totalUsers": "Usuarios totales",
+      "adminUsers": "Usuarios administradores",
+      "externalUsers": "Usuarios externos",
+      "externalUsersHeuristic": "Usuarios externos (estimado)",
+      "broadAccessUsers": "Usuarios con acceso amplio",
+      "permissionConflicts": "Conflictos de permisos",
+      "orphanedGrants": "Concesiones huérfanas",
+      "expiredGrants": "Concesiones caducadas",
+      "connectorAclMismatches": "Discrepancias de ACL del conector",
+      "resourcesWithoutOwner": "Recursos sin propietario",
+      "unauthorizedAttempts": "Intentos de acceso no autorizados"
+    },
+    "charts": {
+      "usersByRole": "Usuarios por rol",
+      "accessDistribution": "Distribución de acceso",
+      "conflictsByResourceType": "Conflictos por tipo de recurso",
+      "broadAccessUsers": "Usuarios con acceso amplio",
+      "failedAccessAttempts": "Intentos de acceso fallidos",
+      "empty": "Aún no hay datos."
+    },
+    "accessSource": {
+      "explicit_grant": "Concesión explícita",
+      "explicit_deny": "Denegación explícita",
+      "connector_acl": "ACL del conector",
+      "conflict": "Conflicto",
+      "inherited_org_wide": "Heredado (toda la organización)",
+      "inherited_restricted": "Heredado (restringido)"
+    },
+    "filters": {
+      "all": "Todos",
+      "role": "Rol",
+      "accessSource": "Origen del acceso",
+      "resourceType": "Tipo de recurso",
+      "resourceTypePlaceholder": "p. ej. document",
+      "conflictStatus": "Estado del conflicto",
+      "search": "Buscar",
+      "searchPlaceholder": "Buscar por usuario, correo o recurso"
+    },
+    "table": {
+      "user": "Usuario",
+      "role": "Rol",
+      "team": "Equipo",
+      "resource": "Recurso",
+      "accessLevel": "Nivel de acceso",
+      "accessSource": "Origen del acceso",
+      "conflictStatus": "Estado del conflicto",
+      "lastAccess": "Último acceso",
+      "actions": "Acciones",
+      "unknownUser": "Usuario desconocido"
+    },
+    "actions": {
+      "manageConflicts": "Gestionar conflictos",
+      "export": "Exportar",
+      "refresh": "Actualizar",
+      "refreshing": "Actualizando…",
+      "openDebugger": "Abrir depurador de acceso",
+      "reviewUser": "Revisar permisos del usuario",
+      "reviewResource": "Revisar permisos del recurso",
+      "removeBroadAccess": "Quitar acceso amplio",
+      "removing": "Quitando…",
+      "fixConflict": "Resolver conflicto",
+      "fixing": "Resolviendo…",
+      "previous": "Ant.",
+      "next": "Sig."
+    },
+    "pagination": {
+      "summary": "{total} en total — página {page} de {totalPages}"
+    }
+  },
   "adminUsageAdoption": {
     "header": {
       "eyebrow": "Rudix Admin",
@@ -7246,6 +7333,7 @@
         "actionImpact": "Restaurar el acceso seguro a fuentes",
         "actionRelated": "Permisos de administración",
         "reviewConflicts": "Revisar conflictos",
+        "viewAccessReport": "Ver informe de acceso completo",
         "tableCaption": "Conflictos de permisos",
         "conflict": "Conflicto",
         "resource": "Recurso",

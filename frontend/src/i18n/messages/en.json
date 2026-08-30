@@ -4639,6 +4639,7 @@
       "rolesPermissions": "Roles & Permissions",
       "accessManagement": "Access Management",
       "accessDebugger": "Access Debugger",
+      "permissionsAccessReport": "Permissions & Access Report",
       "ssoSaml": "SSO / SAML",
       "scimProvisioning": "SCIM Provisioning"
     }
@@ -6536,6 +6537,92 @@
       "summary": "{total} total — page {page} of {totalPages}"
     }
   },
+  "adminPermissionsAccess": {
+    "header": {
+      "eyebrow": "Rudix Admin",
+      "title": "Permissions & access",
+      "description": "See who can access which resources, spot over-permissioned users, and resolve access conflicts across files, collections, connectors, citations, and graph evidence."
+    },
+    "access": {
+      "restrictedTitle": "Admin access restricted",
+      "restrictedDescription": "Only users with security center access can view the permissions & access report."
+    },
+    "states": {
+      "loadingSummary": "Loading summary…",
+      "loadingCharts": "Loading charts…",
+      "loadingRows": "Loading access rows…",
+      "empty": "No access rows match the current filters."
+    },
+    "metrics": {
+      "totalUsers": "Total users",
+      "adminUsers": "Admin users",
+      "externalUsers": "External users",
+      "externalUsersHeuristic": "External users (estimated)",
+      "broadAccessUsers": "Broad access users",
+      "permissionConflicts": "Permission conflicts",
+      "orphanedGrants": "Orphaned grants",
+      "expiredGrants": "Expired grants",
+      "connectorAclMismatches": "Connector ACL mismatches",
+      "resourcesWithoutOwner": "Resources with no owner",
+      "unauthorizedAttempts": "Unauthorized access attempts"
+    },
+    "charts": {
+      "usersByRole": "Users by role",
+      "accessDistribution": "Access distribution",
+      "conflictsByResourceType": "Conflicts by resource type",
+      "broadAccessUsers": "Broad access users",
+      "failedAccessAttempts": "Failed access attempts",
+      "empty": "No data yet."
+    },
+    "accessSource": {
+      "explicit_grant": "Explicit grant",
+      "explicit_deny": "Explicit deny",
+      "connector_acl": "Connector ACL",
+      "conflict": "Conflict",
+      "inherited_org_wide": "Inherited (org-wide)",
+      "inherited_restricted": "Inherited (restricted)"
+    },
+    "filters": {
+      "all": "All",
+      "role": "Role",
+      "accessSource": "Access source",
+      "resourceType": "Resource type",
+      "resourceTypePlaceholder": "e.g. document",
+      "conflictStatus": "Conflict status",
+      "search": "Search",
+      "searchPlaceholder": "Search by user, email, or resource"
+    },
+    "table": {
+      "user": "User",
+      "role": "Role",
+      "team": "Team",
+      "resource": "Resource",
+      "accessLevel": "Access level",
+      "accessSource": "Access source",
+      "conflictStatus": "Conflict status",
+      "lastAccess": "Last access",
+      "actions": "Actions",
+      "unknownUser": "Unknown user"
+    },
+    "actions": {
+      "manageConflicts": "Manage conflicts",
+      "export": "Export",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "openDebugger": "Open access debugger",
+      "reviewUser": "Review user permissions",
+      "reviewResource": "Review resource permissions",
+      "removeBroadAccess": "Remove broad access",
+      "removing": "Removing…",
+      "fixConflict": "Fix conflict",
+      "fixing": "Fixing…",
+      "previous": "Prev",
+      "next": "Next"
+    },
+    "pagination": {
+      "summary": "{total} total — page {page} of {totalPages}"
+    }
+  },
   "adminUsageAdoption": {
     "header": {
       "eyebrow": "Rudix Admin",
@@ -6983,6 +7070,7 @@
         "actionImpact": "Restore safe source access",
         "actionRelated": "Admin permissions",
         "reviewConflicts": "Review conflicts",
+        "viewAccessReport": "View full access report",
         "tableCaption": "Permission conflicts",
         "conflict": "Conflict",
         "resource": "Resource",
