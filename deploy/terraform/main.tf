@@ -90,10 +90,16 @@ resource "null_resource" "compose_rollout" {
       "docker compose -f '${local.compose_filename}' up -d --wait ${local.infra_services}",
       "docker compose -f '${local.compose_filename}' run --rm api ${var.migration_command}",
       # Idempotent: bootstrap_admin.py no-ops unless the database has zero
-      # organizations, so this is safe to run on every deploy. The env file
-      # is scoped to this one invocation only (never written into the
-      # persistent .env), and is removed immediately after.
-      "docker compose -f '${local.compose_filename}' run --rm --env-file .bootstrap_admin_env api python scripts/bootstrap_admin.py",
+      # organizations, so this is safe to run on every deploy. `docker compose
+      # run`'s file-based env flag isn't universally available across Compose
+      # versions (--env-file vs --env-from-file, and older CLIs have neither),
+      # so instead parse the file as plain KEY=value data (never as shell
+      # code — `.`/source would mis-parse a password containing quotes or
+      # other shell-special characters) and forward each var by name only
+      # (`-e VAR`, no `=value`) so Compose reads it from the shell rather than
+      # the command line.
+      "while IFS='=' read -r key value; do [ -n \"$key\" ] && export \"$key=$value\"; done < .bootstrap_admin_env",
+      "docker compose -f '${local.compose_filename}' run --rm -e BOOTSTRAP_ADMIN_EMAIL -e BOOTSTRAP_ADMIN_PASSWORD api python scripts/bootstrap_admin.py",
       "rm -f .bootstrap_admin_env",
       "docker compose -f '${local.compose_filename}' up -d --wait",
       "docker image prune -f",
