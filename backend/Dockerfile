@@ -36,6 +36,7 @@ RUN apt-get update \
 COPY --from=builder /usr/local /usr/local
 COPY alembic.ini /app/alembic.ini
 COPY alembic /app/alembic
+COPY scripts /app/scripts
 
 EXPOSE 8000
 

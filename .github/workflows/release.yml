@@ -394,6 +394,11 @@ jobs:
           TF_VAR_worker_image: ${{ needs.build-images.outputs.worker_image }}
           TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_staging_image }}
           TF_VAR_backup_check_enabled: "false"
+          # Optional: creates the first admin account, but only when the
+          # database has zero organizations (safe to leave wired in on every
+          # deploy). No-ops if these secrets aren't set.
+          TF_VAR_bootstrap_admin_email: ${{ secrets.STAGING_BOOTSTRAP_ADMIN_EMAIL }}
+          TF_VAR_bootstrap_admin_password: ${{ secrets.STAGING_BOOTSTRAP_ADMIN_PASSWORD }}
         run: |
           terraform init -input=false
           terraform apply -auto-approve -input=false
@@ -558,6 +563,11 @@ jobs:
           TF_VAR_postgres_backup_path: ${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}
           TF_VAR_minio_backup_path: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
           TF_VAR_qdrant_backup_path: ${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}
+          # Optional: creates the first admin account, but only when the
+          # database has zero organizations (safe to leave wired in on every
+          # deploy). No-ops if these secrets aren't set.
+          TF_VAR_bootstrap_admin_email: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_EMAIL }}
+          TF_VAR_bootstrap_admin_password: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_PASSWORD }}
         run: |
           terraform init -input=false
           terraform apply -auto-approve -input=false

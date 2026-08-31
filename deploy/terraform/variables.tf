@@ -90,6 +90,19 @@ variable "readiness_url" {
   default     = "http://127.0.0.1:8000/api/v1/ready"
 }
 
+variable "bootstrap_admin_email" {
+  description = "Email for the first admin account, created only if the database has no organizations yet. Leave empty to skip bootstrap."
+  type        = string
+  default     = ""
+}
+
+variable "bootstrap_admin_password" {
+  description = "Password for the first admin account. Leave empty to skip bootstrap."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "backup_check_enabled" {
   description = "Whether to enforce remote backup artifact checks before deployment."
   type        = bool
