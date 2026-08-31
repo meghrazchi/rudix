@@ -1,5 +1,5 @@
 locals {
-  compose_filename   = "docker-compose.${var.environment_name}.yml"
+  compose_filename = "docker-compose.${var.environment_name}.yml"
   # minio-init is deliberately excluded: it's a one-shot container (mc bucket
   # setup) that exits 0 on success, but `docker compose up --wait` treats any
   # explicitly-targeted service transitioning to "exited" as a wait failure,
