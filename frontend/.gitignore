@@ -13,6 +13,8 @@
 # testing
 /coverage
 /.vite
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
