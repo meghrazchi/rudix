@@ -9,12 +9,14 @@ import { getFrontendRuntimeConfigErrors } from "@/lib/runtime-config";
 import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
 import { getLocaleDirection } from "@/i18n/direction";
+import { resolvePublicSiteBaseUrl } from "@/lib/public-site/links";
 
 import "@fontsource-variable/inter";
 import "@fontsource-variable/vazirmatn";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(resolvePublicSiteBaseUrl()),
   title: {
     default: "Rudix",
     template: "%s | Rudix",

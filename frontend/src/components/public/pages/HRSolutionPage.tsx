@@ -624,7 +624,7 @@ function HRSecuritySection() {
               <span className="h-3 w-3 rounded-full bg-green-500" />
             </div>
             <pre className="font-mono text-xs leading-6 whitespace-pre-wrap text-[#c7cede]">
-              {t("security.codeSample")}
+              {t.raw("security.codeSample")}
             </pre>
             <p className="mt-5 text-xs text-[#636a7f]">
               {t("security.usageNote")}

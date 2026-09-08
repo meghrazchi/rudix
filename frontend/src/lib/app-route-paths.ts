@@ -1,7 +1,25 @@
 import { isValidLocale, type SupportedLocale } from "@/i18n/routing";
 
-const AUTHENTICATED_APP_ROUTE_RE =
-  /^\/(dashboard|chat|admin|documents|collections|connectors|evaluations|graph|rag-pipeline|reports|settings|user|workspace|api)\b/;
+export const AUTHENTICATED_APP_ROUTE_SEGMENTS = [
+  "dashboard",
+  "chat",
+  "admin",
+  "documents",
+  "collections",
+  "connectors",
+  "evaluations",
+  "graph",
+  "rag-pipeline",
+  "reports",
+  "settings",
+  "user",
+  "workspace",
+  "api",
+] as const;
+
+const AUTHENTICATED_APP_ROUTE_RE = new RegExp(
+  `^/(${AUTHENTICATED_APP_ROUTE_SEGMENTS.join("|")})\\b`,
+);
 
 export function isAuthenticatedAppPath(pathname: string): boolean {
   return AUTHENTICATED_APP_ROUTE_RE.test(pathname);
