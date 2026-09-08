@@ -8,13 +8,15 @@ locals {
   # `depends_on: minio-init: condition: service_completed_successfully`,
   # which Compose enforces via normal dependency resolution (unrelated to
   # `--wait`) the moment the migration step below starts the api container.
-  infra_services     = "postgres rabbitmq redis minio qdrant"
+  infra_services     = "postgres rabbitmq redis minio qdrant neo4j"
   backup_check_cmd   = var.backup_check_enabled ? "test -f '${var.postgres_backup_path}' && test -f '${var.minio_backup_path}' && test -f '${var.qdrant_backup_path}'" : "echo 'Backup checks disabled for this environment.'"
   deploy_env_content = <<-EOT
 ${var.env_file_content}
 RUDIX_API_IMAGE=${var.api_image}
 RUDIX_WORKER_IMAGE=${var.worker_image}
 RUDIX_FRONTEND_IMAGE=${var.frontend_image}
+NEO4J_USERNAME=${var.neo4j_username}
+NEO4J_PASSWORD=${var.neo4j_password}
 EOT
   # Kept out of deploy_env_content deliberately: that file is written
   # persistently to the host and consumed by every service on every

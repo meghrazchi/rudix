@@ -399,6 +399,8 @@ jobs:
           # deploy). No-ops if these secrets aren't set.
           TF_VAR_bootstrap_admin_email: ${{ secrets.STAGING_BOOTSTRAP_ADMIN_EMAIL }}
           TF_VAR_bootstrap_admin_password: ${{ secrets.STAGING_BOOTSTRAP_ADMIN_PASSWORD }}
+          TF_VAR_neo4j_username: ${{ secrets.STAGING_NEO4J_USERNAME }}
+          TF_VAR_neo4j_password: ${{ secrets.STAGING_NEO4J_PASSWORD }}
         run: |
           terraform init -input=false
           terraform apply -auto-approve -input=false

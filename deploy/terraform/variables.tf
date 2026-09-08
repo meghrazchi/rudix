@@ -103,6 +103,19 @@ variable "bootstrap_admin_password" {
   default     = ""
 }
 
+variable "neo4j_username" {
+  description = "Username for the Enterprise Graph Neo4j instance."
+  type        = string
+  default     = "neo4j"
+}
+
+variable "neo4j_password" {
+  description = "Password for the Enterprise Graph Neo4j instance. Leave empty to skip enabling Enterprise Graph."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "backup_check_enabled" {
   description = "Whether to enforce remote backup artifact checks before deployment."
   type        = bool

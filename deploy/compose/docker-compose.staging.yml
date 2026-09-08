@@ -22,7 +22,7 @@ services:
     env_file:
       - .env
     environment:
-      ENTERPRISE_GRAPH_ENABLED: "false"
+      ENTERPRISE_GRAPH_ENABLED: "true"
       ENVIRONMENT: staging
       API_BASE_URL: https://api-staging.getrudix.com
       FRONTEND_BASE_URL: https://staging.getrudix.com
@@ -33,6 +33,9 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: https://staging.getrudix.com
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: ${NEO4J_USERNAME}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
     ports:
       - "8000:8000"
     depends_on:
@@ -48,6 +51,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -68,7 +73,7 @@ services:
     env_file:
       - .env
     environment:
-      ENTERPRISE_GRAPH_ENABLED: "false"
+      ENTERPRISE_GRAPH_ENABLED: "true"
       ENVIRONMENT: staging
       API_BASE_URL: https://api-staging.getrudix.com
       FRONTEND_BASE_URL: https://staging.getrudix.com
@@ -78,6 +83,9 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
       REDIS_URL: redis://redis:6379/0
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: ${NEO4J_USERNAME}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,6 +99,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
 
   mcp:
     profiles: ["mcp"]
@@ -218,7 +228,31 @@ services:
       timeout: 5s
       retries: 10
 
+  neo4j:
+    image: ${NEO4J_IMAGE:-neo4j:5-community}
+    restart: unless-stopped
+    # Bolt (7687) and HTTP browser (7474) are NOT published to the host —
+    # internal Docker network only, reached by api/worker via NEO4J_URI.
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP_INITIAL:-256m}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX:-1G}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-256m}
+    volumes:
+      - neo4j_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: ${NEO4J_MEMORY_LIMIT:-2g}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -O /dev/null -q http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
 volumes:
   postgres_data:
   qdrant_data:
   minio_data:
+  neo4j_data:
