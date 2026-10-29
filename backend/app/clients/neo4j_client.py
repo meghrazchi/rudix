@@ -10,10 +10,12 @@ Credentials are loaded exclusively from environment variables and are never logg
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from app.core.logging import get_logger
 
 logger = get_logger("clients.neo4j")
+logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)
 
 try:
     from neo4j import AsyncDriver, AsyncGraphDatabase  # type: ignore[import-untyped]

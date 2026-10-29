@@ -16,6 +16,7 @@ Design principles
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -25,6 +26,21 @@ from app.core.logging import get_logger
 from app.domains.graph.schema import MIGRATIONS, GraphMigration
 
 logger = get_logger("graph.migration_runner")
+
+_NODE_KEY_CONSTRAINT_RE = re.compile(
+    r"^CREATE\s+CONSTRAINT\s+(\S+)\s+IF\s+NOT\s+EXISTS\s+"
+    r"FOR\s+(\([^)]+\))\s+REQUIRE\s+(\([^)]+\))\s+IS\s+NODE\s+KEY$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _node_key_to_composite_index(statement: str) -> str | None:
+    """Convert a Neo4j Enterprise NODE KEY constraint DDL into a Community composite index."""
+    match = _NODE_KEY_CONSTRAINT_RE.match(statement.strip())
+    if not match:
+        return None
+    name, node_pattern, props = match.groups()
+    return f"CREATE INDEX {name} IF NOT EXISTS\nFOR {node_pattern} ON {props}"
 
 
 @dataclass
@@ -152,11 +168,28 @@ async def _apply_migration(
     # Schema DDL must run in auto-commit mode (not inside a managed transaction).
     async with driver.session(database=database) as schema_session:
         for stmt in migration.statements:
-            result = await asyncio.wait_for(
-                schema_session.run(stmt.strip()),
-                timeout=timeout,
-            )
-            await result.consume()
+            cleaned = stmt.strip()
+            try:
+                result = await asyncio.wait_for(
+                    schema_session.run(cleaned),
+                    timeout=timeout,
+                )
+                await result.consume()
+            except Exception as exc:
+                fallback_stmt = _node_key_to_composite_index(cleaned)
+                if fallback_stmt is not None and "Enterprise Edition" in str(exc):
+                    logger.info(
+                        "graph.migration.node_key_fallback",
+                        version=migration.version,
+                        reason="neo4j_community_edition",
+                    )
+                    fallback_result = await asyncio.wait_for(
+                        schema_session.run(fallback_stmt),
+                        timeout=timeout,
+                    )
+                    await fallback_result.consume()
+                else:
+                    raise
 
     # Record the migration as applied in a write transaction.
     async def _mark_applied(tx: Any) -> None:

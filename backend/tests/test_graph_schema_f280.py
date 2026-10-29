@@ -605,3 +605,57 @@ def test_x_document_lookup_uses_org_and_document_id_params() -> None:
     assert "$organization_id" in doc_lookup_query
     assert "$document_id" in doc_lookup_query
     assert "organization_id" in doc_lookup_query
+
+
+@pytest.mark.asyncio
+async def test_y_community_edition_node_key_falls_back_to_composite_index() -> None:
+    """When Neo4j Community Edition rejects NODE KEY, runner falls back to composite INDEX."""
+    executed_statements: list[str] = []
+
+    query_session = AsyncMock()
+    query_session.__aenter__ = AsyncMock(return_value=query_session)
+    query_session.__aexit__ = AsyncMock(return_value=None)
+    query_result = AsyncMock()
+    query_result.data = AsyncMock(return_value=[])
+    query_session.run = AsyncMock(return_value=query_result)
+
+    schema_session = AsyncMock()
+    schema_session.__aenter__ = AsyncMock(return_value=schema_session)
+    schema_session.__aexit__ = AsyncMock(return_value=None)
+    ok_result = AsyncMock()
+    ok_result.consume = AsyncMock(return_value=None)
+
+    async def _run_stmt(stmt: str, **_kw: Any) -> Any:
+        executed_statements.append(stmt)
+        if "IS NODE KEY" in stmt:
+            raise RuntimeError("Node Key constraint requires Neo4j Enterprise Edition.")
+        return ok_result
+
+    schema_session.run = AsyncMock(side_effect=_run_stmt)
+    schema_session.execute_write = AsyncMock(return_value=None)
+
+    call_count = 0
+
+    def _session_factory(**_kw: Any) -> Any:
+        nonlocal call_count
+        call_count += 1
+        return query_session if call_count == 1 else schema_session
+
+    driver = MagicMock()
+    driver.session = MagicMock(side_effect=_session_factory)
+
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", "neo4j"),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch("app.domains.graph.migration_runner.get_driver", return_value=driver),
+    ):
+        result = await runner_module.run_graph_migrations()
+
+    assert result.success is True
+    assert "0001" in result.applied
+    assert any(
+        "CREATE INDEX document_org_document_key IF NOT EXISTS" in s
+        and "FOR (d:Document) ON (d.organization_id, d.document_id)" in s
+        for s in executed_statements
+    )
