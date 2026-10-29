@@ -445,7 +445,7 @@ class WorkspacePortabilityService:
             .limit(max_rows)
         )
         stmt = self._apply_bounds(stmt, ChatSession.created_at, bounds)
-        sessions = list((await session.execute(stmt)).scalars().all())
+        sessions: list[ChatSession] = list((await session.execute(stmt)).scalars().all())
         items = []
         count = 0
         for chat_session in sessions:
@@ -536,7 +536,7 @@ class WorkspacePortabilityService:
             .limit(max_rows)
         )
         stmt = self._apply_bounds(stmt, EvaluationRun.created_at, bounds)
-        runs = list((await session.execute(stmt)).scalars().all())
+        runs: list[EvaluationRun] = list((await session.execute(stmt)).scalars().all())
         items = []
         count = 0
         for run in runs:
@@ -584,7 +584,7 @@ class WorkspacePortabilityService:
             .limit(max_rows)
         )
         stmt = self._apply_bounds(stmt, AuditLog.created_at, bounds)
-        logs = list((await session.execute(stmt)).scalars().all())
+        logs: list[AuditLog] = list((await session.execute(stmt)).scalars().all())
         items = [
             {
                 "id": str(log.id),

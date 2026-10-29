@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 from math import ceil
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
@@ -67,7 +68,7 @@ class ReportService:
         user_id: UUID | None,
         team_id: UUID | None,
         source_id: UUID | None,
-    ) -> Select[tuple[ReportEvent]]:
+    ) -> Select[Any]:
         stmt = select(ReportEvent).where(
             ReportEvent.organization_id == organization_id,
             ReportEvent.occurred_at >= from_at,
@@ -182,7 +183,11 @@ class ReportService:
             to_at=to_at,
             metrics=metrics,
             chart=[
-                ReportChartPoint(bucket=str(bucket), series=name, value=Decimal(value or 0))
+                ReportChartPoint(
+                    bucket=str(bucket),
+                    series=str(name),
+                    value=Decimal(str(value or 0)),
+                )
                 for bucket, name, value in chart_rows
             ],
             table=[ReportTableRow.model_validate(row, from_attributes=True) for row in rows],

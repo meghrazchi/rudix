@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import delete, func, or_, select
@@ -301,7 +302,7 @@ class DocumentRepository:
                 DocumentPage.ocr_confidence.isnot(None),
             )
         )
-        return {row[0]: row[1] for row in result.all()}
+        return {row[0]: row[1] for row in result.all() if row[1] is not None}
 
     async def update_document_extraction_snapshot(
         self,
@@ -755,8 +756,8 @@ class DocumentRepository:
             return None
 
         return {
-            "min_tokens": int(min_tokens),
-            "max_tokens": int(max_tokens),
-            "avg_tokens": round(float(avg_tokens), 1),
-            "total_tokens": int(total_tokens),
+            "min_tokens": int(cast(Any, min_tokens)),
+            "max_tokens": int(cast(Any, max_tokens)),
+            "avg_tokens": round(float(cast(Any, avg_tokens)), 1),
+            "total_tokens": int(cast(Any, total_tokens)),
         }

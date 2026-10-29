@@ -380,7 +380,11 @@ class SourceHealthService:
             .group_by(PipelineRun.document_id)
         )
         result = await session.execute(stmt)
-        return {doc_id: completed_at for doc_id, completed_at in result.all() if completed_at}
+        return {
+            doc_id: completed_at
+            for doc_id, completed_at in result.all()
+            if doc_id is not None and completed_at is not None
+        }
 
     async def _collection_membership_map(
         self, session: AsyncSession, organization_id: UUID
@@ -459,7 +463,9 @@ class SourceHealthService:
         return {
             document_id
             for document_id, table_metadata in result.all()
-            if isinstance(table_metadata, dict) and table_metadata.get("is_valid") is False
+            if isinstance(document_id, UUID)
+            and isinstance(table_metadata, dict)
+            and table_metadata.get("is_valid") is False
         }
 
     async def _table_warnings_for_document(
@@ -614,6 +620,7 @@ class SourceHealthService:
         return [
             OcrQualityCount(ocr_quality_status=status, count=count)
             for status, count in result.all()
+            if status is not None
         ]
 
     async def _review_needs_by_owner(

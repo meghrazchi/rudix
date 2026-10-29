@@ -397,7 +397,9 @@ class UsageAdoptionService:
             UsageEvent.created_at >= from_dt,
             UsageEvent.created_at <= to_dt,
         )
-        active_ids |= {row[0] for row in (await session.execute(usage_stmt)).all()}
+        active_ids |= {
+            row[0] for row in (await session.execute(usage_stmt)).all() if row[0] is not None
+        }
         if role_ids is not None:
             active_ids &= role_ids
         return active_ids
@@ -436,7 +438,11 @@ class UsageAdoptionService:
             .group_by(UsageEvent.user_id)
         )
         result = await session.execute(stmt)
-        return {user_id: first_seen for user_id, first_seen in result.all()}
+        return {
+            user_id: first_seen
+            for user_id, first_seen in result.all()
+            if user_id is not None and first_seen is not None
+        }
 
     async def _questions_asked_count(
         self,
@@ -642,8 +648,12 @@ class UsageAdoptionService:
             ConnectorConnection.organization_id == organization_id,
             ConnectorConnection.created_by_user_id.is_not(None),
         )
-        connected_or_uploaded = {row[0] for row in (await session.execute(uploaded_stmt)).all()}
-        connected_or_uploaded |= {row[0] for row in (await session.execute(connected_stmt)).all()}
+        connected_or_uploaded = {
+            row[0] for row in (await session.execute(uploaded_stmt)).all() if row[0] is not None
+        }
+        connected_or_uploaded |= {
+            row[0] for row in (await session.execute(connected_stmt)).all() if row[0] is not None
+        }
 
         indexed = await self._usage_event_actor_ids(session, organization_id, _EVT_INDEXED)
         asked = await self._usage_event_actor_ids(session, organization_id, _EVT_FIRST_QUESTION)
@@ -658,14 +668,20 @@ class UsageAdoptionService:
         shared_stmt = select(AnswerShare.shared_by_user_id).where(
             AnswerShare.organization_id == organization_id
         )
-        saved_or_shared = {row[0] for row in (await session.execute(saved_stmt)).all()}
-        saved_or_shared |= {row[0] for row in (await session.execute(shared_stmt)).all()}
+        saved_or_shared = {
+            row[0] for row in (await session.execute(saved_stmt)).all() if row[0] is not None
+        }
+        saved_or_shared |= {
+            row[0] for row in (await session.execute(shared_stmt)).all() if row[0] is not None
+        }
 
         invited_stmt = select(OrganizationInvitation.invited_by_user_id).where(
             OrganizationInvitation.organization_id == organization_id,
             OrganizationInvitation.invited_by_user_id.is_not(None),
         )
-        invited_teammate = {row[0] for row in (await session.execute(invited_stmt)).all()}
+        invited_teammate = {
+            row[0] for row in (await session.execute(invited_stmt)).all() if row[0] is not None
+        }
 
         returned_again = await self._returned_again_user_ids(session, organization_id)
 
@@ -690,7 +706,7 @@ class UsageAdoptionService:
             UsageEvent.user_id.is_not(None),
         )
         result = await session.execute(stmt)
-        return {row[0] for row in result.all()}
+        return {row[0] for row in result.all() if row[0] is not None}
 
     async def _returned_again_user_ids(
         self, session: AsyncSession, organization_id: UUID
@@ -701,7 +717,8 @@ class UsageAdoptionService:
         result = await session.execute(stmt)
         days_by_user: dict[UUID, set] = {}
         for user_id, day in result.all():
-            days_by_user.setdefault(user_id, set()).add(day)
+            if isinstance(user_id, UUID):
+                days_by_user.setdefault(user_id, set()).add(day)
         return {user_id for user_id, days in days_by_user.items() if len(days) >= 2}
 
     # -- internal: chart builders -----------------------------------------------
@@ -728,7 +745,8 @@ class UsageAdoptionService:
         # postgres/asyncpg) — normalize to ISO strings so lookups below are stable.
         users_by_day: dict[str, set[UUID]] = {}
         for user_id, day in result.all():
-            users_by_day.setdefault(str(day), set()).add(user_id)
+            if isinstance(user_id, UUID):
+                users_by_day.setdefault(str(day), set()).add(user_id)
 
         points: list[ActiveUsersPoint] = []
         current = from_date
