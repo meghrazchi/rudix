@@ -15,7 +15,12 @@ from app.domains.agents.schemas import (
     ToolSpec,
     ToolSurface,
 )
-from app.domains.agents.services import DocumentIntelligenceToolService, build_default_tool_specs
+from app.domains.agents.services import (
+    AgentToolExecutor,
+    DocumentIntelligenceToolService,
+    ToolRegistry,
+    build_default_tool_specs,
+)
 from app.mcp.auth import resolve_mcp_principal
 from app.mcp.dependencies import get_http_headers_from_context
 from app.mcp.policy import ensure_mcp_tool_capability
@@ -62,6 +67,12 @@ class MCPResourceRuntime:
     ) -> None:
         self._service = service or DocumentIntelligenceToolService()
         self._tool_specs = _build_resource_tool_specs()
+        registry = ToolRegistry(specs=tuple(self._tool_specs.values()))
+        for name in _READONLY_RESOURCE_TOOL_NAMES:
+            handler = getattr(self._service, name, None)
+            if callable(handler) and registry.get_spec(name) is not None:
+                registry.register_handler(tool_name=name, handler=handler)
+        self._executor = AgentToolExecutor(registry=registry)
         self._reader = MCPResourceReader(execute_resource_tool=self._execute_resource_tool)
 
     async def _resolve_authorized_principal(
@@ -198,44 +209,29 @@ class MCPResourceRuntime:
             arguments=arguments,
         )
 
-        try:
-            if tool_name == "search_documents":
-                data = await self._service.search_documents(call, principal)
-            elif tool_name == "get_document_detail":
-                data = await self._service.get_document_detail(call, principal)
-            elif tool_name == "list_document_chunks":
-                data = await self._service.list_document_chunks(call, principal)
-            elif tool_name == "answer_from_context":
-                data = await self._service.answer_from_context(call, principal)
-            else:
-                return safe_resource_error_payload(
-                    resource=resource,
-                    code=ToolErrorCode.tool_unavailable,
-                    message="Resource tool is not implemented.",
-                    request_id=request_id,
-                )
-        except ValueError:
-            return safe_resource_error_payload(
-                resource=resource,
-                code=ToolErrorCode.validation_failed,
-                message="Resource request validation failed.",
-                request_id=request_id,
+        result = await self._executor.execute(
+            session=None,
+            call=call,
+            principal=principal,
+            request_id=request_id,
+        )
+        if not result.success or not isinstance(result.output, dict):
+            error_code = (
+                result.error.code if result.error is not None else ToolErrorCode.internal_error
             )
-        except AuthorizationError:
-            return safe_resource_error_payload(
-                resource=resource,
-                code=ToolErrorCode.authorization_failed,
-                message="Resource access is not allowed for this principal.",
-                request_id=request_id,
+            error_message = (
+                result.error.safe_message
+                if result.error is not None
+                else "Resource execution failed unexpectedly."
             )
-        except Exception:
             return safe_resource_error_payload(
                 resource=resource,
-                code=ToolErrorCode.internal_error,
-                message="Resource execution failed unexpectedly.",
+                code=error_code,
+                message=error_message,
                 request_id=request_id,
             )
 
+        data = result.output
         try:
             data = apply_org_mcp_output_policy(policy=org_policy, output=data)
         except PayloadTooLarge:

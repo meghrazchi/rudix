@@ -277,3 +277,20 @@ def test_register_mcp_resources_templates() -> None:
     assert "rudix://documents/{document_id}/chunks{?limit,offset}" in registered_uris
     assert "rudix://search/{query}{?status,sort_by,sort_order,limit,offset}" in registered_uris
     assert "rudix://citations/{query}{?document_id,top_k,rerank}" in registered_uris
+
+
+async def test_mcp_resource_runtime_enforces_executor_output_budget(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "feature_enable_mcp", True)
+    monkeypatch.setattr(settings, "agent_tool_max_output_bytes", 512)
+    runtime = MCPResourceRuntime(service=_StubDocumentService())  # type: ignore[arg-type]
+    monkeypatch.setattr("app.mcp.resource_runtime.get_http_headers_from_context", lambda: {})
+    monkeypatch.setattr(
+        "app.mcp.resource_runtime.resolve_mcp_principal",
+        _resolve_admin_principal,
+    )
+    monkeypatch.setattr("app.mcp.resource_runtime.enforce_mcp_rate_limit", _noop_rate_limit)
+
+    payload = await runtime.read_citations(query="policy", top_k=4, rerank=True)
+
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "budget_exceeded"
