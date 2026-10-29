@@ -88,7 +88,7 @@ services:
       - qdrant_data:/qdrant/storage
 
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
