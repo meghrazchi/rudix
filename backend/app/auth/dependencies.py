@@ -22,6 +22,7 @@ from app.auth.resource_context_builder import (
 from app.core.config import settings
 from app.core.logging import log_authorization_event
 from app.db.session import get_db_session
+from app.db.tenant_context import bind_session_tenant
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.connector import ConnectorConnection, ExternalItem
 from app.models.document import Document
@@ -196,6 +197,7 @@ async def get_current_principal(
     if scheme.lower() == "bearer" and raw.startswith(_SERVICE_ACCOUNT_TOKEN_PREFIX):
         try:
             principal = await _authenticate_service_account_token(request, raw, db_session)
+            bind_session_tenant(db_session, principal.organization_id)
             request.state.auth_principal = principal
             return principal
         except AuthenticationError as exc:
@@ -203,6 +205,7 @@ async def get_current_principal(
     if scheme.lower() == "bearer" and raw.startswith(_API_KEY_PREFIX):
         try:
             principal = await _authenticate_api_key(request, raw, db_session)
+            bind_session_tenant(db_session, principal.organization_id)
             request.state.auth_principal = principal
             return principal
         except AuthenticationError as exc:
@@ -211,6 +214,7 @@ async def get_current_principal(
     provider = get_auth_provider()
     try:
         principal = await provider.authenticate(request, db_session)
+        bind_session_tenant(db_session, principal.organization_id)
         request.state.auth_principal = principal
         return principal
     except AuthenticationError as exc:

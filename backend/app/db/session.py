@@ -4,6 +4,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import settings
+from app.db.tenant_context import install_sqlalchemy_tenant_guard
+
+install_sqlalchemy_tenant_guard()
 
 engine = create_async_engine(
     str(settings.database_url),
