@@ -431,3 +431,90 @@ def test_trust_check_prompt_allowed() -> None:
     svc.check_prompt_allowed(policy, "summarize")
     with pytest.raises(AllowlistDenied):
         svc.check_prompt_allowed(policy, "jailbreak")
+
+
+# ─── Runtime enforcement of OrgMCPPolicy across tools, resources, prompts ────
+
+
+@pytest.mark.asyncio
+async def test_mcp_tool_runtime_enforces_org_policy_allowlist_and_redaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.auth.models import AuthenticatedPrincipal
+    from app.domains.agents.schemas import ToolCall, ToolErrorCode, ToolResult
+    from app.mcp.server import MCPToolRuntime
+
+    runtime = MCPToolRuntime()
+    monkeypatch.setattr(settings, "feature_enable_mcp", True)
+
+    async def _resolve_principal(_: dict[str, str]) -> AuthenticatedPrincipal:
+        return AuthenticatedPrincipal(
+            user_id="user-1",
+            organization_id=str(uuid4()),
+            email="u@example.com",
+            roles=["member"],
+            auth_provider="app",
+        )
+
+    async def _noop_rate_limit(*, principal: AuthenticatedPrincipal, tool_name: str) -> None:
+        _ = (principal, tool_name)
+
+    async def _fake_execute(
+        *,
+        session: object,
+        call: ToolCall,
+        principal: AuthenticatedPrincipal,
+        request_id: str | None,
+    ) -> ToolResult:
+        _ = (session, principal, request_id)
+        return ToolResult(
+            call_id=call.call_id,
+            tool_name=call.tool_name,
+            success=True,
+            output={
+                "response": "Answer",
+                "not_found": False,
+                "confidence": {"score": 0.9, "category": "high"},
+                "citations": [{"chunk_id": "c-1", "snippet": "Secret document text"}],
+            },
+            error=None,
+            latency_ms=4,
+        )
+
+    monkeypatch.setattr("app.mcp.server.get_http_headers_from_context", lambda: {})
+    monkeypatch.setattr("app.mcp.server.resolve_mcp_principal", _resolve_principal)
+    monkeypatch.setattr("app.mcp.server.enforce_mcp_rate_limit", _noop_rate_limit)
+    monkeypatch.setattr(runtime._executor, "execute", _fake_execute)
+
+    # 1. Blocked when tool is not in OrgMCPPolicy.allowed_tools
+    blocked_policy = _make_policy(enabled=True, allowed_tools=["search_documents"])
+
+    async def _load_blocked(_: str | None) -> OrgMCPPolicy:
+        return blocked_policy
+
+    monkeypatch.setattr("app.mcp.server.load_org_mcp_policy", _load_blocked)
+    denied = await runtime.execute_tool(
+        tool_name="ask_documents",
+        arguments={"question": "What is in the doc?"},
+    )
+    assert denied["success"] is False
+    assert denied["error"]["code"] == ToolErrorCode.authorization_failed.value
+
+    # 2. Allowed tool has citation snippets redacted when redact_document_text=True
+    redact_policy = _make_policy(
+        enabled=True,
+        allowed_tools=["ask_documents"],
+        redact_document_text=True,
+        max_chunk_chars=None,
+    )
+
+    async def _load_redact(_: str | None) -> OrgMCPPolicy:
+        return redact_policy
+
+    monkeypatch.setattr("app.mcp.server.load_org_mcp_policy", _load_redact)
+    allowed = await runtime.execute_tool(
+        tool_name="ask_documents",
+        arguments={"question": "What is in the doc?"},
+    )
+    assert allowed["success"] is True
+    assert allowed["output"]["citations"][0]["snippet"] == "[content redacted by MCP trust policy]"

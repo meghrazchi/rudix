@@ -18,6 +18,7 @@ from app.mcp.rate_limit import (
     MCPRateLimitExceededError,
     enforce_mcp_rate_limit,
 )
+from app.mcp.trust_guard import enforce_org_mcp_prompt_policy, load_org_mcp_policy
 
 
 class _PromptArgs(BaseModel):
@@ -226,7 +227,14 @@ class MCPPromptRuntime:
         if principal.organization_id is None:
             raise AuthorizationError("No active organization context for principal.")
 
-        capabilities = derive_mcp_capabilities(principal)
+        org_policy = await load_org_mcp_policy(principal.organization_id)
+        enforce_org_mcp_prompt_policy(
+            policy=org_policy,
+            principal=principal,
+            prompt_name=prompt_name,
+        )
+
+        capabilities = derive_mcp_capabilities(principal, org_policy=org_policy)
         if capability.strip().lower() not in capabilities:
             raise AuthorizationError("MCP principal capability is not authorized for this prompt.")
 

@@ -44,6 +44,12 @@ from app.mcp.rate_limit import (
 )
 from app.mcp.resources import register_mcp_resources
 from app.mcp.tool_catalog import MCPToolBinding, build_mcp_tool_bindings
+from app.mcp.trust_guard import (
+    PayloadTooLarge,
+    apply_org_mcp_output_policy,
+    enforce_org_mcp_tool_policy,
+    load_org_mcp_policy,
+)
 
 _logger = get_logger("mcp.server")
 
@@ -250,8 +256,36 @@ class MCPToolRuntime:
                 request_id=request_id,
             )
 
+        org_policy = await load_org_mcp_policy(principal.organization_id)
         try:
-            ensure_mcp_tool_capability(principal=principal, tool_spec=binding.public_spec)
+            enforce_org_mcp_tool_policy(
+                policy=org_policy,
+                principal=principal,
+                tool_name=tool_name,
+                internal_tool_name=binding.internal_name,
+                arguments=arguments,
+            )
+        except AuthorizationError:
+            return _safe_tool_error_payload(
+                tool_name=tool_name,
+                code=ToolErrorCode.authorization_failed,
+                message="MCP operation is not permitted by organization policy.",
+                request_id=request_id,
+            )
+        except PayloadTooLarge:
+            return _safe_tool_error_payload(
+                tool_name=tool_name,
+                code=ToolErrorCode.budget_exceeded,
+                message="MCP tool input exceeded organization policy size limit.",
+                request_id=request_id,
+            )
+
+        try:
+            ensure_mcp_tool_capability(
+                principal=principal,
+                tool_spec=binding.public_spec,
+                org_policy=org_policy,
+            )
         except AuthorizationError:
             return _safe_tool_error_payload(
                 tool_name=tool_name,
@@ -315,7 +349,21 @@ class MCPToolRuntime:
         payload = result.model_dump(mode="json")
         payload["tool_name"] = tool_name
         if result.success and isinstance(payload.get("output"), dict):
-            payload["output"] = binding.normalize_output(payload["output"])
+            normalized_output = binding.normalize_output(payload["output"])
+            if isinstance(normalized_output, dict):
+                try:
+                    normalized_output = apply_org_mcp_output_policy(
+                        policy=org_policy,
+                        output=normalized_output,
+                    )
+                except PayloadTooLarge:
+                    return _safe_tool_error_payload(
+                        tool_name=tool_name,
+                        code=ToolErrorCode.budget_exceeded,
+                        message="MCP tool output exceeded organization policy size limit.",
+                        request_id=request_id,
+                    )
+            payload["output"] = normalized_output
         return payload
 
 

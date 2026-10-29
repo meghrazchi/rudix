@@ -27,6 +27,13 @@ from app.mcp.rate_limit import (
 from app.mcp.resource_constants import _READONLY_RESOURCE_TOOL_NAMES
 from app.mcp.resource_reader import MCPResourceReader
 from app.mcp.resource_utils import safe_resource_error_payload
+from app.mcp.trust_guard import (
+    PayloadTooLarge,
+    apply_org_mcp_output_policy,
+    enforce_org_mcp_resource_policy,
+    load_org_mcp_policy,
+)
+from app.models.mcp_policy import OrgMCPPolicy
 
 
 def _build_resource_tool_specs() -> dict[str, ToolSpec]:
@@ -63,7 +70,7 @@ class MCPResourceRuntime:
         resource: str,
         tool_name: str,
         request_id: str,
-    ) -> AuthenticatedPrincipal | dict[str, Any]:
+    ) -> tuple[AuthenticatedPrincipal, OrgMCPPolicy | None] | dict[str, Any]:
         if not settings.feature_enable_mcp:
             return safe_resource_error_payload(
                 resource=resource,
@@ -106,8 +113,27 @@ class MCPResourceRuntime:
                 request_id=request_id,
             )
 
+        org_policy = await load_org_mcp_policy(principal.organization_id)
         try:
-            ensure_mcp_tool_capability(principal=principal, tool_spec=tool_spec)
+            enforce_org_mcp_resource_policy(
+                policy=org_policy,
+                principal=principal,
+                resource=resource,
+            )
+        except AuthorizationError:
+            return safe_resource_error_payload(
+                resource=resource,
+                code=ToolErrorCode.authorization_failed,
+                message="MCP resource access is not permitted by organization policy.",
+                request_id=request_id,
+            )
+
+        try:
+            ensure_mcp_tool_capability(
+                principal=principal,
+                tool_spec=tool_spec,
+                org_policy=org_policy,
+            )
         except AuthorizationError:
             return safe_resource_error_payload(
                 resource=resource,
@@ -136,7 +162,7 @@ class MCPResourceRuntime:
                 request_id=request_id,
             )
 
-        return principal
+        return principal, org_policy
 
     async def _execute_resource_tool(
         self,
@@ -153,7 +179,7 @@ class MCPResourceRuntime:
         if isinstance(principal_or_error, dict):
             return principal_or_error
 
-        principal = principal_or_error
+        principal, org_policy = principal_or_error
         organization_id = principal.organization_id
         if organization_id is None:
             return safe_resource_error_payload(
@@ -207,6 +233,16 @@ class MCPResourceRuntime:
                 resource=resource,
                 code=ToolErrorCode.internal_error,
                 message="Resource execution failed unexpectedly.",
+                request_id=request_id,
+            )
+
+        try:
+            data = apply_org_mcp_output_policy(policy=org_policy, output=data)
+        except PayloadTooLarge:
+            return safe_resource_error_payload(
+                resource=resource,
+                code=ToolErrorCode.budget_exceeded,
+                message="MCP resource output exceeded organization policy size limit.",
                 request_id=request_id,
             )
 
