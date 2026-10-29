@@ -30,6 +30,7 @@ Key constraints:
 - side-effect tools require approval by default
 - discovery schema drift fails safely (server skipped, runtime continues)
 - external call traces are sanitized and organization-scoped
+- outbound HTTP client blocks link-local/reserved metadata IPs in all environments, and requires HTTPS with non-private/non-loopback targets in `staging` and `production`
 
 This keeps inbound MCP server behavior and outbound MCP client behavior separate
 while reusing the same `ToolRegistry`/`ToolSpec`/`AgentToolExecutor` boundaries.
@@ -366,6 +367,7 @@ Redis failure behavior follows `RATE_LIMIT_REDIS_FAILURE_MODE`.
 ### Safety and redaction
 
 Structured `ToolResult` with safe errors only — no raw tokens, secrets, or protected document text in failures.
+When an organization configures `OrgMCPPolicy` via `/api/v1/admin/mcp/policy`, the MCP server runtime enforces per-organization enablement, tool/resource/prompt/role allowlists, chunk/citation redaction and truncation (`redact_document_text`, `max_chunk_chars`), and request/response byte limits (`max_request_bytes`, `max_response_bytes`).
 
 ---
 

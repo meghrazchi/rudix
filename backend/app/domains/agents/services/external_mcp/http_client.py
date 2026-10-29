@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import httpx
 
-from app.core.config import MCPExternalAuthType, MCPExternalServerSettings
+from app.core.config import Environment, MCPExternalAuthType, MCPExternalServerSettings, settings
 
 from .types import (
     ExternalMCPClientError,
@@ -18,6 +20,43 @@ from .types import (
 
 _MCP_SESSION_HEADER = "mcp-session-id"
 _MAX_CONTENT_ITEMS = 8
+_LOOPBACK_HOSTS = {"localhost", "localhost.localdomain"}
+
+
+def _validate_external_mcp_url(raw_url: str, *, server_id: str) -> None:
+    parsed = urlsplit(raw_url)
+    scheme = parsed.scheme.lower()
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise ExternalMCPClientError(
+            f"External MCP server '{server_id}' has an invalid base_url hostname."
+        )
+
+    is_non_dev = settings.environment in {Environment.production, Environment.staging}
+    if is_non_dev and scheme != "https":
+        raise ExternalMCPClientError(
+            f"External MCP server '{server_id}' must use HTTPS in {settings.environment.value}."
+        )
+
+    if is_non_dev and host in _LOOPBACK_HOSTS:
+        raise ExternalMCPClientError(
+            f"External MCP server '{server_id}' cannot target loopback hosts in {settings.environment.value}."
+        )
+
+    try:
+        ip_addr = ipaddress.ip_address(host)
+    except ValueError:
+        return
+
+    if ip_addr.is_link_local or ip_addr.is_multicast or ip_addr.is_unspecified:
+        raise ExternalMCPClientError(
+            f"External MCP server '{server_id}' cannot target link-local or reserved IP addresses."
+        )
+
+    if is_non_dev and (ip_addr.is_loopback or ip_addr.is_private):
+        raise ExternalMCPClientError(
+            f"External MCP server '{server_id}' cannot target private or loopback IPs in {settings.environment.value}."
+        )
 
 
 class ExternalMCPHTTPClient:
@@ -137,11 +176,15 @@ class ExternalMCPHTTPClient:
             "params": params,
         }
 
+        target_url = str(self._server.base_url)
+        _validate_external_mcp_url(target_url, server_id=self._server.server_id)
+
         try:
-            async with httpx.AsyncClient(timeout=self._timeout()) as client:
-                response = await client.post(
-                    str(self._server.base_url), json=payload, headers=headers
-                )
+            async with httpx.AsyncClient(
+                timeout=self._timeout(),
+                follow_redirects=False,
+            ) as client:
+                response = await client.post(target_url, json=payload, headers=headers)
         except httpx.HTTPError as exc:
             raise ExternalMCPClientError(
                 f"Unable to reach external MCP server '{self._server.server_id}'."

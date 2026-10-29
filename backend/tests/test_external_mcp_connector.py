@@ -221,3 +221,47 @@ async def test_external_mcp_tool_preserves_org_authorization_boundary() -> None:
     assert result.success is False
     assert result.error is not None
     assert result.error.code == ToolErrorCode.authorization_failed
+
+
+async def test_external_mcp_http_client_blocks_metadata_and_non_https_in_prod(
+    monkeypatch,
+) -> None:
+    import pytest
+
+    from app.core.config import Environment, settings
+    from app.domains.agents.services.external_mcp.http_client import ExternalMCPHTTPClient
+    from app.domains.agents.services.external_mcp.types import ExternalMCPClientError
+
+    metadata_server = MCPExternalServerSettings.model_validate(
+        {
+            "server_id": "meta_srv",
+            "base_url": "http://169.254.169.254/latest/meta-data",
+            "allow_tools": ["ping"],
+        }
+    )
+    client = ExternalMCPHTTPClient(server=metadata_server)
+    with pytest.raises(ExternalMCPClientError, match="link-local"):
+        await client.discover()
+
+    monkeypatch.setattr(settings, "environment", Environment.production)
+    cleartext_server = MCPExternalServerSettings.model_validate(
+        {
+            "server_id": "http_srv",
+            "base_url": "http://mcp.example.com/mcp",
+            "allow_tools": ["ping"],
+        }
+    )
+    http_client = ExternalMCPHTTPClient(server=cleartext_server)
+    with pytest.raises(ExternalMCPClientError, match="HTTPS"):
+        await http_client.discover()
+
+    private_ip_server = MCPExternalServerSettings.model_validate(
+        {
+            "server_id": "priv_srv",
+            "base_url": "https://10.0.0.15/mcp",
+            "allow_tools": ["ping"],
+        }
+    )
+    private_client = ExternalMCPHTTPClient(server=private_ip_server)
+    with pytest.raises(ExternalMCPClientError, match="private or loopback"):
+        await private_client.discover()
