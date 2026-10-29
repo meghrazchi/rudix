@@ -1,5 +1,11 @@
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import VectorParams
+from qdrant_client.http.models import (
+    IntegerIndexParams,
+    IntegerIndexType,
+    KeywordIndexParams,
+    KeywordIndexType,
+    VectorParams,
+)
 
 from app.clients.factory import create_qdrant_client, qdrant_distance_to_model
 from app.core.config import settings
@@ -61,6 +67,46 @@ def _normalize_distance(value: object) -> str:
     return text
 
 
+def ensure_qdrant_payload_indexes() -> None:
+    """Ensure multi-tenant and retrieval filter payload indexes exist on the Qdrant collection."""
+    if qdrant_client is None:
+        raise RuntimeError("Qdrant client is not initialized")
+
+    create_payload_index = getattr(qdrant_client, "create_payload_index", None)
+    if not callable(create_payload_index):
+        return
+
+    collection_name = settings.qdrant_collection
+    create_payload_index(
+        collection_name=collection_name,
+        field_name="organization_id",
+        field_schema=KeywordIndexParams(
+            type=KeywordIndexType.KEYWORD,
+            is_tenant=True,
+        ),
+    )
+    create_payload_index(
+        collection_name=collection_name,
+        field_name="document_id",
+        field_schema=KeywordIndexParams(type=KeywordIndexType.KEYWORD),
+    )
+    create_payload_index(
+        collection_name=collection_name,
+        field_name="index_version",
+        field_schema=KeywordIndexParams(type=KeywordIndexType.KEYWORD),
+    )
+    create_payload_index(
+        collection_name=collection_name,
+        field_name="chunk_level",
+        field_schema=IntegerIndexParams(type=IntegerIndexType.INTEGER),
+    )
+    logger.info(
+        "qdrant.payload_indexes.ensured",
+        collection=collection_name,
+        tenant_field="organization_id",
+    )
+
+
 def ensure_qdrant_collection() -> None:
     if qdrant_client is None:
         raise RuntimeError("Qdrant client is not initialized")
@@ -74,6 +120,7 @@ def ensure_qdrant_collection() -> None:
                 distance=qdrant_distance_to_model(settings.qdrant_distance),
             ),
         )
+        ensure_qdrant_payload_indexes()
         logger.info(
             "qdrant.collection.created",
             collection=settings.qdrant_collection,
@@ -102,6 +149,7 @@ def ensure_qdrant_collection() -> None:
             f"for collection '{settings.qdrant_collection}'."
         )
 
+    ensure_qdrant_payload_indexes()
     logger.info(
         "qdrant.collection.exists",
         collection=settings.qdrant_collection,

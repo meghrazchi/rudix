@@ -234,3 +234,54 @@ def test_ensure_qdrant_collection_raises_on_schema_mismatch(
 
     with pytest.raises(RuntimeError, match="Existing Qdrant collection does not match"):
         qdrant_client.ensure_qdrant_collection()
+
+
+def test_ensure_qdrant_collection_creates_tenant_and_filter_payload_indexes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    index_calls: list[dict[str, Any]] = []
+
+    class FakeQdrantWithIndexes:
+        def collection_exists(self, _: str) -> bool:
+            return False
+
+        def create_collection(self, **_: Any) -> None:
+            return None
+
+        def create_payload_index(
+            self,
+            *,
+            collection_name: str,
+            field_name: str,
+            field_schema: Any,
+        ) -> None:
+            index_calls.append(
+                {
+                    "collection_name": collection_name,
+                    "field_name": field_name,
+                    "field_schema": field_schema,
+                }
+            )
+
+    monkeypatch.setattr(
+        qdrant_client,
+        "settings",
+        SimpleNamespace(
+            qdrant_collection="documents",
+            qdrant_vector_size=1536,
+            qdrant_distance=QdrantDistance.cosine,
+        ),
+    )
+    monkeypatch.setattr(qdrant_client, "qdrant_client", FakeQdrantWithIndexes())
+
+    qdrant_client.ensure_qdrant_collection()
+
+    by_field = {call["field_name"]: call["field_schema"] for call in index_calls}
+    assert set(by_field.keys()) == {
+        "organization_id",
+        "document_id",
+        "index_version",
+        "chunk_level",
+    }
+    assert getattr(by_field["organization_id"], "is_tenant", False) is True
+    assert getattr(by_field["document_id"], "is_tenant", None) in (None, False)
