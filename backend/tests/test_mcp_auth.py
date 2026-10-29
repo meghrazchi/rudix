@@ -80,3 +80,18 @@ async def test_streamable_http_optional_auth_is_blocked_in_staging(
 
     with pytest.raises(AuthenticationError, match="Bearer token is required"):
         await resolve_mcp_principal(headers={})
+
+
+@pytest.mark.parametrize("env", [Environment.staging, Environment.production])
+async def test_stdio_dev_principal_is_blocked_in_non_dev_environments(
+    monkeypatch: pytest.MonkeyPatch,
+    env: Environment,
+) -> None:
+    monkeypatch.setattr(settings, "environment", env)
+    monkeypatch.setattr(settings, "mcp_transport", MCPTransport.stdio)
+    monkeypatch.setattr(settings, "mcp_dev_principal_user_id", "user-dev-001")
+    monkeypatch.setattr(settings, "mcp_dev_principal_organization_id", "org-dev-001")
+    monkeypatch.setattr(settings, "mcp_dev_principal_roles", ["owner"])
+
+    with pytest.raises(AuthenticationError, match="Bearer token is required"):
+        await resolve_mcp_principal(headers={})

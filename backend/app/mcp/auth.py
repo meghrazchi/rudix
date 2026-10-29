@@ -32,6 +32,10 @@ def _build_request_from_headers(headers: dict[str, str]) -> Request:
 
 
 def _principal_from_dev_settings() -> AuthenticatedPrincipal:
+    if settings.environment in {Environment.production, Environment.staging}:
+        raise AuthenticationError(
+            "Bearer token is required for MCP in non-development environments"
+        )
     if settings.mcp_dev_principal_user_id is None:
         raise AuthenticationError("MCP dev principal user id is not configured")
     if settings.mcp_dev_principal_organization_id is None:
@@ -54,10 +58,6 @@ async def resolve_mcp_principal(headers: dict[str, str] | None = None) -> Authen
         return _principal_from_dev_settings()
 
     if not settings.mcp_require_bearer_auth and "authorization" not in normalized_headers:
-        if settings.environment in {Environment.production, Environment.staging}:
-            raise AuthenticationError(
-                "Bearer token is required for MCP in non-development environments"
-            )
         return _principal_from_dev_settings()
 
     if "authorization" not in normalized_headers:
