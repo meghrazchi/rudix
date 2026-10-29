@@ -169,3 +169,28 @@ async def test_bind_session_tenant_and_set_postgres_tenant_context() -> None:
 
     with pytest.raises(ValueError, match="Valid organization_id UUID is required"):
         await set_postgres_tenant_context(mock_session, "not-a-uuid")
+
+
+def test_rls_sql_builders_and_identifier_validation() -> None:
+    from app.db.rls import (
+        TENANT_RLS_POLICY_NAME,
+        TENANT_RLS_TABLES,
+        build_disable_rls_sql,
+        build_enable_rls_sql,
+    )
+
+    assert "documents" in TENANT_RLS_TABLES
+    assert "collections" in TENANT_RLS_TABLES
+
+    enable_sql, drop_sql, create_sql = build_enable_rls_sql("documents")
+    assert enable_sql == "ALTER TABLE documents ENABLE ROW LEVEL SECURITY"
+    assert drop_sql == f"DROP POLICY IF EXISTS {TENANT_RLS_POLICY_NAME} ON documents"
+    assert "current_setting('app.current_organization_id', true)" in create_sql
+    assert "WITH CHECK" in create_sql
+
+    drop_policy_sql, disable_sql = build_disable_rls_sql("documents")
+    assert drop_policy_sql == f"DROP POLICY IF EXISTS {TENANT_RLS_POLICY_NAME} ON documents"
+    assert disable_sql == "ALTER TABLE documents DISABLE ROW LEVEL SECURITY"
+
+    with pytest.raises(ValueError, match="Unsafe SQL identifier"):
+        build_enable_rls_sql("documents; DROP TABLE users")

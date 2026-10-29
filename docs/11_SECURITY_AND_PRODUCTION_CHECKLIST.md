@@ -66,6 +66,13 @@ Every Qdrant search must include payload filters:
 }
 ```
 
+Multi-tenant defense-in-depth requirements:
+
+- Qdrant collection bootstrap (`ensure_qdrant_collection`) must configure a keyword payload index on `organization_id` with `is_tenant=True` (co-locating tenant vectors and HNSW subgraphs) alongside filter indexes on `document_id`, `index_version`, and `chunk_level`.
+- Cross-tenant authorization denials (`DenyReason.tenant_boundary`) in `AuthorizationService.authorize_or_raise` must always return HTTP `404 Not Found` (preventing cross-organization UUID enumeration) while recording `deny_reason="tenant_boundary"` in the security audit log.
+- Authenticated requests bind `organization_id` onto the SQLAlchemy `AsyncSession` (`bind_session_tenant`), and `tenant_scoped_session` enforces ORM `do_orm_execute` loader criteria (`organization_id == tenant_id`) and `before_flush` cross-tenant write blocking.
+- PostgreSQL tenant tables enforce Row-Level Security (`ENABLE ROW LEVEL SECURITY` with `tenant_isolation_policy` keyed on `current_setting('app.current_organization_id', true)`).
+
 Connector operations must also enforce:
 
 - `organization_id` on providers' connections, external sources, external
