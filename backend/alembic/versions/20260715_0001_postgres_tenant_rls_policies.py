@@ -6,6 +6,8 @@ Revises: 20260714_0001
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
 from alembic import op
 from app.db.rls import TENANT_RLS_TABLES, build_disable_rls_sql, build_enable_rls_sql
 
@@ -20,7 +22,10 @@ def upgrade() -> None:
     if bind.dialect.name != "postgresql":
         return
 
+    existing_tables = set(sa.inspect(bind).get_table_names())
     for table_name in TENANT_RLS_TABLES:
+        if table_name not in existing_tables:
+            continue
         for statement in build_enable_rls_sql(table_name):
             op.execute(statement)
 
@@ -30,6 +35,9 @@ def downgrade() -> None:
     if bind.dialect.name != "postgresql":
         return
 
+    existing_tables = set(sa.inspect(bind).get_table_names())
     for table_name in reversed(TENANT_RLS_TABLES):
+        if table_name not in existing_tables:
+            continue
         for statement in build_disable_rls_sql(table_name):
             op.execute(statement)

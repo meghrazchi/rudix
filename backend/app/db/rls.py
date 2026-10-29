@@ -18,8 +18,8 @@ TENANT_RLS_TABLES: tuple[str, ...] = (
     "service_accounts",
     "audit_logs",
     "usage_events",
-    "saved_answers",
-    "knowledge_cards",
+    "verified_answers",
+    "answer_shares",
     "report_events",
 )
 
