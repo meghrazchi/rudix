@@ -38,6 +38,7 @@ from app.auth.permission_service import PermissionService
 from app.auth.policy_engine import (
     Action,
     AuthorizationResult,
+    DenyReason,
     PermissionResult,
     PolicyEngine,
     ResourceContext,
@@ -152,6 +153,11 @@ class AuthorizationService:
         )
         if result.result is PermissionResult.deny:
             await self._record_deny(principal, action, resource, result)
+            if result.deny_reason is DenyReason.tenant_boundary:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Resource not found",
+                )
             raise HTTPException(status_code=deny_status, detail=deny_detail)
         return result
 

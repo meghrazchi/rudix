@@ -696,6 +696,37 @@ class TestAuthorizationServiceAsync:
             assert exc_info.value.status_code == 403
             assert exc_info.value.detail == "Forbidden"
 
+    @pytest.mark.asyncio
+    async def test_authorize_or_raise_masks_tenant_boundary_as_404_even_when_403_configured(self):
+        """Cross-tenant resource probes must always return 404 to prevent UUID enumeration."""
+        from fastapi import HTTPException
+
+        principal = _principal("owner", org=ORG_A)
+        resource = _doc_ctx(org=ORG_B)
+        db = AsyncMock()
+
+        with patch.object(
+            AuthorizationService, "_build_subject", new_callable=AsyncMock
+        ) as mock_build:
+            mock_build.return_value = SubjectContext(
+                user_id=USER_1,
+                organization_id=ORG_A,
+                roles=frozenset({"owner"}),
+                resolved_permissions=ROLE_PERMISSIONS["owner"],
+            )
+            svc = AuthorizationService()
+            with pytest.raises(HTTPException) as exc_info:
+                await svc.authorize_or_raise(
+                    principal,
+                    Action.manage,
+                    resource,
+                    db,
+                    deny_status=403,
+                    deny_detail="Forbidden",
+                )
+            assert exc_info.value.status_code == 404
+            assert exc_info.value.detail == "Resource not found"
+
 
 @pytest_asyncio.fixture
 async def audit_db():
