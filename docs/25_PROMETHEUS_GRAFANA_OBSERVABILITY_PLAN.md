@@ -3,12 +3,12 @@
 ## Metadata
 
 - `Owner`: `Rudix Platform & Observability Team`
-- `Status`: `Draft (Planned — Not Yet Implemented)`
+- `Status`: `Implemented`
 - `Last Updated`: `2026-11-08`
 - `Related Docs`: [01_ARCHITECTURE_OVERVIEW.md](./01_ARCHITECTURE_OVERVIEW.md), [10_DEPLOYMENT_DOCKER.md](./10_DEPLOYMENT_DOCKER.md), [11_SECURITY_AND_PRODUCTION_CHECKLIST.md](./11_SECURITY_AND_PRODUCTION_CHECKLIST.md), [12_EVALUATION_AND_MONITORING.md](./12_EVALUATION_AND_MONITORING.md), [18_LANGFUSE_OBSERVABILITY.md](./18_LANGFUSE_OBSERVABILITY.md)
 
 > [!NOTE]
-> **Implementation Status:** This document defines the **planned** Prometheus and Grafana observability architecture for Rudix. Until the implementation phases described below are merged, Rudix relies on structured logs (`structlog`), Sentry error/trace capture, Langfuse LLM tracing ([18_LANGFUSE_OBSERVABILITY.md](./18_LANGFUSE_OBSERVABILITY.md)), and PostgreSQL `usage_events` / `audit_logs` admin endpoints.
+> **Implementation Status:** The Prometheus and Grafana observability stack is fully implemented. Backend endpoints, route normalization, Celery worker hooks, Docker Compose infrastructure (`infra/observability/`), 5 pre-provisioned Grafana dashboards, Alertmanager rules, and CI/CD smoke tests are active.
 
 ---
 
@@ -191,21 +191,50 @@ Provisioned as JSON under `infra/observability/grafana/dashboards/`:
 5. **`05-rudix-security-governance.json` (Security, Rate Limits & Agentic Guardrails)**:
    - Rate-limit rejections (`429`), auth verification failures, cross-tenant `tenant_boundary` denials, malware scan detections, and MCP/agent tool budget rejections.
 
-### 4.6 Phased Implementation Plan
+### 4.6 Configuration Defaults and Pipeline Variables
 
-1. **Phase 1 — Backend Metrics Core & `/metrics` Endpoint**:
-   - Add `prometheus-client` to `backend/pyproject.toml`.
-   - Implement `backend/app/core/metrics.py` with a central registry, safe label normalizers, and no-op helpers when `METRICS_ENABLED=false`.
-   - Instrument HTTP middleware in `backend/app/core/logging.py` (or dedicated metrics middleware) using FastAPI route templates.
-   - Expose `/metrics` (with optional bearer token check via `METRICS_REQUIRE_AUTH`).
-2. **Phase 2 — Domain & Worker Instrumentation**:
-   - Emit RAG/LLM metrics in chat/retrieval/rerank/provider services and Celery lifecycle signals (`task_prerun`, `task_postrun`, `task_retry`, `task_failure`) in `backend/app/workers/celery_app.py`.
-   - Expose worker metrics via lightweight HTTP server on `WORKER_METRICS_PORT` (`9808`).
-3. **Phase 3 — Compose Stack, Exporters, Dashboards & Alerts**:
-   - Create `infra/observability/docker-compose.yml`, `prometheus.yml`, `alerts.yml`, and Grafana provisioning files (`datasources/`, `dashboards/`).
-   - Add `make up-observability`, `make down-observability`, and `make logs-observability` targets to `Makefile`.
-4. **Phase 4 — Verification & CI Validation**:
-   - Add unit/integration tests in `backend/tests/test_prometheus_metrics.py` verifying metric emission, route normalization, auth gating, and absence of sensitive/high-cardinality labels.
+The observability stack provides zero-config defaults for local development while supporting strict authentication and retention controls in staging and production.
+
+#### Default Values Reference
+
+| Component | Variable | Default Value | Description & Production Override |
+|---|---|---|---|
+| **API** | `METRICS_ENABLED` | `false` | Set to `true` to enable `/metrics` endpoint. |
+| | `METRICS_PATH` | `/metrics` | Normalized scrape endpoint route. |
+| | `METRICS_REQUIRE_AUTH` | `false` | When `false`, scraping requires no token. Set to `true` in production if scraped over untrusted networks. |
+| | `METRICS_BEARER_TOKEN` | `None` | Secret bearer token required when `METRICS_REQUIRE_AUTH=true`. |
+| **Workers** | `WORKER_METRICS_ENABLED` | `false` | Starts dedicated Prometheus HTTP server on Celery workers. |
+| | `WORKER_METRICS_PORT` | `9808` | HTTP listener port on worker container. |
+| **Prometheus** | `PROMETHEUS_PORT` | `9090` | Host port for Prometheus web UI and API. |
+| | `PROMETHEUS_RETENTION_TIME` | `15d` | TSDB retention period (`30d` or `90d` in production). |
+| | `PROMETHEUS_RETENTION_SIZE` | `10GB` | TSDB maximum disk usage cap. |
+| **Alertmanager** | `ALERTMANAGER_PORT` | `9093` | Host port for Alertmanager UI and webhooks. |
+| **Grafana** | `GRAFANA_PORT` | `3001` | Host port for Grafana dashboards. |
+| | `GRAFANA_ADMIN_USER` | `admin` | Initial admin username. |
+| | `GRAFANA_ADMIN_PASSWORD` | `change-me-in-production` | **Must override** in non-local environments. |
+| **Exporters** | `POSTGRES_USER` / `POSTGRES_PASSWORD` | `postgres` / `postgres` | Credentials matching local PostgreSQL container. |
+| | `POSTGRES_DB` | `rag_app` | Target database for connection pool metrics. |
+| | `REDIS_ADDR` | `redis://redis:6379` | Host and port for Redis exporter. |
+
+#### CI/CD Pipeline Integration
+
+- **`.github/workflows/ci.yml`**:
+  - Automatically triggers on changes to `infra/**`.
+  - Runs JSON schema validation on all 5 Grafana dashboards.
+  - Runs `ci/scripts/validate_env_examples.sh` to ensure `METRICS_ENABLED` is maintained across `.env.example`.
+- **`.github/workflows/release.yml`**:
+  - Sets `METRICS_ENABLED=true` and `METRICS_PATH=/metrics` in `.env.ci.integration`.
+  - Smoke tests `/metrics` verifying that standard counters (`rudix_http_requests_total`) are exposed before promoting a release.
+- **Pipeline Deployment Variables (GitHub Secrets)**:
+  - `STAGING_ENV_FILE` / `PRODUCTION_ENV_FILE`: Append `METRICS_ENABLED=true`, `WORKER_METRICS_ENABLED=true`, and if auth-gated: `METRICS_REQUIRE_AUTH=true` and `METRICS_BEARER_TOKEN=<secret>`.
+
+### 4.7 Phased Implementation (Completed)
+
+All phases below have been completed and verified:
+1. **Phase 1 — Backend Metrics Core & `/metrics` Endpoint** (Completed)
+2. **Phase 2 — Domain & Worker Instrumentation** (Completed)
+3. **Phase 3 — Compose Stack, Exporters, Dashboards & Alerts** (Completed)
+4. **Phase 4 — Verification & CI Validation** (Completed)
 
 ---
 

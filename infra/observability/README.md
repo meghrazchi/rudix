@@ -69,16 +69,64 @@ The stack automatically provisions five dashboards in the `Rudix` folder:
 
 ---
 
-## Application Configuration
+## Configuration Defaults & Setup Reference
 
-To enable metrics collection on the FastAPI API, configure your `.env`:
+The entire observability stack is designed with built-in fallback defaults for zero-configuration local development.
 
-```env
-METRICS_ENABLED=true
-METRICS_PATH=/metrics
-METRICS_REQUIRE_AUTH=false
-WORKER_METRICS_ENABLED=true
-WORKER_METRICS_PORT=9808
-```
+### 1. Default Values Matrix
 
-For full documentation and metrics reference, see [`docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`](../../docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md).
+| Component | Setting | Default Value | When to Override |
+|---|---|---|---|
+| **API** | `METRICS_ENABLED` | `false` | Set to `true` to enable metrics scraping on the API. |
+| | `METRICS_PATH` | `/metrics` | Change only if serving behind custom subpaths. |
+| | `METRICS_REQUIRE_AUTH` | `false` | Set `true` in production if `/metrics` is exposed across networks. |
+| | `METRICS_BEARER_TOKEN` | `None` / empty | Provide secret token when `METRICS_REQUIRE_AUTH=true`. |
+| **Worker** | `WORKER_METRICS_ENABLED` | `false` | Set to `true` to scrape Celery worker task metrics. |
+| | `WORKER_METRICS_PORT` | `9808` | Host/container port for worker metrics HTTP listener. |
+| **Prometheus** | `PROMETHEUS_PORT` | `9090` | Change if port 9090 conflicts on your host. |
+| | `PROMETHEUS_RETENTION_TIME` | `15d` | Increase to `30d` or `90d` for long-term retention. |
+| | `PROMETHEUS_RETENTION_SIZE` | `10GB` | Storage volume cap before oldest metrics are purged. |
+| **Alertmanager** | `ALERTMANAGER_PORT` | `9093` | Host port for Alertmanager UI and API. |
+| **Grafana** | `GRAFANA_PORT` | `3001` | Host port for Grafana web dashboard. |
+| | `GRAFANA_ADMIN_USER` | `admin` | Initial administrator username. |
+| | `GRAFANA_ADMIN_PASSWORD` | `change-me-in-production` | **Must override** in non-local environments. |
+| **Exporters** | `POSTGRES_USER` | `postgres` | Matches default local PostgreSQL user. |
+| | `POSTGRES_PASSWORD` | `postgres` | Matches default local PostgreSQL password. |
+| | `POSTGRES_DB` | `rag_app` | Matches default local database name. |
+| | `REDIS_ADDR` | `redis://redis:6379` | Matches default local Redis service name. |
+
+### 2. Zero-Config Local Setup
+
+To run locally with all defaults:
+
+1. Enable metrics in your root `.env`:
+   ```env
+   METRICS_ENABLED=true
+   WORKER_METRICS_ENABLED=true
+   ```
+2. Launch the stack:
+   ```bash
+   make up-observability
+   ```
+3. Open Grafana at `http://localhost:3001` with `admin` / `change-me-in-production`. All 5 dashboards are ready with data sources connected.
+
+### 3. Production Hardening Checklist
+
+When deploying to Staging or Production:
+- Set a strong secret `GRAFANA_ADMIN_PASSWORD`.
+- If `/metrics` is exposed across host or VPC boundaries, enable authentication:
+  ```env
+  METRICS_REQUIRE_AUTH=true
+  METRICS_BEARER_TOKEN=<generate-strong-32-char-token>
+  ```
+- Configure Alertmanager notifications in `infra/observability/alertmanager/alertmanager.yml` (e.g. Slack webhook or PagerDuty key).
+
+---
+
+## CI/CD Pipeline Integration
+
+Observability configs are verified in GitHub Actions:
+- **`ci.yml`**: Validates Grafana dashboard JSON schema integrity and ensures `.env.example` contains required metrics flags.
+- **`release.yml`**: Spins up the integration stack with `METRICS_ENABLED=true` and verifies the `/metrics` endpoint returns expected Prometheus series (`rudix_http_requests_total`).
+
+For full architectural details and metrics reference, see [`docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`](../../docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md).
