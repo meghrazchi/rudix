@@ -11,6 +11,7 @@ on:
       - "frontend/**"
       - "ci/**"
       - "deploy/**"
+      - "infra/**"
       - ".github/workflows/release.yml"
       - ".env.example"
       - "Makefile"
@@ -258,6 +259,8 @@ jobs:
           APP_AUTH_ISSUER=rudix-app
           APP_AUTH_AUDIENCE=rudix-api
           FEATURE_ENABLE_AGENTS=true
+          METRICS_ENABLED=true
+          METRICS_PATH=/metrics
           EOF
 
       - name: Start integration stack
@@ -281,6 +284,7 @@ jobs:
       - name: Check readiness and auth boundary
         run: |
           curl -fsS http://localhost:8000/api/v1/ready >/dev/null
+          curl -fsS http://localhost:8000/metrics | grep -q "rudix_http_requests_total"
           auth_status="$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/documents)"
           test "${auth_status}" = "401"
 

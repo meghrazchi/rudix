@@ -9,6 +9,7 @@ on:
       - "frontend/**"
       - "ci/**"
       - "deploy/**"
+      - "infra/**"
       - ".github/workflows/**"
       - ".env.example"
       - "Makefile"
@@ -26,6 +27,7 @@ on:
       - "frontend/**"
       - "ci/**"
       - "deploy/**"
+      - "infra/**"
       - ".github/workflows/**"
       - ".env.example"
       - "Makefile"
@@ -60,6 +62,18 @@ jobs:
 
       - name: Validate environment examples
         run: sh ci/scripts/validate_env_examples.sh
+
+      - name: Validate Grafana dashboard JSON
+        run: |
+          python3 -c "
+          import json, glob
+          dashboards = glob.glob('infra/observability/grafana/dashboards/*.json')
+          assert dashboards, 'No Grafana dashboards found'
+          for p in dashboards:
+              with open(p) as f:
+                  json.load(f)
+          print(f'Validated {len(dashboards)} Grafana dashboards.')
+          "
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
