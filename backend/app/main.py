@@ -7,6 +7,8 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.lifespan import lifespan
 from app.core.logging import attach_access_log_middleware, configure_logging
+from app.core.metrics import attach_metrics_middleware
+from app.interfaces.http import metrics
 
 configure_logging(
     settings.log_level,
@@ -42,6 +44,8 @@ app.add_middleware(
 )
 
 attach_access_log_middleware(app)
+attach_metrics_middleware(app)
+app.include_router(metrics.router)
 app.include_router(api_router, prefix=settings.api_prefix)
 
 if settings.environment.value == "test":

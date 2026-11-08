@@ -29,6 +29,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 23. [22_AUTHORIZATION_SYSTEM.md](./22_AUTHORIZATION_SYSTEM.md) — Authorization model, enforcement paths, and permission boundaries
 24. [23_MULTILINGUAL_DOCUMENTATION_HELP_ROLLOUT.md](./23_MULTILINGUAL_DOCUMENTATION_HELP_ROLLOUT.md) — Multilingual UI locales, language-aware RAG, OCR guidance, support playbook, and QA checklist
 25. [24_CITATION_PREVIEW_ARCHITECTURE.md](./24_CITATION_PREVIEW_ARCHITECTURE.md) — Citation preview drawer architecture, API contract, permission behavior, observability, and test fixtures
+26. [25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md](./25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Planned Prometheus and Grafana metrics taxonomy, exporters, dashboards, SLO alerts, and rollout plan
 
 ## Setup and Operations
 

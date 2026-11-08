@@ -171,13 +171,26 @@ flowchart TD
     Worker[Celery Workers] --> Logs
     API --> Sentry[Sentry Errors]
     Worker --> Sentry
+    API --> Langfuse[Langfuse LLM Traces]
     API --> Metrics[Metrics Events]
     Worker --> Metrics
+    API -.->|Planned /metrics| Prom[Prometheus]
+    Worker -.->|Planned :9808/metrics| Prom
+    Infra[Qdrant / RabbitMQ / MinIO / Postgres / Redis] -.->|Planned Exporters| Prom
+    Prom -.-> Grafana[Grafana Dashboards & Alertmanager]
     Metrics --> DB[(PostgreSQL usage_events)]
     Logs --> LogStore[Log Storage]
     Sentry --> Alerts[Alerts]
     DB --> Dashboard[Admin Dashboard]
 ```
+
+Observability layers in Rudix:
+
+- **Structured logs (`structlog`)**: JSON/console request, worker, and domain event logs with automatic secret redaction.
+- **Sentry**: Exception and performance trace capture across API, Celery workers, and frontend (`NEXT_PUBLIC_SENTRY_DSN`).
+- **Langfuse**: Optional self-hosted LLM/RAG trace inspection with input/output redaction and sampling ([18_LANGFUSE_OBSERVABILITY.md](./18_LANGFUSE_OBSERVABILITY.md)).
+- **PostgreSQL `usage_events` & `audit_logs`**: Tenant-isolated operational analytics exposed via `GET /api/v1/admin/observability` and `GET /api/v1/admin/provider-observability`.
+- **Prometheus & Grafana (planned)**: Time-series RED metrics, RAG stage latency histograms, Celery/RabbitMQ queue lag, infrastructure exporters, and SLO burn-rate alerts ([25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md](./25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md)).
 
 ## Structured logging events
 

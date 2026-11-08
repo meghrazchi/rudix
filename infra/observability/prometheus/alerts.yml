@@ -1,0 +1,56 @@
+groups:
+  - name: rudix-slo-alerts
+    rules:
+      - alert: RudixApiHighErrorRate
+        expr: sum(rate(rudix_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(rudix_http_requests_total[5m])) > 0.005
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Rudix API error rate exceeds SLO threshold (> 0.5%)"
+          description: "HTTP 5xx error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: RudixChatP95LatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(rudix_rag_query_duration_seconds_bucket[5m])) by (le)) > 5.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rudix Chat p95 latency exceeds 5s SLO"
+          description: "Chat p95 latency is {{ $value | humanizeDuration }} over the last 10 minutes."
+
+      - alert: RudixDocumentIndexingFailureRateHigh
+        expr: sum(rate(rudix_document_indexing_jobs_total{status="failed"}[15m])) / sum(rate(rudix_document_indexing_jobs_total[15m])) > 0.02
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Document indexing failure rate exceeds 2% SLO"
+          description: "Indexing failure rate is {{ $value | humanizePercentage }} over the last 15 minutes."
+
+      - alert: RudixCeleryQueueBacklog
+        expr: rabbitmq_queue_messages_ready{queue=~"documents\\..*|evaluations"} > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery task queue backlog high"
+          description: "Queue {{ $labels.queue }} has {{ $value }} pending unacknowledged messages."
+
+      - alert: RudixLlmProviderErrorSpike
+        expr: sum(rate(rudix_llm_requests_total{status="error"}[5m])) by (provider) / sum(rate(rudix_llm_requests_total[5m])) by (provider) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM provider {{ $labels.provider }} error rate > 5%"
+          description: "Provider {{ $labels.provider }} is experiencing a failure rate of {{ $value | humanizePercentage }}."
+
+      - alert: RudixDependencyUnhealthy
+        expr: rudix_dependency_readiness == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backing dependency {{ $labels.dependency }} is degraded or unreachable"
+          description: "Readiness probe reports {{ $labels.dependency }} is down."

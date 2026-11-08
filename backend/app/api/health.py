@@ -11,6 +11,7 @@ from app.clients.qdrant_client import check_qdrant_health
 from app.clients.rabbitmq_client import check_rabbitmq_health
 from app.clients.redis_client import check_redis_health
 from app.core.config import settings
+from app.core.metrics import set_dependency_readiness
 from app.core.sentry import capture_sentry_test_event
 from app.db.session import check_database_health
 from app.shared.schemas.common import HealthDependency, HealthMetadataValue, HealthResponse
@@ -172,6 +173,9 @@ async def ready(response: Response) -> HealthResponse:
     dependencies = await _readiness_dependencies()
     failed_dependencies = _failed_dependencies(dependencies)
     is_ready = not failed_dependencies
+
+    for dep_name, dep in dependencies.items():
+        set_dependency_readiness(dep_name, dep.ok)
 
     response.status_code = status.HTTP_200_OK if is_ready else status.HTTP_503_SERVICE_UNAVAILABLE
     return HealthResponse(

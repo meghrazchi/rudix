@@ -59,6 +59,7 @@ from app.interfaces.http import (
     graph_explorer,
     graph_health,
     langfuse_diagnostics,
+    metrics,
     model_profiles,
     model_provider_diagnostics,
     model_provider_settings,
@@ -89,6 +90,7 @@ from . import health
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(metrics.router)
 api_router.include_router(auth.router)
 api_router.include_router(scim.router)
 api_router.include_router(bots.public_router)

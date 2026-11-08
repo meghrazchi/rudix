@@ -449,6 +449,8 @@ When deleting a document:
 - [ ] Alerts for failed jobs.
 - [ ] Connector health endpoint for provider-specific sync and retry patterns.
 - [ ] Connector rollout stage documented and included in deployment runbooks.
+- [ ] Prometheus `/metrics` endpoints (when enabled) use normalized route templates and low-cardinality labels only (never `user_id`, `document_id`, `chunk_id`, `request_id`, prompts, or secrets).
+- [ ] Prometheus, exporter ports, and `/metrics` are restricted to internal networks or bearer token authentication (`METRICS_REQUIRE_AUTH=true`), and Grafana disables anonymous access (`GF_AUTH_ANONYMOUS_ENABLED=false`).
 
 ### Agent tools
 

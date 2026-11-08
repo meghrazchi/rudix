@@ -476,6 +476,14 @@ class Settings(BaseSettings):
     langfuse_capture_input_output: bool = True
     langfuse_redaction_mode: LangfuseRedactionMode = LangfuseRedactionMode.none
 
+    # Prometheus metrics observability
+    metrics_enabled: bool = False
+    metrics_path: str = Field(default="/metrics", min_length=1, max_length=128)
+    metrics_require_auth: bool = False
+    metrics_bearer_token: SecretStr | None = None
+    worker_metrics_enabled: bool = False
+    worker_metrics_port: int = Field(default=9808, ge=1024, le=65535)
+
     max_upload_size_mb: int = Field(default=25, ge=1, le=512)
     malware_scan_enabled: bool = True
     malware_scan_required: bool = False
@@ -1473,6 +1481,14 @@ class Settings(BaseSettings):
             "langfuse_sample_rate": self.langfuse_sample_rate,
             "langfuse_capture_input_output": self.langfuse_capture_input_output,
             "langfuse_redaction_mode": self.langfuse_redaction_mode.value,
+            "metrics": {
+                "enabled": self.metrics_enabled,
+                "path": self.metrics_path,
+                "require_auth": self.metrics_require_auth,
+                "bearer_token_set": self.metrics_bearer_token is not None,
+                "worker_metrics_enabled": self.worker_metrics_enabled,
+                "worker_metrics_port": self.worker_metrics_port,
+            },
             "max_upload_size_mb": self.max_upload_size_mb,
             "malware_scan": {
                 "enabled": self.malware_scan_enabled,

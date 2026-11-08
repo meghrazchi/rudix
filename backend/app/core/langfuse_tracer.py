@@ -214,12 +214,77 @@ class ChatTraceMetadata:
 # ---------------------------------------------------------------------------
 
 
+def _record_prometheus_metrics(metadata: ChatTraceMetadata) -> None:
+    from app.core.metrics import (
+        is_metrics_enabled,
+        record_llm_request,
+        record_rag_query,
+        record_rag_stage,
+    )
+
+    if not is_metrics_enabled():
+        return
+
+    try:
+        duration_s = max(0.0, float(metadata.answer_latency_ms) / 1000.0)
+        query_status = (
+            "error" if metadata.citation_validation_failed and metadata.not_found else "success"
+        )
+        record_rag_query(
+            scope_mode=metadata.scope_mode,
+            status=query_status,
+            duration_seconds=duration_s,
+            confidence_score=metadata.confidence_score,
+            confidence_category=metadata.confidence_category or "none",
+            not_found=metadata.not_found,
+            fallback_used=metadata.fallback_used,
+            citation_validation_failed=metadata.citation_validation_failed,
+        )
+
+        for stage, lat_ms in metadata.latencies_ms.items():
+            if lat_ms is not None and lat_ms >= 0:
+                provider = metadata.llm_provider if stage == "llm" else "system"
+                record_rag_stage(
+                    stage=stage,
+                    provider=provider or "system",
+                    duration_seconds=float(lat_ms) / 1000.0,
+                )
+
+        if metadata.llm_model:
+            cost_usd = (
+                float(metadata.estimated_cost_usd)
+                if metadata.estimated_cost_usd is not None
+                else None
+            )
+            record_llm_request(
+                provider=metadata.llm_provider or "unknown",
+                model=metadata.llm_model,
+                operation="chat",
+                status="success",
+                input_tokens=metadata.llm_prompt_tokens,
+                output_tokens=metadata.llm_completion_tokens,
+                estimated_cost_usd=cost_usd,
+            )
+        if metadata.embedding_model and metadata.embedding_prompt_tokens > 0:
+            record_llm_request(
+                provider="openai" if "text-embedding" in metadata.embedding_model else "local",
+                model=metadata.embedding_model,
+                operation="embed",
+                status="success",
+                input_tokens=metadata.embedding_prompt_tokens,
+            )
+    except Exception as exc:
+        _logger.debug("prometheus.chat_trace_failed: %s", exc)
+
+
 def trace_chat_query(metadata: ChatTraceMetadata) -> None:
     """Emit a structured Langfuse trace for a completed chat/RAG query.
 
     This is a fire-and-forget call — failures are logged at DEBUG level and
     never propagate to callers.
     """
+    _record_prometheus_metrics(metadata)
+
     if not _is_enabled():
         return
 

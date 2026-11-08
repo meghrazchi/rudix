@@ -307,6 +307,8 @@ make api-types-check # Verify generated types are up to date (used in CI)
 make api-types-update # Fetch fresh openapi.json from running backend and regenerate types
 make up-mcp          # Start standalone MCP server profile
 make logs-mcp        # Tail MCP service logs
+make up-observability # Start Prometheus & Grafana observability stack
+make logs-observability # Tail Prometheus & Grafana logs
 make frontend-dev    # Start frontend dev server from repo root
 make frontend-build  # Build frontend from repo root
 make frontend-lint   # Run frontend ESLint from repo root
@@ -358,6 +360,8 @@ make lint         # Run lint and type checks
 | Qdrant                        | `http://localhost:6333`               |
 | PostgreSQL                    | `localhost:5432`                      |
 | Redis                         | `localhost:6379`                      |
+| Prometheus (observability)    | `http://localhost:9090`               |
+| Grafana (observability)       | `http://localhost:3001`               |
 
 ---
 
@@ -441,6 +445,7 @@ Start here:
 - [`docs/15_MCP_SERVER_DEPLOYMENT_MODE.md`](docs/15_MCP_SERVER_DEPLOYMENT_MODE.md) — MCP architecture (Mermaid), tools/resources/prompts, deployment
 - [`docs/18_LANGFUSE_OBSERVABILITY.md`](docs/18_LANGFUSE_OBSERVABILITY.md) — Langfuse LLM observability: traces, redaction, sampling, production setup
 - [`docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md`](docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md) — Local LLM providers: Ollama/vLLM/LiteLLM setup, security, evaluation, runbooks
+- [`docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`](docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Planned Prometheus and Grafana metrics, dashboards, exporters, and SLO alerting architecture
 - `ci/security/security_gate_allowlist.json` — tracked temporary allowlist for CI severity gate exceptions
 
 Frontend-specific details are available in:

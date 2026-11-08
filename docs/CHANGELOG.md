@@ -6,11 +6,13 @@ All notable changes to this documentation set are recorded here.
 
 ### Added
 
+- `docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md` for planned Prometheus and Grafana metrics, exporters, dashboards, security guardrails, and phased rollout.
 - `docs/DOCUMENT_TEMPLATE.md` for standardized technical documents.
 - `docs/DOCUMENT_REVIEW_CHECKLIST.md` for document quality gating.
 
 ### Changed
 
+- `docs/12_EVALUATION_AND_MONITORING.md` and `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`: linked the planned Prometheus and Grafana observability architecture and metrics security checklist items.
 - `README.md`: aligned the GitHub Actions summary with the committed `.github/workflows/` files and documented the standalone Playwright workflow.
 - `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`: updated the CI/CD reference to match the current workflow split between `ci.yml` and `playwright.yml`.
 - `docs/CONTRIBUTING.md`: clarified GitHub pull request language and added a workflow-documentation sync check.

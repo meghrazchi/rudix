@@ -1,4 +1,5 @@
 .PHONY: up up-d up-mcp down down-v down-mcp restart ps logs logs-api logs-worker logs-mcp logs-infra \
+	up-observability down-observability logs-observability \
 	up-ollama up-vllm up-litellm down-local-llm logs-local-llm pull-local-model \
 	up-graph down-graph logs-graph reset-graph \
 	migrate test lint check-backend \
@@ -95,6 +96,16 @@ logs-mcp:
 
 logs-infra:
 	$(COMPOSE) logs -f postgres qdrant minio rabbitmq redis
+
+## Prometheus & Grafana Observability
+up-observability:
+	$(COMPOSE) -f docker-compose.yml -f infra/observability/docker-compose.yml up -d prometheus alertmanager grafana postgres-exporter redis-exporter
+
+down-observability:
+	$(COMPOSE) -f docker-compose.yml -f infra/observability/docker-compose.yml stop prometheus alertmanager grafana postgres-exporter redis-exporter
+
+logs-observability:
+	$(COMPOSE) -f docker-compose.yml -f infra/observability/docker-compose.yml logs -f prometheus alertmanager grafana
 
 migrate:
 	$(BACKEND_MAKE) migrate

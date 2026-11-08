@@ -631,6 +631,14 @@ Notes:
   `RELATION_CONFIDENCE_THRESHOLD` is marked `low_confidence`; review mode keeps
   newly extracted relations in `unverified` state until they are approved.
 
+## Prometheus & Grafana Observability
+
+- Enable application metrics with `METRICS_ENABLED=true` in `.env`.
+- Scrape endpoint is exposed at `GET /metrics` (and `GET /api/v1/metrics`).
+- Optional bearer authentication: set `METRICS_REQUIRE_AUTH=true` and `METRICS_BEARER_TOKEN=<token>`.
+- Celery worker metrics: set `WORKER_METRICS_ENABLED=true` to expose Celery task metrics on `WORKER_METRICS_PORT=9808`.
+- Start Prometheus, Alertmanager, Grafana, and infrastructure exporters with `make up-observability` from repository root.
+
 ## Directory overview
 
 ```text

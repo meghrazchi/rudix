@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.logging import log_document_event
+from app.core.metrics import record_document_upload
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.schemas.documents import (
@@ -434,6 +435,11 @@ async def upload_document_workflow(
         status_code=status.HTTP_201_CREATED,
         file_type=validated.extension,
         file_size_bytes=validated.file_size_bytes,
+    )
+    record_document_upload(
+        file_type=validated.extension,
+        status="accepted",
+        malware_scan_result=scan_result.status,
     )
     await plan_enforcement_service.record_usage(
         db_session,

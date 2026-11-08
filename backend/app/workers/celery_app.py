@@ -1,11 +1,22 @@
+from time import perf_counter
+from typing import Any
+
 from celery import Celery  # type: ignore[import-untyped]
-from celery.signals import worker_process_init  # type: ignore[import-untyped]
+from celery.signals import (  # type: ignore[import-untyped]
+    task_failure,
+    task_postrun,
+    task_prerun,
+    task_retry,
+    worker_process_init,
+    worker_ready,
+)
 from kombu import Queue  # type: ignore[import-untyped]
 
 from app.clients.neo4j_client import init_neo4j
 from app.clients.rabbitmq_client import rabbitmq_broker_url, redis_result_backend_url
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.core.metrics import is_metrics_enabled, record_celery_task
 from app.core.sentry import init_sentry
 
 celery_app = Celery(
@@ -125,6 +136,61 @@ def _initialize_worker(*_: object, **__: object) -> None:
     from app.workers.async_runtime import run_async
 
     run_async(init_neo4j())
+
+
+@worker_ready.connect
+def _on_worker_ready(*_: object, **__: object) -> None:
+    if settings.worker_metrics_enabled:
+        try:
+            from prometheus_client import start_http_server
+
+            from app.core.metrics import registry
+
+            start_http_server(settings.worker_metrics_port, registry=registry)
+        except OSError:
+            pass
+
+
+_task_start_times: dict[str, float] = {}
+
+
+@task_prerun.connect
+def _on_task_prerun(task_id: str, task: Any, *args: object, **kwargs: object) -> None:
+    if not is_metrics_enabled():
+        return
+    _task_start_times[task_id] = perf_counter()
+    queue = getattr(task.request, "delivery_info", {}).get("routing_key", "default") or "default"
+    record_celery_task(task_name=task.name, queue=queue, status="started")
+
+
+@task_postrun.connect
+def _on_task_postrun(task_id: str, task: Any, state: str, *args: object, **kwargs: object) -> None:
+    if not is_metrics_enabled():
+        return
+    started_at = _task_start_times.pop(task_id, None)
+    duration = perf_counter() - started_at if started_at is not None else None
+    queue = getattr(task.request, "delivery_info", {}).get("routing_key", "default") or "default"
+    record_celery_task(
+        task_name=task.name, queue=queue, status=state.lower(), duration_seconds=duration
+    )
+
+
+@task_retry.connect
+def _on_task_retry(request: Any, reason: Any, *args: object, **kwargs: object) -> None:
+    if not is_metrics_enabled():
+        return
+    queue = getattr(request, "delivery_info", {}).get("routing_key", "default") or "default"
+    task_name = getattr(request, "task", "unknown")
+    record_celery_task(task_name=task_name, queue=queue, status="retry")
+
+
+@task_failure.connect
+def _on_task_failure(task_id: str, exception: Any, *args: object, **kwargs: object) -> None:
+    if not is_metrics_enabled():
+        return
+    sender = kwargs.get("sender")
+    task_name = getattr(sender, "name", "unknown")
+    record_celery_task(task_name=task_name, queue="default", status="failed")
 
 
 init_sentry(runtime="worker")
