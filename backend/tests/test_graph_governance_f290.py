@@ -224,8 +224,8 @@ def test_tenant_isolation_search_entities_uses_caller_org(
     _setup_db_override()  # require_permission(graph_view) needs db_session
     monkeypatch.setattr(explorer_http, "_graph_service", lambda: fake_svc)
 
-    with TestClient(app) as client:
-        resp = client.get("/api/v1/graph/entities")
+    client = TestClient(app)
+    resp = client.get("/api/v1/graph/entities")
 
     assert resp.status_code == 200
     fake_svc.search_entities.assert_awaited_once()
@@ -244,8 +244,8 @@ def test_tenant_isolation_foreign_org_not_used_in_search(
     _setup_db_override()
     monkeypatch.setattr(explorer_http, "_graph_service", lambda: fake_svc)
 
-    with TestClient(app) as client:
-        resp = client.get("/api/v1/graph/entities")
+    client = TestClient(app)
+    resp = client.get("/api/v1/graph/entities")
 
     assert resp.status_code == 200
     call_kwargs = fake_svc.search_entities.call_args.kwargs
@@ -263,8 +263,8 @@ def test_tenant_isolation_admin_list_entities_uses_caller_org(
     _setup_db_override()
     monkeypatch.setattr(entities_http, "_graph_service", lambda: fake_svc)
 
-    with TestClient(app) as client:
-        resp = client.get("/api/v1/admin/graph/entities")
+    client = TestClient(app)
+    resp = client.get("/api/v1/admin/graph/entities")
 
     assert resp.status_code == 200
     fake_svc.list_entities.assert_awaited_once()
@@ -282,8 +282,8 @@ def test_tenant_isolation_document_insights_uses_caller_org(
     _setup_db_override()
     monkeypatch.setattr(explorer_http, "_graph_service", lambda: fake_svc)
 
-    with TestClient(app) as client:
-        resp = client.get("/api/v1/graph/documents/doc-123/insights")
+    client = TestClient(app)
+    resp = client.get("/api/v1/graph/documents/doc-123/insights")
 
     assert resp.status_code == 200
     fake_svc.get_document_insights.assert_awaited_once()
@@ -306,8 +306,8 @@ def test_rbac_viewer_can_access_graph_explorer(
     _setup_db_override()
     monkeypatch.setattr(explorer_http, "_graph_service", lambda: fake_svc)
 
-    with TestClient(app) as client:
-        resp = client.get("/api/v1/graph/entities")
+    client = TestClient(app)
+    resp = client.get("/api/v1/graph/entities")
 
     assert resp.status_code == 200
 
@@ -320,8 +320,8 @@ def test_rbac_billing_admin_forbidden_on_graph_explorer(
     app.dependency_overrides[get_current_principal] = _principal_override("billing_admin")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.get("/api/v1/graph/entities")
+    client = TestClient(app)
+    resp = client.get("/api/v1/graph/entities")
 
     assert resp.status_code == 403
 
@@ -334,11 +334,11 @@ def test_rbac_member_forbidden_on_entity_upsert(
     app.dependency_overrides[get_current_principal] = _principal_override("member")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/entities",
-            json={"entity_id": "e-1", "entity_type": "Person", "canonical_name": "Alice"},
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/entities",
+        json={"entity_id": "e-1", "entity_type": "Person", "canonical_name": "Alice"},
+    )
 
     assert resp.status_code == 403
 
@@ -354,11 +354,11 @@ def test_rbac_admin_can_upsert_entity(
     monkeypatch.setattr(entities_http, "_graph_service", lambda: fake_svc)
     monkeypatch.setattr(entities_http._audit_log_service, "record", AsyncMock())
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/entities",
-            json={"entity_id": "e-1", "entity_type": "Person", "canonical_name": "Alice"},
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/entities",
+        json={"entity_id": "e-1", "entity_type": "Person", "canonical_name": "Alice"},
+    )
 
     assert resp.status_code == 200
     fake_svc.upsert_entity.assert_awaited_once()
@@ -372,8 +372,8 @@ def test_rbac_member_forbidden_on_entity_delete(
     app.dependency_overrides[get_current_principal] = _principal_override("member")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.delete("/api/v1/admin/graph/entities/e-1")
+    client = TestClient(app)
+    resp = client.delete("/api/v1/admin/graph/entities/e-1")
 
     assert resp.status_code == 403
 
@@ -386,11 +386,11 @@ def test_rbac_member_forbidden_on_entity_merge(
     app.dependency_overrides[get_current_principal] = _principal_override("member")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/entity-resolution/merge",
-            json={"target_entity_id": "e-1", "source_entity_ids": ["e-2"]},
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/entity-resolution/merge",
+        json={"target_entity_id": "e-1", "source_entity_ids": ["e-2"]},
+    )
 
     assert resp.status_code == 403
 
@@ -403,11 +403,11 @@ def test_rbac_member_forbidden_on_entity_split(
     app.dependency_overrides[get_current_principal] = _principal_override("member")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/entity-resolution/split",
-            json={"target_entity_id": "e-1", "source_entity_ids": ["e-2"]},
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/entity-resolution/split",
+        json={"target_entity_id": "e-1", "source_entity_ids": ["e-2"]},
+    )
 
     assert resp.status_code == 403
 
@@ -420,17 +420,17 @@ def test_rbac_member_forbidden_on_relation_create(
     app.dependency_overrides[get_current_principal] = _principal_override("member")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/relations",
-            json={
-                "from_entity_id": "e-1",
-                "to_entity_id": "e-2",
-                "rel_type": "RELATES_TO",
-                "relation_id": "rel-1",
-                "evidence_text": "source text",
-            },
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/relations",
+        json={
+            "from_entity_id": "e-1",
+            "to_entity_id": "e-2",
+            "rel_type": "RELATES_TO",
+            "relation_id": "rel-1",
+            "evidence_text": "source text",
+        },
+    )
 
     assert resp.status_code == 403
 
@@ -447,17 +447,17 @@ def test_rbac_admin_can_create_relation(
     app.dependency_overrides[relations_http._graph_service] = lambda: fake_svc
     monkeypatch.setattr(relations_http._audit_log_service, "record", AsyncMock())
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/relations",
-            json={
-                "from_entity_id": "e-1",
-                "to_entity_id": "e-2",
-                "rel_type": "RELATES_TO",
-                "relation_id": "rel-1",
-                "evidence_text": "source text",
-            },
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/relations",
+        json={
+            "from_entity_id": "e-1",
+            "to_entity_id": "e-2",
+            "rel_type": "RELATES_TO",
+            "relation_id": "rel-1",
+            "evidence_text": "source text",
+        },
+    )
 
     assert resp.status_code == 200
     fake_svc.create_relation_with_evidence.assert_awaited_once()
@@ -471,11 +471,11 @@ def test_rbac_member_forbidden_on_relation_status_patch(
     app.dependency_overrides[get_current_principal] = _principal_override("member")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.patch(
-            "/api/v1/admin/graph/relations/rel-1/status",
-            json={"status": "approved"},
-        )
+    client = TestClient(app)
+    resp = client.patch(
+        "/api/v1/admin/graph/relations/rel-1/status",
+        json={"status": "approved"},
+    )
 
     assert resp.status_code == 403
 
@@ -488,8 +488,8 @@ def test_rbac_member_forbidden_on_relation_delete(
     app.dependency_overrides[get_current_principal] = _principal_override("member")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.delete("/api/v1/admin/graph/relations/rel-1")
+    client = TestClient(app)
+    resp = client.delete("/api/v1/admin/graph/relations/rel-1")
 
     assert resp.status_code == 403
 
@@ -502,8 +502,8 @@ def test_rbac_security_admin_forbidden_on_graph_explorer(
     app.dependency_overrides[get_current_principal] = _principal_override("security_admin")
     _setup_db_override()
 
-    with TestClient(app) as client:
-        resp = client.get("/api/v1/graph/entities")
+    client = TestClient(app)
+    resp = client.get("/api/v1/graph/entities")
 
     assert resp.status_code == 403
 
@@ -524,11 +524,11 @@ def test_audit_entity_upsert_logged(monkeypatch: pytest.MonkeyPatch) -> None:
     audit_record = AsyncMock(return_value=True)
     monkeypatch.setattr(entities_http._audit_log_service, "record", audit_record)
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/entities",
-            json={"entity_id": "e-audit", "entity_type": "Person", "canonical_name": "Audit User"},
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/entities",
+        json={"entity_id": "e-audit", "entity_type": "Person", "canonical_name": "Audit User"},
+    )
 
     assert resp.status_code == 200
     audit_record.assert_awaited_once()
@@ -549,8 +549,8 @@ def test_audit_entity_delete_logged(monkeypatch: pytest.MonkeyPatch) -> None:
     audit_record = AsyncMock(return_value=True)
     monkeypatch.setattr(entities_http._audit_log_service, "record", audit_record)
 
-    with TestClient(app) as client:
-        resp = client.delete("/api/v1/admin/graph/entities/e-to-delete")
+    client = TestClient(app)
+    resp = client.delete("/api/v1/admin/graph/entities/e-to-delete")
 
     assert resp.status_code == 200
     audit_record.assert_awaited_once()
@@ -570,15 +570,15 @@ def test_audit_entity_merge_logged(monkeypatch: pytest.MonkeyPatch) -> None:
     audit_record = AsyncMock(return_value=True)
     monkeypatch.setattr(entities_http._audit_log_service, "record", audit_record)
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/entity-resolution/merge",
-            json={
-                "target_entity_id": "e-canonical",
-                "source_entity_ids": ["e-dupe-1", "e-dupe-2"],
-                "reason": "Same company, different spellings",
-            },
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/entity-resolution/merge",
+        json={
+            "target_entity_id": "e-canonical",
+            "source_entity_ids": ["e-dupe-1", "e-dupe-2"],
+            "reason": "Same company, different spellings",
+        },
+    )
 
     assert resp.status_code == 200
     audit_record.assert_awaited_once()
@@ -601,15 +601,15 @@ def test_audit_entity_split_logged(monkeypatch: pytest.MonkeyPatch) -> None:
     audit_record = AsyncMock(return_value=True)
     monkeypatch.setattr(entities_http._audit_log_service, "record", audit_record)
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/entity-resolution/split",
-            json={
-                "target_entity_id": "e-mixed",
-                "source_entity_ids": ["e-person", "e-company"],
-                "reason": "Two distinct entities conflated",
-            },
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/entity-resolution/split",
+        json={
+            "target_entity_id": "e-mixed",
+            "source_entity_ids": ["e-person", "e-company"],
+            "reason": "Two distinct entities conflated",
+        },
+    )
 
     assert resp.status_code == 200
     audit_record.assert_awaited_once()
@@ -629,17 +629,17 @@ def test_audit_relation_create_logged(monkeypatch: pytest.MonkeyPatch) -> None:
     audit_record = AsyncMock(return_value=True)
     monkeypatch.setattr(relations_http._audit_log_service, "record", audit_record)
 
-    with TestClient(app) as client:
-        resp = client.post(
-            "/api/v1/admin/graph/relations",
-            json={
-                "from_entity_id": "e-1",
-                "to_entity_id": "e-2",
-                "rel_type": "RELATES_TO",
-                "relation_id": "rel-audit",
-                "evidence_text": "Entity A relates to Entity B per contract",
-            },
-        )
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/admin/graph/relations",
+        json={
+            "from_entity_id": "e-1",
+            "to_entity_id": "e-2",
+            "rel_type": "RELATES_TO",
+            "relation_id": "rel-audit",
+            "evidence_text": "Entity A relates to Entity B per contract",
+        },
+    )
 
     assert resp.status_code == 200
     audit_record.assert_awaited_once()
@@ -663,11 +663,11 @@ def test_audit_relation_status_change_logged(monkeypatch: pytest.MonkeyPatch) ->
     audit_record = AsyncMock(return_value=True)
     monkeypatch.setattr(relations_http._audit_log_service, "record", audit_record)
 
-    with TestClient(app) as client:
-        resp = client.patch(
-            "/api/v1/admin/graph/relations/rel-audit/status",
-            json={"status": "verified"},
-        )
+    client = TestClient(app)
+    resp = client.patch(
+        "/api/v1/admin/graph/relations/rel-audit/status",
+        json={"status": "verified"},
+    )
 
     assert resp.status_code == 200
     audit_record.assert_awaited_once()
@@ -688,8 +688,8 @@ def test_audit_relation_delete_logged(monkeypatch: pytest.MonkeyPatch) -> None:
     audit_record = AsyncMock(return_value=True)
     monkeypatch.setattr(relations_http._audit_log_service, "record", audit_record)
 
-    with TestClient(app) as client:
-        resp = client.delete("/api/v1/admin/graph/relations/rel-to-delete")
+    client = TestClient(app)
+    resp = client.delete("/api/v1/admin/graph/relations/rel-to-delete")
 
     assert resp.status_code == 200
     audit_record.assert_awaited_once()
