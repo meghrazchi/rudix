@@ -109,7 +109,7 @@ async def test_get_onboarding_config_defaults(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     resp = await admin_client.get(
-        "/admin/onboarding/config",
+        "/api/v1/admin/onboarding/config",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
@@ -128,7 +128,7 @@ async def test_get_onboarding_config_member_forbidden(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     resp = await admin_client.get(
-        "/admin/onboarding/config",
+        "/api/v1/admin/onboarding/config",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 403
@@ -147,7 +147,7 @@ async def test_patch_onboarding_config_enables_sample_docs(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.owner.value
     )
     resp = await admin_client.patch(
-        "/admin/onboarding/config",
+        "/api/v1/admin/onboarding/config",
         json={"sample_docs_enabled": True},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -168,7 +168,7 @@ async def test_patch_onboarding_config_no_op_fields_preserved(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     resp = await admin_client.patch(
-        "/admin/onboarding/config",
+        "/api/v1/admin/onboarding/config",
         json={},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -189,7 +189,7 @@ async def test_reset_onboarding_sets_reset_at(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.owner.value
     )
     resp = await admin_client.post(
-        "/admin/onboarding/reset",
+        "/api/v1/admin/onboarding/reset",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 200
@@ -207,7 +207,7 @@ async def test_reset_onboarding_member_forbidden(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     resp = await admin_client.post(
-        "/admin/onboarding/reset",
+        "/api/v1/admin/onboarding/reset",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 403
@@ -223,8 +223,8 @@ async def test_reset_onboarding_is_idempotent(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     headers = _auth_headers(token=token, organization_id=str(org.id))
-    r1 = await admin_client.post("/admin/onboarding/reset", headers=headers)
-    r2 = await admin_client.post("/admin/onboarding/reset", headers=headers)
+    r1 = await admin_client.post("/api/v1/admin/onboarding/reset", headers=headers)
+    r2 = await admin_client.post("/api/v1/admin/onboarding/reset", headers=headers)
     assert r1.status_code == 200
     assert r2.status_code == 200
     t1 = r1.json()["reset_at"]
@@ -248,7 +248,7 @@ async def test_load_sample_dataset_success(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.owner.value
     )
     resp = await admin_client.post(
-        "/documents/sample",
+        "/api/v1/documents/sample",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 201
@@ -270,8 +270,8 @@ async def test_load_sample_dataset_idempotent(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.owner.value
     )
     headers = _auth_headers(token=token, organization_id=str(org.id))
-    r1 = await admin_client.post("/documents/sample", headers=headers)
-    r2 = await admin_client.post("/documents/sample", headers=headers)
+    r1 = await admin_client.post("/api/v1/documents/sample", headers=headers)
+    r2 = await admin_client.post("/api/v1/documents/sample", headers=headers)
     assert r1.status_code == 201
     assert r2.status_code == 201
     d2 = r2.json()
@@ -291,7 +291,7 @@ async def test_load_sample_dataset_disabled_403(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.owner.value
     )
     resp = await admin_client.post(
-        "/documents/sample",
+        "/api/v1/documents/sample",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 403
@@ -309,7 +309,7 @@ async def test_load_sample_dataset_member_forbidden(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     resp = await admin_client.post(
-        "/documents/sample",
+        "/api/v1/documents/sample",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert resp.status_code == 403

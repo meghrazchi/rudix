@@ -23,7 +23,8 @@ The workflows are intentionally split by concern so feedback stays fast and fail
 
 ### `ci.yml`
 
-Triggered on push, pull request, and manual dispatch for repository paths that affect application or infrastructure behavior.
+Triggered on every push, pull request, and manual dispatch. There is no `paths` filter (see
+[Required status checks](#required-status-checks)).
 
 Jobs:
 
@@ -36,6 +37,8 @@ Jobs:
    - installs backend dev dependencies
    - checks Ruff formatting and linting
    - runs backend pytest with coverage artifacts
+   - prints backend coverage (`--cov-report=term`) and fails below
+     `[tool.coverage.report] fail_under` in `backend/pyproject.toml` (R03-02 ratchet)
 3. `backend-alembic`
    - starts ephemeral PostgreSQL and Redis services
    - runs `alembic upgrade head`
@@ -45,8 +48,13 @@ Jobs:
 4. `frontend`
    - runs `npm ci`
    - runs Prettier, ESLint, and TypeScript checks
+   - runs Vitest with coverage (`npm run test:coverage`), prints the summary, and fails below
+     `coverage.thresholds` in `frontend/vitest.config.ts` (R03-02 ratchet)
    - verifies generated API types against the committed OpenAPI schema
    - runs the production frontend build
+
+Coverage thresholds are ratchets: raise them when coverage rises and never lower them without
+a reason in the pull request.
 
 Playwright end-to-end validation lives in `playwright.yml` instead of `ci.yml`.
 
@@ -87,10 +95,28 @@ satisfies a required check.
 
 ### `security.yml`
 
-Runs:
+Runs on every push, pull request, a weekly schedule, and manual dispatch, with no `paths`
+filter (its jobs are required checks). Jobs:
 
-- `pip-audit` against the backend virtual environment, publishing a report artifact and warning on findings
-- Trivy filesystem scanning with a high/critical severity gate
+- `Backend dependency audit`: `make -C backend install`, then
+  `make -C backend audit-report AUDIT_OUTPUT=$GITHUB_WORKSPACE/artifacts/pip-audit.json`
+  (pip-audit over the exported `uv.lock` set, `--disable-pip`; uv virtualenvs have no `pip`).
+  The JSON report is uploaded, then `ci/scripts/security_severity_gate.py --pip-audit` blocks.
+  pip-audit reports carry no severity, so every finding counts as high unless it has an
+  unexpired allowlist entry.
+- `Frontend dependency audit`: `npm ci`, a full `npm audit --json` uploaded as an artifact
+  (non-blocking), then a blocking `npm audit --omit=dev --audit-level=high`. Dev-only tooling
+  advisories are visible in the artifact but do not block; anything in the runtime image does.
+- `Filesystem vulnerability scan`: Trivy `fs` scan, HIGH/CRITICAL, `ignore-unfixed`, exit 1.
+
+The severity gate (`ci/scripts/security_severity_gate.py`) takes `--trivy PATH` (repeatable;
+`Results[].Vulnerabilities[]`) and `--pip-audit PATH` (`dependencies[].vulns[]`). It exits 0 on
+pass, 1 when actionable critical/high findings exceed `SECURITY_GATE_MAX_CRITICAL` /
+`SECURITY_GATE_MAX_HIGH` (default 0; `SECURITY_GATE_FAIL_ON_CRITICAL` / `_HIGH` switch the
+checks), and 2 on a missing or malformed report or allowlist. Allowlist entries in
+`ci/security/security_gate_allowlist.json` need `id` (matched against the finding id and its
+aliases), `reason`, and `expires` (ISO date); optional `scanner` (`trivy` or `pip-audit`),
+`package`, and `severity` narrow the match. Expired entries stop matching and are printed.
 
 ### `codeql.yml`
 
@@ -101,42 +127,110 @@ Runs CodeQL analysis for:
 
 The workflow runs on pull requests, pushes, a weekly schedule, and manual dispatch.
 
+### `secret-scan.yml`
+
+Job `Secret scan` (R03-08). Runs on every push, pull request, a weekly schedule, and manual
+dispatch, with no `paths` filter. It downloads the gitleaks CLI release tarball at the pinned
+`GITLEAKS_VERSION` and checks it against `GITLEAKS_SHA256` (from that release's
+`checksums.txt`) before running it. Range:
+
+- pull request: `gitleaks git --log-opts="<base>..<head>"`;
+- push: the pushed range `<before>..<after>`; for a new branch or a force push whose `before`
+  commit is gone, `origin/<default>..<after>`;
+- schedule and dispatch: full history (`--all`), report only (exit code 0).
+
+The report is written with `--redact` and uploaded as `gitleaks-report`. `.gitleaks.toml`
+extends the default rules and allowlists only exact placeholder values (`ci-placeholder-key`,
+`sk-test`, `minioadmin`, `ci-local-secret`, `dev-insecure-change-me`, and the Playwright e2e
+tokens); it never allowlists paths. To bump gitleaks, update both env values together.
+
+### `image-scan.yml`
+
+Job `Image scan` (R03-08). Runs on pull requests, push to `main`, and dispatch. A `changes`
+job sets `images=true` when `backend/Dockerfile`, `frontend/Dockerfile`, `backend/uv.lock`,
+`backend/pyproject.toml`, `frontend/package-lock.json`, a compose file, the gate or its
+allowlist, or the workflow changed; otherwise `Image scan` is skipped, which satisfies a
+required check. The job builds `--target api` and `--target worker` from `backend/Dockerfile`
+and the frontend image locally (`rudix-local-*:scan`, nothing pushed), scans each with
+`aquasecurity/trivy-action` (HIGH/CRITICAL, `ignore-unfixed`, JSON), uploads the reports, and
+runs the severity gate with three `--trivy` reports. `release.yml` job `scan-images` scans the
+pushed digests the same way.
+
+### Dependabot
+
+`.github/dependabot.yml` opens weekly, grouped version-update PRs (minor and patch together)
+for `uv` (`/backend`), `npm` (`/frontend`; semver-major updates of `next`, `react`, and
+`react-dom` are ignored because framework majors are planned upgrades), `github-actions` (`/`),
+and `docker` base images (`/backend`, `/frontend`). Security updates are enabled in the
+repository settings and are not grouped.
+
 ### `release.yml`
 
-Triggered on:
+Versioned, signed, promoted releases (R03-07). Triggered on pushes to `main` (with a `paths`
+filter), on `v*` tags (paths filters do not apply to tags), and on manual dispatch.
 
-- pushes to `main`
-- version tags matching `v*`
-- manual dispatch
+Main push (or dispatch `target=staging`):
 
-Jobs:
+1. `build-images`: builds `api` and `worker` from `backend/Dockerfile` with `--target api` and
+   `--target worker`, plus `frontend-staging` and `frontend-production` (public URLs baked in
+   at build time). Every build uses `--sbom=true --provenance=mode=max --metadata-file`;
+   digests come from `containerimage.digest` in the metadata file (no pull). Each digest is
+   signed with cosign keyless (`id-token: write`, `cosign sign --yes <ref>@<digest>`). Never
+   runs on tags.
+2. `integration-smoke`: the integration compose stack with the built digests.
+3. `scan-images`: Trivy on the four pushed digests, then the severity gate.
+4. `e2e-integration`: calls `e2e-integration.yml` with `api_image` and `worker_image`.
+5. `quality-gate-smoke` and `quality-gate` (R03-03).
+6. `deploy-staging` (needs all of the above): Terraform rollout with remote state, smoke test,
+   then `docker buildx imagetools create --tag <image>:staging-passed-<sha> <digest>` for
+   `api`, `worker`, and `frontend-staging` (a tag on the existing digest, no rebuild).
 
-1. `build-images`
-   - logs in to GHCR with repository secrets
-   - builds and pushes the backend API and worker images
-   - builds and pushes the frontend image
-   - tags images with the commit SHA and release tags
-2. `integration-smoke`
-   - runs the integration compose stack
-   - applies migrations
-   - verifies health, readiness, auth boundaries, preflight behavior, and worker and beat liveness
-3. `deploy-staging`
-   - uses Terraform to roll out the staging compose deployment on the default branch
-   - requires `STAGING_*` secrets plus GHCR credentials
-4. `deploy-production`
-   - uses Terraform to roll out the production compose deployment on tags or manual dispatch
-   - requires `PRODUCTION_*` secrets, backup paths, and the explicit backup-check confirmation secret
-5. `rollback-production`
-   - restores previously known-good image refs with the compose rollback script
+Tag `vX.Y.Z` (or dispatch `target=production` with `version`, which never builds). Release
+candidate tags (`vX.Y.Z-rc.N`) skip production:
+
+1. `verify-staged`: the tag commit must be an ancestor of `origin/main`,
+   `scripts/bump_version.py --check` must pass with the tag (all seven version strings equal
+   `X.Y.Z`), the changelog must have a `[X.Y.Z]` section, and the digests are resolved from
+   `api:staging-passed-<sha>`, `worker:staging-passed-<sha>`, and
+   `frontend-production:<sha>`. A missing tag fails the job: that commit did not pass staging.
+2. `deploy-production`: `cosign verify` on all three digests with
+   `--certificate-identity-regexp '^https://github.com/<owner>/<repo>/.github/workflows/release.yml@refs/heads/main$'`
+   and `--certificate-oidc-issuer https://token.actions.githubusercontent.com`; backup gate;
+   Terraform rollout of the digests; smoke test; then the digests are tagged `vX.Y.Z` and the
+   job asserts that the deployed `api` and `worker` digests equal the `staging-passed-<sha>`
+   ones. The production frontend cannot equal the staging digest, because its URLs are baked in
+   at build time; it is the `frontend-production` image built in the same `main` run that
+   passed staging.
+3. `github-release` (`contents: write`): `gh release create vX.Y.Z --notes-file` with the
+   section from `scripts/extract_release_notes.py`, the image digests, and the SBOMs
+   (`docker buildx imagetools inspect --format '{{ json .SBOM }}'`) as assets. A re-run edits
+   the existing release.
+
+Rollback (dispatch `target=rollback`): inputs `environment` (`production` or `staging`) and
+`version` run `deploy/scripts/rollback.sh <environment> <version>`, which resolves
+`api:vX.Y.Z`, `worker:vX.Y.Z`, and `frontend-<environment>:<sha of vX.Y.Z>` to digests and
+swaps the images without running migrations. The three `rollback_*_image` inputs still work
+as a deprecated fallback when `version` is empty (kept for one milestone).
+
+Concurrency: each deploy job (and rollback) holds `rudix-deploy-staging` or
+`rudix-deploy-production`, so two runs never apply Terraform to the same environment at once.
+Terraform 1.9.8 S3 state has no lock file here; this group is the serialization.
+
+Terraform state lives in the S3 (or S3-compatible) backend configured by `TF_STATE_*`
+(`rudix/<env>.tfstate`). With persistent state an unchanged redeploy (same digests, env file,
+and compose file) is a no-op; force a rollout with
+`terraform apply -replace=null_resource.compose_rollout`. The SSH connection pins the host
+key (`host_key`, from `<ENV>_SSH_KNOWN_HOSTS`), and the deploy scripts use
+`StrictHostKeyChecking=yes` through `deploy/scripts/ssh_common.sh`.
 
 ### `e2e-integration.yml`
 
 Job `E2E against integration stack` (R03-04). It is a reusable workflow:
 
 - `workflow_call` with required string inputs `api_image` and `worker_image`. It logs in to
-  GHCR with `github.token` (`packages: read`) and tests those exact images. `release.yml` is
-  meant to call it as job `e2e-integration` (`needs: build-images`) and list it in
-  `deploy-staging.needs`. B2 adds that wiring.
+  GHCR with `github.token` (`packages: read`) and tests those exact images. `release.yml`
+  calls it as job `e2e-integration` (`needs: build-images`) and lists it in
+  `deploy-staging.needs`.
 - `workflow_dispatch` (no inputs) builds `docker build --target api` and `--target worker` from
   `backend/` as `rudix-local-*:e2e`, and falls back to an untargeted build if a target is missing.
 
@@ -235,6 +329,19 @@ The workflows rely on the repository's committed defaults and do not require a s
 | `GHCR_TOKEN`     | GitHub PAT with `read:packages` access for deploy hosts.                                              |
 | `OPENAI_API_KEY` | Optional OpenAI API key used by integration smoke; the workflow falls back to a placeholder if unset. |
 
+Terraform remote state (used by `deploy-staging` and `deploy-production`; one bucket, one key
+per environment, `rudix/staging.tfstate` and `rudix/production.tfstate`):
+
+| Secret                       | Expected content                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------- |
+| `TF_STATE_BUCKET`            | State bucket name. Enable versioning and encryption on it.                              |
+| `TF_STATE_REGION`            | Bucket region (any value the store accepts for S3-compatible stores).                   |
+| `TF_STATE_ENDPOINT`          | Optional. S3-compatible endpoint URL; when set, path-style and AWS-only checks are off. |
+| `TF_STATE_ACCESS_KEY_ID`     | Access key limited to that bucket.                                                      |
+| `TF_STATE_SECRET_ACCESS_KEY` | Matching secret key.                                                                    |
+
+See `deploy/terraform/backend.hcl.example` for the same settings as a file.
+
 ### Staging environment
 
 | Secret                    | Expected content                                                                                                     |
@@ -243,6 +350,7 @@ The workflows rely on the repository's committed defaults and do not require a s
 | `STAGING_SSH_PORT`        | Optional SSH port; defaults to `22` when unset.                                                                      |
 | `STAGING_SSH_USER`        | Linux deploy user on the staging server.                                                                             |
 | `STAGING_SSH_PRIVATE_KEY` | Full private key for the staging deploy user, including header and footer lines.                                     |
+| `STAGING_SSH_KNOWN_HOSTS` | Pinned `known_hosts` line(s) for the staging host (ed25519 line first). Required; there is no trust-on-first-use.    |
 | `STAGING_APP_PATH`        | Absolute deploy directory on the staging server, for example `/opt/rudix/staging`.                                   |
 | `STAGING_ENV_FILE`        | Full backend/server `.env` file content for staging. See [Staging environment file](#staging-environment-file).      |
 | `STAGING_ENV_URL`         | `https://staging.getrudix.com`.                                                                                      |
@@ -261,6 +369,13 @@ NEXT_PUBLIC_APP_URL=https://staging.getrudix.com
 
 Do not put those keys in `FRONTEND_ENV_STAGING`; the workflow strips them so
 stale `localhost` values cannot be baked into the Next.js client bundle.
+
+Collect the host key from the server itself (`ssh-keyscan -t ed25519 -p <port> <host>` run
+from a trusted network, then compare the fingerprint with `ssh-keygen -lf
+/etc/ssh/ssh_host_ed25519_key.pub` on the host console). The deploy scripts write the secret
+to a temporary `known_hosts` file with `StrictHostKeyChecking=yes`; Terraform gets fields 2
+and 3 of the first line (`ssh-ed25519 AAAA...`) as `TF_VAR_ssh_host_key`. Rotate the secret
+whenever the host key changes; a mismatch fails the deploy instead of connecting.
 
 #### Frontend staging environment
 
@@ -337,6 +452,7 @@ REDIS_URL=redis://redis:6379/0
 | `PRODUCTION_SSH_PORT`             | Optional SSH port; defaults to `22` when unset.                                                   |
 | `PRODUCTION_SSH_USER`             | Linux deploy user on the production server.                                                       |
 | `PRODUCTION_SSH_PRIVATE_KEY`      | Full private key for the production deploy user, including header and footer lines.               |
+| `PRODUCTION_SSH_KNOWN_HOSTS`      | Pinned `known_hosts` line(s) for the production host (ed25519 line first). Required.              |
 | `PRODUCTION_APP_PATH`             | Absolute deploy directory on the production server, for example `/opt/rudix/production`.          |
 | `PRODUCTION_ENV_FILE`             | Full backend/server `.env` file content for production.                                           |
 | `PRODUCTION_ENV_URL`              | `https://getrudix.com`.                                                                           |

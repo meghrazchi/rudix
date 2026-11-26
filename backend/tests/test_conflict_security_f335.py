@@ -131,7 +131,7 @@ class TestCrossTenantIsolation:
         await db_session.commit()
 
         resp = await sec_client.get(
-            "/admin/permissions/conflicts",
+            "/api/v1/admin/permissions/conflicts",
             headers=_headers(admin_a, org_a),
         )
         assert resp.status_code == 200
@@ -160,7 +160,7 @@ class TestCrossTenantIsolation:
 
         # Admin A tries to explain access for User B — should 404 (not a member of A)
         resp = await sec_client.get(
-            "/admin/permissions/explain-decision",
+            "/api/v1/admin/permissions/explain-decision",
             params={
                 "subject_user_id": str(user_b.id),
                 "resource_type": "document",
@@ -199,7 +199,7 @@ class TestResponseContentSafety:
         await db_session.commit()
 
         resp = await sec_client.get(
-            f"/admin/permissions/conflicts/{conflict.id}",
+            f"/api/v1/admin/permissions/conflicts/{conflict.id}",
             headers=_headers(admin, org),
         )
         assert resp.status_code == 200
@@ -228,7 +228,7 @@ class TestResponseContentSafety:
         await db_session.commit()
 
         resp = await sec_client.get(
-            "/admin/permissions/explain-decision",
+            "/api/v1/admin/permissions/explain-decision",
             params={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -265,7 +265,7 @@ class TestResponseContentSafety:
         await db_session.commit()
 
         resp = await sec_client.get(
-            f"/admin/permissions/conflicts/{conflict.id}",
+            f"/api/v1/admin/permissions/conflicts/{conflict.id}",
             headers=_headers(admin, org),
         )
         assert resp.status_code == 200
@@ -285,7 +285,7 @@ class TestRoleBoundaryEnforcement:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.viewer)
         resp = await sec_client.get(
-            "/admin/permissions/conflicts",
+            "/api/v1/admin/permissions/conflicts",
             headers=_headers(user, org),
         )
         assert resp.status_code == 403
@@ -295,7 +295,7 @@ class TestRoleBoundaryEnforcement:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.developer)
         resp = await sec_client.get(
-            "/admin/permissions/conflicts",
+            "/api/v1/admin/permissions/conflicts",
             headers=_headers(user, org),
         )
         assert resp.status_code == 403
@@ -303,7 +303,7 @@ class TestRoleBoundaryEnforcement:
     async def test_unauthenticated_request_rejected(
         self, sec_client: AsyncClient, db_session: AsyncSession
     ) -> None:
-        resp = await sec_client.get("/admin/permissions/conflicts")
+        resp = await sec_client.get("/api/v1/admin/permissions/conflicts")
         assert resp.status_code in (401, 403)
 
     async def test_unknown_resource_type_gives_422_not_500(
@@ -324,7 +324,7 @@ class TestRoleBoundaryEnforcement:
         await db_session.commit()
 
         resp = await sec_client.get(
-            "/admin/permissions/explain-decision",
+            "/api/v1/admin/permissions/explain-decision",
             params={
                 "subject_user_id": str(subject.id),
                 "resource_type": "future_unregistered_type",

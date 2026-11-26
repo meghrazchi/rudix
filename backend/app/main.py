@@ -52,10 +52,3 @@ app.add_middleware(
 )
 app.include_router(metrics.router)
 app.include_router(api_router, prefix=settings.api_prefix)
-
-if settings.environment.value == "test":
-    # Test fixtures and older regression tests still exercise a mix of root and
-    # versioned paths. Keep a root alias only in test runs so production keeps
-    # the versioned contract while the suite can resolve both forms.
-    app.include_router(api_router)
-    app.include_router(api_router, prefix="/api")

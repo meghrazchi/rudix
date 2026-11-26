@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to this documentation set are recorded here.
+All notable changes to Rudix, the product and its documentation, are recorded here.
 
 ## [Unreleased]
 
@@ -19,6 +19,7 @@ All notable changes to this documentation set are recorded here.
 - `backend/README.md` and `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`: the PostgreSQL test lane now runs in its own always-reporting workflow `backend-postgres.yml` (check `Backend PostgreSQL tests`); the `pg_migrated_url` fixture applies `alembic upgrade head` itself; the `both_dialects` marker runs `db_session` suites on SQLite and PostgreSQL, with seven isolation/quota/claim suites ported and a new PostgreSQL full-text search test; `backend-alembic` keeps only the migration round trip (R03-01).
 - `docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md` for planned Prometheus and Grafana metrics, exporters, dashboards, security guardrails, and phased rollout.
 - `docs/DOCUMENT_TEMPLATE.md` for standardized technical documents.
+- Faster, measured test suite: `db_session` copies a session-wide SQLite schema template instead of running `create_all` per test (`make test` about three times faster: 240 s down to 75 s when re-measured at review); the API router is mounted once under `/api/v1` in every environment, including tests; backend `fail_under` and Vitest `coverage.thresholds` ratchets enforced in `ci.yml`, plus `make test-cov` and `npm run test:coverage` (R03-02).
 - `docs/DOCUMENT_REVIEW_CHECKLIST.md` for document quality gating.
 - CI gates that gate (R03-03) and OpenAPI contract (R03-10): `playwright.yml` runs on PRs and `main` behind a `changes` job; new `accuracy-smoke.yml` (deterministic in-process pipeline smoke, `pytest -m accuracy_smoke`); `accuracy-eval.yml` runs nightly; `quality-gate.yml` is reusable and gates the latest completed nightly run (`EVALUATION_RUN_ID=latest`, `QUALITY_GATE_MAX_RUN_AGE_HOURS`) before `deploy-staging`; `ci.yml` has no `paths` filters; new `openapi-contract.yml` with `export_openapi.py --check`; `frontend/openapi.json` is now the full export. Documented in `docs/14` (including required status checks), `docs/12`, `DEPLOYMENT.md`, and both READMEs.
 - Celery `beat` service in all compose files, `make run-beat`, and an integration-smoke beat check; documented in `backend/README.md`, `docs/10_DEPLOYMENT_DOCKER.md`, and `docs/17_CONNECTOR_OPERATIONS_RUNBOOK.md` (R02-03).
@@ -26,6 +27,7 @@ All notable changes to this documentation set are recorded here.
 - Atomic document processing claim (`documents.processing_task_id`, `processing_started_at`, `processing_reap_count`; migration `20261126_0001`) and the beat-scheduled `documents.reap_stale` reaper, with `rudix_documents_reaped_total` (R02-02).
 - Hash-pinned Python lockfile (`backend/uv.lock`, uv) used by `make install`, `make audit`, and the Docker image build (R03-05).
 - Deployment fixes: Terraform `infra_services` variable (production no longer waits on `neo4j`), a backup freshness gate that accepts files or directories (`DEPLOY_BACKUP_MAX_AGE_HOURS`, default 26), Redis password and volumes, RabbitMQ volume with a fixed hostname, image tag variables (`QDRANT_IMAGE`, `MINIO_IMAGE`, `RABBITMQ_IMAGE`, `REDIS_IMAGE`, `CLAMAV_IMAGE`), a ClamAV service in staging/production compose, `deploy/scripts/check_deploy_env.sh`, and a staging/production validator that rejects loopback `MALWARE_SCAN_CLAMAV_HOST` while scanning is enabled (R02-08).
+- Release integrity and security pipeline (R03-07, R03-08): `release.yml` builds `api`/`worker`/frontend images once on `main` with SBOM, provenance, and cosign keyless signatures, scans the pushed digests, runs `e2e-integration`, tags `staging-passed-<sha>` after staging, and on a `vX.Y.Z` tag promotes those digests to production (`verify-staged`, `cosign verify`, digest equality) and creates the GitHub Release; `scripts/bump_version.py` (`--check`, `--changelog`) and `scripts/extract_release_notes.py`; `deploy/scripts/rollback.sh <environment> <version>`; pinned SSH host keys (`*_SSH_KNOWN_HOSTS`, `ssh_common.sh`, Terraform `host_key`) and S3 remote Terraform state; new `secret-scan.yml` (gitleaks), `image-scan.yml` (Trivy), and `.github/dependabot.yml`; blocking pip-audit and `npm audit --omit=dev` through `security_severity_gate.py` (`--trivy`/`--pip-audit`, allowlist entries need `reason` and `expires`).
 
 ### Changed
 

@@ -50,12 +50,16 @@ resource "null_resource" "compose_rollout" {
     backup_check = tostring(var.backup_check_enabled)
   }
 
+  # Host key pinned: var.ssh_host_key is "<type> <base64>" (fields 2 and 3 of the
+  # host's known_hosts line). With remote state an unchanged redeploy is a no-op;
+  # `terraform apply -replace=null_resource.compose_rollout` forces a rollout.
   connection {
     type        = "ssh"
     host        = var.ssh_host
     port        = var.ssh_port
     user        = var.ssh_user
     private_key = var.ssh_private_key
+    host_key    = var.ssh_host_key
     timeout     = "3m"
   }
 

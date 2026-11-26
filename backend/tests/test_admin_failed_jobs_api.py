@@ -141,7 +141,7 @@ async def test_list_failed_jobs_returns_empty_for_new_org(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/failed-jobs", headers=_auth_headers(token=token, organization_id=str(org.id))
+        "/api/v1/admin/failed-jobs", headers=_auth_headers(token=token, organization_id=str(org.id))
     )
     assert response.status_code == 200
     data = response.json()
@@ -165,7 +165,7 @@ async def test_list_failed_jobs_returns_org_scoped_results(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/failed-jobs", headers=_auth_headers(token=token, organization_id=str(org.id))
+        "/api/v1/admin/failed-jobs", headers=_auth_headers(token=token, organization_id=str(org.id))
     )
     assert response.status_code == 200
     data = response.json()
@@ -186,7 +186,7 @@ async def test_list_failed_jobs_filters_by_job_type(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/failed-jobs?job_type=extraction",
+        "/api/v1/admin/failed-jobs?job_type=extraction",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -208,7 +208,7 @@ async def test_list_failed_jobs_filters_by_status(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/failed-jobs?status=resolved",
+        "/api/v1/admin/failed-jobs?status=resolved",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -230,7 +230,7 @@ async def test_list_failed_jobs_retryable_only_filter(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/failed-jobs?retryable_only=true",
+        "/api/v1/admin/failed-jobs?retryable_only=true",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -249,7 +249,7 @@ async def test_list_failed_jobs_requires_admin_role(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     response = await admin_client.get(
-        "/admin/failed-jobs", headers=_auth_headers(token=token, organization_id=str(org.id))
+        "/api/v1/admin/failed-jobs", headers=_auth_headers(token=token, organization_id=str(org.id))
     )
     assert response.status_code == 403
 
@@ -269,7 +269,7 @@ async def test_get_failed_job_returns_detail(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        f"/admin/failed-jobs/{job.id}",
+        f"/api/v1/admin/failed-jobs/{job.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -292,7 +292,7 @@ async def test_get_failed_job_not_found_for_other_org(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        f"/admin/failed-jobs/{job.id}",
+        f"/api/v1/admin/failed-jobs/{job.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 404
@@ -320,7 +320,7 @@ async def test_retry_failed_job_sets_status_to_retrying(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/retry",
+        f"/api/v1/admin/failed-jobs/{job.id}/retry",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -343,7 +343,7 @@ async def test_retry_non_retryable_job_returns_409(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/retry",
+        f"/api/v1/admin/failed-jobs/{job.id}/retry",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 409
@@ -362,7 +362,7 @@ async def test_retry_resolved_job_returns_409(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/retry",
+        f"/api/v1/admin/failed-jobs/{job.id}/retry",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 409
@@ -383,12 +383,12 @@ async def test_retry_creates_audit_log_entry(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/retry",
+        f"/api/v1/admin/failed-jobs/{job.id}/retry",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
 
     detail_response = await admin_client.get(
-        f"/admin/failed-jobs/{job.id}",
+        f"/api/v1/admin/failed-jobs/{job.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     detail = detail_response.json()
@@ -421,7 +421,7 @@ async def test_bulk_retry_queues_eligible_jobs(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        "/admin/failed-jobs/bulk-retry",
+        "/api/v1/admin/failed-jobs/bulk-retry",
         json={"job_ids": [str(job_a.id), str(job_b.id)]},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -449,7 +449,7 @@ async def test_bulk_retry_skips_jobs_from_other_org(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        "/admin/failed-jobs/bulk-retry",
+        "/api/v1/admin/failed-jobs/bulk-retry",
         json={"job_ids": [str(other_job.id)]},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -474,7 +474,7 @@ async def test_cancel_failed_job_sets_status(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/cancel",
+        f"/api/v1/admin/failed-jobs/{job.id}/cancel",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -493,7 +493,7 @@ async def test_cancel_already_cancelled_job_returns_409(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/cancel",
+        f"/api/v1/admin/failed-jobs/{job.id}/cancel",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 409
@@ -514,7 +514,7 @@ async def test_resolve_failed_job_sets_status(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/resolve",
+        f"/api/v1/admin/failed-jobs/{job.id}/resolve",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -535,7 +535,7 @@ async def test_resolve_already_resolved_job_returns_409(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/resolve",
+        f"/api/v1/admin/failed-jobs/{job.id}/resolve",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 409
@@ -563,7 +563,7 @@ async def test_non_retryable_deletion_cleanup_job_blocked(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/failed-jobs/{job.id}/retry",
+        f"/api/v1/admin/failed-jobs/{job.id}/retry",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 409
@@ -582,7 +582,7 @@ async def test_list_pagination_respects_page_size(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/failed-jobs?page_size=2&page=1",
+        "/api/v1/admin/failed-jobs?page_size=2&page=1",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200

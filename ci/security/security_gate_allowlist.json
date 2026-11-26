@@ -1,10 +1,12 @@
 {
-  "notes": "Temporary exception for python:3.12-slim / Debian trixie ncurses CVE without a security update. Remove when the base image is rebuilt with a fix.",
+  "notes": "Exceptions for ci/scripts/security_severity_gate.py. Every entry needs id, reason and expires (YYYY-MM-DD); expired entries stop matching. Optional scanner (trivy or pip-audit), package and severity narrow the match. Never allowlist a finding that has a fix inside the pinned range: upgrade instead.",
   "allow": [
     {
       "id": "CVE-2025-69720",
-      "scanner": "container_scanning",
-      "severity": "high"
+      "scanner": "trivy",
+      "severity": "high",
+      "reason": "ncurses in the python:3.12-slim (Debian trixie) base image has no Debian security update yet. Remove when the base digest is rebuilt with a fix.",
+      "expires": "2027-02-28"
     }
   ]
 }

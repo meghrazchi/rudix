@@ -67,6 +67,9 @@ services:
     image: ${RUDIX_WORKER_IMAGE}
     command: celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
     restart: unless-stopped
+    # The worker image's HEALTHCHECK pings a worker node; beat has none.
+    healthcheck:
+      disable: true
     env_file:
       - ../../.env.ci.integration
     environment:

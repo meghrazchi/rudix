@@ -304,7 +304,8 @@ digest and builds in three stages (`deps`, `build`, `runtime`). The runtime stag
 `.next/standalone`, `.next/static`, and `public`; it does not run `npm ci`. It runs as the
 `node` user with `HOSTNAME=0.0.0.0`, `PORT=3000`, and `CMD ["node", "server.js"]`, and its
 `HEALTHCHECK` fetches `/login` with busybox `wget`. Only `.next/cache` is writable by the
-runtime user.
+runtime user. The runtime stage removes the base image's bundled `npm`, `npx`, and `corepack`,
+which the standalone server does not use; do not `docker exec` npm commands in it.
 
 In standalone mode `next.config.ts` is evaluated once at `next build`: `headers()` (the
 security headers from `config/security-headers.mjs`) and `rewrites()` are baked into the

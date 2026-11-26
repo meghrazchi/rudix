@@ -535,7 +535,7 @@ async def test_http_summary_member_gets_403(
     token = _token(str(member.id), str(org.id), OrganizationRole.member.value)
 
     resp = await usage_adoption_client.get(
-        "/api/admin/usage-adoption/summary", headers=_auth(token)
+        "/api/v1/admin/usage-adoption/summary", headers=_auth(token)
     )
     assert resp.status_code == 403
 
@@ -561,7 +561,7 @@ async def test_http_summary_org_isolation(
 
     token = _token(str(admin_a.id), str(org_a.id), OrganizationRole.admin.value)
     resp = await usage_adoption_client.get(
-        "/api/admin/usage-adoption/summary", headers=_auth(token)
+        "/api/v1/admin/usage-adoption/summary", headers=_auth(token)
     )
     assert resp.status_code == 200
     assert resp.json()["active_users"] == 0
@@ -585,7 +585,7 @@ async def test_http_list_users(
     token = _token(str(admin.id), str(org.id), OrganizationRole.admin.value)
 
     resp = await usage_adoption_client.get(
-        "/api/admin/usage-adoption/users",
+        "/api/v1/admin/usage-adoption/users",
         headers=_auth(token),
         params={"role": "member"},
     )
@@ -609,7 +609,9 @@ async def test_http_export_csv(
     await db_session.commit()
     token = _token(str(admin.id), str(org.id), OrganizationRole.admin.value)
 
-    resp = await usage_adoption_client.get("/api/admin/usage-adoption/export", headers=_auth(token))
+    resp = await usage_adoption_client.get(
+        "/api/v1/admin/usage-adoption/export", headers=_auth(token)
+    )
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/csv")
     assert "Export Person" in resp.text
@@ -633,14 +635,14 @@ async def test_http_onboarding_reminder_sent_and_404(
     token = _token(str(admin.id), str(org.id), OrganizationRole.admin.value)
 
     resp = await usage_adoption_client.post(
-        f"/api/admin/usage-adoption/users/{target.id}/onboarding-reminder",
+        f"/api/v1/admin/usage-adoption/users/{target.id}/onboarding-reminder",
         headers=_auth(token),
     )
     assert resp.status_code == 200
     assert resp.json()["sent"] is True
 
     missing_resp = await usage_adoption_client.post(
-        f"/api/admin/usage-adoption/users/{uuid4()}/onboarding-reminder",
+        f"/api/v1/admin/usage-adoption/users/{uuid4()}/onboarding-reminder",
         headers=_auth(token),
     )
     assert missing_resp.status_code == 404

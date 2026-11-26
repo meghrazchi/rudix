@@ -148,7 +148,7 @@ async def test_patch_policy_trust_fields_saved(
     headers = _auth_headers(token=token, organization_id=str(org.id))
 
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={
             "allowed_resources": ["rag://documents/*"],
             "allowed_prompts": ["summarize", "explain"],
@@ -185,13 +185,13 @@ async def test_patch_policy_trust_fields_null_clears_allowlists(
     headers = _auth_headers(token=token, organization_id=str(org.id))
 
     await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"allowed_resources": ["rag://documents/*"], "allowed_prompts": ["ask"]},
         headers=headers,
     )
     # Null out the allowlists
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"allowed_resources": None, "allowed_prompts": None},
         headers=headers,
     )
@@ -211,7 +211,7 @@ async def test_patch_policy_max_chunk_chars_too_small_rejected(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"max_chunk_chars": 10},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -228,7 +228,7 @@ async def test_patch_policy_max_request_bytes_too_small_rejected(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"max_request_bytes": 10},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -246,14 +246,14 @@ async def test_patch_policy_redact_document_text_false_persists(
     )
     headers = _auth_headers(token=token, organization_id=str(org.id))
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"redact_document_text": False},
         headers=headers,
     )
     assert response.status_code == 200
     assert response.json()["redact_document_text"] is False
 
-    get_resp = await admin_client.get("/admin/mcp/policy", headers=headers)
+    get_resp = await admin_client.get("/api/v1/admin/mcp/policy", headers=headers)
     assert get_resp.json()["redact_document_text"] is False
 
 
@@ -267,7 +267,7 @@ async def test_get_policy_trust_defaults(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -297,13 +297,13 @@ async def test_patch_trust_policy_org_isolation(
     )
 
     await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"allowed_roles": ["owner"], "max_chunk_chars": 200},
         headers=_auth_headers(token=token_a, organization_id=str(org_a.id)),
     )
 
     resp_b = await admin_client.get(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         headers=_auth_headers(token=token_b, organization_id=str(org_b.id)),
     )
     assert resp_b.status_code == 200

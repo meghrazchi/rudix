@@ -45,11 +45,26 @@ are ordered by dependency, and each work item carries a relative size (S, M, L).
 
 - Semantic Versioning. Backend (`backend/pyproject.toml`) and frontend
   (`frontend/package.json`) share one version number and are bumped together.
-- Git tags are `vMAJOR.MINOR.PATCH`. A tag is the only trigger for a production deploy.
+- Git tags are `vMAJOR.MINOR.PATCH`. A tag is the only trigger for a new production release;
+  a production dispatch can only redeploy an existing tag (`version` input), and neither
+  rebuilds images.
 - `0.x` minors may change defaults behind feature flags. They MUST NOT break API payload
   shapes without an alias.
 - Patch releases (`0.x.y`) carry fixes only and never include migrations that drop data.
-- Release candidates use `vX.Y.Z-rc.N` and deploy to staging only.
+- Release candidates use `vX.Y.Z-rc.N` and deploy to staging only. `release.yml` runs no
+  jobs for an `-rc` tag: staging is deployed from every `main` push, and production skips
+  `-rc` tags.
+- Version strings live in seven places: `backend/pyproject.toml`, `frontend/package.json`,
+  `frontend/package-lock.json` (top-level and `packages[""]`), the `api_version` default in
+  `backend/app/core/config.py`, `API_VERSION` in `.env.example`, and `info.version` in
+  `frontend/openapi.json`. `python3 scripts/bump_version.py X.Y.Z [--changelog] [--dry-run]`
+  rewrites all of them (SemVer with an optional `-rc.N`, downgrades refused), and
+  `--changelog` moves the `[Unreleased]` body of `docs/CHANGELOG.md` under
+  `## [X.Y.Z] - <date>`. `--check` verifies that they agree and, on a tag, that the tag is
+  `v<version>`; the release's `verify-staged` job runs it. `scripts/extract_release_notes.py
+  vX.Y.Z` prints that changelog section for the GitHub Release.
+- Release order: bump on a branch, merge to `main`, wait for the staging deploy of the merge
+  commit (it tags `staging-passed-<sha>`), then tag that commit `vX.Y.Z`.
 - Work items are identified as `R<minor>-<nn>`, for example `R02-05` is item 5 of `0.2.0`.
   They are local to this roadmap and do not collide with the `rudix#NNN` / `FNNN` feature IDs.
 

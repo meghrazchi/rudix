@@ -210,7 +210,7 @@ jobs:
 
       - name: Run frontend tests
         working-directory: frontend
-        run: npm run test
+        run: npm run test:coverage
 
       - name: Verify generated API types
         working-directory: frontend

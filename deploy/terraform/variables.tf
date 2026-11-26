@@ -24,6 +24,16 @@ variable "ssh_user" {
   type        = string
 }
 
+variable "ssh_host_key" {
+  description = "Pinned public host key of the deploy host, \"<type> <base64>\" (fields 2 and 3 of its known_hosts line). No default: an unpinned connection is refused."
+  type        = string
+
+  validation {
+    condition     = length(regexall("^[a-z0-9@.-]+ [A-Za-z0-9+/=]+$", trimspace(var.ssh_host_key))) == 1
+    error_message = "ssh_host_key must look like \"ssh-ed25519 AAAA...\" (key type and base64, no host field)."
+  }
+}
+
 variable "ssh_private_key" {
   description = "SSH private key used for deployment."
   type        = string

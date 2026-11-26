@@ -60,10 +60,10 @@ if [ "${DEPLOY_BACKUP_CHECK_PRINT_ONLY:-false}" = "true" ]; then
   exit 0
 fi
 
-install -m 700 -d "$HOME/.ssh"
-printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$HOME/.ssh/rudix_deploy_key"
-chmod 600 "$HOME/.ssh/rudix_deploy_key"
-ssh_opts="-i $HOME/.ssh/rudix_deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${DEPLOY_SSH_PORT:-22}"
+# Pinned host key (PRODUCTION_SSH_KNOWN_HOSTS or DEPLOY_SSH_KNOWN_HOSTS); see ssh_common.sh.
+. "$(dirname "$0")/ssh_common.sh"
+rudix_ssh_setup "${DEPLOY_ENVIRONMENT:-production}"
+trap rudix_ssh_cleanup EXIT
 
 # The script is sent on stdin so paths never pass through ssh argument parsing.
 # shellcheck disable=SC2086

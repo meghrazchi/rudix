@@ -1,0 +1,26 @@
+# Gitleaks configuration (R03-08), used by .github/workflows/secret-scan.yml.
+#
+# Extends the upstream default rules. The allowlist names ONLY known, non-secret
+# placeholder values used by CI, tests, and local examples. Never allowlist whole
+# directories or file globs: a real key committed next to a placeholder must still fail.
+# To add a value, it must be a documented placeholder that is rejected in
+# production (see docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md, "Secrets").
+
+title = "Rudix gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Known CI/test/example placeholder values (exact matches only)"
+regexTarget = "secret"
+regexes = [
+  '''^ci-placeholder-key$''',     # OPENAI_API_KEY in CI workflows
+  '''^sk-test$''',                # OPENAI_API_KEY in backend tests
+  '''^minioadmin$''',             # MinIO local/CI default credentials
+  '''^ci-local-secret$''',        # APP_AUTH_SECRET in CI workflows
+  '''^dev-insecure-change-me$''', # APP_AUTH_SECRET default, refused in production
+  '''^e2e-access-token$''',       # frontend/playwright.config.ts
+  '''^e2e-refresh-token$''',      # frontend/playwright.config.ts
+  '''^ci-access-token$''',        # .github/workflows/playwright.yml
+]

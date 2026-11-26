@@ -587,7 +587,7 @@ async def test_http_create_policy(
 ) -> None:
     _, token = admin_user
     resp = await client.post(
-        "/admin/ai-response-policy",
+        "/api/v1/admin/ai-response-policy",
         json={
             "policy_name": "HTTP Test Policy",
             "citation_mode": "required",
@@ -615,7 +615,7 @@ async def test_http_get_active_policy(
     _, token = admin_user
     # No active policy yet
     resp = await client.get(
-        "/admin/ai-response-policy/active",
+        "/api/v1/admin/ai-response-policy/active",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -627,7 +627,7 @@ async def test_http_get_active_policy(
     await db.commit()
 
     resp2 = await client.get(
-        "/admin/ai-response-policy/active",
+        "/api/v1/admin/ai-response-policy/active",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp2.status_code == 200
@@ -647,7 +647,7 @@ async def test_http_activate_policy(
     await db.commit()
 
     resp = await client.post(
-        f"/admin/ai-response-policy/{policy.id}/activate",
+        f"/api/v1/admin/ai-response-policy/{policy.id}/activate",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -667,7 +667,7 @@ async def test_http_deactivate_policy(
     await db.commit()
 
     resp = await client.post(
-        f"/admin/ai-response-policy/{policy.id}/deactivate",
+        f"/api/v1/admin/ai-response-policy/{policy.id}/deactivate",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -688,7 +688,7 @@ async def test_http_update_policy(
     await db.commit()
 
     resp = await client.patch(
-        f"/admin/ai-response-policy/{policy.id}",
+        f"/api/v1/admin/ai-response-policy/{policy.id}",
         json={
             "policy_name": "Updated Name",
             "citation_mode": "required",
@@ -716,7 +716,7 @@ async def test_http_delete_active_policy_rejected(
     await db.commit()
 
     resp = await client.delete(
-        f"/admin/ai-response-policy/{policy.id}",
+        f"/api/v1/admin/ai-response-policy/{policy.id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 409
@@ -734,7 +734,7 @@ async def test_http_delete_inactive_policy(
     await db.commit()
 
     resp = await client.delete(
-        f"/admin/ai-response-policy/{policy.id}",
+        f"/api/v1/admin/ai-response-policy/{policy.id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 204
@@ -758,7 +758,7 @@ async def test_http_preview_policy(
     await db.commit()
 
     resp = await client.post(
-        "/admin/ai-response-policy/preview",
+        "/api/v1/admin/ai-response-policy/preview",
         json={
             "question": "What is the best gambling strategy?",
             "confidence_score": 0.9,
@@ -803,7 +803,7 @@ async def test_http_logs(
     await db.commit()
 
     resp = await client.get(
-        "/admin/ai-response-policy/logs",
+        "/api/v1/admin/ai-response-policy/logs",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -819,7 +819,7 @@ async def test_http_role_guard_member_cannot_create(
 ) -> None:
     _, token = member_user
     resp = await client.post(
-        "/admin/ai-response-policy",
+        "/api/v1/admin/ai-response-policy",
         json={"policy_name": "Not allowed"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -839,7 +839,7 @@ async def test_http_org_isolation(
 
     # org A creates a policy
     resp = await client.post(
-        "/admin/ai-response-policy",
+        "/api/v1/admin/ai-response-policy",
         json={"policy_name": "Org A Policy"},
         headers={"Authorization": f"Bearer {token_a}"},
     )
@@ -848,7 +848,7 @@ async def test_http_org_isolation(
 
     # org B tries to access it — must get 404
     resp2 = await client.get(
-        f"/admin/ai-response-policy/{policy_id}",
+        f"/api/v1/admin/ai-response-policy/{policy_id}",
         headers={"Authorization": f"Bearer {token_b}"},
     )
     assert resp2.status_code == 404

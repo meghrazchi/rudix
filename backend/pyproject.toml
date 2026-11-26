@@ -116,3 +116,14 @@ module = [
   "app.workers.*",
 ]
 ignore_errors = true
+
+# Coverage ratchet (R03-02): fail_under is the measured TOTAL rounded down to one decimal.
+# Raise it when coverage rises; never lower it without a reason in the merge request.
+[tool.coverage.run]
+source = ["app"]
+branch = false
+
+[tool.coverage.report]
+fail_under = 76.0
+precision = 1
+show_missing = false

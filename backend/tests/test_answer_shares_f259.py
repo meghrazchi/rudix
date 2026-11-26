@@ -183,7 +183,7 @@ async def test_create_answer_share_org_only(client: AsyncClient, db_session: Asy
 
     token = _make_token(str(user.id), str(org.id))
     resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"access_mode": "org_only"},
         headers=_auth_header(token),
     )
@@ -208,7 +208,7 @@ async def test_create_answer_share_with_expiry(
 
     token = _make_token(str(user.id), str(org.id))
     resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"access_mode": "org_only", "expires_in_hours": 24},
         headers=_auth_header(token),
     )
@@ -228,7 +228,7 @@ async def test_create_answer_share_with_password(
 
     token = _make_token(str(user.id), str(org.id))
     resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"access_mode": "org_only", "password": "hunter2"},
         headers=_auth_header(token),
     )
@@ -249,7 +249,7 @@ async def test_create_answer_share_specific_users(
 
     token = _make_token(str(user.id), str(org.id))
     resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"access_mode": "specific_users", "allowed_user_ids": [viewer_id]},
         headers=_auth_header(token),
     )
@@ -271,7 +271,7 @@ async def test_create_answer_share_specific_users_empty_list_fails(
 
     token = _make_token(str(user.id), str(org.id))
     resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"access_mode": "specific_users", "allowed_user_ids": []},
         headers=_auth_header(token),
     )
@@ -288,13 +288,13 @@ async def test_list_answer_shares(client: AsyncClient, db_session: AsyncSession)
 
     token = _make_token(str(user.id), str(org.id))
     await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
 
     resp = await client.get(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         headers=_auth_header(token),
     )
     assert resp.status_code == 200
@@ -313,20 +313,20 @@ async def test_revoke_answer_share(client: AsyncClient, db_session: AsyncSession
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
     share_id = create_resp.json()["share_id"]
 
     revoke_resp = await client.delete(
-        f"/chat/messages/{assistant_msg.id}/shares/{share_id}",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares/{share_id}",
         headers=_auth_header(token),
     )
     assert revoke_resp.status_code == 204
 
     list_resp = await client.get(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         headers=_auth_header(token),
     )
     assert list_resp.json()["total"] == 0
@@ -342,14 +342,14 @@ async def test_view_shared_answer_happy_path(client: AsyncClient, db_session: As
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
     share_token = create_resp.json()["token"]
 
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}",
+        f"/api/v1/chat/answer-shared/{share_token}",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 200
@@ -372,14 +372,14 @@ async def test_view_shared_answer_confidence_category(
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
     share_token = create_resp.json()["token"]
 
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}",
+        f"/api/v1/chat/answer-shared/{share_token}",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 200
@@ -423,14 +423,14 @@ async def test_view_shared_answer_citations_no_document_id(
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
     share_token = create_resp.json()["token"]
 
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}",
+        f"/api/v1/chat/answer-shared/{share_token}",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 200
@@ -457,7 +457,7 @@ async def test_view_shared_answer_revoked_returns_404(
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
@@ -465,12 +465,12 @@ async def test_view_shared_answer_revoked_returns_404(
     share_token = create_resp.json()["token"]
 
     await client.delete(
-        f"/chat/messages/{assistant_msg.id}/shares/{share_id}",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares/{share_id}",
         headers=_auth_header(token),
     )
 
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}",
+        f"/api/v1/chat/answer-shared/{share_token}",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 404
@@ -500,7 +500,7 @@ async def test_view_shared_answer_expired_returns_404(
 
     token = _make_token(str(user.id), str(org.id))
     view_resp = await client.get(
-        "/chat/answer-shared/expired-token-abc123",
+        "/api/v1/chat/answer-shared/expired-token-abc123",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 404
@@ -518,7 +518,7 @@ async def test_view_shared_answer_wrong_org_returns_404(
 
     token_a = _make_token(str(user_a.id), str(org_a.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token_a),
     )
@@ -530,7 +530,7 @@ async def test_view_shared_answer_wrong_org_returns_404(
     token_b = _make_token(str(user_b.id), str(org_b.id))
 
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}",
+        f"/api/v1/chat/answer-shared/{share_token}",
         headers=_auth_header(token_b),
     )
     assert view_resp.status_code == 404
@@ -558,7 +558,7 @@ async def test_view_specific_users_share_denied(
     token = _make_token(str(user_owner.id), str(org.id))
     other_user_id = str(uuid4())
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"access_mode": "specific_users", "allowed_user_ids": [other_user_id]},
         headers=_auth_header(token),
     )
@@ -566,7 +566,7 @@ async def test_view_specific_users_share_denied(
 
     viewer_token = _make_token(str(user_viewer.id), str(org.id))
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}",
+        f"/api/v1/chat/answer-shared/{share_token}",
         headers=_auth_header(viewer_token),
     )
     assert view_resp.status_code == 403
@@ -592,7 +592,7 @@ async def test_view_specific_users_share_allowed(
 
     token = _make_token(str(user_owner.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"access_mode": "specific_users", "allowed_user_ids": [str(user_viewer.id)]},
         headers=_auth_header(token),
     )
@@ -600,7 +600,7 @@ async def test_view_specific_users_share_allowed(
 
     viewer_token = _make_token(str(user_viewer.id), str(org.id))
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}",
+        f"/api/v1/chat/answer-shared/{share_token}",
         headers=_auth_header(viewer_token),
     )
     assert view_resp.status_code == 200
@@ -618,14 +618,14 @@ async def test_view_password_protected_share_no_password(
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"password": "secret123"},
         headers=_auth_header(token),
     )
     share_token = create_resp.json()["token"]
 
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}",
+        f"/api/v1/chat/answer-shared/{share_token}",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 403
@@ -643,14 +643,14 @@ async def test_view_password_protected_share_wrong_password(
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"password": "secret123"},
         headers=_auth_header(token),
     )
     share_token = create_resp.json()["token"]
 
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}?password=wrongpassword",
+        f"/api/v1/chat/answer-shared/{share_token}?password=wrongpassword",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 403
@@ -668,14 +668,14 @@ async def test_view_password_protected_share_correct_password(
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={"password": "secret123"},
         headers=_auth_header(token),
     )
     share_token = create_resp.json()["token"]
 
     view_resp = await client.get(
-        f"/chat/answer-shared/{share_token}?password=secret123",
+        f"/api/v1/chat/answer-shared/{share_token}?password=secret123",
         headers=_auth_header(token),
     )
     assert view_resp.status_code == 200
@@ -691,7 +691,7 @@ async def test_share_user_message_returns_404(
 
     token = _make_token(str(user.id), str(org.id))
     resp = await client.post(
-        f"/chat/messages/{user_msg.id}/shares",
+        f"/api/v1/chat/messages/{user_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
@@ -719,7 +719,7 @@ async def test_revoke_by_non_owner_returns_404(
 
     token_owner = _make_token(str(user_owner.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token_owner),
     )
@@ -727,7 +727,7 @@ async def test_revoke_by_non_owner_returns_404(
 
     token_other = _make_token(str(user_other.id), str(org.id))
     revoke_resp = await client.delete(
-        f"/chat/messages/{assistant_msg.id}/shares/{share_id}",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares/{share_id}",
         headers=_auth_header(token_other),
     )
     assert revoke_resp.status_code == 404
@@ -745,7 +745,7 @@ async def test_audit_log_on_create(client: AsyncClient, db_session: AsyncSession
 
     token = _make_token(str(user.id), str(org.id))
     await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
@@ -767,12 +767,12 @@ async def test_audit_log_on_view(client: AsyncClient, db_session: AsyncSession) 
 
     token = _make_token(str(user.id), str(org.id))
     create_resp = await client.post(
-        f"/chat/messages/{assistant_msg.id}/shares",
+        f"/api/v1/chat/messages/{assistant_msg.id}/shares",
         json={},
         headers=_auth_header(token),
     )
     share_token = create_resp.json()["token"]
-    await client.get(f"/chat/answer-shared/{share_token}", headers=_auth_header(token))
+    await client.get(f"/api/v1/chat/answer-shared/{share_token}", headers=_auth_header(token))
 
     rows = (await db_session.execute(select(AuditLog))).scalars().all()
     actions = [r.action for r in rows]

@@ -49,6 +49,11 @@ test:
 test-verbose:
 	$(PYTEST) -vv --timeout=60 --tb=short
 
+.PHONY: test-cov
+# Prints coverage and fails below [tool.coverage.report] fail_under in pyproject.toml (R03-02).
+test-cov:
+	$(PYTEST) --cov=app --cov-report=term
+
 .PHONY: test-postgres
 # The pg_migrated_url fixture also runs `alembic upgrade head`; the explicit step below
 # surfaces migration errors before pytest starts. PYTEST_ARGS adds flags, e.g. --junitxml.

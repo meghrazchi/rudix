@@ -176,7 +176,7 @@ async def test_dashboard_returns_totals_for_admin(dash_client, admin_ctx, db_ses
     )
 
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
         params={"from": "2026-01-01", "to": "2026-12-31"},
     )
@@ -208,7 +208,7 @@ async def test_dashboard_forbidden_for_member(dash_client, db_session):
 
     token = _make_token(str(user.id), str(org.id), OrganizationRole.member.value)
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(token),
     )
     assert resp.status_code == 403
@@ -219,7 +219,7 @@ async def test_dashboard_empty_org_returns_zeros(dash_client, admin_ctx, db_sess
     """C: org with no events returns zero totals."""
     ctx = admin_ctx
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
         params={"from": "2026-01-01", "to": "2026-12-31"},
     )
@@ -255,7 +255,7 @@ async def test_dashboard_date_range_filter(dash_client, admin_ctx, db_session):
     )
 
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
         params={"from": "2099-01-01", "to": "2099-12-31"},
     )
@@ -274,7 +274,7 @@ async def test_dashboard_model_filter(dash_client, admin_ctx, db_session):
     )
 
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
         params={"from": "2026-01-01", "to": "2026-12-31", "model": "claude-3-sonnet"},
     )
@@ -301,7 +301,7 @@ async def test_dashboard_feature_area_filter(dash_client, admin_ctx, db_session)
     )
 
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
         params={"from": "2026-01-01", "to": "2026-12-31", "feature_area": "agent"},
     )
@@ -334,7 +334,7 @@ async def test_dashboard_top_users_populated_and_sorted(dash_client, admin_ctx, 
     )
 
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
         params={"from": "2026-01-01", "to": "2026-12-31"},
     )
@@ -357,7 +357,7 @@ async def test_dashboard_top_models_populated_and_sorted(dash_client, admin_ctx,
     )
 
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
         params={"from": "2026-01-01", "to": "2026-12-31"},
     )
@@ -376,7 +376,7 @@ async def test_dashboard_is_cost_estimate_always_true(dash_client, admin_ctx, db
     """I: is_cost_estimate is always true in response."""
     ctx = admin_ctx
     resp = await dash_client.get(
-        "/admin/usage/dashboard",
+        "/api/v1/admin/usage/dashboard",
         headers=_auth(ctx["token"]),
         params={"from": "2026-01-01", "to": "2026-12-31"},
     )
@@ -398,7 +398,7 @@ async def test_export_csv_for_admin(dash_client, admin_ctx, db_session):
     )
 
     resp = await dash_client.get(
-        "/admin/usage/export",
+        "/api/v1/admin/usage/export",
         headers=_auth(ctx["token"]),
         params={"format": "csv", "from": "2026-01-01", "to": "2026-12-31"},
     )
@@ -424,7 +424,7 @@ async def test_export_json_for_admin(dash_client, admin_ctx, db_session):
     )
 
     resp = await dash_client.get(
-        "/admin/usage/export",
+        "/api/v1/admin/usage/export",
         headers=_auth(ctx["token"]),
         params={"format": "json", "from": "2026-01-01", "to": "2026-12-31"},
     )

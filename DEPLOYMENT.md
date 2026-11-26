@@ -166,6 +166,7 @@ All secrets below go under **Repository secrets** (not environment secrets), unl
 | `STAGING_SSH_PORT`        | SSH port — omit if `22`                                                        |
 | `STAGING_SSH_USER`        | Linux user, e.g. `ubuntu`                                                      |
 | `STAGING_SSH_PRIVATE_KEY` | Full content of `~/.ssh/rudix_staging_deploy`                                  |
+| `STAGING_SSH_KNOWN_HOSTS` | Verified `known_hosts` line(s) for the staging host — see [6f](#6f-host-keys)  |
 | `STAGING_APP_PATH`        | `/opt/rudix`                                                                   |
 | `STAGING_ENV_URL`         | `https://staging.getrudix.com`                                                 |
 | `STAGING_ENV_FILE`        | Full `.env` file content — see [step 7](#7-build-the-env-file)                 |
@@ -179,6 +180,7 @@ All secrets below go under **Repository secrets** (not environment secrets), unl
 | `PRODUCTION_SSH_PORT`             | SSH port — omit if `22`                                        |
 | `PRODUCTION_SSH_USER`             | Linux user, e.g. `ubuntu`                                      |
 | `PRODUCTION_SSH_PRIVATE_KEY`      | Full content of `~/.ssh/rudix_production_deploy`               |
+| `PRODUCTION_SSH_KNOWN_HOSTS`      | Verified `known_hosts` line(s) — see [6f](#6f-host-keys)       |
 | `PRODUCTION_APP_PATH`             | `/opt/rudix`                                                   |
 | `PRODUCTION_ENV_URL`              | `https://getrudix.com`                                         |
 | `PRODUCTION_ENV_FILE`             | Full `.env` file content — see [step 7](#7-build-the-env-file) |
@@ -243,7 +245,48 @@ gh secret set PRODUCTION_POSTGRES_BACKUP_PATH --body "/opt/backups/postgres"
 gh secret set PRODUCTION_MINIO_BACKUP_PATH    --body "/opt/backups/minio"
 gh secret set PRODUCTION_QDRANT_BACKUP_PATH   --body "/opt/backups/qdrant"
 gh secret set PRODUCTION_BACKUP_CHECK_OK      --body "yes"
+
+# Pinned host keys (see 6f) and Terraform state (see 6g)
+gh secret set STAGING_SSH_KNOWN_HOSTS    < staging_known_hosts
+gh secret set PRODUCTION_SSH_KNOWN_HOSTS < production_known_hosts
+gh secret set TF_STATE_BUCKET            --body "your-state-bucket"
+gh secret set TF_STATE_REGION            --body "us-east-1"
+gh secret set TF_STATE_ACCESS_KEY_ID     --body "..."
+gh secret set TF_STATE_SECRET_ACCESS_KEY --body "..."
+# Only for an S3-compatible store (MinIO, R2, Spaces):
+gh secret set TF_STATE_ENDPOINT          --body "https://s3.example.com"
 ```
+
+### 6f. Host Keys
+
+Deploys connect with `StrictHostKeyChecking=yes` (`deploy/scripts/ssh_common.sh`) and
+Terraform pins `host_key`, so each environment needs its host key as a secret. There is no
+trust-on-first-use fallback: an empty secret fails the deploy.
+
+```bash
+# From a trusted network; add -p <port> for a non-standard port.
+ssh-keyscan -t ed25519 staging.example.com > staging_known_hosts
+ssh-keygen -lf staging_known_hosts
+# On the server console, compare with:
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+Keep the ed25519 line first: Terraform uses fields 2 and 3 of the first line
+(`ssh-ed25519 AAAA...`). Update the secret whenever the server's host key changes.
+
+### 6g. Terraform State
+
+Terraform keeps its state in an S3 or S3-compatible bucket (`backend "s3" {}` with partial
+configuration), under `rudix/staging.tfstate` and `rudix/production.tfstate`. Create the
+bucket once, with versioning and encryption on and access limited to the deploy credentials,
+then add the `TF_STATE_*` secrets above (`TF_STATE_ENDPOINT` only for S3-compatible stores).
+`deploy/terraform/backend.hcl.example` shows the same settings for a local
+`terraform init -backend-config=...`.
+
+With persistent state, a redeploy with unchanged images, env file, and compose file is a
+no-op. To force a rollout, run `terraform apply -replace=null_resource.compose_rollout` with
+the same variables. Applies are serialized by the per-environment workflow concurrency group
+(Terraform 1.9.8 with S3 has no lock file here), so do not apply by hand while a release runs.
 
 ---
 
@@ -449,11 +492,12 @@ git push origin main
 
 This triggers `release.yml` which:
 
-1. Builds and pushes Docker images to GHCR
-2. Runs the integration smoke test
-3. SSHes into the staging server and deploys via Docker Compose
-4. Runs database migrations on the server
-5. Checks `/api/v1/health` and `/api/v1/ready`
+1. Builds, signs (cosign keyless), and pushes the `api`, `worker`, `frontend-staging`, and
+   `frontend-production` images to GHCR, with SBOM and provenance
+2. Runs the integration smoke test, the image scan, the integration e2e suite, and the quality gate
+3. Deploys staging with Terraform (database migrations run on the server)
+4. Checks `/api/v1/health` and the public endpoints
+5. Tags the deployed digests `staging-passed-<sha>`
 
 Monitor progress at: **GitHub → Actions → Release**
 
@@ -463,20 +507,31 @@ Monitor progress at: **GitHub → Actions → Release**
 gh workflow run release.yml --field target=staging
 ```
 
-### Production (manual dispatch)
+### Production (release by tag)
+
+Production deploys a version tag on `main` whose images already passed staging. Nothing is
+rebuilt: the `api` and `worker` digests are exactly the staged ones.
 
 ```bash
-gh workflow run release.yml --field target=production
+# On a branch, after the commit to release has passed staging:
+python3 scripts/bump_version.py 0.3.0 --changelog   # all version strings + CHANGELOG section
+python3 scripts/bump_version.py --check
+# Merge to main and wait for the staging deploy of that merge commit, then:
+git tag v0.3.0 <merge-commit-sha>
+git push origin v0.3.0
 ```
 
-Or push a version tag:
+The tag run checks that the commit is on `main`, that every version string equals the tag,
+and that `staging-passed-<sha>` images exist; verifies the cosign signatures; deploys;
+tags the images `v0.3.0`; and creates the GitHub Release with the changelog section and
+SBOMs. Re-deploying an existing version without a new tag:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+gh workflow run release.yml --field target=production --field version=v0.3.0
 ```
 
-Production deploy requires approval from the reviewers you added to the `production` Environment in step 5.
+Production dispatch requires `version` and never builds. Production deploy requires
+approval from the reviewers you added to the `production` Environment in step 5.
 
 ---
 
@@ -583,20 +638,40 @@ Sentry releases are tagged automatically on every staging and production deploy.
 
 ## 13. Rollback
 
-To roll back production to a previous image set:
-
-1. Go to **GitHub → Actions → Release → Run workflow**
-2. Set **target** to `rollback`
-3. Paste the image digests from a previous deploy's artifact (download `image-digests` artifact from a prior run)
-
-Or via CLI:
+Roll an environment back to a released version:
 
 ```bash
 gh workflow run release.yml \
   --field target=rollback \
+  --field environment=production \
+  --field version=v0.2.0
+```
+
+`deploy/scripts/rollback.sh <environment> <version>` resolves `api:v0.2.0`,
+`worker:v0.2.0`, and `frontend-<environment>:<commit of v0.2.0>` to digests and swaps the
+images on the host. It does **not** run migrations: the database stays at its current
+revision, and the script prints the revision before rollback and the target image's Alembic
+head.
+
+When old code on the current schema is safe:
+
+- Only additive migrations were applied since the target version (new tables, nullable
+  columns, indexes). Check with `git diff --stat v0.2.0 -- backend/alembic/versions` and
+  `alembic history -r <target head>:<current>`.
+- Never downgrade automatically. If a newer migration dropped, renamed, or rewrote data,
+  restore the database (and the matching MinIO and Qdrant backups) from before the upgrade
+  instead of running `alembic downgrade`.
+
+Deprecated fallback (kept for one milestone): leave `version` empty and pass explicit image
+references, for example from a prior run's `image-digests` artifact:
+
+```bash
+gh workflow run release.yml \
+  --field target=rollback \
+  --field environment=production \
   --field rollback_api_image=ghcr.io/owner/repo/api@sha256:... \
   --field rollback_worker_image=ghcr.io/owner/repo/worker@sha256:... \
-  --field rollback_frontend_image=ghcr.io/owner/repo/frontend@sha256:...
+  --field rollback_frontend_image=ghcr.io/owner/repo/frontend-production@sha256:...
 ```
 
 ---
@@ -619,8 +694,9 @@ gh workflow run release.yml \
  [ ] GHCR_USERNAME secret added
  [ ] GHCR_TOKEN secret added (write:packages scope)
  [ ] OPENAI_API_KEY secret added
- [ ] All STAGING_* secrets added (7 secrets)
- [ ] All PRODUCTION_* secrets added (11 secrets)
+ [ ] All STAGING_* secrets added (8 secrets, including STAGING_SSH_KNOWN_HOSTS)
+ [ ] All PRODUCTION_* secrets added (12 secrets, including PRODUCTION_SSH_KNOWN_HOSTS)
+ [ ] TF_STATE_* secrets added and the state bucket created (versioned, encrypted)
 
  ENV files
  [ ] staging.env file built with real values

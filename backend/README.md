@@ -389,7 +389,7 @@ The script `scripts/export_openapi.py` dumps the FastAPI OpenAPI schema to JSON 
 ```
 
 - Required config fields get stub values so pydantic-settings loads without live infrastructure.
-- `ENVIRONMENT=development` and `API_PREFIX=/api/v1` are forced before the app is imported (`ENVIRONMENT=test` mounts extra alias routes).
+- `ENVIRONMENT=development` and `API_PREFIX=/api/v1` are forced before the app is imported, so the export does not depend on the caller's environment.
 - `--check` compares parsed JSON, so formatting (the committed file is Prettier-formatted) never causes a failure.
 - pydantic-settings still reads `.env` for every other field, so a local `.env` can change `info.title` (`API_NAME`) or `info.version` (`API_VERSION`). CI has no `.env`. `info.version` comes from `settings.api_version`; the release bump script updates it.
 - The output depends on the installed FastAPI and Pydantic versions. Export from the environment `make install` creates, as CI does.
@@ -426,7 +426,8 @@ not on `PATH`, the Makefile bootstraps a pinned copy into `backend/.tools` (git-
 
 ## PostgreSQL integration tests
 
-Most backend tests run against in-memory SQLite. Tests that need real PostgreSQL or Redis
+Most backend tests run against a per-test SQLite database (see
+[Test speed and coverage](#test-speed-and-coverage)). Tests that need real PostgreSQL or Redis
 behavior (row locks, `ON CONFLICT`, concurrent sessions) carry pytest markers:
 
 - `requires_postgres`: needs a migrated PostgreSQL database at `TEST_DATABASE_URL`.
@@ -459,7 +460,7 @@ Pass extra pytest flags with `PYTEST_ARGS`, for example
 ### Running a suite on both dialects
 
 A module marked `both_dialects` runs every test that uses the `db_session` fixture twice:
-`[sqlite]` (the in-memory SQLite session) and `[postgres]` (a rolled-back session on the
+`[sqlite]` (the per-test SQLite session) and `[postgres]` (a rolled-back session on the
 migrated PostgreSQL database, built like `pg_session`). The `[postgres]` parameter carries
 `requires_postgres`, so it skips without `TEST_DATABASE_URL` and runs in `make test-postgres`.
 Tests in the module that do not use `db_session` are collected once.
@@ -477,13 +478,49 @@ To port a suite:
 
 Ported suites: `test_rag_isolation_f144.py`, `test_tenant_isolation_f336.py`,
 `test_index_version_isolation.py`, `test_chat_transport_parity.py`, `test_quotas_f154.py`,
-`test_quota_atomic.py`, `test_document_processing_claim.py`. PostgreSQL full-text search
+`test_quota_atomic.py`, `test_document_processing_claim.py`. `test_tenant_isolation_f336.py`
+carries the marker but has no `db_session` tests (it checks the policy engine in memory), so it
+gets no `[postgres]` parameters. PostgreSQL full-text search
 (`plainto_tsquery`, `ts_rank`) has no SQLite equivalent and is covered by
 `test_keyword_retrieval_fts_pg.py`.
 
 CI runs the lane in `.github/workflows/backend-postgres.yml` (check name
 `Backend PostgreSQL tests`) with PostgreSQL and Redis service containers, on every push and
 pull request. The `backend-alembic` job in `ci.yml` keeps only the migration round trip.
+
+## Test speed and coverage
+
+Wall time of `make test`, measured locally (the "before" runs used a copy of the tree with only
+the SQLite branch of `db_session` reverted):
+
+| Fixture design | First measurement (4,580 passed, 96 skipped; shared, loaded machine) | Re-measured at review (4,633 passed, 96 skipped) |
+|---|---|---|
+| Before: in-memory SQLite and `create_all` (about 118 tables) for every test | 360 s, 344 s | 240 s |
+| After: schema template copied per test | 130 s, 110 s | 75 s, 76 s |
+
+Fixture design (`tests/conftest.py`):
+
+- The session-scoped `sqlite_template_db` fixture runs `Base.metadata.create_all` once into a
+  template SQLite file, with the same `JSONB`/`TSVECTOR` compile shims as the tests.
+- `db_session` copies that file into a fresh per-test directory and opens it with `aiosqlite`
+  and `StaticPool`. The connect hook registers `to_tsvector`. Every test still gets its own
+  database, so isolation is unchanged and no DDL runs per test.
+- `both_dialects` tests on PostgreSQL use a rolled-back session instead (see above).
+
+The API router is mounted once, under `settings.api_prefix` (`/api/v1`), in every environment.
+Tests must call versioned paths such as `/api/v1/documents`. Root or `/api/...` paths return
+`404`, including in `ENVIRONMENT=test`.
+
+Coverage:
+
+```bash
+make test-cov   # pytest --cov=app --cov-report=term; fails below the ratchet
+```
+
+`[tool.coverage.report] fail_under` in `pyproject.toml` is the ratchet. It holds the measured
+`TOTAL` rounded down to one decimal (76.0 when it was set). The `backend` CI job runs pytest with
+`--cov=app`, so pytest-cov enforces it there too. Raise the threshold when coverage rises. Never
+lower it without a reason in the merge request.
 
 ## Useful task commands
 

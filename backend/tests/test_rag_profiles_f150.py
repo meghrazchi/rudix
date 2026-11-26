@@ -162,7 +162,7 @@ async def viewer_context(db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_create_profile(rag_client: AsyncClient, admin_context: dict) -> None:
     resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={
             "name": "Test Profile",
             "description": "For testing",
@@ -187,12 +187,12 @@ async def test_list_profiles(rag_client: AsyncClient, admin_context: dict) -> No
     # create two profiles
     for name in ("Alpha", "Beta"):
         await rag_client.post(
-            "/api/rag-profiles",
+            "/api/v1/rag-profiles",
             json={"name": name, "config": {}},
             headers=_auth(admin_context["token"]),
         )
     resp = await rag_client.get(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 200
@@ -203,14 +203,14 @@ async def test_list_profiles(rag_client: AsyncClient, admin_context: dict) -> No
 @pytest.mark.asyncio
 async def test_get_profile(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "GetTest", "config": {"top_k": 7}},
         headers=_auth(admin_context["token"]),
     )
     profile_id = create_resp.json()["profile_id"]
 
     resp = await rag_client.get(
-        f"/api/rag-profiles/{profile_id}",
+        f"/api/v1/rag-profiles/{profile_id}",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 200
@@ -220,14 +220,14 @@ async def test_get_profile(rag_client: AsyncClient, admin_context: dict) -> None
 @pytest.mark.asyncio
 async def test_update_profile(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "UpdateTest", "config": {"top_k": 10}},
         headers=_auth(admin_context["token"]),
     )
     pid = create_resp.json()["profile_id"]
 
     resp = await rag_client.patch(
-        f"/api/rag-profiles/{pid}",
+        f"/api/v1/rag-profiles/{pid}",
         json={"config": {"top_k": 20}, "change_note": "Increased top_k"},
         headers=_auth(admin_context["token"]),
     )
@@ -240,14 +240,14 @@ async def test_update_profile(rag_client: AsyncClient, admin_context: dict) -> N
 @pytest.mark.asyncio
 async def test_archive_and_unarchive_profile(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "ArchiveTest", "config": {}},
         headers=_auth(admin_context["token"]),
     )
     pid = create_resp.json()["profile_id"]
 
     archive_resp = await rag_client.post(
-        f"/api/rag-profiles/{pid}/archive",
+        f"/api/v1/rag-profiles/{pid}/archive",
         headers=_auth(admin_context["token"]),
     )
     assert archive_resp.status_code == 200
@@ -255,14 +255,14 @@ async def test_archive_and_unarchive_profile(rag_client: AsyncClient, admin_cont
 
     # editing archived profile is blocked
     edit_resp = await rag_client.patch(
-        f"/api/rag-profiles/{pid}",
+        f"/api/v1/rag-profiles/{pid}",
         json={"name": "NewName"},
         headers=_auth(admin_context["token"]),
     )
     assert edit_resp.status_code == 409
 
     unarchive_resp = await rag_client.post(
-        f"/api/rag-profiles/{pid}/unarchive",
+        f"/api/v1/rag-profiles/{pid}/unarchive",
         headers=_auth(admin_context["token"]),
     )
     assert unarchive_resp.status_code == 200
@@ -277,7 +277,7 @@ async def test_archive_and_unarchive_profile(rag_client: AsyncClient, admin_cont
 @pytest.mark.asyncio
 async def test_set_default_clears_previous(rag_client: AsyncClient, admin_context: dict) -> None:
     r1 = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "P1", "config": {}, "set_as_default": True},
         headers=_auth(admin_context["token"]),
     )
@@ -285,7 +285,7 @@ async def test_set_default_clears_previous(rag_client: AsyncClient, admin_contex
     assert r1.json()["is_default"] is True
 
     r2 = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "P2", "config": {}, "set_as_default": False},
         headers=_auth(admin_context["token"]),
     )
@@ -293,7 +293,7 @@ async def test_set_default_clears_previous(rag_client: AsyncClient, admin_contex
 
     # set P2 as default via endpoint
     set_resp = await rag_client.post(
-        f"/api/rag-profiles/{p2_id}/set-default",
+        f"/api/v1/rag-profiles/{p2_id}/set-default",
         headers=_auth(admin_context["token"]),
     )
     assert set_resp.status_code == 200
@@ -301,7 +301,7 @@ async def test_set_default_clears_previous(rag_client: AsyncClient, admin_contex
 
     # P1 should no longer be default
     p1_resp = await rag_client.get(
-        f"/api/rag-profiles/{p1_id}",
+        f"/api/v1/rag-profiles/{p1_id}",
         headers=_auth(admin_context["token"]),
     )
     assert p1_resp.json()["is_default"] is False
@@ -310,14 +310,14 @@ async def test_set_default_clears_previous(rag_client: AsyncClient, admin_contex
 @pytest.mark.asyncio
 async def test_cannot_archive_default_profile(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "DefaultProfile", "config": {}, "set_as_default": True},
         headers=_auth(admin_context["token"]),
     )
     pid = create_resp.json()["profile_id"]
 
     resp = await rag_client.post(
-        f"/api/rag-profiles/{pid}/archive",
+        f"/api/v1/rag-profiles/{pid}/archive",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 409
@@ -331,20 +331,20 @@ async def test_cannot_archive_default_profile(rag_client: AsyncClient, admin_con
 @pytest.mark.asyncio
 async def test_version_snapshot_on_update(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "VersionTest", "config": {"top_k": 5}},
         headers=_auth(admin_context["token"]),
     )
     pid = create_resp.json()["profile_id"]
 
     await rag_client.patch(
-        f"/api/rag-profiles/{pid}",
+        f"/api/v1/rag-profiles/{pid}",
         json={"config": {"top_k": 15}},
         headers=_auth(admin_context["token"]),
     )
 
     versions_resp = await rag_client.get(
-        f"/api/rag-profiles/{pid}/versions",
+        f"/api/v1/rag-profiles/{pid}/versions",
         headers=_auth(admin_context["token"]),
     )
     assert versions_resp.status_code == 200
@@ -362,20 +362,20 @@ async def test_version_snapshot_on_update(rag_client: AsyncClient, admin_context
 @pytest.mark.asyncio
 async def test_rollback_restores_config(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "RollbackTest", "config": {"top_k": 3, "safety_mode": "strict"}},
         headers=_auth(admin_context["token"]),
     )
     pid = create_resp.json()["profile_id"]
 
     await rag_client.patch(
-        f"/api/rag-profiles/{pid}",
+        f"/api/v1/rag-profiles/{pid}",
         json={"config": {"top_k": 99}},
         headers=_auth(admin_context["token"]),
     )
 
     rollback_resp = await rag_client.post(
-        f"/api/rag-profiles/{pid}/rollback",
+        f"/api/v1/rag-profiles/{pid}/rollback",
         json={"version_number": 1, "change_note": "Undo top_k change"},
         headers=_auth(admin_context["token"]),
     )
@@ -390,14 +390,14 @@ async def test_rollback_to_current_version_returns_409(
     rag_client: AsyncClient, admin_context: dict
 ) -> None:
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "NopRollback", "config": {}},
         headers=_auth(admin_context["token"]),
     )
     pid = create_resp.json()["profile_id"]
 
     resp = await rag_client.post(
-        f"/api/rag-profiles/{pid}/rollback",
+        f"/api/v1/rag-profiles/{pid}/rollback",
         json={"version_number": 1},
         headers=_auth(admin_context["token"]),
     )
@@ -425,14 +425,14 @@ async def test_collection_override_set_and_list(
     await db_session.flush()
 
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "OverrideProfile", "config": {}},
         headers=_auth(admin_context["token"]),
     )
     pid = create_resp.json()["profile_id"]
 
     resp = await rag_client.put(
-        f"/api/rag-profiles/overrides/collections/{collection.id}",
+        f"/api/v1/rag-profiles/overrides/collections/{collection.id}",
         json={"rag_profile_id": pid},
         headers=_auth(admin_context["token"]),
     )
@@ -441,7 +441,7 @@ async def test_collection_override_set_and_list(
     assert data["rag_profile_id"] == pid
 
     list_resp = await rag_client.get(
-        "/api/rag-profiles/overrides/collections",
+        "/api/v1/rag-profiles/overrides/collections",
         headers=_auth(admin_context["token"]),
     )
     assert list_resp.status_code == 200
@@ -449,7 +449,7 @@ async def test_collection_override_set_and_list(
 
     # delete override
     del_resp = await rag_client.delete(
-        f"/api/rag-profiles/overrides/collections/{collection.id}",
+        f"/api/v1/rag-profiles/overrides/collections/{collection.id}",
         headers=_auth(admin_context["token"]),
     )
     assert del_resp.status_code == 204
@@ -465,7 +465,7 @@ async def test_resolve_returns_system_default_when_no_profiles(
     rag_client: AsyncClient, admin_context: dict
 ) -> None:
     resp = await rag_client.get(
-        "/api/rag-profiles/resolve",
+        "/api/v1/rag-profiles/resolve",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 200
@@ -477,12 +477,12 @@ async def test_resolve_returns_system_default_when_no_profiles(
 @pytest.mark.asyncio
 async def test_resolve_returns_org_default(rag_client: AsyncClient, admin_context: dict) -> None:
     await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "OrgDefault", "config": {"top_k": 8}, "set_as_default": True},
         headers=_auth(admin_context["token"]),
     )
     resp = await rag_client.get(
-        "/api/rag-profiles/resolve",
+        "/api/v1/rag-profiles/resolve",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 200
@@ -499,7 +499,7 @@ async def test_resolve_returns_org_default(rag_client: AsyncClient, admin_contex
 @pytest.mark.asyncio
 async def test_viewer_cannot_create_profile(rag_client: AsyncClient, viewer_context: dict) -> None:
     resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "ViewerAttempt", "config": {}},
         headers=_auth(viewer_context["token"]),
     )
@@ -509,7 +509,7 @@ async def test_viewer_cannot_create_profile(rag_client: AsyncClient, viewer_cont
 @pytest.mark.asyncio
 async def test_viewer_can_list_profiles(rag_client: AsyncClient, viewer_context: dict) -> None:
     resp = await rag_client.get(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         headers=_auth(viewer_context["token"]),
     )
     assert resp.status_code == 200
@@ -526,7 +526,7 @@ async def test_viewer_cannot_archive_profile(
     # just test that the viewer cannot call archive at all (403).
     fake_id = str(uuid4())
     resp = await rag_client.post(
-        f"/api/rag-profiles/{fake_id}/archive",
+        f"/api/v1/rag-profiles/{fake_id}/archive",
         headers=_auth(viewer_context["token"]),
     )
     assert resp.status_code == 403
@@ -552,19 +552,19 @@ async def test_cannot_assign_archived_profile_as_collection_override(
     await db_session.flush()
 
     create_resp = await rag_client.post(
-        "/api/rag-profiles",
+        "/api/v1/rag-profiles",
         json={"name": "ArchivedOverride", "config": {}},
         headers=_auth(admin_context["token"]),
     )
     pid = create_resp.json()["profile_id"]
 
     await rag_client.post(
-        f"/api/rag-profiles/{pid}/archive",
+        f"/api/v1/rag-profiles/{pid}/archive",
         headers=_auth(admin_context["token"]),
     )
 
     resp = await rag_client.put(
-        f"/api/rag-profiles/overrides/collections/{collection.id}",
+        f"/api/v1/rag-profiles/overrides/collections/{collection.id}",
         json={"rag_profile_id": pid},
         headers=_auth(admin_context["token"]),
     )

@@ -300,6 +300,14 @@ Use:
 - Docker secrets.
 - Cloud secret manager.
 
+Secret scanning (R03-08): `.github/workflows/secret-scan.yml` runs gitleaks (pinned release,
+checksum verified) on every push and pull request over the new commits, and weekly over the
+full history (report only). `.gitleaks.toml` allowlists only exact placeholder values
+(`ci-placeholder-key`, `sk-test`, `minioadmin`, `ci-local-secret`, `dev-insecure-change-me`,
+and the Playwright e2e tokens), never paths. If a real secret is found, rotate it first; a
+history rewrite does not un-leak a pushed secret. Do not add a new placeholder to the
+allowlist unless production refuses that value.
+
 Frontend `NEXT_PUBLIC_*` values are baked into the browser bundle. `next build` (`frontend/config/build-env-validation.mjs`) fails in staging/production when `NEXT_PUBLIC_AUTH_LOCAL_FALLBACK` or `NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK` is `true`, or `NEXT_PUBLIC_AUTH_LOCAL_PASSWORD`, `NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD`, `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` or `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN` is non-empty (R02-11).
 
 ## Security headers
@@ -314,6 +322,38 @@ Frontend (`frontend/config/security-headers.mjs`, wired from `next.config.ts` `h
 - Set `NEXT_PUBLIC_CSP_REPORT_URI` to collect violation reports (for example a Sentry security endpoint); no backend endpoint exists for it.
 
 Backend (`app/core/security_headers.py`): ASGI middleware adds `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, and HSTS in staging/production, without overwriting headers a route already set.
+
+## Supply chain and release integrity
+
+R03-07 and R03-08; workflow details in `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`.
+
+- Signing: every pushed image digest (`api`, `worker`, `frontend-staging`,
+  `frontend-production`) is signed with cosign keyless in `release.yml` (GitHub OIDC, no
+  long-lived key). `deploy-production` runs `cosign verify` with the certificate identity of
+  this repository's `release.yml` on `refs/heads/main` and the issuer
+  `https://token.actions.githubusercontent.com`; an unsigned or foreign image is not deployed.
+- SBOM and provenance: builds use `--sbom=true --provenance=mode=max`. The GitHub Release for
+  `vX.Y.Z` carries the SBOMs of the released digests.
+- Digest promotion: tags never rebuild. A `vX.Y.Z` tag deploys the `api` and `worker` digests
+  tagged `staging-passed-<sha>` by a successful staging deploy, and the job asserts digest
+  equality. The production frontend is the `frontend-production` image built in the same
+  `main` run (public URLs are baked in at build time, so it cannot equal the staging digest).
+  The tag commit must be on `main`, and all version strings must equal the tag
+  (`scripts/bump_version.py --check`).
+- Severity gate and allowlist: `ci/scripts/security_severity_gate.py` blocks on actionable
+  critical/high Trivy findings (filesystem and images) and on every pip-audit finding (no
+  severity data, so fail closed). `ci/security/security_gate_allowlist.json` entries need an
+  `id`, a `reason`, and an `expires` date; expired entries stop matching. Allowlist only
+  findings with no fix available in the pinned range, keep expiry short (one to three months),
+  and prefer `scanner` and `package` narrowing. Production npm dependencies block at high
+  (`npm audit --omit=dev --audit-level=high`); dev-tool advisories are reported only.
+- Open decision: `cryptography` advisories fixed only in `50.x` are outside the pinned `<50`
+  range. They are not allowlisted, so the backend audit fails until the range is raised to
+  `>=50` (after checking compatibility) or an expiring, reasoned exception is approved.
+- Dependabot opens weekly grouped updates for uv, npm, GitHub Actions, and Docker base images.
+- Content Security Policy: enforcement is behind `NEXT_PUBLIC_CSP_ENFORCE` (default `false`,
+  owned by `frontend/config/security-headers.mjs`; see [Security headers](#security-headers)).
+  Turn it on per environment after a clean report-only period.
 
 ## Logging safety
 
@@ -536,6 +576,11 @@ When deleting a document:
 - [ ] Redis and RabbitMQ use persistent volumes; RabbitMQ has a fixed `hostname`.
 - [ ] Each production backup path holds a file newer than `DEPLOY_BACKUP_MAX_AGE_HOURS` (default 26) before deploy.
 - [ ] Deploy steps pass secrets through `env:` blocks, never inline in `run:` strings; check scripts print key names only.
+- [ ] `STAGING_SSH_KNOWN_HOSTS` / `PRODUCTION_SSH_KNOWN_HOSTS` hold the verified host keys; deploy scripts use `StrictHostKeyChecking=yes` (`deploy/scripts/ssh_common.sh`) and Terraform pins `host_key`.
+- [ ] Terraform state is remote (`TF_STATE_*` secrets), in a versioned, encrypted bucket with access limited to the deploy credentials.
+- [ ] Production deploys only from a `vX.Y.Z` tag on `main` whose `api`/`worker` digests passed staging; `cosign verify` passes for all three images.
+- [ ] `Secret scan`, `Backend dependency audit`, `Frontend dependency audit`, `Filesystem vulnerability scan`, and `Image scan` are required checks on `main`.
+- [ ] Rollback uses `deploy/scripts/rollback.sh <environment> <version>` and never downgrades the database automatically.
 
 ## Threat model diagram
 

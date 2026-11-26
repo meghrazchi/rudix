@@ -554,7 +554,7 @@ def test_approve_request_optional_note():
 async def test_http_create_draft(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={
             "title": "Test card",
             "question": "What is this?",
@@ -579,7 +579,7 @@ async def test_http_create_draft(client: AsyncClient, org: Organization, admin_u
 async def test_http_list_with_filter(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={
             "title": "Draft1",
             "question": "Q?",
@@ -589,7 +589,7 @@ async def test_http_list_with_filter(client: AsyncClient, org: Organization, adm
         headers={"Authorization": f"Bearer {token}"},
     )
     resp = await client.get(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         params={"status": "draft"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -607,19 +607,19 @@ async def test_http_list_with_filter(client: AsyncClient, org: Organization, adm
 async def test_http_patch_creates_version(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     create_resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "Old", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
     answer_id = create_resp.json()["answer_id"]
 
     await client.patch(
-        f"/verified-answers/{answer_id}",
+        f"/api/v1/verified-answers/{answer_id}",
         json={"title": "New", "change_reason": "typo_fix"},
         headers={"Authorization": f"Bearer {token}"},
     )
     versions_resp = await client.get(
-        f"/verified-answers/{answer_id}/versions",
+        f"/api/v1/verified-answers/{answer_id}/versions",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert versions_resp.status_code == 200
@@ -638,7 +638,7 @@ async def test_http_patch_reverts_approved_to_draft(
 ):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "Ready", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -646,14 +646,17 @@ async def test_http_patch_reverts_approved_to_draft(
 
     # draft → pending_review → approved
     await client.post(
-        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/submit-for-review",
+        headers={"Authorization": f"Bearer {token}"},
     )
     await client.post(
-        f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/approve",
+        json={},
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     patch_resp = await client.patch(
-        f"/verified-answers/{aid}",
+        f"/api/v1/verified-answers/{aid}",
         json={"answer_text": "Updated answer.", "change_reason": "content_update"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -669,20 +672,20 @@ async def test_http_patch_reverts_approved_to_draft(
 async def test_http_delete_archives(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "Bye", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
     aid = resp.json()["answer_id"]
 
     del_resp = await client.delete(
-        f"/verified-answers/{aid}",
+        f"/api/v1/verified-answers/{aid}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert del_resp.status_code == 204
 
     get_resp = await client.get(
-        f"/verified-answers/{aid}",
+        f"/api/v1/verified-answers/{aid}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert get_resp.json()["status"] == "archived"
@@ -697,17 +700,19 @@ async def test_http_delete_archives(client: AsyncClient, org: Organization, admi
 async def test_http_submit_requires_draft(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "T", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
     aid = resp.json()["answer_id"]
 
     await client.post(
-        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/submit-for-review",
+        headers={"Authorization": f"Bearer {token}"},
     )
     second = await client.post(
-        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/submit-for-review",
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert second.status_code == 409
 
@@ -723,7 +728,7 @@ async def test_http_submit_blocked_without_citations(
 ):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={
             "title": "No citations",
             "question": "Q?",
@@ -735,7 +740,7 @@ async def test_http_submit_blocked_without_citations(
     aid = resp.json()["answer_id"]
 
     review_resp = await client.post(
-        f"/verified-answers/{aid}/submit-for-review",
+        f"/api/v1/verified-answers/{aid}/submit-for-review",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert review_resp.status_code == 422
@@ -753,14 +758,14 @@ async def test_http_approve_requires_pending_review(
 ):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "A", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
     aid = resp.json()["answer_id"]
 
     approve_resp = await client.post(
-        f"/verified-answers/{aid}/approve",
+        f"/api/v1/verified-answers/{aid}/approve",
         json={},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -780,18 +785,18 @@ async def test_http_reject_sets_note(
     _, rev_token = reviewer_user
 
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "R", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     aid = resp.json()["answer_id"]
     await client.post(
-        f"/verified-answers/{aid}/submit-for-review",
+        f"/api/v1/verified-answers/{aid}/submit-for-review",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     reject_resp = await client.post(
-        f"/verified-answers/{aid}/reject",
+        f"/api/v1/verified-answers/{aid}/reject",
         json={"note": "Needs more detail"},
         headers={"Authorization": f"Bearer {rev_token}"},
     )
@@ -810,14 +815,14 @@ async def test_http_reject_sets_note(
 async def test_http_publish_requires_approved(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "P", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
     aid = resp.json()["answer_id"]
 
     pub_resp = await client.post(
-        f"/verified-answers/{aid}/publish",
+        f"/api/v1/verified-answers/{aid}/publish",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert pub_resp.status_code == 409
@@ -827,20 +832,23 @@ async def test_http_publish_requires_approved(client: AsyncClient, org: Organiza
 async def test_http_full_publish_flow(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "Flow", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
     aid = resp.json()["answer_id"]
 
     await client.post(
-        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/submit-for-review",
+        headers={"Authorization": f"Bearer {token}"},
     )
     await client.post(
-        f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/approve",
+        json={},
+        headers={"Authorization": f"Bearer {token}"},
     )
     pub_resp = await client.post(
-        f"/verified-answers/{aid}/publish", headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/publish", headers={"Authorization": f"Bearer {token}"}
     )
     assert pub_resp.status_code == 200
     assert pub_resp.json()["status"] == "published"
@@ -856,24 +864,24 @@ async def test_http_full_publish_flow(client: AsyncClient, org: Organization, ad
 async def test_http_versions_newest_first(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "V1", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
     aid = resp.json()["answer_id"]
     await client.patch(
-        f"/verified-answers/{aid}",
+        f"/api/v1/verified-answers/{aid}",
         json={"title": "V2", "change_reason": "edit1"},
         headers={"Authorization": f"Bearer {token}"},
     )
     await client.patch(
-        f"/verified-answers/{aid}",
+        f"/api/v1/verified-answers/{aid}",
         json={"title": "V3", "change_reason": "edit2"},
         headers={"Authorization": f"Bearer {token}"},
     )
 
     ver_resp = await client.get(
-        f"/verified-answers/{aid}/versions",
+        f"/api/v1/verified-answers/{aid}/versions",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert ver_resp.status_code == 200
@@ -892,7 +900,7 @@ async def test_http_stale_expiry(client: AsyncClient, org: Organization, admin_u
     _, token = admin_user
     yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={
             "title": "Stale",
             "question": "Q?",
@@ -914,7 +922,7 @@ async def test_http_stale_expiry(client: AsyncClient, org: Organization, admin_u
 async def test_http_search_match(client: AsyncClient, org: Organization, admin_user):
     _, token = admin_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={
             "title": "Parental leave",
             "question": "How long is parental leave?",
@@ -925,17 +933,20 @@ async def test_http_search_match(client: AsyncClient, org: Organization, admin_u
     )
     aid = resp.json()["answer_id"]
     await client.post(
-        f"/verified-answers/{aid}/submit-for-review", headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/submit-for-review",
+        headers={"Authorization": f"Bearer {token}"},
     )
     await client.post(
-        f"/verified-answers/{aid}/approve", json={}, headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/approve",
+        json={},
+        headers={"Authorization": f"Bearer {token}"},
     )
     await client.post(
-        f"/verified-answers/{aid}/publish", headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/verified-answers/{aid}/publish", headers={"Authorization": f"Bearer {token}"}
     )
 
     search_resp = await client.get(
-        "/verified-answers/search/match",
+        "/api/v1/verified-answers/search/match",
         params={"query": "parental leave"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -952,7 +963,7 @@ async def test_http_search_match(client: AsyncClient, org: Organization, admin_u
 async def test_http_viewer_cannot_create(client: AsyncClient, org: Organization, viewer_user):
     _, token = viewer_user
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "X", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -972,18 +983,18 @@ async def test_http_member_cannot_approve(
     _, member_token = member_user
 
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={"title": "A", "question": "Q?", "answer_text": "A.", "requires_citations": False},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     aid = resp.json()["answer_id"]
     await client.post(
-        f"/verified-answers/{aid}/submit-for-review",
+        f"/api/v1/verified-answers/{aid}/submit-for-review",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     approve_resp = await client.post(
-        f"/verified-answers/{aid}/approve",
+        f"/api/v1/verified-answers/{aid}/approve",
         json={},
         headers={"Authorization": f"Bearer {member_token}"},
     )
@@ -1006,7 +1017,7 @@ async def test_http_org_isolation(
     _, admin_token = admin_user
 
     resp = await client.post(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         json={
             "title": "Private",
             "question": "Q?",
@@ -1031,7 +1042,7 @@ async def test_http_org_isolation(
     other_token = _make_token(str(other_user.id), str(org2.id), OrganizationRole.admin.value)
 
     get_resp = await client.get(
-        f"/verified-answers/{aid}",
+        f"/api/v1/verified-answers/{aid}",
         headers={"Authorization": f"Bearer {other_token}"},
     )
     assert get_resp.status_code == 404

@@ -590,7 +590,7 @@ async def test_http_summary_member_gets_403(
 ) -> None:
     ctx = await _make_org_user(db_session, role=OrganizationRole.member.value)
     resp = await source_health_client.get(
-        "/api/admin/source-health/summary", headers=_auth(ctx["token"])
+        "/api/v1/admin/source-health/summary", headers=_auth(ctx["token"])
     )
     assert resp.status_code == 403
 
@@ -612,7 +612,7 @@ async def test_http_summary_org_isolation(
     await db_session.flush()
 
     resp = await source_health_client.get(
-        "/api/admin/source-health/summary", headers=_auth(ctx_a["token"])
+        "/api/v1/admin/source-health/summary", headers=_auth(ctx_a["token"])
     )
     assert resp.status_code == 200
     assert resp.json()["total_sources"] == 0
@@ -633,7 +633,7 @@ async def test_http_list_sources_available_actions(
     await db_session.flush()
 
     resp = await source_health_client.get(
-        "/api/admin/source-health/sources", headers=_auth(ctx["token"])
+        "/api/v1/admin/source-health/sources", headers=_auth(ctx["token"])
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -656,7 +656,7 @@ async def test_http_error_detail_404(
     ctx = await _make_org_user(db_session)
     missing_id = uuid4()
     resp = await source_health_client.get(
-        f"/api/admin/source-health/sources/file/{missing_id}/error",
+        f"/api/v1/admin/source-health/sources/file/{missing_id}/error",
         headers=_auth(ctx["token"]),
     )
     assert resp.status_code == 404
@@ -675,7 +675,7 @@ async def test_http_export_csv(source_health_client: AsyncClient, db_session: As
     await db_session.flush()
 
     resp = await source_health_client.get(
-        "/api/admin/source-health/export", headers=_auth(ctx["token"])
+        "/api/v1/admin/source-health/export", headers=_auth(ctx["token"])
     )
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/csv")

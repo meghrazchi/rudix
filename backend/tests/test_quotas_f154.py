@@ -190,7 +190,7 @@ async def member_ctx(db_session: AsyncSession) -> dict:
 @pytest.mark.asyncio
 async def test_get_policy_not_found(quota_client: AsyncClient, admin_ctx: dict) -> None:
     resp = await quota_client.get(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         headers=_auth(admin_ctx["token"]),
     )
     assert resp.status_code == 404
@@ -204,7 +204,7 @@ async def test_get_policy_not_found(quota_client: AsyncClient, admin_ctx: dict) 
 @pytest.mark.asyncio
 async def test_create_policy(quota_client: AsyncClient, admin_ctx: dict) -> None:
     resp = await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={
             "uploads": {"soft_limit": 50, "hard_limit": 100, "reset_window": "per_day"},
             "questions": {"soft_limit": 500, "hard_limit": 1000, "reset_window": "per_day"},
@@ -230,13 +230,13 @@ async def test_create_policy(quota_client: AsyncClient, admin_ctx: dict) -> None
 async def test_partial_update_merges(quota_client: AsyncClient, admin_ctx: dict) -> None:
     # Create initial
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"uploads": {"soft_limit": 50, "hard_limit": 100, "reset_window": "per_day"}},
         headers=_auth(admin_ctx["token"]),
     )
     # Partial update — only tokens
     resp = await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"tokens": {"soft_limit": 100000, "hard_limit": 500000, "reset_window": "per_month"}},
         headers=_auth(admin_ctx["token"]),
     )
@@ -257,12 +257,12 @@ async def test_partial_update_merges(quota_client: AsyncClient, admin_ctx: dict)
 @pytest.mark.asyncio
 async def test_reset_policy(quota_client: AsyncClient, admin_ctx: dict) -> None:
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"uploads": {"soft_limit": 10, "hard_limit": 20, "reset_window": "per_day"}},
         headers=_auth(admin_ctx["token"]),
     )
     resp = await quota_client.delete(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         headers=_auth(admin_ctx["token"]),
     )
     assert resp.status_code == 204
@@ -276,7 +276,7 @@ async def test_reset_policy(quota_client: AsyncClient, admin_ctx: dict) -> None:
 @pytest.mark.asyncio
 async def test_usage_dashboard_empty(quota_client: AsyncClient, admin_ctx: dict) -> None:
     resp = await quota_client.get(
-        "/api/admin/quotas/usage",
+        "/api/v1/admin/quotas/usage",
         headers=_auth(admin_ctx["token"]),
     )
     assert resp.status_code == 200, resp.text
@@ -307,7 +307,7 @@ async def test_usage_dashboard_reflects_increments(
 
     # Set a hard limit
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"uploads": {"soft_limit": 5, "hard_limit": 10, "reset_window": "per_day"}},
         headers=_auth(admin_ctx["token"]),
     )
@@ -318,7 +318,7 @@ async def test_usage_dashboard_reflects_increments(
     await db_session.commit()
 
     resp = await quota_client.get(
-        "/api/admin/quotas/usage",
+        "/api/v1/admin/quotas/usage",
         headers=_auth(admin_ctx["token"]),
     )
     assert resp.status_code == 200, resp.text
@@ -340,7 +340,7 @@ async def test_usage_dashboard_reflects_increments(
 @pytest.mark.asyncio
 async def test_change_log_recorded(quota_client: AsyncClient, admin_ctx: dict) -> None:
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={
             "uploads": {"soft_limit": 10, "hard_limit": 20, "reset_window": "per_day"},
             "change_note": "First",
@@ -348,7 +348,7 @@ async def test_change_log_recorded(quota_client: AsyncClient, admin_ctx: dict) -
         headers=_auth(admin_ctx["token"]),
     )
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={
             "questions": {"soft_limit": 100, "hard_limit": 200, "reset_window": "per_day"},
             "change_note": "Second",
@@ -356,7 +356,7 @@ async def test_change_log_recorded(quota_client: AsyncClient, admin_ctx: dict) -
         headers=_auth(admin_ctx["token"]),
     )
     resp = await quota_client.get(
-        "/api/admin/quotas/change-log",
+        "/api/v1/admin/quotas/change-log",
         headers=_auth(admin_ctx["token"]),
     )
     assert resp.status_code == 200, resp.text
@@ -374,7 +374,7 @@ async def test_change_log_recorded(quota_client: AsyncClient, admin_ctx: dict) -
 @pytest.mark.asyncio
 async def test_member_cannot_patch_policy(quota_client: AsyncClient, member_ctx: dict) -> None:
     resp = await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"uploads": {"soft_limit": 10, "hard_limit": 20, "reset_window": "per_day"}},
         headers=_auth(member_ctx["token"]),
     )
@@ -384,7 +384,7 @@ async def test_member_cannot_patch_policy(quota_client: AsyncClient, member_ctx:
 @pytest.mark.asyncio
 async def test_member_cannot_delete_policy(quota_client: AsyncClient, member_ctx: dict) -> None:
     resp = await quota_client.delete(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         headers=_auth(member_ctx["token"]),
     )
     assert resp.status_code == 403
@@ -393,7 +393,7 @@ async def test_member_cannot_delete_policy(quota_client: AsyncClient, member_ctx
 @pytest.mark.asyncio
 async def test_member_cannot_get_policy(quota_client: AsyncClient, member_ctx: dict) -> None:
     resp = await quota_client.get(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         headers=_auth(member_ctx["token"]),
     )
     assert resp.status_code == 403
@@ -441,13 +441,13 @@ async def test_org_isolation(quota_client: AsyncClient, db_session: AsyncSession
     token_b = _make_token(str(user_b.id), str(org_b.id), OrganizationRole.admin.value)
 
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"uploads": {"soft_limit": 99, "hard_limit": 999, "reset_window": "per_day"}},
         headers=_auth(token_a),
     )
 
     # Org B should get 404
-    resp = await quota_client.get("/api/admin/quotas/policy", headers=_auth(token_b))
+    resp = await quota_client.get("/api/v1/admin/quotas/policy", headers=_auth(token_b))
     assert resp.status_code == 404
 
 
@@ -459,7 +459,7 @@ async def test_org_isolation(quota_client: AsyncClient, db_session: AsyncSession
 @pytest.mark.asyncio
 async def test_create_orgwide_override(quota_client: AsyncClient, owner_ctx: dict) -> None:
     resp = await quota_client.post(
-        "/api/admin/quotas/overrides",
+        "/api/v1/admin/quotas/overrides",
         json={
             "quota_type": "uploads",
             "hard_limit_override": 500,
@@ -493,7 +493,7 @@ async def test_create_peruser_override(
     await db_session.flush()
 
     resp = await quota_client.post(
-        "/api/admin/quotas/overrides",
+        "/api/v1/admin/quotas/overrides",
         json={
             "quota_type": "questions",
             "target_user_id": str(target_user.id),
@@ -517,7 +517,7 @@ async def test_create_peruser_override(
 async def test_list_overrides(quota_client: AsyncClient, owner_ctx: dict) -> None:
     for i in range(3):
         await quota_client.post(
-            "/api/admin/quotas/overrides",
+            "/api/v1/admin/quotas/overrides",
             json={
                 "quota_type": "uploads",
                 "hard_limit_override": 100 * (i + 1),
@@ -527,7 +527,7 @@ async def test_list_overrides(quota_client: AsyncClient, owner_ctx: dict) -> Non
         )
 
     resp = await quota_client.get(
-        "/api/admin/quotas/overrides?limit=2&offset=0",
+        "/api/v1/admin/quotas/overrides?limit=2&offset=0",
         headers=_auth(owner_ctx["token"]),
     )
     assert resp.status_code == 200, resp.text
@@ -544,7 +544,7 @@ async def test_list_overrides(quota_client: AsyncClient, owner_ctx: dict) -> Non
 @pytest.mark.asyncio
 async def test_delete_override(quota_client: AsyncClient, owner_ctx: dict) -> None:
     create_resp = await quota_client.post(
-        "/api/admin/quotas/overrides",
+        "/api/v1/admin/quotas/overrides",
         json={"quota_type": "tokens", "hard_limit_override": 1000000, "reason": "To be deleted"},
         headers=_auth(owner_ctx["token"]),
     )
@@ -552,13 +552,13 @@ async def test_delete_override(quota_client: AsyncClient, owner_ctx: dict) -> No
     override_id = create_resp.json()["override_id"]
 
     del_resp = await quota_client.delete(
-        f"/api/admin/quotas/overrides/{override_id}",
+        f"/api/v1/admin/quotas/overrides/{override_id}",
         headers=_auth(owner_ctx["token"]),
     )
     assert del_resp.status_code == 204
 
     list_resp = await quota_client.get(
-        "/api/admin/quotas/overrides",
+        "/api/v1/admin/quotas/overrides",
         headers=_auth(owner_ctx["token"]),
     )
     assert list_resp.json()["total"] == 0
@@ -572,7 +572,7 @@ async def test_delete_override(quota_client: AsyncClient, owner_ctx: dict) -> No
 @pytest.mark.asyncio
 async def test_soft_greater_than_hard_rejected(quota_client: AsyncClient, admin_ctx: dict) -> None:
     resp = await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"uploads": {"soft_limit": 200, "hard_limit": 100, "reset_window": "per_day"}},
         headers=_auth(admin_ctx["token"]),
     )
@@ -587,7 +587,7 @@ async def test_soft_greater_than_hard_rejected(quota_client: AsyncClient, admin_
 @pytest.mark.asyncio
 async def test_invalid_quota_type_override(quota_client: AsyncClient, owner_ctx: dict) -> None:
     resp = await quota_client.post(
-        "/api/admin/quotas/overrides",
+        "/api/v1/admin/quotas/overrides",
         json={"quota_type": "nonexistent", "hard_limit_override": 100, "reason": "Test"},
         headers=_auth(owner_ctx["token"]),
     )
@@ -608,7 +608,7 @@ async def test_near_limit_flag(
     org_id = UUID(admin_ctx["org_id"])
 
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"evaluations": {"soft_limit": None, "hard_limit": 10, "reset_window": "per_day"}},
         headers=_auth(admin_ctx["token"]),
     )
@@ -618,7 +618,7 @@ async def test_near_limit_flag(
     )
     await db_session.commit()
 
-    resp = await quota_client.get("/api/admin/quotas/usage", headers=_auth(admin_ctx["token"]))
+    resp = await quota_client.get("/api/v1/admin/quotas/usage", headers=_auth(admin_ctx["token"]))
     data = resp.json()
     evals = next(i for i in data["quota_usage"] if i["quota_type"] == "evaluations")
     assert evals["near_limit"] is True
@@ -639,7 +639,7 @@ async def test_over_hard_limit_flag(
     org_id = UUID(admin_ctx["org_id"])
 
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"agent_runs": {"soft_limit": 5, "hard_limit": 10, "reset_window": "per_day"}},
         headers=_auth(admin_ctx["token"]),
     )
@@ -648,7 +648,7 @@ async def test_over_hard_limit_flag(
     )
     await db_session.commit()
 
-    resp = await quota_client.get("/api/admin/quotas/usage", headers=_auth(admin_ctx["token"]))
+    resp = await quota_client.get("/api/v1/admin/quotas/usage", headers=_auth(admin_ctx["token"]))
     data = resp.json()
     assert data["has_overages"] is True
     agent_runs = next(i for i in data["quota_usage"] if i["quota_type"] == "agent_runs")
@@ -664,7 +664,7 @@ async def test_over_hard_limit_flag(
 @pytest.mark.asyncio
 async def test_my_usage_any_role(quota_client: AsyncClient, member_ctx: dict) -> None:
     resp = await quota_client.get(
-        "/api/quotas/my-usage",
+        "/api/v1/quotas/my-usage",
         headers=_auth(member_ctx["token"]),
     )
     assert resp.status_code == 200, resp.text
@@ -681,7 +681,7 @@ async def test_my_usage_any_role(quota_client: AsyncClient, member_ctx: dict) ->
 @pytest.mark.asyncio
 async def test_admin_cannot_create_override(quota_client: AsyncClient, admin_ctx: dict) -> None:
     resp = await quota_client.post(
-        "/api/admin/quotas/overrides",
+        "/api/v1/admin/quotas/overrides",
         json={"quota_type": "uploads", "hard_limit_override": 500, "reason": "Test"},
         headers=_auth(admin_ctx["token"]),
     )
@@ -696,10 +696,10 @@ async def test_admin_cannot_create_override(quota_client: AsyncClient, admin_ctx
 @pytest.mark.asyncio
 async def test_policy_404_after_reset(quota_client: AsyncClient, admin_ctx: dict) -> None:
     await quota_client.patch(
-        "/api/admin/quotas/policy",
+        "/api/v1/admin/quotas/policy",
         json={"uploads": {"soft_limit": 10, "hard_limit": 20, "reset_window": "per_day"}},
         headers=_auth(admin_ctx["token"]),
     )
-    await quota_client.delete("/api/admin/quotas/policy", headers=_auth(admin_ctx["token"]))
-    resp = await quota_client.get("/api/admin/quotas/policy", headers=_auth(admin_ctx["token"]))
+    await quota_client.delete("/api/v1/admin/quotas/policy", headers=_auth(admin_ctx["token"]))
+    resp = await quota_client.get("/api/v1/admin/quotas/policy", headers=_auth(admin_ctx["token"]))
     assert resp.status_code == 404

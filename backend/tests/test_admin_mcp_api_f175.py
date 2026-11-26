@@ -102,7 +102,7 @@ async def test_get_mcp_policy_returns_defaults_for_new_org(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -125,7 +125,7 @@ async def test_get_mcp_policy_forbidden_for_non_admin(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     response = await admin_client.get(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 403
@@ -144,7 +144,7 @@ async def test_update_mcp_policy_enabled(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"enabled": True, "read_only": False},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -164,7 +164,7 @@ async def test_update_mcp_policy_rate_limits(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"rate_limit_requests": 100, "rate_limit_window_seconds": 120},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -184,7 +184,7 @@ async def test_update_mcp_policy_invalid_rate_limit(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"rate_limit_requests": 99999},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -203,10 +203,10 @@ async def test_update_mcp_policy_persists(
     headers = _auth_headers(token=token, organization_id=str(org.id))
 
     await admin_client.patch(
-        "/admin/mcp/policy", json={"enabled": True, "read_only": True}, headers=headers
+        "/api/v1/admin/mcp/policy", json={"enabled": True, "read_only": True}, headers=headers
     )
 
-    response = await admin_client.get("/admin/mcp/policy", headers=headers)
+    response = await admin_client.get("/api/v1/admin/mcp/policy", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert data["enabled"] is True
@@ -223,7 +223,7 @@ async def test_update_mcp_policy_capabilities(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={
             "capabilities_viewer": ["documents.read"],
             "capabilities_admin": ["documents.read", "chat.answer"],
@@ -246,7 +246,7 @@ async def test_update_mcp_policy_forbidden_for_member(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     response = await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"enabled": True},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -268,13 +268,13 @@ async def test_update_mcp_policy_org_isolation(
     )
 
     await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"enabled": True},
         headers=_auth_headers(token=token_a, organization_id=str(org_a.id)),
     )
 
     response_b = await admin_client.get(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         headers=_auth_headers(token=token_b, organization_id=str(org_b.id)),
     )
     assert response_b.status_code == 200
@@ -294,7 +294,7 @@ async def test_get_mcp_status_returns_expected_shape(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/mcp/status",
+        "/api/v1/admin/mcp/status",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -316,7 +316,7 @@ async def test_get_mcp_status_forbidden_for_member(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     response = await admin_client.get(
-        "/admin/mcp/status",
+        "/api/v1/admin/mcp/status",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 403
@@ -337,7 +337,7 @@ async def test_list_mcp_tools_returns_list(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/mcp/tools",
+        "/api/v1/admin/mcp/tools",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -357,7 +357,7 @@ async def test_list_mcp_tools_forbidden_for_member(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     response = await admin_client.get(
-        "/admin/mcp/tools",
+        "/api/v1/admin/mcp/tools",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 403
@@ -376,7 +376,7 @@ async def test_list_mcp_audit_events_empty(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/mcp/audit-events",
+        "/api/v1/admin/mcp/audit-events",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -396,9 +396,9 @@ async def test_list_mcp_audit_events_after_policy_update(
     )
     headers = _auth_headers(token=token, organization_id=str(org.id))
 
-    await admin_client.patch("/admin/mcp/policy", json={"enabled": True}, headers=headers)
+    await admin_client.patch("/api/v1/admin/mcp/policy", json={"enabled": True}, headers=headers)
 
-    response = await admin_client.get("/admin/mcp/audit-events", headers=headers)
+    response = await admin_client.get("/api/v1/admin/mcp/audit-events", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 1
@@ -415,7 +415,7 @@ async def test_list_mcp_audit_events_forbidden_for_member(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     response = await admin_client.get(
-        "/admin/mcp/audit-events",
+        "/api/v1/admin/mcp/audit-events",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 403
@@ -436,13 +436,13 @@ async def test_list_mcp_audit_events_org_isolation(
     )
 
     await admin_client.patch(
-        "/admin/mcp/policy",
+        "/api/v1/admin/mcp/policy",
         json={"enabled": True},
         headers=_auth_headers(token=token_a, organization_id=str(org_a.id)),
     )
 
     response_b = await admin_client.get(
-        "/admin/mcp/audit-events",
+        "/api/v1/admin/mcp/audit-events",
         headers=_auth_headers(token=token_b, organization_id=str(org_b.id)),
     )
     assert response_b.status_code == 200

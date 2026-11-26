@@ -6,7 +6,8 @@ values so pydantic-settings can load without live infrastructure. Two values
 are forced (not defaulted) before the app is imported, because they change the
 route table itself:
 
-- ``ENVIRONMENT=development``: ``ENVIRONMENT=test`` mounts extra alias routes;
+- ``ENVIRONMENT=development``: the export does not depend on the caller's environment
+  (``ENVIRONMENT=test`` used to mount extra alias routes; R03-02 removed them);
 - ``API_PREFIX=/api/v1``: the frontend's generated types use this prefix.
 
 pydantic-settings still reads ``.env`` files (project root and ``backend/``)

@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
     "test:e2e": "playwright test --pass-with-no-tests",
     "test:e2e:integration": "playwright test -c playwright.integration.config.ts",
     "api:generate": "openapi-typescript openapi.json -o src/lib/api/generated/schema.d.ts",

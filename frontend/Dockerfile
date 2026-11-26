@@ -25,7 +25,11 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000
 
-RUN apk upgrade --no-cache
+# The standalone server needs only `node`. Drop the bundled npm, npx, and
+# corepack: they are unused at runtime and carry their own dependency CVEs.
+RUN apk upgrade --no-cache \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+        /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 # Files stay root-owned (read-only for the runtime user) except the Next.js
 # cache directory, which the server writes for image optimisation and ISR.

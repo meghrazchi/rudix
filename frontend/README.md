@@ -598,6 +598,14 @@ When you add or change a Pydantic model on the backend, run `npm run api:update-
 
 ## Testing
 
+### Coverage
+
+```bash
+npm run test:coverage   # vitest run --coverage; prints a summary, fails below the thresholds
+```
+
+`vitest.config.ts` configures V8 coverage over `src/**`, excluding generated API types, test files and helpers (`src/test/**`, `__tests__/`, `tests/`, `*.test.*`, `*.spec.*`), e2e folders, stories, and `.d.ts` files. Reports: `text-summary` on the console and `coverage/coverage-summary.json` (git-ignored). `coverage.thresholds` holds the measured figures rounded down to one decimal (when set: lines 64.8, functions 58.0, branches 57.6, statements 63.8). The `frontend` CI job runs `npm run test:coverage`, so a drop below a threshold fails CI. Raise the thresholds when coverage rises. Never lower them without a reason in the merge request.
+
 Shared test harness and fixtures:
 
 - `src/test/render.tsx`

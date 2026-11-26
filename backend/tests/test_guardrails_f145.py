@@ -174,24 +174,6 @@ def _inject_providers(monkeypatch: pytest.MonkeyPatch, *, answer: str) -> None:
 
 
 @pytest_asyncio.fixture
-async def db_session() -> AsyncSession:
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-    from sqlalchemy.pool import StaticPool
-
-    from app.db.base import Base
-
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-    async with factory() as session:
-        yield session
-
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
 async def chat_client(
     monkeypatch: pytest.MonkeyPatch,
     db_session: AsyncSession,

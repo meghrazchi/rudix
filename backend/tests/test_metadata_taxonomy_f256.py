@@ -580,7 +580,7 @@ def test_l_tag_suggestions(select_field: MetadataField) -> None:
 async def test_m_http_create_field(client: AsyncClient, admin_user: tuple[User, str]) -> None:
     _, token = admin_user
     resp = await client.post(
-        "/api/admin/metadata/fields",
+        "/api/v1/admin/metadata/fields",
         json={
             "name": "project",
             "display_name": "Project",
@@ -605,7 +605,7 @@ async def test_n_http_list_fields(
 ) -> None:
     _, token = admin_user
     resp = await client.get(
-        "/api/admin/metadata/fields",
+        "/api/v1/admin/metadata/fields",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -625,7 +625,7 @@ async def test_o_http_update_field(
 ) -> None:
     _, token = admin_user
     resp = await client.patch(
-        f"/api/admin/metadata/fields/{text_field.id}",
+        f"/api/v1/admin/metadata/fields/{text_field.id}",
         json={"display_name": "Business Unit"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -644,7 +644,7 @@ async def test_p_http_delete_field(
 ) -> None:
     _, token = admin_user
     resp = await client.delete(
-        f"/api/admin/metadata/fields/{text_field.id}",
+        f"/api/v1/admin/metadata/fields/{text_field.id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 204
@@ -662,7 +662,7 @@ async def test_q_http_set_document_metadata(
 ) -> None:
     _, token = admin_user
     resp = await client.put(
-        f"/api/documents/{sample_document.id}/metadata",
+        f"/api/v1/documents/{sample_document.id}/metadata",
         json={"values": [{"field_id": str(text_field.id), "value": "Sales"}]},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -686,12 +686,12 @@ async def test_r_http_get_document_metadata(
     _, token = admin_user
     # Set first
     await client.put(
-        f"/api/documents/{sample_document.id}/metadata",
+        f"/api/v1/documents/{sample_document.id}/metadata",
         json={"values": [{"field_id": str(text_field.id), "value": "HR"}]},
         headers={"Authorization": f"Bearer {token}"},
     )
     resp = await client.get(
-        f"/api/documents/{sample_document.id}/metadata",
+        f"/api/v1/documents/{sample_document.id}/metadata",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -729,7 +729,7 @@ async def test_s_http_bulk_set(
     await db.flush()
 
     resp = await client.post(
-        "/api/admin/metadata/bulk-set",
+        "/api/v1/admin/metadata/bulk-set",
         json={
             "document_ids": [str(doc1.id), str(doc2.id)],
             "values": [{"field_id": str(text_field.id), "value": "Engineering"}],
@@ -753,7 +753,7 @@ async def test_t_http_suggest(
 ) -> None:
     _, token = admin_user
     resp = await client.get(
-        f"/api/admin/metadata/fields/{select_field.id}/suggest?prefix=EM",
+        f"/api/v1/admin/metadata/fields/{select_field.id}/suggest?prefix=EM",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -769,7 +769,7 @@ async def test_u_viewer_cannot_create_field(
 ) -> None:
     _, token = viewer_user
     resp = await client.post(
-        "/api/admin/metadata/fields",
+        "/api/v1/admin/metadata/fields",
         json={"name": "foo", "display_name": "Foo", "field_type": "text"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -788,7 +788,7 @@ async def test_v_viewer_cannot_set_metadata(
 ) -> None:
     _, token = viewer_user
     resp = await client.put(
-        f"/api/documents/{sample_document.id}/metadata",
+        f"/api/v1/documents/{sample_document.id}/metadata",
         json={"values": [{"field_id": str(text_field.id), "value": "HR"}]},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -806,7 +806,7 @@ async def test_w_org_isolation_http(
 ) -> None:
     _, token = admin_other_org
     resp = await client.get(
-        f"/api/admin/metadata/fields/{text_field.id}",
+        f"/api/v1/admin/metadata/fields/{text_field.id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 404
@@ -824,12 +824,12 @@ async def test_x_http_get_audit_log(
 ) -> None:
     _, token = admin_user
     await client.put(
-        f"/api/documents/{sample_document.id}/metadata",
+        f"/api/v1/documents/{sample_document.id}/metadata",
         json={"values": [{"field_id": str(text_field.id), "value": "Legal"}]},
         headers={"Authorization": f"Bearer {token}"},
     )
     resp = await client.get(
-        f"/api/documents/{sample_document.id}/metadata/audit",
+        f"/api/v1/documents/{sample_document.id}/metadata/audit",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200

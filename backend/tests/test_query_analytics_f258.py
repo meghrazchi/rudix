@@ -360,7 +360,7 @@ class TestQueryAnalyticsHTTP:
     ) -> None:
         _, token = viewer_user
         resp = await client.get(
-            "/admin/query-analytics/summary",
+            "/api/v1/admin/query-analytics/summary",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 403
@@ -371,7 +371,7 @@ class TestQueryAnalyticsHTTP:
     ) -> None:
         _, token = admin_user
         resp = await client.get(
-            "/admin/query-analytics/summary",
+            "/api/v1/admin/query-analytics/summary",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 200
@@ -397,7 +397,7 @@ class TestQueryAnalyticsHTTP:
         await db.flush()
 
         resp = await client.get(
-            "/admin/query-analytics/gaps",
+            "/api/v1/admin/query-analytics/gaps",
             headers={"Authorization": f"Bearer {token}"},
             params={"limit": 10, "offset": 0},
         )
@@ -412,7 +412,7 @@ class TestQueryAnalyticsHTTP:
     ) -> None:
         _, token = admin_user
         resp = await client.post(
-            "/admin/query-analytics/gaps",
+            "/api/v1/admin/query-analytics/gaps",
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "gap_type": "missing_source",
@@ -440,7 +440,7 @@ class TestQueryAnalyticsHTTP:
         await db.flush()
 
         resp = await client.patch(
-            f"/admin/query-analytics/gaps/{gap.gap_id}",
+            f"/api/v1/admin/query-analytics/gaps/{gap.gap_id}",
             headers={"Authorization": f"Bearer {token}"},
             json={"status": "in_review", "reviewer_notes": "Being investigated"},
         )
@@ -461,7 +461,7 @@ class TestQueryAnalyticsHTTP:
         await db.flush()
 
         resp = await client.post(
-            f"/admin/query-analytics/gaps/{gap.gap_id}/convert",
+            f"/api/v1/admin/query-analytics/gaps/{gap.gap_id}/convert",
             headers={"Authorization": f"Bearer {token}"},
             json={"target": "review_task", "notes": "Needs reviewer attention"},
         )
@@ -494,7 +494,7 @@ class TestQueryAnalyticsHTTP:
         await db.flush()
 
         resp = await client.get(
-            "/admin/query-analytics/gaps",
+            "/api/v1/admin/query-analytics/gaps",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 200
@@ -511,7 +511,7 @@ class TestQueryAnalyticsHTTP:
         from_date = (date.today() - timedelta(days=6)).isoformat()
         to_date = date.today().isoformat()
         resp = await client.get(
-            "/admin/query-analytics/trends",
+            "/api/v1/admin/query-analytics/trends",
             headers={"Authorization": f"Bearer {token}"},
             params={"from": from_date, "to": to_date},
         )
@@ -530,7 +530,7 @@ class TestQueryAnalyticsHTTP:
     ) -> None:
         _, token = admin_user
         resp = await client.get(
-            "/admin/query-analytics/export",
+            "/api/v1/admin/query-analytics/export",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 200

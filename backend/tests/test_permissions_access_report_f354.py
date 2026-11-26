@@ -595,11 +595,15 @@ async def test_http_summary_requires_security_center_view(
     await db_session.commit()
 
     member_token = _token(str(member.id), str(org.id), role="member")
-    resp = await pa_client.get("/admin/permissions-access/summary", headers=_auth(member_token))
+    resp = await pa_client.get(
+        "/api/v1/admin/permissions-access/summary", headers=_auth(member_token)
+    )
     assert resp.status_code == 403
 
     admin_token = _token(str(admin.id), str(org.id), role="admin")
-    resp = await pa_client.get("/admin/permissions-access/summary", headers=_auth(admin_token))
+    resp = await pa_client.get(
+        "/api/v1/admin/permissions-access/summary", headers=_auth(admin_token)
+    )
     assert resp.status_code == 200
     assert resp.json()["total_users"] == 2
 
@@ -628,14 +632,20 @@ async def test_http_export_requires_configure_not_just_view(
     await db_session.commit()
 
     viewer_token = _token(str(viewer.id), str(org.id), role="member")
-    resp = await pa_client.get("/admin/permissions-access/summary", headers=_auth(viewer_token))
+    resp = await pa_client.get(
+        "/api/v1/admin/permissions-access/summary", headers=_auth(viewer_token)
+    )
     assert resp.status_code == 200, "view-only custom role should still see the summary"
 
-    resp = await pa_client.get("/admin/permissions-access/export", headers=_auth(viewer_token))
+    resp = await pa_client.get(
+        "/api/v1/admin/permissions-access/export", headers=_auth(viewer_token)
+    )
     assert resp.status_code == 403, "view-only custom role must not be able to export"
 
     admin_token = _token(str(admin.id), str(org.id), role="admin")
-    resp = await pa_client.get("/admin/permissions-access/export", headers=_auth(admin_token))
+    resp = await pa_client.get(
+        "/api/v1/admin/permissions-access/export", headers=_auth(admin_token)
+    )
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/csv")
 
@@ -672,7 +682,9 @@ async def test_export_csv_column_allowlist(
     await db_session.commit()
 
     admin_token = _token(str(admin.id), str(org.id), role="admin")
-    resp = await pa_client.get("/admin/permissions-access/export", headers=_auth(admin_token))
+    resp = await pa_client.get(
+        "/api/v1/admin/permissions-access/export", headers=_auth(admin_token)
+    )
     assert resp.status_code == 200
     header_line = resp.text.splitlines()[0]
     columns = {c.strip() for c in header_line.split(",")}

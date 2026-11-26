@@ -1,0 +1,79 @@
+# Dependabot version updates (R03-08). Weekly and grouped so each ecosystem opens
+# at most a couple of PRs a week. Security updates are enabled separately in the
+# repository settings and are not grouped.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      python-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: deps
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    ignore:
+      # Framework majors are planned upgrades, not automated ones.
+      - dependency-name: next
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react-dom
+        update-types:
+          - version-update:semver-major
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: deps
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      backend-base-images:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: deps
+
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      frontend-base-images:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: deps

@@ -257,7 +257,7 @@ async def test_d_http_deprecate_published_card(
     await db.commit()
 
     resp = await client.post(
-        f"/verified-answers/{card.id}/deprecate",
+        f"/api/v1/verified-answers/{card.id}/deprecate",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -282,7 +282,7 @@ async def test_e_http_deprecate_already_deprecated(
     await db.commit()
 
     resp = await client.post(
-        f"/verified-answers/{card.id}/deprecate",
+        f"/api/v1/verified-answers/{card.id}/deprecate",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 409
@@ -304,7 +304,7 @@ async def test_f_http_deprecate_member_forbidden(
     await db.commit()
 
     resp = await client.post(
-        f"/verified-answers/{card.id}/deprecate",
+        f"/api/v1/verified-answers/{card.id}/deprecate",
         headers={"Authorization": f"Bearer {member_token}"},
     )
     assert resp.status_code == 403
@@ -325,7 +325,7 @@ async def test_g_http_restore_archived_card(
     await db.commit()
 
     resp = await client.post(
-        f"/verified-answers/{card.id}/restore",
+        f"/api/v1/verified-answers/{card.id}/restore",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -350,7 +350,7 @@ async def test_h_http_restore_deprecated_card(
     await db.commit()
 
     resp = await client.post(
-        f"/verified-answers/{card.id}/restore",
+        f"/api/v1/verified-answers/{card.id}/restore",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -371,7 +371,7 @@ async def test_i_http_restore_active_card_rejected(
     await db.commit()
 
     resp = await client.post(
-        f"/verified-answers/{card.id}/restore",
+        f"/api/v1/verified-answers/{card.id}/restore",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 409
@@ -391,7 +391,7 @@ async def test_j_http_duplicate_card(
     await db.commit()
 
     resp = await client.post(
-        f"/verified-answers/{card.id}/duplicate",
+        f"/api/v1/verified-answers/{card.id}/duplicate",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 201
@@ -440,7 +440,7 @@ async def test_k_http_duplicate_copies_citations(
     await db.commit()
 
     resp = await client.post(
-        f"/verified-answers/{card.id}/duplicate",
+        f"/api/v1/verified-answers/{card.id}/duplicate",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 201
@@ -466,7 +466,7 @@ async def test_l_deprecated_excluded_from_search(
     await db.commit()
 
     resp = await client.get(
-        "/verified-answers/search/match",
+        "/api/v1/verified-answers/search/match",
         params={"query": "What is deprecation?"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -491,7 +491,7 @@ async def test_m_http_list_deprecated_filter(
     await db.commit()
 
     resp = await client.get(
-        "/verified-answers",
+        "/api/v1/verified-answers",
         params={"status": "deprecated"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -516,7 +516,7 @@ async def test_n_response_includes_new_fields(
     await db.commit()
 
     resp = await client.get(
-        f"/verified-answers/{card.id}",
+        f"/api/v1/verified-answers/{card.id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200

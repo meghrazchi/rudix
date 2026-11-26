@@ -140,7 +140,7 @@ class TestSearchOrgUsers:
         member = await _add_member(db_session, org, display_name="Alice Smith")
 
         resp = await debugger_client.get(
-            "/admin/access-debugger/users",
+            "/api/v1/admin/access-debugger/users",
             headers=_headers(admin_user, org),
         )
         assert resp.status_code == 200
@@ -157,7 +157,7 @@ class TestSearchOrgUsers:
         await _add_member(db_session, org, email=f"{unique_prefix}@example.com")
 
         resp = await debugger_client.get(
-            f"/admin/access-debugger/users?q={unique_prefix}",
+            f"/api/v1/admin/access-debugger/users?q={unique_prefix}",
             headers=_headers(admin_user, org),
         )
         assert resp.status_code == 200
@@ -173,7 +173,7 @@ class TestSearchOrgUsers:
         await _add_member(db_session, org, display_name=unique_name)
 
         resp = await debugger_client.get(
-            f"/admin/access-debugger/users?q={unique_name[:8]}",
+            f"/api/v1/admin/access-debugger/users?q={unique_name[:8]}",
             headers=_headers(admin_user, org),
         )
         assert resp.status_code == 200
@@ -191,7 +191,7 @@ class TestSearchOrgUsers:
         member = await _add_member(db_session, org, display_name="Bob Jones")
 
         resp = await debugger_client.get(
-            f"/admin/access-debugger/users?q={member.id}",
+            f"/api/v1/admin/access-debugger/users?q={member.id}",
             headers=_headers(admin_user, org),
         )
         assert resp.status_code == 200
@@ -204,7 +204,7 @@ class TestSearchOrgUsers:
     ) -> None:
         user, org = await _seed_org(db_session, role=OrganizationRole.member)
         resp = await debugger_client.get(
-            "/admin/access-debugger/users",
+            "/api/v1/admin/access-debugger/users",
             headers=_headers(user, org),
         )
         assert resp.status_code == 403
@@ -218,7 +218,7 @@ class TestSearchOrgUsers:
         await _add_member(db_session, org_b, email=f"{unique_prefix}@example.com")
 
         resp = await debugger_client.get(
-            f"/admin/access-debugger/users?q={unique_prefix}",
+            f"/api/v1/admin/access-debugger/users?q={unique_prefix}",
             headers=_headers(admin_a, org_a),
         )
         assert resp.status_code == 200
@@ -231,7 +231,7 @@ class TestSearchOrgUsers:
         await _add_member(db_session, org)
 
         resp = await debugger_client.get(
-            "/admin/access-debugger/users",
+            "/api/v1/admin/access-debugger/users",
             headers=_headers(admin_user, org),
         )
         assert resp.status_code == 200
@@ -253,7 +253,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org, role=OrganizationRole.admin)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -276,7 +276,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org, role=OrganizationRole.member)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -298,7 +298,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -336,7 +336,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org, role=OrganizationRole.admin)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -356,7 +356,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -378,7 +378,7 @@ class TestSimulateAccess:
         doc_id = str(uuid4())
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -398,7 +398,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -418,7 +418,7 @@ class TestSimulateAccess:
     ) -> None:
         user, org = await _seed_org(db_session, role=OrganizationRole.member)
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(uuid4()),
                 "resource_type": "document",
@@ -435,7 +435,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "not_a_real_type",
@@ -452,7 +452,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -467,7 +467,7 @@ class TestSimulateAccess:
     ) -> None:
         admin_user, org = await _seed_org(db_session, role=OrganizationRole.admin)
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(uuid4()),
                 "resource_type": "document",
@@ -484,7 +484,7 @@ class TestSimulateAccess:
         subject = await _add_member(db_session, org)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -515,7 +515,7 @@ class TestTenantIsolation:
         member_b = await _add_member(db_session, org_b)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(member_b.id),
                 "resource_type": "document",
@@ -534,7 +534,7 @@ class TestTenantIsolation:
         await _add_member(db_session, org_b, email=f"{unique_prefix}@isolation.test")
 
         resp = await debugger_client.get(
-            f"/admin/access-debugger/users?q={unique_prefix}",
+            f"/api/v1/admin/access-debugger/users?q={unique_prefix}",
             headers=_headers(admin_a, org_a),
         )
         assert resp.status_code == 200
@@ -547,7 +547,7 @@ class TestTenantIsolation:
         subject_a = await _add_member(db_session, org_a)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject_a.id),
                 "resource_type": "document",
@@ -578,7 +578,7 @@ class TestAuditLogging:
         subject = await _add_member(db_session, org)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",
@@ -630,7 +630,7 @@ class TestSimulatorMatchesRealAccess:
         subject = await _add_member(db_session, org, role=OrganizationRole.admin)
 
         resp = await debugger_client.post(
-            "/admin/access-debugger/simulate",
+            "/api/v1/admin/access-debugger/simulate",
             json={
                 "subject_user_id": str(subject.id),
                 "resource_type": "document",

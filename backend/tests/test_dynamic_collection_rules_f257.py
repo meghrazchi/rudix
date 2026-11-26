@@ -388,7 +388,7 @@ async def test_put_rules_sets_and_refreshes(http_client: AsyncClient, db_session
 
     token = _make_token(str(user.id), str(org.id), OrganizationRole.owner.value)
     resp = await http_client.put(
-        f"/collections/{col.id}/rules",
+        f"/api/v1/collections/{col.id}/rules",
         json={
             "rule_schema": {
                 "logic": "and",
@@ -412,7 +412,7 @@ async def test_put_rules_invalid_schema_422(http_client: AsyncClient, db_session
 
     token = _make_token(str(user.id), str(org.id), OrganizationRole.owner.value)
     resp = await http_client.put(
-        f"/collections/{col.id}/rules",
+        f"/api/v1/collections/{col.id}/rules",
         json={
             "rule_schema": {
                 "logic": "and",
@@ -434,7 +434,7 @@ async def test_preview_rules_returns_docs(http_client: AsyncClient, db_session: 
 
     token = _make_token(str(user.id), str(org.id))
     resp = await http_client.post(
-        f"/collections/{col.id}/rules/preview",
+        f"/api/v1/collections/{col.id}/rules/preview",
         json={
             "rule_schema": {
                 "logic": "and",
@@ -459,7 +459,7 @@ async def test_preview_rules_invalid_422(http_client: AsyncClient, db_session: A
 
     token = _make_token(str(user.id), str(org.id))
     resp = await http_client.post(
-        f"/collections/{col.id}/rules/preview",
+        f"/api/v1/collections/{col.id}/rules/preview",
         json={
             "rule_schema": {"logic": "and", "conditions": []},
             "limit": 10,
@@ -484,7 +484,7 @@ async def test_refresh_rules_endpoint(http_client: AsyncClient, db_session: Asyn
 
     token = _make_token(str(user.id), str(org.id), OrganizationRole.admin.value)
     resp = await http_client.post(
-        f"/collections/{col.id}/rules/refresh",
+        f"/api/v1/collections/{col.id}/rules/refresh",
         headers=_auth(token),
     )
     assert resp.status_code == 200, resp.text
@@ -500,7 +500,7 @@ async def test_refresh_rules_non_dynamic_422(http_client: AsyncClient, db_sessio
 
     token = _make_token(str(user.id), str(org.id), OrganizationRole.admin.value)
     resp = await http_client.post(
-        f"/collections/{col.id}/rules/refresh",
+        f"/api/v1/collections/{col.id}/rules/refresh",
         headers=_auth(token),
     )
     assert resp.status_code == 422
@@ -516,7 +516,7 @@ async def test_create_dynamic_collection_refreshes_immediately(
 
     token = _make_token(str(user.id), str(org.id), OrganizationRole.owner.value)
     resp = await http_client.post(
-        "/collections",
+        "/api/v1/collections",
         json={
             "name": "Dynamic PDFs",
             "access_policy": "org_wide",

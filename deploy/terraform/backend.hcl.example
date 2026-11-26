@@ -1,0 +1,26 @@
+# Example partial backend configuration for deploy/terraform (R03-07).
+# Copy to backend.<env>.hcl outside the repository (do not commit it) and run:
+#   terraform init -backend-config=backend.<env>.hcl
+# CI passes the same keys as -backend-config flags from the TF_STATE_* secrets.
+# One state object per environment; never share a key between staging and production.
+
+bucket = "example-rudix-terraform-state"
+key    = "rudix/staging.tfstate" # rudix/production.tfstate for production
+region = "us-east-1"
+
+# Credentials: prefer AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in the environment
+# over writing them here.
+# access_key = "..."
+# secret_key = "..."
+
+# S3-compatible stores (MinIO, R2, Spaces) also need:
+# endpoints                   = { s3 = "https://s3.example.com" }
+# use_path_style              = true
+# skip_credentials_validation = true
+# skip_region_validation      = true
+# skip_requesting_account_id  = true
+# skip_metadata_api_check     = true
+# skip_s3_checksum            = true
+
+# Encrypt state at rest; it holds the rendered env file and keys as sensitive values.
+encrypt = true
