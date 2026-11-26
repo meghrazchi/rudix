@@ -137,7 +137,8 @@ connector, evaluation, and agent work that cannot starve user uploads.
 ### R06-12 — Evaluation isolation (M)
 
 - **Change:** Evaluations run on `worker-eval` only, with bounded per-question concurrency,
-  and write to the evaluation collection (`R02-05`). Split `evaluation_tasks.py` (1,770
+  and write vectors to a dedicated evaluation collection named by a setting, instead of
+  the production collection with cleanup (`R02-05`). Split `evaluation_tasks.py` (1,770
   lines) by run type.
 - **Done when:** A full evaluation run causes no measurable change in chat or ingestion
   latency in the load test.

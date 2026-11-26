@@ -10,6 +10,9 @@
 
 ## 1. Purpose
 
+File-level steps, merge order, and the results of checking this spec against the code are in
+[V0_2_0_IMPLEMENTATION_PLAN.md](./V0_2_0_IMPLEMENTATION_PLAN.md).
+
 Fix defects that exist today. No refactoring beyond what each fix needs. Every item is small
 enough to ship as its own merge request with a regression test.
 
@@ -87,21 +90,23 @@ Tag current `main` as `v0.1.0` (`R02-00`, size S).
 - **Change:**
   - Pass the active `index_version` to the Qdrant filter and the FTS query on every
     production retrieval path, including the agent tool path.
-  - Evaluation re-ingest writes to a separate Qdrant collection named by a setting, and
-    deletes its points and chunk rows when the run finishes or fails.
+  - Evaluation re-ingest deletes its points and chunk rows when the run finishes or fails.
+    A separate Qdrant collection for evaluation vectors is deferred to `R06-12`.
   - One-off script `backend/scripts/purge_eval_index_versions.py` with a dry-run mode.
 - **Done when:** An isolation test ingests the same document under a production and an eval
   version and asserts chat retrieval returns only production chunks.
 
 ### R02-06 — One session per concurrent branch (S)
 
-- **Problem:** Concurrent retrieval branches share one `AsyncSession`. SQLAlchemy does not
-  allow this, and the resulting errors are swallowed as branch failures.
-- **Change:** Each branch under `asyncio.gather` opens its own session from `SessionLocal`.
+- **Problem:** When a question is decomposed into two or more sub-queries, their keyword
+  searches run concurrently on one `AsyncSession`. SQLAlchemy does not allow this, and the
+  resulting errors are swallowed as branch failures. Graph expansion is not affected: it is
+  awaited after the query `gather`.
+- **Change:** Each keyword-search branch opens its own session from `SessionLocal`.
   Count swallowed branch failures in a metric `rudix_retrieval_branch_failures_total{branch}`
   and log them at warning level.
-- **Done when:** A Postgres-marked test runs hybrid retrieval with graph expansion and asserts
-  zero branch failures.
+- **Done when:** A Postgres-marked test runs hybrid retrieval with three sub-queries and
+  asserts zero branch failures.
 
 ### R02-07 — Atomic quota accounting (S)
 
@@ -115,7 +120,7 @@ Tag current `main` as `v0.1.0` (`R02-00`, size S).
 - **Change:**
   - Make `infra_services` in `deploy/terraform/main.tf` a per-environment variable so
     production does not start `neo4j`.
-  - `check_remote_backups.sh`: accept a directory, and fail when the newest file in it is
+  - `check_remote_backups.sh` and the duplicate inline check in `main.tf`: accept a directory, and fail when the newest file in it is
     older than `BACKUP_MAX_AGE_HOURS`.
   - Add volumes for RabbitMQ and Redis in production compose, and set a Redis password.
   - Pin `qdrant`, `minio`, and `rabbitmq` images to explicit versions.
@@ -139,7 +144,8 @@ Tag current `main` as `v0.1.0` (`R02-00`, size S).
 - **Problem:** The access token is sent as `?token=` and can reach proxy and access logs.
 - **Change:** Add `POST /api/v1/chat/ws-ticket`, which returns a single-use ticket stored in
   Redis for 30 seconds and bound to user, organisation, and session. The client connects with
-  `?ticket=`. Keep `?token=` accepted behind `CHAT_WS_ALLOW_QUERY_TOKEN` (default true in
+  `?ticket=`. Non-browser clients using API keys or service accounts authenticate with an
+  `Authorization` header on the handshake. Keep `?token=` accepted behind `CHAT_WS_ALLOW_QUERY_TOKEN` (default true in
   `0.2.0`, false in `0.5.0`, removed in `1.0.0`).
 - **Done when:** Tests cover ticket reuse rejection, expiry, and cross-organisation rejection.
   `docs/07_API_DESIGN.md` documents both modes and the deprecation.
@@ -170,6 +176,14 @@ Tag current `main` as `v0.1.0` (`R02-00`, size S).
   `docs/README.md` agree on what is implemented (a development overlay) and what is planned
   (staging and production rollout).
 
+### R02-15 — Minimal Postgres test job (S)
+
+- **Problem:** `R02-02`, `R02-06`, and `R02-07` fix concurrency defects that SQLite cannot
+  reproduce, and the full Postgres lane is not due until `R03-01`.
+- **Change:** Add a `pg_session` fixture and run `pytest -m "requires_postgres or
+  requires_redis"` in the existing Alembic CI job, which already has both services.
+- **Done when:** The concurrency tests for the three items above run in CI.
+
 ## 4. Exit criteria
 
 - All items meet their "Done when" line.
@@ -191,3 +205,4 @@ New metrics: `rudix_retrieval_branch_failures_total`, `rudix_documents_reaped_to
 ## 7. Change Notes
 
 - 2026-11-26: Initial version.
+- 2026-11-26: Corrected `R02-05`, `R02-06`, `R02-08`, and `R02-10` after a code check; added `R02-15`.

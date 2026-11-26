@@ -22,8 +22,8 @@ artifact with a version number.
   `requires_postgres` and `requires_redis` markers exist but no test uses them. Row-level
   security, indexes, FTS, and locking are untested.
 - **Change:**
-  - Add a CI job that runs `pytest -m "requires_postgres or requires_redis"` against the
-    Postgres 16 and Redis service containers the Alembic job already uses.
+  - Extend the minimal job from `R02-15` into its own required CI job that runs
+    `pytest -m "requires_postgres or requires_redis"` against Postgres 16 and Redis.
   - The fixture creates the schema with `alembic upgrade head`, not `create_all`, so
     migrations are what gets tested.
   - Each test runs in a transaction that is rolled back.

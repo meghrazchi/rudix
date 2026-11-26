@@ -36,6 +36,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 
 - [roadmap/00_AUDIT_BASELINE.md](./roadmap/00_AUDIT_BASELINE.md) — Feature catalogue and audit findings at `0.1.0`
 - [roadmap/V0_2_0_CORRECTNESS_AND_SAFETY.md](./roadmap/V0_2_0_CORRECTNESS_AND_SAFETY.md)
+- [roadmap/V0_2_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_2_0_IMPLEMENTATION_PLAN.md) — File-level steps, merge order, and tests for `0.2.0`
 - [roadmap/V0_3_0_TEST_AND_RELEASE_FOUNDATION.md](./roadmap/V0_3_0_TEST_AND_RELEASE_FOUNDATION.md)
 - [roadmap/V0_4_0_DATA_LAYER_PERFORMANCE.md](./roadmap/V0_4_0_DATA_LAYER_PERFORMANCE.md)
 - [roadmap/V0_5_0_CHAT_PIPELINE_AND_STREAMING.md](./roadmap/V0_5_0_CHAT_PIPELINE_AND_STREAMING.md)

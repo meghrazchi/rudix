@@ -7,6 +7,7 @@ All notable changes to this documentation set are recorded here.
 ### Added
 
 - `docs/26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md` and `docs/roadmap/`: planned release train from `0.1.0` to `1.0.0`, the `0.1.0` feature catalogue and audit baseline, and one implementation spec per version.
+- `docs/roadmap/V0_2_0_IMPLEMENTATION_PLAN.md`: file-level implementation plan for `0.2.0`, with corrections to the `0.2.0` spec found by checking it against the code.
 - `docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md` for planned Prometheus and Grafana metrics, exporters, dashboards, security guardrails, and phased rollout.
 - `docs/DOCUMENT_TEMPLATE.md` for standardized technical documents.
 - `docs/DOCUMENT_REVIEW_CHECKLIST.md` for document quality gating.

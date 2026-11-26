@@ -86,7 +86,7 @@ M medium. The last column is the roadmap item that resolves the finding.
 | C | No CSP or security headers in the repo | `frontend/next.config.ts` | R02-09 |
 | H | `safety_evals.run` is not in the worker `include` list (verify first) | `celery_app.py:26-32` | R02-04 |
 | H | Production retrieval never filters on `index_version`; evaluation re-ingest writes `eval-` versions into the same collection (verify first) | `domains/chat/services/parallel_retrieval_optimizer.py:225-231`, `workers/evaluation_tasks.py:686-722` | R02-05 |
-| H | One `AsyncSession` shared across concurrent retrieval branches | `parallel_retrieval_optimizer.py:186,241,283` | R02-06 |
+| H | One `AsyncSession` shared by concurrent keyword searches when a question has two or more sub-queries | `parallel_retrieval_optimizer.py:186,241,283` | R02-06 |
 | H | Quota increment is read-modify-write without a lock | `domains/quota/repositories/quota_repository.py:115-130` | R02-07 |
 | H | Tenant isolation is application filters only; RLS setter has no callers | `backend/app/db/tenant_context.py:83`, `app/db/rls.py:38-40` | R04-08 |
 | H | Access token in `localStorage` and in the WebSocket URL | `frontend/src/lib/auth-session.ts:122-126`, `src/lib/chat-websocket.ts:112` | R02-10, R07-09 |
