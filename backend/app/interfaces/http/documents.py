@@ -724,7 +724,7 @@ async def upload_document(
     )
 
 
-@router.post("/upload-url", response_model=CreateUploadUrlResponse)
+@router.post("/upload-url", response_model=CreateUploadUrlResponse, deprecated=True)
 async def create_upload_url(
     payload: CreateUploadUrlRequest,
     principal: Annotated[

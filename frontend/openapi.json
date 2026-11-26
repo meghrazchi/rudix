@@ -239,6 +239,7 @@
         "tags": ["documents"],
         "summary": "Create Upload Url",
         "operationId": "create_upload_url_api_v1_documents_upload_url_post",
+        "deprecated": true,
         "requestBody": {
           "content": {
             "application/json": {
@@ -865,6 +866,7 @@
         "tags": ["chat"],
         "summary": "Create Chat Message",
         "operationId": "create_chat_message_api_v1_chat_sessions__session_id__messages_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "session_id",

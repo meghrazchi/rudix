@@ -3,12 +3,12 @@
 ## Metadata
 
 - `Owner`: `Rudix Platform & Observability Team`
-- `Status`: `Implemented`
-- `Last Updated`: `2026-11-08`
+- `Status`: `Implemented (development overlay); staging and production rollout planned`
+- `Last Updated`: `2026-11-26`
 - `Related Docs`: [01_ARCHITECTURE_OVERVIEW.md](./01_ARCHITECTURE_OVERVIEW.md), [10_DEPLOYMENT_DOCKER.md](./10_DEPLOYMENT_DOCKER.md), [11_SECURITY_AND_PRODUCTION_CHECKLIST.md](./11_SECURITY_AND_PRODUCTION_CHECKLIST.md), [12_EVALUATION_AND_MONITORING.md](./12_EVALUATION_AND_MONITORING.md), [18_LANGFUSE_OBSERVABILITY.md](./18_LANGFUSE_OBSERVABILITY.md)
 
 > [!NOTE]
-> **Implementation Status:** The Prometheus and Grafana observability stack is fully implemented. Backend endpoints, route normalization, Celery worker hooks, Docker Compose infrastructure (`infra/observability/`), 5 pre-provisioned Grafana dashboards, Alertmanager rules, and CI/CD smoke tests are active.
+> **Implementation Status:** Implemented for the development overlay (`make up-observability`): Prometheus, Alertmanager, Grafana (5 pre-provisioned dashboards), the Postgres and Redis exporters, the `/metrics` endpoint, Celery worker metrics hooks, the `METRICS_*` settings in `.env.example` and `app/core/config.py`, CI dashboard JSON validation, and the release `/metrics` smoke check. **Planned:** Prometheus and Grafana services in the staging and production Compose files and deployment, and scrape authentication over untrusted networks.
 
 ---
 
@@ -155,12 +155,12 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
    - `vllm:8000/metrics` and `litellm:4000/metrics` when local LLM profiles are active.
    - `neo4j` metrics when enterprise graph is enabled.
 
-### 4.4 Planned Configuration Variables
+### 4.4 Configuration Variables
 
-Add to `.env.example` and `backend/app/core/config.py`:
+Defined in `.env.example` and `backend/app/core/config.py`:
 
 ```env
-# Prometheus & Grafana Observability (Planned)
+# Prometheus & Grafana Observability
 METRICS_ENABLED=false
 METRICS_PATH=/metrics
 METRICS_REQUIRE_AUTH=false
@@ -176,7 +176,7 @@ GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=change-me-in-production
 ```
 
-### 4.5 Planned Grafana Dashboard Suite
+### 4.5 Grafana Dashboard Suite
 
 Provisioned as JSON under `infra/observability/grafana/dashboards/`:
 
@@ -228,13 +228,14 @@ The observability stack provides zero-config defaults for local development whil
 - **Pipeline Deployment Variables (GitHub Secrets)**:
   - `STAGING_ENV_FILE` / `PRODUCTION_ENV_FILE`: Append `METRICS_ENABLED=true`, `WORKER_METRICS_ENABLED=true`, and if auth-gated: `METRICS_REQUIRE_AUTH=true` and `METRICS_BEARER_TOKEN=<secret>`.
 
-### 4.7 Phased Implementation (Completed)
+### 4.7 Phased Implementation
 
-All phases below have been completed and verified:
-1. **Phase 1 — Backend Metrics Core & `/metrics` Endpoint** (Completed)
-2. **Phase 2 — Domain & Worker Instrumentation** (Completed)
-3. **Phase 3 — Compose Stack, Exporters, Dashboards & Alerts** (Completed)
-4. **Phase 4 — Verification & CI Validation** (Completed)
+Phases 1-4 are completed and verified for the development overlay:
+1. **Phase 1 — Backend Metrics Core & `/metrics` Endpoint** (Completed, development overlay)
+2. **Phase 2 — Domain & Worker Instrumentation** (Completed, development overlay)
+3. **Phase 3 — Compose Stack, Exporters, Dashboards & Alerts** (Completed, development overlay)
+4. **Phase 4 — Verification & CI Validation** (Completed, development overlay)
+5. **Phase 5 — Staging and production rollout** (Planned)
 
 ---
 
@@ -264,7 +265,7 @@ All phases below have been completed and verified:
 
 ## 7. Observability and Operations
 
-### Planned SLO Alert Rules (`infra/observability/prometheus/alerts.yml`)
+### SLO Alert Rules (`infra/observability/prometheus/alerts.yml`)
 
 | Alert Name | Expression / Condition | Window | Severity |
 |---|---|---|---|
@@ -289,3 +290,4 @@ All phases below have been completed and verified:
 ## 9. Change Notes
 
 - `2026-11-08`: Initial architecture and implementation plan created for Prometheus and Grafana observability integration.
+- `2026-11-26`: Aligned status wording: implemented as a development overlay; staging and production rollout planned (R02-14).

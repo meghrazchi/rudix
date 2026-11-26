@@ -106,7 +106,7 @@ flowchart TD
         API[FastAPI Container]
         Worker1[Celery Worker Container]
         Worker2[Celery Worker Container]
-        Beat[Celery Beat Optional]
+        Beat[Celery Beat]
     end
 
     subgraph DataHost["Data Services"]

@@ -5387,7 +5387,7 @@ async def delete_chat_session(
     )
 
 
-@router.post("/sessions/{session_id}/messages", response_model=ChatMessageResponse)
+@router.post("/sessions/{session_id}/messages", response_model=ChatMessageResponse, deprecated=True)
 async def create_chat_message(
     session_id: str,
     payload: ChatMessageRequest,

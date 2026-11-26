@@ -1038,7 +1038,9 @@ Not-found behavior:
 
 ### POST `/chat/sessions/{session_id}/messages`
 
-Ask a question.
+Deprecated (returns 501; removed in 1.0.0)
+
+Legacy ask-a-question contract. Use `POST /chat` instead; the shapes below are kept for reference only.
 
 Request:
 
@@ -1071,9 +1073,9 @@ Response:
 }
 ```
 
-Current scaffold behavior:
+Current behavior:
 
-- Endpoint validates authz and document access, then returns `501` until retrieval/generation pipeline implementation is completed.
+- Endpoint validates authz and document access, then returns `501`. It is marked `deprecated` in OpenAPI and will be removed in `1.0.0`.
 
 ## Prompt templates
 

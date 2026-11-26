@@ -132,7 +132,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Upload Url */
+        /**
+         * Create Upload Url
+         * @deprecated
+         */
         post: operations["create_upload_url_api_v1_documents_upload_url_post"];
         delete?: never;
         options?: never;
@@ -288,7 +291,10 @@ export interface paths {
         /** List Chat Session Messages */
         get: operations["list_chat_session_messages_api_v1_chat_sessions__session_id__messages_get"];
         put?: never;
-        /** Create Chat Message */
+        /**
+         * Create Chat Message
+         * @deprecated
+         */
         post: operations["create_chat_message_api_v1_chat_sessions__session_id__messages_post"];
         delete?: never;
         options?: never;
