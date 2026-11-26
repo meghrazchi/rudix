@@ -721,14 +721,14 @@ class DocumentRepository:
         await session.refresh(document)
         return document
 
-    async def get_documents_by_ids_for_trust(
+    async def get_documents_by_ids(
         self,
         session: AsyncSession,
         *,
         document_ids: list[UUID],
         organization_id: UUID,
     ) -> list[Document]:
-        """Fetch minimal trust-related fields for a list of document IDs."""
+        """Fetch the organisation's documents matching ``document_ids`` in one query."""
         if not document_ids:
             return []
         result = await session.execute(
@@ -738,6 +738,18 @@ class DocumentRepository:
             )
         )
         return list(result.scalars().all())
+
+    async def get_documents_by_ids_for_trust(
+        self,
+        session: AsyncSession,
+        *,
+        document_ids: list[UUID],
+        organization_id: UUID,
+    ) -> list[Document]:
+        """Fetch minimal trust-related fields for a list of document IDs."""
+        return await self.get_documents_by_ids(
+            session, document_ids=document_ids, organization_id=organization_id
+        )
 
     async def get_document_chunk_token_distribution(
         self,

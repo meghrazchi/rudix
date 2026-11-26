@@ -22,6 +22,13 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.chat.citation_access import filter_chunks_by_cite_access
+from app.application.chat.quota import (
+    chat_quota_denial,
+    ensure_chat_quota,
+    record_chat_usage,
+)
+from app.application.chat.ws_auth import authenticate_ws_handshake
 from app.auth.authorization_service import AuthorizationService
 from app.auth.dependencies import ensure_document_ids_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
@@ -37,7 +44,6 @@ from app.auth.resource_context_builder import (
     get_subject_accessible_collection_ids,
 )
 from app.clients import qdrant_client as qdrant_module
-from app.clients import redis_client as redis_module
 from app.core.config import settings
 from app.core.langfuse_tracer import ChatTraceMetadata, trace_chat_query
 from app.core.logging import log_query_event
@@ -230,15 +236,13 @@ from app.domains.documents.repositories.documents import DocumentRepository as _
 from app.domains.documents.services.ocr_quality_service import OcrQualityService
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
-from app.domains.quota.schemas.quota_schemas import QuotaType
-from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
 from app.domains.rag_profiles.services.rag_profile_service import resolve_profile_for_context
 from app.models.document import Document, DocumentChunk
 from app.models.enums import ChatRole, DocumentStatus, OrganizationRole, PromptTemplateKey
 from app.models.prompt_template import PromptTemplateVersion
 from app.rate_limit import RateLimitScope, enforce_rate_limit
-from app.rate_limit.dependencies import _build_key, _rate_limit_disabled, _scope_limit
+from app.rate_limit.counter import RateLimitDecision, consume_rate_limit
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 # Separate router for WebSocket — must NOT be under protected_router because
@@ -2980,14 +2984,7 @@ async def query_chat(
     request_id = _request_id_from_request(request)
     user_id, organization_id = _principal_user_and_org(principal)
     user_roles = list(principal.roles or [])
-    await plan_enforcement_service.ensure_within_limit(
-        db_session,
-        organization_id=organization_id,
-        quota_type=QuotaType.questions,
-        requested_amount=1,
-        resource="chat questions",
-        guidance="Upgrade your plan or reduce chat volume.",
-    )
+    await ensure_chat_quota(db_session, organization_id=organization_id, transport="http")
     try:
         explicit_document_ids = await ensure_document_ids_access(
             document_ids=payload.document_ids,
@@ -3578,49 +3575,14 @@ async def query_chat(
             )
 
             # Citation-level authorization: remove chunks the principal cannot cite.
-            # Non-admins are filtered; admins bypass via policy-engine rule 5.
-            if retrieved_chunks and not frozenset({"owner", "admin"}).intersection(user_roles):
-                from app.domains.documents.repositories.documents import (
-                    DocumentRepository as _DocRepoForCite,
-                )
-
-                _cite_doc_repo = _DocRepoForCite()
-                _chunk_docs = []
-                _seen_doc_ids: set[str] = set()
-                for _chunk in retrieved_chunks:
-                    _did = str(_chunk.document_id)
-                    if _did not in _seen_doc_ids:
-                        _seen_doc_ids.add(_did)
-                        _d = await _cite_doc_repo.get_document(
-                            db_session,
-                            document_id=_chunk.document_id,
-                            organization_id=organization_id,
-                        )
-                        if _d is not None:
-                            _chunk_docs.append(_d)
-
-                if _chunk_docs:
-                    _cite_col_ids = await get_subject_accessible_collection_ids(
-                        db_session,
-                        organization_id=organization_id,
-                        user_id=user_id,
-                        user_roles=user_roles,
-                    )
-                    _cite_contexts = await build_document_resource_contexts_batch(
-                        db_session,
-                        documents=_chunk_docs,
-                        organization_id=organization_id,
-                        subject_accessible_collection_ids=_cite_col_ids,
-                    )
-                    _allowed_cite_ids = {
-                        ctx.resource_id
-                        for ctx in await _authorization_service.filter_accessible_resources(
-                            principal, Action.cite, _cite_contexts, db_session
-                        )
-                    }
-                    retrieved_chunks = [
-                        c for c in retrieved_chunks if str(c.document_id) in _allowed_cite_ids
-                    ]
+            retrieved_chunks = await filter_chunks_by_cite_access(
+                db_session,
+                principal=principal,
+                organization_id=organization_id,
+                user_id=user_id,
+                user_roles=user_roles,
+                chunks=retrieved_chunks,
+            )
 
             retrieved_chunks, graph_context_result = await _augment_retrieval_with_graph_context(
                 db_session,
@@ -4898,12 +4860,7 @@ async def query_chat(
                 is_preview_run=False,
             )
 
-        await plan_enforcement_service.record_usage(
-            db_session,
-            organization_id=organization_id,
-            quota_type=QuotaType.questions,
-            amount=1,
-        )
+        await record_chat_usage(db_session, organization_id=organization_id)
         await db_session.commit()
     except Exception as exc:
         await db_session.rollback()
@@ -6036,86 +5993,6 @@ async def _ws_send(websocket: WebSocket, event: ChatWSOutboundEvent) -> None:
         pass
 
 
-async def _ws_rate_limit_chat(principal: AuthenticatedPrincipal) -> bool:
-    """Returns True if the request is allowed, False if rate-limited."""
-    if _rate_limit_disabled():
-        return True
-    from math import floor
-    from time import time
-
-    limit = _scope_limit(RateLimitScope.chat)
-    window_seconds = settings.rate_limit_window_seconds
-    window_bucket = floor(time() / window_seconds)
-    organization_id = principal.organization_id or "none"
-    key = _build_key(
-        scope=RateLimitScope.chat,
-        endpoint="/chat/ws",
-        user_id=principal.user_id,
-        organization_id=organization_id,
-        window=window_bucket,
-    )
-    redis = redis_module.redis_client
-    if redis is None:
-        return True
-    try:
-        count = await redis.incr(key)
-        if count == 1:
-            await redis.expire(key, window_seconds)
-        return int(count) <= limit
-    except Exception:
-        return True
-
-
-async def _authenticate_ws_token(
-    token: str,
-    db_session: AsyncSession,
-) -> AuthenticatedPrincipal | None:
-    """Authenticate a WebSocket connection from a bearer token string."""
-    from app.auth.factory import get_auth_provider
-
-    token = token.strip()
-    if not token:
-        return None
-
-    if token.startswith("rudix_"):
-        # API key path.
-        from fastapi import Request as _Request
-
-        scope: dict[str, Any] = {
-            "type": "http",
-            "method": "GET",
-            "path": "/",
-            "query_string": b"",
-            "headers": [(b"authorization", f"Bearer {token}".encode())],
-            "asgi": {"version": "3.0"},
-        }
-        try:
-            from app.auth.dependencies import _authenticate_api_key as _api_key_auth
-
-            fake_req = _Request(scope)
-            return await _api_key_auth(fake_req, token, db_session)
-        except Exception:
-            return None
-
-    # JWT path - construct a minimal Request with the Authorization header.
-    scope = {
-        "type": "http",
-        "method": "GET",
-        "path": "/",
-        "query_string": b"",
-        "headers": [(b"authorization", f"Bearer {token}".encode())],
-        "asgi": {"version": "3.0"},
-    }
-    try:
-        from fastapi import Request as _Request
-
-        fake_req = _Request(scope)
-        provider = get_auth_provider()
-        return await provider.authenticate(fake_req, db_session)
-    except Exception:
-        return None
-
-
 async def _run_ws_chat_pipeline(
     websocket: WebSocket,
     payload: dict[str, Any],
@@ -6204,6 +6081,24 @@ async def _run_ws_chat_pipeline(
 
     async with SessionLocal() as db_session:
         try:
+            # ── Plan quota (parity with POST /chat) ───────────────────────────
+            try:
+                await ensure_chat_quota(db_session, organization_id=organization_id, transport="ws")
+            except HTTPException as exc:
+                denial = chat_quota_denial(exc)
+                if denial is None:
+                    raise
+                await send_step("understanding_question", "Understanding your question", "failed")
+                await send("chat.error", denial, safe_error_code="plan_limit_exceeded")
+                log_query_event(
+                    event="query.rejected.quota_exceeded",
+                    organization_id=str(organization_id),
+                    user_id=str(user_id),
+                    transport="ws",
+                    request_id=request_id,
+                )
+                return
+
             # ── Scope validation ──────────────────────────────────────────────
             try:
                 explicit_document_ids = await ensure_document_ids_access(
@@ -6741,6 +6636,14 @@ async def _run_ws_chat_pipeline(
                         retrieved_chunks = await _source_provenance_service.filter_active_chunks(
                             db_session, organization_id=organization_id, chunks=retrieved_chunks
                         )
+                        retrieved_chunks = await filter_chunks_by_cite_access(
+                            db_session,
+                            principal=principal,
+                            organization_id=organization_id,
+                            user_id=user_id,
+                            user_roles=user_roles,
+                            chunks=retrieved_chunks,
+                        )
                         retrieved_chunks = _with_original_ranks(retrieved_chunks)
                     else:
                         retrieved_chunks = []
@@ -7227,6 +7130,7 @@ async def _run_ws_chat_pipeline(
                         "transport": "websocket",
                     },
                 )
+                await record_chat_usage(db_session, organization_id=organization_id)
                 await audit_log_service.record(
                     db_session,
                     organization_id=organization_id,
@@ -7540,21 +7444,40 @@ async def _run_ws_chat_pipeline(
 async def chat_websocket(
     websocket: WebSocket,
     token: str | None = Query(default=None),
+    ticket: str | None = Query(default=None),
 ) -> None:
-    """WebSocket chat endpoint (F277). Feature-flagged via FEATURE_CHAT_WEBSOCKET_ENABLED."""
+    """WebSocket chat endpoint (F277). Feature-flagged via FEATURE_CHAT_WEBSOCKET_ENABLED.
+
+    Handshake auth (R02-10): ``?ticket=`` from POST /chat/ws-ticket, then an
+    ``Authorization`` header, then the deprecated ``?token=``.
+    """
     if not settings.feature_chat_websocket_enabled:
         await websocket.close(code=4503, reason="WebSocket chat is not enabled")
         return
 
     # ── Auth ──────────────────────────────────────────────────────────────────
     async with SessionLocal() as auth_session:
-        if not token:
-            await websocket.close(code=4401, reason="Missing auth token")
-            return
-        principal = await _authenticate_ws_token(token, auth_session)
+        auth_result = await authenticate_ws_handshake(
+            headers=websocket.headers,
+            client=websocket.client,
+            ticket=ticket,
+            token=token,
+            db_session=auth_session,
+        )
 
+    principal = auth_result.principal
     if principal is None:
-        await websocket.close(code=4401, reason="Unauthorized")
+        log_query_event(
+            event="chat.ws.auth.rejected",
+            method=auth_result.method,
+            failure=auth_result.failure,
+        )
+        reason = (
+            "Missing auth credentials"
+            if auth_result.failure == "missing_credentials"
+            else "Unauthorized"
+        )
+        await websocket.close(code=4401, reason=reason)
         return
 
     user_id = principal.user_id
@@ -7652,9 +7575,14 @@ async def chat_websocket(
                     continue
 
                 # Rate limit per chat.start command.
-                allowed = await _ws_rate_limit_chat(principal)
-                if not allowed:
+                outcome = await consume_rate_limit(
+                    scope=RateLimitScope.chat, endpoint="/chat/ws", principal=principal
+                )
+                if outcome.decision == RateLimitDecision.limited:
                     await send_event("chat.error", safe_error_code="rate_limit_exceeded")
+                    continue
+                if outcome.decision == RateLimitDecision.unavailable:
+                    await send_event("chat.error", safe_error_code="rate_limiter_unavailable")
                     continue
 
                 request_id = msg.request_id or secrets.token_hex(16)

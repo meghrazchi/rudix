@@ -25,6 +25,25 @@ ChatWSEventType = Literal[
 ]
 
 
+# Every ``safe_error_code`` the chat WebSocket may emit. The outbound field stays
+# typed ``str | None`` so an unlisted code can never raise inside the sender;
+# tests/test_chat_ws_error_codes.py keeps this list in sync with chat.py.
+ChatWSSafeErrorCode = Literal[
+    "already_running",
+    "chat_persistence_failed",
+    "chat_session_not_found",
+    "document_not_found",
+    "generation_failed",
+    "internal_error",
+    "invalid_message",
+    "invalid_request",
+    "plan_limit_exceeded",
+    "rate_limit_exceeded",
+    "rate_limiter_unavailable",
+    "retrieval_failed",
+]
+
+
 class ChatWSInboundMessage(BaseModel):
     command: ChatWSCommandType
     payload: dict[str, Any] | None = None
@@ -43,3 +62,10 @@ class ChatWSOutboundEvent(BaseModel):
 
     def to_json(self) -> str:
         return self.model_dump_json(exclude_none=False)
+
+
+class ChatWsTicketResponse(BaseModel):
+    """Single-use handshake ticket for ``/chat/ws?ticket=`` (R02-10)."""
+
+    ticket: str
+    expires_in: int

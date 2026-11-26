@@ -23,7 +23,7 @@ import {
   type ChatWSEvent,
 } from "@/lib/chat-websocket";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
-import { getSessionRequestContext } from "@/lib/api/request";
+import { resolveChatWsAuthParam } from "@/lib/chat-ws-auth";
 
 export type ChatWSPhase =
   | "idle"
@@ -181,15 +181,26 @@ export function useChatWebSocket(): UseChatWebSocketResult {
 
   /** Ensure the WS client is connected (or already connected). */
   const ensureConnected = useCallback((): ChatWSClient => {
-    if (clientRef.current) return clientRef.current;
+    const existing = clientRef.current;
+    if (existing) {
+      // Reconnect after the socket dropped or the ticket fetch failed;
+      // connect() fetches a fresh single-use ticket.
+      if (existing.state === "disconnected" || existing.state === "error") {
+        void existing.connect();
+      }
+      return existing;
+    }
 
-    const { token } = getSessionRequestContext();
     const { apiUrl } = getFrontendRuntimeConfig();
     const wsUrl = buildChatWsUrl(apiUrl);
 
     const client = new ChatWSClient({
       url: wsUrl,
-      token: token ?? "",
+      getAuthParam: resolveChatWsAuthParam,
+      onAuthError: () => {
+        setError("ws_ticket_unavailable");
+        updatePhase("error");
+      },
       onEvent: handleEvent,
       onStateChange: (state) => {
         if (state === "error" && !isTerminal(phaseRef.current)) {
@@ -210,7 +221,7 @@ export function useChatWebSocket(): UseChatWebSocketResult {
     });
 
     clientRef.current = client;
-    client.connect();
+    void client.connect();
     return client;
   }, [handleEvent, updatePhase]);
 

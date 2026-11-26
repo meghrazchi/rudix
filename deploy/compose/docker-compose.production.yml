@@ -30,7 +30,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      MALWARE_SCAN_CLAMAV_HOST: clamav
       CORS_ORIGINS: https://getrudix.com
     ports:
       - "8000:8000"
@@ -47,6 +48,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      clamav:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -75,7 +78,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      MALWARE_SCAN_CLAMAV_HOST: clamav
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,6 +93,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      clamav:
+        condition: service_started
 
   # Exactly one beat instance per deployment. Never scale this service; duplicate beats double-schedule tasks.
   beat:
@@ -106,7 +112,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      MALWARE_SCAN_CLAMAV_HOST: clamav
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -134,7 +141,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      MALWARE_SCAN_CLAMAV_HOST: clamav
     ports:
       - "${MCP_HTTP_PORT:-8010}:${MCP_HTTP_PORT:-8010}"
     depends_on:
@@ -176,7 +184,7 @@ services:
       retries: 10
 
   qdrant:
-    image: qdrant/qdrant:latest
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:latest}
     restart: unless-stopped
     volumes:
       - qdrant_data:/qdrant/storage
@@ -187,7 +195,7 @@ services:
       retries: 10
 
   minio:
-    image: cgr.dev/chainguard/minio:latest
+    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
     user: "0:0"
     command: server /data --console-address ":9001"
     restart: unless-stopped
@@ -203,7 +211,7 @@ services:
       retries: 10
 
   minio-init:
-    image: cgr.dev/chainguard/minio:latest
+    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
     depends_on:
       minio:
         condition: service_healthy
@@ -218,12 +226,32 @@ services:
       mc anonymous set none local/$${MINIO_BUCKET};
       "
 
+  clamav:
+    image: ${CLAMAV_IMAGE:-clamav/clamav-debian:stable}
+    restart: unless-stopped
+    # No host ports: reached by api/worker on the internal network only.
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/3310'"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      # The first start downloads the signature database, which is slow.
+      start_period: 300s
+
   rabbitmq:
-    image: rabbitmq:3-management
+    image: ${RABBITMQ_IMAGE:-rabbitmq:3-management}
+    # Fixed node name: RabbitMQ keys its data directory by node name, which
+    # follows the container hostname. Without it a recreated container
+    # ignores the existing volume.
+    hostname: rabbitmq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
       interval: 10s
@@ -232,10 +260,18 @@ services:
       start_period: 60s
 
   redis:
-    image: redis:7
+    image: ${REDIS_IMAGE:-redis:7}
     restart: unless-stopped
+    # requirepass is added only when REDIS_PASSWORD is set, so env files
+    # without it keep working (unauthenticated, as before).
+    command: ["sh", "-c", "exec redis-server --appendonly yes $${REDIS_PASSWORD:+--requirepass \"$$REDIS_PASSWORD\"}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # redis-cli ping exits 0 on NOAUTH, so require an actual PONG.
+      test: ["CMD-SHELL", "[ -z \"$$REDIS_PASSWORD\" ] || export REDISCLI_AUTH=\"$$REDIS_PASSWORD\"; redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -286,5 +322,8 @@ volumes:
   postgres_data:
   qdrant_data:
   minio_data:
+  redis_data:
+  rabbitmq_data:
+  clamav_data:
   matomo_db_data:
   matomo_data:

@@ -187,40 +187,40 @@ async def _authenticate_service_account_token(
     )
 
 
-async def get_current_principal(
+async def authenticate_bearer_request(
     request: Request,
-    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    db_session: AsyncSession,
 ) -> AuthenticatedPrincipal:
+    """Authenticate the request's ``Authorization`` header without HTTP error mapping.
+
+    Tries service-account tokens (``svc_``), then API keys (``rudix_``), then the
+    configured auth provider. Raises ``AuthenticationError`` / ``AuthorizationError``.
+    Shared by ``get_current_principal`` and the WebSocket handshake.
+    """
     authorization = request.headers.get("authorization", "")
     scheme, _, token = authorization.partition(" ")
     raw = token.strip()
     if scheme.lower() == "bearer" and raw.startswith(_SERVICE_ACCOUNT_TOKEN_PREFIX):
-        try:
-            principal = await _authenticate_service_account_token(request, raw, db_session)
-            bind_session_tenant(db_session, principal.organization_id)
-            request.state.auth_principal = principal
-            return principal
-        except AuthenticationError as exc:
-            raise _unauthorized(str(exc)) from exc
+        return await _authenticate_service_account_token(request, raw, db_session)
     if scheme.lower() == "bearer" and raw.startswith(_API_KEY_PREFIX):
-        try:
-            principal = await _authenticate_api_key(request, raw, db_session)
-            bind_session_tenant(db_session, principal.organization_id)
-            request.state.auth_principal = principal
-            return principal
-        except AuthenticationError as exc:
-            raise _unauthorized(str(exc)) from exc
-
+        return await _authenticate_api_key(request, raw, db_session)
     provider = get_auth_provider()
+    return await provider.authenticate(request, db_session)
+
+
+async def get_current_principal(
+    request: Request,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AuthenticatedPrincipal:
     try:
-        principal = await provider.authenticate(request, db_session)
-        bind_session_tenant(db_session, principal.organization_id)
-        request.state.auth_principal = principal
-        return principal
+        principal = await authenticate_bearer_request(request, db_session)
     except AuthenticationError as exc:
         raise _unauthorized(str(exc)) from exc
     except AuthorizationError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    bind_session_tenant(db_session, principal.organization_id)
+    request.state.auth_principal = principal
+    return principal
 
 
 def require_roles(

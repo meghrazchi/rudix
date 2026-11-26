@@ -2448,6 +2448,12 @@
       "queryForbiddenTitle": "La consulta no está permitida",
       "queryForbiddenDesc": "No tienes permiso para consultar los documentos seleccionados en esta organización.",
       "queryErrorTitle": "No se pudo completar la consulta.",
+      "wsErrors": {
+        "planLimitExceeded": "Se ha alcanzado el límite de preguntas de tu plan. Mejora tu plan o vuelve a intentarlo cuando se restablezca el límite.",
+        "rateLimitExceeded": "Demasiadas preguntas en poco tiempo. Espera un momento e inténtalo de nuevo.",
+        "rateLimiterUnavailable": "El servicio no puede comprobar temporalmente los límites de uso. Inténtalo de nuevo en breve.",
+        "wsTicketUnavailable": "El chat en vivo no pudo iniciar una conexión segura. Inténtalo de nuevo en un momento."
+      },
       "composerStarting": "Iniciando sesión…",
       "composerAgentRunning": "Ejecutando agente…",
       "composerGenerating": "Generando respuesta…",

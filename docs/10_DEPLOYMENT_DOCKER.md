@@ -134,6 +134,34 @@ The active `docker-compose.yml` in repository root includes:
   - `qdrant_data`
   - `minio_data`
 
+The staging and production files in `deploy/compose/` add on top of this:
+
+- A `clamav` service (no host ports, `clamav_data` volume, `start_period: 300s`
+  for the first signature download). `MALWARE_SCAN_CLAMAV_HOST: clamav` is set
+  on `api`, `worker`, `beat`, and `mcp`; `api` and `worker` wait only for
+  `service_started`, so a slow first download does not block the API.
+- Redis with `--appendonly yes`, a `redis_data` volume, and `--requirepass`
+  when `REDIS_PASSWORD` is set. `REDIS_URL` is
+  `redis://:${REDIS_PASSWORD:-}@redis:6379/0`, so env files without the
+  password keep working. The healthcheck requires `PONG`, so it fails on `NOAUTH`.
+- RabbitMQ with `hostname: rabbitmq` (fixed node name) and a `rabbitmq_data`
+  volume, so queued messages survive a recreate.
+- Image variables with the previous tags as defaults: `QDRANT_IMAGE`,
+  `MINIO_IMAGE`, `RABBITMQ_IMAGE`, `REDIS_IMAGE`, `CLAMAV_IMAGE`. Pin the first
+  three to the digests running today (`docker compose images` or
+  `docker inspect --format '{{index .RepoDigests 0}}' <container>`);
+  `deploy/scripts/check_deploy_env.sh` fails a production deploy when they are
+  unset or `:latest` and when `REDIS_PASSWORD` is missing or not URL-safe.
+- Terraform starts `infra_services` (default
+  `postgres rabbitmq redis minio qdrant`; staging adds `neo4j`) with `--wait`
+  before migrations. The integration smoke checks that each default service runs.
+
+Adding the Redis password and volumes recreates `redis` and `rabbitmq`: deploy
+it in a maintenance window. In-flight Celery results and rate-limit counters are
+lost, and queued RabbitMQ messages are lost once. See `DEPLOYMENT.md` for the
+backup freshness gate (`DEPLOY_BACKUP_MAX_AGE_HOURS`, default 26) and the
+rollout steps.
+
 Use repo root Make targets for lifecycle:
 
 ```bash

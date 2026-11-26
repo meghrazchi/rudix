@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Coroutine
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.session import SessionLocal
@@ -94,27 +97,95 @@ async def _set_document_status_async(
                 # Another task took over the claim; do not clobber its run.
                 return False
 
-            claim_pending = clear_processing_claim and (
-                document.processing_task_id is not None
-                or document.processing_started_at is not None
-                or document.processing_reap_count != 0
-            )
-            # Idempotent transition: avoid touching updated_at when nothing changes.
-            if (
-                document.status == status.value
-                and document.error_message == error_message
-                and not claim_pending
-            ):
-                return True
-
-            updated = await _document_repository.update_document_status(
+            return await _write_document_status(
                 session,
-                document_id=parsed_id,
-                status=status.value,
+                document,
+                status=status,
                 error_message=error_message,
                 clear_processing_claim=clear_processing_claim,
             )
-        return updated is not None
+
+
+async def _write_document_status(
+    session: AsyncSession,
+    document: Document,
+    *,
+    status: DocumentStatus,
+    error_message: str | None,
+    clear_processing_claim: bool,
+) -> bool:
+    claim_pending = clear_processing_claim and (
+        document.processing_task_id is not None
+        or document.processing_started_at is not None
+        or document.processing_reap_count != 0
+    )
+    # Idempotent transition: avoid touching updated_at when nothing changes.
+    if (
+        document.status == status.value
+        and document.error_message == error_message
+        and not claim_pending
+    ):
+        return True
+
+    updated = await _document_repository.update_document_status(
+        session,
+        document_id=document.id,
+        status=status.value,
+        error_message=error_message,
+        clear_processing_claim=clear_processing_claim,
+    )
+    return updated is not None
+
+
+class FailureMarkOutcome(StrEnum):
+    updated = "updated"
+    superseded = "superseded"
+    protected = "protected"
+    not_found = "not_found"
+
+
+@dataclass(frozen=True)
+class FailureMarkResult:
+    outcome: FailureMarkOutcome
+    current_status: str | None = None
+
+
+async def _mark_document_failed_async(
+    document_id: str,
+    *,
+    error_message: str | None,
+    owner_task_id: str | None,
+    protected_statuses: Collection[str],
+) -> FailureMarkResult:
+    parsed_id = _parse_uuid(document_id)
+    async with SessionLocal() as session:
+        async with session.begin():
+            result = await session.execute(
+                select(Document).where(Document.id == parsed_id).with_for_update()
+            )
+            document = result.scalar_one_or_none()
+            if document is None:
+                return FailureMarkResult(FailureMarkOutcome.not_found)
+            if owner_task_id is not None and document.processing_task_id not in (
+                None,
+                owner_task_id,
+            ):
+                return FailureMarkResult(FailureMarkOutcome.superseded, document.status)
+            if document.status in protected_statuses:
+                if owner_task_id is not None and document.processing_task_id == owner_task_id:
+                    document.processing_task_id = None
+                    document.processing_started_at = None
+                    document.processing_reap_count = 0
+                    await session.flush()
+                return FailureMarkResult(FailureMarkOutcome.protected, document.status)
+            await _write_document_status(
+                session,
+                document,
+                status=DocumentStatus.failed,
+                error_message=error_message,
+                clear_processing_claim=True,
+            )
+            return FailureMarkResult(FailureMarkOutcome.updated, DocumentStatus.failed.value)
 
 
 async def _get_evaluation_status_async(evaluation_run_id: str) -> str | None:
@@ -166,6 +237,23 @@ def set_document_status(
             error_message=error_message,
             clear_processing_claim=clear_processing_claim,
             owner_task_id=owner_task_id,
+        )
+    )
+
+
+def mark_document_failed(
+    document_id: str,
+    *,
+    error_message: str | None,
+    owner_task_id: str | None,
+    protected_statuses: Collection[str],
+) -> FailureMarkResult:
+    return _run(
+        _mark_document_failed_async(
+            document_id,
+            error_message=error_message,
+            owner_task_id=owner_task_id,
+            protected_statuses=protected_statuses,
         )
     )
 

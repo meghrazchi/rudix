@@ -32,6 +32,7 @@ from app.core.document_errors import decode_document_error
 from app.domains.documents.repositories.processing_claims import (
     PROCESS_SKIP_STATUSES,
     REINDEX_FORBIDDEN_STATUSES,
+    TERMINAL_FAILURE_PROTECTED_STATUSES,
     ClaimOutcome,
     ClaimResult,
 )
@@ -39,6 +40,7 @@ from app.models.enums import DocumentStatus, EvaluationRunStatus, GraphExtractio
 from app.workers import document_tasks, evaluation_tasks
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
+from app.workers.status_tracking import FailureMarkOutcome, FailureMarkResult
 
 
 def _fake_claim(
@@ -521,22 +523,21 @@ def test_document_task_terminal_failure_marks_document_failed(
 
     flags: dict[str, object] = {}
 
-    def _set_document_status(
+    def _mark_document_failed(
         document_id: str,
         *,
-        status: DocumentStatus,
-        error_message: str | None = None,
-        clear_processing_claim: bool = False,
-        owner_task_id: str | None = None,
-    ) -> bool:
+        error_message: str | None,
+        owner_task_id: str | None,
+        protected_statuses: object,
+    ) -> FailureMarkResult:
         captured["document_id"] = document_id
-        captured["status"] = status.value
+        captured["status"] = DocumentStatus.failed.value
         captured["error_message"] = error_message or ""
-        flags["clear_processing_claim"] = clear_processing_claim
         flags["owner_task_id"] = owner_task_id
-        return True
+        flags["protected_statuses"] = protected_statuses
+        return FailureMarkResult(FailureMarkOutcome.updated, DocumentStatus.failed.value)
 
-    monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
+    monkeypatch.setattr(document_tasks, "mark_document_failed", _mark_document_failed)
     document_tasks.process_document.on_terminal_failure(
         exc=RuntimeError("boom"),
         args=("doc-1",),
@@ -545,7 +546,7 @@ def test_document_task_terminal_failure_marks_document_failed(
 
     assert captured["document_id"] == "doc-1"
     assert captured["status"] == DocumentStatus.failed.value
-    assert flags["clear_processing_claim"] is True
+    assert flags["protected_statuses"] == TERMINAL_FAILURE_PROTECTED_STATUSES
     assert flags["owner_task_id"] == getattr(document_tasks.process_document.request, "id", None)
     message, details = decode_document_error(captured["error_message"])
     assert message == "boom"
@@ -563,14 +564,14 @@ def test_document_task_superseded_failure_skips_notifications(
     audits: list[dict[str, object]] = []
     events: list[str] = []
 
-    def _set_document_status(document_id: str, **kwargs: object) -> bool:
-        assert kwargs["clear_processing_claim"] is True
-        return False
+    def _mark_document_failed(document_id: str, **kwargs: object) -> FailureMarkResult:
+        assert kwargs["protected_statuses"] == TERMINAL_FAILURE_PROTECTED_STATUSES
+        return FailureMarkResult(FailureMarkOutcome.superseded, DocumentStatus.processing.value)
 
     def _log_document_event(*, event: str, **_: object) -> None:
         events.append(event)
 
-    monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
+    monkeypatch.setattr(document_tasks, "mark_document_failed", _mark_document_failed)
     monkeypatch.setattr(document_tasks, "log_document_event", _log_document_event)
     monkeypatch.setattr(
         document_tasks, "_record_worker_audit", lambda **kwargs: audits.append(kwargs)

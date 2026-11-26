@@ -2448,6 +2448,12 @@
       "queryForbiddenTitle": "Abfrage nicht erlaubt",
       "queryForbiddenDesc": "Sie haben keine Berechtigung, die ausgewählten Dokumente abzufragen.",
       "queryErrorTitle": "Abfrage konnte nicht abgeschlossen werden.",
+      "wsErrors": {
+        "planLimitExceeded": "Das Fragenlimit Ihres Tarifs ist erreicht. Führen Sie ein Upgrade Ihres Tarifs durch oder versuchen Sie es nach dem Zurücksetzen des Limits erneut.",
+        "rateLimitExceeded": "Zu viele Fragen in kurzer Zeit. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+        "rateLimiterUnavailable": "Der Dienst kann die Nutzungslimits vorübergehend nicht prüfen. Bitte versuchen Sie es in Kürze erneut.",
+        "wsTicketUnavailable": "Der Live-Chat konnte keine sichere Verbindung herstellen. Bitte versuchen Sie es gleich noch einmal."
+      },
       "composerStarting": "Sitzung wird gestartet…",
       "composerAgentRunning": "Agent wird ausgeführt…",
       "composerGenerating": "Antwort wird generiert…",

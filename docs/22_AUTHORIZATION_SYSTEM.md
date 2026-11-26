@@ -150,6 +150,15 @@ Admins can create per-subject, per-resource, per-action access overrides via the
 | Give an external API key access to chat only   | Create API key with `chat:use` scope + grant on resource     |
 | Remove access for one member from connector    | Create a deny on connector_source_item for that member      |
 
+### Citation Checks on Every Chat Transport
+
+The `cite` check runs on both `POST /chat` and the `/chat/ws` WebSocket pipeline through
+`filter_chunks_by_cite_access` in `backend/app/application/chat/citation_access.py`. After the
+source-provenance filter, every retrieved chunk whose document the user may not cite is dropped
+before the prompt is built, so it cannot appear as a citation. A deny with action `cite` on a
+document therefore removes that document from answers on both transports. Chunks whose document
+cannot be found in the organization are also dropped. Owners and admins bypass the check (rule 5).
+
 ---
 
 ## 5. Conflict Rules Catalog

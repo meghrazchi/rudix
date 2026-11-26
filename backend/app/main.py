@@ -4,10 +4,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
-from app.core.config import settings
+from app.core.config import Environment, settings
 from app.core.lifespan import lifespan
 from app.core.logging import attach_access_log_middleware, configure_logging
 from app.core.metrics import attach_metrics_middleware
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.interfaces.http import metrics
 
 configure_logging(
@@ -45,6 +46,10 @@ app.add_middleware(
 
 attach_access_log_middleware(app)
 attach_metrics_middleware(app)
+app.add_middleware(
+    SecurityHeadersMiddleware,
+    hsts_enabled=settings.environment in {Environment.production, Environment.staging},
+)
 app.include_router(metrics.router)
 app.include_router(api_router, prefix=settings.api_prefix)
 

@@ -117,25 +117,31 @@ variable "neo4j_password" {
 }
 
 variable "backup_check_enabled" {
-  description = "Whether to enforce remote backup artifact checks before deployment."
+  description = "Deprecated: the backup gate now runs in the release workflow (deploy/scripts/check_remote_backups.sh). Still set by release.yml; kept as a rollout trigger only."
   type        = bool
   default     = false
 }
 
 variable "postgres_backup_path" {
-  description = "Remote path to PostgreSQL backup artifact."
+  description = "Deprecated: unused by Terraform; the release workflow checks backups. Still set by release.yml."
   type        = string
   default     = ""
 }
 
 variable "minio_backup_path" {
-  description = "Remote path to MinIO backup artifact."
+  description = "Deprecated: unused by Terraform; the release workflow checks backups. Still set by release.yml."
   type        = string
   default     = ""
 }
 
 variable "qdrant_backup_path" {
-  description = "Remote path to Qdrant snapshot artifact."
+  description = "Deprecated: unused by Terraform; the release workflow checks backups. Still set by release.yml."
   type        = string
   default     = ""
+}
+
+variable "infra_services" {
+  description = "Space-separated services started with --wait before migrations. Must name only services defined in the environment's compose file."
+  type        = string
+  default     = "postgres rabbitmq redis minio qdrant"
 }

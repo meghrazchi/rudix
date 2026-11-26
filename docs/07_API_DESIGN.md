@@ -1051,6 +1051,101 @@ Not-found behavior:
 - When no relevant chunks are retrieved (or confidence is below threshold), response returns `not_found=true`, no citations, and answer:
 - `"I could not find this information in the uploaded documents."`
 
+### WebSocket `/chat/ws`
+
+Streaming alternative to `POST /chat`, enabled with `FEATURE_CHAT_WEBSOCKET_ENABLED`. The client
+sends `{"command": "chat.start", "payload": <ChatQueryRequest>}` (also `chat.cancel` and
+`heartbeat.pong`). The server streams events with one envelope:
+
+```json
+{
+  "event": "chat.error",
+  "request_id": "req_123",
+  "conversation_id": null,
+  "message_id": null,
+  "sequence": 3,
+  "timestamp": "2026-11-26T10:00:00+00:00",
+  "payload": {"quota_type": "questions", "retryable": true, "next_reset_at": "2026-11-27T00:00:00+00:00"},
+  "safe_error_code": "plan_limit_exceeded"
+}
+```
+
+Events include `chat.request.received`, `activity.step.update`, `retrieval.started`,
+`retrieval.completed`, `generation.delta`, `chat.completed`, `chat.cancelled`, and `chat.error`.
+
+Parity with `POST /chat` (shared code in `backend/app/application/chat/`):
+
+- The plan question quota is checked before any work starts. Nothing is persisted on refusal.
+- One question is recorded against the quota in the same transaction as the persisted answer.
+- Retrieved chunks from documents the user may not `cite` are dropped before the prompt is built.
+  Owners and admins bypass this check.
+- The known quota limit described in [Quotas and plan limits](#quotas-and-plan-limits) applies to
+  both transports: the check and the increment are separate, so a burst can overshoot a hard limit.
+
+`safe_error_code` values (`ChatWSSafeErrorCode` in `app/domains/chat/schemas/chat_ws.py`):
+`already_running`, `chat_persistence_failed`, `chat_session_not_found`, `document_not_found`,
+`generation_failed`, `internal_error`, `invalid_message`, `invalid_request`,
+`plan_limit_exceeded`, `rate_limit_exceeded`, `rate_limiter_unavailable`,
+`retrieval_failed`.
+
+`plan_limit_exceeded` is the WebSocket form of the HTTP `403` with
+`detail.code = "plan_limit_exceeded"`. Its `payload` carries only `quota_type`, `retryable`, and
+`next_reset_at`. Refusals are counted in `rudix_chat_quota_denied_total{transport}`.
+
+#### Handshake authentication
+
+The handshake is authenticated in this order (`backend/app/application/chat/ws_auth.py`):
+
+1. `?ticket=<ticket>`: a single-use ticket from `POST /chat/ws-ticket`. This is what the browser
+   uses. An invalid, reused, or expired ticket fails the handshake; it never falls through to
+   another mode. The user, the app session, and a current membership in the ticket's organisation
+   are reloaded at redemption, and the role comes from that membership. Handshake headers such as
+   `X-Organization-Id` are ignored for ticket auth.
+2. `Authorization: Bearer <credential>` header: for non-browser clients. Authenticated exactly like
+   HTTP (JWTs, `rudix_` API keys, `svc_` service-account tokens), and `X-Organization-Id` is
+   honoured. API-key and service-account principals carry no role, so they still fail the role
+   check (`4403`), the same as `POST /chat`.
+3. `?token=<access token>`: deprecated. Accepted only while `CHAT_WS_ALLOW_QUERY_TOKEN=true`
+   (default `true` in 0.2.0, `false` in 0.5.0, removed in 1.0.0). Each use logs
+   `chat.ws.query_token_used` with the user and organisation ids only.
+
+Close codes: `4401` for any authentication failure (`Unauthorized`, or `Missing auth credentials`
+when nothing was sent), `4403` for a role that may not chat, `4429` for too many connections per
+user, and `4503` when WebSocket chat is disabled. Rejections log `chat.ws.auth.rejected` with the
+method and failure reason (never the credential). Attempts are counted in
+`rudix_chat_ws_auth_total{method,outcome}`.
+
+Uvicorn logs the handshake path with its query string. A logging filter on the `uvicorn`,
+`uvicorn.error`, and `uvicorn.access` loggers replaces `token`, `ticket`, and `access_token`
+query values with `***`.
+
+### POST `/chat/ws-ticket`
+
+Issues a single-use handshake ticket for `/chat/ws`. Same roles as `POST /chat` (owner, admin,
+member, viewer; API keys get `403`) and the same `chat` rate-limit scope. No request body.
+
+Response `200` (with `Cache-Control: no-store`):
+
+```json
+{
+  "ticket": "opaque-url-safe-string",
+  "expires_in": 30
+}
+```
+
+- The ticket works once and expires after `CHAT_WS_TICKET_TTL_SECONDS` (default 30, range 5-300).
+- It is bound to the user, the active organisation (from `X-Organization-Id`, as for any HTTP
+  request), and the app session. Revoking the session or removing the membership before use makes
+  it fail.
+- Only `sha256(ticket)` is stored in Redis (`rudix:ws_ticket:v1:<hash>`); the raw ticket is never
+  stored or logged.
+
+Errors:
+
+- `503` with `detail.code = "ws_ticket_unavailable"` when Redis is missing or failing.
+- `503` with `detail.code = "chat_websocket_disabled"` when `FEATURE_CHAT_WEBSOCKET_ENABLED=false`.
+- `401`, `403`, and `429` as for any protected chat route.
+
 ### POST `/chat/sessions/{session_id}/messages`
 
 Deprecated (returns 501; removed in 1.0.0)
@@ -2319,6 +2414,15 @@ Recommended:
 | `/bots/*/events`    | 30 asks/window/workspace/user |
 | `/evaluations/run`  | Admin only             |
 | `/retrieval/search` | Admin/debug only       |
+
+The WebSocket `chat.start` command uses the `chat` scope limit (`RATE_LIMIT_CHAT_REQUESTS`) like
+`POST /chat`, counted in its own `/chat/ws` bucket per user and organisation (buckets are keyed by
+endpoint), and honours `RATE_LIMIT_REDIS_FAILURE_MODE` through the same limiter core
+(`app/rate_limit/counter.py`). In
+`closed` mode, when Redis is unavailable or errors, the socket receives `chat.error` with
+`safe_error_code=rate_limiter_unavailable` (the equivalent of HTTP 503) and the pipeline is not
+started; the connection stays open. In `open` mode the command proceeds and the degradation is
+logged. Decisions are counted in `rudix_rate_limit_decisions_total{scope,decision,failure_mode}`.
 
 ## Status codes
 

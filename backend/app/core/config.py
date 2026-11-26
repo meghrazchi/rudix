@@ -780,6 +780,11 @@ class Settings(BaseSettings):
     ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
     ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)
     ws_chat_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=120)
+    # WebSocket chat auth (R02-10): single-use handshake tickets from POST /chat/ws-ticket.
+    # chat_ws_allow_query_token keeps the legacy ?token= handshake working; it defaults
+    # to true in 0.2.0, flips to false in 0.5.0, and is removed in 1.0.0.
+    chat_ws_ticket_ttl_seconds: int = Field(default=30, ge=5, le=300)
+    chat_ws_allow_query_token: bool = True
     # Table-aware retrieval (F298): boost table chunks when the query looks tabular.
     # feature_enable_table_aware_retrieval gates the entire feature.
     # table_retrieval_boost_multiplier: score multiplier applied to table chunks on table-like queries.
@@ -1275,6 +1280,17 @@ class Settings(BaseSettings):
         ):
             raise ValueError(
                 "malware_scan_bypass_on_unavailable must be false in production when scanning is required"
+            )
+
+        if (
+            self.environment in {Environment.production, Environment.staging}
+            and self.malware_scan_enabled
+            and self.malware_scan_clamav_host.strip().lower()
+            in {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+        ):
+            raise ValueError(
+                "malware_scan_clamav_host must point to the ClamAV service in staging/production; "
+                "set MALWARE_SCAN_CLAMAV_HOST or set MALWARE_SCAN_ENABLED=false explicitly"
             )
 
         if self.redis_socket_timeout_seconds < self.redis_socket_connect_timeout_seconds:

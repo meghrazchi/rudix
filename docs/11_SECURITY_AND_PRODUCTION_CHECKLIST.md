@@ -43,6 +43,18 @@ For app-managed auth, also require:
 - Explicit logout-all support for revoking all active sessions.
 - Safe session listing endpoints that never expose the raw refresh token.
 
+WebSocket chat (`/chat/ws`):
+
+- Browsers authenticate with a single-use, short-lived ticket from `POST /chat/ws-ticket`
+  (`?ticket=`), so access tokens stay out of URLs, uvicorn logs, and proxy logs.
+- Tickets are stored only as `sha256` hashes in Redis, redeemed with `GETDEL`, expire after
+  `CHAT_WS_TICKET_TTL_SECONDS`, and re-check the user, app session, and current membership.
+- Set `CHAT_WS_ALLOW_QUERY_TOKEN=false` once all clients use tickets (default `false` from 0.5.0).
+  Watch `chat.ws.query_token_used` logs and `rudix_chat_ws_auth_total{method="query_token"}`
+  before turning it off.
+- Uvicorn loggers mask `token`, `ticket`, and `access_token` query values. Make sure reverse proxies
+  also avoid logging query strings for `/api/v1/chat/ws`.
+
 ## Authorization
 
 Every document query must include:
@@ -133,6 +145,13 @@ Collaboration bot operations must also enforce:
   must not include raw questions, answers, tokens, secrets, or private document
   text.
 - Bot asks must be rate-limited per provider workspace/team and external user.
+- HTTP `POST /chat` and the `/chat/ws` WebSocket must enforce the same plan question quota,
+  record the same usage, and apply the same `cite` filter. Both call the shared helpers in
+  `backend/app/application/chat/`; `tests/test_chat_transport_parity.py` (isolation marker) is the
+  regression gate.
+- The cite filter fails closed: chunks whose document cannot be found in the organization are
+  dropped. WebSocket quota refusals send only `quota_type`, `retryable`, and `next_reset_at`, and
+  are counted in `rudix_chat_quota_denied_total{transport}`.
 
 ## Agent tool security
 
@@ -251,6 +270,8 @@ Recommended limits:
 | Manage prompt templates | Admin only   |
 | Delete documents        | 30/hour/user |
 
+- The WebSocket `chat.start` command uses the same limiter core as HTTP and honours `RATE_LIMIT_REDIS_FAILURE_MODE`: in `closed` mode a Redis outage yields `chat.error` `rate_limiter_unavailable` instead of silently allowing requests. Alert on `rudix_rate_limit_decisions_total{decision="unavailable"}`.
+
 ## Multilingual rollout safety
 
 When language-aware RAG is enabled:
@@ -278,6 +299,21 @@ Use:
 - Container runtime environment variables.
 - Docker secrets.
 - Cloud secret manager.
+
+Frontend `NEXT_PUBLIC_*` values are baked into the browser bundle. `next build` (`frontend/config/build-env-validation.mjs`) fails in staging/production when `NEXT_PUBLIC_AUTH_LOCAL_FALLBACK` or `NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK` is `true`, or `NEXT_PUBLIC_AUTH_LOCAL_PASSWORD`, `NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD`, `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` or `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN` is non-empty (R02-11).
+
+## Security headers
+
+Frontend (`frontend/config/security-headers.mjs`, wired from `next.config.ts` `headers()`):
+
+- `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()` (clipboard is intentionally not restricted), and `X-Frame-Options: DENY` are enforced.
+- `Strict-Transport-Security: max-age=31536000` is sent only when `NEXT_PUBLIC_DEPLOYMENT_ENV` (or its fallbacks) is `staging` or `production`.
+- `Content-Security-Policy-Report-Only` is set in 0.2.0 (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`, analytics/Sentry/API origins added only when configured). It does not block anything yet.
+- Why no nonce yet: nonces require dynamic rendering of every page, which would rule out static generation of the public marketing pages (today they still render dynamically because the root layout reads the locale cookie), and hashes/SRI do not cover the inline flight-data scripts Next emits. `script-src` therefore allows `'unsafe-inline'` for now. The inline JSON-LD block is `type="application/ld+json"` data and is not governed by `script-src`.
+- Enforcement and a stricter script policy are planned for R03-08 (not implemented).
+- Set `NEXT_PUBLIC_CSP_REPORT_URI` to collect violation reports (for example a Sentry security endpoint); no backend endpoint exists for it.
+
+Backend (`app/core/security_headers.py`): ASGI middleware adds `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, and HSTS in staging/production, without overwriting headers a route already set.
 
 ## Logging safety
 
@@ -463,6 +499,15 @@ When deleting a document:
 - [ ] Tool input/output budgets enforced.
 - [ ] Tool output/error redaction enabled.
 - [ ] MCP adapter path uses the same policy gates as API.
+
+### Deployment
+
+- [ ] `REDIS_PASSWORD` is set (URL-safe) in the staging/production env file; Redis runs with `--requirepass` and its healthcheck fails on `NOAUTH`.
+- [ ] `QDRANT_IMAGE`, `MINIO_IMAGE`, and `RABBITMQ_IMAGE` are pinned to exact tags or digests; `deploy/scripts/check_deploy_env.sh` blocks unpinned production images unless `DEPLOY_ALLOW_UNPINNED_IMAGES=true`.
+- [ ] The `clamav` service runs without host ports and `MALWARE_SCAN_CLAMAV_HOST` points to it; the backend rejects loopback ClamAV hosts in staging/production while scanning is enabled.
+- [ ] Redis and RabbitMQ use persistent volumes; RabbitMQ has a fixed `hostname`.
+- [ ] Each production backup path holds a file newer than `DEPLOY_BACKUP_MAX_AGE_HOURS` (default 26) before deploy.
+- [ ] Deploy steps pass secrets through `env:` blocks, never inline in `run:` strings; check scripts print key names only.
 
 ## Threat model diagram
 

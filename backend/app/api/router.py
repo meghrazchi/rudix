@@ -45,6 +45,7 @@ from app.interfaces.http import (
     billing,
     bots,
     chat,
+    chat_ws_ticket,
     collections,
     connector_discovery,
     connector_platform,
@@ -113,6 +114,7 @@ protected_router.include_router(connector_discovery.router)
 protected_router.include_router(connectors.router)
 protected_router.include_router(connector_sync.router)
 protected_router.include_router(chat.router)
+protected_router.include_router(chat_ws_ticket.router)
 protected_router.include_router(agent_runs.router)
 protected_router.include_router(agent_runs.admin_trace_router)
 protected_router.include_router(ab_testing.router)

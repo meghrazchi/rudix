@@ -30,6 +30,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.repositories.processing_claims import (
+    NON_PROCESSABLE_STATUSES,
     PROCESS_SKIP_STATUSES,
     REINDEX_FORBIDDEN_STATUSES,
     ClaimOutcome,
@@ -212,6 +213,45 @@ async def test_indexed_is_held_unless_forced(
     assert forced.outcome == ClaimOutcome.claimed
     row = await _reload(db_session, document)
     assert row.status == DocumentStatus.processing.value
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", sorted(NON_PROCESSABLE_STATUSES))
+async def test_non_processable_status_is_held_unless_forced(
+    db_session: AsyncSession, make_document: MakeDocument, status: str
+) -> None:
+    document = await make_document(status)
+    held = await _claim(db_session, document, "task-a", skip_statuses=PROCESS_SKIP_STATUSES)
+    assert held.outcome == ClaimOutcome.held
+    assert held.current_status == status
+    assert (await _reload(db_session, document)).status == status
+
+    # force=True bypasses the skip list entirely (documents current behaviour).
+    forced = await _claim(
+        db_session, document, "task-a", force=True, skip_statuses=PROCESS_SKIP_STATUSES
+    )
+    assert forced.outcome == ClaimOutcome.claimed
+
+
+@pytest.mark.asyncio
+async def test_process_document_skips_non_processable_status(
+    db_session: AsyncSession,
+    make_document: MakeDocument,
+    patched_status_session: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.workers import document_tasks
+
+    document = await make_document(DocumentStatus.quarantined.value)
+    claim = await status_tracking._claim_document_for_processing_async(
+        str(document.id), task_id="task-a", force=False, skip_statuses=PROCESS_SKIP_STATUSES
+    )
+    monkeypatch.setattr(document_tasks, "claim_document_for_processing", lambda *a, **k: claim)
+
+    result = document_tasks.process_document.run(str(document.id))
+
+    assert result == {"document_id": str(document.id), "status": "skipped"}
+    assert (await _reload(db_session, document)).status == DocumentStatus.quarantined.value
 
 
 @pytest.mark.asyncio

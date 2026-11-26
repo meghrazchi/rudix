@@ -7,9 +7,11 @@
  *  - Send heartbeat pong responses
  *  - Support graceful close and caller-driven cancellation
  *
- * Auth: the caller passes the current access token; it is appended as a
- * query parameter (?token=…). This is a common pattern for WebSocket auth
- * because the browser native WebSocket API does not allow custom headers.
+ * Auth (R02-10): the browser WebSocket API cannot send custom headers, so
+ * on every connect the client awaits `getAuthParam()` (normally a fresh,
+ * single-use ticket from POST /chat/ws-ticket) and appends it as `?ticket=…`.
+ * The access token is never put in the URL, except for the temporary legacy
+ * fallback against backends without the ticket endpoint (see chat-ws-auth.ts).
  */
 
 export type ChatWSEventType =
@@ -73,11 +75,18 @@ export type ChatWSClientState =
   | "disconnected"
   | "error";
 
+export type ChatWSAuthParam = { name: "ticket" | "token"; value: string };
+
 export type ChatWSClientOptions = {
   /** Full WebSocket URL, e.g. ws://localhost:8000/api/v1/chat/ws */
   url: string;
-  /** Bearer access token — appended as ?token=… */
-  token: string;
+  /**
+   * Resolves the handshake query parameter on every connect, normally a fresh
+   * single-use ticket. Never cache the result.
+   */
+  getAuthParam: () => Promise<ChatWSAuthParam>;
+  /** Called when getAuthParam fails; the client is then in the error state. */
+  onAuthError?: (error: unknown) => void;
   /** Called for every structured event received from the server */
   onEvent: (event: ChatWSEvent) => void;
   /** Called when the connection state changes */
@@ -95,6 +104,8 @@ export class ChatWSClient {
   private closed = false;
   /** Commands queued while the socket is still connecting. */
   private readonly pendingQueue: ChatWSCommand[] = [];
+  /** In-flight connect (ticket fetch + socket open), guards re-entry. */
+  private connectInFlight: Promise<void> | null = null;
 
   constructor(options: ChatWSClientOptions) {
     this.options = options;
@@ -104,12 +115,33 @@ export class ChatWSClient {
     return this._state;
   }
 
-  connect(): void {
-    if (this.closed || this.ws) return;
+  connect(): Promise<void> {
+    if (this.closed || this.ws) return Promise.resolve();
+    if (this.connectInFlight) return this.connectInFlight;
     this._setState("connecting");
+    const attempt = this._openSocket().finally(() => {
+      this.connectInFlight = null;
+    });
+    this.connectInFlight = attempt;
+    return attempt;
+  }
+
+  private async _openSocket(): Promise<void> {
+    let auth: ChatWSAuthParam;
+    try {
+      auth = await this.options.getAuthParam();
+    } catch (error) {
+      if (this.closed) return;
+      this.pendingQueue.length = 0;
+      this._setState("error");
+      this.options.onAuthError?.(error);
+      return;
+    }
+    // close() may have run while the ticket was being fetched.
+    if (this.closed) return;
 
     const url = new URL(this.options.url);
-    url.searchParams.set("token", this.options.token);
+    url.searchParams.set(auth.name, auth.value);
 
     const ws = new WebSocket(url.toString());
     this.ws = ws;
@@ -153,8 +185,11 @@ export class ChatWSClient {
   }
 
   send(command: ChatWSCommand): void {
-    if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
-      // Socket exists but not yet open — queue for when onopen fires.
+    if (
+      this._state === "connecting" ||
+      (this.ws && this.ws.readyState === WebSocket.CONNECTING)
+    ) {
+      // Still fetching the ticket or opening the socket — queue for onopen.
       this.pendingQueue.push(command);
     } else {
       this._sendRaw(command);

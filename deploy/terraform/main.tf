@@ -8,8 +8,12 @@ locals {
   # `depends_on: minio-init: condition: service_completed_successfully`,
   # which Compose enforces via normal dependency resolution (unrelated to
   # `--wait`) the moment the migration step below starts the api container.
-  infra_services     = "postgres rabbitmq redis minio qdrant neo4j"
-  backup_check_cmd   = var.backup_check_enabled ? "test -f '${var.postgres_backup_path}' && test -f '${var.minio_backup_path}' && test -f '${var.qdrant_backup_path}'" : "echo 'Backup checks disabled for this environment.'"
+  # Per environment: production compose has no neo4j service, so the default
+  # omits it; staging appends neo4j through TF_VAR_infra_services.
+  infra_services = var.infra_services
+  # The remote backup gate runs in the release workflow
+  # (deploy/scripts/check_remote_backups.sh) before Terraform starts, so it is
+  # no longer repeated here.
   deploy_env_content = <<-EOT
 ${var.env_file_content}
 RUDIX_API_IMAGE=${var.api_image}
@@ -42,7 +46,8 @@ resource "null_resource" "compose_rollout" {
     worker_image     = var.worker_image
     frontend_image   = var.frontend_image
     migration_cmd    = var.migration_command
-    backup_check     = tostring(var.backup_check_enabled)
+    # Kept (now informational only) so existing state does not churn.
+    backup_check = tostring(var.backup_check_enabled)
   }
 
   connection {
@@ -83,7 +88,6 @@ resource "null_resource" "compose_rollout" {
   provisioner "remote-exec" {
     inline = [
       "set -eu",
-      local.backup_check_cmd,
       "cd '${var.app_path}'",
       "cat .registry_password | docker login -u '${var.registry_user}' --password-stdin '${var.registry}'",
       "rm -f .registry_password",

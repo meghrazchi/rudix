@@ -426,6 +426,11 @@ NEXT_PUBLIC_AUTH_INVITE_ONLY=false
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
+# Development-only: NEXT_PUBLIC_AUTH_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,
+# NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD,
+# NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN and NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN
+# are baked into the browser bundle. `next build` fails when any is set to
+# `true` / non-empty with NEXT_PUBLIC_DEPLOYMENT_ENV=staging or production.
 NEXT_PUBLIC_AUTH_LOGOUT_URL=
 NEXT_PUBLIC_AUTH_REFRESH_SKEW_SECONDS=60
 NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL=/team/members
@@ -533,6 +538,10 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+### Security headers
+
+`next.config.ts` applies security headers to every route from `config/security-headers.mjs`: `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, HSTS in staging/production, and a `Content-Security-Policy-Report-Only` header (no enforcement yet; planned for R03-08). Analytics, Sentry, and API origins are added to the policy only when their `NEXT_PUBLIC_*` variables are set. Set `NEXT_PUBLIC_CSP_REPORT_URI` to send violation reports to a collector. The `config/` directory is copied into the runtime image because `next.config.ts` imports it at `next start`. See `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`.
 
 ## Scripts
 
@@ -652,3 +661,15 @@ Responsive Playwright tests are in `e2e/responsive.spec.ts` and cover mobile, ta
 - Shared UI state primitives are in `src/components/states/*` (`LoadingState`, `EmptyState`, `ErrorState`, `ForbiddenState`, `RateLimitState`, `RetryAction`) with safe trace/request ID rendering.
 - TanStack Query defaults and mutation invalidation helpers are in `src/lib/api/query.ts`.
 - Pipeline fallback graph/data remain in `src/lib/pipeline.ts`.
+
+### Chat WebSocket authentication
+
+- On every connect, `ChatWSClient` awaits `getAuthParam()` and opens `/chat/ws?ticket=…`.
+  `resolveChatWsAuthParam()` in `src/lib/chat-ws-auth.ts` calls `createChatWsTicket()`
+  (`POST /chat/ws-ticket`), which sends `X-Organization-Id`, so the ticket is bound to the
+  active workspace. Tickets are single use and are never cached; a reconnect fetches a new one.
+- Only a backend without the ticket endpoint (`404`/`405`) gets the legacy `?token=` handshake.
+  This fallback is removed with the query token in 0.5.0.
+- Any other ticket failure (`503`, `429`, network) puts the client in the error state and the chat
+  page shows `chat.page.wsErrors.wsTicketUnavailable`. There is no silent downgrade to `?token=`.
+- Commands sent while the ticket is being fetched are queued and flushed when the socket opens.

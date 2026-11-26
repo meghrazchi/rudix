@@ -69,7 +69,7 @@ make seed-dev
 - Celery uses explicit queues/routes for document processing, deletion, re-indexing, and evaluations.
 - Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
-- Document processing uses an atomic claim (`documents.processing_task_id`), so retries and redeliveries resume instead of skipping; a terminal failure from a task whose claim was taken over does not mark the document `failed`. The beat-scheduled `documents.reap_stale` task re-queues documents stuck in `processing` (`DOCUMENT_PROCESSING_STALE_SECONDS`, `DOCUMENT_REAPER_INTERVAL_SECONDS`, `DOCUMENT_REAPER_MAX_ATTEMPTS`, `DOCUMENT_REAPER_BATCH_SIZE`). Its `rudix_documents_reaped_total` counter is emitted in prefork children and is not scraped yet (see the beat-heartbeat note under Scheduled tasks).
+- Document processing uses an atomic claim (`documents.processing_task_id`), so retries and redeliveries resume instead of skipping; a terminal failure from a task whose claim was taken over does not mark the document `failed`. `documents.process` skips (`status_not_claimable`) documents in `indexed`, `deleted`, `deleting`, `delete_requested`, `quarantined`, `blocked`, or `retained_by_policy` unless `force=True`, and a terminal failure never overwrites a deletion, retention, or DLP-quarantine status with `failed` (it logs `document.processing.failure_status_preserved` and audits `document.task.failure_ignored`). The beat-scheduled `documents.reap_stale` task re-queues documents stuck in `processing` (`DOCUMENT_PROCESSING_STALE_SECONDS`, `DOCUMENT_REAPER_INTERVAL_SECONDS`, `DOCUMENT_REAPER_MAX_ATTEMPTS`, `DOCUMENT_REAPER_BATCH_SIZE`). Its `rudix_documents_reaped_total` counter is emitted in prefork children and is not scraped yet (see the beat-heartbeat note under Scheduled tasks).
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Connector sync endpoints use connector-specific Redis rate limits (`RATE_LIMIT_CONNECTOR_REQUESTS`) in addition to the shared admin/document scopes.
 - The public contact form uses `POST /api/v1/contact`, persists valid
@@ -79,7 +79,7 @@ make seed-dev
 - Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`, `CHUNKING_STRATEGY`).
 - Production retrieval only serves `DOCUMENT_INDEX_VERSION` plus `DOCUMENT_ACTIVE_INDEX_VERSIONS` (CSV, empty by default; `eval-` entries are rejected). List an old version there while reindexing after a version change. `scripts/purge_eval_index_versions.py` reports index versions per organization and purges leftover evaluation `eval-` versions (dry run by default, `--apply` to delete). It exits `2` when inactive non-eval versions exist. See `docs/12_EVALUATION_AND_MONITORING.md`.
 - `CHUNKING_STRATEGY` selects the default strategy for all document processing (default: `token_recursive`). Set to `adaptive_hybrid` to enable automatic per-document strategy selection based on file type, OCR status, and structure heuristics.
-- Upload malware scanning is environment-driven (`MALWARE_SCAN_*`) and runs before MinIO writes.
+- Upload malware scanning is environment-driven (`MALWARE_SCAN_*`) and runs before MinIO writes. In staging and production, settings validation fails when `MALWARE_SCAN_ENABLED=true` and `MALWARE_SCAN_CLAMAV_HOST` is a loopback address (`localhost`, `127.0.0.1`, `::1`, `0.0.0.0`); the deploy compose files set it to the `clamav` service. Set `MALWARE_SCAN_ENABLED=false` explicitly to run without a scanner.
 - Production profile requires `SENTRY_DSN`.
 - Sentry runtime settings are environment-driven (`SENTRY_*`), including optional per-env sampling controls.
 - Non-production test event endpoint is available at `POST /api/v1/sentry-test` when enabled.
@@ -680,7 +680,7 @@ Document processing claim and stale reaper: `documents.process` and `documents.r
 atomically claim the document by writing their Celery task ID to
 `documents.processing_task_id` (with `processing_started_at`). A Celery autoretry or an
 `acks_late` redelivery after a worker crash keeps the same task ID, so it re-enters its own
-claim and finishes; a different task that finds a live claim logs `claim_held` and skips. The
+claim and finishes; a different task that finds a live claim logs `claim_held` and skips. `documents.process` also skips documents in `deleting`, `delete_requested`, `quarantined`, `blocked`, or `retained_by_policy` (`status_not_claimable`), and terminal failure leaves those statuses (and `deleted`) untouched, clearing only the task's own claim columns. The
 reaper treats a `processing` document as stale once `processing_started_at` (or `updated_at`
 for rows without a claim) is older than `DOCUMENT_PROCESSING_STALE_SECONDS` (default 3600). It
 releases the claim and re-queues `documents.process`, at most `DOCUMENT_REAPER_MAX_ATTEMPTS`

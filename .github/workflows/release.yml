@@ -328,6 +328,24 @@ jobs:
           docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color beat
           exit 1
 
+      - name: Verify Terraform infra_services are running
+        run: |
+          # Every service the production deploy waits on before migrations must
+          # exist and run in this stack, or `up --wait` fails on the host.
+          infra_services="$(awk '/^variable "infra_services"/ { f = 1 } f && /^[[:space:]]*default[[:space:]]*=/ { sub(/^[^"]*"/, ""); sub(/".*$/, ""); print; exit }' deploy/terraform/variables.tf)"
+          if [ -z "${infra_services}" ]; then
+            echo 'Could not read the infra_services default from deploy/terraform/variables.tf'
+            exit 1
+          fi
+          for svc in ${infra_services}; do
+            if ! docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running --format '{{.Service}}' "${svc}" | grep -qx "${svc}"; then
+              echo "infra service is not running in the integration stack: ${svc}"
+              docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps || true
+              exit 1
+            fi
+          done
+          echo "All infra_services running: ${infra_services}"
+
       - name: Collect integration logs
         if: always()
         run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color > artifacts/integration-compose.log || true
@@ -384,6 +402,12 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
 
+      - name: Check staging env file
+        # Staging reports findings as warnings only.
+        env:
+          DEPLOY_ENV_FILE_CONTENT: ${{ secrets.STAGING_ENV_FILE }}
+        run: deploy/scripts/check_deploy_env.sh staging
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -409,6 +433,8 @@ jobs:
           TF_VAR_worker_image: ${{ needs.build-images.outputs.worker_image }}
           TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_staging_image }}
           TF_VAR_backup_check_enabled: "false"
+          # Staging compose defines neo4j; production uses the variable default.
+          TF_VAR_infra_services: "postgres rabbitmq redis minio qdrant neo4j"
           # Optional: creates the first admin account, but only when the
           # database has zero organizations (safe to leave wired in on every
           # deploy). No-ops if these secrets aren't set.
@@ -542,20 +568,33 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           PRODUCTION_BACKUP_CHECK_OK: ${{ secrets.PRODUCTION_BACKUP_CHECK_OK }}
 
+      - name: Check production env file
+        # Fails on a missing/unsafe REDIS_PASSWORD or unpinned QDRANT/MINIO/RABBITMQ
+        # images. Set the DEPLOY_ALLOW_UNPINNED_IMAGES variable to true to downgrade
+        # the image checks to warnings.
+        env:
+          DEPLOY_ENV_FILE_CONTENT: ${{ secrets.PRODUCTION_ENV_FILE }}
+          DEPLOY_ALLOW_UNPINNED_IMAGES: ${{ vars.DEPLOY_ALLOW_UNPINNED_IMAGES || 'false' }}
+        run: deploy/scripts/check_deploy_env.sh production
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.8
 
       - name: Check remote backup artifacts
-        run: |
-          DEPLOY_SSH_HOST="${{ secrets.PRODUCTION_SSH_HOST }}" \
-          DEPLOY_SSH_USER="${{ secrets.PRODUCTION_SSH_USER }}" \
-          DEPLOY_SSH_PRIVATE_KEY="${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" \
-          DEPLOY_POSTGRES_BACKUP_PATH="${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}" \
-          DEPLOY_MINIO_BACKUP_PATH="${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}" \
-          DEPLOY_QDRANT_BACKUP_PATH="${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}" \
-          deploy/scripts/check_remote_backups.sh
+        # Each path may be a file or a directory; it must hold a file modified
+        # within DEPLOY_BACKUP_MAX_AGE_HOURS (default 26).
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          DEPLOY_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || '22' }}
+          DEPLOY_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          DEPLOY_POSTGRES_BACKUP_PATH: ${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}
+          DEPLOY_MINIO_BACKUP_PATH: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
+          DEPLOY_QDRANT_BACKUP_PATH: ${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}
+          DEPLOY_BACKUP_MAX_AGE_HOURS: ${{ vars.DEPLOY_BACKUP_MAX_AGE_HOURS || secrets.DEPLOY_BACKUP_MAX_AGE_HOURS || '26' }}
+        run: deploy/scripts/check_remote_backups.sh
 
       - name: Deploy production with Terraform
         working-directory: deploy/terraform

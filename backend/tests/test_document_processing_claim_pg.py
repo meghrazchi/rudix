@@ -43,6 +43,7 @@ from app.clients import minio_client as minio_module
 from app.core.config import settings
 from app.domains.documents.repositories.processing_claims import (
     PROCESS_SKIP_STATUSES,
+    TERMINAL_FAILURE_PROTECTED_STATUSES,
     ClaimOutcome,
     ClaimResult,
     DocumentProcessingClaimRepository,
@@ -363,5 +364,60 @@ def test_process_task_retry_and_redelivery_are_idempotent(
         assert {chunk.qdrant_point_id for chunk in rerun_chunks} == set(point_ids)
         assert len(qdrant.upserts) == 2
         assert qdrant.upserts[1] == point_ids
+    finally:
+        run_async(_cleanup(factory, org_id))
+
+
+def test_terminal_failure_preserves_protected_status_on_postgres(
+    worker_pg: async_sessionmaker[AsyncSession],
+) -> None:
+    """R02-02b: the row-locked failure mark keeps security statuses and clears own claim."""
+    factory = worker_pg
+    org_id, (quarantined_id, ordinary_id) = run_async(_seed(factory, count=2))
+    try:
+        run_async(_preset_claim(factory, quarantined_id, "task-a"))
+        run_async(_preset_claim(factory, ordinary_id, "task-b"))
+
+        async def _quarantine() -> None:
+            async with factory() as session:
+                await session.execute(
+                    update(Document)
+                    .where(Document.id == quarantined_id)
+                    .values(status=DocumentStatus.quarantined.value)
+                )
+                await session.commit()
+
+        run_async(_quarantine())
+
+        protected = status_tracking.mark_document_failed(
+            str(quarantined_id),
+            error_message="dlp",
+            owner_task_id="task-a",
+            protected_statuses=TERMINAL_FAILURE_PROTECTED_STATUSES,
+        )
+        assert protected.outcome == status_tracking.FailureMarkOutcome.protected
+        assert protected.current_status == DocumentStatus.quarantined.value
+        document, _ = run_async(_document_state(factory, quarantined_id))
+        assert document.status == DocumentStatus.quarantined.value
+        assert document.error_message is None
+        assert document.processing_task_id is None
+
+        superseded = status_tracking.mark_document_failed(
+            str(ordinary_id),
+            error_message="boom",
+            owner_task_id="task-other",
+            protected_statuses=TERMINAL_FAILURE_PROTECTED_STATUSES,
+        )
+        assert superseded.outcome == status_tracking.FailureMarkOutcome.superseded
+        updated = status_tracking.mark_document_failed(
+            str(ordinary_id),
+            error_message="boom",
+            owner_task_id="task-b",
+            protected_statuses=TERMINAL_FAILURE_PROTECTED_STATUSES,
+        )
+        assert updated.outcome == status_tracking.FailureMarkOutcome.updated
+        document, _ = run_async(_document_state(factory, ordinary_id))
+        assert document.status == DocumentStatus.failed.value
+        assert document.processing_task_id is None
     finally:
         run_async(_cleanup(factory, org_id))

@@ -1,63 +1,22 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-const PRODUCTION_LIKE_ENVIRONMENTS = new Set(["staging", "production"]);
-
-function isLoopbackPublicHost(host: string): boolean {
-  const normalized = host.toLowerCase().replace(/^\[|\]$/g, "");
-  return (
-    normalized === "localhost" ||
-    normalized.endsWith(".localhost") ||
-    normalized === "::1" ||
-    normalized === "0.0.0.0" ||
-    normalized.startsWith("127.")
-  );
-}
+import { validateBuildEnvironment } from "./config/build-env-validation.mjs";
+import { buildSecurityHeaders } from "./config/security-headers.mjs";
 
 // Only validate at `next build`. NEXT_PHASE is set by Next.js before loading
 // this config; it equals 'phase-production-build' during builds and
 // 'phase-production-server' during `next start`, so this guard prevents the
 // module-resolution crash that occurs when next.config.compiled.js tries to
 // require('./src/lib/runtime-config') at server startup (Node can't load .ts).
-if (process.env.NEXT_PHASE === "phase-production-build") {
-  const errors: string[] = [];
-  const deploymentEnvironment = (
-    process.env.NEXT_PUBLIC_DEPLOYMENT_ENV ??
-    process.env.NEXT_PUBLIC_ENVIRONMENT ??
-    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ??
-    ""
-  )
-    .trim()
-    .toLowerCase();
-  const isProductionLike = PRODUCTION_LIKE_ENVIRONMENTS.has(
-    deploymentEnvironment,
-  );
+// Next 16 does not always set NEXT_PHASE while loading this file for
+// `next build`, so also detect the `build` subcommand directly.
+const isProductionBuild =
+  process.env.NEXT_PHASE === "phase-production-build" ||
+  process.argv.slice(2).includes("build");
 
-  for (const key of ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_APP_URL"] as const) {
-    const val = (process.env[key] ?? "").trim();
-    if (!val) {
-      errors.push(`${key} is required and must be an absolute http(s) URL.`);
-    } else {
-      try {
-        const { protocol, hostname } = new URL(val);
-        if (protocol !== "http:" && protocol !== "https:") {
-          errors.push(`${key} must use http:// or https://.`);
-        }
-        if (isProductionLike && protocol !== "https:") {
-          errors.push(
-            `${key} must use https:// when NEXT_PUBLIC_DEPLOYMENT_ENV is staging or production.`,
-          );
-        }
-        if (isProductionLike && isLoopbackPublicHost(hostname)) {
-          errors.push(
-            `${key} must not point to localhost when NEXT_PUBLIC_DEPLOYMENT_ENV is staging or production.`,
-          );
-        }
-      } catch {
-        errors.push(`${key} must be a valid absolute URL.`);
-      }
-    }
-  }
+if (isProductionBuild) {
+  const errors = validateBuildEnvironment(process.env);
   if (errors.length > 0) {
     throw new Error(
       [
@@ -81,6 +40,16 @@ const proxyTarget = (process.env.NEXT_PUBLIC_PROXY_TARGET ?? "").replace(
 );
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: buildSecurityHeaders(process.env, {
+          isDev: process.env.NODE_ENV !== "production",
+        }),
+      },
+    ];
+  },
   ...(proxyTarget && {
     async rewrites() {
       return [

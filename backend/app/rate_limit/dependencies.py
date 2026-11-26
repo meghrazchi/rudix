@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from enum import StrEnum
-from math import floor
 from time import time
 from typing import Annotated
 
@@ -10,32 +8,26 @@ from fastapi import Depends, HTTPException, Request, status
 
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
-from app.clients import redis_client as redis_module
-from app.core.config import RateLimitRedisFailureMode, settings
-from app.core.logging import get_logger
+from app.rate_limit.counter import (
+    RateLimitDecision,
+    RateLimitOutcome,
+    RateLimitScope,
+    _build_key,
+    _rate_limit_disabled,
+    _scope_limit,
+    consume_rate_limit,
+)
 
-logger = get_logger("auth.rate_limit")
-
-
-class RateLimitScope(StrEnum):
-    upload = "upload"
-    chat = "chat"
-    evaluation = "evaluation"
-    delete = "delete"
-    admin = "admin"
-    connector = "connector"
-
-
-def _scope_limit(scope: RateLimitScope) -> int:
-    mapping = {
-        RateLimitScope.upload: settings.rate_limit_upload_requests,
-        RateLimitScope.chat: settings.rate_limit_chat_requests,
-        RateLimitScope.evaluation: settings.rate_limit_evaluation_requests,
-        RateLimitScope.delete: settings.rate_limit_delete_requests,
-        RateLimitScope.admin: settings.rate_limit_admin_requests,
-        RateLimitScope.connector: settings.rate_limit_connector_requests,
-    }
-    return mapping[scope]
+__all__ = [
+    "RateLimitDecision",
+    "RateLimitOutcome",
+    "RateLimitScope",
+    "_build_key",
+    "_rate_limit_disabled",
+    "_scope_limit",
+    "consume_rate_limit",
+    "enforce_rate_limit",
+]
 
 
 def _route_path_template(request: Request) -> str:
@@ -44,20 +36,6 @@ def _route_path_template(request: Request) -> str:
     if isinstance(path, str) and path:
         return path
     return request.url.path
-
-
-def _build_key(
-    *, scope: RateLimitScope, endpoint: str, user_id: str, organization_id: str, window: int
-) -> str:
-    sanitized_endpoint = endpoint.replace(" ", "_")
-    return (
-        f"rate_limit:v1:{scope.value}:{sanitized_endpoint}:"
-        f"org:{organization_id}:user:{user_id}:window:{window}"
-    )
-
-
-def _rate_limit_disabled() -> bool:
-    return not settings.is_rate_limit_active
 
 
 def _http_429(
@@ -93,84 +71,18 @@ def _http_503_rate_limiter_unavailable() -> HTTPException:
 async def _consume(
     scope: RateLimitScope, request: Request, principal: AuthenticatedPrincipal
 ) -> None:
-    if _rate_limit_disabled():
-        return
-
-    limit = _scope_limit(scope)
-    window_seconds = settings.rate_limit_window_seconds
-    window_bucket = floor(time() / window_seconds)
-
-    endpoint = _route_path_template(request)
-    organization_id = principal.organization_id or "none"
-    key = _build_key(
-        scope=scope,
-        endpoint=endpoint,
-        user_id=principal.user_id,
-        organization_id=organization_id,
-        window=window_bucket,
+    outcome = await consume_rate_limit(
+        scope=scope, endpoint=_route_path_template(request), principal=principal
     )
-
-    redis = redis_module.redis_client
-    if redis is None:
-        if settings.rate_limit_redis_failure_mode == RateLimitRedisFailureMode.closed:
-            raise _http_503_rate_limiter_unavailable()
-        logger.warning(
-            "rate_limit.redis_unavailable",
-            scope=scope.value,
-            endpoint=endpoint,
-            user_id=principal.user_id,
-            organization_id=organization_id,
+    if outcome.decision == RateLimitDecision.limited:
+        raise _http_429(
+            scope=scope,
+            limit=outcome.limit,
+            retry_after=outcome.retry_after_seconds,
+            remaining=outcome.remaining,
         )
-        return
-
-    try:
-        count = await redis.incr(key)
-        if count == 1:
-            await redis.expire(key, window_seconds)
-        ttl = await redis.ttl(key)
-        if ttl <= 0:
-            await redis.expire(key, window_seconds)
-            ttl = window_seconds
-
-        remaining = limit - int(count)
-        if count > limit:
-            logger.info(
-                "rate_limit.exceeded",
-                scope=scope.value,
-                endpoint=endpoint,
-                user_id=principal.user_id,
-                organization_id=organization_id,
-                limit=limit,
-                retry_after_seconds=int(ttl),
-            )
-            raise _http_429(
-                scope=scope,
-                limit=limit,
-                retry_after=max(1, int(ttl)),
-                remaining=remaining,
-            )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        if settings.rate_limit_redis_failure_mode == RateLimitRedisFailureMode.closed:
-            logger.error(
-                "rate_limit.redis_error",
-                scope=scope.value,
-                endpoint=endpoint,
-                user_id=principal.user_id,
-                organization_id=organization_id,
-                error=exc.__class__.__name__,
-            )
-            raise _http_503_rate_limiter_unavailable() from exc
-
-        logger.warning(
-            "rate_limit.redis_error.degraded",
-            scope=scope.value,
-            endpoint=endpoint,
-            user_id=principal.user_id,
-            organization_id=organization_id,
-            error=exc.__class__.__name__,
-        )
+    if outcome.decision == RateLimitDecision.unavailable:
+        raise _http_503_rate_limiter_unavailable()
 
 
 def enforce_rate_limit(

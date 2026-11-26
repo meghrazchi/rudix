@@ -28,6 +28,7 @@ from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.repositories.processing_claims import (
     PROCESS_SKIP_STATUSES,
     REINDEX_FORBIDDEN_STATUSES,
+    TERMINAL_FAILURE_PROTECTED_STATUSES,
     ClaimOutcome,
 )
 from app.domains.documents.services.chunking_service import ChunkingService
@@ -73,8 +74,10 @@ from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 from app.workers.status_tracking import (
+    FailureMarkOutcome,
     claim_document_for_processing,
     get_document_status,
+    mark_document_failed,
     set_document_status,
 )
 
@@ -1161,14 +1164,15 @@ async def _extract_and_store_document_pages_async(
                         message=f"Document blocked by DLP policy (action: {dlp_result.action})",
                     )
                 elif dlp_result.action == "warn":
-                    async with SessionLocal() as dlp_warn_session:
-                        await _document_repository.update_document_dlp_result(
-                            dlp_warn_session,
-                            document_id=parsed_document_id,
-                            status=DocumentStatus.processing.value,
-                            dlp_scan_result=dlp_result_dict,
-                        )
-                        await dlp_warn_session.commit()
+                    if persist_document_state:
+                        async with SessionLocal() as dlp_warn_session:
+                            await _document_repository.update_document_dlp_result(
+                                dlp_warn_session,
+                                document_id=parsed_document_id,
+                                status=DocumentStatus.processing.value,
+                                dlp_scan_result=dlp_result_dict,
+                            )
+                            await dlp_warn_session.commit()
 
             current_stage = "index_cleanup"
             log_document_event(
@@ -2601,6 +2605,51 @@ def reindex_document_graph(
 class DocumentTask(RudixTask):
     abstract = True
 
+    def _handle_protected_failure(
+        self,
+        *,
+        document_id: str,
+        current_status: str | None,
+        error_details: dict[str, Any],
+        kwargs: dict[str, Any],
+    ) -> None:
+        """Keep a deletion/security status intact after a terminal task failure."""
+        log_document_event(
+            event="document.processing.failure_status_preserved",
+            document_id=document_id,
+            request_id=kwargs.get("request_id"),
+            organization_id=kwargs.get("organization_id"),
+            user_id=kwargs.get("user_id"),
+            current_status=current_status,
+            error_code=error_details["code"],
+        )
+        _record_worker_audit(
+            action="document.task.failure_ignored",
+            resource_type="document",
+            resource_id=document_id,
+            organization_id=kwargs.get("organization_id"),
+            user_id=kwargs.get("user_id"),
+            request_id=kwargs.get("request_id"),
+            metadata={
+                "task_name": self.name,
+                "status": current_status,
+                "error_code": error_details["code"],
+            },
+        )
+        if current_status in (DocumentStatus.quarantined.value, DocumentStatus.blocked.value):
+            from app.workers.notification_helper import emit_notification
+
+            emit_notification(
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                event_type="upload_failed",
+                severity="error",
+                title="Document processing failed",
+                message="The document could not be indexed. Check the document details for more information.",
+                href=f"/documents?highlight={document_id}",
+                source_id=document_id,
+            )
+
     def on_terminal_failure(
         self,
         *,
@@ -2616,14 +2665,13 @@ class DocumentTask(RudixTask):
         try:
             error_details = details_from_exception(exc)
             owner_task_id = getattr(self.request, "id", None)
-            failed_updated = set_document_status(
+            mark = mark_document_failed(
                 document_id,
-                status=DocumentStatus.failed,
                 error_message=encode_document_error(error_details),
-                clear_processing_claim=True,
                 owner_task_id=owner_task_id,
+                protected_statuses=TERMINAL_FAILURE_PROTECTED_STATUSES,
             )
-            if not failed_updated:
+            if mark.outcome in (FailureMarkOutcome.superseded, FailureMarkOutcome.not_found):
                 # The claim was taken over by another task (or the row is gone);
                 # the new holder owns the outcome, so do not report a failure.
                 log_document_event(
@@ -2634,6 +2682,14 @@ class DocumentTask(RudixTask):
                     user_id=kwargs.get("user_id"),
                     processing_task_id=owner_task_id,
                     error_code=error_details["code"],
+                )
+                return
+            if mark.outcome == FailureMarkOutcome.protected:
+                self._handle_protected_failure(
+                    document_id=document_id,
+                    current_status=mark.current_status,
+                    error_details=error_details,
+                    kwargs=kwargs,
                 )
                 return
             log_document_event(

@@ -188,6 +188,22 @@ All secrets below go under **Repository secrets** (not environment secrets), unl
 | `PRODUCTION_QDRANT_BACKUP_PATH`   | `/opt/backups/qdrant`                                          |
 | `PRODUCTION_BACKUP_CHECK_OK`      | `yes` (confirms backups are running before deploy)             |
 
+Each backup path may be a single file or, as in the examples above, a
+directory of timestamped dumps. Before Terraform runs, the production job calls
+`deploy/scripts/check_remote_backups.sh`, which requires every path to exist and
+to contain at least one regular file modified within the last
+`DEPLOY_BACKUP_MAX_AGE_HOURS` hours (default `26`, so a daily backup always
+passes). A failure names only the failing store (`postgres`, `minio`, or
+`qdrant`) and blocks the deploy. See [step 10](#10-set-up-production-backups).
+
+Optional repository **variables** (Settings → Secrets and variables → Actions →
+Variables) for the production job:
+
+| Variable                       | Default | Effect                                                                                    |
+| ------------------------------ | ------- | ----------------------------------------------------------------------------------------- |
+| `DEPLOY_BACKUP_MAX_AGE_HOURS`  | `26`    | Maximum age of the newest backup file per path (positive integer; also read as a secret). |
+| `DEPLOY_ALLOW_UNPINNED_IMAGES` | `false` | `true` downgrades the unpinned-image errors of the env check (step 7) to warnings.        |
+
 **To paste a private key:** open the file and copy everything including the header and footer lines:
 
 ```
@@ -335,7 +351,17 @@ RABBITMQ_DEFAULT_PASS=<strong-password>
 RABBITMQ_URL=amqp://admin:<strong-password>@rabbitmq:5672//   # internal — keep host as-is
 
 # ── Cache ─────────────────────────────────────────────────────────────────────
-REDIS_URL=redis://redis:6379/0             # internal Docker service name — keep as-is
+# Compose builds REDIS_URL as redis://:${REDIS_PASSWORD}@redis:6379/0 for the
+# api, worker, beat, and mcp services and starts Redis with --requirepass.
+REDIS_PASSWORD=<output of: openssl rand -hex 32>   # URL-safe characters only
+
+# ── Infrastructure images (pin exact tags or digests; see below) ─────────────
+QDRANT_IMAGE=qdrant/qdrant@sha256:<digest>
+MINIO_IMAGE=cgr.dev/chainguard/minio@sha256:<digest>
+RABBITMQ_IMAGE=rabbitmq@sha256:<digest>
+# Optional; defaults are redis:7 and clamav/clamav-debian:stable
+# REDIS_IMAGE=redis:7
+# CLAMAV_IMAGE=clamav/clamav-debian:stable
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
 LLM_DEFAULT_PROVIDER=openai
@@ -354,6 +380,62 @@ FEATURE_ENABLE_AGENTS=false
 ```
 
 Everything else in `.env.example` can stay at its default value.
+`MALWARE_SCAN_CLAMAV_HOST` is set to the bundled `clamav` service by the
+staging/production compose files. The backend refuses to start in staging or
+production when malware scanning is enabled and the ClamAV host is a loopback
+address (`localhost`, `127.0.0.1`, `::1`, `0.0.0.0`); set
+`MALWARE_SCAN_ENABLED=false` explicitly only if you accept uploads without a scan.
+
+### Deploy env check
+
+Right after the secrets validation, both deploy jobs run
+`deploy/scripts/check_deploy_env.sh` on the env file (passed through the step's
+`env:` block; values are never printed):
+
+- `REDIS_PASSWORD` must be set and match `^[A-Za-z0-9._~-]+$`.
+- `QDRANT_IMAGE`, `MINIO_IMAGE`, and `RABBITMQ_IMAGE` must be set and pinned:
+  an explicit tag other than `latest`, or a digest.
+
+In production any failure stops the deploy; the image checks become warnings
+when the `DEPLOY_ALLOW_UNPINNED_IMAGES` variable is `true`. In staging every
+finding is a warning.
+
+### Pin the running infrastructure versions before the first deploy
+
+Unset image variables fall back to the previous floating tags
+(`qdrant/qdrant:latest`, `cgr.dev/chainguard/minio:latest`,
+`rabbitmq:3-management`), so pin what each host runs today instead of guessing
+a version. On each server:
+
+```bash
+cd /opt/rudix
+docker compose -f docker-compose.production.yml images   # or docker-compose.staging.yml
+docker inspect --format '{{index .RepoDigests 0}}' "$(docker compose -f docker-compose.production.yml ps -q qdrant)"
+docker inspect --format '{{index .RepoDigests 0}}' "$(docker compose -f docker-compose.production.yml ps -q minio)"
+docker inspect --format '{{index .RepoDigests 0}}' "$(docker compose -f docker-compose.production.yml ps -q rabbitmq)"
+```
+
+Put the printed `image@sha256:...` references into `QDRANT_IMAGE`,
+`MINIO_IMAGE`, and `RABBITMQ_IMAGE` in `PRODUCTION_ENV_FILE` /
+`STAGING_ENV_FILE`. Upgrade later by changing those values deliberately.
+
+### Maintenance window for the Redis/RabbitMQ/ClamAV rollout
+
+The first deploy that adds `REDIS_PASSWORD` and the Redis/RabbitMQ volumes
+recreates the `redis` and `rabbitmq` containers. Plan it in a maintenance window:
+
+- In-flight Celery results and Redis rate-limit counters are lost.
+- Messages queued in RabbitMQ are lost once (they are already lost on every
+  recreate today; from now on `rabbitmq_data` and the fixed `hostname: rabbitmq`
+  keep them across recreates).
+- The first `clamav` start downloads the signature database, which can take
+  several minutes (healthcheck `start_period: 300s`). The API and worker do not
+  wait for it; until it is ready, uploads follow `MALWARE_SCAN_REQUIRED` and
+  `MALWARE_SCAN_BYPASS_ON_UNAVAILABLE`. The final `docker compose up -d --wait`
+  of the Terraform rollout does wait for every service, so that first deploy can
+  take up to about 10 minutes, and it fails if ClamAV never becomes healthy.
+  `clamd` holds the signature database in memory (roughly 1.5 GB, more while it
+  reloads signatures), so check the host's free memory first.
 
 ---
 
@@ -420,7 +502,20 @@ production, use `https://api.getrudix.com/api/v1/*` and `https://getrudix.com`.
 
 ## 10. Set Up Production Backups
 
-The production deploy job checks that backup artifacts exist before deploying. Set up a cron job on the production server:
+The production deploy job checks that every backup path holds a recent backup
+before deploying. Expected layout: one directory per store with timestamped
+dumps, the newest modified within `DEPLOY_BACKUP_MAX_AGE_HOURS` (default 26 h):
+
+```text
+/opt/backups/postgres/backup-20261125.sql.gz
+/opt/backups/minio/minio-20261125.tar.gz
+/opt/backups/qdrant/documents-20261125.snapshot
+```
+
+A path may also be a single file that is overwritten on each run, or a symlink
+to the latest dump (the check follows a symlinked path). Missing
+paths, empty directories, and stale backups fail the deploy. Set up a cron job
+on the production server:
 
 ```bash
 # On the production server
@@ -432,7 +527,7 @@ crontab -e
 # 0 2 * * * docker exec rudix-postgres pg_dump -U postgres rag_app | gzip > /opt/backups/postgres/backup-$(date +\%Y\%m\%d).sql.gz
 ```
 
-Once at least one backup file exists in each path, the `PRODUCTION_BACKUP_CHECK_OK=yes` secret tells the deploy job the backup system is active.
+Once each path holds a backup newer than the age limit, the `PRODUCTION_BACKUP_CHECK_OK=yes` secret tells the deploy job the backup system is active. Schedule backups at least daily so the 26-hour default always passes.
 
 ---
 

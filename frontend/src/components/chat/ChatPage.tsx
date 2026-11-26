@@ -95,6 +95,7 @@ import {
   type MessageFeedbackResponse,
 } from "@/lib/api/feedback";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
+import { getChatWsErrorMessageKey } from "@/lib/chat-ws-errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import {
@@ -2342,6 +2343,9 @@ export function ChatPage() {
     agentRunMutation.error ??
     createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
+  const composerWsErrorKey = CHAT_WEBSOCKET_ENABLED
+    ? getChatWsErrorMessageKey(wsChat.error)
+    : null;
   const wsPhaseLabel = CHAT_WEBSOCKET_ENABLED
     ? wsChat.phase === "retrieving"
       ? tc("wsRetrieving")
@@ -3733,7 +3737,11 @@ export function ChatPage() {
                   <ErrorState
                     title={tc("queryErrorTitle")}
                     error={composerError}
-                    description={getApiErrorMessage(composerError)}
+                    description={
+                      composerWsErrorKey
+                        ? tc(`wsErrors.${composerWsErrorKey}`)
+                        : getApiErrorMessage(composerError)
+                    }
                     requestId={submitRequestId}
                   />
                 </div>

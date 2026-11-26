@@ -314,3 +314,16 @@ export async function createChatMessage(
     },
   );
 }
+
+export type ChatWsTicketResponse = { ticket: string; expires_in: number };
+
+/**
+ * Request a single-use, short-lived ticket for the chat WebSocket handshake
+ * (`/chat/ws?ticket=…`). `apiRequest` sends `X-Organization-Id`, so the ticket
+ * is bound to the active workspace. Tickets are single use: never cache them.
+ */
+export async function createChatWsTicket(): Promise<ChatWsTicketResponse> {
+  return apiRequest<ChatWsTicketResponse>("/chat/ws-ticket", {
+    method: "POST",
+  });
+}

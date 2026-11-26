@@ -239,6 +239,20 @@ EVAL_INDEX_CLEANUP_FAILURES_TOTAL = Counter(
     registry=registry,
 )
 
+CHAT_QUOTA_DENIED_TOTAL = Counter(
+    "rudix_chat_quota_denied_total",
+    "Chat questions refused because the plan question quota is exhausted",
+    ["transport"],
+    registry=registry,
+)
+
+CHAT_WS_AUTH_TOTAL = Counter(
+    "rudix_chat_ws_auth_total",
+    "Chat WebSocket handshake authentication attempts by method and outcome",
+    ["method", "outcome"],
+    registry=registry,
+)
+
 DEPENDENCY_READINESS = Gauge(
     "rudix_dependency_readiness",
     "Health and readiness status of backing dependencies (1 = healthy, 0 = degraded)",
@@ -495,6 +509,24 @@ def record_eval_index_cleanup_failure(store: str) -> None:
         EVAL_INDEX_CLEANUP_FAILURES_TOTAL.labels(store=store).inc()
     except Exception as exc:
         logger.debug("metrics.record_eval_index_cleanup_failure_failed: %s", exc)
+
+
+def record_chat_quota_denied(transport: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_QUOTA_DENIED_TOTAL.labels(transport=transport).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_quota_denied_failed: %s", exc)
+
+
+def record_chat_ws_auth(method: str, outcome: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_WS_AUTH_TOTAL.labels(method=method, outcome=outcome).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_ws_auth_failed: %s", exc)
 
 
 def set_dependency_readiness(dependency: str, is_ready: bool) -> None:

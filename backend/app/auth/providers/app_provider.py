@@ -11,6 +11,7 @@ from app.auth.providers.base import BaseAuthProvider
 from app.auth.repository import AuthRepository
 from app.auth.session_repository import AuthSessionRepository
 from app.auth.token_codec import decode_app_access_token
+from app.models.auth_session import AuthRefreshSession
 
 
 class AppAuthProvider(BaseAuthProvider):
@@ -62,6 +63,35 @@ class AppAuthProvider(BaseAuthProvider):
         first_org, first_role = next(iter(organization_roles.items()))
         return first_org, first_role
 
+    async def load_active_session(
+        self,
+        session: AsyncSession,
+        *,
+        session_id: UUID,
+    ) -> AuthRefreshSession | None:
+        """Return the active session row, or raise when the session was revoked or expired.
+
+        A session id with no stored row at all is accepted (returns ``None``), as
+        it always has been; callers then skip the owner check.
+        """
+        session_record = await self._session_repository.get_active_session_by_id(
+            session,
+            session_id=session_id,
+        )
+        if session_record is None:
+            session_history = await self._session_repository.get_session_by_id(
+                session,
+                session_id=session_id,
+            )
+            if session_history is not None:
+                raise AuthenticationError("Session has been revoked")
+        return session_record
+
+    @staticmethod
+    def ensure_session_owner(session_record: AuthRefreshSession | None, *, user_id: UUID) -> None:
+        if session_record is not None and session_record.user_id != user_id:
+            raise AuthenticationError("Session does not belong to the authenticated principal")
+
     async def authenticate(self, request: Request, session: AsyncSession) -> AuthenticatedPrincipal:
         token = self._extract_bearer_token(request)
         claims = decode_app_access_token(token)
@@ -75,17 +105,7 @@ class AppAuthProvider(BaseAuthProvider):
         except ValueError as exc:
             raise AuthenticationError("Token session is invalid") from exc
 
-        session_record = await self._session_repository.get_active_session_by_id(
-            session,
-            session_id=session_uuid,
-        )
-        if session_record is None:
-            session_history = await self._session_repository.get_session_by_id(
-                session,
-                session_id=session_uuid,
-            )
-            if session_history is not None:
-                raise AuthenticationError("Session has been revoked")
+        session_record = await self.load_active_session(session, session_id=session_uuid)
 
         subject = str(claims["sub"]).strip()
         try:
@@ -102,8 +122,7 @@ class AppAuthProvider(BaseAuthProvider):
         if not user.is_active:
             raise AuthenticationError("Account has been deprovisioned")
 
-        if session_record is not None and session_record.user_id != user.id:
-            raise AuthenticationError("Session does not belong to the authenticated principal")
+        self.ensure_session_owner(session_record, user_id=user.id)
 
         if not user.memberships:
             raise AuthorizationError("No organization membership found for principal")
@@ -127,4 +146,5 @@ class AppAuthProvider(BaseAuthProvider):
             email=user.email,
             roles=[active_role],
             auth_provider="app",
+            auth_session_id=str(session_uuid),
         )

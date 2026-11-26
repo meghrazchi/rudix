@@ -2448,6 +2448,12 @@
       "queryForbiddenTitle": "La requête n’est pas autorisée",
       "queryForbiddenDesc": "Vous n’avez pas l’autorisation d’interroger les documents sélectionnés dans cette organisation.",
       "queryErrorTitle": "Impossible de terminer la requête.",
+      "wsErrors": {
+        "planLimitExceeded": "La limite de questions de votre forfait est atteinte. Passez à un forfait supérieur ou réessayez après la réinitialisation de la limite.",
+        "rateLimitExceeded": "Trop de questions en peu de temps. Veuillez patienter un instant puis réessayer.",
+        "rateLimiterUnavailable": "Le service ne peut temporairement pas vérifier les limites d'utilisation. Veuillez réessayer sous peu.",
+        "wsTicketUnavailable": "Le chat en direct n'a pas pu établir de connexion sécurisée. Veuillez réessayer dans un instant."
+      },
       "composerStarting": "Démarrage de la session…",
       "composerAgentRunning": "Agent en cours d’exécution…",
       "composerGenerating": "Génération de la réponse…",

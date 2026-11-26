@@ -104,7 +104,8 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
 | `rudix_http_requests_total` | Counter | `method`, `route`, `status_code` | Total HTTP requests by normalized route template |
 | `rudix_http_request_duration_seconds` | Histogram | `method`, `route` | End-to-end HTTP latency (`0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30`) |
 | `rudix_http_requests_in_progress` | Gauge | `method`, `route` | Concurrent in-flight HTTP requests |
-| `rudix_rate_limit_decisions_total` | Counter | `scope`, `decision`, `failure_mode` | Redis rate-limit outcomes (`allowed`, `rejected`, `redis_error`) |
+| `rudix_rate_limit_decisions_total` | Counter | `scope`, `decision`, `failure_mode` | Rate-limit outcomes for HTTP and the chat WebSocket (`decision`: `allowed`, `limited`, `unavailable`; `failure_mode`: `none`, `open`, `closed`) |
+| `rudix_chat_ws_auth_total` | Counter | `method`, `outcome` | Chat WebSocket handshake authentication (`method`: `ticket`, `header`, `query_token`, `none`; `outcome`: `accepted`, `rejected`) |
 | `rudix_auth_verifications_total` | Counter | `provider`, `outcome` | Auth token verification outcomes (`success`, `expired`, `invalid`) |
 | `rudix_authz_decisions_total` | Counter | `resource_type`, `action`, `decision`, `deny_reason` | Authorization policy decisions including `tenant_boundary` |
 
@@ -117,6 +118,7 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
 | `rudix_rag_answers_total` | Counter | `scope_mode`, `confidence_category`, `not_found`, `fallback_used` | Completed RAG answers by grounding outcome |
 | `rudix_rag_confidence_score` | Histogram | `scope_mode` | Distribution of answer confidence scores (`0.1` to `1.0` buckets) |
 | `rudix_rag_citation_validation_failures_total` | Counter | `reason` | Responses where cited chunk IDs failed validation |
+| `rudix_chat_quota_denied_total` | Counter | `transport` | Chat questions refused because the plan question quota is exhausted (`http`, `ws`) |
 | `rudix_retrieval_branch_failures_total` | Counter | `branch`, `error` | Retrieval branch attempts that failed or timed out and were degraded to partial results |
 | `rudix_eval_index_cleanup_failures_total` | Counter | `store` | Per-document evaluation index cleanup steps that failed (`qdrant` or `postgres`); the run still completes |
 | `rudix_llm_requests_total` | Counter | `provider`, `model`, `operation`, `status` | LLM and embedding provider calls (`chat`, `embed`, `rerank`) |

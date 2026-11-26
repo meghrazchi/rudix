@@ -2448,6 +2448,12 @@
       "queryForbiddenTitle": "Query is not allowed",
       "queryForbiddenDesc": "You do not have permission to query the selected documents in this organization.",
       "queryErrorTitle": "Unable to complete the query.",
+      "wsErrors": {
+        "planLimitExceeded": "Your plan's question limit has been reached. Upgrade your plan or try again after the limit resets.",
+        "rateLimitExceeded": "Too many questions in a short time. Please wait a moment and try again.",
+        "rateLimiterUnavailable": "The service is temporarily unable to check usage limits. Please try again shortly.",
+        "wsTicketUnavailable": "Live chat could not start a secure connection. Please try again in a moment."
+      },
       "composerStarting": "Starting session…",
       "composerAgentRunning": "Running agent…",
       "composerGenerating": "Generating answer…",

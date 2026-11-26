@@ -199,6 +199,7 @@ def test_staging_accepts_https_public_urls() -> None:
             "api_base_url": "https://api-staging.getrudix.com",
             "frontend_base_url": "https://staging.getrudix.com",
             "cors_origins": "https://staging.getrudix.com",
+            "malware_scan_clamav_host": "clamav",
         }
     )
 
@@ -218,6 +219,7 @@ def test_staging_forces_app_auth_auto_provisioning_off() -> None:
             "frontend_base_url": "https://staging.getrudix.com",
             "cors_origins": "https://staging.getrudix.com",
             "app_auth_auto_provision_users": True,
+            "malware_scan_clamav_host": "clamav",
         }
     )
 
@@ -235,6 +237,7 @@ def test_production_accepts_getrudix_public_urls() -> None:
             "frontend_base_url": "https://getrudix.com",
             "cors_origins": "https://getrudix.com",
             "sentry_dsn": "https://public@example.com/1",
+            "malware_scan_clamav_host": "clamav",
         }
     )
 
@@ -408,6 +411,110 @@ def test_production_rejects_malware_scan_bypass_when_required() -> None:
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)
+
+
+def _deployed_settings_kwargs(environment: Environment) -> dict:
+    payload = valid_settings_kwargs()
+    if environment == Environment.production:
+        payload.update(
+            {
+                "api_base_url": "https://api.getrudix.com",
+                "frontend_base_url": "https://getrudix.com",
+                "cors_origins": "https://getrudix.com",
+                "sentry_dsn": "https://public@example.com/1",
+            }
+        )
+    else:
+        payload.update(
+            {
+                "api_base_url": "https://api-staging.getrudix.com",
+                "frontend_base_url": "https://staging.getrudix.com",
+                "cors_origins": "https://staging.getrudix.com",
+            }
+        )
+    payload["environment"] = environment
+    return payload
+
+
+@pytest.mark.parametrize("environment", [Environment.production, Environment.staging])
+@pytest.mark.parametrize("host", ["localhost", "LOCALHOST", "127.0.0.1", "::1", "0.0.0.0"])
+def test_deployed_env_rejects_loopback_clamav_host(environment: Environment, host: str) -> None:
+    payload = _deployed_settings_kwargs(environment)
+    payload["malware_scan_clamav_host"] = host
+
+    with pytest.raises(ValidationError, match="malware_scan_clamav_host must point to the ClamAV"):
+        Settings(_env_file=None, **payload)
+
+
+@pytest.mark.parametrize("environment", [Environment.production, Environment.staging])
+def test_deployed_env_rejects_default_clamav_host(environment: Environment) -> None:
+    payload = _deployed_settings_kwargs(environment)
+
+    with pytest.raises(ValidationError, match="set MALWARE_SCAN_CLAMAV_HOST"):
+        Settings(_env_file=None, **payload)
+
+
+@pytest.mark.parametrize("environment", [Environment.production, Environment.staging])
+def test_deployed_env_accepts_clamav_service_host(environment: Environment) -> None:
+    payload = _deployed_settings_kwargs(environment)
+    payload["malware_scan_clamav_host"] = "clamav"
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.malware_scan_clamav_host == "clamav"
+
+
+@pytest.mark.parametrize("environment", [Environment.production, Environment.staging])
+def test_deployed_env_allows_loopback_clamav_host_when_scanning_disabled(
+    environment: Environment,
+) -> None:
+    payload = _deployed_settings_kwargs(environment)
+    payload["malware_scan_enabled"] = False
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.malware_scan_enabled is False
+    assert settings.malware_scan_clamav_host == "localhost"
+
+
+@pytest.mark.parametrize("environment", [Environment.development, Environment.test])
+def test_local_env_allows_loopback_clamav_host(environment: Environment) -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = environment
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.malware_scan_enabled is True
+    assert settings.malware_scan_clamav_host == "localhost"
+
+
+def test_empty_redis_password_url_is_valid_and_sends_no_auth() -> None:
+    # Compose renders redis://:${REDIS_PASSWORD:-}@redis:6379/0; env files without
+    # REDIS_PASSWORD must keep connecting unauthenticated.
+    from redis import Redis
+
+    payload = valid_settings_kwargs()
+    payload["redis_url"] = "redis://:@redis:6379/0"
+
+    settings = Settings(_env_file=None, **payload)
+    client = Redis.from_url(str(settings.redis_url))
+    kwargs = client.connection_pool.connection_kwargs
+
+    assert not kwargs.get("password")
+    assert not kwargs.get("username")
+    assert kwargs["host"] == "redis"
+
+
+def test_redis_password_url_passes_password_to_client() -> None:
+    from redis import Redis
+
+    payload = valid_settings_kwargs()
+    payload["redis_url"] = "redis://:s3cr3t-value@redis:6379/0"
+
+    settings = Settings(_env_file=None, **payload)
+    client = Redis.from_url(str(settings.redis_url))
+
+    assert client.connection_pool.connection_kwargs["password"] == "s3cr3t-value"
 
 
 def test_malware_scan_required_requires_enabled_flag() -> None:

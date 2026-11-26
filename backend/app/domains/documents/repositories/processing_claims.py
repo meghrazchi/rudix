@@ -23,8 +23,23 @@ from app.models.enums import DocumentStatus
 
 _PROCESSING = DocumentStatus.processing.value
 
-PROCESS_SKIP_STATUSES: frozenset[str] = frozenset(
-    {DocumentStatus.indexed.value, DocumentStatus.deleted.value}
+# Statuses from which no legitimate flow runs ``documents.process``.
+NON_PROCESSABLE_STATUSES: frozenset[str] = frozenset(
+    {
+        DocumentStatus.deleting.value,
+        DocumentStatus.delete_requested.value,
+        DocumentStatus.quarantined.value,
+        DocumentStatus.blocked.value,
+        DocumentStatus.retained_by_policy.value,
+    }
+)
+# A terminal task failure must never overwrite these with ``failed``.
+TERMINAL_FAILURE_PROTECTED_STATUSES: frozenset[str] = NON_PROCESSABLE_STATUSES | {
+    DocumentStatus.deleted.value
+}
+PROCESS_SKIP_STATUSES: frozenset[str] = (
+    frozenset({DocumentStatus.indexed.value, DocumentStatus.deleted.value})
+    | NON_PROCESSABLE_STATUSES
 )
 REINDEX_FORBIDDEN_STATUSES: frozenset[str] = frozenset(
     {DocumentStatus.deleted.value, DocumentStatus.deleting.value}
