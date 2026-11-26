@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 from uuid import UUID
@@ -103,6 +104,7 @@ class QueryRetrievalService:
         initial_top_k: int,
         index_version: str | None = None,
         qdrant_client: QdrantClientLike | None = None,
+        index_versions: Sequence[str] | None = None,
     ) -> list[RetrievedCandidate]:
         if initial_top_k < 1:
             raise ValueError("initial_top_k must be at least 1")
@@ -122,6 +124,7 @@ class QueryRetrievalService:
             if document_ids is not None
             else None,
             index_version=index_version,
+            index_versions=index_versions,
         )
         client = qdrant_client or self._resolve_qdrant_client()
         results = self._search_results(
@@ -201,6 +204,7 @@ class QueryRetrievalService:
         index_version: str | None = None,
         provider: EmbeddingProvider | None = None,
         qdrant_client: QdrantClientLike | None = None,
+        index_versions: Sequence[str] | None = None,
     ) -> QueryRetrievalResult:
         query_vector, prompt_tokens = await self.embed_query(
             question=question,
@@ -213,6 +217,7 @@ class QueryRetrievalService:
             initial_top_k=initial_top_k,
             index_version=index_version,
             qdrant_client=qdrant_client,
+            index_versions=index_versions,
         )
         return QueryRetrievalResult(
             embedding_model=self.embedding_model,

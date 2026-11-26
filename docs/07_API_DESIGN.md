@@ -114,6 +114,21 @@ When the SAML callback is received as a browser form post, the backend issues th
 }
 ```
 
+## Quotas and plan limits
+
+- Usage counters are kept per organization and quota type. Each increment runs as one atomic
+  database upsert, so concurrent requests never lose updates.
+- Windowed quotas (`per_minute`, `per_hour`, `per_day`, `per_month`) reset once per window. The
+  reset is a conditional update that only matches an expired row, so concurrent requests cannot
+  reset the same window twice. Quotas with `reset_window: none` are permanent caps and never reset.
+- Known limit: the quota check and the usage increment are separate steps in a request, so a
+  burst of concurrent requests can overshoot a hard limit by the number of requests in flight.
+  Closing this gap is planned for a later release.
+- When a hard limit would be exceeded, the API returns HTTP `403` with
+  `detail.code = "plan_limit_exceeded"` and safe metadata: `quota_type`, `current_value`,
+  `requested_amount`, `soft_limit`, `hard_limit`, `reset_window`, `next_reset_at`, `retryable`,
+  and `action`.
+
 ## Health
 
 ### GET `/health`

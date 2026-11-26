@@ -56,6 +56,10 @@ from app.workers import document_tasks
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
+from app.workers.evaluation_index_cleanup import (
+    cleanup_eval_index_version_async,
+    is_eval_index_version,
+)
 from app.workers.status_tracking import get_evaluation_status, set_evaluation_status
 
 _evaluation_repository = EvaluationRepository()
@@ -185,6 +189,45 @@ def _normalize_optional_label(value: object) -> str | None:
 
 def _build_target_index_version(*, evaluation_run_id: UUID, target_index: int) -> str:
     return f"eval-{evaluation_run_id.hex[:10]}-{target_index + 1}"
+
+
+async def _cleanup_target_index_async(
+    *,
+    organization_id: UUID,
+    document_ids: list[UUID],
+    index_version: str,
+    evaluation_run_id: str,
+    request_id: str | None,
+    user_id: str | None,
+) -> dict[str, Any]:
+    """Deletes a target's eval chunks and vectors. Never raises: cleanup must not fail a run."""
+    try:
+        result = await cleanup_eval_index_version_async(
+            organization_id=organization_id,
+            document_ids=document_ids,
+            index_version=index_version,
+        )
+    except Exception as exc:
+        entry: dict[str, Any] = {
+            "index_version": index_version,
+            "error": exc.__class__.__name__,
+        }
+    else:
+        entry = result.as_dict()
+    log_evaluation_event(
+        event="evaluation.index_cleanup.completed",
+        organization_id=str(organization_id),
+        user_id=user_id,
+        job_id=evaluation_run_id,
+        request_id=request_id,
+        index_version=index_version,
+        documents_attempted=entry.get("documents_attempted"),
+        chunks_deleted=entry.get("chunks_deleted"),
+        qdrant_failures=entry.get("qdrant_failures"),
+        chunk_failures=entry.get("chunk_failures"),
+        error=entry.get("error"),
+    )
+    return entry
 
 
 def _derive_target_score(summary: dict[str, Any]) -> float | None:
@@ -1311,159 +1354,183 @@ async def _run_evaluation_async(
             ) from exc
 
         target_summaries: list[dict[str, Any]] = []
+        index_cleanup_results: list[dict[str, Any]] = []
         per_target_question_scores: dict[str, dict[str, float | None]] = {}
         primary_question_success_count = 0
         primary_question_failure_count = 0
 
         for target_index, target in enumerate(comparison_targets):
-            target_index_version, corpus_stats = await _prepare_chunking_target_corpus_async(
-                evaluation_run_id=parsed_run_id,
-                target_index=target_index,
-                target=target,
-                document_ids=resolved_corpus_document_ids,
-                request_id=request_id,
-                organization_id=organization_id,
-                user_id=user_id,
-            )
-            question_success_count = 0
-            question_failure_count = 0
-            successful_metrics: list[EvaluationQuestionMetrics] = []
-            target_question_scores: dict[str, float | None] = {}
-
-            for question in questions:
-                question_started = perf_counter()
-                try:
-                    computed = await _evaluate_question_pipeline_async(
-                        question_text=question.question,
-                        expected_answer=question.expected_answer,
-                        expected_document_id=question.expected_document_id,
-                        expected_page_number=question.expected_page_number,
-                        organization_id=evaluation_set.organization_id,
-                        config=run_config,
-                        llm_service=llm_service,
-                        index_version=target_index_version,
-                        prompt_template_content=prompt_template_content,
-                        prompt_template_metadata=prompt_template_metadata,
-                        resolved_profile=resolved_run_profile,
-                    )
-                except Exception as exc:
-                    question_failure_count += 1
-                    failed_metrics = _evaluation_metrics_service.score_question(
-                        expected_document_id=question.expected_document_id,
-                        expected_page_number=question.expected_page_number,
-                        expected_answer=question.expected_answer,
-                        generated_answer="",
-                        not_found=True,
-                        retrieved_chunks=[],
-                        selected_chunk_count=0,
-                        citation_count=0,
-                        citation_accuracy_score=None,
-                        latency_ms=int((perf_counter() - question_started) * 1000),
-                        cost_usd=0.0,
-                        token_input_count=0,
-                        token_output_count=0,
-                        options=run_config.metric_options,
-                        judge_scores=None,
-                        judge_error=exc.__class__.__name__,
-                    )
-                    computed = EvaluationQuestionComputation(
-                        generated_answer="",
-                        retrieval_score=None,
-                        faithfulness_score=None,
-                        citation_accuracy_score=None,
-                        answer_relevance_score=None,
-                        metrics=failed_metrics,
-                        latency_ms=failed_metrics.latency_ms,
-                        details={
-                            "status": "failed",
-                            "question": question.question,
-                            "expected_answer": question.expected_answer,
-                            "expected_document_id": (
-                                str(question.expected_document_id)
-                                if question.expected_document_id is not None
-                                else None
-                            ),
-                            "expected_page_number": question.expected_page_number,
-                            "metrics": failed_metrics.as_dict(),
-                            "error": str(exc),
-                            "error_type": exc.__class__.__name__,
-                        },
-                    )
-                    log_evaluation_event(
-                        event="evaluation.question.failed",
-                        organization_id=organization_id or str(evaluation_set.organization_id),
-                        user_id=user_id,
-                        job_id=evaluation_run_id,
-                        request_id=request_id,
-                        question_id=str(question.id),
-                        error=exc.__class__.__name__,
-                        target_label=target.label,
-                        index_version=target_index_version,
-                    )
-                else:
-                    question_success_count += 1
-                    successful_metrics.append(computed.metrics)
-                    log_evaluation_event(
-                        event="evaluation.question.completed",
-                        organization_id=organization_id or str(evaluation_set.organization_id),
-                        user_id=user_id,
-                        job_id=evaluation_run_id,
-                        request_id=request_id,
-                        question_id=str(question.id),
-                        not_found=computed.details.get("not_found"),
-                        confidence_score=computed.answer_relevance_score,
-                        target_label=target.label,
-                        index_version=target_index_version,
-                    )
-
-                computed.details["chunking_target"] = {
-                    "label": target.label,
-                    "chunking_strategy": target.chunking_strategy,
-                    "chunking_profile_id": target.chunking_profile_id,
-                    "profile_version": target.profile_version,
-                    "profile_source": target.profile_source,
-                    "index_version": target_index_version,
-                }
-                target_question_scores[str(question.id)] = _derive_target_score(
-                    computed.metrics.as_dict()
+            eval_index_version = (
+                _build_target_index_version(
+                    evaluation_run_id=parsed_run_id, target_index=target_index
                 )
+                if target.chunking_profile_config is not None
+                else None
+            )
+            prepared_index_version: str | None = None
+            try:
+                target_index_version, corpus_stats = await _prepare_chunking_target_corpus_async(
+                    evaluation_run_id=parsed_run_id,
+                    target_index=target_index,
+                    target=target,
+                    document_ids=resolved_corpus_document_ids,
+                    request_id=request_id,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                )
+                prepared_index_version = target_index_version
+                question_success_count = 0
+                question_failure_count = 0
+                successful_metrics: list[EvaluationQuestionMetrics] = []
+                target_question_scores: dict[str, float | None] = {}
+
+                for question in questions:
+                    question_started = perf_counter()
+                    try:
+                        computed = await _evaluate_question_pipeline_async(
+                            question_text=question.question,
+                            expected_answer=question.expected_answer,
+                            expected_document_id=question.expected_document_id,
+                            expected_page_number=question.expected_page_number,
+                            organization_id=evaluation_set.organization_id,
+                            config=run_config,
+                            llm_service=llm_service,
+                            index_version=target_index_version,
+                            prompt_template_content=prompt_template_content,
+                            prompt_template_metadata=prompt_template_metadata,
+                            resolved_profile=resolved_run_profile,
+                        )
+                    except Exception as exc:
+                        question_failure_count += 1
+                        failed_metrics = _evaluation_metrics_service.score_question(
+                            expected_document_id=question.expected_document_id,
+                            expected_page_number=question.expected_page_number,
+                            expected_answer=question.expected_answer,
+                            generated_answer="",
+                            not_found=True,
+                            retrieved_chunks=[],
+                            selected_chunk_count=0,
+                            citation_count=0,
+                            citation_accuracy_score=None,
+                            latency_ms=int((perf_counter() - question_started) * 1000),
+                            cost_usd=0.0,
+                            token_input_count=0,
+                            token_output_count=0,
+                            options=run_config.metric_options,
+                            judge_scores=None,
+                            judge_error=exc.__class__.__name__,
+                        )
+                        computed = EvaluationQuestionComputation(
+                            generated_answer="",
+                            retrieval_score=None,
+                            faithfulness_score=None,
+                            citation_accuracy_score=None,
+                            answer_relevance_score=None,
+                            metrics=failed_metrics,
+                            latency_ms=failed_metrics.latency_ms,
+                            details={
+                                "status": "failed",
+                                "question": question.question,
+                                "expected_answer": question.expected_answer,
+                                "expected_document_id": (
+                                    str(question.expected_document_id)
+                                    if question.expected_document_id is not None
+                                    else None
+                                ),
+                                "expected_page_number": question.expected_page_number,
+                                "metrics": failed_metrics.as_dict(),
+                                "error": str(exc),
+                                "error_type": exc.__class__.__name__,
+                            },
+                        )
+                        log_evaluation_event(
+                            event="evaluation.question.failed",
+                            organization_id=organization_id or str(evaluation_set.organization_id),
+                            user_id=user_id,
+                            job_id=evaluation_run_id,
+                            request_id=request_id,
+                            question_id=str(question.id),
+                            error=exc.__class__.__name__,
+                            target_label=target.label,
+                            index_version=target_index_version,
+                        )
+                    else:
+                        question_success_count += 1
+                        successful_metrics.append(computed.metrics)
+                        log_evaluation_event(
+                            event="evaluation.question.completed",
+                            organization_id=organization_id or str(evaluation_set.organization_id),
+                            user_id=user_id,
+                            job_id=evaluation_run_id,
+                            request_id=request_id,
+                            question_id=str(question.id),
+                            not_found=computed.details.get("not_found"),
+                            confidence_score=computed.answer_relevance_score,
+                            target_label=target.label,
+                            index_version=target_index_version,
+                        )
+
+                    computed.details["chunking_target"] = {
+                        "label": target.label,
+                        "chunking_strategy": target.chunking_strategy,
+                        "chunking_profile_id": target.chunking_profile_id,
+                        "profile_version": target.profile_version,
+                        "profile_source": target.profile_source,
+                        "index_version": target_index_version,
+                    }
+                    target_question_scores[str(question.id)] = _derive_target_score(
+                        computed.metrics.as_dict()
+                    )
+
+                    if target_index == 0:
+                        try:
+                            await _evaluation_repository.create_evaluation_result(
+                                session,
+                                evaluation_run_id=parsed_run_id,
+                                evaluation_question_id=question.id,
+                                generated_answer=computed.generated_answer or None,
+                                retrieval_score=computed.retrieval_score,
+                                faithfulness_score=computed.faithfulness_score,
+                                citation_accuracy_score=computed.citation_accuracy_score,
+                                answer_relevance_score=computed.answer_relevance_score,
+                                latency_ms=computed.latency_ms,
+                                details=computed.details,
+                            )
+                            await session.commit()
+                        except Exception as exc:
+                            await session.rollback()
+                            raise TransientTaskError(
+                                f"Unable to persist evaluation result for question: {question.id}"
+                            ) from exc
 
                 if target_index == 0:
-                    try:
-                        await _evaluation_repository.create_evaluation_result(
-                            session,
-                            evaluation_run_id=parsed_run_id,
-                            evaluation_question_id=question.id,
-                            generated_answer=computed.generated_answer or None,
-                            retrieval_score=computed.retrieval_score,
-                            faithfulness_score=computed.faithfulness_score,
-                            citation_accuracy_score=computed.citation_accuracy_score,
-                            answer_relevance_score=computed.answer_relevance_score,
-                            latency_ms=computed.latency_ms,
-                            details=computed.details,
+                    primary_question_success_count = question_success_count
+                    primary_question_failure_count = question_failure_count
+
+                target_summary = _build_target_summary(
+                    target=target,
+                    index_version=target_index_version,
+                    corpus_stats=corpus_stats,
+                    metrics=successful_metrics,
+                    total_questions=len(questions),
+                    success_count=question_success_count,
+                    failure_count=question_failure_count,
+                )
+                target_summaries.append(target_summary)
+                per_target_question_scores[target.label] = target_question_scores
+            finally:
+                cleanup_version = prepared_index_version or eval_index_version
+                if cleanup_version is not None and is_eval_index_version(cleanup_version):
+                    index_cleanup_results.append(
+                        await _cleanup_target_index_async(
+                            organization_id=evaluation_set.organization_id,
+                            document_ids=resolved_corpus_document_ids,
+                            index_version=cleanup_version,
+                            evaluation_run_id=evaluation_run_id,
+                            request_id=request_id,
+                            user_id=user_id,
                         )
-                        await session.commit()
-                    except Exception as exc:
-                        await session.rollback()
-                        raise TransientTaskError(
-                            f"Unable to persist evaluation result for question: {question.id}"
-                        ) from exc
-
-            if target_index == 0:
-                primary_question_success_count = question_success_count
-                primary_question_failure_count = question_failure_count
-
-            target_summary = _build_target_summary(
-                target=target,
-                index_version=target_index_version,
-                corpus_stats=corpus_stats,
-                metrics=successful_metrics,
-                total_questions=len(questions),
-                success_count=question_success_count,
-                failure_count=question_failure_count,
-            )
-            target_summaries.append(target_summary)
-            per_target_question_scores[target.label] = target_question_scores
+                    )
 
         primary_summary = (
             dict(target_summaries[0])
@@ -1527,6 +1594,7 @@ async def _run_evaluation_async(
         metrics_summary["best_by_use_case"] = best_by_use_case
         metrics_summary["regressions_count"] = regression_count
         metrics_summary["regression_failed"] = regression_failed
+        metrics_summary["eval_index_cleanup"] = index_cleanup_results
         if prompt_template_metadata is not None:
             metrics_summary["prompt_template"] = dict(prompt_template_metadata)
         if comparison_payload is not None:

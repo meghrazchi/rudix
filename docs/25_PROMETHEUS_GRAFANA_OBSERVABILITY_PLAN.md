@@ -117,6 +117,8 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
 | `rudix_rag_answers_total` | Counter | `scope_mode`, `confidence_category`, `not_found`, `fallback_used` | Completed RAG answers by grounding outcome |
 | `rudix_rag_confidence_score` | Histogram | `scope_mode` | Distribution of answer confidence scores (`0.1` to `1.0` buckets) |
 | `rudix_rag_citation_validation_failures_total` | Counter | `reason` | Responses where cited chunk IDs failed validation |
+| `rudix_retrieval_branch_failures_total` | Counter | `branch`, `error` | Retrieval branch attempts that failed or timed out and were degraded to partial results |
+| `rudix_eval_index_cleanup_failures_total` | Counter | `store` | Per-document evaluation index cleanup steps that failed (`qdrant` or `postgres`); the run still completes |
 | `rudix_llm_requests_total` | Counter | `provider`, `model`, `operation`, `status` | LLM and embedding provider calls (`chat`, `embed`, `rerank`) |
 | `rudix_llm_tokens_total` | Counter | `provider`, `model`, `direction` | Token consumption (`input`, `output`, `embedding`) |
 | `rudix_llm_estimated_cost_usd_total` | Counter | `provider`, `model` | Cumulative estimated USD spend |
@@ -128,6 +130,7 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
 |---|---|---|---|
 | `rudix_document_uploads_total` | Counter | `file_type`, `status`, `malware_scan_result` | Upload validation and ClamAV scan outcomes |
 | `rudix_document_indexing_jobs_total` | Counter | `task_type`, `file_type`, `status` | Ingestion/reindex/delete job outcomes |
+| `rudix_documents_reaped_total` | Counter | `outcome` | Stale processing documents re-queued or failed by the reaper (`requeued`, `failed`, `enqueue_error`) |
 | `rudix_document_indexing_duration_seconds` | Histogram | `stage`, `file_type` | Duration by stage (`extract`, `ocr`, `chunk`, `embed`, `qdrant_upsert`) |
 | `rudix_document_chunks_generated` | Histogram | `strategy`, `file_type` | Chunks produced per document |
 | `rudix_ocr_pages_processed_total` | Counter | `language`, `status` | OCR page processing counts and timeouts |

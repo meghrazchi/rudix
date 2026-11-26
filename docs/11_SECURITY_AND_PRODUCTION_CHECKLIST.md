@@ -417,6 +417,8 @@ When deleting a document:
 ### RAG
 
 - [ ] Qdrant payload filters include organization ID.
+- [ ] Retrieval filters on the active index versions; evaluation `eval-` versions never reach production answers.
+- [ ] Pre-deploy index version check run (purge script dry run exits 0).
 - [ ] Same embedding model for chunks and queries.
 - [ ] Prompt injection warning in system prompt.
 - [ ] Citations validated.
@@ -438,6 +440,7 @@ When deleting a document:
 - [ ] Dead-letter or failed-job handling.
 - [ ] Worker health checks.
 - [ ] Queue monitoring.
+- [ ] Exactly one beat instance runs `documents.reap_stale`; `DOCUMENT_PROCESSING_STALE_SECONDS` exceeds the longest expected processing time.
 
 ### Observability
 

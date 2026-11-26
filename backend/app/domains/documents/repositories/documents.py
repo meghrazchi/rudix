@@ -388,6 +388,7 @@ class DocumentRepository:
         chunking_strategy: str | None = None,
         chunking_profile_version: str | None = None,
         chunking_config_snapshot: dict | None = None,
+        clear_processing_claim: bool = False,
     ) -> Document | None:
         result = await session.execute(select(Document).where(Document.id == document_id))
         document = result.scalar_one_or_none()
@@ -395,6 +396,10 @@ class DocumentRepository:
             return None
         document.status = status
         document.error_message = error_message
+        if clear_processing_claim:
+            document.processing_task_id = None
+            document.processing_started_at = None
+            document.processing_reap_count = 0
         if page_count is not None:
             document.page_count = page_count
         if chunk_count is not None:

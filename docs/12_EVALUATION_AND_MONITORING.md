@@ -249,6 +249,23 @@ Notes:
 }
 ```
 
+### document_processing_reaped
+
+Emitted by the `documents.reap_stale` beat task as `document.processing.reaped` (re-queued),
+`document.processing.reap_exhausted` (marked `failed` with `PROCESSING_STALLED`), or
+`document.processing.reap_enqueue_failed` (broker error; retried after the next stale window).
+No document text is logged.
+
+```json
+{
+  "event": "document.processing.reaped",
+  "document_id": "uuid",
+  "organization_id": "uuid",
+  "outcome": "requeued",
+  "reap_count": 1
+}
+```
+
 ### query_answered
 
 ```json
@@ -316,6 +333,57 @@ Suggested targets:
 | Citation accuracy         | > 80%             |
 | Failed task rate          | < 2%              |
 | Not-found correctness     | > 90%             |
+
+## Evaluation index cleanup
+
+Chunking comparison runs re-ingest the corpus under `eval-<run hex10>-<n>` index
+versions in the shared Qdrant collection and `document_chunks` table. Production
+retrieval never serves these versions (see `docs/03_RAG_WORKFLOW.md`, Index version
+filter), but they must still be removed:
+
+- The evaluation worker cleans up each target's eval version in a `finally` block,
+  so cleanup also runs when re-ingest or scoring fails partway. It deletes the
+  target's Qdrant points and chunk rows for each corpus document. Live-index targets
+  (`DOCUMENT_INDEX_VERSION`) are never cleaned up.
+- Cleanup never fails the run. `metrics_summary["eval_index_cleanup"]` holds one entry
+  per eval target: `index_version`, `documents_attempted`, `chunks_deleted`,
+  `qdrant_failures` and `chunk_failures`, or `index_version` and `error` (exception
+  class name) when the cleanup call itself failed.
+- Logs: `evaluation.index_cleanup.completed` (counts only), and
+  `evaluation.index_cleanup.qdrant_failed` / `evaluation.index_cleanup.chunks_failed`
+  per document. Metric: `rudix_eval_index_cleanup_failures_total{store}` with
+  `store` set to `qdrant` or `postgres`.
+
+### Purging legacy eval versions
+
+Runs from before 0.2.0, and runs whose cleanup failed, leave eval versions behind.
+`backend/scripts/purge_eval_index_versions.py` reports and purges them:
+
+```bash
+cd backend
+.venv/bin/python scripts/purge_eval_index_versions.py              # dry run (default)
+.venv/bin/python scripts/purge_eval_index_versions.py --apply      # delete eval versions
+.venv/bin/python scripts/purge_eval_index_versions.py --organization-id <uuid> --batch-size 256
+```
+
+- It prints counts per organization and index version for chunk rows and Qdrant
+  points, never text.
+- It skips eval versions that belong to a queued or running evaluation run.
+- It never deletes non-eval versions. Non-eval versions outside the active set are
+  reported as `inactive: hidden from retrieval`, and the script exits with code `2`
+  when any exist. Otherwise it exits with `0`.
+
+### Required pre-deploy check for 0.2.0
+
+Run this on staging and on production before deploying 0.2.0. It cannot be run from
+a development checkout:
+
+1. `SELECT index_version, count(*) FROM document_chunks GROUP BY 1 ORDER BY 1;`
+2. Run the purge script as a dry run.
+3. If a non-eval version other than `DOCUMENT_INDEX_VERSION` is reported, add it to
+   `DOCUMENT_ACTIVE_INDEX_VERSIONS` or reindex those documents before deploying.
+   Otherwise their documents stop returning chunks.
+4. Record the counts in the merge request.
 
 ## Continuous evaluation
 

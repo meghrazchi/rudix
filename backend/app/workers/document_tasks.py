@@ -25,6 +25,11 @@ from app.domains.documents.chunking.hashing import compute_chunk_hash
 from app.domains.documents.extraction import extract_document
 from app.domains.documents.extraction.models import DocumentProfile
 from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.documents.repositories.processing_claims import (
+    PROCESS_SKIP_STATUSES,
+    REINDEX_FORBIDDEN_STATUSES,
+    ClaimOutcome,
+)
 from app.domains.documents.services.chunking_service import ChunkingService
 from app.domains.documents.services.dlp_service import scan_text_for_dlp
 from app.domains.documents.services.embedding_service import (
@@ -67,7 +72,11 @@ from app.models.enums import DocumentStatus, GraphExtractionStatus
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
-from app.workers.status_tracking import get_document_status, set_document_status
+from app.workers.status_tracking import (
+    claim_document_for_processing,
+    get_document_status,
+    set_document_status,
+)
 
 _document_repository = DocumentRepository()
 _connector_repository = ConnectorRepository()
@@ -1497,18 +1506,21 @@ async def _extract_and_store_document_pages_async(
                 _page_by_index: dict[int, int | None] = {
                     p.chunk_index: p.page_number for p in chunks
                 }
-                await _run_document_graph_extraction_async(
-                    document,
-                    request_id=request_id,
-                    organization_id=resolved_organization_id,
-                    user_id=resolved_user_id,
-                    pipeline_type=pipeline_type,
-                    chunk_pairs=_chunk_pairs,
-                    chunk_id_by_index=_chunk_id_by_index,
-                    page_by_index=_page_by_index,
-                    pipeline_recorder=pipeline_recorder,
-                    clear_existing_facts=True,
-                )
+                # Evaluation re-ingest (persist_document_state=False) must not replace the
+                # document's production graph facts with evidence pointing at eval chunks.
+                if persist_document_state:
+                    await _run_document_graph_extraction_async(
+                        document,
+                        request_id=request_id,
+                        organization_id=resolved_organization_id,
+                        user_id=resolved_user_id,
+                        pipeline_type=pipeline_type,
+                        chunk_pairs=_chunk_pairs,
+                        chunk_id_by_index=_chunk_id_by_index,
+                        page_by_index=_page_by_index,
+                        pipeline_recorder=pipeline_recorder,
+                        clear_existing_facts=True,
+                    )
 
                 current_stage = "embed"
                 log_document_event(
@@ -1750,6 +1762,7 @@ async def _extract_and_store_document_pages_async(
                         chunking_strategy=_strategy_name,
                         chunking_profile_version=_strategy_version,
                         chunking_config_snapshot=_chunking_config_snapshot,
+                        clear_processing_claim=True,
                     )
                 else:
                     updated = object()
@@ -2602,11 +2615,27 @@ class DocumentTask(RudixTask):
             return
         try:
             error_details = details_from_exception(exc)
-            set_document_status(
+            owner_task_id = getattr(self.request, "id", None)
+            failed_updated = set_document_status(
                 document_id,
                 status=DocumentStatus.failed,
                 error_message=encode_document_error(error_details),
+                clear_processing_claim=True,
+                owner_task_id=owner_task_id,
             )
+            if not failed_updated:
+                # The claim was taken over by another task (or the row is gone);
+                # the new holder owns the outcome, so do not report a failure.
+                log_document_event(
+                    event="document.processing.failure_superseded",
+                    document_id=document_id,
+                    request_id=kwargs.get("request_id"),
+                    organization_id=kwargs.get("organization_id"),
+                    user_id=kwargs.get("user_id"),
+                    processing_task_id=owner_task_id,
+                    error_code=error_details["code"],
+                )
+                return
             log_document_event(
                 event="document.processing.failed",
                 document_id=document_id,
@@ -2743,34 +2772,36 @@ def process_document(
     chunking_profile_config: dict | None = None,
 ) -> dict[str, str | int | float]:
     """Extract text and persist document_pages before marking a document as indexed."""
+    # request.id survives Celery retries and acks_late redeliveries, so the owning task can
+    # re-enter its own claim; root_id is shared by sibling tasks and must not be used.
+    task_id = self.request.id or f"adhoc-{uuid4().hex}"
     try:
-        status = get_document_status(document_id)
+        claim = claim_document_for_processing(
+            document_id,
+            task_id=task_id,
+            force=force,
+            skip_statuses=PROCESS_SKIP_STATUSES,
+        )
     except ValueError as exc:
         raise PermanentTaskError(f"Invalid document_id: {document_id}") from exc
-    if status is None:
+    if claim.outcome == ClaimOutcome.not_found:
         raise PermanentTaskError(f"Document not found: {document_id}")
-
-    if not force and status in {
-        DocumentStatus.processing.value,
-        DocumentStatus.indexed.value,
-        DocumentStatus.deleted.value,
-    }:
+    if claim.outcome == ClaimOutcome.held:
         log_document_event(
             event="document.processing.skipped",
             document_id=document_id,
             request_id=request_id,
             organization_id=organization_id,
             user_id=user_id,
-            status_code=status,
+            status_code=claim.current_status,
+            reason=(
+                "claim_held"
+                if claim.current_status == DocumentStatus.processing.value
+                else "status_not_claimable"
+            ),
+            processing_task_id=task_id,
         )
         return {"document_id": document_id, "status": "skipped"}
-
-    try:
-        processing_updated = set_document_status(document_id, status=DocumentStatus.processing)
-    except ValueError as exc:
-        raise PermanentTaskError(f"Invalid document_id: {document_id}") from exc
-    if not processing_updated:
-        raise TransientTaskError(f"Unable to move document to processing state: {document_id}")
 
     try:
         document_uuid = _parse_uuid(document_id)
@@ -2791,6 +2822,7 @@ def process_document(
         organization_id=organization_id,
         user_id=user_id,
         status_code=DocumentStatus.processing.value,
+        processing_task_id=task_id,
     )
 
     try:
@@ -2964,21 +2996,34 @@ def reindex_document(
     force: bool = False,
 ) -> dict[str, str | int | float]:
     """Re-index a document idempotently for the active index/model version."""
+    task_id = self.request.id or f"adhoc-{uuid4().hex}"
     try:
-        status = get_document_status(document_id)
+        claim = claim_document_for_processing(
+            document_id,
+            task_id=task_id,
+            force=force,
+            forbidden_statuses=REINDEX_FORBIDDEN_STATUSES,
+        )
     except ValueError as exc:
         raise PermanentTaskError(f"Invalid document_id: {document_id}") from exc
-    if status is None:
+    if claim.outcome == ClaimOutcome.not_found:
         raise PermanentTaskError(f"Document not found: {document_id}")
-    if status == DocumentStatus.deleted.value:
-        raise PermanentTaskError(f"Cannot reindex deleted document: {document_id}")
-    if status == DocumentStatus.deleting.value:
-        raise PermanentTaskError(f"Cannot reindex deleting document: {document_id}")
-
-    if status != DocumentStatus.processing.value:
-        processing_updated = set_document_status(document_id, status=DocumentStatus.processing)
-        if not processing_updated:
-            raise TransientTaskError(f"Unable to move document to processing state: {document_id}")
+    if claim.outcome == ClaimOutcome.held:
+        if claim.current_status == DocumentStatus.deleted.value:
+            raise PermanentTaskError(f"Cannot reindex deleted document: {document_id}")
+        if claim.current_status == DocumentStatus.deleting.value:
+            raise PermanentTaskError(f"Cannot reindex deleting document: {document_id}")
+        log_document_event(
+            event="document.reindex.skipped",
+            document_id=document_id,
+            request_id=request_id,
+            organization_id=organization_id,
+            user_id=user_id,
+            status_code=claim.current_status,
+            reason="claim_held",
+            processing_task_id=task_id,
+        )
+        return {"document_id": document_id, "status": "skipped"}
 
     try:
         document_uuid = _parse_uuid(document_id)

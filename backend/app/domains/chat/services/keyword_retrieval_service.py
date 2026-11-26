@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -86,10 +87,18 @@ class KeywordRetrievalService:
         document_ids: list[UUID] | None,
         top_k: int,
         exact_match_boost: float = 1.5,
+        index_version: str | None = None,
+        index_versions: Sequence[str] | None = None,
     ) -> KeywordRetrievalResult:
+        if index_version is not None and index_versions is not None:
+            raise ValueError("pass either index_version or index_versions, not both")
         if not query.strip():
             return KeywordRetrievalResult(candidates=[], query_tokens=[], exact_match_tokens=[])
         if document_ids is not None and len(document_ids) == 0:
+            return KeywordRetrievalResult(candidates=[], query_tokens=[], exact_match_tokens=[])
+        allowed_versions = list(index_versions) if index_versions is not None else None
+        if allowed_versions is not None and not allowed_versions:
+            # Fail closed: an explicit empty allow-list matches nothing.
             return KeywordRetrievalResult(candidates=[], query_tokens=[], exact_match_tokens=[])
 
         exact_match_tokens = _extract_exact_match_tokens(query)
@@ -125,6 +134,10 @@ class KeywordRetrievalService:
 
         if document_ids is not None:
             stmt = stmt.where(DocumentChunk.document_id.in_(document_ids))
+        if index_version is not None:
+            stmt = stmt.where(DocumentChunk.index_version == index_version)
+        if allowed_versions is not None:
+            stmt = stmt.where(DocumentChunk.index_version.in_(allowed_versions))
 
         rows = (await session.execute(stmt)).mappings().all()
 

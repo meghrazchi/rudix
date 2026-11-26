@@ -268,7 +268,7 @@ async def get_quota_dashboard(
         if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
             window = limit_config.get("reset_window", ResetWindow.per_day)
             next_reset = _compute_next_reset(window, now)
-            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
+            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset, now=now)
 
         item = _usage_item(qt, usage, limit_config)
         items.append(item)
@@ -315,9 +315,10 @@ async def check_quota(
         # Reset if window has expired
         if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
             next_reset = _compute_next_reset(window, now)
-            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
-            current = 0
-            next_reset_at = next_reset
+            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset, now=now)
+            # The row is refreshed: another request may have reset and incremented first.
+            current = usage.current_value
+            next_reset_at = _normalize_utc(usage.next_reset_at)
         else:
             current = usage.current_value if usage is not None else 0
             next_reset_at = (
@@ -358,10 +359,18 @@ async def increment_quota_usage(
     organization_id: UUID,
     quota_type: QuotaType,
     amount: int = 1,
-) -> None:
-    """Increment the usage counter for the given quota type."""
+) -> int | None:
+    """Atomically increment the usage counter and return the new value.
+
+    Returns None for seats, which are counted from memberships. The increment is an
+    atomic database upsert and an expired window is reset at most once.
+
+    Known limit: ``check_quota`` and this call are separate steps in the request
+    pipeline, so a burst of concurrent requests can overshoot a hard limit by the
+    number of requests in flight. Closing that gap is planned for 0.5.0.
+    """
     if quota_type == QuotaType.seats:
-        return
+        return None
     now = datetime.now(UTC)
     policy = await _repo.get_policy(db_session, organization_id=organization_id)
     effective = get_effective_limits(policy)
@@ -375,13 +384,14 @@ async def increment_quota_usage(
     if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
         # Window has expired — reset before incrementing
         next_reset = _compute_next_reset(window, now)
-        await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
+        await _repo.reset_usage(db_session, usage, next_reset_at=next_reset, now=now)
 
     next_reset_at = _compute_next_reset(window, now) if usage is None else None
-    await _repo.increment_usage(
+    updated = await _repo.increment_usage(
         db_session,
         organization_id=organization_id,
         quota_type=quota_type,
         amount=amount,
         next_reset_at=next_reset_at,
     )
+    return updated.current_value

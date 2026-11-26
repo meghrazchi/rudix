@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
@@ -77,6 +78,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_documents_org_trust_status", "organization_id", "trust_status"),
         Index("idx_documents_org_quality_state", "organization_id", "quality_state"),
         Index("idx_documents_org_review_date", "organization_id", "review_date"),
+        Index(
+            "idx_documents_processing_started",
+            "processing_started_at",
+            postgresql_where=sql_text("status = 'processing'"),
+        ),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -103,6 +109,15 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chunk_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Processing claim (R02-02): the Celery task id that owns the current processing run,
+    # when it claimed the row, and how many times the stale reaper has re-queued it.
+    processing_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    processing_reap_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
     source: Mapped[str | None] = mapped_column(String(512), nullable=True)
     language: Mapped[str | None] = mapped_column(String(32), nullable=True)
     language_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)

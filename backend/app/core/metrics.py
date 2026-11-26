@@ -167,6 +167,13 @@ DOCUMENT_CHUNKS_GENERATED = Histogram(
     registry=registry,
 )
 
+DOCUMENTS_REAPED_TOTAL = Counter(
+    "rudix_documents_reaped_total",
+    "Stale processing documents handled by the reaper",
+    ["outcome"],
+    registry=registry,
+)
+
 OCR_PAGES_PROCESSED_TOTAL = Counter(
     "rudix_ocr_pages_processed_total",
     "OCR pages processed by language and status",
@@ -215,6 +222,20 @@ BOT_ASKS_TOTAL = Counter(
     "rudix_bot_asks_total",
     "Chat bot ask invocations by provider and outcome",
     ["provider", "outcome"],
+    registry=registry,
+)
+
+RETRIEVAL_BRANCH_FAILURES_TOTAL = Counter(
+    "rudix_retrieval_branch_failures_total",
+    "Retrieval branch attempts that failed or timed out and were degraded",
+    ["branch", "error"],
+    registry=registry,
+)
+
+EVAL_INDEX_CLEANUP_FAILURES_TOTAL = Counter(
+    "rudix_eval_index_cleanup_failures_total",
+    "Per-document evaluation index cleanup steps that failed (store: qdrant or postgres)",
+    ["store"],
     registry=registry,
 )
 
@@ -396,6 +417,15 @@ def record_document_indexing_job(
         logger.debug("metrics.record_document_indexing_job_failed: %s", exc)
 
 
+def record_document_reaped(outcome: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        DOCUMENTS_REAPED_TOTAL.labels(outcome=outcome).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_document_reaped_failed: %s", exc)
+
+
 def record_celery_task(
     task_name: str, queue: str, status: str, duration_seconds: float | None = None
 ) -> None:
@@ -447,6 +477,24 @@ def record_bot_ask(provider: str, outcome: str) -> None:
         BOT_ASKS_TOTAL.labels(provider=provider, outcome=outcome).inc()
     except Exception as exc:
         logger.debug("metrics.record_bot_ask_failed: %s", exc)
+
+
+def record_retrieval_branch_failure(branch: str, error: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        RETRIEVAL_BRANCH_FAILURES_TOTAL.labels(branch=branch, error=error).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_retrieval_branch_failure_failed: %s", exc)
+
+
+def record_eval_index_cleanup_failure(store: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        EVAL_INDEX_CLEANUP_FAILURES_TOTAL.labels(store=store).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_eval_index_cleanup_failure_failed: %s", exc)
 
 
 def set_dependency_readiness(dependency: str, is_ready: bool) -> None:

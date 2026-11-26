@@ -1,4 +1,5 @@
 import os
+from collections.abc import Callable
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -28,10 +29,48 @@ os.environ.setdefault("CLERK_JWT_AUDIENCE", "rudix-api")
 
 from app.core.config import settings
 from app.core.document_errors import decode_document_error
+from app.domains.documents.repositories.processing_claims import (
+    PROCESS_SKIP_STATUSES,
+    REINDEX_FORBIDDEN_STATUSES,
+    ClaimOutcome,
+    ClaimResult,
+)
 from app.models.enums import DocumentStatus, EvaluationRunStatus, GraphExtractionStatus
 from app.workers import document_tasks, evaluation_tasks
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
+
+
+def _fake_claim(
+    outcome: ClaimOutcome,
+    current_status: str | None = None,
+    calls: list[dict[str, object]] | None = None,
+) -> Callable[..., ClaimResult]:
+    def _claim(
+        document_id: str,
+        *,
+        task_id: str,
+        force: bool,
+        skip_statuses: object = (),
+        forbidden_statuses: object = (),
+    ) -> ClaimResult:
+        if calls is not None:
+            calls.append(
+                {
+                    "document_id": document_id,
+                    "task_id": task_id,
+                    "force": force,
+                    "skip_statuses": skip_statuses,
+                    "forbidden_statuses": forbidden_statuses,
+                }
+            )
+        return ClaimResult(outcome=outcome, current_status=current_status)
+
+    return _claim
+
+
+def _forbid_set_status(*args: object, **kwargs: object) -> bool:
+    raise AssertionError("should not update status")
 
 
 @pytest.fixture
@@ -91,54 +130,48 @@ def test_retry_policy_retries_transient_failures(eager_celery: None) -> None:
 def test_process_document_is_idempotent_when_already_indexed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    claim_calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.indexed.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.held, DocumentStatus.indexed.value, claim_calls),
     )
-    monkeypatch.setattr(
-        document_tasks,
-        "set_document_status",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not update status")),
-    )
+    monkeypatch.setattr(document_tasks, "set_document_status", _forbid_set_status)
 
     result = document_tasks.process_document.run("doc-1")
     assert result["status"] == "skipped"
+    assert len(claim_calls) == 1
+    assert claim_calls[0]["force"] is False
+    assert claim_calls[0]["skip_statuses"] == PROCESS_SKIP_STATUSES
 
 
 def test_process_document_is_idempotent_when_already_processing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    claim_calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.processing.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.held, DocumentStatus.processing.value, claim_calls),
     )
-    monkeypatch.setattr(
-        document_tasks,
-        "set_document_status",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not update status")),
-    )
+    monkeypatch.setattr(document_tasks, "set_document_status", _forbid_set_status)
 
     result = document_tasks.process_document.run("doc-1")
     assert result["status"] == "skipped"
+    assert len(claim_calls) == 1
+    assert claim_calls[0]["force"] is False
+    assert claim_calls[0]["skip_statuses"] == PROCESS_SKIP_STATUSES
 
 
 def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.MonkeyPatch) -> None:
-    status_calls: list[tuple[str, str]] = []
+    claim_calls: list[dict[str, object]] = []
 
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.uploaded.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.claimed, DocumentStatus.processing.value, claim_calls),
     )
-
-    def _set_document_status(
-        document_id: str, *, status: DocumentStatus, error_message: str | None = None
-    ) -> bool:
-        del error_message
-        status_calls.append((document_id, status.value))
-        return True
+    _set_document_status = _forbid_set_status
 
     async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
         class _Stats:
@@ -179,7 +212,8 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
     assert result["embedding_batch_count"] == 2
     assert result["embedding_retry_count"] == 1
     assert result["cleaning_pages_modified"] == 2
-    assert status_calls == [("doc-1", DocumentStatus.processing.value)]
+    assert [call["document_id"] for call in claim_calls] == ["doc-1"]
+    assert str(claim_calls[0]["task_id"]).startswith("adhoc-")
 
 
 @pytest.mark.asyncio
@@ -344,16 +378,10 @@ def test_process_document_marks_graph_pending_before_processing(
 
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.uploaded.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.claimed, DocumentStatus.processing.value),
     )
-
-    def _set_document_status(
-        document_id: str, *, status: DocumentStatus, error_message: str | None = None
-    ) -> bool:
-        del error_message
-        assert status == DocumentStatus.processing
-        return True
+    _set_document_status = _forbid_set_status
 
     async def _set_graph_status(
         document_id: UUID,
@@ -409,16 +437,10 @@ def test_reindex_document_marks_graph_pending_before_processing(
 
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.indexed.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.claimed, DocumentStatus.processing.value),
     )
-
-    def _set_document_status(
-        document_id: str, *, status: DocumentStatus, error_message: str | None = None
-    ) -> bool:
-        del error_message
-        assert status == DocumentStatus.processing
-        return True
+    _set_document_status = _forbid_set_status
 
     async def _set_graph_status(
         document_id: UUID,
@@ -497,12 +519,21 @@ def test_document_task_terminal_failure_marks_document_failed(
 ) -> None:
     captured: dict[str, str] = {}
 
+    flags: dict[str, object] = {}
+
     def _set_document_status(
-        document_id: str, *, status: DocumentStatus, error_message: str | None = None
+        document_id: str,
+        *,
+        status: DocumentStatus,
+        error_message: str | None = None,
+        clear_processing_claim: bool = False,
+        owner_task_id: str | None = None,
     ) -> bool:
         captured["document_id"] = document_id
         captured["status"] = status.value
         captured["error_message"] = error_message or ""
+        flags["clear_processing_claim"] = clear_processing_claim
+        flags["owner_task_id"] = owner_task_id
         return True
 
     monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
@@ -514,6 +545,8 @@ def test_document_task_terminal_failure_marks_document_failed(
 
     assert captured["document_id"] == "doc-1"
     assert captured["status"] == DocumentStatus.failed.value
+    assert flags["clear_processing_claim"] is True
+    assert flags["owner_task_id"] == getattr(document_tasks.process_document.request, "id", None)
     message, details = decode_document_error(captured["error_message"])
     assert message == "boom"
     assert details is not None
@@ -521,25 +554,57 @@ def test_document_task_terminal_failure_marks_document_failed(
     assert details["retryable"] is False
 
 
+def test_document_task_superseded_failure_skips_notifications(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.workers import notification_helper
+
+    notifications: list[dict[str, object]] = []
+    audits: list[dict[str, object]] = []
+    events: list[str] = []
+
+    def _set_document_status(document_id: str, **kwargs: object) -> bool:
+        assert kwargs["clear_processing_claim"] is True
+        return False
+
+    def _log_document_event(*, event: str, **_: object) -> None:
+        events.append(event)
+
+    monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
+    monkeypatch.setattr(document_tasks, "log_document_event", _log_document_event)
+    monkeypatch.setattr(
+        document_tasks, "_record_worker_audit", lambda **kwargs: audits.append(kwargs)
+    )
+    monkeypatch.setattr(
+        notification_helper, "emit_notification", lambda **kwargs: notifications.append(kwargs)
+    )
+
+    document_tasks.process_document.on_terminal_failure(
+        exc=RuntimeError("boom"),
+        args=("doc-1",),
+        kwargs={"organization_id": str(uuid4()), "user_id": str(uuid4())},
+    )
+
+    assert notifications == []
+    assert audits == []
+    assert events == ["document.processing.failure_superseded"]
+
+
 def test_process_document_retries_transient_failures_without_failing_status(
     eager_celery: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = {"count": 0}
-    status_calls: list[tuple[str, str]] = []
+    claim_calls: list[dict[str, object]] = []
 
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.uploaded.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.claimed, DocumentStatus.processing.value, claim_calls),
     )
 
-    def _set_document_status(
-        document_id: str, *, status: DocumentStatus, error_message: str | None = None
-    ) -> bool:
-        del error_message
-        status_calls.append((document_id, status.value))
-        return True
+    def _set_document_status(document_id: str, *, status: DocumentStatus, **_: object) -> bool:
+        raise AssertionError(f"unexpected status update to {status.value}")
 
     async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
         attempts["count"] += 1
@@ -582,30 +647,25 @@ def test_process_document_retries_transient_failures_without_failing_status(
         document_tasks, "_extract_and_store_document_pages_async", _extract_and_store
     )
 
-    result = document_tasks.process_document.delay("doc-1").get(timeout=5)
+    result = document_tasks.process_document.apply(args=["doc-1"], task_id="retry-task-id").get(
+        timeout=5
+    )
     assert result["status"] == DocumentStatus.indexed.value
     assert attempts["count"] == 2
-    assert status_calls == [
-        ("doc-1", DocumentStatus.processing.value),
-        ("doc-1", DocumentStatus.processing.value),
-    ]
+    assert [call["document_id"] for call in claim_calls] == ["doc-1", "doc-1"]
+    # The retry re-enters the claim with the same task id as the first attempt.
+    assert [call["task_id"] for call in claim_calls] == ["retry-task-id", "retry-task-id"]
 
 
 def test_reindex_document_runs_pipeline_and_emits_metrics(monkeypatch: pytest.MonkeyPatch) -> None:
-    status_calls: list[tuple[str, str]] = []
+    claim_calls: list[dict[str, object]] = []
 
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.indexed.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.claimed, DocumentStatus.processing.value, claim_calls),
     )
-
-    def _set_document_status(
-        document_id: str, *, status: DocumentStatus, error_message: str | None = None
-    ) -> bool:
-        del error_message
-        status_calls.append((document_id, status.value))
-        return True
+    _set_document_status = _forbid_set_status
 
     async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
         class _Stats:
@@ -644,24 +704,22 @@ def test_reindex_document_runs_pipeline_and_emits_metrics(monkeypatch: pytest.Mo
     assert result["page_count"] == 2
     assert result["chunk_count"] == 3
     assert result["index_version"] == settings.document_index_version
-    assert status_calls == [("doc-1", DocumentStatus.processing.value)]
+    assert [call["document_id"] for call in claim_calls] == ["doc-1"]
+    assert claim_calls[0]["forbidden_statuses"] == REINDEX_FORBIDDEN_STATUSES
+    assert claim_calls[0]["skip_statuses"] == ()
+    assert claim_calls[0]["force"] is False
 
 
 def test_reindex_document_continues_when_already_processing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # The reindex workflow sets processing without a claim, so the task claims it.
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.processing.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.claimed, DocumentStatus.processing.value),
     )
-    monkeypatch.setattr(
-        document_tasks,
-        "set_document_status",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("should not set status again")
-        ),
-    )
+    monkeypatch.setattr(document_tasks, "set_document_status", _forbid_set_status)
 
     async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
         class _Stats:
@@ -703,12 +761,63 @@ def test_reindex_document_continues_when_already_processing(
 def test_reindex_document_rejects_deleting_document(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         document_tasks,
-        "get_document_status",
-        lambda _: DocumentStatus.deleting.value,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.held, DocumentStatus.deleting.value),
     )
 
     with pytest.raises(PermanentTaskError, match="Cannot reindex deleting document"):
         document_tasks.reindex_document.run("doc-1")
+
+
+def test_reindex_document_rejects_deleted_document(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        document_tasks,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.held, DocumentStatus.deleted.value),
+    )
+
+    with pytest.raises(PermanentTaskError, match="Cannot reindex deleted document"):
+        document_tasks.reindex_document.run("doc-1", force=True)
+
+
+def test_reindex_document_skips_when_claim_held(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        document_tasks,
+        "claim_document_for_processing",
+        _fake_claim(ClaimOutcome.held, DocumentStatus.processing.value),
+    )
+    monkeypatch.setattr(document_tasks, "set_document_status", _forbid_set_status)
+
+    result = document_tasks.reindex_document.run("doc-1")
+    assert result == {"document_id": "doc-1", "status": "skipped"}
+
+
+def test_reindex_document_raises_when_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        document_tasks, "claim_document_for_processing", _fake_claim(ClaimOutcome.not_found)
+    )
+
+    with pytest.raises(PermanentTaskError, match="Document not found"):
+        document_tasks.reindex_document.run("doc-1")
+
+
+def test_reindex_document_rejects_invalid_document_id() -> None:
+    with pytest.raises(PermanentTaskError, match="Invalid document_id"):
+        document_tasks.reindex_document.run("not-a-uuid")
+
+
+def test_process_document_raises_when_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        document_tasks, "claim_document_for_processing", _fake_claim(ClaimOutcome.not_found)
+    )
+
+    with pytest.raises(PermanentTaskError, match="Document not found"):
+        document_tasks.process_document.run("doc-1")
+
+
+def test_process_document_rejects_invalid_document_id() -> None:
+    with pytest.raises(PermanentTaskError, match="Invalid document_id"):
+        document_tasks.process_document.run("not-a-uuid")
 
 
 def test_evaluation_run_transitions_status(monkeypatch: pytest.MonkeyPatch) -> None:

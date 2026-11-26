@@ -25,6 +25,7 @@ celery_app = Celery(
     backend=redis_result_backend_url(),
     include=[
         "app.workers.document_tasks",
+        "app.workers.document_reaper_tasks",
         "app.workers.email_tasks",
         "app.workers.evaluation_tasks",
         "app.workers.connector_sync_tasks",
@@ -89,6 +90,10 @@ celery_app.conf.update(
             "task": "agents.approvals.expire",
             "schedule": 60,
         },
+        "documents-reap-stale": {
+            "task": "documents.reap_stale",
+            "schedule": settings.document_reaper_interval_seconds,
+        },
     },
     task_routes={
         "documents.process": {
@@ -128,6 +133,10 @@ celery_app.conf.update(
             "routing_key": settings.celery_queue_evaluations,
         },
         "agents.approvals.expire": {
+            "queue": settings.celery_task_default_queue,
+            "routing_key": settings.celery_task_default_queue,
+        },
+        "documents.reap_stale": {
             "queue": settings.celery_task_default_queue,
             "routing_key": settings.celery_task_default_queue,
         },

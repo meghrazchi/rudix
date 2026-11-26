@@ -69,6 +69,7 @@ make seed-dev
 - Celery uses explicit queues/routes for document processing, deletion, re-indexing, and evaluations.
 - Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
+- Document processing uses an atomic claim (`documents.processing_task_id`), so retries and redeliveries resume instead of skipping; a terminal failure from a task whose claim was taken over does not mark the document `failed`. The beat-scheduled `documents.reap_stale` task re-queues documents stuck in `processing` (`DOCUMENT_PROCESSING_STALE_SECONDS`, `DOCUMENT_REAPER_INTERVAL_SECONDS`, `DOCUMENT_REAPER_MAX_ATTEMPTS`, `DOCUMENT_REAPER_BATCH_SIZE`). Its `rudix_documents_reaped_total` counter is emitted in prefork children and is not scraped yet (see the beat-heartbeat note under Scheduled tasks).
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Connector sync endpoints use connector-specific Redis rate limits (`RATE_LIMIT_CONNECTOR_REQUESTS`) in addition to the shared admin/document scopes.
 - The public contact form uses `POST /api/v1/contact`, persists valid
@@ -76,6 +77,7 @@ make seed-dev
   `EMAIL_ENABLED=true`; throttle it with `RATE_LIMIT_CONTACT_REQUESTS`.
 - Slack and Microsoft Teams bot ask events use bot-specific Redis rate limits (`RATE_LIMIT_BOT_REQUESTS`) keyed by provider workspace/team and external user.
 - Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`, `CHUNKING_STRATEGY`).
+- Production retrieval only serves `DOCUMENT_INDEX_VERSION` plus `DOCUMENT_ACTIVE_INDEX_VERSIONS` (CSV, empty by default; `eval-` entries are rejected). List an old version there while reindexing after a version change. `scripts/purge_eval_index_versions.py` reports index versions per organization and purges leftover evaluation `eval-` versions (dry run by default, `--apply` to delete). It exits `2` when inactive non-eval versions exist. See `docs/12_EVALUATION_AND_MONITORING.md`.
 - `CHUNKING_STRATEGY` selects the default strategy for all document processing (default: `token_recursive`). Set to `adaptive_hybrid` to enable automatic per-document strategy selection based on file type, OCR status, and structure heuristics.
 - Upload malware scanning is environment-driven (`MALWARE_SCAN_*`) and runs before MinIO writes.
 - Production profile requires `SENTRY_DSN`.
@@ -662,14 +664,34 @@ Notes:
 
 ## Scheduled tasks (Celery beat)
 
-Celery beat is the scheduler that enqueues periodic tasks. It schedules two entries from
+Celery beat is the scheduler that enqueues periodic tasks. It schedules three entries from
 `beat_schedule` in `app/workers/celery_app.py`:
 
 - `connector-sync-schedule-poll` (`connectors.sync.schedule_poll`) every
   `CONNECTOR_SYNC_SCHEDULE_POLL_INTERVAL_SECONDS` seconds (default 60).
 - `agent-approvals-expire` (`agents.approvals.expire`) every 60 seconds.
+- `documents-reap-stale` (`documents.reap_stale`) every `DOCUMENT_REAPER_INTERVAL_SECONDS`
+  seconds (default 300).
 
-Without a beat process, scheduled connector syncs and approval expiry never run.
+Without a beat process, scheduled connector syncs, approval expiry, and stale-document
+recovery never run.
+
+Document processing claim and stale reaper: `documents.process` and `documents.reindex`
+atomically claim the document by writing their Celery task ID to
+`documents.processing_task_id` (with `processing_started_at`). A Celery autoretry or an
+`acks_late` redelivery after a worker crash keeps the same task ID, so it re-enters its own
+claim and finishes; a different task that finds a live claim logs `claim_held` and skips. The
+reaper treats a `processing` document as stale once `processing_started_at` (or `updated_at`
+for rows without a claim) is older than `DOCUMENT_PROCESSING_STALE_SECONDS` (default 3600). It
+releases the claim and re-queues `documents.process`, at most `DOCUMENT_REAPER_MAX_ATTEMPTS`
+times (default 3; `DOCUMENT_REAPER_BATCH_SIZE` rows per run), and then marks the document
+`failed` with error code `PROCESSING_STALLED`. Set the stale threshold above the longest
+expected processing time, or the reaper re-queues documents that are still running (the claim,
+the unique chunk constraint, and deterministic Qdrant point IDs prevent duplicate chunks or
+vectors, but the work is repeated). A stalled reindex is re-queued as `documents.process` with
+the default chunking profile. The exit criterion "a document survives a forced worker kill
+during processing and reaches `indexed`" is verified on staging after deploy; it cannot be run
+in CI.
 
 Run exactly one beat instance per deployment. Never scale it: duplicate beats double-schedule
 every task.

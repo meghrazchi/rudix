@@ -1,17 +1,27 @@
 from __future__ import annotations
 
-from collections.abc import Coroutine
+from collections.abc import Collection, Coroutine
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import select
+
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.documents.repositories.processing_claims import (
+    ClaimResult,
+    DocumentProcessingClaimRepository,
+)
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
+from app.models.document import Document
 from app.models.enums import DocumentStatus, EvaluationRunStatus
 from app.workers.async_runtime import run_async
 
 _document_repository = DocumentRepository()
 _evaluation_repository = EvaluationRepository()
+_claim_repository = DocumentProcessingClaimRepository()
 
 
 def _parse_uuid(value: str) -> UUID:
@@ -29,21 +39,72 @@ async def _get_document_status_async(document_id: str) -> str | None:
         return document.status if document is not None else None
 
 
+async def _claim_document_for_processing_async(
+    document_id: str,
+    *,
+    task_id: str,
+    force: bool,
+    skip_statuses: Collection[str] = (),
+    forbidden_statuses: Collection[str] = (),
+) -> ClaimResult:
+    parsed_id = _parse_uuid(document_id)
+    now = datetime.now(UTC)
+    stale_before = now - timedelta(seconds=settings.document_processing_stale_seconds)
+    async with SessionLocal() as session:
+        async with session.begin():
+            return await _claim_repository.claim_for_processing(
+                session,
+                document_id=parsed_id,
+                task_id=task_id,
+                now=now,
+                stale_before=stale_before,
+                force=force,
+                skip_statuses=skip_statuses,
+                forbidden_statuses=forbidden_statuses,
+            )
+
+
 async def _set_document_status_async(
     document_id: str,
     *,
     status: DocumentStatus,
     error_message: str | None = None,
+    clear_processing_claim: bool = False,
+    owner_task_id: str | None = None,
 ) -> bool:
     parsed_id = _parse_uuid(document_id)
     async with SessionLocal() as session:
         async with session.begin():
-            document = await _document_repository.get_document_by_id(session, document_id=parsed_id)
+            if owner_task_id is not None:
+                # Lock the row so a concurrent claim cannot slip in between check and write.
+                result = await session.execute(
+                    select(Document).where(Document.id == parsed_id).with_for_update()
+                )
+                document = result.scalar_one_or_none()
+            else:
+                document = await _document_repository.get_document_by_id(
+                    session, document_id=parsed_id
+                )
             if document is None:
                 return False
+            if owner_task_id is not None and document.processing_task_id not in (
+                None,
+                owner_task_id,
+            ):
+                # Another task took over the claim; do not clobber its run.
+                return False
 
+            claim_pending = clear_processing_claim and (
+                document.processing_task_id is not None
+                or document.processing_started_at is not None
+                or document.processing_reap_count != 0
+            )
             # Idempotent transition: avoid touching updated_at when nothing changes.
-            if document.status == status.value and document.error_message == error_message:
+            if (
+                document.status == status.value
+                and document.error_message == error_message
+                and not claim_pending
+            ):
                 return True
 
             updated = await _document_repository.update_document_status(
@@ -51,6 +112,7 @@ async def _set_document_status_async(
                 document_id=parsed_id,
                 status=status.value,
                 error_message=error_message,
+                clear_processing_claim=clear_processing_claim,
             )
         return updated is not None
 
@@ -94,8 +156,37 @@ def set_document_status(
     *,
     status: DocumentStatus,
     error_message: str | None = None,
+    clear_processing_claim: bool = False,
+    owner_task_id: str | None = None,
 ) -> bool:
-    return _run(_set_document_status_async(document_id, status=status, error_message=error_message))
+    return _run(
+        _set_document_status_async(
+            document_id,
+            status=status,
+            error_message=error_message,
+            clear_processing_claim=clear_processing_claim,
+            owner_task_id=owner_task_id,
+        )
+    )
+
+
+def claim_document_for_processing(
+    document_id: str,
+    *,
+    task_id: str,
+    force: bool,
+    skip_statuses: Collection[str] = (),
+    forbidden_statuses: Collection[str] = (),
+) -> ClaimResult:
+    return _run(
+        _claim_document_for_processing_async(
+            document_id,
+            task_id=task_id,
+            force=force,
+            skip_statuses=skip_statuses,
+            forbidden_statuses=forbidden_statuses,
+        )
+    )
 
 
 def get_evaluation_status(evaluation_run_id: str) -> str | None:

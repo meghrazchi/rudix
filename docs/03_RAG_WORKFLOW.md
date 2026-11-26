@@ -334,6 +334,32 @@ similarity_metric = cosine
 reranking = provider-backed cross-encoder with safe original-order fallback
 ```
 
+### Index version filter
+
+Every production retrieval path filters both Qdrant search and PostgreSQL keyword
+search on the active index versions: `DOCUMENT_INDEX_VERSION` plus any versions
+listed in `DOCUMENT_ACTIVE_INDEX_VERSIONS` (CSV, empty by default). The paths are the
+chat HTTP and WebSocket pipelines (bots go through the HTTP pipeline) and the agent
+`answer_from_context` tool, which MCP also runs. One active version gives an exact
+match and several give a match-any condition. An explicitly empty list fails closed.
+
+Evaluation chunking comparisons re-ingest documents under their own
+`eval-<run hex10>-<n>` versions and retrieve only that version, so evaluation chunks
+never reach production answers. `DOCUMENT_ACTIVE_INDEX_VERSIONS` rejects `eval-`
+entries. Graph expansion loads chunks by ID from graph evidence and is not filtered
+by version; evaluation re-ingest skips graph extraction, so graph evidence only points
+at production chunks. The document-inventory answer ("which files are included?")
+also reads only chunks under the active versions.
+
+To change `DOCUMENT_INDEX_VERSION`:
+
+1. Add the old version to `DOCUMENT_ACTIVE_INDEX_VERSIONS` and set the new version.
+2. Reindex every document.
+3. Remove the old version from the list, then purge or delete its rows.
+
+While both versions are listed, a reindexed document has chunks under both, so
+retrieval can return duplicate chunks for it.
+
 ## Re-ranking
 
 Reranking is a production-only relevance pass that runs after retrieval and before

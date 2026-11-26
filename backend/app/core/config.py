@@ -340,6 +340,10 @@ class Settings(BaseSettings):
     celery_retry_backoff_max_seconds: int = Field(default=60, ge=1, le=3600)
     celery_retry_jitter: bool = True
     celery_worker_prefetch_multiplier: int = Field(default=1, ge=1, le=20)
+    document_processing_stale_seconds: int = Field(default=3600, ge=300, le=86400)
+    document_reaper_interval_seconds: int = Field(default=300, ge=30, le=3600)
+    document_reaper_max_attempts: int = Field(default=3, ge=1, le=20)
+    document_reaper_batch_size: int = Field(default=100, ge=1, le=1000)
     redis_url: RedisDsn
     redis_socket_connect_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
     redis_socket_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
@@ -552,6 +556,11 @@ class Settings(BaseSettings):
     chunk_overlap_tokens: int = Field(default=120, ge=0, le=2000)
     chunking_strategy: str = Field(default="token_recursive", min_length=1, max_length=64)
     document_index_version: str = Field(default="v1", min_length=1, max_length=64)
+    # Extra index versions production retrieval still serves (CSV). The current
+    # document_index_version is always active; evaluation "eval-" versions never are.
+    document_active_index_versions: Annotated[list[str], NoDecode] = Field(
+        default_factory=list, max_length=20
+    )
     embedding_batch_max_items: int = Field(default=96, ge=1, le=2048)
     embedding_batch_max_tokens: int = Field(default=100000, ge=100, le=300000)
     embedding_retry_max_attempts: int = Field(default=3, ge=1, le=10)
@@ -922,6 +931,29 @@ class Settings(BaseSettings):
                 "document_index_version may contain only letters, numbers, '.', '-', and '_'"
             )
         return cleaned
+
+    @field_validator("document_active_index_versions", mode="before")
+    @classmethod
+    def validate_document_active_index_versions(cls, value: object) -> list[str]:
+        if value is None or value == "":
+            return []
+        raw_items = value.split(",") if isinstance(value, str) else value
+        if not isinstance(raw_items, list | tuple):
+            raise ValueError("document_active_index_versions must be a CSV string or list")
+        versions: list[str] = []
+        for item in raw_items:
+            cleaned = str(item).strip()
+            if not cleaned or cleaned in versions:
+                continue
+            if not cleaned.replace(".", "").replace("-", "").replace("_", "").isalnum():
+                raise ValueError(
+                    "document_active_index_versions entries may contain only letters, "
+                    "numbers, '.', '-', and '_'"
+                )
+            if cleaned.lower().startswith("eval-"):
+                raise ValueError("document_active_index_versions must not include eval- versions")
+            versions.append(cleaned)
+        return versions
 
     @field_validator("sentry_release")
     @classmethod
@@ -1339,6 +1371,16 @@ class Settings(BaseSettings):
             return self.sentry_test_event_enabled
         return self.environment in {Environment.development, Environment.test}
 
+    @property
+    def active_index_versions(self) -> tuple[str, ...]:
+        """Index versions production retrieval serves, current version first."""
+        extra = [
+            version
+            for version in self.document_active_index_versions
+            if version != self.document_index_version
+        ]
+        return (self.document_index_version, *extra)
+
     @staticmethod
     def _sanitize_url(url_value: str) -> str:
         parsed = urlsplit(url_value)
@@ -1390,6 +1432,10 @@ class Settings(BaseSettings):
             "celery_retry_backoff_seconds": self.celery_retry_backoff_seconds,
             "celery_retry_backoff_max_seconds": self.celery_retry_backoff_max_seconds,
             "celery_retry_jitter": self.celery_retry_jitter,
+            "document_processing_stale_seconds": self.document_processing_stale_seconds,
+            "document_reaper_interval_seconds": self.document_reaper_interval_seconds,
+            "document_reaper_max_attempts": self.document_reaper_max_attempts,
+            "document_reaper_batch_size": self.document_reaper_batch_size,
             "celery_worker_prefetch_multiplier": self.celery_worker_prefetch_multiplier,
             "redis_url": self._sanitize_url(str(self.redis_url)),
             "redis_socket_connect_timeout_seconds": self.redis_socket_connect_timeout_seconds,
@@ -1536,6 +1582,7 @@ class Settings(BaseSettings):
             "chunk_size_tokens": self.chunk_size_tokens,
             "chunk_overlap_tokens": self.chunk_overlap_tokens,
             "document_index_version": self.document_index_version,
+            "document_active_index_versions": list(self.active_index_versions),
             "embedding_batch_max_items": self.embedding_batch_max_items,
             "embedding_batch_max_tokens": self.embedding_batch_max_tokens,
             "embedding_retry_max_attempts": self.embedding_retry_max_attempts,

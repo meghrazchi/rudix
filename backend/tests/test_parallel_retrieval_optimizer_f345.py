@@ -49,6 +49,7 @@ class _FakeQueryRetrievalService:
         self.delay_seconds = delay_seconds
         self.embed_calls: list[str] = []
         self.retrieve_calls: list[tuple[list[float], list[object] | None]] = []
+        self.index_versions_calls: list[object] = []
 
     async def embed_query(self, *, question: str) -> tuple[list[float], int]:
         self.embed_calls.append(question)
@@ -63,9 +64,11 @@ class _FakeQueryRetrievalService:
         document_ids,
         initial_top_k: int,
         qdrant_client=None,
+        index_versions=None,
     ) -> list[RetrievedCandidate]:
         del organization_id, qdrant_client, initial_top_k
         self.retrieve_calls.append((query_vector, document_ids))
+        self.index_versions_calls.append(index_versions)
         doc_id = document_ids[0] if document_ids else uuid4()
         return [
             RetrievedCandidate(
@@ -83,6 +86,7 @@ class _FakeKeywordRetrievalService:
     def __init__(self, *, delay_seconds: float = 0.1) -> None:
         self.delay_seconds = delay_seconds
         self.calls: list[tuple[str, list[object] | None]] = []
+        self.index_versions_calls: list[object] = []
 
     async def search_chunks(
         self,
@@ -93,9 +97,11 @@ class _FakeKeywordRetrievalService:
         document_ids,
         top_k: int,
         exact_match_boost: float = 1.5,
+        index_versions=None,
     ) -> KeywordRetrievalResult:
         del session, organization_id, top_k, exact_match_boost
         self.calls.append((query, document_ids))
+        self.index_versions_calls.append(index_versions)
         await asyncio.sleep(self.delay_seconds)
         doc_id = document_ids[0] if document_ids else uuid4()
         candidate = KeywordRetrievedCandidate(
@@ -224,3 +230,40 @@ async def test_parallel_retrieval_optimizer_degrades_on_timeout() -> None:
         for record in result.branch_records
     )
     assert result.graph_result.graph_context_used is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("queries", [["alpha"], ["alpha", "beta"]])
+async def test_parallel_retrieval_optimizer_forwards_index_versions(queries: list[str]) -> None:
+    """Both keyword arms (caller session and branch sessions) and the vector branch."""
+
+    class _Session:
+        async def __aenter__(self) -> object:
+            return object()
+
+        async def __aexit__(self, *exc: object) -> None:
+            return None
+
+    optimizer = ParallelRetrievalOptimizer(session_factory=_Session)  # type: ignore[arg-type]
+    query_service = _FakeQueryRetrievalService(delay_seconds=0)
+    keyword_service = _FakeKeywordRetrievalService(delay_seconds=0)
+    versions = ("v1", "v0")
+
+    await optimizer.execute(
+        session=AsyncMock(),
+        organization_id=uuid4(),
+        document_ids=None,
+        queries=queries,
+        query_retrieval_service=query_service,
+        keyword_retrieval_service=keyword_service,
+        graph_retrieval_service=_FakeGraphRetrievalService(delay_seconds=0),
+        graph_enabled=False,
+        keyword_enabled=True,
+        qdrant_client=None,
+        top_k=3,
+        exact_match_boost=1.5,
+        index_versions=versions,
+    )
+
+    assert query_service.index_versions_calls == [versions] * len(queries)
+    assert keyword_service.index_versions_calls == [versions] * len(queries)

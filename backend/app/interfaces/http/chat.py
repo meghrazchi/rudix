@@ -942,7 +942,10 @@ async def _build_scope_inventory_result(
 
     chunks_result = await db_session.execute(
         select(DocumentChunk)
-        .where(DocumentChunk.document_id.in_(citation_document_ids))
+        .where(
+            DocumentChunk.document_id.in_(citation_document_ids),
+            DocumentChunk.index_version.in_(settings.active_index_versions),
+        )
         .order_by(DocumentChunk.document_id.asc(), DocumentChunk.chunk_index.asc())
     )
     first_chunk_by_document_id: dict[UUID, DocumentChunk] = {}
@@ -3526,6 +3529,7 @@ async def query_chat(
                 top_k=retrieval_top_k,
                 exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
                 budget=_parallel_budget,
+                index_versions=settings.active_index_versions,
             )
             embedding_model = parallel_result.embedding_model or embedding_model
             embedding_prompt_tokens = parallel_result.total_embedding_prompt_tokens
@@ -6704,6 +6708,7 @@ async def _run_ws_chat_pipeline(
                         top_k=retrieval_top_k,
                         exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
                         budget=_ws_parallel_budget,
+                        index_versions=settings.active_index_versions,
                     )
                     embedding_model = parallel_result.embedding_model or embedding_model
                     embedding_prompt_tokens = parallel_result.total_embedding_prompt_tokens

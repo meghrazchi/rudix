@@ -478,10 +478,23 @@ async def test_evaluation_worker_stores_chunking_comparison_summary(
         ),
     )
 
+    cleanup_versions: list[str] = []
+
+    async def fake_cleanup(
+        *, organization_id: UUID, document_ids: list[UUID], index_version: str
+    ) -> object:
+        # Keep the run away from real Qdrant and PostgreSQL cleanup.
+        del organization_id, document_ids
+        cleanup_versions.append(index_version)
+        raise RuntimeError("cleanup unavailable")
+
+    monkeypatch.setattr(evaluation_tasks, "cleanup_eval_index_version_async", fake_cleanup)
+
     result = await evaluation_tasks._run_evaluation_async(run_id)
     assert result["question_total_count"] == 1
     assert result["question_success_count"] == 1
     assert result["question_failure_count"] == 0
+    assert cleanup_versions == ["eval-target-1", "eval-target-2"]
 
     refreshed_run = (
         await db_session.execute(select(EvaluationRun).where(EvaluationRun.id == UUID(run_id)))
@@ -496,3 +509,8 @@ async def test_evaluation_worker_stores_chunking_comparison_summary(
     assert summary["best_by_document_type"]["pdf"]["label"] == "Baseline profile"
     assert summary["best_by_use_case"]["unlabeled"]["label"] == "Baseline profile"
     assert summary["regression_failed"] is True
+    # A cleanup failure is recorded but never fails the run.
+    assert summary["eval_index_cleanup"] == [
+        {"index_version": "eval-target-1", "error": "RuntimeError"},
+        {"index_version": "eval-target-2", "error": "RuntimeError"},
+    ]

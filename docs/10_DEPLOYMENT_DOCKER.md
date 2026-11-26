@@ -23,7 +23,7 @@ flowchart TD
 frontend       Next.js dev server or containerized Next.js service
 api            FastAPI container
 worker         Celery worker container
-beat           Celery beat scheduler (exactly one instance)
+beat           Celery beat scheduler (exactly one instance; also schedules the stale-document reaper)
 postgres       PostgreSQL
 qdrant         Qdrant vector database
 minio          MinIO object storage
