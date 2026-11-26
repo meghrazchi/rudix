@@ -29,6 +29,7 @@ celery_app = Celery(
         "app.workers.evaluation_tasks",
         "app.workers.connector_sync_tasks",
         "app.workers.agent_tasks",
+        "app.workers.safety_eval_tasks",
     ],
 )
 
@@ -113,6 +114,22 @@ celery_app.conf.update(
         "connectors.sync.schedule_poll": {
             "queue": settings.celery_queue_connector_sync,
             "routing_key": settings.celery_queue_connector_sync,
+        },
+        "documents.graph_reindex": {
+            "queue": settings.celery_queue_documents_reindex,
+            "routing_key": settings.celery_queue_documents_reindex,
+        },
+        "documents.backfill": {
+            "queue": settings.celery_queue_documents_reindex,
+            "routing_key": settings.celery_queue_documents_reindex,
+        },
+        "safety_evals.run": {
+            "queue": settings.celery_queue_evaluations,
+            "routing_key": settings.celery_queue_evaluations,
+        },
+        "agents.approvals.expire": {
+            "queue": settings.celery_task_default_queue,
+            "routing_key": settings.celery_task_default_queue,
         },
         "app.workers.email_tasks.send_transactional_email": {
             "queue": "email",
