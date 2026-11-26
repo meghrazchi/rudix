@@ -16,6 +16,25 @@ on:
         required: false
         type: boolean
         default: false
+  # Called by release.yml before deploy-staging (R03-03). Callers pass
+  # `secrets: inherit`; the gate reads the newest completed nightly run.
+  workflow_call:
+    inputs:
+      evaluation_run_id:
+        description: "Evaluation run ID, or 'latest' for the newest completed nightly run"
+        required: false
+        type: string
+        default: latest
+      safety_eval_run_id:
+        description: "Safety evaluation run ID"
+        required: false
+        type: string
+        default: ""
+      dry_run:
+        description: "Do not block on gate failure"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,27 +51,49 @@ jobs:
       RUDIX_API_BASE_URL: ${{ secrets.RUDIX_API_BASE_URL }}
       RUDIX_API_TOKEN: ${{ secrets.RUDIX_API_TOKEN }}
       QUALITY_GATE_ID: ${{ secrets.QUALITY_GATE_ID }}
-      EVALUATION_RUN_ID: ${{ github.event.inputs.evaluation_run_id }}
-      SAFETY_EVAL_RUN_ID: ${{ github.event.inputs.safety_eval_run_id }}
-      QUALITY_GATE_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      ACCURACY_EVAL_SET_ID: ${{ secrets.ACCURACY_EVAL_SET_ID }}
+      # `inputs` covers both workflow_dispatch and workflow_call.
+      EVALUATION_RUN_ID: ${{ inputs.evaluation_run_id }}
+      SAFETY_EVAL_RUN_ID: ${{ inputs.safety_eval_run_id }}
+      QUALITY_GATE_DRY_RUN: ${{ inputs.dry_run }}
+      QUALITY_GATE_MAX_RUN_AGE_HOURS: ${{ vars.QUALITY_GATE_MAX_RUN_AGE_HOURS || '36' }}
+      # Bootstrap only: 'true' turns missing secrets into a warning and skips the
+      # gate, so a fresh fork or a repo without staging can still release.
+      ALLOW_MISSING_CONFIG: ${{ vars.QUALITY_GATE_ALLOW_MISSING_CONFIG }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
       - name: Validate quality gate inputs
+        id: validate
         run: |
-          for var_name in RUDIX_API_BASE_URL RUDIX_API_TOKEN QUALITY_GATE_ID; do
+          required="RUDIX_API_BASE_URL RUDIX_API_TOKEN QUALITY_GATE_ID"
+          if [ "$(printf '%s' "${EVALUATION_RUN_ID:-}" | tr '[:upper:]' '[:lower:]')" = "latest" ]; then
+            required="${required} ACCURACY_EVAL_SET_ID"
+          fi
+          missing=""
+          for var_name in ${required}; do
             if [ -z "${!var_name:-}" ]; then
-              echo "Missing required secret: ${var_name}"
-              exit 1
+              missing="${missing} ${var_name}"
             fi
           done
+          if [ -n "${missing}" ]; then
+            if [ "${ALLOW_MISSING_CONFIG:-}" = "true" ]; then
+              echo "::warning::Quality gate skipped: missing secrets:${missing}. QUALITY_GATE_ALLOW_MISSING_CONFIG=true is for bootstrap only."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Missing required secrets:${missing}"
+            exit 1
+          fi
           if [ -z "${EVALUATION_RUN_ID:-}" ] && [ -z "${SAFETY_EVAL_RUN_ID:-}" ]; then
             echo "Set at least one of evaluation_run_id or safety_eval_run_id."
             exit 1
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Run quality gate script
+        if: steps.validate.outputs.skip != 'true'
         run: python3 ci/scripts/quality_gate_runner.py
 
       - name: Upload quality gate report

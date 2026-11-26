@@ -485,6 +485,8 @@ class Settings(BaseSettings):
     metrics_path: str = Field(default="/metrics", min_length=1, max_length=128)
     metrics_require_auth: bool = False
     metrics_bearer_token: SecretStr | None = None
+    # Count SQL statements per HTTP request (rudix_db_queries_per_request, R03-09).
+    metrics_db_query_counting_enabled: bool = True
     worker_metrics_enabled: bool = False
     worker_metrics_port: int = Field(default=9808, ge=1024, le=65535)
 

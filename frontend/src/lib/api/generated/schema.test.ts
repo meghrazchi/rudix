@@ -9,7 +9,9 @@ import type {
 } from "@/lib/api/documents";
 import type {
   ChatQueryResponse,
+  ChatQueryOverrides,
   ChatCitationResponse,
+  ChatCitationOverrides,
   ChatSessionMessageListResponse,
 } from "@/lib/api/chat";
 import type {
@@ -22,6 +24,8 @@ type Schemas = components["schemas"];
 // Verify that the re-exported types from API modules are identical to the
 // generated schema types. If a Pydantic model changes and openapi.json is
 // regenerated, these assertions will catch any divergence at typecheck time.
+// Fields the frontend declares itself (overlays in the API modules) are
+// omitted on both sides; every other field must match the generated schema.
 
 describe("generated schema types", () => {
   it("document types match generated schema", () => {
@@ -29,10 +33,10 @@ describe("generated schema types", () => {
     // (collections, tags, source, language, etc.); verify only the envelope shape.
     expectTypeOf<
       Omit<DocumentListResponse, "items" | "freshness" | "quality_state">
-    >().toEqualTypeOf<Omit<Schemas["DocumentListResponse"], "items">>();
-    expectTypeOf<
-      Omit<
-        DocumentDetailResponse,
+    >().toEqualTypeOf<
+      Omit<Schemas["DocumentListResponse"], "items" | "freshness" | "quality_state">
+    >();
+    type DetailOverrideKeys =
         | "chunking_diagnostics"
         | "language"
         | "graph_extraction_status"
@@ -78,36 +82,47 @@ describe("generated schema types", () => {
         | "effective_date"
         | "trusted_at"
         | "stale_after_days"
-        | "superseded_by_document_id"
-      >
-    >().toEqualTypeOf<Schemas["DocumentDetailResponse"]>();
+        | "superseded_by_document_id";
+    expectTypeOf<
+      Omit<DocumentDetailResponse, DetailOverrideKeys>
+    >().toEqualTypeOf<Omit<Schemas["DocumentDetailResponse"], DetailOverrideKeys>>();
     expectTypeOf<Omit<DocumentChunksResponse, "items">>().toEqualTypeOf<
       Omit<Schemas["DocumentChunksResponse"], "items">
     >();
+    type ChunkOverrideKeys =
+      | "section_path"
+      | "language"
+      | "chunk_level"
+      | "child_count"
+      | "source_start_offset"
+      | "source_end_offset";
     expectTypeOf<
-      Omit<
-        DocumentChunksResponse["items"][number],
-        | "section_path"
-        | "language"
-        | "chunk_level"
-        | "child_count"
-        | "source_start_offset"
-        | "source_end_offset"
-      >
-    >().toEqualTypeOf<Schemas["DocumentChunkPreviewResponse"]>();
+      Omit<DocumentChunksResponse["items"][number], ChunkOverrideKeys>
+    >().toEqualTypeOf<
+      Omit<Schemas["DocumentChunkPreviewResponse"], ChunkOverrideKeys>
+    >();
     expectTypeOf<DocumentStatus>().toEqualTypeOf<Schemas["DocumentStatus"]>();
   });
 
   it("chat types match generated schema", () => {
+    type QueryOverrideKeys =
+      | keyof ChatQueryOverrides
+      | "citation_validation_failed";
     expectTypeOf<
-      Schemas["ChatQueryResponse"]
-    >().toMatchTypeOf<ChatQueryResponse>();
+      Omit<Schemas["ChatQueryResponse"], QueryOverrideKeys>
+    >().toMatchTypeOf<Omit<ChatQueryResponse, QueryOverrideKeys>>();
     expectTypeOf<
-      Schemas["ChatCitationResponse"]
-    >().toMatchTypeOf<ChatCitationResponse>();
+      Omit<Schemas["ChatCitationResponse"], keyof ChatCitationOverrides>
+    >().toMatchTypeOf<Omit<ChatCitationResponse, keyof ChatCitationOverrides>>();
+    type MessageOverrideKeys = "citations" | "trust_metadata";
     expectTypeOf<
-      Schemas["ChatSessionMessageListResponse"]
-    >().toMatchTypeOf<ChatSessionMessageListResponse>();
+      Omit<
+        Schemas["ChatSessionMessageListResponse"]["items"][number],
+        MessageOverrideKeys
+      >
+    >().toMatchTypeOf<
+      Omit<ChatSessionMessageListResponse["items"][number], MessageOverrideKeys>
+    >();
   });
 
   it("evaluation types match generated schema", () => {

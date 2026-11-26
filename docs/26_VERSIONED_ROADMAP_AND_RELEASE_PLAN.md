@@ -142,6 +142,9 @@ gates (F302, F149) pass with the flag enabled and the latency budget in section 
 
 These are **proposed targets**, not measurements. `R03-09` establishes the first measured
 baseline, and the targets are revised against it before `0.4.0` starts.
+The baseline template is
+[`roadmap/V0_3_0_LOAD_BASELINE.md`](./roadmap/V0_3_0_LOAD_BASELINE.md), still marked "not yet
+measured"; these targets are revised once it is measured.
 
 | Metric | Target at `1.0.0` |
 |---|---|

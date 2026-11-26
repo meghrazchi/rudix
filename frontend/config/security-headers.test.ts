@@ -173,4 +173,79 @@ describe("buildSecurityHeaders", () => {
     expect(policy).not.toContain("report-uri");
     expect(policy).not.toContain("matomo");
   });
+  it("adds the contact submit origin to connect-src, not the external URL", () => {
+    const policy = csp({
+      NEXT_PUBLIC_CONTACT_SUBMIT_API_URL: "https://forms.example.com/submit",
+      NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL: "https://ext.example.com/x",
+      NEXT_PUBLIC_CONTACT_SCHEDULER_URL: "https://cal.example.com/demo",
+    });
+    expect(directive(policy, "connect-src")).toContain(
+      "https://forms.example.com",
+    );
+    expect(policy).not.toContain("ext.example.com");
+    expect(policy).not.toContain("cal.example.com");
+    expect(policy).toContain("form-action 'self'");
+  });
+
+  it("defaults frame-src to none", () => {
+    expect(directive(csp({}), "frame-src")).toBe("frame-src 'none'");
+  });
+
+  it("adds known captcha provider hosts case-insensitively", () => {
+    const ts = csp({ NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER: " Turnstile " });
+    for (const name of ["script-src", "frame-src", "connect-src"]) {
+      expect(directive(ts, name)).toContain(
+        "https://challenges.cloudflare.com",
+      );
+    }
+    expect(directive(ts, "frame-src")).toContain("'self'");
+    expect(directive(ts, "style-src")).not.toContain("cloudflare");
+
+    const hc = csp({ NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER: "hcaptcha" });
+    for (const name of [
+      "script-src",
+      "frame-src",
+      "connect-src",
+      "style-src",
+    ]) {
+      expect(directive(hc, name)).toContain("https://hcaptcha.com");
+      expect(directive(hc, name)).toContain("https://*.hcaptcha.com");
+    }
+
+    const rc = csp({ NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER: "RECAPTCHA" });
+    for (const name of ["script-src", "frame-src"]) {
+      expect(directive(rc, name)).toContain("https://www.google.com");
+      expect(directive(rc, name)).toContain("https://www.gstatic.com");
+    }
+    expect(directive(rc, "connect-src")).toContain("https://www.google.com");
+    expect(directive(rc, "connect-src")).not.toContain("gstatic");
+  });
+
+  it("adds nothing for unknown captcha providers", () => {
+    const base = csp({});
+    for (const provider of ["acme", "", "constructor", "__proto__"]) {
+      expect(csp({ NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER: provider })).toBe(
+        base,
+      );
+    }
+  });
+
+  it("uses report-only by default and enforces with NEXT_PUBLIC_CSP_ENFORCE", () => {
+    const def = headerMap({});
+    expect(def["Content-Security-Policy-Report-Only"]).toBeDefined();
+    expect(def["Content-Security-Policy"]).toBeUndefined();
+    for (const value of ["false", "", "1"]) {
+      expect(
+        headerMap({ NEXT_PUBLIC_CSP_ENFORCE: value })[
+          "Content-Security-Policy"
+        ],
+      ).toBeUndefined();
+    }
+    const env = { NEXT_PUBLIC_CSP_ENFORCE: " TRUE " };
+    const enforced = headerMap(env);
+    expect(enforced["Content-Security-Policy-Report-Only"]).toBeUndefined();
+    expect(enforced["Content-Security-Policy"]).toBe(
+      def["Content-Security-Policy-Report-Only"],
+    );
+  });
 });

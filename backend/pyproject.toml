@@ -57,9 +57,14 @@ dev = [
   "types-python-dateutil>=2.9.0",
   "pre-commit>=4.0.0,<5.0.0"
 ]
+# Load-test harness (ci/load, R03-09). Dev-only: never installed into images.
+load = ["locust>=2.32,<3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.uv]
+required-version = ">=0.12"
 
 [tool.ruff]
 line-length = 100
@@ -80,6 +85,7 @@ markers = [
   "governance: Graph governance RBAC, audit, and tenant isolation tests (F290)",
   "requires_postgres: Tests requiring a migrated PostgreSQL database at TEST_DATABASE_URL (skipped when unset)",
   "requires_redis: Tests requiring a live Redis instance (skipped when unavailable)",
+  "accuracy_smoke: Deterministic pipeline accuracy smoke over pinned fixtures (R03-03)",
 ]
 
 [tool.mypy]

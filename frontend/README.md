@@ -541,7 +541,7 @@ Open `http://localhost:3000`.
 
 ### Security headers
 
-`next.config.ts` applies security headers to every route from `config/security-headers.mjs`: `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, HSTS in staging/production, and a `Content-Security-Policy-Report-Only` header (no enforcement yet; planned for R03-08). Analytics, Sentry, and API origins are added to the policy only when their `NEXT_PUBLIC_*` variables are set. Set `NEXT_PUBLIC_CSP_REPORT_URI` to send violation reports to a collector. The `config/` directory is copied into the runtime image because `next.config.ts` imports it at `next start`. See `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`.
+`next.config.ts` applies security headers to every route from `config/security-headers.mjs`: `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, HSTS in staging/production, and a `Content-Security-Policy-Report-Only` header by default. Set `NEXT_PUBLIC_CSP_ENFORCE=true` (default `false`) to send the same policy as an enforced `Content-Security-Policy` header instead; flip it after a clean report-only period. Analytics, Sentry, API, and contact-submit (`NEXT_PUBLIC_CONTACT_SUBMIT_API_URL`, a `fetch` target) origins are added to the policy only when their `NEXT_PUBLIC_*` variables are set. The external submit and scheduler URLs are navigations and are not listed. When `NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER` is `turnstile`, `hcaptcha`, or `recaptcha` (case-insensitive), that provider's script, frame, and connect hosts are allowed (and styles for hCaptcha); `frame-src` is `'none'` otherwise. Unknown providers add nothing. Set `NEXT_PUBLIC_CSP_REPORT_URI` to send violation reports to a collector. The `config/` directory is copied into the runtime image because `next.config.ts` imports it at `next start`. See `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`.
 
 ## Scripts
 
@@ -569,13 +569,15 @@ Frontend API types in `src/lib/api/generated/schema.d.ts` are generated from the
 npm run api:generate
 ```
 
-**Refresh schema from a running backend** (requires `make up-d`):
+**Refresh schema from the backend code** (no running services; needs `make -C ../backend install`):
 
 ```bash
 npm run api:update-schema
 ```
 
-**Check for stale types** (runs automatically in CI via `make check-all`):
+This exports the full schema with `backend/.venv/bin/python scripts/export_openapi.py`, formats `openapi.json` with Prettier, and regenerates `schema.d.ts`. `openapi.json` is the full export (every route), not a curated subset.
+
+**Check for stale types** (runs automatically in CI via `make check-all` and the `OpenAPI contract` workflow, which also runs `export_openapi.py --check ../frontend/openapi.json` to catch a backend change without a regenerated schema):
 
 ```bash
 npm run api:check
@@ -591,6 +593,8 @@ export type DocumentListResponse = Schemas["DocumentListResponse"];
 ```
 
 When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`.
+
+`openapi-typescript` marks response fields that have a server default as required. Where the frontend declares a field itself (or keeps a server-defaulted field optional for fixtures and partial objects), the API modules use small type-only helpers: `Overlay<Generated, FrontendFields>` (frontend declarations replace the generated ones) and `WithOptional<Generated, Keys>`. `src/lib/api/generated/schema.test.ts` checks that every other field still matches the generated schema.
 
 ## Testing
 
@@ -631,6 +635,55 @@ npm run lint
 npm run test
 npm run test:e2e
 ```
+
+### Integration E2E
+
+`npm run test:e2e:integration` runs `e2e-integration/critical-path.spec.ts` with
+`playwright.integration.config.ts` against the real backend: it logs in, uploads
+`e2e-integration/fixtures/rudix-e2e.txt`, waits until the document shows `indexed` (up to
+120 s), asks about the fact in chat, and checks that the answer cites `rudix-e2e.txt`. No API is
+mocked. The model is the deterministic, test-only stub in `ci/stubs/llm_stub.py`. Without
+`RUDIX_E2E_INTEGRATION=1` the suite is reported as skipped and no web server starts. The default
+`npm run test:e2e` (testDir `./e2e`) does not pick these files up.
+
+Run it locally (from the repository root; uses ports 8000 and 3200):
+
+```bash
+# 1. Write .env.ci.integration with the keys from the e2e-integration.yml step
+#    "Create integration env file" (CORS_ORIGINS=http://127.0.0.1:3200).
+docker build --target api -t rudix-local-api:e2e backend
+docker build --target worker -t rudix-local-worker:e2e backend
+COMPOSE="docker compose -f deploy/compose/docker-compose.integration.yml \
+  -f deploy/compose/docker-compose.integration-stub.yml --env-file .env.ci.integration"
+$COMPOSE up -d
+$COMPOSE run --rm migrate
+$COMPOSE run --rm --no-deps -e BOOTSTRAP_ADMIN_EMAIL=e2e@example.com \
+  -e BOOTSTRAP_ADMIN_PASSWORD='<choose one>' api python scripts/bootstrap_admin.py
+
+# 2. Build and start the frontend on :3200, then run the suite.
+cd frontend
+RUDIX_E2E_INTEGRATION=1 RUDIX_E2E_EMAIL=e2e@example.com RUDIX_E2E_PASSWORD='<same>' \
+  npm run test:e2e:integration
+
+# 3. Tear down.
+cd .. && $COMPOSE down -v
+```
+
+| Variable                                | Default                        | Purpose                                     |
+| --------------------------------------- | ------------------------------ | ------------------------------------------- |
+| `RUDIX_E2E_INTEGRATION`                 | unset                          | `1` runs the suite; anything else skips it  |
+| `RUDIX_E2E_EMAIL`, `RUDIX_E2E_PASSWORD` | none                           | real login for the bootstrapped admin       |
+| `RUDIX_E2E_APP_URL`                     | `http://127.0.0.1:3200`        | frontend base URL                           |
+| `RUDIX_E2E_API_URL`                     | `http://localhost:8000/api/v1` | `NEXT_PUBLIC_API_URL` for the build         |
+| `RUDIX_E2E_SKIP_WEBSERVER`              | unset                          | set to reuse a frontend you already started |
+
+The config runs `npm run build && npm run start -- -p 3200` with `NEXT_PUBLIC_AUTH_PROVIDER=app`
+and every dev-only auth fallback variable empty or `false`, so a local `.env.local` cannot
+switch the fallback on. `next start` prints a warning about `output: "standalone"` and then
+serves the build normally. The run overwrites `.next`. On failure, the report attaches
+`request-ids.json` with the `X-Request-ID` of failed API calls and any request IDs shown in the
+UI. It never records bodies or tokens. The overlay sets `MALWARE_SCAN_ENABLED=false`, because the
+integration stack has no ClamAV. CI runs the same flow in `.github/workflows/e2e-integration.yml`.
 
 ## Responsive / Supported Viewports
 

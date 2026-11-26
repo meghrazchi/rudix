@@ -375,17 +375,26 @@ make logs-mcp
 
 ## OpenAPI schema export
 
-The script `scripts/export_openapi.py` dumps the FastAPI OpenAPI schema to JSON without starting any services. It is used by the frontend type generation pipeline.
+The script `scripts/export_openapi.py` dumps the FastAPI OpenAPI schema to JSON without starting any services. It is used by the frontend type generation pipeline and by the `OpenAPI contract` CI check (R03-10).
 
 ```bash
 # Write schema to stdout
-python scripts/export_openapi.py
+.venv/bin/python scripts/export_openapi.py
 
 # Write schema to a specific path
-python scripts/export_openapi.py ../frontend/openapi.json
+.venv/bin/python scripts/export_openapi.py ../frontend/openapi.json
+
+# Check the committed schema; exits 1 and lists added/removed/changed paths and schemas
+.venv/bin/python scripts/export_openapi.py --check ../frontend/openapi.json
 ```
 
-The script sets stub values for required config fields so pydantic-settings can load without a `.env` file or live infrastructure. If a `.env` file exists, real values take precedence.
+- Required config fields get stub values so pydantic-settings loads without live infrastructure.
+- `ENVIRONMENT=development` and `API_PREFIX=/api/v1` are forced before the app is imported (`ENVIRONMENT=test` mounts extra alias routes).
+- `--check` compares parsed JSON, so formatting (the committed file is Prettier-formatted) never causes a failure.
+- pydantic-settings still reads `.env` for every other field, so a local `.env` can change `info.title` (`API_NAME`) or `info.version` (`API_VERSION`). CI has no `.env`. `info.version` comes from `settings.api_version`; the release bump script updates it.
+- The output depends on the installed FastAPI and Pydantic versions. Export from the environment `make install` creates, as CI does.
+
+To refresh the committed schema and types, run `npm run api:update-schema` in `frontend/`.
 
 ## Development commands
 
@@ -402,6 +411,18 @@ make seed-dev
 ```
 
 `make install` creates a local virtualenv at `backend/.venv` and installs all dependencies there.
+
+Dependencies are locked in `backend/uv.lock` (hashed, produced by [uv](https://docs.astral.sh/uv/)).
+`make install` runs `uv sync --frozen --extra dev`, which creates `backend/.venv` and installs
+exactly the locked set plus the project in editable mode; it fails if the lock is stale. If uv is
+not on `PATH`, the Makefile bootstraps a pinned copy into `backend/.tools` (git-ignored).
+
+- `make lock` re-resolves and rewrites `uv.lock`; `make lock-check` fails if it is out of date.
+- `make install-load` also installs the Locust load-test extra.
+- `make audit` audits the locked set with `pip-audit --require-hashes`; `make audit-report
+  AUDIT_OUTPUT=/abs/path.json` writes a JSON report and does not fail on findings.
+- To add or change a dependency: edit `pyproject.toml`, run `make lock`, and commit both files.
+- The venv has no `pip`; use `uv pip` or `uv add` if you need ad-hoc installs.
 
 ## PostgreSQL integration tests
 
@@ -420,14 +441,49 @@ working without extra services. Two fixtures in `tests/conftest.py` provide data
   real commits. Use it for concurrency tests, and delete the rows you create, scoped by a unique
   organization ID.
 
-Run the lane against a throwaway database (it applies `alembic upgrade head` first):
+The fixtures are self-migrating: the session-scoped `pg_migrated_url` fixture runs
+`alembic upgrade head` against `TEST_DATABASE_URL` once per pytest session (in a subprocess,
+because `alembic/env.py` calls `asyncio.run`) and fails the session with the tail of the
+Alembic error output if the upgrade fails. `pg_engine` depends on it and still checks that
+`alembic_version` exists. Tests never point at `settings.database_url`.
+
+Run the lane against a throwaway database:
 
 ```bash
 TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/rudix_test make test-postgres
 ```
 
-CI runs these tests in the `backend-alembic` job, after the migration round trip, with
-PostgreSQL and Redis service containers.
+Pass extra pytest flags with `PYTEST_ARGS`, for example
+`make test-postgres PYTEST_ARGS="--junitxml=artifacts/backend-postgres-junit.xml"`.
+
+### Running a suite on both dialects
+
+A module marked `both_dialects` runs every test that uses the `db_session` fixture twice:
+`[sqlite]` (the in-memory SQLite session) and `[postgres]` (a rolled-back session on the
+migrated PostgreSQL database, built like `pg_session`). The `[postgres]` parameter carries
+`requires_postgres`, so it skips without `TEST_DATABASE_URL` and runs in `make test-postgres`.
+Tests in the module that do not use `db_session` are collected once.
+
+To port a suite:
+
+1. Add the marker: `pytestmark = [pytest.mark.isolation, pytest.mark.both_dialects]`.
+2. Run it with `TEST_DATABASE_URL` set and fix test-only dialect assumptions: naive vs aware
+   datetimes, `ORDER BY` without a tie-breaker, fixed slugs or emails (use `uuid4()` suffixes,
+   because concurrency tests commit rows to the shared database), and constraints SQLite does
+   not enforce (for example `users.organization_id` is `NOT NULL` in the migrations).
+3. Skip SQLite-only assertions on PostgreSQL with a reason; if PostgreSQL exposes a real product
+   bug, fix it with a regression test or mark that single case `xfail(strict=True, reason=...)`.
+4. Check with `pytest --collect-only` that pure-function tests are not duplicated.
+
+Ported suites: `test_rag_isolation_f144.py`, `test_tenant_isolation_f336.py`,
+`test_index_version_isolation.py`, `test_chat_transport_parity.py`, `test_quotas_f154.py`,
+`test_quota_atomic.py`, `test_document_processing_claim.py`. PostgreSQL full-text search
+(`plainto_tsquery`, `ts_rank`) has no SQLite equivalent and is covered by
+`test_keyword_retrieval_fts_pg.py`.
+
+CI runs the lane in `.github/workflows/backend-postgres.yml` (check name
+`Backend PostgreSQL tests`) with PostgreSQL and Redis service containers, on every push and
+pull request. The `backend-alembic` job in `ci.yml` keeps only the migration round trip.
 
 ## Useful task commands
 

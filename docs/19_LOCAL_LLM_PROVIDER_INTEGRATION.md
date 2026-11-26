@@ -295,6 +295,21 @@ Local model endpoints and their logs are sensitive production infrastructure:
 - If `LOCAL_LLM_API_KEY` is required by your gateway, inject it as an env var — never store it in source control.
 - Treat `VLLM_HF_TOKEN` as a secret; it grants access to gated HuggingFace repositories.
 
+### Test-only stub provider
+
+`ci/stubs/llm_stub.py` is a deterministic, OpenAI-compatible stub used only by the
+integration e2e suite and the load harness. It is not a model and must never be used in
+staging or production. The overlay `deploy/compose/docker-compose.integration-stub.yml`
+wires it in through the same local-provider settings described above:
+`LLM_DEFAULT_PROVIDER=local`, `EMBEDDING_DEFAULT_PROVIDER=local`, and
+`LOCAL_LLM_BASE_URL`/`LOCAL_EMBEDDING_BASE_URL`/`OPENAI_BASE_URL=http://llm-stub:8080/v1`.
+Embeddings are feature-hashed and L2-normalised, with `STUB_EMBEDDING_DIM` dimensions (default
+1536, which must equal `QDRANT_VECTOR_SIZE`). Answer prompts get JSON that cites the first
+allowed `chunk_id`, or the not-found answer when there is none. Rerank prompts get the identity
+ranking. `STUB_LLM_LATENCY_MS` and `STUB_LLM_LATENCY_JITTER_MS` add a delay for load tests. The
+stub never logs request bodies. The default provider governance policy allows `local`, so
+`check_provider_governance()` passes with `ENVIRONMENT=test`.
+
 ### Provider audit trail
 
 Every model profile change is recorded in `org_model_profile_change_log` (immutable). Provider test connections (from the diagnostics page) are recorded in audit events. Governance policy changes are also audited.

@@ -40,6 +40,11 @@ const proxyTarget = (process.env.NEXT_PUBLIC_PROXY_TARGET ?? "").replace(
 );
 
 const nextConfig: NextConfig = {
+  // Self-contained server (`node .next/standalone/server.js`) for the Docker
+  // runtime image, which no longer installs node_modules. In standalone mode
+  // headers() and rewrites() are evaluated once at `next build` and baked into
+  // the output, so security headers come from the build environment.
+  output: "standalone",
   async headers() {
     return [
       {

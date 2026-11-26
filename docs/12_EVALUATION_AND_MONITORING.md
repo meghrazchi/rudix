@@ -385,6 +385,39 @@ a development checkout:
    Otherwise their documents stop returning chunks.
 4. Record the counts in the merge request.
 
+## Load testing and performance baseline
+
+The Locust harness in `ci/load/` (`R03-09`) drives five scenarios against the integration
+stack with the LLM stub overlay: streaming chat over WebSocket, `POST /api/v1/chat`, the
+paginated document list, upload-to-indexed ingestion, and the admin usage and observability
+dashboards. `ci/load/README.md` gives the stack, the seeded account, the artificial LLM
+latency (`STUB_LLM_LATENCY_MS`), and the exact command lines. Results go into
+`docs/roadmap/V0_3_0_LOAD_BASELINE.md` through `ci/load/report.py`. That document is a
+template marked "not yet measured" until a run is recorded.
+
+Database metrics used by the baseline, exposed on `/metrics` when `METRICS_ENABLED=true`:
+
+| Metric | Type | Labels | Meaning |
+|---|---|---|---|
+| `rudix_db_queries_per_request` | Histogram (buckets 1, 2, 5, 10, 20, 50, 100, 200) | `method`, `route` (template) | SQL statements executed while handling one HTTP request, including tasks the request spawned. |
+| `rudix_db_pool_checked_out` | Gauge (read at scrape time) | none | Connections currently checked out of the API engine's pool. |
+| `rudix_db_pool_size` | Gauge (read at scrape time) | none | Configured persistent pool size. |
+| `rudix_db_pool_overflow` | Gauge (read at scrape time) | none | Current overflow (negative while below the pool size). |
+
+Notes:
+
+- Statement counting is on by default and can be turned off with
+  `METRICS_DB_QUERY_COUNTING_ENABLED=false`. The listener only increments an in-memory
+  counter; no SQL text or parameters are recorded.
+- Statements outside an HTTP request (Celery tasks, startup, WebSocket sessions) are not
+  counted.
+- Pools without these statistics (`NullPool`, `StaticPool`) export no pool samples instead of
+  failing the scrape.
+- All values are per API process. With several workers or replicas, scrape and compare each.
+- Suggested alerts once the baseline exists: `rudix_db_pool_checked_out` at or above
+  `rudix_db_pool_size` plus the maximum overflow for several minutes (pool exhaustion), and
+  p95 of `rudix_db_queries_per_request` for chat routes above the roadmap target.
+
 ## Continuous evaluation
 
 Run evaluations:
@@ -397,6 +430,19 @@ On every embedding model change
 Nightly on a fixed test set
 Before production deployment
 ```
+
+In CI this runs at two levels (R03-03):
+
+| Level | Workflow | When | What it measures |
+|---|---|---|---|
+| PR smoke | `accuracy-smoke.yml` (`Accuracy smoke`) | Every PR touching chat, AI, RAG profile, prompt, evaluation, quality-gate code, `config.py`, the thresholds, or the smoke fixtures; every push to `main`; before `deploy-staging` | The pipeline at that commit: `pytest -m accuracy_smoke` drives the in-process `POST /api/v1/chat` route over pinned fixtures (`backend/tests/fixtures/accuracy_smoke/`) with deterministic fakes for embeddings, Qdrant, and the LLM. It checks retrieval hit rate, citation accuracy (every citation is in the retrieved set), refusal accuracy on not-found questions, not-found rate, and that an injected instruction inside a document is not followed, against the `smoke` thresholds in `ci/config/accuracy_eval_thresholds.yml` with the F149 `evaluate_gate` function. Needs no secrets. |
+| Nightly live | `accuracy-eval.yml` | 02:00 UTC daily, or manual dispatch | Model quality on staging: `ci/scripts/accuracy_eval_runner.py` runs the published evaluation set (`ACCURACY_EVAL_SET_ID`) against the deployed API and applies the `nightly` thresholds, including faithfulness, answer relevance, latency, and cost. |
+| Release gate | `release.yml` jobs `quality-gate-smoke` and `quality-gate` | Before `deploy-staging` | The smoke at the release commit, then the F149 gate (`quality-gate.yml`, `EVALUATION_RUN_ID=latest`) on the newest completed nightly run, rejected when older than `QUALITY_GATE_MAX_RUN_AGE_HOURS` (default 36). |
+
+The smoke cannot detect a weaker model or prompt wording regressions that only a real model
+shows; the nightly run is the signal for those. A smoke failure means the pipeline itself
+changed behaviour (for example citation validation, organization filters, or not-found
+handling).
 
 ## Regression policy
 

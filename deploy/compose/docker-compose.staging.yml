@@ -1,7 +1,27 @@
+# Shared log rotation for every service (json-file, 5 x 10 MB).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   frontend:
     image: ${RUDIX_FRONTEND_IMAGE}
     restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/login >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     env_file:
       - .env
     environment:
@@ -19,6 +39,13 @@ services:
   api:
     image: ${RUDIX_API_IMAGE}
     restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
     env_file:
       - .env
     environment:
@@ -73,6 +100,24 @@ services:
     image: ${RUDIX_WORKER_IMAGE}
     command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
     restart: unless-stopped
+    # Long grace period so Celery can finish acknowledged (acks_late) tasks.
+    stop_grace_period: 120s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4g
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d celery@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
     env_file:
       - .env
     environment:
@@ -113,6 +158,16 @@ services:
     image: ${RUDIX_WORKER_IMAGE}
     command: celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
     restart: unless-stopped
+    stop_grace_period: 10s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
+    # The worker image's HEALTHCHECK pings a worker node; beat has none.
+    healthcheck:
+      disable: true
     env_file:
       - .env
     environment:
@@ -141,6 +196,13 @@ services:
     image: ${RUDIX_MCP_IMAGE:-${RUDIX_API_IMAGE}}
     command: python -m app.mcp.main --transport streamable_http
     restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
     env_file:
       - .env
     environment:
@@ -187,6 +249,7 @@ services:
   postgres:
     image: postgres:16
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -202,6 +265,7 @@ services:
   qdrant:
     image: ${QDRANT_IMAGE:-qdrant/qdrant:latest}
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
@@ -215,6 +279,7 @@ services:
     user: "0:0"
     command: server /data --console-address ":9001"
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -228,6 +293,7 @@ services:
 
   minio-init:
     image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
+    logging: *default-logging
     depends_on:
       minio:
         condition: service_healthy
@@ -245,6 +311,7 @@ services:
   clamav:
     image: ${CLAMAV_IMAGE:-clamav/clamav-debian:stable}
     restart: unless-stopped
+    logging: *default-logging
     # No host ports: reached by api/worker on the internal network only.
     volumes:
       - clamav_data:/var/lib/clamav
@@ -263,6 +330,7 @@ services:
     # ignores the existing volume.
     hostname: rabbitmq
     restart: unless-stopped
+    logging: *default-logging
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
@@ -278,6 +346,7 @@ services:
   redis:
     image: ${REDIS_IMAGE:-redis:7}
     restart: unless-stopped
+    logging: *default-logging
     # requirepass is added only when REDIS_PASSWORD is set, so env files
     # without it keep working (unauthenticated, as before).
     command: ["sh", "-c", "exec redis-server --appendonly yes $${REDIS_PASSWORD:+--requirepass \"$$REDIS_PASSWORD\"}"]
@@ -295,6 +364,7 @@ services:
   neo4j:
     image: ${NEO4J_IMAGE:-neo4j:5-community}
     restart: unless-stopped
+    logging: *default-logging
     # Bolt (7687) and HTTP browser (7474) are NOT published to the host —
     # internal Docker network only, reached by api/worker via NEO4J_URI.
     environment:

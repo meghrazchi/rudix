@@ -1,0 +1,58 @@
+# Test-only overlay for the integration stack (R03-04). Adds a deterministic
+# OpenAI-compatible stub (ci/stubs/llm_stub.py) and points api and worker at it,
+# so e2e and load runs need no real model provider and no secrets.
+#
+#   docker compose -f deploy/compose/docker-compose.integration.yml \
+#     -f deploy/compose/docker-compose.integration-stub.yml \
+#     --env-file .env.ci.integration up -d
+#
+# MALWARE_SCAN_ENABLED=false: the integration stack has no ClamAV service. Never use
+# this overlay for staging or production.
+x-stub-provider-env: &stub-provider-env
+  LLM_DEFAULT_PROVIDER: local
+  LOCAL_LLM_BASE_URL: http://llm-stub:8080/v1
+  LOCAL_LLM_MODEL: stub-chat
+  EMBEDDING_DEFAULT_PROVIDER: local
+  LOCAL_EMBEDDING_BASE_URL: http://llm-stub:8080/v1
+  LOCAL_EMBEDDING_MODEL: stub-embedding
+  OPENAI_BASE_URL: http://llm-stub:8080/v1
+  MALWARE_SCAN_ENABLED: "false"
+
+services:
+  llm-stub:
+    image: python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b
+    command: ["python", "/stub/llm_stub.py"]
+    volumes:
+      - ../../ci/stubs:/stub:ro
+    environment:
+      STUB_LLM_PORT: ${STUB_LLM_PORT:-8080}
+      STUB_LLM_LATENCY_MS: ${STUB_LLM_LATENCY_MS:-0}
+      STUB_LLM_LATENCY_JITTER_MS: ${STUB_LLM_LATENCY_JITTER_MS:-0}
+      STUB_EMBEDDING_DIM: ${STUB_EMBEDDING_DIM:-1536}
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('STUB_LLM_PORT', '8080') + '/health', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  api:
+    environment:
+      <<: *stub-provider-env
+    depends_on:
+      llm-stub:
+        condition: service_healthy
+
+  worker:
+    environment:
+      <<: *stub-provider-env
+    depends_on:
+      llm-stub:
+        condition: service_healthy

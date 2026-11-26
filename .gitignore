@@ -39,3 +39,7 @@ dist/
 
 /scripts
 
+
+# uv bootstrap and audit scratch (backend/Makefile)
+backend/.tools/
+backend/.audit-requirements.txt

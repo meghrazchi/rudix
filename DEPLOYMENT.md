@@ -531,9 +531,11 @@ Once each path holds a backup newer than the age limit, the `PRODUCTION_BACKUP_C
 
 ---
 
-## 11. Set Up Accuracy Evaluation (Optional)
+## 11. Set Up Accuracy Evaluation
 
 The accuracy eval workflow (`accuracy-eval.yml`) calls your **live deployed API** to measure answer quality. It requires the app to already be deployed.
+
+It runs **nightly at 02:00 UTC** against staging. Before every staging deploy, `release.yml` gates on the **latest completed nightly run** of `ACCURACY_EVAL_SET_ID` (`quality-gate.yml` with `EVALUATION_RUN_ID=latest`); the gate fails when no completed run exists or the newest one is older than **36 hours** (set the repository variable `QUALITY_GATE_MAX_RUN_AGE_HOURS` to change it). Without these secrets the staging deploy is blocked. To bootstrap a repository before staging exists, set the repository variable `QUALITY_GATE_ALLOW_MISSING_CONFIG=true` (missing secrets become a warning); remove it once the secrets below are set.
 
 ### Steps
 
@@ -555,6 +557,13 @@ gh secret set QUALITY_GATE_ID      --body "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 ```bash
 gh workflow run accuracy-eval.yml --field mode=smoke
+```
+
+Run it once in `nightly` mode after setup so the first staging release has a fresh run to gate on:
+
+```bash
+gh workflow run accuracy-eval.yml --field mode=nightly
+gh variable set QUALITY_GATE_MAX_RUN_AGE_HOURS --body "36"   # optional
 ```
 
 ---

@@ -1,5 +1,6 @@
 // Plain ES module so next.config.ts can import it at `next start`.
-// The CSP is report-only in 0.2.0 (enforcement is planned for R03-08); see
+// The CSP is report-only by default. Enforcement is the NEXT_PUBLIC_CSP_ENFORCE
+// flag, to be flipped to "true" after a clean report-only period; see
 // docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md "Security headers".
 
 import { isProductionLikeEnvironment } from "./deployment-env.mjs";
@@ -16,6 +17,40 @@ const GA_CONNECT_HOSTS = [
   "https://*.analytics.google.com",
   "https://www.googletagmanager.com",
 ];
+
+// Known captcha providers. Applied only when NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER
+// matches (case-insensitive); unknown providers add nothing.
+const CAPTCHA_PROVIDERS = {
+  turnstile: {
+    script: ["https://challenges.cloudflare.com"],
+    frame: ["https://challenges.cloudflare.com"],
+    connect: ["https://challenges.cloudflare.com"],
+    style: [],
+  },
+  hcaptcha: {
+    script: ["https://hcaptcha.com", "https://*.hcaptcha.com"],
+    frame: ["https://hcaptcha.com", "https://*.hcaptcha.com"],
+    connect: ["https://hcaptcha.com", "https://*.hcaptcha.com"],
+    style: ["https://hcaptcha.com", "https://*.hcaptcha.com"],
+  },
+  recaptcha: {
+    script: ["https://www.google.com", "https://www.gstatic.com"],
+    frame: ["https://www.google.com", "https://www.gstatic.com"],
+    connect: ["https://www.google.com"],
+    style: [],
+  },
+};
+
+/**
+ * Hosts for the configured captcha provider; empty when unknown or unset.
+ * @param {string | undefined} provider
+ */
+function captchaHosts(provider) {
+  const key = (provider ?? "").trim().toLowerCase();
+  return Object.hasOwn(CAPTCHA_PROVIDERS, key)
+    ? CAPTCHA_PROVIDERS[key]
+    : { script: [], frame: [], connect: [], style: [] };
+}
 
 /**
  * Origin of an http(s) URL, or null when missing or invalid.
@@ -64,7 +99,7 @@ function joinSources(sources) {
 }
 
 /**
- * Build the report-only Content-Security-Policy value.
+ * Build the Content-Security-Policy value (same value report-only or enforced).
  * @param {Record<string, string | undefined>} env
  * @param {{ isDev: boolean }} options
  * @returns {string}
@@ -74,6 +109,12 @@ export function buildContentSecurityPolicy(env, { isDev }) {
   const matomoOrigin = originOf(env.NEXT_PUBLIC_MATOMO_URL);
   const gaEnabled = Boolean((env.NEXT_PUBLIC_GA_ID ?? "").trim());
   const sentryHost = sentryOrigin(env.NEXT_PUBLIC_SENTRY_DSN);
+  const captcha = captchaHosts(env.NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER);
+  // The contact form POSTs with fetch to this URL, so it is a connect-src
+  // entry. NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL and
+  // NEXT_PUBLIC_CONTACT_SCHEDULER_URL are navigations (window.location.assign),
+  // not fetches, so they are not listed and form-action stays 'self'.
+  const contactSubmitOrigin = originOf(env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL);
   const optional = (value) => (value ? [value] : []);
 
   const scriptSrc = [
@@ -82,6 +123,7 @@ export function buildContentSecurityPolicy(env, { isDev }) {
     ...(isDev ? ["'unsafe-eval'"] : []),
     ...(gaEnabled ? GA_SCRIPT_HOSTS : []),
     ...optional(matomoOrigin),
+    ...captcha.script,
   ];
   const imgSrc = [
     "'self'",
@@ -97,16 +139,28 @@ export function buildContentSecurityPolicy(env, { isDev }) {
     ...optional(sentryHost),
     ...(gaEnabled ? GA_CONNECT_HOSTS : []),
     ...optional(matomoOrigin),
+    ...optional(contactSubmitOrigin),
+    ...captcha.connect,
     ...(isDev ? ["ws:"] : []),
   ];
+  // No iframes are used in the app; frames are only for captcha widgets.
+  const frameSrc = captcha.frame.length
+    ? ["'self'", ...captcha.frame]
+    : ["'none'"];
 
   const directives = [
     "default-src 'self'",
     `script-src ${joinSources(scriptSrc)}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    `style-src ${joinSources([
+      "'self'",
+      "'unsafe-inline'",
+      "https://fonts.googleapis.com",
+      ...captcha.style,
+    ])}`,
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src ${joinSources(imgSrc)}`,
     `connect-src ${joinSources(connectSrc)}`,
+    `frame-src ${joinSources(frameSrc)}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -143,6 +197,8 @@ function sentryOrigin(dsn) {
  * @returns {{ key: string; value: string }[]}
  */
 export function buildSecurityHeaders(env, { isDev }) {
+  const enforce =
+    (env.NEXT_PUBLIC_CSP_ENFORCE ?? "").trim().toLowerCase() === "true";
   const headers = [
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -153,7 +209,9 @@ export function buildSecurityHeaders(env, { isDev }) {
     // Enforced now: frame-ancestors inside a report-only CSP does not block.
     { key: "X-Frame-Options", value: "DENY" },
     {
-      key: "Content-Security-Policy-Report-Only",
+      key: enforce
+        ? "Content-Security-Policy"
+        : "Content-Security-Policy-Report-Only",
       value: buildContentSecurityPolicy(env, { isDev }),
     },
   ];

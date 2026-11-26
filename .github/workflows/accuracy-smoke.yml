@@ -1,0 +1,97 @@
+name: Accuracy Smoke
+
+# Deterministic accuracy smoke over pinned fixtures (R03-03). It runs the real
+# in-process chat pipeline with fake embeddings, Qdrant and LLM, so it checks
+# pipeline regressions (retrieval, citations, not-found, injection handling),
+# not model quality. The live model is gated nightly by accuracy-eval.yml.
+
+on:
+  # No workflow-level `paths` filter: a required check skipped that way stays
+  # pending forever. The `changes` job decides; a job skipped by `if:` reports
+  # as skipped, which satisfies a required check.
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changes:
+    name: Detect pipeline changes
+    runs-on: ubuntu-latest
+    outputs:
+      pipeline: ${{ steps.diff.outputs.pipeline }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compare with the pull request base
+        id: diff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${EVENT_NAME}" != "pull_request" ]; then
+            echo "pipeline=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          pattern='^backend/app/domains/(chat|ai|rag_profiles|prompt_templates|evaluations|quality_gates)/'
+          pattern="${pattern}|^backend/app/application/chat/"
+          pattern="${pattern}|^backend/app/interfaces/http/chat\.py$"
+          pattern="${pattern}|^backend/app/core/config\.py$"
+          pattern="${pattern}|^ci/config/accuracy_eval_thresholds\.yml$"
+          pattern="${pattern}|^backend/tests/fixtures/accuracy_smoke/"
+          pattern="${pattern}|^backend/tests/test_accuracy_smoke\.py$"
+          pattern="${pattern}|^backend/tests/accuracy_smoke_support\.py$"
+          pattern="${pattern}|^\.github/workflows/accuracy-smoke\.yml$"
+          if git diff --name-only "${BASE_SHA}...HEAD" | grep -Eq "${pattern}"; then
+            echo "pipeline=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pipeline=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  accuracy-smoke:
+    name: Accuracy smoke
+    needs: changes
+    if: needs.changes.outputs.pipeline == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend tooling
+        run: make -C backend install
+
+      - name: Run accuracy smoke
+        run: |
+          mkdir -p artifacts
+          cd backend
+          .venv/bin/pytest -m accuracy_smoke --junitxml=../artifacts/accuracy-smoke-junit.xml
+
+      - name: Upload accuracy smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-smoke-junit
+          path: artifacts/accuracy-smoke-junit.xml
+          if-no-files-found: ignore

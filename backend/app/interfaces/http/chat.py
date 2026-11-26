@@ -956,6 +956,16 @@ async def _build_scope_inventory_result(
     for chunk in chunks_result.scalars().all():
         if chunk.document_id not in first_chunk_by_document_id:
             first_chunk_by_document_id[chunk.document_id] = chunk
+    # Listing needs read access; citing needs the cite permission as well.
+    citable_chunks = await filter_chunks_by_cite_access(
+        db_session,
+        principal=principal,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=user_roles,
+        chunks=list(first_chunk_by_document_id.values()),
+    )
+    first_chunk_by_document_id = {chunk.document_id: chunk for chunk in citable_chunks}
 
     provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
         db_session,

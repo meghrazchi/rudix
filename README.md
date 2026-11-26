@@ -335,6 +335,7 @@ npm run test:e2e     # Run Playwright tests
 ```bash
 cd backend
 make install      # Install backend dependencies
+make lock         # Re-resolve backend uv.lock (make lock-check verifies it)
 make run-api      # Run FastAPI locally
 make run-worker   # Run Celery worker locally
 make run-beat     # Run Celery beat scheduler locally (exactly one instance)

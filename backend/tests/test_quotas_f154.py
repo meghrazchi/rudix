@@ -29,7 +29,7 @@ Run:
 from __future__ import annotations
 
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -66,6 +66,8 @@ from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
+
+pytestmark = pytest.mark.both_dialects
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -120,7 +122,9 @@ async def admin_ctx(db_session: AsyncSession) -> dict:
     db_session.add(org)
     await db_session.flush()
 
-    user = User(email=f"admin-{uuid4().hex[:6]}@test.com", display_name="Admin")
+    user = User(
+        organization_id=org.id, email=f"admin-{uuid4().hex[:6]}@test.com", display_name="Admin"
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -140,7 +144,9 @@ async def owner_ctx(db_session: AsyncSession) -> dict:
     db_session.add(org)
     await db_session.flush()
 
-    user = User(email=f"owner-{uuid4().hex[:6]}@test.com", display_name="Owner")
+    user = User(
+        organization_id=org.id, email=f"owner-{uuid4().hex[:6]}@test.com", display_name="Owner"
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -160,7 +166,9 @@ async def member_ctx(db_session: AsyncSession) -> dict:
     db_session.add(org)
     await db_session.flush()
 
-    user = User(email=f"member-{uuid4().hex[:6]}@test.com", display_name="Member")
+    user = User(
+        organization_id=org.id, email=f"member-{uuid4().hex[:6]}@test.com", display_name="Member"
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -402,7 +410,9 @@ async def test_org_isolation(quota_client: AsyncClient, db_session: AsyncSession
     org_a = Organization(name="Org A", slug=f"org-a-{uuid4().hex[:8]}")
     db_session.add(org_a)
     await db_session.flush()
-    user_a = User(email=f"ua-{uuid4().hex[:6]}@test.com", display_name="UA")
+    user_a = User(
+        organization_id=org_a.id, email=f"ua-{uuid4().hex[:6]}@test.com", display_name="UA"
+    )
     db_session.add(user_a)
     await db_session.flush()
     db_session.add(
@@ -417,7 +427,9 @@ async def test_org_isolation(quota_client: AsyncClient, db_session: AsyncSession
     org_b = Organization(name="Org B", slug=f"org-b-{uuid4().hex[:8]}")
     db_session.add(org_b)
     await db_session.flush()
-    user_b = User(email=f"ub-{uuid4().hex[:6]}@test.com", display_name="UB")
+    user_b = User(
+        organization_id=org_b.id, email=f"ub-{uuid4().hex[:6]}@test.com", display_name="UB"
+    )
     db_session.add(user_b)
     await db_session.flush()
     db_session.add(
@@ -472,7 +484,11 @@ async def test_create_orgwide_override(quota_client: AsyncClient, owner_ctx: dic
 async def test_create_peruser_override(
     quota_client: AsyncClient, owner_ctx: dict, db_session: AsyncSession
 ) -> None:
-    target_user = User(email=f"target-{uuid4().hex[:6]}@test.com", display_name="Target")
+    target_user = User(
+        organization_id=UUID(owner_ctx["org_id"]),
+        email=f"target-{uuid4().hex[:6]}@test.com",
+        display_name="Target",
+    )
     db_session.add(target_user)
     await db_session.flush()
 

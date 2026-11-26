@@ -184,3 +184,71 @@ eval-smoke:
 
 eval-nightly:
 	EVAL_MODE=nightly python ci/scripts/accuracy_eval_runner.py
+
+## Load testing (R03-09)
+# Locust harness in ci/load (see ci/load/README.md). The stack is the integration compose
+# file plus D2's LLM stub overlay; RUDIX_API_IMAGE and RUDIX_WORKER_IMAGE must name locally
+# built images. Every target skips with a message when its prerequisites are missing.
+# Install Locust with `make -C backend install-load`. Example:
+#   make load-test LOAD_SCENARIO=documents_list LOAD_USERS=20 LOAD_SPAWN_RATE=5
+.PHONY: load-stack-up load-stack-down load-test
+LOAD_ENV_FILE ?= .env.ci.integration
+LOAD_COMPOSE_FILES := -f deploy/compose/docker-compose.integration.yml \
+	-f deploy/compose/docker-compose.integration-stub.yml
+LOAD_COMPOSE = $(COMPOSE) $(LOAD_COMPOSE_FILES) --env-file $(LOAD_ENV_FILE)
+LOCUST ?= backend/.venv/bin/locust
+RUDIX_LOAD_BASE_URL ?= http://localhost:8000
+LOAD_METRICS_URL ?= $(RUDIX_LOAD_BASE_URL)/metrics
+LOAD_SCENARIO ?= documents_list
+LOAD_USERS ?= 10
+LOAD_SPAWN_RATE ?= 2
+LOAD_DURATION_SECONDS ?= 300
+LOAD_RESULTS_DIR ?= ci/load/results
+
+load-stack-up:
+	@if [ ! -f deploy/compose/docker-compose.integration-stub.yml ] || [ ! -f "$(LOAD_ENV_FILE)" ]; then \
+		echo "load-stack-up: needs deploy/compose/docker-compose.integration-stub.yml and $(LOAD_ENV_FILE) (see ci/load/README.md); skipping."; \
+		exit 0; \
+	fi; \
+	$(LOAD_COMPOSE) up -d --remove-orphans && \
+	$(LOAD_COMPOSE) run --rm migrate && \
+	if [ -n "$$BOOTSTRAP_ADMIN_EMAIL" ]; then \
+		$(LOAD_COMPOSE) run --rm -e BOOTSTRAP_ADMIN_EMAIL -e BOOTSTRAP_ADMIN_PASSWORD \
+			api python scripts/bootstrap_admin.py; \
+	fi
+
+load-stack-down:
+	@if [ ! -f deploy/compose/docker-compose.integration-stub.yml ] || [ ! -f "$(LOAD_ENV_FILE)" ]; then \
+		echo "load-stack-down: no load stack configuration found; skipping."; \
+		exit 0; \
+	fi; \
+	$(LOAD_COMPOSE) down -v --remove-orphans
+
+load-test:
+	@case "$(LOAD_SCENARIO)" in \
+		chat_ws) user_class=ChatWsUser ;; \
+		chat_http) user_class=ChatHttpUser ;; \
+		documents_list) user_class=DocumentsListUser ;; \
+		upload_ingest) user_class=UploadIngestUser ;; \
+		admin_dashboard) user_class=AdminDashboardUser ;; \
+		*) echo "load-test: unknown LOAD_SCENARIO=$(LOAD_SCENARIO)"; exit 2 ;; \
+	esac; \
+	if [ ! -x "$(LOCUST)" ]; then \
+		echo "load-test: $(LOCUST) not found; run 'make -C backend install-load' (skipping)."; \
+		exit 0; \
+	fi; \
+	if ! curl -fsS "$(RUDIX_LOAD_BASE_URL)/api/v1/health" >/dev/null 2>&1; then \
+		echo "load-test: no API at $(RUDIX_LOAD_BASE_URL); run 'make load-stack-up' (skipping)."; \
+		exit 0; \
+	fi; \
+	mkdir -p "$(LOAD_RESULTS_DIR)"; \
+	out="$(LOAD_RESULTS_DIR)/$(LOAD_SCENARIO)"; \
+	python3 ci/load/collect_metrics.py run "$(LOAD_METRICS_URL)" \
+		--duration "$(LOAD_DURATION_SECONDS)" --out "$${out}_metrics.json" & metrics_pid=$$!; \
+	"$(LOCUST)" -f ci/load/locustfile.py --headless -u "$(LOAD_USERS)" -r "$(LOAD_SPAWN_RATE)" \
+		-t "$(LOAD_DURATION_SECONDS)s" --csv "$$out" --only-summary "$$user_class"; \
+	locust_status=$$?; \
+	wait $$metrics_pid; \
+	python3 ci/load/report.py --scenario "$(LOAD_SCENARIO)" --stats "$${out}_stats.csv" \
+		--metrics "$${out}_metrics.json"; \
+	exit $$locust_status

@@ -1,44 +1,12 @@
 name: CI
 
 on:
+  # No `paths` filters: a required check from a workflow skipped by `paths`
+  # stays pending and blocks the merge, so CI runs on every push and PR.
   push:
     branches:
       - "**"
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "ci/**"
-      - "deploy/**"
-      - "infra/**"
-      - ".github/workflows/**"
-      - ".env.example"
-      - "Makefile"
-      - "backend/Makefile"
-      - "backend/pyproject.toml"
-      - "docker-compose.yml"
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-      - "frontend/next.config.ts"
-      - "frontend/playwright.config.ts"
-      - "frontend/vitest.config.ts"
   pull_request:
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "ci/**"
-      - "deploy/**"
-      - "infra/**"
-      - ".github/workflows/**"
-      - ".env.example"
-      - "Makefile"
-      - "backend/Makefile"
-      - "backend/pyproject.toml"
-      - "docker-compose.yml"
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-      - "frontend/next.config.ts"
-      - "frontend/playwright.config.ts"
-      - "frontend/vitest.config.ts"
   workflow_dispatch:
 
 concurrency:
@@ -131,7 +99,7 @@ jobs:
           if-no-files-found: ignore
 
   backend-alembic:
-    name: Backend Alembic validation and PostgreSQL tests
+    name: Backend Alembic validation
     runs-on: ubuntu-latest
     services:
       redis:
@@ -205,13 +173,6 @@ jobs:
           .venv/bin/alembic upgrade head
           .venv/bin/alembic downgrade -1
           .venv/bin/alembic upgrade head
-
-      - name: Run PostgreSQL and Redis marked tests
-        env:
-          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app
-        run: |
-          cd backend
-          .venv/bin/pytest -m "requires_postgres or requires_redis" -q
 
   frontend:
     name: Frontend quality checks

@@ -33,7 +33,7 @@ from app.models.organization import Organization
 from app.models.quotas import OrgQuotaUsage
 from app.models.user import User
 
-pytestmark = [pytest.mark.isolation, pytest.mark.asyncio]
+pytestmark = [pytest.mark.isolation, pytest.mark.asyncio, pytest.mark.both_dialects]
 
 TRANSPORTS = ("http", "ws")
 QUESTION = "How much annual leave is provided?"

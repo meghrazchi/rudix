@@ -1079,6 +1079,7 @@ Parity with `POST /chat` (shared code in `backend/app/application/chat/`):
 - One question is recorded against the quota in the same transaction as the persisted answer.
 - Retrieved chunks from documents the user may not `cite` are dropped before the prompt is built.
   Owners and admins bypass this check.
+- Scope-inventory answers (for example "which files are in this scope?") list every readable document, but cite only documents the user may `cite`, on both transports.
 - The known quota limit described in [Quotas and plan limits](#quotas-and-plan-limits) applies to
   both transports: the check and the increment are separate, so a burst can overshoot a hard limit.
 

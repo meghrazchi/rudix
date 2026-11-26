@@ -157,7 +157,7 @@ The `cite` check runs on both `POST /chat` and the `/chat/ws` WebSocket pipeline
 source-provenance filter, every retrieved chunk whose document the user may not cite is dropped
 before the prompt is built, so it cannot appear as a citation. A deny with action `cite` on a
 document therefore removes that document from answers on both transports. Chunks whose document
-cannot be found in the organization are also dropped. Owners and admins bypass the check (rule 5).
+cannot be found in the organization are also dropped. Scope-inventory answers apply the same check on both transports: a readable document is still listed, but it gets no citation unless the user may cite it. Owners and admins bypass the check (rule 5).
 
 ---
 

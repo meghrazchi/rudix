@@ -22,6 +22,8 @@ from app.domains.quota.services.quota_service import (
 from app.models.organization import Organization
 from app.models.quotas import OrgQuotaUsage
 
+pytestmark = pytest.mark.both_dialects
+
 QT = QuotaType.questions.value
 
 

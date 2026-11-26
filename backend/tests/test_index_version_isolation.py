@@ -61,7 +61,7 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
 
-pytestmark = pytest.mark.isolation
+pytestmark = [pytest.mark.isolation, pytest.mark.both_dialects]
 
 EVAL_VERSION = "eval-abc1234567-1"
 CHAT_PY = Path(__file__).resolve().parents[1] / "app" / "interfaces" / "http" / "chat.py"

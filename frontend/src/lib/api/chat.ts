@@ -4,6 +4,36 @@ import type { AnswerTrustMetadataResponse } from "@/lib/api/trust_metadata";
 
 type Schemas = components["schemas"];
 
+// The full OpenAPI export (R03-10) includes fields the old curated schema left
+// out. openapi-typescript marks every field with a server default as required,
+// so the helpers below keep those fields optional and let the frontend's own
+// declarations override the generated ones. Type-only: no runtime effect.
+type WithOptional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+type Overlay<Base, Extra> = Omit<Base, keyof Extra> & Extra;
+
+type GeneratedCitation = WithOptional<
+  Schemas["ChatCitationResponse"],
+  | "doc_stale_warning"
+  | "doc_expired_warning"
+  | "doc_is_excluded_status"
+  | "doc_unreviewed_warning"
+  | "doc_deprecated_warning"
+  | "doc_draft_warning"
+  | "is_table_chunk"
+  | "doc_ocr_low_confidence_warning"
+  | "table_low_confidence_warning"
+  | "doc_extraction_warning"
+  | "doc_processing_warning"
+>;
+// Only these four were required in the curated schema.
+type GeneratedDebug = WithOptional<
+  Schemas["ChatDebugResponse"],
+  Exclude<
+    keyof Schemas["ChatDebugResponse"],
+    "latencies_ms" | "retrieval_count" | "selected_count" | "rerank_applied"
+  >
+>;
+
 export type ChatSourceScopeRequest = {
   mode?:
     | "all"
@@ -26,7 +56,12 @@ export type ChatSourceScopeRequest = {
 export type CreateChatSessionRequest = Schemas["CreateChatSessionRequest"];
 export type ChatSessionResponse = Schemas["ChatSessionResponse"];
 export type ChatSessionListResponse = Schemas["ChatSessionListResponse"];
-export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
+export type ChatCitationResponse = Overlay<
+  GeneratedCitation,
+  ChatCitationOverrides
+>;
+/** Frontend declarations that replace the generated citation fields. */
+export type ChatCitationOverrides = {
   citation_id?: string | null;
   freshness_state?:
     | "current"
@@ -89,7 +124,8 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
     | null;
   doc_ocr_low_confidence_warning?: boolean;
 };
-export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
+export type ChatDebugResponse = Overlay<GeneratedDebug, ChatDebugOverrides>;
+export type ChatDebugOverrides = {
   request_id?: string | null;
   trace_request_id?: string | null;
   retrieval_candidate_count?: number;
@@ -177,8 +213,13 @@ export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
 export type ChatConflictPairResponse = Schemas["ChatConflictPairResponse"];
 export type ChatConfidenceExplanationResponse =
   Schemas["ChatConfidenceExplanationResponse"];
-export type ChatQueryResponse = Omit<Schemas["ChatQueryResponse"], "debug"> & {
-  debug: Schemas["ChatQueryResponse"]["debug"] | null;
+export type ChatQueryResponse = Overlay<
+  WithOptional<Schemas["ChatQueryResponse"], "citation_validation_failed">,
+  ChatQueryOverrides
+>;
+export type ChatQueryOverrides = {
+  debug: ChatDebugResponse | null;
+  citations?: ChatCitationResponse[];
   agreement_level?: "full" | "partial" | "conflicting";
   conflict_detected?: boolean;
   conflict_summary?: string | null;
@@ -199,12 +240,17 @@ export type ChatQueryResponse = Omit<Schemas["ChatQueryResponse"], "debug"> & {
 export type ChatMessageResponse = Schemas["ChatMessageResponse"] & {
   trust_metadata?: AnswerTrustMetadataResponse | null;
 };
-export type ChatSessionMessageResponse =
-  Schemas["ChatSessionMessageResponse"] & {
+export type ChatSessionMessageResponse = Overlay<
+  Schemas["ChatSessionMessageResponse"],
+  {
+    citations?: ChatCitationResponse[];
     trust_metadata?: AnswerTrustMetadataResponse | null;
-  };
-export type ChatSessionMessageListResponse =
-  Schemas["ChatSessionMessageListResponse"];
+  }
+>;
+export type ChatSessionMessageListResponse = Overlay<
+  Schemas["ChatSessionMessageListResponse"],
+  { items: ChatSessionMessageResponse[] }
+>;
 export type ChatQueryRequest = Omit<
   Schemas["ChatQueryRequest"],
   "scope_mode"

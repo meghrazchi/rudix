@@ -308,9 +308,9 @@ Frontend (`frontend/config/security-headers.mjs`, wired from `next.config.ts` `h
 
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()` (clipboard is intentionally not restricted), and `X-Frame-Options: DENY` are enforced.
 - `Strict-Transport-Security: max-age=31536000` is sent only when `NEXT_PUBLIC_DEPLOYMENT_ENV` (or its fallbacks) is `staging` or `production`.
-- `Content-Security-Policy-Report-Only` is set in 0.2.0 (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`, analytics/Sentry/API origins added only when configured). It does not block anything yet.
+- `Content-Security-Policy-Report-Only` is the default (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`, `frame-src 'none'`, analytics/Sentry/API origins added only when configured). It does not block anything. The contact form `fetch` target (`NEXT_PUBLIC_CONTACT_SUBMIT_API_URL`) is added to `connect-src`; the external submit and scheduler URLs are navigations and are not listed. A known captcha provider (`NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER` = `turnstile`, `hcaptcha`, or `recaptcha`) adds its hosts to `script-src`, `frame-src`, `connect-src` (and `style-src` for hCaptcha); unknown providers add nothing.
 - Why no nonce yet: nonces require dynamic rendering of every page, which would rule out static generation of the public marketing pages (today they still render dynamically because the root layout reads the locale cookie), and hashes/SRI do not cover the inline flight-data scripts Next emits. `script-src` therefore allows `'unsafe-inline'` for now. The inline JSON-LD block is `type="application/ld+json"` data and is not governed by `script-src`.
-- Enforcement and a stricter script policy are planned for R03-08 (not implemented).
+- Enforcement rollout: set `NEXT_PUBLIC_CSP_ENFORCE=true` (default `false`) to send the same policy as `Content-Security-Policy` instead of `Content-Security-Policy-Report-Only`. Flip it only after a clean report-only period with no unexpected violations. A stricter script policy (no `'unsafe-inline'`) is still not implemented.
 - Set `NEXT_PUBLIC_CSP_REPORT_URI` to collect violation reports (for example a Sentry security endpoint); no backend endpoint exists for it.
 
 Backend (`app/core/security_headers.py`): ASGI middleware adds `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, and HSTS in staging/production, without overwriting headers a route already set.
@@ -422,6 +422,34 @@ When deleting a document:
 4. Delete or soft-delete pages/chunks.
 5. Preserve audit logs if required.
 6. Mark document as `deleted`.
+
+## Reproducible builds and container hardening
+
+- Python dependencies are pinned with hashes in `backend/uv.lock`; `uv sync --frozen` installs
+  that set in local development, CI (`make -C backend install`), and the Docker image.
+- The lockfile changes only through `make lock` after editing `pyproject.toml`; `make lock-check`
+  detects drift.
+- The uv binary in the Dockerfile is pinned by tag and digest; the dev bootstrap pins the uv
+  version.
+- `make audit` runs `pip-audit --require-hashes` against the exported lock, not the ambient
+  environment.
+- Two `--no-cache` image builds from one commit produced identical installed package sets
+  (verified locally; not yet verified on GitHub runners).
+- Base images (`python:3.12-slim`, `node:24-alpine`) and the uv image are pinned by digest;
+  refresh the digest deliberately and rebuild. Runtime stages run `apt-get upgrade` /
+  `apk upgrade` at build time.
+- Backend images run as uid/gid 10001 (`rudix`, no login shell); the frontend runs as `node`.
+  Application files are root-owned and read-only for the runtime user; only `/tmp` (backend)
+  and `.next/cache` (frontend) are writable.
+- The `api` image has no OCR packages and no compiler. Tesseract and Poppler are installed only
+  in the `worker` target, which is the only stage that runs OCR.
+- The frontend runtime is the Next.js standalone server (`node server.js`) with no `npm ci`
+  and no dev dependencies. Security headers are fixed at build time.
+- Every image has a `HEALTHCHECK`; staging and production compose add worker and frontend
+  healthchecks, `stop_grace_period`, CPU and memory limits, and `json-file` log rotation
+  (10 MB x 5) for all services. Limits are starting points until the R03-09 baseline.
+- Trivy (`HIGH,CRITICAL`, `--ignore-unfixed`) scans each built image in CI (R03-08); the local
+  results for this change are in the R03-06 report, not here.
 
 ## Production checklist
 

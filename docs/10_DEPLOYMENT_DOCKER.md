@@ -174,14 +174,70 @@ make ps
 
 ## Backend Dockerfile
 
-Production images use a multi-stage build (`backend/Dockerfile`):
+Production images use a multi-stage build (`backend/Dockerfile`). Base images are pinned by
+digest (`python:3.12-slim@sha256:...`, tag kept for readability); refresh the digest with
+`docker buildx imagetools inspect python:3.12-slim` and rebuild.
 
-- **builder** stage installs `build-essential` and runs `pip install .`
-- **runtime** stage copies installed packages only (no compiler toolchain or `curl`)
+| Stage | Contents |
+|---|---|
+| `builder` | `build-essential` and uv; `uv sync --frozen --no-dev` into `/opt/venv` |
+| `base-runtime` | `apt-get upgrade`, user `rudix` (uid/gid 10001, no login shell), `/opt/venv`, `alembic.ini`, `alembic/`, `scripts/`. No OCR packages, no compiler. |
+| `api` | `USER 10001`, `EXPOSE 8000`, `HEALTHCHECK` on `GET /api/v1/health`, `CMD uvicorn`. Also used for `alembic upgrade head` and the `mcp` service. |
+| `worker` (last) | Adds `tesseract-ocr` (eng, ara, fas) and `poppler-utils`, then `USER 10001`; `HEALTHCHECK` runs `celery inspect ping -d celery@$HOSTNAME`; `CMD celery ... worker`. |
 
-Compose healthchecks for `api` and `mcp` probe health endpoints with `python` + `urllib.request`, not `curl`.
+Build a stage with `docker build --target api backend` or `--target worker`. An untargeted build
+produces the full `worker` image. The root `docker-compose.yml` builds `api` and `mcp` from the
+`api` target and `worker` and `beat` from the `worker` target. `beat` runs from the worker image
+but has no worker node to ping, so compose sets `healthcheck: disable: true` for it.
+
+The virtualenv lives in `/opt/venv`, outside `/app`, so the development bind mount
+`./backend:/app` does not hide it. Application files are root-owned and read-only for uid
+10001. The app writes nothing under `/app` at runtime: MinIO objects are read into memory,
+multipart uploads spool to the system temp directory (`/tmp`), the beat schedule is written to
+`/tmp/celerybeat-schedule`, and libraries that cache files (for example tiktoken) use the
+system temp directory.
+
+Compose healthchecks for `api` and `mcp` probe health endpoints with `python` +
+`urllib.request`, not `curl`.
+
+### Resource limits, shutdown, and log rotation
+
+`deploy/compose/docker-compose.staging.yml` and `docker-compose.production.yml` set, for the
+application services:
+
+| Service | `stop_grace_period` | CPU limit | Memory limit | Healthcheck |
+|---|---|---|---|---|
+| `frontend` | 30s | 1.0 | 1g | `wget /login` |
+| `api` | 30s | 2.0 | 2g | `GET /api/v1/health` |
+| `worker` | 120s (finish acknowledged Celery tasks) | 2.0 | 4g | `celery inspect ping` |
+| `beat` | 10s | 0.5 | 512m | disabled |
+| `mcp` | 30s | 1.0 | 1g | `GET /health` |
+
+The limits are conservative starting points, not measured values. Tune them after the R03-09
+load baseline (`docs/roadmap/V0_3_0_LOAD_BASELINE.md`). Every service, including the data
+services, uses the shared `x-logging` anchor: `json-file` driver, `max-size: 10m`,
+`max-file: 5`.
+
+### Upgrading an existing host to non-root images
+
+The images now run as uid 10001 (backend) and `node` (frontend). The application services
+mount no named volumes in staging or production, so no ownership change is needed for them.
+If you added a local volume or bind mount to `api`, `worker`, or `beat` (for example a shared
+`/tmp` or a data directory), give it to uid 10001 once before the first deploy:
+
+```bash
+docker run --rm -v <volume>:/data alpine chown -R 10001:10001 /data
+```
+
+Data-service volumes (`postgres_data`, `minio_data`, and so on) are unchanged.
 
 ## Backend requirements
+
+Direct dependency ranges live in `backend/pyproject.toml`. The exact, hash-verified set that is
+installed everywhere (local `make install`, CI, and the Docker image) is `backend/uv.lock`. The
+image builder copies uv from a tag- and digest-pinned image, runs `uv sync --frozen --no-dev`
+into `/opt/venv`, and the runtime stage copies that virtualenv. Change dependencies with
+`make lock` (see `backend/README.md`). The list below is illustrative only.
 
 ```text
 fastapi
@@ -240,6 +296,22 @@ frontend settings. The app includes a safety fallback for `staging.getrudix.com`
 and `getrudix.com` that replaces stale loopback API URLs with the matching
 public HTTPS API endpoint, but the deployment should still set correct
 build-time values.
+
+### Frontend image
+
+`next.config.ts` sets `output: "standalone"`. `frontend/Dockerfile` pins `node:24-alpine` by
+digest and builds in three stages (`deps`, `build`, `runtime`). The runtime stage copies only
+`.next/standalone`, `.next/static`, and `public`; it does not run `npm ci`. It runs as the
+`node` user with `HOSTNAME=0.0.0.0`, `PORT=3000`, and `CMD ["node", "server.js"]`, and its
+`HEALTHCHECK` fetches `/login` with busybox `wget`. Only `.next/cache` is writable by the
+runtime user.
+
+In standalone mode `next.config.ts` is evaluated once at `next build`: `headers()` (the
+security headers from `config/security-headers.mjs`) and `rewrites()` are baked into the
+output. Security headers, HSTS, and the CSP therefore come from the **build** environment
+(`.env.production` written by CI), like the `NEXT_PUBLIC_*` values. Changing
+`NEXT_PUBLIC_CSP_*` or `NEXT_PUBLIC_DEPLOYMENT_ENV` on a running container has no effect;
+rebuild the image.
 
 ## Backend deployment options
 

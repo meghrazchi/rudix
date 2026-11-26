@@ -1,6 +1,11 @@
 name: Accuracy Evaluation
 
 on:
+  # Nightly live run against staging (R03-03). Scheduled runs have no inputs,
+  # so EVAL_MODE below falls back to `nightly`. The release quality gate reads
+  # the newest completed run this produces.
+  schedule:
+    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       mode:

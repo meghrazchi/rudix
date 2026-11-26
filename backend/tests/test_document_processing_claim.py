@@ -43,6 +43,8 @@ from app.models.organization import Organization
 from app.models.user import User
 from app.workers import status_tracking
 
+pytestmark = pytest.mark.both_dialects
+
 NOW = datetime(2026, 11, 26, 12, 0, tzinfo=UTC)
 STALE_BEFORE = NOW - timedelta(hours=1)
 

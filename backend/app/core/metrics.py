@@ -545,6 +545,7 @@ def set_dependency_readiness(dependency: str, is_ready: bool) -> None:
 
 def attach_metrics_middleware(app: FastAPI) -> None:
     """Attach low-overhead Prometheus metrics middleware to FastAPI."""
+    from app.core.db_metrics import begin_request_query_count, end_request_query_count
 
     @app.middleware("http")
     async def prometheus_metrics_middleware(request: Request, call_next: Any) -> Any:
@@ -564,6 +565,7 @@ def attach_metrics_middleware(app: FastAPI) -> None:
         HTTP_REQUESTS_IN_PROGRESS.labels(method=method, route=route_template).inc()
         started_at = perf_counter()
         status_code = 500
+        query_scope = begin_request_query_count()
 
         try:
             response = await call_next(request)
@@ -585,6 +587,7 @@ def attach_metrics_middleware(app: FastAPI) -> None:
                 method=method, route=route_template, status_code=str(status_code)
             ).inc()
             HTTP_REQUESTS_IN_PROGRESS.labels(method=method, route=route_template).dec()
+            end_request_query_count(query_scope, method, route_template)
 
 
 def generate_prometheus_metrics() -> Response:

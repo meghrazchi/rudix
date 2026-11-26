@@ -2,6 +2,7 @@ services:
   api:
     build:
       context: ./backend
+      target: api
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log
     env_file:
       - .env
@@ -46,6 +47,7 @@ services:
   worker:
     build:
       context: ./backend
+      target: worker
     command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
     env_file:
       - .env
@@ -78,6 +80,7 @@ services:
   beat:
     build:
       context: ./backend
+      target: worker
     command: celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
     restart: unless-stopped
     env_file:
@@ -96,11 +99,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # The worker image's HEALTHCHECK pings a worker node; beat has none.
+    healthcheck:
+      disable: true
 
   mcp:
     profiles: ["mcp"]
     build:
       context: ./backend
+      target: api
     command: python -m app.mcp.main --transport streamable_http
     env_file:
       - .env

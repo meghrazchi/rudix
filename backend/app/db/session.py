@@ -4,6 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import settings
+from app.core.db_metrics import install_db_metrics
 from app.db.tenant_context import install_sqlalchemy_tenant_guard
 
 install_sqlalchemy_tenant_guard()
@@ -14,6 +15,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=1800,
 )
+install_db_metrics(engine)
 
 SessionLocal = async_sessionmaker(
     bind=engine,
