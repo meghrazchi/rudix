@@ -30,6 +30,20 @@ This repository keeps `README.md` at the root and all other documentation under 
 24. [23_MULTILINGUAL_DOCUMENTATION_HELP_ROLLOUT.md](./23_MULTILINGUAL_DOCUMENTATION_HELP_ROLLOUT.md) — Multilingual UI locales, language-aware RAG, OCR guidance, support playbook, and QA checklist
 25. [24_CITATION_PREVIEW_ARCHITECTURE.md](./24_CITATION_PREVIEW_ARCHITECTURE.md) — Citation preview drawer architecture, API contract, permission behavior, observability, and test fixtures
 26. [25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md](./25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Planned Prometheus and Grafana metrics taxonomy, exporters, dashboards, SLO alerts, and rollout plan
+27. [26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md](./26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md) — Planned release train from `0.1.0` to `1.0.0`, product-area version map, flag graduation, performance targets, and open decisions
+
+## Roadmap Specs (planned work)
+
+- [roadmap/00_AUDIT_BASELINE.md](./roadmap/00_AUDIT_BASELINE.md) — Feature catalogue and audit findings at `0.1.0`
+- [roadmap/V0_2_0_CORRECTNESS_AND_SAFETY.md](./roadmap/V0_2_0_CORRECTNESS_AND_SAFETY.md)
+- [roadmap/V0_3_0_TEST_AND_RELEASE_FOUNDATION.md](./roadmap/V0_3_0_TEST_AND_RELEASE_FOUNDATION.md)
+- [roadmap/V0_4_0_DATA_LAYER_PERFORMANCE.md](./roadmap/V0_4_0_DATA_LAYER_PERFORMANCE.md)
+- [roadmap/V0_5_0_CHAT_PIPELINE_AND_STREAMING.md](./roadmap/V0_5_0_CHAT_PIPELINE_AND_STREAMING.md)
+- [roadmap/V0_6_0_INGESTION_AND_WORKERS.md](./roadmap/V0_6_0_INGESTION_AND_WORKERS.md)
+- [roadmap/V0_7_0_FRONTEND_PERFORMANCE.md](./roadmap/V0_7_0_FRONTEND_PERFORMANCE.md)
+- [roadmap/V0_8_0_PRODUCTION_INFRASTRUCTURE.md](./roadmap/V0_8_0_PRODUCTION_INFRASTRUCTURE.md)
+- [roadmap/V0_9_0_PRODUCT_COMPLETENESS.md](./roadmap/V0_9_0_PRODUCT_COMPLETENESS.md)
+- [roadmap/V1_0_0_GENERAL_AVAILABILITY.md](./roadmap/V1_0_0_GENERAL_AVAILABILITY.md)
 
 ## Setup and Operations
 
