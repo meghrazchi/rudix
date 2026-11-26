@@ -278,7 +278,7 @@ jobs:
             sleep 2
           done
           docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps || true
-          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color api worker || true
+          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color api worker beat || true
           exit 1
 
       - name: Check readiness and auth boundary
@@ -316,6 +316,17 @@ jobs:
 
       - name: Verify worker is running
         run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running worker | grep -q worker
+
+      - name: Verify beat is running
+        run: |
+          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running beat | grep -q beat
+          for i in $(seq 1 30); do
+            docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color beat | grep -q 'beat: Starting...' && exit 0
+            sleep 2
+          done
+          echo 'beat did not start'
+          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color beat
+          exit 1
 
       - name: Collect integration logs
         if: always()

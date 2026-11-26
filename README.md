@@ -337,6 +337,7 @@ cd backend
 make install      # Install backend dependencies
 make run-api      # Run FastAPI locally
 make run-worker   # Run Celery worker locally
+make run-beat     # Run Celery beat scheduler locally (exactly one instance)
 make migrate      # Apply migrations
 make test         # Run tests
 make lint         # Run lint and type checks
@@ -445,7 +446,7 @@ Start here:
 - [`docs/15_MCP_SERVER_DEPLOYMENT_MODE.md`](docs/15_MCP_SERVER_DEPLOYMENT_MODE.md) — MCP architecture (Mermaid), tools/resources/prompts, deployment
 - [`docs/18_LANGFUSE_OBSERVABILITY.md`](docs/18_LANGFUSE_OBSERVABILITY.md) — Langfuse LLM observability: traces, redaction, sampling, production setup
 - [`docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md`](docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md) — Local LLM providers: Ollama/vLLM/LiteLLM setup, security, evaluation, runbooks
-- [`docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`](docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Planned Prometheus and Grafana metrics, dashboards, exporters, and SLO alerting architecture
+- [`docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`](docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Prometheus and Grafana metrics, dashboards, exporters, and SLO alerts (development overlay implemented; staging and production rollout planned)
 - `ci/security/security_gate_allowlist.json` — tracked temporary allowlist for CI severity gate exceptions
 
 Frontend-specific details are available in:

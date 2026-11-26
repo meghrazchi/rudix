@@ -393,12 +393,39 @@ make lint
 make test
 make run-api
 make run-worker
+make run-beat
 make migrate
 make downgrade
 make seed-dev
 ```
 
 `make install` creates a local virtualenv at `backend/.venv` and installs all dependencies there.
+
+## PostgreSQL integration tests
+
+Most backend tests run against in-memory SQLite. Tests that need real PostgreSQL or Redis
+behavior (row locks, `ON CONFLICT`, concurrent sessions) carry pytest markers:
+
+- `requires_postgres`: needs a migrated PostgreSQL database at `TEST_DATABASE_URL`.
+- `requires_redis`: needs a live Redis instance.
+
+When `TEST_DATABASE_URL` is unset, `requires_postgres` tests are skipped, so `make test` keeps
+working without extra services. Two fixtures in `tests/conftest.py` provide database access:
+
+- `pg_session`: an `AsyncSession` inside an outer transaction that is rolled back at teardown.
+  Calls to `commit()` in code under test release a savepoint, so nothing persists.
+- `pg_session_factory`: an `async_sessionmaker` whose sessions each use a real connection with
+  real commits. Use it for concurrency tests, and delete the rows you create, scoped by a unique
+  organization ID.
+
+Run the lane against a throwaway database (it applies `alembic upgrade head` first):
+
+```bash
+TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/rudix_test make test-postgres
+```
+
+CI runs these tests in the `backend-alembic` job, after the migration round trip, with
+PostgreSQL and Redis service containers.
 
 ## Useful task commands
 
@@ -413,6 +440,8 @@ From `backend/`:
 .venv/bin/celery -A app.workers.celery_app:celery_app inspect reserved
 .venv/bin/celery -A app.workers.celery_app:celery_app inspect scheduled
 ```
+
+Every Celery task module must be listed in `include` in `app/workers/celery_app.py`, and every task name must have an explicit `task_routes` entry targeting a declared queue. `tests/test_celery_task_registry.py` enforces both.
 
 Auth/authorization guard checks:
 
@@ -630,6 +659,33 @@ Notes:
   `FEATURE_ENABLE_RELATION_EXTRACTION=true`. Confidence below
   `RELATION_CONFIDENCE_THRESHOLD` is marked `low_confidence`; review mode keeps
   newly extracted relations in `unverified` state until they are approved.
+
+## Scheduled tasks (Celery beat)
+
+Celery beat is the scheduler that enqueues periodic tasks. It schedules two entries from
+`beat_schedule` in `app/workers/celery_app.py`:
+
+- `connector-sync-schedule-poll` (`connectors.sync.schedule_poll`) every
+  `CONNECTOR_SYNC_SCHEDULE_POLL_INTERVAL_SECONDS` seconds (default 60).
+- `agent-approvals-expire` (`agents.approvals.expire`) every 60 seconds.
+
+Without a beat process, scheduled connector syncs and approval expiry never run.
+
+Run exactly one beat instance per deployment. Never scale it: duplicate beats double-schedule
+every task.
+
+- Locally: `make run-beat` (from `backend/`).
+- Docker Compose: the `beat` service exists in the root, staging, production, and integration
+  compose files, so `make up` starts it.
+- The schedule file is written to `/tmp/celerybeat-schedule` inside the container. It is
+  ephemeral, which is fine because all entries are interval schedules.
+
+Verify with `docker compose logs beat`. You should see `beat: Starting...` and, within one
+interval, `Scheduler: Sending due task connector-sync-schedule-poll`. Interval entries first
+fire one interval after startup.
+
+A beat heartbeat alert is planned for `0.8.0`. It depends on worker task counters being
+exported from prefork child processes, which is not the case yet.
 
 ## Prometheus & Grafana Observability
 

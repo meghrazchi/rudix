@@ -124,6 +124,7 @@ names a fallback that works on the current Compose deployment.
   `infra/observability/` to staging and production with `METRICS_ENABLED=true` and the
   metrics token set. Give Alertmanager a real receiver and an escalation path. Enable
   Prometheus multiprocess mode in prefork workers so child-process counters are exported.
+  Then add a beat heartbeat alert (deferred from `R02-03` because it needs those counters).
   Add SLO recording rules and multi-window burn-rate alerts for availability, chat latency,
   ingestion latency, and queue age. Ship logs to an aggregator with the request ID indexed.
 - **Done when:** A synthetic failure pages the on-call receiver, and every master-plan

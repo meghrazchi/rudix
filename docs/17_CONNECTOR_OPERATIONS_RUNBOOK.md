@@ -83,6 +83,18 @@ Use this sequence for a new provider or a major connector change:
   ingestion failures, and OAuth refresh failures.
 - Verify the provider credential is still valid and scoped correctly.
 
+### Scheduled syncs never start
+
+Scheduled connector sync depends on the `beat` service, which enqueues
+`connectors.sync.schedule_poll` periodically. If beat is not running, manual syncs still work
+but scheduled ones never start.
+
+- Check the service: `docker compose ps beat`.
+- Check the log: `docker compose logs beat` should show `beat: Starting...` and
+  `Scheduler: Sending due task connector-sync-schedule-poll`.
+- Run exactly one beat instance; never scale it.
+- There is no beat alert yet (planned for `0.8.0`); check the beat log when scheduled syncs stop.
+
 ### OAuth reconnect fails
 
 - Confirm the redirect URI matches the provider configuration.

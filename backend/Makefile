@@ -33,6 +33,12 @@ test:
 test-verbose:
 	$(PYTEST) -vv --timeout=60 --tb=short
 
+.PHONY: test-postgres
+test-postgres:
+	@test -n "$(TEST_DATABASE_URL)" || (echo "TEST_DATABASE_URL must be set (postgresql+asyncpg://...)"; exit 1)
+	DATABASE_URL="$(TEST_DATABASE_URL)" $(ALEMBIC) upgrade head
+	TEST_DATABASE_URL="$(TEST_DATABASE_URL)" $(PYTEST) -m "requires_postgres or requires_redis"
+
 audit:
 	$(PIP_AUDIT)
 
@@ -41,6 +47,10 @@ run-api:
 
 run-worker:
 	$(CELERY) -A app.workers.celery_app:celery_app worker --loglevel=INFO
+
+.PHONY: run-beat
+run-beat:
+	$(CELERY) -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
 
 run-mcp-http:
 	$(PYTHON_VENV) -m app.mcp.main --transport streamable_http

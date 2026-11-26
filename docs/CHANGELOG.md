@@ -8,16 +8,20 @@ All notable changes to this documentation set are recorded here.
 
 - `docs/26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md` and `docs/roadmap/`: planned release train from `0.1.0` to `1.0.0`, the `0.1.0` feature catalogue and audit baseline, and one implementation spec per version.
 - `docs/roadmap/V0_2_0_IMPLEMENTATION_PLAN.md`: file-level implementation plan for `0.2.0`, with corrections to the `0.2.0` spec found by checking it against the code.
+- `backend/README.md` and `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`: documented the PostgreSQL test lane (`TEST_DATABASE_URL`, `make test-postgres`, `requires_postgres`/`requires_redis` markers) run in the `backend-alembic` CI job (R02-15).
 - `docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md` for planned Prometheus and Grafana metrics, exporters, dashboards, security guardrails, and phased rollout.
 - `docs/DOCUMENT_TEMPLATE.md` for standardized technical documents.
 - `docs/DOCUMENT_REVIEW_CHECKLIST.md` for document quality gating.
+- Celery `beat` service in all compose files, `make run-beat`, and an integration-smoke beat check; documented in `backend/README.md`, `docs/10_DEPLOYMENT_DOCKER.md`, and `docs/17_CONNECTOR_OPERATIONS_RUNBOOK.md` (R02-03).
 
 ### Changed
 
 - `docs/12_EVALUATION_AND_MONITORING.md` and `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`: linked the planned Prometheus and Grafana observability architecture and metrics security checklist items.
+- `docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`, `README.md`, `docs/README.md`: aligned observability status (development overlay implemented; staging and production rollout planned); removed dead stub services and `RefreshTokenStore`, and marked the legacy `POST /documents/upload-url` and `POST /chat/sessions/{session_id}/messages` routes deprecated (R02-13, R02-14).
 - `README.md`: aligned the GitHub Actions summary with the committed `.github/workflows/` files and documented the standalone Playwright workflow.
 - `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`: updated the CI/CD reference to match the current workflow split between `ci.yml` and `playwright.yml`.
 - `docs/CONTRIBUTING.md`: clarified GitHub pull request language and added a workflow-documentation sync check.
+- `backend/README.md`: documented the Celery task registration and routing rule enforced by `tests/test_celery_task_registry.py`; `safety_evals.run` is now registered and routed to the evaluations queue (R02-04).
 
 ## [2026-06-02] — F210 Adaptive hybrid chunking
 

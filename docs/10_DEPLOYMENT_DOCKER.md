@@ -23,6 +23,7 @@ flowchart TD
 frontend       Next.js dev server or containerized Next.js service
 api            FastAPI container
 worker         Celery worker container
+beat           Celery beat scheduler (exactly one instance)
 postgres       PostgreSQL
 qdrant         Qdrant vector database
 minio          MinIO object storage
@@ -120,7 +121,7 @@ volumes:
 
 The active `docker-compose.yml` in repository root includes:
 
-- Services: `api`, `worker`, `postgres`, `qdrant`, `minio`, `minio-init`, `rabbitmq`, `redis`
+- Services: `api`, `worker`, `beat`, `postgres`, `qdrant`, `minio`, `minio-init`, `rabbitmq`, `redis`
 - Healthchecks:
   - `api` via `GET /api/v1/health`
   - `postgres` via `pg_isready`

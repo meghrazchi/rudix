@@ -102,6 +102,33 @@ services:
       neo4j:
         condition: service_healthy
 
+  # Exactly one beat instance per deployment. Never scale this service; duplicate beats double-schedule tasks.
+  beat:
+    image: ${RUDIX_WORKER_IMAGE}
+    command: celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ENTERPRISE_GRAPH_ENABLED: "true"
+      ENVIRONMENT: staging
+      API_BASE_URL: https://api-staging.getrudix.com
+      FRONTEND_BASE_URL: https://staging.getrudix.com
+      APP_AUTH_AUTO_PROVISION_USERS: "false"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      QDRANT_URL: http://qdrant:6333
+      MINIO_ENDPOINT: http://minio:9000
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      REDIS_URL: redis://redis:6379/0
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: ${NEO4J_USERNAME}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   mcp:
     profiles: ["mcp"]
     image: ${RUDIX_MCP_IMAGE:-${RUDIX_API_IMAGE}}

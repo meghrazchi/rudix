@@ -74,6 +74,29 @@ services:
       minio-init:
         condition: service_completed_successfully
 
+  # Exactly one beat instance per deployment. Never scale this service; duplicate beats double-schedule tasks.
+  beat:
+    build:
+      context: ./backend
+    command: celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-rag_app}
+      QDRANT_URL: http://qdrant:6333
+      MINIO_ENDPOINT: http://minio:9000
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-admin}:${RABBITMQ_DEFAULT_PASS:-admin123}@rabbitmq:5672//
+      REDIS_URL: redis://redis:6379/0
+      MALWARE_SCAN_CLAMAV_HOST: clamav
+    volumes:
+      - ./backend:/app
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   mcp:
     profiles: ["mcp"]
     build:

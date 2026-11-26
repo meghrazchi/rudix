@@ -62,6 +62,25 @@ services:
       minio-init:
         condition: service_completed_successfully
 
+  # Exactly one beat instance per deployment. Never scale this service; duplicate beats double-schedule tasks.
+  beat:
+    image: ${RUDIX_WORKER_IMAGE}
+    command: celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
+    restart: unless-stopped
+    env_file:
+      - ../../.env.ci.integration
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/rag_app
+      QDRANT_URL: http://qdrant:6333
+      MINIO_ENDPOINT: http://minio:9000
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672//
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   migrate:
     image: ${RUDIX_API_IMAGE}
     command: alembic upgrade head

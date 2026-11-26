@@ -90,6 +90,29 @@ services:
       minio-init:
         condition: service_completed_successfully
 
+  # Exactly one beat instance per deployment. Never scale this service; duplicate beats double-schedule tasks.
+  beat:
+    image: ${RUDIX_WORKER_IMAGE}
+    command: celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ENVIRONMENT: production
+      API_BASE_URL: https://api.getrudix.com
+      FRONTEND_BASE_URL: https://getrudix.com
+      APP_AUTH_AUTO_PROVISION_USERS: "false"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      QDRANT_URL: http://qdrant:6333
+      MINIO_ENDPOINT: http://minio:9000
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   mcp:
     profiles: ["mcp"]
     image: ${RUDIX_MCP_IMAGE:-${RUDIX_API_IMAGE}}
