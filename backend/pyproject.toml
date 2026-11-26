@@ -78,8 +78,8 @@ markers = [
   "guardrails: Prompt injection and citation validation guardrail tests (F145 — release blocker for v0.4.0)",
   "connector_contract: Connector provider adapter contract tests (F241)",
   "governance: Graph governance RBAC, audit, and tenant isolation tests (F290)",
-  "requires_postgres: Tests requiring a live PostgreSQL instance at localhost:5432",
-  "requires_redis: Tests requiring a live Redis instance at localhost:6379",
+  "requires_postgres: Tests requiring a migrated PostgreSQL database at TEST_DATABASE_URL (skipped when unset)",
+  "requires_redis: Tests requiring a live Redis instance (skipped when unavailable)",
 ]
 
 [tool.mypy]

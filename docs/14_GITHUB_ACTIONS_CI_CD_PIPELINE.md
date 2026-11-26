@@ -37,9 +37,10 @@ Jobs:
    - checks Ruff formatting and linting
    - runs backend pytest with coverage artifacts
 3. `backend-alembic`
-   - starts an ephemeral PostgreSQL service
+   - starts ephemeral PostgreSQL and Redis services
    - runs `alembic upgrade head`
    - runs a downgrade/upgrade round trip to catch migration regressions
+   - runs `pytest -m "requires_postgres or requires_redis"` against the migrated database
 4. `frontend`
    - runs `npm ci`
    - runs Prettier, ESLint, and TypeScript checks
@@ -90,7 +91,7 @@ Jobs:
 2. `integration-smoke`
    - runs the integration compose stack
    - applies migrations
-   - verifies health, readiness, auth boundaries, preflight behavior, and worker liveness
+   - verifies health, readiness, auth boundaries, preflight behavior, and worker and beat liveness
 3. `deploy-staging`
    - uses Terraform to roll out the staging compose deployment on the default branch
    - requires `STAGING_*` secrets plus GHCR credentials
