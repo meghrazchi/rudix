@@ -175,6 +175,27 @@ def test_backfill_task_re_enqueues_itself_until_finished(monkeypatch: pytest.Mon
     assert result["finished"] is True and enqueued == []
 
 
+def test_default_scope_is_the_maintenance_session() -> None:
+    scope = backfill_module.default_session_scope()
+    assert hasattr(scope, "__aenter__") and hasattr(scope, "__aexit__")
+
+
+def test_backfill_metric_counts_rows_and_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core import metrics_workers
+
+    monkeypatch.setattr(settings, "metrics_enabled", True)
+    before = metrics_workers.CHUNK_BACKFILL_ROWS_TOTAL._value.get()
+    metrics_workers.record_chunk_backfill_rows(5)
+    metrics_workers.record_chunk_backfill_rows(0)
+    assert metrics_workers.CHUNK_BACKFILL_ROWS_TOTAL._value.get() - before == 5
+
+    def _boom(_: int) -> None:
+        raise RuntimeError("registry closed")
+
+    monkeypatch.setattr(metrics_workers.CHUNK_BACKFILL_ROWS_TOTAL, "inc", _boom)
+    metrics_workers.record_chunk_backfill_rows(1)  # logged at debug, not raised
+
+
 def test_backfill_task_retries_the_same_cursor_on_a_database_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

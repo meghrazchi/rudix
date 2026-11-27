@@ -256,6 +256,11 @@ async def test_session_errors_never_escape(monkeypatch: pytest.MonkeyPatch) -> N
     assert written == 0
 
 
+async def test_empty_batches_open_no_session(driver: FakeDriver) -> None:
+    assert await EntityRepository().upsert_entities_batch(organization_id=uuid4(), rows=[]) == 0
+    assert driver.transactions == []
+
+
 async def test_batches_are_noops_without_a_driver(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
     monkeypatch.setattr(neo4j_module, "_neo4j_driver", None)
