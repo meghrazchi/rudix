@@ -87,10 +87,13 @@ export function InternalKnowledgeSolutionPage() {
         description={t("hero.description")}
         actions={
           <>
-            <PrimaryLink href={links.startTrial} label={t("hero.primaryCta")} />
-            <SecondaryLink
+            <PrimaryLink
               href={links.requestDemo}
               label={t("hero.secondaryCta")}
+            />
+            <SecondaryLink
+              href={links.security}
+              label={t("hero.securityCta")}
             />
           </>
         }

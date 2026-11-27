@@ -6,7 +6,6 @@ import { PublicActionLink } from "@/components/public/PublicActionLink";
 import {
   IconCard,
   PrimaryLink,
-  SecondaryLink,
   SiteBreadcrumb,
   SiteCtaPanel,
   SiteSplitHero,
@@ -84,7 +83,7 @@ function WorkflowSteps() {
           className="border-site-border bg-site-surface flex min-w-0 flex-col rounded-2xl border p-6"
         >
           <div className="flex items-center justify-between gap-3">
-            <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold">
+            <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-xs font-semibold">
               {step.label}
             </span>
             <SiteIcon name={step.icon} className="text-site-accent text-xl" />
@@ -136,8 +135,7 @@ export function ClientPortalSolutionPage() {
         description={t("hero.description")}
         actions={
           <>
-            <PrimaryLink href={links.startTrial} label={t("hero.primaryCta")} />
-            <SecondaryLink
+            <PrimaryLink
               href={links.requestDemo}
               label={t("hero.secondaryCta")}
             />
@@ -316,7 +314,6 @@ export function ClientPortalSolutionPage() {
         title={t("cta.heading")}
         description={t("cta.description")}
         primary={{ href: links.requestDemo, label: t("cta.primaryCta") }}
-        secondary={{ href: links.startTrial, label: t("cta.secondaryCta") }}
       />
     </div>
   );

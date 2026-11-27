@@ -268,21 +268,18 @@ function LoginPageContent() {
                 {t("forgotPassword")}
               </button>
             )}
-            <div className="flex items-center gap-3">
-              <Link
-                href="/signup"
-                className="text-site-ink-muted decoration-site-ink-subtle cursor-pointer text-sm font-semibold underline"
-              >
-                {t("createAccount")}
-              </Link>
-              <Link
-                href="/"
-                className="text-site-ink-muted decoration-site-ink-subtle cursor-pointer text-sm font-semibold underline"
-              >
-                {t("backToHome")}
-              </Link>
-            </div>
+            <Link
+              href="/"
+              className="text-site-ink-muted decoration-site-ink-subtle cursor-pointer text-sm font-semibold underline"
+            >
+              {t("backToHome")}
+            </Link>
           </div>
+
+          {/* No self-registration: accounts come from admin invitations, SCIM, or SSO. */}
+          <p className="text-site-ink-muted text-sm leading-6">
+            {t("noAccountHint")}
+          </p>
 
           {forgotPlaceholderMessage ? (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">

@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import {
   IconCard,
   PrimaryLink,
-  SecondaryLink,
   SiteBreadcrumb,
   SiteCtaPanel,
   SiteSplitHero,
@@ -62,8 +61,7 @@ export function ProcurementSolutionPage() {
         description={t("hero.description")}
         actions={
           <>
-            <PrimaryLink href={links.startTrial} label={t("hero.primaryCta")} />
-            <SecondaryLink
+            <PrimaryLink
               href={links.requestDemo}
               label={t("hero.secondaryCta")}
             />
@@ -74,7 +72,7 @@ export function ProcurementSolutionPage() {
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl">
               <Image
                 src="/images/solutions/procurement/vendor-dashboard.jpg"
-                alt="Procurement analytics dashboard showing vendor evaluation data"
+                alt={t("heroImageAlt")}
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -162,7 +160,7 @@ export function ProcurementSolutionPage() {
               className="border-site-border bg-site-surface flex min-w-0 flex-col rounded-2xl border p-6"
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold">
+                <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-xs font-semibold">
                   {t(`engine.step${step.key}Label`)}
                 </span>
                 <SiteIcon
@@ -212,7 +210,6 @@ export function ProcurementSolutionPage() {
         title={t("cta.heading")}
         description={t("cta.description")}
         primary={{ href: links.requestDemo, label: t("cta.primaryCta") }}
-        secondary={{ href: links.startTrial, label: t("cta.secondaryCta") }}
       />
     </div>
   );

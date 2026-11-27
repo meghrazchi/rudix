@@ -7,7 +7,6 @@ const originalEnv = { ...process.env };
 
 function clearPublicEnv() {
   delete process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL;
-  delete process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL;
   delete process.env.NEXT_PUBLIC_PUBLIC_PRICING_URL;
 }
 
@@ -47,17 +46,21 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
     ).toBeInTheDocument();
   });
 
-  it("renders hero CTAs pointing to trial and demo", () => {
+  it("renders the hero CTA pointing to the demo request, not signup", () => {
     render(<InternalKnowledgeSolutionPage />);
 
-    expect(screen.getByRole("link", { name: "Get Started" })).toHaveAttribute(
-      "href",
-      "/signup",
-    );
     expect(screen.getByRole("link", { name: "Watch Demo" })).toHaveAttribute(
       "href",
       "/contact",
     );
+    expect(
+      screen.queryByRole("link", { name: "Get Started" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "How we keep data secure" }),
+    ).toHaveAttribute("href", "/security");
+    // Self-service signup is disabled; no CTA may lead to /signup.
+    expect(document.querySelector('a[href*="signup"]')).toBeNull();
   });
 
   it("renders the problem section with three friction cards", () => {
@@ -173,17 +176,6 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
       hrefs.filter((h) => h && h !== "/" && h !== "/solutions"),
     );
     expect(uniqueExternalRoutes.size).toBeGreaterThanOrEqual(3);
-  });
-
-  it("applies env-driven trial URL when configured", () => {
-    process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL = "https://trial.example.com";
-
-    render(<InternalKnowledgeSolutionPage />);
-
-    expect(screen.getByRole("link", { name: "Get Started" })).toHaveAttribute(
-      "href",
-      "https://trial.example.com",
-    );
   });
 
   it("applies env-driven demo URL when configured", () => {

@@ -165,7 +165,7 @@ export function SupportSolutionPage() {
                   <SiteIcon name={s.icon} className="text-lg" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-site-ink-subtle text-[11px] font-medium tracking-[0.06em] uppercase">
+                  <p className="text-site-ink-subtle text-xs font-medium tracking-[0.06em] uppercase">
                     {t("documentSources.dataSourceLabel")}
                   </p>
                   <p className="text-site-ink mt-0.5 text-sm font-semibold break-words">
@@ -271,8 +271,7 @@ export function SupportSolutionPage() {
         id="support-cta-title"
         title={t("cta.heading")}
         description={t("cta.description")}
-        primary={{ href: links.startTrial, label: t("cta.primaryCta") }}
-        secondary={{ href: links.requestDemo, label: t("cta.secondaryCta") }}
+        primary={{ href: links.requestDemo, label: t("cta.secondaryCta") }}
       />
     </div>
   );

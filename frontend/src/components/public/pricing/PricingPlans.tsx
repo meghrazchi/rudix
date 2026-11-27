@@ -17,9 +17,10 @@ export const PLAN_IDS: readonly PlanId[] = ["starter", "team", "enterprise"];
 const FEATURED_PLAN: PlanId = "team";
 
 function planHref(planId: PlanId, links: PublicSiteLinks): string {
-  if (planId === "starter") return links.startTrial;
-  if (planId === "team") return links.requestDemo;
-  return links.contact;
+  // No self-service signup: every plan starts with a conversation, and the
+  // workspace administrator then invites the team.
+  if (planId === "enterprise") return links.contact;
+  return links.requestDemo;
 }
 
 export function PricingPlans({ links }: { links: PublicSiteLinks }) {

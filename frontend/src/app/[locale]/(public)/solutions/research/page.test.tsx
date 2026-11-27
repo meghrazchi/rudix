@@ -7,7 +7,6 @@ const originalEnv = { ...process.env };
 
 function clearPublicEnv() {
   delete process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL;
-  delete process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL;
   delete process.env.NEXT_PUBLIC_PUBLIC_DOCS_URL;
 }
 
@@ -125,7 +124,7 @@ describe("Research solution page (/solutions/research)", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the final CTA section with trial and demo links", () => {
+  it("renders the final CTA section with a sales-call link and no signup", () => {
     render(<ResearchSolutionPage />);
 
     expect(
@@ -134,11 +133,13 @@ describe("Research solution page (/solutions/research)", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Get Started Now" }),
-    ).toHaveAttribute("href", "/signup");
-    expect(
       screen.getByRole("link", { name: "Book Sales Call" }),
     ).toHaveAttribute("href", "/contact");
+    expect(
+      screen.queryByRole("link", { name: "Get Started Now" }),
+    ).not.toBeInTheDocument();
+    // Self-service signup is disabled; no CTA may lead to /signup.
+    expect(document.querySelector('a[href*="signup"]')).toBeNull();
   });
 
   it("applies env-driven demo URL to hero CTA when configured", () => {
@@ -150,16 +151,6 @@ describe("Research solution page (/solutions/research)", () => {
       "href",
       "https://demo.example.com",
     );
-  });
-
-  it("applies env-driven trial URL to final CTA when configured", () => {
-    process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL = "https://trial.example.com";
-
-    render(<ResearchSolutionPage />);
-
-    expect(
-      screen.getByRole("link", { name: "Get Started Now" }),
-    ).toHaveAttribute("href", "https://trial.example.com");
   });
 
   it("renders breadcrumb navigation back to solutions", () => {

@@ -3,9 +3,7 @@ import { useTranslations } from "next-intl";
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import {
   PRIMARY_BUTTON_CLASS,
-  SECONDARY_BUTTON_CLASS,
   SiteIcon,
-  TEXT_LINK_CLASS,
 } from "@/components/public/site/primitives";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
 
@@ -37,23 +35,11 @@ export function PricingHero({ links }: { links: PublicSiteLinks }) {
         </p>
         <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
           <PublicActionLink
-            href={links.startTrial}
+            href={links.requestDemo}
             className={`${PRIMARY_BUTTON_CLASS} w-full sm:w-auto`}
           >
-            {t("startTrialCta")}
-            <SiteIcon name="arrow_forward" className="rtl-mirror text-base" />
-          </PublicActionLink>
-          <PublicActionLink
-            href={links.requestDemo}
-            className={`${SECONDARY_BUTTON_CLASS} w-full sm:w-auto`}
-          >
             {t("requestDemoCta")}
-          </PublicActionLink>
-          <PublicActionLink
-            href={links.login}
-            className={`${TEXT_LINK_CLASS} px-3 py-2`}
-          >
-            {t("loginCta")}
+            <SiteIcon name="arrow_forward" className="rtl-mirror text-base" />
           </PublicActionLink>
         </div>
       </div>

@@ -214,8 +214,7 @@ export function LegalSolutionPage() {
         id="legal-cta-title"
         title={t("cta.heading")}
         description={t("cta.description")}
-        primary={{ href: links.startTrial, label: t("cta.primaryCta") }}
-        secondary={{ href: links.requestDemo, label: t("cta.secondaryCta") }}
+        primary={{ href: links.requestDemo, label: t("cta.secondaryCta") }}
       />
     </div>
   );

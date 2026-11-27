@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/signup session flows, the Documents workspace at `/documents`, the Graph Explorer at `/graph`, and the Pipeline Explorer at `/rag-pipeline`.
+Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login session flows (accounts are created by admins; there is no self-registration), the Documents workspace at `/documents`, the Graph Explorer at `/graph`, and the Pipeline Explorer at `/rag-pipeline`.
 
 ## Stack
 
@@ -27,7 +27,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - `/status` public service-status page backed by the public status API and linked from the footer/help menu
 - `/changelog`
 - `/login` credential-based sign-in form with auth-provider entry points
-- `/signup` account creation form with workspace create/join entry points
+- `/signup` compatibility redirect to `/login` (self-registration is disabled; admins invite users)
 - `/organization-onboarding` authenticated workspace setup flow (workspace, domain allowlist, access defaults, invites)
 - `/onboarding` compatibility redirect to `/organization-onboarding`
 - `/forbidden` unauthorized route destination
@@ -84,11 +84,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - redirects already authenticated users away from `/login`
   - redirects successful sign-in to requested protected route (`next`) or `/dashboard`
   - supports environment-driven SSO and forgot-password links when configured
-- Signup behavior:
-  - validates name, email, password, workspace mode, and terms acceptance using React Hook Form + Zod
-  - supports create-workspace and join-workspace entry points
-  - maps duplicate email, weak password, invite-only, and provider/network errors to safe messages
-  - redirects successful signup to `/organization-onboarding` or `/dashboard` based on signup result state
+- Account access behavior:
+  - there is no self-registration; workspace administrators invite users (team invitations, SCIM, or SSO)
+  - `/signup` redirects to `/login` so old links keep working
+  - the login page shows a "ask your workspace administrator to invite you" hint instead of a create-account link
+  - public CTAs (hero, plan cards, final CTA bands) lead to the demo/contact form, never to signup
 - Organization onboarding behavior:
   - requires authenticated session and redirects unauthenticated users to `/login?next=/organization-onboarding`
   - redirects already-onboarded sessions to `/dashboard`
@@ -180,9 +180,12 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - loading/error and permission-aware states
 - Public marketing foundation:
   - reusable marketing header, mobile navigation, footer, and CTA components
+  - header keeps four items (Product, Solutions, Security, Pricing) plus Login and Request Demo, and marks the current section with `aria-current="page"` (sub-pages such as `/solutions/hr` highlight Solutions)
+  - footer groups Product, Solutions, and Company & Support, plus a legal row linking every `/legal/*` page; signed-in app links stay out of the footer
   - centralized public link resolution with environment-driven overrides
   - shared public SEO metadata helper (title, description, canonical, hreflang, Open Graph, social cards)
-  - locale-aware public metadata for `en`, `de`, `es`, and `fr`
+  - SEO titles in `public.seo.*` are stored without the brand; the root layout template appends ` | Rudix` to `<title>`, and the helper adds it once to Open Graph/Twitter titles
+  - locale-aware public metadata for `en`, `de`, `es`, `fr`, `ar`, and `fa`
   - sitemap and robots generation for localized public routes
   - skip-to-content link and semantic landmarks for accessibility
   - typed public changelog source data in `src/lib/public-site/changelog.ts`
@@ -445,10 +448,6 @@ NEXT_PUBLIC_AUTH_LOGIN_URL=
 NEXT_PUBLIC_AUTH_SSO_URL=
 NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL=
 NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
-NEXT_PUBLIC_AUTH_SIGNUP_URL=
-NEXT_PUBLIC_AUTH_SIGNUP_SSO_URL=
-NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK=true
-NEXT_PUBLIC_AUTH_INVITE_ONLY=false
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
@@ -479,7 +478,6 @@ NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL=
 NEXT_PUBLIC_PUBLIC_SECURITY_URL=
 NEXT_PUBLIC_PUBLIC_PRICING_URL=
 NEXT_PUBLIC_PUBLIC_DOCS_URL=
-NEXT_PUBLIC_PUBLIC_TRIAL_URL=
 NEXT_PUBLIC_PUBLIC_DEMO_URL=
 NEXT_PUBLIC_PUBLIC_CONTACT_URL=
 NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL=

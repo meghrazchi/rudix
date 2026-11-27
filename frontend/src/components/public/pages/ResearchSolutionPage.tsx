@@ -101,7 +101,7 @@ export function ResearchSolutionPage() {
             <div className="relative h-64 w-full overflow-hidden rounded-xl sm:h-72">
               <Image
                 src="/images/solutions/research/analyst-dashboard.jpg"
-                alt="Enterprise research analyst dashboard showing data visualizations and document insights"
+                alt={t("heroImageAlt")}
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -224,8 +224,7 @@ export function ResearchSolutionPage() {
         id="research-cta-title"
         title={t("cta.heading")}
         description={t("cta.description")}
-        primary={{ href: links.startTrial, label: t("cta.primaryCta") }}
-        secondary={{ href: links.requestDemo, label: t("cta.secondaryCta") }}
+        primary={{ href: links.requestDemo, label: t("cta.secondaryCta") }}
       />
     </div>
   );

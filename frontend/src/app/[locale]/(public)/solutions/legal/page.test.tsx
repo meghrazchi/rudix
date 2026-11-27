@@ -7,7 +7,6 @@ const originalEnv = { ...process.env };
 
 function clearPublicEnv() {
   delete process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL;
-  delete process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL;
   delete process.env.NEXT_PUBLIC_PUBLIC_SECURITY_URL;
 }
 
@@ -113,19 +112,21 @@ describe("Legal solution page (/solutions/legal)", () => {
     expect(securityLink).toHaveAttribute("href", "/security");
   });
 
-  it("renders the final CTA section with trial and demo links", () => {
+  it("renders the final CTA section with a demo link and no signup", () => {
     render(<LegalSolutionPage />);
 
     expect(
       screen.getByRole("heading", { name: "Find contract answers faster." }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Start Free Trial" }),
-    ).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("link", { name: "Book a Demo" })).toHaveAttribute(
       "href",
       "/contact",
     );
+    expect(
+      screen.queryByRole("link", { name: "Start Free Trial" }),
+    ).not.toBeInTheDocument();
+    // Self-service signup is disabled; no CTA may lead to /signup.
+    expect(document.querySelector('a[href*="signup"]')).toBeNull();
   });
 
   it("renders hero CTA link pointing to demo", () => {

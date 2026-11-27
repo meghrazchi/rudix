@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import {
   IconCard,
   PrimaryLink,
-  SecondaryLink,
   SiteBreadcrumb,
   SiteCtaPanel,
   SiteSplitHero,
@@ -37,19 +36,19 @@ const SOURCES = [
 const IMAGES = [
   {
     src: "/images/solutions/sales/collateral.jpg",
-    alt: "Professional sales collateral and technical product brochures",
+    altKey: "collateralAlt",
   },
   {
     src: "/images/solutions/sales/team-meeting.jpg",
-    alt: "Enterprise account executives collaborating in a sales strategy meeting",
+    altKey: "teamMeetingAlt",
   },
   {
     src: "/images/solutions/sales/workspace.jpg",
-    alt: "Sales representative working on a laptop with sales enablement tools",
+    altKey: "workspaceAlt",
   },
   {
     src: "/images/solutions/sales/pricing.jpg",
-    alt: "Pricing sheet and contract documentation for enterprise sales",
+    altKey: "pricingAlt",
   },
 ] as const;
 
@@ -166,8 +165,7 @@ export function SalesSolutionPage() {
         description={t("hero.description")}
         actions={
           <>
-            <PrimaryLink href={links.startTrial} label={t("hero.primaryCta")} />
-            <SecondaryLink
+            <PrimaryLink
               href={links.requestDemo}
               label={t("hero.secondaryCta")}
             />
@@ -241,7 +239,7 @@ export function SalesSolutionPage() {
               >
                 <Image
                   src={img.src}
-                  alt={img.alt}
+                  alt={t(`images.${img.altKey}`)}
                   fill
                   className="object-cover"
                   sizes="(max-width: 1024px) 50vw, 25vw"

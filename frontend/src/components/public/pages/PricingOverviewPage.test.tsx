@@ -37,12 +37,12 @@ function planCard(name: string): HTMLElement {
 }
 
 describe("PricingOverviewPage", () => {
-  it("routes each plan CTA to its existing destination", () => {
+  it("routes every plan CTA to a conversation, never to self-signup", () => {
     renderPricing();
 
     expect(
-      within(planCard("Starter")).getByRole("link", { name: "Start Trial" }),
-    ).toHaveAttribute("href", "/signup");
+      within(planCard("Starter")).getByRole("link", { name: "Request Access" }),
+    ).toHaveAttribute("href", "/contact");
     expect(
       within(planCard("Team")).getByRole("link", { name: "Request Demo" }),
     ).toHaveAttribute("href", "/contact");
