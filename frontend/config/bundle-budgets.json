@@ -1,0 +1,74 @@
+{
+  "compression": "gzip-9",
+  "headroomPercent": 5,
+  "specTargetsKb": {
+    "marketing": 150,
+    "app": 300
+  },
+  "measured": {
+    "marketingMaxKb": 228.1,
+    "authMaxKb": 280.3,
+    "appOrdinaryMaxKb": 308.7,
+    "appMaxKb": 344.1
+  },
+  "groups": [
+    {
+      "name": "auth pages",
+      "routes": [
+        "/[locale]/login",
+        "/[locale]/contact",
+        "/[locale]/accept-invite",
+        "/[locale]/organization-onboarding",
+        "/[locale]/sso/callback"
+      ],
+      "maxKb": 295
+    },
+    {
+      "name": "marketing",
+      "routes": ["/[locale]", "/[locale]/*", "/_not-found"],
+      "maxKb": 240
+    },
+    {
+      "name": "app default",
+      "routes": [
+        "/admin",
+        "/admin/*",
+        "/chat",
+        "/chat/*",
+        "/collections",
+        "/collections/*",
+        "/connectors",
+        "/connectors/*",
+        "/dashboard",
+        "/dashboard/*",
+        "/documents",
+        "/documents/*",
+        "/evaluations",
+        "/evaluations/*",
+        "/graph",
+        "/graph/*",
+        "/knowledge",
+        "/knowledge/*",
+        "/rag-pipeline",
+        "/rag-pipeline/*",
+        "/reports",
+        "/reports/*",
+        "/settings",
+        "/settings/*",
+        "/user",
+        "/user/*",
+        "/workspace",
+        "/workspace/*"
+      ],
+      "maxKb": 325
+    }
+  ],
+  "routes": {
+    "/chat": 362,
+    "/documents": 334,
+    "/documents/[documentId]": 327,
+    "/evaluations": 335,
+    "/evaluations/runs/[runId]": 335,
+    "/settings": 328
+  }
+}

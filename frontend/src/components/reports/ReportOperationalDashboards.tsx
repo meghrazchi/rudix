@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -8,20 +9,8 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
+import { SkeletonBlock } from "@/components/states/SkeletonBlock";
 import {
   ChartCard,
   KpiCard,
@@ -32,15 +21,35 @@ import {
 } from "@/components/reports/report-ui";
 import { useReportBackendData } from "@/components/reports/ReportBackendData";
 
-const tooltipStyle = {
-  border: "1px solid #dfdced",
-  borderRadius: "8px",
-  boxShadow: "0 4px 14px rgb(42 38 64 / 0.12)",
-  color: "#2a2640",
-  fontSize: "12px",
-};
+// recharts loads on demand (R07-03); the wrapper keeps the chart height.
+function lazyChart<P extends object>(load: () => Promise<ComponentType<P>>) {
+  return dynamic<P>(load, {
+    ssr: false,
+    loading: () => <SkeletonBlock rows={6} className="h-full" />,
+  });
+}
 
-const axisTick = { fill: "#777287", fontSize: 11 };
+const UsageTrendChart = lazyChart(() =>
+  import("@/components/reports/ReportOperationalCharts").then(
+    (module) => module.UsageTrendChart,
+  ),
+);
+const FeatureAdoptionChart = lazyChart(() =>
+  import("@/components/reports/ReportOperationalCharts").then(
+    (module) => module.FeatureAdoptionChart,
+  ),
+);
+const AccessPostureChart = lazyChart(() =>
+  import("@/components/reports/ReportOperationalCharts").then(
+    (module) => module.AccessPostureChart,
+  ),
+);
+const GapTopicsChart = lazyChart(() =>
+  import("@/components/reports/ReportOperationalCharts").then(
+    (module) => module.GapTopicsChart,
+  ),
+);
+
 function ReportLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
@@ -171,40 +180,7 @@ export function UsageAdoptionDashboard() {
             aria-label={p("activityAria")}
             data-chart-library="recharts"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={usageTrend}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid
-                  vertical={false}
-                  stroke="#ebe8f4"
-                  strokeDasharray="3 3"
-                />
-                <XAxis
-                  dataKey="period"
-                  tick={axisTick}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis tick={axisTick} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Line
-                  type="monotone"
-                  dataKey="questions"
-                  stroke="#4434c7"
-                  strokeWidth={3}
-                  dot={{ fill: "#4434c7", r: 4 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="users"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  dot={{ fill: "#10b981", r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <UsageTrendChart data={usageTrend} />
           </div>
         </ChartCard>
         <ChartCard
@@ -217,33 +193,10 @@ export function UsageAdoptionDashboard() {
             aria-label={p("adoptionAria")}
             data-chart-library="recharts"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={featureAdoption}
-                layout="vertical"
-                margin={{ top: 4, right: 24, left: 8, bottom: 0 }}
-              >
-                <XAxis type="number" hide domain={[0, 100]} />
-                <YAxis
-                  type="category"
-                  dataKey="feature"
-                  width={82}
-                  tick={axisTick}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  formatter={(value) => [`${value}%`, p("adoption")]}
-                />
-                <Bar
-                  dataKey="adoption"
-                  fill="#6254d9"
-                  radius={[0, 5, 5, 0]}
-                  background={{ fill: "#ece9f7", radius: 5 }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            <FeatureAdoptionChart
+              data={featureAdoption}
+              adoptionLabel={p("adoption")}
+            />
           </div>
         </ChartCard>
       </section>
@@ -318,26 +271,10 @@ export function PermissionsAccessDashboard() {
             aria-label={p("postureAria")}
             data-chart-library="recharts"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={accessRisk}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={66}
-                  outerRadius={98}
-                  paddingAngle={3}
-                >
-                  {accessRisk.map((item) => (
-                    <Cell key={item.name} fill={item.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  formatter={(value) => [`${value}%`, p("resources")]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <AccessPostureChart
+              data={accessRisk}
+              resourcesLabel={p("resources")}
+            />
           </div>
         </ChartCard>
         <RecommendedActionCard
@@ -435,32 +372,7 @@ export function KnowledgeGapsDashboard() {
             aria-label={p("chartAria")}
             data-chart-library="recharts"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={gapTopics}
-                margin={{ top: 8, right: 8, left: -18, bottom: 0 }}
-              >
-                <CartesianGrid
-                  vertical={false}
-                  stroke="#ebe8f4"
-                  strokeDasharray="3 3"
-                />
-                <XAxis
-                  dataKey="topic"
-                  tick={axisTick}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis tick={axisTick} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar
-                  dataKey="occurrences"
-                  fill="#6254d9"
-                  radius={[5, 5, 0, 0]}
-                  maxBarSize={64}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            <GapTopicsChart data={gapTopics} />
           </div>
         </ChartCard>
         <RecommendedActionCard

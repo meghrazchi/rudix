@@ -9,7 +9,6 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Tailwind CSS v4
 - React Flow (`@xyflow/react`)
 - TanStack Query
-- Zustand
 - React Hook Form + Zod
 - Vitest + Testing Library
 - Playwright
@@ -304,6 +303,57 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   banner on public pages; the 327,323 and 359,061 figures are that case.
   `robots.txt`, `llms.txt` and `icon.svg` are byte-identical; `sitemap.xml` is identical
   except `<lastmod>` (the build time).
+
+### Bundle budgets (R07-03)
+
+CI fails when a route's first-load JavaScript grows past its budget.
+
+- Measured: `node scripts/check-bundle-budgets.mjs` after `npm run build` sums the chunks
+  listed per route in `.next/diagnostics/route-bundle-stats.json`, compressed with
+  `gzip -9` (one chunk at a time, then summed). It prints route, raw KB, gzip KB, budget
+  and group, writes `.next/bundle-report.json`, and exits 1 on an over-budget route, a
+  route without a budget, or a missing stats file (so a Next.js upgrade cannot disable it
+  silently). Unit tests: `scripts/bundle-budgets-lib.test.mjs`.
+- Budgets: `config/bundle-budgets.json` (groups for auth pages, marketing and the app
+  default, plus per-route entries for app routes above the default). Every figure is
+  `ceil(measured x 1.05)` KB from a build on this commit. Update them only from a fresh
+  build's output; never lower the headroom or raise a figure to make a failing check pass.
+- Spec targets are goals, not gates: 150 KB marketing and 300 KB app routes. The measured
+  gap after this change: marketing 228.1 KB at most (78 KB above), app routes 308.7 KB
+  for the ordinary ones (9 KB above) and 344.1 KB for `/chat` (the largest).
+- Lazy modules (same module path and export name; the module is a `next/dynamic`
+  wrapper over a `*Content.tsx` or `*Charts.tsx` sibling): `DocumentPreviewModal`,
+  `TrustPanelModal`, the recharts blocks of the seven report and admin dashboards, the
+  `@xyflow/react` canvas of the pipeline explorer (`PipelineFlowCanvas.tsx`), and the
+  Organization, Security and Billing settings tabs.
+- First-load JS (gzip KB) on this commit before and after, routes that changed by more than
+  0.8 KB (the other 93 routes moved by 0.4 KB or less; marketing pages stay at 223-227):
+
+  | Route                         | Before | After | Change |
+  | ----------------------------- | ------ | ----- | ------ |
+  | `/reports`, `/reports/[...]`  | 419.5  | 305.8 | -113.7 |
+  | `/admin/source-health`        | 398.7  | 296.8 | -101.9 |
+  | `/admin/permissions-access`   | 397.5  | 295.4 | -102.1 |
+  | `/admin/usage-adoption`       | 396.5  | 294.3 | -102.2 |
+  | `/rag-pipeline`               | 349.1  | 295.1 | -54.0  |
+  | `/settings`                   | 339.8  | 311.7 | -28.1  |
+  | `/admin/verified-answers`     | 299.3  | 294.6 | -4.7   |
+  | `/knowledge`                  | 297.7  | 293.6 | -4.1   |
+  | `/documents/[documentId]`     | 314.7  | 311.1 | -3.6   |
+  | `/chat/answer-shared/[token]` | 295.9  | 292.7 | -3.2   |
+  | `/chat/shared/[token]`        | 295.7  | 293.1 | -2.6   |
+  | `/chat`                       | 342.9  | 344.1 | +1.2   |
+
+  `/chat` grew by the `next/dynamic` loader: its trust panel and citation preview now load
+  on first open, but the answer panel inside the old modal was already a lazy import.
+
+- `experimental.optimizePackageImports`: nothing added. `lucide-react` and `recharts` are
+  already optimised by default; a build with `zod`, `@tanstack/react-query`,
+  `react-hook-form`, `@xyflow/react`, `next-intl`, `clsx` and `tailwind-merge` added
+  produced identical sizes on every route.
+- Removed unused dependencies `zustand`, `motion`, `@tanstack/react-table` and
+  `class-variance-authority` (no imports in `src`) and five unreferenced default SVGs from
+  `public/`. `eslint-config-next` already equals `next` (16.4.6).
 
 ## Dashboard Design Sample
 

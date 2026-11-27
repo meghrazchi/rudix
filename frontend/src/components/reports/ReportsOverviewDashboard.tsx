@@ -4,17 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, FileUp, MessageSquareText } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useReportFilters } from "@/components/reports/ReportFilters";
+import type { BarTone } from "@/components/reports/ReportsOverviewCharts";
+import { SkeletonBlock } from "@/components/states/SkeletonBlock";
 import {
   ChartCard,
   KpiCard,
@@ -42,14 +35,17 @@ const links = {
   gaps: "/reports/knowledge-gaps",
 };
 
-const BAR_COLORS = {
-  default: "#6254d9",
-  healthy: "#10b981",
-  warning: "#f59e0b",
-  critical: "#f43f5e",
-} as const;
-
-type BarTone = Exclude<keyof typeof BAR_COLORS, "default">;
+// recharts loads on demand (R07-03).
+const OverviewBarChart = dynamic(
+  () =>
+    import("@/components/reports/ReportsOverviewCharts").then(
+      (module) => module.OverviewBarChart,
+    ),
+  {
+    ssr: false,
+    loading: () => <SkeletonBlock rows={5} className="h-full" />,
+  },
+);
 
 function reportHref(pathname: string, filters: ReportFilters): string {
   const query = serializeReportFilters(filters).toString();
@@ -63,10 +59,6 @@ function Bars({
 }) {
   const t = useTranslations("reports.overview");
   const locale = useLocale();
-  const format = new Intl.NumberFormat(locale, {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  });
   if (!items.some((item) => item.value > 0))
     return (
       <EmptyState
@@ -83,36 +75,7 @@ function Bars({
         .map((item) => `${item.label}: ${item.value}`)
         .join(", ")}
     >
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={items}
-          layout="vertical"
-          margin={{ left: 4, right: 16 }}
-        >
-          <CartesianGrid horizontal={false} stroke="#ece9f7" />
-          <XAxis type="number" hide domain={[0, "dataMax"]} />
-          <YAxis
-            type="category"
-            dataKey="label"
-            width={92}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "#5f5b72", fontSize: 11 }}
-          />
-          <Tooltip
-            formatter={(value) => format.format(Number(value))}
-            contentStyle={{ borderRadius: 8, borderColor: "#dfdced" }}
-          />
-          <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={10}>
-            {items.map((item) => (
-              <Cell
-                key={item.label}
-                fill={item.tone ? BAR_COLORS[item.tone] : BAR_COLORS.default}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <OverviewBarChart items={items} locale={locale} />
     </div>
   );
 }
