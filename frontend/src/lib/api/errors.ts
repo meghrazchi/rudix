@@ -125,8 +125,11 @@ function extractRequestIdFromPayload(payload: unknown): string | null {
 
   const detail = envelope.detail;
   const detailRecord = asRecord(detail);
+  const errorRecord = asRecord(envelope.error);
 
   return (
+    asNonEmptyString(errorRecord?.request_id) ??
+    asNonEmptyString(errorRecord?.requestId) ??
     asNonEmptyString(envelope.request_id) ??
     asNonEmptyString(envelope.requestId) ??
     asNonEmptyString(envelope.trace_id) ??
@@ -153,8 +156,10 @@ export function normalizeBackendError(
 
   const detail = envelope.detail;
   const detailRecord = asRecord(detail);
+  const errorRecord = asRecord(envelope.error);
 
   const code =
+    asNonEmptyString(errorRecord?.code) ??
     asNonEmptyString(envelope.code) ??
     asNonEmptyString(envelope.error) ??
     asNonEmptyString(detailRecord?.code) ??
@@ -162,16 +167,25 @@ export function normalizeBackendError(
     null;
 
   const message =
+    asNonEmptyString(errorRecord?.message) ??
     asNonEmptyString(envelope.message) ??
     asNonEmptyString(envelope.detail) ??
     asNonEmptyString(detailRecord?.message) ??
     asNonEmptyString(detailRecord?.detail) ??
     null;
 
+  // Prefer the envelope's details (validation lists, structured payloads);
+  // fall back to the legacy `detail` alias, then the raw payload.
+  const envelopeDetails = errorRecord?.details;
+  const details =
+    envelopeDetails !== undefined && envelopeDetails !== null
+      ? envelopeDetails
+      : (detail ?? payload);
+
   return {
     code,
     message,
-    details: detail ?? payload,
+    details,
   };
 }
 

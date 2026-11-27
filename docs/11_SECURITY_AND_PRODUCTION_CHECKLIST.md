@@ -495,6 +495,7 @@ When deleting a document:
 
 ### API
 
+- [ ] Error responses never contain stack traces or exception text: unhandled exceptions return the generic `500` envelope (`error.code`, `error.message`, `error.request_id`; `detail` alias until 1.0.0) and are logged and reported server-side.
 - [ ] JWT verification enabled.
 - [ ] Organization authorization enabled.
 - [ ] Rate limiting enabled.

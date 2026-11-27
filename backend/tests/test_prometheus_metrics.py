@@ -48,7 +48,7 @@ def test_metrics_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
 
     response = client.get("/metrics")
     assert response.status_code == 404
-    assert response.json() == {"detail": "Metrics collection is disabled"}
+    assert response.json()["detail"] == "Metrics collection is disabled"
 
 
 def test_metrics_enabled_returns_prometheus_format(monkeypatch: pytest.MonkeyPatch) -> None:
