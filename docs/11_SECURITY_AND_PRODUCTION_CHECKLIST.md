@@ -748,6 +748,11 @@ never document text.
 - [ ] Worker health checks.
 - [ ] Queue monitoring.
 - [ ] Exactly one beat instance runs `documents.reap_stale`; `DOCUMENT_PROCESSING_STALE_SECONDS` exceeds the longest expected processing time.
+- [ ] Every Celery task binds the tenant of its `organization_id` kwarg (`RudixTask.__call__`), and document and stage tasks stop with `tenant_mismatch` before any write when the document belongs to another organisation (R06-01). Alert on `rudix_worker_tenant_mismatch_total`.
+- [ ] Workers connect as the application role (no `BYPASSRLS`); only beat tasks use `maintenance_session()` / `DATABASE_MAINTENANCE_URL`.
+- [ ] Beat runs `outbox.relay` and `documents.stage_artifacts.purge`; `outbox_messages` has no `pending` rows older than a few relay intervals and no unexplained `failed` rows (`last_error <> 'cancelled'`).
+- [ ] Workers consume `CELERY_QUEUE_DOCUMENTS_EMBEDDING` and `CELERY_QUEUE_DOCUMENTS_GRAPH` (the dev worker consumes every queue in `task_queues`).
+- [ ] `INGEST_STAGE_ARTIFACT_TTL_HOURS` is set to the shortest window the failed-job retry needs: artifacts of retryable failures are copies of document text kept until the purge.
 
 ### Observability
 

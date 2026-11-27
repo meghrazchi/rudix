@@ -31,6 +31,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 25. [24_CITATION_PREVIEW_ARCHITECTURE.md](./24_CITATION_PREVIEW_ARCHITECTURE.md) — Citation preview drawer architecture, API contract, permission behavior, observability, and test fixtures
 26. [25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md](./25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Prometheus and Grafana metrics, dashboards, exporters, and SLO alerts (development overlay implemented; staging and production rollout planned)
 27. [26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md](./26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md) — Planned release train from `0.1.0` to `1.0.0`, product-area version map, flag graduation, performance targets, and open decisions
+28. [27_INGESTION_AND_WORKERS_RUNBOOK.md](./27_INGESTION_AND_WORKERS_RUNBOOK.md) — Staged ingestion chain, queues, resume and reaper, transactional outbox, failed stage retry, worker tenant binding
 
 ## Roadmap Specs (planned work)
 

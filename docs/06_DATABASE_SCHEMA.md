@@ -360,7 +360,63 @@ CREATE INDEX idx_document_stage_artifacts_org_created
 ```
 
 Both tables are in `RLS_STRICT_TABLES_0_6_0` (strict tenant policy) and in
-`deploy/sql/force_rls.sql`.
+`deploy/sql/force_rls.sql`. Artifacts of runs that failed for good with a retryable error
+are kept for the failed-job retry until `documents.stage_artifacts.purge` deletes them
+(`INGEST_STAGE_ARTIFACT_TTL_HOURS`, default 72).
+
+### outbox_messages (0.6.0, migration 20261128_0002)
+
+Request-path Celery dispatches written in the transaction of the document change
+(transactional outbox). Published after commit; `outbox.relay` publishes the rest.
+
+```sql
+CREATE TABLE outbox_messages (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    task_name VARCHAR(128) NOT NULL,
+    queue VARCHAR(64),
+    kwargs JSON NOT NULL DEFAULT '{}',          -- ids, flags, chunking profile only
+    dedupe_key VARCHAR(255) UNIQUE,              -- conflicting enqueue is a no-op
+    status VARCHAR(16) NOT NULL DEFAULT 'pending', -- pending | published | failed
+    attempts INTEGER NOT NULL DEFAULT 0,
+    available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    published_at TIMESTAMPTZ,
+    last_error VARCHAR(128),                     -- exception class name or 'cancelled'
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_outbox_messages_org_created ON outbox_messages (organization_id, created_at);
+CREATE INDEX CONCURRENTLY idx_outbox_pending ON outbox_messages (status, available_at);
+```
+
+### vector_index_generations and vector_index_generation_documents (0.6.0)
+
+Schema for zero-downtime vector index rebuilds (used by chain A). `vector_index_generations`
+is global (no tenant column): `alias_name`, unique `collection_name`, `embedding_model`,
+`vector_size`, `distance`, `generation` (unique with the alias), `state` (`building`,
+`verifying`, `active`, `retired`, `failed`, `dropped`), `build_cursor`, point and document
+counters, `error_code`, `activated_at`, `retire_after`.
+`vector_index_generation_documents` (`generation_id` CASCADE, `organization_id`,
+`document_id` CASCADE, `point_count`, `indexed_at`; unique `(generation_id, document_id)`)
+records which documents a generation holds.
+
+### 0.6.0 columns on existing tables (migration 20261128_0002)
+
+All additive and nullable, or `NOT NULL DEFAULT 0`:
+
+| Table | Columns | Used by |
+|---|---|---|
+| `document_chunks` | `organization_id uuid`, `fts_config varchar(32)`, `fts_vector tsvector` (PostgreSQL only); no ORM attribute yet | B1 |
+| `connector_sync_runs` | `checkpoint_cursor json`, `checkpoint_at`, `heartbeat_at`, `lease_owner varchar(255)`, `pages_committed int default 0` | D1 |
+| `connector_sync_jobs` | `next_run_at timestamptz` | D1 |
+| `external_items` | `last_seen_sync_run_id uuid` (no foreign key) | D1 |
+| `agent_runs` | `lease_owner`, `lease_expires_at`, `request_snapshot json`, `resume_count int default 0` | C2 |
+
+Migration `20261128_0003` builds `idx_chunks_org_document (organization_id, document_id)`,
+GIN `idx_chunks_fts_vector (fts_vector)`, `idx_outbox_pending`, `idx_connector_sync_jobs_due
+(status, next_run_at)`, `idx_agent_runs_lease (status, lease_expires_at)`, and the non-unique
+`idx_agent_tool_calls_run_idem (agent_run_id, idempotency_key_hash)` with
+`CREATE INDEX CONCURRENTLY`.
 
 ### chat_sessions
 
@@ -649,7 +705,7 @@ migration's literal copy differs.
 
 | List | Tables | Unset tenant (`app.current_organization_id` empty) | Bound tenant |
 |---|---|---|---|
-| `RLS_STRICT_TABLES` | 72 frozen in `RLS_STRICT_TABLES_0_4_0` plus `RLS_STRICT_TABLES_0_6_0` (`document_processing_stages`, `document_stage_artifacts`, migration `20261128_0001`): everything not listed below | all rows, unless `app.rls_mode = 'strict'`: then no rows and no writes | own rows only |
+| `RLS_STRICT_TABLES` | 72 frozen in `RLS_STRICT_TABLES_0_4_0` plus `RLS_STRICT_TABLES_0_6_0` (`document_processing_stages`, `document_stage_artifacts`, migration `20261128_0001`; `outbox_messages`, `vector_index_generation_documents`, migration `20261128_0002`): everything not listed below | all rows, unless `app.rls_mode = 'strict'`: then no rows and no writes | own rows only |
 | `RLS_LOOKUP_TABLES` | 15: `api_keys`, `service_accounts`, `service_account_tokens`, `organization_invitations`, `chat_shares`, `answer_shares`, `agent_trace_share_tokens`, `org_sso_configs`, `org_domain_verifications`, `org_scim_configs`, `bot_installations`, `bot_user_mappings`, `connector_oauth_states`, `incidents`, `incident_notes` | all rows (needed before the tenant is known: credential and token lookups, SSO/SCIM discovery, OAuth state, bot inbound, public status) | own rows only |
 | `RLS_IDENTITY_TABLES` | 3: `users`, `organization_members`, `auth_refresh_sessions` | no policy, RLS stays disabled | all rows: one user spans organizations, so a request bound to organization B must still read the user (home organization A), list every membership (workspace switcher), and revoke the user's sessions in every organization (logout-all, password change) |
 

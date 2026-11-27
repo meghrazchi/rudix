@@ -707,6 +707,28 @@ Document processing runs as stages (`extract`, `clean_detect`, `dlp`, `chunk`,
 - The metric is recorded only when `METRICS_ENABLED=true`. Per-stage latency is not measured
   by the tests; no latency target is set here.
 
+### Ingestion chain, outbox, and worker tenant binding (R06-01 part 2)
+
+With `INGEST_PIPELINE_MODE=chain` each stage is its own Celery task; graph extraction runs
+after `finalize` on its own queue.
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_ingest_stage_tasks_total` | `stage`, `outcome` | Stage task deliveries: `completed`, `skipped` (row already completed; the next stage is dispatched again), `superseded` (the claim moved), `lease_held` (another delivery holds a fresh lease), `rerun_producer` (a needed artifact was missing). |
+| `rudix_outbox_messages_total` | `task`, `outcome` | Request-path dispatches: `published` (after commit), `deferred` (publish failed, row pending), `relayed` (published by `outbox.relay`), `failed` (gave up after `OUTBOX_MAX_ATTEMPTS`), `duplicate` (dedupe key existed). |
+| `rudix_worker_tenant_mismatch_total` | `task` | Tasks stopped because the entity belongs to another organisation than the message named. Any non-zero value is investigated. |
+
+- Logs: `ingestion.stage_task.<outcome>`, `ingestion.stage.dispatched`,
+  `ingestion.stage.dispatch_failed`, `ingestion.graph_extract.failed` (with `error_code`),
+  `outbox.publish_deferred`, `outbox.relay_completed`, `outbox.relay_gave_up`,
+  `task.tenant_mismatch`, and `document.stage_artifacts.purged`. They carry ids, stage, run id,
+  counts, and exception class names; never document text, task arguments, or broker URLs.
+- A pipeline-explorer run spans all stage tasks of one run (its id is kept in the extract
+  stage row's metrics); graph events are appended after `finalize`.
+- Alert ideas: `deferred` outbox count rising while `relayed` stays flat (broker down);
+  `superseded` or `lease_held` rising (duplicate publications or competing claims).
+- No throughput or latency figure is recorded for the chain; the tests assert call counts.
+
 ## Continuous evaluation
 
 Run evaluations:

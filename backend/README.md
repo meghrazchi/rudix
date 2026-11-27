@@ -736,6 +736,33 @@ persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `
   `tests/test_ingestion_resume.py` (kill a worker inside each stage, redeliver, assert no
   duplicates), `tests/test_document_tasks_compat.py` (facade names).
 - Metric `rudix_ingest_stage_seconds{stage,outcome}` (`app/core/metrics_workers.py`).
+- 0.6.0 part 2 (R06-01): `INGEST_PIPELINE_MODE=chain` (default) runs each stage as its own
+  task (`documents.ingest.extract` ... `.finalize`, then `documents.graph_extract`) from
+  `app/workers/ingestion/tasks.py`; `documents.process` claims and dispatches the first
+  incomplete stage (`ingestion/dispatch.py::dispatch_stage`, the task's `apply_async`).
+  Extract to chunk use `CELERY_QUEUE_DOCUMENTS_PROCESSING`, embed to finalize
+  `CELERY_QUEUE_DOCUMENTS_EMBEDDING`, graph `CELERY_QUEUE_DOCUMENTS_GRAPH`.
+  `INGEST_PIPELINE_MODE=inline` keeps the single-task runner for one milestone. The test
+  suite defaults to `inline` (`tests/conftest.py`); the chain tests switch to `chain` and run
+  Celery eagerly (`tests/ingestion_chain_support.py`).
+- Run identity: stage messages carry `run_id` and `claim_token`; a fresh claim gets a new run
+  (derived from the claim, so a redelivered `documents.process` reaches the same run), and
+  `resume_run_id` (reaper) or `job_id` (failed-job retry) continue an unfinished run. A stage
+  task whose claim moved returns `superseded`; a duplicate message finds the row completed
+  (dispatches the next stage again) or leased by a live delivery (`lease_held`).
+- Graph extraction runs after `finalize` in both modes and never fails the document
+  (behaviour change: `ENTITY_EXTRACTION_STRICT_MODE` / `RELATION_EXTRACTION_STRICT_MODE`
+  failures set `graph_extraction_status=failed` only).
+- Heartbeats refresh `processing_started_at` at each stage start and every
+  `INGEST_HEARTBEAT_EVERY_PARTS` parts or embed batches. Failed stage tasks record
+  `FailedJob(task_name="documents.process", metadata={"stage", "run_id"})`.
+- Request-path dispatch (upload, delete, retry-delete, reindex, graph reindex, OCR retry)
+  goes through the transactional outbox (`app/application/outbox.py`, table
+  `outbox_messages`); responses are unchanged when publication fails, and `outbox.relay`
+  publishes the pending rows.
+- Every Celery task binds the tenant of its `organization_id` kwarg (`RudixTask.__call__`,
+  `bind_worker_tenant`); document and stage tasks raise `tenant_mismatch` before any write
+  for another organisation's document. Runbook: `docs/27_INGESTION_AND_WORKERS_RUNBOOK.md`.
 
 ## Application cache
 
@@ -1020,7 +1047,7 @@ Notes:
 
 ## Scheduled tasks (Celery beat)
 
-Celery beat is the scheduler that enqueues periodic tasks. It schedules three entries from
+Celery beat is the scheduler that enqueues periodic tasks. It schedules these entries (among others) from
 `beat_schedule` in `app/workers/celery_app.py`:
 
 - `connector-sync-schedule-poll` (`connectors.sync.schedule_poll`) every
@@ -1028,6 +1055,13 @@ Celery beat is the scheduler that enqueues periodic tasks. It schedules three en
 - `agent-approvals-expire` (`agents.approvals.expire`) every 60 seconds.
 - `documents-reap-stale` (`documents.reap_stale`) every `DOCUMENT_REAPER_INTERVAL_SECONDS`
   seconds (default 300).
+- `outbox-relay` (`outbox.relay`) every `OUTBOX_RELAY_INTERVAL_SECONDS` seconds (default 5):
+  publishes pending `outbox_messages` rows (`OUTBOX_RELAY_BATCH_SIZE`, `FOR UPDATE SKIP
+  LOCKED`, backoff, `failed` after `OUTBOX_MAX_ATTEMPTS`). Without it, an upload whose
+  immediate publication failed stays `uploaded`.
+- `documents-stage-artifacts-purge` (`documents.stage_artifacts.purge`) daily at 04:05 UTC:
+  deletes stage artifacts older than `INGEST_STAGE_ARTIFACT_TTL_HOURS` (default 72) of
+  documents that are not processing.
 
 Without a beat process, scheduled connector syncs, approval expiry, and stale-document
 recovery never run.
@@ -1039,7 +1073,8 @@ atomically claim the document by writing their Celery task ID to
 claim and finishes; a different task that finds a live claim logs `claim_held` and skips. `documents.process` also skips documents in `deleting`, `delete_requested`, `quarantined`, `blocked`, or `retained_by_policy` (`status_not_claimable`), and terminal failure leaves those statuses (and `deleted`) untouched, clearing only the task's own claim columns. The
 reaper treats a `processing` document as stale once `processing_started_at` (or `updated_at`
 for rows without a claim) is older than `DOCUMENT_PROCESSING_STALE_SECONDS` (default 3600). It
-releases the claim and re-queues `documents.process`, at most `DOCUMENT_REAPER_MAX_ATTEMPTS`
+releases the claim and re-queues `documents.process` (with `resume_run_id` = the latest
+unfinished run, so completed stages are not repeated), at most `DOCUMENT_REAPER_MAX_ATTEMPTS`
 times (default 3; `DOCUMENT_REAPER_BATCH_SIZE` rows per run), and then marks the document
 `failed` with error code `PROCESSING_STALLED`. Set the stale threshold above the longest
 expected processing time, or the reaper re-queues documents that are still running (the claim,

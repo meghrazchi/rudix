@@ -63,22 +63,37 @@ model and extension pattern.
 2. FastAPI validates file type and size.
 3. FastAPI scans upload bytes with ClamAV before persistence.
 4. Backend uploads clean files to MinIO.
-5. Backend creates a `documents` row with status `uploaded`.
-6. Backend enqueues a Celery task.
+5. Backend creates a `documents` row with status `uploaded` and, in the same transaction,
+   an `outbox_messages` row for `documents.process` (transactional outbox, `0.6.0`).
+6. After the commit the backend publishes the task; if the broker is unavailable the row
+   stays pending and the `outbox.relay` beat task publishes it later.
 7. Worker extracts text (stage `extract`: object read, text extraction, OCR detection and
    OCR).
 8. Worker cleans and normalizes text and detects the language (stage `clean_detect`), then
    runs the DLP scan (stage `dlp`).
 9. Worker chunks text and stores pages and chunk metadata in PostgreSQL (stage `chunk`).
-   Graph extraction runs next, inline, when it is enabled (stage `graph_extract`).
 10. Worker calls the embedding model batch by batch and stores each batch's vectors and
     payload metadata in Qdrant (stage `embed`), then records connector source references
     (stage `index`).
 11. Worker updates document status to `indexed` and records the embedding usage event in
     one transaction (stage `finalize`, the only writer of `indexed`).
+12. Graph extraction runs after finalize, on its own queue, when it is enabled (stage
+    `graph_extract`); its failure sets only `graph_extraction_status=failed`.
+
+With `INGEST_PIPELINE_MODE=chain` (default since `0.6.0` part 2) every stage is its own
+Celery task (`documents.ingest.<stage>`, `documents.graph_extract`): `documents.process`
+claims the document and dispatches the first incomplete stage, and each stage publishes the
+next before its message is acknowledged. Every stage message carries `run_id`,
+`claim_token`, `document_id`, and `organization_id`; a task whose claim token no longer
+holds the document stops (`superseded`). Extract through chunk use the processing queue,
+embed through finalize the embedding queue, graph extraction the graph queue.
+`INGEST_PIPELINE_MODE=inline` runs all stages in the claiming task. See
+[27_INGESTION_AND_WORKERS_RUNBOOK.md](./27_INGESTION_AND_WORKERS_RUNBOOK.md).
 
 Since `0.6.0` (R06-01) each stage is a row in `document_processing_stages` for the run
-(`run_id` = the Celery task id holding the processing claim), and stage output a later
+(chain mode: a run id derived from the claim; inline mode: the Celery task id holding the
+processing claim; a reaper re-queue or failed-job retry passes the unfinished run to
+continue), and stage output a later
 stage reads (pages, cleaned pages, embedding batch summaries) is stored in
 `document_stage_artifacts`. A retry or redelivery of the same task skips completed stages
 and embedding batches, so no chunk, vector, or usage event is written twice. Each stage
@@ -106,19 +121,19 @@ flowchart LR
     Validate --> MalwareScan[ClamAV Scan]
     MalwareScan -->|clean| MinIO[Store Original in MinIO]
     MalwareScan -->|infected or blocked| Reject[Return Safe Upload Error]
-    MinIO --> DocRow[Create documents Row]
-    DocRow --> Queue[Publish Celery Task]
-    Queue --> Worker[Celery Worker]
+    MinIO --> DocRow[Create documents Row and Outbox Row]
+    DocRow --> Queue[Publish After Commit or outbox.relay]
+    Queue --> Worker[documents.process: Claim and Dispatch]
     Worker --> Extract[extract: Extract Text and OCR]
     Extract --> Clean[clean_detect: Clean Text and Detect Language]
     Clean --> DLP[dlp: DLP Scan]
     DLP --> Chunk[chunk: Chunk Text]
     Chunk --> PG[Store Pages and Chunk Metadata]
-    Chunk --> Graph[graph_extract: Graph Extraction if enabled]
-    Graph --> Embed[embed: Embed Chunks per Batch]
+    Chunk --> Embed[embed: Embed Chunks per Batch]
     Embed --> Qdrant[Store Vectors per Batch]
     Qdrant --> IndexStage[index: Connector Source References]
     IndexStage --> Indexed[finalize: Document Status = Indexed]
+    Indexed --> Graph[graph_extract: Graph Extraction if enabled, graph queue]
     Extract -.-> Stages[(document_processing_stages and stage artifacts)]
     Embed -.-> Stages
 ```
@@ -265,16 +280,20 @@ language-aware ingestion and query path.
 
 ## Graph lifecycle
 
-When Enterprise Graph is enabled, graph extraction runs after chunking and
-before the document is marked fully ready:
+When Enterprise Graph is enabled, graph extraction runs after `finalize` (since
+`0.6.0` part 2; before, it ran after chunking and could fail the document). In chain
+mode it is the task `documents.graph_extract` on `CELERY_QUEUE_DOCUMENTS_GRAPH`:
 
-1. Document chunks are written to PostgreSQL.
+1. Document chunks are written to PostgreSQL and the document is `indexed`.
 2. When a document enters processing or re-indexing, the backend sets
    `graph_extraction_status=pending` so the UI can show graph work is queued.
 3. Graph extraction marks the document `graph_extraction_status=extracting`.
 4. Derived entities, aliases, evidence links, and relations are written to Neo4j.
 5. Successful completion marks the graph status `completed`; failures mark it
-   `failed`; disabled or inapplicable flows use `skipped`.
+   `failed`; disabled or inapplicable flows use `skipped`. A graph failure never fails
+   the document, also with `ENTITY_EXTRACTION_STRICT_MODE` or
+   `RELATION_EXTRACTION_STRICT_MODE` (strict modes now only decide that a partial
+   extraction counts as `failed`). Retry with `POST /documents/{id}/graph/reindex`.
 6. Re-index and graph retry flows clear the prior graph facts for the document
    using the previous extraction run ID when available, so retries do not
    duplicate entities or relations.
