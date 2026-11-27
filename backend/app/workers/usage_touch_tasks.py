@@ -27,10 +27,7 @@ from app.auth.usage_touch import (
 from app.clients.factory import create_redis_client
 from app.core.config import settings
 from app.core.logging import get_logger
-
-# TODO(R04-08): maintenance_session — switch to app.db.session.maintenance_session() once
-# A2 lands, so this cross-tenant write bypasses tenant RLS explicitly.
-from app.db.session import SessionLocal
+from app.db.session import maintenance_session
 from app.domains.api_keys.repositories.api_keys import ApiKeysRepository
 from app.domains.service_accounts.repositories.service_accounts import (
     ServiceAccountsRepository,
@@ -46,9 +43,11 @@ _MAX_BATCHES_PER_RUN = 50
 _api_keys_repository = ApiKeysRepository()
 _service_accounts_repository = ServiceAccountsRepository()
 
-# Indirections so tests can inject a fake Redis and session factory.
+# Indirections so tests can inject a fake Redis and session factory. The flush writes rows
+# of every organisation, so it runs in a maintenance session (no tenant bound, excluded
+# from soft-mode RLS counting, bound to DATABASE_MAINTENANCE_URL when set; R04-08).
 redis_factory: Callable[[], Any] = lambda: create_redis_client(settings)  # noqa: E731
-session_factory: Callable[[], Any] = SessionLocal
+session_factory: Callable[[], Any] = maintenance_session
 
 Rows = list[tuple[UUID, datetime, str | None]]
 

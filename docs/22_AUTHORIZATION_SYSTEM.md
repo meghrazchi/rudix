@@ -494,7 +494,8 @@ How the tenant reaches PostgreSQL:
    the statement is skipped (one round trip saved).
 4. `maintenance_session()` (`app.db.session`) never binds a tenant and is not counted in
    soft mode. Cross-tenant beat tasks use it: `documents.reap_stale`,
-   `connectors.sync.schedule_poll`, `agents.approvals.expire`.
+   `connectors.sync.schedule_poll`, `agents.approvals.expire`, `maintenance.retention.purge`,
+   `maintenance.partitions.ensure`, and `usage.touch.flush`.
 
 ### Lookup tables
 

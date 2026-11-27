@@ -325,6 +325,31 @@ async def test_flush_writes_max_values_and_twice_is_noop(
     assert _flushed("api_key") == before + 1
 
 
+async def test_flush_runs_in_a_maintenance_session_by_default(
+    db_session: AsyncSession, fake_redis: FakeRedis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Cross-tenant write: the default factory is maintenance_session() (R04-08 contract),
+    # which falls back to SessionLocal when DATABASE_MAINTENANCE_URL is unset.
+    from app.db import session as session_module
+    from app.db.tenant_context import RLS_MAINTENANCE_INFO_KEY
+
+    assert usage_touch_tasks.session_factory is session_module.maintenance_session
+    monkeypatch.setattr(settings, "database_maintenance_url", None)
+    monkeypatch.setattr(session_module, "SessionLocal", _SessionOverride(db_session))
+    monkeypatch.setitem(db_session.info, RLS_MAINTENANCE_INFO_KEY, False)
+    key, _ = await _api_key(db_session)
+    await usage_touch.buffer_touches(
+        fake_redis, [UsageTouch(UsageTouchKind.api_key, key.id, _T1, "10.0.0.7")]
+    )
+    key_id = key.id
+
+    assert await usage_touch_tasks.flush_usage_touches(fake_redis) == 1
+    assert db_session.info[RLS_MAINTENANCE_INFO_KEY] is True
+    reloaded = await _reload(db_session, ApiKey, key_id)
+    assert _utc(reloaded.last_used_at) == _T1
+    assert reloaded.last_used_ip == "10.0.0.7"
+
+
 @pytest.mark.both_dialects
 async def test_flush_never_moves_database_value_backwards(
     db_session: AsyncSession, fake_redis: FakeRedis, monkeypatch: pytest.MonkeyPatch
