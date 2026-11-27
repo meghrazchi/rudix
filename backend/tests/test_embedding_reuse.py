@@ -233,7 +233,7 @@ def test_concurrent_batches_match_sequential_batches(
     vectors: VectorEnv, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(settings, "ingest_embed_batch_chunks", 2)
-    vectors.provider.delay = 0.01
+    vectors.provider.delay = 0.1  # longer than one short session, so batches overlap
     vectors.env.set_content(TEXT.encode())
     results: dict[int, dict[int, tuple[list[float], str]]] = {}
     for limit in (1, 3):
