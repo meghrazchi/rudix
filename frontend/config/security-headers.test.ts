@@ -65,8 +65,10 @@ describe("buildSecurityHeaders", () => {
     expect(policy).toContain("object-src 'none'");
     expect(policy).toContain("base-uri 'self'");
     expect(policy).toContain("form-action 'self'");
-    expect(policy).toContain("fonts.googleapis.com");
-    expect(policy).toContain("fonts.gstatic.com");
+    // Icons and fonts are self-hosted (R07-04): no Google Fonts allowance.
+    expect(policy).not.toContain("fonts.googleapis.com");
+    expect(policy).not.toContain("fonts.gstatic.com");
+    expect(policy).toContain("font-src 'self' data:");
   });
 
   it("adds HSTS only when production-like", () => {

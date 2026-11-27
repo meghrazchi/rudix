@@ -151,13 +151,8 @@ export function buildContentSecurityPolicy(env, { isDev }) {
   const directives = [
     "default-src 'self'",
     `script-src ${joinSources(scriptSrc)}`,
-    `style-src ${joinSources([
-      "'self'",
-      "'unsafe-inline'",
-      "https://fonts.googleapis.com",
-      ...captcha.style,
-    ])}`,
-    "font-src 'self' data: https://fonts.gstatic.com",
+    `style-src ${joinSources(["'self'", "'unsafe-inline'", ...captcha.style])}`,
+    "font-src 'self' data:",
     `img-src ${joinSources(imgSrc)}`,
     `connect-src ${joinSources(connectSrc)}`,
     `frame-src ${joinSources(frameSrc)}`,
