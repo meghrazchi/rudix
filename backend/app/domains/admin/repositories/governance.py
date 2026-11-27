@@ -48,6 +48,7 @@ class GovernancePolicyRepository:
         allowed_provider_profiles: list[str] | None = None,
         admin_only_model_selection: bool = True,
         retention_warning_acknowledged: bool = False,
+        audit_log_retention_days: int | None = None,
     ) -> OrganizationGovernancePolicy:
         policy = await self.get_by_organization(session, organization_id=organization_id)
         allowed_profiles = list(allowed_provider_profiles or [])
@@ -73,6 +74,7 @@ class GovernancePolicyRepository:
                 allowed_provider_profiles_json=allowed_profiles,
                 admin_only_model_selection=admin_only_model_selection,
                 retention_warning_acknowledged=retention_warning_acknowledged,
+                audit_log_retention_days=audit_log_retention_days,
             )
             session.add(policy)
             await session.flush()
@@ -98,6 +100,7 @@ class GovernancePolicyRepository:
         policy.allowed_provider_profiles_json = allowed_profiles
         policy.admin_only_model_selection = admin_only_model_selection
         policy.retention_warning_acknowledged = retention_warning_acknowledged
+        policy.audit_log_retention_days = audit_log_retention_days
         await session.flush()
         await session.refresh(policy)
         return policy

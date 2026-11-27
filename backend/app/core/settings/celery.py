@@ -40,6 +40,16 @@ class CelerySettings(BaseModel):
     document_reaper_interval_seconds: int = Field(default=300, ge=30, le=3600)
     document_reaper_max_attempts: int = Field(default=3, ge=1, le=20)
     document_reaper_batch_size: int = Field(default=100, ge=1, le=1000)
+    # R04-09 retention: None keeps every row (the default). Usage events feed quotas and
+    # invoices, so set a window only after billing exports cover the deleted period.
+    retention_usage_events_days: int | None = Field(default=None, ge=7, le=36500)
+    retention_audit_logs_days: int | None = Field(default=None, ge=30, le=36500)
+    retention_authorization_decision_logs_days: int | None = Field(default=None, ge=7, le=36500)
+    retention_activity_timeline_events_days: int | None = Field(default=None, ge=7, le=36500)
+    retention_webhook_deliveries_days: int | None = Field(default=None, ge=7, le=36500)
+    retention_delete_batch_size: int = Field(default=5000, ge=100, le=50000)
+    retention_max_batches_per_run: int = Field(default=200, ge=1, le=100000)
+    retention_enabled: bool = True
     evaluation_prevent_duplicate_active_runs: bool = True
 
     @field_validator(

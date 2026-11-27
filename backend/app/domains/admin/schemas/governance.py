@@ -10,6 +10,9 @@ from app.models.enums import OrganizationRole
 
 _ALLOWED_ROLES = {role.value for role in OrganizationRole}
 
+AUDIT_RETENTION_MIN_DAYS = 30
+AUDIT_RETENTION_MAX_DAYS = 3650
+
 
 class MCPServerTransport(StrEnum):
     streamable_http = "streamable_http"
@@ -148,6 +151,10 @@ class GovernancePolicyState(BaseModel):
     budgets: GovernanceBudgetConfig
     external_mcp_servers: list[ExternalMCPServerPolicy] = Field(default_factory=list)
     provider_security: ProviderSecurityPolicy = Field(default_factory=ProviderSecurityPolicy)
+    # R04-09: organisation override of RETENTION_AUDIT_LOGS_DAYS; None = platform default.
+    audit_log_retention_days: int | None = Field(
+        default=None, ge=AUDIT_RETENTION_MIN_DAYS, le=AUDIT_RETENTION_MAX_DAYS
+    )
 
 
 class GovernanceMCPStatus(BaseModel):
@@ -170,6 +177,10 @@ class GovernancePolicyResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     policy_updated_at: datetime | None = None
     policy_updated_by_user_id: str | None = None
+    # R04-09: platform default (RETENTION_AUDIT_LOGS_DAYS) and the window that applies to
+    # this organisation (override if set, else platform default). None = keep every row.
+    platform_audit_log_retention_days: int | None = None
+    effective_audit_log_retention_days: int | None = None
 
 
 class GovernancePolicyUpdateRequest(BaseModel):
@@ -186,6 +197,10 @@ class GovernancePolicyUpdateRequest(BaseModel):
     # F225 — provider security fields
     provider_security: ProviderSecurityPolicy | None = None
     cloud_fallback_warning_acknowledged: bool = False
+    # R04-09: omit to keep the current override; send null to clear it (platform default).
+    audit_log_retention_days: int | None = Field(
+        default=None, ge=AUDIT_RETENTION_MIN_DAYS, le=AUDIT_RETENTION_MAX_DAYS
+    )
 
     @field_validator("allowed_tool_names")
     @classmethod
@@ -223,3 +238,5 @@ class GovernancePolicyUpdateResponse(BaseModel):
     updated_by_user_id: str | None = None
     audit_recorded: bool
     changed_fields: list[str] = Field(default_factory=list)
+    platform_audit_log_retention_days: int | None = None
+    effective_audit_log_retention_days: int | None = None
