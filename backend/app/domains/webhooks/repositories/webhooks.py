@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.webhook import Webhook, WebhookDelivery
+from app.shared.pagination import CursorValue, apply_keyset
 
 _DELIVERIES_PAGE_SIZE = 50
+DELIVERIES_PAGE_SIZE = _DELIVERIES_PAGE_SIZE
+DELIVERY_SORT_NAME = "webhook_deliveries.created_at.desc"
+DELIVERY_SORT_COLUMNS = (WebhookDelivery.created_at, WebhookDelivery.id)
 
 
 class WebhooksRepository:
@@ -162,14 +167,18 @@ class WebhooksRepository:
         webhook_id: UUID,
         organization_id: UUID,
         limit: int = _DELIVERIES_PAGE_SIZE,
+        keyset: Sequence[CursorValue] | None = None,
     ) -> list[WebhookDelivery]:
+        """Newest first (``id`` breaks ties); ``keyset`` is the last row's ``(created_at, id)``."""
+        query = select(WebhookDelivery).where(
+            WebhookDelivery.webhook_id == webhook_id,
+            WebhookDelivery.organization_id == organization_id,
+        )
+        if keyset is not None:
+            query = apply_keyset(query, DELIVERY_SORT_COLUMNS, True, keyset)
         result = await db_session.execute(
-            select(WebhookDelivery)
-            .where(
-                WebhookDelivery.webhook_id == webhook_id,
-                WebhookDelivery.organization_id == organization_id,
+            query.order_by(WebhookDelivery.created_at.desc(), WebhookDelivery.id.desc()).limit(
+                limit
             )
-            .order_by(WebhookDelivery.created_at.desc())
-            .limit(limit)
         )
         return list(result.scalars())

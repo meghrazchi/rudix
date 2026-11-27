@@ -12,6 +12,30 @@ from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
 from app.models.document import Document
 from app.models.enums import ChatRole
+from app.shared.pagination import CursorValue, KeysetColumn, apply_keyset
+
+SESSION_SORT_NAME = "chat_sessions.updated_at.desc"
+MESSAGE_SORT_NAME = "chat_messages.created_at.asc"
+SESSION_SORT_COLUMNS = (ChatSession.updated_at, ChatSession.id)
+_ROLE_RANK = {ChatRole.user.value: 0, ChatRole.assistant.value: 1}
+
+
+def _message_sort_columns() -> tuple[KeysetColumn, KeysetColumn, KeysetColumn]:
+    role_rank = case(
+        (ChatMessage.role == ChatRole.user.value, 0),
+        (ChatMessage.role == ChatRole.assistant.value, 1),
+        else_=2,
+    )
+    return (ChatMessage.created_at, role_rank, ChatMessage.id)
+
+
+def session_sort_key(chat_session: ChatSession) -> list[CursorValue]:
+    return [chat_session.updated_at, chat_session.id]
+
+
+def message_sort_key(message: ChatMessage) -> list[CursorValue]:
+    """``(created_at, role rank, id)``: user before assistant within one timestamp."""
+    return [message.created_at, _ROLE_RANK.get(message.role, 2), message.id]
 
 
 class ChatRepository:
@@ -59,13 +83,21 @@ class ChatRepository:
         limit: int = 20,
         offset: int = 0,
         search: str | None = None,
+        keyset: Sequence[CursorValue] | None = None,
     ) -> list[ChatSession]:
+        """List a user's sessions, newest activity first.
+
+        ``keyset`` is ``(updated_at, id)`` of the previous page's last row. Sessions updated
+        between pages move to the top, so a cursor walk can miss or repeat them.
+        """
         query = select(ChatSession).where(
             ChatSession.organization_id == organization_id,
             ChatSession.user_id == user_id,
         )
         if search:
             query = query.where(ChatSession.title.ilike(f"%{search}%"))
+        if keyset is not None:
+            query = apply_keyset(query, SESSION_SORT_COLUMNS, True, keyset)
         query = (
             query.order_by(ChatSession.updated_at.desc(), ChatSession.id.desc())
             .offset(offset)
@@ -144,21 +176,15 @@ class ChatRepository:
         chat_session_id: UUID,
         limit: int = 200,
         offset: int = 0,
+        keyset: Sequence[CursorValue] | None = None,
     ) -> list[ChatMessage]:
+        """Messages in conversation order; ``keyset`` is ``message_sort_key`` of the last row."""
+        columns = _message_sort_columns()
+        query = select(ChatMessage).where(ChatMessage.chat_session_id == chat_session_id)
+        if keyset is not None:
+            query = apply_keyset(query, columns, False, keyset)
         result = await session.execute(
-            select(ChatMessage)
-            .where(ChatMessage.chat_session_id == chat_session_id)
-            .order_by(
-                ChatMessage.created_at.asc(),
-                case(
-                    (ChatMessage.role == ChatRole.user.value, 0),
-                    (ChatMessage.role == ChatRole.assistant.value, 1),
-                    else_=2,
-                ).asc(),
-                ChatMessage.id.asc(),
-            )
-            .offset(offset)
-            .limit(limit)
+            query.order_by(*(column.asc() for column in columns)).offset(offset).limit(limit)
         )
         return list(result.scalars().all())
 

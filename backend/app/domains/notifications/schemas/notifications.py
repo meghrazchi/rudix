@@ -34,10 +34,12 @@ class NotificationResponse(BaseModel):
 
 class NotificationListResponse(BaseModel):
     items: list[NotificationResponse]
-    total: int
+    # ``None`` when ``include_total=false`` (the default when a cursor is sent).
+    total: int | None
     limit: int
     offset: int
     unread_count: int
+    next_cursor: str | None = None
 
 
 class MarkReadResponse(BaseModel):

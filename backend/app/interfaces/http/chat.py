@@ -76,7 +76,13 @@ from app.domains.ai_response_policy.services.policy_engine import (
     PolicyEvaluationResult as AiPolicyEvaluationResult,
 )
 from app.domains.chat.repositories.answer_share import AnswerShareRepository
-from app.domains.chat.repositories.chat import ChatRepository
+from app.domains.chat.repositories.chat import (
+    MESSAGE_SORT_NAME,
+    SESSION_SORT_NAME,
+    ChatRepository,
+    message_sort_key,
+    session_sort_key,
+)
 from app.domains.chat.repositories.feedback import FeedbackRepository
 from app.domains.chat.repositories.share import ChatShareRepository
 from app.domains.chat.schemas.answer_share import (
@@ -247,6 +253,7 @@ from app.models.enums import ChatRole, DocumentStatus, OrganizationRole, PromptT
 from app.models.prompt_template import PromptTemplateVersion
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.rate_limit.counter import RateLimitDecision, consume_rate_limit
+from app.shared.pagination import encode_cursor, resolve_page_request, split_page
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 # Separate router for WebSocket — must NOT be under protected_router because
@@ -2725,22 +2732,35 @@ async def list_chat_sessions(
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     search: Annotated[str | None, Query(max_length=255)] = None,
+    cursor: Annotated[str | None, Query(max_length=1024)] = None,
+    include_total: bool | None = None,
 ) -> ChatSessionListResponse:
     user_id, organization_id = _principal_user_and_org(principal)
     normalized_search = search.strip() if search and search.strip() else None
-    sessions = await chat_repository.list_chat_sessions(
-        db_session,
-        organization_id=organization_id,
-        user_id=user_id,
-        limit=limit,
-        offset=offset,
-        search=normalized_search,
+    page = resolve_page_request(
+        cursor=cursor, offset=offset, include_total=include_total, sort_name=SESSION_SORT_NAME
     )
-    total = await chat_repository.count_chat_sessions(
-        db_session,
-        organization_id=organization_id,
-        user_id=user_id,
-        search=normalized_search,
+    sessions, has_more = split_page(
+        await chat_repository.list_chat_sessions(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            limit=limit + 1,
+            offset=offset,
+            search=normalized_search,
+            keyset=page.keyset,
+        ),
+        limit,
+    )
+    total = (
+        await chat_repository.count_chat_sessions(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            search=normalized_search,
+        )
+        if page.include_total
+        else None
     )
     message_counts = await chat_repository.count_messages_by_session_ids(
         db_session,
@@ -2773,6 +2793,9 @@ async def list_chat_sessions(
         total=total,
         limit=limit,
         offset=offset,
+        next_cursor=(
+            encode_cursor(SESSION_SORT_NAME, session_sort_key(sessions[-1])) if has_more else None
+        ),
     )
 
 
@@ -2879,8 +2902,13 @@ async def list_chat_session_messages(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=500)] = 200,
     offset: Annotated[int, Query(ge=0)] = 0,
+    cursor: Annotated[str | None, Query(max_length=1024)] = None,
+    include_total: bool | None = None,
 ) -> ChatSessionMessageListResponse:
     user_id, organization_id = _principal_user_and_org(principal)
+    page = resolve_page_request(
+        cursor=cursor, offset=offset, include_total=include_total, sort_name=MESSAGE_SORT_NAME
+    )
     try:
         chat_session_id = UUID(session_id)
     except ValueError as exc:
@@ -2897,15 +2925,23 @@ async def list_chat_session_messages(
     if chat_session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
 
-    messages = await chat_repository.list_chat_messages(
-        db_session,
-        chat_session_id=chat_session.id,
-        limit=limit,
-        offset=offset,
+    messages, has_more = split_page(
+        await chat_repository.list_chat_messages(
+            db_session,
+            chat_session_id=chat_session.id,
+            limit=limit + 1,
+            offset=offset,
+            keyset=page.keyset,
+        ),
+        limit,
     )
-    total = await chat_repository.count_chat_messages(
-        db_session,
-        chat_session_id=chat_session.id,
+    total = (
+        await chat_repository.count_chat_messages(
+            db_session,
+            chat_session_id=chat_session.id,
+        )
+        if page.include_total
+        else None
     )
 
     citations_by_message = await load_message_citations(
@@ -2945,6 +2981,9 @@ async def list_chat_session_messages(
         total=total,
         limit=limit,
         offset=offset,
+        next_cursor=(
+            encode_cursor(MESSAGE_SORT_NAME, message_sort_key(messages[-1])) if has_more else None
+        ),
     )
 
 

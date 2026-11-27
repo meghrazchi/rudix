@@ -11,14 +11,24 @@ from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.admin.exports import (
+    ExportSessionFactory,
+    get_export_session_factory,
+    logged_stream,
+    map_batches,
+    stream_csv,
+    stream_json,
+    stream_scalar_batches,
+)
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
-from app.domains.admin.repositories.usage import UsageRepository
+from app.domains.admin.repositories.usage import AUDIT_LOG_SORT_NAME, UsageRepository
 from app.domains.admin.schemas.admin import (
     AgentDiagnosticsPointResponse,
     AgentDiagnosticsResponse,
@@ -45,6 +55,7 @@ from app.models.document import Document
 from app.models.enums import OrganizationRole
 from app.models.usage import AuditLog, UsageEvent
 from app.rate_limit import RateLimitScope, enforce_rate_limit
+from app.shared.pagination import encode_cursor, resolve_page_request, split_page
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 usage_repository = UsageRepository()
@@ -715,7 +726,7 @@ async def export_admin_usage(
         Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
     ],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
-    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    export_session_factory: Annotated[ExportSessionFactory, Depends(get_export_session_factory)],
     export_format: Annotated[UsageExportFormat, Query(alias="format")] = "csv",
     from_date: Annotated[date | None, Query(alias="from")] = None,
     to_date: Annotated[date | None, Query(alias="to")] = None,
@@ -723,7 +734,7 @@ async def export_admin_usage(
     model: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
     feature_area: FeatureArea = "all",
     limit: Annotated[int, Query(ge=1, le=50000)] = 10000,
-) -> Response:
+) -> StreamingResponse:
     organization_id = _organization_id_from_principal(principal)
     resolved_from, resolved_to = _normalize_date_range(from_date=from_date, to_date=to_date)
     from_created_at, to_created_at = _to_datetime_bounds(resolved_from, resolved_to)
@@ -732,54 +743,63 @@ async def export_admin_usage(
     if feature_area != "all":
         event_type_prefix = _FEATURE_AREA_TO_PREFIX.get(feature_area)
 
-    events = await usage_repository.list_usage_events_filtered(
-        db_session,
+    statement = usage_repository.usage_events_filtered_statement(
         organization_id=organization_id,
         from_created_at=from_created_at,
         to_created_at=to_created_at,
         user_id=user_id,
         model_name=model,
         event_type_prefix=event_type_prefix,
+        limit=limit,
     )
-    events = events[:limit]
-
+    batches = stream_scalar_batches(
+        export_session_factory, organization_id=organization_id, statement=statement
+    )
     filename = f"usage-{resolved_from.isoformat()}-{resolved_to.isoformat()}.{export_format}"
 
     if export_format == "json":
-        payload = {
-            "organization_id": str(organization_id),
-            "exported_at": datetime.now(tz=UTC).isoformat(),
-            "is_cost_estimate": True,
-            "range": {"from": resolved_from.isoformat(), "to": resolved_to.isoformat()},
-            "returned": len(events),
-            "max_rows": limit,
-            "items": [
-                {
-                    "id": str(e.id),
-                    "created_at": e.created_at.isoformat(),
-                    "organization_id": str(e.organization_id),
-                    "user_id": str(e.user_id) if e.user_id else None,
-                    "event_type": e.event_type,
-                    "model_name": e.model_name,
-                    "input_tokens": e.input_tokens,
-                    "output_tokens": e.output_tokens,
-                    "estimated_cost_usd": str(e.cost_usd) if e.cost_usd is not None else None,
-                }
-                for e in events
-            ],
-        }
-        return Response(
-            content=json.dumps(payload, sort_keys=True),
-            media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        chunks = stream_json(
+            head={
+                "exported_at": datetime.now(tz=UTC).isoformat(),
+                "is_cost_estimate": True,
+            },
+            batches=map_batches(batches, _usage_event_json_item),
+            tail=lambda returned: {
+                "max_rows": limit,
+                "organization_id": str(organization_id),
+                "range": {"from": resolved_from.isoformat(), "to": resolved_to.isoformat()},
+                "returned": returned,
+            },
         )
-
-    csv_payload = _serialize_usage_events_csv(events)
-    return Response(
-        content=csv_payload,
-        media_type="text/csv",
+        media_type = "application/json"
+    else:
+        chunks = stream_csv(batches, _serialize_usage_events_csv)
+        media_type = "text/csv"
+    return StreamingResponse(
+        logged_stream(
+            chunks,
+            export="usage",
+            export_format=export_format,
+            organization_id=organization_id,
+            user_id=principal.user_id,
+        ),
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _usage_event_json_item(e: UsageEvent) -> dict[str, object]:
+    return {
+        "id": str(e.id),
+        "created_at": e.created_at.isoformat(),
+        "organization_id": str(e.organization_id),
+        "user_id": str(e.user_id) if e.user_id else None,
+        "event_type": e.event_type,
+        "model_name": e.model_name,
+        "input_tokens": e.input_tokens,
+        "output_tokens": e.output_tokens,
+        "estimated_cost_usd": str(e.cost_usd) if e.cost_usd is not None else None,
+    }
 
 
 @router.get("/usage", response_model=UsageSummaryResponse)
@@ -1118,6 +1138,8 @@ async def list_admin_audit_logs(
     result: AuditResultFilter = "all",
     severity: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
     search: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+    cursor: Annotated[str | None, Query(max_length=1024)] = None,
+    include_total: bool | None = None,
 ) -> AuditLogListResponse:
     organization_id = _organization_id_from_principal(principal)
     if organization_filter_id is not None and organization_filter_id != organization_id:
@@ -1125,6 +1147,9 @@ async def list_admin_audit_logs(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cross-organization audit access is not allowed",
         )
+    page = resolve_page_request(
+        cursor=cursor, offset=offset, include_total=include_total, sort_name=AUDIT_LOG_SORT_NAME
+    )
     resolved_from, resolved_to = _normalize_date_range(from_date=from_date, to_date=to_date)
     from_created_at, to_created_at = _to_datetime_bounds(resolved_from, resolved_to)
     filters = _resolve_audit_filter_state(
@@ -1144,32 +1169,35 @@ async def list_admin_audit_logs(
         search=search,
     )
 
-    total = await usage_repository.count_audit_logs(
-        db_session,
-        organization_id=organization_id,
-        from_created_at=from_created_at,
-        to_created_at=to_created_at,
-        user_id=filters.actor_user_id,
-        system_actor_only=filters.system_actor_only,
-        actor_email=filters.actor_email,
-        action=filters.action,
-        resource_type=filters.entity,
-        resource_id=filters.resource_id,
-        request_id=filters.request_id,
-        session_id=filters.session_id,
-        ip_address=filters.ip_address,
-        document_id=filters.document_id,
-        collection_id=filters.collection_id,
-        result=filters.result,
-        severity=filters.severity,
-        search=filters.search,
-    )
+    total: int | None = None
+    if page.include_total:
+        total = await usage_repository.count_audit_logs(
+            db_session,
+            organization_id=organization_id,
+            from_created_at=from_created_at,
+            to_created_at=to_created_at,
+            user_id=filters.actor_user_id,
+            system_actor_only=filters.system_actor_only,
+            actor_email=filters.actor_email,
+            action=filters.action,
+            resource_type=filters.entity,
+            resource_id=filters.resource_id,
+            request_id=filters.request_id,
+            session_id=filters.session_id,
+            ip_address=filters.ip_address,
+            document_id=filters.document_id,
+            collection_id=filters.collection_id,
+            result=filters.result,
+            severity=filters.severity,
+            search=filters.search,
+        )
 
-    logs = await usage_repository.list_audit_logs(
+    fetched = await usage_repository.list_audit_logs(
         db_session,
         organization_id=organization_id,
-        limit=limit,
+        limit=limit + 1,
         offset=offset,
+        keyset=page.keyset,
         from_created_at=from_created_at,
         to_created_at=to_created_at,
         user_id=filters.actor_user_id,
@@ -1188,6 +1216,7 @@ async def list_admin_audit_logs(
         search=filters.search,
     )
 
+    logs, has_more = split_page(fetched, limit)
     items = [_to_audit_log_item(log) for log in logs]
     return AuditLogListResponse(
         items=items,
@@ -1195,6 +1224,11 @@ async def list_admin_audit_logs(
         limit=limit,
         offset=offset,
         range=UsageSummaryRange(from_date=resolved_from, to_date=resolved_to),
+        next_cursor=(
+            encode_cursor(AUDIT_LOG_SORT_NAME, [logs[-1].created_at, logs[-1].id])
+            if has_more
+            else None
+        ),
     )
 
 
@@ -1205,7 +1239,7 @@ async def export_admin_audit_logs(
         Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
     ],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
-    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    export_session_factory: Annotated[ExportSessionFactory, Depends(get_export_session_factory)],
     export_format: Annotated[AuditExportFormat, Query(alias="format")] = "csv",
     from_date: Annotated[date | None, Query(alias="from")] = None,
     to_date: Annotated[date | None, Query(alias="to")] = None,
@@ -1225,7 +1259,7 @@ async def export_admin_audit_logs(
     severity: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
     search: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
     limit: Annotated[int, Query(ge=1, le=10000)] = 5000,
-) -> Response:
+) -> StreamingResponse:
     organization_id = _organization_id_from_principal(principal)
     if organization_filter_id is not None and organization_filter_id != organization_id:
         raise HTTPException(
@@ -1252,11 +1286,9 @@ async def export_admin_audit_logs(
         search=search,
     )
 
-    logs = await usage_repository.list_audit_logs(
-        db_session,
+    statement = usage_repository.audit_logs_statement(
         organization_id=organization_id,
         limit=limit,
-        offset=0,
         from_created_at=from_created_at,
         to_created_at=to_created_at,
         user_id=filters.actor_user_id,
@@ -1274,47 +1306,60 @@ async def export_admin_audit_logs(
         severity=filters.severity,
         search=filters.search,
     )
-    items = [_to_audit_log_item(log) for log in logs]
+    item_batches = map_batches(
+        stream_scalar_batches(
+            export_session_factory, organization_id=organization_id, statement=statement
+        ),
+        _to_audit_log_item,
+    )
     filename = _build_audit_export_filename(
         from_date=resolved_from, to_date=resolved_to, export_format=export_format
     )
 
     if export_format == "json":
-        payload = {
-            "organization_id": str(organization_id),
-            "exported_at": datetime.now(tz=UTC).isoformat(),
-            "range": {
-                "from": resolved_from.isoformat(),
-                "to": resolved_to.isoformat(),
+        chunks = stream_json(
+            head={
+                "exported_at": datetime.now(tz=UTC).isoformat(),
+                "filters": {
+                    "actor": actor,
+                    "user_id": str(user_id) if user_id is not None else None,
+                    "action": action,
+                    "entity": entity or resource_type,
+                    "resource_id": str(resource_id) if resource_id is not None else None,
+                    "document_id": str(document_id) if document_id is not None else None,
+                    "collection_id": str(collection_id) if collection_id is not None else None,
+                    "request_id": request_id,
+                    "session_id": session_id,
+                    "ip_address": ip_address,
+                    "result": result,
+                    "severity": severity,
+                    "search": search,
+                },
             },
-            "filters": {
-                "actor": actor,
-                "user_id": str(user_id) if user_id is not None else None,
-                "action": action,
-                "entity": entity or resource_type,
-                "resource_id": str(resource_id) if resource_id is not None else None,
-                "document_id": str(document_id) if document_id is not None else None,
-                "collection_id": str(collection_id) if collection_id is not None else None,
-                "request_id": request_id,
-                "session_id": session_id,
-                "ip_address": ip_address,
-                "result": result,
-                "severity": severity,
-                "search": search,
+            batches=map_batches(item_batches, _audit_item_json),
+            tail=lambda returned: {
+                "max_rows": limit,
+                "organization_id": str(organization_id),
+                "range": {"from": resolved_from.isoformat(), "to": resolved_to.isoformat()},
+                "returned": returned,
             },
-            "returned": len(items),
-            "max_rows": limit,
-            "items": [item.model_dump(mode="json") for item in items],
-        }
-        return Response(
-            content=json.dumps(payload, sort_keys=True),
-            media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
-
-    csv_payload = _serialize_audit_logs_csv(items)
-    return Response(
-        content=csv_payload,
-        media_type="text/csv",
+        media_type = "application/json"
+    else:
+        chunks = stream_csv(item_batches, _serialize_audit_logs_csv)
+        media_type = "text/csv"
+    return StreamingResponse(
+        logged_stream(
+            chunks,
+            export="audit_logs",
+            export_format=export_format,
+            organization_id=organization_id,
+            user_id=principal.user_id,
+        ),
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _audit_item_json(item: AuditLogListItemResponse) -> dict[str, object]:
+    return item.model_dump(mode="json")
