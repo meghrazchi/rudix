@@ -237,6 +237,74 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   Add Playwright screenshots for public navigation, the app shell, chat, reports, and
   any new drawer or modal in both directions.
 
+### Rendering and locales (R07-01, R07-02)
+
+- There are two root layouts and no `src/app/layout.tsx`. Both render
+  `src/components/layout/RootDocument.tsx` (`<html lang dir>`, fonts, the single
+  `NextIntlClientProvider`, query, and consent providers) and export `ROOT_METADATA`
+  (`src/lib/root-metadata.ts`).
+  - `src/app/[locale]/layout.tsx` (public site): `generateStaticParams()` returns the six
+    `SUPPORTED_LOCALES` and `dynamicParams = false`, so every public page is prerendered
+    once per locale at `next build` and served from the cache
+    (`Cache-Control: s-maxage=31536000`). It ships only `PUBLIC_NAMESPACES`.
+  - `src/app/(app)/layout.tsx` (signed-in app): the locale stays in the `NEXT_LOCALE`
+    cookie (`src/i18n/request.ts`), pages render per request, and it ships
+    `APP_NAMESPACES`.
+  - Navigating between the two groups (for example from `/en/login` to `/dashboard`) is a
+    full page load, not a client-side transition.
+  - Unmatched URLs render `src/app/global-not-found.tsx` (`experimental.globalNotFound`
+    in `next.config.ts`) with `NotFoundPage`, status 404 and `noindex`, in the URL-prefix
+    or cookie locale. `[locale]/not-found.tsx` and `(app)/not-found.tsx` handle
+    `notFound()` inside each group; `[locale]/error.tsx` and `(app)/error.tsx` re-export
+    `src/components/errors/RouteErrorFallback.tsx`.
+- Rule: every server page and layout under `src/app/[locale]` calls
+  `useRequestLocale(params)` (or `await setRequestLocaleFromParams(params)` in an async
+  page) from `src/i18n/request-locale.ts` before any next-intl server API, and nothing
+  under `[locale]` reads `cookies()` or `headers()`. Client pages (login, accept-invite,
+  SSO callback, onboarding, organization onboarding) are covered by the layout.
+- Dynamic exceptions: `/[locale]/status` (`force-dynamic`, live data), `/[locale]/forbidden`
+  and `/[locale]/403` (read `searchParams`).
+- Public pages are rendered at build time, so their `NEXT_PUBLIC_*` values (and the
+  startup-check banner) come from the build environment; signed-in routes still check the
+  runtime environment on each request.
+- Message namespaces (`src/i18n/namespaces.ts`): nested providers do not merge messages,
+  so each root layout passes `pickMessages(messages, namespaces)` from
+  `src/i18n/messages.ts`.
+  - `PUBLIC_NAMESPACES`: `auth`, `cookieConsent`, `errors`, `languageSwitcher`, `public`
+    (every namespace used by files reachable from `app/[locale]` pages and
+    `RootDocument`).
+  - `APP_NAMESPACES`: every namespace, including `public`, because
+    `(app)/not-found.tsx` renders `NotFoundPage` inside the public layout.
+  - A package that adds a top-level namespace adds it to `PUBLIC_NAMESPACES`,
+    `APP_NAMESPACES`, or both in the same commit; `src/i18n/namespaces.test.ts` fails
+    otherwise, and `src/i18n/public-namespaces.test.tsx` renders every public page with
+    only the public namespaces and fails on a missing message.
+- Checks: `node scripts/check-prerendered-routes.mjs` (CI step "Check prerendered public
+  routes", after `next build`) requires every path in `config/static-public-routes.json`
+  (the sitemap minus `/status`, kept equal by
+  `src/lib/public-site/static-public-routes.test.ts`) for all six locales in
+  `.next/prerender-manifest.json`. `e2e/public-static-parity.spec.ts` compares title,
+  description, robots, canonical, hreflang, Open Graph, Twitter, JSON-LD,
+  `<html lang dir>` and hashes of the `<main>` text and structure against
+  `e2e/fixtures/public-parity-baseline.json`, recorded before this change and never
+  re-recorded in `0.7.0`, and fails on any `MISSING_MESSAGE` console message.
+- Measured with a staging build (`NEXT_PUBLIC_DEPLOYMENT_ENV=staging`, staging API and
+  app URLs) and `next start -p 3911`:
+
+  | Measure                       | Before (develop `3b4705a1`)                               | After                 |
+  | ----------------------------- | --------------------------------------------------------- | --------------------- |
+  | Prerendered routes            | 4 (`/_global-error`, icon, robots, sitemap)               | 190, incl. 144 public |
+  | `/en` HTML bytes              | 364,788 (327,323 when the server has no env)              | 148,177               |
+  | `/en` HTML bytes, `gzip -9`   | 95,525                                                    | 39,212                |
+  | `/de/product` HTML bytes      | 405,040 (359,061 without env)                             | 171,727               |
+  | `/en/pricing` `Cache-Control` | `private, no-cache, no-store, max-age=0, must-revalidate` | `s-maxage=31536000`   |
+  | `/en/pricing` hreflang `Link` | seven alternates                                          | unchanged             |
+
+  Before, a server started without the `NEXT_PUBLIC_*` env rendered the startup-check
+  banner on public pages; the 327,323 and 359,061 figures are that case.
+  `robots.txt`, `llms.txt` and `icon.svg` are byte-identical; `sitemap.xml` is identical
+  except `<lastmod>` (the build time).
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)

@@ -2,6 +2,7 @@ import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout
 import { SecurityTrustPage } from "@/components/public/pages/SecurityTrustPage";
 import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
 import type { SupportedLocale } from "@/i18n/routing";
+import { useRequestLocale } from "@/i18n/request-locale";
 
 type PublicRouteParams = {
   params: Promise<{ locale: string }>;
@@ -16,7 +17,9 @@ export async function generateMetadata({ params }: PublicRouteParams) {
   });
 }
 
-export default function SecurityPage() {
+export default function SecurityPage({ params }: Partial<PublicRouteParams>) {
+  useRequestLocale(params);
+
   return (
     <PublicMarketingLayout pageLabel="Rudix security page" theme="system">
       <SecurityTrustPage />

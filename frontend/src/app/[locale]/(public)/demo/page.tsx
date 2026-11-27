@@ -1,5 +1,12 @@
 import { redirect } from "next/navigation";
 
-export default function DemoAliasPage() {
+import { useRequestLocale } from "@/i18n/request-locale";
+
+type DemoAliasPageProps = {
+  params?: Promise<{ locale: string }>;
+};
+
+export default function DemoAliasPage({ params }: DemoAliasPageProps = {}) {
+  useRequestLocale(params);
   redirect("/contact");
 }

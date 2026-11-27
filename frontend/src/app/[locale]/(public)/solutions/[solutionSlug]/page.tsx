@@ -12,6 +12,7 @@ import {
   type SolutionSlug,
 } from "@/lib/public-site/solutions";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n/routing";
+import { setRequestLocaleFromParams } from "@/i18n/request-locale";
 
 type SolutionDetailRouteProps = {
   params: Promise<{ locale: string; solutionSlug: string }>;
@@ -49,6 +50,7 @@ export async function generateMetadata({ params }: SolutionDetailRouteProps) {
 export default async function SolutionDetailRoute({
   params,
 }: SolutionDetailRouteProps) {
+  await setRequestLocaleFromParams(params);
   const resolvedParams = await params;
   const solution = getSolutionAudienceBySlug(
     resolvedParams.solutionSlug as SolutionSlug,

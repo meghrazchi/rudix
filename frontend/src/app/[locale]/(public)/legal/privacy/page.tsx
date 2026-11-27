@@ -2,6 +2,7 @@ import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout
 import { PrivacyPolicyPage } from "@/components/public/pages/legal/PrivacyPolicyPage";
 import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
 import type { SupportedLocale } from "@/i18n/routing";
+import { useRequestLocale } from "@/i18n/request-locale";
 
 type PublicRouteParams = {
   params: Promise<{ locale: string }>;
@@ -16,7 +17,9 @@ export async function generateMetadata({ params }: PublicRouteParams) {
   });
 }
 
-export default function PrivacyPage() {
+export default function PrivacyPage({ params }: Partial<PublicRouteParams>) {
+  useRequestLocale(params);
+
   return (
     <PublicMarketingLayout pageLabel="Rudix privacy policy" theme="system">
       <PrivacyPolicyPage />

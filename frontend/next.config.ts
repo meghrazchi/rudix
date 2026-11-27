@@ -48,6 +48,11 @@ const nextConfig: NextConfig = {
   // A second dev server (the Playwright WebSocket-chat project) needs its own
   // build directory; everything else uses the default.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Two root layouts (app/[locale], app/(app)): unmatched URLs render
+  // app/global-not-found.tsx (R07-01).
+  experimental: {
+    globalNotFound: true,
+  },
   async headers() {
     return [
       {

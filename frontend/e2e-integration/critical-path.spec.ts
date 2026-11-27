@@ -115,7 +115,7 @@ test.describe("integration critical path", () => {
         .getByRole("button", { name: /Upload document(s)?/i })
         .first()
         .click();
-      const dialog = page.getByRole("dialog");
+      const dialog = page.getByRole("dialog", { name: "Upload Center" });
       await expect(dialog).toBeVisible();
 
       // A per-run line keeps the checksum unique, so reruns on a reused stack
