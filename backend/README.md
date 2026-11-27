@@ -773,7 +773,9 @@ R06-06, connector source references), and `finalize` (the only writer of `indexe
   not enforced; later stages still read every page's text (`clean_detect`, `chunk`).
 - Embedding reuse and run marker (R06-06): `chunk` no longer deletes points first. `embed`
   reuses vectors found by `(organization_id, embedding_model, chunk_hash)` (one scroll per
-  batch, `QdrantService.find_reusable_vectors`), writes `ingest_run_id` on every point, and
+  batch, `QdrantService.find_reusable_vectors`; a further scroll for the missing hashes only
+  when copies of a text fill the page, up to `EMBEDDING_REUSE_MAX_LOOKUPS`, default 3),
+  writes `ingest_run_id` on every point, and
   runs up to `EMBEDDING_MAX_CONCURRENT_BATCHES` batches at once (default 1). `index` then
   deletes the document's points of other runs and verifies the point count
   (`QDRANT_POINT_COUNT_MISMATCH`). Metric `rudix_embedding_cache_hits_total{outcome}`.

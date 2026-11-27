@@ -252,7 +252,11 @@ Reuse, concurrency, and the run marker (R06-06):
   `chunk_hash` (SHA-256 of the NFC-normalised, stripped chunk text; keyword payload index
   `chunk_hash`). Hits with the configured vector size are reused; only the misses are
   embedded. The filter always carries the organisation, so a vector is never reused across
-  organisations. Reindexing an unchanged document makes no embedding call; a changed chunk
+  organisations. The scroll limit is the batch's hash count, so copies of one text in other
+  documents of the organisation can fill the page; only then (a full page with hashes still
+  missing) a further scroll asks for the missing hashes alone, up to
+  `EMBEDDING_REUSE_MAX_LOOKUPS` (default `3`) scrolls per batch, and the rest is embedded.
+  Reindexing an unchanged document makes no embedding call; a changed chunk
   re-embeds only that chunk. A failed lookup embeds the whole batch. Reused chunks cost no
   tokens, so the `document.embedding` usage event counts only embedded chunks.
 - Every point carries `ingest_run_id` (the ingestion run). The old points are no longer

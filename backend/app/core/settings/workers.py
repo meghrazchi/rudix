@@ -53,6 +53,10 @@ class WorkersSettings(BaseModel):
     # ``EmbeddingService.embed_chunks`` call) that run concurrently. 1 keeps the sequential
     # behaviour of 0.5.0.
     embedding_max_concurrent_batches: int = Field(default=1, ge=1, le=32)
+    # Scrolls of one reuse lookup: a further scroll for the still-missing hashes runs only
+    # when the previous page came back full (copies of a text in other documents). 1 = one
+    # scroll per batch.
+    embedding_reuse_max_lookups: int = Field(default=3, ge=1, le=16)
     # R06-07: timeouts of the async Qdrant clients. Search None means QDRANT_TIMEOUT_SECONDS
     # (the 2 s request-path budget); writes get a longer one for large batches.
     qdrant_search_timeout_seconds: float | None = Field(default=None, ge=0.1, le=60.0)

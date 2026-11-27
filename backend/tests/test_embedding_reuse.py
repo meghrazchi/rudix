@@ -306,6 +306,81 @@ async def test_find_reusable_vectors_checks_dimension_and_organisation(
     assert client.calls["scroll"] == 1
 
 
+def _store(client: InMemoryQdrant, org: UUID, rows: list[tuple[str, str]]) -> list[float]:
+    vector = text_vector("dup", settings.qdrant_vector_size)
+    client.upsert(
+        collection_name=settings.qdrant_collection,
+        points=[
+            type("P", (), {"id": pid, "vector": vector, "payload": _payload(org, h)})()
+            for pid, h in rows
+        ],
+    )
+    return vector
+
+
+async def test_copies_of_one_text_do_not_crowd_out_other_hashes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Three copies of h1 fill a four-point page; one more scroll finds h2..h4."""
+    client = InMemoryQdrant()
+    org = UUID(int=1)
+    copies = [("a1", "h1"), ("b1", "h1"), ("c1", "h1"), ("d1", "h1")]
+    vector = _store(client, org, [*copies, ("d2", "h2"), ("d3", "h3"), ("d4", "h4")])
+    monkeypatch.setattr(qdrant_module, "qdrant_client", client)
+    service = QdrantService()
+
+    found = await service.find_reusable_vectors(
+        organization_id=org, embedding_model="m", chunk_hashes=["h1", "h2", "h3", "h4"]
+    )
+
+    assert found == {"h1": vector, "h2": vector, "h3": vector, "h4": vector}
+    assert client.calls["scroll"] == 2
+    second = [flt for name, flt in client.filters if name == "scroll"][1]
+    hashes = next(c.match.any for c in second.must if c.key == "chunk_hash")  # type: ignore[union-attr]
+    assert sorted(hashes) == ["h2", "h3", "h4"]
+
+
+async def test_reuse_lookup_scrolls_are_bounded_and_stop_without_progress(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = InMemoryQdrant()
+    org = UUID(int=1)
+    # A page that is not full means the missing hashes do not exist: one scroll.
+    _store(client, org, [("x1", "h1")])
+    monkeypatch.setattr(qdrant_module, "qdrant_client", client)
+    service = QdrantService()
+    found = await service.find_reusable_vectors(
+        organization_id=org, embedding_model="m", chunk_hashes=["h1", "h2"]
+    )
+    assert set(found) == {"h1"} and client.calls["scroll"] == 1
+
+    # With one lookup allowed, the crowded page is not followed up.
+    crowded = InMemoryQdrant()
+    _store(crowded, org, [("a", "h1"), ("b", "h1"), ("c", "h2")])
+    monkeypatch.setattr(qdrant_module, "qdrant_client", crowded)
+    monkeypatch.setattr(settings, "embedding_reuse_max_lookups", 1)
+    found = await service.find_reusable_vectors(
+        organization_id=org, embedding_model="m", chunk_hashes=["h1", "h2"]
+    )
+    assert set(found) == {"h1"} and crowded.calls["scroll"] == 1
+
+    # A full page of unusable hits (wrong dimension) finds nothing new: no further scroll.
+    wrong = InMemoryQdrant()
+    wrong.upsert(
+        collection_name=settings.qdrant_collection,
+        points=[
+            type("P", (), {"id": pid, "vector": [0.1], "payload": _payload(org, "h1")})()
+            for pid in ("a", "b")
+        ],
+    )
+    monkeypatch.setattr(qdrant_module, "qdrant_client", wrong)
+    monkeypatch.setattr(settings, "embedding_reuse_max_lookups", 3)
+    found = await service.find_reusable_vectors(
+        organization_id=org, embedding_model="m", chunk_hashes=["h1", "h2"]
+    )
+    assert found == {} and wrong.calls["scroll"] == 1
+
+
 def _payload(org: UUID, chunk_hash: str) -> dict[str, Any]:
     return {"organization_id": str(org), "embedding_model": "m", "chunk_hash": chunk_hash}
 

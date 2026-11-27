@@ -251,40 +251,66 @@ class QdrantService:
     ) -> dict[str, list[float]]:
         """Stored vectors by chunk hash for this organisation and embedding model (R06-06).
 
-        One scroll per call. The filter always carries ``organization_id``, so a vector is
-        never reused across organisations; a hit whose dimension differs from
-        ``QDRANT_VECTOR_SIZE`` is ignored (the chunk is embedded again).
+        One scroll per call in the usual case. The filter always carries
+        ``organization_id``, so a vector is never reused across organisations; a hit whose
+        dimension differs from ``QDRANT_VECTOR_SIZE`` is ignored (the chunk is embedded
+        again). The scroll limit is the number of hashes, so copies of one text in other
+        documents of the organisation can fill the page; when a page comes back full and
+        hashes are still missing, a further scroll asks for only the missing hashes, up to
+        ``EMBEDDING_REUSE_MAX_LOOKUPS`` scrolls in all.
         """
-        hashes = sorted({value for value in chunk_hashes if value})
-        if not hashes or not embedding_model.strip():
+        missing = sorted({value for value in chunk_hashes if value})
+        if not missing or not embedding_model.strip():
             return {}
+        found: dict[str, list[float]] = {}
+        for _ in range(settings.embedding_reuse_max_lookups):
+            points = await self._scroll_reusable(
+                organization_id=organization_id,
+                embedding_model=embedding_model,
+                chunk_hashes=missing,
+                collection_name=collection_name,
+            )
+            before = len(found)
+            for point in points:
+                payload = getattr(point, "payload", None) or {}
+                chunk_hash = payload.get("chunk_hash")
+                vector = getattr(point, "vector", None)
+                if (
+                    chunk_hash in missing
+                    and payload.get("organization_id") == str(organization_id)
+                    and isinstance(vector, list)
+                    and len(vector) == settings.qdrant_vector_size
+                ):
+                    found.setdefault(str(chunk_hash), [float(value) for value in vector])
+            page_full = len(points) >= len(missing)
+            missing = [value for value in missing if value not in found]
+            if not missing or not page_full or len(found) == before:
+                break
+        return found
+
+    async def _scroll_reusable(
+        self,
+        *,
+        organization_id: UUID,
+        embedding_model: str,
+        chunk_hashes: list[str],
+        collection_name: str | None,
+    ) -> list[Any]:
         query_filter = build_organization_filter(organization_id=str(organization_id))
         query_filter.must = [
             *(query_filter.must or []),  # type: ignore[misc]
             FieldCondition(key="embedding_model", match=MatchValue(value=embedding_model)),
-            FieldCondition(key="chunk_hash", match=MatchAny(any=hashes)),
+            FieldCondition(key="chunk_hash", match=MatchAny(any=chunk_hashes)),
         ]
         points, _ = await self._request(
             "scroll",
             collection_name=collection_name or settings.qdrant_collection,
             scroll_filter=query_filter,
-            limit=len(hashes),
+            limit=len(chunk_hashes),
             with_payload=["chunk_hash", "organization_id"],
             with_vectors=True,
         )
-        found: dict[str, list[float]] = {}
-        for point in points:
-            payload = getattr(point, "payload", None) or {}
-            chunk_hash = payload.get("chunk_hash")
-            vector = getattr(point, "vector", None)
-            if (
-                chunk_hash in hashes
-                and payload.get("organization_id") == str(organization_id)
-                and isinstance(vector, list)
-                and len(vector) == settings.qdrant_vector_size
-            ):
-                found.setdefault(str(chunk_hash), [float(value) for value in vector])
-        return found
+        return list(points)
 
     async def delete_stale_document_points(
         self,
