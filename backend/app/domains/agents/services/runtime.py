@@ -187,7 +187,9 @@ class AgentRuntime:
     ) -> AgentRuntimeResult:
         """Run or resume a stored run in a worker (``AGENT_RUN_EXECUTION=worker``).
 
-        The caller holds the run's lease; ``checkpoint`` commits and renews it.
+        The caller holds the run's lease; ``checkpoint`` commits and renews it. The caller
+        emits the result event after its final commit, so a stream never reports an outcome
+        that was not committed (a concurrent cancel wins).
         """
         steps = await self._repository.list_agent_steps(
             session, agent_run_id=run.id, organization_id=run.organization_id
@@ -237,7 +239,6 @@ class AgentRuntime:
                     checkpoint=checkpoint,
                 ),
             )
-        await emit_result(events, result)
         return result
 
     async def fail_queued(
@@ -251,10 +252,10 @@ class AgentRuntime:
         request_id: str | None,
         code: str,
         message: str,
-        events: RunEventSink,
     ) -> AgentRuntimeResult:
         """Fail a stored run outside the loop (``principal_revoked``, unreadable request,
-        an unexpected error); the ids are passed so a rolled-back session needs no reload."""
+        an unexpected error); the ids are passed so a rolled-back session needs no reload.
+        The caller emits the result event after its commit."""
         context = _RuntimeContext(
             mode=select_mode(request),
             question=request.question or request.objective,
@@ -271,7 +272,6 @@ class AgentRuntime:
             message=message,
             details={},
         )
-        await emit_result(events, result)
         return result
 
     # Budget, plan, and observation rules (runtime_context, runtime_plan).

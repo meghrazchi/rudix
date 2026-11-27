@@ -156,3 +156,41 @@ async def test_rejected_approval_keeps_todays_behaviour(
     tasks = [row.task_name for row in (await agent_env.aoutbox(seeded.organization_id))]
     assert tasks == ["agents.run.execute"]
     assert agent_env.tools.calls["answer"] == 0
+
+
+@pytest.mark.asyncio
+async def test_cancel_refuses_a_run_a_worker_finished_meanwhile(
+    agent_env: AgentWorkerEnv,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The handler read the run as waiting; a worker commits a terminal state before the
+    # conditional cancel UPDATE runs, so the cancel is refused instead of overwriting it.
+    from app.interfaces.http import agent_runs as agent_runs_http
+
+    agent_env.use_runtime(build_runtime(agent_env.tools, approval=True))
+    seeded = await agent_env.aseed()
+    original = agent_runs_http.agent_run_worker_repository.cancel_active
+
+    async def _finished_first(session: Any, **kwargs: Any) -> bool:
+        async with agent_env.factory() as other:
+            run = await other.get(AgentRun, kwargs["run_id"])
+            assert run is not None
+            run.status = "completed"
+            await other.commit()
+        return await original(session, **kwargs)
+
+    async with api_client(agent_env) as client:
+        member = await headers_for(agent_env, seeded.user_id, seeded.organization_id)
+        created = await client.post("/api/v1/agent/runs", headers=member, json=BODY)
+        run_id = created.json()["run"]["run_id"]
+        waiting = await client.get(f"/api/v1/agent/runs/{run_id}", headers=member)
+        assert waiting.json()["status"] == "waiting_approval"
+        monkeypatch.setattr(
+            agent_runs_http.agent_run_worker_repository, "cancel_active", _finished_first
+        )
+        refused = await client.post(f"/api/v1/agent/runs/{run_id}/cancel", headers=member)
+        assert refused.status_code == 409
+        assert refused.json()["detail"]["code"] == "run_already_terminal"
+        monkeypatch.setattr(agent_runs_http.agent_run_worker_repository, "cancel_active", original)
+        run = await client.get(f"/api/v1/agent/runs/{run_id}", headers=member)
+    assert run.json()["status"] == "completed" and run.json()["cancelled_at"] is None

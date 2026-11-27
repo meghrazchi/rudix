@@ -28,6 +28,7 @@ from app.domains.agents import (
     AgentRuntimeRequest,
     AgentRuntimeResult,
 )
+from app.domains.agents.repositories import AgentRunWorkerRepository
 from app.domains.agents.services.run_stream import build_run_events
 from app.domains.agents.services.trace_service import AgentTraceService
 from app.domains.quota.schemas.quota_schemas import QuotaType
@@ -40,6 +41,7 @@ _logger = get_logger("agent.api")
 router = APIRouter(prefix="/agent", tags=["agent"])
 agent_runtime = AgentRuntime()
 agent_run_repository = AgentRunRepository()
+agent_run_worker_repository = AgentRunWorkerRepository()
 audit_log_service = AuditLogService()
 usage_repository = UsageRepository()
 agent_trace_service = AgentTraceService()
@@ -633,15 +635,20 @@ async def cancel_agent_run(
             },
         )
 
-    updated = await agent_run_repository.update_agent_run(
-        db_session,
-        agent_run_id=run_uuid,
-        organization_id=organization_id,
-        status="cancelled",
-        cancelled_at=datetime.now(tz=UTC),
-    )
-    if updated is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+    # R06-13: one conditional UPDATE, so a worker that completes the run concurrently is
+    # never overwritten (and a worker never commits over this cancel; worker_execution).
+    if not await agent_run_worker_repository.cancel_active(
+        db_session, run_id=run_uuid, organization_id=organization_id, now=datetime.now(tz=UTC)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "run_already_terminal",
+                "message": "Only queued or running agent runs can be cancelled.",
+            },
+        )
+    await db_session.refresh(run)
+    updated = run
 
     await audit_log_service.record(
         db_session,

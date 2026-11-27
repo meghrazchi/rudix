@@ -158,6 +158,14 @@ With `AGENT_RUN_EXECUTION=worker`:
 7. Beat task `agents.runs.reap` (every 60 s, maintenance session, `FOR UPDATE SKIP LOCKED`)
    re-queues running runs whose lease expired and fails them with `worker_lost` after
    `AGENT_RUN_MAX_RESUMES` (3).
+8. Cancellation: `POST /agent/runs/{run_id}/cancel` is one conditional `UPDATE` (only a run
+   that is not terminal), and a worker checks, under `FOR UPDATE`, that no cancel was
+   committed before every commit that changes the run's status. A cancel that arrives
+   while the last step finishes therefore wins: the worker drops its uncommitted writes
+   (outcome, usage event, audit), clears the lease, and emits `agent.run.cancelled`. A run
+   that completed first answers the cancel with `409 run_already_terminal`. The final
+   commit also renews the lease first, so a task whose run was taken over never commits
+   its outcome. The result event of a worker run is emitted only after its final commit.
 
 Runtime modules: `runtime.py` (facade: `execute`, `execute_queued`, `fail_queued`),
 `runtime_context.py` (state, budgets), `runtime_plan.py` (plan, arguments, observation),

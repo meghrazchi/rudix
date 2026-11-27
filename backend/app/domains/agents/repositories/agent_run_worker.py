@@ -31,6 +31,10 @@ class LeaseLostError(Exception):
     """This task no longer holds the run's lease (it expired and was taken over)."""
 
 
+class RunCancelledElsewhereError(Exception):
+    """A cancel committed by another session would be overwritten by this transaction."""
+
+
 @dataclass(frozen=True)
 class ExpiredLease:
     run_id: UUID
@@ -131,6 +135,51 @@ class AgentRunWorkerRepository:
         if row is None:
             return None
         return str(row[0]), row[1]
+
+    async def cancelled_elsewhere(
+        self, session: AsyncSession, *, run_id: UUID, organization_id: UUID
+    ) -> bool:
+        """True when this transaction set another status on a run that a committed cancel
+        already marked (``cancelled_at``). The row lock (``FOR NO KEY UPDATE``, which does
+        not block foreign-key inserts that reference the run) makes a later cancel wait
+        until this transaction ends, so the check and the commit cannot be split."""
+        await session.flush()
+        row = (
+            await session.execute(
+                select(AgentRun.status, AgentRun.cancelled_at)
+                .where(AgentRun.id == run_id, AgentRun.organization_id == organization_id)
+                .with_for_update(key_share=True)
+            )
+        ).first()
+        if row is None or row[1] is None:
+            return False
+        return str(row[0]) != AgentRunStatus.cancelled.value
+
+    async def cancel_active(
+        self, session: AsyncSession, *, run_id: UUID, organization_id: UUID, now: datetime
+    ) -> bool:
+        """Cancel a run that is not terminal, in one conditional ``UPDATE``.
+
+        On PostgreSQL the ``UPDATE`` waits for a worker transaction that holds the row and
+        then re-checks the status, so a run that just completed is never marked cancelled.
+        """
+        terminal = (
+            AgentRunStatus.completed.value,
+            AgentRunStatus.failed.value,
+            AgentRunStatus.cancelled.value,
+        )
+        result = await session.execute(
+            update(AgentRun)
+            .where(
+                AgentRun.id == run_id,
+                AgentRun.organization_id == organization_id,
+                AgentRun.status.not_in(terminal),
+            )
+            .values(status=AgentRunStatus.cancelled.value, cancelled_at=now, updated_at=now)
+            .returning(AgentRun.id)
+            .execution_options(synchronize_session=False)
+        )
+        return result.scalar_one_or_none() is not None
 
     async def set_request_snapshot(
         self,

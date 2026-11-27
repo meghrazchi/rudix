@@ -2372,6 +2372,9 @@ modes (`AGENT_RUN_EXECUTION`, R06-13):
   once with the same `AgentRunCreateResponse` shape: `status: "queued"`, zero counters,
   `outcome: null`. Follow the run with `GET /agent/runs/{run_id}` or the stream below. A
   broker outage leaves the outbox row pending; the `outbox.relay` beat task publishes it.
+  `POST /agent/runs/{run_id}/cancel` cancels a queued, running, or waiting run with one
+  conditional update: a cancel accepted while a worker finishes the run stays the run's
+  final state, and a run that completed first answers `409 run_already_terminal`.
 
 Request:
 

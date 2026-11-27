@@ -149,3 +149,71 @@ async def test_lease_respects_strict_rls(rls_probe_session: Any) -> None:
     assert await _worker.acquire(
         session, run_id=run.id, organization_id=org.id, owner="x", lease_seconds=60, now=now
     )
+
+
+async def _cancel_while_worker_completes(
+    factory: async_sessionmaker[AsyncSession], run_id: UUID, org: UUID
+) -> tuple[bool, bool]:
+    """The worker's transaction holds the row (completed, not committed yet) while the API
+    cancels: the cancel waits, re-checks the status, and refuses."""
+    worker_wrote = asyncio.Event()
+
+    async def worker() -> bool:
+        async with factory() as session:
+            await session.execute(
+                update(AgentRun).where(AgentRun.id == run_id).values(status="completed")
+            )
+            conflict = await _worker.cancelled_elsewhere(
+                session, run_id=run_id, organization_id=org
+            )
+            worker_wrote.set()
+            await asyncio.sleep(0.3)  # the cancel waits on the row lock meanwhile
+            await session.commit()
+            return conflict
+
+    async def api_cancel() -> bool:
+        await worker_wrote.wait()
+        async with factory() as session:
+            cancelled = await _worker.cancel_active(
+                session, run_id=run_id, organization_id=org, now=datetime.now(tz=UTC)
+            )
+            await session.commit()
+            return cancelled
+
+    conflict, cancelled = await asyncio.gather(worker(), api_cancel())
+    return conflict, cancelled
+
+
+async def _complete_after_cancel(
+    factory: async_sessionmaker[AsyncSession], run_id: UUID, org: UUID
+) -> bool:
+    """The API cancel commits first: the worker's later write is detected before commit."""
+    async with factory() as session:
+        assert await _worker.cancel_active(
+            session, run_id=run_id, organization_id=org, now=datetime.now(tz=UTC)
+        )
+        await session.commit()
+    async with factory() as session:
+        await session.execute(
+            update(AgentRun).where(AgentRun.id == run_id).values(status="completed")
+        )
+        conflict = await _worker.cancelled_elsewhere(session, run_id=run_id, organization_id=org)
+        await session.rollback()
+        return conflict
+
+
+def test_cancel_and_completion_never_overwrite_each_other(agent_env_pg: AgentWorkerEnv) -> None:  # noqa: F811
+    env = agent_env_pg
+    seeded = env.seed()
+    first = env.submit(seeded)
+    env.execute_sql(update(AgentRun).where(AgentRun.id == first).values(status="running"))
+    conflict, cancelled = run_async(
+        _cancel_while_worker_completes(env.factory, first, seeded.organization_id)
+    )
+    assert (conflict, cancelled) == (False, False)
+    assert env.run(first).status == "completed" and env.run(first).cancelled_at is None
+
+    second = env.submit(seeded)
+    env.execute_sql(update(AgentRun).where(AgentRun.id == second).values(status="running"))
+    assert run_async(_complete_after_cancel(env.factory, second, seeded.organization_id))
+    assert env.run(second).status == "cancelled"

@@ -42,9 +42,16 @@ from app.domains.agents.repositories import (
     AgentRunRepository,
     AgentRunWorkerRepository,
     LeaseLostError,
+    RunCancelledElsewhereError,
 )
 from app.domains.agents.schemas import AgentRuntimeRequest, AgentRuntimeResult
-from app.domains.agents.services.run_stream import RUN_STATUS, RunEventSink, build_run_events
+from app.domains.agents.services.run_stream import (
+    RUN_CANCELLED,
+    RUN_STATUS,
+    RunEventSink,
+    build_run_events,
+    emit_result,
+)
 from app.domains.agents.services.runtime import AgentRuntime
 from app.domains.agents.services.runtime_plan import build_plan
 from app.models.agent import AgentRun
@@ -188,19 +195,32 @@ async def _apply_approval(session: AsyncSession, run: AgentRun, approval_id: UUI
     return True
 
 
-def _checkpoint(session: AsyncSession, run: AgentRun, owner: str) -> Callable[[], Awaitable[None]]:
+def _checkpoint(
+    session: AsyncSession, run: AgentRun | _RunRef, owner: str, *, commit: bool = True
+) -> Callable[[], Awaitable[None]]:
+    run_id = run.id if isinstance(run, AgentRun) else run.run_id
+    organization_id = run.organization_id
+
     async def save() -> None:
         await _worker.renew(
             session,
-            run_id=run.id,
-            organization_id=run.organization_id,
+            run_id=run_id,
+            organization_id=organization_id,
             owner=owner,
             lease_seconds=settings.agent_run_lease_seconds,
             now=datetime.now(tz=UTC),
         )
-        await session.commit()
+        await _guard_cancel(session, run_id=run_id, organization_id=organization_id)
+        if commit:
+            await session.commit()
 
     return save
+
+
+async def _guard_cancel(session: AsyncSession, *, run_id: UUID, organization_id: UUID) -> None:
+    """Never commit over a cancel another session committed (POST /agent/runs/{id}/cancel)."""
+    if await _worker.cancelled_elsewhere(session, run_id=run_id, organization_id=organization_id):
+        raise RunCancelledElsewhereError()
 
 
 async def _execute(
@@ -225,7 +245,6 @@ async def _execute(
             request_id=request_id,
             code="validation_failed",
             message="The stored agent run request could not be read.",
-            events=events,
         )
     principal = await rebuild_principal(session, run=run, request=request, runtime=runtime)
     if principal is None:
@@ -238,7 +257,6 @@ async def _execute(
             request_id=request_id,
             code="principal_revoked",
             message="The user who started this run no longer has the access it needs.",
-            events=events,
         )
     return await runtime.execute_queued(
         session=session,
@@ -273,12 +291,12 @@ async def _fail_unexpected(
         request_id=None,
         code="internal_error",
         message="The agent run failed unexpectedly.",
-        events=events,
     )
     await _worker.release(
         session, run_id=ref.run_id, organization_id=ref.organization_id, owner=owner
     )
     await session.commit()
+    await emit_result(events, result)
     return result
 
 
@@ -298,6 +316,8 @@ async def _run_locked(
     except LeaseLostError:
         await session.rollback()
         return "lease_lost"
+    except RunCancelledElsewhereError:
+        return await _honour_cancel(session, ref, owner, events)
     except Exception as exc:
         logger.error(
             "agent.worker.run_failed",
@@ -310,11 +330,39 @@ async def _run_locked(
         except Exception as nested:
             raise TransientTaskError("agent run failure could not be recorded") from nested
         return result.status
+    try:
+        # The terminal write commits only while this task still holds the lease and no
+        # cancel was committed meanwhile.
+        await _checkpoint(session, ref, owner, commit=False)()
+    except LeaseLostError:
+        await session.rollback()
+        return "lease_lost"
+    except RunCancelledElsewhereError:
+        return await _honour_cancel(session, ref, owner, events)
     await _worker.release(
         session, run_id=ref.run_id, organization_id=ref.organization_id, owner=owner
     )
     await session.commit()
+    await emit_result(events, result)
     return result.status
+
+
+async def _honour_cancel(
+    session: AsyncSession, ref: _RunRef, owner: str, events: RunEventSink
+) -> str:
+    """Drop this transaction's writes: the committed cancel stays the run's last state."""
+    await session.rollback()
+    await _worker.release(
+        session, run_id=ref.run_id, organization_id=ref.organization_id, owner=owner
+    )
+    await session.commit()
+    await events.emit(RUN_CANCELLED, {"status": "cancelled"})
+    logger.info(
+        "agent.worker.cancelled_elsewhere",
+        run_id=str(ref.run_id),
+        organization_id=str(ref.organization_id),
+    )
+    return "cancelled"
 
 
 async def _run_in_session(

@@ -6,6 +6,7 @@ Celery runs eagerly (``agent_worker_support``). Inline mode is covered unchanged
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -253,6 +254,56 @@ def test_cancel_between_steps_stops_the_run(agent_env: AgentWorkerEnv) -> None: 
     assert agent_env.run(run_id).lease_owner is None
 
 
+def _cancel_after_answer_call(env: AgentWorkerEnv, run_id: Any) -> None:
+    """Commit a cancel from another connection right after the answer step's tool call was
+    saved (the 6th save: start, then start/after-call/end of each step), i.e. while the
+    worker finishes the run's last step."""
+    original = worker_execution._checkpoint
+    saves = {"count": 0}
+
+    def _checkpoint(session: Any, run: Any, owner: str, **kwargs: Any) -> Any:
+        save = original(session, run, owner, **kwargs)
+
+        async def wrapped() -> None:
+            await save()
+            saves["count"] += 1
+            if saves["count"] == 6:
+                async with env.factory() as other:
+                    await other.execute(
+                        update(AgentRun)
+                        .where(AgentRun.id == run_id)
+                        .values(status="cancelled", cancelled_at=datetime.now(tz=UTC))
+                    )
+                    await other.commit()
+
+        return wrapped
+
+    env.monkeypatch.setattr(worker_execution, "_checkpoint", _checkpoint)
+
+
+@pytest.mark.parametrize("approval", [False, True])
+def test_cancel_during_the_last_step_is_not_overwritten(
+    agent_env: AgentWorkerEnv,  # noqa: F811
+    approval: bool,
+) -> None:
+    # Completion (or the move to waiting_approval) must not commit over a committed cancel.
+    agent_env.use_runtime(build_runtime(agent_env.tools, approval=approval))
+    seeded = agent_env.seed()
+    run_id = agent_env.submit(seeded)
+    _cancel_after_answer_call(agent_env, run_id)
+    result = agent_env.execute(run_id, seeded.organization_id)
+    assert result.result["status"] == "cancelled"
+    assert agent_env.tools.calls == {"search": 1, "answer": 0 if approval else 1}
+    run = agent_env.run(run_id)
+    assert run.status == "cancelled" and run.cancelled_at is not None
+    assert run.completed_at is None and not run.outcome_json
+    assert run.lease_owner is None and run.lease_expires_at is None
+    keys = [k for k in agent_env.redis.keyspace.lists if str(run_id) in k]
+    entries = [json.loads(raw) for raw in agent_env.redis.keyspace.lists[keys[0]]]
+    assert entries[-1]["event"] == "agent.run.cancelled"
+    assert "agent.run.completed" not in [entry["event"] for entry in entries]
+
+
 def test_lost_lease_stops_without_further_writes(agent_env: AgentWorkerEnv) -> None:  # noqa: F811
     seeded = agent_env.seed()
     run_id = agent_env.submit(seeded)
@@ -267,6 +318,28 @@ def test_lost_lease_stops_without_further_writes(agent_env: AgentWorkerEnv) -> N
     # Nothing after the lease was taken is committed; the reaper recovers the run later.
     assert run.status == "running" and run.lease_owner == "exec-1"
     assert agent_env.steps(run_id) == []
+
+
+def test_lease_lost_before_the_final_commit_drops_the_outcome(agent_env: AgentWorkerEnv) -> None:  # noqa: F811
+    # Another task took the run over after the last step: this task must not commit the
+    # completion (outcome, usage event, audit) it computed.
+    seeded = agent_env.seed()
+    run_id = agent_env.submit(seeded)
+    original = worker_execution._worker.renew
+    renewals = {"count": 0}
+
+    async def _renew(session: Any, **kwargs: Any) -> None:
+        renewals["count"] += 1
+        if renewals["count"] == 8:  # 7 step saves, then the final check
+            raise LeaseLostError()
+        await original(session, **kwargs)
+
+    agent_env.monkeypatch.setattr(worker_execution._worker, "renew", _renew)
+    result = agent_env.execute(run_id, seeded.organization_id, task_id="exec-1")
+    assert result.result["status"] == "lease_lost"
+    run = agent_env.run(run_id)
+    assert run.status == "running" and run.completed_at is None and not run.outcome_json
+    assert [s.status for s in agent_env.steps(run_id)] == ["completed"] * 3
 
 
 def test_unexpected_error_fails_the_run_safely(agent_env: AgentWorkerEnv) -> None:  # noqa: F811
