@@ -1,0 +1,28 @@
+{
+  "chat_messages": [],
+  "chat_sessions": [
+    {
+      "id": "<uuid:1>",
+      "title": "How much annual leave is provided?"
+    }
+  ],
+  "citations": [],
+  "error": {
+    "code": "generation_failed",
+    "message": "Answer generation is unavailable"
+  },
+  "provider_call_count": 2,
+  "provider_calls": [
+    {
+      "kind": "answer",
+      "prompt_sha256": "44d3e0588ffe273bd53d596c8bce756d8555214201ddee08af8ac3e7d533553c"
+    },
+    {
+      "kind": "answer",
+      "prompt_sha256": "44d3e0588ffe273bd53d596c8bce756d8555214201ddee08af8ac3e7d533553c"
+    }
+  ],
+  "questions_quota_delta": 0,
+  "status_code": 503,
+  "usage_events": []
+}
