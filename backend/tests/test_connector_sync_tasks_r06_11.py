@@ -247,3 +247,23 @@ def test_reap_task_and_beat_entry_are_registered() -> None:
     reap = MagicMock(return_value={"requeued": 0})
     with patch.object(connector_sync_tasks, "_reap_stale_async", AsyncMock(side_effect=reap)):
         assert connector_sync_tasks.reap_stale_connector_syncs.apply().get() == {"requeued": 0}
+
+
+# -- API contract ----------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_sync_run_response_reports_checkpoint_fields(db: SqliteDb) -> None:
+    from app.interfaces.http.connector_sync import _run_response
+
+    tenant = await _tenant(db)
+    run_id = await queue_run(db.factory, tenant)
+    fresh = _run_response(await load_run_row(db.factory, run_id))
+    assert (fresh.checkpoint_at, fresh.pages_committed) == (None, 0)
+
+    await make_engine(scale_adapter(tenant, 1500)).run_sync(
+        db.factory, sync_run_id=run_id, organization_id=tenant.org_id
+    )
+    done = _run_response(await load_run_row(db.factory, run_id))
+    assert done.pages_committed == 2
+    assert done.checkpoint_at is not None and datetime.fromisoformat(done.checkpoint_at)
