@@ -8,6 +8,11 @@ describe("queryKeys (D1 settings factories)", () => {
   it("securityAudit matches the former literal", () => {
     expect(queryKeys.securityAudit).toEqual(["security", "audit"]);
   });
+
+  it("profile and preference keys match the former literals", () => {
+    expect(queryKeys.profileMe).toEqual(["profile", "me"]);
+    expect(queryKeys.settingsPreferences).toEqual(["settings", "preferences"]);
+  });
 });
 
 describe("queryKeys (D1 factories)", () => {

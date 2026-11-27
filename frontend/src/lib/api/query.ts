@@ -407,6 +407,8 @@ export const queryKeys = {
       params ?? {},
     ] as const,
   // anchor: D
+  profileMe: ["profile", "me"] as const,
+  settingsPreferences: ["settings", "preferences"] as const,
   securityAudit: ["security", "audit"] as const,
   adminPermissions: {
     roleMatrix: ["admin", "permissions", "role-matrix"] as const,
