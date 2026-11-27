@@ -243,7 +243,10 @@ async def query_chat_stream(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> StreamingResponse:
     # R05-03: the pipeline with short sessions from SessionLocal (read here, like the
-    # WebSocket), so the stream never holds the request session.
+    # WebSocket), so the stream never holds the request session. That session served
+    # authentication only (reads), and FastAPI closes it after the whole stream: end its
+    # transaction now so it returns its connection to the pool before the stream starts.
+    await db_session.commit()
     return await open_sse_query(
         payload=payload,
         principal=principal,
