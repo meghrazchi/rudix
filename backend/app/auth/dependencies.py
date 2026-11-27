@@ -19,6 +19,7 @@ from app.auth.resource_context_builder import (
     build_document_resource_context,
     get_subject_accessible_collection_ids,
 )
+from app.auth.usage_touch import UsageTouch, UsageTouchKind, record_touches
 from app.core.config import settings
 from app.core.logging import log_authorization_event
 from app.db.session import get_db_session
@@ -101,11 +102,16 @@ async def _authenticate_api_key(
     elif request.client:
         client_ip = request.client.host
 
-    await repo.record_usage(
-        db_session,
-        key_id=api_key.id,
-        used_at=datetime.now(tz=UTC),
-        ip_address=client_ip,
+    # R04-06: buffered in Redis and flushed by ``usage.touch.flush``; no write on this path.
+    await record_touches(
+        [
+            UsageTouch(
+                kind=UsageTouchKind.api_key,
+                credential_id=api_key.id,
+                used_at=datetime.now(tz=UTC),
+                ip_address=client_ip,
+            )
+        ]
     )
 
     scopes = api_key.scopes if isinstance(api_key.scopes, list) else []
@@ -161,17 +167,22 @@ async def _authenticate_service_account_token(
     elif request.client:
         client_ip = request.client.host
 
+    # R04-06: one Redis round trip for the token and its account; no write on this path.
     now = datetime.now(tz=UTC)
-    await repo.record_token_usage(
-        db_session,
-        token_id=token.id,
-        used_at=now,
-        ip_address=client_ip,
-    )
-    await repo.record_account_usage(
-        db_session,
-        account_id=account.id,
-        used_at=now,
+    await record_touches(
+        [
+            UsageTouch(
+                kind=UsageTouchKind.service_account_token,
+                credential_id=token.id,
+                used_at=now,
+                ip_address=client_ip,
+            ),
+            UsageTouch(
+                kind=UsageTouchKind.service_account,
+                credential_id=account.id,
+                used_at=now,
+            ),
+        ]
     )
 
     scopes = account.scopes if isinstance(account.scopes, list) else []

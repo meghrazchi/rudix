@@ -30,6 +30,7 @@ celery_app = Celery(
         "app.workers.evaluation_tasks",
         "app.workers.connector_sync_tasks",
         "app.workers.agent_tasks",
+        "app.workers.usage_touch_tasks",
         "app.workers.safety_eval_tasks",
     ],
 )
@@ -90,6 +91,10 @@ celery_app.conf.update(
             "task": "agents.approvals.expire",
             "schedule": 60,
         },
+        "usage-touch-flush": {
+            "task": "usage.touch.flush",
+            "schedule": settings.usage_touch_flush_interval_seconds,
+        },
         "documents-reap-stale": {
             "task": "documents.reap_stale",
             "schedule": settings.document_reaper_interval_seconds,
@@ -133,6 +138,10 @@ celery_app.conf.update(
             "routing_key": settings.celery_queue_evaluations,
         },
         "agents.approvals.expire": {
+            "queue": settings.celery_task_default_queue,
+            "routing_key": settings.celery_task_default_queue,
+        },
+        "usage.touch.flush": {
             "queue": settings.celery_task_default_queue,
             "routing_key": settings.celery_task_default_queue,
         },
