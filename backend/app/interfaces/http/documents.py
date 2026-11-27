@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.documents import task_outbox
 from app.application.documents.sample_dataset import load_sample_dataset_workflow
 from app.application.documents.workflows import (
     bulk_delete_documents_workflow,
@@ -108,7 +109,6 @@ from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.user import User
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.shared.pagination import encode_cursor, resolve_page_request, split_page
-from app.workers.dispatch import enqueue
 from app.workers.document_tasks import (
     delete_document as delete_document_task,
 )
@@ -1782,17 +1782,26 @@ async def reindex_document_graph_endpoint(
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
     document: Annotated[Document, Depends(require_document_policy_access(Action.manage))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ReindexDocumentGraphResponse:
     del document_id
     request_id = _request_id_from_request(request)
     actor_user_id, actor_organization_id = _principal_user_and_org(principal)
-    await enqueue(
+    # R06-01 part 2: committed outbox row, then immediate publication (relay on failure).
+    await task_outbox.stage(
+        db_session,
         reindex_document_graph_task,
-        str(document.id),
-        request_id=request_id,
-        organization_id=str(actor_organization_id),
-        user_id=str(actor_user_id),
+        task_name="documents.graph_reindex",
+        organization_id=actor_organization_id,
+        kwargs={
+            "document_id": str(document.id),
+            "request_id": request_id,
+            "organization_id": str(actor_organization_id),
+            "user_id": str(actor_user_id),
+        },
     )
+    await db_session.commit()
+    await task_outbox.publish(db_session)
     log_document_event(
         event="document.graph_reindex.requested",
         document_id=str(document.id),
