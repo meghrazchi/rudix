@@ -34,6 +34,9 @@ class StageOutcome:
 class Stage:
     name: StageName
     run: Callable[[StageContext], Awaitable[StageOutcome]]
+    # Called instead of ``run`` when the stage is skipped because this run completed it;
+    # receives the stored metrics (graph_extract restores the document's graph status).
+    on_skip: Callable[[StageContext, dict[str, Any]], Awaitable[None]] | None = None
 
 
 # Producer stage -> stages that read its artifacts. A completed producer whose artifact parts

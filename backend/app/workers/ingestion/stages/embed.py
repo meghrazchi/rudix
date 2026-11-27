@@ -131,9 +131,10 @@ async def _upsert(
         ) from exc
 
 
-def _part(result: Any, rows: list[Any], upsert: Any) -> dict[str, Any]:
+def _part(result: Any, rows: list[Any], upsert: Any, size: int) -> dict[str, Any]:
     cost = getattr(result, "approximate_cost_usd", Decimal("0"))
     return {
+        "batch_chunks": size,
         "chunk_count": len(rows),
         "batch_count": int(result.batch_count),
         "retry_count": int(result.retry_count),
@@ -150,6 +151,23 @@ def _part(result: Any, rows: list[Any], upsert: Any) -> dict[str, Any]:
     }
 
 
+async def _completed_batches(ctx: StageContext, size: int) -> set[int]:
+    """Parts of earlier attempts, discarded when they used another batch size.
+
+    A changed ``INGEST_EMBED_BATCH_CHUNKS`` between deliveries would shift the batch
+    boundaries; the run then embeds every batch again (the upserts replace the same point
+    ids) rather than skip rows or count tokens twice.
+    """
+    done = await ctx.store.artifact_parts(StageName.embed)
+    if not done:
+        return done
+    async for part in ctx.store.iter_artifacts(StageName.embed):
+        if int(part.get("batch_chunks") or 0) != size:
+            await ctx.store.write_artifacts(StageName.embed, {}, replace_stage=True)
+            return set()
+    return done
+
+
 async def run(ctx: StageContext) -> StageOutcome:
     ctx.current_stage = "embed"
     document = await load_document(ctx)
@@ -162,7 +180,7 @@ async def run(ctx: StageContext) -> StageOutcome:
     size = settings.ingest_embed_batch_chunks
     total = int(ctx.metrics[StageName.chunk]["embeddable_count"])
     batches = math.ceil(total / size)
-    done = await ctx.store.artifact_parts(StageName.embed)
+    done = await _completed_batches(ctx, size)
     for batch in range(batches):
         if batch in done:
             continue
@@ -171,7 +189,7 @@ async def run(ctx: StageContext) -> StageOutcome:
         result = await _embed(ctx, rows)
         ctx.current_stage = "index"
         upsert = await _upsert(ctx, document, rows, result.vectors_by_chunk_id, parents)
-        part = _part(result, rows, upsert)
+        part = _part(result, rows, upsert, size)
         del result, rows, parents
         await ctx.store.write_artifacts(StageName.embed, {batch: part}, replace_stage=False)
         await ctx.store.heartbeat(StageName.embed)

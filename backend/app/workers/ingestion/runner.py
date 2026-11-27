@@ -48,6 +48,8 @@ async def run_inline(ctx: StageContext, stages: Sequence[Stage]) -> dict[str, St
         record = records.get(stage.name)
         if record is not None and record.status == COMPLETED:
             if not await _artifacts_missing(ctx, stage.name, records, planned):
+                if stage.on_skip is not None:
+                    await stage.on_skip(ctx, dict(record.metrics))
                 record_ingest_stage(stage.name, "skipped", 0.0)
                 logger.info(
                     "ingestion.stage.skipped",

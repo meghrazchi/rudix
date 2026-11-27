@@ -123,6 +123,10 @@ async def extract_and_store(
 async def _resume_completed(ctx: StageContext, records: dict[str, Any]) -> None:
     for name, record in records.items():
         ctx.metrics[name] = dict(record.metrics)
+    for stage in build_stages(ctx.options):
+        record = records.get(stage.name)
+        if stage.on_skip is not None and record is not None and record.status == COMPLETED:
+            await stage.on_skip(ctx, dict(record.metrics))
     if ctx.options.persist_document_state and ctx.claim_token is not None:
         await refinalize(ctx)
     await after_commit(ctx)

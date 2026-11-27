@@ -643,9 +643,13 @@ When deleting a document:
 5. Preserve audit logs if required.
 6. Mark document as `deleted`.
 
-Stage artifacts of a finished run are deleted by its `finalize` stage; artifacts of an
-interrupted run stay until the next run of the document finalizes or the document is
-deleted. Stage `metrics` hold counts and configuration only, never document text.
+Stage artifacts of a finished run are deleted by its `finalize` stage. A run that fails for
+good (a permanent error such as a DLP quarantine or block, or retries exhausted) has its
+artifacts deleted by the task's terminal-failure hook, so the extracted text of a blocked
+document does not stay in the database. Artifacts of an interrupted run that will be resumed
+(a retry or redelivery of the same task) stay until that run or the next run of the document
+finalizes, or the document is deleted. Stage `metrics` hold counts and configuration only,
+never document text.
 
 ## Reproducible builds and container hardening
 

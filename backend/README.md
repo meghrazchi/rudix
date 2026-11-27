@@ -720,7 +720,13 @@ persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `
   page, split above `INGEST_ARTIFACT_MAX_PART_BYTES`) and one summary part per embed batch
   (token counts and cost; vectors are dropped after the upsert). A missing artifact re-runs
   the stage that produced it. `finalize` deletes the run's artifacts and older runs' rows;
-  document deletion removes both.
+  a terminal task failure (permanent error, for example a DLP block, or retries exhausted)
+  deletes the failed run's artifacts; document deletion removes both.
+- Resume keeps document state that skipped stages wrote: the task body marks the graph
+  status `pending` on every delivery, and a skipped `graph_extract` writes back the status
+  and graph run id it recorded. Embed parts record their batch size; a changed
+  `INGEST_EMBED_BATCH_CHUNKS` between deliveries re-embeds every batch instead of skipping
+  rows.
 - Sessions: every stage opens short sessions; none is open while MinIO, OCR, the
   embedding provider, Qdrant, or Neo4j is called (`tests/test_ingestion_sessions_pg.py`).
 - Evaluation re-ingest (`persist_document_state=False`) runs the same stages with the stage

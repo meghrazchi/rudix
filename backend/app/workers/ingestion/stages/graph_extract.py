@@ -4,18 +4,51 @@ Runs only when document state is persisted (evaluation re-ingest must not replac
 document's production graph facts with evidence pointing at eval chunks). The text chunk
 rows the chunk stage committed are read in a short session; no session is open while the
 extraction provider or Neo4j runs. ``ENTITY_EXTRACTION_STRICT_MODE`` still fails the run.
+
+The task body marks the graph status ``pending`` (clearing the graph run id) on every
+delivery. The stage keeps the graph status and run id it left in its metrics, and
+``on_skip`` writes them back when a redelivery of the same run skips the finished stage.
 """
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 
-from app.models.document import DocumentChunk
+from app.models.document import Document, DocumentChunk
 from app.workers.ingestion.context import StageContext
 from app.workers.ingestion.documents import index_version, load_document
 from app.workers.ingestion.stages.base import StageOutcome
+
+
+async def _graph_state(ctx: StageContext) -> tuple[str | None, str | None]:
+    async with ctx.deps.SessionLocal() as session:
+        row = (
+            await session.execute(
+                select(Document.graph_extraction_status, Document.graph_extraction_run_id).where(
+                    Document.id == ctx.document_id
+                )
+            )
+        ).first()
+    if row is None:
+        return None, None
+    status, run_id = row
+    return (str(status) if status is not None else None), (
+        str(run_id) if run_id is not None else None
+    )
+
+
+async def on_skip(ctx: StageContext, metrics: dict[str, Any]) -> None:
+    """Restore the graph status this run reached (the task body reset it to pending)."""
+    status = metrics.get("graph_status")
+    if not status:
+        return
+    run_id = metrics.get("graph_run_id")
+    await ctx.deps.update_document_graph_status_async(
+        ctx.document_id, status=str(status), run_id=UUID(str(run_id)) if run_id else None
+    )
 
 
 async def run(ctx: StageContext) -> StageOutcome:
@@ -52,9 +85,12 @@ async def run(ctx: StageContext) -> StageOutcome:
         pipeline_recorder=ctx.recorder,
         clear_existing_facts=True,
     )
+    graph_status, graph_run_id = await _graph_state(ctx)
     return StageOutcome(
         metrics={
             "entity_count": int(result.get("entity_count", 0)),
             "relation_count": int(result.get("relation_count", 0)),
+            "graph_status": graph_status,
+            "graph_run_id": graph_run_id,
         }
     )

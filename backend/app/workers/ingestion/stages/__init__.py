@@ -51,7 +51,10 @@ def build_stages(options: IngestionOptions) -> list[Stage]:
         for name in STAGE_ORDER
         if name != StageName.graph_extract or options.persist_document_state
     ]
-    return [Stage(name=name, run=_MODULES[name].run) for name in names]
+    return [
+        Stage(name=name, run=_MODULES[name].run, on_skip=getattr(_MODULES[name], "on_skip", None))
+        for name in names
+    ]
 
 
 __all__ = ["STAGE_ORDER", "Stage", "StageName", "StageOutcome", "build_stages"]

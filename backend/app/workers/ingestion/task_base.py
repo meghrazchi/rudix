@@ -7,15 +7,43 @@ from the facade at call time so tests that rebind them on ``document_tasks`` sti
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from app.core.document_errors import details_from_exception, encode_document_error
+from app.core.logging import get_logger
 from app.domains.documents.repositories.processing_claims import (
     TERMINAL_FAILURE_PROTECTED_STATUSES,
 )
 from app.models.enums import DocumentStatus
 from app.workers.base_task import RudixTask
-from app.workers.ingestion.deps import current_deps
+from app.workers.ingestion.deps import IngestionDeps, current_deps
+from app.workers.ingestion.store import discard_run_artifacts
 from app.workers.status_tracking import FailureMarkOutcome
+
+logger = get_logger("worker.ingestion")
+
+
+def _discard_failed_run_artifacts(deps: IngestionDeps, document_id: str, run_id: Any) -> None:
+    """Drop the stage artifacts of a run that will not be resumed (R06-01).
+
+    A terminal failure acks the message, so nothing redelivers this run id; its extracted
+    and cleaned pages (for a DLP block, the flagged text) must not stay in the database.
+    """
+    if not isinstance(run_id, str) or not run_id:
+        return
+    try:
+        document_uuid = UUID(document_id)
+    except ValueError:
+        return
+    try:
+        deps.run(discard_run_artifacts(deps.SessionLocal, document_id=document_uuid, run_id=run_id))
+    except Exception as exc:
+        logger.warning(
+            "ingestion.failed_run_artifact_cleanup_error",
+            document_id=document_id,
+            run_id=run_id,
+            error_type=type(exc).__name__,
+        )
 
 
 class DocumentTask(RudixTask):
@@ -80,6 +108,7 @@ class DocumentTask(RudixTask):
             document_id = args[0]
         if not isinstance(document_id, str):
             return
+        _discard_failed_run_artifacts(deps, document_id, getattr(self.request, "id", None))
         try:
             error_details = details_from_exception(exc)
             owner_task_id = getattr(self.request, "id", None)

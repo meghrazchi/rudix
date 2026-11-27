@@ -326,6 +326,21 @@ class DbStageStore:
                 )
 
 
+async def discard_run_artifacts(
+    session_factory: Callable[[], AsyncSession], *, document_id: UUID, run_id: str
+) -> None:
+    """Delete one run's artifacts (copies of document text) after the run failed for good.
+
+    Stage rows stay (counts and error codes only) until the next completed run or the
+    document's deletion removes them.
+    """
+    artifact = DocumentStageArtifact
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            delete(artifact).where(artifact.document_id == document_id, artifact.run_id == run_id)
+        )
+
+
 class MemoryStageStore:
     """Same contract without database rows (evaluation re-ingest)."""
 
