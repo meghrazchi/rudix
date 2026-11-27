@@ -25,6 +25,7 @@ from app.auth.usage_touch import UsageTouch, UsageTouchKind
 from app.clients import redis_client as redis_module
 from app.core.config import settings
 from app.db.session import get_db_session
+from app.domains.api_keys.repositories.api_keys import ApiKeysRepository
 from app.domains.api_keys.services.api_keys_service import ApiKeysService
 from app.domains.service_accounts.services.service_accounts_service import (
     ServiceAccountsService,
@@ -388,3 +389,10 @@ def test_keys_use_environment_hash_tag() -> None:
     prefix = usage_touch.key_prefix()
     assert prefix == f"rudix:{{{settings.environment.value}}}:usage_touch:"
     assert usage_touch.dirty_key() == f"{prefix}dirty"
+
+
+async def test_apply_with_no_touches_issues_no_statement(
+    db_session: AsyncSession, statements: list[str]
+) -> None:
+    await ApiKeysRepository().apply_usage_touches(db_session, touches=[])
+    assert statements == []
