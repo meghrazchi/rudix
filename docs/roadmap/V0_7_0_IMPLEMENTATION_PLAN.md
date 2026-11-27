@@ -84,20 +84,23 @@ rewrites a shared file whole or reformats it, and re-reads after a failed `Edit`
 |---|---|
 | `src/app/layout.tsx` | S1 deletes it. |
 | `src/app/[locale]/layout.tsx`, `src/app/(app)/layout.tsx` | S1 only. |
-| `src/components/layout/RootDocument.tsx` (S1 creates: `<html>`, `<body>`, fonts, providers) | A2 only, at `{/* anchor: A2 head */}` (the Material Symbols link) and `{/* anchor: A2 body */}` (Web Vitals reporter). |
+| `src/components/layout/RootDocument.tsx` (S1 creates: `<html>`, `<body>`, fonts, providers) | A2 only, at `{/* anchor: A2 head */}` (the Material Symbols link) and `{/* anchor: A2 body */}` (Web Vitals reporter; S1 places it inside `ConsentProvider`, next to `CookieConsentBanner`). |
 | `src/app/global-error.tsx`, segment `error.tsx` and `loading.tsx` | S1 moves `app/error.tsx` to `[locale]/error.tsx` and `(app)/error.tsx` unchanged; A2 owns them afterwards. |
 | `src/i18n/namespaces.ts` (S1 creates `PUBLIC_NAMESPACES`, `APP_NAMESPACES`) | A package that adds a top-level namespace adds it here in the same commit (D2 only, expected). |
 | `src/i18n/messages/*.json` (all six, always together) | New keys only, never reordered: A2 last keys of `errors` (`routeBoundary`); B1 last keys of `auth`; C2 last keys of `common` (`pagination`); C3 last keys of `appShell` (`realtime`); D2 inside the namespaces of the files it translates and new top-level namespaces inserted directly after `languageSwitcher`. D1 adds none. |
 | `src/lib/api/query.ts` (`queryKeys`) | S1 adds `// anchor: C` as the first line inside `queryKeys` and `// anchor: D` as its last line. C2 and C3 add groups after `// anchor: C`; D1 after `// anchor: D`. New factory entries return the same arrays as the literals they replace. |
 | `src/lib/api/*.ts` | C1 owns all except `request.ts`, `session.ts`, `auth.ts` (B1) and the new `web-vitals.ts` (A2). After C1: C2 edits list functions in `documents.ts`, `collections.ts`, `team.ts`, `verified-answers.ts`; C3 adds `events.ts`. |
 | `src/lib/api/request.ts`, `auth-session.ts`, `auth-refresh-coordinator.ts`, `use-auth-session.ts`, `src/proxy.ts`, `src/lib/app-route-paths.ts`, `ProtectedAppLayout.tsx`, `src/test/render.tsx` | B1 only. |
-| `src/components/layout/AppShell.tsx` | C3 only (one `<RealtimeBridge />` line). Nobody splits it in `0.7.0`. |
+| `src/components/layout/AppShell.tsx` | C3 only (wraps its children in `RealtimeProvider`). Nobody splits it in `0.7.0`. |
+| `components/chat/SourceScopeSelector.tsx`, `ScopeControls.tsx`, `ScopeConnectorSection.tsx`, `chat/hooks/useChatSourceQueries.ts`, `chat/hooks/useCitationPanel.ts` | C2 only; D2 leaves them out of its translation and lint scope. |
+| A1's lazy modules (`DocumentPreviewModal`, `TrustPanelModal`, the seven chart files, `RagPipelinePage.tsx`, the settings tab container) | A1 only. |
+| Files D1 splits | D1 only; their module paths and export names stay, because A1 lazy-loads the settings tabs by path. |
 | `frontend/openapi.json`, `src/lib/api/generated/schema.d.ts` | Regenerated with `npm run api:update-schema` by A2, C1, C2, C3 after an API change. On conflict regenerate on the merged tree; never hand-merge or hand-edit. |
 | `next.config.ts` | S1 (`experimental.globalNotFound` only if the build requires it); A1 adds `experimental.optimizePackageImports`; A2 adds top-level `images` after `distDir`. |
-| `package.json`, `package-lock.json` | A1 removes dependencies (lockfile via `npm uninstall`); C1 adds the script `api:check-handwritten` after `api:check`. No other package changes dependencies. |
+| `package.json`, `package-lock.json` | A1 removes dependencies (lockfile via `npm uninstall`); C1 adds the script `api:check-handwritten` after `api:check`; A2 adds `icons:check` after `format:write`. No other package changes dependencies. |
 | `vitest.config.ts` | B1 adds `.next-e2e-gate/**` after `.next-e2e-ws/**` in `exclude`. Thresholds are never lowered; the release integrator raises them. |
 | `eslint.config.mjs` | B1 adds `.next-e2e-gate/**` after `.next-e2e-main/**`; D2 appends one config object at the end of the array. |
-| `playwright.config.ts` | A2 adds `NEXT_PUBLIC_E2E_ERROR_PROBE: "true"` to the `env` of `devServer()`; B1 appends project `chromium-route-gate` after `chromium-chat-ws` and a third `webServer` entry; D2 inserts its `firefox` and `webkit` projects at the start of `projects`. |
+| `playwright.config.ts` | A2 adds `NEXT_PUBLIC_E2E_ERROR_PROBE: "true"` to the `env` of `devServer()`; B1 appends project `chromium-route-gate` after `chromium-chat-ws` and a third `webServer` entry; D2 inserts its `firefox` and `webkit` projects at the start of `projects`. C3 does not edit it. |
 | `config/security-headers.mjs` and test | A2 only. `config/build-env-validation.mjs`: A2 (refuse `NEXT_PUBLIC_E2E_ERROR_PROBE` in staging/production). |
 | `.github/workflows/ci.yml` (frontend job) | S1 adds step "Check prerendered public routes" after "Build frontend"; A1 adds "Check bundle budgets" after it; C1 adds "Check hand-written API types" after "Verify generated API types". `playwright.yml`: D2 only. |
 | `backend/app/api/router.py` | A2 after `api_router.include_router(public_status.router)`; C3 after `protected_router.include_router(org_memory.router)`. |
@@ -136,8 +139,8 @@ rewrites a shared file whole or reformats it, and re-reads after a failed `Edit`
    is recorded with the pre-S1 code (`PUBLIC_PARITY_UPDATE=1`): per public path and locale the
    `<title>`, meta description, robots, canonical, hreflang alternates, Open Graph and Twitter
    tags, JSON-LD, `<html lang dir>`, a hash of the visible text of `<main>`, and a hash of the
-   tag and class sequence of `<main>`. It is never re-recorded in `0.7.0` except by A2 for the
-   icon change (class sequence only, the diff listed in the merge request).
+   tag and class sequence of `<main>`. It is never re-recorded in `0.7.0`; a package whose
+   change alters it has changed the public pages and must be reworked.
 5. **Session API (B1).** Signatures unchanged: `getSessionRequestContext()`,
    `refreshAccessToken()`, `useAuthSession()`, `getSessionSnapshot()`, `persistSession()`,
    `clearSession()`. C3 reads the token only through `getSessionRequestContext()` and retries a
@@ -187,8 +190,8 @@ it fails loudly if the stats file is missing).
 
 Self-hosted Material Symbols subset (4.2.8) loaded with `@font-face` and `font-display: block`
 from `globals.css`; CSP without Google Fonts; brand mark re-encoded at twice its largest
-rendered size with the same path and `viewBox`; 32 px `favicon.ico` and 180 px
-`apple-icon.png`; `images.formats` `["image/avif", "image/webp"]`. `global-error.tsx` with a
+rendered size with the same path and `viewBox`; `app/icon.svg` and `app/favicon.svg`
+re-encoded small under the same paths, so the `<head>` icon tags do not change; `images.formats` `["image/avif", "image/webp"]`. `global-error.tsx` with a
 six-locale string table; translated `error.tsx` and `loading.tsx` (`SkeletonBlock`) for chat,
 documents, collections, admin, settings, reports, plus `[locale]/error.tsx`. Web Vitals:
 `useReportWebVitals` behind `NEXT_PUBLIC_WEB_VITALS_ENABLED` (default `false`) and analytics
@@ -204,6 +207,8 @@ read once and removed after a successful refresh (`AUTH_LEGACY_SESSION_READ`, ke
 lease, dev-only `sessionStorage` for the local fallback. Backend `rudix_session_hint` cookie
 with the refresh cookie (`APP_AUTH_SESSION_HINT_COOKIE_ENABLED`, default `false`). Proxy gate
 `RUDIX_ROUTE_GATE=off|enforce` (default `off`). Playwright project `chromium-route-gate`.
+CSRF: both cookies stay `HttpOnly` and `SameSite=Lax` by default; when
+`APP_AUTH_COOKIE_SAME_SITE=none`, refresh and logout reject an `Origin` outside `CORS_ORIGINS`.
 
 ### R07-05 — Generated API types (C1)
 
@@ -237,7 +242,8 @@ Behaviour-preserving splits of `ConnectorSetupPage`, `AdminPermissionsPage`,
 ### R07-12 — Translations and checks (D2)
 
 Translate the trust panel sections, chat modals and shared pages, evaluations components, and
-`components/states`, plus the three dataset-builder lists (R07-06 for that file). A
+`components/states`, plus the three dataset-builder lists (R07-06 for that file), leaving out
+the chat scope files C2 owns and A1's lazy modules. A
 `no-restricted-syntax` rule for literal JSX text and literal `aria-label`, `title`,
 `placeholder`, `alt` values, as an error in the translated directories. Opt-in Firefox and
 WebKit Playwright projects for the public, smoke, and responsive specs.
@@ -302,3 +308,5 @@ at least 233 plus the new tests. The prerender check lists every path of
 
 - 2026-11-27: Initial version, written after checking the `0.7.0` spec against the code at
   `b72e4a70`.
+- 2026-11-27: Anchor fixes: chat scope files and lazy modules owned by one package each,
+  `icons:check` placement, icon metadata unchanged, no parity re-record, CSRF note for B1.
