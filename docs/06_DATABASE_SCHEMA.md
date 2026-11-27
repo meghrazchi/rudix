@@ -576,6 +576,41 @@ session by ID) under `SET LOCAL enable_seqscan = off` and fails on a `Seq Scan` 
 target table. The test tables are empty, so this shows each index is usable for the query
 shape, not that the planner picks it on production data.
 
+## Row-level security
+
+PostgreSQL row-level security is defense in depth under the application's own
+`organization_id` filters (`R04-08`). Migration `20261127_0004` puts one policy,
+`tenant_isolation_policy`, on every table with an `organization_id` column (90 tables). The
+lists live in `backend/app/db/rls.py`; `tests/test_rls_coverage.py` fails when a new tenant
+table is in neither list or when the migration's literal copy differs.
+
+| List | Tables | Unset tenant (`app.current_organization_id` empty) | Bound tenant |
+|---|---|---|---|
+| `RLS_STRICT_TABLES` | 72, everything not listed below | all rows, unless `app.rls_mode = 'strict'`: then no rows and no writes | own rows only |
+| `RLS_LOOKUP_TABLES` | 18: `users`, `organization_members`, `auth_refresh_sessions`, `api_keys`, `service_accounts`, `service_account_tokens`, `organization_invitations`, `chat_shares`, `answer_shares`, `agent_trace_share_tokens`, `org_sso_configs`, `org_domain_verifications`, `org_scim_configs`, `bot_installations`, `bot_user_mappings`, `connector_oauth_states`, `incidents`, `incident_notes` | all rows (needed before the tenant is known: credential and token lookups, SSO/SCIM discovery, OAuth state, bot inbound, public status) | own rows only |
+
+Both conditions apply to `USING` and `WITH CHECK`, so a bound tenant cannot insert or move
+a row into another organization. The two settings are transaction-local
+(`set_config(..., true)`); the application sets them in one statement per transaction
+(marked `/* rudix:session-context */`). See `docs/22_AUTHORIZATION_SYSTEM.md` section 11
+for the modes and the roles.
+
+Notes:
+
+- Policies do not apply to the table owner, to superusers, or to roles with `BYPASSRLS`.
+  `FORCE ROW LEVEL SECURITY` is not used before `0.5.0`, so isolation takes effect only
+  when the application connects as the non-owner `rudix_app` role
+  (`deploy/sql/provision_roles.sql`).
+- `chat_messages`, `citations`, `document_chunks`, and `document_pages` have no
+  `organization_id` and are not covered; they are reached through covered parent rows.
+- The policy keeps index use: under the policy the document list still uses
+  `idx_documents_org_created` (`tests/test_rls_enforcement_pg.py`).
+- Migration safety: `ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` take a brief ACCESS
+  EXCLUSIVE lock per table and rewrite nothing. The migration sets `lock_timeout = '5s'`
+  and fails instead of queueing behind long transactions; run it at low traffic and rerun
+  on a lock timeout. Downgrade to `20261127_0003` restores the 12-table policy of
+  `20260715_0001` and disables RLS on the other tables.
+
 ## Qdrant payload schema
 
 Qdrant payload should duplicate important metadata for fast filtering.

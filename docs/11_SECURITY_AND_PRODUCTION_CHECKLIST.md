@@ -152,6 +152,13 @@ Collaboration bot operations must also enforce:
 - The cite filter fails closed: chunks whose document cannot be found in the organization are
   dropped. WebSocket quota refusals send only `quota_type`, `retryable`, and `next_reset_at`, and
   are counted in `rudix_chat_quota_denied_total{transport}`.
+- PostgreSQL row-level security (`R04-08`) backs the application filters on all 90 tables
+  with `organization_id`. `RLS_ENFORCEMENT` is `off`, `soft` (default in staging and
+  production), or `strict` (never the default in `0.4.0`). It only takes effect when the
+  API connects as the non-owner, non-`BYPASSRLS` role `rudix_app`
+  (`deploy/sql/provision_roles.sql`); cross-tenant beat tasks use `maintenance_session()`
+  and `DATABASE_MAINTENANCE_URL`. Watch `rudix_rls_soft_denials_total` before switching to
+  `strict`. Details: `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
 
 ## Agent tool security
 
@@ -535,7 +542,13 @@ When deleting a document:
 - [ ] Indexes created.
 - [ ] Foreign keys enforced.
 - [ ] Backups configured.
-- [ ] Connection pooling configured.
+- [ ] Connection pooling configured (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT`;
+      `DB_PGBOUNCER_MODE=true` behind PgBouncer transaction pooling).
+- [ ] `DB_STATEMENT_TIMEOUT_MS` and `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` set for the API.
+- [ ] `deploy/sql/provision_roles.sql` applied; `DATABASE_URL` uses `rudix_app`,
+      `DATABASE_MIGRATION_URL` the owner, `DATABASE_MAINTENANCE_URL` `rudix_maintenance`.
+- [ ] `RLS_ENFORCEMENT=soft` and `rudix_rls_soft_denials_total` reviewed for a week before
+      `strict`.
 
 ### Workers
 
