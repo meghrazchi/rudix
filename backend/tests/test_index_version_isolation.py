@@ -66,16 +66,11 @@ pytestmark = [pytest.mark.isolation, pytest.mark.both_dialects]
 EVAL_VERSION = "eval-abc1234567-1"
 CHAT_PY = Path(__file__).resolve().parents[1] / "app" / "interfaces" / "http" / "chat.py"
 # R05-01 (S3): the legacy HTTP and WebSocket bodies of chat.py are gone; both transports run
-# the pipeline's retrieve stage, which holds the one parallel retrieval call.
+# the pipeline's retrieve stage, which holds the one parallel retrieval call. Every module of
+# the chat application layer is scanned, so a call added in another stage is checked too.
 CHAT_RETRIEVAL_SOURCES = (
     CHAT_PY,
-    Path(__file__).resolve().parents[1]
-    / "app"
-    / "application"
-    / "chat"
-    / "pipeline"
-    / "stages"
-    / "retrieve.py",
+    *sorted((Path(__file__).resolve().parents[1] / "app" / "application" / "chat").rglob("*.py")),
 )
 
 # ---------------------------------------------------------------------------

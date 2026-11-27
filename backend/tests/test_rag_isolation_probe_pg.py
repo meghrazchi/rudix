@@ -212,6 +212,8 @@ async def test_probe_grounded_answer_cites_only_own_chunk(
     )
     answer = (
         '{"answer":"HR policy content.","not_found":false,"citations":['
+        f'{{"document_id":"{seed["own_doc"]}","chunk_id":"{seed["own_chunk"]}",'
+        '"filename":"hr.pdf","page_number":1,"text_snippet":"HR policy content."},'
         f'{{"document_id":"{seed["foreign_doc"]}","chunk_id":"{seed["foreign_chunk"]}",'
         '"filename":"secret.pdf","page_number":1,"text_snippet":"secret"}]}'
     )
@@ -228,9 +230,12 @@ async def test_probe_grounded_answer_cites_only_own_chunk(
     payload = response.json()
     cited = {citation["chunk_id"] for citation in payload["citations"]}
     assert str(seed["foreign_chunk"]) not in cited
-    assert cited <= {str(seed["own_chunk"])}
+    # The own chunk is cited: under strict the bound request reads its own rows, so the
+    # empty result is not just RLS hiding everything.
+    assert cited == {str(seed["own_chunk"])}
     assert FOREIGN_TEXT not in response.text
     prompts = " ".join(str(call) for call in fake_openai.chat.completions.calls)
+    assert "HR policy content." in prompts
     assert FOREIGN_TEXT not in prompts, "a foreign chunk must never reach the prompt"
     await _assert_probe_sees_only(rls_probe_session, seed["own_org"])
     await _assert_owner_rows_belong_to(rls_probe_session, seed["own_org"])  # type: ignore[arg-type]
