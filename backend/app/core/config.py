@@ -693,6 +693,8 @@ class Settings(BaseSettings):
     # WARNING: neo4j_password is sensitive — never log or return it in API responses.
     enterprise_graph_enabled: bool = False
     neo4j_uri: str | None = Field(default=None, max_length=255)
+    # None = run graph migrations at API startup in development/test only.
+    graph_migrations_on_startup: bool | None = None
     neo4j_username: str | None = Field(default=None, max_length=128)
     neo4j_password: SecretStr | None = None
     neo4j_database: str = Field(default="neo4j", min_length=1, max_length=128)
@@ -1366,6 +1368,12 @@ class Settings(BaseSettings):
             self.feature_expose_config_snapshot = True
 
         return self
+
+    @property
+    def should_run_graph_migrations_on_startup(self) -> bool:
+        if self.graph_migrations_on_startup is not None:
+            return self.graph_migrations_on_startup
+        return self.environment in {Environment.development, Environment.test}
 
     @property
     def is_production(self) -> bool:
