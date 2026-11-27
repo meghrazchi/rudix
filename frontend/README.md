@@ -305,6 +305,28 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   `robots.txt`, `llms.txt` and `icon.svg` are byte-identical; `sitemap.xml` is identical
   except `<lastmod>` (the build time).
 
+### Component size (R07-10 part 2)
+
+Large components are split behaviour-preservingly: the original module path keeps
+its exports, and the extracted pieces live in sibling folders (each file under 500
+lines). Query keys moved into `queryKeys` in `src/lib/api/query.ts` (after
+`// anchor: D`) and return the same arrays as the former literals.
+
+Split so far:
+
+- `components/connectors/ConnectorSetupPage.tsx` -> `components/connectors/setup/`
+  (config helpers, wizard steps, scope-risk analysis, permission review step, and
+  one setup guide per provider).
+- `components/admin/AdminPermissionsPage.tsx` -> `components/admin/permissions/`
+  (role matrix, resource access, conflicts, conflict drawer, access debugger tabs).
+
+Still over 500 lines (not yet split): `OrganizationSettingsTab.tsx`,
+`SecuritySettingsTab.tsx`, `BillingSettingsTab.tsx`, `UserProfilePage.tsx`,
+`AdminFeedbackReviewPage.tsx`, `AdminTeamPage.tsx`, `AdminMCPPage.tsx`,
+`AdminAuditLogsPage.tsx`, `AdminServiceAccountsPage.tsx`,
+`AdminAIResponsePolicyPage.tsx`. These hold one large component with shared form
+state and need hook extraction before the JSX can move.
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)
