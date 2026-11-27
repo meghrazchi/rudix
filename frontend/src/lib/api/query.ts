@@ -407,6 +407,28 @@ export const queryKeys = {
       params ?? {},
     ] as const,
   // anchor: D
+  adminTeam: {
+    all: ["admin", "team"] as const,
+    members: (
+      pageSize: number,
+      offset: number,
+      search: string,
+      role: string,
+      status: string,
+    ) =>
+      [
+        "admin",
+        "team",
+        "members",
+        pageSize,
+        offset,
+        search,
+        role,
+        status,
+      ] as const,
+    membersAll: ["admin", "team", "members"] as const,
+    invitations: ["admin", "team", "invitations"] as const,
+  },
   evaluationSetsList: ["evaluation-sets-list"] as const,
   profileMe: ["profile", "me"] as const,
   settingsPreferences: ["settings", "preferences"] as const,

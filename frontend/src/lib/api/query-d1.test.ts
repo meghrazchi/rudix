@@ -9,6 +9,23 @@ describe("queryKeys (D1 settings factories)", () => {
     expect(queryKeys.securityAudit).toEqual(["security", "audit"]);
   });
 
+  it("adminTeam keys match the former literals", () => {
+    const k = queryKeys.adminTeam;
+    expect(k.all).toEqual(["admin", "team"]);
+    expect(k.membersAll).toEqual(["admin", "team", "members"]);
+    expect(k.invitations).toEqual(["admin", "team", "invitations"]);
+    expect(k.members(20, 40, "ann", "admin", "active")).toEqual([
+      "admin",
+      "team",
+      "members",
+      20,
+      40,
+      "ann",
+      "admin",
+      "active",
+    ]);
+  });
+
   it("evaluationSetsList matches the former literal", () => {
     expect(queryKeys.evaluationSetsList).toEqual(["evaluation-sets-list"]);
   });
