@@ -170,6 +170,7 @@ async def test_permission_for_unknown_role_is_counted_unresolved(
 
     await db_session.run_sync(collect)
     assert cache_invalidation.CACHE_UNRESOLVED._value.get() == before + 1
+    assert cache_invalidation._custom_role_org(sync_session, None) is None
     assert db_session.info[PENDING_INFO_KEY]["org"] == set()
     await db_session.rollback()
 

@@ -530,3 +530,62 @@ def test_snapshot_helpers_handle_missing_and_foreign_state() -> None:
     store_request_snapshot(request, snapshot)
     assert request_snapshot(request, user_id=str(user_id)) is snapshot
     assert request_snapshot(request, user_id=str(uuid4())) is None
+
+
+def _provider_request(token: str) -> Request:
+    return Request({"type": "http", "headers": [(b"authorization", f"Bearer {token}".encode())]})
+
+
+async def test_provider_rejections_from_cached_snapshot(
+    ctx: Ctx, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Inactive, foreign-session, and membership-less principals fail on cold and warm reads."""
+    from app.auth.errors import AuthenticationError, AuthorizationError
+    from app.auth.providers.app_provider import AppAuthProvider
+
+    s = await _seed(ctx.db)
+    provider = AppAuthProvider()
+
+    # A token for the owner that carries the user's session id: owner mismatch.
+    foreign = _access_token(s.owner, s.session_id, s.org_a)
+    for _ in range(2):
+        with pytest.raises(AuthenticationError, match="does not belong"):
+            await provider.authenticate(_provider_request(foreign), ctx.db)
+
+    loner = User(
+        organization_id=s.org_b.id,
+        external_auth_id=f"loner-{uuid4().hex[:8]}",
+        email=f"loner-{uuid4().hex[:8]}@example.com",
+        display_name="Loner",
+    )
+    ctx.db.add(loner)
+    await ctx.db.commit()
+    loner_token = _access_token(loner, uuid4(), s.org_a)  # no session row stored
+    for _ in range(2):
+        with pytest.raises(AuthorizationError, match="No organization membership"):
+            await provider.authenticate(_provider_request(loner_token), ctx.db)
+
+    s.user.is_active = False
+    await ctx.db.commit()
+    for _ in range(2):
+        with pytest.raises(AuthenticationError, match="deprovisioned"):
+            await provider.authenticate(_provider_request(s.token), ctx.db)
+
+
+async def test_cached_permission_set_includes_custom_role_base_role(ctx: Ctx) -> None:
+    from app.auth.permission_service import PermissionService
+    from app.models.permissions import ROLE_PERMISSIONS
+
+    s = await _seed(ctx.db)
+    role = await _assign_custom_role(ctx.db, s, [_CUSTOM_PERMISSION])
+    role.base_role = "admin"
+    await ctx.db.commit()
+    service = PermissionService()
+    expected = ROLE_PERMISSIONS["admin"] | {_CUSTOM_PERMISSION}
+    for _ in range(2):  # cold, then warm
+        cached = await service.get_user_permissions(
+            ctx.db, roles=[], custom_role_id=role.id, organization_id=s.org_a.id
+        )
+        assert cached == expected
+    uncached = await service.get_user_permissions(ctx.db, roles=[], custom_role_id=role.id)
+    assert uncached == expected
