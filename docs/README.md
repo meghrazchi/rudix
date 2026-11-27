@@ -35,12 +35,14 @@ This repository keeps `README.md` at the root and all other documentation under 
 ## Roadmap Specs (planned work)
 
 - [roadmap/00_AUDIT_BASELINE.md](./roadmap/00_AUDIT_BASELINE.md) — Feature catalogue and audit findings at `0.1.0`
+- [roadmap/01_EXECUTION_PLAN.md](./roadmap/01_EXECUTION_PLAN.md) — How the roadmap is run: roles, branch and merge process, status, and what blocks each version
 - [roadmap/V0_2_0_CORRECTNESS_AND_SAFETY.md](./roadmap/V0_2_0_CORRECTNESS_AND_SAFETY.md)
 - [roadmap/V0_2_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_2_0_IMPLEMENTATION_PLAN.md) — File-level steps, merge order, and tests for `0.2.0`
 - [roadmap/V0_3_0_TEST_AND_RELEASE_FOUNDATION.md](./roadmap/V0_3_0_TEST_AND_RELEASE_FOUNDATION.md)
 - [roadmap/V0_3_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_3_0_IMPLEMENTATION_PLAN.md) — File-level steps, shared-file owners, and contracts for `0.3.0`
 - [roadmap/V0_3_0_LOAD_BASELINE.md](./roadmap/V0_3_0_LOAD_BASELINE.md) — Load-test baseline template for `0.3.0` (not yet measured)
 - [roadmap/V0_4_0_DATA_LAYER_PERFORMANCE.md](./roadmap/V0_4_0_DATA_LAYER_PERFORMANCE.md)
+- [roadmap/V0_4_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_4_0_IMPLEMENTATION_PLAN.md) — File-level steps, migration chain, shared-file owners, and contracts for `0.4.0`
 - [roadmap/V0_5_0_CHAT_PIPELINE_AND_STREAMING.md](./roadmap/V0_5_0_CHAT_PIPELINE_AND_STREAMING.md)
 - [roadmap/V0_6_0_INGESTION_AND_WORKERS.md](./roadmap/V0_6_0_INGESTION_AND_WORKERS.md)
 - [roadmap/V0_7_0_FRONTEND_PERFORMANCE.md](./roadmap/V0_7_0_FRONTEND_PERFORMANCE.md)

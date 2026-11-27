@@ -6,6 +6,7 @@ All notable changes to Rudix, the product and its documentation, are recorded he
 
 ### Added
 
+- `docs/roadmap/01_EXECUTION_PLAN.md`: how the roadmap from `0.4.0` to `1.0.0` is executed, with roles, the branch-per-package process, current status, and blockers per version.
 - Production retrieval filters on active index versions (`DOCUMENT_ACTIVE_INDEX_VERSIONS`), evaluation re-ingest cleans up its `eval-` chunks and vectors, and `scripts/purge_eval_index_versions.py` purges legacy ones; pre-deploy check in docs/12 (R02-05).
 - Integration e2e: deterministic OpenAI-compatible stub `ci/stubs/llm_stub.py` (contract test `tests/test_llm_stub_contract.py`), overlay `deploy/compose/docker-compose.integration-stub.yml` (`llm-stub`, `MALWARE_SCAN_ENABLED=false`), Playwright critical path `frontend/e2e-integration/critical-path.spec.ts` (`npm run test:e2e:integration`, skipped unless `RUDIX_E2E_INTEGRATION=1`), and reusable workflow `.github/workflows/e2e-integration.yml` (R03-04).
 - Security headers: frontend `headers()` with report-only CSP, HSTS in staging/production, and `NEXT_PUBLIC_CSP_REPORT_URI`; backend `SecurityHeadersMiddleware` (R02-09).
@@ -15,6 +16,7 @@ All notable changes to Rudix, the product and its documentation, are recorded he
 - `docs/26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md` and `docs/roadmap/`: planned release train from `0.1.0` to `1.0.0`, the `0.1.0` feature catalogue and audit baseline, and one implementation spec per version.
 - `docs/roadmap/V0_2_0_IMPLEMENTATION_PLAN.md`: file-level implementation plan for `0.2.0`, with corrections to the `0.2.0` spec found by checking it against the code.
 - `docs/roadmap/V0_3_0_IMPLEMENTATION_PLAN.md`: file-level implementation plan for `0.3.0`, with spec corrections, shared-file owners and anchors, and cross-task contracts.
+- `docs/roadmap/V0_4_0_IMPLEMENTATION_PLAN.md`: file-level implementation plan for `0.4.0`, with spec corrections, one linear migration chain, shared-file owners and anchors, cross-chain contracts, and deferred items.
 - `backend/README.md` and `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`: documented the PostgreSQL test lane (`TEST_DATABASE_URL`, `make test-postgres`, `requires_postgres`/`requires_redis` markers) run in the `backend-alembic` CI job (R02-15).
 - `backend/README.md` and `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`: the PostgreSQL test lane now runs in its own always-reporting workflow `backend-postgres.yml` (check `Backend PostgreSQL tests`); the `pg_migrated_url` fixture applies `alembic upgrade head` itself; the `both_dialects` marker runs `db_session` suites on SQLite and PostgreSQL, with seven isolation/quota/claim suites ported and a new PostgreSQL full-text search test; `backend-alembic` keeps only the migration round trip (R03-01).
 - `docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md` for planned Prometheus and Grafana metrics, exporters, dashboards, security guardrails, and phased rollout.
