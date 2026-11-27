@@ -22,7 +22,7 @@ from app.db.session import (
     dispose_engine,
     maintenance_session,
 )
-from app.db.tenant_context import RLS_MAINTENANCE_INFO_KEY
+from app.db.tenant_context import RLS_MAINTENANCE_INFO_KEY, SESSION_CONTEXT_MARKER
 
 
 def _config(**updates: Any) -> Settings:
@@ -118,6 +118,26 @@ def test_settings_reject_invalid_pool_size(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("DB_POOL_SIZE", "0")
     with pytest.raises(ValueError):
         Settings()
+
+
+async def test_query_counter_ignores_session_context_statement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "metrics_enabled", True)
+    monkeypatch.setattr(settings, "metrics_db_query_counting_enabled", True)
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'count.db'}")
+    db_metrics.install_query_counter(engine)
+    scope = db_metrics.begin_request_query_count()
+    assert scope is not None
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text(f"{SESSION_CONTEXT_MARKER} SELECT 1"))
+            await conn.execute(text("SELECT 2"))
+        assert scope.counter.count == 1
+    finally:
+        db_metrics.end_request_query_count(scope, "GET", "/probe")
+        db_metrics.remove_query_counter(engine)
+        await engine.dispose()
 
 
 def test_application_engine_uses_timed_pool() -> None:

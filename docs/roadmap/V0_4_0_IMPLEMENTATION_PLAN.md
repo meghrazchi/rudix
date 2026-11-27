@@ -261,7 +261,11 @@ principal snapshot, permission sets, feature flags. `CACHE_ENABLED` kill switch.
   ships now.
 - `strict` RLS as default, `FORCE ROW LEVEL SECURITY`, tenant binding on WebSocket and worker
   sessions, and the full F144 suite under the probe role: `0.5.0` (`R05-01` rewrites the chat
-  transport).
+  transport). A2 note: the F144 and F336 suites (and the whole SQLite suite) pass with
+  `RLS_ENFORCEMENT=strict` and the ORM guard on; still unbound under `strict` are the shared
+  agent trace page (`agent_runs`, `agent_steps`, `agent_tool_calls`), Slack/Teams inbound
+  events, and pre-authentication `audit_logs` writes (login, SSO); see
+  `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
 - RLS on child tables without `organization_id` (`chat_messages`, `citations`,
   `document_chunks`, `document_pages`): needs a backfilled column; `R06-09` adds it to chunks.
 - Cache namespaces for AI policy, RAG/model profiles, tool and quota policy: `0.5.0`.
