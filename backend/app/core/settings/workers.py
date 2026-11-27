@@ -87,6 +87,25 @@ class WorkersSettings(BaseModel):
     qdrant_store_parent_text: bool = True
 
     # anchor: A2
+    # R06-08: Qdrant alias that retrieval reads. None (default) is legacy mode: reads and
+    # writes use QDRANT_COLLECTION directly, as before 0.6.0. When set, generations named
+    # ``{QDRANT_COLLECTION}_{model_slug}_v{n}`` sit behind the alias; ``scripts/
+    # vector_index.py adopt`` registers the existing collection as generation 1.
+    qdrant_collection_alias: str | None = Field(
+        default=None, min_length=2, max_length=128, pattern=r"^[A-Za-z0-9_-]+$"
+    )
+    # How long the generation registry (active and building generation) is cached per
+    # process before it is read again from vector_index_generations.
+    vector_index_registry_cache_seconds: float = Field(default=30.0, ge=0.0, le=3600.0)
+    # A swapped-out generation stays retired (readable, rollback target) this long before
+    # drop-retired may delete its collection.
+    qdrant_retired_grace_hours: int = Field(default=168, ge=0, le=24 * 365)
+    # The daily beat entry vector-index-drop-retired acts only when this is true.
+    vector_index_auto_drop_retired: bool = False
+    # Documents per page of vector_index.build (one cursor step per document).
+    vector_index_build_batch_documents: int = Field(default=50, ge=1, le=10_000)
+    # Pages one vector_index.build delivery runs before it re-enqueues itself.
+    vector_index_build_max_pages_per_task: int = Field(default=20, ge=1, le=10_000)
 
     # anchor: A3
 

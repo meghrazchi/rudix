@@ -49,6 +49,7 @@ INCLUDE: list[str] = [
     "app.workers.ingestion.tasks",
     "app.workers.outbox_tasks",
     # anchor: A2
+    "app.workers.vector_index_tasks",
     # anchor: A3
     # anchor: B1
     "app.workers.chunk_backfill_tasks",
@@ -91,6 +92,8 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     "outbox.relay": _route(settings.celery_task_default_queue),
     "documents.stage_artifacts.purge": _route(settings.celery_task_default_queue),
     # anchor: A2
+    "vector_index.build": _route(settings.celery_queue_documents_reindex),
+    "vector_index.drop_retired": _route(settings.celery_task_default_queue),
     # anchor: A3
     # anchor: B1
     "documents.chunks.backfill_tenant": _route(settings.celery_queue_documents_reindex),
@@ -135,6 +138,10 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
         "schedule": crontab(hour=4, minute=5),
     },
     # anchor: A2
+    "vector-index-drop-retired": {
+        "task": "vector_index.drop_retired",
+        "schedule": crontab(hour=4, minute=35),
+    },
     # anchor: A3
     # anchor: B1
     # anchor: C1
@@ -233,6 +240,20 @@ def _bootstrap_qdrant() -> None:
     except Exception as exc:
         logging.getLogger(__name__).warning(
             "worker.qdrant_bootstrap_failed: %s", type(exc).__name__
+        )
+    _reconcile_vector_index()
+
+
+def _reconcile_vector_index() -> None:
+    """R06-08: load the generation registry (and register a changed model) per process."""
+    from app.domains.vector_index.services.startup import reconcile_on_startup
+    from app.workers.async_runtime import run_async
+
+    try:
+        run_async(reconcile_on_startup())
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "worker.vector_index_reconcile_failed: %s", type(exc).__name__
         )
 
 

@@ -160,10 +160,11 @@ def _normalize_distance(value: object) -> str:
     return text
 
 
-def ensure_qdrant_payload_indexes() -> None:
+def ensure_qdrant_payload_indexes(collection_name: str | None = None) -> None:
     """Ensure multi-tenant and retrieval filter payload indexes exist on the Qdrant collection.
 
     Idempotent: Qdrant accepts a repeated ``create_payload_index`` for the same schema.
+    ``collection_name`` None is ``QDRANT_COLLECTION``; R06-08 passes a generation's name.
     """
     if qdrant_client is None:
         raise RuntimeError("Qdrant client is not initialized")
@@ -172,7 +173,7 @@ def ensure_qdrant_payload_indexes() -> None:
     if not callable(create_payload_index):
         return
 
-    collection_name = settings.qdrant_collection
+    collection_name = collection_name or settings.qdrant_collection
     create_payload_index(
         collection_name=collection_name,
         field_name="organization_id",
@@ -209,10 +210,63 @@ def ensure_qdrant_payload_indexes() -> None:
     )
 
 
+def alias_target(alias: str) -> str | None:
+    """Collection the alias points at, or None when the alias does not exist (R06-08)."""
+    if qdrant_client is None:
+        raise RuntimeError("Qdrant client is not initialized")
+    get_aliases = getattr(qdrant_client, "get_aliases", None)
+    if not callable(get_aliases):
+        return None
+    for description in getattr(get_aliases(), "aliases", None) or []:
+        if description.alias_name == alias:
+            return str(description.collection_name)
+    return None
+
+
+def _ensure_alias_target() -> bool:
+    """Alias mode: check the collection behind the alias; True when it handled the check.
+
+    A vector size or distance that differs from the configuration is not an error here:
+    the startup reconcile (``app.domains.vector_index.services.startup``) registers a
+    building generation for the configured model and dimension, and the alias keeps
+    serving the active one. Before adoption (no alias yet) the legacy check applies.
+    """
+    from app.domains.vector_index.services.generation_service import configured_alias
+
+    alias = configured_alias()
+    if alias is None or qdrant_client is None:
+        return False
+    target = alias_target(alias)
+    if target is None:
+        return False
+    vectors = getattr(qdrant_client.get_collection(target).config.params, "vectors", None)
+    existing_size = getattr(vectors, "size", None)
+    existing_distance = _normalize_distance(getattr(vectors, "distance", None))
+    if (
+        existing_size != settings.qdrant_vector_size
+        or existing_distance != settings.qdrant_distance.value
+    ):
+        logger.warning(
+            "qdrant.collection.mismatch_deferred",
+            alias=alias,
+            collection=target,
+            expected_vector_size=settings.qdrant_vector_size,
+            actual_vector_size=existing_size,
+            expected_distance=settings.qdrant_distance.value,
+            actual_distance=existing_distance or None,
+        )
+    ensure_qdrant_payload_indexes(target)
+    logger.info("qdrant.alias.exists", alias=alias, collection=target)
+    return True
+
+
 def ensure_qdrant_collection() -> None:
     """Create or check the collection and its payload indexes (startup and migrate only)."""
     if qdrant_client is None:
         raise RuntimeError("Qdrant client is not initialized")
+
+    if _ensure_alias_target():
+        return
 
     exists = qdrant_client.collection_exists(settings.qdrant_collection)
     if not exists:

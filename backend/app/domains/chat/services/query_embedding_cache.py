@@ -57,6 +57,10 @@ async def embed_query_cached(
         calls.append(prompt_tokens)
         return vector
 
+    # R06-08: the key names the active generation's model and dimensions.
+    refresh = getattr(service, "refresh_index_target", None)
+    if refresh is not None:
+        await refresh()
     vector = await get_or_load(
         scope=OrgScope(organization_id),
         namespace=NAMESPACE_QUERY_EMBEDDING,

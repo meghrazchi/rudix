@@ -14,6 +14,11 @@ from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
 from app.domains.ai.providers.protocols import EmbeddingProvider, EmbeddingRequest
 from app.domains.documents.services.qdrant_filters import build_organization_filter
+from app.domains.vector_index.services.generation_service import (
+    cached_read_target,
+    configured_alias,
+    registry,
+)
 
 
 class QdrantClientLike(Protocol):
@@ -60,12 +65,49 @@ class QueryRetrievalService:
         qdrant_client: QdrantClientLike | None = None,
         session_factory: Callable[[], AsyncSession] | None = None,
     ) -> None:
-        self.embedding_model = (embedding_model or settings.openai_embedding_model).strip()
-        self.qdrant_collection = (qdrant_collection or settings.qdrant_collection).strip()
-        self.vector_size = vector_size or settings.qdrant_vector_size
+        # None follows the active vector index generation (R06-08); in legacy mode that is
+        # OPENAI_EMBEDDING_MODEL, QDRANT_COLLECTION and QDRANT_VECTOR_SIZE as before.
+        self._embedding_model = embedding_model.strip() if embedding_model else None
+        self._qdrant_collection = qdrant_collection.strip() if qdrant_collection else None
+        self._vector_size = vector_size or None
         self._embedding_provider = embedding_provider
         self._qdrant_client = qdrant_client
         self._session_factory = session_factory
+
+    @property
+    def embedding_model(self) -> str:
+        if self._embedding_model is not None:
+            return self._embedding_model
+        return cached_read_target()[1].embedding_model
+
+    @embedding_model.setter
+    def embedding_model(self, value: str) -> None:
+        self._embedding_model = value.strip()
+
+    @property
+    def qdrant_collection(self) -> str:
+        if self._qdrant_collection is not None:
+            return self._qdrant_collection
+        return cached_read_target()[0]
+
+    @qdrant_collection.setter
+    def qdrant_collection(self, value: str) -> None:
+        self._qdrant_collection = value.strip()
+
+    @property
+    def vector_size(self) -> int:
+        if self._vector_size is not None:
+            return self._vector_size
+        return cached_read_target()[1].vector_size
+
+    @vector_size.setter
+    def vector_size(self, value: int) -> None:
+        self._vector_size = int(value)
+
+    async def refresh_index_target(self) -> None:
+        """Load the generation registry (TTL cache) before reading model or collection."""
+        if configured_alias() is not None:
+            await registry.snapshot()
 
     def _resolve_embedding_provider(self) -> EmbeddingProvider:
         if self._embedding_provider is None:
@@ -101,6 +143,7 @@ class QueryRetrievalService:
         if not question.strip():
             raise ValueError("question is required")
 
+        await self.refresh_index_target()
         embedding_provider = provider or self._resolve_embedding_provider()
         response = await embedding_provider.embed(
             EmbeddingRequest(texts=[question], model=self.embedding_model)
@@ -186,6 +229,7 @@ class QueryRetrievalService:
         if document_ids is not None and len(document_ids) == 0:
             return []
 
+        await self.refresh_index_target()
         client = qdrant_client or self._resolve_async_path_client()
         if not _is_async_client(client):
             candidates = await asyncio.to_thread(

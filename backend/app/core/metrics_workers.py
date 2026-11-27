@@ -107,6 +107,25 @@ def record_embedding_cache(hits: int, misses: int) -> None:
 
 
 # anchor: A2
+# R06-08: fraction of indexed documents (all organisations) a building generation holds.
+# Metrics only; the admin API reports the caller's organisation and never this value.
+REINDEX_PROGRESS = Gauge(
+    "rudix_reindex_progress",
+    "Fraction of indexed documents written to a building vector index generation",
+    ["generation"],
+    registry=registry,
+)
+
+
+def record_reindex_progress(generation: int, done: int, total: int) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        fraction = 1.0 if total <= 0 else min(max(done / total, 0.0), 1.0)
+        REINDEX_PROGRESS.labels(generation=str(int(generation))).set(fraction)
+    except Exception as exc:
+        logger.debug("metrics.reindex_progress_failed: %s", exc)
+
 
 # anchor: A3
 

@@ -30,8 +30,23 @@ def bootstrap() -> bool:
     return True
 
 
+def reconcile() -> bool:
+    """R06-08: register a building generation when the configured model changed."""
+    import asyncio
+
+    from app.domains.vector_index.services.startup import reconcile_on_startup
+
+    try:
+        outcome = asyncio.run(reconcile_on_startup())
+    except Exception as exc:
+        logger.error("vector_index.reconcile.failed", error=type(exc).__name__)
+        return False
+    logger.info("vector_index.reconcile.completed", outcome=outcome)
+    return True
+
+
 def main() -> int:
-    return 0 if bootstrap() else 1
+    return 0 if bootstrap() and reconcile() else 1
 
 
 if __name__ == "__main__":  # pragma: no cover - exercised through main()

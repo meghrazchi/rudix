@@ -22,6 +22,7 @@ from app.workers.ingestion.errors import (
     DocumentPipelinePermanentError,
     DocumentPipelineTransientError,
 )
+from app.workers.ingestion.stages import embed_generations
 from app.workers.ingestion.stages.base import StageName, StageOutcome
 
 
@@ -136,6 +137,21 @@ async def _upsert_connector_chunk_references(
         )
 
 
+async def _clean_and_count(
+    ctx: StageContext, document: Any, extra: dict[str, Any] | None = None
+) -> int:
+    """Delete the document's points of other runs in one collection and count the rest."""
+    kwargs: dict[str, Any] = {
+        "organization_id": document.organization_id,
+        "document_id": document.id,
+        "index_version": index_version(ctx),
+        **(extra or {}),
+    }
+    qdrant = ctx.deps.qdrant_service
+    await qdrant.delete_stale_document_points(**kwargs, ingest_run_id=ctx.run_id)
+    return int(await qdrant.count_document_points(**kwargs))
+
+
 async def _vector_cleanup(ctx: StageContext, document: Any) -> int:
     """Delete the document's points of other runs, then verify the point count (R06-06).
 
@@ -151,17 +167,15 @@ async def _vector_cleanup(ctx: StageContext, document: Any) -> int:
     await ctx.recorder.emit_stage(
         stage="index_cleanup", stage_status="started", config={"index_version": version}
     )
-    kwargs: dict[str, Any] = {
-        "organization_id": document.organization_id,
-        "document_id": document.id,
-        "index_version": version,
-    }
+    extra: dict[str, Any] = {}
+    targets = embed_generations.from_metrics(ctx)
     if ctx.options.vector_collection is not None:
-        kwargs["collection_name"] = ctx.options.vector_collection
-    qdrant = ctx.deps.qdrant_service
+        extra["collection_name"] = ctx.options.vector_collection
+    elif targets:
+        # R06-08: the active generation the embed stage wrote to.
+        extra["collection_name"] = targets[0].collection_name
     try:
-        await qdrant.delete_stale_document_points(**kwargs, ingest_run_id=ctx.run_id)
-        count = int(await qdrant.count_document_points(**kwargs))
+        count = await _clean_and_count(ctx, document, extra)
     except ValueError as exc:
         raise DocumentPipelinePermanentError(
             stage="index_cleanup",
@@ -195,9 +209,15 @@ async def _vector_cleanup(ctx: StageContext, document: Any) -> int:
 async def run(ctx: StageContext) -> StageOutcome:
     document = await load_document(ctx)
     point_count = await _vector_cleanup(ctx, document)
-    if document.connector_external_item_id is None:
-        return StageOutcome(metrics={"source_references": 0, "point_count": point_count})
-    async with ctx.deps.SessionLocal() as session, session.begin():
-        chunks = list((await session.execute(embeddable_chunks_query(ctx))).scalars())
-        await _upsert_connector_chunk_references(session, document=document, chunks=chunks)
-    return StageOutcome(metrics={"source_references": len(chunks), "point_count": point_count})
+    metrics: dict[str, Any] = {"source_references": 0, "point_count": point_count}
+    if document.connector_external_item_id is not None:
+        async with ctx.deps.SessionLocal() as session, session.begin():
+            chunks = list((await session.execute(embeddable_chunks_query(ctx))).scalars())
+            await _upsert_connector_chunk_references(session, document=document, chunks=chunks)
+        metrics["source_references"] = len(chunks)
+    if embed_generations.from_metrics(ctx):
+        # R06-08: record the document in the building generation (dual write).
+        metrics["generation_documents"] = await embed_generations.record_generation_documents(
+            ctx, document, lambda extra: _clean_and_count(ctx, document, extra)
+        )
+    return StageOutcome(metrics=metrics)

@@ -53,8 +53,24 @@ class QdrantDeleteResult:
 
 
 def resolve_write_targets() -> list[str]:
-    """Collections a document write goes to (R06-01 seam; A2 adds a building generation)."""
-    return [settings.qdrant_collection]
+    """Collections a document write goes to, from the last loaded registry snapshot.
+
+    Legacy mode: ``[QDRANT_COLLECTION]``. Alias mode (R06-08): the active generation, plus
+    the building one during a build. ``QdrantService.resolve_write_targets()`` is the
+    async form that refreshes the registry first.
+    """
+    from app.domains.vector_index.services.generation_service import registry
+
+    snapshot = registry.cached()
+    if snapshot is None:
+        return [settings.qdrant_collection]
+    return [target.collection_name for target in snapshot.write_targets]
+
+
+async def _primary_collection() -> str:
+    from app.domains.vector_index.services.generation_service import resolve_write_targets
+
+    return (await resolve_write_targets())[0].collection_name
 
 
 async def _call(method: Callable[..., Any], **kwargs: Any) -> Any:
@@ -69,7 +85,9 @@ class QdrantService:
     """Vector index interactions.
 
     ``collection_name`` on writes defaults to ``None``, which means the configured
-    ``QDRANT_COLLECTION`` (the behaviour before the argument existed).
+    ``QDRANT_COLLECTION`` (the behaviour before the argument existed). In alias mode
+    (R06-08) ``None`` means the active generation's collection for upserts, lookups and
+    counts, and every generation whose collection still exists for document deletes.
 
     R06-07: writes go through ``AsyncQdrantClient`` with ``QDRANT_WRITE_TIMEOUT_SECONDS``
     (an injected sync client, ``qdrant_client.injected_sync_client()``, is used as is).
@@ -122,6 +140,16 @@ class QdrantService:
                 raise
             return await _call(method, **kwargs)
 
+    async def resolve_write_targets(self) -> list[str]:
+        """``[active]`` or ``[active, building]`` collections (R06-01 seam, R06-08)."""
+        from app.domains.vector_index.services import generation_service
+
+        return [t.collection_name for t in await generation_service.resolve_write_targets()]
+
+    @staticmethod
+    async def _target(collection_name: str | None) -> str:
+        return collection_name or await _primary_collection()
+
     @staticmethod
     def _is_valid_qdrant_point_id(point_id: str) -> bool:
         normalized = point_id.strip()
@@ -150,20 +178,29 @@ class QdrantService:
         parent_text_by_chunk_id: dict[UUID, str] | None = None,
         collection_name: str | None = None,
         ingest_run_id: str | None = None,
+        embedding_model: str | None = None,
+        vector_size: int | None = None,
     ) -> QdrantUpsertResult:
+        """Upsert the chunks' points.
+
+        ``embedding_model`` overrides the payload's model (a generation filled with another
+        model than the chunk rows name, R06-08); ``vector_size`` is the target collection's
+        dimension (default ``QDRANT_VECTOR_SIZE``).
+        """
         if not chunks:
             return QdrantUpsertResult(point_ids_by_chunk_id={}, upserted_count=0, batch_count=0)
 
+        expected_size = vector_size or settings.qdrant_vector_size
         point_ids_by_chunk_id: dict[UUID, str] = {}
         points: list[PointStruct] = []
         for chunk in chunks:
             vector = vectors_by_chunk_id.get(chunk.id)
             if vector is None:
                 raise ValueError(f"missing embedding vector for chunk {chunk.id}")
-            if len(vector) != settings.qdrant_vector_size:
+            if len(vector) != expected_size:
                 raise ValueError(
                     f"embedding dimension mismatch for chunk {chunk.id}: "
-                    f"expected {settings.qdrant_vector_size}, got {len(vector)}"
+                    f"expected {expected_size}, got {len(vector)}"
                 )
 
             point_id = chunk.qdrant_point_id
@@ -185,7 +222,7 @@ class QdrantService:
                 "chunk_index": chunk.chunk_index,
                 "text": chunk.text,
                 "token_count": chunk.token_count,
-                "embedding_model": chunk.embedding_model,
+                "embedding_model": embedding_model or chunk.embedding_model,
                 "index_version": chunk.index_version,
                 "chunk_hash": chunk.chunk_hash,
                 "section_path": chunk.section_path,
@@ -204,11 +241,12 @@ class QdrantService:
                 payload["ingest_run_id"] = ingest_run_id
             points.append(PointStruct(id=point_id, vector=vector, payload=payload))
 
+        target = await self._target(collection_name)
         batch_count = 0
         for start in range(0, len(points), self.batch_size):
             await self._request(
                 "upsert",
-                collection_name=collection_name or settings.qdrant_collection,
+                collection_name=target,
                 points=points[start : start + self.batch_size],
                 wait=True,
             )
@@ -233,12 +271,21 @@ class QdrantService:
             document_ids=[str(document_id)],
             index_version=index_version,
         )
-        await self._request(
-            "delete",
-            collection_name=collection_name or settings.qdrant_collection,
-            points_selector=filter_selector,
-            wait=True,
-        )
+        if collection_name is not None:
+            targets = [collection_name]
+        else:
+            from app.domains.vector_index.services.generation_service import (
+                resolve_delete_collections,
+            )
+
+            targets = await resolve_delete_collections()
+        for target in targets:
+            await self._request(
+                "delete",
+                collection_name=target,
+                points_selector=filter_selector,
+                wait=True,
+            )
         return QdrantDeleteResult(deleted=True)
 
     async def find_reusable_vectors(
@@ -248,6 +295,7 @@ class QdrantService:
         embedding_model: str,
         chunk_hashes: Iterable[str | None],
         collection_name: str | None = None,
+        vector_size: int | None = None,
     ) -> dict[str, list[float]]:
         """Stored vectors by chunk hash for this organisation and embedding model (R06-06).
 
@@ -262,13 +310,15 @@ class QdrantService:
         missing = sorted({value for value in chunk_hashes if value})
         if not missing or not embedding_model.strip():
             return {}
+        expected_size = vector_size or settings.qdrant_vector_size
+        target = await self._target(collection_name)
         found: dict[str, list[float]] = {}
         for _ in range(settings.embedding_reuse_max_lookups):
             points = await self._scroll_reusable(
                 organization_id=organization_id,
                 embedding_model=embedding_model,
                 chunk_hashes=missing,
-                collection_name=collection_name,
+                collection_name=target,
             )
             before = len(found)
             for point in points:
@@ -279,7 +329,7 @@ class QdrantService:
                     chunk_hash in missing
                     and payload.get("organization_id") == str(organization_id)
                     and isinstance(vector, list)
-                    and len(vector) == settings.qdrant_vector_size
+                    and len(vector) == expected_size
                 ):
                     found.setdefault(str(chunk_hash), [float(value) for value in vector])
             page_full = len(points) >= len(missing)
@@ -294,7 +344,7 @@ class QdrantService:
         organization_id: UUID,
         embedding_model: str,
         chunk_hashes: list[str],
-        collection_name: str | None,
+        collection_name: str,
     ) -> list[Any]:
         query_filter = build_organization_filter(organization_id=str(organization_id))
         query_filter.must = [
@@ -304,7 +354,7 @@ class QdrantService:
         ]
         points, _ = await self._request(
             "scroll",
-            collection_name=collection_name or settings.qdrant_collection,
+            collection_name=collection_name,
             scroll_filter=query_filter,
             limit=len(chunk_hashes),
             with_payload=["chunk_hash", "organization_id"],
@@ -332,7 +382,7 @@ class QdrantService:
         ]
         await self._request(
             "delete",
-            collection_name=collection_name or settings.qdrant_collection,
+            collection_name=await self._target(collection_name),
             points_selector=query_filter,
             wait=True,
         )
@@ -347,7 +397,7 @@ class QdrantService:
     ) -> int:
         result = await self._request(
             "count",
-            collection_name=collection_name or settings.qdrant_collection,
+            collection_name=await self._target(collection_name),
             count_filter=build_organization_filter(
                 organization_id=str(organization_id),
                 document_ids=[str(document_id)],
