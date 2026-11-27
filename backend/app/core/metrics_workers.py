@@ -90,6 +90,33 @@ def record_worker_tenant_mismatch(task: str) -> None:
 # anchor: A3
 
 # anchor: B1
+# R06-09: chunk rows the tenant backfill updated. R06-10: graph UNWIND write transactions,
+# by kind (entity, alias, evidence, relation) and outcome (written, failed).
+CHUNK_BACKFILL_ROWS_TOTAL = Counter(
+    "rudix_chunk_backfill_rows_total",
+    "document_chunks rows given organization_id and fts_vector by the tenant backfill",
+    registry=registry,
+)
+GRAPH_WRITE_BATCHES_TOTAL = Counter(
+    "rudix_graph_write_batches_total",
+    "Neo4j batched write transactions by kind and outcome",
+    ["kind", "outcome"],
+    registry=registry,
+)
+
+
+def record_chunk_backfill_rows(count: int) -> None:
+    if count <= 0 or not is_metrics_enabled():
+        return
+    try:
+        CHUNK_BACKFILL_ROWS_TOTAL.inc(count)
+    except Exception as exc:
+        logger.debug("metrics.chunk_backfill_rows_failed: %s", exc)
+
+
+def record_graph_write_batch(kind: str, outcome: str) -> None:
+    _inc(GRAPH_WRITE_BATCHES_TOTAL, kind=kind, outcome=outcome)
+
 
 # anchor: C1
 

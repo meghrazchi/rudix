@@ -42,6 +42,7 @@ INCLUDE: list[str] = [
     # anchor: A2
     # anchor: A3
     # anchor: B1
+    "app.workers.chunk_backfill_tasks",
     # anchor: C1
     # anchor: C2
     # anchor: D1
@@ -83,6 +84,7 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     # anchor: A2
     # anchor: A3
     # anchor: B1
+    "documents.chunks.backfill_tenant": _route(settings.celery_queue_documents_reindex),
     # anchor: C1
     # anchor: C2
     # anchor: D1
