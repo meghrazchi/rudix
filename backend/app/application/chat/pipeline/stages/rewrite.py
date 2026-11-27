@@ -8,6 +8,7 @@ access. The log carries the strategy and counts only, never the rewritten text.
 from app.application.chat.pipeline.context import ChatContext
 from app.application.chat.pipeline.controls import _resolve_query_rewrite_preview_enabled
 from app.application.chat.pipeline.stages._ledger import record_aux_usage
+from app.application.chat.pipeline.stages.policies import run_with_budget
 from app.core.config import settings
 from app.core.logging import log_query_event
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
@@ -42,13 +43,21 @@ class RewriteStage:
                 db_session,
                 organization_id=req.organization_id,
             )
-        result = await ctx.deps.query_rewriting_service.rewrite(
-            req.payload.question,
-            profile_rewriting_enabled=profile_rewriting,
-            profile_decomposition_enabled=profile_decomposition,
-            max_sub_queries=profile_max_sub_queries,
-            resolved_profile=cfg.chat_profile,
+        # R05-04: an exhausted rewrite budget retrieves with the original question.
+        outcome = await run_with_budget(
+            ctx,
+            "rewrite",
+            lambda: ctx.deps.query_rewriting_service.rewrite(
+                req.payload.question,
+                profile_rewriting_enabled=profile_rewriting,
+                profile_decomposition_enabled=profile_decomposition,
+                max_sub_queries=profile_max_sub_queries,
+                resolved_profile=cfg.chat_profile,
+            ),
         )
+        if not outcome.completed or outcome.value is None:
+            return
+        result = outcome.value
         cfg.query_rewrite_result = result
         record_aux_usage(ctx, "rewrite", result.usage)
         if result.rewriting_applied or result.decomposition_applied:

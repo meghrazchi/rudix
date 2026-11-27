@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from decimal import Decimal
 from time import perf_counter
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -118,6 +118,19 @@ class _BatchScoreResponse(BaseModel):
 
 class _ChatCompletionProviderFactory(Protocol):
     def get_chat_provider(self, provider_key: str | None = None) -> ChatCompletionProvider: ...
+
+
+_SKIPPED_BATCH: object = object()
+
+
+def _scored_token_totals(
+    scored: dict[int, tuple[list[_BatchScore], int, int, int]],
+) -> tuple[int, int]:
+    """Prompt and completion tokens of the batches that were scored."""
+    return (
+        sum(result[1] for result in scored.values()),
+        sum(result[2] for result in scored.values()),
+    )
 
 
 class RerankService:
@@ -311,6 +324,63 @@ class RerankService:
 
         latency_ms = int((perf_counter() - started) * 1000)
         return ordered_scores, response.prompt_tokens, response.completion_tokens, latency_ms
+
+    async def _score_batches(
+        self,
+        batches: list[list[RerankCandidate]],
+        *,
+        started: list[int],
+        scored: dict[int, tuple[list[_BatchScore], int, int, int]],
+        query: str,
+        provider: ChatCompletionProvider,
+        model_name: str,
+        timeout_seconds: float | None,
+        max_candidate_chars: int,
+        boundary: str | None,
+        usage_sink: list[AuxCallUsage],
+        provider_key: str,
+    ) -> list[tuple[list[_BatchScore], int, int, int]]:
+        """Score every batch under a semaphore; return the results in batch order.
+
+        When a batch fails, the batches not yet started are skipped and the first failure
+        in batch order is raised. ``started`` and ``scored`` keep the batches that were sent
+        and those that were scored, so the fallback diagnostics count what really ran.
+        """
+        semaphore = asyncio.Semaphore(settings.rerank_max_concurrent_batches)
+        failed = False
+
+        async def score(index: int, batch: list[RerankCandidate]) -> Any:
+            nonlocal failed
+            async with semaphore:
+                if failed:
+                    return _SKIPPED_BATCH
+                started.append(index)
+                try:
+                    result = await self._score_batch(
+                        query=query,
+                        batch=batch,
+                        provider=provider,
+                        model_name=model_name,
+                        timeout_seconds=timeout_seconds,
+                        max_candidate_chars=max_candidate_chars,
+                        boundary=boundary,
+                        usage_sink=usage_sink,
+                        provider_key=provider_key,
+                    )
+                except BaseException:
+                    failed = True
+                    raise
+                scored[index] = result
+                return result
+
+        results = await asyncio.gather(
+            *(score(index, batch) for index, batch in enumerate(batches)),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
+        return [result for result in results if result is not _SKIPPED_BATCH]
 
     def _build_fallback_result(
         self,
@@ -557,34 +627,38 @@ class RerankService:
         completion_tokens = 0
         batch_count = 0
 
+        batches = [
+            ordered_candidates[index : index + batch_size]
+            for index in range(0, len(ordered_candidates), batch_size)
+        ]
+        started_batches: list[int] = []
+        scored_batches: dict[int, tuple[list[_BatchScore], int, int, int]] = {}
         try:
-            batches = [
-                ordered_candidates[index : index + batch_size]
-                for index in range(0, len(ordered_candidates), batch_size)
-            ]
-            for batch in batches:
-                batch_count += 1
-                (
-                    batch_scores,
-                    batch_prompt_tokens,
-                    batch_completion_tokens,
-                    _,
-                ) = await self._score_batch(
-                    query=query,
-                    batch=batch,
-                    provider=provider,
-                    model_name=request_model or settings.openai_llm_model,
-                    timeout_seconds=timeout_seconds,
-                    max_candidate_chars=max_candidate_chars,
-                    boundary=boundary,
-                    usage_sink=batch_usages,
-                    provider_key=provider_key,
-                )
+            # R05-04: batches run concurrently, at most RERANK_MAX_CONCURRENT_BATCHES at a
+            # time; results are merged in batch order, so the output equals a sequential run.
+            outcomes = await self._score_batches(
+                batches,
+                started=started_batches,
+                scored=scored_batches,
+                query=query,
+                provider=provider,
+                model_name=request_model or settings.openai_llm_model,
+                timeout_seconds=timeout_seconds,
+                max_candidate_chars=max_candidate_chars,
+                boundary=boundary,
+                usage_sink=batch_usages,
+                provider_key=provider_key,
+            )
+            batch_count = len(started_batches)
+            for batch, outcome in zip(batches, outcomes, strict=True):
+                batch_scores, batch_prompt_tokens, batch_completion_tokens, _ = outcome
                 prompt_tokens += batch_prompt_tokens
                 completion_tokens += batch_completion_tokens
                 for candidate, batch_score in zip(batch, batch_scores, strict=True):
                     all_scores[candidate.key] = self._clamp_score(batch_score.score)
         except TimeoutError as exc:
+            batch_count = len(started_batches)
+            prompt_tokens, completion_tokens = _scored_token_totals(scored_batches)
             logger.warning(
                 "rerank.timeout provider_key=%s model=%s error=%s",
                 provider_key,
@@ -623,6 +697,8 @@ class RerankService:
             json.JSONDecodeError,
             TypeError,
         ) as exc:
+            batch_count = len(started_batches)
+            prompt_tokens, completion_tokens = _scored_token_totals(scored_batches)
             logger.warning(
                 "rerank.failed provider_key=%s model=%s error=%s",
                 provider_key,
@@ -654,6 +730,8 @@ class RerankService:
                 diagnostics=diagnostics,
             )
         except _TRANSIENT_PROVIDER_ERRORS as exc:
+            batch_count = len(started_batches)
+            prompt_tokens, completion_tokens = _scored_token_totals(scored_batches)
             logger.warning(
                 "rerank.transient_failure provider_key=%s model=%s error=%s",
                 provider_key,
@@ -685,6 +763,8 @@ class RerankService:
                 diagnostics=diagnostics,
             )
         except Exception as exc:
+            batch_count = len(started_batches)
+            prompt_tokens, completion_tokens = _scored_token_totals(scored_batches)
             logger.warning(
                 "rerank.unhandled_failure provider_key=%s model=%s error=%s",
                 provider_key,

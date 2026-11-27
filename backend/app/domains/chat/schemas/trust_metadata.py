@@ -405,6 +405,20 @@ class ContextInjectionRecord(BaseModel):
     flagged_chunk_ids: list[str] = Field(default_factory=list)
 
 
+class StageDegradationRecord(BaseModel):
+    """An optional pipeline stage that was skipped or degraded (R05-04).
+
+    ``reason`` is ``deadline`` (the run's total deadline ran out), ``budget`` (the stage's
+    own budget ran out) or ``error``. ``action`` names what the run did instead, for
+    example ``original_question``, ``vector_only``, ``original_order``, ``skipped``,
+    ``single_generation`` or ``answer_withheld``. Never carries request or document text.
+    """
+
+    stage: str
+    reason: Literal["deadline", "budget", "error"]
+    action: str
+
+
 class AnswerTrustMetadataResponse(BaseModel):
     """Versioned, organization-scoped answer trust metadata contract.
 
@@ -433,6 +447,8 @@ class AnswerTrustMetadataResponse(BaseModel):
     retrieval_method: RetrievalMethodRecord = Field(default_factory=RetrievalMethodRecord)
     tool_orchestration: ToolOrchestrationRecord = Field(default_factory=ToolOrchestrationRecord)
     context_injection: ContextInjectionRecord = Field(default_factory=ContextInjectionRecord)
+    # Optional stages skipped or degraded by the latency budget (R05-04); empty otherwise.
+    stage_degradations: list[StageDegradationRecord] = Field(default_factory=list)
     generated_at: datetime
 
 

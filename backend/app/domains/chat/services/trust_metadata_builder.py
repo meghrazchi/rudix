@@ -1,5 +1,6 @@
 """Assembles the versioned answer trust metadata snapshot (R05-01)."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -19,6 +20,7 @@ from app.domains.chat.schemas.trust_metadata import (
     PolicyEnforcementRecord,
     RetrievalDiagnosticsRecord,
     SourceFreshnessRecord,
+    StageDegradationRecord,
 )
 from app.domains.chat.services.answer_critic_service import CriticResult
 from app.domains.chat.services.answer_mode_service import (
@@ -111,6 +113,7 @@ def _build_trust_metadata(
     route_result: "RetrievalRouteResult | None" = None,
     orchestration_result: "ToolOrchestrationResult | None" = None,
     context_injection: ContextInjectionScanResult | None = None,
+    stage_degradations: Sequence[StageDegradationRecord] = (),
 ) -> AnswerTrustMetadataResponse:
     """Build the versioned trust metadata contract from pipeline state.
 
@@ -360,6 +363,7 @@ def _build_trust_metadata(
         retrieval_method=_build_retrieval_method_record(route_result),
         tool_orchestration=_build_tool_orchestration_record(orchestration_result),
         context_injection=_build_context_injection_record(context_injection),
+        stage_degradations=[record.model_copy() for record in stage_degradations],
         generated_at=generated_at,
     )
 

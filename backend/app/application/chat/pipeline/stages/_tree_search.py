@@ -10,6 +10,7 @@ from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
 from app.application.chat.pipeline.controls import _resolve_tree_search_reasoning_enabled
 from app.application.chat.pipeline.stages._ledger import record_llm_results
 from app.application.chat.pipeline.stages._llm import apply_llm_result, start_drafting
+from app.application.chat.pipeline.stages.policies import run_with_budget
 from app.core.config import settings
 from app.core.logging import log_query_event
 from app.domains.chat.schemas.chat import ChatCitationResponse
@@ -115,19 +116,27 @@ async def run_tree_search(ctx: ChatContext) -> None:
     await start_drafting(ctx)
     tree_chunks = context_chunks(ctx)
     tree = ctx.deps.tree_search_service
-    result = await tree.generate_candidates(
-        question=req.payload.question,
-        context_chunks=tree_chunks,
-        not_found_answer=NOT_FOUND_ANSWER,
-        conflict_context=_build_conflict_context(ret.conflict_detection_result),
-        answer_language=ctx.config.answer_language_used,
-        resolved_profile=ctx.config.chat_profile,
-        max_candidates=settings.tree_search_max_candidates,
-        timeout_seconds=settings.tree_search_timeout_seconds,
-        max_total_tokens=settings.tree_search_max_total_tokens,
-        max_total_cost_usd=Decimal(str(settings.tree_search_max_total_cost_usd)),
-        context_boundary=ctx.context_boundary,
+    # R05-04: an exhausted tree-search budget falls back to the single generation call.
+    outcome = await run_with_budget(
+        ctx,
+        "tree_search",
+        lambda: tree.generate_candidates(
+            question=req.payload.question,
+            context_chunks=tree_chunks,
+            not_found_answer=NOT_FOUND_ANSWER,
+            conflict_context=_build_conflict_context(ret.conflict_detection_result),
+            answer_language=ctx.config.answer_language_used,
+            resolved_profile=ctx.config.chat_profile,
+            max_candidates=settings.tree_search_max_candidates,
+            timeout_seconds=settings.tree_search_timeout_seconds,
+            max_total_tokens=settings.tree_search_max_total_tokens,
+            max_total_cost_usd=Decimal(str(settings.tree_search_max_total_cost_usd)),
+            context_boundary=ctx.context_boundary,
+        ),
     )
+    if not outcome.completed or outcome.value is None:
+        return
+    result = outcome.value
     ctx.latencies_ms["tree_search"] = result.latency_ms
     if result.candidate_count <= 0:
         return

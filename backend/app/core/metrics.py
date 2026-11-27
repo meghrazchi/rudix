@@ -136,6 +136,30 @@ LLM_RETRIES_TOTAL = Counter(
     registry=registry,
 )
 
+# R05-05: query-embedding cache lookups of the chat pipeline (hit, miss).
+CHAT_QUERY_EMBEDDING_CACHE_TOTAL = Counter(
+    "rudix_chat_query_embedding_cache_total",
+    "Chat query-embedding cache lookups by result (hit, miss)",
+    ["result"],
+    registry=registry,
+)
+
+# R05-05: verified-answer shortcut evaluations (stage 4) by result.
+CHAT_VERIFIED_ANSWER_SHORTCUT_TOTAL = Counter(
+    "rudix_chat_verified_answer_shortcut_total",
+    "Verified-answer shortcut evaluations by result",
+    ["result"],
+    registry=registry,
+)
+
+# R05-04: optional stages skipped or degraded, by stage and reason (deadline, budget, error).
+CHAT_STAGE_SKIPPED_TOTAL = Counter(
+    "rudix_chat_stage_skipped_total",
+    "Chat pipeline stages skipped or degraded by stage and reason",
+    ["stage", "reason"],
+    registry=registry,
+)
+
 # Chat token ledger (R05-07): tokens of every provider call in a chat run, by pipeline
 # stage and kind (prompt, completion, cached). Counted once the run is persisted.
 CHAT_TOKENS_TOTAL = Counter(
@@ -434,6 +458,33 @@ def record_chat_tokens(stage: str, kind: str, amount: int) -> None:
         CHAT_TOKENS_TOTAL.labels(stage=stage, kind=kind).inc(amount)
     except Exception as exc:
         logger.debug("metrics.record_chat_tokens_failed: %s", exc)
+
+
+def record_chat_query_embedding_cache(result: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_QUERY_EMBEDDING_CACHE_TOTAL.labels(result=result).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_query_embedding_cache_failed: %s", exc)
+
+
+def record_chat_verified_answer_shortcut(result: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_VERIFIED_ANSWER_SHORTCUT_TOTAL.labels(result=result).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_verified_answer_shortcut_failed: %s", exc)
+
+
+def record_chat_stage_skipped(stage: str, reason: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_STAGE_SKIPPED_TOTAL.labels(stage=stage, reason=reason).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_stage_skipped_failed: %s", exc)
 
 
 def record_chat_context_injection_flagged(action: str, count: int) -> None:

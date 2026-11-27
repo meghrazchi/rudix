@@ -29,6 +29,9 @@ from app.domains.chat.services.query_retrieval_service import (
 
 logger = get_logger("chat.parallel_retrieval")
 
+# ``(query) -> (vector, prompt_tokens)``; replaces ``QueryRetrievalService.embed_query``.
+QueryEmbedder = Callable[[str], Awaitable[tuple[list[float], int]]]
+
 
 def _estimate_tokens(text: str) -> int:
     return max(1, len(text) // 4)
@@ -175,7 +178,16 @@ class ParallelRetrievalOptimizer:
         exact_match_boost: float,
         budget: ParallelRetrievalBudget | None = None,
         index_versions: Sequence[str] | None = None,
+        embed_query: QueryEmbedder | None = None,
+        graph_timeout_ms: int | None = None,
     ) -> ParallelRetrievalResult:
+        """Run the retrieval branches.
+
+        ``embed_query`` replaces the service's own embedding call (the chat pipeline passes
+        its cached, prefetch-aware embedder, R05-05). ``graph_timeout_ms`` is the graph
+        branch's own budget (R05-04): when it runs out the branch fails with ``timeout``
+        without a retry and retrieval continues with the vector (and keyword) results.
+        """
         if budget is None:
             budget = ParallelRetrievalBudget()
 
@@ -225,11 +237,16 @@ class ParallelRetrievalOptimizer:
         # it runs sequentially on the caller's session. Do not turn it into
         # asyncio.create_task without giving it its own session. Making it truly
         # parallel is a 0.5.0 performance item.
+        graph_budgeted = graph_timeout_ms is not None and graph_timeout_ms > 0
         graph_task = self._run_branch(
             branch_name="graph_expansion",
             semaphore=semaphore,
-            timeout_ms=plan.timeout_ms,
-            max_retry_attempts=plan.max_retry_attempts,
+            timeout_ms=(
+                min(plan.timeout_ms, graph_timeout_ms)
+                if graph_budgeted and graph_timeout_ms is not None
+                else plan.timeout_ms
+            ),
+            max_retry_attempts=0 if graph_budgeted else plan.max_retry_attempts,
             factory=lambda: graph_retrieval_service.expand(
                 session=session,
                 organization_id=organization_id,
@@ -245,7 +262,11 @@ class ParallelRetrievalOptimizer:
                 semaphore=semaphore,
                 timeout_ms=plan.timeout_ms,
                 max_retry_attempts=plan.max_retry_attempts,
-                factory=lambda: query_retrieval_service.embed_query(question=query),
+                factory=(
+                    (lambda: embed_query(query))
+                    if embed_query is not None
+                    else (lambda: query_retrieval_service.embed_query(question=query))
+                ),
             )
             query_vector: list[float] | None = None
             embedding_prompt_tokens = 0

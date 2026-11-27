@@ -26,6 +26,25 @@ class RagSettings(BaseModel):
     rerank_default_model_name: str | None = Field(default=None, max_length=255)
     rerank_default_timeout_seconds: float = Field(default=6.0, ge=0.1, le=120.0)
     rerank_default_batch_size: int = Field(default=8, ge=1, le=200)
+    # R05-04: concurrent rerank batches (order-preserving merge).
+    rerank_max_concurrent_batches: int = Field(default=4, ge=1, le=32)
+    # R05-04: embed the original question while stage 2 resolves configuration. Off by
+    # default: the overlap runs the embedding while the read-phase connection is still
+    # checked out, which the R05-02 session-lifetime invariant does not allow.
+    chat_query_embedding_prefetch_enabled: bool = False
+    # R05-05: verified-answer shortcut (stage 4), exact normalised question match only.
+    chat_verified_answer_shortcut_enabled: bool = False
+    chat_verified_answer_max_candidates: int = Field(default=500, ge=1, le=10_000)
+    # R05-04: total chat deadline and per-stage budgets in milliseconds (0 = off / no own
+    # budget). Optional stages degrade when their budget runs out (stages/policies.py).
+    chat_total_deadline_ms: int = Field(default=0, ge=0, le=600_000)
+    chat_stage_budget_rewrite_ms: int = Field(default=0, ge=0, le=600_000)
+    chat_stage_budget_graph_ms: int = Field(default=0, ge=0, le=600_000)
+    chat_stage_budget_rerank_ms: int = Field(default=0, ge=0, le=600_000)
+    chat_stage_budget_conflict_ms: int = Field(default=0, ge=0, le=600_000)
+    chat_stage_budget_tree_search_ms: int = Field(default=0, ge=0, le=600_000)
+    chat_stage_budget_verify_ms: int = Field(default=0, ge=0, le=600_000)
+    chat_stage_budget_refine_ms: int = Field(default=0, ge=0, le=600_000)
     rerank_default_input_candidates: int = Field(default=20, ge=1, le=200)
     rerank_default_candidate_chars: int = Field(default=2000, ge=128, le=20_000)
     rerank_default_fallback_behavior: RerankFallbackBehavior = RerankFallbackBehavior.original

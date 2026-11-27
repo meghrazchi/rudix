@@ -25,6 +25,10 @@ from app.application.chat.pipeline.stages.direct_answers import DirectAnswersSta
 from app.application.chat.pipeline.stages.generate import GenerateStage
 from app.application.chat.pipeline.stages.guard import GuardStage
 from app.application.chat.pipeline.stages.persist import PersistStage
+from app.application.chat.pipeline.stages.policies import (
+    record_runner_degradation,
+    start_deadline,
+)
 from app.application.chat.pipeline.stages.rerank_pack import RerankPackStage
 from app.application.chat.pipeline.stages.resolve_config import ResolveConfigStage
 from app.application.chat.pipeline.stages.retrieve import RetrieveStage
@@ -74,6 +78,7 @@ class ChatPipeline:
         self._runner = runner or StageRunner(
             stages if stages is not None else default_stages(),
             after_stage=_end_read_phase,
+            degradation_hook=record_runner_degradation,
         )
 
     async def run(
@@ -108,6 +113,8 @@ class ChatPipeline:
             steps=ActivityStepEmitter(emitter),
             ids=run_ids,
         )
+        # R05-04: the optional-stage deadline starts with the run (off when 0).
+        start_deadline(ctx)
         with tenant_context_scope(organization_id):
             try:
                 return await self._runner.run(ctx)

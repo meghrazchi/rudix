@@ -7,11 +7,15 @@ quota enforcement checks, and override resolution.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
+from pydantic import TypeAdapter
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import OrgScope, get_or_load
+from app.core.config import settings
 from app.domains.quota.repositories.quota_repository import QuotaRepository
 from app.domains.quota.schemas.quota_schemas import (
     OrgQuotaDashboardResponse,
@@ -139,11 +143,46 @@ async def _current_seat_count(
 
 def get_effective_limits(policy: OrgQuotaPolicy | None) -> dict[str, dict]:
     """Merge org policy over system defaults for all quota types."""
+    return _merge_limits(dict(policy.limits or {}) if policy is not None else None)
+
+
+NAMESPACE_QUOTA_POLICY = "quota_policy"
+_LIMITS_ADAPTER: TypeAdapter[dict[str, dict[str, Any]] | None] = TypeAdapter(
+    dict[str, dict[str, Any]] | None
+)
+
+
+async def get_effective_limits_cached(
+    db_session: AsyncSession, *, organization_id: UUID
+) -> dict[str, dict]:
+    """Effective limits with the organisation's policy limits cached (R05-05).
+
+    Only the policy's ``limits`` are cached (namespace ``quota_policy``, TTL
+    ``CACHE_TTL_POLICIES_SECONDS``), never usage counters; the system defaults are merged on
+    every call. Policy writes bump the organisation's cache version on commit.
+    """
+
+    async def load() -> dict[str, dict[str, Any]] | None:
+        policy = await _repo.get_policy(db_session, organization_id=organization_id)
+        return dict(policy.limits or {}) if policy is not None else None
+
+    limits = await get_or_load(
+        scope=OrgScope(organization_id),
+        namespace=NAMESPACE_QUOTA_POLICY,
+        key_id="limits",
+        ttl=settings.cache_ttl_policies_seconds,
+        adapter=_LIMITS_ADAPTER,
+        loader=load,
+    )
+    return _merge_limits(limits)
+
+
+def _merge_limits(limits: dict[str, Any] | None) -> dict[str, dict]:
     effective: dict[str, dict] = {}
     for qt in QuotaType:
         default = dict(SYSTEM_DEFAULT_LIMITS[qt])
-        if policy is not None:
-            org_config = (policy.limits or {}).get(qt)
+        if limits is not None:
+            org_config = limits.get(qt)
             if org_config is not None:
                 effective[qt] = {**default, **org_config}
                 continue
@@ -314,8 +353,7 @@ async def check_quota(
     if reset_expired is None:
         reset_expired = not defers_window_reset(db_session)
     now = datetime.now(UTC)
-    policy = await _repo.get_policy(db_session, organization_id=organization_id)
-    effective = get_effective_limits(policy)
+    effective = await get_effective_limits_cached(db_session, organization_id=organization_id)
     limit_config = effective.get(quota_type, SYSTEM_DEFAULT_LIMITS[quota_type])
 
     window = limit_config.get("reset_window", ResetWindow.per_day)
@@ -399,8 +437,7 @@ async def increment_quota_usage(
     if quota_type == QuotaType.seats:
         return None
     now = datetime.now(UTC)
-    policy = await _repo.get_policy(db_session, organization_id=organization_id)
-    effective = get_effective_limits(policy)
+    effective = await get_effective_limits_cached(db_session, organization_id=organization_id)
     limit_config = effective.get(quota_type, SYSTEM_DEFAULT_LIMITS[quota_type])
     window = limit_config.get("reset_window", ResetWindow.per_day)
 

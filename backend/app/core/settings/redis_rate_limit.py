@@ -27,6 +27,7 @@ class RedisRateLimitSettings(BaseModel):
     cache_ttl_flags_seconds: int = Field(default=60, ge=1, le=86400)
     cache_ttl_policies_seconds: int = Field(default=60, ge=1, le=86400)
     cache_ttl_profiles_seconds: int = Field(default=300, ge=1, le=86400)
+    chat_query_embedding_cache_ttl_seconds: int = Field(default=3600, ge=1, le=604800)
     cache_ttl_permissions_seconds: int = Field(default=30, ge=1, le=86400)
     cache_ttl_auth_session_seconds: int = Field(default=30, ge=1, le=86400)
     cache_operation_timeout_ms: int = Field(default=250, ge=1, le=10000)

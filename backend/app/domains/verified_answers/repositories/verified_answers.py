@@ -403,6 +403,32 @@ class VerifiedAnswerRepository:
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_published_for_shortcut(
+        self,
+        db: AsyncSession,
+        *,
+        organization_id: UUID,
+        limit: int,
+    ) -> list[VerifiedAnswer]:
+        """The organisation's published cards with citations, newest first (R05-05).
+
+        At most ``limit`` rows; the caller asks for one more than its cap to detect an
+        organisation above it. Expiry and collection scope are applied by the caller at
+        match time, so the cached set stays valid when the date changes.
+        """
+        stmt = (
+            select(VerifiedAnswer)
+            .options(selectinload(VerifiedAnswer.citations))
+            .where(
+                VerifiedAnswer.organization_id == organization_id,
+                VerifiedAnswer.status == "published",
+            )
+            .order_by(VerifiedAnswer.published_at.desc(), VerifiedAnswer.id)
+            .limit(limit)
+        )
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
