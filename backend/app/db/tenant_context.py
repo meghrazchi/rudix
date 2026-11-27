@@ -319,6 +319,40 @@ async def apply_tenant_context(db_session: AsyncSession) -> None:
         await connection.execute(text(statement[0]), statement[1])
 
 
+async def bind_pipeline_session(
+    db_session: AsyncSession,
+    organization_id: UUID | str | None,
+) -> UUID | None:
+    """Bind a chat pipeline session to its tenant (R05-02, plan contract 4.2.9).
+
+    Same binding as an authenticated HTTP request: `session.info` and the context
+    variable, the ORM guard in `strict`, then the session-context statement for a
+    transaction that is already open (a later one gets it from `after_begin`).
+    """
+    org_uuid = bind_session_tenant(
+        db_session,
+        organization_id,
+        enforce_guard=effective_rls_mode() == RlsEnforcement.strict,
+    )
+    await apply_tenant_context(db_session)
+    return org_uuid
+
+
+@contextmanager
+def tenant_context_scope(organization_id: UUID | str | None) -> Iterator[UUID | None]:
+    """Bind the tenant context variable for a block and restore the previous value.
+
+    Tasks created inside the block (for example the parallel retrieval branches of a
+    chat run) copy the context and inherit the tenant.
+    """
+    org_uuid = _coerce_uuid(organization_id)
+    token = _CURRENT_TENANT_ID.set(org_uuid)
+    try:
+        yield org_uuid
+    finally:
+        _CURRENT_TENANT_ID.reset(token)
+
+
 def _record_soft_denial(table: str, operation: str) -> None:
     RLS_SOFT_DENIALS_TOTAL.labels(table=table).inc()
     now = time.monotonic()
