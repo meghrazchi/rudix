@@ -407,6 +407,11 @@ export const queryKeys = {
       params ?? {},
     ] as const,
   // anchor: D
+  adminServiceAccounts: {
+    list: ["admin", "service_accounts", "list"] as const,
+    tokens: (accountId: string) =>
+      ["admin", "service_accounts", accountId, "tokens"] as const,
+  },
   adminTeam: {
     all: ["admin", "team"] as const,
     members: (

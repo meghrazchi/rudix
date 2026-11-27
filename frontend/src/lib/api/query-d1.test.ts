@@ -26,6 +26,17 @@ describe("queryKeys (D1 settings factories)", () => {
     ]);
   });
 
+  it("adminServiceAccounts keys match the former literals", () => {
+    const k = queryKeys.adminServiceAccounts;
+    expect(k.list).toEqual(["admin", "service_accounts", "list"]);
+    expect(k.tokens("acc-1")).toEqual([
+      "admin",
+      "service_accounts",
+      "acc-1",
+      "tokens",
+    ]);
+  });
+
   it("evaluationSetsList matches the former literal", () => {
     expect(queryKeys.evaluationSetsList).toEqual(["evaluation-sets-list"]);
   });
