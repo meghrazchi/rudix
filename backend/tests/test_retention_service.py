@@ -20,6 +20,7 @@ os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
 
 from app.core import maintenance_metrics
 from app.core.config import Settings, settings
+from app.db.partitioning import EnsureResult
 from app.domains.admin.repositories.retention import RETENTION_TABLES
 from app.domains.admin.services.retention_service import (
     RETENTION_WINDOW_SETTINGS,
@@ -431,3 +432,81 @@ def test_settings_reject_windows_below_floor(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("RETENTION_DELETE_BATCH_SIZE", "100")
     loaded = Settings()  # type: ignore[call-arg]
     assert (loaded.retention_usage_events_days, loaded.retention_audit_logs_days) == (7, 30)
+
+
+@pytest.mark.asyncio
+async def test_ensure_task_reports_failures_and_continues(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    @asynccontextmanager
+    async def _session() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    async def _boom(*_: object, **__: object) -> None:
+        raise TimeoutError("lock timeout")
+
+    reported: list[str] = []
+
+    async def _report(_conn: object, table: str, *, now: datetime) -> bool:
+        reported.append(table)
+        raise RuntimeError("still down")
+
+    monkeypatch.setattr(retention_tasks, "maintenance_session", _session)
+    monkeypatch.setattr(retention_tasks, "ensure_future_partitions", _boom)
+    monkeypatch.setattr(retention_tasks, "report_missing_partition", _report)
+
+    summary = await retention_tasks._ensure_partitions_async(NOW)
+
+    assert summary["failed"] == len(RETENTION_TABLES)
+    assert summary["tables"]["usage_events"] == {"error_type": "TimeoutError"}
+    assert reported == list(RETENTION_TABLES)
+
+
+@pytest.mark.asyncio
+async def test_ensure_task_drops_expired_on_partitioned_table(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    @asynccontextmanager
+    async def _session() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    async def _ensure(_conn: object, table: str, *, now: datetime) -> EnsureResult:
+        return EnsureResult(table=table, partitioned=table == "usage_events", created=("p",))
+
+    cutoffs: list[datetime] = []
+
+    async def _drop(_conn: object, table: str, *, cutoff: datetime) -> list[str]:
+        cutoffs.append(cutoff)
+        return [f"{table}_p202601"]
+
+    monkeypatch.setattr(retention_tasks, "maintenance_session", _session)
+    monkeypatch.setattr(retention_tasks, "ensure_future_partitions", _ensure)
+    monkeypatch.setattr(retention_tasks, "drop_expired_partitions", _drop)
+    monkeypatch.setattr(settings, "retention_usage_events_days", 30)
+
+    summary = await retention_tasks._ensure_partitions_async(NOW)
+
+    assert summary["tables"]["usage_events"] == {
+        "partitioned": True,
+        "created": ["p"],
+        "dropped": ["usage_events_p202601"],
+        "next_month_missing": False,
+    }
+    assert cutoffs == [NOW - timedelta(days=30)]
+    assert summary["tables"]["audit_logs"] == {"partitioned": False}
+
+
+def test_metric_helpers_respect_metrics_switch(monkeypatch: pytest.MonkeyPatch) -> None:
+    gauge = maintenance_metrics.PARTITION_MISSING
+    monkeypatch.setattr(settings, "metrics_enabled", True)
+    before = _deleted_metric("webhook_deliveries")
+    maintenance_metrics.record_retention_rows_deleted("webhook_deliveries", 3)
+    maintenance_metrics.record_retention_rows_deleted("webhook_deliveries", 0)
+    assert _deleted_metric("webhook_deliveries") - before == 3
+    maintenance_metrics.set_partition_missing("probe_table", True)
+    assert gauge.labels(table="probe_table")._value.get() == 1
+    monkeypatch.setattr(settings, "metrics_enabled", False)
+    maintenance_metrics.record_retention_rows_deleted("webhook_deliveries", 5)
+    maintenance_metrics.set_partition_missing("probe_table", False)
+    assert _deleted_metric("webhook_deliveries") - before == 3
+    assert gauge.labels(table="probe_table")._value.get() == 1
