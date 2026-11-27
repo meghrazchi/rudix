@@ -72,6 +72,17 @@ def mark_dirty(
     pending["user"].update(str(user_id) for user_id in user_ids if user_id is not None)
 
 
+def has_pending_org_invalidation(session: Session | AsyncSession, org_id: UUID | str) -> bool:
+    """Whether ``session``'s open transaction has flushed writes that bump ``org_id``.
+
+    A value loaded after such a write may contain rows that are not committed yet; it must
+    not be cached under the current version (a rollback would leave it there, R05-05).
+    """
+    sync_session = session.sync_session if isinstance(session, AsyncSession) else session
+    pending = sync_session.info.get(PENDING_INFO_KEY)
+    return bool(pending) and str(org_id) in pending.get("org", ())
+
+
 def _loaded(instance: Any, name: str) -> Any:
     """Read a loaded attribute without triggering a lazy load inside the flush."""
     return inspect(instance).dict.get(name)

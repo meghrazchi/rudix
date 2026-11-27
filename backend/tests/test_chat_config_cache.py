@@ -175,6 +175,28 @@ async def test_answer_prompt_version_change_is_seen_after_commit(
     assert second.id == first.id and second.content.endswith("Edited.")
 
 
+async def test_answer_prompt_seeded_in_a_rolled_back_transaction_is_not_cached(
+    db_session: AsyncSession, fake_redis: FakeRedis
+) -> None:
+    # The first question of an organisation seeds its default templates in the read
+    # transaction. If that transaction rolls back, no cached snapshot may keep the id of a
+    # version that was never committed.
+    org_id = (await _org(db_session)).id
+
+    seeded = await config_cache.answer_prompt_version(db_session, organization_id=org_id)
+    await db_session.rollback()
+    assert await db_session.get(PromptTemplateVersion, seeded.id) is None
+
+    reseeded = await config_cache.answer_prompt_version(db_session, organization_id=org_id)
+    assert reseeded.id != seeded.id
+    await db_session.commit()
+    assert await db_session.get(PromptTemplateVersion, reseeded.id) is not None
+
+    cached = await config_cache.answer_prompt_version(db_session, organization_id=org_id)
+    assert cached.id == reseeded.id
+    assert not db_session.new and not db_session.dirty
+
+
 async def test_model_profile_change_is_seen_after_commit(
     db_session: AsyncSession, fake_redis: FakeRedis
 ) -> None:

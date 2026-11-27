@@ -464,7 +464,14 @@ question text is never part of a key).
   defaults (environment model profile, system quota limits) are computed on every call. Query
   vectors are not invalidated by writes (they depend only on settings and the text); a model,
   dimension, or index-version change produces new keys, and `CHAT_QUERY_EMBEDDING_CACHE_TTL_SECONDS`
-  (3600) bounds their life.
+  (3600) bounds their life. A value loaded in a transaction that has already written rows
+  of the same organisation (the answer prompt seeds its default templates on an
+  organisation's first question) is returned but not cached, so a rollback never leaves an
+  uncommitted row id in Redis.
+- Redis holds verified-answer text. With the shortcut on, `verified_answer_candidates` stores
+  each published card's answer text and its citation snippets (document text) in Redis under
+  the organisation key, for at most `CACHE_TTL_POLICIES_SECONDS`. Treat the Redis instance as
+  holding organisation content (private network and authentication).
 - Verified answers never bypass permissions. The shortcut matches only on exact equality of
   the normalised question, and every citation must pass the checks a generated answer's
   sources pass: document in the organisation with a usable connector item

@@ -32,6 +32,7 @@ from app.application.chat.pipeline.controls import _resolve_answer_prompt_versio
 from app.application.chat.pipeline.deps import ChatPipelineDeps
 from app.application.chat.pipeline.snapshots import PromptVersionSnapshot, RagProfileSnapshot
 from app.core.cache import OrgScope, get_or_load
+from app.core.cache_invalidation import has_pending_org_invalidation
 from app.core.config import settings
 from app.domains.ai_response_policy.services.policy_engine import EffectivePolicy
 from app.domains.rag_profiles.services.rag_profile_service import resolve_profile_for_context
@@ -113,19 +114,35 @@ async def answer_prompt_version(
     """The active published answer-generation prompt version.
 
     A missing or unpublished template raises (``prompt_template_unavailable``) and nothing
-    is cached for it. The first call of an organisation seeds its default templates; that
-    write bumps the cache version, so the next request loads (and caches) once more.
+    is cached for it. The first call of an organisation seeds its default templates in the
+    open transaction; that snapshot is returned but not cached, because a rollback would
+    leave a cached version id that was never committed. The commit bumps the cache version,
+    so the next request loads (and caches) once more.
     """
 
     async def load() -> PromptVersionSnapshot:
         version = await _resolve_answer_prompt_version(db_session, organization_id=organization_id)
-        return PromptVersionSnapshot.from_model(version)
+        snapshot = PromptVersionSnapshot.from_model(version)
+        if has_pending_org_invalidation(db_session, organization_id):
+            raise _UncommittedLoad(snapshot)
+        return snapshot
 
-    return await get_or_load(
-        scope=OrgScope(organization_id),
-        namespace=NAMESPACE_ANSWER_PROMPT,
-        key_id="answer_generation",
-        ttl=settings.cache_ttl_profiles_seconds,
-        adapter=_PROMPT_ADAPTER,
-        loader=load,
-    )
+    try:
+        return await get_or_load(
+            scope=OrgScope(organization_id),
+            namespace=NAMESPACE_ANSWER_PROMPT,
+            key_id="answer_generation",
+            ttl=settings.cache_ttl_profiles_seconds,
+            adapter=_PROMPT_ADAPTER,
+            loader=load,
+        )
+    except _UncommittedLoad as uncommitted:
+        return uncommitted.value
+
+
+class _UncommittedLoad(Exception):
+    """A loaded value that depends on writes the open transaction has not committed."""
+
+    def __init__(self, value: PromptVersionSnapshot) -> None:
+        super().__init__("uncommitted_load")
+        self.value = value
