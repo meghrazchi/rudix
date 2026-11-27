@@ -48,6 +48,9 @@ _STUBS: dict[str, str] = {
     "MINIO_BUCKET": "documents",
     "RABBITMQ_URL": "amqp://x:x@localhost:5672//",
     "REDIS_URL": "redis://localhost:6379/0",
+    # Required by validate_ai_providers while the default provider is openai. A CI runner has
+    # no .env, so without this stub the settings fail to load before the schema is built.
+    "OPENAI_API_KEY": "openapi-export-placeholder",
 }
 
 # Forced: these decide which routes exist and under which prefix.

@@ -158,12 +158,17 @@ def test_prepare_environment_forces_route_settings(exporter: ModuleType) -> None
     assert environ["API_PREFIX"] == "/api/v1"
     assert environ["DATABASE_URL"] == "kept"
     assert environ["REDIS_URL"] == exporter._STUBS["REDIS_URL"]
+    assert environ["OPENAI_API_KEY"] == exporter._STUBS["OPENAI_API_KEY"]
 
 
 def test_script_exports_real_app_without_test_aliases(exporter: ModuleType, tmp_path: Path) -> None:
-    """End to end: run as a script with ENVIRONMENT=test inherited; --check passes."""
+    """End to end: run as a script with ENVIRONMENT=test inherited; --check passes.
+
+    OPENAI_API_KEY is removed, as on a CI runner with no .env: the export must stub it.
+    """
     dest = tmp_path / "openapi.json"
     env = {**os.environ, "ENVIRONMENT": "test", "API_PREFIX": "/elsewhere"}
+    env.pop("OPENAI_API_KEY", None)
 
     result = subprocess.run(
         [sys.executable, str(SCRIPT_PATH), str(dest)],
