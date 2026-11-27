@@ -192,6 +192,7 @@ async def test_cancel_100k_item_sync_within_one_check_interval(db: SqliteDb) -> 
 
     assert result.status == "cancelled" and run.pages_committed == k
     assert run.items_seen <= k * PAGE + settings.connector_sync_cancel_check_items
+    print(f"cancel_to_stop_seconds={stopped:.3f} items_seen={run.items_seen}")
     assert stopped < 10.0
 
 

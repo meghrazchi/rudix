@@ -80,6 +80,27 @@ async def test_due_poll_is_one_select_for_n_jobs(
 
 
 @pytest.mark.asyncio
+async def test_capped_due_poll_is_still_one_locking_select(
+    pg_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "connector_sync_poll_batch_size", 1000)
+    monkeypatch.setattr(settings, "connector_sync_max_concurrent_per_org", 1)
+    monkeypatch.setattr(settings, "connector_sync_max_concurrent_per_connection", 1)
+    tenant = await seed_tenant(pg_session)
+    await make_engine(None).create_sync_job(
+        pg_session, organization_id=tenant.org_id, connection_id=tenant.connection_id, name="j2"
+    )
+    await pg_session.flush()
+
+    with count_queries(pg_session) as counter:
+        dispatched = await make_engine(None).dispatch_due_syncs(pg_session)
+
+    selects = [s for s in counter.statements if s.lstrip().upper().startswith("SELECT")]
+    assert len(selects) == 1 and "SKIP LOCKED" in selects[0]
+    assert [org for _, org in dispatched].count(tenant.org_id) == 1
+
+
+@pytest.mark.asyncio
 async def test_concurrent_pollers_never_claim_the_same_job(
     pg_session_factory: Factory, tenants: list[Tenant]
 ) -> None:
