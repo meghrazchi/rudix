@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-ChatWSCommandType = Literal["chat.start", "chat.cancel", "heartbeat.pong"]
+ChatWSCommandType = Literal["chat.start", "chat.cancel", "chat.resume", "heartbeat.pong"]
 
 ChatWSEventType = Literal[
     "connection.ready",
@@ -22,6 +22,7 @@ ChatWSEventType = Literal[
     "activity.step.update",
     "chat.completed",
     "chat.cancelled",
+    "chat.resumed",
     "chat.error",
     "heartbeat.ping",
 ]
@@ -40,8 +41,10 @@ ChatWSSafeErrorCode = Literal[
     "invalid_message",
     "invalid_request",
     "plan_limit_exceeded",
+    "provider_busy",
     "rate_limit_exceeded",
     "rate_limiter_unavailable",
+    "resume_unavailable",
     "retrieval_failed",
 ]
 
@@ -61,6 +64,9 @@ class ChatWSOutboundEvent(BaseModel):
     timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     payload: dict[str, Any] | None = None
     safe_error_code: str | None = None
+    # R05-13: 1, 2, ... over the events of one assistant message (contract 4.2.6); set on
+    # pipeline events of WebSocket runs, ``None`` on connection events (heartbeat, ready).
+    stream_sequence: int | None = None
 
     def to_json(self) -> str:
         return self.model_dump_json(exclude_none=False)

@@ -37,9 +37,11 @@ from app.application.chat.pipeline.provider_proxies import (  # noqa: F401 (re-e
 )
 from app.application.chat.pipeline.request_helpers import _request_id_from_request
 from app.application.chat.quota import ensure_chat_quota
+from app.application.chat.transports import ws as ws_runs
 from app.application.chat.transports.http import run_http_query
 from app.application.chat.transports.sse import open_sse_query
 from app.application.chat.transports.ws import WsSequence, as_ws_sequence, run_ws_query
+from app.application.chat.transports.ws_resume import start_ws_resume
 from app.application.chat.ws_auth import authenticate_ws_handshake
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
@@ -311,7 +313,7 @@ async def chat_websocket(
     """WebSocket chat endpoint (F277). Feature-flagged via FEATURE_CHAT_WEBSOCKET_ENABLED.
 
     Handshake auth (R02-10): ``?ticket=`` from POST /chat/ws-ticket, then an
-    ``Authorization`` header, then the deprecated ``?token=``.
+    ``Authorization`` header, then the deprecated ``?token=`` (off by default since 0.5.0).
     """
     if not settings.feature_chat_websocket_enabled:
         await websocket.close(code=4503, reason="WebSocket chat is not enabled")
@@ -389,6 +391,7 @@ async def chat_websocket(
         await _ws_send(websocket, evt)
 
     active_task: asyncio.Task[None] | None = None
+    active_run: ws_runs.WsRunHandle | None = None
     heartbeat_task: asyncio.Task[None] | None = None
 
     async def run_heartbeat() -> None:
@@ -422,6 +425,7 @@ async def chat_websocket(
 
             if msg.command == "chat.cancel":
                 if active_task and not active_task.done():
+                    await ws_runs.forward_ws_cancel(active_run)
                     active_task.cancel()
                     try:
                         await active_task
@@ -429,6 +433,16 @@ async def chat_websocket(
                         pass
                     active_task = None
                     await send_event("chat.cancelled")
+                continue
+
+            if msg.command == "chat.resume":
+                # R05-13: replay and follow a run of this principal (contract 4.2.7).
+                if active_task and not active_task.done():
+                    await send_event("chat.error", safe_error_code="already_running")
+                    continue
+                active_task, active_run = start_ws_resume(
+                    websocket, msg.payload, principal, sequence, SessionLocal
+                )
                 continue
 
             if msg.command == "chat.start":
@@ -449,14 +463,16 @@ async def chat_websocket(
 
                 request_id = msg.request_id or secrets.token_hex(16)
                 payload_dict: dict[str, Any] = msg.payload or {}
-                active_task = asyncio.create_task(
+                active_run = ws_runs.WsRunHandle()
+                active_task = ws_runs.start_ws_run(
                     _run_ws_chat_pipeline(
                         websocket=websocket,
                         payload=payload_dict,
                         principal=principal,
                         request_id=request_id,
                         sequence_start=sequence,
-                    )
+                    ),
+                    active_run,
                 )
 
     except WebSocketDisconnect:
@@ -467,7 +483,7 @@ async def chat_websocket(
         if heartbeat_task:
             heartbeat_task.cancel()
         if active_task and not active_task.done():
-            active_task.cancel()
+            ws_runs.handle_ws_drop(active_task, active_run)  # R05-13: resume grace window
         async with _ws_connection_lock:
             _ws_connection_counts[user_id] = max(0, _ws_connection_counts.get(user_id, 1) - 1)
         log_query_event(

@@ -15,6 +15,7 @@ import time
 from collections.abc import Callable, Sequence
 from typing import Any
 
+from app.application.chat.transports import resume_buffer
 from app.auth import usage_touch
 from app.clients.redis_scripts import ReferenceImpl, script_sha1
 from app.rate_limit import concurrency, sliding_window
@@ -24,6 +25,7 @@ REFERENCE_IMPLS: dict[str, ReferenceImpl] = {
     script_sha1(usage_touch.TOUCH_SCRIPT): usage_touch.touch_reference_impl,
     script_sha1(usage_touch.POP_SCRIPT): usage_touch.pop_reference_impl,
     script_sha1(concurrency.ACQUIRE_SCRIPT): concurrency.acquire_reference_impl,
+    script_sha1(resume_buffer.APPEND_SCRIPT): resume_buffer.append_reference_impl,
 }
 
 

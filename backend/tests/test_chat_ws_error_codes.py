@@ -1,7 +1,9 @@
 """Every WebSocket safe_error_code the chat transport emits must be a declared ChatWSSafeErrorCode.
 
 Since R05-01 (S3) the codes come from ``chat.py`` (the connection loop) and the WebSocket
-adapter of the pipeline (``app/application/chat/transports/ws.py``).
+adapter of the pipeline (``app/application/chat/transports/ws.py``); since R05-13 also from
+``chat.resume`` (``ws_resume.py``), and pipeline refusals carry their code in
+``ChatPipelineError(code=...)`` (``provider_busy`` in ``stages/_llm.py``, R05-06).
 """
 
 from __future__ import annotations
@@ -16,8 +18,10 @@ _APP = Path(__file__).resolve().parents[1] / "app"
 _CHAT_SOURCES = (
     _APP / "interfaces" / "http" / "chat.py",
     _APP / "application" / "chat" / "transports" / "ws.py",
+    _APP / "application" / "chat" / "transports" / "ws_resume.py",
+    _APP / "application" / "chat" / "pipeline" / "stages" / "_llm.py",
 )
-_CODE_PATTERN = re.compile(r'(?:safe_error_code=|emit_error\()"([a-z_]+)"')
+_CODE_PATTERN = re.compile(r'(?:safe_error_code=|emit_error\(|code=)"([a-z_]+)"')
 
 
 def _emitted_codes() -> set[str]:
@@ -41,3 +45,12 @@ def test_plan_limit_exceeded_is_emitted_and_declared() -> None:
 
     assert "plan_limit_exceeded" in emitted
     assert "plan_limit_exceeded" in get_args(ChatWSSafeErrorCode)
+
+
+def test_provider_busy_and_resume_unavailable_are_emitted_and_declared() -> None:
+    emitted = _emitted_codes()
+    declared = set(get_args(ChatWSSafeErrorCode))
+
+    for code in ("provider_busy", "resume_unavailable"):
+        assert code in emitted
+        assert code in declared

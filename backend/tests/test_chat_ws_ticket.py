@@ -530,6 +530,13 @@ async def test_query_token_flag(
     assert (await _connect(FakeWebSocket(), token=token)).closes == [(4401, "Unauthorized")]
 
 
+def test_query_token_handshake_is_off_by_default() -> None:
+    # R05-13: false since 0.5.0 (removed in 1.0.0); the fixture above turns it on.
+    from app.core.config import Settings
+
+    assert Settings.model_fields["chat_ws_allow_query_token"].default is False
+
+
 def test_ws_auth_metric(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "metrics_enabled", True)
     counter = metrics.CHAT_WS_AUTH_TOTAL.labels(method="ticket", outcome="accepted")
