@@ -2,7 +2,11 @@
   "notificationCenter": {
     "title": "Notifications",
     "menuAriaLabel": "Notifications menu",
-    "severity": { "info": "Info", "warning": "Warning", "error": "Error" },
+    "severity": {
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error"
+    },
     "justNow": "Just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
@@ -422,7 +426,7 @@
     },
     "landing": {
       "hero": {
-        "badge": "Infraestructura RAG lista para empresas",
+        "badge": "IA documental lista para empresas",
         "title": "Haz preguntas a tus documentos.",
         "titleHighlight": "Obtén las respuestas que necesitas.",
         "description": "Convierte PDF, DOCX y manuales técnicos complejos en asistentes de IA precisos con citas completas y visibilidad a nivel de infraestructura.",
@@ -443,7 +447,8 @@
         "untrustedAITitle": "IA no confiable",
         "untrustedAIDesc": "LLM genéricos que alucinan respuestas sin citas ni barandillas específicas del contexto.",
         "knowledgeSilosTitle": "Silos de conocimiento",
-        "knowledgeSilosDesc": "Datos críticos atrapados en silos departamentales e inaccesibles para equipos multifuncionales."
+        "knowledgeSilosDesc": "Datos críticos atrapados en silos departamentales e inaccesibles para equipos multifuncionales.",
+        "eyebrow": "El problema"
       },
       "workflow": {
         "heading": "Sube. Pregunta. Verifica.",
@@ -457,7 +462,15 @@
         "retrievalTitle": "Recuperación semántica",
         "retrievalDesc": "Cuando un usuario hace una pregunta, nuestro motor RAG recupera los fragmentos exactos necesarios para responderla, ni más ni menos.",
         "generationTitle": "Generación fundamentada",
-        "generationDesc": "La IA responde únicamente con base en los datos recuperados y proporciona enlaces directos a las fuentes para una transparencia absoluta."
+        "generationDesc": "La IA responde únicamente con base en los datos recuperados y proporciona enlaces directos a las fuentes para una transparencia absoluta.",
+        "eyebrow": "Cómo funciona",
+        "description": "De la carga a una respuesta citada en segundos.",
+        "step": "Paso {number}",
+        "indexedStatus": "Indexado",
+        "relevance": "Relevancia",
+        "citedPassage": "Fragmento citado",
+        "passageText": "…el envío de devolución se reembolsa en artículos defectuosos…",
+        "openSource": "Abrir página de origen"
       },
       "useCases": {
         "heading": "Creado para todos los equipos.",
@@ -476,7 +489,8 @@
         "hrDesc": "Automatizar empleado consultas con respuestas alineadas con políticas.",
         "salesOpsLabel": "Operaciones de ventas",
         "salesOpsTitle": "\"¿Admitimos SSO para clientes Enterprise?\"",
-        "salesOpsDesc": "Obtén respuestas inmediatas para RFP y cuestionarios de seguridad."
+        "salesOpsDesc": "Obtén respuestas inmediatas para RFP y cuestionarios de seguridad.",
+        "eyebrow": "Casos de uso"
       },
       "security": {
         "heading": "Diseñado para flujos de trabajo de documentos privados.",
@@ -487,13 +501,32 @@
         "auditLogsTitle": "Registros de auditoría",
         "auditLogsDesc": "Rastrea cada consulta, recuperación y acción administrativa con registros detallados con marca temporal.",
         "encryptionTitle": "Cifrado de extremo a extremo",
-        "encryptionDesc": "AES-256 en reposo y TLS 1.3 en tránsito, con soporte Bring Your Own Key para empresas."
+        "encryptionDesc": "AES-256 en reposo y TLS 1.3 en tránsito, con soporte Bring Your Own Key para empresas.",
+        "eyebrow": "Privacidad primero"
       },
       "cta": {
         "heading": "¿Listo para convertir tus documentos en un asistente de IA?",
         "description": "Únete a equipos de ingeniería visionarios que usan Rudix para la excelencia del conocimiento.",
         "primaryCta": "Habla con nosotros",
         "secondaryCta": "Ver documentación"
+      },
+      "preview": {
+        "windowLabel": "Espacio de soporte",
+        "documentsIndexed": "34 documentos indexados",
+        "you": "Tú",
+        "justNow": "Ahora mismo",
+        "question": "¿Cuál es la política de devoluciones internacionales?",
+        "assistant": "Asistente Rudix",
+        "confidence": "Confianza alta",
+        "answerIntro": "Los clientes internacionales pueden iniciar una devolución dentro de los 30 días posteriores a la entrega",
+        "answerMiddle": "Los artículos deben estar sin usar y con sus etiquetas originales. El envío de devolución se reembolsa en artículos defectuosos",
+        "answerEnd": "mientras que otras devoluciones incluyen una pequeña tarifa de reposición.",
+        "sourcesHeading": "Fuentes",
+        "source1Section": "Página 4 · Devoluciones y cambios",
+        "source2Section": "Página 11 · Artículos defectuosos",
+        "viewSource": "Ver fuente",
+        "citationLabel": "Cita {number}",
+        "ariaLabel": "Ejemplo de una respuesta con citas en Rudix"
       }
     },
     "product": {

@@ -124,6 +124,87 @@ samp,
   animation: workflow-packet-flow 1.9s linear infinite;
 }
 
+/*
+ * Public marketing design tokens (minimal modern redesign, Stitch project
+ * "Rudix Public Site Redesign"). Light values are the default; pages that opt
+ * into `data-public-theme="system"` follow the OS dark preference.
+ */
+.rudix-public {
+  --site-canvas: #fafafa;
+  --site-surface: #ffffff;
+  --site-muted: #f4f4f6;
+  --site-border: #e6e6ea;
+  --site-ink: #0f1117;
+  --site-ink-muted: #4b5060;
+  --site-ink-subtle: #6b7080;
+  --site-accent: #4338ca;
+  --site-accent-hover: #3730a3;
+  --site-on-accent: #ffffff;
+  --site-accent-soft: #eef0ff;
+  --site-accent-ink: #3730a3;
+  --site-success: #047857;
+  --site-success-soft: #ecfdf5;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  .rudix-public[data-public-theme="system"] {
+    --site-canvas: #0b0c10;
+    --site-surface: #13151b;
+    --site-muted: #1a1d24;
+    --site-border: #262a33;
+    --site-ink: #f3f4f7;
+    --site-ink-muted: #a9aebb;
+    --site-ink-subtle: #8a8f9d;
+    --site-accent: #a5a0ff;
+    --site-accent-hover: #c3c0ff;
+    --site-on-accent: #0b0c10;
+    --site-accent-soft: #1e1c3d;
+    --site-accent-ink: #c3c0ff;
+    --site-success: #34d399;
+    --site-success-soft: #0f2a20;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-site-canvas: var(--site-canvas);
+  --color-site-surface: var(--site-surface);
+  --color-site-muted: var(--site-muted);
+  --color-site-border: var(--site-border);
+  --color-site-ink: var(--site-ink);
+  --color-site-ink-muted: var(--site-ink-muted);
+  --color-site-ink-subtle: var(--site-ink-subtle);
+  --color-site-accent: var(--site-accent);
+  --color-site-accent-hover: var(--site-accent-hover);
+  --color-site-on-accent: var(--site-on-accent);
+  --color-site-accent-soft: var(--site-accent-soft);
+  --color-site-accent-ink: var(--site-accent-ink);
+  --color-site-success: var(--site-success);
+  --color-site-success-soft: var(--site-success-soft);
+}
+
+@keyframes rudix-site-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rudix-site-rise {
+  animation: rudix-site-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rudix-site-rise {
+    animation: none;
+  }
+}
+
 .rudix-landing-glass {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(226, 226, 233, 0.5);

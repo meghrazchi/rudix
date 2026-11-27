@@ -5,7 +5,10 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
-import { PublicActionLink } from "@/components/public/PublicActionLink";
+import {
+  PUBLIC_FOCUS_RING_CLASS,
+  PublicActionLink,
+} from "@/components/public/PublicActionLink";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
 
 type PublicHeaderProps = {
@@ -54,51 +57,59 @@ export function PublicHeader({ links }: PublicHeaderProps) {
     };
   }, [isMobileMenuOpen]);
 
-  return (
-    <header className="sticky top-0 z-30 border-b border-[#dbdde4] bg-[#f2f3f6]/95 backdrop-blur-sm">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
-        <div className="flex items-center gap-8">
-          <PublicActionLink
-            href={links.home}
-            className="flex items-center gap-2"
-            ariaLabel="Rudix home"
-          >
-            <Image
-              src="/brand/rudix-mark.svg"
-              alt="Rudix logo"
-              width={24}
-              height={24}
-              className="h-6 w-6"
-            />
-            <span className="text-sm font-bold text-[#11131a]">Rudix</span>
-          </PublicActionLink>
-          <nav
-            aria-label={t("primaryNav")}
-            className="hidden items-center gap-6 md:flex"
-          >
-            {navItems.map((item) => (
-              <PublicActionLink
-                key={item.label}
-                href={item.href}
-                className="text-xs font-medium text-[#4e5160] transition hover:text-[#25283a]"
-              >
-                {item.label}
-              </PublicActionLink>
-            ))}
-          </nav>
-        </div>
+  const switcherClassName =
+    "rounded-full border border-site-border bg-site-surface px-2.5 py-1 text-xs font-medium text-site-ink-muted transition hover:text-site-ink focus:border-site-accent focus:ring-2 focus:ring-site-accent/25 focus:outline-none";
 
-        <div className="hidden items-center gap-3 md:flex">
-          <LanguageSwitcher variant="select" />
+  return (
+    <header className="border-site-border bg-site-canvas/80 sticky top-0 z-30 border-b backdrop-blur-md">
+      <div className="mx-auto grid h-16 w-full max-w-7xl grid-cols-[1fr_auto] items-center px-4 md:grid-cols-[1fr_auto_1fr] lg:px-8">
+        <PublicActionLink
+          href={links.home}
+          className="flex items-center gap-2 justify-self-start rounded-md"
+          ariaLabel="Rudix home"
+        >
+          <Image
+            src="/brand/rudix-mark.svg"
+            alt="Rudix logo"
+            width={24}
+            height={24}
+            className="h-6 w-6"
+          />
+          <span className="text-site-ink text-[15px] font-semibold tracking-tight">
+            Rudix
+          </span>
+        </PublicActionLink>
+
+        <nav
+          aria-label={t("primaryNav")}
+          className="hidden items-center gap-1 md:flex"
+        >
+          {navItems.map((item) => (
+            <PublicActionLink
+              key={item.label}
+              href={item.href}
+              className="text-site-ink-muted hover:bg-site-muted hover:text-site-ink rounded-full px-3 py-1.5 text-sm transition-colors"
+            >
+              {item.label}
+            </PublicActionLink>
+          ))}
+        </nav>
+
+        <div className="hidden items-center gap-3 justify-self-end md:flex">
+          <LanguageSwitcher
+            variant="select"
+            selectId="public-header-language"
+            selectClassName={switcherClassName}
+          />
           <PublicActionLink
             href={links.login}
-            className="text-xs font-semibold text-[#2e3141] transition hover:text-black"
+            className="text-site-ink-muted hover:text-site-ink rounded-md px-1 text-sm transition-colors"
           >
             {t("login")}
           </PublicActionLink>
           <PublicActionLink
             href={links.requestDemo}
-            className="rounded-md bg-[#3a35e8] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2d2ad1]"
+            className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover inline-flex h-9 items-center rounded-full px-4 text-sm font-medium transition-colors"
           >
             {t("requestDemo")}
           </PublicActionLink>
@@ -110,7 +121,7 @@ export function PublicHeader({ links }: PublicHeaderProps) {
           aria-expanded={isMobileMenuOpen}
           aria-controls={mobileMenuId}
           aria-label={isMobileMenuOpen ? t("closeMenu") : t("openMenu")}
-          className="rounded-md border border-[#cfd3de] bg-white p-2 text-[#2e3346] md:hidden"
+          className={`border-site-border bg-site-surface text-site-ink justify-self-end rounded-full border p-2 md:hidden ${PUBLIC_FOCUS_RING_CLASS}`}
           onClick={() => {
             setIsMobileMenuOpen((previous) => !previous);
           }}
@@ -139,14 +150,14 @@ export function PublicHeader({ links }: PublicHeaderProps) {
         <div id={mobileMenuId} className="block md:hidden">
           <nav
             aria-label={t("mobileNav")}
-            className="border-t border-[#dde0ea] bg-white px-4 py-4"
+            className="border-site-border bg-site-canvas border-t px-4 py-4"
           >
-            <ul className="space-y-3">
+            <ul className="space-y-1">
               {navItems.map((item, index) => (
                 <li key={item.label}>
                   <PublicActionLink
                     href={item.href}
-                    className="block rounded-md px-2 py-2 text-sm font-medium text-[#2f3346] hover:bg-[#f2f3f7]"
+                    className="text-site-ink hover:bg-site-muted block rounded-xl px-3 py-2.5 text-base font-medium"
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                     }}
@@ -158,14 +169,14 @@ export function PublicHeader({ links }: PublicHeaderProps) {
               ))}
             </ul>
 
-            <div className="mt-4 flex flex-col gap-2 border-t border-[#e6e8ef] pt-4">
+            <div className="border-site-border mt-4 flex flex-col gap-2 border-t pt-4">
               <LanguageSwitcher
                 variant="buttons"
                 className="flex flex-wrap gap-2 px-2 py-1"
               />
               <PublicActionLink
                 href={links.login}
-                className="rounded-md px-2 py-2 text-sm font-semibold text-[#2e3141] hover:bg-[#f2f3f7]"
+                className="border-site-border text-site-ink hover:bg-site-muted rounded-full border px-4 py-2.5 text-center text-sm font-medium"
                 onClick={() => {
                   setIsMobileMenuOpen(false);
                 }}
@@ -174,7 +185,7 @@ export function PublicHeader({ links }: PublicHeaderProps) {
               </PublicActionLink>
               <PublicActionLink
                 href={links.requestDemo}
-                className="rounded-md bg-[#3a35e8] px-4 py-2 text-center text-sm font-semibold text-white hover:bg-[#2d2ad1]"
+                className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover rounded-full px-4 py-2.5 text-center text-sm font-medium"
                 onClick={() => {
                   setIsMobileMenuOpen(false);
                 }}

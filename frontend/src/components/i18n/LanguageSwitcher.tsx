@@ -11,6 +11,10 @@ type LanguageSwitcherVariant = "select" | "buttons";
 type LanguageSwitcherProps = {
   variant?: LanguageSwitcherVariant;
   className?: string;
+  /** Replaces the default select styling (e.g. themed public surfaces). */
+  selectClassName?: string;
+  /** Unique id when more than one switcher renders on a page. */
+  selectId?: string;
 };
 
 const LOCALE_FLAGS: Record<SupportedLocale, string> = {
@@ -25,6 +29,8 @@ const LOCALE_FLAGS: Record<SupportedLocale, string> = {
 export function LanguageSwitcher({
   variant = "select",
   className,
+  selectClassName,
+  selectId = "language-switcher",
 }: LanguageSwitcherProps) {
   const t = useTranslations("languageSwitcher");
   const currentLocale = useLocale() as SupportedLocale;
@@ -71,18 +77,18 @@ export function LanguageSwitcher({
 
   return (
     <div className={className}>
-      <label htmlFor="language-switcher" className="sr-only">
+      <label htmlFor={selectId} className="sr-only">
         {t("ariaLabel")}
       </label>
       <select
-        id="language-switcher"
+        id={selectId}
         value={currentLocale}
         disabled={isPending}
         onChange={(event) => applyLocale(event.target.value as SupportedLocale)}
         aria-label={t("ariaLabel")}
         className={[
-          "rounded-lg border border-[#d2cee6] bg-white px-2 py-1 text-xs font-medium text-[#4e5160] transition",
-          "focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/20 focus:outline-none",
+          selectClassName ??
+            "rounded-lg border border-[#d2cee6] bg-white px-2 py-1 text-xs font-medium text-[#4e5160] transition focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/20 focus:outline-none",
           isPending ? "cursor-wait opacity-60" : "cursor-pointer",
         ].join(" ")}
       >

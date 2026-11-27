@@ -2,7 +2,11 @@
   "notificationCenter": {
     "title": "Notifications",
     "menuAriaLabel": "Notifications menu",
-    "severity": { "info": "Info", "warning": "Warning", "error": "Error" },
+    "severity": {
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error"
+    },
     "justNow": "Just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
@@ -422,7 +426,7 @@
     },
     "landing": {
       "hero": {
-        "badge": "Infrastructure RAG prête pour l’entreprise",
+        "badge": "IA documentaire prête pour l’entreprise",
         "title": "Interrogez vos documents.",
         "titleHighlight": "Obtenez les réponses dont vous avez besoin.",
         "description": "Transformez les PDF, DOCX et manuels techniques complexes en assistants IA précis avec citations complètes et visibilité au niveau de l’infrastructure.",
@@ -443,7 +447,8 @@
         "untrustedAITitle": "IA non fiable",
         "untrustedAIDesc": "Des LLM génériques hallucinent des réponses sans citations ni garde-fous propres au contexte.",
         "knowledgeSilosTitle": "Silos de connaissances",
-        "knowledgeSilosDesc": "Des données critiques restent piégées dans des silos départementaux, hors de portée des équipes transverses."
+        "knowledgeSilosDesc": "Des données critiques restent piégées dans des silos départementaux, hors de portée des équipes transverses.",
+        "eyebrow": "Le problème"
       },
       "workflow": {
         "heading": "Téléversez. Demandez. Vérifiez.",
@@ -457,7 +462,15 @@
         "retrievalTitle": "Récupération sémantique",
         "retrievalDesc": "Lorsqu’un utilisateur pose une question, notre moteur RAG récupère exactement les fragments nécessaires pour y répondre, ni plus ni moins.",
         "generationTitle": "Génération fondée",
-        "generationDesc": "L’IA répond uniquement à partir des données récupérées, avec des liens directs vers les sources pour une transparence totale."
+        "generationDesc": "L’IA répond uniquement à partir des données récupérées, avec des liens directs vers les sources pour une transparence totale.",
+        "eyebrow": "Comment ça marche",
+        "description": "Du téléversement à une réponse sourcée en quelques secondes.",
+        "step": "Étape {number}",
+        "indexedStatus": "Indexé",
+        "relevance": "Pertinence",
+        "citedPassage": "Passage cité",
+        "passageText": "…les frais de retour sont remboursés pour les articles défectueux…",
+        "openSource": "Ouvrir la page source"
       },
       "useCases": {
         "heading": "Conçu pour chaque équipe.",
@@ -476,7 +489,8 @@
         "hrDesc": "Automatisez les demandes des employés avec des réponses alignées sur les politiques.",
         "salesOpsLabel": "Opérations commerciales",
         "salesOpsTitle": "« Prenons-nous en charge le SSO pour les clients Enterprise ? »",
-        "salesOpsDesc": "Obtenez des réponses immédiates pour les appels d’offres et questionnaires de sécurité."
+        "salesOpsDesc": "Obtenez des réponses immédiates pour les appels d’offres et questionnaires de sécurité.",
+        "eyebrow": "Cas d’usage"
       },
       "security": {
         "heading": "Conçu pour les workflows de documents privés.",
@@ -487,13 +501,32 @@
         "auditLogsTitle": "Journaux d’audit",
         "auditLogsDesc": "Suivez chaque requête, récupération et action administrative avec des journaux horodatés détaillés.",
         "encryptionTitle": "Chiffrement de bout en bout",
-        "encryptionDesc": "AES-256 au repos et TLS 1.3 en transit, avec prise en charge Bring Your Own Key pour l’entreprise."
+        "encryptionDesc": "AES-256 au repos et TLS 1.3 en transit, avec prise en charge Bring Your Own Key pour l’entreprise.",
+        "eyebrow": "Confidentialité d’abord"
       },
       "cta": {
         "heading": "Prêt à transformer vos documents en assistant IA ?",
         "description": "Rejoignez les équipes d’ingénierie innovantes qui utilisent Rudix pour l’excellence des connaissances.",
         "primaryCta": "Parlez-nous",
         "secondaryCta": "Voir la documentation"
+      },
+      "preview": {
+        "windowLabel": "Espace support",
+        "documentsIndexed": "34 documents indexés",
+        "you": "Vous",
+        "justNow": "À l’instant",
+        "question": "Quelle est la politique de retour pour l’international ?",
+        "assistant": "Assistant Rudix",
+        "confidence": "Confiance élevée",
+        "answerIntro": "Les clients internationaux peuvent demander un retour dans les 30 jours suivant la livraison",
+        "answerMiddle": "Les articles doivent être inutilisés et porter leurs étiquettes d’origine. Les frais de retour sont remboursés pour les articles défectueux",
+        "answerEnd": "tandis que les autres retours entraînent de légers frais de remise en stock.",
+        "sourcesHeading": "Sources",
+        "source1Section": "Page 4 · Retours et échanges",
+        "source2Section": "Page 11 · Articles défectueux",
+        "viewSource": "Voir la source",
+        "citationLabel": "Citation {number}",
+        "ariaLabel": "Exemple de réponse sourcée dans Rudix"
       }
     },
     "product": {

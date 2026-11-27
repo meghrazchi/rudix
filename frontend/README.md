@@ -187,6 +187,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - skip-to-content link and semantic landmarks for accessibility
   - typed public changelog source data in `src/lib/public-site/changelog.ts`
   - release notes should be curated from release tags and milestones, then stripped of private issue details before publication
+- Public site redesign (minimal modern, in progress page by page):
+  - design source: Stitch project "Rudix Public Site Redesign"
+  - shared `site-*` color tokens in `src/app/globals.css` (`.rudix-public`), used as Tailwind classes such as `bg-site-surface` and `text-site-ink-muted`
+  - `PublicMarketingLayout` takes `theme="light" | "system"`; `system` follows the OS dark preference and is enabled only for pages already moved to the tokens (currently `/`)
+  - landing sections live in `src/components/public/landing/*`; all copy is in `public.landing.*` messages for every locale, and the product preview is built from UI rather than a screenshot
 
 ### Localized public SEO conventions
 

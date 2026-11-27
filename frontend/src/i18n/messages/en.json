@@ -2,7 +2,11 @@
   "notificationCenter": {
     "title": "Notifications",
     "menuAriaLabel": "Notifications menu",
-    "severity": { "info": "Info", "warning": "Warning", "error": "Error" },
+    "severity": {
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error"
+    },
     "justNow": "Just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
@@ -422,7 +426,7 @@
     },
     "landing": {
       "hero": {
-        "badge": "Enterprise Ready RAG Infrastructure",
+        "badge": "Enterprise-ready document AI",
         "title": "Ask your documents.",
         "titleHighlight": "Get the answers you need.",
         "description": "Turn PDFs, DOCX, and complex technical manuals into precise AI assistants with full citations and infrastructure-level visibility.",
@@ -443,7 +447,8 @@
         "untrustedAITitle": "Untrusted AI",
         "untrustedAIDesc": "Generic LLMs hallucinating answers without citations or context-specific guardrails.",
         "knowledgeSilosTitle": "Knowledge silos",
-        "knowledgeSilosDesc": "Critical data trapped in departmental silos, unreachable for cross-functional teams."
+        "knowledgeSilosDesc": "Critical data trapped in departmental silos, unreachable for cross-functional teams.",
+        "eyebrow": "The problem"
       },
       "workflow": {
         "heading": "Upload. Ask. Verify.",
@@ -457,7 +462,15 @@
         "retrievalTitle": "Semantic Retrieval",
         "retrievalDesc": "When a user asks a question, our RAG engine retrieves the exact chunks needed to answer it, no more and no less.",
         "generationTitle": "Grounded Generation",
-        "generationDesc": "The AI answers only based on retrieved data, providing direct links to sources for absolute transparency."
+        "generationDesc": "The AI answers only based on retrieved data, providing direct links to sources for absolute transparency.",
+        "eyebrow": "How it works",
+        "description": "From upload to a cited answer in seconds.",
+        "step": "Step {number}",
+        "indexedStatus": "Indexed",
+        "relevance": "Relevance",
+        "citedPassage": "Cited passage",
+        "passageText": "…return shipping is refunded for defective items…",
+        "openSource": "Open source page"
       },
       "useCases": {
         "heading": "Built for every team.",
@@ -476,7 +489,8 @@
         "hrDesc": "Automate employee queries with policy-aligned responses.",
         "salesOpsLabel": "Sales Ops",
         "salesOpsTitle": "\"Do we support SSO for Enterprise clients?\"",
-        "salesOpsDesc": "Get immediate answers for RFPs and security questionnaires."
+        "salesOpsDesc": "Get immediate answers for RFPs and security questionnaires.",
+        "eyebrow": "Use cases"
       },
       "security": {
         "heading": "Designed for private document workflows.",
@@ -487,13 +501,32 @@
         "auditLogsTitle": "Audit Logs",
         "auditLogsDesc": "Track every query, retrieval, and administrative action with detailed time-stamped logs.",
         "encryptionTitle": "End-to-End Encryption",
-        "encryptionDesc": "AES-256 at rest and TLS 1.3 in transit, with Bring Your Own Key support for enterprise."
+        "encryptionDesc": "AES-256 at rest and TLS 1.3 in transit, with Bring Your Own Key support for enterprise.",
+        "eyebrow": "Privacy first"
       },
       "cta": {
         "heading": "Ready to turn your documents into an AI assistant?",
         "description": "Join forward-thinking engineering teams using Rudix for knowledge excellence.",
         "primaryCta": "Speak to us",
         "secondaryCta": "View documentation"
+      },
+      "preview": {
+        "windowLabel": "Support workspace",
+        "documentsIndexed": "34 documents indexed",
+        "you": "You",
+        "justNow": "Just now",
+        "question": "What is the policy for international returns?",
+        "assistant": "Rudix Assistant",
+        "confidence": "High confidence",
+        "answerIntro": "International customers can start a return within 30 days of delivery",
+        "answerMiddle": "Items must be unused with original tags. Return shipping is refunded for defective items",
+        "answerEnd": "while other returns include a small restocking fee.",
+        "sourcesHeading": "Sources",
+        "source1Section": "Page 4 · Returns and exchanges",
+        "source2Section": "Page 11 · Defective items",
+        "viewSource": "View source",
+        "citationLabel": "Citation {number}",
+        "ariaLabel": "Example of a cited answer in Rudix"
       }
     },
     "product": {
