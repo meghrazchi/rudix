@@ -8,6 +8,9 @@ Celery runs eagerly (``ingestion_chain_support``), so ``documents.process`` and 
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -27,8 +30,8 @@ from sqlalchemy import update
 from app.core.config import settings
 from app.models.document import Document
 from app.models.enums import DocumentStatus
-from app.workers import document_tasks
-from app.workers.celery_app import TASK_ROUTES
+from app.workers import document_reaper_tasks, document_tasks
+from app.workers.celery_app import BEAT_SCHEDULE, TASK_ROUTES
 from app.workers.ingestion import chain as chain_module
 from app.workers.ingestion.chain import CHAIN_ORDER
 from app.workers.ingestion.stages import (
@@ -377,3 +380,155 @@ def test_resume_of_a_finished_run_starts_a_new_run(chain: ChainHarness) -> None:
     final = chain.env.run_async(state(chain.env, seeded))
     assert final["status"] == DocumentStatus.indexed.value
     assert final["runs"] == [result["run_id"]]
+
+
+# ── reaper resume, artifact purge, inline mode ────────────────────────────────────────
+
+
+def _maintenance(env: Any) -> Any:
+    @asynccontextmanager
+    async def _session() -> AsyncIterator[Any]:
+        async with env.factory() as session:
+            yield session
+
+    return _session
+
+
+def test_reaper_requeues_with_the_latest_unfinished_run(chain: ChainHarness) -> None:  # noqa: F811
+    env = chain.env
+    seeded = env.seed()
+    armed = {"on": True}
+    _arm(chain, "embed", armed)
+    with pytest.raises(WorkerKilled):
+        chain.process(seeded, chunking_profile_config=PROFILE_CONFIG)
+    run_id = chain.last(StageName.embed).kwargs["run_id"]
+    env.monkeypatch.setattr(document_reaper_tasks, "maintenance_session", _maintenance(env))
+    sent: list[dict[str, Any]] = []
+    env.monkeypatch.setattr(
+        document_reaper_tasks.celery_app, "send_task", lambda name, **kw: sent.append(kw)
+    )
+
+    async def _stale() -> None:
+        async with env.factory() as session, session.begin():
+            await session.execute(
+                update(Document)
+                .where(Document.id == seeded.document_id)
+                .values(processing_started_at=datetime.now(UTC) - timedelta(days=1))
+            )
+
+    env.run_async(_stale())
+    counts = env.run_async(document_reaper_tasks._reap_stale_documents_async())
+    assert counts["requeued"] == 1
+    assert sent[0]["kwargs"]["resume_run_id"] == run_id
+    assert sent[0]["kwargs"]["organization_id"] == str(seeded.organization_id)
+
+
+def test_stage_artifact_purge_keeps_processing_documents(chain: ChainHarness) -> None:  # noqa: F811
+    env = chain.env
+    stuck = env.seed()
+    abandoned = env.seed()
+    for seeded in (stuck, abandoned):
+        armed = {"on": True}
+        _arm(chain, "dlp", armed)
+        with pytest.raises(WorkerKilled):
+            chain.process(
+                seeded, task_id=f"p-{seeded.document_id}", chunking_profile_config=PROFILE_CONFIG
+            )
+
+    async def _abandon() -> None:
+        async with env.factory() as session, session.begin():
+            await session.execute(
+                update(Document)
+                .where(Document.id == abandoned.document_id)
+                .values(status=DocumentStatus.failed.value, processing_task_id=None)
+            )
+
+    env.run_async(_abandon())
+    env.monkeypatch.setattr(document_reaper_tasks, "maintenance_session", _maintenance(env))
+    later = datetime.now(UTC) + timedelta(hours=settings.ingest_stage_artifact_ttl_hours + 1)
+    result = env.run_async(document_reaper_tasks._purge_stage_artifacts_async(later))
+    assert result["deleted"] > 0
+    assert env.run_async(state(env, abandoned))["artifacts"] == 0
+    assert env.run_async(state(env, stuck))["artifacts"] > 0
+    # Nothing is older than the TTL now.
+    assert env.run_async(document_reaper_tasks._purge_stage_artifacts_async())["deleted"] == 0
+
+
+def test_purge_task_is_scheduled_daily_and_runs_its_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = BEAT_SCHEDULE["documents-stage-artifacts-purge"]
+    assert entry["task"] == "documents.stage_artifacts.purge"
+    route = TASK_ROUTES["documents.stage_artifacts.purge"]
+    assert route["queue"] == settings.celery_task_default_queue
+
+    async def _purge() -> dict[str, int]:
+        return {"deleted": 0}
+
+    monkeypatch.setattr(document_reaper_tasks, "_purge_stage_artifacts_async", _purge)
+    assert document_reaper_tasks.purge_stage_artifacts.run() == {"deleted": 0}
+
+
+TEXT_FOR_INLINE = "Policy text. " * 40
+
+
+def test_inline_mode_resumes_a_given_run(ingestion_env: Any) -> None:  # noqa: F811
+    env = ingestion_env
+    env.set_content(TEXT_FOR_INLINE.encode())
+    seeded = env.seed()
+    armed = {"on": True}
+    real = chunk.run
+
+    async def _run(ctx: Any) -> Any:
+        outcome = await real(ctx)
+        if armed["on"]:
+            armed["on"] = False
+            raise WorkerKilled("chunk")
+        return outcome
+
+    env.monkeypatch.setattr(chunk, "run", _run)
+    ids = {"organization_id": str(seeded.organization_id), "user_id": str(seeded.user_id)}
+    with pytest.raises(WorkerKilled):
+        env.run_task(document_tasks.process_document, seeded.document_id, task_id="first", **ids)
+
+    async def _release() -> None:
+        from app.models.document_processing import DocumentProcessingStage
+
+        async with env.factory() as session, session.begin():
+            # Reaped: the dead worker's stage heartbeat is as old as the document's.
+            await session.execute(
+                update(DocumentProcessingStage)
+                .where(DocumentProcessingStage.document_id == seeded.document_id)
+                .values(heartbeat_at=datetime.now(UTC) - timedelta(hours=2))
+            )
+            await session.execute(
+                update(Document)
+                .where(Document.id == seeded.document_id)
+                .values(processing_task_id=None, status="uploaded")
+            )
+
+    env.run_async(_release())
+    result = env.run_task(
+        document_tasks.process_document,
+        seeded.document_id,
+        task_id="second",
+        resume_run_id="first",
+        **ids,
+    )
+    assert result["status"] == DocumentStatus.indexed.value
+    assert env.fakes.minio.reads == 1
+    assert env.run_async(state(env, seeded))["runs"] == ["first"]
+
+
+def test_duplicate_outbox_publication_is_harmless(ingestion_env: Any) -> None:  # noqa: F811
+    env = ingestion_env
+    env.set_content(TEXT_FOR_INLINE.encode())
+    seeded = env.seed()
+    ids = {"organization_id": str(seeded.organization_id), "user_id": str(seeded.user_id)}
+    first = env.run_task(document_tasks.process_document, seeded.document_id, task_id="a", **ids)
+    # The relay published the same row again (the mark was lost): the claim is held.
+    again = env.run_task(document_tasks.process_document, seeded.document_id, task_id="b", **ids)
+    assert first["status"] == DocumentStatus.indexed.value
+    assert again["status"] == "skipped"
+    final = env.run_async(state(env, seeded))
+    assert final["usage"] == 1 and final["audits"] == 1

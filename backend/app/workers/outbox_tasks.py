@@ -30,10 +30,12 @@ from app.workers.celery_app import celery_app
 logger = get_logger("events.outbox")
 
 
-def _publish(row: OutboxMessage, resolver: Callable[[str], Any]) -> Any:
-    task = resolver(row.task_name)
-    options: dict[str, Any] = {"queue": row.queue} if row.queue else {}
-    return task.apply_async(kwargs=dict(row.kwargs or {}), **options)
+def _publish(
+    task_name: str, kwargs: dict[str, Any], queue: str | None, resolver: Callable[[str], Any]
+) -> Any:
+    task = resolver(task_name)
+    options: dict[str, Any] = {"queue": queue} if queue else {}
+    return task.apply_async(kwargs=kwargs, **options)
 
 
 async def relay_pending(
@@ -57,10 +59,11 @@ async def relay_pending(
             ).scalars()
         )
         for row in rows:
+            task_name, kwargs, queue = row.task_name, dict(row.kwargs or {}), row.queue
             row.attempts = int(row.attempts or 0) + 1
             row.updated_at = current
             try:
-                await asyncio.to_thread(_publish, row, resolver)
+                await asyncio.to_thread(_publish, task_name, kwargs, queue, resolver)
             except Exception as exc:
                 row.last_error = type(exc).__name__[:128]
                 if row.attempts >= settings.outbox_max_attempts:
