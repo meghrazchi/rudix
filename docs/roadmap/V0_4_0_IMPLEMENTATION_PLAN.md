@@ -3,7 +3,7 @@
 ## Metadata
 
 - `Owner`: Rudix maintainers
-- `Status`: Draft
+- `Status`: Implemented on `develop`; staging verification open (see section 10)
 - `Last Updated`: 2026-11-27
 - `Related Docs`: [V0_4_0_DATA_LAYER_PERFORMANCE.md](./V0_4_0_DATA_LAYER_PERFORMANCE.md),
   [V0_3_0_IMPLEMENTATION_PLAN.md](./V0_3_0_IMPLEMENTATION_PLAN.md),
@@ -81,7 +81,7 @@ Every task re-reads a shared file immediately before editing it, edits only its 
 | `backend/app/db/session.py` | A2 owns the file. D2 adds one line, `install_cache_invalidation_listeners()`, directly after `install_sqlalchemy_tenant_guard()`. |
 | `backend/app/auth/dependencies.py` | A2: `get_current_principal`. B1: `ensure_document_ids_access`. D1: `_authenticate_api_key`, `_authenticate_service_account_token`. D2: `require_permission`, `require_feature`. |
 | `backend/app/core/lifespan.py` | C1 owns the body. A2 adds `await dispose_engine()` in `finally` after `await close_neo4j()`. B2 adds the loop-lag monitor start after `await probe_local_providers()` and stop before `shutdown_langfuse()`. C1 keeps both. |
-| `backend/app/main.py` | C1: `register_exception_handlers(app)` directly after the `app = FastAPI(...)` call. B2: `GZipMiddleware` directly after `attach_metrics_middleware(app)`. |
+| `backend/app/main.py` | C1: `register_exception_handlers(app)` directly after the `app = FastAPI(...)` call. B2: `GZipMiddleware` directly after `attach_metrics_middleware(app)`. As merged, `attach_gzip_middleware` runs before `attach_access_log_middleware`, inside the HTTP middleware stack (see its docstring in `main.py`). |
 | `backend/app/workers/celery_app.py` | `include`: D1 after `"app.workers.agent_tasks",`, A3 after `"app.workers.safety_eval_tasks",`. `beat_schedule`: D1 after the `"agent-approvals-expire"` entry, A3 after the `"documents-reap-stale"` entry. `task_routes`: D1 after `"agents.approvals.expire"`, A3 after `"documents.reap_stale"`. |
 | `backend/app/interfaces/http/chat.py` | B1 only: `list_chat_sessions` handler, `list_chat_session_messages`, `get_shared_session`, and the two `create_citation` loops. |
 | `documents.py`, `admin.py` (HTTP) | B1 (`list_documents`, `export_admin_usage`, `list_admin_audit_logs`, `export_admin_audit_logs`), then B2 (everything else). |
@@ -129,6 +129,7 @@ Every task re-reads a shared file immediately before editing it, edits only its 
    manager, sets `session.info["rls_maintenance"] = True`, binds to `DATABASE_MAINTENANCE_URL`
    when set). Cross-tenant beat tasks use it, including A3's retention task and D1's flush
    task; D1 falls back to `SessionLocal()` if A2 has not landed and leaves a `TODO(R04-08)`.
+   At integration `usage.touch.flush` was switched to `maintenance_session()`.
 5. **Settings split (C1).** Before splitting, C1 writes `tests/fixtures/settings_fields.txt`
    (one `field|env-name` line per field). The test checks the live field set is a superset of
    that file, so fields added by other chains while the split is in progress are not lost. The
@@ -293,8 +294,9 @@ cd frontend && npm run typecheck && npm run lint && npm run test:coverage && npm
 cd frontend && npm run test:e2e
 ```
 
-Coverage must stay at or above the ratchets (backend 76.0, frontend lines 64.8). If a
-generated OpenAPI file is stale, regenerate it once on the merged tree.
+Coverage must stay at or above the ratchets (backend 77.3 after integration, was 76.0;
+frontend lines 64.8, statements 63.9). If a generated OpenAPI file is stale, regenerate it
+once on the merged tree.
 
 ## 8. Manual steps (staging and production)
 
@@ -312,3 +314,55 @@ generated OpenAPI file is stale, regenerate it once on the merged tree.
 
 - 2026-11-27: Initial version, written after checking the `0.4.0` spec against the code at
   `f9d432b`.
+- 2026-11-27: Release integration on `fix/v0.4.0-integration` (from `develop` at `daea0fe`):
+  added section 10, plan-test stabilisation, the `usage.touch.flush` maintenance session,
+  and raised coverage ratchets.
+
+## 10. Status
+
+Checked on the merged tree (`develop` at `daea0fe` plus the integration fixes below) on a
+local machine against a scratch PostgreSQL database. No staging run has happened.
+
+**Merged into `develop`:** all eight packages: A1 (R04-02), A2 (R04-01, R04-08), A3 (R04-09),
+B1 (R04-03, R04-04), B2 (R04-11, R04-13), C1 (R04-10, R04-12), D1 (R04-07, R04-06), D2
+(R04-05). No `feat/v0.4.0-*` branch has work that `develop` lacks. The migration chain is the
+one in section 3; `alembic heads` reports one head, `20261127_0005`.
+
+**Fixed at integration:**
+
+- The PostgreSQL `EXPLAIN` tests (`test_query_plans_pg.py`, `test_keyset_plans_pg.py`,
+  `test_rls_enforcement_pg.py`) failed on a second run against the same database: dead index
+  pages and `reltuples = 0` made the planner pick another index. `tests/pg_plans.py` rebuilds
+  the target table's indexes, and for `usage_events` seeds rows and runs `ANALYZE`, all inside
+  the rolled-back test transaction. The assertions are unchanged; the documents cursor test
+  now fails, instead of skipping, when the A1 index is missing.
+- `usage.touch.flush` (D1) still used `SessionLocal` with `TODO(R04-08)`; it now uses A2's
+  `maintenance_session()` (contract 4.2 item 4), with a test.
+- Coverage ratchets raised to the measured values: backend `fail_under` 76.0 to 77.3
+  (measured 77.31%), frontend `statements` 63.8 to 63.9 (measured 63.93%).
+
+**Checked and found consistent:** no settings field is defined twice across
+`app/core/settings/*.py`; no Prometheus metric name is defined twice; `.env.example` has no
+duplicate keys; `docs/CHANGELOG.md` has one `[Unreleased]` entry per package; `docs/README.md`
+lists this plan once; the shared sections in docs/07, docs/11, docs/12, and
+`backend/README.md` each appear once.
+
+**Deferred (not part of `0.4.0`):** everything in section 6, plus: router call-site error
+codes; persistence in `auth.py` and `agent_runs.py`; a frontend control for the audit
+retention override (API and generated types only); the new A2, A3, and B2 settings are not
+in `app/core/settings/snapshot.py`.
+
+**Known issues carried forward (predate `0.4.0`):** `OrgModelProviderChangeLog` declares
+`org_model_provider_settings_id`, which no migration creates (tagged `@model-only` in
+`tests/fixtures/fk_index_exemptions.txt`); `authorization_conflicts` foreign keys exist only
+in the database (`@db-only`); `make audit` reports 13 advisories in the dev-only
+`virtualenv` 21.14.5 (see the `DEPS` entry in `docs/CHANGELOG.md`).
+
+**Still to verify on staging:** the manual steps in section 8, and also: the
+`requires_redis` lane with `TEST_REDIS_URL` (the Lua scripts have not run against a real
+Redis here); the pool wait and timeout figures under load (no latency figure is recorded);
+one week of `rudix_rls_soft_denials_total` in `soft`; Sentry deduplication of unhandled
+errors reported by both the access-log middleware and the error handler; `make
+migrate-graph` and `deploy_compose_remote.sh` against a real Neo4j; cache invalidation from
+Celery workers, which have no API Redis client and rely on the TTL; gzip CPU cost on
+streamed downloads of already-compressed files.
