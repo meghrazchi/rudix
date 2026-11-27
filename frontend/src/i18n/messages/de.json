@@ -6376,7 +6376,8 @@
       "extraction": "Extraktion",
       "deletion_cleanup": "Löschbereinigung",
       "reindex": "Neuindizierung",
-      "evaluation": "Evaluierung"
+      "evaluation": "Evaluierung",
+      "dead_letter": "Dead Letter"
     },
     "drawer": {
       "title": "Auftragsdetails",

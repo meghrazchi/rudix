@@ -6376,7 +6376,8 @@
       "extraction": "الاستخراج",
       "deletion_cleanup": "تنظيف الحذف",
       "reindex": "إعادة الفهرسة",
-      "evaluation": "التقييم"
+      "evaluation": "التقييم",
+      "dead_letter": "رسالة غير مُسلَّمة"
     },
     "drawer": {
       "title": "تفاصيل المهمة",

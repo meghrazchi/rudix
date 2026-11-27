@@ -6501,7 +6501,8 @@
       "extraction": "استخراج",
       "deletion_cleanup": "پاک‌سازی حذف",
       "reindex": "نمایه‌سازی دوباره",
-      "evaluation": "ارزیابی"
+      "evaluation": "ارزیابی",
+      "dead_letter": "پیام تحویل‌نشده"
     },
     "drawer": {
       "title": "جزئیات کار",

@@ -6376,7 +6376,8 @@
       "extraction": "Extraction",
       "deletion_cleanup": "Deletion cleanup",
       "reindex": "Reindex",
-      "evaluation": "Evaluation"
+      "evaluation": "Evaluation",
+      "dead_letter": "Dead letter"
     },
     "drawer": {
       "title": "Job detail",

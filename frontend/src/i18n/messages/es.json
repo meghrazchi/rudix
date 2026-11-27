@@ -6376,7 +6376,8 @@
       "extraction": "Extracción",
       "deletion_cleanup": "Limpieza de eliminación",
       "reindex": "Reindexación",
-      "evaluation": "Evaluación"
+      "evaluation": "Evaluación",
+      "dead_letter": "Mensaje no entregado"
     },
     "drawer": {
       "title": "Detalle del trabajo",
