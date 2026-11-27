@@ -4654,7 +4654,8 @@
       "accessDebugger": "تشخيص الوصول",
       "permissionsAccessReport": "تقرير الأذونات والوصول",
       "ssoSaml": "تسجيل الدخول الموحد / SAML",
-      "scimProvisioning": "توفير SCIM"
+      "scimProvisioning": "توفير SCIM",
+      "vectorIndex": "الفهرس المتجهي"
     }
   },
   "adminUsage": {
@@ -7503,6 +7504,49 @@
           "duplicate": "مكرر"
         }
       }
+    }
+  },
+  "adminVectorIndex": {
+    "header": {
+      "eyebrow": "فهرس البحث",
+      "title": "الفهرس المتجهي",
+      "description": "نموذج التضمين الذي يجيب عن أسئلتك، وتقدّم إعادة البناء في الخلفية لمؤسستك. لا تُوقف إعادة البناء البحث."
+    },
+    "legacyNotice": "لا يستخدم فهرس البحث أجيالًا ذات إصدارات بعد. تتم الإجابة عن الأسئلة باستخدام نموذج التضمين المُعدّ.",
+    "active": {
+      "title": "الفهرس النشط",
+      "model": "نموذج التضمين",
+      "dimensions": "الأبعاد",
+      "generation": "الجيل",
+      "legacyGeneration": "بدون إصدار",
+      "activatedAt": "نشط منذ",
+      "notAdoptedTitle": "لا يوجد جيل نشط بعد",
+      "notAdoptedDescription": "لم يُسجَّل الفهرس الحالي كجيل بعد. يستمر البحث في العمل كما كان."
+    },
+    "building": {
+      "title": "إعادة البناء قيد التنفيذ",
+      "model": "نموذج التضمين الجديد",
+      "state": "الحالة",
+      "startedAt": "بدأ في",
+      "states": {
+        "building": "قيد البناء",
+        "verifying": "قيد التحقق"
+      },
+      "progressLabel": "مستندات مؤسستك",
+      "progressValue": "{done} من {total} ({percent}%)",
+      "servingNote": "يستمر البحث في استخدام الفهرس النشط حتى يتم التحقق من إعادة البناء والتبديل إليها.",
+      "noneTitle": "لا توجد إعادة بناء قيد التنفيذ",
+      "noneDescription": "الفهرس النشط محدّث."
+    },
+    "states": {
+      "loading": "جارٍ تحميل حالة الفهرس المتجهي...",
+      "errorTitle": "تعذّر تحميل حالة الفهرس المتجهي",
+      "retry": "إعادة المحاولة",
+      "emptyTitle": "لا تتوفر حالة"
+    },
+    "access": {
+      "restrictedTitle": "وصول المسؤول مقيّد",
+      "restrictedDescription": "يمكن للمالكين والمسؤولين فقط عرض حالة الفهرس المتجهي."
     }
   }
 }

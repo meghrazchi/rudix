@@ -24628,6 +24628,25 @@
         }
       }
     },
+    "/api/v1/admin/vector-index/status": {
+      "get": {
+        "tags": ["admin-vector-index"],
+        "summary": "Get Vector Index Status",
+        "operationId": "get_vector_index_status_api_v1_admin_vector_index_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorIndexStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/troubleshooting-bundle/export": {
       "post": {
         "tags": ["admin-troubleshooting-bundle"],
@@ -68895,6 +68914,146 @@
           "metrics_summary"
         ],
         "title": "VariantRunSummary"
+      },
+      "VectorIndexActiveGeneration": {
+        "properties": {
+          "generation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation",
+            "description": "Generation number; null in legacy mode."
+          },
+          "embedding_model": {
+            "type": "string",
+            "title": "Embedding Model"
+          },
+          "vector_size": {
+            "type": "integer",
+            "title": "Vector Size"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["generation", "embedding_model", "vector_size"],
+        "title": "VectorIndexActiveGeneration"
+      },
+      "VectorIndexBuildingGeneration": {
+        "properties": {
+          "generation": {
+            "type": "integer",
+            "title": "Generation"
+          },
+          "embedding_model": {
+            "type": "string",
+            "title": "Embedding Model"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["building", "verifying"],
+            "title": "State"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["generation", "embedding_model", "state", "started_at"],
+        "title": "VectorIndexBuildingGeneration"
+      },
+      "VectorIndexOrganizationProgress": {
+        "properties": {
+          "documents_total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Documents Total",
+            "description": "Indexed documents of your organisation."
+          },
+          "documents_done": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Documents Done",
+            "description": "Of those, documents the building generation already holds."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["documents_total", "documents_done"],
+        "title": "VectorIndexOrganizationProgress"
+      },
+      "VectorIndexStatusResponse": {
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "legacy_mode": {
+            "type": "boolean",
+            "title": "Legacy Mode"
+          },
+          "active": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VectorIndexActiveGeneration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "building": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VectorIndexBuildingGeneration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VectorIndexOrganizationProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present while a generation is building or verifying."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["alias", "legacy_mode", "active"],
+        "title": "VectorIndexStatusResponse"
       },
       "VerifiedAnswerListResponse": {
         "properties": {

@@ -7372,6 +7372,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/vector-index/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Vector Index Status */
+        get: operations["get_vector_index_status_api_v1_admin_vector_index_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/troubleshooting-bundle/export": {
         parameters: {
             query?: never;
@@ -22461,6 +22478,61 @@ export interface components {
             deltas_vs_reference?: components["schemas"]["VariantMetricDelta"][];
             /** Error Detail */
             error_detail?: string | null;
+        };
+        /** VectorIndexActiveGeneration */
+        VectorIndexActiveGeneration: {
+            /**
+             * Generation
+             * @description Generation number; null in legacy mode.
+             */
+            generation: number | null;
+            /** Embedding Model */
+            embedding_model: string;
+            /** Vector Size */
+            vector_size: number;
+            /** Activated At */
+            activated_at?: string | null;
+        };
+        /** VectorIndexBuildingGeneration */
+        VectorIndexBuildingGeneration: {
+            /** Generation */
+            generation: number;
+            /** Embedding Model */
+            embedding_model: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "building" | "verifying";
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+        };
+        /** VectorIndexOrganizationProgress */
+        VectorIndexOrganizationProgress: {
+            /**
+             * Documents Total
+             * @description Indexed documents of your organisation.
+             */
+            documents_total: number;
+            /**
+             * Documents Done
+             * @description Of those, documents the building generation already holds.
+             */
+            documents_done: number;
+        };
+        /** VectorIndexStatusResponse */
+        VectorIndexStatusResponse: {
+            /** Alias */
+            alias: string | null;
+            /** Legacy Mode */
+            legacy_mode: boolean;
+            active: components["schemas"]["VectorIndexActiveGeneration"] | null;
+            building?: components["schemas"]["VectorIndexBuildingGeneration"] | null;
+            /** @description Present while a generation is building or verifying. */
+            progress?: components["schemas"]["VectorIndexOrganizationProgress"] | null;
         };
         /** VerifiedAnswerListResponse */
         VerifiedAnswerListResponse: {
@@ -38559,6 +38631,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_vector_index_status_api_v1_admin_vector_index_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VectorIndexStatusResponse"];
                 };
             };
         };

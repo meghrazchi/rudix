@@ -54,6 +54,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/admin` (owner/admin roles only)
   - `/admin/security-center` (owner/admin roles only)
   - `/admin/governance` (owner/admin roles only)
+  - `/admin/vector-index` (owner/admin roles only): read-only vector index status — active embedding model, a running rebuild's progress for your organisation (polls only while building), legacy-mode notice; data from `GET /admin/vector-index/status` (`src/lib/api/vector-index.ts`)
 
 ### Shared Shell and Protection
 

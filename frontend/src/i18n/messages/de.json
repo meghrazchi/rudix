@@ -4654,7 +4654,8 @@
       "accessDebugger": "Zugriffsdiagnose",
       "permissionsAccessReport": "Berechtigungs- und Zugriffsbericht",
       "ssoSaml": "SSO / SAML",
-      "scimProvisioning": "SCIM-Bereitstellung"
+      "scimProvisioning": "SCIM-Bereitstellung",
+      "vectorIndex": "Vektorindex"
     }
   },
   "adminUsage": {
@@ -7503,6 +7504,49 @@
           "duplicate": "Duplikat"
         }
       }
+    }
+  },
+  "adminVectorIndex": {
+    "header": {
+      "eyebrow": "Suchindex",
+      "title": "Vektorindex",
+      "description": "Das Embedding-Modell, das Ihre Fragen beantwortet, und der Fortschritt eines Neuaufbaus im Hintergrund für Ihre Organisation. Neuaufbauten unterbrechen die Suche nicht."
+    },
+    "legacyNotice": "Der Suchindex verwendet noch keine versionierten Generationen. Fragen werden mit dem konfigurierten Embedding-Modell beantwortet.",
+    "active": {
+      "title": "Aktiver Index",
+      "model": "Embedding-Modell",
+      "dimensions": "Dimensionen",
+      "generation": "Generation",
+      "legacyGeneration": "Nicht versioniert",
+      "activatedAt": "Aktiv seit",
+      "notAdoptedTitle": "Noch keine aktive Generation",
+      "notAdoptedDescription": "Der aktuelle Index wurde noch nicht als Generation registriert. Die Suche funktioniert weiter wie bisher."
+    },
+    "building": {
+      "title": "Neuaufbau läuft",
+      "model": "Neues Embedding-Modell",
+      "state": "Status",
+      "startedAt": "Gestartet",
+      "states": {
+        "building": "Wird aufgebaut",
+        "verifying": "Wird geprüft"
+      },
+      "progressLabel": "Dokumente Ihrer Organisation",
+      "progressValue": "{done} von {total} ({percent} %)",
+      "servingNote": "Die Suche nutzt den aktiven Index, bis der Neuaufbau geprüft und umgeschaltet ist.",
+      "noneTitle": "Kein Neuaufbau aktiv",
+      "noneDescription": "Der aktive Index ist aktuell."
+    },
+    "states": {
+      "loading": "Status des Vektorindex wird geladen...",
+      "errorTitle": "Status des Vektorindex konnte nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "emptyTitle": "Kein Status verfügbar"
+    },
+    "access": {
+      "restrictedTitle": "Admin-Zugriff eingeschränkt",
+      "restrictedDescription": "Nur Inhaber und Admins können den Status des Vektorindex sehen."
     }
   }
 }
