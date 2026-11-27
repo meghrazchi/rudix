@@ -230,3 +230,26 @@ async def test_lower_roles_are_forbidden(
 async def test_requires_authentication(client: AsyncClient) -> None:
     response = await client.get(URL)
     assert response.status_code == 401
+
+
+async def test_status_service_scopes_counts_directly(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.domains.vector_index.services.status_service import organization_status
+
+    monkeypatch.setattr(settings, "qdrant_collection_alias", ALIAS)
+    org_a, _, docs_a = await _seed_org(db_session, OrganizationRole.admin, indexed=2)
+    org_b, _, docs_b = await _seed_org(db_session, OrganizationRole.admin, indexed=3)
+    building = await _seed_generations(db_session)
+    await _mark_done(db_session, building, org_a.id, docs_a)
+    await _mark_done(db_session, building, org_b.id, docs_b[:1])
+    await db_session.commit()
+
+    status_a = await organization_status(db_session, organization_id=org_a.id)
+    status_b = await organization_status(db_session, organization_id=org_b.id)
+
+    assert status_a.progress is not None and status_b.progress is not None
+    assert (status_a.progress.documents_total, status_a.progress.documents_done) == (2, 2)
+    assert (status_b.progress.documents_total, status_b.progress.documents_done) == (3, 1)
+    assert status_a.building is not None and status_a.building.state == "building"
+    assert status_a.active is not None and status_a.active.generation == 1
