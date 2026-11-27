@@ -413,6 +413,11 @@ async def test_webhook(
     error_message: str | None = None
     final_status = "failed"
 
+    # Return the pooled connection before the outbound HTTP call (R04-01). The pending
+    # delivery row written above is committed first (kept in that order on purpose), so a
+    # crash during the call leaves a visible "pending" delivery instead of nothing.
+    await db_session.commit()
+
     try:
         async with httpx.AsyncClient(
             timeout=_TEST_DELIVERY_TIMEOUT, follow_redirects=False
@@ -436,6 +441,9 @@ async def test_webhook(
         attempt_count=1,
     )
     await db_session.commit()
+    # Server-side timestamps are expired by the flush; load them before building the
+    # response (a lazy load outside the async context raises MissingGreenlet).
+    await db_session.refresh(delivery)
 
     logger.info(
         "webhooks.webhook.test_sent",
