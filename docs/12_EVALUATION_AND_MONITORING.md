@@ -729,6 +729,30 @@ after `finalize` on its own queue.
   `superseded` or `lease_held` rising (duplicate publications or competing claims).
 - No throughput or latency figure is recorded for the chain; the tests assert call counts.
 
+### Chunk tenant backfill, multilingual keyword search, batched graph writes (R06-09, R06-10)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_chunk_backfill_rows_total` | none | `document_chunks` rows given `organization_id`, `fts_config` and `fts_vector` by `documents.chunks.backfill_tenant` or the backfill script. It stops growing when the backfill is done. |
+| `rudix_graph_write_batches_total` | `kind` (`entity`, `alias`, `evidence`, `relation`), `outcome` (`written`, `failed`) | Neo4j UNWIND write transactions. Per document, about `ceil(rows / GRAPH_WRITE_BATCH_SIZE)` per kind, not one per item. |
+
+- Logs: `documents.chunks.backfill_tenant.progress` (batches, rows updated, finished),
+  `documents.chunks.backfill_tenant.batch_failed` (driver error class only),
+  `keyword_search.tenant_column_checked` (once per process in `auto` mode),
+  `graph.batch_write.failed` (kind, organisation, batch index and size, error class). None
+  of them carry document text or Cypher parameters.
+- Recall: `tests/test_keyword_multilingual_pg.py` shows that German, Spanish and French
+  fixture questions find their chunks with `KEYWORD_SEARCH_MULTILINGUAL=true` and not with
+  English stemming. This is a test on a small fixture set, not a measured recall figure.
+  The live accuracy gate on staging decides the flag flips (runbook 27, "Keyword search
+  settings").
+- Bounded ranking: keyword search ranks at most `KEYWORD_SEARCH_CANDIDATE_LIMIT` matches.
+  Keyword p95 staying flat as `document_chunks` grows is a staging load check (R03-09). No
+  latency figure is recorded here.
+- Alert ideas: `rudix_graph_write_batches_total{outcome="failed"}` above zero (Neo4j
+  unavailable or rejected writes); `rudix_chunk_backfill_rows_total` flat while the dry run
+  still reports remaining rows (task not running or blocked by lock timeouts).
+
 ## Continuous evaluation
 
 Run evaluations:

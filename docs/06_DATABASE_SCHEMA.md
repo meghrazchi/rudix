@@ -296,9 +296,21 @@ CREATE TABLE document_chunks (
     embedding_model TEXT NOT NULL,
     index_version TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- 0.6.0 (R06-09, migration 20261128_0002; nullable until the operator NOT NULL step)
+    organization_id UUID,           -- = documents.organization_id; no foreign key
+    fts_config VARCHAR(32),         -- english | german | spanish | french | simple
+    fts_vector TSVECTOR,            -- to_tsvector(fts_config, text), written by the app
     UNIQUE (document_id, chunk_index, index_version)
 );
 ```
+
+`text_search_vector` (F293) stays the generated English column. The chunk stage writes
+`organization_id`, `fts_config` (from the document language) and `fts_vector` for new
+chunks. `documents.chunks.backfill_tenant` fills older rows in primary-key batches.
+`deploy/sql/document_chunks_not_null.sql` then sets `organization_id NOT NULL` through a
+validated `NOT VALID` check and adds the strict tenant policy (runbook 27). Indexes:
+`idx_chunks_org_document (organization_id, document_id)` and the GIN
+`idx_chunks_fts_vector`, both from migration `20261128_0003`.
 
 ### document_processing_stages
 
@@ -406,7 +418,7 @@ All additive and nullable, or `NOT NULL DEFAULT 0`:
 
 | Table | Columns | Used by |
 |---|---|---|
-| `document_chunks` | `organization_id uuid`, `fts_config varchar(32)`, `fts_vector tsvector` (PostgreSQL only); no ORM attribute yet | B1 |
+| `document_chunks` | `organization_id uuid`, `fts_config varchar(32)`, `fts_vector tsvector` (PostgreSQL only); on the ORM model since B1 (`fts_vector` deferred) | B1 |
 | `connector_sync_runs` | `checkpoint_cursor json`, `checkpoint_at`, `heartbeat_at`, `lease_owner varchar(255)`, `pages_committed int default 0` | D1 |
 | `connector_sync_jobs` | `next_run_at timestamptz` | D1 |
 | `external_items` | `last_seen_sync_run_id uuid` (no foreign key) | D1 |
@@ -721,8 +733,10 @@ Notes:
   `FORCE ROW LEVEL SECURITY` is not used before `0.5.0`, so isolation takes effect only
   when the application connects as the non-owner `rudix_app` role
   (`deploy/sql/provision_roles.sql`).
-- `chat_messages`, `citations`, `document_chunks`, and `document_pages` have no
-  `organization_id` and are not covered; they are reached through covered parent rows.
+- `chat_messages`, `citations`, and `document_pages` have no `organization_id` and are
+  not covered; they are reached through covered parent rows. `document_chunks` has the
+  column since `0.6.0` but no policy until the backfill and
+  `deploy/sql/document_chunks_not_null.sql` (`RLS_PENDING_TABLES`).
 - The policy keeps index use: under the policy the document list still uses
   `idx_documents_org_created` (`tests/test_rls_enforcement_pg.py`).
 - Migration safety: `ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` take a brief ACCESS

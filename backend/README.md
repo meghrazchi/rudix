@@ -763,6 +763,22 @@ persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `
 - Every Celery task binds the tenant of its `organization_id` kwarg (`RudixTask.__call__`,
   `bind_worker_tenant`); document and stage tasks raise `tenant_mismatch` before any write
   for another organisation's document. Runbook: `docs/27_INGESTION_AND_WORKERS_RUNBOOK.md`.
+- Chunk tenant column (R06-09): the chunk stage writes `document_chunks.organization_id`,
+  `fts_config` (document language: english, german, spanish, french, else simple) and
+  `fts_vector`. Older rows: `documents.chunks.backfill_tenant` (reindex queue) or
+  `.venv/bin/python scripts/backfill_chunk_tenant.py [--dry-run]`, then the operator SQL
+  `deploy/sql/document_chunks_not_null.sql` (rendered by
+  `scripts/render_chunk_not_null_sql.py --check`). Until then the table is in
+  `RLS_PENDING_TABLES` and the ORM guard does not filter it.
+- Keyword search (R06-09): `KEYWORD_SEARCH_MULTILINGUAL` (default `false`),
+  `KEYWORD_SEARCH_TENANT_COLUMN` (`auto|on|off`), `KEYWORD_SEARCH_CANDIDATE_LIMIT` (default
+  1000, `0` unbounded). The pipeline passes the detected question language. The SQL is in
+  `app/domains/chat/services/keyword_search_query.py`.
+- Graph writes (R06-10): ingestion writes entities, aliases, evidence and relations with
+  `UNWIND` batches (`GRAPH_WRITE_BATCH_SIZE`, default 200), one Neo4j write transaction per
+  batch. Extraction LLM batches run with `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES` /
+  `RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` (default 1). Single-item graph methods stay
+  for the admin endpoints.
 
 ## Application cache
 
