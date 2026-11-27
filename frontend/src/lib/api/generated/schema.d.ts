@@ -25717,6 +25717,7 @@ export interface operations {
                 offset?: number;
                 cursor?: string | null;
                 include_total?: boolean | null;
+                order?: "asc" | "desc";
             };
             header?: never;
             path: {

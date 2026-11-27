@@ -2,7 +2,7 @@
 
 The router has no prefix and no tags; ``chat.router`` includes it."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -17,6 +17,7 @@ from app.core.logging import log_query_event
 from app.db.session import get_db_session
 from app.domains.chat.repositories.chat import (
     MESSAGE_SORT_NAME,
+    MESSAGE_SORT_NAME_DESC,
     SESSION_SORT_NAME,
     message_sort_key,
     session_sort_key,
@@ -238,10 +239,13 @@ async def list_chat_session_messages(
     offset: Annotated[int, Query(ge=0)] = 0,
     cursor: Annotated[str | None, Query(max_length=1024)] = None,
     include_total: bool | None = None,
+    order: Literal["asc", "desc"] = "asc",
 ) -> ChatSessionMessageListResponse:
     user_id, organization_id = _principal_user_and_org(principal)
+    descending = order == "desc"
+    sort_name = MESSAGE_SORT_NAME_DESC if descending else MESSAGE_SORT_NAME
     page = resolve_page_request(
-        cursor=cursor, offset=offset, include_total=include_total, sort_name=MESSAGE_SORT_NAME
+        cursor=cursor, offset=offset, include_total=include_total, sort_name=sort_name
     )
     try:
         chat_session_id = UUID(session_id)
@@ -266,6 +270,7 @@ async def list_chat_session_messages(
             limit=limit + 1,
             offset=offset,
             keyset=page.keyset,
+            descending=descending,
         ),
         limit,
     )
@@ -309,6 +314,7 @@ async def list_chat_session_messages(
         returned=len(items),
         limit=limit,
         offset=offset,
+        order=order,
     )
     return ChatSessionMessageListResponse(
         items=items,
@@ -316,7 +322,7 @@ async def list_chat_session_messages(
         limit=limit,
         offset=offset,
         next_cursor=(
-            encode_cursor(MESSAGE_SORT_NAME, message_sort_key(messages[-1])) if has_more else None
+            encode_cursor(sort_name, message_sort_key(messages[-1])) if has_more else None
         ),
     )
 

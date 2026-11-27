@@ -182,7 +182,7 @@ does not read and discard the `offset` rows before it (R04-04).
 | Endpoint | Cursor order |
 |---|---|
 | `GET /chat/sessions` | `updated_at` desc, `id` desc |
-| `GET /chat/sessions/{session_id}/messages` | `created_at` asc, role (user before assistant), `id` asc |
+| `GET /chat/sessions/{session_id}/messages` | `created_at` asc, role (user before assistant), `id` asc; reversed with `order=desc` |
 | `GET /documents` | `created_at` (direction from `sort_order`), `id` desc; only with `sort_by=created_at` |
 | `GET /notifications` | `created_at` desc, `id` desc |
 | `GET /admin/audit-logs` | `created_at` desc, `id` desc |
@@ -986,6 +986,52 @@ Response:
   "message_count": 2,
   "created_at": "2026-05-07T10:00:00Z",
   "updated_at": "2026-05-07T10:01:10Z"
+}
+```
+
+### GET `/chat/sessions/{session_id}/messages`
+
+List the messages of one of the caller's own chat sessions (R04-04 cursors, R05-11 order).
+
+Query parameters:
+
+| Name | Default | Notes |
+|---|---|---|
+| `order` | `asc` | `asc`: oldest first (conversation order, the behaviour before `0.5.0`). `desc`: newest first, for loading the latest page of a long history first. |
+| `limit` | `200` | 1 to 500 |
+| `offset` | `0` | Cannot be combined with `cursor` |
+| `cursor` | none | `next_cursor` of the previous page in the same `order` |
+| `include_total` | `true` without a cursor, `false` with one | |
+
+- The sort key is `(created_at, role rank, id)` with the user turn before the assistant turn
+  within one timestamp; `desc` walks the same key backwards, so a full `desc` walk is exactly
+  the reversed `asc` walk.
+- Items are returned in the order requested. A client that renders oldest at the top reverses
+  each `desc` page.
+- A cursor is bound to its order: an `asc` cursor sent with `order=desc` (or the reverse) is
+  rejected with `400` `Invalid pagination cursor`.
+- A session that does not exist, belongs to another user, or belongs to another organisation
+  returns `404` `Chat session not found` in both orders.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "message_id": "uuid",
+      "role": "assistant",
+      "content": "...",
+      "confidence_score": 0.82,
+      "confidence_category": "high",
+      "citations": [],
+      "created_at": "2026-05-07T10:01:10Z"
+    }
+  ],
+  "total": null,
+  "limit": 50,
+  "offset": 0,
+  "next_cursor": "opaque"
 }
 ```
 
