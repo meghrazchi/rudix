@@ -40,6 +40,10 @@ class UsageTouchKind(StrEnum):
 
 FIELD_USED_AT = "used_at_ms"
 FIELD_IP = "ip"
+# ``last_used_ip`` is String(64). The IP comes from the client-controlled X-Forwarded-For
+# header, so it is cut here: an oversized value would fail every bulk UPDATE it joins and
+# block the flush for all credentials in the batch.
+MAX_IP_LENGTH = 64
 
 # KEYS[1] = dirty set, KEYS[2..n] = per-credential hashes.
 # ARGV[1] = used_at (epoch ms); then for each hash i: ARGV[2i] = ip, ARGV[2i+1] = member.
@@ -168,7 +172,7 @@ async def buffer_touches(
     keys = [dirty_key(), *(f"{prefix}{item.member}" for item in touches)]
     args: list[Any] = [_to_ms(touches[0].used_at)]
     for item in touches:
-        args.extend([item.ip_address or "", item.member])
+        args.extend([(item.ip_address or "")[:MAX_IP_LENGTH], item.member])
     script = get_script(redis, TOUCH_SCRIPT)
     await script(keys=keys, args=args)
     if not count_buffered:

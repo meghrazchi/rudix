@@ -300,7 +300,10 @@ Recommended limits:
   credential; the beat task `usage.touch.flush` writes them in bulk every
   `USAGE_TOUCH_FLUSH_INTERVAL_SECONDS` (default 60), so the admin pages can lag by that much.
   When Redis is down the touch is dropped (counted in `rudix_usage_touch_dropped_total`); the
-  request is never failed and never falls back to a database write.
+  request is never failed and never falls back to a database write. The buffered IP comes
+  from the client-controlled `X-Forwarded-For` header and is cut to the 64-character column
+  size before buffering, so an oversized header cannot make the bulk `UPDATE` fail and block
+  the flush for every other credential in the batch.
 
 ## Multilingual rollout safety
 

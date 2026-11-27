@@ -66,7 +66,9 @@ no `paths` filter, so the check always reports and can be required in branch pro
 
 - starts ephemeral `postgres:16` (database `rudix_test`) and `redis:7` services
 - runs `make -C backend install`
-- runs `make -C backend test-postgres` with `TEST_DATABASE_URL` set; the target and the
+- runs `make -C backend test-postgres` with `TEST_DATABASE_URL` and `TEST_REDIS_URL` set
+  (the latter opts in `tests/test_rate_limit_redis_live.py`, which runs the production Lua
+  scripts on the `redis:7` service); the target and the
   `pg_migrated_url` fixture both apply `alembic upgrade head`, then pytest runs every
   `requires_postgres` / `requires_redis` test, including the PostgreSQL parameters of
   `both_dialects` suites

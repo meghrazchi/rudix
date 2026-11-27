@@ -344,6 +344,28 @@ async def test_flush_never_moves_database_value_backwards(
     assert reloaded.last_used_ip == "192.0.2.9"
 
 
+@pytest.mark.both_dialects
+async def test_oversized_forwarded_ip_is_truncated_and_does_not_block_flush(
+    db_session: AsyncSession, fake_redis: FakeRedis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # X-Forwarded-For is client controlled; last_used_ip is String(64). Without the cut,
+    # PostgreSQL rejects the bulk UPDATE and the whole batch is re-buffered forever.
+    monkeypatch.setattr(usage_touch_tasks, "session_factory", _SessionOverride(db_session))
+    key, _ = await _api_key(db_session)
+    other, _ = await _api_key(db_session)
+    await usage_touch.buffer_touches(
+        fake_redis, [UsageTouch(UsageTouchKind.api_key, key.id, _T1, "9" * 300)]
+    )
+    await usage_touch.buffer_touches(
+        fake_redis, [UsageTouch(UsageTouchKind.api_key, other.id, _T1, "10.0.0.1")]
+    )
+    key_id, other_id = key.id, other.id
+    assert await usage_touch_tasks.flush_usage_touches(fake_redis) == 2
+    reloaded = await _reload(db_session, ApiKey, key_id)
+    assert reloaded.last_used_ip == "9" * usage_touch.MAX_IP_LENGTH
+    assert (await _reload(db_session, ApiKey, other_id)).last_used_ip == "10.0.0.1"
+
+
 async def test_flush_database_failure_rebuffers_and_raises_for_retry(
     db_session: AsyncSession, fake_redis: FakeRedis, monkeypatch: pytest.MonkeyPatch
 ) -> None:

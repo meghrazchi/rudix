@@ -431,7 +431,9 @@ Most backend tests run against a per-test SQLite database (see
 behavior (row locks, `ON CONFLICT`, concurrent sessions) carry pytest markers:
 
 - `requires_postgres`: needs a migrated PostgreSQL database at `TEST_DATABASE_URL`.
-- `requires_redis`: needs a live Redis instance.
+- `requires_redis`: needs a live Redis instance. The live Lua script test
+  (`tests/test_rate_limit_redis_live.py`) also needs `TEST_REDIS_URL`, set in the
+  `backend-postgres.yml` CI job.
 
 When `TEST_DATABASE_URL` is unset, `requires_postgres` tests are skipped, so `make test` keeps
 working without extra services. Two fixtures in `tests/conftest.py` provide database access:
