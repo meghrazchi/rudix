@@ -12,6 +12,7 @@ from app.core.document_errors import build_document_error_details
 from app.core.logging import get_logger, log_task_failure
 from app.core.sentry import bind_sentry_context, capture_sentry_exception
 from app.db.tenant_context import bind_worker_tenant
+from app.workers.queues import strip_delay_prefix
 from app.workers.time_limits import SOFT_TIME_LIMIT_ERROR_CODE, time_limit_error_code
 
 _NON_RETRYABLE_TASK_NAMES: frozenset[str] = frozenset({"documents.delete"})
@@ -44,6 +45,17 @@ def _handle_time_limit(task_name: str, exc: Exception, stage: str) -> None:
         retryable=True,
         message="Processing took longer than its time limit",
     )
+
+
+def _delivered_queue(delivery_info: Any) -> str | None:
+    """The queue routing key of a delivery, without the native delayed delivery prefix that a
+    countdown retry in quorum mode adds (R06-05), so ``FailedJob.queue_name`` stays a queue."""
+    if not isinstance(delivery_info, dict):
+        return None
+    routing_key = delivery_info.get("routing_key")
+    if not isinstance(routing_key, str) or not routing_key:
+        return None
+    return strip_delay_prefix(routing_key)
 
 
 def _safe_error_message(exc: Exception) -> str:
@@ -321,7 +333,7 @@ class RudixTask(Task):
         )
         try:
             task_name, queue_name, metadata = self.failed_job_identity(
-                kwargs, (getattr(self.request, "delivery_info", None) or {}).get("routing_key")
+                kwargs, _delivered_queue(getattr(self.request, "delivery_info", None))
             )
             run_async(
                 _persist_failed_job(

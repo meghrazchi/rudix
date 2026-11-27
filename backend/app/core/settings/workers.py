@@ -107,7 +107,7 @@ class WorkersSettings(BaseModel):
     # (countdown and ETA retries) does not support direct exchanges.
     celery_quorum_exchange: str = Field(default="rudix.tasks", min_length=1, max_length=64)
     celery_queue_email: str = Field(default="email", min_length=1, max_length=64)
-    # Beat task workers.queues.sample (queue depth gauges).
+    # Interval of the QueueDepthSampler bootstep (queue depth gauges, default pool).
     worker_queue_sample_interval_seconds: int = Field(default=30, ge=5, le=3600)
 
     @field_validator("celery_task_time_limits", mode="before")

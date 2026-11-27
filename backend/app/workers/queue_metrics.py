@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import re
 import time
 from collections.abc import Callable, Iterable
 from datetime import datetime
@@ -27,15 +26,12 @@ from celery.signals import before_task_publish, task_received  # type: ignore[im
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.metrics_workers import record_queue_wait, set_queue_depth
-from app.workers.queues import sampled_queue_names
+from app.workers.queues import sampled_queue_names, strip_delay_prefix
 
 logger = get_logger("worker.queue_metrics")
 
 PUBLISHED_AT_HEADER = "rudix_published_at"
 OTHER_QUEUE_LABEL = "other"
-# Native delayed delivery prefixes the routing key with 28 binary digits (kombu 5.7
-# ``calculate_routing_key``); the label strips them so it stays one of the queue names.
-_DELAY_PREFIX_RE = re.compile(r"^(?:[01]\.){28}")
 
 
 def stamp_published_at(headers: Any, now: Callable[[], float] = time.time) -> None:
@@ -46,7 +42,8 @@ def stamp_published_at(headers: Any, now: Callable[[], float] = time.time) -> No
 def queue_label(routing_key: Any, known: Iterable[str]) -> str:
     if not isinstance(routing_key, str) or not routing_key:
         return OTHER_QUEUE_LABEL
-    name = _DELAY_PREFIX_RE.sub("", routing_key, count=1)
+    # The delay prefix is stripped so the label stays one of the queue names.
+    name = strip_delay_prefix(routing_key)
     return name if name in set(known) else OTHER_QUEUE_LABEL
 
 

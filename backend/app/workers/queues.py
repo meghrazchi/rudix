@@ -23,6 +23,7 @@ new exchange, then drains the old classic queues (docs/27).
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from kombu import Exchange, Queue  # type: ignore[import-untyped]
@@ -31,6 +32,14 @@ if TYPE_CHECKING:
     from app.core.config import Settings
 
 CLASSIC_EXCHANGE = "rudix"
+# Native delayed delivery prefixes the routing key with 28 binary digits (kombu 5.7
+# ``calculate_routing_key``); a message delivered after a countdown keeps that prefix.
+_DELAY_PREFIX_RE = re.compile(r"^(?:[01]\.){28}")
+
+
+def strip_delay_prefix(routing_key: str) -> str:
+    """The queue routing key without the native delayed delivery prefix."""
+    return _DELAY_PREFIX_RE.sub("", routing_key, count=1)
 
 
 def task_queue_names(config: Settings) -> list[str]:

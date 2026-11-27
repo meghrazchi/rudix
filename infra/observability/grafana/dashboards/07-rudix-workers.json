@@ -197,7 +197,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(rudix_celery_task_time_limit_total[24h])) or vector(0)",
+          "expr": "sum(increase(rudix_celery_task_time_limit_total{kind=\"hard\"}[24h])) or vector(0)",
           "range": true,
           "refId": "A"
         }

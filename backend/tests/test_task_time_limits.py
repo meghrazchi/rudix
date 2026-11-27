@@ -312,6 +312,25 @@ def test_other_failures_keep_the_exception_class_as_error_code(
     assert details is not None and details["code"] == "UNEXPECTED_ERROR"
 
 
+def test_failed_job_queue_drops_the_delayed_delivery_prefix(captured_jobs: list[Any]) -> None:
+    # Quorum mode: a task retried with a countdown is delivered with a 28-bit delay prefix on
+    # its routing key; the FailedJob row must name the queue, not the prefixed key.
+    from app.workers import email_tasks
+
+    task = email_tasks.send_transactional_email
+    prefixed = "0." * 27 + "1.email"
+    for routing_key, expected in ((prefixed, "email"), ("email", "email"), (None, None)):
+        task.push_request(id="task-q", retries=1, delivery_info={"routing_key": routing_key})
+        try:
+            task.on_failure(
+                RuntimeError("boom"), "task-q", (), {"organization_id": str(uuid4())}, None
+            )
+        finally:
+            task.pop_request()
+        assert captured_jobs[-1].queue_name == expected
+    assert base_task._delivered_queue(None) is None
+
+
 def test_time_limit_counter_records_kind(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(metrics_workers, "is_metrics_enabled", lambda: True)
     before = metrics_workers.CELERY_TASK_TIME_LIMIT_TOTAL.labels(
