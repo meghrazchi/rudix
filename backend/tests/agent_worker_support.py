@@ -10,7 +10,6 @@ dying process it skips every ``except Exception`` and every commit after it.
 
 from __future__ import annotations
 
-import os
 import shutil
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
@@ -394,9 +393,7 @@ def agent_env(
 
 
 @pytest.fixture
-def agent_env_pg(monkeypatch: pytest.MonkeyPatch) -> Iterator[AgentWorkerEnv]:
-    url = os.environ.get("TEST_DATABASE_URL", "").strip()
-    if not url:
-        pytest.skip("TEST_DATABASE_URL is not set; skipping PostgreSQL-backed tests")
-    engine = create_async_engine(url, poolclass=NullPool)
+def agent_env_pg(pg_migrated_url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[AgentWorkerEnv]:
+    """Real commits on ``TEST_DATABASE_URL`` (migrated); created organisations are deleted."""
+    engine = create_async_engine(pg_migrated_url, poolclass=NullPool)
     yield from make_env(engine, monkeypatch)
