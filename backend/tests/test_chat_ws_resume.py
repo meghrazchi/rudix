@@ -8,13 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-from collections.abc import AsyncIterator
 from typing import Any
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 from chat_resume_support import (
     DroppableSocket,
     connect,
@@ -36,14 +33,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from test_chat_query_api import chat_query_client  # noqa: F401  (pytest fixture re-export)
 
-from app.application.chat.transports import resume_buffer
 from app.application.chat.transports.resume_buffer import (
-    BufferingEmitter,
-    ResumeBuffer,
-    coalesce,
-    replay_buffer,
     resume_key,
-    trim_entry,
 )
 from app.application.chat.transports.ws import WsSequence
 from app.application.chat.transports.ws_resume import parse_resume_payload, run_ws_resume
@@ -382,112 +373,6 @@ async def test_unknown_message_resume_and_tail_of_an_expiring_buffer(
     await asyncio.wait_for(task, timeout=5)
     assert [e["event"] for e in tail.events] == ["chat.resumed", "generation.delta", "chat.error"]
     assert tail.events[-1]["safe_error_code"] == "resume_unavailable"
-
-
-# -- buffer cap and coalescing -------------------------------------------------------------
-
-
-async def test_deltas_beyond_the_cap_are_coalesced_and_trimmed_for_the_reader(
-    monkeypatch: pytest.MonkeyPatch, fake_redis: FakeRedis
-) -> None:
-    from app.application.chat.pipeline.context import RunIds
-    from app.application.chat.pipeline.events import ChatEvent
-
-    monkeypatch.setattr(settings, "chat_resume_buffer_max_events", 3)
-    key = resume_key(uuid4(), uuid4(), uuid4())
-    emitter = BufferingEmitter(
-        RecordingSocket(),
-        buffer=ResumeBuffer(fake_redis, key),
-        request_id="r",
-        ids=RunIds(),
-        sequence=WsSequence(),
-    )
-    await emitter.emit(ChatEvent(type="generation.started", payload={"mode": "live"}))
-    for piece in ("ab", "cd", "ef", "gh", "ij"):
-        await emitter.emit(ChatEvent(type="generation.delta", payload={"text": piece}))
-    await emitter.emit(ChatEvent(type="chat.completed", payload={}))
-    stored = [json.loads(v) for v in fake_redis.keyspace.lists[key]]
-    assert [e["event"] for e in stored] == [
-        "generation.started",
-        "generation.delta",
-        "generation.delta",
-        "chat.completed",
-    ]
-    assert stored[2]["payload"]["text"] == "cdefghij"
-    assert stored[2]["coalesced"] == [[3, 2], [4, 2], [5, 2], [6, 2]]
-
-    for last, expected in ((0, "abcdefghij"), (2, "cdefghij"), (4, "ghij"), (5, "ij")):
-        sent: list[dict[str, Any]] = []
-
-        async def send_text(data: str, sink: list[dict[str, Any]] = sent) -> None:
-            sink.append(json.loads(data))
-
-        async def on_resumed(_count: int) -> None:
-            return None
-
-        result = await replay_buffer(
-            fake_redis,
-            key,
-            last_stream_sequence=last,
-            sequence=WsSequence(),
-            send_text=send_text,
-            on_resumed=on_resumed,
-        )
-        assert result.terminal == "chat.completed"
-        text = "".join(e["payload"]["text"] for e in sent if e["event"] == "generation.delta")
-        assert text == expected
-        assert all("coalesced" not in e for e in sent)
-
-    assert trim_entry({"stream_sequence": 2, "payload": {"text": "x"}}, 2) is None
-    merged = coalesce(
-        {"stream_sequence": 1, "payload": {"text": "a"}},
-        {"stream_sequence": 2, "payload": {"text": "b"}},
-    )
-    assert merged["payload"]["text"] == "ab" and merged["stream_sequence"] == 2
-
-
-async def test_request_cancel_and_read_flag_tolerate_a_failing_redis() -> None:
-    broken = BrokenRedis()
-    await resume_buffer.request_cancel(broken, "k")
-    assert await resume_buffer.read_flag(broken, "k") is False
-
-
-# -- live Redis (CI lane) -------------------------------------------------------------------
-
-
-@pytest_asyncio.fixture
-async def live_redis() -> AsyncIterator[Any]:
-    from redis.asyncio import Redis
-
-    url = os.environ.get("TEST_REDIS_URL", "").strip()
-    if not url:
-        pytest.skip("TEST_REDIS_URL is not set; skipping live Redis script tests")
-    client: Any = Redis.from_url(url, decode_responses=True, socket_connect_timeout=0.5)
-    try:
-        await client.ping()
-    except Exception:
-        await client.aclose()
-        pytest.skip("Redis not reachable at TEST_REDIS_URL; skipping live script tests")
-    try:
-        yield client
-    finally:
-        await client.aclose()
-
-
-@pytest.mark.requires_redis
-async def test_append_script_matches_reference(live_redis: Any) -> None:
-    fake = FakeRedis()
-    key = f"rudix:test:chat:resume:v1:{uuid4()}"
-    try:
-        for mode, value in (("push", "a"), ("set", "b"), ("push", "c"), ("set", "d")):
-            for client in (live_redis, fake):
-                script = resume_buffer.get_script(client, resume_buffer.APPEND_SCRIPT)
-                length = await script(keys=[key], args=[mode, value, 60_000])
-                assert int(length) == (1 if value in "ab" else 2)
-        assert await live_redis.lrange(key, 0, -1) == await fake.lrange(key, 0, -1) == ["b", "d"]
-        assert 0 < await live_redis.pttl(key) <= 60_000
-    finally:
-        await live_redis.delete(key)
 
 
 async def _until(condition: Any, timeout: float = 5.0) -> None:

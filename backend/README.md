@@ -662,7 +662,10 @@ CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py \
   `CHAT_WS_RESUME_GRACE_SECONDS` (`transports/ws.py`, `keep_run_alive_after_drop`);
   `chat.resume` (`transports/ws_resume.py`) replays and follows it, or rebuilds
   `chat.completed` from the stored message. Tests: `tests/test_chat_ws_resume.py`
-  (`tests/chat_resume_support.py` drives two connections over one `FakeRedis`).
+  (`tests/chat_resume_support.py` drives two connections over one `FakeRedis`) and
+  `tests/test_chat_resume_buffer.py` (cap, coalescing, replay edge cases); the breaker and
+  semaphore in `tests/test_llm_breaker.py`, `tests/test_llm_cached_tokens.py`, and
+  `tests/test_llm_org_concurrency.py`.
   `CHAT_WS_ALLOW_QUERY_TOKEN` defaults to `false`; tests of `?token=` set it in their fixture.
 - `requires_redis` lane: `TEST_REDIS_URL=redis://... make test-postgres` also runs the
   semaphore and resume-buffer Lua scripts against a real Redis and compares them with the

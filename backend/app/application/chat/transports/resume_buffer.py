@@ -46,6 +46,7 @@ _DELTA = "generation.delta"
 _COALESCED = "coalesced"
 # The attached marker outlives a few polls, so a live reader keeps it set.
 _ATTACHED_TTL_SECONDS = 5
+_ATTACHED_REFRESH_SECONDS = 1.0
 
 APPEND_SCRIPT = """
 if ARGV[1] == 'set' and redis.call('EXISTS', KEYS[1]) == 1 then
@@ -253,7 +254,7 @@ async def replay_buffer(
             break
         await asyncio.sleep(poll_seconds)
         now = asyncio.get_running_loop().time()
-        if now - last_attach >= 1.0:
+        if now - last_attach >= _ATTACHED_REFRESH_SECONDS:
             await redis.set(attached_key(key), "1", ex=_ATTACHED_TTL_SECONDS)
             last_attach = now
         events = await replayer.read()

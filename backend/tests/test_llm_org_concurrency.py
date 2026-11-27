@@ -247,6 +247,24 @@ async def test_websocket_answers_provider_busy(
 
 
 @pytest.mark.usefixtures("limit_one")
+async def test_another_organisations_full_semaphore_does_not_block_a_run(
+    chat_query_client: Any,  # noqa: F811
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_redis: FakeRedis,
+) -> None:
+    provider = StreamingRecordingProvider()
+    world = await make_world(db_session, monkeypatch, provider)
+    _fill(fake_redis, uuid4())  # some other organisation holds all its slots
+    socket = RecordingSocket(provider)
+
+    await run_ws(world, socket)
+
+    assert "chat.completed" in socket.names() and not socket.of("chat.error")
+    assert fake_redis.keyspace.zcard(semaphore_key(world.organization.id)) == 0  # released
+
+
+@pytest.mark.usefixtures("limit_one")
 async def test_http_answers_429_provider_busy(
     chat_query_client: AsyncClient,  # noqa: F811
     db_session: AsyncSession,
@@ -272,7 +290,6 @@ async def test_http_answers_429_provider_busy(
     assert response.status_code == 429
     assert response.json()["detail"]["code"] == "provider_busy"
     assert response.json()["error"]["code"] == "provider_busy"
-    _fill(fake_redis, uuid4())  # another organisation's slots do not matter
 
 
 # -- live Redis (CI lane) -------------------------------------------------------------------

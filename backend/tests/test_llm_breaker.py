@@ -9,13 +9,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-from app.application.chat.pipeline.ledger import TokenLedger
-from app.application.chat.pipeline.stages._ledger import record_llm_results
 from app.core.config import settings
 from app.core.metrics import (
     LLM_BREAKER_STATE,
@@ -31,8 +28,6 @@ from app.domains.ai.providers.errors import (
     ProviderUnavailableError,
 )
 from app.domains.ai.providers.factory import ProviderFactory
-from app.domains.ai.providers.openai.adapter import OpenAIChatProvider
-from app.domains.ai.providers.openai.streaming import cached_prompt_tokens, parse_stream_chunk
 from app.domains.ai.providers.protocols import (
     ChatCompletionChunk,
     ChatCompletionRequest,
@@ -394,6 +389,17 @@ async def test_stream_closed_early_counts_no_failure(monkeypatch: pytest.MonkeyP
     assert len(breaker_registry.get("local", "m").failures) == 0
 
 
+def _cached(provider: str, model: str) -> float:
+    for metric in LLM_CACHED_PROMPT_TOKENS_TOTAL.collect():
+        for sample in metric.samples:
+            if sample.name.endswith("_total") and sample.labels == {
+                "provider": provider,
+                "model": model,
+            }:
+                return float(sample.value)
+    return 0.0
+
+
 # -- wrapping -------------------------------------------------------------------------------
 
 
@@ -439,69 +445,6 @@ async def test_chat_proxy_routes_to_the_unwrapped_factory_provider(
     assert provider_proxies._factory_chat_provider() is provider
 
 
-# -- cached prompt tokens -------------------------------------------------------------------
-
-
-def _cached(provider: str, model: str) -> float:
-    for metric in LLM_CACHED_PROMPT_TOKENS_TOTAL.collect():
-        for sample in metric.samples:
-            if sample.name.endswith("_total") and sample.labels == {
-                "provider": provider,
-                "model": model,
-            }:
-                return float(sample.value)
-    return 0.0
-
-
-async def test_openai_adapter_reads_cached_prompt_tokens() -> None:
-    usage = SimpleNamespace(
-        prompt_tokens=100,
-        completion_tokens=5,
-        total_tokens=105,
-        prompt_tokens_details=SimpleNamespace(cached_tokens=64),
-    )
-    completion = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=ANSWER % "a"))],
-        model="gpt",
-        usage=usage,
-    )
-
-    async def create(**_kwargs: object) -> Any:
-        return completion
-
-    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
-    provider = OpenAIChatProvider(client=client, model_name="gpt")
-    response = await provider.complete(ChatCompletionRequest(prompt="q"))
-    assert response.cached_prompt_tokens == 64
-
-    assert cached_prompt_tokens(None) == 0
-    assert cached_prompt_tokens(SimpleNamespace(prompt_tokens=1)) == 0
-    chunk = parse_stream_chunk(SimpleNamespace(choices=[], usage=usage, model="gpt"))
-    assert chunk.cached_prompt_tokens == 64
-
-
-async def test_cached_tokens_reach_the_answer_result_and_the_ledger(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    provider = ScriptedProvider("x", cached=12)
-    service = LLMService(provider=provider)  # type: ignore[arg-type]
-    before = _cached(settings.llm_default_provider, service.model_name)
-    result = await service.generate_answer(prompt="q")
-    assert result.cached_prompt_tokens == 12
-    assert _cached(settings.llm_default_provider, service.model_name) == before + 12
-
-    streamed = await service.stream_answer(prompt="q", on_text=_ignore)
-    assert streamed.cached_prompt_tokens == 12
-
-    ctx = SimpleNamespace(ledger=TokenLedger())
-    record_llm_results(ctx, [result])  # type: ignore[arg-type]
-    assert ctx.ledger.totals().cached_tokens == 12
-
-
-async def _ignore(_text: str) -> None:
-    return None
-
-
 class _RaisingStream(StreamingProvider):
     async def stream(self, request: ChatCompletionRequest) -> AsyncIterator[ChatCompletionChunk]:
         yield ChatCompletionChunk(text_delta="a")
@@ -517,3 +460,37 @@ async def test_provider_timeout_inside_a_stream_is_not_an_idle_timeout(
         _ = [c async for c in wrapped.stream(ChatCompletionRequest(prompt="q", model="m"))]
     assert not isinstance(excinfo.value, ProviderStreamIdleTimeoutError)
     assert len(breaker_registry.get("local", "m").failures) == 1
+
+
+async def test_closing_a_finished_single_chunk_stream_counts_as_success(
+    monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    monkeypatch.setattr(settings, "llm_breaker_failure_threshold", 1)
+    breaker = breaker_registry.get("local", "m")
+    breaker.record_error(ProviderTimeoutError("t"), probe=False)
+    clock.advance(31)
+    wrapped = ResilientChatProvider(ScriptedProvider("whole"), "local")
+    stream = wrapped.stream(ChatCompletionRequest(prompt="q", model="m"))
+    await stream.__anext__()  # the probe's only chunk
+    await stream.aclose()  # type: ignore[attr-defined]
+    assert breaker.state == BreakerState.closed
+    breaker._transition(BreakerState.closed)  # same state: no transition
+    assert breaker.state == BreakerState.closed
+
+
+@pytest.mark.usefixtures("breaker_settings")
+async def test_busy_fallback_is_not_reported_as_a_provider_failure(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    from app.domains.chat.services.llm_service import ProviderBusyLLMServiceError
+    from app.rate_limit.concurrency import ProviderBusyError
+
+    primary = ScriptedProvider("primary")
+    primary.failing = True
+    fallback = ScriptedProvider("fallback")
+    fallback.failing = True
+    fallback.fail_with = ProviderBusyError("busy")
+    _factory(monkeypatch, local=primary, openai=fallback)
+    service = LLMService(retry_max_attempts=1, provider=None)
+    with pytest.raises(ProviderBusyLLMServiceError):
+        await service.generate_answer(prompt="q", resolved_profile=_profile("local", "m", "openai"))
