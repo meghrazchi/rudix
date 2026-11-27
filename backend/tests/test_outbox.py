@@ -397,7 +397,7 @@ async def test_concurrent_relays_publish_each_row_once_on_postgres(
 
     class _SlowTask:
         def apply_async(self, *, kwargs: dict[str, Any], **_: Any) -> None:
-            time.sleep(0.05)  # holds the row locks while the other relay scans
+            time.sleep(0.05)  # the other relay scans while this one publishes
             published.append(kwargs["document_id"])
 
     try:
@@ -417,3 +417,105 @@ async def test_concurrent_relays_publish_each_row_once_on_postgres(
         async with pg_session_factory() as session:
             await session.execute(delete(Organization).where(Organization.id == org.id))
             await session.commit()
+
+
+@pytest.mark.requires_postgres
+async def test_relay_holds_no_row_lock_or_transaction_while_publishing_on_postgres(
+    pg_session_factory: Any,
+) -> None:
+    """The broker call runs outside the claim transaction: a request that marks the same
+    row (``publish_after_commit``) or another relay never waits on a slow or down broker."""
+    import asyncio
+
+    from sqlalchemy import delete, text
+
+    async with pg_session_factory() as session:
+        org = Organization(name="Outbox lock", slug=f"outbox-lock-{uuid4().hex[:8]}")
+        session.add(org)
+        await session.flush()
+        message_id = await outbox.enqueue(
+            session, organization_id=org.id, task_name="documents.delete", kwargs={}
+        )
+        await session.commit()
+    loop = asyncio.get_running_loop()
+    seen: dict[str, Any] = {}
+
+    async def _probe() -> None:
+        async with pg_session_factory() as other, other.begin():
+            # NOWAIT raises at once if the relay still held the row lock.
+            locked = await other.execute(
+                text("SELECT attempts FROM outbox_messages WHERE id = :id FOR UPDATE NOWAIT"),
+                {"id": message_id},
+            )
+            seen["attempts"] = locked.scalar_one()
+            idle = await other.execute(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                    "AND state = 'idle in transaction' AND pid <> pg_backend_pid()"
+                )
+            )
+            seen["idle_in_transaction"] = idle.scalar_one()
+
+    class _ProbingTask:
+        def apply_async(self, *, kwargs: dict[str, Any], **_: Any) -> None:
+            asyncio.run_coroutine_threadsafe(_probe(), loop).result(timeout=10)
+
+    try:
+        counts = await outbox_tasks.relay_pending(
+            now=datetime.now(UTC) + timedelta(seconds=1),
+            session_factory=pg_session_factory,
+            resolver=lambda _name: _ProbingTask(),
+        )
+        assert counts == {"published": 1, "retried": 0, "failed": 0}
+        # The claim committed before the publish: attempts counted, no lock, no open transaction.
+        assert seen == {"attempts": 1, "idle_in_transaction": 0}
+        async with pg_session_factory() as session:
+            row = await session.get(OutboxMessage, message_id)
+            assert row is not None and row.status == outbox.PUBLISHED and row.attempts == 1
+    finally:
+        async with pg_session_factory() as session:
+            await session.execute(delete(Organization).where(Organization.id == org.id))
+            await session.commit()
+
+
+async def test_relay_marks_a_row_failed_only_while_it_is_still_pending(
+    db_session: AsyncSession,
+) -> None:
+    """A row the request path published while the relay's attempt failed stays published."""
+    org = await _org(db_session)
+    message_id = await outbox.enqueue(
+        db_session, organization_id=org.id, task_name="documents.delete", kwargs={}
+    )
+    await db_session.commit()
+
+    class _RacingTask:
+        def apply_async(self, *, kwargs: dict[str, Any], **_: Any) -> None:
+            raise ConnectionError("broker unavailable")
+
+    async def _mark_published() -> None:
+        await db_session.execute(
+            update(OutboxMessage)
+            .where(OutboxMessage.id == message_id)
+            .values(status=outbox.PUBLISHED)
+        )
+        await db_session.commit()
+
+    real_factory = _factory(db_session)
+
+    @asynccontextmanager
+    async def _factory_with_race() -> AsyncIterator[AsyncSession]:
+        async with real_factory() as session:
+            if _factory_with_race.calls == 1:  # type: ignore[attr-defined]
+                await _mark_published()
+            _factory_with_race.calls += 1  # type: ignore[attr-defined]
+            yield session
+
+    _factory_with_race.calls = 0  # type: ignore[attr-defined]
+    counts = await outbox_tasks.relay_pending(
+        now=datetime.now(UTC) + timedelta(seconds=1),
+        session_factory=_factory_with_race,
+        resolver=lambda _name: _RacingTask(),
+    )
+    assert counts == {"published": 0, "retried": 1, "failed": 0}
+    [row] = await _rows(db_session)
+    assert row.status == outbox.PUBLISHED and row.last_error is None

@@ -78,8 +78,12 @@ Upload, delete, retry-delete, reindex, graph reindex, and OCR retry write their 
 commit. When the broker is down the response is unchanged (`deferred` or `503`) and the row
 stays `pending`; `outbox.relay` (every `OUTBOX_RELAY_INTERVAL_SECONDS`, batches of
 `OUTBOX_RELAY_BATCH_SIZE`, `FOR UPDATE SKIP LOCKED`) publishes it with backoff and marks it
-`failed` after `OUTBOX_MAX_ATTEMPTS`. A reindex whose publication failed restores the previous
-status and cancels its row (`last_error = cancelled`). Publishing a row twice is harmless:
+`failed` after `OUTBOX_MAX_ATTEMPTS`. The relay claims its batch in a short transaction
+(attempts counted, `available_at` moved forward by a 300-second claim lease), publishes with
+no transaction open, then records the outcomes in a second short transaction, so a slow or
+unreachable broker never holds row locks that a request or another relay would wait on; a
+relay that dies mid-batch releases its rows after the lease. A reindex whose publication
+failed restores the previous status and cancels its row (`last_error = cancelled`). Publishing a row twice is harmless:
 the second `documents.process` finds the claim held and skips.
 
 ```sql
