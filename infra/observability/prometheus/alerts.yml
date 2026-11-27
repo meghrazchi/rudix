@@ -96,3 +96,23 @@ groups:
         annotations:
           summary: "Chat time to first token p95 is above 2.5 s on {{ $labels.transport }}"
           description: "p95 of rudix_chat_ttft_seconds has stayed at {{ $value }} s for 10 minutes. Check rudix_chat_stage_seconds for the slow stage (retrieval, rerank, provider latency) and whether CHAT_STREAM_MODE, strict verification, or a blocking AI-policy rule buffers the answer."
+
+  - name: rudix-llm-resilience
+    rules:
+      - alert: RudixLlmBreakerOpen
+        expr: max by (provider, model) (rudix_llm_breaker_state) == 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM circuit breaker open for {{ $labels.provider }} / {{ $labels.model }}"
+          description: "The breaker has been open for 5 minutes: calls skip this provider and use the fallback provider, or fail with generation_failed when none is configured. Check the provider status and llm.breaker.transition logs; tune LLM_BREAKER_* only after the cause is known."
+
+      - alert: RudixLlmOrgConcurrencyRejections
+        expr: sum(increase(rudix_llm_org_concurrency_rejected_total[10m])) > 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Organisations hit their concurrent LLM call limit"
+          description: "{{ $value }} LLM calls were answered provider_busy in 10 minutes (llm.org_semaphore.rejected logs name the organisation). Raise LLM_ORG_MAX_CONCURRENT_CALLS or LLM_ORG_SEMAPHORE_WAIT_MS if the limit is too tight."

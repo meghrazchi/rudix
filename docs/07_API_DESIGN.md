@@ -163,6 +163,7 @@ contract.
 | 422 | `CHAT_SHARE_LIMIT_REACHED`, `ANSWER_SHARE_LIMIT_REACHED` | More than 10 active share links per session or per answer. |
 | 422 | `SHARE_ALLOWED_USER_IDS_REQUIRED` | `access_mode = "specific_users"` with an empty `allowed_user_ids`. |
 | 429 | `rate_limit_exceeded` | Chat rate limit (`Retry-After` is set). |
+| 429 | `provider_busy` | The organisation's concurrent LLM call limit stayed reached (`POST /chat`, WebSocket; R05-06). |
 | 500 | `chat_persistence_failed` | The answer could not be saved. |
 | 501 | `CHAT_MESSAGE_CREATE_NOT_IMPLEMENTED` | Deprecated `POST /chat/sessions/{id}/messages`. |
 | 503 | `retrieval_failed`, `generation_failed`, `prompt_template_unavailable` | Retrieval, the model provider, or the prompt template is unavailable. |
@@ -1165,8 +1166,9 @@ Not-found behavior:
 ### WebSocket `/chat/ws`
 
 Streaming alternative to `POST /chat`, enabled with `FEATURE_CHAT_WEBSOCKET_ENABLED`. The client
-sends `{"command": "chat.start", "payload": <ChatQueryRequest>}` (also `chat.cancel` and
-`heartbeat.pong`). The server streams events with one envelope:
+sends `{"command": "chat.start", "payload": <ChatQueryRequest>}` (also `chat.cancel`,
+`chat.resume` (see [Resume](#resume)), and `heartbeat.pong`). The server streams events with one
+envelope (`stream_sequence` is set on the events of a run, `null` on connection events):
 
 ```json
 {
@@ -1177,13 +1179,14 @@ sends `{"command": "chat.start", "payload": <ChatQueryRequest>}` (also `chat.can
   "sequence": 3,
   "timestamp": "2026-11-26T10:00:00+00:00",
   "payload": {"quota_type": "questions", "retryable": true, "next_reset_at": "2026-11-27T00:00:00+00:00"},
-  "safe_error_code": "plan_limit_exceeded"
+  "safe_error_code": "plan_limit_exceeded",
+  "stream_sequence": 3
 }
 ```
 
 Events include `chat.request.received`, `activity.step.update`, `retrieval.started`,
 `retrieval.completed`, `generation.started`, `generation.delta`, `generation.replace`,
-`generation.final`, `chat.completed`, `chat.cancelled`, and `chat.error` (see
+`generation.final`, `chat.completed`, `chat.cancelled`, `chat.resumed`, and `chat.error` (see
 [Chat event protocol](#chat-event-protocol)).
 
 Parity with `POST /chat` (shared code in `backend/app/application/chat/`):
@@ -1212,8 +1215,15 @@ Parity with `POST /chat` (shared code in `backend/app/application/chat/`):
 `safe_error_code` values (`ChatWSSafeErrorCode` in `app/domains/chat/schemas/chat_ws.py`):
 `already_running`, `chat_persistence_failed`, `chat_session_not_found`, `document_not_found`,
 `generation_failed`, `internal_error`, `invalid_message`, `invalid_request`,
-`plan_limit_exceeded`, `rate_limit_exceeded`, `rate_limiter_unavailable`,
-`retrieval_failed`.
+`plan_limit_exceeded`, `provider_busy`, `rate_limit_exceeded`, `rate_limiter_unavailable`,
+`resume_unavailable`, `retrieval_failed`.
+
+`provider_busy` (R05-06) means the organisation's concurrent LLM call limit
+(`LLM_ORG_MAX_CONCURRENT_CALLS`, off by default) stayed reached for `LLM_ORG_SEMAPHORE_WAIT_MS`;
+`POST /chat` answers `429` with `detail.code = "provider_busy"`. Retry after a short delay. An
+open provider circuit breaker without a fallback provider is reported as `generation_failed`.
+`resume_unavailable` (R05-13) answers a `chat.resume` that cannot be served (see
+[Resume](#resume)).
 
 `plan_limit_exceeded` is the WebSocket form of the HTTP `403` with
 `detail.code = "plan_limit_exceeded"`. Its `payload` carries only `quota_type`, `retryable`, and
@@ -1232,9 +1242,10 @@ The handshake is authenticated in this order (`backend/app/application/chat/ws_a
    HTTP (JWTs, `rudix_` API keys, `svc_` service-account tokens), and `X-Organization-Id` is
    honoured. API-key and service-account principals carry no role, so they still fail the role
    check (`4403`), the same as `POST /chat`.
-3. `?token=<access token>`: deprecated. Accepted only while `CHAT_WS_ALLOW_QUERY_TOKEN=true`
-   (default `true` in 0.2.0, `false` in 0.5.0, removed in 1.0.0). Each use logs
-   `chat.ws.query_token_used` with the user and organisation ids only.
+3. `?token=<access token>`: deprecated and off by default. Accepted only while
+   `CHAT_WS_ALLOW_QUERY_TOKEN=true` (default `true` in 0.2.0, `false` since 0.5.0, removed in
+   1.0.0). Each use logs `chat.ws.query_token_used` with the user and organisation ids only.
+   With the default, a `?token=` handshake closes with `4401`; clients use a ticket instead.
 
 Close codes: `4401` for any authentication failure (`Unauthorized`, or `Missing auth credentials`
 when nothing was sent), `4403` for a role that may not chat, `4429` for too many connections per
@@ -1245,6 +1256,56 @@ method and failure reason (never the credential). Attempts are counted in
 Uvicorn logs the handshake path with its query string. A logging filter on the `uvicorn`,
 `uvicorn.error`, and `uvicorn.access` loggers replaces `token`, `ticket`, and `access_token`
 query values with `***`.
+
+#### Resume
+
+Since 0.5.0 (R05-13, contract 4.2.7 of `docs/roadmap/V0_5_0_IMPLEMENTATION_PLAN.md`) a run
+survives a dropped socket and can be followed again from a new connection.
+
+- Every event of a run carries `stream_sequence` (1, 2, … per assistant message, from
+  `chat.request.received` to the terminal event). `sequence` stays the connection counter.
+- When Redis is configured, every run event is also written to a buffer keyed by the
+  organisation, the user, and the assistant message id
+  (`rudix:{env}:chat:resume:v1:{org}:{user}:{message_id}`), kept for
+  `CHAT_RESUME_BUFFER_TTL_SECONDS` (default 300) after the last event. Past
+  `CHAT_RESUME_BUFFER_MAX_EVENTS` (default 2000) entries, consecutive deltas are merged into
+  one entry; a replay still sends only the text after the client's last sequence.
+- When the socket drops mid-run, the run keeps going for `CHAT_WS_RESUME_GRACE_SECONDS`
+  (default 30; `0` cancels on drop as before 0.5.0), and as long as a resumed connection is
+  following it. Then it is cancelled and its partial usage is recorded
+  (`chat.completion.cancelled`), as for `chat.cancel`. `chat.cancel` always cancels at once.
+  Without Redis there is no buffer and the grace window behaves as `0`. SSE is unchanged: a
+  disconnect cancels.
+
+To resume, open a new connection (with a fresh ticket) and send:
+
+```json
+{"command": "chat.resume", "payload": {"message_id": "<uuid>", "last_stream_sequence": 12}}
+```
+
+`message_id` is the `message_id` of the run's events (set from `generation.started` on);
+`last_stream_sequence` is the highest `stream_sequence` the client applied (`0` for none).
+
+1. While the buffer exists, the server sends `chat.resumed` (`{"message_id", "replayed"}`, the
+   number of buffered events it replays), the buffered events with a higher
+   `stream_sequence` in order, then the live events until `chat.completed`, `chat.error`, or
+   `chat.cancelled`. Replayed events keep their `stream_sequence` and `request_id` and get new
+   `sequence` numbers on this connection.
+2. When the run finished and the buffer expired, it sends `chat.resumed` with `replayed: 0` and
+   one `chat.completed` rebuilt from the stored message: `payload.rebuilt = true` and
+   `payload.response` with `chat_session_id`, `message_id`, `answer`, `confidence_score`,
+   `confidence_category`, `citations`, `trust_metadata`, and `created_at` (no `debug` or
+   `confidence_explanation`; read the trust metadata route for details).
+3. Otherwise it sends `chat.error` with `resume_unavailable`: the message is unknown, belongs
+   to another user or organisation, was cancelled before it was stored, Redis is missing or
+   failing, or the buffer expired while it was being followed.
+
+The client discards events whose `(message_id, stream_sequence)` it already applied. The
+buffer key contains the organisation and user of the principal, so only the user who started
+the run, in the same organisation, can read it. `chat.resume` while another command runs on
+the connection answers `already_running`; an invalid payload answers `invalid_request`.
+`chat.cancel` while following a resumed run asks that run to cancel too. Outcomes are counted
+in `rudix_chat_ws_resume_total{outcome}` and drops in `rudix_chat_ws_drop_total{outcome}`.
 
 ### POST `/chat/ws-ticket`
 

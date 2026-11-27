@@ -559,8 +559,8 @@ The WebSocket and `POST /chat/query/stream` (SSE) stream the answer as it is gen
 - Dashboard: Grafana `06 — Rudix Chat Pipeline`
   (`infra/observability/grafana/dashboards/06-rudix-chat-pipeline.json`) shows TTFT p50/p95 per
   transport, cancellations, `rudix_chat_stage_seconds` p95, `rudix_chat_stage_skipped_total`,
-  `rudix_llm_breaker_state`, and `rudix_chat_tokens_total`. The last three panels stay empty
-  until the budget, breaker, and ledger metrics ship (R05-04, R05-06, R05-07).
+  `rudix_llm_breaker_state`, and `rudix_chat_tokens_total`. The skipped-stage panel stays empty
+  until the budget metrics ship (R05-04).
 - Alert: `RudixChatTimeToFirstTokenHigh` (group `rudix-chat-streaming` in
   `infra/observability/prometheus/alerts.yml`) fires when TTFT p95 stays above 2.5 s for
   10 minutes. The 2.5 s target is not measured in CI (no load environment); it is checked in
@@ -610,6 +610,48 @@ the embedding and answer tokens.
 - A rising `rudix_chat_context_injection_flagged_total` points at uploaded documents with
   instruction-like text; the log event `chat.context.injection_flagged` carries the action and
   counts, and the answer's trust metadata (`context_injection`) lists the chunk ids.
+
+### Provider resilience and chat resume (R05-06, R05-13)
+
+Every chat provider call passes a circuit breaker per provider and model and, when
+`LLM_ORG_MAX_CONCURRENT_CALLS > 0`, one slot of the organisation's Redis semaphore.
+WebSocket runs are buffered in Redis so a dropped socket can resume.
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_llm_breaker_state` | `provider`, `model` | Breaker state: `0` closed, `1` half-open, `2` open (per API replica). |
+| `rudix_llm_breaker_transitions_total` | `provider`, `model`, `state` | Transitions, by the state entered (`open`, `half_open`, `closed`). |
+| `rudix_llm_org_concurrency_rejected_total` | none | Calls answered `provider_busy` because the organisation's limit stayed reached for `LLM_ORG_SEMAPHORE_WAIT_MS`. |
+| `rudix_llm_org_semaphore_unavailable_total` | none | Calls admitted without a lease because Redis was missing or failing (fail open). |
+| `rudix_llm_cached_prompt_tokens_total` | `provider`, `model` | Prompt tokens the provider reported as served from its prompt cache (OpenAI `prompt_tokens_details.cached_tokens`). |
+| `rudix_chat_ws_resume_total` | `outcome` (`replayed`, `rebuilt`, `unavailable`, `redis_unavailable`) | `chat.resume` commands. |
+| `rudix_chat_ws_drop_total` | `outcome` (`completed`, `cancelled`, `cancelled_no_grace`) | Runs whose socket dropped: finished in the grace window, cancelled when it ended, or cancelled at once (grace `0`, no Redis, or a failed buffer). |
+| `rudix_chat_resume_buffer_errors_total` | none | Resume buffer writes that failed; the run continues unbuffered. |
+
+- The breaker opens after `LLM_BREAKER_FAILURE_THRESHOLD` (5) transient failures (provider
+  unreachable, 5xx, timeouts, stream gaps above `LLM_STREAM_IDLE_TIMEOUT_SECONDS`) within
+  `LLM_BREAKER_WINDOW_SECONDS` (30), stays open `LLM_BREAKER_OPEN_SECONDS` (30), then lets
+  `LLM_BREAKER_HALF_OPEN_PROBES` (1) calls test the provider. Validation errors, rate limits,
+  and other 4xx answers never count. While it is open, the answer goes straight to the
+  profile's fallback provider (no retry backoff; `fallback_reason = "BreakerOpenError"` in the
+  trust metadata) or fails with `generation_failed`. Breaker state is per replica.
+- Alerts (group `rudix-llm-resilience` in `infra/observability/prometheus/alerts.yml`):
+  `RudixLlmBreakerOpen` when a breaker stays open for 5 minutes, and
+  `RudixLlmOrgConcurrencyRejections` when organisations hit their concurrency limit.
+- Prompt caching: no template is reordered for caching in 0.5.0; cached tokens are recorded as
+  reported (ledger `cached_tokens`, `rudix_chat_tokens_total{kind="cached"}`, and the metric
+  above). A provider that does not report them shows `0`.
+- A rising `rudix_chat_ws_drop_total{outcome="cancelled"}` with few
+  `rudix_chat_ws_resume_total{outcome="replayed"}` means clients do not resume within
+  `CHAT_WS_RESUME_GRACE_SECONDS`. Many `unavailable` resumes point at expired buffers
+  (`CHAT_RESUME_BUFFER_TTL_SECONDS`) or clients resuming the wrong message id.
+- Logs: `llm.breaker.transition` (provider, model, states), `llm.org_semaphore.rejected`,
+  `llm.org_semaphore.unavailable`, `chat.ws.resume` (outcome, replayed count),
+  `chat.ws.dropped_run` (outcome), and `chat.resume.buffer_failed` (error type). No question,
+  prompt, answer, or document text is logged.
+- Staging checks (not covered in CI): the `requires_redis` lane runs the semaphore and resume
+  Lua scripts against Redis 7 (`TEST_REDIS_URL=... make test-postgres`), and a resume across
+  two API replicas.
 
 ## Continuous evaluation
 

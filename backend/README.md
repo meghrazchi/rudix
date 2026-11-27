@@ -588,7 +588,8 @@ Modules:
 | `app/application/chat/pipeline/snapshots.py` | plain snapshots of the RAG profile and prompt version read in the read phase |
 | `app/application/chat/pipeline/stages/` | one file per stage, helpers in `_*.py` |
 | `app/application/chat/transports/http.py` | `run_http_query`: runs the pipeline and builds `ChatQueryResponse` |
-| `app/application/chat/transports/ws.py` | `run_ws_query`, `WsEmitter`, and `WsSequence` (one `sequence` counter per connection) |
+| `app/application/chat/transports/ws.py` | `run_ws_query`, `WsEmitter`, and `WsSequence` (one `sequence` counter per connection); run handles and the resume grace window (R05-13) |
+| `app/application/chat/transports/resume_buffer.py`, `ws_resume.py` | Redis resume buffer and `chat.resume` (R05-13) |
 | `app/domains/chat/services/` | `query_intent_service`, `confidence_calibration`, `trust_metadata_builder`, `trust_records`, `citation_enrichment`, `retrieved_chunk` (moved out of `chat.py`) |
 
 Stages, in the order `query_chat` runs them: `authorize` (quota, document access, source
@@ -646,6 +647,26 @@ CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py \
   flagged, down-ranked (default), or dropped (`CHAT_CONTEXT_INJECTION_ACTION`,
   `CHAT_CONTEXT_INJECTION_DOWNRANK_MULTIPLIER`); see `docs/11` (R05-09). Golden prompt hashes
   are taken with the boundary token normalised.
+- Provider resilience (R05-06): `ResilientChatProvider` (`app/domains/ai/providers/resilience.py`)
+  wraps every chat provider, from `ProviderFactory.get_chat_provider` and for providers
+  injected into `LLMService` (never twice). It holds a circuit breaker per provider and model
+  (`LLM_BREAKER_*`; an open breaker raises `BreakerOpenError`, `LLMService` skips its retries
+  and uses the profile's fallback provider, or answers `generation_failed`), a stream idle
+  timeout (`LLM_STREAM_IDLE_TIMEOUT_SECONDS`), and one slot of the organisation's Redis
+  semaphore (`app/rate_limit/concurrency.py`, `LLM_ORG_MAX_CONCURRENT_CALLS`, `0` = off, fails
+  open without Redis); a full organisation answers `provider_busy` (HTTP `429`). Cached prompt
+  tokens (`ChatCompletionResponse.cached_prompt_tokens`) go into the token ledger. The test
+  suite resets the breakers before every test (`tests/conftest.py`).
+- Resume (R05-13): WebSocket run events carry `stream_sequence` and, with Redis, are buffered
+  by `BufferingEmitter` (`transports/resume_buffer.py`). A dropped socket keeps its run for
+  `CHAT_WS_RESUME_GRACE_SECONDS` (`transports/ws.py`, `keep_run_alive_after_drop`);
+  `chat.resume` (`transports/ws_resume.py`) replays and follows it, or rebuilds
+  `chat.completed` from the stored message. Tests: `tests/test_chat_ws_resume.py`
+  (`tests/chat_resume_support.py` drives two connections over one `FakeRedis`).
+  `CHAT_WS_ALLOW_QUERY_TOKEN` defaults to `false`; tests of `?token=` set it in their fixture.
+- `requires_redis` lane: `TEST_REDIS_URL=redis://... make test-postgres` also runs the
+  semaphore and resume-buffer Lua scripts against a real Redis and compares them with the
+  Python reference implementations in `tests/redis_fakes.py`.
 
 ## Application cache
 

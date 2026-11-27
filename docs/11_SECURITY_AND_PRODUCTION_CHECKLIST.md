@@ -49,7 +49,7 @@ WebSocket chat (`/chat/ws`):
   (`?ticket=`), so access tokens stay out of URLs, uvicorn logs, and proxy logs.
 - Tickets are stored only as `sha256` hashes in Redis, redeemed with `GETDEL`, expire after
   `CHAT_WS_TICKET_TTL_SECONDS`, and re-check the user, app session, and current membership.
-- Set `CHAT_WS_ALLOW_QUERY_TOKEN=false` once all clients use tickets (default `false` from 0.5.0).
+- Keep `CHAT_WS_ALLOW_QUERY_TOKEN=false` (the default since 0.5.0); set it to `true` only for a client that cannot use tickets yet.
   Watch `chat.ws.query_token_used` logs and `rudix_chat_ws_auth_total{method="query_token"}`
   before turning it off.
 - Uvicorn loggers mask `token`, `ticket`, and `access_token` query values. Make sure reverse proxies
@@ -646,6 +646,7 @@ When deleting a document:
 - [ ] Input validation with Pydantic.
 - [ ] Sentry integrated.
 - [ ] Response compression: responses of at least `HTTP_GZIP_MINIMUM_BYTES` (default 1024; `0` disables) are gzip-encoded (streamed bodies such as exports and downloads whenever the client accepts gzip), and `text/event-stream` and image/archive types are never compressed. Compression exposes BREACH-style size side channels, so never reflect a secret (CSRF token, API key) in the same compressed body as attacker-controlled input.
+- [ ] Chat resume buffer (R05-13): every WebSocket run's events, answer text included, are kept in Redis for `CHAT_RESUME_BUFFER_TTL_SECONDS` (default 300) under `rudix:{env}:chat:resume:v1:{org}:{user}:{message_id}`. `chat.resume` builds the key from its own principal, so another user or organisation cannot read it (`resume_unavailable`), and the stored-answer fallback joins `chat_sessions` on organisation and user. Redis must be private (no public port, authentication on, TLS where it crosses hosts) and is not a store of record; lower the TTL or set `CHAT_WS_RESUME_GRACE_SECONDS=0` where answer text must not linger. `CHAT_WS_ALLOW_QUERY_TOKEN` is `false` by default since 0.5.0.
 
 ### Documents
 
