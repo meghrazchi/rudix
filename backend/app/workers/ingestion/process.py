@@ -1,10 +1,17 @@
 """Bodies of ``documents.process`` and ``documents.reindex`` (moved from document_tasks, R06-01).
 
-The claim, graph-pending mark, pipeline call, completion log, audit, and notification are
-unchanged. The pipeline runs with ``run_id = claim_token = request.id``, so a Celery retry or
-redelivery of the same task resumes after its last completed stage. A redelivered
-``documents.process`` whose run already committed (the worker died between the finalize
-commit and the completion audit) reports that run instead of skipping it.
+The claim, graph-pending mark, completion log, audit, and notification are unchanged.
+
+``INGEST_PIPELINE_MODE=chain`` (default, R06-01 part 2): after the claim the task chooses
+the run (``chain.resolve_run_id``: a new run per claim, or ``resume_run_id`` / a failed
+job's run while unfinished) and dispatches the first incomplete stage; the stage tasks do
+the rest and the finalize task reports the run. The task returns ``status=processing``.
+
+``INGEST_PIPELINE_MODE=inline``: the stages run in this task with ``run_id = claim_token =
+request.id`` (or ``resume_run_id``), so a retry or redelivery resumes after the last
+completed stage. A redelivered ``documents.process`` whose run already committed (the
+worker died between the finalize commit and the completion audit) runs the stages after
+finalize that did not finish (graph) and reports that run instead of skipping it.
 """
 
 from __future__ import annotations
@@ -21,9 +28,22 @@ from app.domains.documents.repositories.processing_claims import (
 )
 from app.models.enums import DocumentStatus, GraphExtractionStatus
 from app.workers.base_task import PermanentTaskError
+from app.workers.ingestion.chain import (
+    PROCESS_MODE,
+    REINDEX_MODE,
+    completed_stages,
+    first_incomplete,
+    resolve_run_id,
+    stage_kwargs,
+)
 from app.workers.ingestion.deps import IngestionDeps, current_deps
 from app.workers.ingestion.errors import parse_uuid
-from app.workers.ingestion.pipeline import completed_run_metrics, result_from_metrics
+from app.workers.ingestion.options import IngestionOptions
+from app.workers.ingestion.pipeline import (
+    completed_run_metrics,
+    result_from_metrics,
+    run_after_finalize,
+)
 
 
 @dataclass(frozen=True)
@@ -65,6 +85,8 @@ def run_document_task(
     user_id: str | None,
     force: bool,
     chunking_profile_config: dict | None,
+    resume_run_id: str | None = None,
+    job_id: str | None = None,
 ) -> dict[str, str | int | float]:
     deps = current_deps()
     # request.id survives Celery retries and acks_late redeliveries, so the owning task can
@@ -87,7 +109,19 @@ def run_document_task(
                 completed_run_metrics(document_id, run_id=task_id, audit_action=mode.audit_action)
             )
             if metrics is not None:
-                return _report(deps, mode, context, force, result_from_metrics(metrics))
+                if settings.ingest_pipeline_mode == "inline":
+                    deps.run(
+                        run_after_finalize(
+                            document_id,
+                            request_id=request_id,
+                            organization_id=organization_id,
+                            user_id=user_id,
+                            options=IngestionOptions(pipeline_type=mode.pipeline_type),
+                            run_id=task_id,
+                            claim_token=None,
+                        )
+                    )
+                return report(deps, mode, context, force, result_from_metrics(metrics))
         reason = "claim_held"
         if not mode.reindex and claim.current_status != DocumentStatus.processing.value:
             reason = "status_not_claimable"
@@ -122,6 +156,31 @@ def run_document_task(
     except ValueError as exc:
         raise PermanentTaskError(f"Invalid chunking_profile_config: {exc}") from exc
 
+    chain = settings.ingest_pipeline_mode == "chain"
+    run_id, resumed = deps.run(
+        resolve_run_id(
+            document_id,
+            claim_token=task_id,
+            resume_run_id=resume_run_id,
+            job_id=job_id,
+            organization_id=organization_id,
+            chain=chain,
+        )
+    )
+    profile_source = "custom_profile" if chunking_profile_config else "system_default"
+    if chain:
+        return _start_chain(
+            deps,
+            mode,
+            context,
+            run_id=run_id,
+            claim_token=task_id,
+            resumed=resumed,
+            chunking_profile_config=chunking_profile_config,
+            profile_source=profile_source,
+            force=force,
+        )
+
     result = deps.run(
         deps.extract_and_store_document_pages_async(
             document_id,
@@ -130,15 +189,67 @@ def run_document_task(
             user_id=user_id,
             pipeline_type=mode.pipeline_type,
             chunking_service=service,
-            profile_source="custom_profile" if chunking_profile_config else "system_default",
-            run_id=task_id,
+            profile_source=profile_source,
+            run_id=run_id,
             claim_token=task_id,
         )
     )
-    return _report(deps, mode, context, force, result)
+    return report(deps, mode, context, force, result)
 
 
-def _report(
+def _start_chain(
+    deps: IngestionDeps,
+    mode: TaskMode,
+    context: dict[str, Any],
+    *,
+    run_id: str,
+    claim_token: str,
+    resumed: bool,
+    chunking_profile_config: dict | None,
+    profile_source: str,
+    force: bool,
+) -> dict[str, str | int | float]:
+    """Dispatch the first stage of the run that is not completed yet."""
+    from app.workers.ingestion.dispatch import dispatch_stage
+
+    document_id = str(context["document_id"])
+    done: set[str] = set()
+    if resumed:
+        done = deps.run(completed_stages(parse_uuid(document_id), run_id))
+    stage = first_incomplete(done)
+    deps.log_document_event(
+        event=f"{mode.event_prefix}.dispatched",
+        status_code=DocumentStatus.processing.value,
+        run_id=run_id,
+        resumed=resumed,
+        stage=str(stage) if stage is not None else None,
+        **context,
+    )
+    if stage is not None:
+        dispatch_stage(
+            stage,
+            stage_kwargs(
+                document_id=document_id,
+                organization_id=context["organization_id"],
+                user_id=context["user_id"],
+                request_id=context["request_id"],
+                run_id=run_id,
+                claim_token=claim_token,
+                chunking_profile_config=chunking_profile_config,
+                profile_source=profile_source,
+                mode=REINDEX_MODE if mode.reindex else PROCESS_MODE,
+                force=force,
+            ),
+        )
+    return {
+        "document_id": document_id,
+        "status": DocumentStatus.processing.value,
+        "run_id": run_id,
+        "stage": str(stage) if stage is not None else "completed",
+    }
+
+
+def report(
     deps: IngestionDeps,
     mode: TaskMode,
     context: dict[str, Any],

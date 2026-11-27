@@ -28,6 +28,7 @@ from app.workers.ingestion.errors import (
     DocumentPipelinePermanentError,
     DocumentPipelineTransientError,
 )
+from app.workers.ingestion.heartbeat import note_parts
 from app.workers.ingestion.stages.base import StageName, StageOutcome
 from app.workers.ingestion.stages.embed_summary import log_embed_completed, summarize_parts
 
@@ -193,6 +194,7 @@ async def run(ctx: StageContext) -> StageOutcome:
         del result, rows, parents
         await ctx.store.write_artifacts(StageName.embed, {batch: part}, replace_stage=False)
         await ctx.store.heartbeat(StageName.embed)
+        await note_parts(ctx, 1)
 
     summary = await summarize_parts(ctx)
     await log_embed_completed(ctx, summary)

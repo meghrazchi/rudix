@@ -72,6 +72,8 @@ class StageStore(Protocol):
 
     async def heartbeat(self, stage: str) -> None: ...
 
+    async def merge_metrics(self, stage: str, extra: dict[str, Any]) -> None: ...
+
     async def mark_completed(
         self,
         stage: str,
@@ -224,6 +226,18 @@ class DbStageStore:
     async def heartbeat(self, stage: str) -> None:
         await self._update(stage, None, heartbeat_at=_now())
 
+    async def merge_metrics(self, stage: str, extra: dict[str, Any]) -> None:
+        """Add keys to a stage row's metrics (the pipeline run id while extract runs)."""
+        async with self._factory() as session, session.begin():
+            current = (
+                await session.execute(
+                    select(DocumentProcessingStage.metrics).where(self._stage_filter(stage))
+                )
+            ).scalar_one_or_none()
+            if current is None:
+                return
+            await self._update(stage, session, metrics={**dict(current or {}), **extra})
+
     async def mark_completed(
         self,
         stage: str,
@@ -364,6 +378,10 @@ class MemoryStageStore:
 
     async def heartbeat(self, stage: str) -> None:
         return None
+
+    async def merge_metrics(self, stage: str, extra: dict[str, Any]) -> None:
+        if stage in self.records:
+            self.records[stage].metrics = {**self.records[stage].metrics, **extra}
 
     async def mark_completed(
         self,

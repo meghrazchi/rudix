@@ -31,6 +31,13 @@ class CelerySettings(BaseModel):
     )
     celery_queue_evaluations: str = Field(default="evaluations", min_length=1, max_length=64)
     celery_queue_connector_sync: str = Field(default="connectors.sync", min_length=1, max_length=64)
+    # R06-01 part 2: embed, index, and finalize stage tasks; graph extraction after finalize.
+    celery_queue_documents_embedding: str = Field(
+        default="documents.processing", min_length=1, max_length=64
+    )
+    celery_queue_documents_graph: str = Field(
+        default="documents.graph", min_length=1, max_length=64
+    )
     celery_task_max_retries: int = Field(default=5, ge=0, le=20)
     celery_retry_backoff_seconds: int = Field(default=2, ge=1, le=300)
     celery_retry_backoff_max_seconds: int = Field(default=60, ge=1, le=3600)
@@ -59,6 +66,8 @@ class CelerySettings(BaseModel):
         "celery_queue_documents_reindex",
         "celery_queue_evaluations",
         "celery_queue_connector_sync",
+        "celery_queue_documents_embedding",
+        "celery_queue_documents_graph",
     )
     @classmethod
     def validate_celery_queue_name(cls, value: str) -> str:

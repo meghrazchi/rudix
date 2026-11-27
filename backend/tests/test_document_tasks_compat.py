@@ -95,6 +95,9 @@ def test_task_names_and_signatures_are_unchanged() -> None:
             "user_id",
             "force",
             "chunking_profile_config",
+            # R06-01 part 2 (additive): reaper resume and failed-job retry.
+            "resume_run_id",
+            "job_id",
         ],
         "reindex_document": [
             "document_id",
@@ -103,9 +106,19 @@ def test_task_names_and_signatures_are_unchanged() -> None:
             "user_id",
             "chunking_profile_config",
             "force",
+            "resume_run_id",
+            "job_id",
         ],
         "delete_document": ["document_id", "request_id", "organization_id", "user_id"],
-        "reindex_document_graph": ["document_id", "request_id", "organization_id", "user_id"],
+        "reindex_document_graph": [
+            "document_id",
+            "request_id",
+            "organization_id",
+            "user_id",
+            # R06-01 part 2: graph task failures record documents.graph_reindex; the
+            # failed-job retry sends job_id.
+            "job_id",
+        ],
         "backfill_documents": [
             "organization_id",
             "chunking_profile_config",

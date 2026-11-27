@@ -391,6 +391,21 @@ def tenant_context_scope(organization_id: UUID | str | None) -> Iterator[UUID | 
         _CURRENT_TENANT_ID.reset(token)
 
 
+@contextmanager
+def bind_worker_tenant(organization_id: UUID | str | None) -> Iterator[UUID | None]:
+    """Bind a Celery task to the tenant named by its ``organization_id`` (R06-01 part 2).
+
+    Plan contract 4.2.7: every session the task opens inside the block sets
+    ``app.current_organization_id`` (``after_begin``), so strict row-level security applies
+    to worker writes as it does to requests. ``None`` or an unparsable value binds nothing
+    (beat tasks, old messages); those paths use ``maintenance_session()`` or resolve the
+    tenant first. The previous binding is restored on exit, so nested tasks (eager chains in
+    tests) do not leak their tenant.
+    """
+    with tenant_context_scope(organization_id) as org_uuid:
+        yield org_uuid
+
+
 def _record_soft_denial(table: str, operation: str) -> None:
     RLS_SOFT_DENIALS_TOTAL.labels(table=table).inc()
     now = time.monotonic()

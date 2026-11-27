@@ -165,6 +165,8 @@ def run_reindex_task(
     user_id: str | None,
     chunking_profile_config: dict | None,
     force: bool,
+    resume_run_id: str | None = None,
+    job_id: str | None = None,
 ) -> dict[str, str | int | float]:
     """Body of ``documents.reindex``: the process body in reindex mode."""
     from app.workers.ingestion.process import REINDEX, run_document_task
@@ -178,4 +180,6 @@ def run_reindex_task(
         user_id=user_id,
         force=force,
         chunking_profile_config=chunking_profile_config,
+        resume_run_id=resume_run_id,
+        job_id=job_id,
     )

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from prometheus_client import Histogram
+from prometheus_client import Counter, Histogram
 
 from app.core.metrics import is_metrics_enabled, registry
 
@@ -38,6 +38,50 @@ def record_ingest_stage(stage: str, outcome: str, seconds: float) -> None:
 
 
 # anchor: S2
+# R06-01 part 2: stage task outcomes in chain mode (completed, skipped, superseded,
+# lease_held, rerun_producer), outbox publications, and tenant mismatches.
+INGEST_STAGE_TASKS_TOTAL = Counter(
+    "rudix_ingest_stage_tasks_total",
+    "Ingestion stage task deliveries by stage and outcome (chain mode)",
+    ["stage", "outcome"],
+    registry=registry,
+)
+# outcome: published (immediate), relayed (beat), deferred (publish failed, row pending),
+# failed (gave up after OUTBOX_MAX_ATTEMPTS), duplicate (dedupe key existed).
+OUTBOX_MESSAGES_TOTAL = Counter(
+    "rudix_outbox_messages_total",
+    "Transactional outbox rows by task and outcome",
+    ["task", "outcome"],
+    registry=registry,
+)
+WORKER_TENANT_MISMATCH_TOTAL = Counter(
+    "rudix_worker_tenant_mismatch_total",
+    "Tasks stopped because their entity belongs to another organisation",
+    ["task"],
+    registry=registry,
+)
+
+
+def _inc(counter: Counter, **labels: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        counter.labels(**labels).inc()
+    except Exception as exc:
+        logger.debug("metrics.worker_counter_failed: %s", exc)
+
+
+def record_ingest_stage_task(stage: str, outcome: str) -> None:
+    _inc(INGEST_STAGE_TASKS_TOTAL, stage=stage, outcome=outcome)
+
+
+def record_outbox_message(task: str, outcome: str) -> None:
+    _inc(OUTBOX_MESSAGES_TOTAL, task=task, outcome=outcome)
+
+
+def record_worker_tenant_mismatch(task: str) -> None:
+    _inc(WORKER_TENANT_MISMATCH_TOTAL, task=task)
+
 
 # anchor: A1
 

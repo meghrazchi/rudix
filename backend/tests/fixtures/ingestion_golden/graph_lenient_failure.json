@@ -122,12 +122,12 @@
         "index_cleanup:completed",
         "chunk:started",
         "chunk:completed",
-        "extract_entities:started",
-        "extract_entities:failed",
         "embed:started",
         "embed:completed",
         "index:started",
-        "index:completed"
+        "index:completed",
+        "extract_entities:started",
+        "extract_entities:failed"
       ],
       "pipeline_type": "document.process",
       "status": "completed"

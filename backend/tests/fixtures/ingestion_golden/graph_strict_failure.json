@@ -1,5 +1,14 @@
 {
-  "audit_actions": [],
+  "audit_actions": [
+    {
+      "action": "document.process.completed",
+      "metadata": {
+        "chunk_count": 1,
+        "page_count": 1,
+        "status": "indexed"
+      }
+    }
+  ],
   "chunks": [
     {
       "child_count": null,
@@ -17,13 +26,29 @@
     }
   ],
   "document": {
-    "chunk_count": null,
-    "chunking_config_snapshot": null,
-    "chunking_profile_version": null,
-    "chunking_strategy": null,
+    "chunk_count": 1,
+    "chunking_config_snapshot": {
+      "chunk_overlap_tokens": 120,
+      "chunk_size_tokens": 700,
+      "document_profile": "text_based",
+      "embedding_model": "text-embedding-3-small",
+      "embedding_provider_type": "fake",
+      "embedding_vector_dimension": 1536,
+      "index_version": "v1",
+      "ocr_applied": false,
+      "profile_source": "system_default",
+      "strategy": "token_recursive",
+      "strategy_version": "1.0",
+      "total_chunk_count": 1,
+      "total_chunk_tokens": 120,
+      "total_image_blocks": 0,
+      "total_table_blocks": 0
+    },
+    "chunking_profile_version": "1.0",
+    "chunking_strategy": "token_recursive",
     "dlp_scan_result": null,
-    "embedding_provider_type": null,
-    "embedding_vector_dimension": null,
+    "embedding_provider_type": "fake",
+    "embedding_vector_dimension": 1536,
     "error_message": null,
     "extraction_snapshot": {
       "document_profile": "text_based",
@@ -56,11 +81,15 @@
     "ocr_avg_confidence": null,
     "ocr_quality_snapshot": null,
     "ocr_quality_status": null,
-    "page_count": null,
-    "processing_task_id": "task-graph-True",
-    "status": "processing"
+    "page_count": 1,
+    "processing_task_id": null,
+    "status": "indexed"
   },
-  "embedding_batches": [],
+  "embedding_batches": [
+    [
+      "uuid-1"
+    ]
+  ],
   "graph_calls": [
     "clear_document_graph_facts",
     "start_extraction_run",
@@ -69,8 +98,17 @@
   "minio_reads": 1,
   "ocr_calls": [],
   "outcome": {
-    "code": "ENTITY_EXTRACTION_FAILED",
-    "raised": "DocumentPipelineTransientError"
+    "chunk_count": 1,
+    "cleaning_pages_modified": 0,
+    "document_id": "document",
+    "embedding_batch_count": 1,
+    "embedding_cost_usd": 2e-06,
+    "embedding_input_tokens": 120,
+    "embedding_retry_count": 0,
+    "embedding_total_tokens": 120,
+    "index_version": "v1",
+    "page_count": 1,
+    "status": "indexed"
   },
   "pipeline_runs": [
     {
@@ -84,11 +122,15 @@
         "index_cleanup:completed",
         "chunk:started",
         "chunk:completed",
+        "embed:started",
+        "embed:completed",
+        "index:started",
+        "index:completed",
         "extract_entities:started",
         "extract_entities:failed"
       ],
       "pipeline_type": "document.process",
-      "status": "failed"
+      "status": "completed"
     }
   ],
   "qdrant_deletes": [
@@ -96,7 +138,37 @@
       "index_version": "v1"
     }
   ],
-  "qdrant_upserts": [],
+  "qdrant_upserts": [
+    {
+      "chunking_profile_version": "1.0",
+      "chunking_strategy": "token_recursive",
+      "collection_name": null,
+      "parent_text_chunks": [],
+      "point_ids": [
+        "document:v1:0"
+      ],
+      "vector_count": 1
+    }
+  ],
   "source_references": [],
-  "usage_events": []
+  "usage_events": [
+    {
+      "cost_usd": "0.000002",
+      "event_type": "document.embedding",
+      "input_tokens": 120,
+      "metadata": {
+        "batch_count": 1,
+        "chunk_count": 1,
+        "document_id": "document",
+        "index_version": "v1",
+        "latency_ms": 3,
+        "qdrant_batch_count": 1,
+        "qdrant_upserted_count": 1,
+        "retry_count": 0,
+        "total_tokens": 120
+      },
+      "model_name": "text-embedding-3-small",
+      "output_tokens": null
+    }
+  ]
 }

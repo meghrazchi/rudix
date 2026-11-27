@@ -126,12 +126,29 @@ def test_skipped_graph_stage_restores_status_and_run_id(
     env.monkeypatch.setattr(document_tasks, "_update_document_graph_status_async", _status)
     env.monkeypatch.setattr(graph_extract, "_graph_state", _state)
     seeded = env.seed()
-    _kill_then_redeliver(env, seeded, "embed", document_tasks.process_document)
-    # First delivery: pending, then the stage ran (status written by graph extraction,
-    # recorded here as ``skipped`` by the disabled-graph path). Redelivery: pending, then
-    # the skipped stage restores what the stage recorded.
-    assert writes[-2] == (GraphExtractionStatus.pending.value, None)
+    # R06-01 part 2: graph_extract runs after finalize, so the kill that leaves a completed
+    # graph stage for a redelivery to skip is the one after it: in the completion audit.
+    armed = {"on": True}
+    real_audit = document_tasks._record_worker_audit
+
+    def _audit(**kwargs: Any) -> None:
+        if armed["on"] and kwargs.get("action") == "document.process.completed":
+            armed["on"] = False
+            raise _WorkerKilled("completion audit")
+        real_audit(**kwargs)
+
+    env.monkeypatch.setattr(document_tasks, "_record_worker_audit", _audit)
+    kwargs = {"task_id": TASK_ID, "chunking_profile_config": PROFILE, **_ids(seeded)}
+    with pytest.raises(_WorkerKilled):
+        env.run_task(document_tasks.process_document, seeded.document_id, **kwargs)
+    first_delivery = list(writes)
+    result = env.run_task(document_tasks.process_document, seeded.document_id, **kwargs)
+    assert result["status"] == DocumentStatus.indexed.value
+    # First delivery: pending, then the stage ran (recorded as ``skipped`` by the
+    # disabled-graph path). Redelivery: the skipped stage restores what the stage recorded.
+    assert first_delivery[0] == (GraphExtractionStatus.pending.value, None)
     assert writes[-1] == (GraphExtractionStatus.completed.value, graph_run)
+    assert len(writes) == len(first_delivery) + 1
 
 
 def test_graph_stage_on_skip_without_recorded_status_is_a_no_op() -> None:

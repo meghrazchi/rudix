@@ -33,6 +33,11 @@ class StageContext:
     metrics: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Pipeline-explorer stage name used to attribute an unexpected failure.
     current_stage: str = "extract"
+    # Chain mode (R06-01 part 2): the stage task's own message id leases the stage row, so a
+    # redelivery of that message re-takes its lease and a duplicate message does not.
+    lease_owner: str | None = None
+    # Artifact parts or embed batches written since the last document heartbeat.
+    parts_since_heartbeat: int = 0
 
     @property
     def document_id_str(self) -> str:
@@ -40,7 +45,7 @@ class StageContext:
 
     @property
     def owner(self) -> str:
-        return self.claim_token or self.run_id
+        return self.lease_owner or self.claim_token or self.run_id
 
     def log_stage(self, stage: str, stage_status: str, **fields: Any) -> None:
         """Structured ``document.pipeline.stage`` log line (operational metadata only)."""

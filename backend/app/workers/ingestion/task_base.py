@@ -23,6 +23,23 @@ from app.workers.status_tracking import FailureMarkOutcome
 logger = get_logger("worker.ingestion")
 
 
+def _resolve_missing_tenant(document_id: Any) -> str | None:
+    from app.workers.ingestion.tenant import resolve_document_organization
+
+    try:
+        UUID(str(document_id))
+    except ValueError:
+        return None
+    try:
+        resolved: str | None = current_deps().run(resolve_document_organization(document_id))
+    except Exception as exc:
+        logger.warning("ingestion.tenant_resolve_failed", error_type=type(exc).__name__)
+        return None
+    if resolved is not None:
+        logger.info("ingestion.tenant_resolved", document_id=str(document_id))
+    return resolved
+
+
 def _discard_failed_run_artifacts(deps: IngestionDeps, document_id: str, run_id: Any) -> None:
     """Drop the stage artifacts of a run that will not be resumed (R06-01).
 
@@ -46,8 +63,25 @@ def _discard_failed_run_artifacts(deps: IngestionDeps, document_id: str, run_id:
         )
 
 
+_RESOLVES_MISSING_TENANT = frozenset({"documents.process", "documents.reindex", "documents.delete"})
+
+
 class DocumentTask(RudixTask):
     abstract = True
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Bind the document's tenant; resolve it for a message without one (R06-01 part 2).
+
+        Messages published before 0.6.0 (still in flight during an upgrade) may lack
+        ``organization_id``; one ``maintenance_session()`` read supplies it so the task runs
+        bound like every other.
+        """
+        if kwargs.get("organization_id") is None and self.name in _RESOLVES_MISSING_TENANT:
+            document_id = kwargs.get("document_id") or (args[0] if args else None)
+            resolved = _resolve_missing_tenant(document_id)
+            if resolved is not None:
+                kwargs["organization_id"] = resolved
+        return super().__call__(*args, **kwargs)
 
     def _handle_protected_failure(
         self,
@@ -108,10 +142,16 @@ class DocumentTask(RudixTask):
             document_id = args[0]
         if not isinstance(document_id, str):
             return
-        _discard_failed_run_artifacts(deps, document_id, getattr(self.request, "id", None))
+        error_details = details_from_exception(exc)
+        # Chain stage tasks carry the claim and run in kwargs; the process task itself is
+        # the claim holder and (inline) the run (R06-01 part 2).
+        owner_task_id = kwargs.get("claim_token") or getattr(self.request, "id", None)
+        run_id = kwargs.get("run_id") or getattr(self.request, "id", None)
+        if not error_details.get("retryable") or not kwargs.get("run_id"):
+            # A retryable chain failure keeps its artifacts so a failed-job retry resumes
+            # the run without repeating OCR; the daily purge removes them after the TTL.
+            _discard_failed_run_artifacts(deps, document_id, run_id)
         try:
-            error_details = details_from_exception(exc)
-            owner_task_id = getattr(self.request, "id", None)
             mark = deps.mark_document_failed(
                 document_id,
                 error_message=encode_document_error(error_details),

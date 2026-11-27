@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.domains.documents.extraction.models import BoundingBox, TableBlock, TableCell
 from app.domains.documents.services.text_extraction import ExtractedSection
 from app.workers.ingestion.context import StageContext
+from app.workers.ingestion.heartbeat import note_parts
 from app.workers.ingestion.store import encode_artifact
 
 _MAX_SPLIT_ROUNDS = 8
@@ -48,6 +49,7 @@ async def write_pages(ctx: StageContext, stage: str, pages: list[dict[str, Any]]
         for fragment in _split_page(page):
             parts[len(parts)] = fragment
     await ctx.store.write_artifacts(stage, parts, replace_stage=True)
+    await note_parts(ctx, len(parts))
     return len(parts)
 
 

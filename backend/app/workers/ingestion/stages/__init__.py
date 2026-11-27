@@ -1,12 +1,15 @@
 """Ingestion stages in run order (R06-01).
 
-``extract -> clean_detect -> dlp -> chunk -> [graph_extract] -> embed -> index -> finalize``.
-``graph_extract`` runs inline, after chunking and before embedding, and only when document
-state is persisted (not during evaluation re-ingest), exactly where the single-pass worker
-ran it.
+``extract -> clean_detect -> dlp -> chunk -> embed -> index -> finalize -> [graph_extract]``.
+``graph_extract`` runs after ``finalize`` (0.6.0 part 2; in chain mode as its own task on
+its own queue) and only when document state is persisted (not during evaluation
+re-ingest). Its failure sets ``graph_extraction_status=failed`` and never fails the
+document.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 from app.workers.ingestion.options import IngestionOptions
 from app.workers.ingestion.stages import (
@@ -26,10 +29,10 @@ STAGE_ORDER: tuple[StageName, ...] = (
     StageName.clean_detect,
     StageName.dlp,
     StageName.chunk,
-    StageName.graph_extract,
     StageName.embed,
     StageName.index,
     StageName.finalize,
+    StageName.graph_extract,
 )
 
 # Modules, not functions: ``run`` is looked up per build so a replaced ``run`` takes effect.
@@ -45,16 +48,30 @@ _MODULES = {
 }
 
 
+def stage_module(name: StageName) -> Any:
+    return _MODULES[name]
+
+
+def build_stage(name: StageName) -> Stage:
+    module = _MODULES[name]
+    return Stage(name=name, run=module.run, on_skip=getattr(module, "on_skip", None))
+
+
 def build_stages(options: IngestionOptions) -> list[Stage]:
     names = [
         name
         for name in STAGE_ORDER
         if name != StageName.graph_extract or options.persist_document_state
     ]
-    return [
-        Stage(name=name, run=_MODULES[name].run, on_skip=getattr(_MODULES[name], "on_skip", None))
-        for name in names
-    ]
+    return [build_stage(name) for name in names]
 
 
-__all__ = ["STAGE_ORDER", "Stage", "StageName", "StageOutcome", "build_stages"]
+__all__ = [
+    "STAGE_ORDER",
+    "Stage",
+    "StageName",
+    "StageOutcome",
+    "build_stage",
+    "build_stages",
+    "stage_module",
+]

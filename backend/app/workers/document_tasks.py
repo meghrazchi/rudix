@@ -5,10 +5,15 @@ Task names, signatures, and return values are unchanged (``documents.process``,
 collaborator singletons and helper names callers and tests rebind; the stages read them
 from this module at call time through ``app.workers.ingestion.deps.current_deps()``.
 
-Ingestion runs as stages (``extract, clean_detect, dlp, chunk, graph_extract, embed,
-index, finalize``) recorded in ``document_processing_stages`` with intermediate artifacts in
-``document_stage_artifacts``. The run id is the claim's task id, so a Celery retry or an
-``acks_late`` redelivery of the same task resumes after its last completed stage.
+Ingestion runs as stages (``extract, clean_detect, dlp, chunk, embed, index, finalize,
+graph_extract``) recorded in ``document_processing_stages`` with intermediate artifacts in
+``document_stage_artifacts``. With ``INGEST_PIPELINE_MODE=chain`` (default, R06-01 part 2)
+each stage is its own task (``app.workers.ingestion.tasks``); ``documents.process`` claims
+the document and dispatches the first incomplete stage. ``inline`` runs every stage in the
+claiming task, with the claim's task id as the run id.
+
+Every task checks that its document belongs to the ``organization_id`` kwarg before any
+write (``TenantMismatchError``); ``RudixTask.__call__`` binds that tenant for RLS.
 """
 
 from __future__ import annotations
@@ -67,6 +72,7 @@ from app.workers.ingestion.storage import (
     _read_object_bytes,
 )
 from app.workers.ingestion.task_base import DocumentDeleteTask, DocumentTask
+from app.workers.ingestion.tenant import ensure_document_tenant
 from app.workers.status_tracking import (
     claim_document_for_processing,
     get_document_status,
@@ -222,8 +228,10 @@ def reindex_document_graph(
     request_id: str | None = None,
     organization_id: str | None = None,
     user_id: str | None = None,
+    job_id: str | None = None,
 ) -> dict[str, str | int]:
     """Re-run graph extraction for an existing document."""
+    ensure_document_tenant(document_id, organization_id)
     return run_graph_reindex_task(
         document_id, request_id=request_id, organization_id=organization_id, user_id=user_id
     )
@@ -239,8 +247,14 @@ def process_document(
     user_id: str | None = None,
     force: bool = False,
     chunking_profile_config: dict | None = None,
+    resume_run_id: str | None = None,
+    job_id: str | None = None,
 ) -> dict[str, str | int | float]:
-    """Extract text and persist document_pages before marking a document as indexed."""
+    """Extract text and persist document_pages before marking a document as indexed.
+
+    ``resume_run_id`` (reaper) or ``job_id`` (failed-job retry) continue an unfinished run.
+    """
+    ensure_document_tenant(document_id, organization_id)
     return run_document_task(
         self,
         document_id,
@@ -250,6 +264,8 @@ def process_document(
         user_id=user_id,
         force=force,
         chunking_profile_config=chunking_profile_config,
+        resume_run_id=resume_run_id,
+        job_id=job_id,
     )
 
 
@@ -263,6 +279,7 @@ def delete_document(
     user_id: str | None = None,
 ) -> dict[str, str]:
     """Delete document vectors/storage assets and mark metadata as deleted."""
+    ensure_document_tenant(document_id, organization_id)
     return run_delete_task(
         document_id, request_id=request_id, organization_id=organization_id, user_id=user_id
     )
@@ -278,8 +295,11 @@ def reindex_document(
     user_id: str | None = None,
     chunking_profile_config: dict | None = None,
     force: bool = False,
+    resume_run_id: str | None = None,
+    job_id: str | None = None,
 ) -> dict[str, str | int | float]:
     """Re-index a document idempotently for the active index/model version."""
+    ensure_document_tenant(document_id, organization_id)
     return run_reindex_task(
         self,
         document_id,
@@ -288,6 +308,8 @@ def reindex_document(
         user_id=user_id,
         chunking_profile_config=chunking_profile_config,
         force=force,
+        resume_run_id=resume_run_id,
+        job_id=job_id,
     )
 
 

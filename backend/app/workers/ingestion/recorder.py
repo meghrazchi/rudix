@@ -3,6 +3,11 @@
 Behaviour is unchanged; the session factory and repository are read from the facade at
 call time (``current_deps()``) so tests that rebind ``document_tasks.SessionLocal`` still
 capture the events. Every write uses its own short session.
+
+One processing run spans several tasks in chain mode (and several deliveries in either
+mode). ``open_for_run`` resumes the pipeline run whose id the run's extract stage keeps in
+its metrics (``PIPELINE_RUN_KEY``), continuing at the next event sequence stored in the
+database, and creates a new pipeline run only when there is none (R06-01 part 2).
 """
 
 from __future__ import annotations
@@ -11,10 +16,16 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import func, select
+
 from app.core.config import settings
 from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
+from app.models.pipeline import PipelineEvent, PipelineRun
 from app.workers.ingestion.deps import current_deps
 from app.workers.ingestion.errors import safe_duration_ms
+
+# Key of the pipeline-explorer run id in the extract stage row's metrics.
+PIPELINE_RUN_KEY = "pipeline_run_id"
 
 
 class PipelineRunRecorder:
@@ -85,6 +96,99 @@ class PipelineRunRecorder:
             organization_id=organization_id,
             user_id=user_id,
         )
+
+    @classmethod
+    async def open_for_run(
+        cls,
+        existing_run_id: Any,
+        *,
+        document_id: str,
+        organization_id: str | None,
+        user_id: str | None,
+        organization_uuid: UUID,
+        document_uuid: UUID,
+        pipeline_type: str,
+        inputs: dict[str, Any] | None = None,
+        config: dict[str, Any] | None = None,
+    ) -> PipelineRunRecorder:
+        """Resume ``existing_run_id`` when it is this document's run, else create one."""
+        resumed = await cls._resume(
+            existing_run_id,
+            document_id=document_id,
+            organization_id=organization_id,
+            user_id=user_id,
+            document_uuid=document_uuid,
+        )
+        if resumed is not None:
+            return resumed
+        return await cls.create(
+            document_id=document_id,
+            organization_id=organization_id,
+            user_id=user_id,
+            organization_uuid=organization_uuid,
+            document_uuid=document_uuid,
+            pipeline_type=pipeline_type,
+            inputs=inputs,
+            config=config,
+        )
+
+    @classmethod
+    async def _resume(
+        cls,
+        existing_run_id: Any,
+        *,
+        document_id: str,
+        organization_id: str | None,
+        user_id: str | None,
+        document_uuid: UUID,
+    ) -> PipelineRunRecorder | None:
+        if not existing_run_id or not settings.feature_enable_pipeline_explorer:
+            return None
+        try:
+            run_uuid = UUID(str(existing_run_id))
+        except ValueError:
+            return None
+        deps = current_deps()
+        try:
+            async with deps.SessionLocal() as session:
+                row = (
+                    await session.execute(
+                        select(PipelineRun.started_at).where(
+                            PipelineRun.id == run_uuid, PipelineRun.document_id == document_uuid
+                        )
+                    )
+                ).first()
+                if row is None:
+                    return None
+                last = (
+                    await session.execute(
+                        select(func.max(PipelineEvent.sequence)).where(
+                            PipelineEvent.pipeline_run_id == run_uuid
+                        )
+                    )
+                ).scalar_one_or_none()
+        except Exception as exc:
+            deps.log_document_event(
+                event="document.pipeline.telemetry.failed",
+                document_id=document_id,
+                organization_id=organization_id,
+                user_id=user_id,
+                error=type(exc).__name__,
+                telemetry_operation="resume_run",
+            )
+            return None
+        started_at = row[0]
+        if started_at is not None and started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=UTC)
+        recorder = cls(
+            run_id=run_uuid,
+            run_started_at=started_at or datetime.now(UTC),
+            document_id=document_id,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
+        recorder._sequence = int(last) + 1 if last is not None else 0
+        return recorder
 
     async def emit_stage(
         self,

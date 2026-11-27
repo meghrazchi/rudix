@@ -20,21 +20,138 @@ from app.core.logging import configure_logging
 from app.core.metrics import is_metrics_enabled, record_celery_task
 from app.core.sentry import init_sentry
 
+
+def _route(queue: str) -> dict[str, str]:
+    return {"queue": queue, "routing_key": queue}
+
+
+# Task modules. Later work packages add theirs directly after their marker.
+INCLUDE: list[str] = [
+    "app.workers.document_tasks",
+    "app.workers.document_reaper_tasks",
+    "app.workers.email_tasks",
+    "app.workers.evaluation_tasks",
+    "app.workers.connector_sync_tasks",
+    "app.workers.agent_tasks",
+    "app.workers.usage_touch_tasks",
+    "app.workers.safety_eval_tasks",
+    "app.workers.retention_tasks",
+    # anchor: S2
+    "app.workers.ingestion.tasks",
+    "app.workers.outbox_tasks",
+    # anchor: A2
+    # anchor: A3
+    # anchor: B1
+    # anchor: C1
+    # anchor: C2
+    # anchor: D1
+]
+
+# Stage tasks of the staged ingestion chain (R06-01): extract..chunk on the processing
+# queue, embed/index/finalize on the embedding queue, graph extraction on its own queue.
+_INGEST_PROCESSING_STAGES = ("extract", "clean_detect", "dlp", "chunk")
+_INGEST_EMBEDDING_STAGES = ("embed", "index", "finalize")
+
+TASK_ROUTES: dict[str, dict[str, str]] = {
+    "documents.process": _route(settings.celery_queue_documents_processing),
+    "documents.delete": _route(settings.celery_queue_documents_deletion),
+    "documents.reindex": _route(settings.celery_queue_documents_reindex),
+    "evaluations.run": _route(settings.celery_queue_evaluations),
+    "connectors.sync.run": _route(settings.celery_queue_connector_sync),
+    "connectors.sync.schedule_poll": _route(settings.celery_queue_connector_sync),
+    "documents.graph_reindex": _route(settings.celery_queue_documents_reindex),
+    "documents.backfill": _route(settings.celery_queue_documents_reindex),
+    "safety_evals.run": _route(settings.celery_queue_evaluations),
+    "agents.approvals.expire": _route(settings.celery_task_default_queue),
+    "usage.touch.flush": _route(settings.celery_task_default_queue),
+    "documents.reap_stale": _route(settings.celery_task_default_queue),
+    "maintenance.retention.purge": _route(settings.celery_task_default_queue),
+    "maintenance.partitions.ensure": _route(settings.celery_task_default_queue),
+    "app.workers.email_tasks.send_transactional_email": _route("email"),
+    # anchor: S2
+    **{
+        f"documents.ingest.{stage}": _route(settings.celery_queue_documents_processing)
+        for stage in _INGEST_PROCESSING_STAGES
+    },
+    **{
+        f"documents.ingest.{stage}": _route(settings.celery_queue_documents_embedding)
+        for stage in _INGEST_EMBEDDING_STAGES
+    },
+    "documents.graph_extract": _route(settings.celery_queue_documents_graph),
+    "outbox.relay": _route(settings.celery_task_default_queue),
+    "documents.stage_artifacts.purge": _route(settings.celery_task_default_queue),
+    # anchor: A2
+    # anchor: A3
+    # anchor: B1
+    # anchor: C1
+    # anchor: C2
+    # anchor: D1
+}
+
+BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
+    "connector-sync-schedule-poll": {
+        "task": "connectors.sync.schedule_poll",
+        "schedule": settings.connector_sync_schedule_poll_interval_seconds,
+    },
+    "agent-approvals-expire": {
+        "task": "agents.approvals.expire",
+        "schedule": 60,
+    },
+    "usage-touch-flush": {
+        "task": "usage.touch.flush",
+        "schedule": settings.usage_touch_flush_interval_seconds,
+    },
+    "documents-reap-stale": {
+        "task": "documents.reap_stale",
+        "schedule": settings.document_reaper_interval_seconds,
+    },
+    "maintenance-retention-purge": {
+        "task": "maintenance.retention.purge",
+        "schedule": crontab(hour=3, minute=15),
+    },
+    "maintenance-partitions-ensure": {
+        "task": "maintenance.partitions.ensure",
+        "schedule": crontab(hour=3, minute=45),
+    },
+    # anchor: S2
+    "outbox-relay": {
+        "task": "outbox.relay",
+        "schedule": settings.outbox_relay_interval_seconds,
+    },
+    "documents-stage-artifacts-purge": {
+        "task": "documents.stage_artifacts.purge",
+        "schedule": crontab(hour=4, minute=5),
+    },
+    # anchor: A2
+    # anchor: A3
+    # anchor: B1
+    # anchor: C1
+    # anchor: C2
+    # anchor: D1
+}
+
+
+def _task_queues() -> tuple[Queue, ...]:
+    """Every queue the single dev worker consumes; a name configured twice is declared once."""
+    names = [
+        settings.celery_task_default_queue,
+        settings.celery_queue_documents_processing,
+        settings.celery_queue_documents_deletion,
+        settings.celery_queue_documents_reindex,
+        settings.celery_queue_evaluations,
+        settings.celery_queue_connector_sync,
+        "email",
+        settings.celery_queue_documents_embedding,
+        settings.celery_queue_documents_graph,
+    ]
+    return tuple(Queue(name, routing_key=name) for name in dict.fromkeys(names))
+
+
 celery_app = Celery(
     "rag_backend",
     broker=rabbitmq_broker_url(),
     backend=redis_result_backend_url(),
-    include=[
-        "app.workers.document_tasks",
-        "app.workers.document_reaper_tasks",
-        "app.workers.email_tasks",
-        "app.workers.evaluation_tasks",
-        "app.workers.connector_sync_tasks",
-        "app.workers.agent_tasks",
-        "app.workers.usage_touch_tasks",
-        "app.workers.safety_eval_tasks",
-        "app.workers.retention_tasks",
-    ],
+    include=INCLUDE,
 )
 
 celery_app.conf.update(
@@ -57,121 +174,9 @@ celery_app.conf.update(
         "interval_step": 1,
         "interval_max": settings.celery_retry_backoff_max_seconds,
     },
-    task_queues=(
-        Queue(
-            settings.celery_task_default_queue,
-            routing_key=settings.celery_task_default_queue,
-        ),
-        Queue(
-            settings.celery_queue_documents_processing,
-            routing_key=settings.celery_queue_documents_processing,
-        ),
-        Queue(
-            settings.celery_queue_documents_deletion,
-            routing_key=settings.celery_queue_documents_deletion,
-        ),
-        Queue(
-            settings.celery_queue_documents_reindex,
-            routing_key=settings.celery_queue_documents_reindex,
-        ),
-        Queue(
-            settings.celery_queue_evaluations,
-            routing_key=settings.celery_queue_evaluations,
-        ),
-        Queue(
-            settings.celery_queue_connector_sync,
-            routing_key=settings.celery_queue_connector_sync,
-        ),
-        Queue("email", routing_key="email"),
-    ),
-    beat_schedule={
-        "connector-sync-schedule-poll": {
-            "task": "connectors.sync.schedule_poll",
-            "schedule": settings.connector_sync_schedule_poll_interval_seconds,
-        },
-        "agent-approvals-expire": {
-            "task": "agents.approvals.expire",
-            "schedule": 60,
-        },
-        "usage-touch-flush": {
-            "task": "usage.touch.flush",
-            "schedule": settings.usage_touch_flush_interval_seconds,
-        },
-        "documents-reap-stale": {
-            "task": "documents.reap_stale",
-            "schedule": settings.document_reaper_interval_seconds,
-        },
-        "maintenance-retention-purge": {
-            "task": "maintenance.retention.purge",
-            "schedule": crontab(hour=3, minute=15),
-        },
-        "maintenance-partitions-ensure": {
-            "task": "maintenance.partitions.ensure",
-            "schedule": crontab(hour=3, minute=45),
-        },
-    },
-    task_routes={
-        "documents.process": {
-            "queue": settings.celery_queue_documents_processing,
-            "routing_key": settings.celery_queue_documents_processing,
-        },
-        "documents.delete": {
-            "queue": settings.celery_queue_documents_deletion,
-            "routing_key": settings.celery_queue_documents_deletion,
-        },
-        "documents.reindex": {
-            "queue": settings.celery_queue_documents_reindex,
-            "routing_key": settings.celery_queue_documents_reindex,
-        },
-        "evaluations.run": {
-            "queue": settings.celery_queue_evaluations,
-            "routing_key": settings.celery_queue_evaluations,
-        },
-        "connectors.sync.run": {
-            "queue": settings.celery_queue_connector_sync,
-            "routing_key": settings.celery_queue_connector_sync,
-        },
-        "connectors.sync.schedule_poll": {
-            "queue": settings.celery_queue_connector_sync,
-            "routing_key": settings.celery_queue_connector_sync,
-        },
-        "documents.graph_reindex": {
-            "queue": settings.celery_queue_documents_reindex,
-            "routing_key": settings.celery_queue_documents_reindex,
-        },
-        "documents.backfill": {
-            "queue": settings.celery_queue_documents_reindex,
-            "routing_key": settings.celery_queue_documents_reindex,
-        },
-        "safety_evals.run": {
-            "queue": settings.celery_queue_evaluations,
-            "routing_key": settings.celery_queue_evaluations,
-        },
-        "agents.approvals.expire": {
-            "queue": settings.celery_task_default_queue,
-            "routing_key": settings.celery_task_default_queue,
-        },
-        "usage.touch.flush": {
-            "queue": settings.celery_task_default_queue,
-            "routing_key": settings.celery_task_default_queue,
-        },
-        "documents.reap_stale": {
-            "queue": settings.celery_task_default_queue,
-            "routing_key": settings.celery_task_default_queue,
-        },
-        "maintenance.retention.purge": {
-            "queue": settings.celery_task_default_queue,
-            "routing_key": settings.celery_task_default_queue,
-        },
-        "maintenance.partitions.ensure": {
-            "queue": settings.celery_task_default_queue,
-            "routing_key": settings.celery_task_default_queue,
-        },
-        "app.workers.email_tasks.send_transactional_email": {
-            "queue": "email",
-            "routing_key": "email",
-        },
-    },
+    task_queues=_task_queues(),
+    beat_schedule=BEAT_SCHEDULE,
+    task_routes=TASK_ROUTES,
 )
 
 configure_logging(

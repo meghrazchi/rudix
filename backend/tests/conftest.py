@@ -310,3 +310,17 @@ async def rls_probe_session(pg_engine: AsyncEngine) -> AsyncIterator[RlsProbe]:
             text(f"GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA public TO {RLS_PROBE_ROLE}")
         )
         yield RlsProbe(session)
+
+
+@pytest.fixture(autouse=True)
+def _ingest_pipeline_mode_inline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run document tasks with the single-task runner unless a test opts into the chain.
+
+    The legacy worker tests call ``documents.process`` bodies directly (no broker, no eager
+    Celery) and patch the inline seams, so they exercise ``INGEST_PIPELINE_MODE=inline``.
+    The chain (the production default) is covered by tests that set ``chain`` and run
+    Celery eagerly: ``test_ingestion_chain*.py``, ``test_worker_tenant_binding.py``.
+    """
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "ingest_pipeline_mode", "inline")

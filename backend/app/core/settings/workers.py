@@ -5,6 +5,8 @@ Each later work package adds its fields directly after its ``# anchor: <task>`` 
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 _MIB = 1024 * 1024
@@ -20,6 +22,19 @@ class WorkersSettings(BaseModel):
     ingest_artifact_max_part_bytes: int = Field(default=8 * _MIB, ge=64 * 1024, le=64 * _MIB)
 
     # anchor: S2
+    # R06-01 part 2: ``chain`` runs each stage as its own Celery task; ``inline`` keeps the
+    # single-task runner of 0.6.0 part 1 for one milestone.
+    ingest_pipeline_mode: Literal["chain", "inline"] = "chain"
+    # A stage refreshes ``documents.processing_started_at`` (the reaper's clock) at its
+    # start and after every N artifact parts or embed batches.
+    ingest_heartbeat_every_parts: int = Field(default=20, ge=1, le=10_000)
+    # documents.stage_artifacts.purge deletes artifacts older than this for documents that
+    # are not processing (runs that failed for good or were abandoned).
+    ingest_stage_artifact_ttl_hours: int = Field(default=72, ge=1, le=24 * 365)
+    # Transactional outbox relay (beat task outbox.relay).
+    outbox_relay_interval_seconds: int = Field(default=5, ge=1, le=3600)
+    outbox_relay_batch_size: int = Field(default=100, ge=1, le=10_000)
+    outbox_max_attempts: int = Field(default=10, ge=1, le=1000)
 
     # anchor: A1
 

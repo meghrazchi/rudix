@@ -21,7 +21,7 @@ from app.workers.ingestion.context import StageContext
 from app.workers.ingestion.deps import current_deps
 from app.workers.ingestion.errors import document_not_found, parse_document_id
 from app.workers.ingestion.options import IngestionOptions
-from app.workers.ingestion.recorder import PipelineRunRecorder
+from app.workers.ingestion.recorder import PIPELINE_RUN_KEY, PipelineRunRecorder
 from app.workers.ingestion.runner import run_inline
 from app.workers.ingestion.stages import StageName, build_stages
 from app.workers.ingestion.stages.clean_detect import cleaning_stats_from_metrics
@@ -31,6 +31,9 @@ from app.workers.ingestion.store import COMPLETED, DbStageStore, MemoryStageStor
 
 PipelineResult = tuple[int, int, TextCleaningStats, EmbeddingResult]
 
+# Stages up to and including finalize; graph_extract runs after (R06-01 part 2).
+PRE_FINALIZE = frozenset(name for name in StageName if name != StageName.graph_extract)
+
 
 def result_from_metrics(metrics: dict[str, dict[str, Any]]) -> PipelineResult:
     return (
@@ -38,6 +41,58 @@ def result_from_metrics(metrics: dict[str, dict[str, Any]]) -> PipelineResult:
         int(metrics[StageName.chunk]["chunk_count"]),
         cleaning_stats_from_metrics(metrics[StageName.clean_detect]),
         embedding_result(metrics[StageName.embed]),
+    )
+
+
+def recorder_inputs(document: Any, options: IngestionOptions, request_id: str | None) -> dict:
+    svc = options.chunking_service
+    return {
+        "pipeline_type": options.pipeline_type,
+        "inputs": {
+            "request_id": request_id,
+            "document_id": str(document.id),
+            "filename": document.filename,
+            "file_type": document.file_type,
+        },
+        "config": {
+            "index_version": getattr(svc, "index_version", settings.document_index_version),
+            "embedding_model": settings.openai_embedding_model,
+            "qdrant_collection": options.vector_collection or settings.qdrant_collection,
+        },
+    }
+
+
+async def open_recorder(
+    document: Any,
+    *,
+    options: IngestionOptions,
+    request_id: str | None,
+    organization_id: str,
+    user_id: str,
+    records: dict[str, Any],
+) -> PipelineRunRecorder:
+    """The run's pipeline-explorer recorder: resumed from the extract row, else new."""
+    extract_row = records.get(StageName.extract)
+    existing = extract_row.metrics.get(PIPELINE_RUN_KEY) if extract_row is not None else None
+    return await PipelineRunRecorder.open_for_run(
+        existing,
+        document_id=str(document.id),
+        organization_id=organization_id,
+        user_id=user_id,
+        organization_uuid=document.organization_id,
+        document_uuid=document.id,
+        **recorder_inputs(document, options, request_id),
+    )
+
+
+def make_store(deps: Any, document: Any, options: IngestionOptions, run_id: str) -> StageStore:
+    if not options.persist_document_state:
+        return MemoryStageStore(run_id=run_id)
+    return DbStageStore(
+        deps.SessionLocal,
+        organization_id=document.organization_id,
+        document_id=document.id,
+        run_id=run_id,
     )
 
 
@@ -62,41 +117,23 @@ async def extract_and_store(
 
     if options.chunking_service is None:
         options = replace(options, chunking_service=deps.chunking_service)
-    svc = options.chunking_service
-    recorder = await PipelineRunRecorder.create(
-        document_id=document_id,
-        organization_id=organization_id or str(document.organization_id),
-        user_id=user_id or str(document.uploaded_by_user_id),
-        organization_uuid=document.organization_id,
-        document_uuid=document.id,
-        pipeline_type=options.pipeline_type,
-        inputs={
-            "request_id": request_id,
-            "document_id": str(document.id),
-            "filename": document.filename,
-            "file_type": document.file_type,
-        },
-        config={
-            "index_version": getattr(svc, "index_version", settings.document_index_version),
-            "embedding_model": settings.openai_embedding_model,
-            "qdrant_collection": options.vector_collection or settings.qdrant_collection,
-        },
-    )
     resolved_run_id = run_id or f"adhoc-{uuid4().hex}"
-    store: StageStore = (
-        DbStageStore(
-            deps.SessionLocal,
-            organization_id=document.organization_id,
-            document_id=document.id,
-            run_id=resolved_run_id,
-        )
-        if options.persist_document_state
-        else MemoryStageStore(run_id=resolved_run_id)
+    store = make_store(deps, document, options, resolved_run_id)
+    resolved_org = organization_id or str(document.organization_id)
+    resolved_user = user_id or str(document.uploaded_by_user_id)
+    records = await store.load()
+    recorder = await open_recorder(
+        document,
+        options=options,
+        request_id=request_id,
+        organization_id=resolved_org,
+        user_id=resolved_user,
+        records=records,
     )
     ctx = StageContext(
         document_id=document.id,
-        organization_id=organization_id or str(document.organization_id),
-        user_id=user_id or str(document.uploaded_by_user_id),
+        organization_id=resolved_org,
+        user_id=resolved_user,
         request_id=request_id,
         run_id=resolved_run_id,
         claim_token=claim_token,
@@ -106,24 +143,79 @@ async def extract_and_store(
         store=store,
     )
     try:
-        records = await store.load()
         finalize = records.get(StageName.finalize)
+        stages = build_stages(options)
         if finalize is not None and finalize.status == COMPLETED:
             # Redelivery of a run that already committed: restore ``indexed`` if a re-claim
-            # moved the document back to processing; never a second usage event.
+            # moved the document back to processing; never a second usage event. Stages
+            # after finalize (graph) still run when they did not finish.
             await _resume_completed(ctx, records)
+            after = [stage for stage in stages if stage.name not in PRE_FINALIZE]
+            if after:
+                await run_inline(ctx, after)
         else:
-            await run_inline(ctx, build_stages(options))
+            await run_inline(ctx, stages)
     except Exception as exc:
         await _record_failure(ctx, exc, organization_id=organization_id, user_id=user_id)
         raise
     return result_from_metrics(ctx.metrics)
 
 
+async def run_after_finalize(
+    document_id: str,
+    *,
+    request_id: str | None,
+    organization_id: str | None,
+    user_id: str | None,
+    options: IngestionOptions,
+    run_id: str,
+    claim_token: str | None,
+) -> None:
+    """Run the stages after ``finalize`` (graph) of a committed inline run that stopped
+    before them; completed ones are skipped (their ``on_skip`` restores the graph status).
+    """
+    deps = current_deps()
+    async with deps.SessionLocal() as session:
+        document = await deps.document_repository.get_document_by_id(
+            session, document_id=parse_document_id(document_id)
+        )
+    after = [stage for stage in build_stages(options) if stage.name not in PRE_FINALIZE]
+    if document is None or not after:
+        return
+    if options.chunking_service is None:
+        options = replace(options, chunking_service=deps.chunking_service)
+    store = make_store(deps, document, options, run_id)
+    resolved_org = organization_id or str(document.organization_id)
+    resolved_user = user_id or str(document.uploaded_by_user_id)
+    records = await store.load()
+    ctx = StageContext(
+        document_id=document.id,
+        organization_id=resolved_org,
+        user_id=resolved_user,
+        request_id=request_id,
+        run_id=run_id,
+        claim_token=claim_token,
+        options=options,
+        deps=deps,
+        recorder=await open_recorder(
+            document,
+            options=options,
+            request_id=request_id,
+            organization_id=resolved_org,
+            user_id=resolved_user,
+            records=records,
+        ),
+        store=store,
+    )
+    await run_inline(ctx, after)
+
+
 async def _resume_completed(ctx: StageContext, records: dict[str, Any]) -> None:
     for name, record in records.items():
         ctx.metrics[name] = dict(record.metrics)
     for stage in build_stages(ctx.options):
+        if stage.name not in PRE_FINALIZE:
+            continue
         record = records.get(stage.name)
         if stage.on_skip is not None and record is not None and record.status == COMPLETED:
             await stage.on_skip(ctx, dict(record.metrics))
