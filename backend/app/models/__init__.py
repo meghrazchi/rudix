@@ -82,6 +82,7 @@ from app.models.org_sso_config import OrgSSOConfig
 from app.models.organization import Organization
 from app.models.organization_invitation import OrganizationInvitation
 from app.models.organization_member import OrganizationMember
+from app.models.outbox import OutboxMessage
 from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.portability import WorkspacePortabilityJob
 from app.models.prompt_template import PromptTemplate, PromptTemplateVersion
@@ -94,6 +95,7 @@ from app.models.safety_eval import SafetyEvalCase, SafetyEvalResult, SafetyEvalR
 from app.models.service_account import ServiceAccount, ServiceAccountToken
 from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
+from app.models.vector_index import VectorIndexGeneration, VectorIndexGenerationDocument
 from app.models.verified_answer import VerifiedAnswer, VerifiedAnswerCitation, VerifiedAnswerVersion
 from app.models.webhook import Webhook, WebhookDelivery
 
@@ -184,6 +186,7 @@ __all__ = [
     "OrganizationGovernancePolicy",
     "OrganizationInvitation",
     "OrganizationMember",
+    "OutboxMessage",
     "PipelineEvent",
     "PipelineRun",
     "PolicyEvaluationLog",
@@ -211,6 +214,8 @@ __all__ = [
     "User",
     "UserMemoryPreference",
     "UserNotificationPreference",
+    "VectorIndexGeneration",
+    "VectorIndexGenerationDocument",
     "VerifiedAnswer",
     "VerifiedAnswerCitation",
     "VerifiedAnswerVersion",

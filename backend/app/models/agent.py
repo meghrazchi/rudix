@@ -46,6 +46,8 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_agent_runs_org_user_created", "organization_id", "user_id", "created_at"),
         Index("idx_agent_runs_trace_request_id", "trace_request_id"),
         Index("idx_agent_runs_prompt_template_version", "prompt_template_version_id"),
+        # Built concurrently by migration 20261128_0003 (expired leases); mirrored here.
+        Index("idx_agent_runs_lease", "status", "lease_expires_at"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -85,6 +87,15 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     policy_snapshot_json: Mapped[dict | None] = mapped_column(
         "policy_snapshot", JSON, nullable=True
+    )
+    # 0.6.0 (migration 20261128_0002): worker lease and resume state (chain C).
+    lease_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    request_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    resume_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
     )
 
     organization = relationship("Organization", back_populates="agent_runs")
@@ -185,6 +196,8 @@ class AgentToolCall(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_agent_tool_calls_org_status", "organization_id", "status"),
         Index("idx_agent_tool_calls_run_status", "agent_run_id", "status"),
         Index("idx_agent_tool_calls_tool_name", "tool_name"),
+        # Built concurrently by migration 20261128_0003; non-unique on purpose.
+        Index("idx_agent_tool_calls_run_idem", "agent_run_id", "idempotency_key_hash"),
     )
 
     agent_run_id: Mapped[UUID] = mapped_column(

@@ -19,6 +19,7 @@ MIGRATION_PATH = (
     / "20261127_0004_tenant_rls_modes.py"
 )
 MIGRATION_0_6_0_PATH = MIGRATION_PATH.with_name("20261128_0001_document_processing_stages.py")
+MIGRATION_0_6_0_OUTBOX_PATH = MIGRATION_PATH.with_name("20261128_0002_outbox_and_worker_schema.py")
 
 
 def _load_migration(path: Path = MIGRATION_PATH) -> ModuleType:
@@ -85,6 +86,22 @@ def test_0_6_0_migration_literal_matches_the_prefix_it_created() -> None:
     created = tuple(migration.STRICT_TABLES)
     assert created == rls.RLS_STRICT_TABLES_0_6_0[: len(created)]
     assert rls.RLS_STRICT_TABLES == rls.RLS_STRICT_TABLES_0_4_0 + rls.RLS_STRICT_TABLES_0_6_0
+
+
+def test_0_6_0_outbox_migration_literal_continues_the_0_6_0_list() -> None:
+    first = _load_migration(MIGRATION_0_6_0_PATH)
+    migration = _load_migration(MIGRATION_0_6_0_OUTBOX_PATH)
+    assert migration.revision == "20261128_0002"
+    assert migration.down_revision == "20261128_0001"
+    created = tuple(first.STRICT_TABLES) + tuple(migration.STRICT_TABLES)
+    assert tuple(migration.STRICT_TABLES) == (
+        "outbox_messages",
+        "vector_index_generation_documents",
+    )
+    assert created == rls.RLS_STRICT_TABLES_0_6_0[: len(created)]
+    # The global generation table has no tenant column and therefore no policy.
+    assert "vector_index_generations" not in rls.RLS_STRICT_TABLES
+    assert "organization_id" not in Base.metadata.tables["vector_index_generations"].c
 
 
 def test_legacy_builder_is_unchanged() -> None:

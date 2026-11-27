@@ -175,10 +175,12 @@ RLS_STRICT_TABLES_0_4_0: tuple[str, ...] = (
     "workspace_portability_jobs",
 )
 
-# 0.6.0 (migration 20261128_0001 created the first two; S2 appends its tables).
+# 0.6.0: migration 20261128_0001 created the first two, 20261128_0002 the next two.
 RLS_STRICT_TABLES_0_6_0: tuple[str, ...] = (
     "document_processing_stages",
     "document_stage_artifacts",
+    "outbox_messages",
+    "vector_index_generation_documents",
 )
 
 RLS_STRICT_TABLES: tuple[str, ...] = RLS_STRICT_TABLES_0_4_0 + RLS_STRICT_TABLES_0_6_0
