@@ -194,3 +194,59 @@ def test_rls_sql_builders_and_identifier_validation() -> None:
 
     with pytest.raises(ValueError, match="Unsafe SQL identifier"):
         build_enable_rls_sql("documents; DROP TABLE users")
+
+
+@pytest.mark.asyncio
+async def test_strict_guard_still_reads_unbackfilled_chunks(sqlite_session: AsyncSession) -> None:
+    # R06-09: DocumentChunk has organization_id, but rows written before 0.6.0 stay NULL
+    # until the backfill. The guard treats the model as pending and adds no criterion, so a
+    # strict-guard session still reads them (scoping stays in the queries).
+    from app.models.document import DocumentChunk
+
+    org_a = uuid4()
+    user_id = uuid4()
+    sqlite_session.add_all(
+        [
+            Organization(id=org_a, name="Org A", slug=f"org-a-{org_a.hex[:6]}"),
+            User(id=user_id, email="u3@example.com", display_name="User 3"),
+        ]
+    )
+    await sqlite_session.flush()
+    document = Document(
+        id=uuid4(),
+        organization_id=org_a,
+        uploaded_by_user_id=user_id,
+        filename="c.pdf",
+        file_type="pdf",
+        storage_bucket="documents",
+        storage_object_key=f"{org_a}/c.pdf",
+        status=DocumentStatus.indexed.value,
+    )
+    sqlite_session.add(document)
+    await sqlite_session.flush()
+    legacy = DocumentChunk(
+        document_id=document.id,
+        chunk_index=0,
+        text="legacy chunk",
+        token_count=2,
+        embedding_model="test",
+    )
+    sqlite_session.add(legacy)
+    await sqlite_session.commit()
+    assert legacy.organization_id is None
+
+    with tenant_scoped_session(sqlite_session, org_a):
+        rows = (await sqlite_session.execute(select(DocumentChunk))).scalars().all()
+        assert [row.id for row in rows] == [legacy.id]
+        # A new chunk is not auto-filled either: the writer sets the column explicitly.
+        fresh = DocumentChunk(
+            document_id=document.id,
+            chunk_index=1,
+            text="new chunk",
+            token_count=2,
+            embedding_model="test",
+            organization_id=org_a,
+        )
+        sqlite_session.add(fresh)
+        await sqlite_session.flush()
+        assert fresh.organization_id == org_a

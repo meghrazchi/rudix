@@ -259,17 +259,22 @@ async def test_graph_extraction_helper_updates_status_and_prunes_existing_graph(
     async def _finish_extraction_run(**kwargs: object) -> None:
         graph_calls.append(("finish_run", kwargs))
 
-    async def _upsert_entity(**kwargs: object) -> None:
+    # R06-10: ingestion writes through the batch methods (one call per kind per document).
+    async def _upsert_entity(**kwargs: object) -> int:
         graph_calls.append(("entity", kwargs))
+        return 1
 
-    async def _upsert_alias(**kwargs: object) -> None:
+    async def _upsert_alias(**kwargs: object) -> int:
         graph_calls.append(("alias", kwargs))
+        return 1
 
-    async def _link_evidence(**kwargs: object) -> None:
+    async def _link_evidence(**kwargs: object) -> int:
         graph_calls.append(("evidence", kwargs))
+        return 1
 
-    async def _create_relation(**kwargs: object) -> None:
+    async def _create_relation(**kwargs: object) -> int:
         graph_calls.append(("relation", kwargs))
+        return 1
 
     async def _extract_entities(**_: object) -> object:
         entity = SimpleNamespace(
@@ -327,12 +332,12 @@ async def test_graph_extraction_helper_updates_status_and_prunes_existing_graph(
         "finish_extraction_run",
         _finish_extraction_run,
     )
-    monkeypatch.setattr(document_tasks._graph_service, "upsert_entity", _upsert_entity)
-    monkeypatch.setattr(document_tasks._graph_service, "upsert_entity_alias", _upsert_alias)
-    monkeypatch.setattr(document_tasks._graph_service, "link_evidence", _link_evidence)
+    monkeypatch.setattr(document_tasks._graph_service, "upsert_entities_batch", _upsert_entity)
+    monkeypatch.setattr(document_tasks._graph_service, "upsert_entity_aliases_batch", _upsert_alias)
+    monkeypatch.setattr(document_tasks._graph_service, "link_evidence_batch", _link_evidence)
     monkeypatch.setattr(
         document_tasks._graph_service,
-        "create_relation_with_evidence",
+        "create_relations_with_evidence_batch",
         _create_relation,
     )
     monkeypatch.setattr(
@@ -370,6 +375,20 @@ async def test_graph_extraction_helper_updates_status_and_prunes_existing_graph(
     assert any(name == "alias" for name, _ in graph_calls)
     assert any(name == "evidence" for name, _ in graph_calls)
     assert any(name == "relation" for name, _ in graph_calls)
+    # One batch call per kind, scoped to the document's organisation, in write order.
+    writes = [(name, kw) for name, kw in graph_calls if name in {"entity", "alias", "evidence"}]
+    assert [name for name, _ in writes] == ["entity", "alias", "evidence"]
+    for name, kwargs in graph_calls:
+        if name in {"entity", "alias", "evidence", "relation"}:
+            assert kwargs["organization_id"] == document.organization_id
+            assert len(kwargs["rows"]) == 1  # type: ignore[arg-type]
+    entity_row = next(kw for name, kw in graph_calls if name == "entity")["rows"][0]  # type: ignore[index]
+    assert entity_row.entity_id == entity_id and entity_row.normalized_name == "alpha"
+    evidence_row = next(kw for name, kw in graph_calls if name == "evidence")["rows"][0]  # type: ignore[index]
+    assert evidence_row.chunk_id == chunk_id_by_index[0]
+    assert evidence_row.citation_reference == "policy.pdf, chunk 0"
+    relation_row = next(kw for name, kw in graph_calls if name == "relation")["rows"][0]  # type: ignore[index]
+    assert relation_row.relation_id == relation_id and relation_row.page_number == 1
 
 
 def test_process_document_marks_graph_pending_before_processing(

@@ -91,6 +91,7 @@ class _FakeKeywordRetrievalService:
         self.delay_seconds = delay_seconds
         self.calls: list[tuple[str, list[object] | None]] = []
         self.index_versions_calls: list[object] = []
+        self.query_language_calls: list[object] = []
 
     async def search_chunks(
         self,
@@ -102,8 +103,10 @@ class _FakeKeywordRetrievalService:
         top_k: int,
         exact_match_boost: float = 1.5,
         index_versions=None,
+        query_language=None,
     ) -> KeywordRetrievalResult:
         del session, organization_id, top_k, exact_match_boost
+        self.query_language_calls.append(query_language)
         self.calls.append((query, document_ids))
         self.index_versions_calls.append(index_versions)
         await asyncio.sleep(self.delay_seconds)
@@ -267,7 +270,10 @@ async def test_parallel_retrieval_optimizer_forwards_index_versions(queries: lis
         top_k=3,
         exact_match_boost=1.5,
         index_versions=versions,
+        query_language="de",
     )
 
     assert query_service.index_versions_calls == [versions] * len(queries)
     assert keyword_service.index_versions_calls == [versions] * len(queries)
+    # R06-09: the question language reaches both keyword arms.
+    assert keyword_service.query_language_calls == ["de"] * len(queries)

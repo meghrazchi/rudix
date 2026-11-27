@@ -44,6 +44,18 @@ ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH'"
 scp $scp_opts "$tmp_dir/$compose_file" "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/$compose_file"
 # shellcheck disable=SC2086
 scp $scp_opts "$tmp_dir/.env" "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/.env"
+# RabbitMQ configuration mounted by the compose file from ./rabbitmq (R06-03). Without it
+# Docker would create empty directories at the mount paths and RabbitMQ would not start.
+for rabbitmq_file in infra/rabbitmq/rabbitmq.conf infra/rabbitmq/enabled_plugins; do
+  if [ ! -f "$rabbitmq_file" ]; then
+    echo "RabbitMQ configuration not found: $rabbitmq_file" >&2
+    exit 1
+  fi
+done
+# shellcheck disable=SC2086
+ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH/rabbitmq'"
+# shellcheck disable=SC2086
+scp $scp_opts infra/rabbitmq/rabbitmq.conf infra/rabbitmq/enabled_plugins "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/rabbitmq/"
 
 # shellcheck disable=SC2086
 ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
@@ -56,7 +68,9 @@ ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
   if grep -qE '^ENTERPRISE_GRAPH_ENABLED=true' .env; then
     docker compose -f '$compose_file' run --rm api python scripts/run_graph_migrations.py
   fi
-  docker compose -f '$compose_file' up -d
+  # --remove-orphans stops services the compose file no longer defines, such as the single
+  # 0.5.0 worker that the 0.6.0 pools replace (R06-04).
+  docker compose -f '$compose_file' up -d --remove-orphans
   curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null
   curl -fsS http://127.0.0.1:8000/api/v1/ready >/dev/null
 "

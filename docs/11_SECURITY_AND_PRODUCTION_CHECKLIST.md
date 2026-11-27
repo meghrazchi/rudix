@@ -385,7 +385,8 @@ Use:
 - Cloud secret manager.
 
 Secret scanning (R03-08): `.github/workflows/secret-scan.yml` runs gitleaks (pinned release,
-checksum verified) on every push and pull request over the new commits, and weekly over the
+checksum verified) on push to `main` and `develop` and on every pull request, over the new
+commits, and weekly over the
 full history (report only). `.gitleaks.toml` allowlists only exact placeholder values
 (`ci-placeholder-key`, `sk-test`, `minioadmin`, `ci-local-secret`, `dev-insecure-change-me`,
 and the Playwright e2e tokens), never paths. If a real secret is found, rotate it first; a
@@ -739,20 +740,38 @@ never document text.
       rollback is `deploy/sql/unforce_rls.sql` plus `RLS_ENFORCEMENT=soft`. Re-render both files
       with `backend/scripts/render_force_rls_sql.py` when the RLS table lists change.
 - [ ] Development and test databases run with the `strict` default (`RLS_ENFORCEMENT` unset).
+- [ ] `0.6.0` chunk tenant column (R06-09): `documents.chunks.backfill_tenant` (or
+      `backend/scripts/backfill_chunk_tenant.py`) finished with `remaining=0`, then
+      `deploy/sql/document_chunks_not_null.sql` applied without `psql -1`. It refuses while
+      NULLs remain, then validates a `NOT VALID` check, sets `NOT NULL`, and adds the strict
+      tenant policy. Until then `document_chunks` is in `RLS_PENDING_TABLES`: no policy, and
+      the ORM guard does not filter it. Tenant scoping comes from the queries (document join
+      or chunk column) plus a per-row organisation check in keyword search. Rollback:
+      `deploy/sql/document_chunks_not_null_revert.sql`. Re-render both with
+      `backend/scripts/render_chunk_not_null_sql.py`. With `FORCE` applied elsewhere, also
+      force it on `document_chunks`.
+- [ ] `KEYWORD_SEARCH_TENANT_COLUMN=on` only after that step. `auto` switches only in
+      processes that start after no NULL row remains, because each process checks once.
 
 ### Workers
 
-- [ ] Celery retries configured.
+- [x] Celery retries configured (`RudixTask`: autoretry with backoff and jitter for transient errors).
 - [ ] Tasks are idempotent.
-- [ ] Dead-letter or failed-job handling.
-- [ ] Worker health checks.
-- [ ] Queue monitoring.
+- [x] Dead-letter or failed-job handling: terminal failures write `FailedJob` (F156); with `CELERY_QUEUE_TYPE=quorum` a message over `CELERY_DELIVERY_LIMIT` is dead-lettered and recorded as `FailedJob` (`dead_letter`, `delivery_limit_exceeded`) by `worker-default` without running it (R06-05).
+- [x] Worker health checks: every pool service pings its own node (`celery inspect ping -d <pool>@$HOSTNAME`).
+- [x] Queue monitoring: `rudix_celery_queue_depth`, `rudix_celery_queue_consumers`, `rudix_celery_queue_wait_seconds`, per-queue RabbitMQ metrics, alert group `rudix-workers` (R06-05).
 - [ ] Exactly one beat instance runs `documents.reap_stale`; `DOCUMENT_PROCESSING_STALE_SECONDS` exceeds the longest expected processing time.
 - [ ] Every Celery task binds the tenant of its `organization_id` kwarg (`RudixTask.__call__`), and document and stage tasks stop with `tenant_mismatch` before any write when the document belongs to another organisation (R06-01). Alert on `rudix_worker_tenant_mismatch_total`.
 - [ ] Workers connect as the application role (no `BYPASSRLS`); only beat tasks use `maintenance_session()` / `DATABASE_MAINTENANCE_URL`.
 - [ ] Beat runs `outbox.relay` and `documents.stage_artifacts.purge`; `outbox_messages` has no `pending` rows older than a few relay intervals and no unexplained `failed` rows (`last_error <> 'cancelled'`).
 - [ ] Workers consume `CELERY_QUEUE_DOCUMENTS_EMBEDDING` and `CELERY_QUEUE_DOCUMENTS_GRAPH` (the dev worker consumes every queue in `task_queues`).
 - [ ] `INGEST_STAGE_ARTIFACT_TTL_HOURS` is set to the shortest window the failed-job retry needs: artifacts of retryable failures are copies of document text kept until the purge.
+- [ ] Staging and production run the five pools `worker-ingest`, `worker-graph`, `worker-sync`, `worker-eval`, `worker-default` and no single `worker`; `deploy/scripts/check_compose_config.sh` passes (R06-04).
+- [x] Every task has a soft and a hard time limit (`CELERY_TASK_TIME_LIMITS`, defaults otherwise); a time-limited task records `FailedJob` with `task_soft_time_limit` / `task_time_limit` and fails its document with the same code (R06-03).
+- [ ] RabbitMQ runs with `infra/rabbitmq/rabbitmq.conf` (`consumer_timeout = 1800000`) and `CELERY_BROKER_CONSUMER_TIMEOUT_SECONDS` equals it; workers refuse to start in staging and production when a hard limit is not below it. Confirm on the host with `rabbitmq-diagnostics environment | grep consumer_timeout`.
+- [ ] `CELERY_WORKER_MAX_TASKS_PER_CHILD` (default 200) and, for `worker-ingest`, `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` are set below the container memory limit divided by concurrency.
+- [ ] Only `worker-default` sets `WORKER_CONSUME_DEAD_LETTER=true`. Dead-letter messages are read raw and never executed; a message without an `organization_id` kwarg is acked and logged, never shown to a tenant.
+- [ ] The quorum cut-over (docs/27) used new queue names and drained the old classic queues; no classic queue name is reused with `CELERY_QUEUE_TYPE=quorum`.
 
 ### Observability
 

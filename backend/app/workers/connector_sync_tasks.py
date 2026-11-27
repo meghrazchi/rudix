@@ -6,14 +6,14 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.metrics_workers import record_connector_sync_deferred
 from app.db.session import SessionLocal, maintenance_session
 from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge
 from app.domains.connectors.services.oauth_http_client import HttpOAuthTokenClient
 from app.domains.connectors.services.oauth_lifecycle import ConnectorOAuthLifecycleService
-from app.domains.connectors.services.provider_adapter import (
-    ConnectorRateLimitError,
-)
+from app.domains.connectors.services.sync.lease import reap_stale_runs
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine, SyncEngineError
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
@@ -26,7 +26,13 @@ async def _run_sync_async(
     *,
     sync_run_id: str,
     organization_id: str,
+    lease_owner: str | None = None,
 ) -> dict[str, Any]:
+    """Run or resume one sync run, one transaction per page (R06-11).
+
+    Documents created by a page are dispatched through the outbox when that page commits,
+    so nothing is left to dispatch here.
+    """
     try:
         run_uuid = UUID(sync_run_id)
         org_uuid = UUID(organization_id)
@@ -39,28 +45,15 @@ async def _run_sync_async(
             token_client=HttpOAuthTokenClient(),
         ),
     )
-    async with SessionLocal() as session:
-        async with session.begin():
-            try:
-                result = await engine.run_sync(
-                    session,
-                    sync_run_id=run_uuid,
-                    organization_id=org_uuid,
-                )
-            except SyncEngineError as exc:
-                raise PermanentTaskError(str(exc)) from exc
-
-    # Dispatch document processing tasks after the transaction commits so the
-    # Document rows are visible to the processing worker.
-    from app.workers.document_tasks import process_document as _process_document
-
-    for document_id, user_id in result.pending_document_ids:
-        _process_document.delay(
-            document_id,
-            organization_id=organization_id,
-            user_id=user_id,
+    try:
+        result = await engine.run_sync(
+            SessionLocal,
+            sync_run_id=run_uuid,
+            organization_id=org_uuid,
+            lease_owner=lease_owner,
         )
-        _logger.info("connector.ingestion.task_dispatched", document_id=document_id)
+    except SyncEngineError as exc:
+        raise PermanentTaskError(str(exc)) from exc
 
     return {
         "sync_run_id": sync_run_id,
@@ -68,7 +61,23 @@ async def _run_sync_async(
         "items_seen": result.items_seen,
         "items_upserted": result.items_upserted,
         "items_deleted": result.items_deleted,
+        "pages_committed": result.pages_committed,
+        "requeue_after_seconds": result.requeue_after_seconds,
     }
+
+
+def _requeue(*, sync_run_id: str, organization_id: str, countdown: int) -> None:
+    """Re-enqueue the same run (long Retry-After, a concurrency cap, or a stale run)."""
+    run_connector_sync.apply_async(
+        kwargs={"sync_run_id": sync_run_id, "organization_id": organization_id},
+        countdown=countdown,
+    )
+    _logger.info(
+        "connector.sync.requeued",
+        sync_run_id=sync_run_id,
+        organization_id=organization_id,
+        countdown=countdown,
+    )
 
 
 async def _mark_run_failed_async(
@@ -187,19 +196,21 @@ def run_connector_sync(
     organization_id: str,
     request_id: str | None = None,
 ) -> dict[str, Any]:
-    """Execute a single connector sync run."""
+    """Execute (or resume) a single connector sync run."""
     try:
-        return run_async(
+        outcome = run_async(
             _run_sync_async(
                 sync_run_id=sync_run_id,
                 organization_id=organization_id,
+                lease_owner=getattr(self.request, "id", None),
             )
         )
-    except ConnectorRateLimitError as exc:
-        countdown = exc.retry_after_seconds
-        raise self.retry(exc=exc, countdown=countdown) from exc
     except TransientTaskError as exc:
         raise self.retry(exc=exc) from exc
+    countdown = outcome.get("requeue_after_seconds")
+    if countdown:
+        _requeue(sync_run_id=sync_run_id, organization_id=organization_id, countdown=countdown)
+    return outcome
 
 
 @celery_app.task(
@@ -211,3 +222,35 @@ def run_connector_sync(
 def poll_connector_sync_schedule(self: RudixTask) -> dict[str, Any]:
     """Beat task: poll for due sync jobs and enqueue their runs."""
     return run_async(_poll_schedule_async())
+
+
+async def _reap_stale_async() -> dict[str, Any]:
+    """Re-enqueue running runs whose heartbeat is older than CONNECTOR_SYNC_STALE_SECONDS."""
+    # Cross-tenant beat task: maintenance session (BYPASSRLS role when configured).
+    async with maintenance_session() as session:
+        async with session.begin():
+            rows = await reap_stale_runs(
+                session,
+                now=datetime.now(UTC),
+                limit=settings.connector_sync_poll_batch_size,
+            )
+    for run_id, org_id in rows:
+        record_connector_sync_deferred("stale")
+        celery_app.send_task(
+            "connectors.sync.run",
+            kwargs={"sync_run_id": str(run_id), "organization_id": str(org_id)},
+        )
+    if rows:
+        _logger.warning("connector.sync.stale_runs_requeued", count=len(rows))
+    return {"requeued": len(rows)}
+
+
+@celery_app.task(
+    name="connectors.sync.reap",
+    bind=True,
+    base=RudixTask,
+    ignore_result=True,
+)
+def reap_stale_connector_syncs(self: RudixTask) -> dict[str, Any]:
+    """Beat task: resume connector sync runs abandoned by a lost worker."""
+    return run_async(_reap_stale_async())

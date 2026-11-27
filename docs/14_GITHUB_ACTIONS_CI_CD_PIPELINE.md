@@ -21,9 +21,20 @@ The workflows are intentionally split by concern so feedback stays fast and fail
 
 ## Workflows
 
+### Triggers
+
+Check workflows run on two events: a pull request, and a push to `main` or `develop`. A merge
+is a push to the target branch, so merging into `main` or `develop` runs them, and so does a
+direct push to `develop`. A push to any other branch runs nothing until a pull request is
+opened for it. `codeql.yml` follows the same rule and keeps its `paths` filter.
+
+`release.yml` is the exception: it runs on push to `main` and on `v*` tags only. A push to
+`develop` never builds release images or deploys.
+
 ### `ci.yml`
 
-Triggered on every push, pull request, and manual dispatch. There is no `paths` filter (see
+Triggered on push to `main` and `develop`, every pull request, and manual dispatch. There is
+no `paths` filter (see
 [Required status checks](#required-status-checks)).
 
 Jobs:
@@ -61,8 +72,8 @@ Playwright end-to-end validation lives in `playwright.yml` instead of `ci.yml`.
 ### `backend-postgres.yml`
 
 Runs the backend PostgreSQL test lane as its own job, `backend-postgres` (check name
-`Backend PostgreSQL tests`). It triggers on every push, pull request, and manual dispatch with
-no `paths` filter, so the check always reports and can be required in branch protection.
+`Backend PostgreSQL tests`). It triggers on push to `main` and `develop`, every pull request, and manual
+dispatch with no `paths` filter, so the check always reports and can be required in branch protection.
 
 - starts ephemeral `postgres:16` (database `rudix_test`) and `redis:7` services
 - runs `make -C backend install`
@@ -79,7 +90,7 @@ setting in GitHub; it is not stored in the repository.
 
 ### `playwright.yml`
 
-Triggered on every pull request, on push to `main`, and by manual dispatch. There is no
+Triggered on every pull request, on push to `main` and `develop`, and by manual dispatch. There is no
 workflow-level `paths` filter (see [Required status checks](#required-status-checks)); a
 `changes` job (`Detect frontend changes`) compares the PR with its base and sets
 `frontend=true` when anything under `frontend/` or the workflow itself changed. It is
@@ -97,8 +108,8 @@ satisfies a required check.
 
 ### `security.yml`
 
-Runs on every push, pull request, a weekly schedule, and manual dispatch, with no `paths`
-filter (its jobs are required checks). Jobs:
+Runs on push to `main` and `develop`, every pull request, a weekly schedule, and manual
+dispatch, with no `paths` filter (its jobs are required checks). Jobs:
 
 - `Backend dependency audit`: `make -C backend install`, then
   `make -C backend audit-report AUDIT_OUTPUT=$GITHUB_WORKSPACE/artifacts/pip-audit.json`
@@ -131,8 +142,8 @@ The workflow runs on pull requests, pushes, a weekly schedule, and manual dispat
 
 ### `secret-scan.yml`
 
-Job `Secret scan` (R03-08). Runs on every push, pull request, a weekly schedule, and manual
-dispatch, with no `paths` filter. It downloads the gitleaks CLI release tarball at the pinned
+Job `Secret scan` (R03-08). Runs on push to `main` and `develop`, every pull request, a
+weekly schedule, and manual dispatch, with no `paths` filter. It downloads the gitleaks CLI release tarball at the pinned
 `GITLEAKS_VERSION` and checks it against `GITLEAKS_SHA256` (from that release's
 `checksums.txt`) before running it. Range:
 
@@ -148,7 +159,7 @@ tokens); it never allowlists paths. To bump gitleaks, update both env values tog
 
 ### `image-scan.yml`
 
-Job `Image scan` (R03-08). Runs on pull requests, push to `main`, and dispatch. A `changes`
+Job `Image scan` (R03-08). Runs on pull requests, push to `main` and `develop`, and dispatch. A `changes`
 job sets `images=true` when `backend/Dockerfile`, `frontend/Dockerfile`, `backend/uv.lock`,
 `backend/pyproject.toml`, `frontend/package-lock.json`, a compose file, the gate or its
 allowlist, or the workflow changed; otherwise `Image scan` is skipped, which satisfies a
@@ -286,7 +297,7 @@ secrets in [Evaluation and quality gates](#evaluation-and-quality-gates).
 ### `accuracy-smoke.yml`
 
 Deterministic accuracy smoke over pinned fixtures (R03-03). Runs on every pull request and on
-push to `main`, with no workflow-level `paths` filter. A `changes` job sets `pipeline=true`
+push to `main` and `develop`, with no workflow-level `paths` filter. A `changes` job sets `pipeline=true`
 when the PR touches `backend/app/domains/{chat,ai,rag_profiles,prompt_templates,evaluations,
 quality_gates}/`, `backend/app/application/chat/`, `backend/app/interfaces/http/chat.py`,
 `backend/app/core/config.py`, `backend/app/core/settings/`, `ci/config/accuracy_eval_thresholds.yml`,
@@ -305,8 +316,8 @@ and no services.
 
 ### `openapi-contract.yml`
 
-OpenAPI contract check (R03-10). Runs on every pull request and on push to `main`, with no
-`paths` filter. Job `OpenAPI contract`:
+OpenAPI contract check (R03-10). Runs on every pull request and on push to `main` and
+`develop`, with no `paths` filter. Job `OpenAPI contract`:
 
 1. `make -C backend install`;
 2. `cd backend && .venv/bin/python scripts/export_openapi.py --check ../frontend/openapi.json`

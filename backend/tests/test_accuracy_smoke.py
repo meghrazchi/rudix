@@ -28,6 +28,7 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -63,7 +64,9 @@ from app.clients import qdrant_client as qdrant_module
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.ai.providers import factory as provider_factory_module
+from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.documents.services.fts_config import chunk_search_fields
 from app.domains.quality_gates.services.quality_gate_service import evaluate_gate
 from app.interfaces.http import chat as chat_api
 from app.main import app
@@ -197,6 +200,8 @@ async def _seed_document(
             embedding_model=settings.openai_embedding_model,
             index_version=settings.document_index_version,
             qdrant_point_id=point_id,
+            # Written like the 0.6.0 chunk stage (R06-09): tenant column and vector.
+            **chunk_search_fields(doc),
         )
         qdrant.add_point(
             point_id,
@@ -255,6 +260,41 @@ async def test_accuracy_smoke_pipeline_meets_smoke_thresholds(
     smoke_harness: SmokeHarness,
     db_session: AsyncSession,
 ) -> None:
+    await _assert_smoke_gate_passes(smoke_harness, db_session)
+
+
+# R06-09: hybrid retrieval and context packing stay off by default (the live accuracy gate
+# decides the flip on staging), but the pipeline must pass the smoke gate with both on and
+# multilingual keyword search. On PostgreSQL the keyword branch really runs.
+@pytest.mark.both_dialects
+@pytest.mark.parametrize("tenant_column", ["off", "on"])
+async def test_accuracy_smoke_passes_with_hybrid_and_context_packing(
+    smoke_harness: SmokeHarness,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tenant_column: str,
+) -> None:
+    monkeypatch.setattr(settings, "feature_enable_hybrid_retrieval", True)
+    monkeypatch.setattr(settings, "feature_enable_context_packing", True)
+    monkeypatch.setattr(settings, "keyword_search_multilingual", True)
+    monkeypatch.setattr(settings, "keyword_search_tenant_column", tenant_column)
+    keyword_hits: list[int] = []
+    original_search = KeywordRetrievalService.search_chunks
+
+    async def _spy(self: KeywordRetrievalService, **kwargs: Any) -> Any:
+        result = await original_search(self, **kwargs)
+        keyword_hits.append(len(result.candidates))
+        return result
+
+    monkeypatch.setattr(KeywordRetrievalService, "search_chunks", _spy)
+    await _assert_smoke_gate_passes(smoke_harness, db_session)
+    if db_session.get_bind().dialect.name == "postgresql":
+        # The keyword branch ran and contributed candidates (SQLite has no tsquery, so the
+        # branch fails there and retrieval continues with vectors only).
+        assert keyword_hits and any(count > 0 for count in keyword_hits)
+
+
+async def _assert_smoke_gate_passes(smoke_harness: SmokeHarness, db_session: AsyncSession) -> None:
     fixtures: SmokeFixtures = FIXTURES
     org, user = await _make_org_and_user(db_session, slug="smoke-primary")
     other_org, other_user = await _make_org_and_user(db_session, slug="smoke-foreign")

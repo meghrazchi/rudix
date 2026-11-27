@@ -754,6 +754,83 @@ after `finalize` on its own queue.
   under 4 MiB); these are test bounds, not production measurements. No latency figure is
   recorded for the async clients or for parent-text resolution.
 
+### Connector sync pages, rate limits, and caps (R06-11)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_connector_sync_pages_total` | `provider`, `mode` | Pages committed by connector sync runs (`full`, `incremental`). |
+| `rudix_connector_sync_rate_limited_total` | `provider`, `outcome` | Provider rate limits: `inline` (slept up to `CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS`, same page retried) or `requeued` (checkpoint kept, run re-enqueued with the Retry-After countdown). |
+| `rudix_connector_sync_deferred_total` | `reason` | Runs held back or re-enqueued: `org_cap`, `connection_cap`, `lease_held`, `lease_lost`, `rate_limit`, `stale` (re-enqueued by `connectors.sync.reap`). |
+
+- Sync run rows report progress: `pages_committed`, `checkpoint_at`, `heartbeat_at`, and the
+  counters move with every page commit.
+- Logs: `connector.sync.page_committed`, `connector.sync.rate_limited`,
+  `connector.sync.retry_scheduled`, `connector.sync.cancelled`, `connector.sync.resumed`,
+  `connector.sync.lease_lost`, `connector.sync.cap_deferred`, `connector.sync.requeued`,
+  `connector.sync.stale_runs_requeued`, and `connector.sync.item.tenant_mismatch`. They carry
+  run, organisation, and provider ids and counters, never item content or credentials.
+- Alert ideas: `requeued` rate limits rising for one provider (quota too small or caps too
+  high); `stale` deferrals rising (workers dying or the stale threshold below the page time);
+  `lease_lost` above zero (stale threshold too low).
+- Measured in tests (SQLite, fake provider, pages of 1,000): a cancel issued during the fetch
+  of page k+1 stops the run within 50 items of that page with k pages committed. No
+  production throughput figure is recorded; real provider rate limits are a staging check.
+
+### Chunk tenant backfill, multilingual keyword search, batched graph writes (R06-09, R06-10)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_chunk_backfill_rows_total` | none | `document_chunks` rows given `organization_id`, `fts_config` and `fts_vector` by `documents.chunks.backfill_tenant` or the backfill script. It stops growing when the backfill is done. |
+| `rudix_graph_write_batches_total` | `kind` (`entity`, `alias`, `evidence`, `relation`), `outcome` (`written`, `failed`) | Neo4j UNWIND write transactions. Per document, about `ceil(rows / GRAPH_WRITE_BATCH_SIZE)` per kind, not one per item. |
+
+- Logs: `documents.chunks.backfill_tenant.progress` (batches, rows updated, finished),
+  `documents.chunks.backfill_tenant.batch_failed` (driver error class only),
+  `keyword_search.tenant_column_checked` (once per process in `auto` mode),
+  `graph.batch_write.failed` (kind, organisation, batch index and size, error class). None
+  of them carry document text or Cypher parameters.
+- Recall: `tests/test_keyword_multilingual_pg.py` shows that German, Spanish and French
+  fixture questions find their chunks with `KEYWORD_SEARCH_MULTILINGUAL=true` and not with
+  English stemming. This is a test on a small fixture set, not a measured recall figure.
+  The live accuracy gate on staging decides the flag flips (runbook 27, "Keyword search
+  settings").
+- Bounded ranking: keyword search ranks at most `KEYWORD_SEARCH_CANDIDATE_LIMIT` matches.
+  Keyword p95 staying flat as `document_chunks` grows is a staging load check (R03-09). No
+  latency figure is recorded here.
+- Alert ideas: `rudix_graph_write_batches_total{outcome="failed"}` above zero (Neo4j
+  unavailable or rejected writes); `rudix_chunk_backfill_rows_total` flat while the dry run
+  still reports remaining rows (task not running or blocked by lock timeouts).
+
+### Worker pools, queues, time limits, and dead letters (R06-03, R06-04, R06-05)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_celery_queue_wait_seconds` | `queue` | Histogram: seconds from publication (header `rudix_published_at`, publisher clock) or the ETA, whichever is later, to a worker receiving the task. Recorded on `task_received` in the worker main process. |
+| `rudix_celery_queue_depth` | `queue` | Ready messages per task queue (and `rudix.dead_letter` in quorum mode) from a passive `queue_declare` by `worker-default` every `WORKER_QUEUE_SAMPLE_INTERVAL_SECONDS` (30). |
+| `rudix_celery_queue_consumers` | `queue` | Consumers per queue from the same sample. |
+| `rudix_dead_letter_messages_total` | `outcome` | Dead-letter consumer: `recorded`, `duplicate` (task id already recorded), `no_tenant`, `malformed`, `error` (database error; requeued). |
+| `rudix_celery_task_time_limit_total` | `task`, `kind` | Tasks stopped by a time limit (`soft`, `hard`). |
+
+- `queue` is a configured queue name or `other`; the delay prefix that Celery's native
+  delayed delivery adds to routing keys is stripped. No task arguments or ids are labels.
+- Worker metrics are served by the worker main process on `WORKER_METRICS_PORT` (9808) when
+  `WORKER_METRICS_ENABLED=true`; Prometheus scrapes `worker:9808` and each `worker-<pool>:9808`.
+  The queue metrics above and hard time limits are recorded in that process. Metrics recorded
+  inside a prefork child (task counters and durations from `task_prerun` / `task_postrun`,
+  soft time limits) are not visible to it: that limitation predates 0.6.0. Use `FailedJob`
+  rows (`error_code` `task_soft_time_limit`) for soft limits.
+- Alerts (group `rudix-workers` in `infra/observability/prometheus/alerts.yml`):
+  `RudixDeadLetterQueueNotEmpty` (dead-letter depth above 0 for 10 minutes),
+  `RudixCeleryQueueWaitHigh` (p95 wait above 300 s for 15 minutes),
+  `RudixCeleryQueueDepthGrowing` (more than 100 ready and rising for 15 minutes),
+  `RudixCeleryQueueWithoutConsumers`. Dashboard `07 — Rudix Worker Pools & Queues`.
+- Logs: `worker.time_limit_exceeds_consumer_timeout` (start-up check),
+  `dead_letter.recorded`, `dead_letter.duplicate`, `dead_letter.no_tenant`,
+  `dead_letter.malformed`, `dead_letter.persist_failed`, `workers.queue_depth_unavailable`.
+  They carry task name, task id, organisation, document id, queue, reason, and death count;
+  never task arguments beyond those ids.
+- The thresholds are starting points, not measured values; no queue wait or depth baseline has
+  been recorded (the load test is a manual step in plan section 8).
+
 ## Continuous evaluation
 
 Run evaluations:

@@ -314,6 +314,24 @@ language-aware ingestion and query path.
 - Translation does not create evidence where the source text is missing.
 - For mixed-language documents, admins should set the document and OCR language
   explicitly before re-indexing.
+- Keyword search (`0.6.0`, R06-09). New chunks store `organization_id`, the text search
+  configuration of the document language (`fts_config`: `en` english, `de` german, `es`
+  spanish, `fr` french, anything else `simple`) and `fts_vector`; older chunks get them
+  from the `documents.chunks.backfill_tenant` task. With `KEYWORD_SEARCH_MULTILINGUAL=true`
+  the keyword branch also matches `fts_vector` with the question's configuration (the
+  pipeline's detected question language, or detection from the text) and ranks a chunk by
+  the better of that and the English match; the English column stays a second arm, so
+  nothing found before is lost. Default `false` keeps English-only matching.
+- Keyword search ranks at most `KEYWORD_SEARCH_CANDIDATE_LIMIT` matches (default 1000,
+  `0` = every match): the candidates are the first matches in index scan order, then
+  `ts_rank` orders them and the best `top_k` are returned. When more chunks match than
+  the limit, which ones are ranked depends on scan order, not relevance. A better-ranked
+  chunk outside the candidates is then not returned, where `0` would return it.
+- Tenant scoping: `KEYWORD_SEARCH_TENANT_COLUMN=auto` (default) filters on
+  `document_chunks.organization_id` once no chunk has it NULL (checked once per process),
+  otherwise on the owning document; `on` / `off` force one path. Both keep the
+  document status, `document_ids`, and `index_version` filters and a per-row check that
+  the document's (and the chunk's) organisation is the caller's.
 
 ## Graph lifecycle
 
@@ -325,7 +343,13 @@ mode it is the task `documents.graph_extract` on `CELERY_QUEUE_DOCUMENTS_GRAPH`:
 2. When a document enters processing or re-indexing, the backend sets
    `graph_extraction_status=pending` so the UI can show graph work is queued.
 3. Graph extraction marks the document `graph_extraction_status=extracting`.
-4. Derived entities, aliases, evidence links, and relations are written to Neo4j.
+4. Derived entities, aliases, evidence links, and relations are written to Neo4j in
+   `UNWIND` batches (`0.6.0`, R06-10): one write transaction per `GRAPH_WRITE_BATCH_SIZE`
+   rows (default 200) of each kind, entities first, every node and relationship
+   carrying the document's `organization_id`. Entity resolution still reads once per
+   entity. Extraction LLM batches run up to `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES`
+   / `RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` at a time (default 1), with results
+   merged in batch order.
 5. Successful completion marks the graph status `completed`; failures mark it
    `failed`; disabled or inapplicable flows use `skipped`. A graph failure never fails
    the document, also with `ENTITY_EXTRACTION_STRICT_MODE` or

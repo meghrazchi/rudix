@@ -180,6 +180,8 @@ class RetrieveStage:
             index_versions=settings.active_index_versions,
             embed_query=build_query_embedder(ctx),
             graph_timeout_ms=graph_timeout_ms,
+            # R06-09: keyword search uses the question's text search configuration.
+            query_language=ctx.config.detected_language,
         )
         ret.parallel_result = parallel_result
         if graph_budget is not None and _graph_branch_timed_out(parallel_result):

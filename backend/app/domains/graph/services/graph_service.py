@@ -35,12 +35,15 @@ from app.domains.graph.services.entity_resolution_service import (
     EntityResolutionResult,
     EntityResolutionService,
 )
+from app.domains.graph.services.graph_batch_writes import GraphBatchWritesMixin
 
 logger = get_logger("graph.service")
 
 
-class GraphService:
+class GraphService(GraphBatchWritesMixin):
     """Service boundary for all Enterprise Graph (Neo4j) operations.
+
+    Ingestion writes through the batched wrappers of ``GraphBatchWritesMixin`` (R06-10).
 
     Instantiate once per request or as a module-level singleton — all state
     lives in the driver/session, not in this object.

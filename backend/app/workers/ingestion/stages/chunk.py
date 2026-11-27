@@ -13,6 +13,7 @@ from uuid import UUID
 
 from app.core.config import settings
 from app.domains.documents.chunking.hashing import compute_chunk_hash
+from app.domains.documents.services.fts_config import chunk_search_fields
 from app.domains.documents.services.table_chunking_service import build_table_chunk
 from app.workers.ingestion.context import StageContext
 from app.workers.ingestion.documents import load_document
@@ -56,6 +57,9 @@ def _chunk_row_values(
         "language": document.language,
         "chunk_level": chunk.chunk_level if is_hierarchical else None,
         "child_count": chunk.child_count,
+        # R06-09: tenant column and the document language's text search configuration;
+        # the repository writes fts_vector = to_tsvector(fts_config, text) on PostgreSQL.
+        **chunk_search_fields(document),
     }
 
 
@@ -217,6 +221,8 @@ async def _write_rows(
                         row.parent_chunk_id = parent_id
             await session.flush()
         for values in tables:
-            await repository.create_document_chunk(session, language=document.language, **values)
+            await repository.create_document_chunk(
+                session, language=document.language, **chunk_search_fields(document), **values
+            )
     embeddable = sum(1 for c in chunks if not is_hierarchical or c.chunk_level == 1)
     return embeddable + len(tables)

@@ -80,6 +80,15 @@ _EXEMPT_MODEL_NAMES: frozenset[str] = frozenset(
     }
 )
 
+# Models whose tenant column is still being backfilled (0.6.0, R06-09;
+# ``rls.RLS_PENDING_TABLES``). Rows written before 0.6.0 have ``organization_id`` NULL
+# until ``documents.chunks.backfill_tenant`` finishes, so the guard's loader criterion
+# (``organization_id = :tenant``) would make them vanish from strict-guard sessions, and
+# auto-filling on flush would hide a writer that forgot the column. They are treated like
+# the exemption list until the operator NOT NULL step; tenant scoping for them stays in
+# the queries (the document join or the chunk column).
+_PENDING_TENANT_MODEL_NAMES: frozenset[str] = frozenset({"DocumentChunk"})
+
 _GUARD_INSTALLED = False
 
 
@@ -173,7 +182,7 @@ def tenant_scoped_session(
 def _is_tenant_scoped_entity(entity: Any) -> bool:
     if not isinstance(entity, type):
         return False
-    if entity.__name__ in _EXEMPT_MODEL_NAMES:
+    if entity.__name__ in _EXEMPT_MODEL_NAMES or entity.__name__ in _PENDING_TENANT_MODEL_NAMES:
         return False
     return hasattr(entity, "organization_id") and hasattr(entity, "__mapper__")
 

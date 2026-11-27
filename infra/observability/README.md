@@ -66,6 +66,7 @@ The stack automatically provisions five dashboards in the `Rudix` folder:
 3. **`03 — Rudix Document Ingestion & Celery Workers`**: RabbitMQ queue depth, Celery task throughput & retries, and document ingestion duration.
 4. **`04 — Rudix Data Stores & Infrastructure`**: PostgreSQL active connection pool, Qdrant vectors, Redis memory, and MinIO storage usage.
 5. **`05 — Rudix Security, Governance & Tool Guardrails`**: Rate-limit rejections, auth verification failures, cross-tenant boundary denials, and agent tool execution.
+6. **`07 — Rudix Worker Pools & Queues`** (0.6.0, R06-03..05): queue depth and consumers per queue, queue wait p50/p95, dead-letter queue depth and consumer outcomes, and task time-limit kills. Alert group `rudix-workers` in `prometheus/alerts.yml`.
 
 ---
 

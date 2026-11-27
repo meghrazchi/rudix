@@ -13,13 +13,18 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.domains.graph.repositories._base import _get_driver_and_settings
+from app.domains.graph.repositories.entity_batch import EntityBatchWriteMixin
 from app.domains.graph.services.entity_resolution_service import normalize_entity_name
 
 logger = get_logger("graph.repositories.entity")
 
 
-class EntityRepository:
-    """CRUD for Entity nodes scoped by organization_id."""
+class EntityRepository(EntityBatchWriteMixin):
+    """CRUD for Entity nodes scoped by organization_id.
+
+    Ingestion writes through the UNWIND batch methods of ``EntityBatchWriteMixin``
+    (R06-10); the single-item methods stay for admin endpoints.
+    """
 
     async def upsert_entity(
         self,

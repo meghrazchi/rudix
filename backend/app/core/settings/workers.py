@@ -5,9 +5,16 @@ Each later work package adds its fields directly after its ``# anchor: <task>`` 
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.core.settings.worker_platform import (
+    QueueType,
+    TaskTimeLimit,
+    WorkerPoolKind,
+    merge_task_time_limits,
+)
 
 _MIB = 1024 * 1024
 
@@ -84,9 +91,133 @@ class WorkersSettings(BaseModel):
     # anchor: A3
 
     # anchor: B1
+    # R06-09: documents.chunks.backfill_tenant fills document_chunks.organization_id,
+    # fts_config and fts_vector in batches by primary key, one short transaction each.
+    chunk_backfill_batch_size: int = Field(default=1000, ge=1, le=50_000)
+    chunk_backfill_lock_timeout_ms: int = Field(default=2000, ge=100, le=60_000)
+    chunk_backfill_statement_timeout_ms: int = Field(default=30_000, ge=1000, le=600_000)
+    # Keyword search: query fts_vector with the question's configuration (false keeps the
+    # English generated column); scope by the chunk tenant column (auto uses it once no
+    # NULL organization_id remains, checked once per process); rank at most this many
+    # matches (0 ranks every match, the pre-0.6.0 behaviour).
+    keyword_search_multilingual: bool = False
+    keyword_search_tenant_column: Literal["auto", "on", "off"] = "auto"
+    keyword_search_candidate_limit: int = Field(default=1000, ge=0, le=100_000)
+    # R06-10: graph rows per UNWIND write transaction, and extraction LLM batches in flight
+    # per document (1 keeps the sequential behaviour).
+    graph_write_batch_size: int = Field(default=200, ge=1, le=10_000)
+    entity_extraction_max_concurrent_batches: int = Field(default=1, ge=1, le=32)
+    relation_extraction_max_concurrent_batches: int = Field(default=1, ge=1, le=32)
 
     # anchor: C1
+    # R06-03: time limits and child recycling. CELERY_TASK_TIME_LIMITS is a JSON object
+    # {task name: {"soft": s, "hard": s}} merged over DEFAULT_TASK_TIME_LIMITS; other tasks
+    # use the two defaults. Every hard limit must stay below the broker consumer timeout.
+    celery_task_time_limits: dict[str, TaskTimeLimit] = Field(
+        default_factory=lambda: merge_task_time_limits(None)
+    )
+    celery_task_default_soft_time_limit: int = Field(default=300, ge=1, le=7 * 86_400)
+    celery_task_default_time_limit: int = Field(default=360, ge=2, le=7 * 86_400)
+    # 0 turns recycling off (Celery's default). Memory is resident KiB per child process.
+    celery_worker_max_tasks_per_child: int = Field(default=200, ge=0, le=1_000_000)
+    celery_worker_max_memory_per_child_kb: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
+    # Must equal RabbitMQ's consumer_timeout (infra/rabbitmq/rabbitmq.conf, in ms there).
+    celery_broker_consumer_timeout_seconds: int = Field(default=1800, ge=60, le=7 * 86_400)
+
+    # R06-04: worker pools (app.workers.pools). *_QUEUES is comma separated; unset derives the
+    # pool's queues from the CELERY_QUEUE_* settings. *_MAX_TASKS_PER_CHILD unset uses
+    # CELERY_WORKER_MAX_TASKS_PER_CHILD.
+    worker_pool_ingest_queues: str | None = None
+    worker_pool_ingest_concurrency: int = Field(default=2, ge=1, le=256)
+    worker_pool_ingest_pool: WorkerPoolKind = "prefork"
+    worker_pool_ingest_max_tasks_per_child: int | None = Field(default=None, ge=0)
+    worker_pool_graph_queues: str | None = None
+    worker_pool_graph_concurrency: int = Field(default=2, ge=1, le=256)
+    worker_pool_graph_pool: WorkerPoolKind = "prefork"
+    worker_pool_graph_max_tasks_per_child: int | None = Field(default=None, ge=0)
+    worker_pool_sync_queues: str | None = None
+    worker_pool_sync_concurrency: int = Field(default=2, ge=1, le=256)
+    worker_pool_sync_pool: WorkerPoolKind = "prefork"
+    worker_pool_sync_max_tasks_per_child: int | None = Field(default=None, ge=0)
+    worker_pool_eval_queues: str | None = None
+    worker_pool_eval_concurrency: int = Field(default=1, ge=1, le=256)
+    worker_pool_eval_pool: WorkerPoolKind = "prefork"
+    worker_pool_eval_max_tasks_per_child: int | None = Field(default=None, ge=0)
+    worker_pool_default_queues: str | None = None
+    worker_pool_default_concurrency: int = Field(default=2, ge=1, le=256)
+    worker_pool_default_pool: WorkerPoolKind = "prefork"
+    worker_pool_default_max_tasks_per_child: int | None = Field(default=None, ge=0)
+    # The dead-letter consumer bootstep runs only where this is true; ``python -m
+    # app.workers.pools default`` sets it unless the environment already does.
+    worker_consume_dead_letter: bool = False
+    # Queue depth sampler bootstep (main process); the default pool sets it like the above.
+    worker_sample_queue_depth: bool = False
+
+    # R06-05: queue type and dead-lettering. ``classic`` keeps the 0.5.0 declarations.
+    # ``quorum`` declares every task queue as a quorum queue with a delivery limit and a
+    # dead-letter exchange; existing classic queues cannot be redeclared, so a cut-over uses
+    # new CELERY_QUEUE_* names (runbook docs/27).
+    celery_queue_type: QueueType = "classic"
+    celery_delivery_limit: int = Field(default=5, ge=1, le=1000)
+    celery_dead_letter_exchange: str = Field(default="rudix.dlx", min_length=1, max_length=64)
+    celery_dead_letter_queue: str = Field(default="rudix.dead_letter", min_length=1, max_length=64)
+    # Quorum mode publishes through this topic exchange: Celery's native delayed delivery
+    # (countdown and ETA retries) does not support direct exchanges.
+    celery_quorum_exchange: str = Field(default="rudix.tasks", min_length=1, max_length=64)
+    celery_queue_email: str = Field(default="email", min_length=1, max_length=64)
+    # Interval of the QueueDepthSampler bootstep (queue depth gauges, default pool).
+    worker_queue_sample_interval_seconds: int = Field(default=30, ge=5, le=3600)
+
+    @field_validator("celery_task_time_limits", mode="before")
+    @classmethod
+    def _merge_task_time_limits(cls, value: Any) -> dict[str, TaskTimeLimit]:
+        return merge_task_time_limits(value)
+
+    @field_validator(
+        "celery_dead_letter_exchange",
+        "celery_dead_letter_queue",
+        "celery_quorum_exchange",
+        "celery_queue_email",
+    )
+    @classmethod
+    def _validate_broker_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned or not cleaned.replace(".", "").replace("-", "").replace("_", "").isalnum():
+            raise ValueError(
+                "exchange and queue names may contain only letters, numbers, '.', '-', and '_'"
+            )
+        return cleaned
+
+    @model_validator(mode="after")
+    def _default_soft_below_hard(self) -> WorkersSettings:
+        if self.celery_task_default_soft_time_limit >= self.celery_task_default_time_limit:
+            raise ValueError(
+                "CELERY_TASK_DEFAULT_SOFT_TIME_LIMIT must be below CELERY_TASK_DEFAULT_TIME_LIMIT"
+            )
+        return self
 
     # anchor: C2
 
     # anchor: D1
+    # R06-11: connector sync at tenant scale. A running run whose heartbeat is older than
+    # this may be leased by another task and is re-enqueued by connectors.sync.reap.
+    connector_sync_stale_seconds: int = Field(default=600, ge=30, le=86_400)
+    # Cancellation is checked before each page and every N items inside a page.
+    connector_sync_cancel_check_items: int = Field(default=50, ge=1, le=100_000)
+    # Items requested per provider page (adapters may return fewer or more).
+    connector_sync_page_size: int = Field(default=100, ge=1, le=10_000)
+    # Due jobs claimed per schedule poll (one FOR UPDATE SKIP LOCKED query).
+    connector_sync_poll_batch_size: int = Field(default=100, ge=1, le=10_000)
+    # Concurrent queued or running runs per organization / per connection; 0 = no cap.
+    connector_sync_max_concurrent_per_org: int = Field(default=0, ge=0, le=10_000)
+    connector_sync_max_concurrent_per_connection: int = Field(default=0, ge=0, le=10_000)
+    # Countdown before a run held back by a cap is tried again.
+    connector_sync_cap_retry_seconds: int = Field(default=60, ge=1, le=86_400)
+    # Provider Retry-After up to this many seconds is slept inside the run (with
+    # heartbeats) and the same page retried; longer ones checkpoint and re-enqueue.
+    connector_sync_max_inline_backoff_seconds: int = Field(default=60, ge=0, le=3600)
+    connector_sync_max_inline_retries: int = Field(default=5, ge=0, le=100)
+    # Items tombstoned per transaction at the end of a full sync.
+    connector_sync_tombstone_batch_size: int = Field(default=500, ge=1, le=100_000)
+    # connectors.sync.reap beat interval.
+    connector_sync_reap_interval_seconds: int = Field(default=120, ge=10, le=86_400)
