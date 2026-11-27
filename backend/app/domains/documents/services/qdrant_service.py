@@ -46,8 +46,17 @@ class QdrantDeleteResult:
     deleted: bool
 
 
+def resolve_write_targets() -> list[str]:
+    """Collections a document write goes to (R06-01 seam; A2 adds a building generation)."""
+    return [settings.qdrant_collection]
+
+
 class QdrantService:
-    """Vector index interactions."""
+    """Vector index interactions.
+
+    ``collection_name`` on writes defaults to ``None``, which means the configured
+    ``QDRANT_COLLECTION`` (the behaviour before the argument existed).
+    """
 
     def __init__(self, *, batch_size: int = 128) -> None:
         if batch_size < 1:
@@ -103,6 +112,7 @@ class QdrantService:
         chunking_strategy: str | None = None,
         chunking_profile_version: str | None = None,
         parent_text_by_chunk_id: dict[UUID, str] | None = None,
+        collection_name: str | None = None,
     ) -> QdrantUpsertResult:
         if not chunks:
             return QdrantUpsertResult(point_ids_by_chunk_id={}, upserted_count=0, batch_count=0)
@@ -167,7 +177,7 @@ class QdrantService:
         for start in range(0, len(points), self.batch_size):
             batch_points = points[start : start + self.batch_size]
             client.upsert(
-                collection_name=settings.qdrant_collection,
+                collection_name=collection_name or settings.qdrant_collection,
                 points=batch_points,
                 wait=True,
             )
@@ -185,6 +195,7 @@ class QdrantService:
         organization_id: UUID,
         document_id: UUID,
         index_version: str | None = None,
+        collection_name: str | None = None,
     ) -> QdrantDeleteResult:
         client = self._client()
         qdrant_module.ensure_qdrant_collection()
@@ -194,7 +205,7 @@ class QdrantService:
             index_version=index_version,
         )
         client.delete(
-            collection_name=settings.qdrant_collection,
+            collection_name=collection_name or settings.qdrant_collection,
             points_selector=filter_selector,
             wait=True,
         )

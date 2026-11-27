@@ -79,6 +79,7 @@ class DocumentStageArtifact(UUIDPrimaryKeyMixin, Base):
             "part",
             name="uq_document_stage_artifacts_run_stage_part",
         ),
+        Index("idx_document_stage_artifacts_org_created", "organization_id", "created_at"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(

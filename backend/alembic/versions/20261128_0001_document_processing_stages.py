@@ -118,6 +118,11 @@ def upgrade() -> None:
             name="uq_document_stage_artifacts_run_stage_part",
         ),
     )
+    op.create_index(
+        "idx_document_stage_artifacts_org_created",
+        "document_stage_artifacts",
+        ["organization_id", "created_at"],
+    )
     if _is_postgresql():
         op.execute("SET lock_timeout = '5s'")
         for table in STRICT_TABLES:
@@ -131,6 +136,9 @@ def downgrade() -> None:
         op.execute("SET lock_timeout = '5s'")
         for table in STRICT_TABLES:
             op.execute(f"DROP POLICY IF EXISTS {TENANT_RLS_POLICY_NAME} ON {table}")
+    op.drop_index(
+        "idx_document_stage_artifacts_org_created", table_name="document_stage_artifacts"
+    )
     op.drop_table("document_stage_artifacts")
     op.drop_index(
         "idx_document_processing_stages_org_created", table_name="document_processing_stages"

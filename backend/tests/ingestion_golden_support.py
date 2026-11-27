@@ -60,6 +60,7 @@ from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
 from app.workers import document_tasks, notification_helper, status_tracking
 from app.workers.async_runtime import run_async
+from app.workers.ingestion.stages import extract as extract_stage
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "fixtures" / "ingestion_golden"
 UPDATE_ENV = "INGESTION_GOLDEN_UPDATE"
@@ -81,8 +82,8 @@ PINNED_SETTINGS: dict[str, Any] = {
     "document_index_version": "v1",
     "qdrant_vector_size": 1536,
 }
-OCR_PATCH_TARGET: tuple[Any, str] = (document_tasks, "run_ocr")
-EXTRACT_PATCH_TARGET: tuple[Any, str] = (document_tasks, "extract_document")
+OCR_PATCH_TARGET: tuple[Any, str] = (extract_stage, "run_ocr")
+EXTRACT_PATCH_TARGET: tuple[Any, str] = (extract_stage, "extract_document")
 
 
 class _Body:
