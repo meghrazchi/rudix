@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.usage_touch_sql import apply_max_guarded_usage
 from app.models.service_account import ServiceAccount, ServiceAccountToken
 
 
@@ -100,17 +102,15 @@ class ServiceAccountsRepository:
         await db_session.flush()
         return account
 
-    async def record_account_usage(
+    async def apply_account_usage_touches(
         self,
         db_session: AsyncSession,
         *,
-        account_id: UUID,
-        used_at: datetime,
+        touches: Sequence[tuple[UUID, datetime, str | None]],
     ) -> None:
-        await db_session.execute(
-            update(ServiceAccount)
-            .where(ServiceAccount.id == account_id)
-            .values(last_used_at=used_at)
+        """Bulk-apply buffered account touches (no IP column); never moves time backwards."""
+        await apply_max_guarded_usage(
+            db_session, model=ServiceAccount, touches=touches, with_ip=False
         )
 
     # ── Token operations ──────────────────────────────────────────────────────
@@ -199,16 +199,13 @@ class ServiceAccountsRepository:
         await db_session.flush()
         return token
 
-    async def record_token_usage(
+    async def apply_token_usage_touches(
         self,
         db_session: AsyncSession,
         *,
-        token_id: UUID,
-        used_at: datetime,
-        ip_address: str | None,
+        touches: Sequence[tuple[UUID, datetime, str | None]],
     ) -> None:
-        await db_session.execute(
-            update(ServiceAccountToken)
-            .where(ServiceAccountToken.id == token_id)
-            .values(last_used_at=used_at, last_used_ip=ip_address)
+        """Bulk-apply buffered ``(token_id, used_at, ip)`` touches; never moves time backwards."""
+        await apply_max_guarded_usage(
+            db_session, model=ServiceAccountToken, touches=touches, with_ip=True
         )

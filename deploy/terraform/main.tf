@@ -99,6 +99,10 @@ resource "null_resource" "compose_rollout" {
       "docker compose -f '${local.compose_filename}' pull",
       "docker compose -f '${local.compose_filename}' up -d --wait ${local.infra_services}",
       "docker compose -f '${local.compose_filename}' run --rm api ${var.migration_command}",
+      # Neo4j graph migrations (R04-12): the API no longer runs them at startup in
+      # staging/production. The script exits 0 without touching Neo4j unless
+      # ENTERPRISE_GRAPH_ENABLED=true, and non-zero on failure.
+      "docker compose -f '${local.compose_filename}' run --rm api python scripts/run_graph_migrations.py",
       # Idempotent: bootstrap_admin.py no-ops unless the database has zero
       # organizations, so this is safe to run on every deploy. `docker compose
       # run`'s file-based env flag isn't universally available across Compose

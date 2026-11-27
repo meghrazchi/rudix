@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import Environment, settings
+from app.core.errors import register_exception_handlers
 from app.core.lifespan import lifespan
 from app.core.logging import attach_access_log_middleware, configure_logging
 from app.core.metrics import attach_metrics_middleware
@@ -22,6 +23,7 @@ app = FastAPI(
     version=settings.api_version,
     lifespan=lifespan,
 )
+register_exception_handlers(app)
 
 
 def _normalize_cors_origin(origin: str) -> str:

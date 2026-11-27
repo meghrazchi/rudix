@@ -253,6 +253,7 @@ class ExternalItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_external_items_collection_id", "collection_id"),
         Index("idx_external_items_parent", "organization_id", "provider_parent_id"),
         Index("idx_external_items_hash", "organization_id", "content_hash"),
+        Index("idx_external_items_connection", "connection_id"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(

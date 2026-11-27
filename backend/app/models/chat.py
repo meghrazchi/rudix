@@ -2,6 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text, Uuid
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,7 +13,17 @@ from app.models.enums import ChatRole
 
 class ChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "chat_sessions"
-    __table_args__ = (Index("idx_chat_sessions_user", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("idx_chat_sessions_user", "user_id", "created_at"),
+        Index("idx_chat_sessions_org_created", "organization_id", sql_text("created_at DESC")),
+        Index(
+            "idx_chat_sessions_org_user_updated",
+            "organization_id",
+            "user_id",
+            sql_text("updated_at DESC"),
+            sql_text("id DESC"),
+        ),
+    )
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),

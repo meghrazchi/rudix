@@ -86,6 +86,13 @@ make seed-dev
 - Structured logging is configured for both API and Celery worker.
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
 
+## Settings layout and startup behavior
+
+- `app/core/config.py` holds the `Settings` class, validation, and `settings`/`get_settings`. The fields live in per-area mixins under `app/core/settings/` (`app.py`, `database.py`, `redis_rate_limit.py`, `storage.py`, `celery.py`, `auth.py`, `ai_providers.py`, `rag.py`, `graph.py`, `mcp.py`, `connectors.py`, `observability.py`, `email_bots.py`, `features.py`); enums are in `enums.py` and the sanitized snapshot in `snapshot.py`. Environment variable names are unchanged and every symbol previously imported from `app.core.config` is still re-exported there. Keep each file under 500 lines.
+- Redis, RabbitMQ, and Qdrant are optional at boot: if their init fails the API logs `startup.dependency_unavailable` (dependency and error class) and keeps starting; `/api/v1/ready` reports them down and retries the Redis and Qdrant connection on each probe, so the API recovers without a restart.
+- `GRAPH_MIGRATIONS_ON_STARTUP` controls Neo4j graph migrations at API startup. Unset means on in development/test and off in staging/production. In staging/production run `make migrate-graph` (or `python scripts/run_graph_migrations.py`) as part of the migrate step; it is a no-op unless `ENTERPRISE_GRAPH_ENABLED=true` and exits non-zero on failure.
+- API errors use one envelope (`error.code`, `error.message`, `error.request_id`, `error.details`) with the legacy `detail` alias; see `docs/07_API_DESIGN.md`.
+
 ## Authentication quick check
 
 Generate a local app token:
@@ -431,7 +438,9 @@ Most backend tests run against a per-test SQLite database (see
 behavior (row locks, `ON CONFLICT`, concurrent sessions) carry pytest markers:
 
 - `requires_postgres`: needs a migrated PostgreSQL database at `TEST_DATABASE_URL`.
-- `requires_redis`: needs a live Redis instance.
+- `requires_redis`: needs a live Redis instance. The live Lua script test
+  (`tests/test_rate_limit_redis_live.py`) also needs `TEST_REDIS_URL`, set in the
+  `backend-postgres.yml` CI job.
 
 When `TEST_DATABASE_URL` is unset, `requires_postgres` tests are skipped, so `make test` keeps
 working without extra services. Two fixtures in `tests/conftest.py` provide database access:
@@ -801,6 +810,26 @@ fire one interval after startup.
 
 A beat heartbeat alert is planned for `0.8.0`. It depends on worker task counters being
 exported from prefork child processes, which is not the case yet.
+
+Credential usage flush (R04-06): beat also schedules `usage-touch-flush`
+(`usage.touch.flush`, default queue) every `USAGE_TOUCH_FLUSH_INTERVAL_SECONDS` seconds
+(default 60, range 10 to 3600). API-key and service-account requests buffer `last_used_at` and
+`last_used_ip` in Redis instead of updating the row; the task pops up to
+`USAGE_TOUCH_FLUSH_BATCH_SIZE` credentials (default 500) per batch and writes a bulk `UPDATE`
+that never moves `last_used_at` backwards. Without beat, the admin pages keep showing the last
+flushed value.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `RATE_LIMIT_ORG_ENABLED` | `true` | Organisation aggregate rate limit for HTTP and WebSocket scopes. |
+| `RATE_LIMIT_ORG_LIMIT_MULTIPLIER` | `10` | Organisation limit = scope limit x multiplier, per scope and endpoint. |
+| `USAGE_TOUCH_FLUSH_INTERVAL_SECONDS` | `60` | Beat interval of `usage.touch.flush`. |
+| `USAGE_TOUCH_FLUSH_BATCH_SIZE` | `500` | Credentials popped from Redis per flush batch. |
+
+Rate limits use one Lua sliding-window script per check (one Redis round trip); see
+`docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md` `## Rate limiting`. The live script test runs
+only with `TEST_REDIS_URL` set: `TEST_REDIS_URL=redis://localhost:6379/15 .venv/bin/pytest
+tests/test_rate_limit_redis_live.py`.
 
 ## Prometheus & Grafana Observability
 

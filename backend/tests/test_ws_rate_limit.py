@@ -17,6 +17,7 @@ from app.rate_limit.counter import (
     RateLimitScope,
     consume_rate_limit,
 )
+from tests.redis_fakes import BrokenRedis, FakeClock, FakeRedis, align_app_clock
 
 
 def _principal() -> AuthenticatedPrincipal:
@@ -36,22 +37,15 @@ def _enable_limits(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "rate_limit_chat_requests", 2)
 
 
-class _FakeRedis:
-    def __init__(self, *, fail: bool = False) -> None:
-        self.counts: dict[str, int] = {}
-        self.fail = fail
+_WINDOW_START_MS = 29_000_000 * 60_000
 
-    async def incr(self, key: str) -> int:
-        if self.fail:
-            raise RuntimeError("boom")
-        self.counts[key] = self.counts.get(key, 0) + 1
-        return self.counts[key]
 
-    async def expire(self, key: str, seconds: int) -> bool:
-        return True
-
-    async def ttl(self, key: str) -> int:
-        return 30
+@pytest.fixture
+def fake_redis(monkeypatch: pytest.MonkeyPatch) -> FakeRedis:
+    # 30 s into the window: a fresh limit hit retries after the remaining 30 s.
+    clock = FakeClock(_WINDOW_START_MS + 30_000)
+    align_app_clock(monkeypatch, clock)
+    return FakeRedis(clock=clock)
 
 
 def _set_mode(monkeypatch: pytest.MonkeyPatch, mode: RateLimitRedisFailureMode) -> None:
@@ -86,7 +80,7 @@ async def test_redis_none(
 async def test_redis_error(
     monkeypatch: pytest.MonkeyPatch, mode: RateLimitRedisFailureMode, expected: RateLimitDecision
 ) -> None:
-    monkeypatch.setattr(redis_module, "redis_client", _FakeRedis(fail=True))
+    monkeypatch.setattr(redis_module, "redis_client", BrokenRedis())
     _set_mode(monkeypatch, mode)
     outcome = await consume_rate_limit(
         scope=RateLimitScope.chat, endpoint="/chat/ws", principal=_principal()
@@ -94,8 +88,8 @@ async def test_redis_error(
     assert outcome.decision == expected
 
 
-async def test_limited_after_limit(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(redis_module, "redis_client", _FakeRedis())
+async def test_limited_after_limit(monkeypatch: pytest.MonkeyPatch, fake_redis: FakeRedis) -> None:
+    monkeypatch.setattr(redis_module, "redis_client", fake_redis)
     decisions = [
         (
             await consume_rate_limit(
@@ -182,9 +176,11 @@ async def test_ws_open_mode_runs_pipeline(monkeypatch: pytest.MonkeyPatch) -> No
     assert calls == [1]
 
 
-async def test_ws_limited_sends_rate_limit_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_ws_limited_sends_rate_limit_exceeded(
+    monkeypatch: pytest.MonkeyPatch, fake_redis: FakeRedis
+) -> None:
     monkeypatch.setattr(settings, "rate_limit_chat_requests", 0)
-    monkeypatch.setattr(redis_module, "redis_client", _FakeRedis())
+    monkeypatch.setattr(redis_module, "redis_client", fake_redis)
     ws, calls = await _run_ws(monkeypatch)
     codes = [e["safe_error_code"] for e in ws.sent if e["event"] == "chat.error"]
     assert codes == ["rate_limit_exceeded"]

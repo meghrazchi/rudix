@@ -104,20 +104,46 @@ When the SAML callback is received as a browser form post, the backend issues th
 
 ## Error format
 
+Every error response (HTTP errors, request validation failures, and unhandled exceptions) uses
+one envelope:
+
 ```json
 {
   "error": {
     "code": "DOCUMENT_NOT_FOUND",
-    "message": "Document not found or access denied.",
-    "details": {}
-  }
+    "message": "Document not found",
+    "request_id": "0b9f6c1e-6a52-4a52-9f0c-3e1f6f7a1a11",
+    "details": null
+  },
+  "detail": "Document not found"
 }
 ```
+
+- `error.code` is a stable machine-readable code. It is resolved from, in order: a structured
+  `detail` that already carries `code` or `error` (kept verbatim, for example
+  `rate_limit_exceeded`, `plan_limit_exceeded`), the registry of frequent messages in
+  `backend/app/core/error_codes.py` (for example `DOCUMENT_NOT_FOUND`, `INVALID_CURSOR`,
+  `CURSOR_SORT_UNSUPPORTED`), and a status fallback: `400 BAD_REQUEST`, `401 UNAUTHENTICATED`,
+  `403 FORBIDDEN`, `404 NOT_FOUND`, `409 CONFLICT`, `413 PAYLOAD_TOO_LARGE`,
+  `422 VALIDATION_ERROR`, `429 RATE_LIMITED`, `500 INTERNAL_ERROR`, `501 NOT_IMPLEMENTED`,
+  `503 SERVICE_UNAVAILABLE`.
+- `error.request_id` echoes `X-Request-ID` (or the generated id) and is also returned as a response
+  header. Quote it when reporting a problem.
+- `error.details` carries structured detail: the validation error list for `422`, the structured
+  object for dict details, otherwise `null`.
+- `detail` is a compatibility alias with exactly the value the API returned before the envelope
+  existed (string, validation list, or structured object). It is kept until `1.0.0`; new clients
+  should read `error`.
+- Response headers set by the failing handler (`WWW-Authenticate`, `Retry-After`,
+  `X-RateLimit-*`) are preserved.
+- Unhandled exceptions return `500` with `INTERNAL_ERROR` and a generic message. Exception text and
+  stack traces are never returned; they are logged server-side and reported to Sentry.
 
 ## Pagination
 
 List endpoints keep `limit`/`offset` paging. Since `0.4.0` the endpoints below also accept a
-keyset cursor, which costs the same on page 500 as on page 1 (R04-04).
+keyset cursor: the next page starts after the last row of the previous one, so the database
+does not read and discard the `offset` rows before it (R04-04).
 
 | Endpoint | Cursor order |
 |---|---|
@@ -151,11 +177,11 @@ Contract:
 
 Errors (HTTP `400`):
 
-| `detail` | Cause | Error code (C1 mapping) |
+| `detail` | Cause | `error.code` |
 |---|---|---|
 | `Invalid pagination cursor` | Malformed, tampered, wrong version, or from another sort order | `INVALID_CURSOR` |
 | `Cursor pagination requires sort_by=created_at` | `GET /documents` with a cursor and another `sort_by` | `CURSOR_SORT_UNSUPPORTED` |
-| `Cursor pagination cannot be combined with offset` | `cursor` with `offset > 0` | generic `400` code |
+| `Cursor pagination cannot be combined with offset` | `cursor` with `offset > 0` | `BAD_REQUEST` (status fallback) |
 
 A `cursor` longer than 1024 characters fails request validation (`422`).
 

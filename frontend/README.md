@@ -228,6 +228,7 @@ Implementation notes:
 
 - Keep the same visual language as `/rag-pipeline` (spacing, color scale, card treatment).
 - Use typed API clients and show explicit loading, empty, and error states.
+- API errors are parsed by `src/lib/api/errors.ts`: `normalizeBackendError` reads the backend envelope (`error.code`, `error.message`, `error.request_id`, `error.details`) first, then falls back to the legacy `detail` alias and older shapes. `error.details` is preferred for validation lists.
 - Preserve permission-aware behavior for organization-scoped data.
 
 ## Settings Dashboard

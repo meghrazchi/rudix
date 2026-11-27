@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.usage_touch_sql import apply_max_guarded_usage
 from app.models.api_key import ApiKey
 
 
@@ -105,16 +107,11 @@ class ApiKeysRepository:
         await db_session.flush()
         return api_key
 
-    async def record_usage(
+    async def apply_usage_touches(
         self,
         db_session: AsyncSession,
         *,
-        key_id: UUID,
-        used_at: datetime,
-        ip_address: str | None,
+        touches: Sequence[tuple[UUID, datetime, str | None]],
     ) -> None:
-        await db_session.execute(
-            update(ApiKey)
-            .where(ApiKey.id == key_id)
-            .values(last_used_at=used_at, last_used_ip=ip_address)
-        )
+        """Bulk-apply buffered ``(key_id, used_at, ip)`` touches; never moves time backwards."""
+        await apply_max_guarded_usage(db_session, model=ApiKey, touches=touches, with_ip=True)

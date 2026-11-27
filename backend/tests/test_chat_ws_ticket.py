@@ -40,6 +40,7 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.application.chat import ws_auth
+from app.auth import usage_touch
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.session_repository import AuthSessionRepository
@@ -66,17 +67,23 @@ from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
+from tests.redis_fakes import FakeRedis as SharedFakeRedis
 
 TICKET_URL = "/api/v1/chat/ws-ticket"
 
 
-class FakeRedis:
+class FakeRedis(SharedFakeRedis):
+    """Shared fake plus a raw ticket ``store`` dict the ticket tests inspect and corrupt."""
+
     def __init__(self, *, fail: bool = False) -> None:
+        super().__init__()
         self.store: dict[str, Any] = {}
         self.fail = fail
         self.getdel_calls = 0
 
-    async def set(self, key: str, value: str, ex: int, nx: bool) -> bool:
+    async def set(  # type: ignore[override]
+        self, key: str, value: str, ex: int, nx: bool
+    ) -> bool:
         if self.fail:
             raise RuntimeError("redis down")
         assert ex > 0 and nx is True
@@ -465,12 +472,16 @@ async def test_authorization_header_jwt_accepted(
 
 
 async def test_authorization_header_api_key_gets_role_check(
-    client: AsyncClient, db_session: AsyncSession
+    client: AsyncClient, db_session: AsyncSession, fake_redis: FakeRedis
 ) -> None:
     user, (org,) = await _seed(db_session, OrganizationRole.admin)
     raw = await _api_key(db_session, org, user)
     ws = await _connect(FakeWebSocket({"authorization": f"Bearer {raw}"}))
     assert ws.closes == [(4403, "Insufficient role")]
+    # R04-06: the handshake buffers API-key usage in Redis instead of writing the row.
+    assert fake_redis.commands == ["EVALSHA"]
+    (member,) = fake_redis.keyspace.sets[usage_touch.dirty_key()]
+    assert member.startswith("api_key:")
 
 
 async def test_bad_header_and_missing_credentials(

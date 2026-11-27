@@ -510,6 +510,72 @@ CREATE INDEX idx_pipeline_events_run_sequence ON pipeline_events(pipeline_run_id
 CREATE INDEX idx_usage_org_created ON usage_events(organization_id, created_at DESC);
 ```
 
+### Hot-path and foreign-key indexes (0.4.0, R04-02)
+
+Revisions `20261127_0001`, `20261127_0002`, and `20261127_0003` add these indexes. Each one
+has a matching `Index(...)` entry (same name, column order, and direction) in the model's
+`__table_args__`.
+
+```sql
+-- 20261127_0001
+CREATE INDEX idx_chat_sessions_org_created ON chat_sessions(organization_id, created_at DESC);
+CREATE INDEX idx_chat_sessions_org_user_updated
+    ON chat_sessions(organization_id, user_id, updated_at DESC, id DESC);  -- session list sort
+CREATE INDEX idx_activity_timeline_events_org_created
+    ON activity_timeline_events(organization_id, created_at DESC);
+CREATE INDEX idx_chat_shares_org_created ON chat_shares(organization_id, created_at DESC);
+CREATE INDEX idx_notifications_org_created ON notifications(organization_id, created_at DESC);
+CREATE INDEX idx_citations_document ON citations(document_id);
+CREATE INDEX idx_citations_chunk ON citations(chunk_id);
+-- 20261127_0002
+CREATE INDEX idx_documents_org_created
+    ON documents(organization_id, created_at DESC, id DESC);  -- default document list sort
+CREATE INDEX idx_external_items_connection ON external_items(connection_id);
+CREATE INDEX idx_source_documents_document ON source_documents(document_id);
+CREATE INDEX idx_evaluation_results_question ON evaluation_results(evaluation_question_id);
+CREATE INDEX idx_webhook_deliveries_webhook_created
+    ON webhook_deliveries(webhook_id, created_at DESC);
+CREATE INDEX idx_webhook_deliveries_org_created ON webhook_deliveries(organization_id, created_at);
+-- 20261127_0003
+CREATE INDEX idx_organization_members_user ON organization_members(user_id);
+CREATE INDEX idx_usage_events_user_created ON usage_events(user_id, created_at);
+CREATE INDEX idx_audit_logs_user_created ON audit_logs(user_id, created_at);
+```
+
+Not added because an index already leads with the column: `citations(chat_message_id)`
+(`idx_citations_message`) and `connector_sync_runs(connection_id)`
+(`idx_connector_sync_runs_connection_status`).
+
+**Building and rolling back.** On PostgreSQL the migrations build each index with
+`CREATE INDEX CONCURRENTLY ... IF NOT EXISTS` inside an autocommit block, with
+`statement_timeout = 0` and `lock_timeout = '10s'`, so reads and writes continue during the
+build. A failed concurrent build leaves an `INVALID` index; rerunning the upgrade drops an
+index of the same name only when `pg_index.indisvalid` is false and builds it again, and it
+never rebuilds a valid index. Downgrade drops the indexes with `DROP INDEX CONCURRENTLY IF
+EXISTS`. The migrations change no data, and old application code does not depend on the
+indexes, so an application rollback without a schema downgrade is safe. Because the build
+runs outside a transaction, run these upgrades on their own rather than with other
+migrations in a single maintenance window that expects all-or-nothing behaviour.
+
+**Foreign-key index guard.** `backend/tests/test_fk_index_guard.py` fails when a
+single-column foreign key is not the leading column of a non-partial index, unique
+constraint, or primary key. The foreign keys that were unindexed at 0.4.0 are listed in
+`backend/tests/fixtures/fk_index_exemptions.txt`; the list may only shrink (a stale entry
+also fails). A new foreign key needs an index, or an exemption line with a justification.
+The SQLite test checks the model metadata; a PostgreSQL twin (`requires_postgres`) reads
+`pg_constraint` and `pg_index` from the migrated schema, so drift between models and
+migrations also fails. Known drift at 0.4.0 is tagged in the file: `@db-only` for
+`authorization_conflicts.grant_id`, `deny_id`, and `decision_log_id` (foreign keys only in
+the migrations) and `@model-only` for `org_model_provider_change_log.org_model_provider_settings_id`
+(declared by the model, not created by any migration).
+
+**Query plans.** `backend/tests/test_query_plans_pg.py` runs `EXPLAIN (FORMAT JSON)` for ten
+hot queries (document list, session list, message list, citations by message IDs,
+notification list, audit and usage ranges, memberships by user, API key by hash, auth
+session by ID) under `SET LOCAL enable_seqscan = off` and fails on a `Seq Scan` of the
+target table. The test tables are empty, so this shows each index is usable for the query
+shape, not that the planner picks it on production data.
+
 ## Qdrant payload schema
 
 Qdrant payload should duplicate important metadata for fast filtering.

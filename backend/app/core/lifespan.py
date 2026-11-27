@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
@@ -77,18 +77,42 @@ async def probe_local_providers() -> None:
             )
 
 
+async def _init_optional_dependency(name: str, init: Callable[[], Awaitable[None] | None]) -> None:
+    """Run a dependency init; log and continue so the API can boot degraded.
+
+    ``/ready`` reports the dependency as down; consumers handle a ``None`` client.
+    """
+    try:
+        outcome = init()
+        if outcome is not None:
+            await outcome
+    except Exception as exc:
+        logger.warning(
+            "startup.dependency_unavailable",
+            extra={"dependency": name, "error": exc.__class__.__name__},
+        )
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    from app.core.config import settings
+
     try:
         init_sentry(runtime="api")
         init_langfuse(runtime="api")
-        await init_redis()
-        init_rabbitmq()
-        init_qdrant()
+        await _init_optional_dependency("redis", init_redis)
+        await _init_optional_dependency("rabbitmq", init_rabbitmq)
+        await _init_optional_dependency("qdrant", init_qdrant)
         init_minio()
         init_clamav()
         await init_neo4j()
-        await run_graph_migrations()
+        if settings.should_run_graph_migrations_on_startup:
+            await run_graph_migrations()
+        else:
+            logger.info(
+                "startup.graph_migrations_skipped",
+                extra={"environment": settings.environment.value},
+            )
         await probe_local_providers()
         yield
     finally:
