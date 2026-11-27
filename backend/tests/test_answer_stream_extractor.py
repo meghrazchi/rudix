@@ -52,6 +52,8 @@ _SAMPLES: list[str] = [
     ),
     # Whitespace around tokens and an empty answer.
     '  {\n  "answer" :  "",\n  "not_found": true, "citations": [] }\n',
+    # A top-level string value (with escapes) before the answer.
+    '{"id": "x\\"y\\\\", "answer": "after a string"}',
     # Numbers and literals before the answer.
     '{"score": -1.5e3, "ok": true, "none": null, "answer": "after literals"}',
 ]

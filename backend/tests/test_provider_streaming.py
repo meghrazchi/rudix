@@ -283,3 +283,50 @@ async def test_proxy_without_client_uses_the_provider_factory(
     proxy = _ChatCompletionProviderProxy(lambda: None)
     chunks = await _collect(proxy.stream(ChatCompletionRequest(prompt="q")))
     assert [c.text_delta for c in chunks] == expected
+
+
+def _status_error(cls: type[Exception], code: int) -> Exception:
+    request = httpx.Request("POST", "http://local/v1/chat/completions")
+    return cls("boom key=sk-secret", response=httpx.Response(code, request=request), body=None)  # type: ignore[call-arg]
+
+
+def _sdk_errors() -> list[tuple[Exception, type[Exception]]]:
+    from openai import (
+        APIConnectionError,
+        AuthenticationError,
+        InternalServerError,
+        PermissionDeniedError,
+    )
+
+    from app.domains.ai.providers.errors import (
+        InvalidProviderResponseError,
+        ProviderInternalError,
+        ProviderPolicyBlockedError,
+        ProviderUnavailableError,
+    )
+
+    request = httpx.Request("POST", "http://local/v1/chat/completions")
+    return [
+        (_rate_limited(), ProviderQuotaExceededError),
+        (APITimeoutError(request=request), ProviderTimeoutError),
+        (APIConnectionError(request=request), ProviderUnavailableError),
+        (_status_error(AuthenticationError, 401), ProviderPolicyBlockedError),
+        (_status_error(PermissionDeniedError, 403), ProviderPolicyBlockedError),
+        (_bad_request("response_format is not supported"), UnsupportedCapabilityError),
+        (_bad_request("bad prompt"), InvalidProviderResponseError),
+        (_status_error(InternalServerError, 500), ProviderInternalError),
+        (OSError("reset"), ProviderUnavailableError),
+        (ValueError("odd"), ProviderInternalError),
+    ]
+
+
+@pytest.mark.parametrize("module", ["openai", "local"])
+def test_sdk_errors_map_to_provider_errors_without_secrets(module: str) -> None:
+    from app.domains.ai.providers.local import adapter as local_adapter
+    from app.domains.ai.providers.openai import adapter as openai_adapter
+
+    translate = (openai_adapter if module == "openai" else local_adapter)._translate_chat_error
+    for error, expected in _sdk_errors():
+        mapped = translate(error)
+        assert type(mapped) is expected, (error, mapped)
+        assert "sk-secret" not in str(mapped)
