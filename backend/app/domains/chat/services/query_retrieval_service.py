@@ -17,6 +17,7 @@ from app.domains.documents.services.qdrant_filters import build_organization_fil
 from app.domains.vector_index.services.generation_service import (
     cached_read_target,
     configured_alias,
+    read_target_for_vector,
     registry,
 )
 
@@ -109,6 +110,18 @@ class QueryRetrievalService:
         if configured_alias() is not None:
             await registry.snapshot()
 
+    def search_collection(self, query_vector: Sequence[float]) -> str:
+        """Collection to search with this vector (R06-08).
+
+        An explicit ``qdrant_collection`` wins. Otherwise the active generation, or the
+        retired or building generation whose dimension the vector has: a refresh of the
+        shared registry between this query's embedding and its search (a swap or rollback)
+        must not send a vector to a collection of another dimension.
+        """
+        if self._qdrant_collection is not None:
+            return self._qdrant_collection
+        return read_target_for_vector(len(query_vector))[0]
+
     def _resolve_embedding_provider(self) -> EmbeddingProvider:
         if self._embedding_provider is None:
             from app.domains.ai.providers.factory import default_provider_factory
@@ -139,22 +152,28 @@ class QueryRetrievalService:
         *,
         question: str,
         provider: EmbeddingProvider | None = None,
+        embedding_model: str | None = None,
+        vector_size: int | None = None,
     ) -> tuple[list[float], int]:
+        """Embed the question; ``embedding_model`` and ``vector_size`` pin the target."""
         if not question.strip():
             raise ValueError("question is required")
 
-        await self.refresh_index_target()
+        if embedding_model is None or vector_size is None:
+            await self.refresh_index_target()
+        # Read once, before the provider call: another request may refresh the shared
+        # registry while this one awaits the provider (R06-08).
+        model = embedding_model or self.embedding_model
+        expected_size = vector_size or self.vector_size
         embedding_provider = provider or self._resolve_embedding_provider()
-        response = await embedding_provider.embed(
-            EmbeddingRequest(texts=[question], model=self.embedding_model)
-        )
+        response = await embedding_provider.embed(EmbeddingRequest(texts=[question], model=model))
         if not response.vectors:
             raise RuntimeError("Embedding response did not include vectors")
 
         vector = response.vectors[0]
-        if len(vector) != self.vector_size:
+        if len(vector) != expected_size:
             raise RuntimeError(
-                f"Embedding dimension mismatch: expected {self.vector_size}, got {len(vector)}"
+                f"Embedding dimension mismatch: expected {expected_size}, got {len(vector)}"
             )
         return vector, response.prompt_tokens
 
@@ -274,7 +293,7 @@ class QueryRetrievalService:
             index_versions=index_versions,
         )
         response = await client.query_points(
-            collection_name=self.qdrant_collection,
+            collection_name=self.search_collection(query_vector),
             query=query_vector,
             query_filter=query_filter,
             limit=initial_top_k,
@@ -442,7 +461,7 @@ class QueryRetrievalService:
         if callable(search_method):
             return list(
                 search_method(
-                    collection_name=self.qdrant_collection,
+                    collection_name=self.search_collection(query_vector),
                     query_vector=query_vector,
                     query_filter=query_filter,
                     limit=limit,
@@ -454,7 +473,7 @@ class QueryRetrievalService:
         query_points_method = getattr(qdrant_client, "query_points", None)
         if callable(query_points_method):
             response = query_points_method(
-                collection_name=self.qdrant_collection,
+                collection_name=self.search_collection(query_vector),
                 query=query_vector,
                 query_filter=query_filter,
                 limit=limit,

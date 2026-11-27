@@ -154,7 +154,8 @@ def test_dual_write_during_build(vi: VectorIndexEnv) -> None:
     assert progress.verify is not None and progress.verify.passed
 
     # A reindex while verifying replaces the document's points in both generations.
-    vi.process(seeded, "reindex-during-verify")
+    result = vi.process(seeded, "reindex-during-verify", force=True)
+    assert result["status"] == DocumentStatus.indexed.value
     assert len(vi.points(gen.collection_name, seeded)) == chunks
     assert len(vi.points(settings.qdrant_collection, seeded)) == chunks
 
@@ -292,6 +293,15 @@ def test_swap_after_build_serves_the_new_model(vi: VectorIndexEnv) -> None:
     vi.run(lifecycle_service.swap(dry_run=False))
     # After the swap, ingestion writes to the new generation only, with the new model.
     vi.provider.calls.clear()
-    vi.process(seeded, "after-swap")
+    old_runs = {p.payload["ingest_run_id"] for p in vi.points(settings.qdrant_collection).values()}
+    result = vi.process(seeded, "after-swap", force=True)
+    assert result["status"] == DocumentStatus.indexed.value
+    # Unchanged chunks reuse the new generation's vectors; nothing embeds with the old model.
     assert set(vi.provider.models()) <= {NEW_MODEL}
-    assert len(vi.points(gen.collection_name, seeded)) == vi.chunk_count(seeded)
+    new_points = vi.points(gen.collection_name, seeded)
+    assert len(new_points) == vi.chunk_count(seeded)
+    assert {p.payload["embedding_model"] for p in new_points.values()} == {NEW_MODEL}
+    # The reindex run wrote the new generation; the retired one was left as it was.
+    assert {p.payload["ingest_run_id"] for p in new_points.values()} != {"vector-index-g2"}
+    retired = vi.points(settings.qdrant_collection).values()
+    assert {p.payload["ingest_run_id"] for p in retired} == old_runs

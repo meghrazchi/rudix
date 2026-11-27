@@ -216,14 +216,44 @@ def sum_generation_writes(parts: list[dict[str, Any]]) -> dict[str, dict[str, An
     return totals
 
 
+async def _forget_unwritten_generations(
+    ctx: StageContext, document: Any, targets: list[GenerationTarget]
+) -> None:
+    written = [t.generation_id for t in targets if t.generation_id is not None]
+    statement = delete(VectorIndexGenerationDocument).where(
+        VectorIndexGenerationDocument.document_id == document.id
+    )
+    if written:
+        statement = statement.where(VectorIndexGenerationDocument.generation_id.not_in(written))
+    async with ctx.deps.SessionLocal() as session, session.begin():
+        result = await session.execute(statement)
+    forgotten = int(getattr(result, "rowcount", 0) or 0)
+    if forgotten > 0:
+        logger.info(
+            "vector_index.generation_documents.forgotten",
+            document_id=ctx.document_id_str,
+            organization_id=ctx.organization_id,
+            rows=forgotten,
+        )
+
+
 async def record_generation_documents(
     ctx: StageContext,
     document: Any,
     cleanup: Callable[[dict[str, Any]], Awaitable[int]],
 ) -> int:
-    """Index stage: clean, count, and record the document in each building generation."""
+    """Index stage: clean, count, and record the document in each building generation.
+
+    First, rows of this document in every generation this run did not write (a failed
+    generation, or a building one this process did not see yet) are deleted: their points
+    predate this run's chunk rows, so a rerun of the build must write the document again
+    instead of skipping it.
+    """
     targets = from_metrics(ctx)
-    if not targets or len(targets) < 2:
+    if not targets:
+        return 0
+    await _forget_unwritten_generations(ctx, document, targets)
+    if len(targets) < 2:
         return 0
     expected = int(ctx.metrics[StageName.chunk]["embeddable_count"])
     spent = (ctx.metrics.get(StageName.embed) or {}).get(WRITES_KEY) or {}

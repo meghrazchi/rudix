@@ -7,10 +7,13 @@ Alias mode reads ``vector_index_generations`` for the alias and caches the resul
 ``VECTOR_INDEX_REGISTRY_CACHE_SECONDS`` per process:
 
 - reads go to the collection the alias points at (the active generation), embedded with
-  that generation's model. The request path names the collection from the same cached
-  snapshot as the model, so a query never pairs one generation's model with another
-  generation's collection while caches expire after a swap; the retired collection stays
-  readable for ``QDRANT_RETIRED_GRACE_HOURS``, far longer than the cache;
+  that generation's model. The snapshot is shared by every request of the process, so a
+  refresh can land between a query's embedding and its search (the chat prefetch embeds
+  seconds before retrieval). ``read_target_for_vector`` therefore searches the active
+  generation when the query vector has its dimension, and otherwise the newest retired
+  (or building) generation with that dimension: a query embedded just before a swap or
+  rollback is served by the collection its model fills instead of failing. The retired
+  collection stays readable for ``QDRANT_RETIRED_GRACE_HOURS``, far longer than the cache;
 - writes go to the active generation, plus the building (or verifying) one during a build;
 - deletes go to every generation whose collection still exists (not ``dropped``).
 
@@ -56,6 +59,8 @@ class RegistrySnapshot:
     active: GenerationTarget | None
     building: GenerationTarget | None
     delete_collections: tuple[str, ...]
+    # Retired generations, newest first (search fallback for a vector of another dimension).
+    retired: tuple[GenerationTarget, ...] = ()
 
     @property
     def read_collection(self) -> str:
@@ -116,11 +121,17 @@ def build_snapshot(alias: str | None, rows: list[VectorIndexGeneration]) -> Regi
     collections = tuple(
         dict.fromkeys(row.collection_name for row in rows if row.state in repo.LIVE_STATES)
     )
+    retired = sorted(
+        (row for row in rows if row.state == "retired"),
+        key=lambda row: row.generation,
+        reverse=True,
+    )
     return RegistrySnapshot(
         alias=alias,
         active=to_target(active) if active is not None else None,
         building=to_target(building) if building is not None else None,
         delete_collections=collections or (settings.qdrant_collection,),
+        retired=tuple(to_target(row) for row in retired),
     )
 
 
@@ -198,3 +209,29 @@ def cached_read_target() -> tuple[str, GenerationTarget]:
     if snapshot is None or snapshot.active is None:
         return settings.qdrant_collection, legacy_target()
     return snapshot.read_collection, snapshot.active
+
+
+def read_target_for_vector(dimension: int) -> tuple[str, GenerationTarget]:
+    """(collection, target) to search with a query vector of ``dimension``.
+
+    The active generation when the dimension matches it (always in legacy mode and before
+    adoption). Otherwise the newest retired generation, then the building one, with that
+    dimension: the vector was embedded from a snapshot taken before this process saw a
+    swap or rollback. With no match the active generation is returned (Qdrant then reports
+    the mismatch, as before).
+    """
+    collection, active = cached_read_target()
+    snapshot = registry.cached()
+    if active.vector_size == dimension or snapshot is None or snapshot.active is None:
+        return collection, active
+    fallbacks = [*snapshot.retired, *([snapshot.building] if snapshot.building else [])]
+    for target in fallbacks:
+        if target.vector_size == dimension:
+            logger.warning(
+                "vector_index.query.dimension_fallback",
+                active_generation=active.generation,
+                generation=target.generation,
+                vector_size=dimension,
+            )
+            return target.collection_name, target
+    return collection, active

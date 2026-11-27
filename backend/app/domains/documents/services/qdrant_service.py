@@ -271,21 +271,32 @@ class QdrantService:
             document_ids=[str(document_id)],
             index_version=index_version,
         )
+        from app.domains.vector_index.services.generation_service import (
+            configured_alias,
+            resolve_delete_collections,
+        )
+
         if collection_name is not None:
             targets = [collection_name]
         else:
-            from app.domains.vector_index.services.generation_service import (
-                resolve_delete_collections,
-            )
-
             targets = await resolve_delete_collections()
+        # Alias mode only; legacy mode keeps raising on a missing collection, as before.
+        tolerate_missing = collection_name is None and configured_alias() is not None
         for target in targets:
-            await self._request(
-                "delete",
-                collection_name=target,
-                points_selector=filter_selector,
-                wait=True,
-            )
+            try:
+                await self._request(
+                    "delete",
+                    collection_name=target,
+                    points_selector=filter_selector,
+                    wait=True,
+                )
+            except UnexpectedResponse as exc:
+                # R06-08: a generation whose collection is already gone (drop-retired
+                # stopped between the collection delete and the state update, or an
+                # operator removed it) holds no points; it must not block deletion.
+                if not tolerate_missing or exc.status_code != 404:
+                    raise
+                logger.warning("qdrant.collection.missing_on_delete", collection=target)
         return QdrantDeleteResult(deleted=True)
 
     async def find_reusable_vectors(

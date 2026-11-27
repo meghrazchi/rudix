@@ -89,7 +89,8 @@ class VectorIndexEnv:
         self.process(seeded, task_id)
         return seeded
 
-    def process(self, seeded: Seeded, task_id: str) -> Any:
+    def process(self, seeded: Seeded, task_id: str, *, force: bool = False) -> Any:
+        """Run documents.process; ``force`` reprocesses an indexed document."""
         return self.env.run_task(
             document_tasks.process_document,
             seeded.document_id,
@@ -97,6 +98,7 @@ class VectorIndexEnv:
             chunking_profile_config=SMALL_CHUNKS,
             organization_id=str(seeded.organization_id),
             user_id=str(seeded.user_id),
+            force=force,
         )
 
     def delete(self, seeded: Seeded) -> Any:
