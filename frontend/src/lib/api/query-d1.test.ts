@@ -4,6 +4,12 @@ import { queryKeys } from "@/lib/api/query";
 
 // Each factory must return exactly the array literal the component used
 // before the key moved into the shared factory (R07-10).
+describe("queryKeys (D1 settings factories)", () => {
+  it("securityAudit matches the former literal", () => {
+    expect(queryKeys.securityAudit).toEqual(["security", "audit"]);
+  });
+});
+
 describe("queryKeys (D1 factories)", () => {
   it("adminPermissions keys match the former literals", () => {
     const k = queryKeys.adminPermissions;

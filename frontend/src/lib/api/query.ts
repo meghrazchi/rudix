@@ -407,6 +407,7 @@ export const queryKeys = {
       params ?? {},
     ] as const,
   // anchor: D
+  securityAudit: ["security", "audit"] as const,
   adminPermissions: {
     roleMatrix: ["admin", "permissions", "role-matrix"] as const,
     grants: ["admin", "permissions", "grants"] as const,
