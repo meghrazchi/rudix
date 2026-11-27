@@ -14,10 +14,11 @@ from uuid import UUID
 import pytest
 from ingestion_golden_support import IngestionEnv, Seeded
 from inmemory_qdrant import InMemoryQdrant, text_vector
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
+from app.db.tenant_context import tenant_context_scope
 from app.domains.ai.providers.protocols import EmbeddingRequest, EmbeddingResponse
 from app.domains.documents.services.embedding_service import EmbeddingService
 from app.domains.documents.services.qdrant_service import QdrantService
@@ -90,16 +91,21 @@ class VectorIndexEnv:
         return seeded
 
     def process(self, seeded: Seeded, task_id: str, *, force: bool = False) -> Any:
-        """Run documents.process; ``force`` reprocesses an indexed document."""
-        return self.env.run_task(
-            document_tasks.process_document,
-            seeded.document_id,
-            task_id=task_id,
-            chunking_profile_config=SMALL_CHUNKS,
-            organization_id=str(seeded.organization_id),
-            user_id=str(seeded.user_id),
-            force=force,
-        )
+        """Run documents.process; ``force`` reprocesses an indexed document.
+
+        ``run_task`` calls the task body directly, so the tenant that
+        ``RudixTask.__call__`` binds on a worker delivery is bound here.
+        """
+        with tenant_context_scope(seeded.organization_id):
+            return self.env.run_task(
+                document_tasks.process_document,
+                seeded.document_id,
+                task_id=task_id,
+                chunking_profile_config=SMALL_CHUNKS,
+                organization_id=str(seeded.organization_id),
+                user_id=str(seeded.user_id),
+                force=force,
+            )
 
     def delete(self, seeded: Seeded) -> Any:
         return self.run(
@@ -192,7 +198,18 @@ def make_vector_index_env(
     vi_env = VectorIndexEnv(env, client, provider)
     vi_env.configure_model(OLD_MODEL, settings.qdrant_vector_size)
     registry.invalidate()
+    # The generation tables are global (no organisation), so deleting a test's organisations
+    # does not clear them. Rows left by another test on a shared database would be adopted or
+    # resumed here, so start and end with none.
+    env.run_async(_clear_generations(env))
     try:
         yield vi_env
     finally:
+        env.run_async(_clear_generations(env))
         registry.invalidate()
+
+
+async def _clear_generations(env: IngestionEnv) -> None:
+    async with env.factory() as session, session.begin():
+        await session.execute(delete(VectorIndexGenerationDocument))
+        await session.execute(delete(VectorIndexGeneration))
