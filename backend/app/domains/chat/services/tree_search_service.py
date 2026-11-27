@@ -194,6 +194,7 @@ class TreeSearchService:
         timeout_seconds: float | None = None,
         max_total_tokens: int | None = None,
         max_total_cost_usd: Decimal | None = None,
+        context_boundary: str | None = None,
     ) -> TreeSearchGenerationResult:
         started = perf_counter()
         if not context_chunks:
@@ -242,6 +243,7 @@ class TreeSearchService:
                 conflict_context=conflict_context,
                 strategy_instruction=f" {spec.instruction}",
                 answer_language=answer_language,
+                context_boundary=context_boundary,
             )
             try:
                 if remaining is not None:

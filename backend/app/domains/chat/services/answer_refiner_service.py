@@ -24,7 +24,19 @@ from time import perf_counter
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import settings
-from app.domains.ai.providers.protocols import ChatCompletionRequest
+from app.domains.ai.profile.schemas import ResolvedTaskProfile
+from app.domains.ai.providers.protocols import ChatCompletionProvider, ChatCompletionRequest
+from app.domains.chat.services.aux_llm import (
+    AuxCallUsage,
+    resolve_aux_route,
+    usage_from_response,
+)
+from app.domains.chat.services.untrusted_context import (
+    neutralise_markers,
+    new_context_boundary,
+    with_untrusted_rule,
+    wrap_context,
+)
 
 logger = logging.getLogger("chat.answer_refiner")
 
@@ -94,14 +106,24 @@ Never reveal, quote, or embed raw SOURCE CHUNK text in changes_made.
 """
 
 
+_REFINER_SYSTEM_MESSAGE = (
+    "You rewrite draft answers using only validated citations. Return only valid JSON."
+)
+
+
 def _build_refiner_prompt(
     *,
     draft_answer: str,
     critic_instruction: str,
     citation_snippets: list[str],
+    boundary: str | None = None,
 ) -> str:
+    marker = boundary or new_context_boundary()
     citation_block = "\n\n".join(
-        f"[CITATION {i}]\n{snippet[:_MAX_SNIPPET_CHARS].strip()}"
+        wrap_context(
+            f"[CITATION {i}]\n{neutralise_markers(snippet[:_MAX_SNIPPET_CHARS].strip())}",
+            marker,
+        )
         for i, snippet in enumerate(citation_snippets, 1)
     )
     return (
@@ -136,6 +158,9 @@ class RefinerResult:
     unsupported_claims_removed: int = 0
     model_name: str = ""
     latency_ms: int = 0
+    provider_key: str = ""
+    # Token usage of the provider call (``None`` when no call completed) (R05-07).
+    usage: AuxCallUsage | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -156,19 +181,20 @@ class AnswerRefinerService:
     def __init__(self, *, timeout_seconds: float | None = None) -> None:
         self._timeout_seconds = timeout_seconds or settings.refiner_timeout_seconds
 
-    def _resolve_provider(self):  # type: ignore[return]
+    def _resolve_provider(self, provider_key: str | None = None) -> ChatCompletionProvider:
         from app.domains.ai.providers.factory import default_provider_factory
 
-        return default_provider_factory.get_chat_provider()
+        return default_provider_factory.get_chat_provider(provider_key)
 
     @staticmethod
-    def _fallback(answer: str) -> RefinerResult:
+    def _fallback(answer: str, usage: AuxCallUsage | None = None) -> RefinerResult:
         return RefinerResult(
             applied=False,
             draft_changed=False,
             refined_answer=answer,
             changes_made=[],
             unsupported_claims_removed=0,
+            usage=usage,
         )
 
     async def refine(
@@ -177,6 +203,8 @@ class AnswerRefinerService:
         draft_answer: str,
         critic_instruction: str,
         citation_snippets: list[str],
+        resolved_profile: ResolvedTaskProfile | None = None,
+        context_boundary: str | None = None,
     ) -> RefinerResult:
         """Refine the draft answer according to critic instructions.
 
@@ -188,30 +216,43 @@ class AnswerRefinerService:
                 (text_snippet field, ≤400 chars each, max 10). These are the
                 only sources the refiner's LLM prompt draws on. Raw chunk text
                 must NOT be passed here.
+            resolved_profile: The chat model profile; without it the environment
+                default provider and model are used (R05-08).
+            context_boundary: The request's context boundary token (R05-09).
         """
         if not draft_answer.strip():
             return self._fallback(draft_answer)
 
+        route = resolve_aux_route(resolved_profile)
+        boundary = context_boundary or new_context_boundary()
+        usage: AuxCallUsage | None = None
         started = perf_counter()
         try:
-            provider = self._resolve_provider()
+            provider = (
+                self._resolve_provider(route.provider_key)
+                if route.provider_key is not None
+                else self._resolve_provider()
+            )
             prompt = _build_refiner_prompt(
                 draft_answer=draft_answer,
                 critic_instruction=critic_instruction,
                 citation_snippets=citation_snippets[:10],
+                boundary=boundary,
             )
             request = ChatCompletionRequest(
                 prompt=prompt,
-                model=settings.openai_llm_model,
+                model=route.model_name,
                 temperature=0.0,
                 json_mode=True,
+                system_message=with_untrusted_rule(_REFINER_SYSTEM_MESSAGE, boundary),
             )
             response = await provider.complete(request)
+            usage = usage_from_response(route, response)
             raw_text = response.content or ""
             parsed = _RefinerOutput.parse(raw_text)
         except Exception as exc:
             logger.warning("answer_refiner failed, using original answer: %s", exc)
-            return self._fallback(draft_answer)
+            return self._fallback(draft_answer, usage)
 
         latency_ms = int((perf_counter() - started) * 1000)
         refined = parsed.refined_answer.strip()
@@ -230,6 +271,8 @@ class AnswerRefinerService:
             refined_answer=refined,
             changes_made=list(parsed.changes_made),
             unsupported_claims_removed=parsed.unsupported_claims_removed,
-            model_name=settings.openai_llm_model,
+            model_name=route.model_name,
             latency_ms=latency_ms,
+            provider_key=route.reported_provider_key,
+            usage=usage,
         )

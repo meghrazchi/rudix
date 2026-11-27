@@ -1,10 +1,40 @@
-"""Strict context packing (F340) and parent-context expansion (F300) (R05-01)."""
+"""Context injection scan (R05-09), strict context packing (F340), and parent-context
+expansion (F300) (R05-01)."""
 
 from app.application.chat.pipeline.context import ChatContext
 from app.core.config import settings
 from app.core.logging import log_query_event
+from app.core.metrics import record_chat_context_injection_flagged
+from app.domains.chat.services.context_injection_scan import scan_retrieved_chunks
 from app.domains.chat.services.context_packer_service import ContextPackerConfig
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
+
+
+def apply_context_injection_scan(ctx: ChatContext) -> None:
+    """Scan the reranked chunks for prompt-injection patterns and flag, down-rank, or drop
+    the matches (``CHAT_CONTEXT_INJECTION_ACTION``). Logs counts only, never text."""
+    ret = ctx.retrieval
+    if not ret.selected_chunks:
+        return
+    result = scan_retrieved_chunks(
+        ret.selected_chunks,
+        action=settings.chat_context_injection_action,
+        downrank_multiplier=settings.chat_context_injection_downrank_multiplier,
+    )
+    ctx.context_injection = result
+    if not result.flagged_count:
+        return
+    ret.selected_chunks = result.chunks
+    record_chat_context_injection_flagged(result.action, result.flagged_count)
+    log_query_event(
+        event="chat.context.injection_flagged",
+        organization_id=ctx.request.principal.organization_id,
+        user_id=ctx.request.principal.user_id,
+        job_id=ctx.job_id,
+        action=result.action,
+        flagged_count=result.flagged_count,
+        selected_count=len(ret.selected_chunks),
+    )
 
 
 def apply_context_packing(ctx: ChatContext) -> None:

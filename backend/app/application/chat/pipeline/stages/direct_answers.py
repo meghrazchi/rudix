@@ -189,7 +189,7 @@ class DirectAnswersStage:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 message="Answer generation is unavailable",
             ) from exc
-        apply_llm_result(ctx, llm_result, stage="direct_answers")
+        apply_llm_result(ctx, llm_result, stage="generate")
         gen.answer = llm_result.answer if llm_result.answer.strip() else NOT_FOUND_ANSWER
         gen.not_found = llm_result.not_found or not gen.answer.strip()
         gen.citations = []

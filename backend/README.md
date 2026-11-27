@@ -632,6 +632,20 @@ CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py \
   counted. Metrics: `rudix_chat_ttft_seconds{transport}`, `rudix_chat_stream_cancelled_total{transport}`.
 - The CI stub (`ci/stubs/llm_stub.py`) streams answers in 16-character pieces and sends the
   usage chunk when `stream_options.include_usage` is set.
+- Auxiliary stages (query rewriting, rerank, conflict detection, grounded verifier, refiner,
+  tree search) run on the organisation's resolved `chat` model profile (R05-08), so with
+  `LLM_DEFAULT_PROVIDER=local` no stage sends `OPENAI_LLM_MODEL`. A rerank provider or model
+  set in the RAG profile still wins; `RERANK_DEFAULT_PROVIDER` applies only to callers
+  without a profile. Query embeddings stay on the index's embedding model.
+- Every provider call records into the run's token ledger (R05-07): the usage event stores
+  the totals and `metadata.token_ledger`, the `tokens` quota records the total, and
+  `rudix_chat_tokens_total{stage,kind}` counts them. Reported usage now includes auxiliary
+  calls.
+- Retrieved text is wrapped in per-request boundary markers in every prompt, the
+  untrusted-context rule is added in code, and chunks matching injection patterns are
+  flagged, down-ranked (default), or dropped (`CHAT_CONTEXT_INJECTION_ACTION`,
+  `CHAT_CONTEXT_INJECTION_DOWNRANK_MULTIPLIER`); see `docs/11` (R05-09). Golden prompt hashes
+  are taken with the boundary token normalised.
 
 ## Application cache
 

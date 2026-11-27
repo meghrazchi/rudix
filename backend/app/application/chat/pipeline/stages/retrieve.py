@@ -106,13 +106,7 @@ class RetrieveStage:
                 message="Retrieval is unavailable",
             ) from exc
         ctx.latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
-        ctx.ledger.record(
-            "retrieve",
-            None,
-            ret.embedding_model,
-            ret.embedding_prompt_tokens,
-            0,
-        )
+        self._record_embeddings(ctx)
         count = len(ret.retrieved_chunks)
         await ctx.emit(ChatEvent(type="retrieval.completed", payload={"chunk_count": count}))
         await ctx.emit_step(
@@ -122,6 +116,23 @@ class RetrieveStage:
             detail=f"Found {plural(count, 'relevant passage')}",
             duration_ms=ctx.latencies_ms["retrieve"],
         )
+
+    @staticmethod
+    def _record_embeddings(ctx: ChatContext) -> None:
+        """One ledger entry per embedded retrieval query, sub-queries included (R05-07).
+
+        Query embeddings stay on the index's embedding model (not profile-routed).
+        """
+        ret = ctx.retrieval
+        records = ret.parallel_result.query_records if ret.parallel_result is not None else []
+        for record in records:
+            ctx.ledger.record(
+                "retrieve",
+                None,
+                record.embedding_model or ret.embedding_model,
+                record.embedding_prompt_tokens,
+                0,
+            )
 
     @staticmethod
     async def _retrieve(ctx: ChatContext, db_session: AsyncSession) -> None:

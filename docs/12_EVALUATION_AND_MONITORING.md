@@ -578,6 +578,39 @@ The WebSocket and `POST /chat/query/stream` (SSE) stream the answer as it is gen
   times out; `chat.sse.stream_started` when an SSE stream passed stages 1-3. No question,
   prompt, answer, or document text is logged.
 
+### Chat token ledger and context injection scan (R05-07, R05-09)
+
+Every provider call of a chat run is recorded in a per-request token ledger. **Reported totals
+change:** the `chat.completion` usage event's `input_tokens`, `output_tokens`, and `cost_usd`
+are now the ledger totals, so they include the auxiliary calls (query rewriting, every rerank
+batch, conflict detection, the grounded verifier, the refiner, and every tree-search
+candidate) next to the query embeddings and the answer. Before 0.5.0 they counted the
+embedding and the answer only. Dashboards and cost reports built on usage events show higher
+numbers for runs with auxiliary stages on; the assistant message's token columns still hold
+the embedding and answer tokens.
+
+- `usage_events.metadata.token_ledger` lists one entry per call:
+  `{stage, provider, model, prompt_tokens, completion_tokens, cached_tokens, cost_usd,
+  estimated}`. Stages: `rewrite`, `retrieve` (query embeddings, one per retrieval query, sub-queries included),
+  `rerank` (one per batch), `conflict`, `generate` (answer, guidance, and each tree-search
+  candidate), `verifier`, `refiner`. No text is stored.
+- Auxiliary costs use the configured LLM token prices (`OPENAI_LLM_*_COST_PER_MILLION_TOKENS_USD`;
+  rerank uses `RERANK_*_COST_PER_MILLION_TOKENS_USD`); embedding entries carry no cost.
+- The organisation's `tokens` quota (`QuotaType.tokens`) is incremented by the run's total
+  tokens in the same transaction as the question count.
+- A provider call that completed but returned unparseable output is still recorded; a call that
+  timed out or failed before a response is not.
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_chat_tokens_total` | `stage`, `kind` (`prompt`, `completion`, `cached`) | Tokens of every ledger entry, counted once the run is persisted. |
+| `rudix_chat_context_injection_flagged_total` | `action` (`flag`, `downrank`, `drop`) | Retrieved chunks that matched a prompt-injection pattern after rerank. |
+
+- `sum by (stage) (rate(rudix_chat_tokens_total[1h]))` shows which auxiliary stage drives cost.
+- A rising `rudix_chat_context_injection_flagged_total` points at uploaded documents with
+  instruction-like text; the log event `chat.context.injection_flagged` carries the action and
+  counts, and the answer's trust metadata (`context_injection`) lists the chunk ids.
+
 ## Continuous evaluation
 
 Run evaluations:

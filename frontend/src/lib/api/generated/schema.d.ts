@@ -9144,6 +9144,7 @@ export interface components {
             planner_critic?: components["schemas"]["PlannerCriticRecord"];
             retrieval_method?: components["schemas"]["RetrievalMethodRecord"];
             tool_orchestration?: components["schemas"]["ToolOrchestrationRecord"];
+            context_injection?: components["schemas"]["ContextInjectionRecord"];
             /**
              * Generated At
              * Format: date-time
@@ -12299,6 +12300,30 @@ export interface components {
             scopes: string[];
             /** Expires At */
             expires_at: string | null;
+        };
+        /**
+         * ContextInjectionRecord
+         * @description Prompt-injection scan of the retrieved chunks (R05-09).
+         *
+         *     Lists the ids of chunks whose text matched an injection pattern and the action taken
+         *     (flag, downrank, or drop). Never carries chunk text. ``scanned`` is false when no
+         *     chunks reached the scan (refusals, guidance answers, empty retrieval).
+         */
+        ContextInjectionRecord: {
+            /**
+             * Scanned
+             * @default false
+             */
+            scanned: boolean;
+            /** Action */
+            action?: ("flag" | "downrank" | "drop") | null;
+            /**
+             * Flagged Count
+             * @default 0
+             */
+            flagged_count: number;
+            /** Flagged Chunk Ids */
+            flagged_chunk_ids?: string[];
         };
         /** ConvertFeedbackToCasesRequest */
         ConvertFeedbackToCasesRequest: {

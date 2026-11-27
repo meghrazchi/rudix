@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.domains.ai.profile.schemas import ResolvedTaskProfile
 from app.domains.ai.providers.errors import (
     InvalidProviderResponseError,
     ProviderInternalError,
@@ -20,6 +21,14 @@ from app.domains.ai.providers.errors import (
     UnsupportedCapabilityError,
 )
 from app.domains.ai.providers.protocols import ChatCompletionProvider, ChatCompletionRequest
+from app.domains.chat.services.aux_llm import AuxCallUsage, cached_prompt_tokens
+from app.domains.chat.services.untrusted_context import (
+    context_end,
+    context_start,
+    neutralise_markers,
+    new_context_boundary,
+    with_untrusted_rule,
+)
 
 logger = get_logger("chat.rerank")
 
@@ -76,6 +85,8 @@ class RerankDiagnostics:
     batch_size: int
     max_input_candidates: int
     max_candidate_chars: int
+    # Usage of every completed provider call, one entry per batch (R05-07).
+    batch_usages: tuple[AuxCallUsage, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -191,8 +202,16 @@ class RerankService:
         )
 
     def _build_batch_prompt(
-        self, *, query: str, batch: list[RerankCandidate], max_chars: int
+        self,
+        *,
+        query: str,
+        batch: list[RerankCandidate],
+        max_chars: int,
+        boundary: str | None = None,
     ) -> str:
+        # R05-09: the candidate text sits between the request's boundary markers; the key
+        # and score lines stay outside so the output keys remain parseable.
+        marker = boundary or new_context_boundary()
         candidate_blocks: list[str] = []
         for candidate in batch:
             candidate_blocks.append(
@@ -201,8 +220,10 @@ class RerankService:
                         f"key: {candidate.key}",
                         f"original_rank: {candidate.original_rank}",
                         f"similarity_score: {candidate.similarity_score}",
+                        context_start(marker),
                         "text:",
-                        self._truncate_text(candidate.text, max_chars),
+                        neutralise_markers(self._truncate_text(candidate.text, max_chars)),
+                        context_end(marker),
                     ]
                 )
             )
@@ -235,19 +256,39 @@ class RerankService:
         model_name: str,
         timeout_seconds: float | None,
         max_candidate_chars: int,
+        boundary: str | None = None,
+        usage_sink: list[AuxCallUsage] | None = None,
+        provider_key: str = "",
     ) -> tuple[list[_BatchScore], int, int, int]:
-        prompt = self._build_batch_prompt(query=query, batch=batch, max_chars=max_candidate_chars)
+        marker = boundary or new_context_boundary()
+        prompt = self._build_batch_prompt(
+            query=query, batch=batch, max_chars=max_candidate_chars, boundary=marker
+        )
         request = ChatCompletionRequest(
             prompt=prompt,
             model=model_name,
             temperature=0.0,
             json_mode=True,
             max_tokens=max(64, len(batch) * 8),
-            system_message=_REQUEST_SYSTEM_MESSAGE,
+            system_message=with_untrusted_rule(_REQUEST_SYSTEM_MESSAGE, marker),
         )
 
         started = perf_counter()
         response = await asyncio.wait_for(provider.complete(request), timeout=timeout_seconds)
+        if usage_sink is not None:
+            # Recorded before validation: a rejected batch still consumed tokens.
+            usage_sink.append(
+                AuxCallUsage(
+                    provider_key=provider_key,
+                    model_name=model_name,
+                    prompt_tokens=response.prompt_tokens,
+                    completion_tokens=response.completion_tokens,
+                    cached_tokens=cached_prompt_tokens(response),
+                    cost_usd=self._estimate_cost(
+                        response.prompt_tokens, response.completion_tokens
+                    ),
+                )
+            )
         raw_text = response.content
         if not raw_text:
             raise ValueError("rerank provider returned no content")
@@ -293,6 +334,37 @@ class RerankService:
             )
         return RerankResult(candidates=selected, diagnostics=diagnostics)
 
+    def _estimate_cost(self, prompt_tokens: int, completion_tokens: int) -> Decimal:
+        return (
+            (Decimal(prompt_tokens) * self.input_cost_per_million_tokens_usd)
+            + (Decimal(completion_tokens) * self.output_cost_per_million_tokens_usd)
+        ) / Decimal(1_000_000)
+
+    def _route(
+        self,
+        config: RerankSettings,
+        resolved_profile: ResolvedTaskProfile | None,
+    ) -> tuple[str | None, str | None]:
+        """Provider and model of the rerank calls (R05-08).
+
+        Without a chat profile: the RAG profile's rerank settings, else the
+        ``RERANK_DEFAULT_*`` settings (today's behaviour). With a profile, a rerank provider
+        or model set in the RAG profile still wins; otherwise the calls run on the
+        profile's provider, with ``RERANK_DEFAULT_MODEL_NAME`` only when that provider is
+        the configured rerank provider, else the profile's model.
+        """
+        configured_provider = (config.provider_key or "").strip() or None
+        configured_model = (config.model_name or "").strip() or None
+        if resolved_profile is None:
+            provider_key = configured_provider or (self.default_provider_key or "").strip()
+            model_name = configured_model or (self.default_model_name or "").strip()
+            return provider_key or None, model_name or None
+        provider_key = configured_provider or resolved_profile.provider_type
+        default_model = (self.default_model_name or "").strip() or None
+        if provider_key != self.default_provider_key:
+            default_model = None
+        return provider_key, configured_model or default_model or resolved_profile.base_model
+
     def _build_diagnostics(
         self,
         *,
@@ -312,12 +384,10 @@ class RerankService:
         batch_size: int,
         max_input_candidates: int,
         max_candidate_chars: int,
+        batch_usages: tuple[AuxCallUsage, ...] = (),
     ) -> RerankDiagnostics:
         total_tokens = prompt_tokens + completion_tokens
-        cost_usd = (
-            (Decimal(prompt_tokens) * self.input_cost_per_million_tokens_usd)
-            + (Decimal(completion_tokens) * self.output_cost_per_million_tokens_usd)
-        ) / Decimal(1_000_000)
+        cost_usd = self._estimate_cost(prompt_tokens, completion_tokens)
         return RerankDiagnostics(
             enabled=enabled,
             provider_key=provider_key,
@@ -337,6 +407,7 @@ class RerankService:
             batch_size=batch_size,
             max_input_candidates=max_input_candidates,
             max_candidate_chars=max_candidate_chars,
+            batch_usages=batch_usages,
         )
 
     async def rerank(
@@ -347,6 +418,8 @@ class RerankService:
         enabled: bool,
         final_top_k: int,
         settings_override: RerankSettings | None = None,
+        resolved_profile: ResolvedTaskProfile | None = None,
+        context_boundary: str | None = None,
     ) -> RerankResult:
         if final_top_k < 1:
             raise ValueError("final_top_k must be at least 1")
@@ -414,8 +487,12 @@ class RerankService:
             )
 
         provider_factory = self._resolve_provider_factory()
-        provider_key = (config.provider_key or self.default_provider_key or "").strip() or None
+        provider_key, request_model = self._route(config, resolved_profile)
+        # Diagnostics keep reporting the configured rerank model (``None`` when unset);
+        # the calls and the ledger use the routed model.
         model_name = (config.model_name or self.default_model_name or "").strip() or None
+        boundary = context_boundary or new_context_boundary()
+        batch_usages: list[AuxCallUsage] = []
 
         if provider_key is None:
             fallback_diagnostics = self._build_diagnostics(
@@ -496,9 +573,12 @@ class RerankService:
                     query=query,
                     batch=batch,
                     provider=provider,
-                    model_name=model_name or self.default_model_name or settings.openai_llm_model,
+                    model_name=request_model or settings.openai_llm_model,
                     timeout_seconds=timeout_seconds,
                     max_candidate_chars=max_candidate_chars,
+                    boundary=boundary,
+                    usage_sink=batch_usages,
+                    provider_key=provider_key,
                 )
                 prompt_tokens += batch_prompt_tokens
                 completion_tokens += batch_completion_tokens
@@ -528,6 +608,7 @@ class RerankService:
                 batch_size=batch_size,
                 max_input_candidates=input_limit,
                 max_candidate_chars=max_candidate_chars,
+                batch_usages=tuple(batch_usages),
             )
             return self._build_fallback_result(
                 candidates=ordered_candidates,
@@ -565,6 +646,7 @@ class RerankService:
                 batch_size=batch_size,
                 max_input_candidates=input_limit,
                 max_candidate_chars=max_candidate_chars,
+                batch_usages=tuple(batch_usages),
             )
             return self._build_fallback_result(
                 candidates=ordered_candidates,
@@ -595,6 +677,7 @@ class RerankService:
                 batch_size=batch_size,
                 max_input_candidates=input_limit,
                 max_candidate_chars=max_candidate_chars,
+                batch_usages=tuple(batch_usages),
             )
             return self._build_fallback_result(
                 candidates=ordered_candidates,
@@ -625,6 +708,7 @@ class RerankService:
                 batch_size=batch_size,
                 max_input_candidates=input_limit,
                 max_candidate_chars=max_candidate_chars,
+                batch_usages=tuple(batch_usages),
             )
             return self._build_fallback_result(
                 candidates=ordered_candidates,
@@ -671,5 +755,6 @@ class RerankService:
             batch_size=batch_size,
             max_input_candidates=input_limit,
             max_candidate_chars=max_candidate_chars,
+            batch_usages=tuple(batch_usages),
         )
         return RerankResult(candidates=reranked, diagnostics=diagnostics)

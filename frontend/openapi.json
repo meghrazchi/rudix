@@ -29646,6 +29646,9 @@
           "tool_orchestration": {
             "$ref": "#/components/schemas/ToolOrchestrationRecord"
           },
+          "context_injection": {
+            "$ref": "#/components/schemas/ContextInjectionRecord"
+          },
           "generated_at": {
             "type": "string",
             "format": "date-time",
@@ -38901,6 +38904,42 @@
         "type": "object",
         "required": ["credential_status", "scopes", "expires_at"],
         "title": "ConnectorRefreshResponse"
+      },
+      "ContextInjectionRecord": {
+        "properties": {
+          "scanned": {
+            "type": "boolean",
+            "title": "Scanned",
+            "default": false
+          },
+          "action": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["flag", "downrank", "drop"]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "flagged_count": {
+            "type": "integer",
+            "title": "Flagged Count",
+            "default": 0
+          },
+          "flagged_chunk_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Flagged Chunk Ids"
+          }
+        },
+        "type": "object",
+        "title": "ContextInjectionRecord",
+        "description": "Prompt-injection scan of the retrieved chunks (R05-09).\n\nLists the ids of chunks whose text matched an injection pattern and the action taken\n(flag, downrank, or drop). Never carries chunk text. ``scanned`` is false when no\nchunks reached the scan (refusals, guidance answers, empty retrieval)."
       },
       "ConvertFeedbackToCasesRequest": {
         "properties": {

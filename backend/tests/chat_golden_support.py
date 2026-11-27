@@ -62,6 +62,9 @@ _UUID_RE = re.compile(
 # the string hash seed of the process. Those lists (and the prompt line) are compared sorted.
 _SET_ORDERED_KEY_SUFFIX = "conflicting_document_ids"
 _CONFLICTING_LINE_RE = re.compile(r"^(- conflicting_document_ids: )(.+)$", re.MULTILINE)
+# R05-09: context markers carry a random per-request boundary token; prompt hashes are taken
+# with it replaced by a stable placeholder (contract 4.2.4).
+_BOUNDARY_RE = re.compile(r"(<<<(?:END )?CONTEXT )[0-9a-f]{16}(>>>)")
 _DROPPED_KEYS = frozenset(
     {"request_id", "sequence", "timestamp", "duration_ms", "trace_id", "conversation_id"}
 )
@@ -383,7 +386,9 @@ def normalise_transcript(raw: dict[str, Any], *, labels: dict[str, str]) -> dict
 
 
 def normalise_prompt(prompt: str) -> str:
-    """Prompt normalisation beyond UUID labels (contract 4.2.4; B1 adds its boundary token)."""
+    """Prompt normalisation beyond UUID labels (contract 4.2.4): sorted conflicting-id
+    lines and the context boundary token (B1)."""
+    prompt = _BOUNDARY_RE.sub(r"\1<boundary>\2", prompt)
     return _CONFLICTING_LINE_RE.sub(
         lambda match: match.group(1) + ", ".join(sorted(match.group(2).split(", "))), prompt
     )

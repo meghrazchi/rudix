@@ -67,6 +67,12 @@
           "detected": false,
           "preferred_document_ids": []
         },
+        "context_injection": {
+          "action": null,
+          "flagged_chunk_ids": [],
+          "flagged_count": 0,
+          "scanned": false
+        },
         "evidence_quality": {
           "any_incomplete_documents": false,
           "extraction_warning_count": 0,
@@ -517,6 +523,7 @@
         "rerank_total_tokens": 0,
         "retrieval_count": 0,
         "selected_count": 0,
+        "token_ledger": [],
         "transport": "websocket"
       },
       "model_name": null,

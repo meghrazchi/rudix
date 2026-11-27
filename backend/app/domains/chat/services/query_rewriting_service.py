@@ -24,7 +24,13 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import settings
-from app.domains.ai.providers.protocols import ChatCompletionRequest
+from app.domains.ai.profile.schemas import ResolvedTaskProfile
+from app.domains.ai.providers.protocols import ChatCompletionProvider, ChatCompletionRequest
+from app.domains.chat.services.aux_llm import (
+    AuxCallUsage,
+    resolve_aux_route,
+    usage_from_response,
+)
 
 logger = logging.getLogger("chat.query_rewriting")
 
@@ -87,6 +93,8 @@ class QueryRewritingResult:
     latency_ms: int = 0
     provider_key: str = "openai"
     model_name: str = ""
+    # Token usage of the provider call (``None`` when no call completed) (R05-07).
+    usage: AuxCallUsage | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -144,10 +152,10 @@ class QueryRewritingService:
         self._timeout_seconds = timeout_seconds or settings.query_rewriting_timeout_seconds
         self._max_sub_queries = max_sub_queries or settings.query_rewriting_max_sub_queries
 
-    def _resolve_provider(self):  # type: ignore[return]
+    def _resolve_provider(self, provider_key: str | None = None) -> ChatCompletionProvider:
         from app.domains.ai.providers.factory import default_provider_factory
 
-        return default_provider_factory.get_chat_provider()
+        return default_provider_factory.get_chat_provider(provider_key)
 
     @staticmethod
     def _parse_output(raw: str) -> _RewritingOutput:
@@ -179,11 +187,14 @@ class QueryRewritingService:
         profile_rewriting_enabled: bool = True,
         profile_decomposition_enabled: bool = True,
         max_sub_queries: int | None = None,
+        resolved_profile: ResolvedTaskProfile | None = None,
     ) -> QueryRewritingResult:
         """Rewrite / decompose *question* for better retrieval.
 
         Always returns a valid `QueryRewritingResult` — falls back to the
         original question on any error so the caller can proceed safely.
+        With ``resolved_profile`` the call runs on the profile's provider and model
+        (R05-08); without one it keeps the environment default.
         """
         if not question.strip():
             return self._fallback(question)
@@ -193,17 +204,24 @@ class QueryRewritingService:
             # When decomposition is off, cap at 0 to force rewrite-or-original only.
             effective_max = 0
 
+        route = resolve_aux_route(resolved_profile)
+        usage: AuxCallUsage | None = None
         started = perf_counter()
         try:
-            provider = self._resolve_provider()
+            provider = (
+                self._resolve_provider(route.provider_key)
+                if route.provider_key is not None
+                else self._resolve_provider()
+            )
             prompt = _build_prompt(question, effective_max)
             request = ChatCompletionRequest(
                 prompt=prompt,
-                model=settings.openai_llm_model,
+                model=route.model_name,
                 temperature=0.0,
                 json_mode=True,
             )
             response = await provider.complete(request)
+            usage = usage_from_response(route, response)
             raw_text = response.content or ""
             parsed = self._parse_output(raw_text)
             parsed = self._apply_limits(parsed, max_sub_queries=effective_max)
@@ -216,7 +234,7 @@ class QueryRewritingService:
                 )
         except Exception as exc:
             logger.warning("query_rewriting failed, using original query: %s", exc)
-            return self._fallback(question)
+            return self._fallback(question, usage=usage)
 
         latency_ms = int((perf_counter() - started) * 1000)
         strategy = parsed.strategy
@@ -233,9 +251,6 @@ class QueryRewritingService:
             latency_ms,
         )
 
-        provider_key = settings.llm_default_provider
-        model_name = settings.openai_llm_model
-
         return QueryRewritingResult(
             original_query=question,
             primary_query=primary_query,
@@ -244,12 +259,13 @@ class QueryRewritingService:
             rewriting_applied=rewriting_applied,
             decomposition_applied=decomposition_applied,
             latency_ms=latency_ms,
-            provider_key=provider_key,
-            model_name=model_name,
+            provider_key=route.reported_provider_key,
+            model_name=route.model_name,
+            usage=usage,
         )
 
     @staticmethod
-    def _fallback(question: str) -> QueryRewritingResult:
+    def _fallback(question: str, *, usage: AuxCallUsage | None = None) -> QueryRewritingResult:
         return QueryRewritingResult(
             original_query=question,
             primary_query=question,
@@ -258,4 +274,5 @@ class QueryRewritingService:
             rewriting_applied=False,
             decomposition_applied=False,
             latency_ms=0,
+            usage=usage,
         )
