@@ -8,9 +8,11 @@ from uuid import UUID, uuid4
 from celery import Task  # type: ignore[import-untyped]
 
 from app.core.config import settings
+from app.core.document_errors import build_document_error_details
 from app.core.logging import get_logger, log_task_failure
 from app.core.sentry import bind_sentry_context, capture_sentry_exception
 from app.db.tenant_context import bind_worker_tenant
+from app.workers.time_limits import SOFT_TIME_LIMIT_ERROR_CODE, time_limit_error_code
 
 _NON_RETRYABLE_TASK_NAMES: frozenset[str] = frozenset({"documents.delete"})
 _UUID_RE = re.compile(
@@ -19,7 +21,29 @@ _UUID_RE = re.compile(
 
 
 def _safe_error_code(exc: Exception) -> str:
-    return type(exc).__name__
+    # R06-03: Celery's time-limit exceptions get stable codes the dashboard can filter on.
+    return time_limit_error_code(exc) or type(exc).__name__
+
+
+def _handle_time_limit(task_name: str, exc: Exception, stage: str) -> None:
+    """Count a time-limit failure and give the exception document error details, so a
+    document task marks the document failed with ``task_soft_time_limit`` /
+    ``task_time_limit`` (R06-03)."""
+    code = time_limit_error_code(exc)
+    if code is None:
+        return
+    from app.core.metrics_workers import record_task_time_limit
+
+    record_task_time_limit(task_name, "soft" if code == SOFT_TIME_LIMIT_ERROR_CODE else "hard")
+    if isinstance(getattr(exc, "error_details", None), dict):
+        return
+    exc.error_details = build_document_error_details(  # type: ignore[attr-defined]
+        stage=stage,
+        code=code,
+        category="infrastructure",
+        retryable=True,
+        message="Processing took longer than its time limit",
+    )
 
 
 def _safe_error_message(exc: Exception) -> str:
@@ -314,6 +338,9 @@ class RudixTask(Task):
             )
         except Exception:
             self._logger.warning("failed_job.persist_error", exc_info=True)
+        _handle_time_limit(
+            self.name or "<unknown>", exc, str(getattr(self, "stage", None) or "unknown")
+        )
         with bind_worker_tenant(ctx["organization_id"]):
             self.on_terminal_failure(exc=exc, args=args, kwargs=kwargs)
         super().on_failure(exc, task_id, args, kwargs, einfo)
