@@ -14912,6 +14912,10 @@ export interface components {
             policy_updated_at?: string | null;
             /** Policy Updated By User Id */
             policy_updated_by_user_id?: string | null;
+            /** Platform Audit Log Retention Days */
+            platform_audit_log_retention_days?: number | null;
+            /** Effective Audit Log Retention Days */
+            effective_audit_log_retention_days?: number | null;
         };
         /** GovernancePolicyState */
         GovernancePolicyState: {
@@ -14927,6 +14931,8 @@ export interface components {
             /** External Mcp Servers */
             external_mcp_servers?: components["schemas"]["ExternalMCPServerPolicy"][];
             provider_security?: components["schemas"]["ProviderSecurityPolicy"];
+            /** Audit Log Retention Days */
+            audit_log_retention_days?: number | null;
         };
         /** GovernancePolicyUpdateRequest */
         GovernancePolicyUpdateRequest: {
@@ -14952,6 +14958,8 @@ export interface components {
              * @default false
              */
             cloud_fallback_warning_acknowledged: boolean;
+            /** Audit Log Retention Days */
+            audit_log_retention_days?: number | null;
         };
         /** GovernancePolicyUpdateResponse */
         GovernancePolicyUpdateResponse: {
@@ -14971,6 +14979,10 @@ export interface components {
             audit_recorded: boolean;
             /** Changed Fields */
             changed_fields?: string[];
+            /** Platform Audit Log Retention Days */
+            platform_audit_log_retention_days?: number | null;
+            /** Effective Audit Log Retention Days */
+            effective_audit_log_retention_days?: number | null;
         };
         /** GovernanceToolSummary */
         GovernanceToolSummary: {

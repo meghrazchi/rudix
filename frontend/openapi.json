@@ -47390,6 +47390,28 @@
               }
             ],
             "title": "Policy Updated By User Id"
+          },
+          "platform_audit_log_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Audit Log Retention Days"
+          },
+          "effective_audit_log_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Audit Log Retention Days"
           }
         },
         "type": "object",
@@ -47429,6 +47451,19 @@
           },
           "provider_security": {
             "$ref": "#/components/schemas/ProviderSecurityPolicy"
+          },
+          "audit_log_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3650.0,
+                "minimum": 30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Log Retention Days"
           }
         },
         "type": "object",
@@ -47534,6 +47569,19 @@
             "type": "boolean",
             "title": "Cloud Fallback Warning Acknowledged",
             "default": false
+          },
+          "audit_log_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3650.0,
+                "minimum": 30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Log Retention Days"
           }
         },
         "type": "object",
@@ -47581,6 +47629,28 @@
             },
             "type": "array",
             "title": "Changed Fields"
+          },
+          "platform_audit_log_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Audit Log Retention Days"
+          },
+          "effective_audit_log_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Audit Log Retention Days"
           }
         },
         "type": "object",
