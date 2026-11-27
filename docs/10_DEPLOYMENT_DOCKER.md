@@ -122,6 +122,8 @@ volumes:
 The active `docker-compose.yml` in repository root includes:
 
 - Services: `api`, `worker`, `beat`, `postgres`, `qdrant`, `minio`, `minio-init`, `rabbitmq`, `redis`
+  (plus `worker-ingest`, `worker-graph`, `worker-sync`, `worker-eval`, `worker-default` under the
+  `pools` profile; staging and production run those five instead of `worker`)
 - Healthchecks:
   - `api` via `GET /api/v1/health`
   - `postgres` via `pg_isready`
@@ -209,7 +211,7 @@ application services:
 |---|---|---|---|---|
 | `frontend` | 30s | 1.0 | 1g | `wget /login` |
 | `api` | 30s | 2.0 | 2g | `GET /api/v1/health` |
-| `worker` | 120s (finish acknowledged Celery tasks) | 2.0 | 4g | `celery inspect ping` |
+| `worker-ingest`, `worker-graph`, `worker-sync`, `worker-eval`, `worker-default` (0.6.0; one shared `x-worker` anchor) | 120s (finish acknowledged Celery tasks) | 2.0 each | 4g each | `celery inspect ping -d <pool>@$HOSTNAME` |
 | `beat` | 10s | 0.5 | 512m | disabled |
 | `mcp` | 30s | 1.0 | 1g | `GET /health` |
 
@@ -230,6 +232,103 @@ docker run --rm -v <volume>:/data alpine chown -R 10001:10001 /data
 ```
 
 Data-service volumes (`postgres_data`, `minio_data`, and so on) are unchanged.
+
+## Worker pools and RabbitMQ (0.6.0)
+
+### Pools (R06-04)
+
+Staging and production run one service per pool instead of the single `worker`. Each runs
+`python -m app.workers.pools <name>`, which builds the Celery command from settings and
+replaces itself with `celery -A app.workers.celery_app:celery_app worker -Q <queues>
+--concurrency <n> --pool <pool> -n <name>@%h [--max-tasks-per-child <n>]`. Compose never
+names queues, so renaming a queue (for the quorum cut-over) is an environment change only.
+
+| Service | Queues (default) | Load | Default concurrency |
+|---|---|---|---|
+| `worker-ingest` | `documents.processing` (also embed, index, finalize), `documents.deletion`, `documents.reindex` | **CPU-bound**: PDF parsing, OCR (Tesseract), chunking; memory peaks on large files | 2 |
+| `worker-graph` | `documents.graph` | **I/O-bound**: LLM entity and relation extraction, Neo4j writes | 2 |
+| `worker-sync` | `connectors.sync` | **I/O-bound**: provider API pages, rate-limit waits | 2 |
+| `worker-eval` | `evaluations` (also `safety_evals.run`) | Mixed (LLM calls plus re-ingest); isolated so a full evaluation queue never takes the slots that uploads need | 1 |
+| `worker-default` | `default`, `email`, `agents` (C2, default `default`) | Light, I/O-bound; also runs the dead-letter consumer and the queue depth sampler | 2 |
+
+Settings per pool (`<NAME>` = `INGEST`, `GRAPH`, `SYNC`, `EVAL`, `DEFAULT`):
+`WORKER_POOL_<NAME>_QUEUES` (comma separated; unset derives them from `CELERY_QUEUE_*`),
+`WORKER_POOL_<NAME>_CONCURRENCY`, `WORKER_POOL_<NAME>_POOL` (`prefork`, the default, or
+`threads`), and `WORKER_POOL_<NAME>_MAX_TASKS_PER_CHILD` (unset uses
+`CELERY_WORKER_MAX_TASKS_PER_CHILD`). Only the default pool sets
+`WORKER_CONSUME_DEAD_LETTER=true` and `WORKER_SAMPLE_QUEUE_DEPTH=true` (an explicit value
+in the environment wins).
+
+Sizing:
+
+- CPU-bound (`worker-ingest`): concurrency at most the CPU limit of the container (2 by
+  default). OCR and large PDFs dominate memory, so also keep concurrency x peak child memory
+  under the memory limit; set `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` below
+  `memory limit / concurrency` so a bloated child is replaced after its task.
+- I/O-bound (`worker-graph`, `worker-sync`, `worker-default`): processes mostly wait on the
+  network, so concurrency can exceed the CPU count; the limit is memory per child and the
+  provider's rate limits (connector sync has its own provider back-off). Raise it in small
+  steps while watching `rudix_celery_queue_wait_seconds` and provider 429s.
+- `threads` is accepted only with concurrency 1: worker tasks drive one asyncio event loop per
+  process (`app/workers/async_runtime.py`) and Celery enforces time limits only in the
+  prefork pool. Scale I/O-bound pools with more prefork processes or replicas
+  (`docker compose up -d --scale worker-graph=2`; node names include the container hostname).
+- The five pools share the 2.0 CPU / 4g limits of the old single worker each; these are
+  limits, not reservations. Lower them for small hosts.
+
+Dev: `docker-compose.yml` keeps `worker` (all queues, `make run-worker` locally) and adds the
+five pools under the `pools` profile (`docker compose --profile pools up`, then stop
+`worker`). Locally: `cd backend && make run-worker-pool POOL=ingest`. The integration compose
+keeps one worker. Keep exactly one `beat` everywhere.
+
+### Time limits and recycling (R06-03)
+
+Every task gets a soft and a hard time limit (`CELERY_TASK_TIME_LIMITS`, defaults in
+`app/core/settings/worker_platform.py`; other tasks 300 s / 360 s). Children are replaced
+after `CELERY_WORKER_MAX_TASKS_PER_CHILD` tasks (default 200; 0 turns it off) and after a
+task that leaves them above `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` (default 0, off). Details
+and failure codes: [27_INGESTION_AND_WORKERS_RUNBOOK.md](./27_INGESTION_AND_WORKERS_RUNBOOK.md#time-limits).
+
+### RabbitMQ configuration
+
+`infra/rabbitmq/rabbitmq.conf` is mounted read-only at
+`/etc/rabbitmq/conf.d/20-rudix.conf` and `infra/rabbitmq/enabled_plugins` at
+`/etc/rabbitmq/enabled_plugins` in every compose file:
+
+- `consumer_timeout = 1800000` (30 minutes, RabbitMQ's default, now explicit). With
+  `acks_late` a task is acknowledged after it returns, so every hard time limit must stay below
+  it. `CELERY_BROKER_CONSUMER_TIMEOUT_SECONDS` (default 1800) must equal it; a worker in
+  staging or production refuses to start when a hard limit is not below it.
+- `prometheus.return_per_object_metrics = true`, so `rabbitmq_queue_messages_ready{queue}`
+  on `:15692` is per queue (the 0.5.0 backlog alert needed this).
+- Plugins `rabbitmq_management` and `rabbitmq_prometheus`.
+
+The staging and production compose files mount them from `./rabbitmq/` next to the compose
+file; `deploy/scripts/deploy_compose_remote.sh` copies `infra/rabbitmq/` there on every deploy
+and stops if the files are missing (Docker would otherwise create empty directories at the
+mount paths and RabbitMQ would not start). A host deployed by hand needs the same two files
+in `<app path>/rabbitmq/`. Applying the files recreates the `rabbitmq` container once.
+
+### Quorum queues and dead-lettering (R06-05)
+
+`CELERY_QUEUE_TYPE=classic` (default) declares the queues exactly as in 0.5.0.
+`CELERY_QUEUE_TYPE=quorum` declares every task queue as a quorum queue with
+`x-delivery-limit` (`CELERY_DELIVERY_LIMIT`, default 5) and dead-lettering to
+`CELERY_DEAD_LETTER_EXCHANGE` / `CELERY_DEAD_LETTER_QUEUE` (`rudix.dlx` /
+`rudix.dead_letter`), published through the topic exchange `CELERY_QUORUM_EXCHANGE`
+(`rudix.tasks`) because Celery's native delayed delivery for countdown and ETA retries does
+not support direct exchanges. An existing classic queue cannot be redeclared as quorum, so the
+switch uses new queue names and drains the old queues: follow the cut-over in
+[27_INGESTION_AND_WORKERS_RUNBOOK.md](./27_INGESTION_AND_WORKERS_RUNBOOK.md#dead-letter-queue-and-quorum-cut-over).
+
+### Checking the compose files
+
+`deploy/scripts/check_compose_config.sh` copies every compose file to a temporary directory
+with placeholder env files and `RUDIX_*_IMAGE` values and runs `docker compose config -q` on
+`docker-compose.yml` (with and without the `pools` profile), staging, production, integration,
+and integration plus the stub overlay. It also checks that staging and production define the
+five pools, no `worker`, and exactly one `beat`. It exits non-zero on any failure and never
+reads a real env file.
 
 ## Backend requirements
 
@@ -458,7 +557,7 @@ Scale these independently:
 | Component      | Scaling method                  |
 | -------------- | ------------------------------- |
 | FastAPI        | More API containers             |
-| Celery workers | More worker containers          |
+| Celery workers | Per pool: `WORKER_POOL_<NAME>_CONCURRENCY` or more `worker-<pool>` replicas |
 | PostgreSQL     | Managed DB, read replicas later |
 | Qdrant         | Dedicated node/cluster          |
 | MinIO          | Distributed MinIO or managed S3 |

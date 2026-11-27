@@ -424,7 +424,8 @@ make install
 make lint
 make test
 make run-api
-make run-worker
+make run-worker              # one worker, every queue (dev)
+make run-worker-pool POOL=ingest   # one R06-04 pool: ingest|graph|sync|eval|default
 make run-beat
 make migrate
 make downgrade
@@ -1065,6 +1066,26 @@ Celery beat is the scheduler that enqueues periodic tasks. It schedules these en
 
 Without a beat process, scheduled connector syncs, approval expiry, and stale-document
 recovery never run.
+
+Worker platform (0.6.0, R06-03 to R06-05): beat schedules nothing new for it. The queue depth
+gauges come from a sampler in `worker-default`'s main process
+(`WORKER_SAMPLE_QUEUE_DEPTH`, every `WORKER_QUEUE_SAMPLE_INTERVAL_SECONDS`, default 30), not
+from a beat task, because a task in a prefork child cannot export metrics on the worker's
+metrics port. Beat itself stays a single process outside the pools; its tasks run on the
+`default` queue, so `worker-default` must be running for them. Every task, beat tasks
+included, now has a soft and a hard time limit (defaults 300 s / 360 s unless
+`CELERY_TASK_TIME_LIMITS` names it; `maintenance.retention.purge` 1500 s / 1620 s).
+
+Worker notes:
+
+- `make run-worker` consumes every queue in `task_queues`. Staging and production run five
+  pools (`python -m app.workers.pools ingest|graph|sync|eval|default`), each with `-Q`,
+  `--concurrency`, and `--pool` from `WORKER_POOL_<NAME>_*` (docs/10 "Worker pools").
+- `CELERY_WORKER_MAX_TASKS_PER_CHILD` (200) and `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` (0,
+  off) recycle children. A time-limited task records `FailedJob.error_code`
+  `task_soft_time_limit` or `task_time_limit`.
+- `CELERY_QUEUE_TYPE=quorum` switches to quorum queues with a dead-letter exchange; follow the
+  cut-over in docs/27 (new queue names, drain the old ones).
 
 Document processing claim and stale reaper: `documents.process` and `documents.reindex`
 atomically claim the document by writing their Celery task ID to

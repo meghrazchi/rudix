@@ -729,6 +729,37 @@ after `finalize` on its own queue.
   `superseded` or `lease_held` rising (duplicate publications or competing claims).
 - No throughput or latency figure is recorded for the chain; the tests assert call counts.
 
+### Worker pools, queues, time limits, and dead letters (R06-03, R06-04, R06-05)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_celery_queue_wait_seconds` | `queue` | Histogram: seconds from publication (header `rudix_published_at`, publisher clock) or the ETA, whichever is later, to a worker receiving the task. Recorded on `task_received` in the worker main process. |
+| `rudix_celery_queue_depth` | `queue` | Ready messages per task queue (and `rudix.dead_letter` in quorum mode) from a passive `queue_declare` by `worker-default` every `WORKER_QUEUE_SAMPLE_INTERVAL_SECONDS` (30). |
+| `rudix_celery_queue_consumers` | `queue` | Consumers per queue from the same sample. |
+| `rudix_dead_letter_messages_total` | `outcome` | Dead-letter consumer: `recorded`, `duplicate` (task id already recorded), `no_tenant`, `malformed`, `error` (database error; requeued). |
+| `rudix_celery_task_time_limit_total` | `task`, `kind` | Tasks stopped by a time limit (`soft`, `hard`). |
+
+- `queue` is a configured queue name or `other`; the delay prefix that Celery's native
+  delayed delivery adds to routing keys is stripped. No task arguments or ids are labels.
+- Worker metrics are served by the worker main process on `WORKER_METRICS_PORT` (9808) when
+  `WORKER_METRICS_ENABLED=true`; Prometheus scrapes `worker:9808` and each `worker-<pool>:9808`.
+  The queue metrics above and hard time limits are recorded in that process. Metrics recorded
+  inside a prefork child (task counters and durations from `task_prerun` / `task_postrun`,
+  soft time limits) are not visible to it: that limitation predates 0.6.0. Use `FailedJob`
+  rows (`error_code` `task_soft_time_limit`) for soft limits.
+- Alerts (group `rudix-workers` in `infra/observability/prometheus/alerts.yml`):
+  `RudixDeadLetterQueueNotEmpty` (dead-letter depth above 0 for 10 minutes),
+  `RudixCeleryQueueWaitHigh` (p95 wait above 300 s for 15 minutes),
+  `RudixCeleryQueueDepthGrowing` (more than 100 ready and rising for 15 minutes),
+  `RudixCeleryQueueWithoutConsumers`. Dashboard `07 — Rudix Worker Pools & Queues`.
+- Logs: `worker.time_limit_exceeds_consumer_timeout` (start-up check),
+  `dead_letter.recorded`, `dead_letter.duplicate`, `dead_letter.no_tenant`,
+  `dead_letter.malformed`, `dead_letter.persist_failed`, `workers.queue_depth_unavailable`.
+  They carry task name, task id, organisation, document id, queue, reason, and death count;
+  never task arguments beyond those ids.
+- The thresholds are starting points, not measured values; no queue wait or depth baseline has
+  been recorded (the load test is a manual step in plan section 8).
+
 ## Continuous evaluation
 
 Run evaluations:
