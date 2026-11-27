@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.session_repository import AuthSessionRepository
+from app.clients import object_storage
 from app.clients.minio_client import get_minio_client
 from app.core.config import settings
 from app.db.session import get_db_session
@@ -52,12 +53,13 @@ async def _get_user(db: AsyncSession, *, principal: AuthenticatedPrincipal) -> U
     return user
 
 
-def _avatar_presigned_url(object_key: str) -> str | None:
+async def _avatar_presigned_url(object_key: str) -> str | None:
     client = get_minio_client(lazy_init=False)
     if client is None or not object_key:
         return None
     try:
-        return client.generate_presigned_url(
+        return await object_storage.generate_presigned_url(
+            client,
             "get_object",
             Params={"Bucket": settings.minio_bucket, "Key": object_key},
             ExpiresIn=_AVATAR_URL_TTL,
@@ -66,14 +68,14 @@ def _avatar_presigned_url(object_key: str) -> str | None:
         return None
 
 
-def _resolve_avatar_url(user: User) -> str | None:
+async def _resolve_avatar_url(user: User) -> str | None:
     """Return presigned URL if the stored value looks like an object key, else return as-is."""
     raw = user.avatar_url
     if not raw:
         return None
     if raw.startswith("http://") or raw.startswith("https://"):
         return raw
-    return _avatar_presigned_url(raw)
+    return await _avatar_presigned_url(raw)
 
 
 def _parse_preferences(user: User) -> dict:
@@ -93,12 +95,12 @@ def _user_display_name(user: User) -> str:
     return " ".join(p.capitalize() for p in local.split(".") if p) or local or user.email or ""
 
 
-def _build_user_response(user: User) -> dict:
+async def _build_user_response(user: User) -> dict:
     return {
         "id": str(user.id),
         "email": user.email or "",
         "name": _user_display_name(user),
-        "avatar_url": _resolve_avatar_url(user),
+        "avatar_url": await _resolve_avatar_url(user),
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
 
@@ -149,7 +151,7 @@ async def get_me(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> UserProfileResponse:
     user = await _get_user(db, principal=principal)
-    return UserProfileResponse(**_build_user_response(user))
+    return UserProfileResponse(**await _build_user_response(user))
 
 
 # ── PATCH /me ─────────────────────────────────────────────────────────────────
@@ -186,7 +188,7 @@ async def update_me(
             metadata={"fields_updated": ["name"] if body.name is not None else []},
         )
 
-    return UserProfileResponse(**_build_user_response(user))
+    return UserProfileResponse(**await _build_user_response(user))
 
 
 # ── POST /me/avatar ───────────────────────────────────────────────────────────
@@ -242,14 +244,15 @@ async def upload_avatar(
     old_key = user.avatar_url
     if old_key and not (old_key.startswith("http://") or old_key.startswith("https://")):
         try:
-            client.delete_object(Bucket=settings.minio_bucket, Key=old_key)
+            await object_storage.delete_object(client, Bucket=settings.minio_bucket, Key=old_key)
         except Exception:
             pass
 
     object_key = f"{_AVATAR_OBJECT_PREFIX}/{principal.user_id}/{uuid.uuid4()}.{ext}"
     import io
 
-    client.put_object(
+    await object_storage.put_object(
+        client,
         Bucket=settings.minio_bucket,
         Key=object_key,
         Body=io.BytesIO(data),
@@ -271,7 +274,7 @@ async def upload_avatar(
             resource_id=principal.user_id,
         )
 
-    return UserProfileResponse(**_build_user_response(user))
+    return UserProfileResponse(**await _build_user_response(user))
 
 
 # ── DELETE /me/avatar ─────────────────────────────────────────────────────────
@@ -289,7 +292,9 @@ async def remove_avatar(
         client = get_minio_client(lazy_init=False)
         if client is not None:
             try:
-                client.delete_object(Bucket=settings.minio_bucket, Key=old_key)
+                await object_storage.delete_object(
+                    client, Bucket=settings.minio_bucket, Key=old_key
+                )
             except Exception:
                 pass
 
@@ -478,7 +483,9 @@ async def delete_personal_account(
         client = get_minio_client(lazy_init=False)
         if client is not None:
             try:
-                client.delete_object(Bucket=settings.minio_bucket, Key=avatar_key)
+                await object_storage.delete_object(
+                    client, Bucket=settings.minio_bucket, Key=avatar_key
+                )
             except Exception:
                 pass
 

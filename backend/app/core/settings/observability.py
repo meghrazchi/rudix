@@ -47,6 +47,11 @@ class ObservabilitySettings(BaseModel):
     metrics_bearer_token: SecretStr | None = None
     # Count SQL statements per HTTP request (rudix_db_queries_per_request, R03-09).
     metrics_db_query_counting_enabled: bool = True
+    # Event-loop lag monitor (rudix_event_loop_lag_seconds, R04-11).
+    loop_lag_monitor_enabled: bool = True
+    loop_lag_monitor_interval_ms: int = Field(default=50, ge=5, le=5000)
+    # GZip responses at or above this size; 0 disables compression (R04-11).
+    http_gzip_minimum_bytes: int = Field(default=1024, ge=0)
     worker_metrics_enabled: bool = False
     worker_metrics_port: int = Field(default=9808, ge=1024, le=65535)
 

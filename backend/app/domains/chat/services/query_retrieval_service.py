@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -210,7 +211,9 @@ class QueryRetrievalService:
             question=question,
             provider=provider,
         )
-        candidates = self.retrieve_candidates(
+        # The Qdrant client is synchronous; AsyncQdrantClient is deferred (R06-07).
+        candidates = await asyncio.to_thread(
+            self.retrieve_candidates,
             query_vector=query_vector,
             organization_id=organization_id,
             document_ids=document_ids,

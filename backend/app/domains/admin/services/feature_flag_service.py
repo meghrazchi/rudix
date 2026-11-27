@@ -3,8 +3,10 @@ from __future__ import annotations
 from typing import cast
 from uuid import UUID
 
+from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import NAMESPACE_FEATURE_FLAGS, OrgScope, get_or_load
 from app.core.config import settings
 from app.domains.admin.repositories.feature_flags import FeatureFlagRepository
 from app.domains.admin.schemas.feature_flags import (
@@ -42,6 +44,8 @@ _SETTINGS_ATTR: dict[str, str] = {
     "tree_search_reasoning": "feature_enable_tree_search_reasoning",
     "org_memory": "feature_enable_org_memory",
 }
+
+_OVERRIDE_MAP_ADAPTER: TypeAdapter[dict[str, bool]] = TypeAdapter(dict[str, bool])
 
 
 def _env_default(flag_name: str) -> bool:
@@ -167,10 +171,33 @@ class FeatureFlagService:
         organization_id: UUID,
         flag_name: str,
     ) -> bool:
-        override = await self._repository.get(
-            session, organization_id=organization_id, flag_name=flag_name
+        overrides = await self.cached_override_map(session, organization_id=organization_id)
+        if flag_name in overrides:
+            return overrides[flag_name]
+        return _env_default(flag_name)
+
+    async def cached_override_map(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+    ) -> dict[str, bool]:
+        """The org's ``{flag_name: enabled}`` overrides, cached under the org scope (R04-05)."""
+
+        async def load() -> dict[str, bool]:
+            overrides = await self._repository.list_by_organization(
+                session, organization_id=organization_id
+            )
+            return {override.flag_name: override.enabled for override in overrides}
+
+        return await get_or_load(
+            scope=OrgScope(organization_id),
+            namespace=NAMESPACE_FEATURE_FLAGS,
+            key_id="overrides",
+            ttl=settings.cache_ttl_flags_seconds,
+            adapter=_OVERRIDE_MAP_ADAPTER,
+            loader=load,
         )
-        return _resolve_flag(flag_name, override).enabled
 
 
 def resolve_flag_from_env(flag_name: FeatureFlagName) -> bool:

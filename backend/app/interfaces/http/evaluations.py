@@ -46,6 +46,7 @@ from app.domains.quota.services.plan_enforcement_service import plan_enforcement
 from app.models.enums import EvaluationRunStatus, OrganizationRole
 from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun
 from app.rate_limit import RateLimitScope, enforce_rate_limit
+from app.workers.dispatch import enqueue
 from app.workers.evaluation_tasks import run_evaluation as run_evaluation_task
 
 router = APIRouter(prefix="/evaluations", tags=["evaluations"])
@@ -972,7 +973,7 @@ async def trigger_benchmark_run(
     evaluation_run.provider_profile = payload.provider_profile
     await db_session.flush()
 
-    run_evaluation_task.delay(str(evaluation_run.id))
+    await enqueue(run_evaluation_task, str(evaluation_run.id))
 
     log_evaluation_event(
         event="evaluation.benchmark.triggered",

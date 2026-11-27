@@ -487,6 +487,44 @@ Notes:
   `RETENTION_DELETE_BATCH_SIZE` x `RETENTION_MAX_BATCHES_PER_RUN` per day. Raise one of the
   two, or let the backlog drain over several runs.
 
+### Event-loop lag
+
+The API runs a small background task (`LOOP_LAG_MONITOR_ENABLED`, default on; tick
+`LOOP_LAG_MONITOR_INTERVAL_MS`, default 50) that measures how late it wakes up. A blocking
+call on the event loop shows up as lag. It needs no labels.
+
+| Metric | Type | Meaning |
+|---|---|---|
+| `rudix_event_loop_lag_seconds` | gauge | Worst lag in the current rolling 30-second window (resets each window, so one spike does not pin it). |
+| `rudix_event_loop_lag_seconds_hist` | histogram | Lag of every monitor tick. |
+
+- Sustained lag above roughly 100 ms means something is blocking the loop (a sync client
+  call, CPU-heavy parsing). Object storage, Celery dispatch, and Qdrant search on request
+  paths run through `asyncio.to_thread`; look for new sync calls first.
+- `tests/test_event_loop_lag.py` is the regression probe for upload, download, retrieval,
+  and enqueue.
+
+### Application cache (R04-05)
+
+| Metric | Labels | Meaning |
+| --- | --- | --- |
+| `rudix_cache_hits_total` | `namespace` | Values served from Redis (including in-process single-flight followers). |
+| `rudix_cache_misses_total` | `namespace` | Values loaded from the database and written to Redis. |
+| `rudix_cache_errors_total` | `namespace`, `operation` | Reads that fell back to the database. `operation` is `version`, `get`, `set`, `decode` (Redis error or timeout), `unavailable` (no Redis client), or `disabled` (`CACHE_ENABLED=false`). |
+| `rudix_cache_invalidations_total` | `scope`, `result` | Post-commit version bumps. `scope` is `org` or `user`; `result` is `ok`, `error`, `unavailable`, `skipped` (sync session, no event loop), or `unresolved` (custom-role permission whose organisation could not be found). |
+
+`namespace` is `auth_principal`, `permission_set`, or `feature_flags`.
+
+- Hit ratio is `hits / (hits + misses)` per namespace. A warm authenticated request issues no
+  auth statements; a low `auth_principal` hit ratio usually means frequent session refreshes or
+  user-level writes (each bumps the user's version).
+- Alert on a sustained rate of `rudix_cache_errors_total{operation!~"unavailable|disabled"}`:
+  Redis is slow or failing and every request is reading the database again.
+- Alert on any `rudix_cache_invalidations_total{result="error"}`: until the TTL passes, a
+  revoked session, removed member, or changed permission may still be served from cache.
+- Failures log `cache.fallback` and `cache.invalidation.failed` with namespace or scope and
+  the error type; no values, tokens, or ids beyond the scope id are logged.
+
 ## Continuous evaluation
 
 Run evaluations:

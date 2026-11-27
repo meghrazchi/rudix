@@ -13,7 +13,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.admin.exports import (
@@ -51,7 +50,7 @@ from app.domains.admin.schemas.admin import (
     UsageSummaryTotalsResponse,
 )
 from app.domains.admin.services.audit_service import sanitize_metadata
-from app.models.document import Document
+from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.enums import OrganizationRole
 from app.models.usage import AuditLog, UsageEvent
 from app.rate_limit import RateLimitScope, enforce_rate_limit
@@ -59,6 +58,7 @@ from app.shared.pagination import encode_cursor, resolve_page_request, split_pag
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 usage_repository = UsageRepository()
+document_repository = DocumentRepository()
 
 DEFAULT_RANGE_DAYS = 30
 MAX_RANGE_DAYS = 365
@@ -551,30 +551,6 @@ def _aggregate_dashboard(
     return total, series
 
 
-async def _count_org_documents(
-    db_session: AsyncSession,
-    organization_id: UUID,
-) -> tuple[int, int, int]:
-    """Returns (total_docs, indexed_docs, total_chunks)."""
-    non_deleted = ("deleted",)
-    total_stmt = select(func.count(Document.id)).where(
-        Document.organization_id == organization_id,
-        Document.status.not_in(non_deleted),
-    )
-    indexed_stmt = select(func.count(Document.id)).where(
-        Document.organization_id == organization_id,
-        Document.status == "indexed",
-    )
-    chunks_stmt = select(func.coalesce(func.sum(Document.chunk_count), 0)).where(
-        Document.organization_id == organization_id,
-        Document.status == "indexed",
-    )
-    total_docs = int((await db_session.execute(total_stmt)).scalar_one() or 0)
-    indexed_docs = int((await db_session.execute(indexed_stmt)).scalar_one() or 0)
-    total_chunks = int((await db_session.execute(chunks_stmt)).scalar_one() or 0)
-    return total_docs, indexed_docs, total_chunks
-
-
 def _serialize_usage_events_csv(events: list[UsageEvent]) -> str:
     output = io.StringIO()
     writer = csv.DictWriter(
@@ -643,7 +619,9 @@ async def get_admin_usage_dashboard(
     )
 
     total_bucket, series = _aggregate_dashboard(events, granularity=granularity)
-    total_docs, indexed_docs, total_chunks = await _count_org_documents(db_session, organization_id)
+    total_docs, indexed_docs, total_chunks = await document_repository.count_org_documents_summary(
+        db_session, organization_id=organization_id
+    )
 
     top_user_rows = await usage_repository.aggregate_by_user(
         db_session,

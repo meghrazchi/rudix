@@ -13,6 +13,7 @@ from app.clients.qdrant_client import close_qdrant, init_qdrant
 from app.clients.rabbitmq_client import close_rabbitmq, init_rabbitmq
 from app.clients.redis_client import close_redis, init_redis
 from app.core.langfuse_tracer import init_langfuse, shutdown_langfuse
+from app.core.loop_lag import start_loop_lag_monitor, stop_loop_lag_monitor
 from app.core.sentry import init_sentry
 from app.db.session import dispose_engine
 from app.domains.graph.migration_runner import run_graph_migrations
@@ -115,6 +116,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
                 extra={"environment": settings.environment.value},
             )
         await probe_local_providers()
+        start_loop_lag_monitor()
         yield
     finally:
         await close_redis()
@@ -123,5 +125,6 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         close_minio()
         close_clamav()
         await close_neo4j()
+        await stop_loop_lag_monitor()
         await dispose_engine()
         shutdown_langfuse()
