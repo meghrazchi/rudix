@@ -61,7 +61,7 @@ All notable changes to Rudix, the product and its documentation, are recorded he
 
 ### Changed
 
-- `0.6.0` integration check (R06-00): coverage ratchets raised to the measured values (backend `fail_under` 81.8; frontend lines 65.9, statements 65.0, functions 59.0, branches 58.4), a route test for the static solution pages, and `scripts/export_openapi.py` stubs `OPENAI_API_KEY` so the OpenAPI contract check runs on a runner without `.env`.
+- `0.6.0` integration check (R06-00): coverage ratchets raised to the measured values (backend `fail_under` 82.2; frontend lines 66.0, statements 65.1, functions 59.1, branches 58.5), a route test for the static solution pages, `scripts/export_openapi.py` stubs `OPENAI_API_KEY` so the OpenAPI contract check runs on a runner without `.env`, and the ingestion golden harness pins `OCR_DEFAULT_LANGUAGES`.
 - CI: check workflows run on pull requests and on push to `main` and `develop`, no longer on every branch push; `release.yml` still runs on `main` and tags only.
 - Backend `cryptography` range raised to `>=50.0.0,<51.0.0` (locked 50.0.2) to clear PYSEC-2026-3552; `virtualenv` (dev-only) stays at 21.14.5 because its fixed releases need `packaging>=26.3` while `langfuse<3` caps `packaging<25`, so `make audit` still reports it (DEPS).
 - Concurrent keyword-search branches in parallel retrieval each use their own database session; swallowed branch failures are logged and counted in `rudix_retrieval_branch_failures_total` (R02-06).
