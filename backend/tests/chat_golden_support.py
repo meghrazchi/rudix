@@ -299,6 +299,10 @@ async def record_transcript(
         outcome = await ask_http_direct(db_session, world)
     else:
         outcome = await ask_ws(db_session, monkeypatch, world)
+    if transport != "ws" and outcome["status_code"] != 200:
+        # The test shares one session with the request; ``get_db_session`` would close it
+        # after a refused request, which rolls back anything left uncommitted (R05-02).
+        await db_session.rollback()
     persisted = await persisted_state(db_session, organization_id)
     after = await _question_usage(db_session, organization_id)
     raw: dict[str, Any] = {
@@ -388,6 +392,21 @@ def normalise_prompt(prompt: str) -> str:
 # ---------------------------------------------------------------------------
 # Fixture comparison
 # ---------------------------------------------------------------------------
+
+
+def golden_target(transport: str, pipeline_v2: bool) -> tuple[str, bool]:
+    """Fixture transport and whether ``CHAT_GOLDEN_UPDATE=1`` may rewrite it.
+
+    HTTP fixtures are recorded by the legacy body and reproduced by the pipeline. Since S2
+    the WebSocket runs every pipeline stage: ``ws`` fixtures are recorded by the pipeline
+    run, and ``ws_legacy`` keeps the pre-pipeline WebSocket transcripts (never rewritten)
+    for the legacy body that stays reachable with ``CHAT_PIPELINE_V2=false`` until S3.
+    """
+    if transport == "ws":
+        return ("ws", True) if pipeline_v2 else ("ws_legacy", False)
+    if transport == "http_direct":
+        return "http", False
+    return transport, not pipeline_v2
 
 
 def fixture_path(scenario: str, transport: str) -> Path:

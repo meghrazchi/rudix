@@ -9,7 +9,7 @@ from fastapi import status
 
 from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
 from app.application.chat.pipeline.controls import _resolve_grounded_verification_controls
-from app.application.chat.pipeline.events import plural
+from app.application.chat.pipeline.events import ChatEvent, plural
 from app.application.chat.pipeline.stages._confidence import (
     build_answer_citations,
     enrich_citations_and_score,
@@ -30,17 +30,33 @@ class VerifyStage:
     async def run(self, ctx: ChatContext) -> None:
         gen = ctx.generation
         if not ctx.terminal:
-            if gen.llm_call_ran:
-                await ctx.emit_step("verifying_citations", "Verifying source citations", "running")
-                build_answer_citations(ctx)
-                await enrich_citations_and_score(ctx)
-                await ctx.emit_step(
-                    "verifying_citations",
-                    "Verifying source citations",
-                    "warning" if ctx.verification.citation_validation_failed else "success",
-                    detail=f"Linked {plural(len(gen.citations), 'citation')}",
-                )
-                await self._grounded_verification(ctx)
+            if gen.answer_block_ran:
+                # Citation events and steps only describe an answer the model gave; tree
+                # search validated its candidate's citations already.
+                answered = not gen.not_found
+                if answered:
+                    await ctx.emit(ChatEvent(type="citation.validation.started"))
+                    await ctx.emit_step(
+                        "verifying_citations", "Verifying source citations", "running"
+                    )
+                if gen.llm_call_ran:
+                    build_answer_citations(ctx)
+                    await enrich_citations_and_score(ctx)
+                if answered:
+                    await ctx.emit(
+                        ChatEvent(
+                            type="citation.validation.completed",
+                            payload={"citation_count": len(gen.citations)},
+                        )
+                    )
+                    await ctx.emit_step(
+                        "verifying_citations",
+                        "Verifying source citations",
+                        "warning" if ctx.verification.citation_validation_failed else "success",
+                        detail=f"Linked {plural(len(gen.citations), 'citation')}",
+                    )
+                if gen.llm_call_ran:
+                    await self._grounded_verification(ctx)
             if gen.answer_block_ran and gen.not_found:
                 score_not_found(ctx)
             await self._critic_and_refiner(ctx)

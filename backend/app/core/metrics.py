@@ -256,6 +256,16 @@ CHAT_STAGE_SECONDS = Histogram(
     registry=registry,
 )
 
+# R05-02: how long the chat pipeline holds a database session per phase (read, short,
+# write). Labels are the fixed phase names; no session is held while the model generates.
+CHAT_DB_SESSION_SECONDS = Histogram(
+    "rudix_chat_db_session_seconds",
+    "Time one chat pipeline database session was held, by phase",
+    ["phase"],
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
+    registry=registry,
+)
+
 CHAT_WS_AUTH_TOTAL = Counter(
     "rudix_chat_ws_auth_total",
     "Chat WebSocket handshake authentication attempts by method and outcome",

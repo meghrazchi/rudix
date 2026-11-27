@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
 from app.application.chat.pipeline.controls import _resolve_tree_search_reasoning_enabled
-from app.application.chat.pipeline.stages._llm import apply_llm_result
+from app.application.chat.pipeline.stages._llm import apply_llm_result, start_drafting
 from app.core.config import settings
 from app.core.logging import log_query_event
 from app.domains.chat.schemas.chat import ChatCitationResponse
@@ -109,6 +109,7 @@ async def run_tree_search(ctx: ChatContext) -> None:
     )
     if not applicable:
         return
+    await start_drafting(ctx)
     tree_chunks = context_chunks(ctx)
     tree = ctx.deps.tree_search_service
     result = await tree.generate_candidates(

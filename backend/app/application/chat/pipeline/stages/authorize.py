@@ -1,7 +1,8 @@
 """Stage 1: quota, explicit document access, source scope, chat session (R05-01).
 
 Runs before anything reads document text: authorisation, the question quota, and document
-access filtering stay ahead of retrieval and prompt building.
+access filtering stay ahead of retrieval and prompt building. Every statement here is a read
+(R05-02); the quota check does not reset an expired window, the stage 10 increment does.
 """
 
 from uuid import UUID
@@ -10,6 +11,7 @@ from fastapi import HTTPException, status
 
 from app.application.chat.pipeline.context import ChatContext
 from app.application.chat.pipeline.errors import ChatPipelineError
+from app.application.chat.pipeline.events import ChatEvent
 from app.application.chat.scope_inventory import _filter_authorized_document_ids_for_chat
 from app.auth.dependencies import ensure_document_ids_access
 from app.core.logging import log_query_event
@@ -84,7 +86,15 @@ class AuthorizeStage:
             ctx.scope.explicit_document_ids = explicit_document_ids
             ctx.scope.source_scope_result = source_scope_result
             ctx.scope.document_ids = document_ids
+            await ctx.emit(
+                ChatEvent(
+                    type="chat.scope.validated",
+                    payload={"scope_label": source_scope_result.label},
+                )
+            )
 
+            # R05-02: a new chat session is only written by stage 10 under the id the
+            # pipeline pre-assigned; an existing one is looked up and owner-checked here.
             if payload.chat_session_id is not None:
                 try:
                     chat_session_id = UUID(payload.chat_session_id)
@@ -100,14 +110,8 @@ class AuthorizeStage:
                 if chat_session is None:
                     self._log_session_not_found(ctx)
                     raise _session_not_found()
-            else:
-                chat_session = await deps.chat_repository.create_chat_session(
-                    db_session,
-                    organization_id=req.organization_id,
-                    user_id=req.user_id,
-                    title=payload.question[:120],
-                )
-            ctx.scope.chat_session = chat_session
+                ctx.ids.chat_session_id = chat_session.id
+                ctx.ids.new_chat_session = False
 
     @staticmethod
     def _log_session_not_found(ctx: ChatContext) -> None:

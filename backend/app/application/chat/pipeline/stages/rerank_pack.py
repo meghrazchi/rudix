@@ -8,7 +8,7 @@ from app.application.chat.pipeline.controls import (
     _build_conflict_detection_chunks,
     _rerank_chunks,
 )
-from app.application.chat.pipeline.events import plural
+from app.application.chat.pipeline.events import ChatEvent, plural
 from app.application.chat.pipeline.stages._packing import (
     apply_context_packing,
     apply_parent_context_expansion,
@@ -30,6 +30,7 @@ class RerankPackStage:
     async def run(self, ctx: ChatContext) -> None:
         ret = ctx.retrieval
         if ret.rerank_applied:
+            await ctx.emit(ChatEvent(type="rerank.started"))
             await ctx.emit_step("reranking_evidence", "Ranking evidence by relevance", "running")
         else:
             await ctx.emit_step("reranking_evidence", "Ranking evidence by relevance", "skipped")
@@ -43,6 +44,12 @@ class RerankPackStage:
         )
         ctx.latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
         if ret.rerank_applied:
+            await ctx.emit(
+                ChatEvent(
+                    type="rerank.completed",
+                    payload={"selected_count": len(ret.selected_chunks)},
+                )
+            )
             await ctx.emit_step(
                 "reranking_evidence",
                 "Ranking evidence by relevance",

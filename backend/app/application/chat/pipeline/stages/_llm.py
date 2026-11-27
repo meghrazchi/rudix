@@ -1,7 +1,19 @@
 """Shared bookkeeping for the answer-generation call (R05-01)."""
 
 from app.application.chat.pipeline.context import ChatContext
+from app.application.chat.pipeline.events import ChatEvent
 from app.domains.chat.services.llm_service import LLMAnswerResult
+
+
+async def start_drafting(ctx: ChatContext) -> None:
+    """Emit ``generation.started`` and the running drafting step once per run (tree search
+    and the single grounded call share them; a tree-search fallback does not repeat them)."""
+    gen = ctx.generation
+    if gen.drafting_started:
+        return
+    gen.drafting_started = True
+    await ctx.emit(ChatEvent(type="generation.started"))
+    await ctx.emit_step("drafting_answer", "Drafting answer", "running")
 
 
 def apply_llm_result(ctx: ChatContext, llm_result: LLMAnswerResult, *, stage: str) -> None:

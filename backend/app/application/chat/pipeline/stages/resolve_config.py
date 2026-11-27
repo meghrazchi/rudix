@@ -1,5 +1,9 @@
 """Stage 2: AI response policy, answer mode, RAG and model profiles, planner, routing,
 tool orchestration, and answer language (R05-01). Order is exactly that of ``query_chat``.
+
+Runs on the read session (R05-02). Only plain snapshots leave this stage: the RAG profile
+config, the prompt version, the effective AI policy, the chat ``ResolvedTaskProfile``, and the
+set of disabled tools; no ORM object is used after the read session is released.
 """
 
 from time import perf_counter
@@ -14,6 +18,7 @@ from app.application.chat.pipeline.controls import (
     _resolve_answer_prompt_version,
     _resolve_planner_critic_controls,
 )
+from app.application.chat.pipeline.snapshots import PromptVersionSnapshot, RagProfileSnapshot
 from app.application.chat.scope_inventory import _is_scope_inventory_question
 from app.core.config import settings
 from app.core.logging import log_query_event
@@ -50,21 +55,22 @@ class ResolveConfigStage:
             db_session,
             organization_id=req.organization_id,
         )
+        ai_collection_override = None
         # Resolve collection override when the query is scoped to a single collection.
         if ai_org_policy is not None and payload.source_scope is not None:
             # source_scope may be a collection-id string when scoping to one collection.
             try:
                 cfg.ai_policy_collection_id = UUID(str(payload.source_scope))
-                cfg.ai_collection_override = await deps.ai_policy_repo.get_collection_override(
+                ai_collection_override = await deps.ai_policy_repo.get_collection_override(
                     db_session,
                     org_policy_id=ai_org_policy.id,
                     collection_id=cfg.ai_policy_collection_id,
                 )
             except (ValueError, AttributeError):
                 pass
-        cfg.ai_org_policy = ai_org_policy
+        # The merged policy is a plain dataclass; the policy rows are not kept.
         cfg.ai_effective_policy = deps.ai_policy_engine.resolve(
-            ai_org_policy, cfg.ai_collection_override
+            ai_org_policy, ai_collection_override
         )
         ai_pre_result = deps.ai_policy_engine.evaluate_pre_generation(
             payload.question, cfg.ai_effective_policy
@@ -83,9 +89,11 @@ class ResolveConfigStage:
         cfg.answer_mode_result = deps.answer_mode_service.classify(question=payload.question)
         cfg.scope_inventory_requested = _is_scope_inventory_question(payload.question)
         if cfg.answer_mode_result.mode == "grounded" and not cfg.scope_inventory_requested:
-            cfg.answer_prompt_version = await _resolve_answer_prompt_version(
-                db_session,
-                organization_id=req.organization_id,
+            cfg.answer_prompt_version = PromptVersionSnapshot.from_model(
+                await _resolve_answer_prompt_version(
+                    db_session,
+                    organization_id=req.organization_id,
+                )
             )
             cfg.answer_prompt_template = cfg.answer_prompt_version.content
 
@@ -95,10 +103,13 @@ class ResolveConfigStage:
         ctx.latencies_ms = {}
         ctx.total_started = perf_counter()
         ctx.retrieval.embedding_model = ctx.deps.query_retrieval_service.embedding_model
-        cfg.rag_profile, cfg.rag_profile_source = await resolve_profile_for_context(
+        rag_profile, cfg.rag_profile_source = await resolve_profile_for_context(
             db_session,
             organization_id=req.organization_id,
             collection_id=None,
+        )
+        cfg.rag_profile = (
+            RagProfileSnapshot.from_model(rag_profile) if rag_profile is not None else None
         )
         cfg.rerank_settings = _build_rerank_settings(
             dict(cfg.rag_profile.config) if cfg.rag_profile is not None else None
@@ -180,12 +191,12 @@ class ResolveConfigStage:
                 db_session,
                 organization_id=req.organization_id,
             )
-            disabled: frozenset[str] = frozenset(o.tool_name for o in overrides if not o.enabled)
+            cfg.tool_policy_disabled = frozenset(o.tool_name for o in overrides if not o.enabled)
             cfg.orchestration_result = deps.chat_tool_orchestrator.orchestrate(
                 planner_strategy=planner_strategy,
                 principal=req.principal,
                 feature_availability=feature_availability,
-                disabled_tool_names=disabled,
+                disabled_tool_names=cfg.tool_policy_disabled,
                 source_scope_mode=payload.scope_mode,
             )
 
@@ -240,3 +251,4 @@ class ResolveConfigStage:
                     f"{cfg.orchestration_result.tool_count} tools authorized"
                 ),
             )
+        await ctx.emit_step("checking_sources", "Checking accessible sources", "running")

@@ -8,7 +8,7 @@ ends, whatever the outcome.
 """
 
 import asyncio
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from time import perf_counter
 from typing import Protocol
 
@@ -28,6 +28,8 @@ class Stage(Protocol):
 
 
 DegradationHook = Callable[[ChatContext, str, str], None]
+# Called after every stage in order, whether it ran or was skipped (R05-02 phase ends).
+AfterStageHook = Callable[["Stage", ChatContext], Awaitable[None]]
 
 
 class ChatStageTimeoutError(TimeoutError):
@@ -58,8 +60,10 @@ class StageRunner:
         timeouts: dict[str, float | None] | None = None,
         degradation_hook: DegradationHook = record_degradation,
         clock: Callable[[], float] = perf_counter,
+        after_stage: AfterStageHook | None = None,
     ) -> None:
         self._stages = list(stages)
+        self._after_stage = after_stage
         self._timeouts = dict(timeouts or {})
         self._degradation_hook = degradation_hook
         self._clock = clock
@@ -78,9 +82,10 @@ class StageRunner:
     async def run(self, ctx: ChatContext) -> ChatContext:
         try:
             for stage in self._stages:
-                if ctx.terminal and not stage.runs_when_terminal:
-                    continue
-                await self._run_stage(stage, ctx)
+                if not (ctx.terminal and not stage.runs_when_terminal):
+                    await self._run_stage(stage, ctx)
+                if self._after_stage is not None:
+                    await self._after_stage(stage, ctx)
         finally:
             await self._cancel_background_tasks(ctx)
         return ctx

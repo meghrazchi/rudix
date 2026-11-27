@@ -11,7 +11,13 @@ from typing import Any
 
 import pytest
 from chat_golden_providers import cite_first_chunk
-from chat_golden_support import GoldenWorld, SeedDoc, assert_matches_golden, seed_documents
+from chat_golden_support import (
+    GoldenWorld,
+    SeedDoc,
+    assert_matches_golden,
+    golden_target,
+    seed_documents,
+)
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from test_chat_golden_transcripts import (
@@ -381,10 +387,5 @@ async def test_chat_golden_edge_transcript(
         db_session=db_session,
         monkeypatch=monkeypatch,
     )
-    fixture_transport = "http" if transport == "http_direct" else transport
-    assert_matches_golden(
-        scenario,
-        fixture_transport,
-        transcript,
-        allow_update=transport != "http_direct" and not pipeline_v2,
-    )
+    fixture_transport, allow_update = golden_target(transport, pipeline_v2)
+    assert_matches_golden(scenario, fixture_transport, transcript, allow_update=allow_update)

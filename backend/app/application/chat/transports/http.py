@@ -3,6 +3,9 @@
 Runs the pipeline on the request session, collects (and ignores) its events, and builds the
 same ``ChatQueryResponse`` the legacy ``query_chat`` body returns. Pipeline refusals become the
 same safe ``HTTPException`` payloads; the quota ``HTTPException`` passes through unchanged.
+
+R05-02: the request session serves every phase; each phase ends with a commit, so the
+connection goes back to the pool before rewriting, retrieval calls, and generation.
 """
 
 from dataclasses import replace
@@ -15,7 +18,8 @@ from app.application.chat.pipeline.deps import ChatPipelineDeps, EnsureQuota, de
 from app.application.chat.pipeline.errors import ChatPipelineError
 from app.application.chat.pipeline.events import CollectingEmitter
 from app.application.chat.pipeline.pipeline import ChatPipeline
-from app.application.chat.pipeline.sessions import SingleSessionScope
+from app.application.chat.pipeline.request_helpers import _principal_user_and_org
+from app.application.chat.pipeline.sessions import ShortSessionScope
 from app.application.chat.transports.http_debug import build_debug_response
 from app.auth.models import AuthenticatedPrincipal
 from app.domains.chat.schemas.chat import (
@@ -39,13 +43,14 @@ async def run_http_query(
     """Answer one question over HTTP. ``ensure_quota`` is read from the chat module at call
     time so a rebinding of ``chat.ensure_chat_quota`` reaches the pipeline."""
     pipeline = ChatPipeline(replace(deps, ensure_quota=ensure_quota))
+    _, organization_id = _principal_user_and_org(principal)
     try:
         ctx = await pipeline.run(
             payload,
             principal,
             "http",
             CollectingEmitter(),
-            SingleSessionScope(db_session),
+            ShortSessionScope(organization_id=organization_id, request_session=db_session),
             request_id,
         )
     except ChatPipelineError as exc:
@@ -60,7 +65,7 @@ def build_chat_query_response(ctx: ChatContext) -> ChatQueryResponse:
     conflict = ctx.retrieval.conflict_detection_result
     effective_policy = ctx.config.ai_effective_policy
     explanation = ver.confidence_explanation
-    assert ctx.scope.chat_session is not None and out.assistant_message is not None
+    assert ctx.ids.chat_session_id is not None and out.assistant_message is not None
     assert effective_policy is not None and explanation is not None
     citations = gen.citations
     freshness_warning = any(
@@ -71,7 +76,7 @@ def build_chat_query_response(ctx: ChatContext) -> ChatQueryResponse:
     )
     policy_applied = effective_policy.source != "none"
     return ChatQueryResponse(
-        chat_session_id=str(ctx.scope.chat_session.id),
+        chat_session_id=str(ctx.ids.chat_session_id),
         message_id=str(out.assistant_message.id),
         answer=gen.answer,
         confidence_score=ver.confidence_score,

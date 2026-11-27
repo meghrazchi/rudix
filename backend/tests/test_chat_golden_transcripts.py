@@ -23,6 +23,7 @@ from chat_golden_support import (
     GoldenWorld,
     SeedDoc,
     assert_matches_golden,
+    golden_target,
     record_transcript,
     seed_documents,
 )
@@ -352,7 +353,8 @@ SCENARIOS: dict[str, tuple[Setup, OrganizationRole, dict[str, Any], frozenset[st
 }
 
 # (transport, CHAT_PIPELINE_V2). The pipeline must reproduce the HTTP goldens recorded through
-# the legacy query_chat body; WebSocket converges in S2.
+# the legacy query_chat body. Since S2 the WebSocket runs every pipeline stage ("ws-v2" owns
+# the ws fixtures); the legacy WebSocket body is compared with the frozen ws_legacy fixtures.
 # "http_direct" calls query_chat in-process (as the bot service does) and compares with the
 # HTTP golden; coverage only traces the pipeline on that path.
 RUNS = [
@@ -416,11 +418,5 @@ async def test_chat_golden_transcript(
         db_session=db_session,
         monkeypatch=monkeypatch,
     )
-    # The pipeline run never rewrites a fixture: it must match what the legacy body recorded.
-    fixture_transport = "http" if transport == "http_direct" else transport
-    assert_matches_golden(
-        scenario,
-        fixture_transport,
-        transcript,
-        allow_update=transport != "http_direct" and not pipeline_v2,
-    )
+    fixture_transport, allow_update = golden_target(transport, pipeline_v2)
+    assert_matches_golden(scenario, fixture_transport, transcript, allow_update=allow_update)

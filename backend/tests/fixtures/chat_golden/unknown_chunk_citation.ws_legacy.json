@@ -1,0 +1,762 @@
+{
+  "chat_messages": [
+    {
+      "chat_session_id": "<uuid:1>",
+      "confidence_score": null,
+      "content": "How much annual leave is provided?",
+      "cost_usd": null,
+      "id": "<uuid:4>",
+      "model_name": null,
+      "prompt_template_version_id": null,
+      "role": "user",
+      "token_input_count": null,
+      "token_output_count": null,
+      "trust_metadata_json": null
+    },
+    {
+      "chat_session_id": "<uuid:1>",
+      "confidence_score": 0.358,
+      "content": "Employees receive twenty days of annual leave.",
+      "cost_usd": 0.0,
+      "id": "<uuid:2>",
+      "model_name": "gpt-5.4-mini",
+      "prompt_template_version_id": "<uuid:3>",
+      "role": "assistant",
+      "token_input_count": 38,
+      "token_output_count": 17,
+      "trust_metadata_json": {
+        "citation_validation_failed": true,
+        "citations": [
+          {
+            "chunk_id": "<chunk:a>",
+            "conflict_status": null,
+            "doc_deprecated_warning": false,
+            "doc_draft_warning": false,
+            "doc_expired_warning": false,
+            "doc_expiry_date": null,
+            "doc_extraction_quality": null,
+            "doc_extraction_warning": false,
+            "doc_is_excluded_status": false,
+            "doc_ocr_low_confidence_warning": false,
+            "doc_ocr_quality_status": null,
+            "doc_processing_warning": false,
+            "doc_quality_state": null,
+            "doc_review_due_date": null,
+            "doc_review_owner_id": null,
+            "doc_review_status": null,
+            "doc_stale_warning": false,
+            "doc_trust_status": null,
+            "doc_unreviewed_warning": false,
+            "doc_version_label": null,
+            "document_id": "<doc:a>",
+            "filename": "a.pdf",
+            "final_rank": 1,
+            "freshness_state": null,
+            "is_table_chunk": false,
+            "original_rank": 1,
+            "page_number": 1,
+            "rerank_score": null,
+            "score": 0.92,
+            "similarity_score": 0.92,
+            "source_deep_link": null,
+            "source_key": null,
+            "source_provider": null,
+            "source_provider_label": null,
+            "source_section": null,
+            "source_title": null,
+            "source_trust_status": null,
+            "table_caption": null,
+            "table_col_count": null,
+            "table_extraction_confidence": null,
+            "table_headers": [],
+            "table_low_confidence_warning": false,
+            "table_row_count": null,
+            "text_snippet": "Employees receive twenty days of annual leave."
+          }
+        ],
+        "confidence": {
+          "average_similarity": 0.92,
+          "category": "low",
+          "citation_coverage_score": 1.0,
+          "citation_support_score": 0.7,
+          "citation_validation_multiplier": 0.4,
+          "citation_validation_score": 0.4,
+          "conflict_multiplier": 1.0,
+          "extraction_quality_multiplier": 1.0,
+          "freshness_multiplier": 1.0,
+          "graph_evidence_boost": 0.0,
+          "no_context": false,
+          "not_found_penalty_multiplier": 1.0,
+          "not_found_signal": false,
+          "ocr_quality_multiplier": 1.0,
+          "raw_score": 0.895,
+          "reasons": [
+            {
+              "code": "strong_retrieval",
+              "impact": "positive",
+              "label": "Strong semantic match with knowledge base",
+              "magnitude": 0.92
+            },
+            {
+              "code": "citation_validation_issues",
+              "impact": "negative",
+              "label": "Some citations could not be fully validated",
+              "magnitude": 0.6
+            }
+          ],
+          "retrieval_agreement_score": 1.0,
+          "score": 0.358,
+          "table_quality_multiplier": 1.0,
+          "top_rerank_score": 0.92,
+          "top_similarity": 0.92,
+          "trust_level": "low",
+          "verification_support_score": null
+        },
+        "conflict": {
+          "agreement_level": "full",
+          "conflict_count": 0,
+          "conflict_summary": null,
+          "conflicting_document_ids": [],
+          "detected": false,
+          "preferred_document_ids": []
+        },
+        "evidence_quality": {
+          "any_incomplete_documents": false,
+          "extraction_warning_count": 0,
+          "processing_warning_count": 0,
+          "table_low_confidence_count": 0,
+          "warning_reasons": []
+        },
+        "freshness": {
+          "all_excluded_fallback": false,
+          "boosted_count": 0,
+          "deprecated_count": 0,
+          "draft_count": 0,
+          "excluded_count": 0,
+          "stale_count": 0,
+          "unreviewed_count": 0,
+          "warning": false,
+          "warning_reason": null,
+          "warning_reasons": []
+        },
+        "grounded_verification": {
+          "aggregate_support_score": 0.0,
+          "applied": false,
+          "claim_count": 0,
+          "claims": [],
+          "conflicting_count": 0,
+          "mode": null,
+          "not_enough_evidence_count": 0,
+          "partially_supported_count": 0,
+          "reason_codes": [],
+          "removed_count": 0,
+          "score": null,
+          "supported_count": 0,
+          "threshold": null,
+          "unsupported_count": 0,
+          "unverifiable_count": 0,
+          "verdict": null
+        },
+        "message_id": "<uuid:2>",
+        "model": {
+          "embedding_model": "text-embedding-3-small",
+          "fallback_from": null,
+          "fallback_reason": null,
+          "fallback_to": null,
+          "fallback_used": false,
+          "llm_model": "gpt-5.4-mini",
+          "llm_provider": "openai",
+          "prompt_template_key": "answer_generation",
+          "prompt_template_version": 1
+        },
+        "not_found": false,
+        "organization_id": "<org>",
+        "planner_critic": {
+          "critic_severity": "none",
+          "critic_warnings": [],
+          "draft_changed": false,
+          "high_risk": false,
+          "refiner_applied": false,
+          "strategy": "standard",
+          "unsupported_claims_removed": 0
+        },
+        "policy": {
+          "applied": false,
+          "has_disclaimer": false,
+          "outcome": null,
+          "violated_rules": [],
+          "warning_flags": []
+        },
+        "query_interpretation": {
+          "answer_mode": "grounded",
+          "complexity": "complex",
+          "guidance_topic": null,
+          "intent": "policy",
+          "intent_label": "Policy",
+          "retrieval_strategy": "original",
+          "rewrite_preview_enabled": true,
+          "rewritten_query_preview": null,
+          "sub_queries": []
+        },
+        "retrieval": {
+          "freshness_boosted_count": 0,
+          "freshness_excluded_count": 0,
+          "graph_chunk_count": 0,
+          "graph_context_unavailable": false,
+          "graph_context_used": false,
+          "hybrid_keyword_hit_count": 0,
+          "hybrid_retrieval_enabled": false,
+          "hybrid_vector_hit_count": 0,
+          "parallel_branch_count": 4,
+          "parallel_branch_failure_count": 0,
+          "parallel_branch_timeout_count": 0,
+          "parallel_branches": [
+            {
+              "branch_name": "embedding",
+              "candidate_count": 0,
+              "error_code": null,
+              "retries": 0,
+              "skipped": false,
+              "succeeded": true
+            },
+            {
+              "branch_name": "vector_search",
+              "candidate_count": 1,
+              "error_code": null,
+              "retries": 0,
+              "skipped": false,
+              "succeeded": true
+            },
+            {
+              "branch_name": "keyword_search",
+              "candidate_count": 0,
+              "error_code": null,
+              "retries": 0,
+              "skipped": true,
+              "succeeded": true
+            },
+            {
+              "branch_name": "graph_expansion",
+              "candidate_count": 0,
+              "error_code": null,
+              "retries": 0,
+              "skipped": false,
+              "succeeded": true
+            }
+          ],
+          "parent_context_expanded_count": 0,
+          "query_decomposed": false,
+          "query_rewriting_applied": false,
+          "rerank_applied": false,
+          "rerank_fallback_reason": null,
+          "rerank_fallback_used": false,
+          "rerank_model": null,
+          "rerank_provider": null,
+          "rerank_score_max": null,
+          "rerank_score_min": null,
+          "retrieval_candidate_count": 1,
+          "retrieval_count": 1,
+          "retrieval_filters": [],
+          "retrieval_profile_name": null,
+          "retrieval_profile_scope": "all documents",
+          "retrieval_profile_source": "system_default",
+          "search_mode": "vector",
+          "selected_count": 1,
+          "source_scope_label": null,
+          "source_scope_mode": null,
+          "sub_query_count": 0,
+          "top_k": 3,
+          "trace_request_id": "ws-golden"
+        },
+        "retrieval_method": {
+          "method": "vector",
+          "method_label": "Vector search",
+          "override_applied": false,
+          "override_source": null
+        },
+        "schema_version": "1",
+        "tool_orchestration": {
+          "authorized_count": 0,
+          "denied_count": 0,
+          "enabled": false,
+          "executed_count": 0,
+          "fallback_count": 0,
+          "succeeded_count": 0,
+          "tool_calls": [],
+          "tool_count": 0
+        },
+        "verification_failed": false
+      }
+    }
+  ],
+  "chat_sessions": [
+    {
+      "id": "<uuid:1>",
+      "title": "How much annual leave is provided?"
+    }
+  ],
+  "citations": [
+    {
+      "chat_message_id": "<uuid:2>",
+      "chunk_id": "<chunk:a>",
+      "document_id": "<doc:a>",
+      "page_number": 1,
+      "rerank_score": null,
+      "similarity_score": 0.92,
+      "text_snippet": "Employees receive twenty days of annual leave."
+    }
+  ],
+  "events": [
+    {
+      "event": "chat.request.received",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "understanding_question"
+    },
+    {
+      "event": "chat.scope.validated",
+      "payload_keys": [
+        "scope_label"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "understanding_question"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "checking_sources"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "checking_sources"
+    },
+    {
+      "event": "retrieval.started",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "searching_documents"
+    },
+    {
+      "event": "retrieval.completed",
+      "payload_keys": [
+        "chunk_count"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "searching_documents"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "skipped",
+      "step_key": "reranking_evidence"
+    },
+    {
+      "event": "generation.started",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "drafting_answer"
+    },
+    {
+      "event": "generation.delta",
+      "text": "Employees receive twenty days of annual leave."
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "drafting_answer"
+    },
+    {
+      "event": "citation.validation.started",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "verifying_citations"
+    },
+    {
+      "event": "citation.validation.completed",
+      "payload_keys": [
+        "citation_count"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "warning",
+      "step_key": "verifying_citations"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "preparing_final_answer"
+    },
+    {
+      "event": "chat.completed",
+      "payload_keys": [
+        "response"
+      ]
+    }
+  ],
+  "provider_call_count": 1,
+  "provider_calls": [
+    {
+      "kind": "answer",
+      "prompt_sha256": "44d3e0588ffe273bd53d596c8bce756d8555214201ddee08af8ac3e7d533553c"
+    }
+  ],
+  "questions_quota_delta": 1,
+  "response": {
+    "agreement_level": "full",
+    "answer": "Employees receive twenty days of annual leave.",
+    "chat_session_id": "<uuid:1>",
+    "citation_validation_failed": true,
+    "citations": [
+      {
+        "chunk_id": "<chunk:a>",
+        "citation_id": null,
+        "conflict_status": null,
+        "doc_deprecated_warning": false,
+        "doc_draft_warning": false,
+        "doc_effective_date": null,
+        "doc_expired_warning": false,
+        "doc_expiry_date": null,
+        "doc_extraction_quality": null,
+        "doc_extraction_warning": false,
+        "doc_is_excluded_status": false,
+        "doc_ocr_low_confidence_warning": false,
+        "doc_ocr_quality_status": null,
+        "doc_processing_warning": false,
+        "doc_quality_state": null,
+        "doc_review_date": null,
+        "doc_review_due_date": null,
+        "doc_review_owner_id": null,
+        "doc_review_status": null,
+        "doc_stale_warning": false,
+        "doc_trust_status": null,
+        "doc_unreviewed_warning": false,
+        "doc_version_label": null,
+        "document_id": "<doc:a>",
+        "end_offset": 46,
+        "filename": "a.pdf",
+        "final_rank": 1,
+        "freshness_state": null,
+        "is_table_chunk": false,
+        "original_rank": 1,
+        "page_number": 1,
+        "rerank_rank": null,
+        "rerank_score": null,
+        "score": 0.92,
+        "similarity_score": 0.92,
+        "source_acl_snapshot": {},
+        "source_deep_link": null,
+        "source_key": null,
+        "source_provider": null,
+        "source_provider_label": null,
+        "source_section": null,
+        "source_title": null,
+        "source_trust_status": null,
+        "start_offset": 0,
+        "table_caption": null,
+        "table_col_count": null,
+        "table_extraction_confidence": null,
+        "table_headers": [],
+        "table_low_confidence_warning": false,
+        "table_row_count": null,
+        "table_section_context": null,
+        "text_snippet": "Employees receive twenty days of annual leave."
+      }
+    ],
+    "confidence_category": "low",
+    "confidence_explanation": {
+      "average_similarity": 0.92,
+      "citation_coverage_score": 1.0,
+      "citation_support_score": 0.7,
+      "citation_validation_multiplier": 0.4,
+      "citation_validation_score": 0.4,
+      "no_context": false,
+      "not_found_penalty_multiplier": 1.0,
+      "not_found_signal": false,
+      "raw_score": 0.895,
+      "retrieval_agreement_score": 1.0,
+      "thresholds": {
+        "high": 0.8,
+        "medium": 0.5
+      },
+      "top_rerank_score": 0.92,
+      "top_similarity": 0.92,
+      "weights": {
+        "agreement": 0.1,
+        "average_similarity": 0.2,
+        "citation_support": 0.15,
+        "rerank_score": 0.2,
+        "top_similarity": 0.35
+      }
+    },
+    "confidence_score": 0.358,
+    "conflict_detected": false,
+    "conflict_pairs": [],
+    "conflict_summary": null,
+    "conflicting_document_ids": [],
+    "debug": {
+      "answer_language_used": null,
+      "conflict_detection_agreement_level": "full",
+      "conflict_detection_applied": false,
+      "conflict_detection_conflict_count": 0,
+      "conflict_detection_conflicting_document_ids": [],
+      "conflict_detection_enabled": false,
+      "conflict_detection_model": null,
+      "conflict_detection_preferred_document_ids": [],
+      "conflict_detection_provider": null,
+      "detected_language": "en",
+      "embedding_model": "text-embedding-3-small",
+      "fallback_from": null,
+      "fallback_reason": null,
+      "fallback_to": null,
+      "fallback_used": false,
+      "freshness_all_excluded_fallback": false,
+      "freshness_boosted_count": 0,
+      "freshness_deprecated_count": 0,
+      "freshness_excluded_count": 0,
+      "freshness_filter_enabled": false,
+      "freshness_stale_count": 0,
+      "freshness_unreviewed_count": 0,
+      "graph_chunk_count": 0,
+      "graph_context_enabled": false,
+      "graph_context_reason": "disabled",
+      "graph_context_unavailable": false,
+      "graph_context_used": false,
+      "graph_max_hops_used": 0,
+      "graph_related_entity_count": 0,
+      "graph_relation_types_used": [],
+      "graph_seed_entity_count": 0,
+      "grounded_verification_applied": false,
+      "grounded_verification_claim_count": 0,
+      "grounded_verification_conflicting_count": 0,
+      "grounded_verification_enabled": false,
+      "grounded_verification_mode": null,
+      "grounded_verification_model": null,
+      "grounded_verification_not_enough_evidence_count": 0,
+      "grounded_verification_partially_supported_count": 0,
+      "grounded_verification_reason_codes": [],
+      "grounded_verification_removed_count": 0,
+      "grounded_verification_score": null,
+      "grounded_verification_supported_count": 0,
+      "grounded_verification_threshold": null,
+      "grounded_verification_unsupported_count": 0,
+      "grounded_verification_unverifiable_count": 0,
+      "grounded_verification_verdict": null,
+      "hybrid_exact_match_tokens": [],
+      "hybrid_keyword_hit_count": 0,
+      "hybrid_retrieval_enabled": false,
+      "hybrid_vector_hit_count": 0,
+      "llm_model": "gpt-5.4-mini",
+      "llm_provider": "openai",
+      "ocr_low_confidence_chunk_count": 0,
+      "ocr_quality_downranking_enabled": false,
+      "original_query": null,
+      "parent_context_child_hit_count": 0,
+      "parent_context_expanded_count": 0,
+      "parent_context_expansion_enabled": false,
+      "parent_context_tokens_used": 0,
+      "prompt_template_key": "answer_generation",
+      "prompt_template_version": 1,
+      "prompt_template_version_id": "<uuid:3>",
+      "query_decomposed": false,
+      "query_rewriting_applied": false,
+      "query_rewriting_enabled": false,
+      "query_rewriting_strategy": null,
+      "rerank_applied": false,
+      "rerank_batch_count": 0,
+      "rerank_completion_tokens": 0,
+      "rerank_cost_usd": 0.0,
+      "rerank_enabled": true,
+      "rerank_fallback_reason": null,
+      "rerank_fallback_used": false,
+      "rerank_input_count": 1,
+      "rerank_model": null,
+      "rerank_prompt_tokens": 0,
+      "rerank_provider": null,
+      "rerank_score_max": null,
+      "rerank_score_min": null,
+      "rerank_total_tokens": 0,
+      "retrieval_candidate_count": 1,
+      "retrieval_count": 1,
+      "retrieval_filters": [],
+      "retrieval_profile_name": null,
+      "retrieval_profile_scope": "all documents",
+      "retrieval_profile_source": "system_default",
+      "rewritten_query": null,
+      "search_mode": "vector",
+      "selected_count": 1,
+      "source_scope": null,
+      "source_scope_label": null,
+      "source_scope_mode": null,
+      "sub_queries": [],
+      "table_boost_applied": false,
+      "table_boost_count": 0,
+      "table_boost_enabled": false,
+      "table_chunk_count": 0,
+      "table_query_detected": false,
+      "top_k": 3,
+      "trace_request_id": "ws-golden"
+    },
+    "message_id": "<uuid:2>",
+    "not_found": false,
+    "policy_applied": false,
+    "policy_disclaimer": null,
+    "policy_outcome": null,
+    "policy_violated_rules": [],
+    "policy_warning_flags": [],
+    "preferred_document_ids": [],
+    "source_freshness_warning": false,
+    "source_freshness_warning_reason": null,
+    "verification_failed": false
+  },
+  "usage_events": [
+    {
+      "cost_usd": 0.0,
+      "event_type": "chat.completion",
+      "input_tokens": 38,
+      "metadata": {
+        "assistant_message_id": "<uuid:2>",
+        "chat_session_id": "<uuid:1>",
+        "citation_count": 1,
+        "confidence_category": "low",
+        "confidence_score": 0.358,
+        "conflict_detection_agreement_level": "full",
+        "conflict_detection_applied": false,
+        "conflict_detection_conflict_count": 0,
+        "conflict_detection_enabled": false,
+        "document_ids": [],
+        "not_found": false,
+        "rerank_applied": false,
+        "rerank_batch_count": 0,
+        "rerank_completion_tokens": 0,
+        "rerank_cost_usd": 0.0,
+        "rerank_enabled": true,
+        "rerank_fallback_reason": null,
+        "rerank_fallback_used": false,
+        "rerank_input_count": 1,
+        "rerank_model": null,
+        "rerank_prompt_tokens": 0,
+        "rerank_provider": null,
+        "rerank_total_tokens": 0,
+        "transport": "websocket"
+      },
+      "model_name": "gpt-5.4-mini",
+      "output_tokens": 17,
+      "provider_key": "openai"
+    }
+  ]
+}

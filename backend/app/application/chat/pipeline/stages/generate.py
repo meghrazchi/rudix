@@ -11,7 +11,8 @@ from fastapi import status
 from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
 from app.application.chat.pipeline.controls import _build_prompt
 from app.application.chat.pipeline.errors import ChatPipelineError
-from app.application.chat.pipeline.stages._llm import apply_llm_result
+from app.application.chat.pipeline.events import ChatEvent
+from app.application.chat.pipeline.stages._llm import apply_llm_result, start_drafting
 from app.application.chat.pipeline.stages._tree_search import run_tree_search
 from app.core.logging import log_query_event
 from app.domains.chat.services.citation_enrichment import _build_conflict_context
@@ -50,6 +51,12 @@ class GenerateStage:
         gen.answer_block_ran = True
         await run_tree_search(ctx)
         if gen.citation_result is not None:
+            # Tree search selected (or rejected) a candidate: that is the generated answer.
+            assert gen.llm_result is not None
+            await ctx.emit(
+                ChatEvent(type="generation.delta", payload={"text": gen.llm_result.answer})
+            )
+            await self._drafting_done(ctx)
             return
         gen.llm_call_ran = True
         await self._generate(ctx)
@@ -58,7 +65,7 @@ class GenerateStage:
     async def _generate(ctx: ChatContext) -> None:
         req = ctx.request
         gen = ctx.generation
-        await ctx.emit_step("drafting_answer", "Drafting answer", "running")
+        await start_drafting(ctx)
         try:
             llm_result = await ctx.deps.llm_service.generate_answer(
                 prompt=gen.prompt,
@@ -83,15 +90,21 @@ class GenerateStage:
         gen.llm_result = llm_result
         apply_llm_result(ctx, llm_result, stage="generate")
         gen.answer = llm_result.answer
+        await ctx.emit(ChatEvent(type="generation.delta", payload={"text": llm_result.answer}))
         if llm_result.not_found:
             gen.answer = NOT_FOUND_ANSWER
             gen.not_found = True
         elif not gen.answer.strip() or gen.answer.strip() == NOT_FOUND_ANSWER:
             gen.answer = NOT_FOUND_ANSWER
             gen.not_found = True
+        await GenerateStage._drafting_done(ctx)
+
+    @staticmethod
+    async def _drafting_done(ctx: ChatContext) -> None:
+        not_found = ctx.generation.not_found
         await ctx.emit_step(
             "drafting_answer",
             "Drafting answer",
-            "warning" if gen.not_found else "success",
-            detail="No relevant answer found" if gen.not_found else None,
+            "warning" if not_found else "success",
+            detail="No relevant answer found" if not_found else None,
         )

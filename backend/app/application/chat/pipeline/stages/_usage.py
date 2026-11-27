@@ -25,6 +25,12 @@ def _prompt_template_meta(ctx: ChatContext) -> dict[str, Any] | None:
     }
 
 
+def transport_fields(ctx: ChatContext) -> dict[str, Any]:
+    """``{"transport": "websocket"}`` on WebSocket runs, as the WebSocket path recorded
+    before the pipeline; HTTP rows and logs stay unchanged."""
+    return {"transport": "websocket"} if ctx.request.transport == "ws" else {}
+
+
 def usage_metadata(ctx: ChatContext) -> dict[str, Any]:
     ret = ctx.retrieval
     gen = ctx.generation
@@ -34,11 +40,11 @@ def usage_metadata(ctx: ChatContext) -> dict[str, Any]:
     conflict = ret.conflict_detection_result
     rerank = out.rerank_diagnostics
     rerank_settings = ctx.config.rerank_settings
-    assert ctx.scope.chat_session is not None and out.assistant_message is not None
+    assert ctx.ids.chat_session_id is not None and out.assistant_message is not None
     assert rerank_settings is not None
     document_ids = ctx.scope.document_ids
     return {
-        "chat_session_id": str(ctx.scope.chat_session.id),
+        "chat_session_id": str(ctx.ids.chat_session_id),
         "assistant_message_id": str(out.assistant_message.id),
         "document_ids": [str(d) for d in document_ids] if document_ids is not None else [],
         "confidence_score": ver.confidence_score,
@@ -91,6 +97,7 @@ def usage_metadata(ctx: ChatContext) -> dict[str, Any]:
         "fallback_to": gen.llm_fallback_to,
         "fallback_reason": gen.llm_fallback_reason,
         "prompt_template": _prompt_template_meta(ctx),
+        **transport_fields(ctx),
     }
 
 
@@ -131,6 +138,7 @@ def audit_metadata(ctx: ChatContext) -> dict[str, Any]:
         else None,
         "prompt_template_version": version.version_number if version is not None else None,
         "status_code": status.HTTP_200_OK,
+        **transport_fields(ctx),
     }
 
 
@@ -143,19 +151,19 @@ def build_trace_metadata(ctx: ChatContext) -> ChatTraceMetadata:
     rerank = out.rerank_diagnostics
     version = ctx.config.answer_prompt_version
     rerank_settings = ctx.config.rerank_settings
-    assert ctx.scope.chat_session is not None and out.assistant_message is not None
+    assert ctx.ids.chat_session_id is not None and out.assistant_message is not None
     assert ctx.scope.source_scope_result is not None and rerank_settings is not None
     return ChatTraceMetadata(
         request_id=req.request_id,
         organization_id=str(req.organization_id),
         user_id=str(req.user_id) if req.user_id is not None else "",
-        session_id=str(ctx.scope.chat_session.id),
+        session_id=str(ctx.ids.chat_session_id),
         message_id=str(out.assistant_message.id),
         question=req.payload.question,
         answer=gen.answer,
         scope_mode=req.payload.scope_mode,  # type: ignore[arg-type]  # None as today
         source_scope_label=ctx.scope.source_scope_result.label,
-        feature_area="chat",
+        feature_area="chat_ws" if req.transport == "ws" else "chat",
         retrieved_count=len(ret.retrieved_chunks),
         selected_count=len(ret.selected_chunks),
         rerank_applied=ret.rerank_applied,

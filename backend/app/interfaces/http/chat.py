@@ -69,6 +69,7 @@ from app.application.chat.scope_inventory import (  # noqa: F401 (re-export)
     _scope_inventory_snippet,
 )
 from app.application.chat.transports.http import run_http_query
+from app.application.chat.transports.ws import WsSequence, as_ws_sequence, run_ws_query
 from app.application.chat.ws_auth import authenticate_ws_handshake
 from app.auth.dependencies import ensure_document_ids_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
@@ -3653,10 +3654,27 @@ async def _run_ws_chat_pipeline(
     payload: dict[str, Any],
     principal: AuthenticatedPrincipal,
     request_id: str,
-    sequence_start: int,
+    sequence_start: int | WsSequence,
 ) -> None:
-    """Run the full RAG pipeline and stream events over the WebSocket."""
-    seq = sequence_start
+    """Run the full RAG pipeline and stream events over the WebSocket.
+
+    ``sequence_start`` is the connection's ``WsSequence`` (``chat_websocket`` passes it) or,
+    for compatibility, an integer start for a new counter.
+    """
+    sequence = as_ws_sequence(sequence_start)
+    if settings.chat_pipeline_v2:
+        # R05-01/R05-02: the staged pipeline; SessionLocal and ensure_chat_quota are read
+        # here so a rebinding of this module's globals reaches it.
+        await run_ws_query(
+            websocket=websocket,
+            payload=payload,
+            principal=principal,
+            request_id=request_id,
+            sequence=sequence,
+            session_factory=SessionLocal,
+            ensure_quota=ensure_chat_quota,
+        )
+        return
     conversation_id: str | None = None
 
     async def send(
@@ -3665,14 +3683,12 @@ async def _run_ws_chat_pipeline(
         message_id: str | None = None,
         safe_error_code: str | None = None,
     ) -> None:
-        nonlocal seq
-        seq += 1
         evt = ChatWSOutboundEvent(
             event=event_type,  # type: ignore[arg-type]
             request_id=request_id,
             conversation_id=conversation_id,
             message_id=message_id,
-            sequence=seq,
+            sequence=sequence.next(),
             payload=extra_payload,
             safe_error_code=safe_error_code,
         )
@@ -5154,18 +5170,18 @@ async def chat_websocket(
         user_id=user_id,
     )
 
-    sequence = 0
+    # One counter for the connection and every run on it (R05-01): heartbeat, cancel, and
+    # pipeline events never reuse a sequence number.
+    sequence = WsSequence()
 
     async def send_event(
         event_type: str,
         payload: dict[str, Any] | None = None,
         safe_error_code: str | None = None,
     ) -> None:
-        nonlocal sequence
-        sequence += 1
         evt = ChatWSOutboundEvent(
             event=event_type,  # type: ignore[arg-type]
-            sequence=sequence,
+            sequence=sequence.next(),
             payload=payload,
             safe_error_code=safe_error_code,
         )

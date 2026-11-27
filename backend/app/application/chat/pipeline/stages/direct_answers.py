@@ -12,7 +12,7 @@ from fastapi import status
 
 from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
 from app.application.chat.pipeline.errors import ChatPipelineError
-from app.application.chat.pipeline.events import plural
+from app.application.chat.pipeline.events import ChatEvent, plural
 from app.application.chat.pipeline.stages._llm import apply_llm_result
 from app.application.chat.scope_inventory import (
     _build_scope_inventory_answer,
@@ -42,6 +42,12 @@ class DirectAnswersStage:
         cfg = ctx.config
         assert cfg.answer_mode_result is not None
         if cfg.blocked:
+            await ctx.emit_step(
+                "checking_sources",
+                "Checking accessible sources",
+                "failed",
+                detail="Request could not be processed",
+            )
             self._blocked(ctx)
         elif cfg.scope_inventory_requested:
             await self._scope_inventory(ctx)
@@ -76,7 +82,6 @@ class DirectAnswersStage:
     async def _scope_inventory(ctx: ChatContext) -> None:
         req = ctx.request
         ctx.retrieval.embedding_model = None
-        await ctx.emit_step("checking_sources", "Checking accessible sources", "running")
         retrieve_started = perf_counter()
         async with ctx.sessions.short() as db_session:
             inventory_result = await _build_scope_inventory_result(
@@ -119,10 +124,25 @@ class DirectAnswersStage:
         )
         state = "warning" if gen.not_found else "success"
         await ctx.emit_step("checking_sources", "Checking accessible sources", state, detail)
+        await ctx.emit(ChatEvent(type="retrieval.started"))
+        await ctx.emit(
+            ChatEvent(
+                type="retrieval.completed",
+                payload={"chunk_count": len(ctx.retrieval.retrieved_chunks)},
+            )
+        )
         await ctx.emit_step("searching_documents", "Searching knowledge base", state, detail)
         await ctx.emit_step("reranking_evidence", "Ranking evidence by relevance", "skipped")
+        await ctx.emit(ChatEvent(type="generation.started"))
         await ctx.emit_step("drafting_answer", "Drafting answer", "running")
+        await ctx.emit(ChatEvent(type="generation.delta", payload={"text": gen.answer}))
         await ctx.emit_step("drafting_answer", "Drafting answer", state)
+        await ctx.emit(
+            ChatEvent(
+                type="citation.validation.completed",
+                payload={"citation_count": len(gen.citations)},
+            )
+        )
         if gen.citations:
             await ctx.emit_step(
                 "verifying_citations",
@@ -139,6 +159,7 @@ class DirectAnswersStage:
         ctx.retrieval.embedding_model = None
         await ctx.emit_step("checking_sources", "Checking accessible sources", "skipped")
         await ctx.emit_step("searching_documents", "Searching knowledge base", "skipped")
+        await ctx.emit(ChatEvent(type="generation.started"))
         await ctx.emit_step("drafting_answer", "Drafting answer", "running")
         gen.prompt = ctx.deps.prompt_service.build_guidance_prompt(
             question=req.payload.question,
@@ -168,6 +189,7 @@ class DirectAnswersStage:
         gen.answer = llm_result.answer if llm_result.answer.strip() else NOT_FOUND_ANSWER
         gen.not_found = llm_result.not_found or not gen.answer.strip()
         gen.citations = []
+        await ctx.emit(ChatEvent(type="generation.delta", payload={"text": gen.answer}))
         signals = _to_confidence_signals(chunks=[], rerank_applied=False)
         ctx.verification.confidence_signals = signals
         _apply_confidence(

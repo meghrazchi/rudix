@@ -17,7 +17,7 @@ from app.application.chat.pipeline.controls import (
     _resolve_graph_rag_enabled,
 )
 from app.application.chat.pipeline.errors import ChatPipelineError
-from app.application.chat.pipeline.events import plural
+from app.application.chat.pipeline.events import ChatEvent, plural
 from app.application.chat.pipeline.request_helpers import _get_qdrant_client
 from app.application.chat.pipeline.stages._evidence import (
     apply_freshness,
@@ -71,11 +71,15 @@ class RetrieveStage:
             "success",
             detail=f"Searching {plural(source_count, 'source')}",
         )
+        await ctx.emit(ChatEvent(type="retrieval.started"))
         await ctx.emit_step("searching_documents", "Searching knowledge base", "running")
         retrieve_started = perf_counter()
         try:
+            # R05-02: two short sessions, each closed before the next step: the retrieval
+            # branches with access filtering, then the trust, table, and OCR lookups.
             async with ctx.sessions.short() as db_session:
                 await self._retrieve(ctx, db_session)
+            async with ctx.sessions.short() as db_session:
                 await apply_freshness(ctx, db_session)
                 apply_table_boost(ctx)
                 await apply_ocr_quality(ctx, db_session)
@@ -89,7 +93,6 @@ class RetrieveStage:
                 error=exc.__class__.__name__,
                 initial_top_k=ret.retrieval_top_k,
             )
-            await ctx.emit_step("searching_documents", "Searching knowledge base", "failed")
             raise ChatPipelineError(
                 code="retrieval_failed",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -104,6 +107,7 @@ class RetrieveStage:
             0,
         )
         count = len(ret.retrieved_chunks)
+        await ctx.emit(ChatEvent(type="retrieval.completed", payload={"chunk_count": count}))
         await ctx.emit_step(
             "searching_documents",
             "Searching knowledge base",

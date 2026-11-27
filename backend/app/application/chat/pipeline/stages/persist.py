@@ -15,6 +15,7 @@ from app.application.chat.pipeline.errors import ChatPipelineError
 from app.application.chat.pipeline.stages._usage import (
     audit_metadata,
     build_trace_metadata,
+    transport_fields,
     usage_metadata,
 )
 from app.application.chat.quota import record_chat_usage
@@ -95,19 +96,30 @@ class PersistStage:
         gen = ctx.generation
         ver = ctx.verification
         out = ctx.persist
-        chat_session = ctx.scope.chat_session
-        assert chat_session is not None and cfg.answer_mode_result is not None
+        chat_session_id = ctx.ids.chat_session_id
+        assert chat_session_id is not None and cfg.answer_mode_result is not None
         assert cfg.ai_effective_policy is not None
         assert ver.confidence_explanation is not None
+        if ctx.ids.new_chat_session:
+            # R05-02: the session row is written here, under the pre-assigned id, so a run
+            # that fails before persistence leaves no chat_sessions row.
+            await deps.chat_repository.create_chat_session(
+                db_session,
+                organization_id=req.organization_id,
+                user_id=req.user_id,
+                title=req.payload.question[:120],
+                session_id=chat_session_id,
+            )
         await deps.chat_repository.create_chat_message(
             db_session,
-            chat_session_id=chat_session.id,
+            chat_session_id=chat_session_id,
             role=ChatRole.user.value,
             content=req.payload.question,
         )
         assistant_message = await deps.chat_repository.create_chat_message(
             db_session,
-            chat_session_id=chat_session.id,
+            message_id=ctx.ids.assistant_message_id,
+            chat_session_id=chat_session_id,
             role=ChatRole.assistant.value,
             content=gen.answer,
             confidence_score=ver.confidence_score,
@@ -206,7 +218,7 @@ class PersistStage:
             user_id=req.user_id,
             action="chat.query.completed",
             resource_type="chat_session",
-            resource_id=chat_session.id,
+            resource_id=chat_session_id,
             request_id=req.request_id,
             metadata=audit_metadata(ctx),
         )
@@ -222,7 +234,7 @@ class PersistStage:
                 if effective_policy.policy_id
                 else None,
                 collection_id=cfg.ai_policy_collection_id,
-                chat_session_id=chat_session.id,
+                chat_session_id=chat_session_id,
                 chat_message_id=assistant_message.id,
                 outcome=ver.ai_policy_result.outcome,
                 policy_source=ver.ai_policy_result.policy_source,
@@ -261,4 +273,5 @@ class PersistStage:
             detected_language=cfg.detected_language,
             answer_language_mode=req.payload.answer_language,
             answer_language_used=cfg.answer_language_used,
+            **transport_fields(ctx),
         )

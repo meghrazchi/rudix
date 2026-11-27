@@ -8,13 +8,14 @@ import asyncio
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.application.chat.pipeline.controls import _NOT_FOUND_ANSWER
 from app.application.chat.pipeline.deps import ChatPipelineDeps
 from app.application.chat.pipeline.events import ActivityStepEmitter, ChatEvent, Emitter
 from app.application.chat.pipeline.ledger import TokenLedger
 from app.application.chat.pipeline.sessions import ChatSessionScope
+from app.application.chat.pipeline.snapshots import PromptVersionSnapshot, RagProfileSnapshot
 from app.auth.models import AuthenticatedPrincipal
 from app.core.safety_guardrails import InjectionCheckResult
 from app.domains.ai.profile.schemas import ResolvedTaskProfile
@@ -48,9 +49,7 @@ from app.domains.chat.services.source_freshness_service import DocumentTrustData
 from app.domains.chat.services.source_scope_service import ResolvedSourceScope
 from app.domains.chat.services.table_retrieval_service import TableBoostResult
 from app.domains.chat.services.tool_orchestrator import ToolOrchestrationResult
-from app.models.chat import ChatMessage, ChatSession
-from app.models.prompt_template import PromptTemplateVersion
-from app.models.rag_profile import RagProfile
+from app.models.chat import ChatMessage
 
 NOT_FOUND_ANSWER = _NOT_FOUND_ANSWER
 
@@ -67,26 +66,34 @@ class RequestState:
 
 
 @dataclass
+class RunIds:
+    """Ids fixed for one run (R05-02). The assistant message id is pre-assigned; the chat
+    session id is pre-assigned for a new session (the row is written by stage 10) or set
+    by stage 1 once an existing session passed the ownership check."""
+
+    assistant_message_id: UUID = field(default_factory=uuid4)
+    chat_session_id: UUID | None = None
+    new_chat_session: bool = False
+
+
+@dataclass
 class ScopeState:
     explicit_document_ids: list[UUID] | None = None
     source_scope_result: ResolvedSourceScope | None = None
     document_ids: list[UUID] | None = None
-    chat_session: ChatSession | None = None
 
 
 @dataclass
 class ConfigState:
     injection_check: InjectionCheckResult | None = None
-    ai_org_policy: Any = None
-    ai_collection_override: Any = None
     ai_policy_collection_id: UUID | None = None
     ai_effective_policy: EffectivePolicy | None = None
     ai_pre_result: AiPolicyEvaluationResult | None = None
     answer_mode_result: AnswerModeResult | None = None
     scope_inventory_requested: bool = False
-    answer_prompt_version: PromptTemplateVersion | None = None
+    answer_prompt_version: PromptVersionSnapshot | None = None
     answer_prompt_template: str | None = None
-    rag_profile: RagProfile | None = None
+    rag_profile: RagProfileSnapshot | None = None
     rag_profile_source: str = "system_default"
     rerank_settings: RerankSettings | None = None
     chat_profile: ResolvedTaskProfile | None = None
@@ -97,6 +104,7 @@ class ConfigState:
     planner_result: PlannerResult | None = None
     route_result: RetrievalRouteResult | None = None
     orchestration_result: ToolOrchestrationResult | None = None
+    tool_policy_disabled: frozenset[str] = frozenset()
     detected_language: str | None = None
     answer_language_used: str | None = None
     query_rewrite_preview_enabled: bool = False
@@ -184,6 +192,8 @@ class GenerationState:
     answer_block_ran: bool = False
     # True when the single LLM call ran (tree search did not select a candidate).
     llm_call_ran: bool = False
+    # True once generation.started and the running drafting step were emitted.
+    drafting_started: bool = False
     llm_prompt_tokens: int = 0
     llm_completion_tokens: int = 0
     llm_model: str | None = None
@@ -234,6 +244,7 @@ class ChatContext:
     emitter: Emitter
     sessions: ChatSessionScope
     steps: ActivityStepEmitter
+    ids: RunIds = field(default_factory=RunIds)
     scope: ScopeState = field(default_factory=ScopeState)
     config: ConfigState = field(default_factory=ConfigState)
     retrieval: RetrievalState = field(default_factory=RetrievalState)
@@ -271,5 +282,5 @@ class ChatContext:
 
     @property
     def job_id(self) -> str:
-        chat_session = self.scope.chat_session
-        return str(chat_session.id) if chat_session is not None else ""
+        chat_session_id = self.ids.chat_session_id
+        return str(chat_session_id) if chat_session_id is not None else ""
