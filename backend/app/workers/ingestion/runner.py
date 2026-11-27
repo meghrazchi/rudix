@@ -23,9 +23,12 @@ logger = get_logger("worker.ingestion")
 
 
 async def _artifacts_missing(
-    ctx: StageContext, stage: StageName, records: dict[str, StageRecord]
+    ctx: StageContext,
+    stage: StageName,
+    records: dict[str, StageRecord],
+    planned: set[str],
 ) -> bool:
-    consumers = ARTIFACT_CONSUMERS.get(stage, ())
+    consumers = [name for name in ARTIFACT_CONSUMERS.get(stage, ()) if name in planned]
     if all(records.get(name) and records[name].status == COMPLETED for name in consumers):
         return False
     expected = int(records[stage].metrics.get("artifact_parts", 0))
@@ -40,10 +43,11 @@ async def run_inline(ctx: StageContext, stages: Sequence[Stage]) -> dict[str, St
         if record.status == COMPLETED:
             ctx.metrics[name] = dict(record.metrics)
 
+    planned = {stage.name for stage in stages}
     for stage in stages:
         record = records.get(stage.name)
         if record is not None and record.status == COMPLETED:
-            if not await _artifacts_missing(ctx, stage.name, records):
+            if not await _artifacts_missing(ctx, stage.name, records, planned):
                 record_ingest_stage(stage.name, "skipped", 0.0)
                 logger.info(
                     "ingestion.stage.skipped",
