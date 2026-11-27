@@ -297,6 +297,27 @@ async def test_stream_json_rejects_misordered_keys() -> None:
     ]
     assert "".join(chunks) == json.dumps({"items": []}, sort_keys=True)
 
+    async def _gappy_batches() -> Any:
+        yield []
+        yield [{"b": 1, "a": "é"}]
+        yield []
+        yield [{"a": 2}, {"a": 3}]
+
+    chunks = [
+        chunk
+        async for chunk in exports.stream_json(
+            head={"exported_at": "t"},
+            batches=_gappy_batches(),
+            tail=lambda count: {"returned": count},
+        )
+    ]
+    expected = {
+        "exported_at": "t",
+        "items": [{"b": 1, "a": "é"}, {"a": 2}, {"a": 3}],
+        "returned": 3,
+    }
+    assert "".join(chunks) == json.dumps(expected, sort_keys=True)
+
 
 async def test_logged_stream_reports_failure() -> None:
     async def _broken() -> Any:
