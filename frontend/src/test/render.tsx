@@ -5,9 +5,9 @@ import type { ReactElement, ReactNode } from "react";
 
 import {
   clearSessionStorage,
-  writeSessionToStorage,
   type AuthenticatedSession,
 } from "@/lib/auth-session";
+import { setSession } from "@/lib/auth/session-store";
 import type { SupportedLocale } from "@/i18n/routing";
 import enMessages from "@/i18n/messages/en.json";
 
@@ -35,7 +35,8 @@ export function seedTestSession(session: AuthenticatedSession | null): void {
     clearSessionStorage();
     return;
   }
-  writeSessionToStorage(session);
+  // The session lives in memory only (R07-09); seed the store directly.
+  setSession(session);
 }
 
 export function clearTestSession(): void {

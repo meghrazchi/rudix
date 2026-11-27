@@ -9,6 +9,7 @@ export const AUTHENTICATED_APP_ROUTE_SEGMENTS = [
   "connectors",
   "evaluations",
   "graph",
+  "knowledge",
   "rag-pipeline",
   "reports",
   "settings",
