@@ -79,6 +79,8 @@ PINNED_SETTINGS: dict[str, Any] = {
     "feature_enable_table_aware_retrieval": True,
     "pdf_extraction_enable_tables": True,
     "ocr_enabled": True,
+    # The pdf_ocr golden records the default languages; a local .env may set others.
+    "ocr_default_languages": "eng",
     "dlp_enabled": True,
     "dlp_action": "warn",
     "document_index_version": "v1",
