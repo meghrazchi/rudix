@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Iterator
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -14,6 +15,7 @@ from ingestion_golden_support import (
     ingestion_env,  # noqa: F401  (fixture)
     ingestion_env_pg,  # noqa: F401  (fixture)
 )
+from kombu import Queue
 from kombu.serialization import dumps
 from sqlalchemy import event, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -28,6 +30,7 @@ from app.workers.celery_app import celery_app
 from app.workers.dead_letter import (
     DEAD_LETTER_ERROR_CODE,
     DeadLetterConsumer,
+    DeadLetterTopology,
     MalformedDeadLetter,
     handle_dead_letter,
     install_worker_bootsteps,
@@ -321,7 +324,37 @@ def test_install_adds_both_steps() -> None:
 
     app = _App()
     install_worker_bootsteps(app)
-    assert app.steps["consumer"] == {DeadLetterConsumer, QueueDepthSampler}
+    assert app.steps["consumer"] == {DeadLetterTopology, DeadLetterConsumer, QueueDepthSampler}
+
+
+def test_topology_is_declared_on_every_quorum_worker(monkeypatch: pytest.MonkeyPatch) -> None:
+    declared: list[Any] = []
+
+    class _Channel:
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    channel = _Channel()
+
+    def _declare(self: Any, *args: Any, **kwargs: Any) -> None:
+        declared.append(self)
+
+    monkeypatch.setattr(Queue, "declare", _declare)
+    monkeypatch.setattr(Queue, "bind", lambda self, ch: self)
+    step = DeadLetterTopology.__new__(DeadLetterTopology)
+    monkeypatch.setattr(settings, "celery_queue_type", "classic")
+    assert step.include_if(None) is False
+    monkeypatch.setattr(settings, "celery_queue_type", "quorum")
+    # Included regardless of WORKER_CONSUME_DEAD_LETTER: any pool's queues can dead-letter.
+    monkeypatch.setattr(settings, "worker_consume_dead_letter", False)
+    assert step.include_if(None) is True
+    step.start(SimpleNamespace(connection=SimpleNamespace(channel=lambda: channel)))
+    [queue] = declared
+    assert queue.name == settings.celery_dead_letter_queue
+    assert queue.exchange.name == settings.celery_dead_letter_exchange
+    assert channel.closed
 
 
 def test_consumer_reads_the_dead_letter_queue_without_auto_ack(

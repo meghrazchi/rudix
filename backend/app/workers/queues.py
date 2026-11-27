@@ -4,8 +4,8 @@
 configured name, bound to the default ``rudix`` direct exchange by Celery.
 
 ``quorum`` declares every task queue as a quorum queue with ``x-delivery-limit`` and a
-dead-letter exchange, bound to a topic exchange, plus the dead-letter exchange and queue.
-Celery 5.7 behaviour this relies on (read from the installed source):
+dead-letter exchange, bound to a topic exchange (the dead-letter exchange and queue are
+declared by ``app.workers.dead_letter``, not as task queues). Celery 5.7 behaviour this relies on (read from the installed source):
 
 - ``worker_detect_quorum_queues`` (default on) turns global QoS off when any declared queue
   has ``x-queue-type: quorum`` (``celery/worker/consumer/tasks.py::qos_global``); quorum
@@ -78,13 +78,19 @@ def dead_letter_queue(config: Settings) -> Queue:
 
 
 def build_task_queues(config: Settings) -> tuple[Queue, ...]:
-    """``task_queues`` for the configured queue type (dead-letter queue last in quorum)."""
+    """``task_queues`` for the configured queue type.
+
+    The dead-letter queue is never a task queue: a worker started without ``-Q`` (the dev
+    ``worker``, the integration stack) consumes every task queue and would execute the
+    dead-lettered messages. ``app.workers.dead_letter`` declares it on every quorum worker and
+    consumes it raw in the default pool.
+    """
     names = task_queue_names(config)
     if config.celery_queue_type != "quorum":
         return tuple(Queue(name, routing_key=name) for name in names)
     exchange = Exchange(config.celery_quorum_exchange, type="topic", durable=True)
     arguments = quorum_queue_arguments(config)
-    queues = [
+    return tuple(
         Queue(
             name,
             exchange=exchange,
@@ -93,8 +99,7 @@ def build_task_queues(config: Settings) -> tuple[Queue, ...]:
             queue_arguments=dict(arguments),
         )
         for name in names
-    ]
-    return (*queues, dead_letter_queue(config))
+    )
 
 
 def queue_conf(config: Settings) -> dict[str, Any]:

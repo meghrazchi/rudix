@@ -283,9 +283,35 @@ class DeadLetterConsumer(bootsteps.ConsumerStep):  # type: ignore[misc]
         ]
 
 
+class DeadLetterTopology(bootsteps.StartStopStep):  # type: ignore[misc]
+    """Declares the dead-letter exchange, queue, and binding on every quorum-mode worker.
+
+    RabbitMQ drops a dead-lettered message when its exchange routes nowhere, so the topology
+    must exist wherever task queues are consumed, not only where the consumer runs.
+    """
+
+    requires = ("celery.worker.consumer:Connection",)
+
+    def include_if(self, parent: Any) -> bool:
+        return settings.celery_queue_type == "quorum"
+
+    def start(self, parent: Any) -> None:
+        channel = parent.connection.channel()
+        try:
+            dead_letter_queue(settings).bind(channel).declare()
+            logger.info(
+                "dead_letter.topology_declared",
+                exchange=settings.celery_dead_letter_exchange,
+                queue=settings.celery_dead_letter_queue,
+            )
+        finally:
+            channel.close()
+
+
 def install_worker_bootsteps(app: Any) -> None:
-    """Add the dead-letter consumer and the queue depth sampler to the consumer blueprint."""
+    """Add the dead-letter steps and the queue depth sampler to the consumer blueprint."""
     from app.workers.queue_metrics import QueueDepthSampler
 
+    app.steps["consumer"].add(DeadLetterTopology)
     app.steps["consumer"].add(DeadLetterConsumer)
     app.steps["consumer"].add(QueueDepthSampler)

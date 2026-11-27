@@ -209,8 +209,10 @@ uses them for the dead-letter consumer and hard-limit failures).
 
 With `CELERY_QUEUE_TYPE=quorum`, RabbitMQ dead-letters a message after
 `CELERY_DELIVERY_LIMIT` deliveries without an ack (a task that kills its worker every time, a
-payload that crashes the consumer) to `rudix.dlx` -> `rudix.dead_letter`. `worker-default`
-reads that queue with a consumer bootstep that never runs the task. Per message it writes one
+payload that crashes the consumer) to `rudix.dlx` -> `rudix.dead_letter`. Every quorum-mode
+worker declares that exchange, queue, and binding at start (RabbitMQ drops dead letters that
+route nowhere); the queue is never in `task_queues`, so a worker without `-Q` does not execute
+dead letters. `worker-default` reads it with a consumer bootstep that never runs the task. Per message it writes one
 `FailedJob`: `job_type='dead_letter'`, `error_code='delivery_limit_exceeded'`,
 `is_retryable=true`, the tenant of the message's `organization_id`, the task identity a
 dashboard retry needs (stage tasks map to `documents.process` / `documents.reindex` with

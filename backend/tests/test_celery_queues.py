@@ -89,9 +89,10 @@ def test_classic_mode_with_a_distinct_embedding_queue() -> None:
 
 def test_quorum_mode_declares_quorum_queues_with_dead_lettering() -> None:
     config = _quorum(celery_delivery_limit=7)
-    queues = build_task_queues(config)
-    *task_queues, dlq = queues
+    task_queues = build_task_queues(config)
     assert [q.name for q in task_queues] == task_queue_names(config)
+    # Never a task queue: a worker without -Q would execute dead-lettered messages.
+    assert "rudix.dead_letter" not in [q.name for q in task_queues]
     for queue in task_queues:
         assert queue.queue_arguments == {
             "x-queue-type": "quorum",
@@ -103,11 +104,11 @@ def test_quorum_mode_declares_quorum_queues_with_dead_lettering() -> None:
         assert queue.exchange.type == "topic"
         assert queue.routing_key == queue.name
         assert queue.durable
+    dlq = dead_letter_queue(config)
     assert dlq.name == "rudix.dead_letter"
     assert dlq.exchange.name == "rudix.dlx" and dlq.exchange.type == "direct"
     assert dlq.routing_key == "rudix.dead_letter"
     assert dlq.queue_arguments == {"x-queue-type": "quorum"}
-    assert dlq == dead_letter_queue(config)
 
 
 def test_quorum_mode_sets_the_celery_options_quorum_queues_need() -> None:
@@ -142,7 +143,7 @@ def test_quorum_cut_over_uses_the_configured_names() -> None:
     names = [q.name for q in build_task_queues(config)]
     assert names[0] == "default.q"
     assert "documents.processing.q" in names and "email.q" in names
-    assert names[-1] == "rudix.dead_letter.q"
+    assert "rudix.dead_letter.q" not in names
     assert sampled_queue_names(config)[-1] == "rudix.dead_letter.q"
     assert "rudix.dead_letter" not in sampled_queue_names(settings)
 
