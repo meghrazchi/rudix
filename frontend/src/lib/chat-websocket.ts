@@ -103,7 +103,7 @@ export type ChatWSAuthParam = { name: "ticket"; value: string };
 export type ChatWSReconnectInfo = {
   /** A `chat.resume` command was sent for the run in flight. */
   resumed: boolean;
-  /** Commands queued before the drop (e.g. an unsent `chat.start`) were sent. */
+  /** A queued, unsent `chat.start` was sent, so the run starts on this socket. */
   flushed: boolean;
 };
 
@@ -226,16 +226,20 @@ export class ChatWSClient {
       this._setState("connected");
       // Flush any commands that were queued while connecting.
       const queued = this.pendingQueue.splice(0);
+      const startQueued = queued.some((cmd) => cmd.command === "chat.start");
+      // On a reconnect, attach to the run first so a command queued during
+      // the retry (e.g. chat.cancel) reaches it; an unsent chat.start starts
+      // the run on this socket instead.
+      const resume = isReconnect && !startQueued ? this.resumeCommand() : null;
+      if (resume) this._sendRaw(resume);
       for (const cmd of queued) {
         this._sendRaw(cmd);
       }
       if (!isReconnect) return;
-      const resume = queued.length === 0 ? this.resumeCommand() : null;
-      if (resume) this._sendRaw(resume);
-      if (!resume && queued.length === 0) this.runInFlight = false;
+      if (!resume && !startQueued) this.runInFlight = false;
       this.options.onReconnected?.({
         resumed: resume !== null,
-        flushed: queued.length > 0,
+        flushed: startQueued,
       });
     };
 

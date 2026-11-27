@@ -247,6 +247,47 @@ describe("ChatWSClient reconnect", () => {
     });
   });
 
+  it("resumes before sending a chat.cancel queued during the retry", async () => {
+    const onReconnected = vi.fn();
+    const { client } = makeClient({ onReconnected });
+    const ws = await startRun(client);
+    ws.emit({
+      event: "generation.started",
+      message_id: "m-1",
+      stream_sequence: 1,
+    });
+    ws.fail();
+    client.send({ command: "chat.cancel" });
+    await vi.advanceTimersByTimeAsync(500);
+    last().open();
+    expect(last().commands()).toEqual([
+      {
+        command: "chat.resume",
+        payload: { message_id: "m-1", last_stream_sequence: 1 },
+      },
+      { command: "chat.cancel" },
+    ]);
+    expect(onReconnected).toHaveBeenCalledWith({
+      resumed: true,
+      flushed: false,
+    });
+  });
+
+  it("reports nothing to resume when only a chat.cancel was queued before a message id", async () => {
+    const onReconnected = vi.fn();
+    const { client } = makeClient({ onReconnected });
+    const ws = await startRun(client);
+    ws.fail();
+    client.send({ command: "chat.cancel" });
+    await vi.advanceTimersByTimeAsync(500);
+    last().open();
+    expect(onReconnected).toHaveBeenCalledWith({
+      resumed: false,
+      flushed: false,
+    });
+    expect(client.resumeCommand()).toBeNull();
+  });
+
   it("reports nothing to resume when the drop came before a message id", async () => {
     const onReconnected = vi.fn();
     const { client } = makeClient({ onReconnected });
