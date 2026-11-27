@@ -1,5 +1,14 @@
 {
-  "audit_actions": [],
+  "audit_actions": [
+    {
+      "action": "document.process.completed",
+      "metadata": {
+        "chunk_count": 1,
+        "page_count": 1,
+        "status": "indexed"
+      }
+    }
+  ],
   "chunks": [
     {
       "child_count": null,

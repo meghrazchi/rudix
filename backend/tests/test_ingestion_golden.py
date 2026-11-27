@@ -51,10 +51,19 @@ PII_TEXT = (
 )
 
 
+def _ids(seeded: Seeded) -> dict[str, str]:
+    # Task kwargs as the upload and reindex endpoints send them.
+    return {"organization_id": str(seeded.organization_id), "user_id": str(seeded.user_id)}
+
+
 def _run_process(env: IngestionEnv, seeded: Seeded, task_id: str, **kwargs: Any) -> Any:
     try:
         result = env.run_task(
-            document_tasks.process_document, seeded.document_id, task_id=task_id, **kwargs
+            document_tasks.process_document,
+            seeded.document_id,
+            task_id=task_id,
+            **_ids(seeded),
+            **kwargs,
         )
     except Exception as exc:
         details = getattr(exc, "error_details", {})
@@ -79,6 +88,7 @@ def _reindex(env: IngestionEnv) -> tuple[Seeded, Any]:
             seeded.document_id,
             task_id="task-reindex",
             chunking_profile_config=SMALL_CHUNKS,
+            **_ids(seeded),
         )
     except Exception as exc:  # pragma: no cover - fixture records the failure
         return seeded, {"raised": type(exc).__name__}
@@ -209,6 +219,7 @@ def _evaluation_reingest(env: IngestionEnv) -> tuple[Seeded, Any]:
         document_tasks._extract_and_store_document_pages_async(
             str(seeded.document_id),
             request_id="req-eval",
+            **_ids(seeded),
             pipeline_type="evaluation.run",
             chunking_service=service,
             profile_source="custom_profile",
