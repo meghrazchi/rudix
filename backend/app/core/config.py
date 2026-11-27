@@ -364,6 +364,12 @@ class Settings(BaseSettings):
     rate_limit_auth_refresh_requests: int = Field(default=60, ge=1, le=10000)
     rate_limit_auth_logout_requests: int = Field(default=30, ge=1, le=10000)
     rate_limit_auth_password_requests: int = Field(default=10, ge=1, le=10000)
+    # R04-07: organisation aggregate per scope/endpoint = scope limit x multiplier.
+    rate_limit_org_enabled: bool = True
+    rate_limit_org_limit_multiplier: int = Field(default=10, ge=1, le=10000)
+    # R04-06: API-key/service-account last_used_* buffered in Redis, flushed by beat.
+    usage_touch_flush_interval_seconds: int = Field(default=60, ge=10, le=3600)
+    usage_touch_flush_batch_size: int = Field(default=500, ge=1, le=10000)
     evaluation_prevent_duplicate_active_runs: bool = True
     feature_enable_product_analytics: bool = True
     analytics_dedupe_window_seconds: int = Field(default=86400, ge=60, le=604800)
@@ -1475,6 +1481,10 @@ class Settings(BaseSettings):
             "rate_limit_auth_refresh_requests": self.rate_limit_auth_refresh_requests,
             "rate_limit_auth_logout_requests": self.rate_limit_auth_logout_requests,
             "rate_limit_auth_password_requests": self.rate_limit_auth_password_requests,
+            "rate_limit_org_enabled": self.rate_limit_org_enabled,
+            "rate_limit_org_limit_multiplier": self.rate_limit_org_limit_multiplier,
+            "usage_touch_flush_interval_seconds": self.usage_touch_flush_interval_seconds,
+            "usage_touch_flush_batch_size": self.usage_touch_flush_batch_size,
             "evaluation_prevent_duplicate_active_runs": self.evaluation_prevent_duplicate_active_runs,
             "dependency_connect_timeout_seconds": self.dependency_connect_timeout_seconds,
             "dependency_read_timeout_seconds": self.dependency_read_timeout_seconds,

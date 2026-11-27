@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import hashlib
 from datetime import UTC, datetime, timedelta
-from math import floor
 from time import time
 from typing import Annotated
 from uuid import UUID, uuid4
@@ -53,6 +52,7 @@ from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
+from app.rate_limit import sliding_window
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -146,25 +146,21 @@ async def _enforce_auth_rate_limit(
             )
         return
 
-    bucket = floor(time() / max(1, window_seconds))
-    key = f"rate_limit:v1:auth:{action}:{':'.join(key_parts)}:{bucket}"
-    count = await redis.incr(key)
-    if count == 1:
-        await redis.expire(key, window_seconds)
-    ttl = await redis.ttl(key)
-    if ttl <= 0:
-        await redis.expire(key, window_seconds)
-        ttl = window_seconds
-
-    if count > limit:
+    identity = ":".join(key_parts)
+    key = f"rate_limit:v2:{{auth:{action}:{identity}}}:auth:{action}:{identity}"
+    result = await sliding_window.check(
+        redis, user_key=key, user_limit=limit, window_seconds=max(1, window_seconds)
+    )
+    if not result.allowed:
+        retry_after = result.retry_after_seconds
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
                 "code": "rate_limit_exceeded",
                 "message": f"Rate limit exceeded for auth.{action}",
-                "retry_after_seconds": max(1, int(ttl)),
+                "retry_after_seconds": retry_after,
             },
-            headers={"Retry-After": str(max(1, int(ttl)))},
+            headers={"Retry-After": str(retry_after)},
         )
 
 

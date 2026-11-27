@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-from math import floor
 from time import time
 from typing import Annotated
 
@@ -17,6 +16,7 @@ from app.domains.public_contact.schemas import (
     PublicContactSubmissionResponse,
 )
 from app.domains.public_contact.service import PublicContactService
+from app.rate_limit import sliding_window
 
 router = APIRouter(prefix="/contact", tags=["public-contact"])
 
@@ -46,8 +46,7 @@ def _client_ip(request: Request) -> str | None:
 def _client_rate_limit_key(request: Request) -> str:
     identifier = _client_ip(request) or "unknown"
     digest = hashlib.sha256(identifier.encode("utf-8")).hexdigest()
-    bucket = floor(time() / settings.rate_limit_window_seconds)
-    return f"rate_limit:v1:contact:{digest}:window:{bucket}"
+    return f"rate_limit:v2:{{contact:{digest}}}:contact"
 
 
 def _rate_limit_response(*, retry_after: int, remaining: int) -> HTTPException:
@@ -89,16 +88,16 @@ async def _enforce_public_contact_rate_limit(request: Request) -> None:
     key = _client_rate_limit_key(request)
     window_seconds = settings.rate_limit_window_seconds
     try:
-        count = await redis.incr(key)
-        if count == 1:
-            await redis.expire(key, window_seconds)
-        ttl = await redis.ttl(key)
-        if ttl <= 0:
-            await redis.expire(key, window_seconds)
-            ttl = window_seconds
-        remaining = settings.rate_limit_contact_requests - int(count)
-        if count > settings.rate_limit_contact_requests:
-            raise _rate_limit_response(retry_after=max(1, int(ttl)), remaining=remaining)
+        result = await sliding_window.check(
+            redis,
+            user_key=key,
+            user_limit=settings.rate_limit_contact_requests,
+            window_seconds=window_seconds,
+        )
+        if not result.allowed:
+            raise _rate_limit_response(
+                retry_after=result.retry_after_seconds, remaining=result.remaining
+            )
     except HTTPException:
         raise
     except Exception as exc:

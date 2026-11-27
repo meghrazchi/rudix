@@ -49,40 +49,16 @@ from app.models.organization_member import OrganizationMember
 from app.models.user import User
 from app.rate_limit import dependencies as rate_limit_dependencies
 from app.rate_limit.dependencies import RateLimitScope
+from tests.redis_fakes import BrokenRedis, FakeClock, FakeRedis, align_app_clock
+
+# 500 ms into a window, so a fresh limit hit reports Retry-After 60 (59.5 s rounded up).
+_WINDOW_START_MS = 29_000_000 * 60_000
 
 
-class FakeRedis:
-    def __init__(self) -> None:
-        self.counts: dict[str, int] = {}
-        self.expiries: dict[str, int] = {}
-        self.expire_calls: list[tuple[str, int]] = []
-
-    async def incr(self, key: str) -> int:
-        count = self.counts.get(key, 0) + 1
-        self.counts[key] = count
-        return count
-
-    async def expire(self, key: str, seconds: int) -> bool:
-        self.expire_calls.append((key, seconds))
-        self.expiries[key] = seconds
-        return True
-
-    async def ttl(self, key: str) -> int:
-        return self.expiries.get(key, -1)
-
-
-class BrokenRedis:
-    async def incr(self, key: str) -> int:
-        del key
-        raise RuntimeError("redis unavailable")
-
-    async def expire(self, key: str, seconds: int) -> bool:
-        del key, seconds
-        raise RuntimeError("redis unavailable")
-
-    async def ttl(self, key: str) -> int:
-        del key
-        raise RuntimeError("redis unavailable")
+def _frozen_fake_redis(monkeypatch: pytest.MonkeyPatch) -> FakeRedis:
+    clock = FakeClock(_WINDOW_START_MS + 500)
+    align_app_clock(monkeypatch, clock)
+    return FakeRedis(clock=clock)
 
 
 class FakeMinio:
@@ -182,7 +158,7 @@ def _request_for(path: str, route_path: str) -> Request:
 
 @pytest.mark.asyncio
 async def test_rate_limit_consume_sets_expiry_for_new_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake_redis = FakeRedis()
+    fake_redis = _frozen_fake_redis(monkeypatch)
     monkeypatch.setattr(redis_module, "redis_client", fake_redis)
     monkeypatch.setattr(settings, "rate_limit_enabled", True)
     monkeypatch.setattr(settings, "environment", Environment.test)
@@ -204,9 +180,11 @@ async def test_rate_limit_consume_sets_expiry_for_new_key(monkeypatch: pytest.Mo
         principal=principal,
     )
 
-    assert len(fake_redis.expire_calls) == 1
-    _, ttl_seconds = fake_redis.expire_calls[0]
-    assert ttl_seconds == 60
+    # One script call; the new current-window user and org counters live for two windows
+    # so they serve as the next window's "previous" count.
+    assert fake_redis.commands == ["EVALSHA"]
+    assert len(fake_redis.keyspace.strings) == 2
+    assert {fake_redis.keyspace.pttl(key) for key in fake_redis.keyspace.strings} == {120_000}
 
 
 @pytest.mark.asyncio
@@ -215,7 +193,7 @@ async def test_rate_limit_returns_429_when_limit_exceeded(
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(redis_module, "redis_client", FakeRedis())
+    monkeypatch.setattr(redis_module, "redis_client", _frozen_fake_redis(monkeypatch))
 
     user, org = await _seed_principal(db_session, role=OrganizationRole.member)
     token = create_app_access_token(

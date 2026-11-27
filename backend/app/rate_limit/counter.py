@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from math import floor
-from time import time
 
 from app.auth.models import AuthenticatedPrincipal
 from app.clients import redis_client as redis_module
 from app.core.config import RateLimitRedisFailureMode, settings
 from app.core.logging import get_logger
 from app.core.metrics import record_rate_limit
+from app.rate_limit import sliding_window
 
 logger = get_logger("auth.rate_limit")
 
@@ -31,12 +30,18 @@ class RateLimitDecision(StrEnum):
     unavailable = "unavailable"
 
 
+class RateLimitedBy(StrEnum):
+    user = "user"
+    organization = "organization"
+
+
 @dataclass(frozen=True)
 class RateLimitOutcome:
     decision: RateLimitDecision
     limit: int
     remaining: int
     retry_after_seconds: int
+    limited_by: RateLimitedBy | None = None
 
 
 def _scope_limit(scope: RateLimitScope) -> int:
@@ -51,14 +56,23 @@ def _scope_limit(scope: RateLimitScope) -> int:
     return mapping[scope]
 
 
-def _build_key(
-    *, scope: RateLimitScope, endpoint: str, user_id: str, organization_id: str, window: int
-) -> str:
+def _build_key(*, scope: RateLimitScope, endpoint: str, user_id: str, organization_id: str) -> str:
+    """User counter base key; ``{org:<id>}`` is the cluster hash tag shared with the org key."""
     sanitized_endpoint = endpoint.replace(" ", "_")
     return (
-        f"rate_limit:v1:{scope.value}:{sanitized_endpoint}:"
-        f"org:{organization_id}:user:{user_id}:window:{window}"
+        f"rate_limit:v2:{{org:{organization_id}}}:{scope.value}:{sanitized_endpoint}:user:{user_id}"
     )
+
+
+def _build_org_key(*, scope: RateLimitScope, endpoint: str, organization_id: str) -> str:
+    sanitized_endpoint = endpoint.replace(" ", "_")
+    return f"rate_limit:v2:{{org:{organization_id}}}:{scope.value}:{sanitized_endpoint}:org"
+
+
+def _org_limit(limit: int, organization_id: str | None) -> int:
+    if not settings.rate_limit_org_enabled or organization_id is None:
+        return 0
+    return limit * settings.rate_limit_org_limit_multiplier
 
 
 def _rate_limit_disabled() -> bool:
@@ -78,14 +92,12 @@ async def consume_rate_limit(
         return RateLimitOutcome(RateLimitDecision.allowed, limit, limit, 0)
 
     window_seconds = settings.rate_limit_window_seconds
-    window_bucket = floor(time() / window_seconds)
     organization_id = principal.organization_id or "none"
     key = _build_key(
         scope=scope,
         endpoint=endpoint,
         user_id=principal.user_id,
         organization_id=organization_id,
-        window=window_bucket,
     )
     failure_mode = settings.rate_limit_redis_failure_mode
     closed = failure_mode == RateLimitRedisFailureMode.closed
@@ -105,16 +117,21 @@ async def consume_rate_limit(
         return RateLimitOutcome(decision, limit, limit, 0)
 
     try:
-        count = await redis.incr(key)
-        if count == 1:
-            await redis.expire(key, window_seconds)
-        ttl = await redis.ttl(key)
-        if ttl <= 0:
-            await redis.expire(key, window_seconds)
-            ttl = window_seconds
-
-        remaining = limit - int(count)
-        if count > limit:
+        result = await sliding_window.check(
+            redis,
+            user_key=key,
+            user_limit=limit,
+            window_seconds=window_seconds,
+            org_key=_build_org_key(scope=scope, endpoint=endpoint, organization_id=organization_id),
+            org_limit=_org_limit(limit, principal.organization_id),
+        )
+        remaining = result.remaining
+        if not result.allowed:
+            limited_by = (
+                RateLimitedBy.organization
+                if result.scope == sliding_window.SCOPE_ORG
+                else RateLimitedBy.user
+            )
             logger.info(
                 "rate_limit.exceeded",
                 scope=scope.value,
@@ -122,10 +139,19 @@ async def consume_rate_limit(
                 user_id=principal.user_id,
                 organization_id=organization_id,
                 limit=limit,
-                retry_after_seconds=int(ttl),
+                limited_by=limited_by.value,
+                retry_after_seconds=result.retry_after_seconds,
             )
             _record(scope, RateLimitDecision.limited, "none")
-            return RateLimitOutcome(RateLimitDecision.limited, limit, remaining, max(1, int(ttl)))
+            if limited_by == RateLimitedBy.organization:
+                sliding_window.record_org_limited(scope.value)
+            return RateLimitOutcome(
+                RateLimitDecision.limited,
+                limit,
+                remaining,
+                result.retry_after_seconds,
+                limited_by,
+            )
     except Exception as exc:
         if closed:
             logger.error(
