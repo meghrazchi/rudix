@@ -86,6 +86,7 @@ from app.interfaces.http import (
     team,
     team_invitations,
     verified_answers,
+    web_vitals,
 )
 
 from . import health
@@ -110,6 +111,7 @@ api_router.include_router(team_invitations.public_router)
 api_router.include_router(agent_runs.public_trace_router)
 api_router.include_router(public_contact.router)
 api_router.include_router(public_status.router)
+api_router.include_router(web_vitals.router)
 protected_router.include_router(connector_platform.router)
 protected_router.include_router(connector_discovery.router)
 protected_router.include_router(connectors.router)
