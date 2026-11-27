@@ -540,7 +540,9 @@ on PostgreSQL, that a non-superuser table owner sees only its tenant under `stri
 file is applied). It ships as operator SQL, not as a migration, because it only changes
 deployments that still connect as the owner: run it as the migration owner with
 `psql -1 -v ON_ERROR_STOP=1 -f deploy/sql/force_rls.sql`. Each statement takes a short
-`ACCESS EXCLUSIVE` lock and rewrites no data.
+`ACCESS EXCLUSIVE` lock and rewrites no data; the locks are held until the single commit, so
+both files start with `SET LOCAL lock_timeout = '5s'` and roll back as a whole instead of
+queueing traffic behind a long-running query. Re-run them at a quieter time if that happens.
 
 ### Rollout
 
@@ -561,6 +563,12 @@ deployments that still connect as the owner: run it as the migration owner with
 ### Known gaps before `strict`
 
 - Celery tasks other than the maintenance tasks do not bind a tenant (`R06-01`).
+- Still unbound unauthenticated paths that write strict tables (found in the S3 review, not
+  yet bound): SCIM provisioning (`/scim/v2/*`, `audit_logs` after the bearer-token lookup),
+  invitation acceptance (`POST /team/invitations/accept`, `audit_logs`), and the browser
+  OAuth callback (`GET /connectors/oauth/callback`, `connector_connections` and
+  `connector_credentials`). Each must call `bind_resolved_tenant` with the organisation of
+  the SCIM configuration, invitation, or OAuth state before `strict` is turned on in staging.
 - Closed in 0.5.0: the chat WebSocket and HTTP pipeline (R05-02: every session the pipeline
   opens goes through `bind_pipeline_session`, and the run binds the tenant context variable
   so parallel retrieval branches inherit it; the legacy bodies are gone since S3). Paths that

@@ -14,6 +14,9 @@
 -- (rudix_maintenance) are not affected. Rollback: deploy/sql/unforce_rls.sql.
 -- Each statement takes a short ACCESS EXCLUSIVE lock on its table; no data is rewritten.
 
+-- Give up (and roll back everything) if a table lock is not granted within 5 s; re-run later.
+SET LOCAL lock_timeout = '5s';
+
 ALTER TABLE ab_experiments FORCE ROW LEVEL SECURITY;
 ALTER TABLE activity_timeline_events FORCE ROW LEVEL SECURITY;
 ALTER TABLE agent_approvals FORCE ROW LEVEL SECURITY;

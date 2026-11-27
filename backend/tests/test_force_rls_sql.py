@@ -64,6 +64,10 @@ def test_rendered_tables_are_every_policy_table_and_no_identity_table() -> None:
         assert f" {table} " not in script.render_force_sql()
     # Operator SQL, never a transaction block of its own: ``psql -1`` wraps it.
     assert "BEGIN" not in script.render_force_sql() and "COMMIT" not in script.render_force_sql()
+    # Both files fail fast on a lock wait instead of queueing traffic behind held locks.
+    for sql in (script.render_force_sql(), script.render_unforce_sql()):
+        statements = [line for line in sql.splitlines() if line and not line.startswith("--")]
+        assert statements[0] == "SET LOCAL lock_timeout = '5s';"
 
 
 def test_check_mode_reports_stale_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -134,6 +138,8 @@ async def _as_owner_sees(session: AsyncSession, table: str, org: UUID | None) ->
 
 async def _execute_file(session: AsyncSession, name: str) -> None:
     sql = (script.DEPLOY_SQL_DIR / name).read_text(encoding="utf-8")
+    for statement in [line.rstrip(";") for line in sql.splitlines() if line.startswith("SET ")]:
+        await session.execute(text(statement))
     for statement in _statements(sql):
         await session.execute(text(statement))
 

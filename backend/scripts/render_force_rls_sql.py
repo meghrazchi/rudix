@@ -63,9 +63,18 @@ def forced_tables() -> list[str]:
     return sorted({_validate_identifier(name) for name in (*RLS_STRICT_TABLES, *RLS_LOOKUP_TABLES)})
 
 
+# ``psql -1`` holds every table lock until the commit; a lock that waits behind a long query
+# would queue all traffic on the tables already locked. Fail fast instead, then re-run.
+_LOCK_TIMEOUT = """\
+-- Give up (and roll back everything) if a table lock is not granted within 5 s; re-run later.
+SET LOCAL lock_timeout = '5s';
+
+"""
+
+
 def _render(*, title: str, file: str, body: str, clause: str) -> str:
     statements = "\n".join(f"ALTER TABLE {table} {clause};" for table in forced_tables())
-    return _HEADER.format(title=title, file=file, body=body) + statements + "\n"
+    return _HEADER.format(title=title, file=file, body=body) + _LOCK_TIMEOUT + statements + "\n"
 
 
 def render_force_sql() -> str:

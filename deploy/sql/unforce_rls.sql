@@ -11,6 +11,9 @@
 -- Row-level security stays enabled and the policies stay in place; set RLS_ENFORCEMENT=soft
 -- first when you roll back because of denials.
 
+-- Give up (and roll back everything) if a table lock is not granted within 5 s; re-run later.
+SET LOCAL lock_timeout = '5s';
+
 ALTER TABLE ab_experiments NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE activity_timeline_events NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE agent_approvals NO FORCE ROW LEVEL SECURITY;
