@@ -30,7 +30,9 @@ concurrency:
 jobs:
   e2e-integration:
     name: E2E against integration stack
-    runs-on: ubuntu-latest
+    # Playwright 1.60 cannot install browsers on ubuntu-latest (26.04) yet;
+    # pin the last supported image until Playwright adds 26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       RUDIX_API_IMAGE: ${{ inputs.api_image || 'rudix-local-api:e2e' }}

@@ -87,7 +87,9 @@ jobs:
     name: Frontend Playwright
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
+    # Playwright 1.60 cannot install browsers on ubuntu-latest (26.04) yet;
+    # pin the last supported image until Playwright adds 26.04.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7

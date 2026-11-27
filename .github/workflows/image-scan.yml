@@ -93,9 +93,14 @@ jobs:
         run: docker build --target worker -t rudix-local-worker:scan -f backend/Dockerfile backend
 
       - name: Build frontend image
-        # Built without deployment URLs: the scan covers OS packages and
-        # dependencies, which do not depend on the baked public URLs.
-        run: docker build -t rudix-local-frontend:scan -f frontend/Dockerfile frontend
+        # next.config.ts refuses to build without public URLs. The scan covers OS
+        # packages and dependencies, so local placeholder URLs are enough.
+        run: |
+          {
+            printf 'NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1\n'
+            printf 'NEXT_PUBLIC_APP_URL=http://localhost:3000\n'
+          } > frontend/.env.production
+          docker build -t rudix-local-frontend:scan -f frontend/Dockerfile frontend
 
       - name: Trivy scan api image
         uses: aquasecurity/trivy-action@v0.36.0
