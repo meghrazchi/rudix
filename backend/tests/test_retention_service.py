@@ -207,27 +207,27 @@ async def test_none_everywhere_keeps_everything(db_session: AsyncSession) -> Non
 @pytest.mark.asyncio
 async def test_batch_limit_honoured_and_rerun_continues(db_session: AsyncSession) -> None:
     org_id = await _org(db_session)
-    await _usage(db_session, org_id, *[40 + i for i in range(250)], 1)
+    await _usage(db_session, org_id, *[40 + i for i in range(25)], 1)
     await db_session.commit()
-    config = _config({"usage_events": 30}, batch_size=100, max_batches=2)
+    config = _config({"usage_events": 30}, batch_size=10, max_batches=2)
 
     first = await RetentionService().purge(
         db_session, now=NOW, config=config, organization_ids=[org_id]
     )
-    assert (first.tables[0].rows_deleted, first.tables[0].batches) == (200, 2)
+    assert (first.tables[0].rows_deleted, first.tables[0].batches) == (20, 2)
     assert first.tables[0].truncated is True
-    assert await _count(db_session, UsageEvent, org_id) == 51
+    assert await _count(db_session, UsageEvent, org_id) == 6
     # The oldest rows went first: the newest expired row (40 days) is still there.
     remaining = await db_session.execute(
         select(func.min(UsageEvent.created_at)).where(UsageEvent.organization_id == org_id)
     )
     oldest_left = remaining.scalar_one()
-    assert oldest_left.replace(tzinfo=UTC) >= NOW - timedelta(days=90)
+    assert oldest_left.replace(tzinfo=UTC) >= NOW - timedelta(days=45)
 
     second = await RetentionService().purge(
         db_session, now=NOW, config=config, organization_ids=[org_id]
     )
-    assert (second.tables[0].rows_deleted, second.tables[0].truncated) == (50, False)
+    assert (second.tables[0].rows_deleted, second.tables[0].truncated) == (5, False)
     assert await _count(db_session, UsageEvent, org_id) == 1
 
 
