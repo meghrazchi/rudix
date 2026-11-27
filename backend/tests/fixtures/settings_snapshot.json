@@ -289,6 +289,8 @@
   "rate_limit_disable_in_test": true,
   "rate_limit_enabled": true,
   "rate_limit_evaluation_requests": 10,
+  "rate_limit_org_enabled": true,
+  "rate_limit_org_limit_multiplier": 10,
   "rate_limit_redis_failure_mode": "open",
   "rate_limit_upload_requests": 20,
   "rate_limit_window_seconds": 60,
@@ -318,5 +320,7 @@
   "sentry_traces_sample_rate": null,
   "supabase_jwks_url": null,
   "supabase_jwt_audience": null,
-  "supabase_jwt_issuer": null
+  "supabase_jwt_issuer": null,
+  "usage_touch_flush_batch_size": 500,
+  "usage_touch_flush_interval_seconds": 60
 }
