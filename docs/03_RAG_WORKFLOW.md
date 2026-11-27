@@ -277,29 +277,47 @@ The query pipeline runs when a user asks a question.
 
 ### Steps
 
-1. Frontend sends question to `/chat`.
-2. FastAPI verifies auth token.
-3. Backend checks document permissions.
-4. Backend embeds the question.
-5. Backend searches Qdrant with metadata filters.
-6. Backend retrieves top-k candidate chunks.
-7. If `FEATURE_ENABLE_GRAPH_RAG=true` for the organization, the backend looks
-   up question entities in Neo4j, expands to related entities and evidence
-   within configured hop/entity/chunk limits, and merges graph-backed chunks
-   into the candidate set.
-8. Backend reranks chunks with the configured provider-backed reranker, capped by the profile/env input limits.
-9. If `FEATURE_ENABLE_TREE_SEARCH_REASONING=true` and the question is high-risk
-   (for example legal, compliance, policy conflict, contract risk, or incident
-   decision support), the backend generates multiple candidate answer strategies,
-   scores them by citation support, source trust, freshness, conflict level, and
-   completeness, then selects the safest supported answer within cost/latency
-   limits.
-10. Backend resolves the active organization `answer_generation` prompt version and builds a context block.
-11. Backend calls the LLM.
-12. Backend validates citations.
-13. Backend computes confidence score.
-14. Backend stores the answer, citations, prompt template version ID, and graph debug metadata.
-15. Backend returns the answer to frontend.
+`POST /api/v1/chat` and the chat WebSocket (`chat.start` on `/api/v1/chat/ws`) run the same
+staged pipeline (`backend/app/application/chat/pipeline/`, `CHAT_PIPELINE_V2=true`, the
+default). Each stage is one file under `stages/`; the transports only translate events.
+
+1. **Auth.** The route verifies the token (HTTP) or the handshake ticket (WebSocket) and the
+   role, then the pipeline binds the run to the principal's organisation: every database
+   session it opens is bound with `bind_pipeline_session` (tenant context, ORM guard in
+   `strict`), and tasks it starts inherit the tenant.
+2. **Organisation and document permission checks** (stage 1, `authorize`). Question quota
+   (read-only: an expired window is reset by the final write), explicit document access,
+   the source scope, document-level authorisation, and the ownership check of an existing
+   chat session. A new chat session is not written here; its id is pre-assigned.
+3. **Question guard and configuration** (stages 2 to 4). Prompt-injection check, AI response
+   policy, answer mode, RAG and model profiles, planner, retrieval routing, and tool
+   orchestration. The planning, strategy, and tool steps are emitted after they are
+   computed. Stages 1, 2, and 4 share one read session that is committed and released
+   before stage 5; configuration leaves it as plain snapshots.
+4. **Rewrite** (stage 5, optional). Query rewriting and decomposition; the organisation and
+   document filters are never changed.
+5. **Embed** the question (or the rewritten queries) with the index's embedding model.
+6. **Organisation-filtered search** (stage 6). Vector search in Qdrant with the
+   `organization_id`, document, and index-version filters, keyword and graph branches when
+   enabled, then the cite-access filter, freshness, table, and OCR signals. Each database
+   lookup uses its own short session, closed before the stage returns.
+7. **Rerank** (stage 7) with the configured provider, then context packing, the not-found
+   decision, parent context, and source conflict detection.
+8. **Prompt.** The active `answer_generation` prompt version wraps the retrieved text as
+   untrusted context.
+9. **LLM** (stage 8). Tree search for high-risk questions when enabled, otherwise one
+   generation call. No database connection is held while a model is called.
+10. **Citation validation** (stage 9). Model citations are rebuilt from the retrieved chunks;
+    unknown chunk ids are rejected. The grounded verifier (strict mode refuses weak or
+    contradicted answers), critic, refiner, and the AI policy post-check run here.
+11. **Confidence** is calibrated with the citation, freshness, OCR, conflict, and graph
+    signals.
+12. **Persistence** (stage 10). One write session and one commit: the chat session (for a
+    new conversation, under the pre-assigned id), both messages (the assistant message under
+    its pre-assigned id), citations, trust metadata, usage event, audit log, policy log, and
+    the quota increment. A run that fails earlier writes no chat row.
+13. **Response.** HTTP returns `ChatQueryResponse`; the WebSocket sends the same response in
+    `chat.completed` after the progress events.
 
 ### Query Mermaid diagram
 

@@ -527,12 +527,13 @@ call on the event loop shows up as lag. It needs no labels.
 
 ### Chat pipeline stages (R05-01)
 
-With `CHAT_PIPELINE_V2=true`, `POST /api/v1/chat` runs the staged chat pipeline and records one
-observation per stage run:
+With `CHAT_PIPELINE_V2=true` (the default), `POST /api/v1/chat` and the chat WebSocket run the
+staged chat pipeline and record one observation per stage run and per database session:
 
 | Metric | Labels | Meaning |
 |---|---|---|
 | `rudix_chat_stage_seconds` | `stage` | Duration of one stage: `authorize`, `guard`, `resolve_config`, `shortcut`, `rewrite`, `direct_answers`, `retrieve`, `rerank_pack`, `generate`, `verify`, `persist`. |
+| `rudix_chat_db_session_seconds` | `phase` | How long one pipeline database session was held: `read` (stages 1, 2, 4), `short` (one lookup in stages 5 to 9), `write` (stage 10). No session is open while a model generates (R05-02). |
 
 - `retrieve`, `rerank_pack`, and `generate` are skipped for blocked, scope-inventory, and
   guidance answers, so their counts are lower than the `authorize` count.

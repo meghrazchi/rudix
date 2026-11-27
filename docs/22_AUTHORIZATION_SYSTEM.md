@@ -539,8 +539,11 @@ is not set, so nothing changes until `DATABASE_URL` points at `rudix_app`.
 
 ### Known gaps before `strict`
 
-- The chat WebSocket (`SessionLocal()` in `chat.py`) and Celery tasks other than the
-  maintenance tasks do not bind a tenant.
+- Celery tasks other than the maintenance tasks do not bind a tenant. The chat WebSocket is
+  bound since 0.5.0 (R05-02): with `CHAT_PIPELINE_V2=true` (the default) every session the chat
+  pipeline opens goes through `bind_pipeline_session` (tenant context, ORM guard in `strict`),
+  and the run binds the tenant context variable so parallel retrieval branches inherit it. The
+  legacy WebSocket body (`CHAT_PIPELINE_V2=false`, removed in S3) is still unbound.
 - Unauthenticated reads of strict tables: the shared agent trace page loads `agent_runs`,
   `agent_steps`, and `agent_tool_calls`; Slack/Teams inbound events run the chat pipeline;
   pre-authentication audit writes (login, SSO) insert `audit_logs` rows. Each needs an

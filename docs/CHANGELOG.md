@@ -7,6 +7,7 @@ All notable changes to Rudix, the product and its documentation, are recorded he
 ### Added
 
 - `docs/roadmap/V0_5_0_IMPLEMENTATION_PLAN.md`: nine work packages for `0.5.0` (chat pipeline and streaming) in four chains, with shared-file anchors, the streaming and resume event contracts, and what is deferred or needs staging.
+- The chat WebSocket runs the staged pipeline too (same stages, same `ChatQueryResponse`), `CHAT_PIPELINE_V2` defaults to `true`, short database sessions (no connection held while the model generates; new chat sessions written by the final write under pre-assigned ids), tenant binding of every pipeline session (`bind_pipeline_session`), one WebSocket `sequence` counter per connection, and the `rudix_chat_db_session_seconds{phase}` metric (R05-01, R05-02).
 - Staged chat pipeline for `POST /api/v1/chat` behind `CHAT_PIPELINE_V2` (default `false`), helpers moved out of `chat.py` into domain and application modules, golden transcripts of both chat transports, and the `rudix_chat_stage_seconds` metric (R05-01).
 - `docs/roadmap/01_EXECUTION_PLAN.md`: how the roadmap from `0.4.0` to `1.0.0` is executed, with roles, the branch-per-package process, current status, and blockers per version.
 - Production retrieval filters on active index versions (`DOCUMENT_ACTIVE_INDEX_VERSIONS`), evaluation re-ingest cleans up its `eval-` chunks and vectors, and `scripts/purge_eval_index_versions.py` purges legacy ones; pre-deploy check in docs/12 (R02-05).

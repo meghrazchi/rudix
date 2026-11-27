@@ -547,10 +547,19 @@ lower it without a reason in the merge request.
 
 ## Chat pipeline
 
-`POST /api/v1/chat` can run through a staged pipeline instead of the long `query_chat`
-function (R05-01). `CHAT_PIPELINE_V2=false` (the default) keeps the legacy body;
-`CHAT_PIPELINE_V2=true` runs the pipeline, which returns the same responses, rows, and errors.
-The WebSocket (`/chat/ws`) still runs its own code; it moves onto the pipeline in a later step.
+`POST /api/v1/chat` and the chat WebSocket (`/chat/ws`) run one staged pipeline (R05-01).
+`CHAT_PIPELINE_V2=true` (the default since R05-02) runs it on both transports;
+`CHAT_PIPELINE_V2=false` keeps the legacy `query_chat` and `_run_ws_chat_pipeline` bodies until
+they are deleted. HTTP returns the same responses, rows, and errors as the legacy body; the
+WebSocket gains the stages it lacked (rewriting, packing, grounded verifier, tree search,
+freshness, OCR, table, and extraction quality, AI policy checks).
+
+Database sessions (R05-02): stages 1, 2, and 4 share one read session committed after stage 4;
+each lookup in stages 5 to 9 uses its own short session; stage 10 writes in one session with one
+commit. HTTP reuses the request session and commits each phase; the WebSocket opens a session
+per phase. No connection is held while a model is called. New chat sessions and assistant
+messages get their ids at the start of the run and are written only by stage 10. Every session
+is tenant-bound with `bind_pipeline_session`.
 
 Modules:
 
@@ -562,13 +571,15 @@ Modules:
 | `app/application/chat/pipeline/deps.py` | `ChatPipelineDeps` and `default_deps`, the one instance of every chat service |
 | `app/application/chat/pipeline/events.py` | `ChatEvent`, `Emitter`, `CollectingEmitter`, activity-step payloads |
 | `app/application/chat/pipeline/ledger.py` | `TokenLedger`: query embedding and generation tokens and cost per run |
-| `app/application/chat/pipeline/sessions.py` | `ChatSessionScope`; `SingleSessionScope` uses the request session for every phase |
+| `app/application/chat/pipeline/sessions.py` | `ChatSessionScope`; `ShortSessionScope` (read, short, and write phases, R05-02); `SingleSessionScope` (one caller-owned session, tests) |
+| `app/application/chat/pipeline/snapshots.py` | plain snapshots of the RAG profile and prompt version read in the read phase |
 | `app/application/chat/pipeline/stages/` | one file per stage, helpers in `_*.py` |
 | `app/application/chat/transports/http.py` | `run_http_query`: runs the pipeline and builds `ChatQueryResponse` |
+| `app/application/chat/transports/ws.py` | `run_ws_query`, `WsEmitter`, and `WsSequence` (one `sequence` counter per connection) |
 | `app/domains/chat/services/` | `query_intent_service`, `confidence_calibration`, `trust_metadata_builder`, `trust_records`, `citation_enrichment`, `retrieved_chunk` (moved out of `chat.py`) |
 
 Stages, in the order `query_chat` runs them: `authorize` (quota, document access, source
-scope, chat session), `guard` (prompt-injection check), `resolve_config` (AI response policy,
+scope, existing chat session ownership), `guard` (prompt-injection check), `resolve_config` (AI response policy,
 answer mode, RAG and model profiles, planner, routing, tools, language), `shortcut`
 (pass-through), `rewrite`, `direct_answers` (blocked, scope-inventory, and guidance answers;
 these end the run early), `retrieve`, `rerank_pack`, `generate`, `verify` (citations, grounded

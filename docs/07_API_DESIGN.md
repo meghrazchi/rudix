@@ -1152,6 +1152,19 @@ Events include `chat.request.received`, `activity.step.update`, `retrieval.start
 
 Parity with `POST /chat` (shared code in `backend/app/application/chat/`):
 
+- With `CHAT_PIPELINE_V2=true` (the default) the WebSocket runs the same pipeline stages as
+  `POST /chat`: query rewriting, context packing, the grounded verifier (strict-mode refusals
+  apply), tree search, freshness, OCR, table, and extraction-quality signals, and the AI
+  response policy checks. The prompt template is resolved by the same rule (grounded
+  questions only). `chat.completed` carries the same `ChatQueryResponse` as `POST /chat`.
+- The planning, strategy-selection, and tool-orchestration `activity.step.update` events are
+  sent once those decisions are made.
+- `sequence` is one counter per connection: heartbeat, `chat.cancel`, and run events never
+  repeat a number. `conversation_id` is the chat session id (pre-assigned for a new
+  conversation), and `message_id` is the pre-assigned assistant message id on every event
+  from `generation.started` on.
+- No database connection is held while the model generates; a run that fails before
+  persistence writes no chat session or message.
 - The plan question quota is checked before any work starts. Nothing is persisted on refusal.
 - One question is recorded against the quota in the same transaction as the persisted answer.
 - Retrieved chunks from documents the user may not `cite` are dropped before the prompt is built.
