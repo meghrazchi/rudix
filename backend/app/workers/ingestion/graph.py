@@ -13,10 +13,14 @@ from uuid import UUID, uuid4
 from sqlalchemy import text
 
 from app.core.config import settings
-from app.domains.graph.services.entity_resolution_service import EntityResolutionInput
 from app.models.enums import GraphExtractionStatus
 from app.workers.ingestion.deps import current_deps
 from app.workers.ingestion.errors import DocumentPipelineTransientError
+from app.workers.ingestion.graph_rows import (
+    collect_entity_writes,
+    relation_rows,
+    write_entity_rows,
+)
 from app.workers.ingestion.recorder import PipelineRunRecorder
 
 
@@ -126,93 +130,16 @@ async def _run_document_graph_extraction_async(
             document_language=document.language,
             organization_id=str(document.organization_id),
         )
-        for _item in _entity_result.entities:
-            _chunk_db_id = chunk_id_by_index.get(_item.source_chunk_index)
-            _resolved_entity_id = _item.entity_id
-            _resolution_status = "new"
-            _resolution_confidence = _item.confidence
-            _entity_aliases = list(
-                dict.fromkeys(
-                    [
-                        _item.original_name,
-                        _item.name,
-                        *_item.aliases,
-                    ]
-                )
-            )
-            if settings.feature_enable_entity_resolution:
-                _resolution_result = await deps.graph_service.resolve_entity(
-                    organization_id=document.organization_id,
-                    entity_type=_item.type,
-                    canonical_name=_item.name,
-                    original_name=_item.original_name,
-                    aliases=_item.aliases,
-                    language=_item.language,
-                )
-                _resolved_entity_id = _resolution_result.canonical_entity_id
-                _resolution_status = _resolution_result.status
-                _resolution_confidence = _resolution_result.candidate_score
-                _canonical_name = _resolution_result.canonical_name
-            else:
-                _canonical_name = _item.name
-            resolution_input = EntityResolutionInput(
-                organization_id=str(document.organization_id),
-                entity_type=_item.type,
-                canonical_name=_canonical_name,
-                original_name=_item.original_name,
-                aliases=list(_item.aliases),
-                source_external_id=None,
-                source_connector=None,
-                language=_item.language,
-            )
-            alias_name = _item.original_name or _item.name
-            alias_id = deps.entity_resolution_service.build_alias_id(
-                input_=resolution_input,
-                entity_id=_resolved_entity_id,
-                alias_name=alias_name,
-                source_document_id=str(document.id),
-                chunk_id=str(_chunk_db_id) if _chunk_db_id is not None else None,
-            )
-            await deps.graph_service.upsert_entity(
-                organization_id=document.organization_id,
-                entity_id=_resolved_entity_id,
-                entity_type=_item.type,
-                canonical_name=_canonical_name,
-                normalized_name=_canonical_name.lower().strip(),
-                resolution_status=_resolution_status,
-                resolution_confidence=_resolution_confidence,
-                properties={
-                    "original_name": _item.original_name,
-                    "aliases": _entity_aliases,
-                    "language": _item.language,
-                },
-            )
-            await deps.graph_service.upsert_entity_alias(
-                organization_id=document.organization_id,
-                entity_id=_resolved_entity_id,
-                alias_id=alias_id,
-                alias_name=alias_name,
-                source_document_id=document.id,
-                chunk_id=_chunk_db_id,
-                confidence=_item.confidence,
-                evidence_text=_item.evidence_span,
-                properties={
-                    "normalized_name": _item.name.lower().strip(),
-                    "language": _item.language,
-                },
-            )
-            if _chunk_db_id is not None:
-                await deps.graph_service.link_evidence(
-                    organization_id=document.organization_id,
-                    entity_id=_resolved_entity_id,
-                    chunk_id=_chunk_db_id,
-                    source_document_id=document.id,
-                    confidence=_item.confidence,
-                    citation_text=_item.evidence_span,
-                    citation_reference=f"{document.filename}, chunk {_item.source_chunk_index}",
-                    extraction_run_id=_extraction_run_id,
-                    page_number=_page_by_index.get(_item.source_chunk_index),
-                )
+        # R06-10: resolution reads per entity, then one write transaction per batch.
+        _entity_writes = await collect_entity_writes(
+            deps,
+            document,
+            _entity_result.entities,
+            chunk_id_by_index=chunk_id_by_index,
+            page_by_index=_page_by_index,
+            extraction_run_id=_extraction_run_id,
+        )
+        await write_entity_rows(deps, document.organization_id, _entity_writes)
         entity_count = len(_entity_result.entities)
         await deps.graph_service.finish_extraction_run(
             organization_id=document.organization_id,
@@ -316,28 +243,17 @@ async def _run_document_graph_extraction_async(
                 entity_names_by_chunk=_entity_names_by_chunk,
                 organization_id=str(document.organization_id),
             )
-            for _rel_item in _rel_result.relations:
-                _rel_chunk_db_id = chunk_id_by_index.get(_rel_item.source_chunk_index)
-                _initial_status = (
-                    deps.relation_extraction_service.compute_initial_status(_rel_item.confidence)
-                    if not settings.relation_extraction_review_mode
-                    else "unverified"
-                )
-                await deps.graph_service.create_relation_with_evidence(
-                    organization_id=document.organization_id,
-                    from_entity_id=_rel_item.from_entity_id,
-                    to_entity_id=_rel_item.to_entity_id,
-                    rel_type=_rel_item.rel_type,
-                    relation_id=_rel_item.relation_id,
-                    citation_text=_rel_item.evidence_span,
-                    citation_reference=f"{document.filename}, chunk {_rel_item.source_chunk_index}",
-                    chunk_id=_rel_chunk_db_id,
-                    source_document_id=document.id,
-                    page_number=_page_by_index.get(_rel_item.source_chunk_index),
+            await deps.graph_service.create_relations_with_evidence_batch(
+                organization_id=document.organization_id,
+                rows=relation_rows(
+                    deps,
+                    document,
+                    _rel_result.relations,
+                    chunk_id_by_index=chunk_id_by_index,
+                    page_by_index=_page_by_index,
                     extraction_run_id=_rel_run_id,
-                    confidence=_rel_item.confidence,
-                    initial_status=_initial_status,
-                )
+                ),
+            )
             relation_count = len(_rel_result.relations)
             deps.log_document_event(
                 event="document.pipeline.stage",
