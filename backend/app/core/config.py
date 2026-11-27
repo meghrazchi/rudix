@@ -76,6 +76,7 @@ from app.core.settings.storage import (
     StorageSettings,
     validate_upload_security,
 )
+from app.core.settings.workers import WorkersSettings
 
 __all__ = [
     "AuthProvider",
@@ -120,6 +121,7 @@ class Settings(
     ObservabilitySettings,
     EmailBotsSettings,
     FeaturesSettings,
+    WorkersSettings,
     BaseSettings,
 ):
     model_config = SettingsConfigDict(
