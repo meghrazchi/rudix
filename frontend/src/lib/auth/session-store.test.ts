@@ -115,6 +115,27 @@ describe("auth-session storage contract (R07-09)", () => {
     expect(readSessionFromStorage()).toEqual(session);
   });
 
+  it("reads the legacy key once per page load, not on every snapshot", () => {
+    // First read after load finds nothing (signed-out page).
+    expect(readSessionFromStorage()).toBeNull();
+
+    // A later same-tab write to the legacy key is not picked up by renders,
+    // as 0.6.x read storage only at startup.
+    window.localStorage.setItem(
+      LEGACY_SESSION_STORAGE_KEY,
+      JSON.stringify(session),
+    );
+    expect(readSessionFromStorage()).toBeNull();
+
+    // Clearing the session re-arms the one-time restore.
+    clearSession();
+    window.localStorage.setItem(
+      LEGACY_SESSION_STORAGE_KEY,
+      JSON.stringify(session),
+    );
+    expect(readSessionFromStorage()).toEqual(session);
+  });
+
   it("ignores the legacy key when NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ=false", () => {
     process.env.NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ = "false";
     window.localStorage.setItem(
@@ -165,6 +186,22 @@ describe("auth-session storage contract (R07-09)", () => {
       expect(readSessionFromStorage()).toEqual(session);
     },
   );
+
+  it("copies a legacy session into the dev sessionStorage key in dev fallback", () => {
+    process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK = "true";
+    window.localStorage.setItem(
+      LEGACY_SESSION_STORAGE_KEY,
+      JSON.stringify(session),
+    );
+
+    expect(readSessionFromStorage()).toEqual(session);
+    discardLegacySessionStorage();
+
+    // A reload after the legacy key is gone still finds the dev copy.
+    clearSession();
+    expect(readSessionFromStorage()).toEqual(session);
+    expect(window.localStorage.getItem(LEGACY_SESSION_STORAGE_KEY)).toBeNull();
+  });
 
   it("does not read sessionStorage outside the dev fallback", () => {
     expect(isDevSessionPersistenceEnabled()).toBe(false);

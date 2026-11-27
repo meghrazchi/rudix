@@ -1,4 +1,5 @@
 import {
+  claimRestoreAttempt,
   clearSession as clearStoredSession,
   getSession as getStoredSession,
   primeSession,
@@ -163,9 +164,11 @@ function readLegacySession(): AuthenticatedSession | null {
 }
 
 /**
- * Returns the in-memory session. When memory is empty it restores, once, the
- * dev `sessionStorage` copy or a session written to `localStorage` by 0.6.x,
- * so users signed in before the deploy stay signed in.
+ * Returns the in-memory session. When memory is empty, the first read after
+ * page load (or after `clearSessionStorage`) restores the dev
+ * `sessionStorage` copy or a session written to `localStorage` by 0.6.x, so
+ * users signed in before the deploy stay signed in. Later reads do not look
+ * at storage again, as 0.6.x read it once at startup.
  */
 export function readSessionFromStorage(): AuthenticatedSession | null {
   if (typeof window === "undefined") {
@@ -177,11 +180,22 @@ export function readSessionFromStorage(): AuthenticatedSession | null {
     return current;
   }
 
-  const restored = readDevSession() ?? readLegacySession();
-  if (restored) {
-    primeSession(restored);
+  if (!claimRestoreAttempt()) {
+    return null;
   }
-  return restored;
+  const devSession = readDevSession();
+  if (devSession) {
+    primeSession(devSession);
+    return devSession;
+  }
+  const legacySession = readLegacySession();
+  if (legacySession) {
+    // The dev fallback has no refresh cookie: keep the migrated session
+    // reloadable through its tab-scoped copy once the legacy key is gone.
+    writeDevSession(legacySession);
+    primeSession(legacySession);
+  }
+  return legacySession;
 }
 
 /**
@@ -199,21 +213,26 @@ export function discardLegacySessionStorage(): void {
   }
 }
 
+function writeDevSession(session: AuthenticatedSession): void {
+  if (!isDevSessionPersistenceEnabled()) {
+    return;
+  }
+  try {
+    const { refreshToken: _refreshToken, ...sanitizedSession } = session;
+    window.sessionStorage.setItem(
+      DEV_SESSION_STORAGE_KEY,
+      JSON.stringify(sanitizedSession),
+    );
+  } catch {
+    // Storage can be unavailable (private mode, blocked site data).
+  }
+}
+
 export function writeSessionToStorage(session: AuthenticatedSession): void {
   if (typeof window === "undefined") {
     return;
   }
-  if (isDevSessionPersistenceEnabled()) {
-    try {
-      const { refreshToken: _refreshToken, ...sanitizedSession } = session;
-      window.sessionStorage.setItem(
-        DEV_SESSION_STORAGE_KEY,
-        JSON.stringify(sanitizedSession),
-      );
-    } catch {
-      // Storage can be unavailable (private mode, blocked site data).
-    }
-  }
+  writeDevSession(session);
   setStoredSession(session);
 }
 

@@ -17,6 +17,7 @@ type SessionStoreListener = () => void;
 type SessionStoreState = {
   session: AuthenticatedSession | null;
   listeners: Set<SessionStoreListener>;
+  restoreClaimed: boolean;
 };
 
 const STORE_KEY = Symbol.for("rudix.auth.session-store.v1");
@@ -29,7 +30,7 @@ function getState(): SessionStoreState {
   const target = globalThis as GlobalWithStore;
   let state = target[STORE_KEY];
   if (!state) {
-    state = { session: null, listeners: new Set() };
+    state = { session: null, listeners: new Set(), restoreClaimed: false };
     target[STORE_KEY] = state;
   }
   return state;
@@ -74,8 +75,24 @@ export function primeSession(session: AuthenticatedSession): void {
 }
 
 export function clearSession(): void {
-  getState().session = null;
+  const state = getState();
+  state.session = null;
+  state.restoreClaimed = false;
   notify("cleared");
+}
+
+/**
+ * Returns `true` the first time it is called after page load (or after
+ * `clearSession`), so a stored-session fallback is read once, like the
+ * 0.6.x startup read, and not again on every render snapshot.
+ */
+export function claimRestoreAttempt(): boolean {
+  const state = getState();
+  if (state.restoreClaimed) {
+    return false;
+  }
+  state.restoreClaimed = true;
+  return true;
 }
 
 /** Subscribe for `useSyncExternalStore`; returns the unsubscribe function. */
