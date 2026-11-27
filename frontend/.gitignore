@@ -21,6 +21,8 @@
 /.next/
 # Playwright WebSocket-chat dev server (playwright.config.ts)
 /.next-e2e-ws/
+# Separate dist dir for e2e runs while a local `next dev` holds /.next
+/.next-e2e-main/
 /out/
 
 # production
