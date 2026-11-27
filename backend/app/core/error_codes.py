@@ -1,12 +1,16 @@
 """Stable machine-readable error codes for the API error envelope (R04-10).
 
 ``code_for`` resolves a code from, in order: a structured detail that already carries
-``code``/``error``, the registry of the most frequent ``detail`` strings, and a status
-fallback. Codes are part of the public contract; add new ones, never rename.
+``code``/``error``, the registry of the most frequent ``detail`` strings, the patterns of
+``detail`` strings that embed a value, and a status fallback. Codes are part of the public
+contract; add new ones, never rename. The chat routers (``app/interfaces/http/chat*.py``)
+register every string detail they raise (R05-01, 0.4.0 deferral); their structured
+lower-snake codes (``document_not_found``, ``chat_session_not_found``, ...) stay as they are.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 DETAIL_ERROR_CODES: dict[str, str] = {
@@ -60,7 +64,28 @@ DETAIL_ERROR_CODES: dict[str, str] = {
     "Workflow not found": "WORKFLOW_NOT_FOUND",
     "from must be less than or equal to to": "FROM_MUST_BE_LESS_THAN_OR_EQUAL_TO_TO",
     "profile_id must be a valid UUID": "PROFILE_ID_MUST_BE_A_VALID_UUID",
+    # Chat routers (R05-01): session and answer share links.
+    "A valid password is required to access this share link.": "SHARE_LINK_PASSWORD_REQUIRED",
+    "You are not in the allowed-users list for this share link.": "SHARE_LINK_USER_NOT_ALLOWED",
+    "allowed_user_ids must not be empty when access_mode is 'specific_users'.": (
+        "SHARE_ALLOWED_USER_IDS_REQUIRED"
+    ),
+    "Maximum of 10 active share links per session reached.": "CHAT_SHARE_LIMIT_REACHED",
+    "Maximum of 10 active share links per answer reached.": "ANSWER_SHARE_LIMIT_REACHED",
+    # Chat activity-step details shared with the WebSocket protocol (R05-01).
+    "No relevant answer found": "NO_RELEVANT_ANSWER_FOUND",
+    "No indexed files found": "NO_INDEXED_FILES_FOUND",
+    "Request could not be processed": "REQUEST_COULD_NOT_BE_PROCESSED",
 }
+
+# Details that embed a value (an id, for example); matched with ``fullmatch`` after the
+# exact registry, in order.
+DETAIL_ERROR_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (
+        re.compile(r"Chat pipeline for session .+ is not implemented in scaffold\."),
+        "CHAT_MESSAGE_CREATE_NOT_IMPLEMENTED",
+    ),
+)
 
 STATUS_ERROR_CODES: dict[int, str] = {
     400: "BAD_REQUEST",
@@ -99,4 +124,7 @@ def code_for(status_code: int, detail: Any) -> str:
         mapped = DETAIL_ERROR_CODES.get(detail)
         if mapped is not None:
             return mapped
+        for pattern, pattern_code in DETAIL_ERROR_PATTERNS:
+            if pattern.fullmatch(detail):
+                return pattern_code
     return _status_fallback(status_code)

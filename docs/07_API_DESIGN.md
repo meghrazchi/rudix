@@ -139,6 +139,40 @@ one envelope:
 - Unhandled exceptions return `500` with `INTERNAL_ERROR` and a generic message. Exception text and
   stack traces are never returned; they are logged server-side and reported to Sentry.
 
+### Chat error codes
+
+Since `0.5.0` every error the chat routes (`/chat/*`, `app/interfaces/http/chat*.py` and the
+chat pipeline) raise has its own code; none falls back to the status code
+(`tests/test_chat_error_codes_registry.py` checks every raise site). The lower-snake codes are
+structured details that existed before the registry and are not renamed: codes are a public
+contract.
+
+| Status | `error.code` | When |
+|---|---|---|
+| 403 | `plan_limit_exceeded` | The organisation's question quota is used up (`POST /chat`, WebSocket). |
+| 403 | `NO_ACTIVE_ORGANIZATION_CONTEXT_FOR_PRINCIPAL`, `PRINCIPAL_IDENTITY_CONTEXT_IS_INVALID` | The principal has no usable organisation or user id. |
+| 403 | `SHARE_LINK_PASSWORD_REQUIRED` | A password-protected answer share was opened without the right password. |
+| 403 | `SHARE_LINK_USER_NOT_ALLOWED` | The viewer is not in the answer share's allowed-users list. |
+| 404 | `document_not_found` | `POST /chat` names a document the caller cannot see. |
+| 404 | `chat_session_not_found` | `POST /chat` names a malformed, foreign, or unknown session. |
+| 404 | `CHAT_SESSION_NOT_FOUND` | Session, message-list, share, and feedback routes with an unknown session. |
+| 404 | `message_not_found`, `trust_metadata_not_available` | `GET /chat/messages/{id}/trust-metadata`. |
+| 404 | `MESSAGE_NOT_FOUND`, `FEEDBACK_NOT_FOUND` | Feedback and answer-share routes. |
+| 404 | `SHARE_NOT_FOUND` | Revoking an unknown session or answer share. |
+| 404 | `SHARE_LINK_NOT_FOUND_EXPIRED_OR_REVOKED` | `GET /chat/shared/{token}`, `GET /chat/answer-shared/{token}`. |
+| 422 | `CHAT_SHARE_LIMIT_REACHED`, `ANSWER_SHARE_LIMIT_REACHED` | More than 10 active share links per session or per answer. |
+| 422 | `SHARE_ALLOWED_USER_IDS_REQUIRED` | `access_mode = "specific_users"` with an empty `allowed_user_ids`. |
+| 429 | `rate_limit_exceeded` | Chat rate limit (`Retry-After` is set). |
+| 500 | `chat_persistence_failed` | The answer could not be saved. |
+| 501 | `CHAT_MESSAGE_CREATE_NOT_IMPLEMENTED` | Deprecated `POST /chat/sessions/{id}/messages`. |
+| 503 | `retrieval_failed`, `generation_failed`, `prompt_template_unavailable` | Retrieval, the model provider, or the prompt template is unavailable. |
+| 503 | `chat_websocket_disabled`, `ws_ticket_unavailable` | `POST /chat/ws-ticket` when WebSocket chat or the ticket store is off. |
+
+The activity-step details `No relevant answer found`, `No indexed files found`, and
+`Request could not be processed` are registered too (`NO_RELEVANT_ANSWER_FOUND`,
+`NO_INDEXED_FILES_FOUND`, `REQUEST_COULD_NOT_BE_PROCESSED`), so a client that shows them can map
+them the same way.
+
 ## Pagination
 
 List endpoints keep `limit`/`offset` paging. Since `0.4.0` the endpoints below also accept a
