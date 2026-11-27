@@ -102,13 +102,19 @@ def _bound_literal(month: date) -> str:
     return f"'{month.isoformat()} 00:00:00+00'"
 
 
-def create_partition_sql(table: str, month: date, *, if_not_exists: bool = True) -> str:
-    """``CREATE TABLE <table>_pYYYYMM PARTITION OF <table> FOR VALUES FROM .. TO ..``."""
+def create_partition_sql(
+    table: str, month: date, *, parent: str | None = None, if_not_exists: bool = True
+) -> str:
+    """``CREATE TABLE <table>_pYYYYMM PARTITION OF <parent> FOR VALUES FROM .. TO ..``.
+
+    ``parent`` defaults to ``table``; the conversion tool attaches partitions named after
+    the final table to the shadow table, so the swap needs no partition renames.
+    """
     partition = monthly_partition_name(table, month)
     guard = "IF NOT EXISTS " if if_not_exists else ""
     return (
         f"CREATE TABLE {guard}{quote_identifier(partition)} "
-        f"PARTITION OF {quote_identifier(table)} "
+        f"PARTITION OF {quote_identifier(parent or table)} "
         f"FOR VALUES FROM ({_bound_literal(month)}) TO ({_bound_literal(add_months(month, 1))})"
     )
 
