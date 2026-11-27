@@ -764,7 +764,8 @@
         "heading": "Sécurité et gouvernance pour l’IA documentaire privée",
         "description": "Rudix est conçu pour les environnements réglementés et les équipes de sécurité d’entreprise qui ont besoin de limites architecturales, d’auditabilité et de contrôles de gestion des données.",
         "primaryCta": "Demander une revue de sécurité",
-        "secondaryCta": "Voir l’architecture"
+        "secondaryCta": "Voir l’architecture",
+        "postureLabel": "Posture de sécurité"
       },
       "pillars": {
         "heading": "Sécurité pillars",
@@ -789,7 +790,8 @@
         "encryptionCallout": "Chiffré en transit et au repos",
         "observabilityTitle": "Observabilité opérationnelle",
         "observabilityDesc": "Les équipes peuvent surveiller la santé et les échecs des requêtes avec une télémétrie sûre qui évite d’exposer le texte sensible des documents.",
-        "observabilityCallout": "Safe operational visibilité"
+        "observabilityCallout": "Safe operational visibilité",
+        "eyebrow": "Piliers"
       },
       "documentHandling": {
         "heading": "Cycle de vie de gestion des documents",
@@ -811,7 +813,8 @@
         "deleteTitle": "Supprimer",
         "deleteDesc": "Respecter les workflows de suppression dans le stockage et les index.",
         "reindexTitle": "Re-indexer",
-        "reindexDesc": "Reconstruire l’état de l’index lorsque le contenu est mis à jour."
+        "reindexDesc": "Reconstruire l’état de l’index lorsque le contenu est mis à jour.",
+        "eyebrow": "Cycle de vie"
       },
       "accessGovernance": {
         "heading": "Accès et gouvernance",
@@ -823,7 +826,8 @@
         "adminGovernanceTitle": "Admin gouvernance",
         "adminGovernanceDesc": "Les contrôles administratifs soutiennent la gestion des politiques, les garde-fous d’outillage et les workflows de revue opérationnelle.",
         "routeBoundariesTitle": "Public/privé route boundaries",
-        "routeBoundariesDesc": "Les routes marketing restent publiques tandis que les espaces de travail applicatifs exigent une authentification."
+        "routeBoundariesDesc": "Les routes marketing restent publiques tandis que les espaces de travail applicatifs exigent une authentification.",
+        "eyebrow": "Gouvernance"
       },
       "compliance": {
         "heading": "Préparation à la conformité",
@@ -834,7 +838,8 @@
         "retentionHeading": "Rétention et suppression",
         "retention0": "Les délais de conservation doivent être définis par la politique de votre organisation et les exigences légales.",
         "retention1": "Les workflows de suppression doivent couvrir le stockage objet, les index interrogeables et les artefacts dérivés.",
-        "retention2": "Les workflows de réindexation prennent en charge l’actualisation des documents obsolètes et les mises à jour de politiques."
+        "retention2": "Les workflows de réindexation prennent en charge l’actualisation des documents obsolètes et les mises à jour de politiques.",
+        "eyebrow": "Conformité"
       },
       "faq": {
         "title": "Sécurité FAQ",

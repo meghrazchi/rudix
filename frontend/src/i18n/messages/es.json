@@ -764,7 +764,8 @@
         "heading": "Seguridad y gobernanza para IA documental privada",
         "description": "Rudix es diseñado para entornos regulados y empresarial seguridad equipos who necesitan límites arquitectónicos, auditabilidad, y controles de manejo de datos.",
         "primaryCta": "Solicitar revisión de seguridad",
-        "secondaryCta": "Ver arquitectura"
+        "secondaryCta": "Ver arquitectura",
+        "postureLabel": "Postura de seguridad"
       },
       "pillars": {
         "heading": "Pilares de seguridad",
@@ -789,7 +790,8 @@
         "encryptionCallout": "Cifrado en tránsito y en reposo",
         "observabilityTitle": "Observabilidad operativa",
         "observabilityDesc": "Equipos puede monitorear solicitud salud y failures con safe telemetry that avoids exposing sensibles documento text.",
-        "observabilityCallout": "Visibilidad operativa segura"
+        "observabilityCallout": "Visibilidad operativa segura",
+        "eyebrow": "Pilares"
       },
       "documentHandling": {
         "heading": "Ciclo de vida de gestión de documentos",
@@ -811,7 +813,8 @@
         "deleteTitle": "Eliminar",
         "deleteDesc": "Honor deletion flujos de trabajo en almacenamiento y índices.",
         "reindexTitle": "Reindexar",
-        "reindexDesc": "Rebuild índice estado cuando content es actualizados."
+        "reindexDesc": "Rebuild índice estado cuando content es actualizados.",
+        "eyebrow": "Ciclo de vida"
       },
       "accessGovernance": {
         "heading": "Acceso y gobernanza",
@@ -823,7 +826,8 @@
         "adminGovernanceTitle": "Gobernanza administrativa",
         "adminGovernanceDesc": "Administrativas controles soporte política management, tooling barandillas, y operativo revisar flujos de trabajo.",
         "routeBoundariesTitle": "Límites de rutas públicas/privadas",
-        "routeBoundariesDesc": "Marketing rutas remain públicos while application workspaces require authenticated acceso."
+        "routeBoundariesDesc": "Marketing rutas remain públicos while application workspaces require authenticated acceso.",
+        "eyebrow": "Gobernanza"
       },
       "compliance": {
         "heading": "Preparación para cumplimiento",
@@ -834,7 +838,8 @@
         "retentionHeading": "Retención y eliminación",
         "retention0": "plazos de retención debe ser definido por tu organización política y requisitos legales.",
         "retention1": "Deletion flujos de trabajo debe cubrir almacenamiento de objetos, índices buscables, y artefactos derivados.",
-        "retention2": "Re-index flujos de trabajo soporte actualización de documentos obsoletos y actualizaciones de políticas."
+        "retention2": "Re-index flujos de trabajo soporte actualización de documentos obsoletos y actualizaciones de políticas.",
+        "eyebrow": "Cumplimiento"
       },
       "faq": {
         "title": "Preguntas frecuentes de seguridad",

@@ -764,7 +764,8 @@
         "heading": "Security and governance for private document AI",
         "description": "Rudix is built for regulated environments and enterprise security teams who need architectural boundaries, auditability, and data-handling controls.",
         "primaryCta": "Request Security Review",
-        "secondaryCta": "View Architecture"
+        "secondaryCta": "View Architecture",
+        "postureLabel": "Security posture"
       },
       "pillars": {
         "heading": "Security pillars",
@@ -789,7 +790,8 @@
         "encryptionCallout": "Encrypted in transit and at rest",
         "observabilityTitle": "Operational observability",
         "observabilityDesc": "Teams can monitor request health and failures with safe telemetry that avoids exposing sensitive document text.",
-        "observabilityCallout": "Safe operational visibility"
+        "observabilityCallout": "Safe operational visibility",
+        "eyebrow": "Pillars"
       },
       "documentHandling": {
         "heading": "Document handling lifecycle",
@@ -811,7 +813,8 @@
         "deleteTitle": "Delete",
         "deleteDesc": "Honor deletion workflows across storage and indices.",
         "reindexTitle": "Re-index",
-        "reindexDesc": "Rebuild index state when content is updated."
+        "reindexDesc": "Rebuild index state when content is updated.",
+        "eyebrow": "Lifecycle"
       },
       "accessGovernance": {
         "heading": "Access and governance",
@@ -823,7 +826,8 @@
         "adminGovernanceTitle": "Admin governance",
         "adminGovernanceDesc": "Administrative controls support policy management, tooling guardrails, and operational review workflows.",
         "routeBoundariesTitle": "Public/private route boundaries",
-        "routeBoundariesDesc": "Marketing routes remain public while application workspaces require authenticated access."
+        "routeBoundariesDesc": "Marketing routes remain public while application workspaces require authenticated access.",
+        "eyebrow": "Governance"
       },
       "compliance": {
         "heading": "Compliance readiness",
@@ -834,7 +838,8 @@
         "retentionHeading": "Retention and deletion",
         "retention0": "Retention timelines should be defined by your organization policy and legal requirements.",
         "retention1": "Deletion workflows should cover object storage, searchable indices, and derived artifacts.",
-        "retention2": "Re-index workflows support stale-document refresh and policy updates."
+        "retention2": "Re-index workflows support stale-document refresh and policy updates.",
+        "eyebrow": "Compliance"
       },
       "faq": {
         "title": "Security FAQ",

@@ -190,9 +190,9 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Public site redesign (minimal modern, in progress page by page):
   - design source: Stitch project "Rudix Public Site Redesign"
   - shared `site-*` color tokens in `src/app/globals.css` (`.rudix-public`), used as Tailwind classes such as `bg-site-surface` and `text-site-ink-muted`
-  - `PublicMarketingLayout` takes `theme="light" | "system"`; `system` follows the OS dark preference and is enabled only for pages already moved to the tokens (currently `/`, `/product`, and `/pricing`)
-  - shared section primitives and the crawlable `<details>` FAQ live in `src/components/public/site/*`; page sections live in `src/components/public/{landing,product,pricing}/*`
-  - all copy is in `public.landing.*`, `public.product.*`, and `public.pricing.*` messages for every locale; product previews are built from UI rather than screenshots and never show invented metrics
+  - `PublicMarketingLayout` takes `theme="light" | "system"`; `system` follows the OS dark preference and is enabled only for pages already moved to the tokens (currently `/`, `/product`, `/pricing`, and `/security`)
+  - shared section primitives and the crawlable `<details>` FAQ live in `src/components/public/site/*`; page sections live in `src/components/public/{landing,product,pricing,security}/*`
+  - all copy is in `public.landing.*`, `public.product.*`, `public.pricing.*`, and `public.security.*` messages for every locale; product previews are built from UI rather than screenshots and never show invented metrics
 
 ### Localized public SEO conventions
 

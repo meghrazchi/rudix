@@ -764,7 +764,8 @@
         "heading": "Sicherheit und Governance für private Dokument-KI",
         "description": "Rudix wurde für regulierte Umgebungen und Enterprise-Sicherheitsteams entwickelt, die Architekturschranken, Nachvollziehbarkeit und Datenverwaltungskontrollen benötigen.",
         "primaryCta": "Sicherheitsprüfung anfragen",
-        "secondaryCta": "Architektur ansehen"
+        "secondaryCta": "Architektur ansehen",
+        "postureLabel": "Sicherheitslage"
       },
       "pillars": {
         "heading": "Sicherheitssäulen",
@@ -789,7 +790,8 @@
         "encryptionCallout": "Verschlüsselt bei Übertragung und im Ruhezustand",
         "observabilityTitle": "Betriebliche Observability",
         "observabilityDesc": "Teams können den Anforderungszustand und Fehler mit sicherer Telemetrie überwachen, ohne sensiblen Dokumenttext preiszugeben.",
-        "observabilityCallout": "Sichere betriebliche Transparenz"
+        "observabilityCallout": "Sichere betriebliche Transparenz",
+        "eyebrow": "Säulen"
       },
       "documentHandling": {
         "heading": "Dokumentverarbeitungslebenszyklus",
@@ -811,7 +813,8 @@
         "deleteTitle": "Löschen",
         "deleteDesc": "Lösch-Workflows für Speicher und Indizes einhalten.",
         "reindexTitle": "Neu indexieren",
-        "reindexDesc": "Indexzustand neu aufbauen, wenn Inhalte aktualisiert werden."
+        "reindexDesc": "Indexzustand neu aufbauen, wenn Inhalte aktualisiert werden.",
+        "eyebrow": "Lebenszyklus"
       },
       "accessGovernance": {
         "heading": "Zugang und Governance",
@@ -823,7 +826,8 @@
         "adminGovernanceTitle": "Admin-Governance",
         "adminGovernanceDesc": "Administrative Kontrollen unterstützen Richtlinienverwaltung, Tool-Schutzmaßnahmen und betriebliche Prüfungsworkflows.",
         "routeBoundariesTitle": "Öffentliche/private Routengrenzen",
-        "routeBoundariesDesc": "Marketing-Routen bleiben öffentlich, während Anwendungs-Arbeitsbereiche authentifizierten Zugang erfordern."
+        "routeBoundariesDesc": "Marketing-Routen bleiben öffentlich, während Anwendungs-Arbeitsbereiche authentifizierten Zugang erfordern.",
+        "eyebrow": "Governance"
       },
       "compliance": {
         "heading": "Compliance-Bereitschaft",
@@ -834,7 +838,8 @@
         "retentionHeading": "Aufbewahrung und Löschung",
         "retention0": "Aufbewahrungsfristen sollten durch Ihre Organisationsrichtlinie und gesetzliche Anforderungen festgelegt werden.",
         "retention1": "Lösch-Workflows sollten Objektspeicher, durchsuchbare Indizes und abgeleitete Artefakte abdecken.",
-        "retention2": "Re-Indexierungs-Workflows unterstützen die Aktualisierung veralteter Dokumente und Richtlinien."
+        "retention2": "Re-Indexierungs-Workflows unterstützen die Aktualisierung veralteter Dokumente und Richtlinien.",
+        "eyebrow": "Compliance"
       },
       "faq": {
         "title": "Sicherheits-FAQ",
