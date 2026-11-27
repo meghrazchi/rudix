@@ -552,11 +552,11 @@ export function DocumentsPage() {
       ]);
 
       return {
-        total: all.total,
-        uploaded: uploaded.total,
-        indexed: indexed.total,
-        processing: processing.total,
-        failed: failed.total,
+        total: all.total ?? 0,
+        uploaded: uploaded.total ?? 0,
+        indexed: indexed.total ?? 0,
+        processing: processing.total ?? 0,
+        failed: failed.total ?? 0,
       };
     },
     refetchInterval: (query) => {
@@ -739,7 +739,7 @@ export function DocumentsPage() {
   const canGoPrevDocuments = offset > 0;
   const canGoNextDocuments = Boolean(
     documentsQuery.data &&
-    offset + DOCUMENT_PAGE_SIZE < documentsQuery.data.total,
+    offset + DOCUMENT_PAGE_SIZE < (documentsQuery.data.total ?? 0),
   );
 
   const canGoPrevChunks = chunksOffset > 0;
@@ -788,7 +788,10 @@ export function DocumentsPage() {
       }
 
       currentOffset += response.items.length;
-      if (response.items.length === 0 || currentOffset >= response.total) {
+      if (
+        response.items.length === 0 ||
+        currentOffset >= (response.total ?? 0)
+      ) {
         break;
       }
     }

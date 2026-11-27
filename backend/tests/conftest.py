@@ -254,3 +254,51 @@ async def pg_session_factory(pg_engine: AsyncEngine) -> async_sessionmaker[Async
     the rows they create, scoped by a unique organization ID.
     """
     return async_sessionmaker(bind=pg_engine, class_=AsyncSession, expire_on_commit=False)
+
+
+RLS_PROBE_ROLE = "rudix_rls_probe"
+
+
+class RlsProbe:
+    """Rolled-back PostgreSQL session plus helpers to query as a non-owner role (R04-08).
+
+    The test role ``rudix`` is a superuser and bypasses RLS, so isolation is only visible
+    after ``SET LOCAL ROLE rudix_rls_probe`` (NOLOGIN, NOSUPERUSER, NOBYPASSRLS, not the
+    table owner). Seed data as the owner first, then call :meth:`become_probe`.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def become_probe(self, *, organization_id: object | None, mode: str) -> None:
+        await self.session.execute(text(f"SET LOCAL ROLE {RLS_PROBE_ROLE}"))
+        await self.session.execute(
+            text(
+                "SELECT set_config('app.current_organization_id', :org, true), "
+                "set_config('app.rls_mode', :mode, true)"
+            ),
+            {"org": "" if organization_id is None else str(organization_id), "mode": mode},
+        )
+
+    async def become_owner(self) -> None:
+        await self.session.execute(text("RESET ROLE"))
+
+
+@pytest_asyncio.fixture
+async def rls_probe_session(pg_engine: AsyncEngine) -> AsyncIterator[RlsProbe]:
+    """Yield an :class:`RlsProbe`; the role and all data vanish with the rollback."""
+    async with _rolled_back_pg_session(pg_engine) as session:
+        # Roles are cluster-wide but CREATE ROLE is transactional: the rollback removes it.
+        await session.execute(
+            text(
+                "DO $$ BEGIN "
+                f"IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{RLS_PROBE_ROLE}') "
+                f"THEN CREATE ROLE {RLS_PROBE_ROLE} NOLOGIN NOSUPERUSER NOBYPASSRLS; "
+                "END IF; END $$"
+            )
+        )
+        await session.execute(text(f"GRANT USAGE ON SCHEMA public TO {RLS_PROBE_ROLE}"))
+        await session.execute(
+            text(f"GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA public TO {RLS_PROBE_ROLE}")
+        )
+        yield RlsProbe(session)

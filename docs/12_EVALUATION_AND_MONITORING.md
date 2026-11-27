@@ -418,6 +418,25 @@ Notes:
   `rudix_db_pool_size` plus the maximum overflow for several minutes (pool exhaustion), and
   p95 of `rudix_db_queries_per_request` for chat routes above the roadmap target.
 
+### Pool wait, pool timeouts, and RLS soft denials (0.4.0)
+
+| Metric | Type | Labels | Meaning |
+|---|---|---|---|
+| `rudix_db_pool_wait_seconds` | Histogram (0.5 ms to 30 s) | none | Time to check a connection out of the API engine's pool (`TimedAsyncAdaptedQueuePool`). |
+| `rudix_db_pool_timeouts_total` | Counter | none | Checkouts that gave up after `DB_POOL_TIMEOUT` seconds (`sqlalchemy.exc.TimeoutError`). |
+| `rudix_rls_soft_denials_total` | Counter | `table` | In `RLS_ENFORCEMENT=soft`, ORM statements and flushes on a strict RLS table with no tenant bound, which `strict` would deny. |
+
+- Alerts, group `rudix-db` in `infra/observability/prometheus/alerts.yml`:
+  `RudixDbPoolTimeouts` (critical, any pool timeout in 5 minutes, for 5 minutes) and
+  `RudixRlsSoftDenials` (warning, any soft denial per table within 1 hour, for 1 hour).
+- Each soft denial also writes a structured `rls.soft_denial` log line (logger
+  `events.rls`, fields `table` and `operation`), at most once per table per 60 s per
+  process. No SQL text, parameters, or row data are logged.
+- The per-transaction session-context statement (`/* rudix:session-context */`) is not
+  counted in `rudix_db_queries_per_request`.
+- Pool behaviour under load (wait p95 and timeouts at the load-test concurrency) is a
+  manual step of the `R03-09` baseline; no measurement is recorded yet.
+
 ### Rate limiting and credential usage buffering (R04-07, R04-06)
 
 | Metric | Labels | Meaning |

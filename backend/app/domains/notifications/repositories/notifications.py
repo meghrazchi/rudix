@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -5,8 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import NotificationEventType, NotificationSeverity
 from app.models.notification import Notification
+from app.shared.pagination import CursorValue, apply_keyset
 
 _MAX_NOTIFICATIONS_PER_USER = 200
+NOTIFICATION_SORT_NAME = "notifications.created_at.desc"
+NOTIFICATION_SORT_COLUMNS = (Notification.created_at, Notification.id)
 
 
 class NotificationRepository:
@@ -47,14 +51,20 @@ class NotificationRepository:
         user_id: UUID,
         limit: int = 20,
         offset: int = 0,
+        keyset: Sequence[CursorValue] | None = None,
     ) -> list[Notification]:
+        """Newest first; ``id`` breaks ``created_at`` ties so pages are deterministic.
+
+        ``keyset`` is ``(created_at, id)`` of the previous page's last row.
+        """
+        query = select(Notification).where(
+            Notification.organization_id == organization_id,
+            Notification.user_id == user_id,
+        )
+        if keyset is not None:
+            query = apply_keyset(query, NOTIFICATION_SORT_COLUMNS, True, keyset)
         result = await session.execute(
-            select(Notification)
-            .where(
-                Notification.organization_id == organization_id,
-                Notification.user_id == user_id,
-            )
-            .order_by(Notification.created_at.desc())
+            query.order_by(Notification.created_at.desc(), Notification.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -68,12 +78,23 @@ class NotificationRepository:
         user_id: UUID,
         limit: int = 20,
         offset: int = 0,
-    ) -> tuple[list[Notification], int, int]:
+        keyset: Sequence[CursorValue] | None = None,
+        include_total: bool = True,
+    ) -> tuple[list[Notification], int | None, int]:
         items = await self.list_notifications(
-            session, organization_id=organization_id, user_id=user_id, limit=limit, offset=offset
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            limit=limit,
+            offset=offset,
+            keyset=keyset,
         )
-        total = await self.count_notifications(
-            session, organization_id=organization_id, user_id=user_id
+        total = (
+            await self.count_notifications(
+                session, organization_id=organization_id, user_id=user_id
+            )
+            if include_total
+            else None
         )
         unread = await self.count_unread(session, organization_id=organization_id, user_id=user_id)
         return items, total, unread

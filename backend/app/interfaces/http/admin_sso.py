@@ -156,6 +156,9 @@ async def test_sso_connection(
 ) -> TestConnectionResponse:
     organization_id = _principal_organization_id(principal)
     user_id = _principal_user_id(principal)
+    # Return the pooled connection before the IdP network probe (R04-01). Nothing has been
+    # written by this handler yet; commit (not rollback) so loaded state is not expired.
+    await db_session.commit()
     result = await _sso_service.test_connection(
         db_session,
         organization_id=organization_id,

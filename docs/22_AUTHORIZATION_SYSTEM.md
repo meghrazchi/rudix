@@ -17,6 +17,7 @@
 8. [Rollout Plan](#8-rollout-plan)
 9. [Monitoring and Observability](#9-monitoring-and-observability)
 10. [Rollback Procedure](#10-rollback-procedure)
+11. [Database Row-Level Security](#11-database-row-level-security)
 
 ---
 
@@ -466,6 +467,88 @@ If authorization enforcement causes unexpected access denials for legitimate use
 
 ---
 
+## 11. Database Row-Level Security
+
+PostgreSQL row-level security (`R04-08`) is a second, database-level tenant boundary under
+the policy engine and the repositories' `organization_id` filters. Table coverage and the
+policy text are in `docs/06_DATABASE_SCHEMA.md` (`## Row-level security`).
+
+### Modes (`RLS_ENFORCEMENT`)
+
+| Mode | Default for | Effect |
+|---|---|---|
+| `off` | development, test (unset) | No session context is sent. Policies behave like the legacy NULL-permissive policy. |
+| `soft` | staging, production (unset) | A bound tenant is filtered by the policy. ORM statements and flushes on a strict table with no tenant bound are allowed, logged (`rls.soft_denial`, once per table per 60 s per process), and counted in `rudix_rls_soft_denials_total{table}`. |
+| `strict` | never by default | Every transaction sends `app.rls_mode = 'strict'`, so an unset tenant sees no rows of a strict table and cannot write one. `get_current_principal` also turns on the ORM tenant guard (`enforce_guard`). |
+
+How the tenant reaches PostgreSQL:
+
+1. `get_current_principal` authenticates, calls `bind_session_tenant(...)` and then
+   `apply_tenant_context(db_session)`, which runs the session-context statement in the
+   transaction the authentication lookups already opened.
+2. Every later transaction gets it from a SQLAlchemy `after_begin` listener. The tenant
+   comes from `session.info["organization_id"]`, else from the request's context variable
+   (so `SessionLocal()` sessions opened inside a request are covered too).
+3. The statement is `/* rudix:session-context */ SELECT set_config('app.current_organization_id', :org, true), set_config('app.rls_mode', :mode, true)`.
+   Statement-count helpers ignore statements with that marker. In soft mode with no tenant
+   the statement is skipped (one round trip saved).
+4. `maintenance_session()` (`app.db.session`) never binds a tenant and is not counted in
+   soft mode. Cross-tenant beat tasks use it: `documents.reap_stale`,
+   `connectors.sync.schedule_poll`, `agents.approvals.expire`.
+
+### Lookup tables
+
+Some org-scoped tables are read before any tenant is known: API-key and service-account
+hash lookups, share tokens (`/agent/traces/shared/{token}` is unauthenticated),
+invitations, SSO discovery and SAML callback, SCIM, connector and Slack OAuth state,
+Slack/Teams inbound events, and the public status page. These 15 tables keep the legacy
+condition (an unset tenant is never denied) in every mode; a bound tenant still sees only
+its own rows.
+
+`users`, `organization_members`, and `auth_refresh_sessions` (`RLS_IDENTITY_TABLES`) get
+no policy. They are user-scoped: one user has a home organization, a membership and
+refresh sessions in each organization, and a request bound to organization B must still
+read the user, list every membership, and revoke the user's sessions in every organization
+(logout-all, password change). The ORM guard exempts `User` and `OrganizationMember` for
+the same reason.
+
+### Database roles
+
+`deploy/sql/provision_roles.sql` (run by hand, once per database, as the migration owner):
+
+| Role | Attributes | Used by |
+|---|---|---|
+| migration owner | owns the schema | Alembic via `DATABASE_MIGRATION_URL` |
+| `rudix_app` | `LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEROLE`, DML grants, not an owner | API and workers via `DATABASE_URL` |
+| `rudix_maintenance` | `BYPASSRLS`, same grants | `maintenance_session()` via `DATABASE_MAINTENANCE_URL` |
+
+Policies do not apply to table owners or `BYPASSRLS` roles, and `FORCE ROW LEVEL SECURITY`
+is not set, so nothing changes until `DATABASE_URL` points at `rudix_app`.
+
+### Rollout
+
+1. `0.4.0` (now): provision the roles, switch `DATABASE_URL` to `rudix_app`, keep `soft`.
+   Watch `rudix_rls_soft_denials_total` and the `RudixRlsSoftDenials` alert for one week;
+   every table that shows up is a code path that would break under `strict`.
+2. `0.5.0`: bind a tenant on the WebSocket chat path and in per-tenant Celery tasks, apply
+   `FORCE ROW LEVEL SECURITY`, then make `strict` the default.
+3. Rollback at any time: `RLS_ENFORCEMENT=off` (no deploy of code needed), or point
+   `DATABASE_URL` back at the owner role. The migration can be downgraded to
+   `20261127_0003`.
+
+### Known gaps before `strict`
+
+- The chat WebSocket (`SessionLocal()` in `chat.py`) and Celery tasks other than the
+  maintenance tasks do not bind a tenant.
+- Unauthenticated reads of strict tables: the shared agent trace page loads `agent_runs`,
+  `agent_steps`, and `agent_tool_calls`; Slack/Teams inbound events run the chat pipeline;
+  pre-authentication audit writes (login, SSO) insert `audit_logs` rows. Each needs an
+  explicit tenant binding from the token, installation, or organization it resolved.
+- Raw SQL (`text()`) is not seen by the soft-mode detector; only ORM statements and flushes
+  are counted.
+
+---
+
 ## Testing Quick Reference
 
 ```bash
@@ -474,6 +557,10 @@ pytest -m authorization_regression -v
 
 # Tenant-isolation tests only
 pytest -m isolation -v
+
+# RLS (R04-08): coverage and soft mode on SQLite, enforcement on PostgreSQL
+pytest tests/test_rls_coverage.py tests/test_rls_soft_mode.py
+TEST_DATABASE_URL=... pytest tests/test_rls_enforcement_pg.py
 
 # All F336 tests
 pytest tests/test_tenant_isolation_f336.py \

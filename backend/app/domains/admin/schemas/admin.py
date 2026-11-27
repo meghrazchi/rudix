@@ -69,10 +69,12 @@ class AuditLogListItemResponse(BaseModel):
 
 class AuditLogListResponse(BaseModel):
     items: list[AuditLogListItemResponse]
-    total: int
+    # ``None`` when ``include_total=false`` (the default when a cursor is sent).
+    total: int | None
     limit: int
     offset: int
     range: UsageSummaryRange
+    next_cursor: str | None = None
 
 
 class AgentDiagnosticsTotalsResponse(BaseModel):

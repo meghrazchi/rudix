@@ -817,7 +817,9 @@ async def test_post_chat_persistence_failure_rolls_back_messages_citations_and_u
     async def _raise_on_create_citation(*_: object, **__: object) -> object:
         raise RuntimeError("forced citation write failure")
 
-    monkeypatch.setattr(chat_api.chat_repository, "create_citation", _raise_on_create_citation)
+    monkeypatch.setattr(
+        chat_api.chat_repository, "create_citations_bulk", _raise_on_create_citation
+    )
 
     response = await chat_query_client.post(
         "/api/v1/chat",

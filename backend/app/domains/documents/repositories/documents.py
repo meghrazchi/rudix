@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.enums import DocumentStatus
+from app.shared.pagination import CursorValue, apply_keyset
 
 
 class DocumentRepository:
@@ -123,7 +125,13 @@ class DocumentRepository:
         offset: int = 0,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        keyset: Sequence[CursorValue] | None = None,
     ) -> list[Document]:
+        """List the organisation's documents.
+
+        ``keyset`` (``created_at``, ``id``) of the previous page's last row selects the rows
+        after it; it is only valid with ``sort_by="created_at"``.
+        """
         statement = select(Document).where(Document.organization_id == organization_id)
         if status is not None:
             statement = statement.where(Document.status == status)
@@ -148,6 +156,15 @@ class DocumentRepository:
         }
         sort_column = sort_columns.get(sort_by, Document.created_at)
         ordered = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+        if keyset is not None:
+            if sort_by != "created_at":
+                raise ValueError("keyset pagination requires sort_by='created_at'")
+            statement = apply_keyset(
+                statement,
+                [Document.created_at, Document.id],
+                [sort_order != "asc", True],
+                keyset,
+            )
         statement = statement.order_by(ordered, Document.id.desc()).offset(offset).limit(limit)
 
         result = await session.execute(statement)
@@ -616,6 +633,35 @@ class DocumentRepository:
             statement = statement.where(DocumentChunk.index_version == index_version)
         result = await session.execute(statement)
         return int(result.scalar_one())
+
+    async def count_document_chunks_for_documents(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        document_ids: list[UUID],
+        index_version: str | None = None,
+    ) -> dict[UUID, int]:
+        """Chunk counts for many documents in one grouped query (R04-03).
+
+        Counts only chunks of the organisation's documents; documents with no chunks are
+        absent, so callers default to ``0`` as ``count_document_chunks`` would return.
+        """
+        if not document_ids:
+            return {}
+        statement = (
+            select(DocumentChunk.document_id, func.count(DocumentChunk.id))
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(
+                DocumentChunk.document_id.in_(document_ids),
+                Document.organization_id == organization_id,
+            )
+            .group_by(DocumentChunk.document_id)
+        )
+        if index_version is not None:
+            statement = statement.where(DocumentChunk.index_version == index_version)
+        result = await session.execute(statement)
+        return {row[0]: int(row[1]) for row in result.all()}
 
     async def set_deletion_requested_at(
         self,

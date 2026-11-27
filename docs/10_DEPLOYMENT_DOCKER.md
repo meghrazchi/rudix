@@ -381,6 +381,40 @@ For Rudix-hosted deployments, keep the URL pairs aligned:
 | Staging     | `https://staging.getrudix.com` | `https://api-staging.getrudix.com/api/v1` |
 | Production  | `https://getrudix.com`         | `https://api.getrudix.com/api/v1`         |
 
+### Database roles, pool, and PgBouncer (0.4.0)
+
+Row-level security only constrains a role that does not own the tables and has no
+`BYPASSRLS` (`R04-08`). Provision the roles once per database, as the migration owner:
+
+```bash
+psql "<owner connection string>" -v ON_ERROR_STOP=1 -f deploy/sql/provision_roles.sql
+psql "<owner connection string>" -c "ALTER ROLE rudix_app PASSWORD '<from secret store>'"
+psql "<owner connection string>" -c "ALTER ROLE rudix_maintenance PASSWORD '<from secret store>'"
+```
+
+The script is idempotent and is not run by the deploy scripts. Then set:
+
+```env
+DATABASE_URL=postgresql+asyncpg://rudix_app:...@db:5432/rudix               # API and workers
+DATABASE_MIGRATION_URL=postgresql+asyncpg://<owner>:...@db:5432/rudix       # Alembic only
+DATABASE_MAINTENANCE_URL=postgresql+asyncpg://rudix_maintenance:...@db:5432/rudix
+RLS_ENFORCEMENT=soft            # unset = soft in staging/production; strict is planned for 0.5.0
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=10
+DB_POOL_TIMEOUT=30              # seconds a request waits for a pooled connection
+DB_STATEMENT_TIMEOUT_MS=30000   # API; 0 = off (default)
+DB_IDLE_IN_TRANSACTION_TIMEOUT_MS=60000
+```
+
+Each API and worker process opens up to `DB_POOL_SIZE + DB_MAX_OVERFLOW` connections; keep
+the sum over all processes below the server's `max_connections`. Alembic uses
+`DATABASE_MIGRATION_URL` when set, otherwise `DATABASE_URL`.
+
+PgBouncer in transaction pooling mode: set `DB_PGBOUNCER_MODE=true`. The engine then
+disables asyncpg's prepared-statement caches and uses unique prepared-statement names, and
+the timeouts are sent with `set_config(..., true)` at the start of every transaction
+(PgBouncer ignores startup parameters). Session pooling needs no change.
+
 ## Release checklist
 
 Before deployment:

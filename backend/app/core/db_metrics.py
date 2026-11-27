@@ -12,6 +12,12 @@ Two signals feed the load-test baseline:
 * ``rudix_db_pool_checked_out``, ``rudix_db_pool_size``, ``rudix_db_pool_overflow``: read
   from ``engine.pool`` at scrape time by a custom collector. Pools without these methods
   (``NullPool``, ``StaticPool``) produce no samples instead of raising.
+* ``rudix_db_pool_wait_seconds`` and ``rudix_db_pool_timeouts_total`` (R04-01): the engine
+  uses :class:`TimedAsyncAdaptedQueuePool`, which times every checkout from the pool queue
+  and counts ``TimeoutError`` (pool exhausted for ``DB_POOL_TIMEOUT`` seconds).
+
+Statements carrying the session-context marker (``/* rudix:session-context */``, R04-08) are
+not counted as queries.
 """
 
 from __future__ import annotations
@@ -19,17 +25,20 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Iterator
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
+from time import perf_counter
 from typing import Any
 
-from prometheus_client import CollectorRegistry, Histogram
+from prometheus_client import CollectorRegistry, Counter, Histogram
 from prometheus_client.core import GaugeMetricFamily, Metric
 from prometheus_client.registry import Collector
-from sqlalchemy import event
+from sqlalchemy import event, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.pool import AsyncAdaptedQueuePool, ConnectionPoolEntry
 
 from app.core.config import settings
 from app.core.metrics import registry
+from app.db.tenant_context import SESSION_CONTEXT_MARKER
 
 QUERIES_PER_REQUEST_BUCKETS: tuple[float, ...] = (1, 2, 5, 10, 20, 50, 100, 200)
 
@@ -40,6 +49,63 @@ DB_QUERIES_PER_REQUEST = Histogram(
     buckets=QUERIES_PER_REQUEST_BUCKETS,
     registry=registry,
 )
+
+
+POOL_WAIT_BUCKETS: tuple[float, ...] = (
+    0.0005,
+    0.001,
+    0.005,
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    1.0,
+    2.5,
+    5.0,
+    10.0,
+    30.0,
+)
+
+DB_POOL_WAIT_SECONDS = Histogram(
+    "rudix_db_pool_wait_seconds",
+    "Time spent waiting to check a connection out of the database pool",
+    buckets=POOL_WAIT_BUCKETS,
+    registry=registry,
+)
+
+DB_POOL_TIMEOUTS_TOTAL = Counter(
+    "rudix_db_pool_timeouts_total",
+    "Pool checkouts that failed because no connection became free within DB_POOL_TIMEOUT",
+    registry=registry,
+)
+
+
+# Set while a checkout is being timed, so the recursive ``QueuePool._do_get`` calls of one
+# checkout are observed once. Per task (each checkout runs in its caller's context).
+_pool_checkout_timed: ContextVar[bool] = ContextVar("rudix_pool_checkout_timed", default=False)
+
+
+class TimedAsyncAdaptedQueuePool(AsyncAdaptedQueuePool):
+    """Async queue pool that records checkout wait time and pool timeouts."""
+
+    def _do_get(self) -> ConnectionPoolEntry:
+        if _pool_checkout_timed.get():
+            # ``QueuePool._do_get`` recursed: the outermost call observes this checkout.
+            return super()._do_get()
+        token = _pool_checkout_timed.set(True)
+        started = perf_counter()
+        try:
+            entry = super()._do_get()
+        except exc.TimeoutError:
+            DB_POOL_TIMEOUTS_TOTAL.inc()
+            DB_POOL_WAIT_SECONDS.observe(perf_counter() - started)
+            raise
+        finally:
+            _pool_checkout_timed.reset(token)
+        DB_POOL_WAIT_SECONDS.observe(perf_counter() - started)
+        return entry
 
 
 @dataclass
@@ -91,10 +157,19 @@ def end_request_query_count(scope: RequestQueryScope | None, method: str, route:
     DB_QUERIES_PER_REQUEST.labels(method=method, route=route).observe(scope.counter.count)
 
 
-def _count_statement(*_args: Any, **_kwargs: Any) -> None:
+def _count_statement(
+    _conn: Any = None,
+    _cursor: Any = None,
+    statement: Any = None,
+    *_args: Any,
+    **_kwargs: Any,
+) -> None:
     counter = _current_counter.get()
-    if counter is not None:
-        counter.count += 1
+    if counter is None:
+        return
+    if isinstance(statement, str) and SESSION_CONTEXT_MARKER in statement:
+        return
+    counter.count += 1
 
 
 def _as_sync_engine(engine: AsyncEngine | Engine) -> Engine:

@@ -416,6 +416,45 @@ async def _connection_indexed_document_count(
     return int(result.scalar_one())
 
 
+async def _indexed_document_counts_by_connection(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    connection_ids: list[UUID],
+) -> dict[UUID, int]:
+    """``_connection_indexed_document_count`` for many connections in one query (R04-03)."""
+    if not connection_ids:
+        return {}
+    result = await db_session.execute(
+        select(ExternalItem.connection_id, func.count(Document.id))
+        .join(
+            ExternalItem,
+            ExternalItem.id == Document.connector_external_item_id,
+        )
+        .where(
+            Document.organization_id == organization_id,
+            ExternalItem.connection_id.in_(connection_ids),
+            Document.ingestion_source == "connector",
+            Document.status == "indexed",
+        )
+        .group_by(ExternalItem.connection_id)
+    )
+    return {row[0]: int(row[1]) for row in result.all()}
+
+
+def _connection_summaries(
+    connections: list[ConnectorConnection],
+    counts: dict[UUID, int],
+) -> list[ConnectorConnectionSummaryResponse]:
+    return [
+        _connection_summary_response(
+            connection,
+            indexed_document_count=counts.get(connection.id, 0),
+        )
+        for connection in connections
+    ]
+
+
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
     if principal.organization_id is None:
         raise HTTPException(
@@ -478,19 +517,12 @@ async def list_connections(
         organization_id=_org_id(principal),
     )
     organization_id = _org_id(principal)
-    items = []
-    for connection in connections:
-        indexed_document_count = await _connection_indexed_document_count(
-            db_session,
-            organization_id=organization_id,
-            connection_id=connection.id,
-        )
-        items.append(
-            _connection_summary_response(
-                connection,
-                indexed_document_count=indexed_document_count,
-            )
-        )
+    counts = await _indexed_document_counts_by_connection(
+        db_session,
+        organization_id=organization_id,
+        connection_ids=[connection.id for connection in connections],
+    )
+    items = _connection_summaries(connections, counts)
     return ConnectorConnectionsListResponse(
         items=items,
         total=len(connections),
@@ -528,19 +560,12 @@ async def list_available_connections(
         }
         active = [c for c in active if str(c.id) in accessible_ids]
 
-    items = []
-    for connection in active:
-        indexed_document_count = await _connection_indexed_document_count(
-            db_session,
-            organization_id=organization_id,
-            connection_id=connection.id,
-        )
-        items.append(
-            _connection_summary_response(
-                connection,
-                indexed_document_count=indexed_document_count,
-            )
-        )
+    counts = await _indexed_document_counts_by_connection(
+        db_session,
+        organization_id=organization_id,
+        connection_ids=[connection.id for connection in active],
+    )
+    items = _connection_summaries(active, counts)
     return ConnectorConnectionsListResponse(
         items=items,
         total=len(active),

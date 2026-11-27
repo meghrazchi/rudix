@@ -47,6 +47,7 @@ from app.core.settings.enums import (
     QdrantDistance,
     RateLimitRedisFailureMode,
     RerankFallbackBehavior,
+    RlsEnforcement,
 )
 from app.core.settings.features import (
     FeaturesSettings,
@@ -90,6 +91,7 @@ __all__ = [
     "QdrantDistance",
     "RateLimitRedisFailureMode",
     "RerankFallbackBehavior",
+    "RlsEnforcement",
     "Settings",
     "get_settings",
     "settings",
@@ -187,6 +189,14 @@ class Settings(
     @property
     def is_production(self) -> bool:
         return self.environment == Environment.production
+
+    @property
+    def effective_rls_enforcement(self) -> RlsEnforcement:
+        if self.rls_enforcement is not None:
+            return self.rls_enforcement
+        if self.environment in {Environment.production, Environment.staging}:
+            return RlsEnforcement.soft
+        return RlsEnforcement.off
 
     @property
     def is_rate_limit_active(self) -> bool:

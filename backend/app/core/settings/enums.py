@@ -39,6 +39,14 @@ class AuthProvider(StrEnum):
     api_key = "api_key"
 
 
+class RlsEnforcement(StrEnum):
+    """PostgreSQL row-level security mode (R04-08)."""
+
+    off = "off"
+    soft = "soft"
+    strict = "strict"
+
+
 class RateLimitRedisFailureMode(StrEnum):
     open = "open"
     closed = "closed"

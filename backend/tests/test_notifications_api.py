@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -148,6 +149,10 @@ class TestListNotifications:
         user, org = await _seed_principal(db_session)
         n1 = await _seed_notification(db_session, user=user, org=org, title="First")
         n2 = await _seed_notification(db_session, user=user, org=org, title="Second")
+        # SQLite's CURRENT_TIMESTAMP has one-second resolution, so both rows can share a
+        # timestamp; ties are ordered by id (R04-04). Make "First" strictly older.
+        n1.created_at = n2.created_at - timedelta(minutes=1)
+        await db_session.commit()
 
         token = create_app_access_token(
             subject=str(user.id), organization_id=str(org.id), email=user.email

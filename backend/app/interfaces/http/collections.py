@@ -204,6 +204,21 @@ def _collection_to_detail(
     )
 
 
+async def _collection_list_items(
+    db: AsyncSession,
+    *,
+    organization_id: UUID,
+    collections: list[Collection],
+) -> list[CollectionListItemResponse]:
+    """Build list items with document counts loaded in one grouped query (R04-03)."""
+    counts = await _collection_repo.count_documents_by_collection_ids(
+        db,
+        organization_id=organization_id,
+        collection_ids=[col.id for col in collections],
+    )
+    return [_collection_to_list_item(col, *counts.get(col.id, (0, 0))) for col in collections]
+
+
 def _doc_to_item(doc: Document) -> CollectionDocumentItem:
     return CollectionDocumentItem(
         document_id=str(doc.id),
@@ -248,11 +263,9 @@ async def list_collections(
         name_query=name_query,
         review_status=freshness_filter.value if freshness_filter is not None else None,
     )
-    items = []
-    for col in collections:
-        doc_count = await _collection_repo.count_documents(db, collection_id=col.id)
-        idx_count = await _collection_repo.count_indexed_documents(db, collection_id=col.id)
-        items.append(_collection_to_list_item(col, doc_count, idx_count))
+    items = await _collection_list_items(
+        db, organization_id=organization_id, collections=collections
+    )
 
     _logger.info(
         "collections.listed",
@@ -1005,11 +1018,9 @@ async def get_document_collections(
         user_id=user_id,
         user_roles=principal.roles,
     )
-    items = []
-    for col in collections:
-        doc_count = await _collection_repo.count_documents(db, collection_id=col.id)
-        idx_count = await _collection_repo.count_indexed_documents(db, collection_id=col.id)
-        items.append(_collection_to_list_item(col, doc_count, idx_count))
+    items = await _collection_list_items(
+        db, organization_id=organization_id, collections=collections
+    )
     return DocumentCollectionsResponse(items=items)
 
 
@@ -1063,9 +1074,7 @@ async def set_document_collections(
     )
     await db.commit()
 
-    items = []
-    for col in collections:
-        doc_count = await _collection_repo.count_documents(db, collection_id=col.id)
-        idx_count = await _collection_repo.count_indexed_documents(db, collection_id=col.id)
-        items.append(_collection_to_list_item(col, doc_count, idx_count))
+    items = await _collection_list_items(
+        db, organization_id=organization_id, collections=collections
+    )
     return DocumentCollectionsResponse(items=items)
