@@ -31,7 +31,6 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.metrics_workers import record_reindex_progress
-from app.db.session import maintenance_session
 from app.db.tenant_context import tenant_context_scope
 from app.domains.vector_index.repositories import generations as repo
 from app.domains.vector_index.services import lifecycle_service
@@ -93,6 +92,13 @@ def _session() -> Any:
     from app.db import session as db_session_module
 
     return db_session_module.SessionLocal()
+
+
+def _maintenance() -> Any:
+    """Cross-tenant reads (counts across organisations), resolved at call time."""
+    from app.db import session as db_session_module
+
+    return db_session_module.maintenance_session()
 
 
 async def _start(generation: int | None) -> Any:
@@ -248,7 +254,7 @@ async def _build_document(
 
 async def refresh_progress(generation_id: UUID) -> tuple[int, int]:
     """Recount documents_done and indexed_points across organisations; set the gauge."""
-    async with maintenance_session() as session:
+    async with _maintenance() as session:
         total = await repo.count_indexed_documents(session)
         done, points = await repo.generation_progress(session, generation_id=generation_id)
         await session.rollback()
@@ -280,7 +286,7 @@ async def build_generation(
     )
     page_size = settings.vector_index_build_batch_documents
     while max_pages is None or progress.pages < max_pages:
-        async with maintenance_session() as session:
+        async with _maintenance() as session:
             page = await repo.documents_page(session, after=progress.cursor, limit=page_size)
             await session.rollback()
         if not page:

@@ -17,7 +17,6 @@ from typing import Any
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.db.session import maintenance_session
 from app.domains.vector_index.repositories import generations as repo
 from app.domains.vector_index.services import qdrant_ops
 from app.domains.vector_index.services.generation_service import (
@@ -64,6 +63,13 @@ def _session() -> Any:
     from app.db import session as db_session_module
 
     return db_session_module.SessionLocal()
+
+
+def _maintenance() -> Any:
+    """Cross-tenant reads (counts across organisations), resolved at call time."""
+    from app.db import session as db_session_module
+
+    return db_session_module.maintenance_session()
 
 
 def require_alias() -> str:
@@ -207,7 +213,7 @@ async def verify(*, generation: int | None = None) -> VerifyResult:
         raise VectorIndexLifecycleError("nothing_to_verify")
     await set_state(target.id, state="verifying", error_code=None)
     versions = settings.active_index_versions
-    async with maintenance_session() as session:
+    async with _maintenance() as session:
         expected = await repo.expected_points(session, index_versions=versions)
         total = await repo.count_indexed_documents(session)
         done, _ = await repo.generation_progress(session, generation_id=target.id)
