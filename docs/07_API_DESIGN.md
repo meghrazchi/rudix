@@ -2845,6 +2845,25 @@ commands (`scripts/vector_index.py`); there is no write endpoint.
   and point counts are never returned (cross-tenant progress is the metric
   `rudix_reindex_progress`).
 
+## Response schemas for formerly untyped routes (R07-05)
+
+Four routes the frontend consumes had no `response_model`, so OpenAPI described their 2xx body
+as an open object. They now declare one; the JSON they return is unchanged (same keys, same
+values, same visibility rules), and the generated frontend types follow the schema names:
+
+| Route | Response schema |
+| ----- | --------------- |
+| `GET /agent/runs/{run_id}/trace` | `AgentTraceResponse` (events: `AgentTraceEventResponse`) |
+| `GET /agent/traces/shared/{token}` | `AgentTraceResponse` |
+| `GET /admin/metadata/filter-documents` | `FilterDocumentsResponse` |
+| `POST /security/sessions/revoke-all` | `RevokeAllSessionsResponse` |
+
+The two trace routes use `response_model_exclude_unset`, so optional event keys the trace
+service leaves out stay out. Free-form payloads (`metadata`, event details) are
+`dict[str, Any]`. Other operations still have no typed 2xx schema; where a frontend client
+module calls one, it keeps a hand-written type listed in
+`frontend/config/api-handwritten-allowlist.json`.
+
 ## Rate limits
 
 Recommended:

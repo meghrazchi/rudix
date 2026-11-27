@@ -676,18 +676,33 @@ This exports the full schema with `backend/.venv/bin/python scripts/export_opena
 npm run api:check
 ```
 
-API modules such as `src/lib/api/documents.ts` and `src/lib/api/chat.ts` import and re-export types directly from the generated schema:
+Every client module in `src/lib/api` derives its response, item and request types from the generated schema (R07-05); the only exceptions are the infrastructure modules (`request.ts`, `session.ts`, `auth.ts`, `errors.ts`, `query.ts`, `index.ts`) and the few allowlisted view models described below:
 
 ```ts
 import type { components } from "@/lib/api/generated/schema";
+import type { Served } from "@/lib/api/schema-helpers";
 type Schemas = components["schemas"];
 
 export type DocumentListResponse = Schemas["DocumentListResponse"];
+export type ApiKey = Served<Schemas["ApiKeyResponse"]>;
 ```
 
-When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`.
+When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`. A renamed or removed response field then fails `npm run typecheck` in every component that reads it.
 
-`openapi-typescript` marks response fields that have a server default as required. Where the frontend declares a field itself (or keeps a server-defaulted field optional for fixtures and partial objects), the API modules use small type-only helpers: `Overlay<Generated, FrontendFields>` (frontend declarations replace the generated ones) and `WithOptional<Generated, Keys>`. `src/lib/api/generated/schema.test.ts` checks that every other field still matches the generated schema.
+The type-only helpers live in `src/lib/api/schema-helpers.ts`:
+
+- `Served<T>` marks every field of a response type as present (FastAPI serialises defaults), recursively. Use it for response types only.
+- `Overlay<Generated, FrontendFields>` replaces fields with the frontend's own declaration, for example a status the schema types as `string` but the UI narrows to a union.
+- `WithOptional<Generated, Keys>` keeps server-defaulted fields optional in request bodies and in fixtures.
+- `WithRequired<Generated, Keys>` keeps list fields the server always sends required.
+
+`src/lib/api/generated/schema.test.ts` checks that every other field still matches the generated schema.
+
+### Generated API client (R07-05)
+
+`npm run api:check-handwritten` (`scripts/check-api-handwritten-types.mjs`, run in CI directly after `api:check`) scans `src/lib/api/*.ts` and fails on an exported type or interface whose name ends in `Response`, `Item`, `Record`, `Summary`, `Detail`, `Entry`, `Result`, `Payload` or `Request` unless its declaration references `Schemas[`, `components[` or `operations[` (directly or through a local alias of the schema).
+
+If an endpoint has no typed 2xx schema in the OpenAPI export, or the type is a client-only view model, add its name to `config/api-handwritten-allowlist.json` with a one-line reason. Keep the list as short as possible: give the backend route a Pydantic `response_model` instead whenever the frontend consumes the body. The agent trace, metadata filter-documents and revoke-all routes were typed this way in R07-05 (see `docs/07_API_DESIGN.md`).
 
 ## Testing
 

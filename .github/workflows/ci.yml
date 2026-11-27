@@ -218,6 +218,10 @@ jobs:
         working-directory: frontend
         run: npm run api:check
 
+      - name: Check hand-written API types
+        working-directory: frontend
+        run: npm run api:check-handwritten
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
