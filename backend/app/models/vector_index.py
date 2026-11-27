@@ -76,6 +76,7 @@ class VectorIndexGenerationDocument(UUIDPrimaryKeyMixin, Base):
             name="uq_vector_index_generation_documents_generation_document",
         ),
         Index("idx_vector_index_generation_documents_org", "organization_id", "generation_id"),
+        Index("idx_vector_index_generation_documents_document", "document_id"),
     )
 
     generation_id: Mapped[UUID] = mapped_column(

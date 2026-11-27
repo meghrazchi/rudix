@@ -23,11 +23,15 @@ def stage_task(stage: StageName) -> Any:
     return tasks.STAGE_TASKS[stage]
 
 
-def dispatch_stage(stage: StageName, kwargs: dict[str, Any]) -> Any:
-    task = stage_task(stage)
+def celery_app_eager() -> bool:
     from app.workers.celery_app import celery_app
 
-    if celery_app.conf.task_always_eager:
+    return bool(celery_app.conf.task_always_eager)
+
+
+def dispatch_stage(stage: StageName, kwargs: dict[str, Any]) -> Any:
+    task = stage_task(stage)
+    if celery_app_eager():
         # In-process execution (tests): errors of the next stage are its own.
         return task.apply_async(kwargs=kwargs)
     try:

@@ -295,10 +295,10 @@ class RudixTask(Task):
             organization_id=ctx["organization_id"],
             user_id=ctx["user_id"],
         )
-        task_name, queue_name, metadata = self.failed_job_identity(
-            kwargs, (getattr(self.request, "delivery_info", None) or {}).get("routing_key")
-        )
         try:
+            task_name, queue_name, metadata = self.failed_job_identity(
+                kwargs, (getattr(self.request, "delivery_info", None) or {}).get("routing_key")
+            )
             run_async(
                 _persist_failed_job(
                     task_id=task_id,

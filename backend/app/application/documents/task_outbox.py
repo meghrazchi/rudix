@@ -43,6 +43,20 @@ def result_or_raise(outcomes: list[outbox.PublishOutcome]) -> Any:
     return outbox.first_result(outcomes)
 
 
+async def dispatch_now(
+    session: AsyncSession,
+    task: Any,
+    *,
+    task_name: str,
+    organization_id: UUID,
+    kwargs: dict[str, Any],
+) -> Any:
+    """Stage, commit, and publish one dispatch for a route that writes nothing else."""
+    await stage(session, task, task_name=task_name, organization_id=organization_id, kwargs=kwargs)
+    await session.commit()
+    return await publish(session)
+
+
 async def publish(session: AsyncSession) -> Any:
     """Publish what this session staged; the task result, or the publish error raised."""
     return result_or_raise(await outbox.publish_after_commit(session))

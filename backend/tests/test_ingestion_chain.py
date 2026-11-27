@@ -532,3 +532,85 @@ def test_duplicate_outbox_publication_is_harmless(ingestion_env: Any) -> None:  
     assert again["status"] == "skipped"
     final = env.run_async(state(env, seeded))
     assert final["usage"] == 1 and final["audits"] == 1
+
+
+def test_dispatch_publishes_with_apply_async_and_wraps_publish_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.workers.base_task import TransientTaskError
+    from app.workers.ingestion import dispatch
+
+    calls: list[dict[str, Any]] = []
+
+    class _Task:
+        name = "documents.ingest.embed"
+        fail = False
+
+        def apply_async(self, *, kwargs: dict[str, Any]) -> str:
+            if self.fail:
+                raise ConnectionError("broker down")
+            calls.append(kwargs)
+            return "sent"
+
+    fake = _Task()
+    monkeypatch.setattr(dispatch, "stage_task", lambda stage: fake)
+    assert dispatch.celery_app_eager() is False
+    message = {"document_id": "d", "organization_id": "o", "run_id": "r"}
+    assert dispatch.dispatch_stage(StageName.embed, message) == "sent"
+    assert calls == [message]
+    fake.fail = True
+    with pytest.raises(TransientTaskError):
+        dispatch.dispatch_stage(StageName.embed, message)
+    # The real lookup returns the registered stage task.
+    monkeypatch.undo()
+    assert dispatch.stage_task(StageName.embed).name == "documents.ingest.embed"
+
+
+def test_failed_job_run_lookup_ignores_bad_ids_and_other_organizations(
+    ingestion_env: Any,  # noqa: F811
+) -> None:
+    from uuid import uuid4
+
+    from app.models.failed_job import FailedJob
+
+    env = ingestion_env
+    seeded = env.seed()
+    job_id = uuid4()
+
+    async def _seed_job() -> None:
+        async with env.factory() as session, session.begin():
+            session.add(
+                FailedJob(
+                    id=job_id,
+                    organization_id=seeded.organization_id,
+                    task_id="t",
+                    task_name="documents.process",
+                    job_type="extraction",
+                    status="failed",
+                    error_code="X",
+                    error_message="x",
+                    attempt_count=1,
+                    is_retryable=True,
+                    metadata_json={"stage": "embed", "run_id": "run-9"},
+                )
+            )
+
+    env.run_async(_seed_job())
+    lookup = chain_module.run_id_from_failed_job
+    assert env.run_async(lookup(str(job_id), str(seeded.organization_id))) == "run-9"
+    assert env.run_async(lookup(str(job_id), str(uuid4()))) is None
+    assert env.run_async(lookup("not-a-uuid", None)) is None
+    assert env.run_async(lookup(str(uuid4()), None)) is None
+    # A finished or unknown run is not resumed; inline mode then uses the claim's id.
+    run_id, resumed = env.run_async(
+        chain_module.resolve_run_id(
+            str(seeded.document_id),
+            claim_token="claim",
+            resume_run_id=None,
+            job_id=str(job_id),
+            organization_id=str(seeded.organization_id),
+            chain=False,
+        )
+    )
+    assert (run_id, resumed) == ("claim", False)
+    assert chain_module.first_incomplete({str(s) for s in CHAIN_ORDER}) is None

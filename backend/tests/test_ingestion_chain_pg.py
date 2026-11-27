@@ -239,3 +239,42 @@ def test_chain_with_a_wrong_organization_writes_nothing(
     assert after == before
     assert chain_pg.messages == []
     assert env.fakes.minio.reads == 0
+
+
+def test_reaper_query_and_artifact_purge_on_postgres(chain_pg: ChainHarness) -> None:  # noqa: F811
+    from datetime import UTC, datetime, timedelta
+
+    from app.workers import document_reaper_tasks
+
+    env = chain_pg.env
+    seeded = env.seed()
+    armed = {"on": True}
+
+    def _before(call_index: int) -> None:
+        if armed["on"] and call_index == 1:
+            armed["on"] = False
+            raise WorkerKilled("embed")
+
+    env.fakes.embeddings.before_call = _before
+    with pytest.raises(WorkerKilled):
+        chain_pg.process(seeded, chunking_profile_config=PROFILE)
+    run_id = chain_pg.last(StageName.embed).kwargs["run_id"]
+
+    async def _latest() -> str | None:
+        async with env.factory() as session:
+            return await document_reaper_tasks._latest_unfinished_run(session, seeded.document_id)
+
+    assert env.run_async(_latest()) == run_id
+
+    @asynccontextmanager
+    async def _maintenance() -> AsyncIterator[AsyncSession]:
+        async with env.factory() as session:
+            yield session
+
+    env.monkeypatch.setattr(document_reaper_tasks, "maintenance_session", _maintenance)
+    later = datetime.now(UTC) + timedelta(hours=settings.ingest_stage_artifact_ttl_hours + 1)
+    # The document is still processing: its artifacts are kept.
+    purged = env.run_async(document_reaper_tasks._purge_stage_artifacts_async(later))
+    assert purged == {"deleted": 0}
+    chain_pg.redeliver(chain_pg.last(StageName.embed))
+    assert env.run_async(_latest()) is None

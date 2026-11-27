@@ -370,3 +370,50 @@ async def test_graph_reindex_and_ocr_retry_go_through_the_outbox(
     ]
     assert graph_task.delay_calls[0]["document_id"] == str(document.id)
     assert ocr_task.delay_calls[0]["organization_id"] == str(org.id)
+
+
+@pytest.mark.requires_postgres
+async def test_concurrent_relays_publish_each_row_once_on_postgres(
+    pg_session_factory: Any,
+) -> None:
+    import asyncio
+    import time
+
+    from sqlalchemy import delete
+
+    async with pg_session_factory() as session:
+        org = Organization(name="Outbox PG", slug=f"outbox-pg-{uuid4().hex[:8]}")
+        session.add(org)
+        await session.flush()
+        for number in range(6):
+            await outbox.enqueue(
+                session,
+                organization_id=org.id,
+                task_name="documents.delete",
+                kwargs={"document_id": str(number)},
+            )
+        await session.commit()
+    published: list[str] = []
+
+    class _SlowTask:
+        def apply_async(self, *, kwargs: dict[str, Any], **_: Any) -> None:
+            time.sleep(0.05)  # holds the row locks while the other relay scans
+            published.append(kwargs["document_id"])
+
+    try:
+        results = await asyncio.gather(
+            *(
+                outbox_tasks.relay_pending(
+                    now=datetime.now(UTC) + timedelta(seconds=1),
+                    session_factory=pg_session_factory,
+                    resolver=lambda _name: _SlowTask(),
+                )
+                for _ in range(2)
+            )
+        )
+        assert sorted(published) == [str(n) for n in range(6)]
+        assert sum(result["published"] for result in results) == 6
+    finally:
+        async with pg_session_factory() as session:
+            await session.execute(delete(Organization).where(Organization.id == org.id))
+            await session.commit()

@@ -1788,7 +1788,7 @@ async def reindex_document_graph_endpoint(
     request_id = _request_id_from_request(request)
     actor_user_id, actor_organization_id = _principal_user_and_org(principal)
     # R06-01 part 2: committed outbox row, then immediate publication (relay on failure).
-    await task_outbox.stage(
+    await task_outbox.dispatch_now(
         db_session,
         reindex_document_graph_task,
         task_name="documents.graph_reindex",
@@ -1800,8 +1800,6 @@ async def reindex_document_graph_endpoint(
             "user_id": str(actor_user_id),
         },
     )
-    await db_session.commit()
-    await task_outbox.publish(db_session)
     log_document_event(
         event="document.graph_reindex.requested",
         document_id=str(document.id),

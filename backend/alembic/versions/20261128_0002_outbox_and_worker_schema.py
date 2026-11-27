@@ -218,6 +218,11 @@ def _create_generations() -> None:
         "vector_index_generation_documents",
         ["organization_id", "generation_id"],
     )
+    op.create_index(
+        "idx_vector_index_generation_documents_document",
+        "vector_index_generation_documents",
+        ["document_id"],
+    )
 
 
 def upgrade() -> None:
@@ -241,6 +246,10 @@ def downgrade() -> None:
         op.execute("ALTER TABLE document_chunks DROP COLUMN IF EXISTS fts_vector")
     for table, column in reversed(_columns()):
         op.drop_column(table, column.name)
+    op.drop_index(
+        "idx_vector_index_generation_documents_document",
+        table_name="vector_index_generation_documents",
+    )
     op.drop_index(
         "idx_vector_index_generation_documents_org",
         table_name="vector_index_generation_documents",
