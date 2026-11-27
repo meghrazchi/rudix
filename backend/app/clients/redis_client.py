@@ -52,9 +52,17 @@ async def close_redis() -> None:
 
 async def check_redis_health() -> bool:
     if redis_client is None:
+        # Degraded boot (R04-12): reconnect from the readiness probe so the API
+        # recovers once Redis is back, without a restart.
+        try:
+            await init_redis()
+        except Exception:
+            return False
+    client = redis_client
+    if client is None:
         return False
     try:
-        response = await redis_client.ping()
+        response = await client.ping()
         return bool(response)
     except Exception:
         return False
