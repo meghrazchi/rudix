@@ -1,15 +1,15 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 
-export type OnboardingConfig = {
-  sample_docs_enabled: boolean;
-  reset_at: string | null;
-};
+type Schemas = components["schemas"];
 
-export type LoadSampleDatasetResponse = {
-  created: number;
-  skipped: number;
-  document_ids: string[];
-};
+export type OnboardingConfig = Served<Schemas["OnboardingConfigResponse"]>;
+
+export type LoadSampleDatasetResponse = Served<
+  Schemas["LoadSampleDatasetResponse"]
+>;
 
 export async function getOnboardingConfig(): Promise<OnboardingConfig> {
   return apiRequest<OnboardingConfig>("/admin/onboarding/config", {

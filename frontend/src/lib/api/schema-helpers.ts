@@ -15,3 +15,17 @@ export type WithOptional<T, K extends keyof T> = Omit<T, K> &
 
 /** Replace the fields of `Base` that `Extra` declares with the frontend's own types. */
 export type Overlay<Base, Extra> = Omit<Base, keyof Extra> & Extra;
+
+/**
+ * A response body as the server sends it. FastAPI serialises every model field, defaults
+ * included, so a field the schema marks optional because Pydantic gives it a default is always
+ * present on the wire. Applies recursively; `null` stays in the type, `undefined` does not.
+ * Use for response types only, never for request bodies.
+ */
+export type Served<T> = T extends readonly (infer U)[]
+  ? Served<U>[]
+  : T extends (...args: never[]) => unknown
+    ? T
+    : T extends object
+      ? { [K in keyof T]-?: Served<Exclude<T[K], undefined>> }
+      : T;

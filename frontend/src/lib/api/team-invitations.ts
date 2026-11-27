@@ -1,60 +1,39 @@
+import { normalizeRole, normalizeStatus } from "@/lib/api/team";
+import type { TeamMemberRole, TeamMemberStatus } from "@/lib/api/team";
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
 
-export type OrganizationInvitation = {
-  invitation_id: string;
-  organization_id: string;
-  email: string;
-  role: string;
-  status: InvitationStatus;
-  expires_at: string;
-  invited_by_name: string | null;
-  resend_count: number;
-  last_sent_at: string | null;
-  accepted_at: string | null;
-  revoked_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type OrganizationInvitation = Served<
+  Schemas["OrganizationInvitationResponse"]
+>;
 
-export type InvitationListResponse = {
-  items: OrganizationInvitation[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type InvitationListResponse = Overlay<
+  Served<Schemas["OrganizationInvitationListResponse"]>,
+  { items: OrganizationInvitation[] }
+>;
 
-export type ResendInvitationResponse = {
-  invitation_id: string;
-  resent: boolean;
-};
+export type ResendInvitationResponse = Served<
+  Schemas["ResendInvitationResponse"]
+>;
 
-export type RevokeInvitationResponse = {
-  invitation_id: string;
-  revoked: boolean;
-};
+export type RevokeInvitationResponse = Served<
+  Schemas["RevokeInvitationResponse"]
+>;
 
-export type AcceptInvitationResponse = {
-  accepted: boolean;
-  email: string;
-  role: string;
-  organization_name: string | null;
-};
+export type AcceptInvitationResponse = Served<
+  Schemas["AcceptInvitationResponse"]
+>;
 
-export type TeamMemberDetail = {
-  member_id: string;
-  user_id: string | null;
-  name: string;
-  email: string;
-  role: string;
-  custom_role_id: string | null;
-  status: string;
-  is_active: boolean;
-  provisioned_by: string;
-  created_at: string | null;
-  updated_at: string | null;
-};
+export type TeamMemberDetail = Overlay<
+  Served<Schemas["TeamMemberDetailResponse"]>,
+  { role: TeamMemberRole; status: TeamMemberStatus }
+>;
 
 function trimToNull(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -229,10 +208,10 @@ export async function getTeamMemberDetail(
     user_id: typeof raw.user_id === "string" ? raw.user_id : null,
     name: typeof raw.name === "string" ? raw.name : "",
     email: typeof raw.email === "string" ? raw.email : "",
-    role: typeof raw.role === "string" ? raw.role : "member",
+    role: normalizeRole(raw.role),
     custom_role_id:
       typeof raw.custom_role_id === "string" ? raw.custom_role_id : null,
-    status: typeof raw.status === "string" ? raw.status : "unknown",
+    status: normalizeStatus(raw.status),
     is_active: raw.is_active !== false,
     provisioned_by:
       typeof raw.provisioned_by === "string" ? raw.provisioned_by : "manual",
@@ -262,10 +241,10 @@ export async function deactivateTeamMember(
     user_id: typeof raw.user_id === "string" ? raw.user_id : null,
     name: typeof raw.name === "string" ? raw.name : "",
     email: typeof raw.email === "string" ? raw.email : "",
-    role: typeof raw.role === "string" ? raw.role : "member",
+    role: normalizeRole(raw.role),
     custom_role_id:
       typeof raw.custom_role_id === "string" ? raw.custom_role_id : null,
-    status: typeof raw.status === "string" ? raw.status : "unknown",
+    status: normalizeStatus(raw.status),
     is_active: raw.is_active !== false,
     provisioned_by:
       typeof raw.provisioned_by === "string" ? raw.provisioned_by : "manual",

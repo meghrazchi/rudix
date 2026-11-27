@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/request";
 import type { components } from "@/lib/api/generated/schema";
+import type { Overlay, WithOptional } from "@/lib/api/schema-helpers";
 import type { ChunkingProfileConfigInput } from "@/lib/schemas/chunking-profiles";
 
 type Schemas = components["schemas"];
@@ -7,8 +8,6 @@ type Schemas = components["schemas"];
 // The full OpenAPI export (R03-10) includes fields the old curated schema left
 // out, and openapi-typescript marks fields with server defaults as required.
 // The frontend's own declarations override the generated ones. Type-only.
-type Overlay<Base, Extra> = Omit<Base, keyof Extra> & Extra;
-
 export type DocumentFileType = Schemas["DocumentDetailResponse"]["file_type"];
 export type DocumentStatus = Schemas["DocumentStatus"];
 export type DocumentQualityState =
@@ -259,9 +258,8 @@ export type AdminOcrConfigResponse = Schemas["AdminOcrConfigResponse"];
 export type AdminOcrRetryResponse = Schemas["AdminOcrRetryResponse"];
 export type AdminTrustStatusRequest = Schemas["AdminTrustStatusRequest"];
 export type AdminTrustStatusResponse = Schemas["AdminTrustStatusResponse"];
-export type BulkAdminTrustStatusRequest = AdminTrustStatusRequest & {
-  document_ids: string[];
-};
+export type BulkAdminTrustStatusRequest =
+  Schemas["BulkAdminTrustStatusRequest"];
 export type BulkAdminTrustStatusResult = Schemas["BulkAdminTrustStatusResult"];
 export type BulkAdminTrustStatusResponse =
   Schemas["BulkAdminTrustStatusResponse"];
@@ -357,11 +355,10 @@ export type DocumentChunksOptions = {
   include_full_text?: boolean;
 };
 
-export type ReindexDocumentRequest = {
-  chunking_profile_id?: string | null;
-  chunking_profile_config?: ChunkingProfileConfigInput | null;
-  force?: boolean;
-};
+export type ReindexDocumentRequest = Overlay<
+  WithOptional<Schemas["ReindexWithProfileRequest"], "force">,
+  { chunking_profile_config?: ChunkingProfileConfigInput | null }
+>;
 
 export async function uploadDocument(
   file: File,

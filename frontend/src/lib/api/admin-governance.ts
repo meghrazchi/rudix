@@ -1,48 +1,23 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 
-export type GovernanceToolSummary = {
-  name: string;
-  capability: string;
-  effect_policy: "read_only" | "side_effect";
-  surfaces: Array<"api" | "mcp">;
-  required_roles: string[];
-  approval_required: boolean;
-};
+type Schemas = components["schemas"];
 
-export type GovernanceBudgetConfig = {
-  max_steps: number;
-  max_tool_calls_per_run: number;
-  max_tool_timeout_ms: number;
-  max_tool_input_bytes: number;
-  max_tool_output_bytes: number;
-  max_tool_retry_attempts: number;
-  max_total_tokens?: number | null;
-  max_total_cost_usd?: number | null;
-};
+export type GovernanceToolSummary = Served<Schemas["GovernanceToolSummary"]>;
 
-export type ExternalMcpServerPolicy = {
-  server_id: string;
-  enabled: boolean;
-  transport: "streamable_http";
-  base_url: string;
-  auth_type: "none" | "bearer" | "header";
-  auth_header_name?: string | null;
-  auth_secret_ref?: string | null;
-  allow_tools: string[];
-  read_only_tools: string[];
-  side_effect_tools: string[];
-  required_roles: string[];
-  expose_on_mcp_surface: boolean;
-  approval_required_for_side_effect: boolean;
-};
+// The server sends the cost limit as a decimal string; the editor holds a number while typing.
+export type GovernanceBudgetConfig = Overlay<
+  Served<Schemas["GovernanceBudgetConfig-Output"]>,
+  { max_total_cost_usd: number | string | null }
+>;
 
-export type ProviderSecurityPolicy = {
-  local_only_mode: boolean;
-  cloud_fallback_allowed: boolean;
-  allowed_provider_profiles: string[];
-  admin_only_model_selection: boolean;
-  retention_warning_acknowledged: boolean;
-};
+export type ExternalMcpServerPolicy = Served<
+  Schemas["ExternalMCPServerPolicy"]
+>;
+
+export type ProviderSecurityPolicy = Served<Schemas["ProviderSecurityPolicy"]>;
 
 export const DEFAULT_PROVIDER_SECURITY: ProviderSecurityPolicy = {
   local_only_mode: false,
@@ -52,15 +27,10 @@ export const DEFAULT_PROVIDER_SECURITY: ProviderSecurityPolicy = {
   retention_warning_acknowledged: false,
 };
 
-export type GovernancePolicyState = {
-  agentic_mode_enabled: boolean;
-  mcp_exposure_enabled: boolean;
-  allow_side_effect_tools: boolean;
-  allowed_tool_names: string[];
-  budgets: GovernanceBudgetConfig;
-  external_mcp_servers: ExternalMcpServerPolicy[];
-  provider_security: ProviderSecurityPolicy;
-};
+export type GovernancePolicyState = Overlay<
+  Served<Schemas["GovernancePolicyState"]>,
+  { budgets: GovernanceBudgetConfig }
+>;
 
 export type GovernanceMcpStatus = {
   feature_enable_mcp: boolean;
@@ -74,37 +44,18 @@ export type GovernanceMcpStatus = {
   configured_global_external_servers: number;
 };
 
-export type GovernancePolicyResponse = {
-  organization_id: string;
-  policy: GovernancePolicyState;
-  mcp_status: GovernanceMcpStatus;
-  tool_catalog: GovernanceToolSummary[];
-  warnings: string[];
-  policy_updated_at?: string | null;
-  policy_updated_by_user_id?: string | null;
-};
+export type GovernancePolicyResponse = Overlay<
+  Served<Schemas["GovernancePolicyResponse"]>,
+  { policy: GovernancePolicyState }
+>;
 
-export type GovernancePolicyUpdateRequest = {
-  agentic_mode_enabled?: boolean;
-  mcp_exposure_enabled?: boolean;
-  allow_side_effect_tools?: boolean;
-  allowed_tool_names?: string[];
-  budgets?: GovernanceBudgetConfig;
-  external_mcp_servers?: ExternalMcpServerPolicy[];
-  side_effect_warning_acknowledged?: boolean;
-  provider_security?: Partial<ProviderSecurityPolicy>;
-  cloud_fallback_warning_acknowledged?: boolean;
-};
+export type GovernancePolicyUpdateRequest =
+  Schemas["GovernancePolicyUpdateRequest"];
 
-export type GovernancePolicyUpdateResponse = {
-  organization_id: string;
-  policy: GovernancePolicyState;
-  warnings: string[];
-  updated_at: string;
-  updated_by_user_id?: string | null;
-  audit_recorded: boolean;
-  changed_fields: string[];
-};
+export type GovernancePolicyUpdateResponse = Overlay<
+  Served<Schemas["GovernancePolicyUpdateResponse"]>,
+  { policy: GovernancePolicyState }
+>;
 
 export async function getGovernancePolicy(): Promise<GovernancePolicyResponse> {
   return apiRequest<GovernancePolicyResponse>("/admin/governance");

@@ -1,6 +1,7 @@
 import { apiRequest } from "@/lib/api/request";
 
 import type { components } from "@/lib/api/generated/schema";
+import type { Overlay } from "@/lib/api/schema-helpers";
 
 type Schemas = components["schemas"];
 
@@ -18,10 +19,13 @@ export type ConnectorDiscoveryItem =
 export type ConnectorDiscoveryResponse =
   Schemas["ConnectorDiscoveredSourceListResponse"];
 
-export type ConnectorConnectionDetail = ConnectorConnectionSummary & {
-  diagnostics: ConnectorDiagnostics;
-  source_permission_snapshots: SourcePermissionSnapshot[];
-};
+export type ConnectorConnectionDetail = Overlay<
+  Schemas["ConnectorConnectionDetailResponse"],
+  {
+    diagnostics: ConnectorDiagnostics;
+    source_permission_snapshots: SourcePermissionSnapshot[];
+  }
+>;
 
 export type ScopeWarning = Schemas["ScopeWarningResponse"];
 

@@ -1,4 +1,9 @@
+import type { Served, WithOptional } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 const BASE = "/admin/portability";
 
@@ -22,57 +27,20 @@ export type WorkspacePortabilityStatus =
   | "validation_failed"
   | "expired";
 
-export type WorkspacePortabilityJob = {
-  job_id: string;
-  organization_id: string;
-  created_by_user_id: string | null;
-  job_type: "export" | "import";
-  status: WorkspacePortabilityStatus;
-  requested_sections: string[];
-  parameters: Record<string, unknown>;
-  artifact_filename: string | null;
-  artifact_mime_type: string | null;
-  artifact_size_bytes: number | null;
-  validation_errors: Array<{
-    section: string;
-    path: string;
-    code: string;
-    message: string;
-  }>;
-  warnings: Array<{
-    section: string;
-    code: string;
-    message: string;
-  }>;
-  error_message: string | null;
-  records_processed: number;
-  records_failed: number;
-  created_at: string;
-  updated_at: string;
-  started_at: string | null;
-  completed_at: string | null;
-  expires_at: string | null;
-  download_available: boolean;
-};
+export type WorkspacePortabilityJob = Served<
+  Schemas["WorkspacePortabilityJobResponse"]
+>;
 
-export type WorkspacePortabilityJobList = {
-  items: WorkspacePortabilityJob[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type WorkspacePortabilityJobList = Served<
+  Schemas["WorkspacePortabilityJobListResponse"]
+>;
 
-export type CreateWorkspaceExportRequest = {
-  sections: WorkspaceExportSection[];
-  from?: string | null;
-  to?: string | null;
-  max_rows_per_section?: number;
-};
+export type CreateWorkspaceExportRequest = WithOptional<
+  Schemas["WorkspaceExportRequest"],
+  "max_rows_per_section"
+>;
 
-export type CreateWorkspaceImportRequest = {
-  artifact: Record<string, unknown>;
-  apply: boolean;
-};
+export type CreateWorkspaceImportRequest = Schemas["WorkspaceImportRequest"];
 
 export const WORKSPACE_EXPORT_SECTION_LABELS: Record<
   WorkspaceExportSection,

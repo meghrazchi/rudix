@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/request";
 import type { components } from "@/lib/api/generated/schema";
+import type { Overlay, WithOptional } from "@/lib/api/schema-helpers";
 import type { AnswerTrustMetadataResponse } from "@/lib/api/trust_metadata";
 
 type Schemas = components["schemas"];
@@ -8,8 +9,6 @@ type Schemas = components["schemas"];
 // out. openapi-typescript marks every field with a server default as required,
 // so the helpers below keep those fields optional and let the frontend's own
 // declarations override the generated ones. Type-only: no runtime effect.
-type WithOptional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-type Overlay<Base, Extra> = Omit<Base, keyof Extra> & Extra;
 
 type GeneratedCitation = WithOptional<
   Schemas["ChatCitationResponse"],

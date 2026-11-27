@@ -1,60 +1,23 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 
-export type ObservabilityRange = {
-  from: string;
-  to: string;
-};
+type Schemas = components["schemas"];
 
-export type ApiMetrics = {
-  total_requests: number;
-  failed_requests: number;
-  error_rate: number | null;
-  avg_latency_ms: number | null;
-  p95_latency_ms: number | null;
-  telemetry_missing: boolean;
-};
+export type ObservabilityRange = Served<Schemas["ObservabilityRange"]>;
 
-export type LlmModelSummary = {
-  model_name: string;
-  event_count: number;
-  error_count: number;
-};
+export type ApiMetrics = Served<Schemas["ApiMetrics"]>;
 
-export type LlmMetrics = {
-  total_events: number;
-  failed_events: number;
-  error_rate: number | null;
-  avg_latency_ms: number | null;
-  top_models: LlmModelSummary[];
-  telemetry_missing: boolean;
-};
+export type LlmModelSummary = Served<Schemas["LlmModelSummary"]>;
 
-export type IndexingMetrics = {
-  total_jobs: number;
-  succeeded_jobs: number;
-  failed_jobs: number;
-  in_progress_jobs: number;
-  success_rate: number | null;
-  telemetry_missing: boolean;
-};
+export type LlmMetrics = Served<Schemas["LlmMetrics"]>;
 
-export type StorageMetrics = {
-  total_documents: number;
-  indexed_documents: number;
-  failed_documents: number;
-  pending_documents: number;
-  total_chunks: number;
-};
+export type IndexingMetrics = Served<Schemas["IndexingMetrics"]>;
 
-export type ObservabilitySnapshot = {
-  organization_id: string;
-  range: ObservabilityRange;
-  generated_at: string;
-  api_metrics: ApiMetrics;
-  llm_metrics: LlmMetrics;
-  indexing_metrics: IndexingMetrics;
-  storage_metrics: StorageMetrics;
-};
+export type StorageMetrics = Served<Schemas["StorageMetrics"]>;
+
+export type ObservabilitySnapshot = Served<Schemas["ObservabilitySnapshot"]>;
 
 export type ObservabilityQuery = {
   from?: string;
