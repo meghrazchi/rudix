@@ -1,0 +1,243 @@
+{
+  "audit_actions": [],
+  "chunks": [
+    {
+      "child_count": null,
+      "chunk_hash": "78737d9806dff3b1484f867f5d2c03c2be825b320465ca5798526bde647ad06d",
+      "chunk_index": 0,
+      "chunk_level": null,
+      "chunk_type": "text",
+      "index_version": "eval-golden",
+      "language": "en",
+      "page_number": 1,
+      "parent_chunk_id": null,
+      "qdrant_point_id": "document:eval-golden:0",
+      "section_path": "page:1",
+      "token_count": 40
+    },
+    {
+      "child_count": null,
+      "chunk_hash": "38e4ee4ec7747a1e0c364047ce487e8486f15e6485fc5f13125c51cda0dcdc05",
+      "chunk_index": 1,
+      "chunk_level": null,
+      "chunk_type": "text",
+      "index_version": "eval-golden",
+      "language": "en",
+      "page_number": 1,
+      "parent_chunk_id": null,
+      "qdrant_point_id": "document:eval-golden:1",
+      "section_path": "page:1",
+      "token_count": 40
+    },
+    {
+      "child_count": null,
+      "chunk_hash": "fb40fccc06a8bf949ac1c5540738424e050ab509df1c88f237817e6d17575e7c",
+      "chunk_index": 2,
+      "chunk_level": null,
+      "chunk_type": "text",
+      "index_version": "eval-golden",
+      "language": "en",
+      "page_number": 1,
+      "parent_chunk_id": null,
+      "qdrant_point_id": "document:eval-golden:2",
+      "section_path": "page:1",
+      "token_count": 40
+    },
+    {
+      "child_count": null,
+      "chunk_hash": "b7df8abbf3061527fe55f08eca475008fed4a3a81bcac6ac945ca927e57c502f",
+      "chunk_index": 3,
+      "chunk_level": null,
+      "chunk_type": "text",
+      "index_version": "eval-golden",
+      "language": "en",
+      "page_number": 1,
+      "parent_chunk_id": null,
+      "qdrant_point_id": "document:eval-golden:3",
+      "section_path": "page:1",
+      "token_count": 15
+    },
+    {
+      "child_count": null,
+      "chunk_hash": "309ed8141b03c66339fb5c8a635df58170b0084c9c4c98bb5bd4dd4604c82dfc",
+      "chunk_index": 0,
+      "chunk_level": null,
+      "chunk_type": "text",
+      "index_version": "v1",
+      "language": "en",
+      "page_number": 1,
+      "parent_chunk_id": null,
+      "qdrant_point_id": "document:v1:0",
+      "section_path": "page:1",
+      "token_count": 120
+    }
+  ],
+  "document": {
+    "chunk_count": 1,
+    "chunking_config_snapshot": {
+      "chunk_overlap_tokens": 120,
+      "chunk_size_tokens": 700,
+      "document_profile": "text_based",
+      "embedding_model": "text-embedding-3-small",
+      "embedding_provider_type": "fake",
+      "embedding_vector_dimension": 1536,
+      "index_version": "v1",
+      "ocr_applied": false,
+      "profile_source": "system_default",
+      "strategy": "token_recursive",
+      "strategy_version": "1.0",
+      "total_chunk_count": 1,
+      "total_chunk_tokens": 120,
+      "total_image_blocks": 0,
+      "total_table_blocks": 0
+    },
+    "chunking_profile_version": "1.0",
+    "chunking_strategy": "token_recursive",
+    "dlp_scan_result": null,
+    "embedding_provider_type": "fake",
+    "embedding_vector_dimension": 1536,
+    "error_message": null,
+    "extraction_snapshot": {
+      "document_profile": "text_based",
+      "extraction_confidence": 1.0,
+      "extraction_engine": "legacy_txt",
+      "is_encrypted": false,
+      "page_count": 1,
+      "pages": [
+        {
+          "char_count": 642,
+          "image_block_count": 0,
+          "image_coverage_ratio": 0.0,
+          "page_number": 1,
+          "requires_ocr": false,
+          "table_block_count": 0,
+          "text_block_count": 1,
+          "text_coverage_ratio": 1.0,
+          "warnings": []
+        }
+      ],
+      "total_image_blocks": 0,
+      "total_table_blocks": 0,
+      "total_text_blocks": 1,
+      "warnings": []
+    },
+    "graph_extraction_status": "pending",
+    "language": "en",
+    "language_confidence": 0.9,
+    "language_source": "auto_detected",
+    "ocr_avg_confidence": null,
+    "ocr_quality_snapshot": null,
+    "ocr_quality_status": null,
+    "page_count": 1,
+    "processing_task_id": null,
+    "status": "indexed"
+  },
+  "embedding_batches": [
+    [
+      "uuid-1",
+      "uuid-2",
+      "uuid-3",
+      "uuid-4"
+    ]
+  ],
+  "graph_calls": [],
+  "minio_reads": 1,
+  "ocr_calls": [],
+  "outcome": {
+    "batch_count": 1,
+    "chunk_count": 4,
+    "cleaning": {
+      "cleaning_blank_lines_collapsed": 0,
+      "cleaning_chars_after": 642,
+      "cleaning_chars_before": 642,
+      "cleaning_invalid_characters_removed": 0,
+      "cleaning_null_bytes_removed": 0,
+      "cleaning_pages_modified": 0,
+      "cleaning_pages_total": 1,
+      "cleaning_whitespace_runs_collapsed": 0
+    },
+    "input_tokens": 135,
+    "page_count": 1
+  },
+  "pipeline_runs": [
+    {
+      "events": [
+        "extract:started",
+        "extract:completed",
+        "detect_language:completed",
+        "dlp:started",
+        "dlp:completed",
+        "index_cleanup:started",
+        "index_cleanup:completed",
+        "chunk:started",
+        "chunk:completed",
+        "embed:started",
+        "embed:completed",
+        "index:started",
+        "index:completed"
+      ],
+      "pipeline_type": "document.process",
+      "status": "completed"
+    },
+    {
+      "events": [
+        "extract:started",
+        "extract:completed",
+        "detect_language:completed",
+        "dlp:started",
+        "dlp:completed",
+        "index_cleanup:started",
+        "index_cleanup:completed",
+        "chunk:started",
+        "chunk:completed",
+        "embed:started",
+        "embed:completed",
+        "index:started",
+        "index:completed"
+      ],
+      "pipeline_type": "evaluation.run",
+      "status": "completed"
+    }
+  ],
+  "qdrant_deletes": [
+    {
+      "index_version": "eval-golden"
+    }
+  ],
+  "qdrant_upserts": [
+    {
+      "chunking_profile_version": "1.0",
+      "chunking_strategy": "token_recursive",
+      "collection_name": null,
+      "parent_text_chunks": [],
+      "point_ids": [
+        "document:eval-golden:0",
+        "document:eval-golden:1",
+        "document:eval-golden:2",
+        "document:eval-golden:3"
+      ],
+      "vector_count": 4
+    }
+  ],
+  "source_references": [],
+  "usage_events": [
+    {
+      "cost_usd": "0.000002",
+      "event_type": "document.embedding",
+      "input_tokens": 120,
+      "metadata": {
+        "batch_count": 1,
+        "chunk_count": 1,
+        "document_id": "document",
+        "index_version": "v1",
+        "latency_ms": 3,
+        "qdrant_batch_count": 1,
+        "qdrant_upserted_count": 1,
+        "retry_count": 0,
+        "total_tokens": 120
+      },
+      "model_name": "text-embedding-3-small",
+      "output_tokens": null
+    }
+  ]
+}

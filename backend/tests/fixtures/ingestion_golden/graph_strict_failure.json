@@ -1,0 +1,102 @@
+{
+  "audit_actions": [],
+  "chunks": [
+    {
+      "child_count": null,
+      "chunk_hash": "309ed8141b03c66339fb5c8a635df58170b0084c9c4c98bb5bd4dd4604c82dfc",
+      "chunk_index": 0,
+      "chunk_level": null,
+      "chunk_type": "text",
+      "index_version": "v1",
+      "language": "en",
+      "page_number": 1,
+      "parent_chunk_id": null,
+      "qdrant_point_id": "document:v1:0",
+      "section_path": "page:1",
+      "token_count": 120
+    }
+  ],
+  "document": {
+    "chunk_count": null,
+    "chunking_config_snapshot": null,
+    "chunking_profile_version": null,
+    "chunking_strategy": null,
+    "dlp_scan_result": null,
+    "embedding_provider_type": null,
+    "embedding_vector_dimension": null,
+    "error_message": null,
+    "extraction_snapshot": {
+      "document_profile": "text_based",
+      "extraction_confidence": 1.0,
+      "extraction_engine": "legacy_txt",
+      "is_encrypted": false,
+      "page_count": 1,
+      "pages": [
+        {
+          "char_count": 642,
+          "image_block_count": 0,
+          "image_coverage_ratio": 0.0,
+          "page_number": 1,
+          "requires_ocr": false,
+          "table_block_count": 0,
+          "text_block_count": 1,
+          "text_coverage_ratio": 1.0,
+          "warnings": []
+        }
+      ],
+      "total_image_blocks": 0,
+      "total_table_blocks": 0,
+      "total_text_blocks": 1,
+      "warnings": []
+    },
+    "graph_extraction_status": "pending",
+    "language": "en",
+    "language_confidence": 0.9,
+    "language_source": "auto_detected",
+    "ocr_avg_confidence": null,
+    "ocr_quality_snapshot": null,
+    "ocr_quality_status": null,
+    "page_count": null,
+    "processing_task_id": "task-graph-True",
+    "status": "processing"
+  },
+  "embedding_batches": [],
+  "graph_calls": [
+    "clear_document_graph_facts",
+    "start_extraction_run",
+    "finish_extraction_run"
+  ],
+  "minio_reads": 1,
+  "ocr_calls": [],
+  "outcome": {
+    "code": "ENTITY_EXTRACTION_FAILED",
+    "raised": "DocumentPipelineTransientError"
+  },
+  "pipeline_runs": [
+    {
+      "events": [
+        "extract:started",
+        "extract:completed",
+        "detect_language:completed",
+        "dlp:started",
+        "dlp:completed",
+        "index_cleanup:started",
+        "index_cleanup:completed",
+        "chunk:started",
+        "chunk:completed",
+        "extract_entities:started",
+        "extract_entities:failed"
+      ],
+      "pipeline_type": "document.process",
+      "status": "failed"
+    }
+  ],
+  "qdrant_deletes": [
+    {
+      "index_version": "v1"
+    }
+  ],
+  "qdrant_upserts": [],
+  "source_references": [],
+  "usage_events": []
+}

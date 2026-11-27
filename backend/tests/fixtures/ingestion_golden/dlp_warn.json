@@ -1,0 +1,169 @@
+{
+  "audit_actions": [],
+  "chunks": [
+    {
+      "child_count": null,
+      "chunk_hash": "95bafbbb2dbc742075818e3413b7c5ded702b4aae384289a6b5face134d6a7de",
+      "chunk_index": 0,
+      "chunk_level": null,
+      "chunk_type": "text",
+      "index_version": "v1",
+      "language": "en",
+      "page_number": 1,
+      "parent_chunk_id": null,
+      "qdrant_point_id": "document:v1:0",
+      "section_path": "page:1",
+      "token_count": 50
+    }
+  ],
+  "document": {
+    "chunk_count": 1,
+    "chunking_config_snapshot": {
+      "chunk_overlap_tokens": 120,
+      "chunk_size_tokens": 700,
+      "document_profile": "text_based",
+      "embedding_model": "text-embedding-3-small",
+      "embedding_provider_type": "fake",
+      "embedding_vector_dimension": 1536,
+      "index_version": "v1",
+      "ocr_applied": false,
+      "profile_source": "system_default",
+      "strategy": "token_recursive",
+      "strategy_version": "1.0",
+      "total_chunk_count": 1,
+      "total_chunk_tokens": 50,
+      "total_image_blocks": 0,
+      "total_table_blocks": 0
+    },
+    "chunking_profile_version": "1.0",
+    "chunking_strategy": "token_recursive",
+    "dlp_scan_result": {
+      "action": "warn",
+      "findings": [
+        {
+          "category": "ssn",
+          "count": 5
+        }
+      ],
+      "skipped": false,
+      "total_findings": 5
+    },
+    "embedding_provider_type": "fake",
+    "embedding_vector_dimension": 1536,
+    "error_message": null,
+    "extraction_snapshot": {
+      "document_profile": "text_based",
+      "extraction_confidence": 1.0,
+      "extraction_engine": "legacy_txt",
+      "is_encrypted": false,
+      "page_count": 1,
+      "pages": [
+        {
+          "char_count": 116,
+          "image_block_count": 0,
+          "image_coverage_ratio": 0.0,
+          "page_number": 1,
+          "requires_ocr": false,
+          "table_block_count": 0,
+          "text_block_count": 1,
+          "text_coverage_ratio": 1.0,
+          "warnings": []
+        }
+      ],
+      "total_image_blocks": 0,
+      "total_table_blocks": 0,
+      "total_text_blocks": 1,
+      "warnings": []
+    },
+    "graph_extraction_status": "pending",
+    "language": "en",
+    "language_confidence": 0.9,
+    "language_source": "auto_detected",
+    "ocr_avg_confidence": null,
+    "ocr_quality_snapshot": null,
+    "ocr_quality_status": null,
+    "page_count": 1,
+    "processing_task_id": null,
+    "status": "indexed"
+  },
+  "embedding_batches": [
+    [
+      "uuid-1"
+    ]
+  ],
+  "graph_calls": [],
+  "minio_reads": 1,
+  "ocr_calls": [],
+  "outcome": {
+    "chunk_count": 1,
+    "cleaning_pages_modified": 0,
+    "document_id": "document",
+    "embedding_batch_count": 1,
+    "embedding_cost_usd": 2e-06,
+    "embedding_input_tokens": 50,
+    "embedding_retry_count": 0,
+    "embedding_total_tokens": 50,
+    "index_version": "v1",
+    "page_count": 1,
+    "status": "indexed"
+  },
+  "pipeline_runs": [
+    {
+      "events": [
+        "extract:started",
+        "extract:completed",
+        "detect_language:completed",
+        "dlp:started",
+        "dlp:completed",
+        "index_cleanup:started",
+        "index_cleanup:completed",
+        "chunk:started",
+        "chunk:completed",
+        "embed:started",
+        "embed:completed",
+        "index:started",
+        "index:completed"
+      ],
+      "pipeline_type": "document.process",
+      "status": "completed"
+    }
+  ],
+  "qdrant_deletes": [
+    {
+      "index_version": "v1"
+    }
+  ],
+  "qdrant_upserts": [
+    {
+      "chunking_profile_version": "1.0",
+      "chunking_strategy": "token_recursive",
+      "collection_name": null,
+      "parent_text_chunks": [],
+      "point_ids": [
+        "document:v1:0"
+      ],
+      "vector_count": 1
+    }
+  ],
+  "source_references": [],
+  "usage_events": [
+    {
+      "cost_usd": "0.000002",
+      "event_type": "document.embedding",
+      "input_tokens": 50,
+      "metadata": {
+        "batch_count": 1,
+        "chunk_count": 1,
+        "document_id": "document",
+        "index_version": "v1",
+        "latency_ms": 3,
+        "qdrant_batch_count": 1,
+        "qdrant_upserted_count": 1,
+        "retry_count": 0,
+        "total_tokens": 50
+      },
+      "model_name": "text-embedding-3-small",
+      "output_tokens": null
+    }
+  ]
+}
