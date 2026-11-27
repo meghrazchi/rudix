@@ -385,7 +385,8 @@ Use:
 - Cloud secret manager.
 
 Secret scanning (R03-08): `.github/workflows/secret-scan.yml` runs gitleaks (pinned release,
-checksum verified) on every push and pull request over the new commits, and weekly over the
+checksum verified) on push to `main` and `develop` and on every pull request, over the new
+commits, and weekly over the
 full history (report only). `.gitleaks.toml` allowlists only exact placeholder values
 (`ci-placeholder-key`, `sk-test`, `minioadmin`, `ci-local-secret`, `dev-insecure-change-me`,
 and the Playwright e2e tokens), never paths. If a real secret is found, rotate it first; a

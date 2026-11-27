@@ -2,10 +2,12 @@ name: CI
 
 on:
   # No `paths` filters: a required check from a workflow skipped by `paths`
-  # stays pending and blocks the merge, so CI runs on every push and PR.
+  # stays pending and blocks the merge, so CI runs on every PR and on
+  # every push to main and develop (a merge is a push to the target branch).
   push:
     branches:
-      - "**"
+      - main
+      - develop
   pull_request:
   workflow_dispatch:
 

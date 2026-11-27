@@ -57,6 +57,7 @@ All notable changes to Rudix, the product and its documentation, are recorded he
 
 ### Changed
 
+- CI: check workflows run on pull requests and on push to `main` and `develop`, no longer on every branch push; `release.yml` still runs on `main` and tags only.
 - Backend `cryptography` range raised to `>=50.0.0,<51.0.0` (locked 50.0.2) to clear PYSEC-2026-3552; `virtualenv` (dev-only) stays at 21.14.5 because its fixed releases need `packaging>=26.3` while `langfuse<3` caps `packaging<25`, so `make audit` still reports it (DEPS).
 - Concurrent keyword-search branches in parallel retrieval each use their own database session; swallowed branch failures are logged and counted in `rudix_retrieval_branch_failures_total` (R02-06).
 - `documents.process` skips documents in deletion, retention, quarantine, or blocked statuses; a terminal task failure no longer overwrites those statuses (or `deleted`) with `failed`, and the DLP `warn` branch writes nothing to the document row during evaluation re-ingest (R02-02b).
