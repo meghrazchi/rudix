@@ -418,6 +418,30 @@ Notes:
   `rudix_db_pool_size` plus the maximum overflow for several minutes (pool exhaustion), and
   p95 of `rudix_db_queries_per_request` for chat routes above the roadmap target.
 
+### Rate limiting and credential usage buffering (R04-07, R04-06)
+
+| Metric | Labels | Meaning |
+| --- | --- | --- |
+| `rudix_rate_limit_decisions_total` | `scope`, `decision`, `failure_mode` | Existing: every limiter decision. |
+| `rudix_rate_limit_org_limited_total` | `scope` | Requests rejected by the organisation aggregate limit (not the per-user limit). |
+| `rudix_usage_touch_buffered_total` | `kind` | API-key / service-account usage touches buffered in Redis. |
+| `rudix_usage_touch_flushed_total` | `kind` | Touches written to the database by `usage.touch.flush`. |
+| `rudix_usage_touch_dropped_total` | `kind`, `reason` | Touches dropped because Redis was missing (`redis_unavailable`) or failed (`redis_error`). |
+
+`kind` is `api_key`, `service_account_token`, or `service_account`.
+
+- A sustained rise in `rudix_rate_limit_org_limited_total` means one organisation is near its
+  aggregate limit (scope limit x `RATE_LIMIT_ORG_LIMIT_MULTIPLIER`); raise the multiplier or
+  the scope limit rather than disabling the organisation limit.
+- `buffered` and `flushed` should track each other over a few flush intervals. `flushed`
+  counts unique credentials per flush, so it is lower than `buffered` when a key is used more
+  than once per interval. If `flushed` stays at zero while `buffered` grows, beat or the
+  worker is not running `usage.touch.flush`.
+- Any non-zero `rudix_usage_touch_dropped_total` rate means `last_used_at` is stale for those
+  credentials; it is a Redis availability signal, not a request failure.
+- The flush task logs `usage_touch.flushed` (rows) and, on a database error,
+  `usage_touch.flush_failed` (rows re-buffered, error type) before Celery retries it.
+
 ## Continuous evaluation
 
 Run evaluations:

@@ -271,6 +271,36 @@ Recommended limits:
 | Delete documents        | 30/hour/user |
 
 - The WebSocket `chat.start` command uses the same limiter core as HTTP and honours `RATE_LIMIT_REDIS_FAILURE_MODE`: in `closed` mode a Redis outage yields `chat.error` `rate_limiter_unavailable` instead of silently allowing requests. Alert on `rudix_rate_limit_decisions_total{decision="unavailable"}`.
+- Every limiter (HTTP scopes, WebSocket, auth, public contact, MCP tools, bots) uses one
+  sliding-window primitive, `app/rate_limit/sliding_window.py` (R04-07). One Lua script per
+  check, so a request costs one Redis round trip; the script checks before it increments, so
+  rejected requests are not counted. The estimate is
+  `previous * (1 - elapsed / window) + current`, which removes the fixed-window burst of up
+  to twice the limit at a window boundary. `elapsed` comes from Redis `TIME`, clamped to the
+  window, so app servers with skewed clocks agree.
+- Organisation aggregate: for the HTTP and WebSocket scopes, all users of one organisation
+  share a second counter with limit = scope limit x `RATE_LIMIT_ORG_LIMIT_MULTIPLIER`
+  (default 10) per scope and endpoint. Set `RATE_LIMIT_ORG_ENABLED=false` to turn it off.
+  A 429 carries `X-RateLimit-Scope: user` or `organization`; organisation rejections count in
+  `rudix_rate_limit_org_limited_total{scope}`. Principals without an organisation have no
+  aggregate limit.
+- Keys are `rate_limit:v2:{org:<id>}:...` (or `{auth:...}`, `{contact:...}`, `{bot:...}` for
+  limiters keyed by IP or workspace). The braces are a cluster hash tag, so the four keys of
+  one check share a slot. On upgrade the `v1` fixed-window counters are ignored and expire on
+  their own; each identity starts with an empty window.
+- Failure modes are unchanged: `RATE_LIMIT_REDIS_FAILURE_MODE=open` allows and `closed`
+  rejects (503 `rate_limiter_unavailable`) when Redis is missing or a script call fails. The
+  auth limiter still lets Redis errors other than a missing client propagate, as before.
+- The Lua scripts run only on a real Redis; unit tests run their Python reference
+  implementations through `tests/redis_fakes.py`. `tests/test_rate_limit_redis_live.py`
+  (`requires_redis`, opt-in with `TEST_REDIS_URL`) compares both and must pass in the Redis
+  CI lane before release.
+- API-key and service-account `last_used_at` / `last_used_ip` are no longer written on the
+  request path (R04-06). Each request sends one Redis script that keeps the newest touch per
+  credential; the beat task `usage.touch.flush` writes them in bulk every
+  `USAGE_TOUCH_FLUSH_INTERVAL_SECONDS` (default 60), so the admin pages can lag by that much.
+  When Redis is down the touch is dropped (counted in `rudix_usage_touch_dropped_total`); the
+  request is never failed and never falls back to a database write.
 
 ## Multilingual rollout safety
 

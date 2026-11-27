@@ -802,6 +802,26 @@ fire one interval after startup.
 A beat heartbeat alert is planned for `0.8.0`. It depends on worker task counters being
 exported from prefork child processes, which is not the case yet.
 
+Credential usage flush (R04-06): beat also schedules `usage-touch-flush`
+(`usage.touch.flush`, default queue) every `USAGE_TOUCH_FLUSH_INTERVAL_SECONDS` seconds
+(default 60, range 10 to 3600). API-key and service-account requests buffer `last_used_at` and
+`last_used_ip` in Redis instead of updating the row; the task pops up to
+`USAGE_TOUCH_FLUSH_BATCH_SIZE` credentials (default 500) per batch and writes a bulk `UPDATE`
+that never moves `last_used_at` backwards. Without beat, the admin pages keep showing the last
+flushed value.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `RATE_LIMIT_ORG_ENABLED` | `true` | Organisation aggregate rate limit for HTTP and WebSocket scopes. |
+| `RATE_LIMIT_ORG_LIMIT_MULTIPLIER` | `10` | Organisation limit = scope limit x multiplier, per scope and endpoint. |
+| `USAGE_TOUCH_FLUSH_INTERVAL_SECONDS` | `60` | Beat interval of `usage.touch.flush`. |
+| `USAGE_TOUCH_FLUSH_BATCH_SIZE` | `500` | Credentials popped from Redis per flush batch. |
+
+Rate limits use one Lua sliding-window script per check (one Redis round trip); see
+`docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md` `## Rate limiting`. The live script test runs
+only with `TEST_REDIS_URL` set: `TEST_REDIS_URL=redis://localhost:6379/15 .venv/bin/pytest
+tests/test_rate_limit_redis_live.py`.
+
 ## Prometheus & Grafana Observability
 
 - Enable application metrics with `METRICS_ENABLED=true` in `.env`.
