@@ -5374,10 +5374,15 @@
     "statuses": {
       "queued": "En cola",
       "running": "En ejecución",
+      "planning": "Planificando",
+      "waiting_approval": "Esperando aprobación",
+      "skipped": "Omitido",
+      "succeeded": "Correcto",
+      "expired": "Caducada",
       "completed": "Completada",
       "failed": "Fallida",
       "cancelled": "Cancelada",
-      "pending": "{count} acciones esperan aprobación.",
+      "pending": "Pendiente",
       "approved": "Aprobar",
       "rejected": "Rechazar",
       "changes_requested": "Solicitar cambios"

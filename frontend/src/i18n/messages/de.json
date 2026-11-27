@@ -5374,10 +5374,15 @@
     "statuses": {
       "queued": "In Warteschlange",
       "running": "Läuft",
+      "planning": "Planung",
+      "waiting_approval": "Wartet auf Freigabe",
+      "skipped": "Übersprungen",
+      "succeeded": "Erfolgreich",
+      "expired": "Abgelaufen",
       "completed": "Abgeschlossen",
       "failed": "Fehlgeschlagen",
       "cancelled": "Abgebrochen",
-      "pending": "{count} Aktion(en) warten auf Freigabe.",
+      "pending": "Ausstehend",
       "approved": "Freigeben",
       "rejected": "Ablehnen",
       "changes_requested": "Änderungen anfordern"

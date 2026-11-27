@@ -126,7 +126,7 @@ test("chat route does not scroll the document or app main container", async ({
   await page.goto("/chat");
 
   await expect(
-    page.getByRole("heading", { name: "Chat Session" }),
+    page.getByRole("heading", { name: "Conversation", level: 2 }),
   ).toBeVisible();
 
   const main = page.getByRole("main");

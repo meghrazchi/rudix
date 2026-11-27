@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { usePermissions } from "@/lib/use-permissions";
+import { nextTabForKey } from "@/lib/tablist-keyboard";
 import {
   createResourceDeny,
   createResourceGrant,
@@ -1437,6 +1438,7 @@ function AccessDebuggerTab() {
   const [resourceId, setResourceId] = useState("");
   const [result, setResult] = useState<ExplainDecisionResponse | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const fieldId = useId();
 
   const debugMutation = useMutation({
     mutationFn: () =>
@@ -1478,11 +1480,15 @@ function AccessDebuggerTab() {
         </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-[#2a2640]">
+            <label
+              htmlFor={`${fieldId}-subject`}
+              className="mb-1 block text-xs font-medium text-[#2a2640]"
+            >
               {t("debugger.subjectUserId")}{" "}
               <span className="text-red-500">*</span>
             </label>
             <input
+              id={`${fieldId}-subject`}
               type="text"
               value={subjectUserId}
               onChange={(e) => setSubjectUserId(e.target.value)}
@@ -1492,10 +1498,14 @@ function AccessDebuggerTab() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#2a2640]">
+            <label
+              htmlFor={`${fieldId}-resource-type`}
+              className="mb-1 block text-xs font-medium text-[#2a2640]"
+            >
               {t("columns.resourceType")}
             </label>
             <select
+              id={`${fieldId}-resource-type`}
               value={resourceType}
               onChange={(e) => setResourceType(e.target.value)}
               className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
@@ -1508,10 +1518,14 @@ function AccessDebuggerTab() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#2a2640]">
+            <label
+              htmlFor={`${fieldId}-action`}
+              className="mb-1 block text-xs font-medium text-[#2a2640]"
+            >
               {t("columns.action")}
             </label>
             <select
+              id={`${fieldId}-action`}
               value={action}
               onChange={(e) => setAction(e.target.value)}
               className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
@@ -1524,11 +1538,15 @@ function AccessDebuggerTab() {
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-[#2a2640]">
+            <label
+              htmlFor={`${fieldId}-resource-id`}
+              className="mb-1 block text-xs font-medium text-[#2a2640]"
+            >
               {t("columns.resourceId")}{" "}
               <span className="text-[#68647b]">{t("optional")}</span>
             </label>
             <input
+              id={`${fieldId}-resource-id`}
               type="text"
               value={resourceId}
               onChange={(e) => setResourceId(e.target.value)}
@@ -1665,14 +1683,32 @@ export function AdminPermissionsPage() {
       </div>
 
       <div className="border-b border-[#d7d4e8]">
-        <nav
+        <div
+          role="tablist"
           className="-mb-px flex gap-6 overflow-x-auto"
           aria-label={t("tabs.ariaLabel")}
+          onKeyDown={(event) => {
+            const next = nextTabForKey(
+              tabs.map((tab) => tab.id),
+              activeTab,
+              event.key,
+              document.documentElement.dir === "rtl" ? "rtl" : "ltr",
+            );
+            if (!next) return;
+            event.preventDefault();
+            setActiveTab(next);
+            document.getElementById(`permissions-tab-${next}`)?.focus();
+          }}
         >
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              id={`permissions-tab-${tab.id}`}
+              role="tab"
               type="button"
+              aria-selected={activeTab === tab.id}
+              aria-controls="permissions-tabpanel"
+              tabIndex={activeTab === tab.id ? 0 : -1}
               onClick={() => setActiveTab(tab.id)}
               className={`border-b-2 pb-3 text-sm font-semibold transition ${
                 activeTab === tab.id
@@ -1683,10 +1719,14 @@ export function AdminPermissionsPage() {
               {tab.label}
             </button>
           ))}
-        </nav>
+        </div>
       </div>
 
-      <div>
+      <div
+        id="permissions-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`permissions-tab-${activeTab}`}
+      >
         {activeTab === "role-matrix" && <RoleMatrixTab canManage={canManage} />}
         {activeTab === "resource-grants" && (
           <ResourceAccessTab kind="grant" canManage={canManage} />

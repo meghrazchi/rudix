@@ -5374,6 +5374,11 @@
     "statuses": {
       "queued": "Queued",
       "running": "Running",
+      "planning": "Planning",
+      "waiting_approval": "Waiting for approval",
+      "skipped": "Skipped",
+      "succeeded": "Succeeded",
+      "expired": "Expired",
       "completed": "Completed",
       "failed": "Failed",
       "cancelled": "Cancelled",

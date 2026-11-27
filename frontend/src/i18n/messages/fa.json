@@ -5499,10 +5499,15 @@
     "statuses": {
       "queued": "در صف",
       "running": "در حال اجرا",
+      "planning": "در حال برنامه‌ریزی",
+      "waiting_approval": "در انتظار تأیید",
+      "skipped": "ردشده",
+      "succeeded": "موفق",
+      "expired": "منقضی‌شده",
       "completed": "تکمیل‌شده",
       "failed": "ناموفق",
       "cancelled": "لغوشده",
-      "pending": "{count} اقدام در انتظار تأیید است.",
+      "pending": "در انتظار",
       "approved": "تأیید",
       "rejected": "رد",
       "changes_requested": "درخواست تغییر"

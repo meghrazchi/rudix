@@ -4,6 +4,10 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 const SESSION_STORAGE_KEY = "rudix.session.v1";
 const ORG_ID = "c8ae2f17-c58e-499e-88bf-e6b0a8648c21";
+// The client validates chunking profiles against the API contract, which
+// uses UUIDs for profile and author IDs (src/lib/schemas/chunking-profiles.ts).
+const CHUNKING_PROFILE_ID = "5b0f7f4e-2a51-4c55-9a1e-3f0c1d2b6a01";
+const PROFILE_AUTHOR_ID = "0e6c2f7a-8d34-4b1e-b5a2-7c9d4e1f3a02";
 
 // ── Session fixtures ──────────────────────────────────────────────────────────
 
@@ -21,6 +25,16 @@ const adminSession: TestSession = {
   userId: "e2e-user-1",
   email: "admin@example.com",
   role: "admin",
+  organizationId: ORG_ID,
+  organizationName: "Rudix E2E Org",
+  accessToken: "e2e-access-token",
+  refreshToken: "e2e-refresh-token",
+};
+
+const ownerSession: TestSession = {
+  userId: "e2e-user-0",
+  email: "owner@example.com",
+  role: "owner",
   organizationId: ORG_ID,
   organizationName: "Rudix E2E Org",
   accessToken: "e2e-access-token",
@@ -125,7 +139,7 @@ async function installApiMocks(page: Page): Promise<void> {
       await fulfillJson(route, {
         profiles: [
           {
-            profile_id: "profile-1",
+            profile_id: CHUNKING_PROFILE_ID,
             organization_id: ORG_ID,
             name: "Operations Default",
             slug: "operations-default",
@@ -141,8 +155,8 @@ async function installApiMocks(page: Page): Promise<void> {
             is_system: false,
             created_at: "2026-05-20T08:00:00Z",
             updated_at: "2026-05-20T08:00:00Z",
-            created_by_user_id: "e2e-user-1",
-            updated_by_user_id: "e2e-user-1",
+            created_by_user_id: PROFILE_AUTHOR_ID,
+            updated_by_user_id: PROFILE_AUTHOR_ID,
           },
         ],
         total: 1,
@@ -266,7 +280,10 @@ test.describe("Settings E2E smoke", () => {
     await page.goto("/settings");
     await waitForSessionBootstrap(page);
 
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    // Exactly one h1 per page: the app shell title (strict locator).
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Settings",
+    );
     await expect(page.getByRole("tab", { name: "Profile" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -286,13 +303,15 @@ test.describe("Settings E2E smoke", () => {
     await expect(
       page.getByRole("heading", { name: "Account Identity" }),
     ).toBeVisible();
-    await expect(page.getByText("admin@example.com")).toBeVisible();
-    // Role badge is rendered with `capitalize` CSS; DOM text is "admin"
+    // Identity is shown in the editable profile form (26b8086, F305).
+    const identity = page.getByRole("region", {
+      name: "Account identity section",
+    });
     await expect(
-      page
-        .getByRole("region", { name: "Account identity section" })
-        .getByText("admin"),
-    ).toBeVisible();
+      identity.getByRole("textbox", { name: "Email Address" }),
+    ).toHaveValue("admin@example.com");
+    await expect(identity.getByText("Admin", { exact: true })).toBeVisible();
+    await expect(identity.getByText("e2e-user-1")).toBeVisible();
   });
 
   test("Profile tab save stores preferences locally and shows toast", async ({
@@ -373,7 +392,11 @@ test.describe("Settings E2E smoke", () => {
       page.getByRole("heading", { name: "Organization Profile" }),
     ).toBeVisible();
     // Session org name is always shown regardless of backend availability
-    await expect(page.getByText("Rudix E2E Org")).toBeVisible();
+    await expect(
+      page
+        .getByRole("region", { name: "Organization section" })
+        .getByText("Rudix E2E Org"),
+    ).toBeVisible();
   });
 
   test("direct URL /settings?tab=security activates the Security tab", async ({
@@ -392,11 +415,11 @@ test.describe("Settings E2E smoke", () => {
     await expect(page.getByText("Authentication & Session")).toBeVisible();
   });
 
-  test("direct URL /settings?tab=billing activates the Billing tab for admin", async ({
+  test("direct URL /settings?tab=billing activates the Billing tab for owner", async ({
     page,
   }) => {
     await installApiMocks(page);
-    await seedAuthenticatedSession(page);
+    await seedAuthenticatedSession(page, ownerSession);
 
     await page.goto("/settings?tab=billing");
     await waitForSessionBootstrap(page);
@@ -415,6 +438,34 @@ test.describe("Settings E2E smoke", () => {
     ).toBeVisible();
   });
 
+  test("admin without billing permission sees Billing restricted", async ({
+    page,
+  }) => {
+    // billing:view is held by owner and billing_admin only
+    // (backend/app/models/permissions.py ROLE_PERMISSIONS).
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page);
+
+    await page.goto("/settings?tab=billing");
+    await waitForSessionBootstrap(page);
+
+    await expect(page.getByRole("tab", { name: "Billing" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(
+      page.getByRole("heading", { name: "Billing restricted" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "Billing settings are available to billing admins and owners only.",
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Billing Alerts" }),
+    ).toHaveCount(0);
+  });
+
   // ── Security: token redaction ───────────────────────────────────────────────
 
   test("Security tab shows auth metadata but never renders raw token values", async ({
@@ -429,7 +480,9 @@ test.describe("Settings E2E smoke", () => {
 
     // Auth metadata labels are shown
     await expect(page.getByText("Access token attached")).toBeVisible();
-    await expect(page.getByText("Refresh token available")).toBeVisible();
+    // Refresh tokens live in an httpOnly cookie since a6d6b5d (rudix#272).
+    await expect(page.getByText("Refresh cookie")).toBeVisible();
+    await expect(page.getByText("Managed by backend")).toBeVisible();
 
     // The raw token strings must never appear in the page text
     const bodyText = (await page.textContent("body")) ?? "";
@@ -458,18 +511,26 @@ test.describe("Settings E2E smoke", () => {
     ).toBeVisible();
   });
 
-  test("admin sees team management controls on Organization tab", async ({
+  test("admin manages the team from the admin console, not the Organization tab", async ({
     page,
   }) => {
+    // Team management moved from Settings to /admin/team in 399c08c (F278).
     await installApiMocks(page);
     await seedAuthenticatedSession(page);
 
     await page.goto("/settings?tab=organization");
     await waitForSessionBootstrap(page);
-
-    // TeamManagementSection always renders its heading regardless of capabilities
     await expect(
-      page.getByRole("heading", { name: "Team management" }),
+      page.getByRole("heading", { name: "Organization Profile" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^Team management$/i }),
+    ).toHaveCount(0);
+
+    await page.goto("/admin/team");
+    await waitForSessionBootstrap(page);
+    await expect(
+      page.getByRole("heading", { name: "Team Management", exact: true }),
     ).toBeVisible();
   });
 
@@ -478,20 +539,18 @@ test.describe("Settings E2E smoke", () => {
   test("non-admin member is forbidden from the Billing tab", async ({
     page,
   }) => {
+    // /settings is owner/admin only since 0daf75b; members use /user/profile.
     await installApiMocks(page);
     await seedAuthenticatedSession(page, memberSession);
 
     await page.goto("/settings?tab=billing");
     await waitForSessionBootstrap(page);
 
+    await expect(page).toHaveURL(/\/forbidden$/);
     await expect(
-      page.getByRole("heading", { name: "Billing restricted" }),
+      page.getByRole("heading", { name: "Forbidden" }),
     ).toBeVisible();
-    await expect(
-      page.getByText(
-        "Billing settings are available to owners and admins only.",
-      ),
-    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Billing" })).toHaveCount(0);
   });
 
   test("admin Role & Access Policy shows admin capabilities", async ({
@@ -513,17 +572,39 @@ test.describe("Settings E2E smoke", () => {
   test("member Role & Access Policy does not show admin-only capabilities", async ({
     page,
   }) => {
+    // Members cannot open Settings at all (owner/admin only since 0daf75b).
     await installApiMocks(page);
     await seedAuthenticatedSession(page, memberSession);
 
     await page.goto("/settings?tab=security");
     await waitForSessionBootstrap(page);
 
+    await expect(page).toHaveURL(/\/forbidden$/);
+    await expect(
+      page.getByRole("heading", { name: "Forbidden" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Role & Access Policy" }),
-    ).toBeVisible();
-    // Admin-only capability description must not appear for a member
-    await expect(page.getByText("Org settings only")).not.toBeVisible();
+    ).toHaveCount(0);
+    await expect(page.getByText("Org settings only")).toHaveCount(0);
+  });
+
+  test("owner Role & Access Policy shows full admin controls", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page, ownerSession);
+
+    await page.goto("/settings?tab=security");
+    await waitForSessionBootstrap(page);
+
+    const policy = page.getByRole("region", {
+      name: "Role and access policy section",
+    });
+    await expect(policy.getByText("Current role:")).toBeVisible();
+    await expect(policy.getByText("owner", { exact: true })).toBeVisible();
+    await expect(policy.getByText("Full access")).toBeVisible();
+    await expect(policy.getByText("Org settings only")).toHaveCount(0);
   });
 
   // ── Tab navigation ──────────────────────────────────────────────────────────
@@ -569,8 +650,9 @@ test.describe("Settings E2E smoke", () => {
       "aria-selected",
       "true",
     );
+    // Admins lack billing:view, so the panel shows the restricted state.
     await expect(
-      page.getByRole("heading", { name: "Billing Alerts" }),
+      page.getByRole("heading", { name: "Billing restricted" }),
     ).toBeVisible();
 
     // → back to Profile
@@ -636,21 +718,26 @@ test.describe("Model provider diagnostics E2E smoke", () => {
     await expect(page.getByText("87 ms")).toBeVisible();
   });
 
-  test("non-admin member sees provider cards but no Test connection button", async ({
+  test("non-admin member cannot open diagnostics or test connections", async ({
     page,
   }) => {
+    // /admin/* is owner/admin only (src/lib/app-routes.ts).
     await installApiMocks(page);
     await seedAuthenticatedSession(page, memberSession);
 
     await page.goto("/admin/model-diagnostics");
     await waitForSessionBootstrap(page);
 
+    await expect(page).toHaveURL(/\/forbidden$/);
     await expect(
-      page.getByRole("heading", { name: "Model provider diagnostics" }),
+      page.getByRole("heading", { name: "Forbidden" }),
     ).toBeVisible();
     await expect(
+      page.getByRole("heading", { name: "Model provider diagnostics" }),
+    ).toHaveCount(0);
+    await expect(
       page.getByRole("button", { name: "Test connection" }),
-    ).not.toBeVisible();
+    ).toHaveCount(0);
   });
 
   test("unauthenticated user is redirected to login from /admin/model-diagnostics", async ({

@@ -1,5 +1,7 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
+import { dismissOnboardingChecklist } from "./support/onboarding";
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const SESSION_STORAGE_KEY = "rudix.session.v1";
@@ -94,7 +96,8 @@ async function installBaseApiMocks(page: Page): Promise<void> {
 }
 
 function injectSession(session: TestSession): string {
-  return `window.sessionStorage.setItem(
+  // The app persists the session in localStorage (see src/lib/auth-session.ts).
+  return `window.localStorage.setItem(
     "${SESSION_STORAGE_KEY}",
     JSON.stringify(${JSON.stringify(session)})
   );`;
@@ -141,11 +144,14 @@ test("admin sees admin nav items in sidebar", async ({ page }) => {
   });
 
   await page.addInitScript(injectSession(adminSession));
-  await page.goto("/");
+  await page.goto("/dashboard");
 
-  // Admin should see Admin section link
-  const adminLink = page.getByRole("link", { name: /admin/i }).first();
+  // The Admin Console entry lives in the profile menu, not the primary
+  // sidebar (route is `hideInNav` since 26b8086, F305).
+  await page.getByRole("button", { name: "Profile menu" }).click();
+  const adminLink = page.getByRole("menuitem", { name: "Admin Console" });
   await expect(adminLink).toBeVisible({ timeout: 5000 });
+  await expect(adminLink).toHaveAttribute("href", "/admin");
 });
 
 // ── PermissionGate: member does not see admin nav ─────────────────────────────
@@ -158,11 +164,25 @@ test("member does not see admin section in sidebar", async ({ page }) => {
   });
 
   await page.addInitScript(injectSession(memberSession));
-  await page.goto("/");
+  await page.goto("/dashboard");
 
-  // Member should not see any admin link in sidebar nav
-  const adminLinks = page.locator("nav a[href*='/admin']");
-  await expect(adminLinks).toHaveCount(0, { timeout: 5000 });
+  // The authenticated shell must be up before asserting absence.
+  const primaryNav = page.getByRole("navigation", {
+    name: "Primary navigation",
+  });
+  await expect(primaryNav.getByRole("link", { name: "Dashboard" })).toBeVisible(
+    { timeout: 10_000 },
+  );
+  await expect(primaryNav.locator("a[href^='/admin']")).toHaveCount(0);
+  // No navigation landmark anywhere on the page links into /admin.
+  await expect(page.locator("nav a[href*='/admin']")).toHaveCount(0);
+
+  // The profile menu opens for members but has no Admin Console entry.
+  await page.getByRole("button", { name: "Profile menu" }).click();
+  await expect(page.getByRole("menuitem").first()).toBeVisible();
+  await expect(
+    page.getByRole("menuitem", { name: "Admin Console" }),
+  ).toHaveCount(0);
 });
 
 // ── Forbidden page: member cannot access /admin/permissions ───────────────────
@@ -455,6 +475,9 @@ test("Conflicts tab scan button calls scan API and shows result", async ({
   const conflictsTab = page.getByRole("tab", { name: /conflicts/i });
   await conflictsTab.click();
 
+  // The floating getting-started checklist covers the scan button.
+  await dismissOnboardingChecklist(page);
+
   const scanBtn = page.getByRole("button", { name: /scan/i }).first();
   await scanBtn.click();
 
@@ -485,21 +508,9 @@ test("viewer is redirected away from admin pages", async ({ page }) => {
   await page.addInitScript(injectSession(viewerSession));
   await page.goto("/admin/permissions");
 
-  // Should be redirected or show forbidden message
-  const url = page.url();
-  const isForbiddenPage =
-    url.includes("/forbidden") ||
-    url.includes("/dashboard") ||
-    url === page.url();
-
-  // Either the URL changed OR the page shows a forbidden indicator
-  const hasForbiddenContent = await page
-    .getByText(/forbidden|access denied|permission|not allowed/i)
-    .first()
-    .isVisible()
-    .catch(() => false);
-
-  expect(isForbiddenPage || hasForbiddenContent).toBe(true);
+  // The admin route allows owner/admin only; the route guard sends other
+  // roles to the (locale-prefixed) forbidden page.
+  await expect(page).toHaveURL(/\/forbidden$/, { timeout: 10_000 });
 });
 
 // ── Security: no provider secrets in API response ─────────────────────────────

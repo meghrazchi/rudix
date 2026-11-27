@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { consentedStorageState } from "./e2e/support/consent";
+
 const FRONTEND_PORT = Number.parseInt(
   process.env.PLAYWRIGHT_FRONTEND_PORT ?? "3101",
   10,
@@ -21,6 +23,9 @@ export default defineConfig({
   reporter: process.env.CI ? "dot" : "list",
   use: {
     baseURL: FRONTEND_BASE_URL,
+    // Start as a visitor who already answered the cookie banner; the
+    // first-visit banner is covered by e2e/cookie-consent.spec.ts.
+    storageState: consentedStorageState(FRONTEND_BASE_URL),
     trace: "retain-on-failure",
     video: "retain-on-failure",
   },
@@ -40,6 +45,11 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
+      // Hermetic env: with NODE_ENV=test, Next.js does not load the
+      // developer's untracked `.env.local`, so local runs match CI.
+      // See node_modules/next/dist/docs/01-app/02-guides/environment-variables.md
+      // ("Test Environment Variables").
+      NODE_ENV: "test",
       NEXT_PUBLIC_APP_URL: FRONTEND_BASE_URL,
       NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1",
       NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE: "false",

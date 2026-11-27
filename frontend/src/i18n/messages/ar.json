@@ -5374,10 +5374,15 @@
     "statuses": {
       "queued": "في الانتظار",
       "running": "قيد التشغيل",
+      "planning": "قيد التخطيط",
+      "waiting_approval": "بانتظار الموافقة",
+      "skipped": "تم التخطي",
+      "succeeded": "نجح",
+      "expired": "منتهية الصلاحية",
       "completed": "مكتمل",
       "failed": "فشل",
       "cancelled": "ملغى",
-      "pending": "هناك {count} إجراء بانتظار الموافقة.",
+      "pending": "قيد الانتظار",
       "approved": "موافقة",
       "rejected": "رفض",
       "changes_requested": "طلب تغييرات"

@@ -132,12 +132,17 @@ test.describe("Empty and error state polish (F178)", () => {
     await waitForSessionBootstrap(page);
 
     // Empty state should be visible with a title
-    await expect(page.getByText(/No documents found/i)).toBeVisible({
+    const emptyState = page.getByRole("region", { name: "Empty state" });
+    await expect(emptyState.getByText(/No documents found/i)).toBeVisible({
       timeout: 15_000,
     });
 
-    // CTA button should be present for upload
-    const uploadButton = page.getByRole("button", { name: /Upload Document/i });
+    // The empty state carries its own upload CTA (the page's drop zone is a
+    // separate "Upload Documents" button).
+    const uploadButton = emptyState.getByRole("button", {
+      name: "Upload document",
+      exact: true,
+    });
     await expect(uploadButton).toBeVisible();
   });
 

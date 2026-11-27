@@ -224,7 +224,9 @@ export function StartEvaluationRunDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="start-evaluation-run-title"
-        className="w-full max-w-2xl rounded-2xl border border-[#d8d4e8] bg-white p-5 shadow-xl"
+        // The form is taller than short viewports; cap the dialog to the
+        // viewport and scroll inside it so "Queue run" stays reachable.
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#d8d4e8] bg-white p-5 shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-2">
