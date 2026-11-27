@@ -36,6 +36,7 @@ class PlanEnforcementService:
         current_value_override: int | None = None,
         resource: str | None = None,
         guidance: str | None = None,
+        reset_expired: bool = True,
     ) -> QuotaCheckResult:
         result = await check_quota(
             db_session,
@@ -43,6 +44,7 @@ class PlanEnforcementService:
             quota_type=quota_type,
             requested_amount=requested_amount,
             current_value_override=current_value_override,
+            reset_expired=reset_expired,
         )
         if not result.allowed:
             raise self._build_exception(

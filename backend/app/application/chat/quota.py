@@ -34,7 +34,11 @@ async def ensure_chat_quota(
     organization_id: UUID,
     transport: ChatTransport,
 ) -> None:
-    """Raise the plan-limit ``HTTPException`` (403) when the question quota is exhausted."""
+    """Raise the plan-limit ``HTTPException`` (403) when the question quota is exhausted.
+
+    Read-only (R05-02): an expired window counts as zero here and is reset by the
+    ``record_chat_usage`` increment in the final write, not by the check.
+    """
     try:
         await plan_enforcement_service.ensure_within_limit(
             db_session,
@@ -43,6 +47,7 @@ async def ensure_chat_quota(
             requested_amount=1,
             resource="chat questions",
             guidance="Upgrade your plan or reduce chat volume.",
+            reset_expired=False,
         )
     except HTTPException as exc:
         if _is_plan_limit_denial(exc):

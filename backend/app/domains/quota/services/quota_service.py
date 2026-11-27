@@ -291,8 +291,13 @@ async def check_quota(
     quota_type: QuotaType,
     requested_amount: int = 1,
     current_value_override: int | None = None,
+    reset_expired: bool = True,
 ) -> QuotaCheckResult:
-    """Check whether the requested action would exceed quota limits."""
+    """Check whether the requested action would exceed quota limits.
+
+    ``reset_expired=False`` keeps the check read-only: an expired window counts as zero and
+    is left for ``increment_quota_usage`` to reset (the chat pipeline's read phase, R05-02).
+    """
     now = datetime.now(UTC)
     policy = await _repo.get_policy(db_session, organization_id=organization_id)
     effective = get_effective_limits(policy)
@@ -313,7 +318,14 @@ async def check_quota(
         )
 
         # Reset if window has expired
-        if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
+        if (
+            not reset_expired
+            and usage is not None
+            and _reset_window_expired(usage.next_reset_at, now)
+        ):
+            current = 0
+            next_reset_at = _compute_next_reset(window, now)
+        elif _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
             next_reset = _compute_next_reset(window, now)
             await _repo.reset_usage(db_session, usage, next_reset_at=next_reset, now=now)
             # The row is refreshed: another request may have reset and incremented first.

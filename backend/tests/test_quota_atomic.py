@@ -200,6 +200,55 @@ async def test_check_quota_resets_expired_window(db_session: AsyncSession) -> No
     assert result.next_reset_at > now
 
 
+async def test_read_only_check_counts_expired_window_as_zero_without_writing(
+    db_session: AsyncSession,
+) -> None:
+    """R05-02: the chat pipeline's read phase checks the quota without resetting it."""
+    org = await _org(db_session)
+    now = datetime.now(UTC)
+    expired_at = now - timedelta(minutes=1)
+    usage = await _seed(db_session, org, value=50, next_reset_at=expired_at)
+    await db_session.commit()
+
+    result = await check_quota(
+        db_session,
+        organization_id=org.id,
+        quota_type=QuotaType.questions,
+        reset_expired=False,
+    )
+
+    assert result.current_value == 0
+    assert result.allowed is True
+    assert result.next_reset_at is not None and result.next_reset_at > now
+    assert not db_session.dirty and not db_session.new
+    await db_session.refresh(usage)
+    assert usage.current_value == 50
+    stored = usage.next_reset_at
+    assert stored is not None
+    assert (stored if stored.tzinfo else stored.replace(tzinfo=UTC)) <= now
+
+    # The increment of the final write resets the window and counts the question.
+    value = await increment_quota_usage(
+        db_session, organization_id=org.id, quota_type=QuotaType.questions
+    )
+    assert value == 1
+
+
+async def test_chat_quota_check_is_read_only(db_session: AsyncSession) -> None:
+    from app.application.chat.quota import ensure_chat_quota
+
+    org = await _org(db_session)
+    usage = await _seed(
+        db_session, org, value=7, next_reset_at=datetime.now(UTC) - timedelta(minutes=1)
+    )
+    await db_session.commit()
+
+    await ensure_chat_quota(db_session, organization_id=org.id, transport="ws")
+
+    await db_session.refresh(usage)
+    assert usage.current_value == 7
+
+
 async def test_increment_quota_usage_returns_new_value_and_resets(
     db_session: AsyncSession,
 ) -> None:
