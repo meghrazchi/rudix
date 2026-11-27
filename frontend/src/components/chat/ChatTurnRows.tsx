@@ -1,4 +1,4 @@
-import { useLayoutEffect, type ReactNode, type RefObject } from "react";
+import { useLayoutEffect, type ReactNode } from "react";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -15,13 +15,13 @@ export const TURN_OVERSCAN = 4;
  */
 export function ChatTurnRows({
   count,
-  containerRef,
+  scrollElement,
   getItemKey,
   renderTurn,
   registerScrollToEnd,
 }: {
   count: number;
-  containerRef: RefObject<HTMLDivElement | null>;
+  scrollElement: HTMLDivElement | null;
   getItemKey: (index: number) => string;
   renderTurn: (
     index: number,
@@ -31,7 +31,7 @@ export function ChatTurnRows({
 }) {
   const virtualizer = useVirtualizer({
     count,
-    getScrollElement: () => containerRef.current,
+    getScrollElement: () => scrollElement,
     estimateSize: () => ESTIMATED_TURN_HEIGHT_PX,
     overscan: TURN_OVERSCAN,
     gap: TURN_GAP_PX,

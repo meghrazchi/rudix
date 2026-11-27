@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useTranslations } from "next-intl";
 
@@ -88,6 +88,15 @@ export function ChatThread({
   } = session;
   const { stream, regenerateDisabled, submitQuestionText } = submit;
   const containerRef = useRef<HTMLDivElement>(null);
+  // The virtualiser needs the element in state: the container's ref is set
+  // after the rows' layout effects run on the first commit.
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const attachContainer = useCallback((element: HTMLDivElement | null) => {
+    containerRef.current = element;
+    setScrollElement(element);
+  }, []);
   const virtualize = thread.length > virtualizeMinTurns;
 
   const handlers = useChatTurnHandlers({
@@ -144,7 +153,7 @@ export function ChatThread({
 
   return (
     <div
-      ref={containerRef}
+      ref={attachContainer}
       onScroll={scroll.onScroll}
       data-testid="chat-thread"
       className="rudix-chat-scrollbar min-h-0 flex-1 overflow-y-auto bg-white px-4 py-8 lg:px-6"
@@ -217,7 +226,7 @@ export function ChatThread({
           {virtualize ? (
             <ChatTurnRows
               count={thread.length}
-              containerRef={containerRef}
+              scrollElement={scrollElement}
               getItemKey={(index) => thread[index].response.message_id}
               renderTurn={renderTurn}
               registerScrollToEnd={scroll.registerScrollToEnd}
