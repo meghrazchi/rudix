@@ -347,9 +347,33 @@ Where a page held one large component, the state and mutations moved into a
 `useXxxController` hook and the JSX into view components that receive the
 controller, so behaviour, markup, classes and message keys are unchanged.
 
-Still over 500 lines in these folders (owned by other packages or not in scope):
-`ConnectorConnectionDetailPage.tsx`, `AdminSecurityCenterPage.tsx`,
-`AdminSourceHealthPage.tsx`, `RagProfilesSection.tsx`, `AdminQueryAnalyticsPage.tsx`.
+Still over 500 lines in `src` after this part (62 files, excluding tests; owned by
+other packages or not in scope for `0.7.0`):
+
+- `components/admin/`: `AdminSecurityCenterPage`, `AdminSourceHealthPage`,
+  `AdminQueryAnalyticsPage`, `AdminWebhooksPage`, `AdminStatusPage`,
+  `AdminGovernancePage`, `AdminLandingPage`, `AdminMonitoringPage`, `AdminQuotasPage`,
+  `AdminAccessDebuggerPage`, `AdminUsagePage`, `AdminPermissionsAccessPage`,
+  `AdminFailedJobsPage`, `AdminSSOPage`, `AdminRolesPage`, `AdminPage`, `AdminSCIMPage`,
+  `AdminSafetyEvalPage`, `AdminApiKeysPage`, `AdminUsageAdoptionPage`,
+  `AdminModelProfilesPage`, `AdminModelProviderPage`, `AdminGraphObservabilityPage`,
+  `AdminTaxonomyPage`, `AdminObservabilityPage`.
+- `components/settings/`: `RagProfilesSection`, `ChunkingProfilesSection`,
+  `PromptTemplatesSection`.
+- `components/connectors/`: `ConnectorConnectionDetailPage`, `ConnectorsPage`.
+- `components/documents/`: `DocumentDetailPage`, `DocumentsPage`,
+  `DocumentsUploadModal`, `DocumentMetadataPanel`.
+- `components/evaluations/`: `EvaluationsPage`, `evaluation-ui`, `dataset-builder`,
+  `ab-test-panel`, `evaluation-view-model`, `run-comparison`, `evaluation-run-detail`,
+  `quality-gate-panel`, `evaluation-dialogs`, `model-profile-comparison`.
+- Other components: `collections/CollectionsPage`, `workspace/AgentWorkspacePage`,
+  `workspace/AgentTraceReplayPage`, `dashboard/DashboardPage`, `layout/AppShell`,
+  `chat/DocumentPreviewModal`, `chat/SourceScopeSelector`, `pipeline/RagPipelinePage`,
+  `graph/GraphExplorerPage`, `graph/GraphEntityDetailPage`,
+  `reports/ReportReferenceDashboards`.
+- Non-component modules: `lib/api/request.ts`, `lib/api/documents.ts`,
+  `lib/api/query.ts`, `lib/api/evaluations.ts`, `lib/public-site/solutions.ts`,
+  `test/msw/fixtures.ts`, `app/[locale]/(public)/organization-onboarding/page.tsx`.
 
 ## Dashboard Design Sample
 
