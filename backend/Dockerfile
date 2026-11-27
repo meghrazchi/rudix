@@ -3,7 +3,7 @@
 # (OCR-capable) worker image. CI builds `--target api` and `--target worker`.
 # Base images are pinned by digest; the tag is kept for readability. Refresh
 # with `docker buildx imagetools inspect python:3.12-slim`.
-FROM python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b AS builder
+FROM python:3.15-slim@sha256:63bb298d2b7b88f176f51b5189f54ce6535c997682ea70885d2132f5d473a8a5 AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -32,7 +32,7 @@ RUN uv sync --frozen --no-dev --no-editable
 # Shared runtime: no OCR packages, non-root user, read-only application files.
 # The virtualenv lives outside /app so the dev compose bind mount
 # (./backend:/app) does not hide it.
-FROM python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b AS base-runtime
+FROM python:3.15-slim@sha256:63bb298d2b7b88f176f51b5189f54ce6535c997682ea70885d2132f5d473a8a5 AS base-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
