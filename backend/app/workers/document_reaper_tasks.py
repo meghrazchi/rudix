@@ -19,7 +19,7 @@ from app.core.config import settings
 from app.core.document_errors import build_document_error_details, encode_document_error
 from app.core.logging import log_document_event
 from app.core.metrics import record_document_reaped
-from app.db.session import SessionLocal
+from app.db.session import maintenance_session
 from app.domains.documents.repositories.processing_claims import (
     DocumentProcessingClaimRepository,
 )
@@ -62,7 +62,8 @@ async def _release_stale_rows(now: datetime) -> tuple[list[_ReapedRow], list[_Re
     stale_before = now - timedelta(seconds=settings.document_processing_stale_seconds)
     requeue: list[_ReapedRow] = []
     exhausted: list[_ReapedRow] = []
-    async with SessionLocal() as session:
+    # Cross-tenant beat task: maintenance session (BYPASSRLS role when configured, R04-08).
+    async with maintenance_session() as session:
         async with session.begin():
             rows = await _claim_repository.select_stale_processing(
                 session,

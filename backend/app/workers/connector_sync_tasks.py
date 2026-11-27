@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, maintenance_session
 from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge
 from app.domains.connectors.services.oauth_http_client import HttpOAuthTokenClient
 from app.domains.connectors.services.oauth_lifecycle import ConnectorOAuthLifecycleService
@@ -102,7 +102,8 @@ async def _mark_run_failed_async(
 async def _poll_schedule_async() -> dict[str, Any]:
     engine = ConnectorSyncEngine()
     dispatched_count = 0
-    async with SessionLocal() as session:
+    # Cross-tenant beat task: maintenance session (BYPASSRLS role when configured, R04-08).
+    async with maintenance_session() as session:
         async with session.begin():
             due = await engine.dispatch_due_syncs(session)
 

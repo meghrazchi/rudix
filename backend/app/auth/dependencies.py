@@ -19,10 +19,10 @@ from app.auth.resource_context_builder import (
     build_document_resource_context,
     get_subject_accessible_collection_ids,
 )
-from app.core.config import settings
+from app.core.config import RlsEnforcement, settings
 from app.core.logging import log_authorization_event
 from app.db.session import get_db_session
-from app.db.tenant_context import bind_session_tenant
+from app.db.tenant_context import apply_tenant_context, bind_session_tenant
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.connector import ConnectorConnection, ExternalItem
 from app.models.document import Document
@@ -218,7 +218,12 @@ async def get_current_principal(
         raise _unauthorized(str(exc)) from exc
     except AuthorizationError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-    bind_session_tenant(db_session, principal.organization_id)
+    bind_session_tenant(
+        db_session,
+        principal.organization_id,
+        enforce_guard=settings.effective_rls_enforcement == RlsEnforcement.strict,
+    )
+    await apply_tenant_context(db_session)
     request.state.auth_principal = principal
     return principal
 

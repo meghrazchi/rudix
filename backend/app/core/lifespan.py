@@ -14,6 +14,7 @@ from app.clients.rabbitmq_client import close_rabbitmq, init_rabbitmq
 from app.clients.redis_client import close_redis, init_redis
 from app.core.langfuse_tracer import init_langfuse, shutdown_langfuse
 from app.core.sentry import init_sentry
+from app.db.session import dispose_engine
 from app.domains.graph.migration_runner import run_graph_migrations
 
 logger = logging.getLogger(__name__)
@@ -98,4 +99,5 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         close_minio()
         close_clamav()
         await close_neo4j()
+        await dispose_engine()
         shutdown_langfuse()

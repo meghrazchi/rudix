@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -51,7 +52,14 @@ def sent(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> list[dict
     session_factory = async_sessionmaker(
         bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
     )
-    monkeypatch.setattr(document_reaper_tasks, "SessionLocal", session_factory)
+
+    @asynccontextmanager
+    async def _maintenance_session() -> AsyncIterator[AsyncSession]:
+        async with session_factory() as session:
+            session.info["rls_maintenance"] = True
+            yield session
+
+    monkeypatch.setattr(document_reaper_tasks, "maintenance_session", _maintenance_session)
     calls: list[dict[str, Any]] = []
 
     def _send_task(name: str, *, args: list[Any], kwargs: dict[str, Any]) -> None:
