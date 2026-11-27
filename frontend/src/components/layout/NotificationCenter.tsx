@@ -325,7 +325,7 @@ export function NotificationCenter({
   });
 
   const data = notificationsQuery.data;
-  const hasMore = data ? offset + PAGE_SIZE < data.total : false;
+  const hasMore = data ? offset + PAGE_SIZE < (data.total ?? 0) : false;
   const hasPrev = offset > 0;
 
   if (!isOpen) return null;
@@ -421,7 +421,7 @@ export function NotificationCenter({
       </div>
 
       {/* Pagination */}
-      {data && data.total > PAGE_SIZE ? (
+      {data && (data.total ?? 0) > PAGE_SIZE ? (
         <div className="flex items-center justify-between border-t border-[#ebe8f4] px-4 py-2">
           <button
             type="button"
@@ -434,8 +434,8 @@ export function NotificationCenter({
           <span className="text-[11px] text-[#9c98b0]">
             {t("paginationRange", {
               start: offset + 1,
-              end: Math.min(offset + PAGE_SIZE, data.total),
-              total: data.total,
+              end: Math.min(offset + PAGE_SIZE, data.total ?? 0),
+              total: data.total ?? 0,
             })}
           </span>
           <button

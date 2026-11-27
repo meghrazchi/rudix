@@ -1293,7 +1293,7 @@ export function ChatPage() {
         (total, page) => total + page.items.length,
         0,
       );
-      if (loadedCount >= lastPage.total) {
+      if (loadedCount >= (lastPage.total ?? 0)) {
         return undefined;
       }
       return loadedCount;
