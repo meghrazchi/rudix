@@ -6,6 +6,7 @@ All notable changes to Rudix, the product and its documentation, are recorded he
 
 ### Added
 
+- `docs/roadmap/V0_5_0_IMPLEMENTATION_PLAN.md`: nine work packages for `0.5.0` (chat pipeline and streaming) in four chains, with shared-file anchors, the streaming and resume event contracts, and what is deferred or needs staging.
 - `docs/roadmap/01_EXECUTION_PLAN.md`: how the roadmap from `0.4.0` to `1.0.0` is executed, with roles, the branch-per-package process, current status, and blockers per version.
 - Production retrieval filters on active index versions (`DOCUMENT_ACTIVE_INDEX_VERSIONS`), evaluation re-ingest cleans up its `eval-` chunks and vectors, and `scripts/purge_eval_index_versions.py` purges legacy ones; pre-deploy check in docs/12 (R02-05).
 - Integration e2e: deterministic OpenAI-compatible stub `ci/stubs/llm_stub.py` (contract test `tests/test_llm_stub_contract.py`), overlay `deploy/compose/docker-compose.integration-stub.yml` (`llm-stub`, `MALWARE_SCAN_ENABLED=false`), Playwright critical path `frontend/e2e-integration/critical-path.spec.ts` (`npm run test:e2e:integration`, skipped unless `RUDIX_E2E_INTEGRATION=1`), and reusable workflow `.github/workflows/e2e-integration.yml` (R03-04).
