@@ -86,6 +86,7 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     # anchor: C1
     # anchor: C2
     # anchor: D1
+    "connectors.sync.reap": _route(settings.celery_queue_connector_sync),
 }
 
 BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
@@ -128,6 +129,10 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
     # anchor: C1
     # anchor: C2
     # anchor: D1
+    "connector-sync-reap": {
+        "task": "connectors.sync.reap",
+        "schedule": settings.connector_sync_reap_interval_seconds,
+    },
 }
 
 

@@ -5,11 +5,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import log_connector_event
 from app.domains.connectors.audit import ConnectorAuditAction
+from app.domains.connectors.repositories.connectors import (
+    apply_external_item_fields,
+    new_external_item,
+)
 from app.domains.connectors.services.provider_adapter import DeltaItem
 from app.domains.connectors.services.sync.common import source_id_str
 from app.models.connector import ExternalItem
@@ -100,27 +104,101 @@ class SyncDiffer:
                 },
             )
 
-    async def tombstone_unseen_items(
-        self, session: AsyncSession, *, run: ConnectorSyncRun, seen_provider_ids: set[str]
+    async def apply_full_chunk(
+        self,
+        session: AsyncSession,
+        run: ConnectorSyncRun,
+        items: list[Any],
+        known: dict[str, ExternalItem],
+    ) -> list[tuple[Any, bool]]:
+        """Diff a slice of a full-sync page with one lookup and one flush.
+
+        Same rules as ``upsert_item_if_changed``: an item is changed when it is new, its
+        content hash differs, or it has no ``SourceDocument`` yet; unchanged items are
+        checked for ACL, move, and rename conflicts. ``known`` caches the page's rows.
+        """
+        missing = [item.provider_item_id for item in items if item.provider_item_id not in known]
+        if missing:
+            rows = await session.execute(
+                select(ExternalItem).where(
+                    ExternalItem.organization_id == run.organization_id,
+                    ExternalItem.connection_id == run.connection_id,
+                    ExternalItem.provider_item_id.in_(missing),
+                )
+            )
+            known.update({row.provider_item_id: row for row in rows.scalars().all()})
+        changed: dict[str, bool] = {}
+        unchanged: dict[str, ExternalItem] = {}
+        for item in items:
+            versioned = item.model_copy(update={"sync_version": run.sync_version})
+            existing = known.get(item.provider_item_id)
+            if existing is None:
+                known[item.provider_item_id] = new_row = new_external_item(versioned)
+                session.add(new_row)
+                changed[item.provider_item_id] = True
+            elif existing.content_hash == item.content_hash:
+                await self.detect_unchanged_item_conflicts(session, run, existing, item)
+                unchanged[item.provider_item_id] = existing
+            else:
+                apply_external_item_fields(existing, versioned)
+                changed[item.provider_item_id] = True
+        await session.flush()
+        if unchanged:
+            linked = await session.execute(
+                select(SourceDocument.external_item_id)
+                .where(SourceDocument.external_item_id.in_([r.id for r in unchanged.values()]))
+                .distinct()
+            )
+            linked_ids = set(linked.scalars().all())
+            for provider_item_id, row in unchanged.items():
+                changed[provider_item_id] = row.id not in linked_ids
+        return [(item, changed[item.provider_item_id]) for item in items]
+
+    async def mark_seen(
+        self, session: AsyncSession, run: ConnectorSyncRun, provider_item_ids: list[str]
+    ) -> None:
+        """One UPDATE per page: every item the page returned was seen by this run."""
+        if not provider_item_ids:
+            return
+        await session.execute(
+            update(ExternalItem)
+            .where(
+                ExternalItem.organization_id == run.organization_id,
+                ExternalItem.connection_id == run.connection_id,
+                ExternalItem.provider_item_id.in_(provider_item_ids),
+            )
+            .values(last_seen_sync_run_id=run.id, sync_version=run.sync_version)
+            .execution_options(synchronize_session=False)
+        )
+
+    async def tombstone_unseen_batch(
+        self, session: AsyncSession, *, run: ConnectorSyncRun, limit: int
     ) -> int:
+        """Tombstone up to ``limit`` live items this full sync did not see.
+
+        Seen means ``last_seen_sync_run_id = run.id`` (persisted per page, so a resumed run
+        keeps what earlier attempts saw); items written by a newer run are left alone.
+        """
         result = await session.execute(
-            select(ExternalItem).where(
+            select(ExternalItem)
+            .where(
                 ExternalItem.organization_id == run.organization_id,
                 ExternalItem.connection_id == run.connection_id,
                 ExternalItem.deleted_at.is_(None),
                 ExternalItem.sync_version <= run.sync_version,
+                ExternalItem.last_seen_sync_run_id.is_distinct_from(run.id),
             )
+            .order_by(ExternalItem.id)
+            .limit(limit)
         )
-        count = 0
+        items = list(result.scalars().all())
         now = datetime.now(UTC)
-        for item in result.scalars().all():
-            if item.provider_item_id in seen_provider_ids:
-                continue
+        for item in items:
             await self.tombstone_external_item(
                 session, run=run, item=item, now=now, reason="not_seen_in_full_sync"
             )
-            count += 1
-        return count
+        await session.flush()
+        return len(items)
 
     async def tombstone_external_item(
         self,

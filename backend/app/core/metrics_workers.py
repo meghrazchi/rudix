@@ -96,3 +96,37 @@ def record_worker_tenant_mismatch(task: str) -> None:
 # anchor: C2
 
 # anchor: D1
+# R06-11: provider rate limits seen by a sync run (outcome: inline = slept and retried the
+# page, requeued = checkpointed and re-enqueued with the Retry-After countdown), runs held
+# back or re-enqueued (reason: org_cap, connection_cap, lease_held, stale), and pages
+# committed.
+CONNECTOR_SYNC_RATE_LIMITED_TOTAL = Counter(
+    "rudix_connector_sync_rate_limited_total",
+    "Provider rate limits hit by connector sync runs, by provider and outcome",
+    ["provider", "outcome"],
+    registry=registry,
+)
+CONNECTOR_SYNC_DEFERRED_TOTAL = Counter(
+    "rudix_connector_sync_deferred_total",
+    "Connector sync runs deferred or re-enqueued, by reason",
+    ["reason"],
+    registry=registry,
+)
+CONNECTOR_SYNC_PAGES_TOTAL = Counter(
+    "rudix_connector_sync_pages_total",
+    "Connector sync pages committed, by provider and sync mode (full, incremental)",
+    ["provider", "mode"],
+    registry=registry,
+)
+
+
+def record_connector_sync_rate_limited(provider: str | None, outcome: str) -> None:
+    _inc(CONNECTOR_SYNC_RATE_LIMITED_TOTAL, provider=provider or "unknown", outcome=outcome)
+
+
+def record_connector_sync_deferred(reason: str) -> None:
+    _inc(CONNECTOR_SYNC_DEFERRED_TOTAL, reason=reason)
+
+
+def record_connector_sync_page(provider: str | None, mode: str) -> None:
+    _inc(CONNECTOR_SYNC_PAGES_TOTAL, provider=provider or "unknown", mode=mode)

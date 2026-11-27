@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from uuid import UUID
 
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
@@ -65,16 +62,5 @@ def next_run_due(job: ConnectorSyncJob, now: datetime) -> bool:
     return now >= last_run + timedelta(minutes=interval_minutes)
 
 
-def compute_content_hash(data: Any) -> str:
-    serialized = json.dumps(data, sort_keys=True, default=str)
-    return hashlib.sha256(serialized.encode()).hexdigest()
-
-
 def source_id_str(run: ConnectorSyncRun) -> str | None:
     return str(run.external_source_id) if run.external_source_id else None
-
-
-def provider_key_of(obj: Any) -> str | None:
-    """Provider key of a run or connection whose ``provider`` may not be loaded."""
-    connection = getattr(obj, "connection", obj)
-    return getattr(getattr(connection, "provider", None), "key", None)

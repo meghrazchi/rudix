@@ -1,27 +1,37 @@
-"""Sync run execution: run lifecycle and the full / incremental page loops (R06-11 split)."""
+"""Sync run lifecycle: lease, page loop, tombstones, completion, failure (R06-11).
+
+``run_sync`` takes a session factory (the worker: one transaction per unit of work, see
+``scope.py``) or a session the caller holds (single transaction, the 0.5 behaviour). A run
+that is ``running`` with a checkpoint continues from ``checkpoint_cursor`` with its
+persisted counters, so a worker restart or a re-enqueue resumes instead of starting over.
+"""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.logging import get_logger, log_connector_event
+from app.core.metrics_workers import record_connector_sync_deferred
 from app.domains.connectors.audit import ConnectorAuditAction
 from app.domains.connectors.services.provider_adapter import (
     ConnectorAdapterNotFoundError,
     ConnectorAuthError,
-    ConnectorContentError,
     ConnectorPermissionError,
-    ConnectorRateLimitError,
 )
+from app.domains.connectors.services.sync import lease
 from app.domains.connectors.services.sync.common import SyncRunResult, source_id_str
+from app.domains.connectors.services.sync.context import LoopState, RunContext
+from app.domains.connectors.services.sync.fetcher import RateLimitDeferred, provider_source_id
+from app.domains.connectors.services.sync.pages import SyncPager, is_cancelled_now, load_run
+from app.domains.connectors.services.sync.scope import SessionFactory, SyncScope, make_scope
 from app.models.connector import ConnectorConnection
-from app.models.connector_credential import ConnectorCredential
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.enums import (
     ConnectorAuthType,
@@ -34,18 +44,88 @@ if TYPE_CHECKING:
     from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
 
 _logger = get_logger("connectors.sync_engine")
+_FINISHED = (ConnectorSyncRunStatus.completed.value, ConnectorSyncRunStatus.failed.value)
+
+
+def _result(
+    ctx: RunContext,
+    status: str,
+    *,
+    error_message: str | None = None,
+    requeue_after_seconds: int | None = None,
+) -> SyncRunResult:
+    state = ctx.state
+    return SyncRunResult(
+        sync_run_id=ctx.run_id,
+        status=status,
+        items_seen=state.items_seen,
+        items_upserted=state.items_upserted,
+        items_deleted=state.items_deleted,
+        cursor_after={},
+        error_message=error_message,
+        requeue_after_seconds=requeue_after_seconds,
+        pages_committed=state.pages_committed,
+    )
+
+
+def _run_result(
+    run: ConnectorSyncRun,
+    status: str,
+    *,
+    error_message: str | None = None,
+    requeue_after_seconds: int | None = None,
+) -> SyncRunResult:
+    return SyncRunResult(
+        sync_run_id=run.id,
+        status=status,
+        items_seen=run.items_seen or 0,
+        items_upserted=run.items_upserted or 0,
+        items_deleted=run.items_deleted or 0,
+        cursor_after=dict(run.cursor_after_json or {}),
+        error_message=error_message,
+        requeue_after_seconds=requeue_after_seconds,
+        pages_committed=run.pages_committed or 0,
+    )
 
 
 class SyncRunner:
     def __init__(self, engine: ConnectorSyncEngine) -> None:
         self.engine = engine
+        self.pager = SyncPager(engine)
 
     async def run_sync(
-        self, session: AsyncSession, *, sync_run_id: UUID, organization_id: UUID
+        self,
+        session_or_factory: AsyncSession | SessionFactory,
+        *,
+        sync_run_id: UUID,
+        organization_id: UUID,
+        lease_owner: str | None = None,
     ) -> SyncRunResult:
-        """Execute a single sync run through its complete lifecycle."""
+        scope = make_scope(session_or_factory)
+        owner = lease_owner or f"inline:{uuid4().hex}"
+        async with scope.transaction() as session:
+            started = await self._start(session, sync_run_id, organization_id, owner)
+        if isinstance(started, SyncRunResult):
+            return started
+        try:
+            return await self._execute(scope, started)
+        except lease.LeaseLostError:
+            record_connector_sync_deferred("lease_lost")
+            _logger.warning(
+                "connector.sync.lease_lost",
+                sync_run_id=str(sync_run_id),
+                organization_id=str(organization_id),
+            )
+            return _result(started, "lease_lost", error_message="lease taken by another worker")
+
+    # -- start ----------------------------------------------------------------------
+
+    async def _start(
+        self, session: AsyncSession, run_id: UUID, organization_id: UUID, owner: str
+    ) -> RunContext | SyncRunResult:
+        """Lease the run and resolve the job, connection, credential, and adapter."""
         engine = self.engine
-        run = await engine._require_sync_run(session, organization_id, sync_run_id)
+        run = await engine._require_sync_run(session, organization_id, run_id)
         if run.status == ConnectorSyncRunStatus.cancelled.value:
             return SyncRunResult(
                 sync_run_id=run.id,
@@ -56,25 +136,46 @@ class SyncRunner:
                 cursor_after={},
                 error_message="Run was cancelled before it started",
             )
+        if run.status in _FINISHED:
+            return _run_result(run, run.status, error_message="run already finished")
+        now = datetime.now(UTC)
+        cap = await lease.over_cap(session, run, now)
+        if cap is not None:
+            record_connector_sync_deferred(cap)
+            _logger.info("connector.sync.cap_deferred", sync_run_id=str(run.id), reason=cap)
+            return _run_result(
+                run,
+                run.status,
+                error_message=f"deferred: {cap}",
+                requeue_after_seconds=settings.connector_sync_cap_retry_seconds,
+            )
+        was_queued = run.status == ConnectorSyncRunStatus.queued.value
+        if not await lease.try_lease(session, run_id=run.id, owner=owner, now=now):
+            record_connector_sync_deferred("lease_held")
+            return _run_result(run, run.status, error_message="run is leased by another worker")
+        await session.refresh(run)
+        if was_queued:
+            await engine._audit(
+                session,
+                organization_id=organization_id,
+                user_id=None,
+                action=ConnectorAuditAction.sync_started.value,
+                resource_type="connector_sync_run",
+                resource_id=run.id,
+                metadata={
+                    "sync_job_id": str(run.sync_job_id),
+                    "connection_id": str(run.connection_id),
+                    "external_source_id": source_id_str(run),
+                    "trigger_type": run.trigger_type,
+                },
+            )
+        return await self._resolve(session, run, owner, resumed=not was_queued)
 
-        run.status = ConnectorSyncRunStatus.running.value
-        run.started_at = datetime.now(UTC)
-        await session.flush()
-        await engine._audit(
-            session,
-            organization_id=organization_id,
-            user_id=None,
-            action=ConnectorAuditAction.sync_started.value,
-            resource_type="connector_sync_run",
-            resource_id=run.id,
-            metadata={
-                "sync_job_id": str(run.sync_job_id),
-                "connection_id": str(run.connection_id),
-                "external_source_id": source_id_str(run),
-                "trigger_type": run.trigger_type,
-            },
-        )
-
+    async def _resolve(
+        self, session: AsyncSession, run: ConnectorSyncRun, owner: str, *, resumed: bool
+    ) -> RunContext | SyncRunResult:
+        engine = self.engine
+        organization_id = run.organization_id
         job = await self._load_job(session, run)
         if job is None:
             return await engine._fail_run(session, run, "sync job not found")
@@ -86,11 +187,9 @@ class SyncRunner:
                 f"connection is not active (status={connection.status})",
                 error_code="connection_not_active",
             )
-
-        credential: ConnectorCredential | None = None
-        if connection.provider.auth_type == ConnectorAuthType.none.value:
-            decrypted: dict = {}
-        else:
+        has_credential = connection.provider.auth_type != ConnectorAuthType.none.value
+        decrypted: dict = {}
+        if has_credential:
             credential = await engine.repository.get_current_credential(
                 session, organization_id=organization_id, connection_id=connection.id
             )
@@ -108,89 +207,134 @@ class SyncRunner:
                 decrypted = engine.credential_vault.decrypt(credential)
             except Exception as exc:
                 return await engine._fail_run(session, run, f"credential decryption failed: {exc}")
-
         try:
             adapter = engine.adapter_registry.require(connection.provider.key)
         except ConnectorAdapterNotFoundError as exc:
             return await engine._fail_run(session, run, str(exc), error_code="adapter_not_found")
 
         cursor_before = dict(run.cursor_before_json or {})
-        use_incremental = bool(cursor_before) and hasattr(adapter, "delta_sync")
-        try:
-            result = await self._run_loop(
-                session,
-                run=run,
-                job=job,
-                connection=connection,
-                adapter=adapter,
-                decrypted=decrypted,
-                cursor_before=cursor_before,
-                use_incremental=use_incremental,
+        incremental = bool(cursor_before) and hasattr(adapter, "delta_sync")
+        state = LoopState.from_run(run, start_cursor=cursor_before if incremental else {})
+        if resumed:
+            _logger.info(
+                "connector.sync.resumed",
+                sync_run_id=str(run.id),
+                organization_id=str(organization_id),
+                pages_committed=state.pages_committed,
+                from_checkpoint=state.resumed,
             )
-        except ConnectorAuthError as exc:
-            # For OAuth connections: attempt a token refresh + one retry before giving up.
-            retry_result = None
-            if credential is not None:
-                retry_result = await self._refresh_and_retry(
-                    session,
-                    run=run,
-                    job=job,
-                    connection=connection,
-                    adapter=adapter,
-                    credential=credential,
-                    organization_id=organization_id,
-                    cursor_before=cursor_before,
-                    use_incremental=use_incremental,
-                )
-            if retry_result is None:
-                await engine._mark_connection_error(session, connection, str(exc))
-                return await engine._fail_run(session, run, str(exc), error_code="auth_error")
-            result = retry_result
-        except ConnectorRateLimitError as exc:
-            return await engine._fail_run(
-                session,
-                run,
-                str(exc),
-                error_code="rate_limit",
-                error_details={"retry_after_seconds": exc.retry_after_seconds},
-            )
-        except ConnectorPermissionError as exc:
-            return await engine._fail_run(
-                session,
-                run,
-                "permission denied",
-                error_code="permission_denied",
-                error_details={"reason": exc.__class__.__name__},
-            )
-        except Exception as exc:
-            return await engine._fail_run(session, run, str(exc))
-
-        await self._record_success(session, run=run, job=job, connection=connection, result=result)
-        return result
+        return RunContext(
+            run_id=run.id,
+            organization_id=organization_id,
+            connection_id=run.connection_id,
+            sync_job_id=run.sync_job_id,
+            owner=owner,
+            adapter=adapter,
+            decrypted=decrypted,
+            provider_key=connection.provider.key,
+            provider_source_id=provider_source_id(job),
+            external_source_id=run.external_source_id,
+            incremental=incremental,
+            has_credential=has_credential,
+            state=state,
+        )
 
     async def _load_job(self, session: AsyncSession, run: ConnectorSyncRun) -> Any:
         job_result = await session.execute(
             select(ConnectorSyncJob)
             .options(
-                selectinload(ConnectorSyncJob.connection).selectinload(ConnectorConnection.provider)
+                selectinload(ConnectorSyncJob.connection).selectinload(
+                    ConnectorConnection.provider
+                ),
+                selectinload(ConnectorSyncJob.external_source),
             )
             .where(ConnectorSyncJob.id == run.sync_job_id)
         )
         return job_result.scalar_one_or_none()
+
+    # -- execution --------------------------------------------------------------------
+
+    async def _execute(self, scope: SyncScope, ctx: RunContext) -> SyncRunResult:
+        try:
+            if not await self.pager.run_pages(scope, ctx):
+                return await self._cancelled(scope, ctx)
+            if not ctx.incremental and not await self._tombstone_unseen(scope, ctx):
+                return await self._cancelled(scope, ctx)
+            return await self._complete(scope, ctx)
+        except lease.LeaseLostError:
+            raise
+        except RateLimitDeferred as deferred:
+            return await self._defer(scope, ctx, deferred.retry_after_seconds)
+        except ConnectorAuthError as exc:
+            return await self._fail(scope, ctx, str(exc), "auth_error", mark_connection=True)
+        except ConnectorPermissionError as exc:
+            return await self._fail(
+                scope,
+                ctx,
+                "permission denied",
+                "permission_denied",
+                details={"reason": exc.__class__.__name__},
+            )
+        except Exception as exc:
+            return await self._fail(scope, ctx, str(exc), "sync_error")
+
+    async def _tombstone_unseen(self, scope: SyncScope, ctx: RunContext) -> bool:
+        """Tombstone, in batches, live items this full sync never marked seen."""
+        batch = settings.connector_sync_tombstone_batch_size
+        while True:
+            if await is_cancelled_now(scope, ctx):
+                return False
+            async with scope.transaction() as session:
+                run = await load_run(session, ctx)
+                count = await self.engine.differ.tombstone_unseen_batch(
+                    session, run=run, limit=batch
+                )
+                deleted = ctx.state.items_deleted + count
+                await lease.owned_update(
+                    session,
+                    run_id=ctx.run_id,
+                    owner=ctx.owner,
+                    values={"items_deleted": deleted, "heartbeat_at": datetime.now(UTC)},
+                )
+            ctx.state.items_deleted = deleted
+            if count < batch:
+                return True
+
+    async def _complete(self, scope: SyncScope, ctx: RunContext) -> SyncRunResult:
+        engine = self.engine
+        state = ctx.state
+        async with scope.transaction() as session:
+            run = await load_run(session, ctx)
+            if run.status == ConnectorSyncRunStatus.cancelled.value:
+                return _result(ctx, "cancelled", error_message="Cancelled mid-sync")
+            if run.lease_owner != ctx.owner:
+                raise lease.LeaseLostError(str(ctx.run_id))
+            result = await engine._complete_run(
+                session,
+                run,
+                items_seen=state.items_seen,
+                items_upserted=state.items_upserted,
+                items_deleted=state.items_deleted,
+                cursor_after=state.cursor_after,
+            )
+            job = await session.get(ConnectorSyncJob, run.sync_job_id)
+            await self._record_success(session, run=run, job=job, result=result)
+        return result
 
     async def _record_success(
         self,
         session: AsyncSession,
         *,
         run: ConnectorSyncRun,
-        job: ConnectorSyncJob,
-        connection: ConnectorConnection,
+        job: ConnectorSyncJob | None,
         result: SyncRunResult,
     ) -> None:
         now = datetime.now(UTC)
-        job.last_run_at = now
-        job.cursor_json = result.cursor_after
-        job.error_message = None
+        connection = run.connection
+        if job is not None:
+            job.last_run_at = now
+            job.cursor_json = result.cursor_after
+            job.error_message = None
         connection.last_sync_at = now
         await session.flush()
         await self.engine._audit(
@@ -209,9 +353,8 @@ class SyncRunner:
                 "trigger_type": run.trigger_type,
             },
         )
-        provider_key = getattr(getattr(connection, "provider", None), "key", None)
         fields: dict[str, Any] = {
-            "provider_key": provider_key,
+            "provider_key": getattr(getattr(connection, "provider", None), "key", None),
             "connection_id": str(connection.id),
             "external_source_id": source_id_str(run),
             "sync_run_id": str(run.id),
@@ -221,236 +364,99 @@ class SyncRunner:
             "items_deleted": result.items_deleted,
         }
         log_connector_event(event="connector.sync.completed", **fields)
-        _logger.info("connector.sync.completed", **fields)
+        _logger.info("connector.sync.completed", pages_committed=result.pages_committed, **fields)
 
-    async def _run_loop(
-        self,
-        session: AsyncSession,
-        *,
-        run: ConnectorSyncRun,
-        job: ConnectorSyncJob,
-        connection: ConnectorConnection,
-        adapter: Any,
-        decrypted: dict,
-        cursor_before: dict,
-        use_incremental: bool,
-    ) -> SyncRunResult:
-        if use_incremental:
-            return await self.run_incremental_sync(
-                session,
-                run=run,
-                job=job,
-                connection=connection,
-                adapter=adapter,
-                decrypted_credential=decrypted,
-                cursor=cursor_before,
+    async def _cancelled(self, scope: SyncScope, ctx: RunContext) -> SyncRunResult:
+        """Stop a cancelled run: the committed pages and checkpoint stay, the lease is freed."""
+        async with scope.transaction() as session:
+            await session.execute(
+                update(ConnectorSyncRun)
+                .where(ConnectorSyncRun.id == ctx.run_id, ConnectorSyncRun.lease_owner == ctx.owner)
+                .values(lease_owner=None, heartbeat_at=datetime.now(UTC))
+                .execution_options(synchronize_session=False)
             )
-        return await self.run_full_sync(
-            session,
-            run=run,
-            job=job,
-            connection=connection,
-            adapter=adapter,
-            decrypted_credential=decrypted,
+        _logger.info(
+            "connector.sync.cancelled",
+            sync_run_id=str(ctx.run_id),
+            organization_id=str(ctx.organization_id),
+            pages_committed=ctx.state.pages_committed,
+            items_seen=ctx.state.items_seen,
+        )
+        return _result(ctx, "cancelled", error_message="Cancelled mid-sync")
+
+    async def _defer(self, scope: SyncScope, ctx: RunContext, retry_after: int) -> SyncRunResult:
+        """Long ``Retry-After``: keep the checkpoint, free the lease, re-enqueue later.
+
+        The heartbeat is set to the resume time so the stale-run sweep leaves the run
+        alone while it waits; the re-enqueued task leases it (no owner) and resumes.
+        """
+        async with scope.transaction() as session:
+            run = await load_run(session, ctx)
+            cancelled = run.status == ConnectorSyncRunStatus.cancelled.value
+            if not cancelled:
+                await self._release_for_retry(session, ctx, run, retry_after)
+        if cancelled:
+            return await self._cancelled(scope, ctx)
+        record_connector_sync_deferred("rate_limit")
+        log_connector_event(
+            event="connector.sync.retry_scheduled",
+            provider_key=ctx.provider_key,
+            connection_id=str(ctx.connection_id),
+            external_source_id=str(ctx.external_source_id) if ctx.external_source_id else None,
+            sync_run_id=str(ctx.run_id),
+            organization_id=str(ctx.organization_id),
+            retry_after_seconds=retry_after,
+        )
+        return _result(
+            ctx,
+            ConnectorSyncRunStatus.running.value,
+            error_message="rate limited; re-enqueued",
+            requeue_after_seconds=retry_after,
         )
 
-    async def _refresh_and_retry(
-        self,
-        session: AsyncSession,
-        *,
-        run: ConnectorSyncRun,
-        job: ConnectorSyncJob,
-        connection: ConnectorConnection,
-        adapter: Any,
-        credential: ConnectorCredential,
-        organization_id: UUID,
-        cursor_before: dict,
-        use_incremental: bool,
-    ) -> SyncRunResult | None:
-        new_decrypted = await self.engine.fetcher.refreshed_credential(
-            session, connection=connection, credential=credential, organization_id=organization_id
-        )
-        if new_decrypted is None:
-            return None
-        try:
-            return await self._run_loop(
-                session,
-                run=run,
-                job=job,
-                connection=connection,
-                adapter=adapter,
-                decrypted=new_decrypted,
-                cursor_before=cursor_before,
-                use_incremental=use_incremental,
-            )
-        except Exception as exc:
-            _logger.warning(
-                "connector.sync.auth_error_retry_failed",
-                connection_id=str(connection.id),
-                error=str(exc)[:200],
-            )
-            return None
-
-    async def run_full_sync(
-        self,
-        session: AsyncSession,
-        *,
-        run: ConnectorSyncRun,
-        job: ConnectorSyncJob,
-        connection: ConnectorConnection,
-        adapter: Any,
-        decrypted_credential: dict,
-    ) -> SyncRunResult:
-        engine = self.engine
-        items_seen = 0
-        items_upserted = 0
-        cursor: dict = {}
-        seen_provider_ids: set[str] = set()
-        pending_document_ids: list[tuple[str, str]] = []
-
-        while True:
-            if await engine._is_cancelled(session, run_id=run.id):
-                return await engine._cancel_run_in_flight(session, run, items_seen, items_upserted)
-            page = await engine.fetcher.fetch_page(
-                adapter=adapter,
-                run=run,
-                job=job,
-                decrypted_credential=decrypted_credential,
-                cursor=cursor,
-                incremental=False,
-            )
-            for norm_item in page.items:
-                items_seen += 1
-                seen_provider_ids.add(norm_item.provider_item_id)
-                if await engine._upsert_item_if_changed(session, run, norm_item):
-                    items_upserted += 1
-                    pending = await engine._maybe_ingest_file_item(
-                        session,
-                        run=run,
-                        connection=connection,
-                        adapter=adapter,
-                        norm_item=norm_item,
-                        decrypted_credential=decrypted_credential,
-                    )
-                    if pending is not None:
-                        pending_document_ids.append(pending)
-            await engine._flush_run_progress(
-                session, run, items_seen=items_seen, items_upserted=items_upserted
-            )
-            if not page.has_more or page.next_cursor is None:
-                break
-            cursor = page.next_cursor
-
-        items_deleted = await engine._tombstone_unseen_items(
-            session, run=run, seen_provider_ids=seen_provider_ids
-        )
-        return await engine._complete_run(
-            session,
-            run,
-            items_seen=items_seen,
-            items_upserted=items_upserted,
-            items_deleted=items_deleted,
-            cursor_after=cursor,
-            pending_document_ids=pending_document_ids,
-        )
-
-    async def run_incremental_sync(
-        self,
-        session: AsyncSession,
-        *,
-        run: ConnectorSyncRun,
-        job: ConnectorSyncJob,
-        connection: ConnectorConnection,
-        adapter: Any,
-        decrypted_credential: dict,
-        cursor: dict,
-    ) -> SyncRunResult:
-        engine = self.engine
-        items_seen = 0
-        items_upserted = 0
-        items_deleted = 0
-        pending_document_ids: list[tuple[str, str]] = []
-
-        while True:
-            if await engine._is_cancelled(session, run_id=run.id):
-                return await engine._cancel_run_in_flight(session, run, items_seen, items_upserted)
-            page = await engine.fetcher.fetch_page(
-                adapter=adapter,
-                run=run,
-                job=job,
-                decrypted_credential=decrypted_credential,
-                cursor=cursor,
-                incremental=True,
-            )
-            for delta_item in page.items:
-                items_seen += 1
-                if delta_item.is_deleted or delta_item.permission_revoked:
-                    if await engine._tombstone_item(session, run, delta_item):
-                        items_deleted += 1
-                elif delta_item.item is not None:
-                    try:
-                        if await engine._upsert_item_if_changed(session, run, delta_item.item):
-                            items_upserted += 1
-                            pending = await engine._maybe_ingest_file_item(
-                                session,
-                                run=run,
-                                connection=connection,
-                                adapter=adapter,
-                                norm_item=delta_item.item,
-                                decrypted_credential=decrypted_credential,
-                            )
-                            if pending is not None:
-                                pending_document_ids.append(pending)
-                    except ConnectorContentError:
-                        await self.record_content_skip(session, run, delta_item.item)
-            await engine._flush_run_progress(
-                session,
-                run,
-                items_seen=items_seen,
-                items_upserted=items_upserted,
-                items_deleted=items_deleted,
-            )
-            if not page.has_more or page.next_cursor is None:
-                cursor = page.next_cursor or cursor
-                break
-            cursor = page.next_cursor
-
-        return await engine._complete_run(
-            session,
-            run,
-            items_seen=items_seen,
-            items_upserted=items_upserted,
-            items_deleted=items_deleted,
-            cursor_after=cursor,
-            pending_document_ids=pending_document_ids,
-        )
-
-    async def record_content_skip(
-        self, session: AsyncSession, run: ConnectorSyncRun, item: Any
+    async def _release_for_retry(
+        self, session: AsyncSession, ctx: RunContext, run: ConnectorSyncRun, retry_after: int
     ) -> None:
+        resume_at = datetime.now(UTC) + timedelta(seconds=retry_after)
+        await lease.owned_update(
+            session,
+            run_id=ctx.run_id,
+            owner=ctx.owner,
+            values={"lease_owner": None, "heartbeat_at": resume_at},
+        )
         await self.engine._audit(
             session,
-            organization_id=run.organization_id,
+            organization_id=ctx.organization_id,
             user_id=None,
-            action=ConnectorAuditAction.sync_item_skipped.value,
-            resource_type="external_item",
-            resource_id=None,
+            action=ConnectorAuditAction.sync_retry_scheduled.value,
+            resource_type="connector_sync_run",
+            resource_id=ctx.run_id,
             metadata={
-                "sync_run_id": str(run.id),
-                "connection_id": str(run.connection_id),
+                "sync_job_id": str(ctx.sync_job_id),
+                "connection_id": str(ctx.connection_id),
                 "external_source_id": source_id_str(run),
-                "provider_key": item.provider_key,
-                "provider_item_id": item.provider_item_id,
-                "reason": "content_error",
+                "error_code": "rate_limit",
+                "retry_after_seconds": retry_after,
             },
         )
-        log_connector_event(
-            event="connector.sync.item.skipped",
-            provider_key=item.provider_key,
-            connection_id=str(run.connection_id),
-            external_source_id=source_id_str(run),
-            external_item_id=None,
-            sync_run_id=str(run.id),
-            organization_id=str(run.organization_id),
-            reason="content_error",
-        )
+
+    async def _fail(
+        self,
+        scope: SyncScope,
+        ctx: RunContext,
+        message: str,
+        code: str,
+        *,
+        details: dict | None = None,
+        mark_connection: bool = False,
+    ) -> SyncRunResult:
+        engine = self.engine
+        async with scope.transaction() as session:
+            run = await load_run(session, ctx)
+            if run.status == ConnectorSyncRunStatus.cancelled.value:
+                return _result(ctx, "cancelled", error_message="Cancelled mid-sync")
+            if mark_connection:
+                await engine._mark_connection_error(session, run.connection, message)
+            return await engine._fail_run(
+                session, run, message, error_code=code, error_details=details
+            )

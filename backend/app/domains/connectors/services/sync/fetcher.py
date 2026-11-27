@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.logging import get_logger
-from app.domains.connectors.services.provider_adapter import DeltaPage, ItemPage
-from app.domains.connectors.services.sync.common import DEFAULT_PAGE_SIZE, source_id_str
+from app.core.metrics_workers import record_connector_sync_rate_limited
+from app.domains.connectors.services.provider_adapter import ConnectorRateLimitError
+from app.domains.connectors.services.sync.context import RunContext
 from app.models.connector import ConnectorConnection
 from app.models.connector_credential import ConnectorCredential
-from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
+from app.models.connector_sync import ConnectorSyncJob
 from app.models.enums import ConnectorAuthType
 
 if TYPE_CHECKING:
@@ -21,6 +24,15 @@ if TYPE_CHECKING:
 
 _logger = get_logger("connectors.sync_engine")
 _PROACTIVE_REFRESH_SECONDS = 60
+_HEARTBEAT_EVERY_SECONDS = 15.0
+
+
+class RateLimitDeferred(Exception):
+    """The provider asked to wait longer than the inline backoff allows."""
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__(f"retry after {retry_after_seconds}s")
+        self.retry_after_seconds = retry_after_seconds
 
 
 def provider_source_id(job: ConnectorSyncJob) -> str | None:
@@ -34,29 +46,65 @@ class SyncFetcher:
     def __init__(self, engine: ConnectorSyncEngine) -> None:
         self.engine = engine
 
-    async def fetch_page(
-        self,
-        *,
-        adapter: Any,
-        run: ConnectorSyncRun,
-        job: ConnectorSyncJob,
-        decrypted_credential: dict,
-        cursor: dict,
-        incremental: bool,
-        page_size: int = DEFAULT_PAGE_SIZE,
-    ) -> Any:
+    async def fetch_page(self, ctx: RunContext, cursor: dict) -> Any:
         """One provider call (an ``ItemPage`` or ``DeltaPage``); uses no database session."""
-        call = adapter.delta_sync if incremental else adapter.list_items
-        page: ItemPage | DeltaPage = await call(
-            organization_id=str(run.organization_id),
-            connection_id=str(run.connection_id),
-            external_source_id=source_id_str(run),
-            provider_source_id=provider_source_id(job),
-            decrypted_credential=decrypted_credential,
+        call = ctx.adapter.delta_sync if ctx.incremental else ctx.adapter.list_items
+        return await call(
+            organization_id=str(ctx.organization_id),
+            connection_id=str(ctx.connection_id),
+            external_source_id=str(ctx.external_source_id) if ctx.external_source_id else None,
+            provider_source_id=ctx.provider_source_id,
+            decrypted_credential=ctx.decrypted,
             cursor=cursor,
-            page_size=page_size,
+            page_size=settings.connector_sync_page_size,
         )
-        return page
+
+    async def fetch_with_backoff(
+        self, ctx: RunContext, cursor: dict, heartbeat: Callable[[], Awaitable[None]]
+    ) -> Any:
+        """Fetch a page, honouring ``Retry-After`` inside the run.
+
+        A rate limit of at most ``CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS`` is slept (with
+        heartbeats) and the same page retried, up to ``CONNECTOR_SYNC_MAX_INLINE_RETRIES``
+        times; anything longer raises ``RateLimitDeferred`` so the run checkpoints and is
+        re-enqueued with the provider's countdown instead of failing.
+        """
+        attempts = 0
+        while True:
+            try:
+                return await self.fetch_page(ctx, cursor)
+            except ConnectorRateLimitError as exc:
+                retry_after = max(int(exc.retry_after_seconds), 0)
+                inline = (
+                    retry_after <= settings.connector_sync_max_inline_backoff_seconds
+                    and attempts < settings.connector_sync_max_inline_retries
+                )
+                record_connector_sync_rate_limited(
+                    ctx.provider_key, "inline" if inline else "requeued"
+                )
+                _logger.info(
+                    "connector.sync.rate_limited",
+                    sync_run_id=str(ctx.run_id),
+                    organization_id=str(ctx.organization_id),
+                    provider_key=ctx.provider_key,
+                    retry_after_seconds=retry_after,
+                    attempt=attempts + 1,
+                    inline=inline,
+                )
+                if not inline:
+                    raise RateLimitDeferred(max(retry_after, 1)) from exc
+                attempts += 1
+                await self._sleep_with_heartbeat(retry_after, heartbeat)
+
+    async def _sleep_with_heartbeat(
+        self, seconds: int, heartbeat: Callable[[], Awaitable[None]]
+    ) -> None:
+        remaining = float(seconds)
+        while remaining > 0:
+            step = min(remaining, _HEARTBEAT_EVERY_SECONDS)
+            await self.engine.sleep(step)
+            remaining -= step
+            await heartbeat()
 
     async def refresh_oauth_if_needed(
         self,

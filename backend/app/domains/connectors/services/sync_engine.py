@@ -10,6 +10,8 @@ replace ``ingestion_bridge`` or ``credential_vault`` after construction.
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -29,7 +31,6 @@ from app.domains.connectors.services.sync.common import (
     FILE_ITEM_TYPES,
     SyncEngineError,
     SyncRunResult,
-    compute_content_hash,
     next_run_due,
 )
 from app.domains.connectors.services.sync.differ import SyncDiffer
@@ -37,6 +38,7 @@ from app.domains.connectors.services.sync.fetcher import SyncFetcher
 from app.domains.connectors.services.sync.planner import SyncPlanner
 from app.domains.connectors.services.sync.runner import SyncRunner
 from app.domains.connectors.services.sync.schedule import SyncScheduler
+from app.domains.connectors.services.sync.scope import SessionFactory
 from app.domains.connectors.services.sync.writer import SyncWriter
 from app.models.connector import ConnectorConnection, ExternalItem
 from app.models.connector_credential import ConnectorCredential
@@ -51,7 +53,6 @@ __all__ = [
     "ConnectorSyncEngine",
     "SyncEngineError",
     "SyncRunResult",
-    "_compute_content_hash",
     "_next_run_due",
 ]
 
@@ -62,10 +63,6 @@ _FILE_ITEM_TYPES = FILE_ITEM_TYPES
 
 def _next_run_due(job: ConnectorSyncJob, now: datetime) -> bool:
     return next_run_due(job, now)
-
-
-def _compute_content_hash(data: Any) -> str:
-    return compute_content_hash(data)
 
 
 class ConnectorSyncEngine:
@@ -85,6 +82,8 @@ class ConnectorSyncEngine:
         self.ingestion_bridge = ingestion_bridge
         self.audit_service = audit_service or AuditLogService()
         self._oauth_lifecycle = oauth_lifecycle
+        # Rate-limit backoff sleeps through this seam so tests need not wait.
+        self.sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
         self.planner = SyncPlanner(self)
         self.scheduler = SyncScheduler(self)
         self.runner = SyncRunner(self)
@@ -222,31 +221,32 @@ class ConnectorSyncEngine:
         return await self.scheduler.dispatch_due_syncs(session)
 
     async def run_sync(
-        self, session: AsyncSession, *, sync_run_id: UUID, organization_id: UUID
+        self,
+        session_or_factory: AsyncSession | SessionFactory,
+        *,
+        sync_run_id: UUID,
+        organization_id: UUID,
+        lease_owner: str | None = None,
     ) -> SyncRunResult:
+        """Run (or resume) one sync run.
+
+        Pass a session factory for one transaction per page (the worker), or a session the
+        caller holds for a single transaction the caller commits. ``lease_owner`` is the
+        Celery request id, so a redelivery of the same message re-takes its own lease.
+        """
         return await self.runner.run_sync(
-            session, sync_run_id=sync_run_id, organization_id=organization_id
+            session_or_factory,
+            sync_run_id=sync_run_id,
+            organization_id=organization_id,
+            lease_owner=lease_owner,
         )
 
     # -- internal seams (kept for tests and the worker) -------------------------
-
-    async def _run_full_sync(self, session: AsyncSession, **kwargs: Any) -> SyncRunResult:
-        return await self.runner.run_full_sync(session, **kwargs)
-
-    async def _run_incremental_sync(self, session: AsyncSession, **kwargs: Any) -> SyncRunResult:
-        return await self.runner.run_incremental_sync(session, **kwargs)
 
     async def _upsert_item_if_changed(
         self, session: AsyncSession, run: ConnectorSyncRun, norm_item: Any
     ) -> bool:
         return await self.differ.upsert_item_if_changed(session, run, norm_item)
-
-    async def _tombstone_unseen_items(
-        self, session: AsyncSession, *, run: ConnectorSyncRun, seen_provider_ids: set[str]
-    ) -> int:
-        return await self.differ.tombstone_unseen_items(
-            session, run=run, seen_provider_ids=seen_provider_ids
-        )
 
     async def _tombstone_item(
         self, session: AsyncSession, run: ConnectorSyncRun, delta_item: DeltaItem
@@ -289,23 +289,6 @@ class ConnectorSyncEngine:
             decrypted_credential=decrypted_credential,
         )
 
-    async def _flush_run_progress(
-        self,
-        session: AsyncSession,
-        run: ConnectorSyncRun,
-        *,
-        items_seen: int,
-        items_upserted: int,
-        items_deleted: int = 0,
-    ) -> None:
-        await self.writer.flush_run_progress(
-            session,
-            run,
-            items_seen=items_seen,
-            items_upserted=items_upserted,
-            items_deleted=items_deleted,
-        )
-
     async def _complete_run(
         self, session: AsyncSession, run: ConnectorSyncRun, **kwargs: Any
     ) -> SyncRunResult:
@@ -344,25 +327,6 @@ class ConnectorSyncEngine:
             resource_id=resource_id,
             metadata=metadata,
         )
-
-    async def _cancel_run_in_flight(
-        self, session: AsyncSession, run: ConnectorSyncRun, items_seen: int, items_upserted: int
-    ) -> SyncRunResult:
-        return await self.writer.cancel_run_in_flight(session, run, items_seen, items_upserted)
-
-    async def _is_cancelled(self, session: AsyncSession, *, run_id: UUID) -> bool:
-        return await self.writer.is_cancelled(session, run_id=run_id)
-
-    async def _create_queued_run(
-        self, session: AsyncSession, *, job: ConnectorSyncJob, trigger_type: str
-    ) -> ConnectorSyncRun:
-        return await self.planner.create_queued_run(session, job=job, trigger_type=trigger_type)
-
-    async def _has_active_run(self, session: AsyncSession, *, job_id: UUID) -> bool:
-        return await self.planner.has_active_run(session, job_id=job_id)
-
-    async def _assert_no_active_run(self, session: AsyncSession, *, job_id: UUID) -> None:
-        await self.planner.assert_no_active_run(session, job_id=job_id)
 
     async def _refresh_oauth_if_needed(
         self,

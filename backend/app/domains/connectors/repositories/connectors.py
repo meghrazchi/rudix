@@ -403,44 +403,10 @@ class ConnectorRepository:
         )
         external_item = result.scalar_one_or_none()
         if external_item is None:
-            external_item = ExternalItem(
-                organization_id=item.organization_id,
-                connection_id=item.connection_id,
-                external_source_id=item.external_source_id,
-                collection_id=item.collection_id,
-                provider_item_id=item.provider_item_id,
-                provider_parent_id=item.provider_parent_id,
-                root_provider_item_id=item.root_provider_item_id,
-                item_type=item.item_type.value,
-                title=item.title,
-                source_url=item.source_url,
-                content_hash=item.content_hash,
-                source_updated_at=item.updated_at,
-                sync_version=item.sync_version,
-                mime_type=item.mime_type,
-                visibility=item.visibility.value,
-                acl_hash=item.acl_hash,
-                metadata_json=item.metadata,
-                permissions_json=item.permissions,
-            )
+            external_item = new_external_item(item)
             session.add(external_item)
         else:
-            external_item.external_source_id = item.external_source_id
-            external_item.collection_id = item.collection_id
-            external_item.provider_parent_id = item.provider_parent_id
-            external_item.root_provider_item_id = item.root_provider_item_id
-            external_item.item_type = item.item_type.value
-            external_item.title = item.title
-            external_item.source_url = item.source_url
-            external_item.content_hash = item.content_hash
-            external_item.source_updated_at = item.updated_at
-            external_item.sync_version = item.sync_version
-            external_item.mime_type = item.mime_type
-            external_item.visibility = item.visibility.value
-            external_item.acl_hash = item.acl_hash
-            external_item.metadata_json = item.metadata
-            external_item.permissions_json = item.permissions
-            external_item.deleted_at = None
+            apply_external_item_fields(external_item, item)
         await session.flush()
         await session.refresh(external_item)
         return external_item
@@ -780,3 +746,47 @@ class ConnectorRepository:
         await session.flush()
         await session.refresh(conflict)
         return conflict
+
+
+def new_external_item(item: NormalizedExternalItem) -> ExternalItem:
+    """A new ``ExternalItem`` row for a normalized provider item (not added to a session)."""
+    return ExternalItem(
+        organization_id=item.organization_id,
+        connection_id=item.connection_id,
+        external_source_id=item.external_source_id,
+        collection_id=item.collection_id,
+        provider_item_id=item.provider_item_id,
+        provider_parent_id=item.provider_parent_id,
+        root_provider_item_id=item.root_provider_item_id,
+        item_type=item.item_type.value,
+        title=item.title,
+        source_url=item.source_url,
+        content_hash=item.content_hash,
+        source_updated_at=item.updated_at,
+        sync_version=item.sync_version,
+        mime_type=item.mime_type,
+        visibility=item.visibility.value,
+        acl_hash=item.acl_hash,
+        metadata_json=item.metadata,
+        permissions_json=item.permissions,
+    )
+
+
+def apply_external_item_fields(external_item: ExternalItem, item: NormalizedExternalItem) -> None:
+    """Copy a normalized provider item onto an existing row and clear its tombstone."""
+    external_item.external_source_id = item.external_source_id
+    external_item.collection_id = item.collection_id
+    external_item.provider_parent_id = item.provider_parent_id
+    external_item.root_provider_item_id = item.root_provider_item_id
+    external_item.item_type = item.item_type.value
+    external_item.title = item.title
+    external_item.source_url = item.source_url
+    external_item.content_hash = item.content_hash
+    external_item.source_updated_at = item.updated_at
+    external_item.sync_version = item.sync_version
+    external_item.mime_type = item.mime_type
+    external_item.visibility = item.visibility.value
+    external_item.acl_hash = item.acl_hash
+    external_item.metadata_json = item.metadata
+    external_item.permissions_json = item.permissions
+    external_item.deleted_at = None

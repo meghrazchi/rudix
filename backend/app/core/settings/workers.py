@@ -49,3 +49,25 @@ class WorkersSettings(BaseModel):
     # anchor: C2
 
     # anchor: D1
+    # R06-11: connector sync at tenant scale. A running run whose heartbeat is older than
+    # this may be leased by another task and is re-enqueued by connectors.sync.reap.
+    connector_sync_stale_seconds: int = Field(default=600, ge=30, le=86_400)
+    # Cancellation is checked before each page and every N items inside a page.
+    connector_sync_cancel_check_items: int = Field(default=50, ge=1, le=100_000)
+    # Items requested per provider page (adapters may return fewer or more).
+    connector_sync_page_size: int = Field(default=100, ge=1, le=10_000)
+    # Due jobs claimed per schedule poll (one FOR UPDATE SKIP LOCKED query).
+    connector_sync_poll_batch_size: int = Field(default=100, ge=1, le=10_000)
+    # Concurrent queued or running runs per organization / per connection; 0 = no cap.
+    connector_sync_max_concurrent_per_org: int = Field(default=0, ge=0, le=10_000)
+    connector_sync_max_concurrent_per_connection: int = Field(default=0, ge=0, le=10_000)
+    # Countdown before a run held back by a cap is tried again.
+    connector_sync_cap_retry_seconds: int = Field(default=60, ge=1, le=86_400)
+    # Provider Retry-After up to this many seconds is slept inside the run (with
+    # heartbeats) and the same page retried; longer ones checkpoint and re-enqueue.
+    connector_sync_max_inline_backoff_seconds: int = Field(default=60, ge=0, le=3600)
+    connector_sync_max_inline_retries: int = Field(default=5, ge=0, le=100)
+    # Items tombstoned per transaction at the end of a full sync.
+    connector_sync_tombstone_batch_size: int = Field(default=500, ge=1, le=100_000)
+    # connectors.sync.reap beat interval.
+    connector_sync_reap_interval_seconds: int = Field(default=120, ge=10, le=86_400)

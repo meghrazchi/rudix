@@ -10,6 +10,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application import outbox
 from app.core.logging import get_logger, log_connector_event
 from app.domains.admin.services.audit_service import sanitize_metadata
 from app.domains.connectors.audit import ConnectorAuditAction
@@ -221,19 +222,24 @@ class SyncWriter:
 
     # -- run progress and outcomes ---------------------------------------------
 
-    async def flush_run_progress(
-        self,
-        session: AsyncSession,
-        run: ConnectorSyncRun,
-        *,
-        items_seen: int,
-        items_upserted: int,
-        items_deleted: int = 0,
+    async def enqueue_document(
+        self, session: AsyncSession, run: ConnectorSyncRun, document_id: str, user_id: str
     ) -> None:
-        run.items_seen = items_seen
-        run.items_upserted = items_upserted
-        run.items_deleted = items_deleted
-        await session.flush()
+        """Outbox row for ``documents.process`` in the page transaction (published on commit).
+
+        The dedupe key makes a retried page a no-op for documents it already enqueued.
+        """
+        await outbox.enqueue(
+            session,
+            organization_id=run.organization_id,
+            task_name="documents.process",
+            kwargs={
+                "document_id": document_id,
+                "organization_id": str(run.organization_id),
+                "user_id": user_id,
+            },
+            dedupe_key=f"connector:{run.id}:{document_id}",
+        )
 
     async def complete_run(
         self,
@@ -244,7 +250,6 @@ class SyncWriter:
         items_upserted: int,
         items_deleted: int,
         cursor_after: dict,
-        pending_document_ids: list[tuple[str, str]] | None = None,
     ) -> SyncRunResult:
         run.status = ConnectorSyncRunStatus.completed.value
         run.completed_at = datetime.now(UTC)
@@ -253,6 +258,7 @@ class SyncWriter:
         run.items_deleted = items_deleted
         run.cursor_after_json = cursor_after
         run.error_message = None
+        run.lease_owner = None
         await session.flush()
         return SyncRunResult(
             sync_run_id=run.id,
@@ -261,7 +267,7 @@ class SyncWriter:
             items_upserted=items_upserted,
             items_deleted=items_deleted,
             cursor_after=cursor_after,
-            pending_document_ids=pending_document_ids or [],
+            pages_committed=run.pages_committed or 0,
         )
 
     async def fail_run(
@@ -277,6 +283,7 @@ class SyncWriter:
         run.completed_at = datetime.now(UTC)
         run.error_message = message[:500]
         run.error_details_json = {"code": error_code, **(error_details or {})}
+        run.lease_owner = None
         await session.flush()
         common: dict[str, object] = {
             "sync_job_id": str(run.sync_job_id),
@@ -344,27 +351,6 @@ class SyncWriter:
             items_deleted=run.items_deleted,
             cursor_after=dict(run.cursor_before_json or {}),
             error_message=message,
-        )
-
-    async def cancel_run_in_flight(
-        self,
-        session: AsyncSession,
-        run: ConnectorSyncRun,
-        items_seen: int,
-        items_upserted: int,
-    ) -> SyncRunResult:
-        run.completed_at = datetime.now(UTC)
-        run.items_seen = items_seen
-        run.items_upserted = items_upserted
-        await session.flush()
-        return SyncRunResult(
-            sync_run_id=run.id,
-            status="cancelled",
-            items_seen=items_seen,
-            items_upserted=items_upserted,
-            items_deleted=0,
-            cursor_after=dict(run.cursor_before_json or {}),
-            error_message="Cancelled mid-sync",
         )
 
     async def is_cancelled(self, session: AsyncSession, *, run_id: UUID) -> bool:
