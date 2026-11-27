@@ -220,3 +220,19 @@ def test_max_age_env_overrides_default(
     assert runner._max_run_age_hours() == 48.0
     monkeypatch.delenv("QUALITY_GATE_MAX_RUN_AGE_HOURS")
     assert runner._max_run_age_hours() == runner.DEFAULT_MAX_RUN_AGE_HOURS
+
+
+def test_api_requests_send_a_non_default_user_agent(
+    runner: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Cloudflare answers the default Python-urllib User-Agent with error 1010.
+    seen: dict[str, Any] = {}
+
+    def _urlopen(request: Any, timeout: float = 0) -> _Response:
+        seen["user_agent"] = request.get_header("User-agent")
+        return _Response(b"{}")
+
+    monkeypatch.setattr(runner.urllib.request, "urlopen", _urlopen)
+    runner._api_request(f"{API}/evaluations/runs", token="token")
+    assert seen["user_agent"] == runner.USER_AGENT
+    assert not seen["user_agent"].startswith("Python-urllib")

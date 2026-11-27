@@ -36,6 +36,8 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+USER_AGENT = "rudix-ci/1.0 (accuracy-eval)"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -94,6 +96,8 @@ def _api_request(
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            # Cloudflare blocks the default Python-urllib User-Agent (error 1010).
+            "User-Agent": USER_AGENT,
         },
     )
     try:
