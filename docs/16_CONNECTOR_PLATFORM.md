@@ -120,6 +120,86 @@ To add a provider:
    timestamp, and trust status at ingest time so citations stay stable after
    source updates or tombstones.
 
+## Sync Lifecycle and Checkpoints
+
+Since 0.6.0 (R06-11) a sync run is many short transactions instead of one. The engine
+(`app/domains/connectors/services/sync_engine.py`) is a facade over
+`app/domains/connectors/services/sync/`: `planner` (jobs, triggers, runs), `schedule`
+(due-job polling), `runner` (run lifecycle), `pages` (the page loop), `fetcher`
+(provider paging, Retry-After, OAuth refresh), `differ` (change detection, conflicts,
+tombstones), `writer` (file ingestion, run outcomes, audit), `lease` (leases, caps, the
+stale-run sweep), and `scope` (transaction scopes).
+
+1. **Schedule.** `connectors.sync.schedule_poll` claims due jobs with one query: active
+   jobs with `next_run_at` NULL or past and no queued or running run (`NOT EXISTS`),
+   ordered `next_run_at NULLS FIRST`, limited to `CONNECTOR_SYNC_POLL_BATCH_SIZE`, locked
+   `FOR UPDATE SKIP LOCKED` on PostgreSQL. A NULL `next_run_at` (jobs from before 0.6.0)
+   is decided once with the 0.5 rule (`last_run_at + interval`) and stored. After a queued
+   run is created, `next_run_at = now + interval` (5 to 10,080 minutes). `manual_only`
+   jobs get `9999-01-01` and are never polled again; manual and full-resync triggers do
+   not read `next_run_at`.
+2. **Lease.** `connectors.sync.run` leases the run with a conditional `UPDATE`: the run is
+   `queued`, or `running` with no owner, the same owner (Celery redelivery or retry of the
+   same message, whose request id is the owner), or a `heartbeat_at` older than
+   `CONNECTOR_SYNC_STALE_SECONDS`. The lease transaction also loads and refreshes the
+   credential. A finished or cancelled run is not run again.
+3. **Pages.** The provider call runs with no transaction open. Then one transaction per
+   page writes the items, sets `external_items.last_seen_sync_run_id = run.id` for every
+   item the page returned (one `UPDATE`, unchanged items included), creates documents for
+   changed file items with one outbox row each (`documents.process`, dedupe key
+   `connector:{run_id}:{document_id}`), and moves `checkpoint_cursor` (the cursor of the
+   next page), `checkpoint_at`, `pages_committed`, the counters, and `heartbeat_at`
+   forward. The update is conditional on the lease owner, so a worker that lost its lease
+   rolls its page back and stops. The outbox rows are published right after the commit
+   (`outbox.relay` publishes any left pending).
+4. **Finish.** A full sync tombstones, in batches of `CONNECTOR_SYNC_TOMBSTONE_BATCH_SIZE`,
+   live items of the connection whose `last_seen_sync_run_id` is not this run (and whose
+   `sync_version` is not newer). Nothing is kept in memory, so a resumed run never
+   tombstones what an earlier attempt saw. Incremental syncs keep their delta semantics:
+   deletes and permission revocations are tombstoned as they arrive. Completion writes
+   `cursor_after`, `job.cursor_json`, and the success audit.
+
+**Resume.** A `running` run with a checkpoint continues from `checkpoint_cursor` with its
+persisted counters: after a worker restart (broker redelivery, or the
+`connectors.sync.reap` sweep, which re-enqueues running runs with a stale heartbeat every
+`CONNECTOR_SYNC_REAP_INTERVAL_SECONDS`), or after a long Retry-After. When paging is done
+the checkpoint is `{"_rudix_phase": "finalize", "cursor_after": ...}`, so a resumed full
+sync only tombstones and completes.
+
+**Cancel.** `POST /api/v1/connectors/sync-runs/{id}/cancel` sets `cancelled` as before. The
+run checks its status with a fresh query before each page and every
+`CONNECTOR_SYNC_CANCEL_CHECK_ITEMS` items (default 50) inside a page, commits the work it
+has done, frees the lease, and stops. Committed pages and the checkpoint stay.
+
+**Rate limits.** A `ConnectorRateLimitError` with a Retry-After of at most
+`CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS` (default 60) is slept inside the run, with a
+heartbeat at least every 15 seconds, and the same page is retried up to
+`CONNECTOR_SYNC_MAX_INLINE_RETRIES` times (default 5). A longer one (or exhausted retries)
+keeps the checkpoint, leaves the run `running` with no lease owner and `heartbeat_at` set to
+the resume time, and re-enqueues `connectors.sync.run` with `countdown = retry_after`. The
+run is not failed.
+
+**Caps.** `CONNECTOR_SYNC_MAX_CONCURRENT_PER_ORG` and
+`CONNECTOR_SYNC_MAX_CONCURRENT_PER_CONNECTION` (default 0, no cap) limit runs per
+organization and connection. The poll skips jobs over a cap (queued and running runs
+count). At lease time running runs with a fresh heartbeat count, serialized by a
+transaction-scoped advisory lock on PostgreSQL; a run over a cap stays `queued` and the
+task re-enqueues it after `CONNECTOR_SYNC_CAP_RETRY_SECONDS`.
+
+**Tenancy.** Every query is scoped by the run's organization and connection. Items an
+adapter returns for another organization or connection are skipped
+(`connector.sync.item.tenant_mismatch` log, `rudix_worker_tenant_mismatch_total`), and the
+task runs bound to its `organization_id` (contract 4.2.7).
+
+`run_sync(session, ...)` with a session the caller holds still works: every unit then
+runs on that session and only flushes, and the caller commits (the 0.5 single-transaction
+behaviour, used by tests and tools). `SyncRunResult.pending_document_ids` stays empty and
+is deprecated; documents are dispatched through the outbox.
+
+Known limits: file downloads and the ingestion bridge (malware scan, object storage
+upload) still run inside the page transaction, as in 0.5. Real provider rate limits are a
+staging check.
+
 ## Observability and Rollout Controls
 
 Connector operators should use the admin health endpoint to inspect provider

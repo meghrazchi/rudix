@@ -135,3 +135,47 @@ messages still finish). Drain the outbox before downgrading migration `20261128_
 - Outbox kwargs hold ids, flags, and the chunking profile only; `last_error` stores the
   exception class name, never broker URLs or messages.
 - Worker logs carry document, organisation, and run ids, never document text.
+
+## Connector sync
+
+R06-11 (0.6.0). Design: `docs/16_CONNECTOR_PLATFORM.md` (Sync Lifecycle and Checkpoints);
+operator steps: `docs/17_CONNECTOR_OPERATIONS_RUNBOOK.md`.
+
+- **Tasks.** `connectors.sync.run` (connector sync queue) runs or resumes one run;
+  `connectors.sync.schedule_poll` (beat) claims due jobs with one `FOR UPDATE SKIP LOCKED`
+  query on `connector_sync_jobs.next_run_at`; `connectors.sync.reap` (beat, every
+  `CONNECTOR_SYNC_REAP_INTERVAL_SECONDS`, `maintenance_session()`) releases and re-enqueues
+  `running` runs whose heartbeat is older than `CONNECTOR_SYNC_STALE_SECONDS`.
+- **Transactions.** A lease transaction, then one transaction per provider page; no
+  transaction is open during the provider call. Each page commit carries its checkpoint, its
+  counters, the heartbeat, and the outbox rows of the documents it created, and is published
+  right after the commit. The lease owner is the Celery request id, so a redelivery of the
+  same message re-takes its lease; a page commit by a worker that lost its lease is rolled
+  back.
+- **Resume.** Broker redelivery after a crash, a reap, or a long Retry-After continue from
+  `checkpoint_cursor` with the persisted counters. Full-sync tombstones use
+  `external_items.last_seen_sync_run_id`, written per page, so a resume never tombstones what
+  an earlier attempt saw.
+- **Settings.** `CONNECTOR_SYNC_STALE_SECONDS` (600), `CONNECTOR_SYNC_CANCEL_CHECK_ITEMS`
+  (50), `CONNECTOR_SYNC_PAGE_SIZE` (100), `CONNECTOR_SYNC_POLL_BATCH_SIZE` (100),
+  `CONNECTOR_SYNC_MAX_CONCURRENT_PER_ORG` and `_PER_CONNECTION` (0 = off),
+  `CONNECTOR_SYNC_CAP_RETRY_SECONDS` (60), `CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS` (60),
+  `CONNECTOR_SYNC_MAX_INLINE_RETRIES` (5), `CONNECTOR_SYNC_TOMBSTONE_BATCH_SIZE` (500),
+  `CONNECTOR_SYNC_REAP_INTERVAL_SECONDS` (120). Set the stale threshold above the longest
+  page (provider call plus downloads), or a slow page is taken over and rolled back.
+- **Tenancy.** The task runs bound to its `organization_id`; every query is scoped by the
+  run's organization and connection; adapter items naming another organization or
+  connection are skipped and counted in `rudix_worker_tenant_mismatch_total`.
+
+| Symptom | Cause | Recovery |
+|---|---|---|
+| Run `running`, `checkpoint_at` not moving, `lease_owner` empty | Waiting for a provider Retry-After (`heartbeat_at` is the resume time) | None; it is re-enqueued with the countdown. |
+| Run `running`, heartbeat old, `lease_owner` set | Worker died | `connectors.sync.reap` re-enqueues it; check beat and the connector sync worker. |
+| Run `queued`, `rudix_connector_sync_deferred_total{reason=~".*_cap"}` rising | Concurrency cap | Wait, or raise the cap. |
+| `connector.sync.lease_lost` | A slow page outlived `CONNECTOR_SYNC_STALE_SECONDS` and another worker took over | Raise the stale threshold; the page is rolled back and done again by the new owner. |
+| Documents of a sync stay `pending_scan` | Outbox rows pending (broker outage) | `outbox.relay` publishes them (`rudix_outbox_messages_total{task="documents.process"}`). |
+
+Rollback: none is needed for data (no migration in R06-11; the columns came with
+`20261128_0002`). An older worker build ignores the checkpoint columns and runs a whole sync
+in one transaction; runs left `running` by the new build are then picked up only after a
+manual retry.

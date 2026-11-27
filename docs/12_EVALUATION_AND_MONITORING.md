@@ -729,6 +729,28 @@ after `finalize` on its own queue.
   `superseded` or `lease_held` rising (duplicate publications or competing claims).
 - No throughput or latency figure is recorded for the chain; the tests assert call counts.
 
+### Connector sync pages, rate limits, and caps (R06-11)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_connector_sync_pages_total` | `provider`, `mode` | Pages committed by connector sync runs (`full`, `incremental`). |
+| `rudix_connector_sync_rate_limited_total` | `provider`, `outcome` | Provider rate limits: `inline` (slept up to `CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS`, same page retried) or `requeued` (checkpoint kept, run re-enqueued with the Retry-After countdown). |
+| `rudix_connector_sync_deferred_total` | `reason` | Runs held back or re-enqueued: `org_cap`, `connection_cap`, `lease_held`, `lease_lost`, `rate_limit`, `stale` (re-enqueued by `connectors.sync.reap`). |
+
+- Sync run rows report progress: `pages_committed`, `checkpoint_at`, `heartbeat_at`, and the
+  counters move with every page commit.
+- Logs: `connector.sync.page_committed`, `connector.sync.rate_limited`,
+  `connector.sync.retry_scheduled`, `connector.sync.cancelled`, `connector.sync.resumed`,
+  `connector.sync.lease_lost`, `connector.sync.cap_deferred`, `connector.sync.requeued`,
+  `connector.sync.stale_runs_requeued`, and `connector.sync.item.tenant_mismatch`. They carry
+  run, organisation, and provider ids and counters, never item content or credentials.
+- Alert ideas: `requeued` rate limits rising for one provider (quota too small or caps too
+  high); `stale` deferrals rising (workers dying or the stale threshold below the page time);
+  `lease_lost` above zero (stale threshold too low).
+- Measured in tests (SQLite, fake provider, pages of 1,000): a cancel issued during the fetch
+  of page k+1 stops the run within 50 items of that page with k pages committed. No
+  production throughput figure is recorded; real provider rate limits are a staging check.
+
 ## Continuous evaluation
 
 Run evaluations:

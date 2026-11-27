@@ -763,6 +763,14 @@ persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `
 - Every Celery task binds the tenant of its `organization_id` kwarg (`RudixTask.__call__`,
   `bind_worker_tenant`); document and stage tasks raise `tenant_mismatch` before any write
   for another organisation's document. Runbook: `docs/27_INGESTION_AND_WORKERS_RUNBOOK.md`.
+- Connector sync (R06-11): `connectors.sync.run` commits one transaction per provider page
+  (items, seen markers, a `documents.process` outbox row per created document, checkpoint,
+  counters, heartbeat) and resumes a `running` run from `checkpoint_cursor`. Cancellation is
+  checked every `CONNECTOR_SYNC_CANCEL_CHECK_ITEMS` items; Retry-After up to
+  `CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS` is slept in the run, longer ones re-enqueue;
+  `CONNECTOR_SYNC_MAX_CONCURRENT_PER_ORG` / `_PER_CONNECTION` cap runs (0 = off). The engine
+  facade is `app/domains/connectors/services/sync_engine.py` over `services/sync/`. Details:
+  `docs/16_CONNECTOR_PLATFORM.md` (Sync Lifecycle and Checkpoints).
 
 ## Application cache
 
@@ -1062,9 +1070,12 @@ Celery beat is the scheduler that enqueues periodic tasks. It schedules these en
 - `documents-stage-artifacts-purge` (`documents.stage_artifacts.purge`) daily at 04:05 UTC:
   deletes stage artifacts older than `INGEST_STAGE_ARTIFACT_TTL_HOURS` (default 72) of
   documents that are not processing.
+- `connector-sync-reap` (`connectors.sync.reap`) every `CONNECTOR_SYNC_REAP_INTERVAL_SECONDS`
+  seconds (default 120): re-enqueues `running` connector sync runs whose heartbeat is older
+  than `CONNECTOR_SYNC_STALE_SECONDS` (default 600), so they resume from their checkpoint.
 
-Without a beat process, scheduled connector syncs, approval expiry, and stale-document
-recovery never run.
+Without a beat process, scheduled connector syncs, approval expiry, stale-document
+recovery, and stale connector-sync recovery never run.
 
 Document processing claim and stale reaper: `documents.process` and `documents.reindex`
 atomically claim the document by writing their Celery task ID to
