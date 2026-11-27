@@ -98,6 +98,8 @@ function devServer(
       NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME: "Rudix E2E Org",
       NEXT_PUBLIC_AUTH_DEFAULT_ROLE: "admin",
       NEXT_PUBLIC_CHAT_AGENTIC_ENABLED: "true",
+      // Enables /admin/error-probe for e2e/route-boundaries.spec.ts (R07-08).
+      NEXT_PUBLIC_E2E_ERROR_PROBE: "true",
       NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT: "false",
       NEXT_PUBLIC_PUBLIC_PRODUCT_URL: "/product",
       NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL: "/solutions",

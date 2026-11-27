@@ -17,6 +17,8 @@ function isLoopbackPublicHost(host) {
 const DEV_ONLY_FLAGS = [
   "NEXT_PUBLIC_AUTH_LOCAL_FALLBACK",
   "NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK",
+  // Makes /admin/error-probe throw on purpose (route boundary e2e, R07-08).
+  "NEXT_PUBLIC_E2E_ERROR_PROBE",
 ];
 
 const DEV_ONLY_SECRETS = [

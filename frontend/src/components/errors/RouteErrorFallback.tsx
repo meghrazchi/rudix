@@ -1,80 +1,87 @@
 "use client";
 
-import { useEffect } from "react";
-
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
-import {
-  addFrontendBreadcrumb,
-  captureFrontendException,
-} from "@/lib/observability";
+import { useReportRouteError } from "@/components/errors/useReportRouteError";
+import { Link as LocaleLink } from "@/i18n/navigation";
 
-type AppRouteErrorProps = {
+export type RouteErrorVariant = "page" | "segment";
+
+type RouteErrorFallbackProps = {
   error: Error & { digest?: string };
   reset: () => void;
+  /**
+   * "page": full screen, for public routes. "segment": an inline card that
+   * keeps the app shell and navigation around it.
+   */
+  variant?: RouteErrorVariant;
 };
 
-export default function AppRouteError({ error, reset }: AppRouteErrorProps) {
-  useEffect(() => {
-    const route =
-      typeof window !== "undefined" ? window.location.pathname : null;
+const LINK_CLASS =
+  "rounded-md border border-[#cbc8e6] px-4 py-2 text-sm font-semibold text-[#342f5c] hover:bg-[#f7f6ff]";
 
-    addFrontendBreadcrumb({
-      category: "route.error",
-      message: "Route-level rendering error captured",
-      level: "error",
-      data: {
-        route,
-        digest: error.digest ?? null,
-      },
-    });
+export default function RouteErrorFallback({
+  error,
+  reset,
+  variant = "page",
+}: RouteErrorFallbackProps) {
+  const t = useTranslations("errors");
+  useReportRouteError(error);
 
-    void captureFrontendException(error, {
-      feature: "route.render",
-      route: route ?? undefined,
-      level: "error",
-      tags: {
-        error_digest: error.digest ?? "unknown",
-      },
-      extra: {
-        error_name: error.name,
-        error_message: error.message,
-      },
-    });
-  }, [error]);
+  const card = (
+    <section className="w-full max-w-xl rounded-2xl border border-[#dad8ef] bg-white p-8 shadow-sm">
+      <h1 className="text-2xl font-bold text-[#29263f]">
+        {t("routeBoundary.title")}
+      </h1>
+      <p className="mt-3 text-sm text-[#5f5b76]">
+        {t("routeBoundary.description")}
+      </p>
+      {error.digest ? (
+        <p className="mt-2 text-xs text-[#7a7692]">
+          {t("routeBoundary.reference")}:{" "}
+          <span className="font-mono font-semibold">{error.digest}</span>
+        </p>
+      ) : null}
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={reset}
+          className="rounded-md bg-[#3346d3] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b3cc0]"
+        >
+          {t("routeBoundary.retry")}
+        </button>
+        {variant === "segment" ? (
+          <Link href="/dashboard" className={LINK_CLASS}>
+            {t("routeBoundary.backToDashboard")}
+          </Link>
+        ) : (
+          <LocaleLink href="/" className={LINK_CLASS}>
+            {t("routeBoundary.backHome")}
+          </LocaleLink>
+        )}
+      </div>
+    </section>
+  );
+
+  if (variant === "segment") {
+    return (
+      <div role="alert" className="flex justify-center px-4 py-10">
+        {card}
+      </div>
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6">
-      <section className="w-full max-w-xl rounded-2xl border border-[#dad8ef] bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-[#29263f]">
-          Unable to render this page
-        </h1>
-        <p className="mt-3 text-sm text-[#5f5b76]">
-          A runtime error interrupted rendering. You can retry this view or
-          navigate back to the dashboard.
-        </p>
-        {error.digest ? (
-          <p className="mt-2 text-xs text-[#7a7692]">
-            Error reference:{" "}
-            <span className="font-mono font-semibold">{error.digest}</span>
-          </p>
-        ) : null}
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={reset}
-            className="rounded-md bg-[#3346d3] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b3cc0]"
-          >
-            Retry
-          </button>
-          <Link
-            href="/dashboard"
-            className="rounded-md border border-[#cbc8e6] px-4 py-2 text-sm font-semibold text-[#342f5c] hover:bg-[#f7f6ff]"
-          >
-            Back to dashboard
-          </Link>
-        </div>
-      </section>
+      {card}
     </main>
   );
+}
+
+/** The inline variant, for `error.tsx` files inside the signed-in app. */
+export function SegmentRouteError(
+  props: Omit<RouteErrorFallbackProps, "variant">,
+) {
+  return <RouteErrorFallback {...props} variant="segment" />;
 }
