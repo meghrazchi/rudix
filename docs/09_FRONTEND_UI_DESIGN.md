@@ -20,6 +20,12 @@ Next.js + React + Tailwind CSS + shadcn/ui + React Flow
 /admin
 ```
 
+Rendering note (R07-01): public pages live under `app/[locale]` and are prerendered per
+locale; signed-in pages live under `app/(app)` and keep the locale in the `NEXT_LOCALE`
+cookie. The two groups have separate root layouts, so moving between them (for example
+from `/en/login` to `/dashboard`) is a full page load. See `frontend/README.md`,
+"Rendering and locales".
+
 ## Layout
 
 ```text
