@@ -81,12 +81,12 @@ function LoginPageContent() {
     status: "idle",
   });
 
+  // No defaultValues: react-hook-form then reads each input's current value
+  // when it registers, so text typed into the server-rendered form before
+  // hydration is kept (a protected-route redirect to /login is a full page
+  // load since the public and app groups have separate root layouts, R07-01).
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
     mode: "onSubmit",
   });
 
