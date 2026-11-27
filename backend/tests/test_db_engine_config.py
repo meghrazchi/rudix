@@ -10,6 +10,7 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy import exc, text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.pool import QueuePool
 
 from app.core import db_metrics, lifespan
 from app.core.config import Settings, settings
@@ -298,3 +299,34 @@ async def test_pgbouncer_connect_args_work_against_postgres(pg_migrated_url: str
             assert (await conn.execute(text("SHOW statement_timeout"))).scalar() == "0"
     finally:
         await engine.dispose()
+
+
+@pytest.mark.parametrize("outcome", ["entry", "timeout"])
+def test_recursive_checkout_is_observed_once(monkeypatch: pytest.MonkeyPatch, outcome: str) -> None:
+    # ``QueuePool._do_get`` calls ``self._do_get()`` again when it loses an overflow race;
+    # one checkout must still give one histogram sample (and at most one timeout).
+    calls: list[int] = []
+    sentinel = object()
+
+    def _fake_do_get(self: TimedAsyncAdaptedQueuePool) -> Any:
+        calls.append(1)
+        if len(calls) == 1:
+            return self._do_get()  # recurse through the timing override
+        if outcome == "timeout":
+            raise exc.TimeoutError("pool exhausted")
+        return sentinel
+
+    monkeypatch.setattr(QueuePool, "_do_get", _fake_do_get)
+    pool = TimedAsyncAdaptedQueuePool(lambda: None, pool_size=1, max_overflow=0)
+    waits_before = _sample("rudix_db_pool_wait_seconds_count")
+    timeouts_before = _sample("rudix_db_pool_timeouts_total")
+    if outcome == "timeout":
+        with pytest.raises(exc.TimeoutError):
+            pool._do_get()
+    else:
+        assert pool._do_get() is sentinel
+    assert len(calls) == 2
+    assert _sample("rudix_db_pool_wait_seconds_count") == waits_before + 1
+    expected_timeouts = timeouts_before + (1 if outcome == "timeout" else 0)
+    assert _sample("rudix_db_pool_timeouts_total") == expected_timeouts
+    assert not db_metrics._pool_checkout_timed.get()  # reset for the next checkout

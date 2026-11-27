@@ -82,20 +82,28 @@ DB_POOL_TIMEOUTS_TOTAL = Counter(
 )
 
 
+# Set while a checkout is being timed, so the recursive ``QueuePool._do_get`` calls of one
+# checkout are observed once. Per task (each checkout runs in its caller's context).
+_pool_checkout_timed: ContextVar[bool] = ContextVar("rudix_pool_checkout_timed", default=False)
+
+
 class TimedAsyncAdaptedQueuePool(AsyncAdaptedQueuePool):
     """Async queue pool that records checkout wait time and pool timeouts."""
 
     def _do_get(self) -> ConnectionPoolEntry:
+        if _pool_checkout_timed.get():
+            # ``QueuePool._do_get`` recursed: the outermost call observes this checkout.
+            return super()._do_get()
+        token = _pool_checkout_timed.set(True)
         started = perf_counter()
         try:
             entry = super()._do_get()
-        except exc.TimeoutError as error:
-            # ``QueuePool._do_get`` can recurse; count each timeout once.
-            if not getattr(error, "_rudix_pool_timeout_counted", False):
-                error._rudix_pool_timeout_counted = True  # type: ignore[attr-defined]
-                DB_POOL_TIMEOUTS_TOTAL.inc()
-                DB_POOL_WAIT_SECONDS.observe(perf_counter() - started)
+        except exc.TimeoutError:
+            DB_POOL_TIMEOUTS_TOTAL.inc()
+            DB_POOL_WAIT_SECONDS.observe(perf_counter() - started)
             raise
+        finally:
+            _pool_checkout_timed.reset(token)
         DB_POOL_WAIT_SECONDS.observe(perf_counter() - started)
         return entry
 
