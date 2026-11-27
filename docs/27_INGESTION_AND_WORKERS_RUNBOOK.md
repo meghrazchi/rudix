@@ -174,8 +174,10 @@ tenant guard does not filter it, so unbackfilled rows stay visible.
    policy. Each statement waits at most 5 s for its lock, and the script is safe to
    rerun. If `deploy/sql/force_rls.sql` is already applied, also run
    `ALTER TABLE document_chunks FORCE ROW LEVEL SECURITY;`.
-4. Set `KEYWORD_SEARCH_TENANT_COLUMN=on` (or leave `auto`: it switches once a process
-   finds no NULL row).
+4. Set `KEYWORD_SEARCH_TENANT_COLUMN=on`, or leave `auto`. In `auto` mode each process
+   checks for NULL rows once, on its first keyword search, and keeps the answer. API and
+   worker processes that started before the backfill finished keep the join path until
+   they restart.
 
 Rollback: `deploy/sql/document_chunks_not_null_revert.sql` (drops the policy, disables
 RLS, drops `NOT NULL`). Set `KEYWORD_SEARCH_TENANT_COLUMN=auto` or `off` first. The
@@ -188,8 +190,8 @@ with `--check`.
 | Setting | Default | Effect |
 |---|---|---|
 | `KEYWORD_SEARCH_MULTILINGUAL` | `false` | `true` also matches `fts_vector` with the question's text search configuration (German, Spanish, French, English; others `simple`). The English column stays a second match, so no previous result is lost. |
-| `KEYWORD_SEARCH_TENANT_COLUMN` | `auto` | `on`: scope by `document_chunks.organization_id` (index `idx_chunks_org_document`). `off`: scope by the owning document, as before. `auto`: `on` once no NULL row remains, checked once per process. Use `on` only after the backfill. |
-| `KEYWORD_SEARCH_CANDIDATE_LIMIT` | `1000` | Matches ranked per search (the first ones in index scan order). `0` ranks every match. |
+| `KEYWORD_SEARCH_TENANT_COLUMN` | `auto` | `on`: scope by `document_chunks.organization_id` (index `idx_chunks_org_document`). `off`: scope by the owning document, as before. `auto`: `on` once no NULL row remains, checked once per process (restart processes that started before the backfill finished). Use `on` only after the backfill. |
+| `KEYWORD_SEARCH_CANDIDATE_LIMIT` | `1000` | Matches ranked per search (the first ones in index scan order). `0` ranks every match. When more chunks match than the limit, the candidates follow storage order, not relevance: a better-ranked chunk outside them is not returned. Common terms in large organisations are affected first, so compare `1000` with `0` on the staging accuracy gate. |
 
 Staging step, after the backfill and the NOT NULL step: turn on
 `FEATURE_ENABLE_HYBRID_RETRIEVAL`, `FEATURE_ENABLE_CONTEXT_PACKING` and

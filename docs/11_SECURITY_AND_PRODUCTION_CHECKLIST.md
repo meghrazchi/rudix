@@ -749,8 +749,8 @@ never document text.
       `deploy/sql/document_chunks_not_null_revert.sql`. Re-render both with
       `backend/scripts/render_chunk_not_null_sql.py`. With `FORCE` applied elsewhere, also
       force it on `document_chunks`.
-- [ ] `KEYWORD_SEARCH_TENANT_COLUMN=on` only after that step (`auto` switches by itself
-      once no NULL row remains).
+- [ ] `KEYWORD_SEARCH_TENANT_COLUMN=on` only after that step. `auto` switches only in
+      processes that start after no NULL row remains, because each process checks once.
 
 ### Workers
 

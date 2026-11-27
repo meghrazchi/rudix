@@ -288,7 +288,8 @@ language-aware ingestion and query path.
 - Keyword search ranks at most `KEYWORD_SEARCH_CANDIDATE_LIMIT` matches (default 1000,
   `0` = every match): the candidates are the first matches in index scan order, then
   `ts_rank` orders them and the best `top_k` are returned. When more chunks match than
-  the limit, which ones are ranked depends on scan order, not relevance.
+  the limit, which ones are ranked depends on scan order, not relevance. A better-ranked
+  chunk outside the candidates is then not returned, where `0` would return it.
 - Tenant scoping: `KEYWORD_SEARCH_TENANT_COLUMN=auto` (default) filters on
   `document_chunks.organization_id` once no chunk has it NULL (checked once per process),
   otherwise on the owning document; `on` / `off` force one path. Both keep the
