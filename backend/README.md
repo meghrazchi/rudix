@@ -154,6 +154,17 @@ Current endpoint authorization:
 - `app/shared`: cross-domain shared artifacts (for example health schemas).
 - `app/api/router.py`: top-level composition root wiring domain routers.
 
+Persistence lives in repositories and application workflows, not in routers:
+`tests/test_router_persistence_guard.py` fails if `documents.py`, `admin.py`, or
+`evaluations.py` contain `select(` or `.commit(`. `auth.py` (auth-critical) and
+`agent_runs.py` (agent execution moves to workers in R06-13) are deferred.
+
+Request paths must not block the event loop: use `app.clients.object_storage` (async
+wrappers over the boto3 client) and `app.workers.dispatch.enqueue` (Celery `.delay` in a
+thread). Workers keep the sync clients. Deferred: the Celery outbox (R06-01) and
+`AsyncQdrantClient` (R06-07); retrieval currently offloads the sync Qdrant call with
+`asyncio.to_thread`.
+
 Legacy horizontal layers (`app/services`, `app/repositories`, `app/schemas`) were removed in favor of domain-local modules.
 
 ## Agentic core (F98) notes

@@ -442,6 +442,23 @@ Notes:
 - The flush task logs `usage_touch.flushed` (rows) and, on a database error,
   `usage_touch.flush_failed` (rows re-buffered, error type) before Celery retries it.
 
+### Event-loop lag
+
+The API runs a small background task (`LOOP_LAG_MONITOR_ENABLED`, default on; tick
+`LOOP_LAG_MONITOR_INTERVAL_MS`, default 50) that measures how late it wakes up. A blocking
+call on the event loop shows up as lag. It needs no labels.
+
+| Metric | Type | Meaning |
+|---|---|---|
+| `rudix_event_loop_lag_seconds` | gauge | Worst lag seen since the previous reset window. |
+| `rudix_event_loop_lag_seconds_hist` | histogram | Lag of every monitor tick. |
+
+- Sustained lag above roughly 100 ms means something is blocking the loop (a sync client
+  call, CPU-heavy parsing). Object storage, Celery dispatch, and Qdrant search on request
+  paths run through `asyncio.to_thread`; look for new sync calls first.
+- `tests/test_event_loop_lag.py` is the regression probe for upload, download, retrieval,
+  and enqueue.
+
 ## Continuous evaluation
 
 Run evaluations:
