@@ -38,6 +38,7 @@ from app.models.organization_member import OrganizationMember
 from app.models.usage import UsageEvent
 from app.models.user import User
 from tests.conftest import RLS_PROBE_ROLE, RlsProbe
+from tests.pg_plans import compact_indexes
 
 pytestmark = pytest.mark.requires_postgres
 
@@ -229,6 +230,7 @@ async def test_document_list_plan_uses_org_index_under_policy(
 ) -> None:
     seed = await _seed_two_orgs(rls_probe_session.session)
     session = rls_probe_session.session
+    await compact_indexes(session, "documents")  # as the owner, before SET ROLE
     await rls_probe_session.become_probe(organization_id=seed.org_a, mode="strict")
     await session.execute(text("SET LOCAL enable_seqscan = off"))
     plan_rows = await session.execute(

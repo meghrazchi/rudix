@@ -24,6 +24,7 @@ from app.models.document import Document
 from app.models.notification import Notification
 from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog, UsageEvent
+from tests.pg_plans import compact_indexes, seed_usage_event_statistics
 
 pytestmark = pytest.mark.requires_postgres
 
@@ -150,6 +151,9 @@ def test_hot_query_list_covers_ten_queries() -> None:
 
 @pytest.mark.parametrize("query", HOT_QUERIES, ids=lambda query: query.name)
 async def test_hot_query_uses_an_index(pg_session: AsyncSession, query: HotQuery) -> None:
+    if query.table == "usage_events":
+        await seed_usage_event_statistics(pg_session)
+    await compact_indexes(pg_session, query.table)
     await pg_session.execute(text("SET LOCAL enable_seqscan = off"))
     nodes = await _explain(pg_session, query.statement)
 

@@ -22,6 +22,7 @@ from app.models.chat import ChatMessage
 from app.models.document import Document
 from app.shared.pagination import apply_keyset
 from tests.list_endpoint_seed import seed_chat_session, seed_document, seed_tenant, seed_turns
+from tests.pg_plans import compact_indexes
 
 pytestmark = [pytest.mark.requires_postgres, pytest.mark.asyncio]
 
@@ -66,14 +67,12 @@ def _assert_index_scan(nodes: list[dict[str, Any]], table: str, index: str) -> N
 
 async def test_documents_cursor_page_uses_index(pg_session: AsyncSession) -> None:
     index = await _index_on(pg_session, "documents", "(organization_id, created_at DESC, id DESC)")
-    if index is None:
-        pytest.skip(
-            "documents(organization_id, created_at DESC, id DESC) is not migrated yet "
-            "(added by R04-02/A1); cannot check the cursor plan"
-        )
+    # R04-02 (A1) ships this index in Alembic 20261127_0002; a missing index is a failure.
+    assert index is not None, "documents(organization_id, created_at DESC, id DESC) is missing"
     tenant = await seed_tenant(pg_session)
     documents = [(await seed_document(pg_session, tenant, chunks=0))[0] for _ in range(5)]
     await pg_session.flush()
+    await compact_indexes(pg_session, "documents")
     last = documents[2]
     statement = apply_keyset(
         Document.__table__.select()  # type: ignore[attr-defined]
@@ -96,6 +95,7 @@ async def test_messages_cursor_page_uses_index(pg_session: AsyncSession) -> None
     chat_session = await seed_chat_session(pg_session, tenant)
     await seed_turns(pg_session, chat_session, turns=3, document=document, chunk=chunks[0])
     await pg_session.flush()
+    await compact_indexes(pg_session, "chat_messages")
     first = (
         (
             await pg_session.execute(
