@@ -14,7 +14,10 @@ export default async function ForbiddenPage({
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6">
+    <div
+      data-public-theme="system"
+      className="rudix-public bg-site-canvas text-site-ink flex min-h-screen items-center justify-center bg-[radial-gradient(60%_45%_at_50%_0%,var(--site-accent-soft),transparent)] px-6"
+    >
       <main className="w-full max-w-xl">
         <ForbiddenState
           title="Forbidden"

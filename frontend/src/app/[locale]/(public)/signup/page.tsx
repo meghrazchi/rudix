@@ -86,9 +86,12 @@ export default function SignupPage() {
 function SignupPageFallback() {
   const t = useTranslations("auth");
   return (
-    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6">
-      <main className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
-        <p className="text-sm text-[#68647b]">{t("loadingSignUp")}</p>
+    <div
+      data-public-theme="system"
+      className="rudix-public bg-site-canvas text-site-ink flex min-h-screen items-center justify-center bg-[radial-gradient(60%_45%_at_50%_0%,var(--site-accent-soft),transparent)] px-6"
+    >
+      <main className="border-site-border bg-site-surface w-full max-w-2xl rounded-3xl border p-7 shadow-[0_24px_60px_-32px_rgba(15,17,23,0.25)] md:p-9">
+        <p className="text-site-ink-muted text-sm">{t("loadingSignUp")}</p>
       </main>
     </div>
   );
@@ -187,8 +190,11 @@ function SignupPageContent() {
   }
 
   return (
-    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6 py-8">
-      <main className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
+    <div
+      data-public-theme="system"
+      className="rudix-public bg-site-canvas text-site-ink flex min-h-screen items-center justify-center bg-[radial-gradient(60%_45%_at_50%_0%,var(--site-accent-soft),transparent)] px-6 py-8"
+    >
+      <main className="border-site-border bg-site-surface w-full max-w-2xl rounded-3xl border p-7 shadow-[0_24px_60px_-32px_rgba(15,17,23,0.25)] md:p-9">
         <div className="mb-2 flex items-center gap-2">
           <Image
             src="/brand/rudix-mark.svg"
@@ -197,14 +203,16 @@ function SignupPageContent() {
             height={18}
             className="h-[18px] w-[18px]"
           />
-          <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+          <p className="text-site-ink-muted text-xs font-bold tracking-[0.18em] uppercase">
             {t("signInLabel")}
           </p>
         </div>
-        <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+        <h1 className="text-site-ink mb-2 text-3xl font-semibold tracking-tight">
           {t("signUpTitle")}
         </h1>
-        <p className="mb-6 text-sm text-[#68647b]">{t("signUpDescription")}</p>
+        <p className="text-site-ink-muted mb-6 text-sm">
+          {t("signUpDescription")}
+        </p>
 
         <form
           className="space-y-4"
@@ -213,7 +221,7 @@ function SignupPageContent() {
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block" htmlFor="fullName">
-              <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              <span className="text-site-ink-muted mb-1 block text-xs font-medium">
                 {t("fullName")}
               </span>
               <input
@@ -221,12 +229,12 @@ function SignupPageContent() {
                 type="text"
                 autoComplete="name"
                 {...form.register("fullName")}
-                className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                className="border-site-border ring-site-accent/20 h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring"
               />
             </label>
 
             <label className="block" htmlFor="email">
-              <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              <span className="text-site-ink-muted mb-1 block text-xs font-medium">
                 {t("email")}
               </span>
               <input
@@ -234,24 +242,30 @@ function SignupPageContent() {
                 type="email"
                 autoComplete="email"
                 {...form.register("email")}
-                className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                className="border-site-border ring-site-accent/20 h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring"
               />
             </label>
           </div>
 
           {form.formState.errors.fullName?.message ? (
-            <p role="alert" className="text-xs text-rose-700">
+            <p
+              role="alert"
+              className="text-xs text-rose-700 dark:text-rose-300"
+            >
               {form.formState.errors.fullName.message}
             </p>
           ) : null}
           {form.formState.errors.email?.message ? (
-            <p role="alert" className="text-xs text-rose-700">
+            <p
+              role="alert"
+              className="text-xs text-rose-700 dark:text-rose-300"
+            >
               {form.formState.errors.email.message}
             </p>
           ) : null}
 
           <label className="block" htmlFor="password">
-            <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+            <span className="text-site-ink-muted mb-1 block text-xs font-medium">
               {t("password")}
             </span>
             <input
@@ -259,21 +273,24 @@ function SignupPageContent() {
               type="password"
               autoComplete="new-password"
               {...form.register("password")}
-              className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+              className="border-site-border ring-site-accent/20 h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring"
             />
           </label>
           {form.formState.errors.password?.message ? (
-            <p role="alert" className="text-xs text-rose-700">
+            <p
+              role="alert"
+              className="text-xs text-rose-700 dark:text-rose-300"
+            >
               {form.formState.errors.password.message}
             </p>
           ) : null}
 
-          <fieldset className="rounded-lg border border-[#e0dced] bg-white p-4">
-            <legend className="px-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+          <fieldset className="border-site-border bg-site-surface rounded-lg border p-4">
+            <legend className="text-site-ink-muted px-1 text-xs font-medium">
               {t("workspace")}
             </legend>
             <div className="mt-2 space-y-2">
-              <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
+              <label className="text-site-ink flex items-center gap-2 text-sm">
                 <input
                   type="radio"
                   value="create"
@@ -281,7 +298,7 @@ function SignupPageContent() {
                 />
                 {t("createWorkspace")}
               </label>
-              <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
+              <label className="text-site-ink flex items-center gap-2 text-sm">
                 <input
                   type="radio"
                   value="join"
@@ -293,43 +310,49 @@ function SignupPageContent() {
 
             {workspaceMode === "create" ? (
               <label className="mt-3 block" htmlFor="workspaceName">
-                <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                <span className="text-site-ink-muted mb-1 block text-xs font-medium">
                   {t("workspaceName")}
                 </span>
                 <input
                   id="workspaceName"
                   type="text"
                   {...form.register("workspaceName")}
-                  className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                  className="border-site-border ring-site-accent/20 h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring"
                 />
               </label>
             ) : (
               <label className="mt-3 block" htmlFor="inviteCode">
-                <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                <span className="text-site-ink-muted mb-1 block text-xs font-medium">
                   {t("workspaceInviteCode")}
                 </span>
                 <input
                   id="inviteCode"
                   type="text"
                   {...form.register("inviteCode")}
-                  className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                  className="border-site-border ring-site-accent/20 h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring"
                 />
               </label>
             )}
           </fieldset>
 
           {form.formState.errors.workspaceName?.message ? (
-            <p role="alert" className="text-xs text-rose-700">
+            <p
+              role="alert"
+              className="text-xs text-rose-700 dark:text-rose-300"
+            >
               {form.formState.errors.workspaceName.message}
             </p>
           ) : null}
           {form.formState.errors.inviteCode?.message ? (
-            <p role="alert" className="text-xs text-rose-700">
+            <p
+              role="alert"
+              className="text-xs text-rose-700 dark:text-rose-300"
+            >
               {form.formState.errors.inviteCode.message}
             </p>
           ) : null}
 
-          <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] p-3 text-sm text-[#2d2a3f]">
+          <label className="border-site-border bg-site-surface text-site-ink flex items-start gap-2 rounded-lg border p-3 text-sm">
             <input
               type="checkbox"
               {...form.register("acceptTerms")}
@@ -338,7 +361,10 @@ function SignupPageContent() {
             <span>{t("acceptTerms")}</span>
           </label>
           {form.formState.errors.acceptTerms?.message ? (
-            <p role="alert" className="text-xs text-rose-700">
+            <p
+              role="alert"
+              className="text-xs text-rose-700 dark:text-rose-300"
+            >
               {form.formState.errors.acceptTerms.message}
             </p>
           ) : null}
@@ -346,7 +372,7 @@ function SignupPageContent() {
           {submissionError ? (
             <p
               role="alert"
-              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
             >
               {submissionError}
             </p>
@@ -355,7 +381,7 @@ function SignupPageContent() {
           <button
             type="submit"
             disabled={form.formState.isSubmitting || state.status === "loading"}
-            className="h-10 w-full rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover h-10 w-full rounded-full px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
           >
             {form.formState.isSubmitting
               ? t("creatingAccount")
@@ -366,24 +392,24 @@ function SignupPageContent() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <Link
             href="/login"
-            className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
+            className="text-site-ink-muted decoration-site-ink-subtle text-sm font-semibold underline"
           >
             {t("alreadyHaveAccount")} {t("signIn")}
           </Link>
           <Link
             href="/"
-            className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
+            className="text-site-ink-muted decoration-site-ink-subtle text-sm font-semibold underline"
           >
             {t("backToHome")}
           </Link>
         </div>
 
         {ssoStartHref ? (
-          <div className="mt-5 border-t border-[#e4e1f2] pt-5">
+          <div className="border-site-border mt-5 border-t pt-5">
             <button
               type="button"
               onClick={handleStartProviderSignup}
-              className="h-10 w-full rounded-lg border border-[#d2cee6] bg-white px-5 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff]"
+              className="border-site-border bg-site-surface text-site-accent-ink hover:bg-site-canvas h-10 w-full rounded-lg border px-5 text-sm font-semibold transition"
             >
               {t("continueWith", { provider: providerLabel })}
             </button>
