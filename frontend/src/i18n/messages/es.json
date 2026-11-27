@@ -2438,6 +2438,10 @@
       "streamingLabel": "Transmitiendo respuesta...",
       "generatingLabel": "Generando respuesta...",
       "wsConnecting": "Conectando...",
+      "wsReconnecting": "Reconectando...",
+      "loadOlderMessages": "Cargar mensajes anteriores",
+      "loadingOlderMessages": "Cargando mensajes anteriores...",
+      "loadOlderMessagesRetry": "No se pudieron cargar los mensajes anteriores. Reintentar",
       "wsRetrieving": "Recuperando fuentes...",
       "wsReranking": "Clasificando fuentes...",
       "wsGenerating": "Generando respuesta...",
@@ -2452,7 +2456,10 @@
         "planLimitExceeded": "Se ha alcanzado el límite de preguntas de tu plan. Mejora tu plan o vuelve a intentarlo cuando se restablezca el límite.",
         "rateLimitExceeded": "Demasiadas preguntas en poco tiempo. Espera un momento e inténtalo de nuevo.",
         "rateLimiterUnavailable": "El servicio no puede comprobar temporalmente los límites de uso. Inténtalo de nuevo en breve.",
-        "wsTicketUnavailable": "El chat en vivo no pudo iniciar una conexión segura. Inténtalo de nuevo en un momento."
+        "wsTicketUnavailable": "El chat en vivo no pudo iniciar una conexión segura. Inténtalo de nuevo en un momento.",
+        "providerBusy": "El servicio de IA está ocupado para tu organización en este momento. Inténtalo de nuevo en un momento.",
+        "resumeUnavailable": "La conexión se interrumpió y no se pudo reanudar esta respuesta. Vuelve a hacer la pregunta.",
+        "connectionLost": "Se perdió la conexión del chat en vivo. Inténtalo de nuevo."
       },
       "composerStarting": "Iniciando sesión…",
       "composerAgentRunning": "Ejecutando agente…",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   CHAT_SETTINGS_STORAGE_KEY,
@@ -22,13 +22,46 @@ export type PersistedChatSettings = {
   answerLanguage?: AnswerLanguageMode;
 };
 
-export function readPersistedChatSettings(): PersistedChatSettings | null {
-  if (typeof window === "undefined") {
+export type ChatSettingsIdentity = {
+  organizationId: string | null;
+  userId: string | null;
+};
+
+/**
+ * `rudix.chat.settings.v1:<organizationId>:<userId>` (R05-13). Settings are
+ * per organisation and user, so two people sharing a browser, or one person in
+ * two organisations, never read each other's choices. Null without an identity.
+ */
+export function chatSettingsStorageKey(
+  organizationId: string | null | undefined,
+  userId: string | null | undefined,
+): string | null {
+  if (!organizationId || !userId) return null;
+  return `${CHAT_SETTINGS_STORAGE_KEY}:${organizationId}:${userId}`;
+}
+
+/**
+ * The pre-0.5.0 key was global per browser and may belong to another user,
+ * so it is never read; it is deleted the first time settings are read.
+ */
+export function removeLegacyChatSettings(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(CHAT_SETTINGS_STORAGE_KEY);
+  } catch {
+    // Storage blocked: nothing to clean up.
+  }
+}
+
+export function readPersistedChatSettings(
+  storageKey: string | null,
+): PersistedChatSettings | null {
+  if (typeof window === "undefined" || !storageKey) {
     return null;
   }
 
   try {
-    const raw = window.localStorage.getItem(CHAT_SETTINGS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
       return null;
     }
@@ -73,8 +106,22 @@ export function readPersistedChatSettings(): PersistedChatSettings | null {
   }
 }
 
-export function useChatSettings() {
-  const persistedSettings = useMemo(() => readPersistedChatSettings(), []);
+export function useChatSettings(
+  identity: ChatSettingsIdentity = { organizationId: null, userId: null },
+) {
+  const storageKey = chatSettingsStorageKey(
+    identity.organizationId,
+    identity.userId,
+  );
+  const [initial] = useState(() => {
+    removeLegacyChatSettings();
+    return {
+      key: storageKey,
+      settings: readPersistedChatSettings(storageKey),
+    };
+  });
+  const persistedSettings = initial.settings;
+  const [loadedKey, setLoadedKey] = useState<string | null>(initial.key);
   const [answerLanguage, setAnswerLanguage] = useState<AnswerLanguageMode>(
     () => persistedSettings?.answerLanguage ?? "auto",
   );
@@ -86,8 +133,22 @@ export function useChatSettings() {
     () => persistedSettings?.agenticMode === true || DEFAULT_AGENTIC_MODE,
   );
 
+  // The identity arrives after the first render (or changes with the
+  // organisation): load that identity's settings before anything is written.
+  if (storageKey !== loadedKey) {
+    const next = readPersistedChatSettings(storageKey);
+    setLoadedKey(storageKey);
+    setAnswerLanguage(next?.answerLanguage ?? "auto");
+    setTopK(next?.topK ?? DEFAULT_TOP_K);
+    setRerank(next?.rerank ?? true);
+    setAgenticMode(next?.agenticMode === true || DEFAULT_AGENTIC_MODE);
+  }
+
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || !storageKey) {
+      return;
+    }
+    if (storageKey !== loadedKey) {
       return;
     }
     const payload: PersistedChatSettings = {
@@ -96,11 +157,12 @@ export function useChatSettings() {
       agenticMode,
       answerLanguage,
     };
-    window.localStorage.setItem(
-      CHAT_SETTINGS_STORAGE_KEY,
-      JSON.stringify(payload),
-    );
-  }, [agenticMode, answerLanguage, rerank, topK]);
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    } catch {
+      // Storage full or blocked: settings stay for this page only.
+    }
+  }, [agenticMode, answerLanguage, loadedKey, rerank, storageKey, topK]);
 
   return {
     persistedSettings,

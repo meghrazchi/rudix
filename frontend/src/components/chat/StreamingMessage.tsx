@@ -1,3 +1,5 @@
+import { useLayoutEffect, useSyncExternalStore } from "react";
+
 import { useTranslations } from "next-intl";
 
 import { ActivityTimeline } from "@/components/chat/ActivityTimeline";
@@ -8,16 +10,40 @@ import {
 } from "@/components/chat/chat-types";
 import type { ChatStreamController } from "@/components/chat/hooks/useChatStream";
 
-/** The in-progress assistant turn: pending question, timeline, partial text. */
+/**
+ * The in-progress assistant turn: pending question, timeline, partial text.
+ *
+ * The only subscriber of the streamed-text store (R05-11): a token re-renders
+ * this component and nothing else. Text before `generation.final` is
+ * provisional and is shown without citation markers; the finished turn
+ * (interactive citations) replaces it on `chat.completed`.
+ */
 export function StreamingMessage({
   pendingQuestion,
   stream,
+  onContentGrow,
 }: {
   pendingQuestion: string;
-  stream: ChatStreamController;
+  stream: Pick<
+    ChatStreamController,
+    "timelineSteps" | "phaseLabel" | "textStore"
+  >;
+  /** Called after streamed text changed, e.g. to keep the thread at the bottom. */
+  onContentGrow?: () => void;
 }) {
   const tc = useTranslations("chat.page");
-  const { timelineSteps, partialAnswer, phaseLabel } = stream;
+  const { timelineSteps, phaseLabel, textStore } = stream;
+  const snapshot = useSyncExternalStore(
+    textStore.subscribe,
+    textStore.getSnapshot,
+    textStore.getServerSnapshot,
+  );
+  const partialAnswer = snapshot.text;
+  const provisional = !snapshot.final;
+
+  useLayoutEffect(() => {
+    if (snapshot.version > 0) onContentGrow?.();
+  }, [snapshot.version, onContentGrow]);
 
   return (
     <li className="space-y-3">
@@ -46,12 +72,19 @@ export function StreamingMessage({
                 Rudix AI
               </span>
             </div>
-            <p className="text-[16px] leading-relaxed break-words whitespace-pre-wrap text-[#2f2a46]">
+            <p
+              data-testid="streaming-answer"
+              data-stream-state={provisional ? "provisional" : "final"}
+              aria-busy={provisional}
+              className="text-[16px] leading-relaxed break-words whitespace-pre-wrap text-[#2f2a46]"
+            >
               {partialAnswer}
-              <span
-                className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[#3525cd] align-middle"
-                aria-hidden="true"
-              />
+              {provisional ? (
+                <span
+                  className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[#3525cd] align-middle"
+                  aria-hidden="true"
+                />
+              ) : null}
             </p>
           </article>
         </div>

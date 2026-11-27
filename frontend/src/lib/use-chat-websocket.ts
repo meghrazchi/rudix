@@ -11,6 +11,16 @@
  *   ws.sendQuery({ question: "…", chat_session_id: "…", … });
  *   ws.cancel();
  *   // ws.phase, ws.partialAnswer, ws.finalResponse, ws.error
+ *
+ * Streaming (R05-11): `generation.delta` text goes into a ref-backed store
+ * (`textStore`), not React state, so a token never re-renders the page; only
+ * `StreamingMessage` subscribes. `generation.replace` replaces all streamed
+ * text, `generation.final` sets the authoritative text, and `chat.completed`
+ * stays the source of truth for the finished turn.
+ *
+ * Reconnect (R05-13): the client reconnects and sends `chat.resume`; this hook
+ * discards any `(message_id, stream_sequence)` it already applied, and any
+ * second terminal event for a message it already completed.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,6 +34,11 @@ import {
 } from "@/lib/chat-websocket";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { resolveChatWsAuthParam } from "@/lib/chat-ws-auth";
+import {
+  createStreamingTextStore,
+  type StreamingTextStore,
+} from "@/lib/chat/streaming-text-store";
+import { StreamSequenceTracker } from "@/lib/chat/ws-reconnect";
 
 export type ChatWSPhase =
   | "idle"
@@ -39,8 +54,15 @@ export type ChatWSPhase =
 
 export type UseChatWebSocketResult = {
   phase: ChatWSPhase;
-  /** Streamed answer text; grows as generation.delta events arrive. */
+  /**
+   * Streamed answer text; grows as generation.delta events arrive. A live
+   * getter over `textStore`: reading it does not subscribe to updates.
+   */
   partialAnswer: string;
+  /** Ref-backed streamed text; subscribe with useSyncExternalStore. */
+  textStore?: StreamingTextStore;
+  /** True while the socket is being re-established for the run in flight. */
+  reconnecting?: boolean;
   /** Final full response payload from chat.completed. */
   finalResponse: ChatQueryResponse | null;
   /** Safe error code from the server, or "connection_failed" for WS errors. */
@@ -68,7 +90,8 @@ function isTerminal(phase: ChatWSPhase): phase is TerminalPhase {
 
 export function useChatWebSocket(): UseChatWebSocketResult {
   const [phase, setPhase] = useState<ChatWSPhase>("idle");
-  const [partialAnswer, setPartialAnswer] = useState("");
+  const [textStore] = useState(() => createStreamingTextStore());
+  const [reconnecting, setReconnecting] = useState(false);
   const [finalResponse, setFinalResponse] = useState<ChatQueryResponse | null>(
     null,
   );
@@ -80,6 +103,8 @@ export function useChatWebSocket(): UseChatWebSocketResult {
   const clientRef = useRef<ChatWSClient | null>(null);
   // Keep a stable ref to the current phase to avoid stale closures.
   const phaseRef = useRef<ChatWSPhase>("idle");
+  const sequencesRef = useRef(new StreamSequenceTracker());
+  const completedRef = useRef(new Set<string>());
 
   const updatePhase = useCallback((next: ChatWSPhase) => {
     phaseRef.current = next;
@@ -96,6 +121,13 @@ export function useChatWebSocket(): UseChatWebSocketResult {
 
   const handleEvent = useCallback(
     (evt: ChatWSEvent) => {
+      // Replayed after a resume, or a duplicate terminal frame: already applied.
+      if (!sequencesRef.current.accept(evt.message_id, evt.stream_sequence)) {
+        return;
+      }
+      if (evt.message_id && completedRef.current.has(evt.message_id)) {
+        return;
+      }
       switch (evt.event) {
         case "connection.ready":
           break;
@@ -119,12 +151,25 @@ export function useChatWebSocket(): UseChatWebSocketResult {
           updatePhase("generating");
           break;
         case "generation.delta": {
-          const text = (evt.payload?.text as string | undefined) ?? "";
-          if (text) {
-            setPartialAnswer((prev) => prev + text);
-          }
+          const text = evt.payload?.text;
+          if (typeof text === "string") textStore.append(text);
           break;
         }
+        case "generation.replace": {
+          const text = evt.payload?.text;
+          if (typeof text === "string") textStore.replace(text);
+          break;
+        }
+        case "generation.final": {
+          const answer = evt.payload?.answer;
+          textStore.replace(typeof answer === "string" ? answer : "", {
+            final: true,
+          });
+          break;
+        }
+        case "chat.resumed":
+          setReconnecting(false);
+          break;
         case "citation.validation.started":
           updatePhase("validating_citations");
           break;
@@ -161,7 +206,9 @@ export function useChatWebSocket(): UseChatWebSocketResult {
           if (response) {
             setFinalResponse(response);
           }
-          setPartialAnswer("");
+          if (evt.message_id) completedRef.current.add(evt.message_id);
+          textStore.reset();
+          setReconnecting(false);
           updatePhase("completed");
           break;
         }
@@ -169,12 +216,23 @@ export function useChatWebSocket(): UseChatWebSocketResult {
           updatePhase("cancelled");
           break;
         case "chat.error":
+          setReconnecting(false);
           setError(evt.safe_error_code ?? "unknown_error");
           updatePhase("error");
           break;
         default:
           break;
       }
+    },
+    [textStore, updatePhase],
+  );
+
+  const failRun = useCallback(
+    (code: string) => {
+      setReconnecting(false);
+      if (isTerminal(phaseRef.current)) return;
+      setError(code);
+      updatePhase("error");
     },
     [updatePhase],
   );
@@ -202,6 +260,13 @@ export function useChatWebSocket(): UseChatWebSocketResult {
         updatePhase("error");
       },
       onEvent: handleEvent,
+      onReconnecting: () => setReconnecting(true),
+      onReconnected: ({ resumed, flushed }) => {
+        setReconnecting(false);
+        // The drop came before the server named the message: nothing to resume.
+        if (!resumed && !flushed) failRun("resume_unavailable");
+      },
+      onReconnectFailed: () => failRun("connection_lost"),
       onStateChange: (state) => {
         if (state === "error" && !isTerminal(phaseRef.current)) {
           setError("connection_failed");
@@ -212,8 +277,8 @@ export function useChatWebSocket(): UseChatWebSocketResult {
           updatePhase("error");
         }
       },
-      onClose: (_code, _reason) => {
-        if (!isTerminal(phaseRef.current)) {
+      onClose: (_code, _reason, willReconnect) => {
+        if (!willReconnect && !isTerminal(phaseRef.current)) {
           setError("connection_closed");
           updatePhase("error");
         }
@@ -223,14 +288,17 @@ export function useChatWebSocket(): UseChatWebSocketResult {
     clientRef.current = client;
     void client.connect();
     return client;
-  }, [handleEvent, updatePhase]);
+  }, [failRun, handleEvent, updatePhase]);
 
   const sendQuery = useCallback(
     (payload: ChatQueryRequest & { _scopeLabel?: string }) => {
       if (!isTerminal(phase) && phase !== "idle") return;
 
       // Reset state for new query.
-      setPartialAnswer("");
+      textStore.reset();
+      sequencesRef.current.reset();
+      completedRef.current.clear();
+      setReconnecting(false);
       setFinalResponse(null);
       setError(null);
       setTimelineSteps([]);
@@ -248,7 +316,7 @@ export function useChatWebSocket(): UseChatWebSocketResult {
         payload: backendPayload as Record<string, unknown>,
       });
     },
-    [phase, ensureConnected, updatePhase],
+    [phase, ensureConnected, textStore, updatePhase],
   );
 
   const cancel = useCallback(() => {
@@ -258,12 +326,15 @@ export function useChatWebSocket(): UseChatWebSocketResult {
   const reset = useCallback(() => {
     clientRef.current?.close();
     clientRef.current = null;
-    setPartialAnswer("");
+    textStore.reset();
+    sequencesRef.current.reset();
+    completedRef.current.clear();
+    setReconnecting(false);
     setFinalResponse(null);
     setError(null);
     setTimelineSteps([]);
     updatePhase("idle");
-  }, [updatePhase]);
+  }, [textStore, updatePhase]);
 
   const isPending =
     phase !== "idle" &&
@@ -273,7 +344,11 @@ export function useChatWebSocket(): UseChatWebSocketResult {
 
   return {
     phase,
-    partialAnswer,
+    get partialAnswer() {
+      return textStore.getText();
+    },
+    textStore,
+    reconnecting,
     finalResponse,
     error,
     isPending,

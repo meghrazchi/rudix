@@ -11,21 +11,16 @@ import {
   isPreviewableFile,
 } from "@/components/chat/chat-format";
 import type { ChatTurn } from "@/components/chat/chat-types";
-import type { CitationPanelController } from "@/components/chat/hooks/useCitationPanel";
-import type { ChatSessionController } from "@/components/chat/hooks/useChatSession";
+import type { ChatTurnHandlers } from "@/components/chat/hooks/useChatTurnHandlers";
 
 export function ChatCitationChips({
   turn,
-  session,
-  panel,
+  handlers,
 }: {
   turn: ChatTurn;
-  session: ChatSessionController;
-  panel: CitationPanelController;
+  handlers: Pick<ChatTurnHandlers, "previewCitations">;
 }) {
   const tc = useTranslations("chat.page");
-  const { setSelectedResponseMessageId } = session;
-  const { setIsKnowledgeHubOpen, setPreviewCitationSet } = panel;
 
   return (
     <>
@@ -50,9 +45,7 @@ export function ChatCitationChips({
                     const siblings = turn.response.citations.filter(
                       (c) => c.document_id === citation.document_id,
                     );
-                    setSelectedResponseMessageId(turn.response.message_id);
-                    setIsKnowledgeHubOpen(false);
-                    setPreviewCitationSet({
+                    handlers.previewCitations(turn.response.message_id, {
                       citations: siblings.length > 0 ? siblings : [citation],
                       initialIndex: Math.max(0, siblings.indexOf(citation)),
                     });
@@ -100,9 +93,7 @@ export function ChatCitationChips({
                         (c) => c.document_id === citation.document_id,
                       );
                       const idx = siblings.indexOf(citation);
-                      setSelectedResponseMessageId(turn.response.message_id);
-                      setIsKnowledgeHubOpen(false);
-                      setPreviewCitationSet({
+                      handlers.previewCitations(turn.response.message_id, {
                         citations: siblings,
                         initialIndex: idx >= 0 ? idx : 0,
                       });
