@@ -21,9 +21,6 @@ describe("Solutions public page", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Choose Your Workflow" }),
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole("heading", {
         name: "From scattered documents to trusted answers",
       }),
@@ -93,7 +90,9 @@ describe("Solutions public page", () => {
       params: Promise.resolve({ locale: "fr" }),
     });
 
-    expect(metadata.title).toBe("Solutions | Rudix");
+    expect(metadata.title).toBe(
+      "Solutions d’IA documentaire pour chaque équipe",
+    );
     expect(metadata.alternates?.canonical).toContain("/fr/solutions");
   });
 });

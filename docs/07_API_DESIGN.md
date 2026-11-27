@@ -2361,6 +2361,20 @@ Response:
 ### POST `/agent/runs`
 
 Creates and executes an agent run. `agentic_mode` must be explicitly `true`.
+Validation, roles, rate limit, and the `agent_runs` quota are the same in both execution
+modes (`AGENT_RUN_EXECUTION`, R06-13):
+
+- `inline` (default, 0.5.0 behaviour): the run executes inside the request and the
+  response carries its final state (example below).
+- `worker`: the request stores the run as `queued` (with the validated request and the
+  caller's identity as `request_snapshot`), records the quota, writes an outbox row for
+  `agents.run.execute` in the same transaction, commits, publishes, and returns `201` at
+  once with the same `AgentRunCreateResponse` shape: `status: "queued"`, zero counters,
+  `outcome: null`. Follow the run with `GET /agent/runs/{run_id}` or the stream below. A
+  broker outage leaves the outbox row pending; the `outbox.relay` beat task publishes it.
+  `POST /agent/runs/{run_id}/cancel` cancels a queued, running, or waiting run with one
+  conditional update: a cancel accepted while a worker finishes the run stays the run's
+  final state, and a run that completed first answers `409 run_already_terminal`.
 
 Request:
 
@@ -2377,7 +2391,7 @@ Request:
 }
 ```
 
-Response (`201 Created`):
+Response (`201 Created`, inline mode):
 
 ```json
 {
@@ -2473,7 +2487,42 @@ Returns persisted run state, steps, tool calls, approvals, budget/costs, and saf
 
 ### GET `/agent/runs/{run_id}/stream`
 
-Reserved endpoint for streaming responses. Currently returns `501 Not Implemented`.
+Server-Sent Events for one run (R06-13; replaces the 0.5.0 `501`). Same roles as
+`GET /agent/runs/{run_id}` (owner, admin, member, viewer) and the same feature flag. The
+run must belong to the caller's organisation; members and viewers see only runs they
+started, owners and admins any run of the organisation. Otherwise `404 Agent run not found`.
+
+Frames use the 0.5.0 framing of `POST /chat/query/stream`:
+
+```text
+id: 3
+event: agent.step.completed
+data: {"id":3,"event":"agent.step.completed","run_id":"uuid","payload":{"sequence":1,"step_name":"discover_documents","tool_name":"search_documents","status":"completed"},"emitted_at":"..."}
+
+: keep-alive
+```
+
+| Event | Payload |
+|---|---|
+| `agent.run.status` | `status` (`queued`, `running`), `resume_count` |
+| `agent.step.started` | `sequence`, `step_name`, `tool_name`, `status` |
+| `agent.step.completed` | `sequence`, `step_name`, `tool_name`, `status` (`completed`, `failed`) |
+| `agent.run.waiting_approval` | `status`, counters, `approval_id`, `error_code` |
+| `agent.run.completed` / `.failed` / `.cancelled` | `status`, `steps_executed`, `tool_calls_executed`, `error_code` |
+
+Payloads carry ids, statuses, tool names, counts, and safe error codes only, never
+document text, prompts, or tool outputs. Ids increase monotonically within a stream. The
+stream ends after a terminal event, or after `AGENT_STREAM_BUFFER_TTL_SECONDS`.
+
+- With Redis, the runtime appends every event to a buffer (TTL
+  `AGENT_STREAM_BUFFER_TTL_SECONDS`) keyed by organisation and run and publishes it on a
+  channel; send `Last-Event-ID` to replay the events with a larger id, then the stream
+  follows new events. While the channel is idle the run row is read every keep-alive
+  interval, so a run the reaper failed still ends the stream.
+- Without Redis (or without a buffer for the run), the endpoint polls the run and its steps
+  every `AGENT_STREAM_POLL_INTERVAL_MS` and sends each state change. Ids then continue after
+  `Last-Event-ID`, and the first poll sends the run's current state, so a reconnecting
+  client may receive an event again but never misses one.
 
 ### POST `/agent/runs/{run_id}/approvals/{approval_id}/decision`
 
@@ -2494,6 +2543,12 @@ Notes:
 - `status` must be `approved` or `rejected`.
 - Non-pending approvals return `409`.
 - Cross-organization runs/approvals return safe `404`.
+- Worker mode (R06-13): approving a run that waits for this approval moves it back to
+  `queued` and writes an outbox row for `agents.run.resume` (dedupe key: the approval id)
+  in the decision's transaction; the worker continues the run with the approval, so
+  clients no longer resubmit with `request.approval_ids`. Inline mode keeps the 0.5.0
+  behaviour (the run is marked `running`; resubmit with `approval_ids`). A rejection fails
+  the run in both modes.
 
 ## Admin endpoints
 

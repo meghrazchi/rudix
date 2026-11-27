@@ -56,7 +56,9 @@ describe("Contact public page", () => {
       params: Promise.resolve({ locale: "fr" }),
     });
 
-    expect(metadata.title).toBe("Contact et démo | Rudix");
+    expect(metadata.title).toBe(
+      "Contacter l’équipe commerciale et réserver une démo",
+    );
     expect(metadata.alternates?.canonical).toContain("/fr/contact");
   });
 });

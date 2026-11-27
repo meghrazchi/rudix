@@ -26532,16 +26532,21 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Server-Sent Events (0.5.0 framing: `id`, `event`, `data`) for one agent run: `agent.run.status`, `agent.step.started`, `agent.step.completed`, `agent.run.waiting_approval`, and the terminal `agent.run.completed`, `agent.run.failed`, or `agent.run.cancelled`, after which the stream ends. Send `Last-Event-ID` to replay events after that id. Payloads carry ids, statuses, tool names, counts, and safe error codes only. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "text/event-stream": unknown;
                 };
+            };
+            /** @description Run not found in the caller's organisation, or not visible. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -69,8 +69,19 @@ export const PUBLIC_SITE_METADATA_DEFAULTS = {
   siteName: "Rudix",
   defaultTitle: "Rudix",
   defaultDescription:
-    "Rudix is enterprise-grade RAG infrastructure with secure ingestion, grounded answers, and operational observability.",
+    "Rudix is an AI document Q&A platform that gives every team secure, permission-aware answers with citations to the exact source.",
 };
+
+const BRAND_SUFFIX = ` | ${PUBLIC_SITE_METADATA_DEFAULTS.siteName}`;
+
+/**
+ * Page titles are stored without the brand: the root layout's title template
+ * appends it to `<title>`. Social cards don't use that template, so they get
+ * the brand added here — exactly once.
+ */
+export function withBrandSuffix(title: string): string {
+  return title.endsWith(BRAND_SUFFIX) ? title : `${title}${BRAND_SUFFIX}`;
+}
 
 function ensurePath(path: string): string {
   if (!path) {
@@ -125,6 +136,7 @@ export function buildPublicMetadata({
   const resolvedLocale = isValidLocale(locale) ? locale : DEFAULT_LOCALE;
   const canonicalUrl = toLocalizedAbsoluteUrl(resolvedLocale, path);
   const imageUrl = toAbsoluteUrl(imagePath);
+  const socialTitle = withBrandSuffix(title);
   const alternateLocales = SUPPORTED_LOCALES.filter(
     (supportedLocale) => supportedLocale !== resolvedLocale,
   );
@@ -151,19 +163,19 @@ export function buildPublicMetadata({
       siteName: PUBLIC_SITE_METADATA_DEFAULTS.siteName,
       locale: getOpenGraphLocale(resolvedLocale),
       alternateLocale: alternateLocales.map(getOpenGraphLocale),
-      title,
+      title: socialTitle,
       description,
       url: canonicalUrl,
       images: [
         {
           url: imageUrl,
-          alt: `${title} preview`,
+          alt: `${socialTitle} preview`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: socialTitle,
       description,
       images: [imageUrl],
     },

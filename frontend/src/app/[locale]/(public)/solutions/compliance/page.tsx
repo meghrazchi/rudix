@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function ComplianceSolutionRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Compliance solution page">
+    <PublicMarketingLayout pageLabel="Compliance solution page" theme="system">
       <ComplianceSolutionPage />
     </PublicMarketingLayout>
   );

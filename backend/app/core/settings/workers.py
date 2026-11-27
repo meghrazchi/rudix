@@ -216,6 +216,30 @@ class WorkersSettings(BaseModel):
         return self
 
     # anchor: C2
+    # R06-13: ``inline`` runs POST /agent/runs in the request (0.5.0 behaviour); ``worker``
+    # stores the run as queued and runs it in the ``agents.run.execute`` Celery task.
+    agent_run_execution: Literal["inline", "worker"] = "inline"
+    # Queue of agents.run.execute/resume (consumed by the default pool).
+    celery_queue_agents: str = Field(default="default", min_length=1, max_length=64)
+    # A task renews its lease after every step; agents.runs.reap re-queues a running run
+    # whose lease expired, and fails it with worker_lost after AGENT_RUN_MAX_RESUMES.
+    agent_run_lease_seconds: int = Field(default=300, ge=30, le=86_400)
+    agent_run_max_resumes: int = Field(default=3, ge=0, le=100)
+    agent_run_reap_interval_seconds: int = Field(default=60, ge=10, le=3600)
+    agent_run_reap_batch_size: int = Field(default=100, ge=1, le=10_000)
+    # GET /agent/runs/{run_id}/stream: Redis buffer TTL (also the longest a stream stays
+    # open), the database polling interval without Redis, and the keep-alive interval.
+    agent_stream_buffer_ttl_seconds: int = Field(default=3600, ge=60, le=86_400)
+    agent_stream_poll_interval_ms: int = Field(default=1000, ge=100, le=60_000)
+    agent_stream_keepalive_seconds: int = Field(default=15, ge=1, le=300)
+
+    @field_validator("celery_queue_agents")
+    @classmethod
+    def _validate_agents_queue(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned or not cleaned.replace(".", "").replace("-", "").replace("_", "").isalnum():
+            raise ValueError("CELERY_QUEUE_AGENTS may contain only letters, numbers, '.', '-', '_'")
+        return cleaned
 
     # anchor: D1
     # R06-11: connector sync at tenant scale. A running run whose heartbeat is older than

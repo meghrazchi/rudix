@@ -44,4 +44,37 @@ describe("PublicFooter", () => {
       "/changelog",
     );
   });
+
+  it("links every legal page, including the DPA and subprocessors", () => {
+    render(<PublicFooter links={resolvePublicSiteLinks()} />);
+
+    for (const [name, href] of [
+      ["Privacy Policy", "/legal/privacy"],
+      ["Terms of Service", "/legal/terms"],
+      ["Cookie Policy", "/legal/cookies"],
+      ["DPA", "/legal/dpa"],
+      ["Subprocessors", "/legal/subprocessors"],
+      ["Acceptable Use", "/legal/acceptable-use"],
+      ["Security Disclosure", "/legal/security-disclosure"],
+    ]) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+    }
+  });
+
+  it("lists solution pages and leaves signed-in app links out", () => {
+    render(<PublicFooter links={resolvePublicSiteLinks()} />);
+
+    expect(screen.getByRole("link", { name: "All Solutions" })).toHaveAttribute(
+      "href",
+      "/solutions",
+    );
+    expect(screen.getByRole("link", { name: "HR" })).toHaveAttribute(
+      "href",
+      "/solutions/hr",
+    );
+    expect(
+      screen.queryByRole("link", { name: "Pipeline Explorer" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/RAG/)).not.toBeInTheDocument();
+  });
 });

@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function CookiesPage() {
   return (
-    <PublicMarketingLayout pageLabel="Rudix cookie policy">
+    <PublicMarketingLayout pageLabel="Rudix cookie policy" theme="system">
       <CookiePolicyPage />
     </PublicMarketingLayout>
   );

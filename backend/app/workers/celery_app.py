@@ -99,6 +99,9 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     "documents.chunks.backfill_tenant": _route(settings.celery_queue_documents_reindex),
     # anchor: C1
     # anchor: C2
+    "agents.run.execute": _route(settings.celery_queue_agents),
+    "agents.run.resume": _route(settings.celery_queue_agents),
+    "agents.runs.reap": _route(settings.celery_task_default_queue),
     # anchor: D1
     "connectors.sync.reap": _route(settings.celery_queue_connector_sync),
 }
@@ -146,6 +149,10 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
     # anchor: B1
     # anchor: C1
     # anchor: C2
+    "agents-runs-reap": {
+        "task": "agents.runs.reap",
+        "schedule": settings.agent_run_reap_interval_seconds,
+    },
     # anchor: D1
     "connector-sync-reap": {
         "task": "connectors.sync.reap",

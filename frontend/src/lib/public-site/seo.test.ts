@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildLocalizedPublicMetadata,
   buildPublicMetadata,
+  type PublicSeoKey,
 } from "@/lib/public-site/seo";
+import enMessages from "@/i18n/messages/en.json";
 import {
   buildPublicSitemapEntries,
   PUBLIC_SITEMAP_PATHS,
@@ -85,10 +87,42 @@ describe("public site metadata", () => {
       path: "/legal/security-disclosure",
     });
 
-    expect(metadata.title).toBe("Politique de divulgation de sécurité | Rudix");
+    expect(metadata.title).toBe("Politique de divulgation de sécurité");
     expect(metadata.alternates?.canonical).toBe(
       "https://public.example.com/fr/legal/security-disclosure",
     );
+  });
+
+  it("keeps catalog titles brand-free so the layout template adds it once", () => {
+    const seoKeys = Object.keys(enMessages.public.seo) as PublicSeoKey[];
+
+    for (const locale of SUPPORTED_LOCALES) {
+      for (const seoKey of seoKeys) {
+        const metadata = buildLocalizedPublicMetadata({
+          locale,
+          seoKey,
+          path: "/",
+        });
+        const title = String(metadata.title);
+
+        expect(title, `${locale}.${seoKey}`).not.toMatch(/\|\s*Rudix\s*$/);
+        // Rendered <title> (via "%s | Rudix") stays within ~65 chars.
+        expect(title.length + " | Rudix".length).toBeLessThanOrEqual(65);
+        expect(metadata.openGraph?.title).toBe(`${title} | Rudix`);
+        expect(metadata.twitter?.title).toBe(`${title} | Rudix`);
+      }
+    }
+  });
+
+  it("does not double the brand on social titles that already include it", () => {
+    const metadata = buildPublicMetadata({
+      locale: "en",
+      title: "Product | Rudix",
+      description: "Product overview",
+      path: "/product",
+    });
+
+    expect(metadata.openGraph?.title).toBe("Product | Rudix");
   });
 
   it("builds sitemap entries for every locale and public route", () => {

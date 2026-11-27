@@ -110,7 +110,82 @@ stateDiagram-v2
   planning --> cancelled
   running --> cancelled
   waiting_approval --> cancelled
+  waiting_approval --> queued: approved (worker mode)
+  running --> queued: lease expired (reaper)
+  running --> failed: worker_lost / principal_revoked
 ```
+
+Inline mode (`AGENT_RUN_EXECUTION=inline`, the default) moves through `planning` and
+`running` inside `POST /agent/runs`. Worker mode (R06-13) starts at `queued`; a task takes
+the run's lease and moves it to `running`. A run is `running` only while a task holds the
+lease (`lease_owner`, `lease_expires_at`); on exit the lease is cleared and the run is
+`completed`, `failed`, `cancelled`, or `waiting_approval`. An approval puts a waiting run
+back to `queued`; the reaper puts a run whose lease expired back to `queued`
+(`resume_count + 1`) or fails it with `worker_lost` after `AGENT_RUN_MAX_RESUMES`.
+
+## Worker Execution (R06-13)
+
+With `AGENT_RUN_EXECUTION=worker`:
+
+1. `POST /agent/runs` validates the request and checks the `agent_runs` quota as inline mode
+   does, creates the run as `queued` with `request_snapshot` (the validated
+   `AgentRuntimeRequest`, plus user, organisation, and roles at submission for audit only),
+   records the quota, writes an outbox row for `agents.run.execute` (dedupe key: the run id)
+   in the same transaction, commits, publishes, and returns `201` with `status: queued`.
+2. `agents.run.execute(run_id, organization_id)` (`app/workers/agent_tasks.py`, body in
+   `app/application/agents/worker_execution.py`) binds the tenant, raises `tenant_mismatch`
+   for another organisation's run, and takes the lease with one conditional `UPDATE`
+   (`queued`, or `running` with an expired lease or the same task id as owner).
+3. The principal is rebuilt from the database: active user, current membership and role in
+   the run's organisation, and a role every planned tool's `required_roles` accepts.
+   Otherwise the run fails with `principal_revoked`.
+4. `AgentRuntime.execute_queued` plans the run (no planning step yet) or resumes it: the
+   plan is read from the planning step, completed steps are replayed into the runtime state
+   and never executed again, and the loop continues at the first sequence without a
+   completed step, reusing a step row a previous task left running or waiting.
+5. Every step commits and renews the lease three times: when its row is running, after the
+   tool call returns, and when it ends. A side-effect tool's idempotency key
+   (`{run_id}:{sequence}:{tool}`) is stable across resumes; before running a side-effect
+   tool the executor looks up a `succeeded` call with the same key
+   (`idx_agent_tool_calls_run_idem`) and returns its stored result instead, after the role,
+   organisation, and payload-budget checks. A side effect therefore runs once even when the
+   worker dies right after it.
+6. Authorization (`required_roles`, `principal.organization_id == call.organization_id`),
+   payload and output budgets, redaction, and safe errors stay inside the executor path,
+   exactly as inline. The runtime budget spans the whole run (earlier tasks' step durations
+   count). Unexpected exceptions fail the run with `internal_error`; raw exceptions never
+   reach results.
+7. Beat task `agents.runs.reap` (every 60 s, maintenance session, `FOR UPDATE SKIP LOCKED`)
+   re-queues running runs whose lease expired and fails them with `worker_lost` after
+   `AGENT_RUN_MAX_RESUMES` (3).
+8. Cancellation: `POST /agent/runs/{run_id}/cancel` is one conditional `UPDATE` (only a run
+   that is not terminal), and a worker checks, under `FOR UPDATE`, that no cancel was
+   committed before every commit that changes the run's status. A cancel that arrives
+   while the last step finishes therefore wins: the worker drops its uncommitted writes
+   (outcome, usage event, audit), clears the lease, and emits `agent.run.cancelled`. A run
+   that completed first answers the cancel with `409 run_already_terminal`. The final
+   commit also renews the lease first, so a task whose run was taken over never commits
+   its outcome. The result event of a worker run is emitted only after its final commit.
+
+Runtime modules: `runtime.py` (facade: `execute`, `execute_queued`, `fail_queued`),
+`runtime_context.py` (state, budgets), `runtime_plan.py` (plan, arguments, observation),
+`runtime_outcome.py` (complete, fail, cancel, usage event, audits), `runtime_steps.py`
+(the step loop), `runtime_start.py` (preparation and planning step), `runtime_resume.py`
+(resume). Settings: `AGENT_RUN_EXECUTION`, `CELERY_QUEUE_AGENTS`, `AGENT_RUN_LEASE_SECONDS`,
+`AGENT_RUN_MAX_RESUMES`, `AGENT_RUN_REAP_INTERVAL_SECONDS`, `AGENT_RUN_REAP_BATCH_SIZE`.
+
+### Run stream
+
+`GET /agent/runs/{run_id}/stream` sends Server-Sent Events in the 0.5.0 framing
+(`id`/`event`/`data`): `agent.run.status`, `agent.step.started`, `agent.step.completed`,
+`agent.run.waiting_approval`, and the terminal `agent.run.completed`, `agent.run.failed`,
+`agent.run.cancelled`. The runtime (both modes) appends every event to a Redis list
+(`AGENT_STREAM_BUFFER_TTL_SECONDS`) and publishes it on a channel keyed by organisation and
+run; ids come from a per-run counter, so they increase across worker tasks. The endpoint
+replays from `Last-Event-ID`, follows the channel, and ends after a terminal event. Without
+Redis it polls `agent_runs` and `agent_steps` every `AGENT_STREAM_POLL_INTERVAL_MS`.
+Payloads carry ids, statuses, tool names, counts, and safe error codes only (see
+`docs/07_API_DESIGN.md`).
 
 ## Persistence and Trace Schema (F99)
 
@@ -186,6 +261,13 @@ Safe errors may contain a request ID and sanitized details, but never secrets or
    - `agent.approval.requested`
    - `agent.approval.approved`
    - `agent.approval.rejected`
+6. Resume (R06-13): in worker mode, approving a `waiting_approval` run moves it back to
+   `queued` and writes an outbox row for `agents.run.resume` (dedupe key: the approval id)
+   in the decision's transaction. The resume task checks the approval is `approved`, adds it
+   to the snapshot's `approval_ids` under its tool name, takes the lease, and continues the
+   run from the waiting step; the executor's approval check then passes. Inline mode keeps
+   the 0.5.0 behaviour (resubmit with `request.approval_ids`). Rejected and expired
+   approvals fail the run in both modes.
 
 ### Prompt-Injection Defenses
 
@@ -200,6 +282,11 @@ When observing document search output, runtime only consumes validated UUID docu
 Instruction-like document payload text is treated as untrusted signal and never used as executable tool directives.
 
 ## MCP Separation Model
+
+Worker execution (R06-13) changes no `ToolSpec.surfaces` and no MCP adapter: the MCP tool
+list is the same before and after (`tests/test_agent_runtime_split_compat.py`), and
+side-effect tools stay API-only. MCP tool calls run without a database session, so the
+idempotency reuse of side-effect calls never applies to them.
 
 Diagrams for standard MCP host/client/server components, Rudix module mapping,
 tool/resource/prompt sequences, and deployment modes are in
@@ -299,6 +386,8 @@ Rudix exposes an organization-scoped admin control plane for agent/MCP policy:
 6. Complete run with final outcome (answer + citations + confidence) or fail/cancel with safe error payload.
 
 This loop reuses the same org authorization, redaction, and audit boundaries as the tool executor.
+In worker mode the same loop runs in `agents.run.execute`, committing after every step and
+resuming after the last completed one (see Worker Execution).
 
 ## Observability, Audit, and Metrics (F106)
 

@@ -43,6 +43,17 @@ For app-managed auth, also require:
 - Explicit logout-all support for revoking all active sessions.
 - Safe session listing endpoints that never expose the raw refresh token.
 
+Account creation (no self-registration):
+
+- There is no public signup. The backend exposes no register endpoint, and the frontend
+  `/signup` route only redirects to `/login`.
+- Accounts are created by workspace administrators: team invitations (`/accept-invite`),
+  SCIM provisioning, or SSO configured by an organization admin.
+- Public pages must not link to signup or "start trial" flows; every plan CTA leads to the
+  contact/demo form. Frontend tests assert no public CTA points at `/signup`.
+- The login page tells users without an account to ask their workspace administrator for an
+  invitation.
+
 WebSocket chat (`/chat/ws`):
 
 - Browsers authenticate with a single-use, short-lived ticket from `POST /chat/ws-ticket`
@@ -188,6 +199,30 @@ When agent/tool execution is enabled, enforce the same security boundary as API 
 9. Public status endpoints must expose only org-agnostic, public-safe summary
    data and must not reveal internal hostnames, logs, dependency names, or
    tenant identifiers.
+10. Worker execution (`AGENT_RUN_EXECUTION=worker`, R06-13) keeps every check above inside
+    the runtime and the tool executor; nothing is trusted from the queued message:
+    - the task binds the tenant from its `organization_id` and raises `tenant_mismatch`
+      before any write when the run belongs to another organisation;
+    - the principal is rebuilt from the database for every task (active user, current
+      membership and role in the run's organisation, every planned tool's
+      `required_roles`); a removed or downgraded user fails the run with
+      `principal_revoked`. The roles in `request_snapshot` are recorded for audit only;
+    - the side-effect idempotency key (`{run_id}:{sequence}:{tool}`) is stable across
+      resumes; a call that already succeeded under it is answered from its stored, redacted
+      result after the role, organisation, and payload checks, so a side effect runs once;
+    - `request_snapshot` stores the validated request (objective and question) unredacted,
+      because the worker needs it; it lives in the organisation-scoped `agent_runs` row
+      under strict row-level security and is never returned by the API;
+    - a run is `running` only while a task holds its lease; unexpected errors fail the run
+      with `internal_error` (the class name is logged, never the message);
+    - approvals are still decided only by owners and admins; approval in worker mode only
+      enqueues `agents.run.resume`, which re-checks that the approval is `approved`.
+11. `GET /agent/runs/{run_id}/stream` applies the run-detail roles, the feature flag, and
+    organisation scoping (Redis keys and channels contain the organisation and the run,
+    built from the caller's organisation); members and viewers see only their own runs.
+    Events carry ids, statuses, tool names, counts, and safe error codes, never document
+    text, prompts, or tool outputs. MCP exposure is unchanged: no tool's `surfaces` or
+    MCP adapter changed, and side-effect tools stay API-only.
 
 If user selects documents, add:
 

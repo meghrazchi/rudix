@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function ContactPage() {
   return (
-    <PublicMarketingLayout pageLabel="Rudix contact page">
+    <PublicMarketingLayout pageLabel="Rudix contact page" theme="system">
       <ContactDemoPage />
     </PublicMarketingLayout>
   );

@@ -831,6 +831,7 @@ after `finalize` on its own queue.
 - The thresholds are starting points, not measured values; no queue wait or depth baseline has
   been recorded (the load test is a manual step in plan section 8).
 
+<<<<<<< HEAD
 ### Vector index generations and reindex (R06-08)
 
 - Metric `rudix_reindex_progress{generation}`: fraction of indexed documents (all
@@ -852,6 +853,33 @@ after `finalize` on its own queue.
 - Watch after a swap: chat retrieval errors and latency for at least
   `VECTOR_INDEX_REGISTRY_CACHE_SECONDS`, and the accuracy gate; roll back if either regresses.
 - No staging measurement has been recorded yet (plan section 8 item 4).
+=======
+### Agent runs in workers and the run stream (R06-13)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_agent_run_tasks_total` | `task`, `outcome` | `agents.run.execute` / `agents.run.resume` deliveries by the status they left the run in (`completed`, `failed`, `cancelled`, `waiting_approval`) or why they did nothing (`lease_held`, `not_runnable`, `not_found`, `lease_lost`). |
+| `rudix_agent_runs_reaped_total` | `outcome` | `agents.runs.reap`: `requeued` (expired lease, `resume_count + 1`) or `failed` (`worker_lost` after `AGENT_RUN_MAX_RESUMES`). |
+| `rudix_agent_tool_calls_reused_total` | `tool` | Side-effect tool calls answered from their completed row (same idempotency key) instead of executed again after a resume. |
+| `rudix_agent_stream_events_total` | `source`, `outcome` | Stream events: `redis`/`published` and `redis`/`publish_failed` on the runtime side, `redis`/`streamed` and `database`/`streamed` on the endpoint side. |
+| `rudix_worker_tenant_mismatch_total` | `task` | Also counts agent tasks whose run belongs to another organisation. |
+
+- Logs: `agent.run.queued`, `agent.worker.task_finished` (task, run id, organisation,
+  outcome), `agent.worker.run_failed` (exception class only), `agent.reaper.requeued`,
+  `agent.reaper.worker_lost`, `agent.tool_call.reused`, `agent.stream.publish_failed`,
+  `agent.stream.redis_fallback`, `agent.run.stream_opened`. The runtime's existing
+  `agent.runtime.*` and `agent.step.*` events are unchanged. No log carries the objective,
+  question, tool arguments, or outputs.
+- Watch: a rising `rudix_agent_runs_reaped_total{outcome="requeued"}` means workers die
+  mid-run (time limits, OOM, deploys without a grace period); any `failed` means a run
+  exhausted its resumes. A high `lease_held` rate means duplicate deliveries.
+  `publish_failed` means streams fall back to database polling.
+- These metrics are recorded inside the task, so the prefork-child limitation of the
+  section above applies to the task counters: use the run rows (`status`, `resume_count`,
+  `error_details.code`) as the source of truth.
+- No measured baseline exists yet; a live worker restart and Redis pub/sub are staging
+  checks (plan section 8).
+>>>>>>> develop
 
 ## Continuous evaluation
 

@@ -54,8 +54,16 @@ _CANCEL_WAIT_SECONDS = 5.0
 _active_runs: set[asyncio.Task[None]] = set()
 
 
+SSE_KEEPALIVE_FRAME = ": keep-alive\n\n"
+
+
+def format_sse_event(event_id: int, event: str, data: str) -> str:
+    """One frame of the 0.5.0 framing; also used by the agent run stream (R06-13)."""
+    return f"id: {event_id}\nevent: {event}\ndata: {data}\n\n"
+
+
 def format_sse_frame(event: ChatWSOutboundEvent) -> str:
-    return f"id: {event.sequence}\nevent: {event.event}\ndata: {event.to_json()}\n\n"
+    return format_sse_event(event.sequence, event.event, event.to_json())
 
 
 class SseEmitter(WsEmitter):
@@ -137,7 +145,7 @@ async def _frames(
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=keepalive)
             except TimeoutError:
-                yield ": keep-alive\n\n"
+                yield SSE_KEEPALIVE_FRAME
                 continue
             if item is None:
                 return

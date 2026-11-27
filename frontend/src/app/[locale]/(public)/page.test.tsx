@@ -13,7 +13,6 @@ describe("Public Landing Page", () => {
     delete process.env.NEXT_PUBLIC_PUBLIC_SECURITY_URL;
     delete process.env.NEXT_PUBLIC_PUBLIC_PRICING_URL;
     delete process.env.NEXT_PUBLIC_PUBLIC_DOCS_URL;
-    delete process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL;
     delete process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL;
     delete process.env.NEXT_PUBLIC_PUBLIC_STATUS_URL;
     delete process.env.NEXT_PUBLIC_PUBLIC_CONTACT_URL;
@@ -105,7 +104,6 @@ describe("Public Landing Page", () => {
     process.env.NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL = "/solutions-overview";
     process.env.NEXT_PUBLIC_PUBLIC_SECURITY_URL = "/security-overview";
     process.env.NEXT_PUBLIC_PUBLIC_PRICING_URL = "/pricing-overview";
-    process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL = "https://trial.example.com";
     process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL = "https://demo.example.com";
     process.env.NEXT_PUBLIC_PUBLIC_DOCS_URL = "https://docs.example.com";
 

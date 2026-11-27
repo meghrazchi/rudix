@@ -21,7 +21,8 @@ export const metadata: Metadata = {
     default: "Rudix",
     template: "%s | Rudix",
   },
-  description: "Rudix enterprise RAG platform",
+  description:
+    "AI document Q&A with cited answers from your company documents.",
   icons: {
     icon: "/brand/rudix-mark.svg",
     shortcut: "/brand/rudix-mark.svg",
