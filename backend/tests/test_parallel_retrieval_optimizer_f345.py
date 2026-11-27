@@ -81,6 +81,10 @@ class _FakeQueryRetrievalService:
             )
         ]
 
+    async def aretrieve_candidates(self, **kwargs) -> list[RetrievedCandidate]:
+        # R06-07: the optimizer awaits the async search.
+        return self.retrieve_candidates(**kwargs)
+
 
 class _FakeKeywordRetrievalService:
     def __init__(self, *, delay_seconds: float = 0.1) -> None:

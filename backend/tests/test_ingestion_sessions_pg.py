@@ -69,7 +69,9 @@ def test_no_connection_is_held_while_providers_run(
     fakes.embeddings.before_call = lambda _index: _observe("embed")
     fakes.qdrant.before_upsert = lambda _index: _observe("upsert")
     real_get = fakes.minio.get_object
-    real_delete = fakes.qdrant.delete_document_points
+    # R06-06: the per-run cleanup moved to the index stage (stale delete and count).
+    real_delete = fakes.qdrant.delete_stale_document_points
+    real_count = fakes.qdrant.count_document_points
 
     def _get_object(**kwargs: Any) -> Any:
         _observe("object_read")
@@ -78,6 +80,10 @@ def test_no_connection_is_held_while_providers_run(
     async def _delete(**kwargs: Any) -> Any:
         _observe("qdrant_cleanup")
         return await real_delete(**kwargs)
+
+    async def _count(**kwargs: Any) -> Any:
+        _observe("qdrant_count")
+        return await real_count(**kwargs)
 
     class _Extraction:
         async def extract_from_chunks(self, **_: Any) -> Any:
@@ -95,7 +101,8 @@ def test_no_connection_is_held_while_providers_run(
             )()
 
     env.monkeypatch.setattr(fakes.minio, "get_object", _get_object)
-    env.monkeypatch.setattr(fakes.qdrant, "delete_document_points", _delete)
+    env.monkeypatch.setattr(fakes.qdrant, "delete_stale_document_points", _delete)
+    env.monkeypatch.setattr(fakes.qdrant, "count_document_points", _count)
     env.monkeypatch.setattr(document_tasks, "_entity_extraction_service", _Extraction())
     env.set_content(TEXT.encode())
     seeded = env.seed()
@@ -115,7 +122,14 @@ def test_no_connection_is_held_while_providers_run(
         assert checked_out == 0, f"{kind}: {checked_out} connection(s) checked out"
         assert not any(in_tx), f"{kind}: a pipeline session is in a transaction"
     kinds = [kind for kind, _, _ in observations]
-    assert {"object_read", "qdrant_cleanup", "graph_extraction", "embed", "upsert"} <= set(kinds)
+    assert {
+        "object_read",
+        "qdrant_cleanup",
+        "qdrant_count",
+        "graph_extraction",
+        "embed",
+        "upsert",
+    } <= set(kinds)
     assert kinds.count("embed") >= 2 and kinds.count("upsert") == kinds.count("embed")
     assert tracking.sessions, "the pipeline opened no session through the factory"
     assert probe.checked_out == 0

@@ -29,6 +29,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from vector_fake_support import PointLedgerMixin
+
 from app.core.config import settings
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
@@ -485,7 +487,7 @@ class _FakeEmbeddings:
         )()
 
 
-class _FakePipelineQdrant:
+class _FakePipelineQdrant(PointLedgerMixin):
     @staticmethod
     def build_point_id(*, document_id: UUID, chunk_index: int, index_version: str) -> str:
         return f"{document_id}:{index_version}:{chunk_index}"

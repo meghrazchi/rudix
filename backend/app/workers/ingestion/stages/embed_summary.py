@@ -19,6 +19,7 @@ _SUMMED = (
     "latency_ms",
     "upserted_count",
     "qdrant_batch_count",
+    "reused_count",
 )
 _FIRST = ("model_name", "index_version", "provider_type", "vector_dimension")
 

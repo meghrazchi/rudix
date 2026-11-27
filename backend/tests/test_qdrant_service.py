@@ -125,7 +125,8 @@ async def test_upsert_chunks_includes_required_payload_fields(
         vectors_by_chunk_id=vectors,
     )
 
-    assert ensure_calls["count"] == 1
+    # R06-07: the collection is ensured at startup and in the migrate job, not per write.
+    assert ensure_calls["count"] == 0
     assert result.upserted_count == 1
     assert result.batch_count == 1
     assert result.point_ids_by_chunk_id == {chunk_id: chunk.qdrant_point_id}
@@ -299,7 +300,8 @@ async def test_delete_document_points_uses_org_and_document_filter(
     )
 
     assert result.deleted is True
-    assert ensure_calls["count"] == 1
+    # R06-07: the collection is ensured at startup and in the migrate job, not per write.
+    assert ensure_calls["count"] == 0
     assert len(fake_client.delete_calls) == 1
 
     delete_call = fake_client.delete_calls[0]

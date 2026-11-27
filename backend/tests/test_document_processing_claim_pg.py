@@ -36,6 +36,7 @@ os.environ.setdefault("CLERK_JWT_AUDIENCE", "rudix-api")
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+from vector_fake_support import PointLedgerMixin
 
 import app.db.session as db_session_module
 import app.models  # noqa: F401  # register all mappers for relationship resolution
@@ -245,7 +246,7 @@ class _FlakyEmbeddingService:
         )()
 
 
-class _FakeQdrant:
+class _FakeQdrant(PointLedgerMixin):
     def __init__(self) -> None:
         self.upserts: list[list[str]] = []
 

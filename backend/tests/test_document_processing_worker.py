@@ -29,6 +29,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from vector_fake_support import PointLedgerMixin
+
 from app.clients import minio_client as minio_module
 from app.core.config import settings
 from app.domains.documents.repositories.documents import DocumentRepository
@@ -94,7 +96,7 @@ class FakeEmbeddingService:
         )()
 
 
-class FakeQdrantService:
+class FakeQdrantService(PointLedgerMixin):
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
         self.delete_calls: list[dict[str, Any]] = []
@@ -116,6 +118,7 @@ class FakeQdrantService:
         chunking_strategy: str | None = None,
         chunking_profile_version: str | None = None,
         parent_text_by_chunk_id: dict[UUID, str] | None = None,
+        **_: Any,
     ) -> Any:
         call_payload = {
             "organization_id": organization_id,
@@ -152,6 +155,17 @@ class FakeQdrantService:
             }
         )
         return type("FakeQdrantDeleteResult", (), {"deleted": True})()
+
+    async def delete_stale_document_points(self, **kwargs: Any) -> None:
+        # R06-06: the per-run point cleanup moved here from before chunking.
+        self.delete_calls.append(
+            {
+                "organization_id": kwargs["organization_id"],
+                "document_id": kwargs["document_id"],
+                "index_version": kwargs["index_version"],
+            }
+        )
+        await super().delete_stale_document_points(**kwargs)
 
 
 class FakeQdrantDeleteService(FakeQdrantService):

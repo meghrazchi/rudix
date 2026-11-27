@@ -9,7 +9,6 @@ the whole file or of every page's text is built, which is what the change remove
 from __future__ import annotations
 
 import tracemalloc
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -334,5 +333,41 @@ def test_result_stream_adapter_passes_pages_through() -> None:
     stream.close()
 
 
-def _drain(sections: Iterator[Any]) -> int:
-    return sum(1 for _ in sections)
+def _writer_ctx() -> Any:
+    from types import SimpleNamespace
+
+    from app.workers.ingestion.store import MemoryStageStore
+
+    return SimpleNamespace(
+        store=MemoryStageStore(),
+        parts_since_heartbeat=0,
+        options=SimpleNamespace(persist_document_state=False),
+        claim_token=None,
+    )
+
+
+async def test_page_writer_keeps_slot_order_and_bounds_fragments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.workers.ingestion import pages
+    from app.workers.ingestion.errors import DocumentPipelinePermanentError
+
+    ctx = _writer_ctx()
+    writer = pages.PageWriter(ctx, "extract")
+    held = writer.reserve()  # an OCR page written after its successors
+    for number in range(2, 21):
+        await writer.add({"page_number": number, "text": f"p{number}", "char_count": 2})
+    await writer.add({"page_number": 1, "text": "ocr", "char_count": 3}, slot=held)
+    await writer.flush()
+    await writer.flush()  # nothing pending: no second write
+    read = await pages.read_pages(ctx, "extract")
+    assert [page["page_number"] for page in read] == [1, *range(2, 21)]
+    assert writer.parts_written == 20
+
+    monkeypatch.setattr(settings, "ingest_artifact_max_part_bytes", 64 * 1024)
+    monkeypatch.setattr(pages, "PAGE_PART_STRIDE", 1)
+    import os
+
+    big = {"page_number": 1, "text": os.urandom(200_000).hex(), "char_count": 400_000}
+    with pytest.raises(DocumentPipelinePermanentError):
+        await pages.PageWriter(_writer_ctx(), "extract").add(big)

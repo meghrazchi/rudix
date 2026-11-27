@@ -56,6 +56,9 @@ class _Query:
     def retrieve_candidates(self, **kwargs: Any) -> list[Any]:
         return []
 
+    async def aretrieve_candidates(self, **kwargs: Any) -> list[Any]:
+        return self.retrieve_candidates(**kwargs)
+
 
 class _Graph:
     async def expand(self, **kwargs: Any) -> GraphRetrievalResult:

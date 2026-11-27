@@ -84,6 +84,27 @@ def record_worker_tenant_mismatch(task: str) -> None:
 
 
 # anchor: A1
+# R06-06: chunks of an embed batch whose vector was reused from the vector index (hit) or
+# sent to the embedding provider (miss).
+EMBEDDING_CACHE_HITS_TOTAL = Counter(
+    "rudix_embedding_cache_hits_total",
+    "Embed-stage chunks by vector reuse outcome (hit = reused, miss = embedded)",
+    ["outcome"],
+    registry=registry,
+)
+
+
+def record_embedding_cache(hits: int, misses: int) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        if hits:
+            EMBEDDING_CACHE_HITS_TOTAL.labels(outcome="hit").inc(hits)
+        if misses:
+            EMBEDDING_CACHE_HITS_TOTAL.labels(outcome="miss").inc(misses)
+    except Exception as exc:
+        logger.debug("metrics.embedding_cache_failed: %s", exc)
+
 
 # anchor: A2
 

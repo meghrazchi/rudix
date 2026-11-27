@@ -25,11 +25,15 @@ def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UU
 
 
 def _get_qdrant_client() -> Any:
-    if qdrant_module.qdrant_client is None:
-        qdrant_module.init_qdrant()
-    if qdrant_module.qdrant_client is None:
-        raise RuntimeError("Qdrant client is not initialized")
-    return qdrant_module.qdrant_client
+    """Search client of the chat request path (R06-07).
+
+    ``AsyncQdrantClient`` with ``QDRANT_SEARCH_TIMEOUT_SECONDS`` for the running loop; a
+    client injected into ``qdrant_client.qdrant_client`` (tests, tools) is used instead.
+    """
+    injected = qdrant_module.injected_sync_client()
+    if injected is not None:
+        return injected
+    return qdrant_module.get_async_search_client()
 
 
 def _request_id_from_request(request: Request) -> str | None:

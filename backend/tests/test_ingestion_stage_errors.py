@@ -191,7 +191,7 @@ def test_vector_cleanup_failures(
         raise error
 
     env = ingestion_env
-    env.monkeypatch.setattr(env.fakes.qdrant, "delete_document_points", _delete)
+    env.monkeypatch.setattr(env.fakes.qdrant, "delete_stale_document_points", _delete)
     env.set_content(TEXT)
     assert _code(env, env.seed()) == expected
 
@@ -258,13 +258,13 @@ def test_vector_collection_reaches_cleanup_and_upserts(
 ) -> None:
     env = ingestion_env
     deletes: list[dict[str, Any]] = []
-    real_delete = env.fakes.qdrant.delete_document_points
+    real_delete = env.fakes.qdrant.delete_stale_document_points
 
     async def _delete(**kwargs: Any) -> Any:
         deletes.append(kwargs)
         return await real_delete(**kwargs)
 
-    env.monkeypatch.setattr(env.fakes.qdrant, "delete_document_points", _delete)
+    env.monkeypatch.setattr(env.fakes.qdrant, "delete_stale_document_points", _delete)
     env.set_content(TEXT)
     seeded = env.seed()
     service = document_tasks._make_chunking_service(None, index_version="eval-x")

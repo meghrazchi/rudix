@@ -166,6 +166,9 @@ class FakeQdrant:
         self.upserts: list[dict[str, Any]] = []
         self.deletes: list[dict[str, Any]] = []
         self.points: set[str] = set()
+        self.point_runs: dict[str, str | None] = {}
+        self.reuse_lookups: list[int] = []
+        self.stale_deleted = 0
         self.before_upsert: Callable[[int], None] | None = None
 
     @staticmethod
@@ -188,7 +191,26 @@ class FakeQdrant:
             }
         )
         self.points.update(point_ids)
+        for point_id in point_ids:
+            self.point_runs[point_id] = kwargs.get("ingest_run_id")
         return type("Upsert", (), {"upserted_count": len(chunks), "batch_count": 1})()
+
+    async def find_reusable_vectors(self, **kwargs: Any) -> dict[str, list[float]]:
+        self.reuse_lookups.append(len(list(kwargs.get("chunk_hashes") or [])))
+        return {}
+
+    async def delete_stale_document_points(self, **kwargs: Any) -> None:
+        # R06-06: points of this document version written by another run.
+        marker = f"{kwargs['document_id']}:{kwargs['index_version']}:"
+        run_id = kwargs["ingest_run_id"]
+        stale = {p for p in self.points if p.startswith(marker) and self.point_runs[p] != run_id}
+        self.points -= stale
+        self.stale_deleted += len(stale)
+        self.deletes.append({"index_version": kwargs["index_version"]})
+
+    async def count_document_points(self, **kwargs: Any) -> int:
+        marker = f"{kwargs['document_id']}:{kwargs['index_version']}:"
+        return sum(1 for point in self.points if point.startswith(marker))
 
     async def delete_document_points(self, **kwargs: Any) -> Any:
         index_version = kwargs.get("index_version")

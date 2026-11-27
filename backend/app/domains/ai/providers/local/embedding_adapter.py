@@ -19,6 +19,7 @@ from app.domains.ai.providers.errors import (
     ProviderQuotaExceededError,
     ProviderTimeoutError,
     ProviderUnavailableError,
+    retry_after_from_headers,
 )
 from app.domains.ai.providers.protocols import EmbeddingRequest, EmbeddingResponse
 
@@ -61,7 +62,10 @@ class OpenAICompatibleEmbeddingProvider:
             response = await self._client.embeddings.create(model=model, input=request.texts)
         except RateLimitError as exc:
             raise ProviderQuotaExceededError(
-                f"Local embedding rate limit exceeded: {_redact(str(exc))}"
+                f"Local embedding rate limit exceeded: {_redact(str(exc))}",
+                retry_after_seconds=retry_after_from_headers(
+                    getattr(getattr(exc, "response", None), "headers", None)
+                ),
             ) from exc
         except APITimeoutError as exc:
             raise ProviderTimeoutError(f"Local embedding timed out: {_redact(str(exc))}") from exc

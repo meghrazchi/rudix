@@ -1,3 +1,4 @@
+import logging
 from time import perf_counter
 from typing import Any
 
@@ -9,6 +10,7 @@ from celery.signals import (  # type: ignore[import-untyped]
     task_prerun,
     task_retry,
     worker_process_init,
+    worker_process_shutdown,
     worker_ready,
 )
 from kombu import Queue  # type: ignore[import-untyped]
@@ -194,6 +196,35 @@ def _initialize_worker(*_: object, **__: object) -> None:
     from app.workers.async_runtime import run_async
 
     run_async(init_neo4j())
+    _bootstrap_qdrant()
+
+
+def _bootstrap_qdrant() -> None:
+    """R06-07: create or check the collection once per worker process, not per write.
+
+    A Qdrant outage must not stop the worker from starting; the write path recreates a
+    missing collection once when Qdrant answers 404 (``QdrantService``).
+    """
+    from app.clients import qdrant_client as qdrant_module
+
+    try:
+        qdrant_module.init_qdrant()
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "worker.qdrant_bootstrap_failed: %s", type(exc).__name__
+        )
+
+
+@worker_process_shutdown.connect
+def _shutdown_worker(*_: object, **__: object) -> None:
+    from app.clients.qdrant_client import close_async_qdrant_clients, close_qdrant
+    from app.workers.async_runtime import run_async
+
+    try:
+        run_async(close_async_qdrant_clients())
+        close_qdrant()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("worker.qdrant_close_failed: %s", type(exc).__name__)
 
 
 @worker_ready.connect

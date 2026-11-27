@@ -52,6 +52,7 @@ ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
   echo '$DEPLOY_REGISTRY_PASSWORD' | docker login -u '$DEPLOY_REGISTRY_USER' --password-stdin '$DEPLOY_REGISTRY'
   docker compose -f '$compose_file' pull
   docker compose -f '$compose_file' run --rm api alembic upgrade head
+  docker compose -f '$compose_file' run --rm api python -m app.clients.qdrant_bootstrap
   if grep -qE '^ENTERPRISE_GRAPH_ENABLED=true' .env; then
     docker compose -f '$compose_file' run --rm api python scripts/run_graph_migrations.py
   fi

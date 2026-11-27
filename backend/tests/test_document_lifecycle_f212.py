@@ -39,6 +39,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from vector_fake_support import PointLedgerMixin
+
 from app.clients import minio_client as minio_module
 from app.core.config import settings
 from app.domains.documents.repositories.documents import DocumentRepository
@@ -105,7 +107,7 @@ class FakeEmbeddingService:
         )()
 
 
-class FakeQdrantService:
+class FakeQdrantService(PointLedgerMixin):
     def __init__(self) -> None:
         self.upsert_calls: list[dict[str, Any]] = []
         self.delete_calls: list[dict[str, Any]] = []

@@ -1,4 +1,4 @@
-"""index stage: connector source references for the indexed chunks (R06-01).
+"""index stage: stale vector cleanup and connector source references (R06-01, R06-06).
 
 The vectors are written by the embed stage batch by batch; this stage records the
 ``connector_chunk`` source references of connector-backed documents in one short session.
@@ -13,8 +13,16 @@ from sqlalchemy import select
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
 from app.workers.ingestion.context import StageContext
 from app.workers.ingestion.deps import current_deps
-from app.workers.ingestion.documents import embeddable_chunks_query, load_document
-from app.workers.ingestion.stages.base import StageOutcome
+from app.workers.ingestion.documents import (
+    embeddable_chunks_query,
+    index_version,
+    load_document,
+)
+from app.workers.ingestion.errors import (
+    DocumentPipelinePermanentError,
+    DocumentPipelineTransientError,
+)
+from app.workers.ingestion.stages.base import StageName, StageOutcome
 
 
 async def _upsert_connector_chunk_references(
@@ -128,11 +136,68 @@ async def _upsert_connector_chunk_references(
         )
 
 
+async def _vector_cleanup(ctx: StageContext, document: Any) -> int:
+    """Delete the document's points of other runs, then verify the point count (R06-06).
+
+    Pipeline-explorer stage ``index_cleanup``. One delete (organisation, document, index
+    version, ``ingest_run_id`` not this run) removes stale points such as the higher chunk
+    indexes of a longer previous version; one exact count must then equal the embeddable
+    chunk rows, otherwise the stage fails as transient ``QDRANT_POINT_COUNT_MISMATCH``.
+    """
+    ctx.current_stage = "index_cleanup"
+    version = index_version(ctx)
+    expected = int(ctx.metrics[StageName.chunk]["embeddable_count"])
+    ctx.log_stage("index_cleanup", "started", index_version=version)
+    await ctx.recorder.emit_stage(
+        stage="index_cleanup", stage_status="started", config={"index_version": version}
+    )
+    kwargs: dict[str, Any] = {
+        "organization_id": document.organization_id,
+        "document_id": document.id,
+        "index_version": version,
+    }
+    if ctx.options.vector_collection is not None:
+        kwargs["collection_name"] = ctx.options.vector_collection
+    qdrant = ctx.deps.qdrant_service
+    try:
+        await qdrant.delete_stale_document_points(**kwargs, ingest_run_id=ctx.run_id)
+        count = int(await qdrant.count_document_points(**kwargs))
+    except ValueError as exc:
+        raise DocumentPipelinePermanentError(
+            stage="index_cleanup",
+            code="QDRANT_CLEANUP_FILTER_INVALID",
+            category="validation",
+            message=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise DocumentPipelineTransientError(
+            stage="index_cleanup",
+            code="QDRANT_CLEANUP_FAILED",
+            category="infrastructure",
+            message="qdrant cleanup failed",
+        ) from exc
+    if count != expected:
+        raise DocumentPipelineTransientError(
+            stage="index_cleanup",
+            code="QDRANT_POINT_COUNT_MISMATCH",
+            category="infrastructure",
+            message=f"vector index holds {count} points for the document, expected {expected}",
+        )
+    ctx.log_stage("index_cleanup", "completed", index_version=version, point_count=count)
+    await ctx.recorder.emit_stage(
+        stage="index_cleanup",
+        stage_status="completed",
+        outputs={"index_version": version, "point_count": count},
+    )
+    return count
+
+
 async def run(ctx: StageContext) -> StageOutcome:
     document = await load_document(ctx)
+    point_count = await _vector_cleanup(ctx, document)
     if document.connector_external_item_id is None:
-        return StageOutcome(metrics={"source_references": 0})
+        return StageOutcome(metrics={"source_references": 0, "point_count": point_count})
     async with ctx.deps.SessionLocal() as session, session.begin():
         chunks = list((await session.execute(embeddable_chunks_query(ctx))).scalars())
         await _upsert_connector_chunk_references(session, document=document, chunks=chunks)
-    return StageOutcome(metrics={"source_references": len(chunks)})
+    return StageOutcome(metrics={"source_references": len(chunks), "point_count": point_count})

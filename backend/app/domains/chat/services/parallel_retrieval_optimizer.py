@@ -291,8 +291,8 @@ class ParallelRetrievalOptimizer:
                 semaphore=semaphore,
                 timeout_ms=plan.timeout_ms,
                 max_retry_attempts=plan.max_retry_attempts,
-                factory=lambda: asyncio.to_thread(
-                    query_retrieval_service.retrieve_candidates,
+                # R06-07: AsyncQdrantClient (a sync fake falls back to a thread inside).
+                factory=lambda: query_retrieval_service.aretrieve_candidates(
                     query_vector=query_vector,
                     organization_id=organization_id,
                     document_ids=document_ids,
