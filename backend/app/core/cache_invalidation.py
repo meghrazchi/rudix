@@ -21,7 +21,7 @@ from uuid import UUID
 from sqlalchemy import event, inspect, select
 from sqlalchemy.exc import MissingGreenlet
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, UOWTransaction
+from sqlalchemy.orm import Session, SessionTransaction, UOWTransaction
 from sqlalchemy.orm.util import identity_key
 from sqlalchemy.util import await_only
 
@@ -158,6 +158,11 @@ async def apply_invalidations(pending: dict[str, set[str]]) -> None:
 
 
 def _after_commit(session: Session) -> None:
+    if session.in_nested_transaction():
+        # A SAVEPOINT release is not a commit. Bumping now would let a concurrent request
+        # read the new version, load the rows the outer transaction has not committed yet
+        # (the old values), and cache them under that version until the TTL expires.
+        return
     pending = session.info.pop(PENDING_INFO_KEY, None)
     if not pending or not any(pending.values()):
         return
@@ -180,7 +185,21 @@ def _after_commit(session: Session) -> None:
 
 
 def _after_rollback(session: Session) -> None:
+    if session.in_nested_transaction():
+        # ROLLBACK TO SAVEPOINT: the outer transaction's writes may still commit, so keep
+        # every pending bump (an extra bump is harmless; a lost one serves stale data).
+        return
     session.info.pop(PENDING_INFO_KEY, None)
+
+
+def _after_transaction_end(session: Session, transaction: SessionTransaction) -> None:
+    """Drop bumps left by a root transaction that ended without committing.
+
+    Covers a full rollback while a SAVEPOINT was open (``_after_rollback`` keeps the bumps
+    then) and ``close()``; after a commit ``_after_commit`` has already taken them.
+    """
+    if transaction.parent is None and not transaction.nested:
+        session.info.pop(PENDING_INFO_KEY, None)
 
 
 def install_cache_invalidation_listeners() -> None:
@@ -191,4 +210,5 @@ def install_cache_invalidation_listeners() -> None:
     event.listen(Session, "after_flush", _after_flush)
     event.listen(Session, "after_commit", _after_commit)
     event.listen(Session, "after_rollback", _after_rollback)
+    event.listen(Session, "after_transaction_end", _after_transaction_end)
     _installed = True

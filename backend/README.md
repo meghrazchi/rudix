@@ -562,6 +562,8 @@ value = await get_or_load(
   picked up in `after_flush`; Core `update()`/`delete()` statements on those tables must call
   `mark_dirty(session, org_ids=..., user_ids=...)`. The version bump runs in `after_commit`,
   so `await session.commit()` returns after Redis is updated; a rollback drops the bumps.
+  Savepoints (`begin_nested()`) neither bump on release nor drop the outer transaction's bumps
+  on `ROLLBACK TO SAVEPOINT`; only the outermost commit bumps.
 - Redis errors, timeouts, a missing client, or `CACHE_ENABLED=false` fall back to the database
   and count `rudix_cache_errors_total`.
 - Tests: `tests/redis_fakes.FakeRedis` monkeypatched into `app.clients.redis_client.redis_client`

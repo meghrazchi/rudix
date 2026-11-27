@@ -135,6 +135,45 @@ async def test_rollback_discards_pending_bumps(
     assert _version(fake_redis, "user", user_id) is None
 
 
+async def test_savepoint_release_waits_for_the_outer_commit(
+    db_session: AsyncSession, fake_redis: FakeRedis
+) -> None:
+    org, user, member = await _seed(db_session)
+    _reset(fake_redis)
+    async with db_session.begin_nested():
+        member.role = "admin"
+    # RELEASE SAVEPOINT is not a commit: nothing is bumped until the outer commit.
+    assert _version(fake_redis, "user", user.id) is None
+    assert db_session.info[PENDING_INFO_KEY]["user"] == {str(user.id)}
+    await db_session.commit()
+    assert _bumped(fake_redis, "user", user.id)
+    assert _bumped(fake_redis, "org", org.id)
+
+
+async def test_savepoint_rollback_keeps_the_outer_bumps(
+    db_session: AsyncSession, fake_redis: FakeRedis
+) -> None:
+    _, user, member = await _seed(db_session)
+    user_id = user.id
+    _reset(fake_redis)
+    member.role = "admin"
+    await db_session.flush()
+    savepoint = await db_session.begin_nested()
+    await savepoint.rollback()
+    # The outer write still commits, so its bump must survive ROLLBACK TO SAVEPOINT.
+    await db_session.commit()
+    assert _bumped(fake_redis, "user", user_id)
+
+    # A full rollback with a savepoint open drops every pending bump.
+    _reset(fake_redis)
+    member.role = "viewer"
+    await db_session.flush()
+    await db_session.begin_nested()
+    await db_session.rollback()
+    assert PENDING_INFO_KEY not in db_session.info
+    assert _version(fake_redis, "user", user_id) is None
+
+
 async def test_custom_role_and_permission_changes_bump_org(
     db_session: AsyncSession, fake_redis: FakeRedis
 ) -> None:

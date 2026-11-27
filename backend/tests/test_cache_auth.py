@@ -507,8 +507,7 @@ async def test_require_permission_reads_membership_without_snapshot(
     assert await dependency(request, principal, db_session) is principal
 
 
-def test_snapshot_helpers_handle_missing_and_foreign_state() -> None:
-
+async def test_snapshot_helpers_handle_missing_and_foreign_state() -> None:
     from app.auth.principal_snapshot import (
         PrincipalSnapshot,
         SessionSnapshot,
