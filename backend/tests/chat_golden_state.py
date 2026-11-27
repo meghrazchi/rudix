@@ -59,7 +59,8 @@ async def persisted_state(db_session: AsyncSession, organization_id: UUID) -> di
             .all()
         )
     order = {message_id: index for index, message_id in enumerate(message_ids)}
-    citations.sort(key=lambda c: (order[c.chat_message_id], c.created_at, c.text_snippet))
+    # Not by created_at: it has one-second resolution on SQLite, so ties depend on timing.
+    citations.sort(key=lambda c: (order[c.chat_message_id], c.text_snippet or "", str(c.chunk_id)))
     usage = list(
         (
             await db_session.execute(

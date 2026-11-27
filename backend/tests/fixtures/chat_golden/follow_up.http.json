@@ -16,12 +16,12 @@
     {
       "chat_session_id": "<session:existing>",
       "confidence_score": null,
-      "content": "How much annual leave is provided?",
+      "content": "Earlier answer",
       "cost_usd": null,
       "id": "<uuid:6>",
       "model_name": null,
       "prompt_template_version_id": null,
-      "role": "user",
+      "role": "assistant",
       "token_input_count": null,
       "token_output_count": null,
       "trust_metadata_json": null
@@ -29,12 +29,12 @@
     {
       "chat_session_id": "<session:existing>",
       "confidence_score": null,
-      "content": "Earlier answer",
+      "content": "How much annual leave is provided?",
       "cost_usd": null,
       "id": "<uuid:7>",
       "model_name": null,
       "prompt_template_version_id": null,
-      "role": "assistant",
+      "role": "user",
       "token_input_count": null,
       "token_output_count": null,
       "trust_metadata_json": null

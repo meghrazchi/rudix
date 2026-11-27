@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -50,6 +51,7 @@ TEXT_B = "Contractors receive ten days of annual leave."
 TEXT_B_CONFLICT = "Employees receive fifteen days of annual leave."
 UNKNOWN_CHUNK_ID = "00000000-0000-4000-8000-000000000999"
 UNKNOWN_SESSION_ID = "00000000-0000-4000-8000-0000000000aa"
+EARLIER_TURN_AT = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
 
 Setup = Callable[[AsyncSession, pytest.MonkeyPatch, GoldenWorld], Awaitable[None]]
 
@@ -195,12 +197,19 @@ async def _follow_up(db: AsyncSession, mp: pytest.MonkeyPatch, world: GoldenWorl
         user_id=world.user.id,
         title="Earlier question",
     )
-    await repository.create_chat_message(
-        db, chat_session_id=session.id, role=ChatRole.user.value, content="Earlier question"
-    )
-    await repository.create_chat_message(
-        db, chat_session_id=session.id, role=ChatRole.assistant.value, content="Earlier answer"
-    )
+    earlier = [
+        await repository.create_chat_message(
+            db, chat_session_id=session.id, role=ChatRole.user.value, content="Earlier question"
+        ),
+        await repository.create_chat_message(
+            db, chat_session_id=session.id, role=ChatRole.assistant.value, content="Earlier answer"
+        ),
+    ]
+    # created_at has one-second resolution on SQLite: backdate the earlier turn so the stored
+    # rows sort the same way whether or not the query runs in the same second.
+    for row in (session, *earlier):
+        row.created_at = EARLIER_TURN_AT
+        db.add(row)
     await db.commit()
     world.label(session.id, "session:existing")
     world.payload["chat_session_id"] = str(session.id)
