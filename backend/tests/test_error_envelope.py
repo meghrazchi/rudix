@@ -193,6 +193,13 @@ def test_code_for_registry_and_cursor_codes() -> None:
     assert all(code == code.upper() for code in DETAIL_ERROR_CODES.values())
 
 
+def test_status_phrase_falls_back_for_non_http_status() -> None:
+    from app.core.errors import _status_phrase
+
+    assert _status_phrase(799) == "Error"
+    assert _status_phrase(404) == "Not Found"
+
+
 def test_real_app_registers_envelope() -> None:
     from app.main import app
 

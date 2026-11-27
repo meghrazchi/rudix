@@ -12,7 +12,7 @@ surrounding formatting is preserved:
 2. frontend/package.json            "version"
 3. frontend/package-lock.json       top-level "version"
 4. frontend/package-lock.json       packages[""].version
-5. backend/app/core/config.py       api_version Field default
+5. backend/app/core/settings/app.py  api_version Field default
 6. .env.example                     API_VERSION
 7. frontend/openapi.json            info.version
 
@@ -117,8 +117,8 @@ LOCATIONS: tuple[Location, ...] = (
         _lock_root_package,
     ),
     Location(
-        "backend/app/core/config.py api_version",
-        Path("backend/app/core/config.py"),
+        "backend/app/core/settings/app.py api_version",
+        Path("backend/app/core/settings/app.py"),
         re.compile(r'(?P<pre>api_version: str = Field\(default=")' + _V + r'(?P<post>")'),
     ),
     Location(

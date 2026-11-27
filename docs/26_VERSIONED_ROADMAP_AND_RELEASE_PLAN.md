@@ -56,7 +56,7 @@ are ordered by dependency, and each work item carries a relative size (S, M, L).
   `-rc` tags.
 - Version strings live in seven places: `backend/pyproject.toml`, `frontend/package.json`,
   `frontend/package-lock.json` (top-level and `packages[""]`), the `api_version` default in
-  `backend/app/core/config.py`, `API_VERSION` in `.env.example`, and `info.version` in
+  `backend/app/core/settings/app.py`, `API_VERSION` in `.env.example`, and `info.version` in
   `frontend/openapi.json`. `python3 scripts/bump_version.py X.Y.Z [--changelog] [--dry-run]`
   rewrites all of them (SemVer with an optional `-rc.N`, downgrades refused), and
   `--changelog` moves the `[Unreleased]` body of `docs/CHANGELOG.md` under
