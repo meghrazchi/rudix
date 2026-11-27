@@ -186,20 +186,40 @@ def chat_completion(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def stream_events(completion: dict[str, Any]) -> list[str]:
-    """SSE `data:` lines for a `stream: true` request, ending with [DONE]."""
+STREAM_PIECE_CHARS = 16
+
+
+def stream_events(
+    completion: dict[str, Any],
+    *,
+    include_usage: bool = False,
+    piece_chars: int = STREAM_PIECE_CHARS,
+) -> list[str]:
+    """SSE `data:` lines for a `stream: true` request, ending with [DONE].
+
+    The content goes out in pieces of ``piece_chars`` characters, like a real model's
+    tokens. ``stream_options.include_usage`` adds the OpenAI usage chunk (no choices)
+    before [DONE].
+    """
     base = {k: completion[k] for k in ("id", "created", "model")}
     content = completion["choices"][0]["message"]["content"]
+    size = max(1, piece_chars)
     deltas: list[dict[str, Any]] = [
-        {"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None},
-        {"index": 0, "delta": {"content": content}, "finish_reason": None},
-        {"index": 0, "delta": {}, "finish_reason": "stop"},
+        {"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}
     ]
-    events = [
-        json.dumps({**base, "object": "chat.completion.chunk", "choices": [delta]})
-        for delta in deltas
+    deltas += [
+        {"index": 0, "delta": {"content": content[i : i + size]}, "finish_reason": None}
+        for i in range(0, len(content), size)
     ]
-    return [f"data: {event}\n\n" for event in events] + ["data: [DONE]\n\n"]
+    deltas.append({"index": 0, "delta": {}, "finish_reason": "stop"})
+    chunks: list[dict[str, Any]] = [
+        {**base, "object": "chat.completion.chunk", "choices": [delta]} for delta in deltas
+    ]
+    if include_usage:
+        chunks.append(
+            {**base, "object": "chat.completion.chunk", "choices": [], "usage": completion["usage"]}
+        )
+    return [f"data: {json.dumps(chunk)}\n\n" for chunk in chunks] + ["data: [DONE]\n\n"]
 
 
 def embeddings(body: dict[str, Any]) -> dict[str, Any]:
@@ -288,7 +308,9 @@ class StubHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "close")
         self.end_headers()
-        for event in stream_events(completion):
+        options = body.get("stream_options")
+        include_usage = isinstance(options, dict) and options.get("include_usage") is True
+        for event in stream_events(completion, include_usage=include_usage):
             self.wfile.write(event.encode("utf-8"))
             self.wfile.flush()
         self.close_connection = True

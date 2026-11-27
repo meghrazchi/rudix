@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from time import perf_counter
 from typing import Any, Protocol
 
@@ -11,6 +12,7 @@ from openai import (
     InternalServerError,
     PermissionDeniedError,
     RateLimitError,
+    UnprocessableEntityError,
 )
 
 from app.domains.ai.providers.errors import (
@@ -22,7 +24,13 @@ from app.domains.ai.providers.errors import (
     ProviderUnavailableError,
     UnsupportedCapabilityError,
 )
+from app.domains.ai.providers.openai.streaming import (
+    build_chat_payload,
+    close_stream,
+    parse_stream_chunk,
+)
 from app.domains.ai.providers.protocols import (
+    ChatCompletionChunk,
     ChatCompletionRequest,
     ChatCompletionResponse,
 )
@@ -48,6 +56,32 @@ def _extract_content(content: object) -> str:
                 parts.append(text.strip())
         return "\n".join(parts).strip()
     return ""
+
+
+def _is_response_format_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "response_format" in msg and ("support" in msg or "not supported" in msg)
+
+
+def _translate_chat_error(exc: Exception) -> Exception:
+    """Map an OpenAI SDK error to the provider-neutral error (messages redacted)."""
+    if isinstance(exc, RateLimitError):
+        return ProviderQuotaExceededError(f"Local LLM rate limit exceeded: {_redact(str(exc))}")
+    if isinstance(exc, APITimeoutError):
+        return ProviderTimeoutError(f"Local LLM request timed out: {_redact(str(exc))}")
+    if isinstance(exc, APIConnectionError):
+        return ProviderUnavailableError(f"Local LLM is unreachable: {_redact(str(exc))}")
+    if isinstance(exc, AuthenticationError | PermissionDeniedError):
+        return ProviderPolicyBlockedError(f"Local LLM rejected the request: {_redact(str(exc))}")
+    if isinstance(exc, BadRequestError):
+        if _is_response_format_error(exc):
+            return UnsupportedCapabilityError("Local LLM does not support JSON response_format")
+        return InvalidProviderResponseError(f"Local LLM bad request: {_redact(str(exc))}")
+    if isinstance(exc, InternalServerError):
+        return ProviderInternalError(f"Local LLM internal error: {_redact(str(exc))}")
+    if isinstance(exc, OSError):
+        return ProviderUnavailableError(f"Network error reaching local LLM: {_redact(str(exc))}")
+    return ProviderInternalError(f"Unexpected local LLM error: {_redact(str(exc))}")
 
 
 class _ChatEndpointLike(Protocol):
@@ -84,53 +118,13 @@ class OpenAICompatibleChatProvider:
         model = request.model or self._model_name
         use_json_mode = request.json_mode and self._json_mode_enabled
 
-        payload: dict[str, object] = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": request.system_message},
-                {"role": "user", "content": request.prompt},
-            ],
-            "temperature": request.temperature,
-        }
-        if use_json_mode:
-            payload["response_format"] = {"type": "json_object"}
-        if request.max_tokens is not None:
-            payload["max_tokens"] = request.max_tokens
+        payload = build_chat_payload(request, model=model, json_mode=use_json_mode)
 
         started = perf_counter()
         try:
             response = await self._client.chat.completions.create(**payload)
-        except RateLimitError as exc:
-            raise ProviderQuotaExceededError(
-                f"Local LLM rate limit exceeded: {_redact(str(exc))}"
-            ) from exc
-        except APITimeoutError as exc:
-            raise ProviderTimeoutError(f"Local LLM request timed out: {_redact(str(exc))}") from exc
-        except APIConnectionError as exc:
-            raise ProviderUnavailableError(
-                f"Local LLM is unreachable: {_redact(str(exc))}"
-            ) from exc
-        except (AuthenticationError, PermissionDeniedError) as exc:
-            raise ProviderPolicyBlockedError(
-                f"Local LLM rejected the request: {_redact(str(exc))}"
-            ) from exc
-        except BadRequestError as exc:
-            msg = str(exc).lower()
-            if "response_format" in msg and ("support" in msg or "not supported" in msg):
-                raise UnsupportedCapabilityError(
-                    "Local LLM does not support JSON response_format"
-                ) from exc
-            raise InvalidProviderResponseError(
-                f"Local LLM bad request: {_redact(str(exc))}"
-            ) from exc
-        except InternalServerError as exc:
-            raise ProviderInternalError(f"Local LLM internal error: {_redact(str(exc))}") from exc
-        except OSError as exc:
-            raise ProviderUnavailableError(
-                f"Network error reaching local LLM: {_redact(str(exc))}"
-            ) from exc
         except Exception as exc:
-            raise ProviderInternalError(f"Unexpected local LLM error: {_redact(str(exc))}") from exc
+            raise _translate_chat_error(exc) from exc
 
         latency_ms = int((perf_counter() - started) * 1000)
         choices = getattr(response, "choices", None) or []
@@ -155,3 +149,31 @@ class OpenAICompatibleChatProvider:
             total_tokens=total_tokens,
             latency_ms=latency_ms,
         )
+
+    async def stream(self, request: ChatCompletionRequest) -> AsyncIterator[ChatCompletionChunk]:
+        """Stream the completion (R05-03). Servers that reject ``stream_options`` get one
+        retry without it (then no usage is reported and callers estimate it)."""
+        model = request.model or self._model_name
+        use_json_mode = request.json_mode and self._json_mode_enabled
+        payload = build_chat_payload(request, model=model, json_mode=use_json_mode)
+        payload["stream"] = True
+        payload["stream_options"] = {"include_usage": True}
+        try:
+            stream = await self._client.chat.completions.create(**payload)
+        except (BadRequestError, UnprocessableEntityError) as exc:
+            if _is_response_format_error(exc):
+                raise _translate_chat_error(exc) from exc
+            payload.pop("stream_options", None)
+            try:
+                stream = await self._client.chat.completions.create(**payload)
+            except Exception as retry_exc:
+                raise _translate_chat_error(retry_exc) from retry_exc
+        except Exception as exc:
+            raise _translate_chat_error(exc) from exc
+        try:
+            async for event in stream:
+                yield parse_stream_chunk(event)
+        except Exception as exc:
+            raise _translate_chat_error(exc) from exc
+        finally:
+            await close_stream(stream)

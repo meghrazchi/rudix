@@ -16,6 +16,7 @@ from app.application.chat.pipeline.events import ActivityStepEmitter, ChatEvent,
 from app.application.chat.pipeline.ledger import TokenLedger
 from app.application.chat.pipeline.sessions import ChatSessionScope
 from app.application.chat.pipeline.snapshots import PromptVersionSnapshot, RagProfileSnapshot
+from app.application.chat.pipeline.stream_state import StreamState
 from app.auth.models import AuthenticatedPrincipal
 from app.core.safety_guardrails import InjectionCheckResult
 from app.domains.ai.profile.schemas import ResolvedTaskProfile
@@ -263,6 +264,7 @@ class ChatContext:
     # Set by a stage that produced the final answer (blocked, scope inventory, guidance).
     terminal: bool = False
     # anchor: A1 streaming
+    stream: StreamState = field(default_factory=StreamState)
     # anchor: A2 resilience
     # anchor: B1 ledger routing injection
     # anchor: B2 budget caches

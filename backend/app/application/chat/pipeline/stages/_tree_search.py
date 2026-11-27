@@ -109,7 +109,7 @@ async def run_tree_search(ctx: ChatContext) -> None:
     )
     if not applicable:
         return
-    await start_drafting(ctx)
+    await start_drafting(ctx, "buffered")  # R05-03: tree search always buffers
     tree_chunks = context_chunks(ctx)
     tree = ctx.deps.tree_search_service
     result = await tree.generate_candidates(

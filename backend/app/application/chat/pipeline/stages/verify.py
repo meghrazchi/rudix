@@ -15,6 +15,7 @@ from app.application.chat.pipeline.stages._confidence import (
     enrich_citations_and_score,
     score_not_found,
 )
+from app.application.chat.pipeline.stages._final import emit_final_events
 from app.core.logging import log_query_event
 from app.domains.chat.services.confidence_calibration import _build_evidence_quality_inputs
 from app.domains.chat.services.grounded_answer_verifier import VerifierChunk
@@ -65,6 +66,7 @@ class VerifyStage:
         self._policy_post_check(ctx)
         # The answer, citations, and confidence are final from here on.
         # anchor: A1 final event
+        await emit_final_events(ctx)
 
     @staticmethod
     async def _grounded_verification(ctx: ChatContext) -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import (
     BaseModel,
@@ -52,6 +52,10 @@ class FeaturesSettings(BaseModel):
     ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
     ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)
     ws_chat_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=120)
+    # R05-03: "live" streams answer tokens as the model writes them (provisional until
+    # generation.final); "buffered" sends the verified text only. Strict grounded
+    # verification, blocking AI-policy rules, and tree search always buffer.
+    chat_stream_mode: Literal["live", "buffered"] = "live"
     # WebSocket chat auth (R02-10): single-use handshake tickets from POST /chat/ws-ticket.
     # chat_ws_allow_query_token keeps the legacy ?token= handshake working; it defaults
     # to true in 0.2.0, flips to false in 0.5.0, and is removed in 1.0.0.

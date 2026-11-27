@@ -13,7 +13,13 @@ from fastapi import status
 from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
 from app.application.chat.pipeline.errors import ChatPipelineError
 from app.application.chat.pipeline.events import ChatEvent, plural
-from app.application.chat.pipeline.stages._llm import apply_llm_result
+from app.application.chat.pipeline.stages._llm import (
+    apply_llm_result,
+    emit_delta,
+    start_drafting,
+    stream_llm_answer,
+)
+from app.application.chat.pipeline.stages.generate import resolve_stream_mode
 from app.application.chat.scope_inventory import (
     _build_scope_inventory_answer,
     _build_scope_inventory_result,
@@ -133,9 +139,10 @@ class DirectAnswersStage:
         )
         await ctx.emit_step("searching_documents", "Searching knowledge base", state, detail)
         await ctx.emit_step("reranking_evidence", "Ranking evidence by relevance", "skipped")
-        await ctx.emit(ChatEvent(type="generation.started"))
-        await ctx.emit_step("drafting_answer", "Drafting answer", "running")
-        await ctx.emit(ChatEvent(type="generation.delta", payload={"text": gen.answer}))
+        # The inventory text is built here, not by a model: one delta, as before streaming.
+        await start_drafting(ctx, "live")
+        await emit_delta(ctx, gen.answer)
+        ctx.stream.answer_after_generation = gen.answer
         await ctx.emit_step("drafting_answer", "Drafting answer", state)
         await ctx.emit(
             ChatEvent(
@@ -159,17 +166,14 @@ class DirectAnswersStage:
         ctx.retrieval.embedding_model = None
         await ctx.emit_step("checking_sources", "Checking accessible sources", "skipped")
         await ctx.emit_step("searching_documents", "Searching knowledge base", "skipped")
-        await ctx.emit(ChatEvent(type="generation.started"))
-        await ctx.emit_step("drafting_answer", "Drafting answer", "running")
+        # R05-03: guidance streams too (the grounded verifier never checks it).
+        await start_drafting(ctx, resolve_stream_mode(ctx, verification=False))
         gen.prompt = ctx.deps.prompt_service.build_guidance_prompt(
             question=req.payload.question,
             answer_language=ctx.config.answer_language_used,
         )
         try:
-            llm_result = await ctx.deps.llm_service.generate_answer(
-                prompt=gen.prompt,
-                resolved_profile=ctx.config.chat_profile,
-            )
+            llm_result = await stream_llm_answer(ctx, gen.prompt)
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
             log_query_event(
                 event="query.failed.generate",
@@ -189,7 +193,7 @@ class DirectAnswersStage:
         gen.answer = llm_result.answer if llm_result.answer.strip() else NOT_FOUND_ANSWER
         gen.not_found = llm_result.not_found or not gen.answer.strip()
         gen.citations = []
-        await ctx.emit(ChatEvent(type="generation.delta", payload={"text": gen.answer}))
+        ctx.stream.answer_after_generation = gen.answer
         signals = _to_confidence_signals(chunks=[], rerank_applied=False)
         ctx.verification.confidence_signals = signals
         _apply_confidence(

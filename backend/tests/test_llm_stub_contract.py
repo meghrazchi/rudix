@@ -24,7 +24,9 @@ from openai import AsyncOpenAI
 
 from app.domains.ai.providers.local.adapter import OpenAICompatibleChatProvider
 from app.domains.ai.providers.local.embedding_adapter import OpenAICompatibleEmbeddingProvider
-from app.domains.ai.providers.protocols import EmbeddingRequest
+from app.domains.ai.providers.openai.adapter import OpenAIChatProvider
+from app.domains.ai.providers.protocols import ChatCompletionRequest, EmbeddingRequest
+from app.domains.chat.services.answer_stream import StreamProgress
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.llm_service import LLMService
 from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
@@ -272,8 +274,51 @@ def test_http_round_trip_health_models_errors_and_stream(stub: ModuleType, stub_
     assert status == 200
     events = [line[6:] for line in body.decode().splitlines() if line.startswith("data: ")]
     assert events[-1] == "[DONE]"
-    content = "".join(
-        json.loads(event)["choices"][0]["delta"].get("content", "") for event in events[:-1]
-    )
-    parsed = LLMService._parse_strict_output(content)
+    decoded = [json.loads(event) for event in events[:-1]]
+    assert all("usage" not in chunk for chunk in decoded)  # only with include_usage
+    pieces = [c["choices"][0]["delta"].get("content", "") for c in decoded if c["choices"]]
+    assert len([piece for piece in pieces if piece]) > 1  # streamed in several pieces
+    parsed = LLMService._parse_strict_output("".join(pieces))
     assert parsed.citations[0].chunk_id == str(chunks[0].chunk_id)
+
+    status, body = _http(
+        f"{stub_url}/v1/chat/completions",
+        {**request, "stream_options": {"include_usage": True}},
+    )
+    usage_chunk = json.loads(
+        [line[6:] for line in body.decode().splitlines() if line.startswith("data: ")][-2]
+    )
+    assert usage_chunk["choices"] == [] and usage_chunk["usage"]["completion_tokens"] > 0
+
+
+async def test_answer_streams_through_openai_provider(stub_url: str) -> None:
+    """R05-03: OpenAIChatProvider.stream() against the stub, through LLMService."""
+    chunks = _chunks()
+    provider = OpenAIChatProvider(client=_client(stub_url), model_name="stub-chat")
+    increments: list[str] = []
+
+    async def on_text(text: str) -> None:
+        increments.append(text)
+
+    progress = StreamProgress()
+    result = await LLMService(provider=provider, retry_max_attempts=1).stream_answer(
+        prompt=_prompt(chunks), on_text=on_text, progress=progress
+    )
+
+    assert len(increments) > 1
+    assert "".join(increments) == result.answer
+    assert "AURORA-7319" in result.answer and result.not_found is False
+    assert result.used_fallback_parser is False and result.usage_estimated is False
+    assert result.prompt_tokens > 0 and result.completion_tokens > 0
+    assert progress.attempts[0].usage_reported
+    assert [c.chunk_id for c in result.citations] == [str(chunks[0].chunk_id)]
+
+
+async def test_local_provider_streams_against_the_stub(stub_url: str) -> None:
+    provider = OpenAICompatibleChatProvider(client=_client(stub_url), model_name="stub-chat")
+    pieces = [
+        chunk.text_delta
+        async for chunk in provider.stream(ChatCompletionRequest(prompt=_prompt(_chunks())))
+    ]
+    assert len([p for p in pieces if p]) > 1
+    assert LLMService._parse_strict_output("".join(pieces)).not_found is False

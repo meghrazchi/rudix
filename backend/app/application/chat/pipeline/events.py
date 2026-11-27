@@ -63,5 +63,29 @@ class ActivityStepEmitter:
         )
 
 
+# -- streaming events (R05-03, contract 4.2.6) -------------------------------------------
+# Deltas and replaces carry text only; citations are presented with generation.final.
+
+
+def generation_started_event(mode: str) -> ChatEvent:
+    return ChatEvent(type="generation.started", payload={"mode": mode})
+
+
+def generation_delta_event(text: str) -> ChatEvent:
+    return ChatEvent(type="generation.delta", payload={"text": text})
+
+
+def generation_replace_event(text: str, reason: str, message_id: str | None) -> ChatEvent:
+    return ChatEvent(
+        type="generation.replace",
+        payload={"text": text, "reason": reason},
+        message_id=message_id,
+    )
+
+
+def generation_final_event(payload: dict[str, Any], message_id: str | None) -> ChatEvent:
+    return ChatEvent(type="generation.final", payload=payload, message_id=message_id)
+
+
 def plural(count: int, noun: str) -> str:
     return f"{count} {noun}{'s' if count != 1 else ''}"

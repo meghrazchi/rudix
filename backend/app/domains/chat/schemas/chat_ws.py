@@ -15,6 +15,8 @@ ChatWSEventType = Literal[
     "rerank.completed",
     "generation.started",
     "generation.delta",
+    "generation.final",
+    "generation.replace",
     "citation.validation.started",
     "citation.validation.completed",
     "activity.step.update",
