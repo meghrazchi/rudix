@@ -269,7 +269,7 @@ def test_kill_and_redeliver_resumes_without_duplicates(
 
 
 @pytest.mark.requires_postgres
-@pytest.mark.parametrize("point", ["chunk", "embed", "finalize_after_commit"])
+@pytest.mark.parametrize("point", KILL_POINTS)
 def test_kill_and_redeliver_resumes_on_postgres(
     ingestion_env_pg: IngestionEnv,  # noqa: F811
     point: str,
