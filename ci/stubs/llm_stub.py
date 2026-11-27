@@ -43,6 +43,8 @@ _NOT_FOUND_RE = re.compile(r"answer exactly: ([^\n]+)")
 _BLOCK_START_RE = re.compile(r"^\[\d+\]\ndocument_id=", re.M)
 _RERANK_KEY_RE = re.compile(r"^key: (.+)\noriginal_rank: ", re.M)
 _CONTEXT_MARKER = "<<QUESTION_END>>\n\nContext blocks:\n"
+# Context blocks are wrapped in per-request boundary marker lines (R05-09).
+_BOUNDARY_LINE_RE = re.compile(r"^<<<(?:END )?CONTEXT [0-9a-f]+>>>\n?", re.M)
 
 
 def env_int(name: str, default: int) -> int:
@@ -90,6 +92,7 @@ def prompt_kind(text: str) -> str:
 
 
 def _first_block(context: str) -> dict[str, str] | None:
+    context = _BOUNDARY_LINE_RE.sub("", context)
     starts = [match.start() for match in _BLOCK_START_RE.finditer(context)]
     if not starts:
         return None

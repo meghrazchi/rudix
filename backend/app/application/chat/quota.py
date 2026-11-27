@@ -66,3 +66,21 @@ async def record_chat_usage(db_session: AsyncSession, *, organization_id: UUID) 
         quota_type=QuotaType.questions,
         amount=1,
     )
+
+
+async def record_chat_token_usage(
+    db_session: AsyncSession, *, organization_id: UUID, total_tokens: int
+) -> None:
+    """Record the run's total tokens (every provider call, R05-07) against the token quota.
+
+    Runs in the same transaction as :func:`record_chat_usage`; a run without tokens
+    records nothing.
+    """
+    if total_tokens <= 0:
+        return
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.tokens,
+        amount=total_tokens,
+    )

@@ -7,6 +7,7 @@ access. The log carries the strategy and counts only, never the rewritten text.
 
 from app.application.chat.pipeline.context import ChatContext
 from app.application.chat.pipeline.controls import _resolve_query_rewrite_preview_enabled
+from app.application.chat.pipeline.stages._ledger import record_aux_usage
 from app.core.config import settings
 from app.core.logging import log_query_event
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
@@ -46,8 +47,10 @@ class RewriteStage:
             profile_rewriting_enabled=profile_rewriting,
             profile_decomposition_enabled=profile_decomposition,
             max_sub_queries=profile_max_sub_queries,
+            resolved_profile=cfg.chat_profile,
         )
         cfg.query_rewrite_result = result
+        record_aux_usage(ctx, "rewrite", result.usage)
         if result.rewriting_applied or result.decomposition_applied:
             log_query_event(
                 event="query.rewriting.applied",

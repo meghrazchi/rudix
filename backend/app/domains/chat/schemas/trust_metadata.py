@@ -391,6 +391,20 @@ class ToolOrchestrationRecord(BaseModel):
     tool_calls: list[ChatToolCallRecord] = Field(default_factory=list)
 
 
+class ContextInjectionRecord(BaseModel):
+    """Prompt-injection scan of the retrieved chunks (R05-09).
+
+    Lists the ids of chunks whose text matched an injection pattern and the action taken
+    (flag, downrank, or drop). Never carries chunk text. ``scanned`` is false when no
+    chunks reached the scan (refusals, guidance answers, empty retrieval).
+    """
+
+    scanned: bool = False
+    action: Literal["flag", "downrank", "drop"] | None = None
+    flagged_count: int = 0
+    flagged_chunk_ids: list[str] = Field(default_factory=list)
+
+
 class AnswerTrustMetadataResponse(BaseModel):
     """Versioned, organization-scoped answer trust metadata contract.
 
@@ -418,6 +432,7 @@ class AnswerTrustMetadataResponse(BaseModel):
     planner_critic: PlannerCriticRecord = Field(default_factory=PlannerCriticRecord)
     retrieval_method: RetrievalMethodRecord = Field(default_factory=RetrievalMethodRecord)
     tool_orchestration: ToolOrchestrationRecord = Field(default_factory=ToolOrchestrationRecord)
+    context_injection: ContextInjectionRecord = Field(default_factory=ContextInjectionRecord)
     generated_at: datetime
 
 

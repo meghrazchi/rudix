@@ -238,6 +238,10 @@ class AnswerPromptRecord:
 
 
 def _parse_context_blocks(context: str) -> list[ContextBlock]:
+    # R05-09: blocks sit between `<<<CONTEXT {b}>>>` / `<<<END CONTEXT {b}>>>` lines; the
+    # marker lines are dropped so the inner `[n]`, key=value, and `text:` lines parse as
+    # before (the old unwrapped format still parses).
+    context = re.sub(r"(?m)^<<<(?:END )?CONTEXT [0-9a-f]+>>>\n?", "", context)
     blocks: list[ContextBlock] = []
     for raw_block in re.split(r"(?m)^\[\d+\]\n", context):
         if "chunk_id=" not in raw_block:

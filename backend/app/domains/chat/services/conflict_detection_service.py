@@ -29,7 +29,19 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import settings
-from app.domains.ai.providers.protocols import ChatCompletionRequest
+from app.domains.ai.profile.schemas import ResolvedTaskProfile
+from app.domains.ai.providers.protocols import ChatCompletionProvider, ChatCompletionRequest
+from app.domains.chat.services.aux_llm import (
+    AuxCallUsage,
+    resolve_aux_route,
+    usage_from_response,
+)
+from app.domains.chat.services.untrusted_context import (
+    neutralise_markers,
+    new_context_boundary,
+    with_untrusted_rule,
+    wrap_context,
+)
 
 logger = logging.getLogger("chat.conflict_detection")
 
@@ -159,6 +171,8 @@ class ConflictDetectionResult:
     model_name: str = ""
     provider_key: str = ""
     latency_ms: int = 0
+    # Token usage of the provider call (``None`` when no call completed) (R05-07).
+    usage: AuxCallUsage | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -208,18 +222,28 @@ JSON schema:
 """
 
 
+_CONFLICT_SYSTEM_MESSAGE = (
+    "You detect factual conflicts between retrieved documents. Return only valid JSON."
+)
+
+
 def _build_conflict_prompt(
     doc_groups: dict[str, list[str]],
+    boundary: str | None = None,
 ) -> str:
     """Build the LLM prompt from labelled document chunk groups.
 
     doc_groups maps a short label (e.g. "DOC_1") to a list of chunk texts
     (already truncated). Raw text never leaves this function's return value
-    except inside the prompt that goes to the LLM.
+    except inside the prompt that goes to the LLM. Each chunk text is wrapped in the
+    request's boundary markers (R05-09).
     """
+    marker = boundary or new_context_boundary()
     sections: list[str] = []
     for label, texts in doc_groups.items():
-        combined = "\n---\n".join(t.strip() for t in texts)
+        combined = "\n---\n".join(
+            wrap_context(neutralise_markers(t.strip()), marker) for t in texts
+        )
         sections.append(f"[{label}]\n{combined}")
     source_block = "\n\n".join(sections)
     return f"{_SYSTEM_PROMPT}\n\nSOURCE GROUPS:\n{source_block}"
@@ -243,10 +267,10 @@ class ConflictDetectionService:
     def __init__(self, *, timeout_seconds: float | None = None) -> None:
         self._timeout_seconds = timeout_seconds or settings.conflict_detection_timeout_seconds
 
-    def _resolve_provider(self):  # type: ignore[return]
+    def _resolve_provider(self, provider_key: str | None = None) -> ChatCompletionProvider:
         from app.domains.ai.providers.factory import default_provider_factory
 
-        return default_provider_factory.get_chat_provider()
+        return default_provider_factory.get_chat_provider(provider_key)
 
     @staticmethod
     def _parse_output(raw: str) -> _ConflictDetectorOutput:
@@ -257,11 +281,12 @@ class ConflictDetectionService:
         return _ConflictDetectorOutput.model_validate(json.loads(raw[start : end + 1]))
 
     @staticmethod
-    def _fallback() -> ConflictDetectionResult:
+    def _fallback(usage: AuxCallUsage | None = None) -> ConflictDetectionResult:
         return ConflictDetectionResult(
             conflict_detected=False,
             agreement_level="full",
             applied=False,
+            usage=usage,
         )
 
     @staticmethod
@@ -306,6 +331,8 @@ class ConflictDetectionService:
         *,
         chunks: list[ConflictDetectionChunk],
         min_source_docs: int | None = None,
+        resolved_profile: ResolvedTaskProfile | None = None,
+        context_boundary: str | None = None,
     ) -> ConflictDetectionResult:
         """Detect factual conflicts among retrieved chunks.
 
@@ -318,6 +345,9 @@ class ConflictDetectionService:
                     LLM; chunk_ids never appear in the result.
             min_source_docs: Minimum number of distinct documents required to
                              run detection (defaults to config setting).
+            resolved_profile: The chat model profile; without it the environment
+                              default provider and model are used (R05-08).
+            context_boundary: The request's context boundary token (R05-09).
         """
         _min_docs = (
             min_source_docs
@@ -348,22 +378,31 @@ class ConflictDetectionService:
             doc_groups[label] = [chunk.text[:_MAX_CHUNK_CHARS] for chunk in chunks_by_doc[doc_id]]
 
         # LLM call.
+        route = resolve_aux_route(resolved_profile)
+        boundary = context_boundary or new_context_boundary()
+        usage: AuxCallUsage | None = None
         started = perf_counter()
         try:
-            provider = self._resolve_provider()
-            prompt = _build_conflict_prompt(doc_groups)
+            provider = (
+                self._resolve_provider(route.provider_key)
+                if route.provider_key is not None
+                else self._resolve_provider()
+            )
+            prompt = _build_conflict_prompt(doc_groups, boundary)
             request = ChatCompletionRequest(
                 prompt=prompt,
-                model=settings.openai_llm_model,
+                model=route.model_name,
                 temperature=0.0,
                 json_mode=True,
+                system_message=with_untrusted_rule(_CONFLICT_SYSTEM_MESSAGE, boundary),
             )
             response = await provider.complete(request)
+            usage = usage_from_response(route, response)
             raw_text = response.content or ""
             parsed = self._parse_output(raw_text)
         except Exception as exc:
             logger.warning("conflict_detection failed, using safe fallback: %s", exc)
-            return self._fallback()
+            return self._fallback(usage)
 
         latency_ms = int((perf_counter() - started) * 1000)
 
@@ -417,7 +456,8 @@ class ConflictDetectionService:
             preferred_document_ids=preferred_document_ids,
             conflict_summary=parsed.conflict_summary if conflict_detected else "",
             applied=True,
-            model_name=settings.openai_llm_model,
-            provider_key=settings.llm_default_provider,
+            model_name=route.model_name,
+            provider_key=route.reported_provider_key,
             latency_ms=latency_ms,
+            usage=usage,
         )

@@ -12,15 +12,17 @@ from fastapi import status
 from app.application.chat.message_citations import persist_answer_citations
 from app.application.chat.pipeline.context import ChatContext
 from app.application.chat.pipeline.errors import ChatPipelineError
+from app.application.chat.pipeline.stages._ledger import ledger_metadata
 from app.application.chat.pipeline.stages._usage import (
     audit_metadata,
     build_trace_metadata,
     transport_fields,
     usage_metadata,
 )
-from app.application.chat.quota import record_chat_usage
+from app.application.chat.quota import record_chat_token_usage, record_chat_usage
 from app.core.langfuse_tracer import trace_chat_query
 from app.core.logging import log_query_event
+from app.core.metrics import record_chat_tokens
 from app.domains.chat.services.trust_metadata_builder import _build_trust_metadata
 from app.domains.chat.services.trust_records import _build_retrieval_diagnostics_payload
 from app.models.enums import ChatRole
@@ -81,6 +83,7 @@ class PersistStage:
                     message="Failed to persist chat response",
                 ) from exc
         ctx.latencies_ms["persist"] = int((perf_counter() - persist_started) * 1000)
+        self._record_token_metrics(ctx)
         ctx.latencies_ms["total"] = int((perf_counter() - ctx.total_started) * 1000)
 
         trace_chat_query(build_trace_metadata(ctx))
@@ -182,6 +185,7 @@ class PersistStage:
             refiner_result=ver.refiner_result,
             route_result=cfg.route_result,
             orchestration_result=cfg.orchestration_result,
+            context_injection=ctx.context_injection,
         )
         out.trust_metadata = trust_metadata
         assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")
@@ -196,21 +200,24 @@ class PersistStage:
             repository=deps.chat_repository,
         )
 
+        # R05-07: the usage event carries the ledger totals (every provider call of the
+        # run) and the per-call breakdown; the token quota records the same total.
+        totals = ctx.ledger.totals()
         await deps.usage_repository.create_usage_event(
             db_session,
             organization_id=req.organization_id,
             user_id=req.user_id,
             event_type="chat.completion",
             model_name=gen.llm_model,
-            input_tokens=ret.embedding_prompt_tokens + gen.llm_prompt_tokens,
-            output_tokens=gen.llm_completion_tokens,
-            cost_usd=gen.llm_cost_usd,
+            input_tokens=totals.prompt_tokens,
+            output_tokens=totals.completion_tokens,
+            cost_usd=totals.cost_usd,
             provider_key=gen.llm_provider,
             task_type="chat",
             retry_count=gen.llm_retry_count,
             fallback_used=gen.llm_fallback_used,
             request_id=req.request_id,
-            metadata=usage_metadata(ctx),
+            metadata={**usage_metadata(ctx), "token_ledger": ledger_metadata(ctx.ledger)},
         )
         await deps.audit_log_service.record(
             db_session,
@@ -248,6 +255,19 @@ class PersistStage:
             )
 
         await record_chat_usage(db_session, organization_id=req.organization_id)
+        await record_chat_token_usage(
+            db_session,
+            organization_id=req.organization_id,
+            total_tokens=totals.total_tokens,
+        )
+
+    @staticmethod
+    def _record_token_metrics(ctx: ChatContext) -> None:
+        """``rudix_chat_tokens_total{stage,kind}`` once the run is committed (R05-07)."""
+        for entry in ctx.ledger.entries:
+            record_chat_tokens(entry.stage, "prompt", entry.prompt_tokens)
+            record_chat_tokens(entry.stage, "completion", entry.completion_tokens)
+            record_chat_tokens(entry.stage, "cached", entry.cached_tokens)
 
     @staticmethod
     def _log_completed(ctx: ChatContext) -> None:

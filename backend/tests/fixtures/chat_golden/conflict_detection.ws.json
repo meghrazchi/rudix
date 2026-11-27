@@ -126,6 +126,12 @@
             "<doc:b>"
           ]
         },
+        "context_injection": {
+          "action": "downrank",
+          "flagged_chunk_ids": [],
+          "flagged_count": 0,
+          "scanned": true
+        },
         "evidence_quality": {
           "any_incomplete_documents": false,
           "extraction_warning_count": 0,
@@ -518,11 +524,11 @@
   "provider_calls": [
     {
       "kind": "conflict",
-      "prompt_sha256": "6db59998bd348aef80467c138bbd71772d1cdc218f220041c56fa2b9370a3db7"
+      "prompt_sha256": "e11b69b338ee0316eee45d87243fe40fabe79102da1b3270e0c97d9e3da41f7b"
     },
     {
       "kind": "answer",
-      "prompt_sha256": "e3515f65d89fe2e51f28f231ebdc862097d2dae03bef88ada2645eea04dbe8fa"
+      "prompt_sha256": "e57da7d47954d78764ff68d4598d4d31920c8aa1d503fbdd8f0d3098324efbee"
     }
   ],
   "questions_quota_delta": 1,
@@ -756,7 +762,7 @@
     {
       "cost_usd": 0.0,
       "event_type": "chat.completion",
-      "input_tokens": 38,
+      "input_tokens": 67,
       "metadata": {
         "assistant_message_id": "<uuid:2>",
         "chat_session_id": "<uuid:1>",
@@ -812,10 +818,42 @@
         "rerank_total_tokens": 0,
         "retrieval_count": 2,
         "selected_count": 2,
+        "token_ledger": [
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 13,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 29,
+            "provider": "openai",
+            "stage": "conflict"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 17,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 31,
+            "provider": "openai",
+            "stage": "generate"
+          }
+        ],
         "transport": "websocket"
       },
       "model_name": "gpt-5.4-mini",
-      "output_tokens": 17,
+      "output_tokens": 30,
       "provider_key": "openai"
     }
   ]

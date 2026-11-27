@@ -25,7 +25,19 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import settings
-from app.domains.ai.providers.protocols import ChatCompletionRequest
+from app.domains.ai.profile.schemas import ResolvedTaskProfile
+from app.domains.ai.providers.protocols import ChatCompletionProvider, ChatCompletionRequest
+from app.domains.chat.services.aux_llm import (
+    AuxCallUsage,
+    resolve_aux_route,
+    usage_from_response,
+)
+from app.domains.chat.services.untrusted_context import (
+    neutralise_markers,
+    new_context_boundary,
+    with_untrusted_rule,
+    wrap_context,
+)
 
 logger = logging.getLogger("chat.grounded_verifier")
 
@@ -203,6 +215,8 @@ class GroundedVerifierResult:
     latency_ms: int = 0
     mode: str = "standard"
     threshold: float = 0.7
+    # Token usage of the provider call (``None`` when no call completed) (R05-07).
+    usage: AuxCallUsage | None = None
 
 
 @dataclass(frozen=True)
@@ -384,23 +398,37 @@ def _claim_support_score(
     )
 
 
+_VERIFIER_SYSTEM_MESSAGE = (
+    "You verify generated answers against retrieved sources. Return only valid JSON."
+)
+
+
 def _build_verifier_prompt(
     answer: str,
     chunks: list[VerifierChunk],
     citations: list[VerifierCitation],
+    boundary: str | None = None,
 ) -> str:
+    marker = boundary or new_context_boundary()
     chunk_sections = "\n\n".join(
-        f"[SOURCE {i}]\n{chunk.text[:_MAX_CHUNK_CHARS].strip()}"
+        wrap_context(
+            f"[SOURCE {i}]\n{neutralise_markers(chunk.text[:_MAX_CHUNK_CHARS].strip())}",
+            marker,
+        )
         for i, chunk in enumerate(chunks, 1)
     )
     citation_sections = "\n\n".join(
-        f"[CITATION {i}]\n"
-        f"document_id={citation.document_id}\n"
-        f"chunk_id={citation.chunk_id}\n"
-        f"filename={citation.filename}\n"
-        f"page_number={citation.page_number}\n"
-        f"score={citation.score}\n"
-        f"text_snippet={citation.text_snippet[:_MAX_CITATION_SNIPPET_CHARS].strip()}"
+        wrap_context(
+            f"[CITATION {i}]\n"
+            f"document_id={citation.document_id}\n"
+            f"chunk_id={citation.chunk_id}\n"
+            f"filename={neutralise_markers(citation.filename)}\n"
+            f"page_number={citation.page_number}\n"
+            f"score={citation.score}\n"
+            "text_snippet="
+            f"{neutralise_markers(citation.text_snippet[:_MAX_CITATION_SNIPPET_CHARS].strip())}",
+            marker,
+        )
         for i, citation in enumerate(citations, 1)
     )
     answer_block = answer[:_MAX_ANSWER_CHARS].strip()
@@ -434,10 +462,10 @@ class GroundedAnswerVerifier:
     def __init__(self, *, timeout_seconds: float | None = None) -> None:
         self._timeout_seconds = timeout_seconds or settings.grounded_verification_timeout_seconds
 
-    def _resolve_provider(self):  # type: ignore[return]
+    def _resolve_provider(self, provider_key: str | None = None) -> ChatCompletionProvider:
         from app.domains.ai.providers.factory import default_provider_factory
 
-        return default_provider_factory.get_chat_provider()
+        return default_provider_factory.get_chat_provider(provider_key)
 
     @staticmethod
     def _parse_output(raw: str) -> _VerifierOutput:
@@ -453,6 +481,7 @@ class GroundedAnswerVerifier:
         *,
         mode: str = "standard",
         threshold: float = 0.7,
+        usage: AuxCallUsage | None = None,
     ) -> GroundedVerifierResult:
         return GroundedVerifierResult(
             applied=False,
@@ -473,6 +502,7 @@ class GroundedAnswerVerifier:
             latency_ms=0,
             mode=mode,
             threshold=threshold,
+            usage=usage,
         )
 
     async def verify(
@@ -483,6 +513,8 @@ class GroundedAnswerVerifier:
         citations: list[VerifierCitation] | None = None,
         mode: Literal["strict", "standard"] = "standard",
         threshold: float = 0.7,
+        resolved_profile: ResolvedTaskProfile | None = None,
+        context_boundary: str | None = None,
     ) -> GroundedVerifierResult:
         """Verify that `answer` is grounded in `chunks`.
 
@@ -497,26 +529,38 @@ class GroundedAnswerVerifier:
                   "standard" only removes individual unsupported claims.
             threshold: Minimum verification_score to consider answer supported
                        (informational — caller decides how to use it).
+            resolved_profile: The chat model profile; without it the environment
+                              default provider and model are used (R05-08).
+            context_boundary: The request's context boundary token (R05-09).
         """
         if not answer.strip() or not chunks:
             return self._fallback(answer, mode=mode, threshold=threshold)
 
+        route = resolve_aux_route(resolved_profile)
+        boundary = context_boundary or new_context_boundary()
+        usage: AuxCallUsage | None = None
         started = perf_counter()
         try:
-            provider = self._resolve_provider()
-            prompt = _build_verifier_prompt(answer, chunks, citations or [])
+            provider = (
+                self._resolve_provider(route.provider_key)
+                if route.provider_key is not None
+                else self._resolve_provider()
+            )
+            prompt = _build_verifier_prompt(answer, chunks, citations or [], boundary)
             request = ChatCompletionRequest(
                 prompt=prompt,
-                model=settings.openai_llm_model,
+                model=route.model_name,
                 temperature=0.0,
                 json_mode=True,
+                system_message=with_untrusted_rule(_VERIFIER_SYSTEM_MESSAGE, boundary),
             )
             response = await provider.complete(request)
+            usage = usage_from_response(route, response)
             raw_text = response.content or ""
             parsed = self._parse_output(raw_text)
         except Exception as exc:
             logger.warning("grounded_verifier failed, using original answer: %s", exc)
-            return self._fallback(answer, mode=mode, threshold=threshold)
+            return self._fallback(answer, mode=mode, threshold=threshold, usage=usage)
 
         latency_ms = int((perf_counter() - started) * 1000)
 
@@ -618,9 +662,10 @@ class GroundedAnswerVerifier:
             claims=grounded_claims,
             aggregate_support_score=aggregate_support_score,
             final_answer=final_answer,
-            model_name=settings.openai_llm_model,
-            provider_key=settings.llm_default_provider,
+            model_name=route.model_name,
+            provider_key=route.reported_provider_key,
             latency_ms=latency_ms,
             mode=mode,
             threshold=threshold,
+            usage=usage,
         )

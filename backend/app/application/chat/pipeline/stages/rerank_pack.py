@@ -9,7 +9,9 @@ from app.application.chat.pipeline.controls import (
     _rerank_chunks,
 )
 from app.application.chat.pipeline.events import ChatEvent, plural
+from app.application.chat.pipeline.stages._ledger import record_aux_usage, record_rerank_usage
 from app.application.chat.pipeline.stages._packing import (
+    apply_context_injection_scan,
     apply_context_packing,
     apply_parent_context_expansion,
 )
@@ -41,8 +43,13 @@ class RerankPackStage:
             enabled=ret.rerank_applied,
             final_top_k=ret.final_top_k,
             settings_override=ctx.config.rerank_settings,
+            resolved_profile=ctx.config.chat_profile,
+            context_boundary=ctx.context_boundary,
         )
         ctx.latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
+        record_rerank_usage(
+            ctx, ret.rerank_result.diagnostics if ret.rerank_result is not None else None
+        )
         if ret.rerank_applied:
             await ctx.emit(
                 ChatEvent(
@@ -58,6 +65,7 @@ class RerankPackStage:
                 duration_ms=ctx.latencies_ms["rerank"],
             )
 
+        apply_context_injection_scan(ctx)
         apply_context_packing(ctx)
         self._decide_not_found(ctx)
         apply_parent_context_expansion(ctx)
@@ -127,7 +135,10 @@ class RerankPackStage:
                 org_stale_threshold_days=ret.freshness_stale_threshold_days,
             ),
             min_source_docs=min_docs,
+            resolved_profile=ctx.config.chat_profile,
+            context_boundary=ctx.context_boundary,
         )
+        record_aux_usage(ctx, "conflict", result.usage)
         ret.conflict_detection_result = result
         ret.conflict_detection_applied = result.applied
         ret.conflict_detection_latency_ms = int((perf_counter() - started) * 1000)
