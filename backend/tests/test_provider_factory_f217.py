@@ -26,12 +26,15 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.domains.ai.providers.factory import ProviderFactory, UnknownProviderError
 from app.domains.ai.providers.openai.adapter import OpenAIChatProvider, OpenAIEmbeddingProvider
+from app.domains.ai.providers.resilience import ResilientChatProvider
 
 
 def test_factory_returns_openai_chat_provider() -> None:
     factory = ProviderFactory()
     provider = factory.get_chat_provider("openai")
-    assert isinstance(provider, OpenAIChatProvider)
+    # R05-06: chat providers come behind their circuit breaker.
+    assert isinstance(provider, ResilientChatProvider)
+    assert isinstance(provider.inner, OpenAIChatProvider)
 
 
 def test_factory_returns_openai_embedding_provider() -> None:
@@ -69,7 +72,8 @@ def test_factory_raises_for_unknown_embedding_provider() -> None:
 def test_factory_uses_default_provider_from_settings() -> None:
     factory = ProviderFactory()
     provider = factory.get_chat_provider()
-    assert isinstance(provider, OpenAIChatProvider)
+    assert isinstance(provider, ResilientChatProvider)
+    assert isinstance(provider.inner, OpenAIChatProvider)
 
 
 def test_factory_embedding_uses_default_from_settings() -> None:

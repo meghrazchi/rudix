@@ -36,6 +36,20 @@ def _optional_int(value: object) -> int | None:
     return int(value)
 
 
+def _cached_tokens(usage: Any) -> int | None:
+    details = getattr(usage, "prompt_tokens_details", None)
+    if details is None:
+        return None
+    return _optional_int(getattr(details, "cached_tokens", None))
+
+
+def cached_prompt_tokens(usage: Any) -> int:
+    """``usage.prompt_tokens_details.cached_tokens`` of a completion; 0 when absent."""
+    if usage is None:
+        return 0
+    return max(0, _cached_tokens(usage) or 0)
+
+
 def parse_stream_chunk(event: Any) -> ChatCompletionChunk:
     """One wire chunk as a ``ChatCompletionChunk``; a usage-only chunk has no choices."""
     text = ""
@@ -54,9 +68,7 @@ def parse_stream_chunk(event: Any) -> ChatCompletionChunk:
     if usage is not None:
         prompt_tokens = _optional_int(getattr(usage, "prompt_tokens", None))
         completion_tokens = _optional_int(getattr(usage, "completion_tokens", None))
-        details = getattr(usage, "prompt_tokens_details", None)
-        if details is not None:
-            cached = _optional_int(getattr(details, "cached_tokens", None))
+        cached = _cached_tokens(usage)
     model = getattr(event, "model", None)
     return ChatCompletionChunk(
         text_delta=text,

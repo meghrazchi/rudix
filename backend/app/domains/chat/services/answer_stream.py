@@ -22,6 +22,7 @@ from time import perf_counter
 from typing import Any
 
 from app.domains.ai.providers.protocols import (
+    ChatCompletionProvider,
     ChatCompletionRequest,
     ChatCompletionResponse,
 )
@@ -283,6 +284,7 @@ async def collect_stream(
         attempt.completion_chars += len(response.content)
         attempt.prompt_tokens = response.prompt_tokens
         attempt.completion_tokens = response.completion_tokens
+        attempt.cached_prompt_tokens = response.cached_prompt_tokens
         increment = extractor.feed(response.content)
         if increment:
             await on_text(increment)
@@ -308,7 +310,7 @@ async def collect_stream(
             increment = extractor.feed(chunk.text_delta)
             if increment:
                 await on_text(increment)
-    prompt_tokens, completion_tokens, _, estimated = attempt.usage()
+    prompt_tokens, completion_tokens, cached, estimated = attempt.usage()
     return ChatCompletionResponse(
         content="".join(parts).strip(),
         model=model or request.model,
@@ -317,4 +319,49 @@ async def collect_stream(
         total_tokens=prompt_tokens + completion_tokens,
         latency_ms=int((perf_counter() - started) * 1000),
         usage_estimated=estimated,
+        cached_prompt_tokens=cached,
     )
+
+
+# Called with "retry" or "fallback" when a new provider attempt starts after answer text
+# was already streamed; the caller discards that text (generation.replace).
+ResetCallback = Callable[[str], Awaitable[None]]
+
+
+class AnswerStream:
+    """Per-generation streaming state: forwards text, signals resets, records attempts."""
+
+    def __init__(
+        self,
+        *,
+        on_text: TextCallback,
+        on_reset: ResetCallback | None,
+        progress: StreamProgress,
+        provider_key: str,
+    ) -> None:
+        self._on_text = on_text
+        self._on_reset = on_reset
+        self.progress = progress
+        self.provider_key = provider_key
+        self._emitted = False
+
+    async def _emit(self, text: str) -> None:
+        self._emitted = True
+        await self._on_text(text)
+
+    async def call(
+        self, provider: ChatCompletionProvider, request: ChatCompletionRequest
+    ) -> ChatCompletionResponse:
+        attempt = self.progress.begin(
+            self.provider_key,
+            request.model,
+            len(request.prompt) + len(request.system_message),
+        )
+        return await collect_stream(provider, request, on_text=self._emit, attempt=attempt)
+
+    async def reset(self, reason: str) -> None:
+        if not self._emitted:
+            return
+        self._emitted = False
+        if self._on_reset is not None:
+            await self._on_reset(reason)

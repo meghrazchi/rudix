@@ -53,6 +53,7 @@ def record_llm_results(
             result.model_name,
             result.prompt_tokens,
             result.completion_tokens,
+            cached_tokens=result.cached_prompt_tokens,
             cost_usd=result.approximate_cost_usd,
         )
 

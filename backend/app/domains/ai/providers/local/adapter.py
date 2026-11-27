@@ -26,6 +26,7 @@ from app.domains.ai.providers.errors import (
 )
 from app.domains.ai.providers.openai.streaming import (
     build_chat_payload,
+    cached_prompt_tokens,
     close_stream,
     parse_stream_chunk,
 )
@@ -148,6 +149,7 @@ class OpenAICompatibleChatProvider:
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
             latency_ms=latency_ms,
+            cached_prompt_tokens=cached_prompt_tokens(usage),
         )
 
     async def stream(self, request: ChatCompletionRequest) -> AsyncIterator[ChatCompletionChunk]:

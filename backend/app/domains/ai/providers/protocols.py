@@ -25,6 +25,9 @@ class ChatCompletionResponse:
     latency_ms: int
     # True when a stream reported no usage and the counts are chars / 4 estimates (R05-03).
     usage_estimated: bool = False
+    # Prompt tokens served from the provider's prompt cache (OpenAI
+    # usage.prompt_tokens_details.cached_tokens); 0 when not reported (R05-06).
+    cached_prompt_tokens: int = 0
 
 
 @dataclass

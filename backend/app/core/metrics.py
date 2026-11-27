@@ -307,6 +307,63 @@ CHAT_STREAM_CANCELLED_TOTAL = Counter(
     registry=registry,
 )
 
+# R05-06: provider circuit breaker (0 closed, 1 half-open, 2 open) and its transitions.
+LLM_BREAKER_STATE = Gauge(
+    "rudix_llm_breaker_state",
+    "LLM provider circuit breaker state (0 closed, 1 half-open, 2 open)",
+    ["provider", "model"],
+    registry=registry,
+)
+
+LLM_BREAKER_TRANSITIONS_TOTAL = Counter(
+    "rudix_llm_breaker_transitions_total",
+    "LLM provider circuit breaker transitions, by the state entered",
+    ["provider", "model", "state"],
+    registry=registry,
+)
+
+# R05-06: per-organisation concurrency (Redis semaphore). No organisation label (cardinality).
+LLM_ORG_CONCURRENCY_REJECTED_TOTAL = Counter(
+    "rudix_llm_org_concurrency_rejected_total",
+    "LLM calls rejected because the organisation concurrency limit stayed reached",
+    registry=registry,
+)
+
+LLM_ORG_SEMAPHORE_UNAVAILABLE_TOTAL = Counter(
+    "rudix_llm_org_semaphore_unavailable_total",
+    "LLM calls admitted without a lease because Redis was missing or failing",
+    registry=registry,
+)
+
+LLM_CACHED_PROMPT_TOKENS_TOTAL = Counter(
+    "rudix_llm_cached_prompt_tokens_total",
+    "Prompt tokens the provider reported as served from its prompt cache",
+    ["provider", "model"],
+    registry=registry,
+)
+
+# R05-13: resumable WebSocket runs.
+CHAT_WS_RESUME_TOTAL = Counter(
+    "rudix_chat_ws_resume_total",
+    "chat.resume commands by outcome (replayed, rebuilt, unavailable, redis_unavailable)",
+    ["outcome"],
+    registry=registry,
+)
+
+CHAT_WS_DROP_TOTAL = Counter(
+    "rudix_chat_ws_drop_total",
+    "WebSocket runs whose socket dropped mid-run, by outcome "
+    "(completed, cancelled, cancelled_no_grace)",
+    ["outcome"],
+    registry=registry,
+)
+
+CHAT_RESUME_BUFFER_ERRORS_TOTAL = Counter(
+    "rudix_chat_resume_buffer_errors_total",
+    "Resume buffer writes that failed (Redis error); the run continues unbuffered",
+    registry=registry,
+)
+
 DEPENDENCY_READINESS = Gauge(
     "rudix_dependency_readiness",
     "Health and readiness status of backing dependencies (1 = healthy, 0 = degraded)",

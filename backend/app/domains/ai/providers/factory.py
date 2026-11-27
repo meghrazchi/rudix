@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.domains.ai.providers.errors import ProviderError, ProviderUnavailableError
 from app.domains.ai.providers.protocols import ChatCompletionProvider, EmbeddingProvider
+from app.domains.ai.providers.resilience import ResilientChatProvider
 
 
 class UnknownProviderError(ProviderError):
@@ -14,14 +15,26 @@ class ProviderFactory:
     def __init__(self) -> None:
         self._chat_providers: dict[str, ChatCompletionProvider] = {}
         self._embedding_providers: dict[str, EmbeddingProvider] = {}
+        # R05-06: the resilient wrapper of each cached chat provider, rebuilt when the
+        # cached provider is replaced (tests put providers into ``_chat_providers``).
+        self._resilient_chat_providers: dict[str, ResilientChatProvider] = {}
 
     def get_chat_provider(self, provider_key: str | None = None) -> ChatCompletionProvider:
+        """The chat provider for ``provider_key`` behind its circuit breaker, organisation
+        slot, and stream idle timeout (``ResilientChatProvider``, R05-06)."""
         from app.core.config import settings
 
         key = (provider_key or settings.llm_default_provider).strip().lower()
         if key not in self._chat_providers:
             self._chat_providers[key] = self._build_chat_provider(key)
-        return self._chat_providers[key]
+        inner = self._chat_providers[key]
+        if isinstance(inner, ResilientChatProvider):
+            return inner
+        wrapper = self._resilient_chat_providers.get(key)
+        if wrapper is None or wrapper.inner is not inner:
+            wrapper = ResilientChatProvider(inner, key)
+            self._resilient_chat_providers[key] = wrapper
+        return wrapper
 
     def get_embedding_provider(self, provider_key: str | None = None) -> EmbeddingProvider:
         from app.core.config import settings

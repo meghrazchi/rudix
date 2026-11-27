@@ -8,14 +8,12 @@ persistence still run.
 
 from time import perf_counter
 
-from fastapi import status
-
 from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
-from app.application.chat.pipeline.errors import ChatPipelineError
 from app.application.chat.pipeline.events import ChatEvent, plural
 from app.application.chat.pipeline.stages._llm import (
     apply_llm_result,
     emit_delta,
+    generation_error,
     start_drafting,
     stream_llm_answer,
 )
@@ -175,20 +173,17 @@ class DirectAnswersStage:
         try:
             llm_result = await stream_llm_answer(ctx, gen.prompt)
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
+            failure = generation_error(exc)
             log_query_event(
                 event="query.failed.generate",
                 organization_id=req.principal.organization_id,
                 user_id=req.principal.user_id,
                 job_id=ctx.job_id,
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                status_code=failure.status_code,
                 error=exc.__class__.__name__,
             )
             await ctx.emit_step("drafting_answer", "Drafting answer", "failed")
-            raise ChatPipelineError(
-                code="generation_failed",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                message="Answer generation is unavailable",
-            ) from exc
+            raise failure from exc
         apply_llm_result(ctx, llm_result, stage="generate")
         gen.answer = llm_result.answer if llm_result.answer.strip() else NOT_FOUND_ANSWER
         gen.not_found = llm_result.not_found or not gen.answer.strip()

@@ -13,16 +13,14 @@ model writes it. Deltas carry text only; the verify stage sends ``generation.fin
 
 from time import perf_counter
 
-from fastapi import status
-
 from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
 from app.application.chat.pipeline.controls import (
     _build_prompt,
     _resolve_grounded_verification_controls,
 )
-from app.application.chat.pipeline.errors import ChatPipelineError
 from app.application.chat.pipeline.stages._llm import (
     apply_llm_result,
+    generation_error,
     start_drafting,
     stream_llm_answer,
 )
@@ -124,20 +122,17 @@ class GenerateStage:
         try:
             llm_result = await stream_llm_answer(ctx, gen.prompt)
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
+            failure = generation_error(exc)
             log_query_event(
                 event="query.failed.generate",
                 organization_id=req.principal.organization_id,
                 user_id=req.principal.user_id,
                 job_id=ctx.job_id,
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                status_code=failure.status_code,
                 error=exc.__class__.__name__,
             )
             await ctx.emit_step("drafting_answer", "Drafting answer", "failed")
-            raise ChatPipelineError(
-                code="generation_failed",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                message="Answer generation is unavailable",
-            ) from exc
+            raise failure from exc
 
         gen.llm_result = llm_result
         apply_llm_result(ctx, llm_result, stage="generate")

@@ -15,11 +15,13 @@ from app.domains.ai.providers.factory import default_provider_factory
 from app.domains.ai.providers.openai.streaming import close_stream, parse_stream_chunk
 from app.domains.ai.providers.protocols import (
     ChatCompletionChunk,
+    ChatCompletionProvider,
     ChatCompletionRequest,
     ChatCompletionResponse,
     EmbeddingRequest,
     EmbeddingResponse,
 )
+from app.domains.ai.providers.resilience import unwrap
 from app.domains.chat.services.llm_service import LLMService
 from app.domains.chat.services.query_retrieval_service import QueryRetrievalService
 
@@ -73,6 +75,12 @@ def _single_chunk(response: ChatCompletionResponse) -> ChatCompletionChunk:
     )
 
 
+def _factory_chat_provider() -> ChatCompletionProvider:
+    """The factory's default chat provider without its resilience wrapper: ``LLMService``
+    wraps the proxy itself (R05-06), so one call passes one breaker and one org slot."""
+    return unwrap(default_provider_factory.get_chat_provider(None))  # type: ignore[no-any-return]
+
+
 class _ChatCompletionProviderProxy:
     def __init__(self, client_getter: ClientGetter) -> None:
         self._client_getter = client_getter
@@ -80,7 +88,7 @@ class _ChatCompletionProviderProxy:
     async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         client = self._client_getter()
         if client is None:
-            provider = default_provider_factory.get_chat_provider(None)
+            provider = _factory_chat_provider()
             return await provider.complete(request)
 
         started = perf_counter()
@@ -93,7 +101,7 @@ class _ChatCompletionProviderProxy:
         iterator, else (or for the provider factory without ``stream()``) one chunk."""
         client = self._client_getter()
         if client is None:
-            provider = default_provider_factory.get_chat_provider(None)
+            provider = _factory_chat_provider()
             stream_fn = getattr(provider, "stream", None)
             if callable(stream_fn):
                 async with aclosing(stream_fn(request)) as chunks:

@@ -2,7 +2,10 @@
 
 from time import perf_counter
 
+from fastapi import status
+
 from app.application.chat.pipeline.context import ChatContext
+from app.application.chat.pipeline.errors import ChatPipelineError
 from app.application.chat.pipeline.events import (
     generation_delta_event,
     generation_replace_event,
@@ -10,7 +13,11 @@ from app.application.chat.pipeline.events import (
 )
 from app.application.chat.pipeline.stream_state import STREAMING_TRANSPORTS, StreamMode
 from app.core.metrics import CHAT_TTFT_SECONDS
-from app.domains.chat.services.llm_service import LLMAnswerResult
+from app.domains.chat.services.llm_service import (
+    LLMAnswerResult,
+    LLMServiceError,
+    ProviderBusyLLMServiceError,
+)
 
 
 async def start_drafting(ctx: ChatContext, mode: StreamMode) -> None:
@@ -100,6 +107,24 @@ def apply_llm_result(ctx: ChatContext, llm_result: LLMAnswerResult, *, stage: st
         llm_result.model_name,
         llm_result.prompt_tokens,
         llm_result.completion_tokens,
+        cached_tokens=llm_result.cached_prompt_tokens,
         cost_usd=llm_result.approximate_cost_usd,
         estimated=llm_result.usage_estimated,
+    )
+
+
+def generation_error(exc: LLMServiceError) -> ChatPipelineError:
+    """The safe refusal for a failed answer generation: ``provider_busy`` (HTTP 429) when
+    the organisation's LLM concurrency limit stayed reached (R05-06), otherwise
+    ``generation_failed`` (HTTP 503), an open circuit breaker without fallback included."""
+    if isinstance(exc, ProviderBusyLLMServiceError):
+        return ChatPipelineError(
+            code="provider_busy",
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            message="The AI provider is busy for this organisation; try again shortly",
+        )
+    return ChatPipelineError(
+        code="generation_failed",
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        message="Answer generation is unavailable",
     )

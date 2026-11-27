@@ -28,6 +28,21 @@ class AiProvidersSettings(BaseModel):
     llm_retry_max_attempts: int = Field(default=2, ge=1, le=10)
     llm_retry_base_seconds: float = Field(default=0.4, ge=0.1, le=30.0)
     llm_retry_max_seconds: float = Field(default=3.0, ge=0.1, le=120.0)
+    # R05-06: circuit breaker per (provider, model). It opens after
+    # llm_breaker_failure_threshold transient failures (5xx, unreachable, timeouts, stream
+    # idle timeouts; never validation errors or other 4xx) within llm_breaker_window_seconds,
+    # stays open for llm_breaker_open_seconds, then admits llm_breaker_half_open_probes calls.
+    llm_breaker_enabled: bool = True
+    llm_breaker_failure_threshold: int = Field(default=5, ge=1, le=1000)
+    llm_breaker_window_seconds: float = Field(default=30.0, ge=1.0, le=3600.0)
+    llm_breaker_open_seconds: float = Field(default=30.0, ge=1.0, le=3600.0)
+    llm_breaker_half_open_probes: int = Field(default=1, ge=1, le=100)
+    # Longest gap between two streamed chunks before the call fails (0 disables).
+    llm_stream_idle_timeout_seconds: float = Field(default=30.0, ge=0.0, le=600.0)
+    # Per-organisation concurrent LLM calls (Redis semaphore); 0 disables the limit.
+    llm_org_max_concurrent_calls: int = Field(default=0, ge=0, le=10000)
+    llm_org_semaphore_wait_ms: int = Field(default=2000, ge=0, le=60000)
+    llm_org_semaphore_lease_seconds: int = Field(default=120, ge=1, le=3600)
     openai_llm_input_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
     openai_llm_output_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
     # Local LLM (OpenAI-compatible) provider settings — F218

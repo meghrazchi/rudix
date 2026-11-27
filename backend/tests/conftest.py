@@ -56,6 +56,14 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def _reset_llm_circuit_breakers() -> None:
+    """Breaker state is process-wide (R05-06); start every test with closed breakers."""
+    from app.domains.ai.providers.resilience import breaker_registry
+
+    breaker_registry.reset()
+
+
 @pytest.fixture
 def db_backend(request: pytest.FixtureRequest) -> str:
     return str(getattr(request, "param", DB_BACKEND_SQLITE))
