@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import dataclass
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -318,3 +322,76 @@ class ChatRepository:
             .order_by(Citation.created_at.asc())
         )
         return [(row[0], row[1]) for row in result.all()]
+
+    async def list_citations_for_messages_with_filename(
+        self,
+        session: AsyncSession,
+        *,
+        chat_message_ids: list[UUID],
+    ) -> dict[UUID, list[tuple[Citation, str | None]]]:
+        """Citations with document filenames for many messages in one ``IN`` query.
+
+        Rows are grouped by message in ``(created_at, id)`` order; messages without
+        citations are absent from the result.
+        """
+        if not chat_message_ids:
+            return {}
+        result = await session.execute(
+            select(Citation, Document.filename)
+            .join(Document, Document.id == Citation.document_id)
+            .where(Citation.chat_message_id.in_(chat_message_ids))
+            .order_by(Citation.chat_message_id, Citation.created_at.asc(), Citation.id.asc())
+        )
+        grouped: dict[UUID, list[tuple[Citation, str | None]]] = {}
+        for citation, filename in result.all():
+            grouped.setdefault(citation.chat_message_id, []).append((citation, filename))
+        return grouped
+
+    async def create_citations_bulk(
+        self,
+        session: AsyncSession,
+        *,
+        chat_message_id: UUID,
+        rows: Sequence[CitationInsert],
+    ) -> list[Citation]:
+        """Insert all citations of one answer with a single flush and no refresh.
+
+        IDs are generated client side. All rows share one ``created_at`` (the transaction
+        time), so the IDs are assigned in ascending order: reading back by
+        ``(created_at, id)`` returns the citations in the order they were given.
+        """
+        if not rows:
+            return []
+        ids = sorted(uuid4() for _ in rows)
+        citations = [
+            Citation(
+                id=citation_id,
+                chat_message_id=chat_message_id,
+                document_id=row.document_id,
+                chunk_id=row.chunk_id,
+                text_snippet=row.text_snippet,
+                page_number=row.page_number,
+                start_offset=row.start_offset,
+                end_offset=row.end_offset,
+                similarity_score=row.similarity_score,
+                rerank_score=row.rerank_score,
+            )
+            for citation_id, row in zip(ids, rows, strict=True)
+        ]
+        session.add_all(citations)
+        await session.flush()
+        return citations
+
+
+@dataclass(frozen=True)
+class CitationInsert:
+    """One citation row for ``ChatRepository.create_citations_bulk``."""
+
+    document_id: UUID
+    chunk_id: UUID
+    text_snippet: str
+    page_number: int | None = None
+    start_offset: int | None = None
+    end_offset: int | None = None
+    similarity_score: float | None = None
+    rerank_score: float | None = None

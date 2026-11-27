@@ -381,41 +381,44 @@ async def ensure_document_ids_access(
         return []
 
     organization_id = _active_organization_id(principal)
-    for parsed_id in parsed_ids:
-        document = await _document_repository.get_document(
-            db_session,
-            document_id=parsed_id,
-            organization_id=organization_id,
-        )
-        if document is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-        if document.connector_external_item_id is not None:
-            result = await db_session.execute(
-                select(ExternalItem.deleted_at, ConnectorConnection.status)
-                .join(
-                    ConnectorConnection,
-                    ConnectorConnection.id == ExternalItem.connection_id,
-                )
-                .where(
-                    ExternalItem.id == document.connector_external_item_id,
-                    ExternalItem.organization_id == organization_id,
-                )
+    # One query for the documents and one for their connector items (R04-03): any missing
+    # document, missing/deleted connector item, or inactive connection is still a 404.
+    documents = await _document_repository.get_documents_by_ids(
+        db_session,
+        document_ids=parsed_ids,
+        organization_id=organization_id,
+    )
+    documents_by_id = {document.id: document for document in documents}
+    if any(parsed_id not in documents_by_id for parsed_id in parsed_ids):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    external_item_ids = {
+        document.connector_external_item_id
+        for document in documents
+        if document.connector_external_item_id is not None
+    }
+    if external_item_ids:
+        result = await db_session.execute(
+            select(ExternalItem.id, ExternalItem.deleted_at, ConnectorConnection.status)
+            .join(
+                ConnectorConnection,
+                ConnectorConnection.id == ExternalItem.connection_id,
             )
-            row = result.first()
-            if row is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Document not found",
-                )
-            deleted_at, connection_status = row
-            if (
-                deleted_at is not None
-                or connection_status != ConnectorConnectionStatus.active.value
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Document not found",
-                )
+            .where(
+                ExternalItem.id.in_(external_item_ids),
+                ExternalItem.organization_id == organization_id,
+            )
+        )
+        usable_item_ids = {
+            item_id
+            for item_id, deleted_at, connection_status in result.all()
+            if deleted_at is None and connection_status == ConnectorConnectionStatus.active.value
+        }
+        if not external_item_ids <= usable_item_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
 
     return parsed_ids
 

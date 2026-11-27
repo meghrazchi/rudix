@@ -249,9 +249,11 @@ class DocumentListItemResponse(BaseModel):
 
 class DocumentListResponse(BaseModel):
     items: list[DocumentListItemResponse]
-    total: int
+    # ``None`` when the caller passed ``include_total=false`` (the default with a cursor).
+    total: int | None
     limit: int
     offset: int
+    next_cursor: str | None = None
     status: DocumentStatus | None = None
     freshness: DocumentReviewStatus | None = None
     quality_state: DocumentQualityState | None = None

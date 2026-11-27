@@ -107,6 +107,7 @@ from app.models.enums import (
 from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.user import User
 from app.rate_limit import RateLimitScope, enforce_rate_limit
+from app.shared.pagination import encode_cursor, resolve_page_request, split_page
 from app.workers.document_tasks import (
     delete_document as delete_document_task,
 )
@@ -768,11 +769,22 @@ async def list_documents(
     filename_query: Annotated[str | None, Query(max_length=255)] = None,
     file_type: Annotated[str | None, Query(pattern="^(pdf|docx|txt)$")] = None,
     language: Annotated[str | None, Query(max_length=32)] = None,
+    cursor: Annotated[str | None, Query(max_length=1024)] = None,
+    include_total: bool | None = None,
 ) -> DocumentListResponse:
     user_id, organization_id = _principal_user_and_org(principal)
     user_roles = list(principal.roles or [])
+    sort_name = f"documents.created_at.{sort_order}"
+    if cursor and cursor.strip() and sort_by != "created_at":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cursor pagination requires sort_by=created_at",
+        )
+    page = resolve_page_request(
+        cursor=cursor, offset=offset, include_total=include_total, sort_name=sort_name
+    )
 
-    documents = await document_repository.list_documents(
+    fetched = await document_repository.list_documents(
         db_session,
         organization_id=organization_id,
         status=status_filter.value if status_filter is not None else None,
@@ -781,21 +793,34 @@ async def list_documents(
         file_type=file_type,
         filename_query=filename_query,
         language=language,
-        limit=limit,
+        limit=limit + 1,
         offset=offset,
         sort_by=sort_by,
         sort_order=sort_order,
+        keyset=page.keyset,
     )
-    total = await document_repository.count_documents(
-        db_session,
-        organization_id=organization_id,
-        status=status_filter.value if status_filter is not None else None,
-        review_status=freshness_filter.value if freshness_filter is not None else None,
-        quality_state=quality_state_filter.value if quality_state_filter is not None else None,
-        file_type=file_type,
-        filename_query=filename_query,
-        language=language,
+    documents, has_more = split_page(fetched, limit)
+    # The next cursor comes from the last row SQL returned, before policy filtering, so
+    # filtered-out rows are not fetched again on the next page.
+    next_cursor = (
+        encode_cursor(sort_name, [documents[-1].created_at, documents[-1].id])
+        if has_more and sort_by == "created_at"
+        else None
     )
+    total: int | None = None
+    if page.include_total:
+        total = await document_repository.count_documents(
+            db_session,
+            organization_id=organization_id,
+            status=status_filter.value if status_filter is not None else None,
+            review_status=freshness_filter.value if freshness_filter is not None else None,
+            quality_state=(
+                quality_state_filter.value if quality_state_filter is not None else None
+            ),
+            file_type=file_type,
+            filename_query=filename_query,
+            language=language,
+        )
 
     # Policy filtering — admins bypass via rule 5; others are filtered here.
     if not _ADMIN_ROLES.intersection(user_roles):
@@ -818,7 +843,8 @@ async def list_documents(
             )
         }
         documents = [d for d in documents if str(d.id) in accessible_ids]
-        total = len(documents)
+        if page.include_total:
+            total = len(documents)
 
     # Batch-fetch collection memberships for all documents in one query.
     doc_ids = [doc.id for doc in documents]
@@ -851,13 +877,15 @@ async def list_documents(
         for doc_id, provider_key in src_result:
             source_provider_by_doc[doc_id] = provider_key
 
+    chunk_counts = await document_repository.count_document_chunks_for_documents(
+        db_session,
+        organization_id=organization_id,
+        document_ids=doc_ids,
+        index_version=settings.document_index_version,
+    )
     items: list[DocumentListItemResponse] = []
     for document in documents:
-        chunk_count = await document_repository.count_document_chunks(
-            db_session,
-            document_id=document.id,
-            index_version=settings.document_index_version,
-        )
+        chunk_count = chunk_counts.get(document.id, 0)
         safe_error_message, safe_error_details = _safe_error_payload(document)
         items.append(
             DocumentListItemResponse(
@@ -921,6 +949,7 @@ async def list_documents(
         total=total,
         limit=limit,
         offset=offset,
+        next_cursor=next_cursor,
         status=status_filter,
         freshness=freshness_filter,
         quality_state=quality_state_filter,

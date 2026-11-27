@@ -425,6 +425,30 @@ class EvaluationRepository:
         result = await session.execute(query)
         return int(result.scalar_one())
 
+    async def count_evaluation_questions_by_set(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        evaluation_set_ids: list[UUID],
+    ) -> dict[UUID, int]:
+        """Question counts for many evaluation sets in one grouped query (R04-03).
+
+        Only sets of ``organization_id`` are counted; sets without questions are absent.
+        """
+        if not evaluation_set_ids:
+            return {}
+        result = await session.execute(
+            select(EvaluationQuestion.evaluation_set_id, func.count(EvaluationQuestion.id))
+            .join(EvaluationSet, EvaluationSet.id == EvaluationQuestion.evaluation_set_id)
+            .where(
+                EvaluationQuestion.evaluation_set_id.in_(evaluation_set_ids),
+                EvaluationSet.organization_id == organization_id,
+            )
+            .group_by(EvaluationQuestion.evaluation_set_id)
+        )
+        return {row[0]: int(row[1]) for row in result.all()}
+
     async def get_existing_question_texts(
         self,
         session: AsyncSession,
