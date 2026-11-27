@@ -1,0 +1,9 @@
+# Trivy exceptions for the filesystem scan (.github/workflows/security.yml).
+# Keep in sync with ci/security/security_gate_allowlist.json; every entry expires.
+#
+# virtualenv 21.14.5 in backend/uv.lock: dev-only (pre-commit), not in the runtime
+# images. The fix (>=21.14.10) needs packaging>=26.3, which langfuse 2.x blocks.
+CVE-2026-113718 exp:2027-02-28
+CVE-2026-113722 exp:2027-02-28
+CVE-2026-113723 exp:2027-02-28
+CVE-2026-113725 exp:2027-02-28

@@ -23,4 +23,7 @@ regexes = [
   '''^e2e-access-token$''',       # frontend/playwright.config.ts
   '''^e2e-refresh-token$''',      # frontend/playwright.config.ts
   '''^ci-access-token$''',        # .github/workflows/playwright.yml
+  '''^rudix\.consent\.v1$''',   # localStorage key, frontend/e2e/support/consent.ts
+  '''^L2-normalised$''',          # docstring word, ci/stubs/llm_stub.py
+  '''^s3cret-signup$''',          # test value, frontend/config/build-env-validation.test.ts
 ]

@@ -7,6 +7,97 @@
       "severity": "high",
       "reason": "ncurses in the python:3.12-slim (Debian trixie) base image has no Debian security update yet. Remove when the base digest is rebuilt with a fix.",
       "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4372",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4373",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4374",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4375",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4376",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4377",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4378",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4379",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4380",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4381",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4382",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4383",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
+    },
+    {
+      "id": "PYSEC-2026-4384",
+      "scanner": "pip-audit",
+      "package": "virtualenv",
+      "reason": "virtualenv is dev-only (pulled in by pre-commit) and is not installed in the api/worker images. The fixed release (>=21.14.10) needs packaging>=26.3, which langfuse 2.x (packaging<25) blocks. Remove when langfuse is upgraded and virtualenv is relocked.",
+      "expires": "2027-02-28"
     }
   ]
 }
