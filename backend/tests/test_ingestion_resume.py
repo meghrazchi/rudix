@@ -275,3 +275,18 @@ def test_kill_and_redeliver_resumes_on_postgres(
     point: str,
 ) -> None:
     _scenario(ingestion_env_pg, point)
+
+
+@pytest.mark.requires_postgres
+def test_redelivery_of_a_reported_run_is_skipped_on_postgres(
+    ingestion_env_pg: IngestionEnv,  # noqa: F811
+) -> None:
+    env = ingestion_env_pg
+    env.set_content(TEXT.encode())
+    seeded = env.seed()
+    kwargs = {"task_id": TASK_ID, "chunking_profile_config": PROFILE, **_ids(seeded)}
+    first = env.run_task(document_tasks.process_document, seeded.document_id, **kwargs)
+    again = env.run_task(document_tasks.process_document, seeded.document_id, **kwargs)
+    assert first["status"] == DocumentStatus.indexed.value
+    assert again["status"] == "skipped"
+    assert env.run_async(_state(env, seeded))["audits"] == 1

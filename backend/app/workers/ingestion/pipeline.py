@@ -187,6 +187,8 @@ async def completed_run_metrics(
         finalize = by_name.get(StageName.finalize)
         if finalize is None or finalize.finished_at is None:
             return None
+        # Compared in SQL against the stored value: both sides use the database clock.
+        finished_at = select(stage.finished_at).where(stage.id == finalize.id).scalar_subquery()
         reported = (
             await session.execute(
                 select(AuditLog.id)
@@ -194,7 +196,7 @@ async def completed_run_metrics(
                     AuditLog.organization_id == finalize.organization_id,
                     AuditLog.resource_id == parsed,
                     AuditLog.action == audit_action,
-                    AuditLog.created_at >= finalize.finished_at,
+                    AuditLog.created_at >= finished_at,
                 )
                 .limit(1)
             )
