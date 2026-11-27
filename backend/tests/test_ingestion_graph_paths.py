@@ -119,7 +119,8 @@ async def test_relation_failure_is_recorded_in_lenient_mode(
     (result, events, calls, statuses), _ = await _run(monkeypatch, strict=False)
     assert result == {"entity_count": 1, "relation_count": 0}
     assert ("extract_relations", "failed") in events
-    assert "resolve" in calls and "upsert_entity" in calls
+    # R06-10: entity writes go through the batch method (one call per kind per document).
+    assert "resolve" in calls and "upsert_entities_batch" in calls
     assert statuses[-1] == "completed"
 
 

@@ -158,6 +158,12 @@ flowchart LR
 
 - Treat as one document.
 - Use synthetic page number `1`.
+- A file longer than `INGEST_TEXT_SEGMENT_CHARS` (default 200 000) characters is decoded in
+  segments, cut at a line (else word) boundary, numbered as pages `1..n` (R06-02).
+
+The worker streams the stored object to a temporary file and extracts PDF and TXT from that
+file page by page; DOCX is still loaded whole by `python-docx` and is bounded by the upload
+limit.
 
 ### DOCX
 
@@ -239,6 +245,37 @@ Rules:
 - Use the same embedding model for user queries.
 - Re-index when embedding model changes.
 
+Reuse, concurrency, and the run marker (R06-06):
+
+- The vector index is the embedding cache. Before an embed batch goes to the provider, one
+  Qdrant scroll looks up points with the same `organization_id`, `embedding_model`, and
+  `chunk_hash` (SHA-256 of the NFC-normalised, stripped chunk text; keyword payload index
+  `chunk_hash`). Hits with the configured vector size are reused; only the misses are
+  embedded. The filter always carries the organisation, so a vector is never reused across
+  organisations. The scroll limit is the batch's hash count, so copies of one text in other
+  documents of the organisation can fill the page; only then (a full page with hashes still
+  missing) a further scroll asks for the missing hashes alone, up to
+  `EMBEDDING_REUSE_MAX_LOOKUPS` (default `3`) scrolls per batch, and the rest is embedded.
+  Reindexing an unchanged document makes no embedding call; a changed chunk
+  re-embeds only that chunk. A failed lookup embeds the whole batch. Reused chunks cost no
+  tokens, so the `document.embedding` usage event counts only embedded chunks.
+- Every point carries `ingest_run_id` (the ingestion run). The old points are no longer
+  deleted before chunking: after all embed batches the `index` stage deletes the document's
+  points of that index version whose `ingest_run_id` is not the current run (one delete,
+  for example the higher chunk indexes of a longer previous version) and checks with one
+  exact count that the document has as many points as embeddable chunk rows
+  (`QDRANT_POINT_COUNT_MISMATCH`, transient, otherwise). During a reindex the previous
+  points stay in the index until they are overwritten or deleted, but the chunk stage has
+  already replaced the chunk rows they reference: chat retrieval keeps only hits whose
+  chunk row exists (`SourceProvenanceService.filter_active_chunks`, the same single
+  statement as the active-source check), so no answer cites a replaced chunk.
+- `EMBEDDING_MAX_CONCURRENT_BATCHES` (default `1`, sequential) bounds both the embed batches
+  of one stage run and the provider batches inside one `EmbeddingService.embed_chunks` call;
+  results keep their order and artifact parts stay keyed by batch index. A
+  `ProviderQuotaExceededError` with a `Retry-After` (OpenAI and local adapters read
+  `retry-after-ms` / `retry-after`) pauses every batch of the service until that deadline
+  (capped at 60 s) before the retry.
+
 ## Multilingual behavior
 
 Rudix currently supports English, German, Spanish, and French across the
@@ -277,6 +314,24 @@ language-aware ingestion and query path.
 - Translation does not create evidence where the source text is missing.
 - For mixed-language documents, admins should set the document and OCR language
   explicitly before re-indexing.
+- Keyword search (`0.6.0`, R06-09). New chunks store `organization_id`, the text search
+  configuration of the document language (`fts_config`: `en` english, `de` german, `es`
+  spanish, `fr` french, anything else `simple`) and `fts_vector`; older chunks get them
+  from the `documents.chunks.backfill_tenant` task. With `KEYWORD_SEARCH_MULTILINGUAL=true`
+  the keyword branch also matches `fts_vector` with the question's configuration (the
+  pipeline's detected question language, or detection from the text) and ranks a chunk by
+  the better of that and the English match; the English column stays a second arm, so
+  nothing found before is lost. Default `false` keeps English-only matching.
+- Keyword search ranks at most `KEYWORD_SEARCH_CANDIDATE_LIMIT` matches (default 1000,
+  `0` = every match): the candidates are the first matches in index scan order, then
+  `ts_rank` orders them and the best `top_k` are returned. When more chunks match than
+  the limit, which ones are ranked depends on scan order, not relevance. A better-ranked
+  chunk outside the candidates is then not returned, where `0` would return it.
+- Tenant scoping: `KEYWORD_SEARCH_TENANT_COLUMN=auto` (default) filters on
+  `document_chunks.organization_id` once no chunk has it NULL (checked once per process),
+  otherwise on the owning document; `on` / `off` force one path. Both keep the
+  document status, `document_ids`, and `index_version` filters and a per-row check that
+  the document's (and the chunk's) organisation is the caller's.
 
 ## Graph lifecycle
 
@@ -288,7 +343,13 @@ mode it is the task `documents.graph_extract` on `CELERY_QUEUE_DOCUMENTS_GRAPH`:
 2. When a document enters processing or re-indexing, the backend sets
    `graph_extraction_status=pending` so the UI can show graph work is queued.
 3. Graph extraction marks the document `graph_extraction_status=extracting`.
-4. Derived entities, aliases, evidence links, and relations are written to Neo4j.
+4. Derived entities, aliases, evidence links, and relations are written to Neo4j in
+   `UNWIND` batches (`0.6.0`, R06-10): one write transaction per `GRAPH_WRITE_BATCH_SIZE`
+   rows (default 200) of each kind, entities first, every node and relationship
+   carrying the document's `organization_id`. Entity resolution still reads once per
+   entity. Extraction LLM batches run up to `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES`
+   / `RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` at a time (default 1), with results
+   merged in batch order.
 5. Successful completion marks the graph status `completed`; failures mark it
    `failed`; disabled or inapplicable flows use `skipped`. A graph failure never fails
    the document, also with `ENTITY_EXTRACTION_STRICT_MODE` or

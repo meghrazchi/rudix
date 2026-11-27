@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from app.core.config import settings
@@ -12,7 +13,7 @@ from app.workers.ingestion.errors import DocumentPipelinePermanentError
 async def run_ocr_step(
     ctx: StageContext,
     document: Any,
-    content: bytes,
+    content: bytes | Path,
     detection: Any,
     languages: str,
     *,

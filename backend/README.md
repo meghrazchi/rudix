@@ -698,10 +698,10 @@ CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py \
 
 `documents.process` and `documents.reindex` (R06-01) run the ingestion stages in
 `app/workers/ingestion/stages/` in order: `extract` (MinIO read, text extraction, OCR),
-`clean_detect` (cleaning, language), `dlp`, `chunk` (Qdrant cleanup of the index version,
-pages, chunk rows, table chunks), `graph_extract` (inline, only when document state is
-persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `index`
-(connector source references), and `finalize` (the only writer of `indexed` and of the
+`clean_detect` (cleaning, language), `dlp`, `chunk` (pages, chunk rows, table chunks),
+`graph_extract` (inline, only when document state is persisted), `embed` (embed and upsert
+per `INGEST_EMBED_BATCH_CHUNKS` chunks), `index` (stale point cleanup and count check since
+R06-06, connector source references), and `finalize` (the only writer of `indexed` and of the
 `document.embedding` usage event, in one transaction with its stage row).
 
 - `app/workers/document_tasks.py` is a compatibility facade: task names, signatures, and
@@ -778,6 +778,58 @@ persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `
   buffer and pub/sub (`AGENT_STREAM_BUFFER_TTL_SECONDS`), falling back to database polling
   (`AGENT_STREAM_POLL_INTERVAL_MS`). Worker tests: `tests/agent_worker_support.py` (eager
   Celery, `FakeRedis` with `publish`/`pubsub`).
+- Bounded memory (R06-02): `extract` streams the object to a temporary file
+  (`INGEST_TEMP_DIR`, default the system temp dir; sized reads of
+  `INGEST_DOWNLOAD_CHUNK_BYTES`, removed on success and failure) and extracts PDF and TXT
+  from that file page by page (`stream_document`, `PdfExtractionStream`; TXT in segments of
+  `INGEST_TEXT_SEGMENT_CHARS`). Each page's artifact part is written as it is produced;
+  pages below the OCR threshold are held back and written into their slot after OCR. DOCX
+  is unchanged (loaded whole). `INGEST_MEMORY_CEILING_MB` documents the design bound and is
+  not enforced; later stages still read every page's text (`clean_detect`, `chunk`).
+- Embedding reuse and run marker (R06-06): `chunk` no longer deletes points first. `embed`
+  reuses vectors found by `(organization_id, embedding_model, chunk_hash)` (one scroll per
+  batch, `QdrantService.find_reusable_vectors`; a further scroll for the missing hashes only
+  when copies of a text fill the page, up to `EMBEDDING_REUSE_MAX_LOOKUPS`, default 3),
+  writes `ingest_run_id` on every point, and
+  runs up to `EMBEDDING_MAX_CONCURRENT_BATCHES` batches at once (default 1). `index` then
+  deletes the document's points of other runs and verifies the point count
+  (`QDRANT_POINT_COUNT_MISMATCH`). Metric `rudix_embedding_cache_hits_total{outcome}`.
+- Qdrant clients (R06-07): writes use `AsyncQdrantClient` with
+  `QDRANT_WRITE_TIMEOUT_SECONDS` (30), chat retrieval one with
+  `QDRANT_SEARCH_TIMEOUT_SECONDS` (unset = `QDRANT_TIMEOUT_SECONDS`), one per event loop,
+  closed at API and worker shutdown. The collection and payload indexes are ensured at API
+  startup, at worker process start, and by `make migrate-qdrant`
+  (`python -m app.clients.qdrant_bootstrap`), not on every upsert or delete; a write that
+  finds the collection missing bootstraps it once. Collection tuning (`QDRANT_HNSW_*`,
+  `QDRANT_*_ON_DISK*`, `QDRANT_SCALAR_QUANTIZATION`, `QDRANT_QUANTIZATION_*`,
+  `QDRANT_SHARD_NUMBER`, `QDRANT_REPLICATION_FACTOR`) defaults to the server defaults and
+  applies only when a collection is created. `QDRANT_STORE_PARENT_TEXT=false` omits parent
+  text from new points; chat retrieval then reads it from `document_chunks`.
+
+- Connector sync (R06-11): `connectors.sync.run` commits one transaction per provider page
+  (items, seen markers, a `documents.process` outbox row per created document, checkpoint,
+  counters, heartbeat) and resumes a `running` run from `checkpoint_cursor`. Cancellation is
+  checked every `CONNECTOR_SYNC_CANCEL_CHECK_ITEMS` items; Retry-After up to
+  `CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS` is slept in the run, longer ones re-enqueue;
+  `CONNECTOR_SYNC_MAX_CONCURRENT_PER_ORG` / `_PER_CONNECTION` cap runs (0 = off). The engine
+  facade is `app/domains/connectors/services/sync_engine.py` over `services/sync/`. Details:
+  `docs/16_CONNECTOR_PLATFORM.md` (Sync Lifecycle and Checkpoints).
+- Chunk tenant column (R06-09): the chunk stage writes `document_chunks.organization_id`,
+  `fts_config` (document language: english, german, spanish, french, else simple) and
+  `fts_vector`. Older rows: `documents.chunks.backfill_tenant` (reindex queue) or
+  `.venv/bin/python scripts/backfill_chunk_tenant.py [--dry-run]`, then the operator SQL
+  `deploy/sql/document_chunks_not_null.sql` (rendered by
+  `scripts/render_chunk_not_null_sql.py --check`). Until then the table is in
+  `RLS_PENDING_TABLES` and the ORM guard does not filter it.
+- Keyword search (R06-09): `KEYWORD_SEARCH_MULTILINGUAL` (default `false`),
+  `KEYWORD_SEARCH_TENANT_COLUMN` (`auto|on|off`), `KEYWORD_SEARCH_CANDIDATE_LIMIT` (default
+  1000, `0` unbounded). The pipeline passes the detected question language. The SQL is in
+  `app/domains/chat/services/keyword_search_query.py`.
+- Graph writes (R06-10): ingestion writes entities, aliases, evidence and relations with
+  `UNWIND` batches (`GRAPH_WRITE_BATCH_SIZE`, default 200), one Neo4j write transaction per
+  batch. Extraction LLM batches run with `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES` /
+  `RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` (default 1). Single-item graph methods stay
+  for the admin endpoints.
 
 ## Application cache
 
@@ -1081,9 +1133,12 @@ Celery beat is the scheduler that enqueues periodic tasks. It schedules these en
   (default 60): re-queues worker-executed agent runs whose lease expired (`resume_count + 1`)
   and fails them with `worker_lost` after `AGENT_RUN_MAX_RESUMES` (default 3). Runs executed
   inline are never touched.
+- `connector-sync-reap` (`connectors.sync.reap`) every `CONNECTOR_SYNC_REAP_INTERVAL_SECONDS`
+  seconds (default 120): re-enqueues `running` connector sync runs whose heartbeat is older
+  than `CONNECTOR_SYNC_STALE_SECONDS` (default 600), so they resume from their checkpoint.
 
 Without a beat process, scheduled connector syncs, approval expiry, stale-document
-recovery, and agent run recovery never run.
+recovery, stale connector-sync recovery, and agent run recovery never run.
 
 Worker platform (0.6.0, R06-03 to R06-05): beat schedules nothing new for it. The queue depth
 gauges come from a sampler in `worker-default`'s main process

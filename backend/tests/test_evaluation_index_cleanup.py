@@ -29,6 +29,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from vector_fake_support import PointLedgerMixin
+
 from app.core.config import settings
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
@@ -447,8 +449,12 @@ class _Body:
     def __init__(self, data: bytes) -> None:
         self._data = data
 
-    def read(self) -> bytes:
-        return self._data
+    def read(self, amt: int | None = None) -> bytes:
+        # Sized reads (R06-02): consume the data, then return b"".
+        pos = getattr(self, "_pos", 0)
+        end = len(self._data) if amt is None else pos + amt
+        self._pos = end
+        return self._data[pos:end]
 
     def close(self) -> None:
         return None
@@ -481,7 +487,7 @@ class _FakeEmbeddings:
         )()
 
 
-class _FakePipelineQdrant:
+class _FakePipelineQdrant(PointLedgerMixin):
     @staticmethod
     def build_point_id(*, document_id: UUID, chunk_index: int, index_version: str) -> str:
         return f"{document_id}:{index_version}:{chunk_index}"

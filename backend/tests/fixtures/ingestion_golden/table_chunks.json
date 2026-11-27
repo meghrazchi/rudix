@@ -132,14 +132,14 @@
         "detect_language:completed",
         "dlp:started",
         "dlp:completed",
-        "index_cleanup:started",
-        "index_cleanup:completed",
         "chunk:started",
         "chunk:completed",
         "embed:started",
         "embed:completed",
         "index:started",
-        "index:completed"
+        "index:completed",
+        "index_cleanup:started",
+        "index_cleanup:completed"
       ],
       "pipeline_type": "document.process",
       "status": "completed"

@@ -2784,6 +2784,7 @@ organization-scoped:
   original cursor snapshot, respects connector rate limits and permission checks,
   and returns the same safe sync-queue response shape as a manual trigger.
 - `GET /connectors/{connection_id}` includes source permission snapshots so the UI can surface access-review hooks without exposing raw credentials.
+- Connector sync run responses (`GET /connectors/sync-runs/{run_id}`, `GET /connectors/{connection_id}/sync-runs`, `POST /connectors/sync-runs/{run_id}/cancel`) carry the additive 0.6.0 fields `checkpoint_at` (ISO timestamp of the last committed page, or `null`) and `pages_committed` (integer, default `0`). Both stay set on cancelled and interrupted runs. A run can stay `running` with no progress while it waits for a provider Retry-After; it is not failed for a rate limit (R06-11).
 - Connector sync completion and failure paths emit audit-safe lifecycle events for start, success, failure, source selection, and permission changes.
 
 Safe-output guarantees:

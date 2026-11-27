@@ -52,6 +52,8 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from app.clients import minio_client as minio_module
 from app.core.config import settings
 from app.db import session as db_session_module
+from app.domains.documents.extraction.extraction_service import ResultExtractionStream
+from app.domains.documents.extraction.models import ExtractionResult
 from app.models.connector_source import SourceReference
 from app.models.document import Document, DocumentChunk
 from app.models.organization import Organization
@@ -83,15 +85,32 @@ PINNED_SETTINGS: dict[str, Any] = {
     "qdrant_vector_size": 1536,
 }
 OCR_PATCH_TARGET: tuple[Any, str] = (extract_stage, "run_ocr")
-EXTRACT_PATCH_TARGET: tuple[Any, str] = (extract_stage, "extract_document")
+# R06-02: the stage streams pages through ``stream_document``; a fake that returns a whole
+# ExtractionResult is wrapped by ``patch_extraction``.
+EXTRACT_PATCH_TARGET: tuple[Any, str] = (extract_stage, "stream_document")
+
+
+def patch_extraction(
+    monkeypatch: pytest.MonkeyPatch, extract: Callable[..., ExtractionResult]
+) -> None:
+    def _stream(source: Any, **kwargs: Any) -> ResultExtractionStream:
+        return ResultExtractionStream(extract(source, **kwargs))
+
+    monkeypatch.setattr(*EXTRACT_PATCH_TARGET, _stream)
 
 
 class _Body:
+    """Object body with sized reads (the stage never reads without a size)."""
+
     def __init__(self, data: bytes) -> None:
         self._data = data
+        self._pos = 0
 
-    def read(self) -> bytes:
-        return self._data
+    def read(self, amt: int | None = None) -> bytes:
+        end = len(self._data) if amt is None else self._pos + amt
+        chunk = self._data[self._pos : end]
+        self._pos += len(chunk)
+        return chunk
 
     def close(self) -> None:
         return None
@@ -147,6 +166,9 @@ class FakeQdrant:
         self.upserts: list[dict[str, Any]] = []
         self.deletes: list[dict[str, Any]] = []
         self.points: set[str] = set()
+        self.point_runs: dict[str, str | None] = {}
+        self.reuse_lookups: list[int] = []
+        self.stale_deleted = 0
         self.before_upsert: Callable[[int], None] | None = None
 
     @staticmethod
@@ -169,7 +191,26 @@ class FakeQdrant:
             }
         )
         self.points.update(point_ids)
+        for point_id in point_ids:
+            self.point_runs[point_id] = kwargs.get("ingest_run_id")
         return type("Upsert", (), {"upserted_count": len(chunks), "batch_count": 1})()
+
+    async def find_reusable_vectors(self, **kwargs: Any) -> dict[str, list[float]]:
+        self.reuse_lookups.append(len(list(kwargs.get("chunk_hashes") or [])))
+        return {}
+
+    async def delete_stale_document_points(self, **kwargs: Any) -> None:
+        # R06-06: points of this document version written by another run.
+        marker = f"{kwargs['document_id']}:{kwargs['index_version']}:"
+        run_id = kwargs["ingest_run_id"]
+        stale = {p for p in self.points if p.startswith(marker) and self.point_runs[p] != run_id}
+        self.points -= stale
+        self.stale_deleted += len(stale)
+        self.deletes.append({"index_version": kwargs["index_version"]})
+
+    async def count_document_points(self, **kwargs: Any) -> int:
+        marker = f"{kwargs['document_id']}:{kwargs['index_version']}:"
+        return sum(1 for point in self.points if point.startswith(marker))
 
     async def delete_document_points(self, **kwargs: Any) -> Any:
         index_version = kwargs.get("index_version")

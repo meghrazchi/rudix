@@ -180,6 +180,7 @@ class ParallelRetrievalOptimizer:
         index_versions: Sequence[str] | None = None,
         embed_query: QueryEmbedder | None = None,
         graph_timeout_ms: int | None = None,
+        query_language: str | None = None,
     ) -> ParallelRetrievalResult:
         """Run the retrieval branches.
 
@@ -216,6 +217,7 @@ class ParallelRetrievalOptimizer:
                     top_k=top_k,
                     exact_match_boost=exact_match_boost,
                     index_versions=index_versions,
+                    query_language=query_language,
                 )
             # A fresh session is opened per attempt, so a failed session is never reused.
             async with self._session_factory() as branch_session:
@@ -227,6 +229,7 @@ class ParallelRetrievalOptimizer:
                     top_k=top_k,
                     exact_match_boost=exact_match_boost,
                     index_versions=index_versions,
+                    query_language=query_language,
                 )
 
         # index_versions is not applied to graph expansion: it loads chunks by ID from
@@ -291,8 +294,8 @@ class ParallelRetrievalOptimizer:
                 semaphore=semaphore,
                 timeout_ms=plan.timeout_ms,
                 max_retry_attempts=plan.max_retry_attempts,
-                factory=lambda: asyncio.to_thread(
-                    query_retrieval_service.retrieve_candidates,
+                # R06-07: AsyncQdrantClient (a sync fake falls back to a thread inside).
+                factory=lambda: query_retrieval_service.aretrieve_candidates(
                     query_vector=query_vector,
                     organization_id=organization_id,
                     document_ids=document_ids,

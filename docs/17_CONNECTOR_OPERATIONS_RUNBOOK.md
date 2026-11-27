@@ -45,6 +45,26 @@ Provider-specific signals are derived from:
 - document and citation provenance
 - structured connector logs
 
+Sync runs (0.6.0, R06-11) also report progress while they run:
+`GET /api/v1/connectors/sync-runs/{id}` returns `pages_committed` and `checkpoint_at` (the
+last page commit), next to `items_seen`, `items_upserted`, and `items_deleted`. A
+`running` run whose `checkpoint_at` stops moving is stalled or waiting for a Retry-After.
+
+Worker metrics (on the worker metrics port):
+
+| Metric | Labels | Meaning |
+| --- | --- | --- |
+| `rudix_connector_sync_pages_total` | `provider`, `mode` | Pages committed (`full`, `incremental`) |
+| `rudix_connector_sync_rate_limited_total` | `provider`, `outcome` | Provider rate limits: `inline` (slept, same page retried) or `requeued` (checkpointed, re-enqueued) |
+| `rudix_connector_sync_deferred_total` | `reason` | Runs held back or re-enqueued: `org_cap`, `connection_cap`, `lease_held`, `lease_lost`, `rate_limit`, `stale` |
+| `rudix_worker_tenant_mismatch_total` | `task` | Items an adapter returned for another organization or connection (skipped) |
+
+Structured logs: `connector.sync.page_committed`, `connector.sync.rate_limited`,
+`connector.sync.retry_scheduled`, `connector.sync.cancelled`, `connector.sync.resumed`,
+`connector.sync.lease_lost`, `connector.sync.cap_deferred`, `connector.sync.requeued`,
+and `connector.sync.stale_runs_requeued` (beat). They carry run, organization, and
+provider identifiers and counters, never item content.
+
 ## New Provider Checklist
 
 Before merging a new provider:
@@ -82,6 +102,41 @@ Use this sequence for a new provider or a major connector change:
 - Inspect the connector sync run and audit logs for rate limits, skipped items,
   ingestion failures, and OAuth refresh failures.
 - Verify the provider credential is still valid and scoped correctly.
+- A rate limit no longer fails a run (0.6.0). A run that shows `running` with an
+  unchanged `checkpoint_at` and `rudix_connector_sync_rate_limited_total{outcome="requeued"}`
+  rising is waiting for the provider's Retry-After; it resumes on its own. Lower
+  `CONNECTOR_SYNC_MAX_CONCURRENT_PER_CONNECTION` if one connection keeps hitting limits.
+- `error_details.code` on a failed run: `auth_error` (token refresh failed; reconnect),
+  `permission_denied`, `connection_not_active`, `adapter_not_found`, `sync_error`, or
+  `task_terminal_failure` (the task gave up after its retries).
+- A run stuck in `queued` with `rudix_connector_sync_deferred_total{reason=~".*_cap"}`
+  rising is held back by a concurrency cap and retried every
+  `CONNECTOR_SYNC_CAP_RETRY_SECONDS`.
+- A run stuck in `running` whose heartbeat is older than `CONNECTOR_SYNC_STALE_SECONDS`
+  is re-enqueued by `connectors.sync.reap` (beat, every
+  `CONNECTOR_SYNC_REAP_INTERVAL_SECONDS`); check that beat and a worker on the
+  connector sync queue are up.
+
+### Cancelling and resuming a large sync
+
+- Cancel from the UI or with `POST /api/v1/connectors/sync-runs/{id}/cancel`. The run
+  stops within one cancel-check interval (`CONNECTOR_SYNC_CANCEL_CHECK_ITEMS` items,
+  default 50) of the page it is on, keeps every committed page, its counters, and its
+  checkpoint, and ends `cancelled`. Documents of committed pages stay and keep
+  processing.
+- A cancelled run is final. Start a new sync (manual or full resync) when ready: unchanged
+  items are cheap (one lookup per page slice), so most of the cost is new and changed
+  items.
+- A worker restart or crash does not lose progress. The broker redelivers the message (same
+  lease owner) or `connectors.sync.reap` re-enqueues the run once its heartbeat is stale;
+  either way the run continues from `checkpoint_cursor` with its counters. The page that
+  was in flight is rolled back and fetched again; outbox dedupe keys prevent duplicate
+  processing messages.
+- To stop a run that keeps resuming, cancel it; to stop all syncs of a connection, pause
+  or disable its jobs first, then cancel the active run.
+- A full sync tombstones unseen items only after its last page. A full sync cancelled
+  while paging tombstones nothing; one cancelled during the tombstone phase keeps the
+  tombstone batches it already committed (`CONNECTOR_SYNC_TOMBSTONE_BATCH_SIZE` each).
 
 ### Scheduled syncs never start
 

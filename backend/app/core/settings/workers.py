@@ -44,12 +44,70 @@ class WorkersSettings(BaseModel):
     outbox_max_attempts: int = Field(default=10, ge=1, le=1000)
 
     # anchor: A1
+    # R06-02: the extract stage streams the stored object to a temporary file in reads of
+    # this size (never one whole-object read) and extracts PDF and TXT from that file.
+    ingest_download_chunk_bytes: int = Field(default=_MIB, ge=4096, le=64 * _MIB)
+    # Directory of those temporary files; None means the system temporary directory. It
+    # must hold the largest accepted upload per concurrently processing worker task.
+    ingest_temp_dir: str | None = None
+    # TXT files are decoded in sections of at most this many characters (page-like
+    # sections numbered 1..n); a file shorter than one section stays a single section.
+    ingest_text_segment_chars: int = Field(default=200_000, ge=1_000, le=50_000_000)
+    # Documentation and test bound only: the peak memory one extract stage run is designed
+    # to stay under, independent of the file size. Nothing enforces it at runtime.
+    ingest_memory_ceiling_mb: int = Field(default=512, ge=64, le=65_536)
+    # R06-06: embed batches of one stage run (and provider batches inside one
+    # ``EmbeddingService.embed_chunks`` call) that run concurrently. 1 keeps the sequential
+    # behaviour of 0.5.0.
+    embedding_max_concurrent_batches: int = Field(default=1, ge=1, le=32)
+    # Scrolls of one reuse lookup: a further scroll for the still-missing hashes runs only
+    # when the previous page came back full (copies of a text in other documents). 1 = one
+    # scroll per batch.
+    embedding_reuse_max_lookups: int = Field(default=3, ge=1, le=16)
+    # R06-07: timeouts of the async Qdrant clients. Search None means QDRANT_TIMEOUT_SECONDS
+    # (the 2 s request-path budget); writes get a longer one for large batches.
+    qdrant_search_timeout_seconds: float | None = Field(default=None, ge=0.1, le=60.0)
+    qdrant_write_timeout_seconds: float = Field(default=30.0, ge=1.0, le=600.0)
+    # Collection tuning, applied only when a collection is created. None leaves the Qdrant
+    # server default. Evaluate on staging with the accuracy gate before setting any of
+    # them (docs/27 "Vector writes and memory").
+    qdrant_hnsw_m: int | None = Field(default=None, ge=0, le=1024)
+    qdrant_hnsw_ef_construct: int | None = Field(default=None, ge=4, le=4096)
+    qdrant_hnsw_payload_m: int | None = Field(default=None, ge=0, le=1024)
+    qdrant_hnsw_on_disk: bool | None = None
+    qdrant_vectors_on_disk: bool | None = None
+    qdrant_on_disk_payload: bool | None = None
+    qdrant_scalar_quantization: bool | None = None
+    qdrant_quantization_quantile: float | None = Field(default=None, ge=0.5, le=1.0)
+    qdrant_quantization_always_ram: bool | None = None
+    qdrant_shard_number: int | None = Field(default=None, ge=1, le=1024)
+    qdrant_replication_factor: int | None = Field(default=None, ge=1, le=64)
+    # True stores the parent chunk's text on every child point (the 0.5.0 payload). False
+    # omits it; vector retrieval then reads parent text from document_chunks by id.
+    qdrant_store_parent_text: bool = True
 
     # anchor: A2
 
     # anchor: A3
 
     # anchor: B1
+    # R06-09: documents.chunks.backfill_tenant fills document_chunks.organization_id,
+    # fts_config and fts_vector in batches by primary key, one short transaction each.
+    chunk_backfill_batch_size: int = Field(default=1000, ge=1, le=50_000)
+    chunk_backfill_lock_timeout_ms: int = Field(default=2000, ge=100, le=60_000)
+    chunk_backfill_statement_timeout_ms: int = Field(default=30_000, ge=1000, le=600_000)
+    # Keyword search: query fts_vector with the question's configuration (false keeps the
+    # English generated column); scope by the chunk tenant column (auto uses it once no
+    # NULL organization_id remains, checked once per process); rank at most this many
+    # matches (0 ranks every match, the pre-0.6.0 behaviour).
+    keyword_search_multilingual: bool = False
+    keyword_search_tenant_column: Literal["auto", "on", "off"] = "auto"
+    keyword_search_candidate_limit: int = Field(default=1000, ge=0, le=100_000)
+    # R06-10: graph rows per UNWIND write transaction, and extraction LLM batches in flight
+    # per document (1 keeps the sequential behaviour).
+    graph_write_batch_size: int = Field(default=200, ge=1, le=10_000)
+    entity_extraction_max_concurrent_batches: int = Field(default=1, ge=1, le=32)
+    relation_extraction_max_concurrent_batches: int = Field(default=1, ge=1, le=32)
 
     # anchor: C1
     # R06-03: time limits and child recycling. CELERY_TASK_TIME_LIMITS is a JSON object
@@ -165,3 +223,25 @@ class WorkersSettings(BaseModel):
         return cleaned
 
     # anchor: D1
+    # R06-11: connector sync at tenant scale. A running run whose heartbeat is older than
+    # this may be leased by another task and is re-enqueued by connectors.sync.reap.
+    connector_sync_stale_seconds: int = Field(default=600, ge=30, le=86_400)
+    # Cancellation is checked before each page and every N items inside a page.
+    connector_sync_cancel_check_items: int = Field(default=50, ge=1, le=100_000)
+    # Items requested per provider page (adapters may return fewer or more).
+    connector_sync_page_size: int = Field(default=100, ge=1, le=10_000)
+    # Due jobs claimed per schedule poll (one FOR UPDATE SKIP LOCKED query).
+    connector_sync_poll_batch_size: int = Field(default=100, ge=1, le=10_000)
+    # Concurrent queued or running runs per organization / per connection; 0 = no cap.
+    connector_sync_max_concurrent_per_org: int = Field(default=0, ge=0, le=10_000)
+    connector_sync_max_concurrent_per_connection: int = Field(default=0, ge=0, le=10_000)
+    # Countdown before a run held back by a cap is tried again.
+    connector_sync_cap_retry_seconds: int = Field(default=60, ge=1, le=86_400)
+    # Provider Retry-After up to this many seconds is slept inside the run (with
+    # heartbeats) and the same page retried; longer ones checkpoint and re-enqueue.
+    connector_sync_max_inline_backoff_seconds: int = Field(default=60, ge=0, le=3600)
+    connector_sync_max_inline_retries: int = Field(default=5, ge=0, le=100)
+    # Items tombstoned per transaction at the end of a full sync.
+    connector_sync_tombstone_batch_size: int = Field(default=500, ge=1, le=100_000)
+    # connectors.sync.reap beat interval.
+    connector_sync_reap_interval_seconds: int = Field(default=120, ge=10, le=86_400)

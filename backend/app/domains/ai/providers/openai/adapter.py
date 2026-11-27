@@ -22,6 +22,7 @@ from app.domains.ai.providers.errors import (
     ProviderTimeoutError,
     ProviderUnavailableError,
     UnsupportedCapabilityError,
+    retry_after_from_headers,
 )
 from app.domains.ai.providers.openai.streaming import (
     build_chat_payload,
@@ -179,7 +180,10 @@ class OpenAIEmbeddingProvider:
             response = await self._client.embeddings.create(model=model, input=request.texts)
         except RateLimitError as exc:
             raise ProviderQuotaExceededError(
-                f"OpenAI rate limit exceeded: {_redact(str(exc))}"
+                f"OpenAI rate limit exceeded: {_redact(str(exc))}",
+                retry_after_seconds=retry_after_from_headers(
+                    getattr(getattr(exc, "response", None), "headers", None)
+                ),
             ) from exc
         except APITimeoutError as exc:
             raise ProviderTimeoutError(f"OpenAI embedding timed out: {_redact(str(exc))}") from exc

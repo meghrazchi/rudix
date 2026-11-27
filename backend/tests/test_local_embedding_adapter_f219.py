@@ -267,7 +267,7 @@ async def test_embedding_result_vector_dimension_zero_for_empty_chunks() -> None
 
 
 @pytest.mark.asyncio
-async def test_qdrant_upsert_blocks_on_dimension_mismatch() -> None:
+async def test_qdrant_upsert_blocks_on_dimension_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
     """upsert_chunks raises ValueError when embedding dimension != qdrant_vector_size."""
     import os
 
@@ -302,12 +302,13 @@ async def test_qdrant_upsert_blocks_on_dimension_mismatch() -> None:
         def get_collections(self) -> object:
             return object()
 
-    qdrant_module.qdrant_client = _FakeClient()  # type: ignore[assignment]
+    # Patched through monkeypatch so the fakes do not leak into later tests.
+    monkeypatch.setattr(qdrant_module, "qdrant_client", _FakeClient())
 
     def _fake_ensure() -> None:
         pass
 
-    qdrant_module.ensure_qdrant_collection = _fake_ensure  # type: ignore[method-assign]
+    monkeypatch.setattr(qdrant_module, "ensure_qdrant_collection", _fake_ensure)
 
     svc = QdrantService()
     doc_id = uuid4()

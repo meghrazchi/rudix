@@ -112,6 +112,62 @@ document's organisation with the kwarg before any write and raise `tenant_mismat
 `documents.process` message without `organization_id` (published before `0.6.0`) resolves it
 with one `maintenance_session()` read. Beat tasks use `maintenance_session()`.
 
+### Vector writes and memory
+
+R06-02, R06-06, R06-07.
+
+**Temporary files.** The `extract` stage streams the stored object to a temporary file in
+`INGEST_TEMP_DIR` (unset: the system temporary directory) with reads of
+`INGEST_DOWNLOAD_CHUNK_BYTES` (1 MiB) and removes it when the stage ends, also on failure.
+Size the directory for the largest accepted upload (`MAX_UPLOAD_SIZE_MB`) times the number of
+ingestion tasks that run at once on the host (worker concurrency of the processing queue), plus
+headroom; use local disk, not a network mount. A full disk fails the stage as transient
+`SOURCE_OBJECT_READ_FAILED` (log `Ingestion temporary file write failed`). Leftover
+`rudix-ingest-*` files after a hard kill (SIGKILL, OOM) can be deleted when no worker runs.
+
+**Memory.** PDF pages are extracted one at a time from the file and written to the stage
+artifacts as they are produced; TXT is decoded in `INGEST_TEXT_SEGMENT_CHARS` sections. Text
+blocks are read through `get_text("dict")` because PyMuPDF 1.28's `get_text("blocks")` keeps
+the objects it returns alive (`tests/test_ingestion_memory_bounds.py` checks both the bound
+and that the blocks are identical). `INGEST_MEMORY_CEILING_MB` (512) is the documented design
+bound for one extract run; it is not enforced. `clean_detect`, `dlp`, and `chunk` still hold
+the text of every page, and DOCX is still loaded whole, so the upload limit stays the bound for
+those.
+
+**Reuse and cleanup.** `embed` reuses stored vectors by `(organization_id, embedding_model,
+chunk_hash)` and marks every point with `ingest_run_id`; `index` deletes the document's points of
+other runs and requires the point count to match the embeddable chunks. A
+`QDRANT_POINT_COUNT_MISMATCH` failure is transient: the retry resumes at `index`; if it
+persists, check for concurrent writers of the same document or a partially applied delete,
+then reindex the document. Reuse needs the `chunk_hash` payload index, which
+`python -m app.clients.qdrant_bootstrap` adds to an existing collection.
+
+**Qdrant clients and bootstrap.** Writes use `AsyncQdrantClient` with
+`QDRANT_WRITE_TIMEOUT_SECONDS` (30), chat retrieval one with `QDRANT_SEARCH_TIMEOUT_SECONDS`
+(unset: `QDRANT_TIMEOUT_SECONDS`, 2 s). `ensure_qdrant_collection()` runs at API startup, at
+worker process start (both gated by `QDRANT_BOOTSTRAP_COLLECTION`), and in the deploy step
+`python -m app.clients.qdrant_bootstrap` (`make migrate-qdrant`), not on the write path. A write
+that gets 404 for the configured collection bootstraps it once and retries
+(`qdrant.collection.missing_on_write`).
+
+**Settings to evaluate on staging before changing.** Every tuning setting defaults to unset
+(the server default) and applies only when a collection is created; an existing collection
+only logs `qdrant.collection.tuning_differs`. Change them only after the accuracy gate
+(`make eval-smoke`, the nightly suite, `docs/12`) passes on a staging collection built with the
+new values, and compare recall and latency there:
+
+| Setting | What to evaluate |
+|---|---|
+| `QDRANT_HNSW_M`, `QDRANT_HNSW_EF_CONSTRUCT` | Graph density and build effort; recall against index size and build time. |
+| `QDRANT_HNSW_M=0` with `QDRANT_HNSW_PAYLOAD_M` (e.g. 16) | Tenant-partitioned HNSW from Qdrant's multitenancy guide: per-tenant graphs on the `organization_id` tenant index instead of one global graph. Every Rudix search filters by organisation; measure recall for small and large tenants. |
+| `QDRANT_SCALAR_QUANTIZATION`, `QDRANT_QUANTIZATION_QUANTILE`, `QDRANT_QUANTIZATION_ALWAYS_RAM` | int8 vectors (about 4x less vector memory); recall loss and rescoring cost. |
+| `QDRANT_VECTORS_ON_DISK`, `QDRANT_HNSW_ON_DISK`, `QDRANT_ON_DISK_PAYLOAD` | RAM against latency. qdrant-client 1.20 marks the `on_disk` flags deprecated in favour of `memory`; the server image is not pinned (`qdrant/qdrant:latest`), so check them against the deployed server version. |
+| `QDRANT_SHARD_NUMBER`, `QDRANT_REPLICATION_FACTOR` | Only for a Qdrant cluster; a single node keeps 1. |
+| `QDRANT_STORE_PARENT_TEXT=false` | Smaller payloads; chat retrieval then reads parent text from `document_chunks` in one query per search. Measure retrieval latency first. Points written while it is false have no parent text: setting it back to true needs a reindex of those documents. Evaluation and safety scoring use the payload only. |
+
+Applying a new value to an existing deployment means building a new collection (reindex)
+with it; 0.6.0 package A2 adds index generations for that.
+
 ## Failure Modes and Recovery
 
 | Symptom | Cause | Recovery |
@@ -136,6 +192,123 @@ messages still finish). Drain the outbox before downgrading migration `20261128_
 - Outbox kwargs hold ids, flags, and the chunking profile only; `last_error` stores the
   exception class name, never broker URLs or messages.
 - Worker logs carry document, organisation, and run ids, never document text.
+
+## Connector sync
+
+R06-11 (0.6.0). Design: `docs/16_CONNECTOR_PLATFORM.md` (Sync Lifecycle and Checkpoints);
+operator steps: `docs/17_CONNECTOR_OPERATIONS_RUNBOOK.md`.
+
+- **Tasks.** `connectors.sync.run` (connector sync queue) runs or resumes one run;
+  `connectors.sync.schedule_poll` (beat) claims due jobs with one `FOR UPDATE SKIP LOCKED`
+  query on `connector_sync_jobs.next_run_at`; `connectors.sync.reap` (beat, every
+  `CONNECTOR_SYNC_REAP_INTERVAL_SECONDS`, `maintenance_session()`) releases and re-enqueues
+  `running` runs whose heartbeat is older than `CONNECTOR_SYNC_STALE_SECONDS`.
+- **Transactions.** A lease transaction, then one transaction per provider page; no
+  transaction is open during the provider call. Each page commit carries its checkpoint, its
+  counters, the heartbeat, and the outbox rows of the documents it created, and is published
+  right after the commit. The lease owner is the Celery request id, so a redelivery of the
+  same message re-takes its lease; a page commit by a worker that lost its lease is rolled
+  back.
+- **Resume.** Broker redelivery after a crash, a reap, or a long Retry-After continue from
+  `checkpoint_cursor` with the persisted counters. Full-sync tombstones use
+  `external_items.last_seen_sync_run_id`, written per page, so a resume never tombstones what
+  an earlier attempt saw.
+- **Settings.** `CONNECTOR_SYNC_STALE_SECONDS` (600), `CONNECTOR_SYNC_CANCEL_CHECK_ITEMS`
+  (50), `CONNECTOR_SYNC_PAGE_SIZE` (100), `CONNECTOR_SYNC_POLL_BATCH_SIZE` (100),
+  `CONNECTOR_SYNC_MAX_CONCURRENT_PER_ORG` and `_PER_CONNECTION` (0 = off),
+  `CONNECTOR_SYNC_CAP_RETRY_SECONDS` (60), `CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS` (60),
+  `CONNECTOR_SYNC_MAX_INLINE_RETRIES` (5), `CONNECTOR_SYNC_TOMBSTONE_BATCH_SIZE` (500),
+  `CONNECTOR_SYNC_REAP_INTERVAL_SECONDS` (120). Set the stale threshold above the longest
+  page (provider call plus downloads), or a slow page is taken over and rolled back.
+- **Tenancy.** The task runs bound to its `organization_id`; every query is scoped by the
+  run's organization and connection; adapter items naming another organization or
+  connection are skipped and counted in `rudix_worker_tenant_mismatch_total`.
+
+| Symptom | Cause | Recovery |
+|---|---|---|
+| Run `running`, `checkpoint_at` not moving, `lease_owner` empty | Waiting for a provider Retry-After (`heartbeat_at` is the resume time) | None; it is re-enqueued with the countdown. |
+| Run `running`, heartbeat old, `lease_owner` set | Worker died | `connectors.sync.reap` re-enqueues it; check beat and the connector sync worker. |
+| Run `queued`, `rudix_connector_sync_deferred_total{reason=~".*_cap"}` rising | Concurrency cap | Wait, or raise the cap. |
+| `connector.sync.lease_lost` | A slow page outlived `CONNECTOR_SYNC_STALE_SECONDS` and another worker took over | Raise the stale threshold; the page is rolled back and done again by the new owner. |
+| Documents of a sync stay `pending_scan` | Outbox rows pending (broker outage) | `outbox.relay` publishes them (`rudix_outbox_messages_total{task="documents.process"}`). |
+
+Rollback: none is needed for data (no migration in R06-11; the columns came with
+`20261128_0002`). An older worker build ignores the checkpoint columns and runs a whole sync
+in one transaction; runs left `running` by the new build are then picked up only after a
+manual retry.
+
+## Chunk tenant backfill and NOT NULL
+
+`0.6.0` (R06-09) gives `document_chunks` a tenant column (`organization_id`) and a
+language-aware full-text vector (`fts_config`, `fts_vector`). The chunk stage writes them
+for every new chunk. Rows written before `0.6.0` stay NULL until the backfill. Until the
+operator step below, the table has no RLS policy (`RLS_PENDING_TABLES`), and the ORM
+tenant guard does not filter it, so unbackfilled rows stay visible.
+
+1. Point `DATABASE_MAINTENANCE_URL` at the `BYPASSRLS` role (`rudix_maintenance`), so
+   documents are visible under strict RLS.
+2. Run the backfill, either as a task or synchronously:
+   - task: `celery -A app.workers.celery_app call documents.chunks.backfill_tenant`
+     (reindex queue). It runs up to 20 batches, then re-enqueues itself with its cursor;
+   - script: `cd backend && .venv/bin/python scripts/backfill_chunk_tenant.py`
+     (`--dry-run` prints `remaining=N` and changes nothing; `--batch-size`, `--cursor`,
+     `--max-batches`). It prints one line per batch.
+
+   Each batch updates `CHUNK_BACKFILL_BATCH_SIZE` rows (default 1000) by primary-key
+   order in its own short transaction, with `SET LOCAL lock_timeout`
+   (`CHUNK_BACKFILL_LOCK_TIMEOUT_MS`, default 2000) and `statement_timeout`
+   (`CHUNK_BACKFILL_STATEMENT_TIMEOUT_MS`, default 30000). It only touches rows whose
+   `organization_id` is NULL, so a rerun is a no-op on finished rows. A lock or statement
+   timeout retries the task from the same cursor. Progress:
+   `rudix_chunk_backfill_rows_total` and `documents.chunks.backfill_tenant.progress` logs.
+3. When `scripts/backfill_chunk_tenant.py --dry-run` prints `remaining=0`, apply the
+   operator SQL. Run it without `psql -1`, because each step must commit on its own:
+
+   ```bash
+   psql "$DATABASE_MIGRATION_URL_PSQL" -v ON_ERROR_STOP=1 -f deploy/sql/document_chunks_not_null.sql
+   ```
+
+   It refuses to run while any NULL remains. It then adds
+   `CHECK (organization_id IS NOT NULL) NOT VALID` and validates it (the scan does not
+   block reads or writes). Next it sets `NOT NULL`, which uses the validated check instead
+   of a second scan, and drops the check. Last, it enables RLS with the strict tenant
+   policy. Each statement waits at most 5 s for its lock, and the script is safe to
+   rerun. If `deploy/sql/force_rls.sql` is already applied, also run
+   `ALTER TABLE document_chunks FORCE ROW LEVEL SECURITY;`.
+4. Set `KEYWORD_SEARCH_TENANT_COLUMN=on`, or leave `auto`. In `auto` mode each process
+   checks for NULL rows once, on its first keyword search, and keeps the answer. API and
+   worker processes that started before the backfill finished keep the join path until
+   they restart.
+
+Rollback: `deploy/sql/document_chunks_not_null_revert.sql` (drops the policy, disables
+RLS, drops `NOT NULL`). Set `KEYWORD_SEARCH_TENANT_COLUMN=auto` or `off` first. The
+columns themselves are additive (migration `20261128_0002`) and need no rollback.
+Both SQL files are generated by `backend/scripts/render_chunk_not_null_sql.py`; check them
+with `--check`.
+
+## Keyword search settings
+
+| Setting | Default | Effect |
+|---|---|---|
+| `KEYWORD_SEARCH_MULTILINGUAL` | `false` | `true` also matches `fts_vector` with the question's text search configuration (German, Spanish, French, English; others `simple`). The English column stays a second match, so no previous result is lost. |
+| `KEYWORD_SEARCH_TENANT_COLUMN` | `auto` | `on`: scope by `document_chunks.organization_id` (index `idx_chunks_org_document`). `off`: scope by the owning document, as before. `auto`: `on` once no NULL row remains, checked once per process (restart processes that started before the backfill finished). Use `on` only after the backfill. |
+| `KEYWORD_SEARCH_CANDIDATE_LIMIT` | `1000` | Matches ranked per search (the first ones in index scan order). `0` ranks every match. When more chunks match than the limit, the candidates follow storage order, not relevance: a better-ranked chunk outside them is not returned. Common terms in large organisations are affected first, so compare `1000` with `0` on the staging accuracy gate. |
+
+Staging step, after the backfill and the NOT NULL step: turn on
+`FEATURE_ENABLE_HYBRID_RETRIEVAL`, `FEATURE_ENABLE_CONTEXT_PACKING` and
+`KEYWORD_SEARCH_MULTILINGUAL`. Then run the live accuracy gate
+(`ci/scripts/accuracy_eval_runner.py`, nightly `accuracy-eval.yml`) before and after the
+change, and keep them on only if the gate passes. The defaults stay off in `0.6.0`. The
+deterministic accuracy smoke (`pytest -m accuracy_smoke`) already passes with all three
+on. Run the keyword p95 load check as the table grows (R03-09) on staging, with
+`KEYWORD_SEARCH_CANDIDATE_LIMIT` at its default.
+
+Graph writes (R06-10): `GRAPH_WRITE_BATCH_SIZE` (default 200) sets the rows per Neo4j write
+transaction. `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES` and
+`RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` (default 1) set the LLM batches in flight
+per document. Watch `rudix_graph_write_batches_total{outcome="failed"}`. Run graph
+extraction once against a real Neo4j instance on staging before you raise the
+concurrency.
 
 ## Worker platform (R06-03, R06-04, R06-05)
 

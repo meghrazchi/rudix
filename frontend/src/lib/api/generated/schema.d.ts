@@ -20871,6 +20871,13 @@ export interface components {
             created_at: string;
             /** Updated At */
             updated_at: string;
+            /** Checkpoint At */
+            checkpoint_at?: string | null;
+            /**
+             * Pages Committed
+             * @default 0
+             */
+            pages_committed: number;
         };
         /** SyncRunsListResponse */
         SyncRunsListResponse: {

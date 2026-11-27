@@ -5,7 +5,8 @@ on:
   # required check from a workflow skipped by `paths` stays pending and blocks the merge.
   push:
     branches:
-      - "**"
+      - main
+      - develop
   pull_request:
   workflow_dispatch:
 

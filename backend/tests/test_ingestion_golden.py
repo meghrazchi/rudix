@@ -13,12 +13,12 @@ from typing import Any
 import fitz  # type: ignore[import-untyped]
 import pytest
 from ingestion_golden_support import (
-    EXTRACT_PATCH_TARGET,
     FailingEntityExtraction,
     IngestionEnv,
     Seeded,
     assert_matches_golden,
     ingestion_env,  # noqa: F401  (fixture)
+    patch_extraction,
     snapshot,
 )
 
@@ -182,7 +182,7 @@ def _table_extraction(content: bytes, **_: Any) -> ExtractionResult:
 
 
 def _table_chunks(env: IngestionEnv) -> tuple[Seeded, Any]:
-    env.monkeypatch.setattr(*EXTRACT_PATCH_TARGET, _table_extraction)
+    patch_extraction(env.monkeypatch, _table_extraction)
     env.set_content(b"%PDF-fake")
     seeded = env.seed(filename="tables.pdf", file_type="pdf")
     return seeded, _run_process(env, seeded, "task-table")

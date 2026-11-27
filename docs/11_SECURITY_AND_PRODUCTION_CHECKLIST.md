@@ -409,7 +409,8 @@ Use:
 - Cloud secret manager.
 
 Secret scanning (R03-08): `.github/workflows/secret-scan.yml` runs gitleaks (pinned release,
-checksum verified) on every push and pull request over the new commits, and weekly over the
+checksum verified) on push to `main` and `develop` and on every pull request, over the new
+commits, and weekly over the
 full history (report only). `.gitleaks.toml` allowlists only exact placeholder values
 (`ci-placeholder-key`, `sk-test`, `minioadmin`, `ci-local-secret`, `dev-insecure-change-me`,
 and the Playwright e2e tokens), never paths. If a real secret is found, rotate it first; a
@@ -763,6 +764,18 @@ never document text.
       rollback is `deploy/sql/unforce_rls.sql` plus `RLS_ENFORCEMENT=soft`. Re-render both files
       with `backend/scripts/render_force_rls_sql.py` when the RLS table lists change.
 - [ ] Development and test databases run with the `strict` default (`RLS_ENFORCEMENT` unset).
+- [ ] `0.6.0` chunk tenant column (R06-09): `documents.chunks.backfill_tenant` (or
+      `backend/scripts/backfill_chunk_tenant.py`) finished with `remaining=0`, then
+      `deploy/sql/document_chunks_not_null.sql` applied without `psql -1`. It refuses while
+      NULLs remain, then validates a `NOT VALID` check, sets `NOT NULL`, and adds the strict
+      tenant policy. Until then `document_chunks` is in `RLS_PENDING_TABLES`: no policy, and
+      the ORM guard does not filter it. Tenant scoping comes from the queries (document join
+      or chunk column) plus a per-row organisation check in keyword search. Rollback:
+      `deploy/sql/document_chunks_not_null_revert.sql`. Re-render both with
+      `backend/scripts/render_chunk_not_null_sql.py`. With `FORCE` applied elsewhere, also
+      force it on `document_chunks`.
+- [ ] `KEYWORD_SEARCH_TENANT_COLUMN=on` only after that step. `auto` switches only in
+      processes that start after no NULL row remains, because each process checks once.
 
 ### Workers
 

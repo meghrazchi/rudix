@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.domains.documents.extraction.models import BoundingBox, TableBlock, TableCell
 from app.domains.documents.services.text_extraction import ExtractedSection
 from app.workers.ingestion.context import StageContext
+from app.workers.ingestion.errors import DocumentPipelinePermanentError
 from app.workers.ingestion.heartbeat import note_parts
 from app.workers.ingestion.store import encode_artifact
 
@@ -51,6 +52,60 @@ async def write_pages(ctx: StageContext, stage: str, pages: list[dict[str, Any]]
     await ctx.store.write_artifacts(stage, parts, replace_stage=True)
     await note_parts(ctx, len(parts))
     return len(parts)
+
+
+# Streamed page parts (R06-02) are numbered ``page_slot * PAGE_PART_STRIDE + fragment``:
+# parts only need their order, and a page whose record is written later (an OCR page)
+# keeps its slot between its neighbours without renumbering them.
+PAGE_PART_STRIDE = 4096
+_FLUSH_PAGES = 16
+
+
+class PageWriter:
+    """Write page records while they are produced, a few pages per transaction.
+
+    Holds at most ``_FLUSH_PAGES`` pages; ``parts_written`` is the stage's
+    ``artifact_parts`` count. The first flush replaces artifacts of an earlier attempt.
+    """
+
+    def __init__(self, ctx: StageContext, stage: str) -> None:
+        self._ctx = ctx
+        self._stage = stage
+        self._pending: dict[int, Any] = {}
+        self._pending_pages = 0
+        self._next_slot = 0
+        self._replaced = False
+        self.parts_written = 0
+
+    def reserve(self) -> int:
+        slot = self._next_slot
+        self._next_slot += 1
+        return slot
+
+    async def add(self, page: dict[str, Any], *, slot: int | None = None) -> None:
+        position = self.reserve() if slot is None else slot
+        fragments = _split_page(page)
+        if len(fragments) > PAGE_PART_STRIDE:
+            raise DocumentPipelinePermanentError(
+                stage=self._stage,
+                code="STAGE_ARTIFACT_TOO_LARGE",
+                category="validation",
+                message="page text needs more artifact parts than one page slot holds",
+            )
+        for index, fragment in enumerate(fragments):
+            self._pending[position * PAGE_PART_STRIDE + index] = fragment
+        self._pending_pages += 1
+        if self._pending_pages >= _FLUSH_PAGES:
+            await self.flush()
+
+    async def flush(self) -> None:
+        if not self._pending and self._replaced:
+            return
+        parts, self._pending, self._pending_pages = self._pending, {}, 0
+        await self._ctx.store.write_artifacts(self._stage, parts, replace_stage=not self._replaced)
+        self._replaced = True
+        self.parts_written += len(parts)
+        await note_parts(self._ctx, len(parts))
 
 
 async def read_pages(ctx: StageContext, stage: str) -> list[dict[str, Any]]:

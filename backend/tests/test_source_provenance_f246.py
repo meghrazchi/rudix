@@ -326,3 +326,55 @@ async def test_source_provenance_blocks_cross_tenant_chunk_lookup(
 
     assert chunk_one.id in details_by_chunk
     assert chunk_two.id not in details_by_chunk
+
+
+def _hit(document_id: object, chunk_id: object) -> object:
+    return type("Chunk", (), {"document_id": document_id, "chunk_id": chunk_id})()
+
+
+@pytest.mark.asyncio
+async def test_filter_active_chunks_drops_chunks_replaced_by_a_reindex(
+    db_session: AsyncSession,
+) -> None:
+    """R06-06: stale vector points of a reindexed document cite replaced chunk rows.
+
+    The index stage removes a document's previous points only after the new ones are
+    written, while the chunk stage has already replaced the chunk rows. A hit whose chunk
+    row no longer exists (or belongs to another document or organisation) is dropped, so
+    no answer cites a deleted chunk; live chunks are kept in their order.
+    """
+    org, _, document, chunk, _ = await _create_connector_document(db_session)
+    other_org, _, other_document, other_chunk, _ = await _create_connector_document(db_session)
+    service = SourceProvenanceService()
+    replaced_chunk_id = uuid4()
+
+    filtered = await service.filter_active_chunks(
+        db_session,
+        organization_id=org.id,
+        chunks=[
+            _hit(document.id, replaced_chunk_id),
+            _hit(document.id, chunk.id),
+            _hit(other_document.id, other_chunk.id),
+            _hit(other_document.id, chunk.id),
+        ],
+    )
+
+    assert [(hit.document_id, hit.chunk_id) for hit in filtered] == [(document.id, chunk.id)]
+    assert other_org.id != org.id
+
+
+@pytest.mark.asyncio
+async def test_filter_active_chunks_keeps_document_rule_without_chunk_ids(
+    db_session: AsyncSession,
+) -> None:
+    """Hits without a UUID chunk id still use the document-level rule only."""
+    org, _, document, _, _ = await _create_connector_document(db_session)
+    service = SourceProvenanceService()
+
+    filtered = await service.filter_active_chunks(
+        db_session,
+        organization_id=org.id,
+        chunks=[_hit(document.id, "not-a-uuid"), _hit(uuid4(), None)],
+    )
+
+    assert [hit.document_id for hit in filtered] == [document.id]

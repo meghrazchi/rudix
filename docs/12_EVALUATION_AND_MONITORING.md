@@ -729,6 +729,77 @@ after `finalize` on its own queue.
   `superseded` or `lease_held` rising (duplicate publications or competing claims).
 - No throughput or latency figure is recorded for the chain; the tests assert call counts.
 
+### Vector writes, embedding reuse, and Qdrant clients (R06-02, R06-06, R06-07)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_embedding_cache_hits_total` | `outcome` | Embed-stage chunks whose vector was reused from the vector index (`hit`) or sent to the provider (`miss`). A reindex of unchanged documents is all `hit`; a hit ratio that drops to zero after a deploy means the lookup fails (log `ingestion.embedding_reuse_lookup_failed`) or the `chunk_hash` payload index is missing. |
+
+- The `document.embedding` usage event counts only embedded chunks, so reindex cost falls
+  with the hit ratio; tokens of reused chunks are not counted.
+- The pipeline-explorer stage `index_cleanup` now runs after `index` (stale points of other
+  runs are deleted after the upserts) and reports `point_count`. Error codes:
+  `QDRANT_POINT_COUNT_MISMATCH` (transient: the document's point count differs from its
+  embeddable chunks after cleanup), `QDRANT_CLEANUP_FAILED`, `QDRANT_CLEANUP_FILTER_INVALID`.
+- Logs: `qdrant.async_client.created` (kind, timeout), `qdrant.collection.missing_on_write`
+  (the write path bootstrapped a missing collection), `qdrant.collection.tuning_differs`
+  (configured tuning differs from an existing collection; nothing is changed),
+  `qdrant.bootstrap.completed` / `qdrant.bootstrap.failed`, `worker.qdrant_bootstrap_failed`.
+- Recall: every tuning setting defaults to the server default and `QDRANT_STORE_PARENT_TEXT`
+  stays `true`, so retrieval results on the evaluation set cannot change from these items
+  unless an operator sets a value. Run the accuracy gate on a staging collection before
+  setting any of them (`docs/27`, "Vector writes and memory").
+- Memory: `tests/test_ingestion_memory_bounds.py` bounds the traced Python memory of the
+  extract path (a 64 MiB TXT under 16 MiB, a 300-page PDF of about 2.8 million characters
+  under 4 MiB); these are test bounds, not production measurements. No latency figure is
+  recorded for the async clients or for parent-text resolution.
+
+### Connector sync pages, rate limits, and caps (R06-11)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_connector_sync_pages_total` | `provider`, `mode` | Pages committed by connector sync runs (`full`, `incremental`). |
+| `rudix_connector_sync_rate_limited_total` | `provider`, `outcome` | Provider rate limits: `inline` (slept up to `CONNECTOR_SYNC_MAX_INLINE_BACKOFF_SECONDS`, same page retried) or `requeued` (checkpoint kept, run re-enqueued with the Retry-After countdown). |
+| `rudix_connector_sync_deferred_total` | `reason` | Runs held back or re-enqueued: `org_cap`, `connection_cap`, `lease_held`, `lease_lost`, `rate_limit`, `stale` (re-enqueued by `connectors.sync.reap`). |
+
+- Sync run rows report progress: `pages_committed`, `checkpoint_at`, `heartbeat_at`, and the
+  counters move with every page commit.
+- Logs: `connector.sync.page_committed`, `connector.sync.rate_limited`,
+  `connector.sync.retry_scheduled`, `connector.sync.cancelled`, `connector.sync.resumed`,
+  `connector.sync.lease_lost`, `connector.sync.cap_deferred`, `connector.sync.requeued`,
+  `connector.sync.stale_runs_requeued`, and `connector.sync.item.tenant_mismatch`. They carry
+  run, organisation, and provider ids and counters, never item content or credentials.
+- Alert ideas: `requeued` rate limits rising for one provider (quota too small or caps too
+  high); `stale` deferrals rising (workers dying or the stale threshold below the page time);
+  `lease_lost` above zero (stale threshold too low).
+- Measured in tests (SQLite, fake provider, pages of 1,000): a cancel issued during the fetch
+  of page k+1 stops the run within 50 items of that page with k pages committed. No
+  production throughput figure is recorded; real provider rate limits are a staging check.
+
+### Chunk tenant backfill, multilingual keyword search, batched graph writes (R06-09, R06-10)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_chunk_backfill_rows_total` | none | `document_chunks` rows given `organization_id`, `fts_config` and `fts_vector` by `documents.chunks.backfill_tenant` or the backfill script. It stops growing when the backfill is done. |
+| `rudix_graph_write_batches_total` | `kind` (`entity`, `alias`, `evidence`, `relation`), `outcome` (`written`, `failed`) | Neo4j UNWIND write transactions. Per document, about `ceil(rows / GRAPH_WRITE_BATCH_SIZE)` per kind, not one per item. |
+
+- Logs: `documents.chunks.backfill_tenant.progress` (batches, rows updated, finished),
+  `documents.chunks.backfill_tenant.batch_failed` (driver error class only),
+  `keyword_search.tenant_column_checked` (once per process in `auto` mode),
+  `graph.batch_write.failed` (kind, organisation, batch index and size, error class). None
+  of them carry document text or Cypher parameters.
+- Recall: `tests/test_keyword_multilingual_pg.py` shows that German, Spanish and French
+  fixture questions find their chunks with `KEYWORD_SEARCH_MULTILINGUAL=true` and not with
+  English stemming. This is a test on a small fixture set, not a measured recall figure.
+  The live accuracy gate on staging decides the flag flips (runbook 27, "Keyword search
+  settings").
+- Bounded ranking: keyword search ranks at most `KEYWORD_SEARCH_CANDIDATE_LIMIT` matches.
+  Keyword p95 staying flat as `document_chunks` grows is a staging load check (R03-09). No
+  latency figure is recorded here.
+- Alert ideas: `rudix_graph_write_batches_total{outcome="failed"}` above zero (Neo4j
+  unavailable or rejected writes); `rudix_chunk_backfill_rows_total` flat while the dry run
+  still reports remaining rows (task not running or blocked by lock timeouts).
+
 ### Worker pools, queues, time limits, and dead letters (R06-03, R06-04, R06-05)
 
 | Metric | Labels | Meaning |

@@ -340,6 +340,9 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_chunks_parent_chunk_id", "parent_chunk_id"),
         Index("idx_chunks_chunk_level", "chunk_level"),
         Index("idx_chunks_chunk_type", "chunk_type"),
+        # 0.6.0 (R06-09): built CONCURRENTLY by migration 20261128_0003.
+        Index("idx_chunks_org_document", "organization_id", "document_id"),
+        Index("idx_chunks_fts_vector", "fts_vector", postgresql_using="gin"),
     )
 
     document_id: Mapped[UUID] = mapped_column(
@@ -386,6 +389,22 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         TSVECTOR,
         Computed("to_tsvector('english', COALESCE(text, ''))", persisted=True),
         nullable=True,
+    )
+
+    # 0.6.0 (R06-09): tenant column and language-aware full-text vector. Nullable until
+    # documents.chunks.backfill_tenant has filled every row and the operator applies
+    # deploy/sql/document_chunks_not_null.sql. No foreign key: the document's own FK and
+    # the writers (chunk stage, backfill) keep it equal to documents.organization_id.
+    organization_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    # PostgreSQL text search configuration the chunk was indexed with (english, german,
+    # spanish, french, simple); see app.domains.documents.services.fts_config.
+    fts_config: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Written by the application (to_tsvector(fts_config, text)), not generated. Deferred so
+    # ordinary chunk loads do not fetch the vector.
+    fts_vector = mapped_column(
+        TSVECTOR().with_variant(Text(), "sqlite"),
+        nullable=True,
+        deferred=True,
     )
 
     document = relationship("Document", back_populates="chunks")

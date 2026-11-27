@@ -1,4 +1,4 @@
-.PHONY: install lint test test-verbose audit run-api run-worker run-mcp-http run-mcp-stdio format check-revisions migrate downgrade seed-dev install-hooks
+.PHONY: install lint test test-verbose audit run-api run-worker run-mcp-http run-mcp-stdio format check-revisions migrate migrate-qdrant downgrade seed-dev install-hooks
 
 PYTHON := python3
 VENV_DIR := .venv
@@ -116,6 +116,11 @@ check-revisions:
 
 migrate: check-revisions
 	$(ALEMBIC) upgrade head
+
+# Qdrant collection and payload indexes (R06-07): the write path no longer ensures them.
+# Needs a reachable Qdrant; deploy runs it next to `alembic upgrade head`.
+migrate-qdrant:
+	$(PYTHON_VENV) -m app.clients.qdrant_bootstrap
 
 # Neo4j graph schema migrations (no-op unless ENTERPRISE_GRAPH_ENABLED=true).
 migrate-graph:

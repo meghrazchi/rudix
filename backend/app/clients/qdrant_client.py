@@ -1,4 +1,22 @@
-from qdrant_client import QdrantClient
+"""Qdrant clients (R06-07).
+
+- ``qdrant_client``: the synchronous client for startup bootstrap, the readiness probe,
+  and scripts. ``init_qdrant`` creates it and, with ``QDRANT_BOOTSTRAP_COLLECTION``, runs
+  ``ensure_qdrant_collection`` once (API startup, worker process start, migrate job).
+- ``get_async_search_client()`` / ``get_async_write_client()``: ``AsyncQdrantClient``
+  instances with the short search and the long write timeout, created lazily for the
+  running event loop (the API loop, the worker loop of ``app.workers.async_runtime``)
+  and closed by ``close_async_qdrant_clients()`` on shutdown.
+- A client assigned to ``qdrant_client`` by anything other than ``init_qdrant`` (tests,
+  tools) is an injected override: ``injected_sync_client()`` returns it, and the request
+  and write paths then use it through their synchronous fallback.
+"""
+
+from __future__ import annotations
+
+import asyncio
+
+from qdrant_client import AsyncQdrantClient, QdrantClient
 from qdrant_client.http.models import (
     IntegerIndexParams,
     IntegerIndexType,
@@ -7,17 +25,31 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
-from app.clients.factory import create_qdrant_client, qdrant_distance_to_model
+from app.clients.factory import (
+    create_async_qdrant_client,
+    create_qdrant_client,
+    qdrant_distance_to_model,
+)
+from app.clients.qdrant_tuning import (
+    create_collection_kwargs,
+    vectors_on_disk,
+    warn_on_tuning_drift,
+)
 from app.core.config import settings
 from app.core.logging import get_logger
 
 qdrant_client: QdrantClient | None = None
+# The client init_qdrant created; any other value of ``qdrant_client`` was injected.
+_initialized_client: QdrantClient | None = None
+# (kind, id(loop)) -> (loop, client); entries of closed loops are dropped on access.
+_async_clients: dict[tuple[str, int], tuple[asyncio.AbstractEventLoop, AsyncQdrantClient]] = {}
 logger = get_logger("clients.qdrant")
 
 
 def init_qdrant() -> None:
-    global qdrant_client
+    global qdrant_client, _initialized_client
     qdrant_client = create_qdrant_client(settings)
+    _initialized_client = qdrant_client
     try:
         qdrant_client.get_collections()
         if settings.qdrant_bootstrap_collection:
@@ -44,6 +76,7 @@ def init_qdrant() -> None:
             # A closed client cannot reconnect; None lets consumers and the
             # readiness probe re-initialize once Qdrant is reachable (R04-12).
             qdrant_client = None
+            _initialized_client = None
         raise
 
 
@@ -51,6 +84,54 @@ def close_qdrant() -> None:
     if qdrant_client is not None:
         qdrant_client.close()
         logger.info("qdrant.close")
+
+
+def injected_sync_client() -> QdrantClient | None:
+    """``qdrant_client`` when it was set by something other than ``init_qdrant``."""
+    if qdrant_client is not None and qdrant_client is not _initialized_client:
+        return qdrant_client
+    return None
+
+
+def search_timeout_seconds() -> float:
+    configured = settings.qdrant_search_timeout_seconds
+    return configured if configured is not None else settings.qdrant_timeout_seconds
+
+
+def _async_client(kind: str, timeout_seconds: float) -> AsyncQdrantClient:
+    loop = asyncio.get_running_loop()
+    for key in [key for key, (owner, _) in _async_clients.items() if owner.is_closed()]:
+        _async_clients.pop(key, None)
+    entry = _async_clients.get((kind, id(loop)))
+    if entry is not None and entry[0] is loop:
+        return entry[1]
+    client = create_async_qdrant_client(settings, timeout_seconds=timeout_seconds)
+    _async_clients[(kind, id(loop))] = (loop, client)
+    logger.info("qdrant.async_client.created", kind=kind, timeout_seconds=timeout_seconds)
+    return client
+
+
+def get_async_search_client() -> AsyncQdrantClient:
+    """Request-path client (``QDRANT_SEARCH_TIMEOUT_SECONDS``) of the running loop."""
+    return _async_client("search", search_timeout_seconds())
+
+
+def get_async_write_client() -> AsyncQdrantClient:
+    """Write client (``QDRANT_WRITE_TIMEOUT_SECONDS``) of the running loop."""
+    return _async_client("write", settings.qdrant_write_timeout_seconds)
+
+
+async def close_async_qdrant_clients() -> None:
+    """Close the async clients of the running loop (API and worker shutdown)."""
+    loop = asyncio.get_running_loop()
+    for key, (owner, client) in list(_async_clients.items()):
+        if owner is not loop:
+            continue
+        _async_clients.pop(key, None)
+        try:
+            await client.close()
+        except Exception as exc:
+            logger.warning("qdrant.async_client.close_failed", error=type(exc).__name__)
 
 
 def check_qdrant_health() -> bool:
@@ -80,7 +161,10 @@ def _normalize_distance(value: object) -> str:
 
 
 def ensure_qdrant_payload_indexes() -> None:
-    """Ensure multi-tenant and retrieval filter payload indexes exist on the Qdrant collection."""
+    """Ensure multi-tenant and retrieval filter payload indexes exist on the Qdrant collection.
+
+    Idempotent: Qdrant accepts a repeated ``create_payload_index`` for the same schema.
+    """
     if qdrant_client is None:
         raise RuntimeError("Qdrant client is not initialized")
 
@@ -112,6 +196,12 @@ def ensure_qdrant_payload_indexes() -> None:
         field_name="chunk_level",
         field_schema=IntegerIndexParams(type=IntegerIndexType.INTEGER),
     )
+    # R06-06: embedding reuse looks points up by chunk hash.
+    create_payload_index(
+        collection_name=collection_name,
+        field_name="chunk_hash",
+        field_schema=KeywordIndexParams(type=KeywordIndexType.KEYWORD),
+    )
     logger.info(
         "qdrant.payload_indexes.ensured",
         collection=collection_name,
@@ -120,6 +210,7 @@ def ensure_qdrant_payload_indexes() -> None:
 
 
 def ensure_qdrant_collection() -> None:
+    """Create or check the collection and its payload indexes (startup and migrate only)."""
     if qdrant_client is None:
         raise RuntimeError("Qdrant client is not initialized")
 
@@ -130,7 +221,9 @@ def ensure_qdrant_collection() -> None:
             vectors_config=VectorParams(
                 size=settings.qdrant_vector_size,
                 distance=qdrant_distance_to_model(settings.qdrant_distance),
+                **vectors_on_disk(settings),
             ),
+            **create_collection_kwargs(settings),
         )
         ensure_qdrant_payload_indexes()
         logger.info(
@@ -138,6 +231,7 @@ def ensure_qdrant_collection() -> None:
             collection=settings.qdrant_collection,
             vector_size=settings.qdrant_vector_size,
             distance=settings.qdrant_distance.value,
+            tuning=sorted(create_collection_kwargs(settings)),
         )
         return
 
@@ -161,6 +255,7 @@ def ensure_qdrant_collection() -> None:
             f"for collection '{settings.qdrant_collection}'."
         )
 
+    warn_on_tuning_drift(settings, collection_info, collection=settings.qdrant_collection)
     ensure_qdrant_payload_indexes()
     logger.info(
         "qdrant.collection.exists",

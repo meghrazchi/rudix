@@ -7,6 +7,7 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.documents.services.fts_config import fts_vector_expression
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.enums import DocumentStatus
 from app.shared.pagination import CursorValue, apply_keyset
@@ -501,8 +502,12 @@ class DocumentRepository:
         child_count: int | None = None,
         chunk_type: str = "text",
         table_metadata: dict | None = None,
+        organization_id: UUID | None = None,
+        fts_config: str | None = None,
     ) -> DocumentChunk:
         chunk = DocumentChunk(
+            organization_id=organization_id,
+            fts_config=fts_config,
             document_id=document_id,
             chunk_index=chunk_index,
             text=text,
@@ -522,6 +527,9 @@ class DocumentRepository:
             chunk_type=chunk_type,
             table_metadata=table_metadata,
         )
+        if fts_config is not None and session.get_bind().dialect.name == "postgresql":
+            # R06-09: language-aware vector, written in the INSERT itself.
+            chunk.fts_vector = fts_vector_expression(fts_config, text)
         session.add(chunk)
         await session.flush()
         await session.refresh(chunk)

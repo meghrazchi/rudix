@@ -63896,6 +63896,22 @@
           "updated_at": {
             "type": "string",
             "title": "Updated At"
+          },
+          "checkpoint_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint At"
+          },
+          "pages_committed": {
+            "type": "integer",
+            "title": "Pages Committed",
+            "default": 0
           }
         },
         "type": "object",

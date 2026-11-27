@@ -1,3 +1,4 @@
+import logging
 from time import perf_counter
 from typing import Any
 
@@ -10,6 +11,7 @@ from celery.signals import (  # type: ignore[import-untyped]
     task_retry,
     worker_init,
     worker_process_init,
+    worker_process_shutdown,
     worker_ready,
 )
 
@@ -49,6 +51,7 @@ INCLUDE: list[str] = [
     # anchor: A2
     # anchor: A3
     # anchor: B1
+    "app.workers.chunk_backfill_tasks",
     # anchor: C1
     # anchor: C2
     # anchor: D1
@@ -90,12 +93,14 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     # anchor: A2
     # anchor: A3
     # anchor: B1
+    "documents.chunks.backfill_tenant": _route(settings.celery_queue_documents_reindex),
     # anchor: C1
     # anchor: C2
     "agents.run.execute": _route(settings.celery_queue_agents),
     "agents.run.resume": _route(settings.celery_queue_agents),
     "agents.runs.reap": _route(settings.celery_task_default_queue),
     # anchor: D1
+    "connectors.sync.reap": _route(settings.celery_queue_connector_sync),
 }
 
 BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
@@ -142,6 +147,10 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
         "schedule": settings.agent_run_reap_interval_seconds,
     },
     # anchor: D1
+    "connector-sync-reap": {
+        "task": "connectors.sync.reap",
+        "schedule": settings.connector_sync_reap_interval_seconds,
+    },
 }
 
 
@@ -215,6 +224,35 @@ def _initialize_worker(*_: object, **__: object) -> None:
 
     run_async(engine.dispose(close=False))
     run_async(init_neo4j())
+    _bootstrap_qdrant()
+
+
+def _bootstrap_qdrant() -> None:
+    """R06-07: create or check the collection once per worker process, not per write.
+
+    A Qdrant outage must not stop the worker from starting; the write path recreates a
+    missing collection once when Qdrant answers 404 (``QdrantService``).
+    """
+    from app.clients import qdrant_client as qdrant_module
+
+    try:
+        qdrant_module.init_qdrant()
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "worker.qdrant_bootstrap_failed: %s", type(exc).__name__
+        )
+
+
+@worker_process_shutdown.connect
+def _shutdown_worker(*_: object, **__: object) -> None:
+    from app.clients.qdrant_client import close_async_qdrant_clients, close_qdrant
+    from app.workers.async_runtime import run_async
+
+    try:
+        run_async(close_async_qdrant_clients())
+        close_qdrant()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("worker.qdrant_close_failed: %s", type(exc).__name__)
 
 
 @worker_ready.connect

@@ -1,6 +1,6 @@
-"""chunk stage: vector cleanup, document pages, chunk rows, table chunks (R06-01).
+"""chunk stage: document pages, chunk rows, table chunks (R06-01).
 
-Pipeline-explorer stages ``index_cleanup`` and ``chunk``. Chunking runs without a
+Pipeline-explorer stage ``chunk``. Chunking runs without a
 session; pages and chunk rows are written in one short transaction. Metrics keep the
 inputs of the chunking snapshot that finalize writes on the document.
 """
@@ -13,12 +13,12 @@ from uuid import UUID
 
 from app.core.config import settings
 from app.domains.documents.chunking.hashing import compute_chunk_hash
+from app.domains.documents.services.fts_config import chunk_search_fields
 from app.domains.documents.services.table_chunking_service import build_table_chunk
 from app.workers.ingestion.context import StageContext
 from app.workers.ingestion.documents import load_document
 from app.workers.ingestion.errors import (
     DocumentPipelinePermanentError,
-    DocumentPipelineTransientError,
     safe_duration_ms,
 )
 from app.workers.ingestion.pages import read_pages, table_from_dict, to_sections
@@ -57,46 +57,15 @@ def _chunk_row_values(
         "language": document.language,
         "chunk_level": chunk.chunk_level if is_hierarchical else None,
         "child_count": chunk.child_count,
+        # R06-09: tenant column and the document language's text search configuration;
+        # the repository writes fts_vector = to_tsvector(fts_config, text) on PostgreSQL.
+        **chunk_search_fields(document),
     }
 
 
 # anchor: A1 index cleanup begin
-async def _index_cleanup(ctx: StageContext, document: Any, index_version: str) -> None:
-    """Delete the document's points of this index version before new chunks are written."""
-    ctx.current_stage = "index_cleanup"
-    ctx.log_stage("index_cleanup", "started", index_version=index_version)
-    await ctx.recorder.emit_stage(
-        stage="index_cleanup", stage_status="started", config={"index_version": index_version}
-    )
-    kwargs: dict[str, Any] = {
-        "organization_id": document.organization_id,
-        "document_id": document.id,
-        "index_version": index_version,
-    }
-    if ctx.options.vector_collection is not None:
-        kwargs["collection_name"] = ctx.options.vector_collection
-    try:
-        await ctx.deps.qdrant_service.delete_document_points(**kwargs)
-    except ValueError as exc:
-        raise DocumentPipelinePermanentError(
-            stage="index_cleanup",
-            code="QDRANT_CLEANUP_FILTER_INVALID",
-            category="validation",
-            message=str(exc),
-        ) from exc
-    except Exception as exc:
-        raise DocumentPipelineTransientError(
-            stage="index_cleanup",
-            code="QDRANT_CLEANUP_FAILED",
-            category="infrastructure",
-            message="qdrant cleanup failed",
-        ) from exc
-    ctx.log_stage("index_cleanup", "completed", index_version=index_version)
-    await ctx.recorder.emit_stage(
-        stage="index_cleanup", stage_status="completed", outputs={"index_version": index_version}
-    )
-
-
+# R06-06: per-document point cleanup moved to the index stage, after the upserts, so the
+# old points stay searchable (and reusable as embeddings) until the new ones are written.
 # anchor: A1 index cleanup end
 
 
@@ -153,7 +122,6 @@ async def run(ctx: StageContext) -> StageOutcome:
     document = await load_document(ctx)
     svc = ctx.options.chunking_service
     index_version = _index_version(ctx)
-    await _index_cleanup(ctx, document, index_version)
 
     ctx.current_stage = "chunk"
     profile = getattr(svc, "_profile", None)
@@ -253,6 +221,8 @@ async def _write_rows(
                         row.parent_chunk_id = parent_id
             await session.flush()
         for values in tables:
-            await repository.create_document_chunk(session, language=document.language, **values)
+            await repository.create_document_chunk(
+                session, language=document.language, **chunk_search_fields(document), **values
+            )
     embeddable = sum(1 for c in chunks if not is_hierarchical or c.chunk_level == 1)
     return embeddable + len(tables)

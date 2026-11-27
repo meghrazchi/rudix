@@ -26,6 +26,7 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.domains.graph.repositories._base import _get_driver_and_settings
+from app.domains.graph.repositories.fact_batch import RelationBatchWriteMixin
 from app.domains.graph.schema import RELATIONSHIP_TYPES
 
 logger = get_logger("graph.repositories.relation")
@@ -56,8 +57,12 @@ def _validate_status(status: str) -> str:
     return status
 
 
-class RelationRepository:
-    """CRUD for typed relationships between Entity/Document/Chunk nodes."""
+class RelationRepository(RelationBatchWriteMixin):
+    """CRUD for typed relationships between Entity/Document/Chunk nodes.
+
+    Ingestion uses ``create_relations_with_evidence_batch`` (R06-10); the single-item
+    method stays for admin endpoints.
+    """
 
     # ------------------------------------------------------------------
     # Legacy create_relation (kept for compatibility with F281 callers)

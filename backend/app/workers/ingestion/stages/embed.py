@@ -5,10 +5,16 @@ rows in ``chunk_index`` order, each read in its own short session. A batch whose
 part exists was embedded and upserted by an earlier attempt of this run and is skipped, so
 a redelivery only embeds the missing batches. Vectors are dropped after the upsert; the
 part keeps token counts and cost for finalize.
+
+R06-06: vectors of unchanged chunks are reused from the index (``embed_reuse``), every
+point carries ``ingest_run_id``, and up to ``EMBEDDING_MAX_CONCURRENT_BATCHES`` batches
+run at once. Stale points of earlier runs are removed by the index stage.
 """
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import math
 from decimal import Decimal
 from typing import Any
@@ -17,6 +23,7 @@ from uuid import UUID
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.domains.documents.services.embedding_concurrency import run_bounded
 from app.domains.documents.services.embedding_service import (
     PermanentEmbeddingError,
     TransientEmbeddingError,
@@ -30,6 +37,7 @@ from app.workers.ingestion.errors import (
 )
 from app.workers.ingestion.heartbeat import note_parts
 from app.workers.ingestion.stages.base import StageName, StageOutcome
+from app.workers.ingestion.stages.embed_reuse import embed_with_reuse
 from app.workers.ingestion.stages.embed_summary import log_embed_completed, summarize_parts
 
 
@@ -111,6 +119,8 @@ async def _upsert(
         "chunking_strategy": chunk["strategy_name"],
         "chunking_profile_version": chunk["strategy_version"],
         "parent_text_by_chunk_id": parents if parents else None,
+        # R06-06: the index stage deletes the document's points of other runs.
+        "ingest_run_id": ctx.run_id,
     }
     if ctx.options.vector_collection is not None:
         kwargs["collection_name"] = ctx.options.vector_collection
@@ -169,6 +179,23 @@ async def _completed_batches(ctx: StageContext, size: int) -> set[int]:
     return done
 
 
+async def _process_batch(
+    ctx: StageContext, document: Any, batch: int, size: int, db_lock: asyncio.Lock
+) -> None:
+    async with db_lock:
+        rows, parents = await _read_batch(ctx, batch, size)
+    ctx.current_stage = "embed"
+    vectors, result, reused = await embed_with_reuse(ctx, document, rows, _embed)
+    ctx.current_stage = "index"
+    upsert = await _upsert(ctx, document, rows, vectors, parents)
+    part = {**_part(result, rows, upsert, size), "reused_count": reused}
+    del result, rows, parents, vectors
+    async with db_lock:
+        await ctx.store.write_artifacts(StageName.embed, {batch: part}, replace_stage=False)
+        await ctx.store.heartbeat(StageName.embed)
+        await note_parts(ctx, 1)
+
+
 async def run(ctx: StageContext) -> StageOutcome:
     ctx.current_stage = "embed"
     document = await load_document(ctx)
@@ -182,19 +209,18 @@ async def run(ctx: StageContext) -> StageOutcome:
     total = int(ctx.metrics[StageName.chunk]["embeddable_count"])
     batches = math.ceil(total / size)
     done = await _completed_batches(ctx, size)
-    for batch in range(batches):
-        if batch in done:
-            continue
-        rows, parents = await _read_batch(ctx, batch, size)
-        ctx.current_stage = "embed"
-        result = await _embed(ctx, rows)
-        ctx.current_stage = "index"
-        upsert = await _upsert(ctx, document, rows, result.vectors_by_chunk_id, parents)
-        part = _part(result, rows, upsert, size)
-        del result, rows, parents
-        await ctx.store.write_artifacts(StageName.embed, {batch: part}, replace_stage=False)
-        await ctx.store.heartbeat(StageName.embed)
-        await note_parts(ctx, 1)
+    # R06-06: up to EMBEDDING_MAX_CONCURRENT_BATCHES batches at once (1 = in order). The
+    # provider and Qdrant calls overlap; database reads and part writes take the lock, so
+    # one batch at a time uses a session. Parts are keyed by batch index.
+    db_lock = asyncio.Lock()
+    await run_bounded(
+        [
+            functools.partial(_process_batch, ctx, document, batch, size, db_lock)
+            for batch in range(batches)
+            if batch not in done
+        ],
+        settings.embedding_max_concurrent_batches,
+    )
 
     summary = await summarize_parts(ctx)
     await log_embed_completed(ctx, summary)
