@@ -15,6 +15,7 @@ from app.clients.redis_client import close_redis, init_redis
 from app.core.langfuse_tracer import init_langfuse, shutdown_langfuse
 from app.core.loop_lag import start_loop_lag_monitor, stop_loop_lag_monitor
 from app.core.sentry import init_sentry
+from app.db.session import dispose_engine
 from app.domains.graph.migration_runner import run_graph_migrations
 
 logger = logging.getLogger(__name__)
@@ -125,4 +126,5 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         close_clamav()
         await close_neo4j()
         await stop_loop_lag_monitor()
+        await dispose_engine()
         shutdown_langfuse()

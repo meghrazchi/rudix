@@ -10,19 +10,53 @@ PostgreSQL transaction layers:
   `organization_id` does not match the session's bound tenant.
 - Sets PostgreSQL transaction-local `app.current_organization_id` via
   `set_config(..., is_local=true)` for Row-Level Security (RLS) policies.
+
+R04-08 adds the mode-aware session context:
+- An `after_begin` listener runs one marked statement (`SESSION_CONTEXT_MARKER`) per
+  transaction that sets `app.current_organization_id` and `app.rls_mode` (and, in
+  PgBouncer mode, the statement and idle-in-transaction timeouts). The tenant comes from
+  `session.info["organization_id"]`, else from the context variable.
+- `apply_tenant_context(session)` runs it for a transaction that is already open.
+- In `soft` mode, ORM statements and flushes that touch a strict RLS table with no tenant
+  bound are logged (`rls.soft_denial`, throttled) and counted
+  (`rudix_rls_soft_denials_total{table}`); nothing is denied.
+- Sessions with `info["rls_maintenance"] = True` never bind a tenant and are not counted.
 """
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any
 from uuid import UUID
 
+from prometheus_client import Counter
 from sqlalchemy import event, text
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import ORMExecuteState, Session, with_loader_criteria
+from sqlalchemy.orm import ORMExecuteState, Session, SessionTransaction, with_loader_criteria
+
+from app.core.config import RlsEnforcement, settings
+from app.core.logging import get_logger
+from app.core.metrics import registry
+from app.db.rls import RLS_STRICT_TABLES
+
+SESSION_CONTEXT_MARKER = "/* rudix:session-context */"
+RLS_MAINTENANCE_INFO_KEY = "rls_maintenance"
+SOFT_DENIAL_LOG_INTERVAL_SECONDS = 60.0
+
+RLS_SOFT_DENIALS_TOTAL = Counter(
+    "rudix_rls_soft_denials_total",
+    "ORM statements or flushes on a strict RLS table with no tenant bound (soft mode)",
+    ["table"],
+    registry=registry,
+)
+
+_STRICT_TABLES: frozenset[str] = frozenset(RLS_STRICT_TABLES)
+_soft_denial_last_logged: dict[str, float] = {}
+_rls_logger = get_logger("events.rls")
 
 _CURRENT_TENANT_ID: ContextVar[UUID | None] = ContextVar("current_tenant_id", default=None)
 
@@ -202,6 +236,153 @@ def _on_before_flush(session: Session, _flush_context: Any, _instances: Any) -> 
             )
 
 
+# --- R04-08: session context and soft-mode detection ----------------------------------
+
+
+def effective_rls_mode() -> RlsEnforcement:
+    return settings.effective_rls_enforcement
+
+
+def _is_maintenance(session: Any) -> bool:
+    info = getattr(session, "info", None)
+    return bool(isinstance(info, dict) and info.get(RLS_MAINTENANCE_INFO_KEY, False))
+
+
+def _session_tenant(session: Any) -> UUID | None:
+    info = getattr(session, "info", None)
+    if isinstance(info, dict):
+        bound = _coerce_uuid(info.get("organization_id"))
+        if bound is not None:
+            return bound
+    return _CURRENT_TENANT_ID.get()
+
+
+def build_session_context_statement(
+    organization_id: UUID | None,
+    mode: RlsEnforcement,
+    *,
+    include_tenant: bool,
+) -> tuple[str, dict[str, str]] | None:
+    """Return the marked `set_config` statement and its parameters, or None when not needed."""
+    parts: list[str] = []
+    params: dict[str, str] = {}
+    if include_tenant:
+        parts.append("set_config('app.current_organization_id', :org, true)")
+        parts.append("set_config('app.rls_mode', :mode, true)")
+        params["org"] = str(organization_id) if organization_id is not None else ""
+        params["mode"] = mode.value
+    if settings.db_pgbouncer_mode:
+        # PgBouncer transaction pooling ignores startup parameters; set them per transaction.
+        if settings.db_statement_timeout_ms > 0:
+            parts.append("set_config('statement_timeout', :statement_timeout, true)")
+            params["statement_timeout"] = str(settings.db_statement_timeout_ms)
+        if settings.db_idle_in_transaction_timeout_ms > 0:
+            parts.append("set_config('idle_in_transaction_session_timeout', :idle_timeout, true)")
+            params["idle_timeout"] = str(settings.db_idle_in_transaction_timeout_ms)
+    if not parts:
+        return None
+    return f"{SESSION_CONTEXT_MARKER} SELECT {', '.join(parts)}", params
+
+
+def _context_statement_for(session: Any) -> tuple[str, dict[str, str]] | None:
+    mode = effective_rls_mode()
+    organization_id = _session_tenant(session)
+    include_tenant = mode != RlsEnforcement.off and not _is_maintenance(session)
+    if include_tenant and mode == RlsEnforcement.soft and organization_id is None:
+        # Soft mode with no tenant behaves like an unset setting; skip the round trip.
+        include_tenant = False
+    return build_session_context_statement(organization_id, mode, include_tenant=include_tenant)
+
+
+def _on_after_begin(
+    session: Session, transaction: SessionTransaction, connection: Connection
+) -> None:
+    if transaction.nested or connection.dialect.name != "postgresql":
+        return
+    statement = _context_statement_for(session)
+    if statement is not None:
+        connection.execute(text(statement[0]), statement[1])
+
+
+async def apply_tenant_context(db_session: AsyncSession) -> None:
+    """Run the session-context statement for the transaction that is already open.
+
+    A transaction that starts later gets it from the `after_begin` listener.
+    """
+    if not db_session.in_transaction():
+        return
+    connection = await db_session.connection()
+    if connection.dialect.name != "postgresql":
+        return
+    statement = _context_statement_for(db_session.sync_session)
+    if statement is not None:
+        await connection.execute(text(statement[0]), statement[1])
+
+
+def _record_soft_denial(table: str, operation: str) -> None:
+    RLS_SOFT_DENIALS_TOTAL.labels(table=table).inc()
+    now = time.monotonic()
+    last = _soft_denial_last_logged.get(table)
+    if last is not None and now - last < SOFT_DENIAL_LOG_INTERVAL_SECONDS:
+        return
+    _soft_denial_last_logged[table] = now
+    _rls_logger.warning("rls.soft_denial", table=table, operation=operation)
+
+
+def _soft_check_applies(session: Any) -> bool:
+    if effective_rls_mode() != RlsEnforcement.soft:
+        return False
+    if _is_maintenance(session):
+        return False
+    return _session_tenant(session) is None
+
+
+def _mapper_table_name(mapper: Any) -> str | None:
+    table = getattr(mapper, "local_table", None)
+    name = getattr(table, "name", None)
+    return name if isinstance(name, str) else None
+
+
+def _orm_operation(orm_execute_state: ORMExecuteState) -> str:
+    if orm_execute_state.is_select:
+        return "select"
+    if orm_execute_state.is_insert:
+        return "insert"
+    if orm_execute_state.is_update:
+        return "update"
+    if orm_execute_state.is_delete:
+        return "delete"
+    return "other"
+
+
+def _on_do_orm_execute_soft(orm_execute_state: ORMExecuteState) -> None:
+    if not _soft_check_applies(orm_execute_state.session):
+        return
+    operation = _orm_operation(orm_execute_state)
+    seen: set[str] = set()
+    for mapper in orm_execute_state.all_mappers:
+        name = _mapper_table_name(mapper)
+        if name in _STRICT_TABLES and name not in seen:
+            seen.add(name)
+            _record_soft_denial(name, operation)
+
+
+def _on_before_flush_soft(session: Session, _flush_context: Any, _instances: Any) -> None:
+    if not _soft_check_applies(session):
+        return
+    pending: list[tuple[str, Any]] = [
+        *(("insert", obj) for obj in session.new),
+        *(("update", obj) for obj in session.dirty),
+        *(("delete", obj) for obj in session.deleted),
+    ]
+    seen: set[tuple[str, str]] = set()
+    for operation, obj in pending:
+        name = _mapper_table_name(getattr(type(obj), "__mapper__", None))
+        if name in _STRICT_TABLES and (name, operation) not in seen:
+            seen.add((name, operation))
+            _record_soft_denial(name, operation)
+
+
 def install_sqlalchemy_tenant_guard() -> None:
     """Idempotently register SQLAlchemy ORM tenant isolation listeners on `Session`."""
     global _GUARD_INSTALLED
@@ -209,4 +390,7 @@ def install_sqlalchemy_tenant_guard() -> None:
         return
     event.listen(Session, "do_orm_execute", _on_do_orm_execute)
     event.listen(Session, "before_flush", _on_before_flush)
+    event.listen(Session, "after_begin", _on_after_begin)
+    event.listen(Session, "do_orm_execute", _on_do_orm_execute_soft)
+    event.listen(Session, "before_flush", _on_before_flush_soft)
     _GUARD_INSTALLED = True

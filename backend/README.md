@@ -85,6 +85,9 @@ make seed-dev
 - Non-production test event endpoint is available at `POST /api/v1/sentry-test` when enabled.
 - Structured logging is configured for both API and Celery worker.
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
+- Database engine settings (R04-01): `DB_POOL_SIZE` (5), `DB_MAX_OVERFLOW` (10), `DB_POOL_TIMEOUT` (30 s), `DB_STATEMENT_TIMEOUT_MS` and `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` (0 = off), `DB_PGBOUNCER_MODE` (false). The defaults keep the previous behaviour. Alembic uses `DATABASE_MIGRATION_URL` when set; `maintenance_session()` (cross-tenant beat tasks) uses `DATABASE_MAINTENANCE_URL` when set. The engine is disposed on API shutdown. Pool metrics: `rudix_db_pool_wait_seconds`, `rudix_db_pool_timeouts_total`.
+- Handlers that make a slow network call inside a request (`POST /admin/model-providers/test`, `POST /admin/webhooks/{id}/test`, `POST /admin/sso/test-connection`) commit before the call so the pooled connection is returned while it runs.
+- Row-level security (R04-08): `RLS_ENFORCEMENT` is `off` (default in development/test), `soft` (default in staging/production), or `strict`. Migration `20261127_0004` covers every table with `organization_id` except the user-scoped identity tables (`users`, `organization_members`, `auth_refresh_sessions`); `deploy/sql/provision_roles.sql` creates the `rudix_app` and `rudix_maintenance` roles. PostgreSQL tests prove isolation with a non-owner probe role (`rls_probe_session` fixture, `tests/test_rls_enforcement_pg.py`); set `TEST_MIGRATIONS_DATABASE_URL` to a database that may be downgraded to also run the migration round trip. See `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
 
 ## Settings layout and startup behavior
 
@@ -541,6 +544,54 @@ make test-cov   # pytest --cov=app --cov-report=term; fails below the ratchet
 `TOTAL` rounded down to one decimal (76.0 when it was set). The `backend` CI job runs pytest with
 `--cov=app`, so pytest-cov enforces it there too. Raise the threshold when coverage rises. Never
 lower it without a reason in the merge request.
+
+## Application cache
+
+`app/core/cache.py` (R04-05) caches small, hot authorization reads in Redis:
+
+```python
+value = await get_or_load(
+    scope=OrgScope(org_id),          # or UserScope(user_id)
+    namespace=NAMESPACE_FEATURE_FLAGS,
+    key_id="overrides",
+    ttl=settings.cache_ttl_flags_seconds,
+    adapter=TypeAdapter(dict[str, bool]),
+    loader=load_from_db,
+)
+```
+
+- Keys are `rudix:{env}:org:{org_id}:v{version}:{namespace}:{id}` and
+  `rudix:{env}:user:{user_id}:v{version}:{namespace}:{id}`. The version is read before the
+  loader runs and the value is written under that version, so a slow writer can only write an
+  orphaned key. Values are Pydantic `TypeAdapter` JSON. Concurrent misses for one key in a
+  process run the loader once (single-flight).
+- Cached in `0.4.0`: the auth principal snapshot (`AppAuthProvider.authenticate`, user scope,
+  keyed by session id), custom-role permission sets (`PermissionService.get_user_permissions`
+  with `organization_id`), and organisation feature-flag overrides
+  (`FeatureFlagService.is_enabled`). AI policy, RAG/model profiles, tool and quota policy are
+  deferred to `0.5.0`.
+- Invalidation: `app/core/cache_invalidation.py` installs SQLAlchemy listeners (from
+  `app/db/session.py`). ORM writes to `OrganizationMember`, `User`, `CustomRole`,
+  `CustomRolePermission`, `OrgFeatureFlagOverride`, and `AuthRefreshSession.revoked_at` are
+  picked up in `after_flush`; Core `update()`/`delete()` statements on those tables must call
+  `mark_dirty(session, org_ids=..., user_ids=...)`. The version bump runs in `after_commit`,
+  so `await session.commit()` returns after Redis is updated; a rollback drops the bumps.
+  Savepoints (`begin_nested()`) neither bump on release nor drop the outer transaction's bumps
+  on `ROLLBACK TO SAVEPOINT`; only the outermost commit bumps.
+- Redis errors, timeouts, a missing client, or `CACHE_ENABLED=false` fall back to the database
+  and count `rudix_cache_errors_total`.
+- Tests: `tests/redis_fakes.FakeRedis` monkeypatched into `app.clients.redis_client.redis_client`
+  (`tests/test_cache_core.py`, `tests/test_cache_invalidation.py`, `tests/test_cache_auth.py`).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `CACHE_ENABLED` | `true` | Kill switch; `false` reads every value from the database. |
+| `CACHE_TTL_AUTH_SESSION_SECONDS` | `30` | Principal snapshot TTL. |
+| `CACHE_TTL_PERMISSIONS_SECONDS` | `30` | Custom-role permission set TTL. |
+| `CACHE_TTL_FLAGS_SECONDS` | `60` | Feature-flag override map TTL. |
+| `CACHE_TTL_POLICIES_SECONDS` | `60` | Reserved for policy namespaces (`0.5.0`). |
+| `CACHE_TTL_PROFILES_SECONDS` | `300` | Reserved for RAG/model profile namespaces (`0.5.0`). |
+| `CACHE_OPERATION_TIMEOUT_MS` | `250` | Per Redis operation; on timeout the database is used. |
 
 ## Useful task commands
 

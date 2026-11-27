@@ -418,6 +418,25 @@ Notes:
   `rudix_db_pool_size` plus the maximum overflow for several minutes (pool exhaustion), and
   p95 of `rudix_db_queries_per_request` for chat routes above the roadmap target.
 
+### Pool wait, pool timeouts, and RLS soft denials (0.4.0)
+
+| Metric | Type | Labels | Meaning |
+|---|---|---|---|
+| `rudix_db_pool_wait_seconds` | Histogram (0.5 ms to 30 s) | none | Time to check a connection out of the API engine's pool (`TimedAsyncAdaptedQueuePool`). |
+| `rudix_db_pool_timeouts_total` | Counter | none | Checkouts that gave up after `DB_POOL_TIMEOUT` seconds (`sqlalchemy.exc.TimeoutError`). |
+| `rudix_rls_soft_denials_total` | Counter | `table` | In `RLS_ENFORCEMENT=soft`, ORM statements and flushes on a strict RLS table with no tenant bound, which `strict` would deny. |
+
+- Alerts, group `rudix-db` in `infra/observability/prometheus/alerts.yml`:
+  `RudixDbPoolTimeouts` (critical, any pool timeout in 5 minutes, for 5 minutes) and
+  `RudixRlsSoftDenials` (warning, any soft denial per table within 1 hour, for 1 hour).
+- Each soft denial also writes a structured `rls.soft_denial` log line (logger
+  `events.rls`, fields `table` and `operation`), at most once per table per 60 s per
+  process. No SQL text, parameters, or row data are logged.
+- The per-transaction session-context statement (`/* rudix:session-context */`) is not
+  counted in `rudix_db_queries_per_request`.
+- Pool behaviour under load (wait p95 and timeouts at the load-test concurrency) is a
+  manual step of the `R03-09` baseline; no measurement is recorded yet.
+
 ### Rate limiting and credential usage buffering (R04-07, R04-06)
 
 | Metric | Labels | Meaning |
@@ -458,6 +477,27 @@ call on the event loop shows up as lag. It needs no labels.
   paths run through `asyncio.to_thread`; look for new sync calls first.
 - `tests/test_event_loop_lag.py` is the regression probe for upload, download, retrieval,
   and enqueue.
+
+### Application cache (R04-05)
+
+| Metric | Labels | Meaning |
+| --- | --- | --- |
+| `rudix_cache_hits_total` | `namespace` | Values served from Redis (including in-process single-flight followers). |
+| `rudix_cache_misses_total` | `namespace` | Values loaded from the database and written to Redis. |
+| `rudix_cache_errors_total` | `namespace`, `operation` | Reads that fell back to the database. `operation` is `version`, `get`, `set`, `decode` (Redis error or timeout), `unavailable` (no Redis client), or `disabled` (`CACHE_ENABLED=false`). |
+| `rudix_cache_invalidations_total` | `scope`, `result` | Post-commit version bumps. `scope` is `org` or `user`; `result` is `ok`, `error`, `unavailable`, `skipped` (sync session, no event loop), or `unresolved` (custom-role permission whose organisation could not be found). |
+
+`namespace` is `auth_principal`, `permission_set`, or `feature_flags`.
+
+- Hit ratio is `hits / (hits + misses)` per namespace. A warm authenticated request issues no
+  auth statements; a low `auth_principal` hit ratio usually means frequent session refreshes or
+  user-level writes (each bumps the user's version).
+- Alert on a sustained rate of `rudix_cache_errors_total{operation!~"unavailable|disabled"}`:
+  Redis is slow or failing and every request is reading the database again.
+- Alert on any `rudix_cache_invalidations_total{result="error"}`: until the TTL passes, a
+  revoked session, removed member, or changed permission may still be served from cache.
+- Failures log `cache.fallback` and `cache.invalidation.failed` with namespace or scope and
+  the error type; no values, tokens, or ids beyond the scope id are logged.
 
 ## Continuous evaluation
 

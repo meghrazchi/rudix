@@ -18,11 +18,12 @@ def expire_agent_approvals(self: object) -> dict[str, int]:
 
 
 async def _expire_pending() -> dict[str, int]:
-    from app.db.session import SessionLocal
+    from app.db.session import maintenance_session
     from app.domains.agents import AgentRunRepository
 
     repo = AgentRunRepository()
-    async with SessionLocal() as session:
+    # Cross-tenant beat task: maintenance session (BYPASSRLS role when configured, R04-08).
+    async with maintenance_session() as session:
         async with session.begin():
             expired = await repo.expire_pending_approvals(session)
             failed_runs = await repo.fail_runs_for_expired_approvals(session)

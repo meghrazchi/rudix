@@ -269,6 +269,10 @@ async def test_provider_connection(
 
     request_id = getattr(request.state, "request_id", None) or request.headers.get("x-request-id")
 
+    # Return the pooled connection before the network probe (R04-01). Nothing has been
+    # written by this handler yet; commit (not rollback) so loaded state is not expired.
+    await db_session.commit()
+
     if payload.provider_key == "chat":
         provider_type = settings.llm_default_provider
         model_name = (
