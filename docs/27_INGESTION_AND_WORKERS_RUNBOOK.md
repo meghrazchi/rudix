@@ -631,6 +631,11 @@ files). The single development worker consumes it too.
   `QDRANT_COLLECTION`) and the production payload indexes, `organization_id` as tenant
   index. Points carry the production payload, so every search and delete is filtered by
   organisation, document and index version.
+- Its existence is checked before every chunking-comparison target, so a collection an
+  operator dropped while workers run is re-created on the next target without a restart.
+- Re-ingest embeds with the ingestion embedding model (`OPENAI_EMBEDDING_MODEL`), and eval
+  retrieval embeds questions with that same model, also in alias mode where the active
+  generation may use another model of the same dimension.
 - If its vector size differs from the active generation, or the active generation differs
   from `QDRANT_VECTOR_SIZE` (a model change is building), re-ingest fails with
   `EvaluationCollectionMismatchError` and the run fails after cleanup. After the swap, drop

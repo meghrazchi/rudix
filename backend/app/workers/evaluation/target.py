@@ -25,7 +25,7 @@ from app.domains.evaluations.services.evaluation_metrics_service import (
 from app.models.evaluation import EvaluationQuestion
 from app.workers.base_task import TransientTaskError
 from app.workers.evaluation import facade
-from app.workers.evaluation.collection import evaluation_collection
+from app.workers.evaluation.collection import evaluation_collection, reingest_embedding_model
 from app.workers.evaluation.comparison import _build_target_summary, _derive_target_score
 from app.workers.evaluation.config import ChunkingComparisonTarget, EvaluationRunConfig
 from app.workers.evaluation.corpus import _build_target_index_version, _cleanup_target_index_async
@@ -70,11 +70,19 @@ def retrieval_service_for(index_version: str | None) -> Any | None:
 
     None means the facade's ``_query_retrieval_service`` (the production alias or
     collection): baseline targets read the production index version there.
+
+    The query is embedded with the model the re-ingest used (the ingestion embedding
+    service, ``OPENAI_EMBEDDING_MODEL``), not the active generation's: in alias mode the two
+    may differ with the same dimension, and the vectors would not be comparable.
     """
     collection = evaluation_collection()
     if collection is None or not is_eval_index_version(index_version):
         return None
-    return facade().QueryRetrievalService(qdrant_collection=collection)
+    return facade().QueryRetrievalService(
+        qdrant_collection=collection,
+        embedding_model=reingest_embedding_model(),
+        vector_size=settings.qdrant_vector_size,
+    )
 
 
 def _failed_computation(

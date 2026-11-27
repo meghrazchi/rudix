@@ -808,7 +808,8 @@ and the names tests rebind.
   index version filter). When it is set, the collection is created on first use with the
   active generation's vector size and distance and the same payload indexes
   (`organization_id` as tenant index); re-ingest writes there through
-  `IngestionOptions.vector_collection`, eval retrieval searches there with the usual
+  `IngestionOptions.vector_collection` (embedded with `OPENAI_EMBEDDING_MODEL`), eval
+  retrieval embeds questions with that same model and searches there with the usual
   organisation, document and index version filter, and cleanup deletes there. Eval chunk
   rows stay in `document_chunks`. Document deletion also deletes the document's points
   from the evaluation collection.

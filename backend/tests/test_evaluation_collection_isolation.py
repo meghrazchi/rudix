@@ -282,8 +282,15 @@ class _RecordingRetrieval:
     instances: ClassVar[list[_RecordingRetrieval]] = []
     embedding_model = "fake-embedding"
 
-    def __init__(self, *, qdrant_collection: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        qdrant_collection: str | None = None,
+        embedding_model: str | None = None,
+        vector_size: int | None = None,
+    ) -> None:
         self.collection = qdrant_collection
+        self.pinned = (embedding_model, vector_size)
         self.versions: list[str | None] = []
         _RecordingRetrieval.instances.append(self)
 
@@ -344,6 +351,9 @@ def test_run_reads_baseline_from_production_and_candidates_from_eval(
     eval_readers = [r for r in _RecordingRetrieval.instances if r is not production_reader]
     assert production_reader.versions == [settings.document_index_version]
     assert [r.collection for r in eval_readers] == [EVAL]
+    # The fake embedding service has no model_name: OPENAI_EMBEDDING_MODEL is the fallback.
+    ingest_model = settings.openai_embedding_model.strip()
+    assert eval_readers[0].pinned == (ingest_model, settings.qdrant_vector_size)
     assert eval_readers[0].versions == [f"eval-{UUID(run_id).hex[:10]}-2"]
     cleanup = result["metrics_summary"]["eval_index_cleanup"]
     assert [entry["index_version"] for entry in cleanup] == eval_readers[0].versions

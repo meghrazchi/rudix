@@ -55,6 +55,48 @@ async def test_ensure_creates_once_and_rejects_mismatches(
 
 
 @pytest.mark.asyncio
+async def test_ensure_recreates_a_collection_dropped_after_it_was_cached(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = InMemoryQdrant()
+    client.add_collection(PROD, size=settings.qdrant_vector_size)
+    monkeypatch.setattr(settings, "qdrant_collection", PROD)
+    monkeypatch.setattr(settings, "qdrant_collection_alias", None)
+    monkeypatch.setattr(qdrant_module, "qdrant_client", client)
+    registry.invalidate()
+    collection_module.reset_ensured_cache()
+
+    await collection_module.ensure_evaluation_collection(EVAL)
+    created = client.calls["create_collection"]
+    client.delete_collection(collection_name=EVAL)  # an operator drops it; workers keep running
+
+    await collection_module.ensure_evaluation_collection(EVAL)
+    assert client.collection_exists(EVAL)
+    assert client.calls["create_collection"] == created + 1
+    collection_module.reset_ensured_cache()
+
+
+def test_eval_retrieval_embeds_with_the_reingest_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.domains.chat.services.query_retrieval_service import QueryRetrievalService
+    from app.workers.evaluation import target as target_module
+
+    class _IngestEmbedding:
+        model_name = " ingest-embedding-model "
+
+    _enable(monkeypatch)
+    monkeypatch.setattr(document_tasks, "_embedding_service", _IngestEmbedding())
+    service = target_module.retrieval_service_for("eval-0123456789-2")
+    assert isinstance(service, QueryRetrievalService)
+    # Pinned: not the active generation's model, which may differ in alias mode.
+    assert service.embedding_model == "ingest-embedding-model"
+    assert service.vector_size == settings.qdrant_vector_size
+    assert service.qdrant_collection == EVAL
+
+    monkeypatch.setattr(document_tasks, "_embedding_service", object())
+    assert collection_module.reingest_embedding_model() == settings.openai_embedding_model.strip()
+
+
+@pytest.mark.asyncio
 async def test_ensure_falls_back_to_settings_without_a_production_collection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

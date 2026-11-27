@@ -61,13 +61,15 @@ async def ensure_evaluation_collection(collection: str) -> tuple[int, str]:
 
     size, distance = await _active_vector_params()
     key = (collection, size, distance)
-    if key in _ensured:
-        return size, distance
     if size != settings.qdrant_vector_size:
         raise EvaluationCollectionMismatchError(
             "active vector generation size differs from QDRANT_VECTOR_SIZE"
         )
+    # Checked on every call: an operator may drop the collection while workers run, and a
+    # cached entry must not skip its re-creation (writes to it would then fail with 404).
     existing = await qdrant_ops.vector_params(collection)
+    if existing is not None and key in _ensured:
+        return size, distance
     if existing is not None and (existing[0] != size or (existing[1] or distance) != distance):
         raise EvaluationCollectionMismatchError(
             "evaluation collection vector parameters differ from the active generation"
@@ -81,6 +83,19 @@ async def ensure_evaluation_collection(collection: str) -> tuple[int, str]:
         distance=distance,
     )
     return size, distance
+
+
+def reingest_embedding_model() -> str:
+    """The model eval re-ingest embeds with (the ingestion embedding service's).
+
+    ``IngestionOptions.vector_collection`` bypasses the generation targets, so the embed
+    stage uses ``document_tasks._embedding_service`` (``OPENAI_EMBEDDING_MODEL`` by
+    default); eval retrieval must embed questions with the same model. Read at call time.
+    """
+    from app.workers import document_tasks
+
+    service = getattr(document_tasks, "_embedding_service", None)
+    return str(getattr(service, "model_name", None) or settings.openai_embedding_model).strip()
 
 
 def reset_ensured_cache() -> None:
