@@ -2,6 +2,7 @@ from time import perf_counter
 from typing import Any
 
 from celery import Celery  # type: ignore[import-untyped]
+from celery.schedules import crontab  # type: ignore[import-untyped]
 from celery.signals import (  # type: ignore[import-untyped]
     task_failure,
     task_postrun,
@@ -32,6 +33,7 @@ celery_app = Celery(
         "app.workers.agent_tasks",
         "app.workers.usage_touch_tasks",
         "app.workers.safety_eval_tasks",
+        "app.workers.retention_tasks",
     ],
 )
 
@@ -99,6 +101,14 @@ celery_app.conf.update(
             "task": "documents.reap_stale",
             "schedule": settings.document_reaper_interval_seconds,
         },
+        "maintenance-retention-purge": {
+            "task": "maintenance.retention.purge",
+            "schedule": crontab(hour=3, minute=15),
+        },
+        "maintenance-partitions-ensure": {
+            "task": "maintenance.partitions.ensure",
+            "schedule": crontab(hour=3, minute=45),
+        },
     },
     task_routes={
         "documents.process": {
@@ -146,6 +156,14 @@ celery_app.conf.update(
             "routing_key": settings.celery_task_default_queue,
         },
         "documents.reap_stale": {
+            "queue": settings.celery_task_default_queue,
+            "routing_key": settings.celery_task_default_queue,
+        },
+        "maintenance.retention.purge": {
+            "queue": settings.celery_task_default_queue,
+            "routing_key": settings.celery_task_default_queue,
+        },
+        "maintenance.partitions.ensure": {
             "queue": settings.celery_task_default_queue,
             "routing_key": settings.celery_task_default_queue,
         },
