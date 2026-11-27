@@ -9,6 +9,10 @@ describe("queryKeys (D1 settings factories)", () => {
     expect(queryKeys.securityAudit).toEqual(["security", "audit"]);
   });
 
+  it("evaluationSetsList matches the former literal", () => {
+    expect(queryKeys.evaluationSetsList).toEqual(["evaluation-sets-list"]);
+  });
+
   it("profile and preference keys match the former literals", () => {
     expect(queryKeys.profileMe).toEqual(["profile", "me"]);
     expect(queryKeys.settingsPreferences).toEqual(["settings", "preferences"]);

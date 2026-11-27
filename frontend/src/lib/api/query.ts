@@ -407,6 +407,7 @@ export const queryKeys = {
       params ?? {},
     ] as const,
   // anchor: D
+  evaluationSetsList: ["evaluation-sets-list"] as const,
   profileMe: ["profile", "me"] as const,
   settingsPreferences: ["settings", "preferences"] as const,
   securityAudit: ["security", "audit"] as const,
