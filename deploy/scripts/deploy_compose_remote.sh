@@ -44,6 +44,18 @@ ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH'"
 scp $scp_opts "$tmp_dir/$compose_file" "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/$compose_file"
 # shellcheck disable=SC2086
 scp $scp_opts "$tmp_dir/.env" "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/.env"
+# RabbitMQ configuration mounted by the compose file from ./rabbitmq (R06-03). Without it
+# Docker would create empty directories at the mount paths and RabbitMQ would not start.
+for rabbitmq_file in infra/rabbitmq/rabbitmq.conf infra/rabbitmq/enabled_plugins; do
+  if [ ! -f "$rabbitmq_file" ]; then
+    echo "RabbitMQ configuration not found: $rabbitmq_file" >&2
+    exit 1
+  fi
+done
+# shellcheck disable=SC2086
+ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH/rabbitmq'"
+# shellcheck disable=SC2086
+scp $scp_opts infra/rabbitmq/rabbitmq.conf infra/rabbitmq/enabled_plugins "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/rabbitmq/"
 
 # shellcheck disable=SC2086
 ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
