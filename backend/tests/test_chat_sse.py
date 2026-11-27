@@ -282,3 +282,39 @@ async def test_keepalive_comment_when_nothing_is_sent(monkeypatch: pytest.Monkey
     await frames.aclose()
     await asyncio.sleep(0)
     assert run.cancelled()
+
+
+async def test_request_cancelled_before_the_stream_starts_cancels_the_run(
+    chat_query_client: AsyncClient,  # noqa: F811
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from chat_stream_support import principal_for
+
+    from app.domains.chat.schemas.chat import ChatQueryRequest
+
+    provider = StreamingRecordingProvider()
+    world = await make_world(db_session, monkeypatch, provider)
+    entered = asyncio.Event()
+
+    async def stalled_quota(*_args: Any, **_kwargs: Any) -> None:
+        entered.set()
+        await asyncio.Event().wait()  # stage 1 never finishes
+
+    opening = asyncio.create_task(
+        sse.open_sse_query(
+            payload=ChatQueryRequest.model_validate(world.payload),
+            principal=principal_for(world),
+            request_id="sse-cancel-early",
+            session_factory=chat_api.SessionLocal,
+            ensure_quota=stalled_quota,
+        )
+    )
+    await asyncio.wait_for(entered.wait(), timeout=5)
+    (run,) = list(sse._active_runs)
+    opening.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await opening
+    await _wait_for_runs()
+    assert run.cancelled()
+    assert provider.calls == []

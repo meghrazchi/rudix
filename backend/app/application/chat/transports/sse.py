@@ -19,7 +19,6 @@ from collections.abc import AsyncIterator
 from dataclasses import replace
 from uuid import uuid4
 
-from fastapi import HTTPException
 from starlette.responses import StreamingResponse
 from starlette.types import Receive, Scope, Send
 
@@ -232,7 +231,7 @@ async def open_sse_query(
 def _raise_pre_stream_failure(task: asyncio.Task[None]) -> None:
     exc = task.exception()
     if exc is None:  # pragma: no cover - the run always passes stage 3 when it succeeds
-        raise HTTPException(status_code=500, detail="Chat stream ended early")
+        raise RuntimeError("chat stream ended before stage 3")  # answered as a safe 500
     if isinstance(exc, ChatPipelineError):
         raise exc.to_http_exception() from exc
     raise exc
