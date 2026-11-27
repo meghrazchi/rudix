@@ -34,6 +34,7 @@ from app.core.settings.workers import WorkersSettings
 from app.workers.celery_app import TASK_ROUTES, celery_app
 from app.workers.queues import (
     build_task_queues,
+    current_queue_for_task,
     dead_letter_queue,
     queue_conf,
     sampled_queue_names,
@@ -174,3 +175,42 @@ def test_broker_names_are_validated() -> None:
     )
     with pytest.raises(ValidationError):
         WorkersSettings(celery_queue_type="stream")
+
+
+def test_failed_job_retry_follows_the_current_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    from app.interfaces.http import failed_jobs
+    from app.workers import celery_app as celery_app_module
+
+    assert current_queue_for_task("documents.process", "old.queue", "default") == (
+        settings.celery_queue_documents_processing
+    )
+    assert current_queue_for_task("legacy.task", "stored.q", "default") == "stored.q"
+    assert current_queue_for_task("legacy.task", None, "default") == "default"
+
+    sent: list[tuple[str, dict[str, Any], str]] = []
+    monkeypatch.setattr(
+        failed_jobs.celery_app,
+        "send_task",
+        lambda name, kwargs, queue: sent.append((name, kwargs, queue)),
+    )
+    # A route renamed by a cut-over: the stored queue of an older FailedJob is not used.
+    monkeypatch.setitem(
+        celery_app_module.TASK_ROUTES,
+        "documents.process",
+        {"queue": "documents.processing.q", "routing_key": "documents.processing.q"},
+    )
+    job = SimpleNamespace(
+        organization_id=uuid4(),
+        id=uuid4(),
+        entity_id=uuid4(),
+        entity_type="document",
+        task_name="documents.process",
+        queue_name="documents.processing",
+    )
+    failed_jobs._dispatch_retry(job)  # type: ignore[arg-type]
+    [(name, kwargs, queue)] = sent
+    assert (name, queue) == ("documents.process", "documents.processing.q")
+    assert kwargs["document_id"] == str(job.entity_id)

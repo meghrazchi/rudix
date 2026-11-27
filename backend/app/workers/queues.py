@@ -119,8 +119,23 @@ def queue_conf(config: Settings) -> dict[str, Any]:
 
 
 def sampled_queue_names(config: Settings) -> list[str]:
-    """Queues whose depth workers.queues.sample reports (dead-letter queue in quorum mode)."""
+    """Queues whose depth the sampler reports (dead-letter queue in quorum mode)."""
     names = task_queue_names(config)
     if config.celery_queue_type == "quorum":
         names.append(config.celery_dead_letter_queue)
     return names
+
+
+def current_queue_for_task(task_name: str, stored_queue: str | None, default_queue: str) -> str:
+    """The queue a re-dispatch of ``task_name`` should use: its current route when it has one.
+
+    A FailedJob stores the queue of its failed delivery. After a queue rename (the quorum
+    cut-over uses new names) that queue is drained and deleted, so a retry follows the current
+    route; a task without a route keeps the stored queue.
+    """
+    from app.workers.celery_app import TASK_ROUTES
+
+    route = TASK_ROUTES.get(task_name)
+    if route:
+        return route["queue"]
+    return stored_queue or default_queue
