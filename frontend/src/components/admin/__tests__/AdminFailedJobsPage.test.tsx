@@ -274,4 +274,37 @@ describe("AdminFailedJobsPage", () => {
       expect(screen.getByText("retry")).toBeInTheDocument();
     });
   });
+
+  it("labels dead-lettered jobs and filters by the dead letter type", async () => {
+    mockApi.listFailedJobs.mockResolvedValue({
+      ...EMPTY_LIST,
+      items: [
+        {
+          ...FAILED_JOB_SUMMARY,
+          id: "job-dlq",
+          job_type: "dead_letter",
+          error_code: "delivery_limit_exceeded",
+        },
+      ],
+      total: 1,
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("delivery_limit_exceeded")).toBeInTheDocument();
+    });
+    // The row shows the translated job type, not the raw key.
+    expect(screen.getAllByText("Dead letter").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("dead_letter")).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(
+      screen.getByLabelText("Job type"),
+      "dead_letter",
+    );
+    await waitFor(() => {
+      expect(mockApi.listFailedJobs).toHaveBeenLastCalledWith(
+        expect.objectContaining({ job_type: "dead_letter" }),
+      );
+    });
+  });
 });

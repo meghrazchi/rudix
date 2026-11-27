@@ -5,6 +5,54 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "5"
 
+# Shared worker pool definition (R06-04): same image, env, resources, grace period,
+# and logging as the 0.5.0 single worker. Each pool adds its command and healthcheck.
+x-worker: &worker
+  image: ${RUDIX_WORKER_IMAGE}
+  restart: unless-stopped
+  # Long grace period so Celery can finish acknowledged (acks_late) tasks.
+  stop_grace_period: 120s
+  logging: *default-logging
+  deploy:
+    resources:
+      limits:
+        cpus: "2.0"
+        memory: 4g
+  env_file:
+    - .env
+  environment:
+    ENTERPRISE_GRAPH_ENABLED: "true"
+    ENVIRONMENT: staging
+    API_BASE_URL: https://api-staging.getrudix.com
+    FRONTEND_BASE_URL: https://staging.getrudix.com
+    APP_AUTH_AUTO_PROVISION_USERS: "false"
+    DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    QDRANT_URL: http://qdrant:6333
+    MINIO_ENDPOINT: http://minio:9000
+    RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+    REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+    MALWARE_SCAN_CLAMAV_HOST: clamav
+    NEO4J_URI: bolt://neo4j:7687
+    NEO4J_USERNAME: ${NEO4J_USERNAME}
+    NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    minio:
+      condition: service_healthy
+    qdrant:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+    clamav:
+      condition: service_started
+    neo4j:
+      condition: service_healthy
+
 services:
   frontend:
     image: ${RUDIX_FRONTEND_IMAGE}
@@ -96,62 +144,82 @@ services:
       retries: 10
       start_period: 60s
 
-  worker:
-    image: ${RUDIX_WORKER_IMAGE}
-    command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
-    restart: unless-stopped
-    # Long grace period so Celery can finish acknowledged (acks_late) tasks.
-    stop_grace_period: 120s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 4g
+  # R06-04: one service per worker pool; queues, concurrency, and pool type come from
+  # WORKER_POOL_<NAME>_* settings (python -m app.workers.pools <name>, docs/10).
+  # documents.processing, .deletion, .reindex; CPU-bound (OCR, parsing)
+  worker-ingest:
+    <<: *worker
+    command: python -m app.workers.pools ingest
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "celery -A app.workers.celery_app:celery_app inspect ping -d celery@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d ingest@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
         ]
       interval: 30s
       timeout: 15s
       retries: 5
       start_period: 60s
-    env_file:
-      - .env
-    environment:
-      ENTERPRISE_GRAPH_ENABLED: "true"
-      ENVIRONMENT: staging
-      API_BASE_URL: https://api-staging.getrudix.com
-      FRONTEND_BASE_URL: https://staging.getrudix.com
-      APP_AUTH_AUTO_PROVISION_USERS: "false"
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      QDRANT_URL: http://qdrant:6333
-      MINIO_ENDPOINT: http://minio:9000
-      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
-      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      MALWARE_SCAN_CLAMAV_HOST: clamav
-      NEO4J_URI: bolt://neo4j:7687
-      NEO4J_USERNAME: ${NEO4J_USERNAME}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
-      clamav:
-        condition: service_started
-      neo4j:
-        condition: service_healthy
+
+  # documents.graph; I/O-bound (LLM calls, Neo4j writes)
+  worker-graph:
+    <<: *worker
+    command: python -m app.workers.pools graph
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d graph@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # connectors.sync; I/O-bound (provider APIs)
+  worker-sync:
+    <<: *worker
+    command: python -m app.workers.pools sync
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d sync@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # evaluations; isolated so a full evaluation queue never delays uploads
+  worker-eval:
+    <<: *worker
+    command: python -m app.workers.pools eval
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d eval@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # default, email, agents; runs the dead-letter consumer and queue sampler
+  worker-default:
+    <<: *worker
+    command: python -m app.workers.pools default
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d default@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
 
   # Exactly one beat instance per deployment. Never scale this service; duplicate beats double-schedule tasks.
   beat:
@@ -336,6 +404,10 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      # consumer_timeout and per-queue Prometheus metrics (R06-03);
+      # deploy_compose_remote.sh copies infra/rabbitmq/ to ./rabbitmq next to this file.
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/20-rudix.conf:ro
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
       interval: 10s

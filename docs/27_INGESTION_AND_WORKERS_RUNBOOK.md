@@ -21,14 +21,15 @@ section here.
 
 In scope: the staged ingestion chain (R06-01), run identity and resume, the reaper, the
 transactional outbox for request-path dispatch, failed stage retries, and tenant binding of
-Celery tasks. Out of scope: vector index generations (A2), worker pools and dead-letter
-queues (C1), agent runs (C2), connector sync (D1).
+Celery tasks; worker pools, time limits, and dead-letter queues (C1, section "Worker
+platform"). Out of scope: vector index generations (A2), agent runs (C2), connector sync (D1).
 
 ## 3. Assumptions and Constraints
 
 - RabbitMQ with `task_acks_late` and `task_reject_on_worker_lost`: a message whose worker dies
   is delivered again with the same task id and kwargs.
-- One dev `worker` consumes every queue in `task_queues`; production pools come with C1.
+- One dev `worker` consumes every queue in `task_queues`; staging and production run the
+  five C1 pools (`worker-ingest`, `-graph`, `-sync`, `-eval`, `-default`).
 - `INGEST_PIPELINE_MODE=inline` is kept for one milestone and then removed.
 
 ## 4. Design or Procedure
@@ -208,3 +209,159 @@ transaction. `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES` and
 per document. Watch `rudix_graph_write_batches_total{outcome="failed"}`. Run graph
 extraction once against a real Neo4j instance on staging before you raise the
 concurrency.
+
+## Worker platform (R06-03, R06-04, R06-05)
+
+Package C1. Settings are in `app/core/settings/workers.py` (`# anchor: C1`), the code in
+`app/workers/{time_limits,pools,queues,dead_letter,queue_metrics}.py`. Deployment details
+are in [10_DEPLOYMENT_DOCKER.md](./10_DEPLOYMENT_DOCKER.md#worker-pools-and-rabbitmq-060).
+
+### Worker pools
+
+| Pool (service) | Queues | Load |
+|---|---|---|
+| `ingest` (`worker-ingest`) | `documents.processing` (extract to finalize), `documents.deletion`, `documents.reindex` | CPU-bound (OCR, parsing) |
+| `graph` (`worker-graph`) | `documents.graph` | I/O-bound (LLM, Neo4j) |
+| `sync` (`worker-sync`) | `connectors.sync` | I/O-bound (provider APIs) |
+| `eval` (`worker-eval`) | `evaluations` | Mixed, isolated from uploads |
+| `default` (`worker-default`) | `default`, `email`, `agents`; dead-letter consumer; queue depth sampler | Light |
+
+- Start one locally: `cd backend && make run-worker-pool POOL=ingest`; in compose,
+  `python -m app.workers.pools <name>`. The command is logged by Celery at start
+  (`-Q`, `--concurrency`, node name `<pool>@<host>`).
+- Check a pool: `celery -A app.workers.celery_app:celery_app inspect ping -d ingest@<host>`
+  and `inspect active_queues -d ingest@<host>`.
+- Uploads waiting behind something: `rudix_celery_queue_wait_seconds{queue}` p95 per queue
+  (dashboard `07 — Rudix Worker Pools & Queues`). A long wait on one queue with idle others
+  means that pool needs concurrency or replicas, not the others.
+- A queue that no pool lists keeps its messages: `rudix_celery_queue_consumers{queue} == 0`
+  with depth above zero raises `RudixCeleryQueueWithoutConsumers`. Fix
+  `WORKER_POOL_<NAME>_QUEUES`.
+
+### Time limits
+
+Every task has a soft limit (Celery raises `SoftTimeLimitExceeded` inside the task, which can
+clean up) and a hard limit (the child process is killed). Built-in values:
+
+| Task | Soft / hard (s) |
+|---|---|
+| `documents.ingest.extract`, `documents.graph_extract`, `documents.process`, `documents.reindex`, `documents.graph_reindex`, `evaluations.run`, `safety_evals.run`, `connectors.sync.run`, `maintenance.retention.purge` | 1500 / 1620 |
+| `documents.ingest.embed` | 900 / 960 |
+| `documents.ingest.clean_detect`, `.dlp`, `.chunk`, `documents.delete`, `documents.backfill` | 600 / 660 |
+| `documents.ingest.index`, `.finalize` | 300 / 360 |
+| every other task | `CELERY_TASK_DEFAULT_SOFT_TIME_LIMIT` / `CELERY_TASK_DEFAULT_TIME_LIMIT` (300 / 360) |
+
+Override per task with `CELERY_TASK_TIME_LIMITS='{"evaluations.run": {"soft": 1700, "hard":
+1750}}'`; entries merge over the built-in ones. Every hard limit must stay below
+`CELERY_BROKER_CONSUMER_TIMEOUT_SECONDS` (1800, equal to `consumer_timeout` in
+`infra/rabbitmq/rabbitmq.conf`): RabbitMQ closes the channel of a consumer that keeps a
+delivery unacknowledged longer and redelivers the message while the task still runs. At
+start a worker logs `worker.time_limit_exceeds_consumer_timeout` for every offending task and,
+in staging and production, exits. To run a longer task, raise both timeouts together.
+
+What a limit leaves behind:
+
+- `FailedJob` with `error_code` `task_soft_time_limit` or `task_time_limit` (was the class
+  name before 0.6.0), so the dashboard can filter them; retryable as before.
+- A document task marks the document `failed` with document error code
+  `task_soft_time_limit` / `task_time_limit`, category `infrastructure`, retryable, and the
+  stage of the stage task (`unknown` for `documents.process` in inline mode). Existing error
+  details on the exception (for example an OCR timeout) are kept.
+- Chain stage tasks keep their artifacts on such a failure (retryable), so a dashboard retry
+  resumes the run at that stage; the embed stage resumes from its last completed batch.
+- `rudix_celery_task_time_limit_total{task,kind}`. Hard limits are counted in the worker's
+  main process, which serves the metrics port; soft limits run `on_failure` in the prefork
+  child, so use the `FailedJob` rows for those.
+
+Recycling: `CELERY_WORKER_MAX_TASKS_PER_CHILD` (200) and
+`CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` (0 = off) replace a child after its current task. A
+new child drops the database pool and event loop it inherited from the main process (which
+uses them for the dead-letter consumer and hard-limit failures).
+
+### Dead-letter queue and quorum cut-over
+
+With `CELERY_QUEUE_TYPE=quorum`, RabbitMQ dead-letters a message after
+`CELERY_DELIVERY_LIMIT` deliveries without an ack (a task that kills its worker every time, a
+payload that crashes the consumer) to `rudix.dlx` -> `rudix.dead_letter`. Every quorum-mode
+worker declares that exchange, queue, and binding at start (RabbitMQ drops dead letters that
+route nowhere); the queue is never in `task_queues`, so a worker without `-Q` does not execute
+dead letters. `worker-default` reads it with a consumer bootstep that never runs the task. Per message it writes one
+`FailedJob`: `job_type='dead_letter'`, `error_code='delivery_limit_exceeded'`,
+`is_retryable=true`, the tenant of the message's `organization_id`, the task identity a
+dashboard retry needs (stage tasks map to `documents.process` / `documents.reindex` with
+`metadata.stage` and `run_id`, as for stage failures), and `metadata.dead_letter` (original
+task, original queue, reason, death count). Then it acks. A second copy of the same task id
+is acked without a second row. A message without a tenant is logged
+(`dead_letter.no_tenant`) and acked; a malformed one (`dead_letter.malformed`) is acked and
+never requeued; a database error requeues it (`dead_letter.persist_failed`). The failed job
+dashboard lists the rows under the job type `Dead letter`; retry them there after fixing the
+cause.
+
+Cut-over from classic to quorum (staging first; RabbitMQ 3.8 or later):
+
+1. Choose new names for every task queue, for example with a `.q` suffix:
+   `CELERY_TASK_DEFAULT_QUEUE=default.q`, `CELERY_QUEUE_DOCUMENTS_PROCESSING`,
+   `_DELETION`, `_REINDEX`, `CELERY_QUEUE_EVALUATIONS`, `CELERY_QUEUE_CONNECTOR_SYNC`,
+   `CELERY_QUEUE_EMAIL`, `CELERY_QUEUE_DOCUMENTS_GRAPH` (and `CELERY_QUEUE_DOCUMENTS_EMBEDDING`
+   when it is set, `CELERY_QUEUE_AGENTS` once C2 is deployed), each `<old name>.q`. Add
+   `CELERY_QUEUE_TYPE=quorum` and, if wanted, `CELERY_DELIVERY_LIMIT`. Unset
+   `WORKER_POOL_<NAME>_QUEUES` overrides or rename their entries too.
+2. Note the old names and that `rabbitmqctl list_queues name type messages consumers` shows
+   them as `classic`.
+3. Deploy the new environment to `api`, `beat`, and the five pools. New publications go to
+   the new quorum queues through `rudix.tasks`; Celery also declares its `celery_delayed_*`
+   exchanges and queues for countdown and ETA retries. Outbox rows are published with the
+   queue they stored, and the new configuration would declare a stored old name as a quorum
+   queue (`PRECONDITION_FAILED` while the classic queue exists). Deploy when
+   `SELECT count(*) FROM outbox_messages WHERE status = 'pending'` is 0; rows left behind can
+   be pointed at the new names with `UPDATE outbox_messages SET queue = queue || '.q',
+   attempts = 0, available_at = now(), status = 'pending' WHERE status IN ('pending',
+   'failed') AND last_error IS DISTINCT FROM 'cancelled' AND queue NOT LIKE '%.q'`. Failed
+   job dashboard retries follow the current route of the task, not the queue stored on the
+   row, so they reach the new queues.
+4. Drain the old classic queues with one temporary worker on the previous configuration
+   (classic type, old names, all old queues):
+
+   ```bash
+   docker compose -f docker-compose.<env>.yml run --rm --no-deps \
+     -e CELERY_QUEUE_TYPE=classic -e CELERY_TASK_DEFAULT_QUEUE=default \
+     -e CELERY_QUEUE_DOCUMENTS_PROCESSING=documents.processing \
+     -e CELERY_QUEUE_DOCUMENTS_DELETION=documents.deletion \
+     -e CELERY_QUEUE_DOCUMENTS_REINDEX=documents.reindex \
+     -e CELERY_QUEUE_EVALUATIONS=evaluations -e CELERY_QUEUE_CONNECTOR_SYNC=connectors.sync \
+     -e CELERY_QUEUE_EMAIL=email -e CELERY_QUEUE_DOCUMENTS_GRAPH=documents.graph \
+     worker-default python -m celery -A app.workers.celery_app:celery_app worker \
+     -Q default,documents.processing,documents.deletion,documents.reindex,evaluations,connectors.sync,email,documents.graph \
+     --concurrency 2 -n drain@%h
+   ```
+
+   Hand-offs and retries of drained tasks stay on the old queues, which this worker consumes.
+5. When `rabbitmqctl list_queues name messages messages_unacknowledged` shows 0 and 0 for every
+   old queue for a few minutes (and no `pending` outbox row names an old queue:
+   `SELECT queue, count(*) FROM outbox_messages WHERE status = 'pending' GROUP BY queue`),
+   stop the drain worker and delete the old queues (`rabbitmqctl delete_queue <name>`).
+6. Verify: `rabbitmqctl list_queues name type arguments` shows `quorum` with
+   `x-delivery-limit` and `x-dead-letter-exchange`; `rudix_celery_queue_depth` reports the new
+   names and `rudix.dead_letter`; run the poison-message check in plan section 8.
+
+Rollback to classic: set `CELERY_QUEUE_TYPE=classic` and the previous queue names (or unset
+them), deploy, and drain the quorum queues the same way with a temporary worker started with
+the quorum environment (`CELERY_QUEUE_TYPE=quorum` and the `.q` names). Messages still in
+`rudix.dead_letter` stay there; drain them first with that worker plus
+`WORKER_CONSUME_DEAD_LETTER=true`, or leave the queue for later. `FailedJob` rows already
+written are kept.
+
+Failure modes:
+
+| Symptom | Cause | Recovery |
+|---|---|---|
+| `RudixDeadLetterQueueNotEmpty` | `worker-default` not running, not in quorum mode, or `dead_letter.persist_failed` | Start or fix `worker-default` (`WORKER_CONSUME_DEAD_LETTER=true`, `CELERY_QUEUE_TYPE=quorum`); check the database. |
+| `FailedJob` rows with `delivery_limit_exceeded` | A task crashed its worker `CELERY_DELIVERY_LIMIT` times | Find the cause in worker logs for the task id (OOM kill, segfault in a parser); fix, then retry from the dashboard. |
+| Worker exits at start with `hard time limits must be below ...` | A hard limit is not below the consumer timeout | Lower the limit or raise `consumer_timeout` and `CELERY_BROKER_CONSUMER_TIMEOUT_SECONDS` together. |
+| Many `task_soft_time_limit` failures on one stage | Documents larger than the limit allows | Raise that task's limit (within the consumer timeout) or `WORKER_POOL_INGEST_CONCURRENCY` down to free CPU. |
+| `PRECONDITION_FAILED - inequivalent arg 'x-queue-type'` in worker logs | `CELERY_QUEUE_TYPE=quorum` with an existing classic queue name | Use new names (step 1); never reuse a classic name for quorum. |
+| `RudixCeleryQueueWaitHigh` on one queue | The pool for that queue is saturated or down | Scale that pool; check `inspect active -d <pool>@<host>`. |
+
+Not verified in this repository (no broker in CI): real dead-lettering, `consumer_timeout`,
+child recycling, and the load test that an evaluation does not delay uploads. They are the
+manual checks in [plan section 8](./roadmap/V0_6_0_IMPLEMENTATION_PLAN.md#8-manual-steps-staging-and-production).

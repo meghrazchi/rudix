@@ -8,10 +8,10 @@ from celery.signals import (  # type: ignore[import-untyped]
     task_postrun,
     task_prerun,
     task_retry,
+    worker_init,
     worker_process_init,
     worker_ready,
 )
-from kombu import Queue  # type: ignore[import-untyped]
 
 from app.clients.neo4j_client import init_neo4j
 from app.clients.rabbitmq_client import rabbitmq_broker_url, redis_result_backend_url
@@ -19,6 +19,13 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.core.metrics import is_metrics_enabled, record_celery_task
 from app.core.sentry import init_sentry
+from app.workers.dead_letter import install_worker_bootsteps
+from app.workers.queues import build_task_queues, queue_conf
+from app.workers.time_limits import (
+    ConsumerTimeoutConfigError,
+    check_consumer_timeout,
+    time_limit_conf,
+)
 
 
 def _route(queue: str) -> dict[str, str]:
@@ -68,7 +75,7 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     "documents.reap_stale": _route(settings.celery_task_default_queue),
     "maintenance.retention.purge": _route(settings.celery_task_default_queue),
     "maintenance.partitions.ensure": _route(settings.celery_task_default_queue),
-    "app.workers.email_tasks.send_transactional_email": _route("email"),
+    "app.workers.email_tasks.send_transactional_email": _route(settings.celery_queue_email),
     # anchor: S2
     **{
         f"documents.ingest.{stage}": _route(settings.celery_queue_documents_processing)
@@ -133,22 +140,6 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
 }
 
 
-def _task_queues() -> tuple[Queue, ...]:
-    """Every queue the single dev worker consumes; a name configured twice is declared once."""
-    names = [
-        settings.celery_task_default_queue,
-        settings.celery_queue_documents_processing,
-        settings.celery_queue_documents_deletion,
-        settings.celery_queue_documents_reindex,
-        settings.celery_queue_evaluations,
-        settings.celery_queue_connector_sync,
-        "email",
-        settings.celery_queue_documents_embedding,
-        settings.celery_queue_documents_graph,
-    ]
-    return tuple(Queue(name, routing_key=name) for name in dict.fromkeys(names))
-
-
 celery_app = Celery(
     "rag_backend",
     broker=rabbitmq_broker_url(),
@@ -163,8 +154,6 @@ celery_app.conf.update(
     timezone="UTC",
     task_track_started=True,
     task_default_queue=settings.celery_task_default_queue,
-    task_default_exchange="rudix",
-    task_default_exchange_type="direct",
     task_default_routing_key=settings.celery_task_default_queue,
     task_acks_late=True,
     task_reject_on_worker_lost=True,
@@ -176,7 +165,10 @@ celery_app.conf.update(
         "interval_step": 1,
         "interval_max": settings.celery_retry_backoff_max_seconds,
     },
-    task_queues=_task_queues(),
+    # anchor: C1 (queue declarations, limits, recycling; R06-03, R06-05)
+    task_queues=build_task_queues(settings),
+    **queue_conf(settings),
+    **time_limit_conf(settings),
     beat_schedule=BEAT_SCHEDULE,
     task_routes=TASK_ROUTES,
 )
@@ -188,13 +180,35 @@ configure_logging(
 )
 
 
+install_worker_bootsteps(celery_app)
+import app.workers.queue_metrics  # noqa: E402,F401 — connects the queue wait signals
+
+
+@worker_init.connect
+def _check_worker_limits(*_: object, **__: object) -> None:
+    """Refuse to start (production, staging) when a hard limit reaches the consumer timeout.
+
+    Celery logs and swallows ``Exception`` from signal handlers; ``SystemExit`` stops it.
+    """
+    try:
+        check_consumer_timeout(settings)
+    except ConsumerTimeoutConfigError as exc:
+        raise SystemExit(str(exc)) from exc
+
+
 @worker_process_init.connect
 def _initialize_worker(*_: object, **__: object) -> None:
     import app.models  # noqa: F401 — ensure all SQLAlchemy mappers are registered
 
     init_sentry(runtime="worker")
-    from app.workers.async_runtime import run_async
+    from app.workers.async_runtime import reset_worker_loop_after_fork, run_async
 
+    # A child forked after the main process used the database or an event loop (dead-letter
+    # consumer, hard time-limit on_failure, child recycling) must not share them (R06-03).
+    reset_worker_loop_after_fork()
+    from app.db.session import engine
+
+    run_async(engine.dispose(close=False))
     run_async(init_neo4j())
 
 

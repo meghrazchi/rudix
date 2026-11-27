@@ -11,6 +11,10 @@ locals {
   # Per environment: production compose has no neo4j service, so the default
   # omits it; staging appends neo4j through TF_VAR_infra_services.
   infra_services = var.infra_services
+  # RabbitMQ configuration (R06-03) that the staging and production compose files mount
+  # read-only from ./rabbitmq next to them. Without these files Docker creates empty
+  # directories at the mount paths and RabbitMQ does not start.
+  rabbitmq_config_dir = "${path.module}/../../infra/rabbitmq"
   # The remote backup gate runs in the release workflow
   # (deploy/scripts/check_remote_backups.sh) before Terraform starts, so it is
   # no longer repeated here.
@@ -41,6 +45,8 @@ resource "null_resource" "compose_rollout" {
     ssh_host         = var.ssh_host
     app_path         = var.app_path
     compose_sha      = filesha256(var.compose_file_path)
+    rabbitmq_conf    = filesha256("${local.rabbitmq_config_dir}/rabbitmq.conf")
+    rabbitmq_plugins = filesha256("${local.rabbitmq_config_dir}/enabled_plugins")
     env_sha          = sha256(var.env_file_content)
     api_image        = var.api_image
     worker_image     = var.worker_image
@@ -65,13 +71,23 @@ resource "null_resource" "compose_rollout" {
 
   provisioner "remote-exec" {
     inline = [
-      "mkdir -p '${var.app_path}'",
+      "mkdir -p '${var.app_path}/rabbitmq'",
     ]
   }
 
   provisioner "file" {
     source      = var.compose_file_path
     destination = "${var.app_path}/${local.compose_filename}"
+  }
+
+  provisioner "file" {
+    source      = "${local.rabbitmq_config_dir}/rabbitmq.conf"
+    destination = "${var.app_path}/rabbitmq/rabbitmq.conf"
+  }
+
+  provisioner "file" {
+    source      = "${local.rabbitmq_config_dir}/enabled_plugins"
+    destination = "${var.app_path}/rabbitmq/enabled_plugins"
   }
 
   provisioner "file" {
@@ -115,7 +131,10 @@ resource "null_resource" "compose_rollout" {
       "while IFS='=' read -r key value; do [ -n \"$key\" ] && export \"$key=$value\"; done < .bootstrap_admin_env",
       "docker compose -f '${local.compose_filename}' run --rm -e BOOTSTRAP_ADMIN_EMAIL -e BOOTSTRAP_ADMIN_PASSWORD api python scripts/bootstrap_admin.py",
       "rm -f .bootstrap_admin_env",
-      "docker compose -f '${local.compose_filename}' up -d --wait",
+      # --remove-orphans stops services the compose file no longer defines, such as the
+      # single 0.5.0 `worker` that the 0.6.0 pools replace (R06-04); left running it would
+      # keep consuming every queue with the previous image.
+      "docker compose -f '${local.compose_filename}' up -d --wait --remove-orphans",
       "docker image prune -f",
       "docker compose -f '${local.compose_filename}' exec -T api python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)\"",
       "docker compose -f '${local.compose_filename}' exec -T api python -c \"import urllib.request, sys; r=urllib.request.urlopen('http://127.0.0.1:8000/api/v1/ready', timeout=5); print(r.read().decode())\" || true",
