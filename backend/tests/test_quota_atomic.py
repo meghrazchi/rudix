@@ -234,8 +234,11 @@ async def test_read_only_check_counts_expired_window_as_zero_without_writing(
     assert value == 1
 
 
-async def test_chat_quota_check_is_read_only(db_session: AsyncSession) -> None:
+async def test_chat_quota_check_is_read_only_on_a_deferring_session(
+    db_session: AsyncSession,
+) -> None:
     from app.application.chat.quota import ensure_chat_quota
+    from app.domains.quota.services.quota_service import DEFER_WINDOW_RESET_INFO_KEY
 
     org = await _org(db_session)
     usage = await _seed(
@@ -243,10 +246,18 @@ async def test_chat_quota_check_is_read_only(db_session: AsyncSession) -> None:
     )
     await db_session.commit()
 
-    await ensure_chat_quota(db_session, organization_id=org.id, transport="ws")
+    db_session.info[DEFER_WINDOW_RESET_INFO_KEY] = True
+    try:
+        await ensure_chat_quota(db_session, organization_id=org.id, transport="ws")
+    finally:
+        db_session.info.pop(DEFER_WINDOW_RESET_INFO_KEY, None)
 
     await db_session.refresh(usage)
     assert usage.current_value == 7
+    # Without the marker the check resets the window, as before.
+    await ensure_chat_quota(db_session, organization_id=org.id, transport="ws")
+    await db_session.refresh(usage)
+    assert usage.current_value == 0
 
 
 async def test_increment_quota_usage_returns_new_value_and_resets(

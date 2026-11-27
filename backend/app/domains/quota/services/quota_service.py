@@ -104,6 +104,17 @@ def _normalize_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC)
 
 
+# Set on a session whose transaction must stay read-only (the chat pipeline's read phase,
+# R05-02): ``check_quota`` then counts an expired window as zero instead of resetting it, and
+# the increment of the final write resets it.
+DEFER_WINDOW_RESET_INFO_KEY = "quota_defer_window_reset"
+
+
+def defers_window_reset(db_session: object) -> bool:
+    info = getattr(db_session, "info", None)
+    return isinstance(info, dict) and bool(info.get(DEFER_WINDOW_RESET_INFO_KEY, False))
+
+
 def _reset_window_expired(next_reset_at: datetime | None, now: datetime) -> bool:
     normalized_next_reset_at = _normalize_utc(next_reset_at)
     return normalized_next_reset_at is not None and normalized_next_reset_at <= now
@@ -291,13 +302,17 @@ async def check_quota(
     quota_type: QuotaType,
     requested_amount: int = 1,
     current_value_override: int | None = None,
-    reset_expired: bool = True,
+    reset_expired: bool | None = None,
 ) -> QuotaCheckResult:
     """Check whether the requested action would exceed quota limits.
 
     ``reset_expired=False`` keeps the check read-only: an expired window counts as zero and
-    is left for ``increment_quota_usage`` to reset (the chat pipeline's read phase, R05-02).
+    is left for ``increment_quota_usage`` to reset. ``None`` (the default) resets unless the
+    session is marked with ``DEFER_WINDOW_RESET_INFO_KEY`` (the chat pipeline's read phase,
+    R05-02).
     """
+    if reset_expired is None:
+        reset_expired = not defers_window_reset(db_session)
     now = datetime.now(UTC)
     policy = await _repo.get_policy(db_session, organization_id=organization_id)
     effective = get_effective_limits(policy)

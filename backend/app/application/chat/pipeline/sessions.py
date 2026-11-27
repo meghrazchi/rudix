@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.metrics import CHAT_DB_SESSION_SECONDS
 from app.db.tenant_context import bind_pipeline_session
+from app.domains.quota.services.quota_service import DEFER_WINDOW_RESET_INFO_KEY
 
 SessionFactory = Callable[[], Any]
 
@@ -119,11 +120,14 @@ class ShortSessionScope:
             stack = AsyncExitStack()
             self._read_started = perf_counter()
             try:
-                self._read_session = await self._open(stack)
+                session = await self._open(stack)
             except BaseException:
                 await stack.aclose()
                 raise
-            self._read_stack = stack
+            # Stage 1 stays read-only: the quota check leaves an expired window to the
+            # increment of the final write instead of resetting it here.
+            session.info[DEFER_WINDOW_RESET_INFO_KEY] = True
+            self._read_session, self._read_stack = session, stack
         try:
             yield self._read_session
         except BaseException:
@@ -139,6 +143,7 @@ class ShortSessionScope:
         if session is None:
             return
         self._read_session, self._read_stack = None, None
+        session.info.pop(DEFER_WINDOW_RESET_INFO_KEY, None)
         try:
             await session.commit()
         finally:
@@ -153,6 +158,7 @@ class ShortSessionScope:
         if session is None:
             return
         self._read_session, self._read_stack = None, None
+        session.info.pop(DEFER_WINDOW_RESET_INFO_KEY, None)
         # No explicit rollback: closing a factory session discards its transaction without
         # expiring loaded objects; the request session is closed by its dependency.
         try:
