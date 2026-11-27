@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import fitz  # type: ignore[import-untyped]
@@ -57,7 +58,7 @@ class OcrDocumentResult:
 
 
 def run_ocr(
-    content: bytes,
+    content: bytes | Path,
     candidate_pages: list[int],
     *,
     languages: str = "eng",
@@ -68,7 +69,8 @@ def run_ocr(
     """Run OCR using PyMuPDF's built-in Tesseract integration.
 
     Calls Tesseract's C API directly (no subprocess) so it works safely inside
-    Celery's forked daemon worker processes on macOS and Linux.
+    Celery's forked daemon worker processes on macOS and Linux. ``content`` may be a file
+    path (R06-02): each candidate page is then loaded and rendered on its own.
     """
     started_at = time.monotonic()
     # Support both '+'-delimited and ','-delimited language strings.
@@ -87,7 +89,10 @@ def run_ocr(
 
     ocr_pages: list[OcrPageResult] = []
     try:
-        doc = fitz.open(stream=content, filetype="pdf")
+        if isinstance(content, Path):
+            doc = fitz.open(content)
+        else:
+            doc = fitz.open(stream=content, filetype="pdf")
     except Exception as exc:
         duration_ms = int((time.monotonic() - started_at) * 1000)
         return OcrDocumentResult(

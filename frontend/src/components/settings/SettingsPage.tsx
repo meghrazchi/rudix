@@ -29,15 +29,26 @@ export function SettingsPage() {
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
           {t("rudixSettings")}
         </p>
-        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+        {/* The app shell top bar owns the page's single <h1>. */}
+        <h2 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
           {t("title")}
-        </h1>
+        </h2>
         <p className="max-w-3xl text-sm text-[#68647b]">{t("description")}</p>
       </header>
 
       <SettingsTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
-      {activeTab === "profile" && <UserProfilePage />}
+      {activeTab === "profile" && (
+        <div
+          id="settings-tabpanel-profile"
+          role="tabpanel"
+          aria-labelledby="settings-tab-profile"
+          tabIndex={0}
+          className="focus-visible:outline-none"
+        >
+          <UserProfilePage />
+        </div>
+      )}
 
       {activeTab === "organization" && (
         <div

@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from app.domains.documents.extraction.models import DocumentProfile, PageExtractionResult
+from collections.abc import Sequence
+
+from app.domains.documents.extraction.models import (
+    DocumentProfile,
+    PageExtractionResult,
+    PageSummary,
+)
 
 _SCANNED_TEXT_COVERAGE_THRESHOLD = 0.05
 _MIXED_TEXT_COVERAGE_THRESHOLD = 0.50
@@ -10,7 +16,7 @@ _FORM_LIKE_MAX_AVG_CHARS_PER_PAGE = 800
 
 
 def classify_document_profile(
-    pages: list[PageExtractionResult],
+    pages: Sequence[PageExtractionResult | PageSummary],
     *,
     min_chars_per_page: int = 30,
 ) -> DocumentProfile:
@@ -22,8 +28,8 @@ def classify_document_profile(
     scanned_pages = sum(
         1 for p in pages if p.text_coverage_ratio < _SCANNED_TEXT_COVERAGE_THRESHOLD
     )
-    total_tables = sum(len(p.table_blocks) for p in pages)
-    total_images = sum(len(p.image_blocks) for p in pages)
+    total_tables = sum(p.table_block_count for p in pages)
+    total_images = sum(p.image_block_count for p in pages)
     total_chars = sum(p.char_count for p in pages)
 
     if scanned_pages == page_count:

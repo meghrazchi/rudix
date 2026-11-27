@@ -36,6 +36,7 @@ class UsageEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index("idx_usage_org_created", "organization_id", "created_at"),
         Index("idx_usage_org_provider_created", "organization_id", "provider_key", "created_at"),
+        Index("idx_usage_events_user_created", "user_id", "created_at"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -70,7 +71,10 @@ class UsageEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "audit_logs"
-    __table_args__ = (Index("idx_audit_logs_org_created", "organization_id", "created_at"),)
+    __table_args__ = (
+        Index("idx_audit_logs_org_created", "organization_id", "created_at"),
+        Index("idx_audit_logs_user_created", "user_id", "created_at"),
+    )
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),

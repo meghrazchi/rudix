@@ -1,10 +1,21 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { consentedStorageState } from "./e2e/support/consent";
+
 const FRONTEND_PORT = Number.parseInt(
   process.env.PLAYWRIGHT_FRONTEND_PORT ?? "3101",
   10,
 );
 const FRONTEND_BASE_URL = `http://127.0.0.1:${FRONTEND_PORT}`;
+// NEXT_PUBLIC values are inlined when the app is compiled, so WebSocket chat
+// (NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED=true) needs its own dev server, on its
+// own port and build directory. Only chat-ws-*.spec.ts runs against it.
+const WS_FRONTEND_PORT = Number.parseInt(
+  process.env.PLAYWRIGHT_WS_FRONTEND_PORT ?? "3102",
+  10,
+);
+const WS_FRONTEND_BASE_URL = `http://127.0.0.1:${WS_FRONTEND_PORT}`;
+const WS_SPECS = /chat-ws-.*\.spec\.ts$/;
 const useBundledBrowser =
   process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true" ||
   process.env.CI === "true";
@@ -21,26 +32,59 @@ export default defineConfig({
   reporter: process.env.CI ? "dot" : "list",
   use: {
     baseURL: FRONTEND_BASE_URL,
+    // Start as a visitor who already answered the cookie banner; the
+    // first-visit banner is covered by e2e/cookie-consent.spec.ts.
+    storageState: consentedStorageState(FRONTEND_BASE_URL),
     trace: "retain-on-failure",
     video: "retain-on-failure",
   },
   projects: [
     {
       name: "chromium",
+      testIgnore: WS_SPECS,
       use: {
         ...devices["Desktop Chrome"],
         ...(useBundledBrowser ? {} : { channel: "chrome" }),
       },
     },
+    {
+      name: "chromium-chat-ws",
+      testMatch: WS_SPECS,
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(useBundledBrowser ? {} : { channel: "chrome" }),
+        baseURL: WS_FRONTEND_BASE_URL,
+        storageState: consentedStorageState(WS_FRONTEND_BASE_URL),
+      },
+    },
   ],
-  webServer: {
-    command: `npm run dev -- --hostname 127.0.0.1 --port ${FRONTEND_PORT}`,
+  webServer: [
+    devServer(FRONTEND_PORT, FRONTEND_BASE_URL, {}),
+    devServer(WS_FRONTEND_PORT, WS_FRONTEND_BASE_URL, {
+      NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED: "true",
+      NEXT_DIST_DIR: ".next-e2e-ws",
+    }),
+  ],
+});
+
+function devServer(
+  port: number,
+  baseUrl: string,
+  extraEnv: Record<string, string>,
+) {
+  return {
+    command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
     // Use a route-level readiness URL to reduce accidental reuse of unrelated apps.
-    url: `${FRONTEND_BASE_URL}/login`,
+    url: `${baseUrl}/login`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
-      NEXT_PUBLIC_APP_URL: FRONTEND_BASE_URL,
+      // Hermetic env: with NODE_ENV=test, Next.js does not load the
+      // developer's untracked `.env.local`, so local runs match CI.
+      // See node_modules/next/dist/docs/01-app/02-guides/environment-variables.md
+      // ("Test Environment Variables").
+      NODE_ENV: "test",
+      NEXT_PUBLIC_APP_URL: baseUrl,
       NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1",
       NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE: "false",
       NEXT_PUBLIC_AUTH_PROVIDER: "app",
@@ -62,6 +106,7 @@ export default defineConfig({
       NEXT_PUBLIC_PUBLIC_TRIAL_URL: "/signup",
       NEXT_PUBLIC_PUBLIC_DEMO_URL: "/contact",
       NEXT_PUBLIC_PUBLIC_LOGIN_URL: "/login",
+      ...extraEnv,
     },
-  },
-});
+  };
+}

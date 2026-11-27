@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from time import perf_counter
@@ -10,6 +10,9 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.logging import get_logger
+from app.core.metrics import record_retrieval_branch_failure
+from app.db.session import SessionLocal
 from app.domains.chat.services.graph_retrieval_service import (
     GraphRetrievalResult,
     GraphRetrievalService,
@@ -23,6 +26,11 @@ from app.domains.chat.services.query_retrieval_service import (
     QueryRetrievalService,
     RetrievedCandidate,
 )
+
+logger = get_logger("chat.parallel_retrieval")
+
+# ``(query) -> (vector, prompt_tokens)``; replaces ``QueryRetrievalService.embed_query``.
+QueryEmbedder = Callable[[str], Awaitable[tuple[list[float], int]]]
 
 
 def _estimate_tokens(text: str) -> int:
@@ -98,7 +106,13 @@ class ParallelRetrievalOptimizer:
 
     The optimizer keeps the existing org/document authorization semantics in the
     underlying services and only coordinates concurrency, timeouts, and retries.
+
+    An ``AsyncSession`` must never be used by two concurrent coroutines, so each
+    concurrent keyword-search branch opens its own session from ``session_factory``.
     """
+
+    def __init__(self, *, session_factory: Callable[[], AsyncSession] | None = None) -> None:
+        self._session_factory: Callable[[], AsyncSession] = session_factory or SessionLocal
 
     @staticmethod
     def build_plan(
@@ -163,7 +177,18 @@ class ParallelRetrievalOptimizer:
         top_k: int,
         exact_match_boost: float,
         budget: ParallelRetrievalBudget | None = None,
+        index_versions: Sequence[str] | None = None,
+        embed_query: QueryEmbedder | None = None,
+        graph_timeout_ms: int | None = None,
+        query_language: str | None = None,
     ) -> ParallelRetrievalResult:
+        """Run the retrieval branches.
+
+        ``embed_query`` replaces the service's own embedding call (the chat pipeline passes
+        its cached, prefetch-aware embedder, R05-05). ``graph_timeout_ms`` is the graph
+        branch's own budget (R05-04): when it runs out the branch fails with ``timeout``
+        without a retry and retrieval continues with the vector (and keyword) results.
+        """
         if budget is None:
             budget = ParallelRetrievalBudget()
 
@@ -177,11 +202,54 @@ class ParallelRetrievalOptimizer:
         semaphore = asyncio.Semaphore(plan.max_parallel_calls)
         branch_records: list[RetrievalBranchRecord] = []
 
+        # Concurrent keyword branches each need their own session (see below).
+        use_branch_sessions = plan.keyword_enabled and len(plan.admitted_queries) > 1
+
+        async def _keyword_search(query: str) -> KeywordRetrievalResult:
+            if not use_branch_sessions:
+                # Single query: no concurrent use of the caller's session. Reusing it
+                # avoids an extra pooled connection per chat on the common path.
+                return await keyword_retrieval_service.search_chunks(
+                    session=session,
+                    query=query,
+                    organization_id=organization_id,
+                    document_ids=document_ids,
+                    top_k=top_k,
+                    exact_match_boost=exact_match_boost,
+                    index_versions=index_versions,
+                    query_language=query_language,
+                )
+            # A fresh session is opened per attempt, so a failed session is never reused.
+            async with self._session_factory() as branch_session:
+                return await keyword_retrieval_service.search_chunks(
+                    session=branch_session,
+                    query=query,
+                    organization_id=organization_id,
+                    document_ids=document_ids,
+                    top_k=top_k,
+                    exact_match_boost=exact_match_boost,
+                    index_versions=index_versions,
+                    query_language=query_language,
+                )
+
+        # index_versions is not applied to graph expansion: it loads chunks by ID from
+        # graph evidence written by the production ingestion pipeline. Evaluation
+        # re-ingest (persist_document_state=False) skips graph extraction, so graph
+        # evidence never points at eval chunks.
+        # NOTE: graph_task is created before the query gather but awaited after it, so
+        # it runs sequentially on the caller's session. Do not turn it into
+        # asyncio.create_task without giving it its own session. Making it truly
+        # parallel is a 0.5.0 performance item.
+        graph_budgeted = graph_timeout_ms is not None and graph_timeout_ms > 0
         graph_task = self._run_branch(
             branch_name="graph_expansion",
             semaphore=semaphore,
-            timeout_ms=plan.timeout_ms,
-            max_retry_attempts=plan.max_retry_attempts,
+            timeout_ms=(
+                min(plan.timeout_ms, graph_timeout_ms)
+                if graph_budgeted and graph_timeout_ms is not None
+                else plan.timeout_ms
+            ),
+            max_retry_attempts=0 if graph_budgeted else plan.max_retry_attempts,
             factory=lambda: graph_retrieval_service.expand(
                 session=session,
                 organization_id=organization_id,
@@ -197,7 +265,11 @@ class ParallelRetrievalOptimizer:
                 semaphore=semaphore,
                 timeout_ms=plan.timeout_ms,
                 max_retry_attempts=plan.max_retry_attempts,
-                factory=lambda: query_retrieval_service.embed_query(question=query),
+                factory=(
+                    (lambda: embed_query(query))
+                    if embed_query is not None
+                    else (lambda: query_retrieval_service.embed_query(question=query))
+                ),
             )
             query_vector: list[float] | None = None
             embedding_prompt_tokens = 0
@@ -222,13 +294,14 @@ class ParallelRetrievalOptimizer:
                 semaphore=semaphore,
                 timeout_ms=plan.timeout_ms,
                 max_retry_attempts=plan.max_retry_attempts,
-                factory=lambda: asyncio.to_thread(
-                    query_retrieval_service.retrieve_candidates,
+                # R06-07: AsyncQdrantClient (a sync fake falls back to a thread inside).
+                factory=lambda: query_retrieval_service.aretrieve_candidates(
                     query_vector=query_vector,
                     organization_id=organization_id,
                     document_ids=document_ids,
                     initial_top_k=top_k,
                     qdrant_client=qdrant_client,
+                    index_versions=index_versions,
                 ),
             )
             if plan.keyword_enabled:
@@ -237,14 +310,7 @@ class ParallelRetrievalOptimizer:
                     semaphore=semaphore,
                     timeout_ms=plan.timeout_ms,
                     max_retry_attempts=plan.max_retry_attempts,
-                    factory=lambda: keyword_retrieval_service.search_chunks(
-                        session=session,
-                        query=query,
-                        organization_id=organization_id,
-                        document_ids=document_ids,
-                        top_k=top_k,
-                        exact_match_boost=exact_match_boost,
-                    ),
+                    factory=lambda: _keyword_search(query),
                 )
                 vector_outcome, keyword_outcome = await asyncio.gather(vector_task, keyword_task)
             else:
@@ -342,8 +408,11 @@ class ParallelRetrievalOptimizer:
                 return _CallOutcome(value=value, record=record)
             except TimeoutError:
                 last_error_code = "timeout"
-            except Exception as exc:  # pragma: no cover - defensive fallback
+                self._report_failure(branch_name, last_error_code, attempts, max_retry_attempts)
+            except Exception as exc:
+                # Only the class name is logged: str(exc) can contain SQL with user text.
                 last_error_code = exc.__class__.__name__
+                self._report_failure(branch_name, last_error_code, attempts, max_retry_attempts)
 
             attempts += 1
             latency_ms = int((perf_counter() - started) * 1000)
@@ -356,6 +425,19 @@ class ParallelRetrievalOptimizer:
                     error_code=last_error_code,
                 )
                 return _CallOutcome(value=None, record=record)
+
+    @staticmethod
+    def _report_failure(
+        branch_name: str, error_code: str, attempts: int, max_retry_attempts: int
+    ) -> None:
+        logger.warning(
+            "retrieval.branch.failed",
+            branch=branch_name,
+            error_code=error_code,
+            attempt=attempts + 1,
+            max_retry_attempts=max_retry_attempts,
+        )
+        record_retrieval_branch_failure(branch=branch_name, error=error_code)
 
     @staticmethod
     def _candidate_count(value: object | None) -> int:

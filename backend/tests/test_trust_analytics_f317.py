@@ -574,7 +574,7 @@ async def test_trust_analytics_member_gets_403(
     trust_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     ctx = await _make_org_user(db_session, role=OrganizationRole.member.value)
-    resp = await trust_client.get("/api/admin/trust-analytics", headers=_auth(ctx["token"]))
+    resp = await trust_client.get("/api/v1/admin/trust-analytics", headers=_auth(ctx["token"]))
     assert resp.status_code == 403
 
 
@@ -588,7 +588,7 @@ async def test_trust_analytics_empty_org_telemetry_missing(
     trust_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     ctx = await _make_org_user(db_session)
-    resp = await trust_client.get("/api/admin/trust-analytics", headers=_auth(ctx["token"]))
+    resp = await trust_client.get("/api/v1/admin/trust-analytics", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_answers"] == 0
@@ -614,7 +614,7 @@ async def test_trust_analytics_distribution(
     db_session.add(_trust_event(org_id, trust_level="low"))
     await db_session.flush()
 
-    resp = await trust_client.get("/api/admin/trust-analytics", headers=_auth(ctx["token"]))
+    resp = await trust_client.get("/api/v1/admin/trust-analytics", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
     dist = resp.json()["trust_distribution"]
     assert dist["high_count"] == 3
@@ -641,7 +641,7 @@ async def test_trust_analytics_warning_counts(
     db_session.add(_trust_event(org_id, trust_level="high"))
     await db_session.flush()
 
-    resp = await trust_client.get("/api/admin/trust-analytics", headers=_auth(ctx["token"]))
+    resp = await trust_client.get("/api/v1/admin/trust-analytics", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
     w = resp.json()["warnings"]
     assert w["stale_source_count"] == 1
@@ -670,7 +670,7 @@ async def test_trust_analytics_date_range_filter(
     await db_session.flush()
 
     resp = await trust_client.get(
-        "/api/admin/trust-analytics",
+        "/api/v1/admin/trust-analytics",
         headers=_auth(ctx["token"]),
         params={"from": "2026-06-01", "to": "2026-06-30"},
     )
@@ -691,7 +691,7 @@ async def test_trust_analytics_invalid_date_range(
 ) -> None:
     ctx = await _make_org_user(db_session)
     resp = await trust_client.get(
-        "/api/admin/trust-analytics",
+        "/api/v1/admin/trust-analytics",
         headers=_auth(ctx["token"]),
         params={"from": "2026-06-30", "to": "2026-06-01"},
     )
@@ -714,7 +714,7 @@ async def test_trust_analytics_org_isolation(
     db_session.add(_trust_event(ctx_b["org_id"], trust_level="medium"))
     await db_session.flush()
 
-    resp = await trust_client.get("/api/admin/trust-analytics", headers=_auth(ctx_a["token"]))
+    resp = await trust_client.get("/api/v1/admin/trust-analytics", headers=_auth(ctx_a["token"]))
     assert resp.status_code == 200
     assert resp.json()["total_answers"] == 0
 
@@ -737,7 +737,7 @@ async def test_trust_analytics_not_found_rate(
     db_session.add(_trust_event(org_id, trust_level="high"))
     await db_session.flush()
 
-    resp = await trust_client.get("/api/admin/trust-analytics", headers=_auth(ctx["token"]))
+    resp = await trust_client.get("/api/v1/admin/trust-analytics", headers=_auth(ctx["token"]))
     data = resp.json()
     assert data["total_answers"] == 4
     assert data["not_found_rate"] == pytest.approx(0.5)
@@ -754,7 +754,7 @@ async def test_trust_analytics_daily_trends_structure(
 ) -> None:
     ctx = await _make_org_user(db_session)
     resp = await trust_client.get(
-        "/api/admin/trust-analytics",
+        "/api/v1/admin/trust-analytics",
         headers=_auth(ctx["token"]),
         params={"from": "2026-06-01", "to": "2026-06-07"},
     )
@@ -785,7 +785,7 @@ async def test_trust_analytics_langfuse_trace_links(
     db_session.add(_trust_event(org_id))  # no trace
     await db_session.flush()
 
-    resp = await trust_client.get("/api/admin/trust-analytics", headers=_auth(ctx["token"]))
+    resp = await trust_client.get("/api/v1/admin/trust-analytics", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
     langfuse = resp.json()["langfuse"]
     assert langfuse["traces_linked_count"] == 2

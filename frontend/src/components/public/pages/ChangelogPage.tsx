@@ -37,7 +37,7 @@ type ChangelogLabels = {
 
 function ReleaseBadge({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-[#d8dbe5] bg-white px-3 py-1 text-[11px] font-bold tracking-[0.12em] text-[#5a6072] uppercase">
+    <span className="border-site-border bg-site-surface text-site-ink-muted inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold tracking-[0.12em] uppercase">
       {label}
     </span>
   );
@@ -46,10 +46,10 @@ function ReleaseBadge({ label }: { label: string }) {
 function MetadataItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] font-bold tracking-[0.12em] text-[#787e90] uppercase">
+      <dt className="text-site-ink-subtle text-xs font-bold tracking-[0.12em] uppercase">
         {label}
       </dt>
-      <dd className="mt-1 text-sm font-semibold text-[#11131a]">{value}</dd>
+      <dd className="text-site-ink mt-1 text-sm font-semibold">{value}</dd>
     </div>
   );
 }
@@ -65,21 +65,21 @@ function ReleaseEntryCard({
 }) {
   return (
     <article
-      className={`rounded-2xl border bg-white p-6 shadow-sm transition ${
-        latest ? "border-[#c9c2ff]" : "border-[#dfe2ea]"
+      className={`bg-site-surface rounded-2xl border p-6 shadow-sm transition ${
+        latest ? "border-site-border" : "border-site-border"
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-2xl font-black text-[#10131c]">
+            <h3 className="text-site-ink text-2xl font-semibold">
               {entry.version}
             </h3>
             {entry.isCurrent ? (
               <ReleaseBadge label={labels.currentRelease} />
             ) : null}
           </div>
-          <p className="mt-2 text-sm font-semibold text-[#4a5162]">
+          <p className="text-site-ink-muted mt-2 text-sm font-semibold">
             {entry.milestone}
           </p>
         </div>
@@ -89,24 +89,24 @@ function ReleaseEntryCard({
         </dl>
       </div>
 
-      <p className="mt-5 max-w-3xl text-sm leading-7 text-[#4b5062]">
+      <p className="text-site-ink-muted mt-5 max-w-3xl text-sm leading-7">
         {entry.summary}
       </p>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         {entry.categories.map((category) => (
           <section
             key={`${entry.version}-${category.title}`}
-            className="rounded-xl border border-[#e4e7ee] bg-[#fafbfe] p-4"
+            className="border-site-border bg-site-surface rounded-xl border p-4"
             aria-label={`${entry.version} ${labels.categories[category.title]}`}
           >
-            <h4 className="text-sm font-bold text-[#10131c]">
+            <h4 className="text-site-ink text-sm font-bold">
               {labels.categories[category.title]}
             </h4>
-            <ul className="mt-3 space-y-2 text-sm leading-6 text-[#53596b]">
+            <ul className="text-site-ink-muted mt-3 space-y-2 text-sm leading-6">
               {category.items.map((item) => (
                 <li key={item} className="flex gap-2">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#3525cd]" />
+                  <span className="bg-site-accent mt-2 h-1.5 w-1.5 shrink-0 rounded-full" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -121,7 +121,7 @@ function ReleaseEntryCard({
             <PublicActionLink
               key={link.label}
               href={link.href}
-              className="rounded-full border border-[#d8dbe5] bg-[#f8f9fc] px-4 py-2 text-sm font-semibold text-[#1f2433] transition hover:bg-white"
+              className="border-site-border bg-site-surface text-site-ink hover:bg-site-surface rounded-full border px-4 py-2 text-sm font-semibold transition"
             >
               {link.label}
             </PublicActionLink>
@@ -174,132 +174,140 @@ export function ChangelogPage() {
   const latest = entries[0] ?? null;
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-16 lg:px-8 lg:py-20">
-      <section
-        aria-labelledby="changelog-hero-title"
-        className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center"
-      >
-        <div>
-          <ReleaseBadge label={labels.publicChangelog} />
-          <h1
-            id="changelog-hero-title"
-            className="mt-5 text-4xl leading-tight font-black text-[#10131c] lg:text-6xl"
-          >
-            {labels.heroTitle}
-          </h1>
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-[#4d5264] lg:text-base">
-            {labels.heroDescription}
-          </p>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <PublicActionLink
-              href={links.contact}
-              className="rounded-lg bg-[#3525cd] px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(53,37,205,0.28)] transition hover:bg-[#2b1fc1]"
-            >
-              {labels.contactTeam}
-            </PublicActionLink>
-            <PublicActionLink
-              href={links.securityDisclosure}
-              className="rounded-lg border border-[#d7dbe8] bg-white px-5 py-3 text-sm font-semibold text-[#1f2433] transition hover:bg-[#f5f7fc]"
-            >
-              {labels.reviewSecurityDisclosure}
-            </PublicActionLink>
-          </div>
-        </div>
-
-        {latest ? (
-          <aside className="rounded-2xl border border-[#d9ddef] bg-[#f7f8fd] p-6 shadow-[0_24px_56px_rgba(16,24,40,0.08)]">
-            <ReleaseBadge label={labels.latestRelease} />
-            <h2 className="mt-4 text-3xl font-black text-[#10131c]">
-              {latest.version}
-            </h2>
-            <p className="mt-2 text-sm font-semibold text-[#4a5162]">
-              {latest.date}
-            </p>
-            <p className="mt-4 text-sm leading-7 text-[#4d5264]">
-              {latest.summary}
-            </p>
-            <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-              <MetadataItem label={labels.milestone} value={latest.milestone} />
-              <MetadataItem label={labels.sourceTag} value={latest.sourceTag} />
-            </dl>
-          </aside>
-        ) : null}
-      </section>
-
-      <section aria-labelledby="release-history-title" className="mt-16">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="bg-site-canvas text-site-ink">
+      <div className="mx-auto w-full max-w-6xl px-4 py-16 lg:px-8 lg:py-20">
+        <section
+          aria-labelledby="changelog-hero-title"
+          className="grid grid-cols-1 gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center"
+        >
           <div>
-            <p className="text-[11px] font-bold tracking-[0.16em] text-[#6f7486] uppercase">
-              {labels.releaseHistory}
+            <ReleaseBadge label={labels.publicChangelog} />
+            <h1
+              id="changelog-hero-title"
+              className="text-site-ink mt-5 text-4xl leading-tight font-semibold tracking-[-0.03em] break-words hyphens-auto lg:text-6xl lg:hyphens-manual"
+            >
+              {labels.heroTitle}
+            </h1>
+            <p className="text-site-ink-muted mt-5 max-w-2xl text-sm leading-7 lg:text-base">
+              {labels.heroDescription}
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <PublicActionLink
+                href={links.contact}
+                className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-medium transition-colors"
+              >
+                {labels.contactTeam}
+              </PublicActionLink>
+              <PublicActionLink
+                href={links.securityDisclosure}
+                className="border-site-border bg-site-surface text-site-ink hover:bg-site-canvas inline-flex h-11 items-center justify-center rounded-full border px-6 text-sm font-medium transition"
+              >
+                {labels.reviewSecurityDisclosure}
+              </PublicActionLink>
+            </div>
+          </div>
+
+          {latest ? (
+            <aside className="border-site-border bg-site-surface rounded-2xl border p-6">
+              <ReleaseBadge label={labels.latestRelease} />
+              <h2 className="text-site-ink mt-4 text-3xl font-semibold">
+                {latest.version}
+              </h2>
+              <p className="text-site-ink-muted mt-2 text-sm font-semibold">
+                {latest.date}
+              </p>
+              <p className="text-site-ink-muted mt-4 text-sm leading-7">
+                {latest.summary}
+              </p>
+              <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+                <MetadataItem
+                  label={labels.milestone}
+                  value={latest.milestone}
+                />
+                <MetadataItem
+                  label={labels.sourceTag}
+                  value={latest.sourceTag}
+                />
+              </dl>
+            </aside>
+          ) : null}
+        </section>
+
+        <section aria-labelledby="release-history-title" className="mt-16">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-site-ink-subtle text-xs font-bold tracking-[0.16em] uppercase">
+                {labels.releaseHistory}
+              </p>
+              <h2
+                id="release-history-title"
+                className="text-site-ink mt-2 text-3xl font-semibold"
+              >
+                {labels.historyTitle}
+              </h2>
+            </div>
+            <p className="text-site-ink-muted max-w-2xl text-sm leading-7">
+              {labels.historyDescription}
+            </p>
+          </div>
+
+          <div className="mt-8 space-y-6">
+            {entries.map((entry, index) => (
+              <ReleaseEntryCard
+                key={entry.version}
+                entry={entry}
+                latest={index === 0}
+                labels={labels}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="release-process-title"
+          className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-3"
+        >
+          <article className="border-site-border bg-site-surface rounded-2xl border p-6">
+            <p className="text-site-ink-subtle text-xs font-bold tracking-[0.16em] uppercase">
+              {labels.sourceEyebrow}
             </p>
             <h2
-              id="release-history-title"
-              className="mt-2 text-3xl font-black text-[#10131c]"
+              id="release-process-title"
+              className="text-site-ink mt-2 text-xl font-semibold"
             >
-              {labels.historyTitle}
+              {labels.sourceTitle}
             </h2>
-          </div>
-          <p className="max-w-2xl text-sm leading-7 text-[#5b6173]">
-            {labels.historyDescription}
-          </p>
-        </div>
+            <p className="text-site-ink-muted mt-3 text-sm leading-7">
+              {labels.sourceDescription}
+            </p>
+          </article>
 
-        <div className="mt-8 space-y-6">
-          {entries.map((entry, index) => (
-            <ReleaseEntryCard
-              key={entry.version}
-              entry={entry}
-              latest={index === 0}
-              labels={labels}
-            />
-          ))}
-        </div>
-      </section>
+          <article className="border-site-border bg-site-surface rounded-2xl border p-6">
+            <p className="text-site-ink-subtle text-xs font-bold tracking-[0.16em] uppercase">
+              {labels.publishingEyebrow}
+            </p>
+            <h2 className="text-site-ink mt-2 text-xl font-semibold">
+              {labels.publishingTitle}
+            </h2>
+            <p className="text-site-ink-muted mt-3 text-sm leading-7">
+              {labels.publishingDescription}
+            </p>
+          </article>
 
-      <section
-        aria-labelledby="release-process-title"
-        className="mt-16 grid gap-6 lg:grid-cols-3"
-      >
-        <article className="rounded-2xl border border-[#dfe2ea] bg-white p-6">
-          <p className="text-[11px] font-bold tracking-[0.16em] text-[#6f7486] uppercase">
-            {labels.sourceEyebrow}
-          </p>
-          <h2
-            id="release-process-title"
-            className="mt-2 text-xl font-black text-[#10131c]"
-          >
-            {labels.sourceTitle}
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-[#4d5264]">
-            {labels.sourceDescription}
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-[#dfe2ea] bg-white p-6">
-          <p className="text-[11px] font-bold tracking-[0.16em] text-[#6f7486] uppercase">
-            {labels.publishingEyebrow}
-          </p>
-          <h2 className="mt-2 text-xl font-black text-[#10131c]">
-            {labels.publishingTitle}
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-[#4d5264]">
-            {labels.publishingDescription}
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-[#dfe2ea] bg-white p-6">
-          <p className="text-[11px] font-bold tracking-[0.16em] text-[#6f7486] uppercase">
-            {labels.disclosureEyebrow}
-          </p>
-          <h2 className="mt-2 text-xl font-black text-[#10131c]">
-            {labels.disclosureTitle}
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-[#4d5264]">
-            {labels.disclosureDescription}
-          </p>
-        </article>
-      </section>
+          <article className="border-site-border bg-site-surface rounded-2xl border p-6">
+            <p className="text-site-ink-subtle text-xs font-bold tracking-[0.16em] uppercase">
+              {labels.disclosureEyebrow}
+            </p>
+            <h2 className="text-site-ink mt-2 text-xl font-semibold">
+              {labels.disclosureTitle}
+            </h2>
+            <p className="text-site-ink-muted mt-3 text-sm leading-7">
+              {labels.disclosureDescription}
+            </p>
+          </article>
+        </section>
+      </div>
     </div>
   );
 }

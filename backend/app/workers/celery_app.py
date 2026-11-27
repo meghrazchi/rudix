@@ -1,16 +1,19 @@
+import logging
 from time import perf_counter
 from typing import Any
 
 from celery import Celery  # type: ignore[import-untyped]
+from celery.schedules import crontab  # type: ignore[import-untyped]
 from celery.signals import (  # type: ignore[import-untyped]
     task_failure,
     task_postrun,
     task_prerun,
     task_retry,
+    worker_init,
     worker_process_init,
+    worker_process_shutdown,
     worker_ready,
 )
-from kombu import Queue  # type: ignore[import-untyped]
 
 from app.clients.neo4j_client import init_neo4j
 from app.clients.rabbitmq_client import rabbitmq_broker_url, redis_result_backend_url
@@ -18,18 +21,153 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.core.metrics import is_metrics_enabled, record_celery_task
 from app.core.sentry import init_sentry
+from app.workers.dead_letter import install_worker_bootsteps
+from app.workers.queues import build_task_queues, queue_conf
+from app.workers.time_limits import (
+    ConsumerTimeoutConfigError,
+    check_consumer_timeout,
+    time_limit_conf,
+)
+
+
+def _route(queue: str) -> dict[str, str]:
+    return {"queue": queue, "routing_key": queue}
+
+
+# Task modules. Later work packages add theirs directly after their marker.
+INCLUDE: list[str] = [
+    "app.workers.document_tasks",
+    "app.workers.document_reaper_tasks",
+    "app.workers.email_tasks",
+    "app.workers.evaluation_tasks",
+    "app.workers.connector_sync_tasks",
+    "app.workers.agent_tasks",
+    "app.workers.usage_touch_tasks",
+    "app.workers.safety_eval_tasks",
+    "app.workers.retention_tasks",
+    # anchor: S2
+    "app.workers.ingestion.tasks",
+    "app.workers.outbox_tasks",
+    # anchor: A2
+    "app.workers.vector_index_tasks",
+    # anchor: A3
+    # evaluations.run lives here; app.workers.evaluation_tasks is its facade (R06-12).
+    "app.workers.evaluation.tasks",
+    # anchor: B1
+    "app.workers.chunk_backfill_tasks",
+    # anchor: C1
+    # anchor: C2
+    # anchor: D1
+]
+
+# Stage tasks of the staged ingestion chain (R06-01): extract..chunk on the processing
+# queue, embed/index/finalize on the embedding queue, graph extraction on its own queue.
+_INGEST_PROCESSING_STAGES = ("extract", "clean_detect", "dlp", "chunk")
+_INGEST_EMBEDDING_STAGES = ("embed", "index", "finalize")
+
+TASK_ROUTES: dict[str, dict[str, str]] = {
+    "documents.process": _route(settings.celery_queue_documents_processing),
+    "documents.delete": _route(settings.celery_queue_documents_deletion),
+    "documents.reindex": _route(settings.celery_queue_documents_reindex),
+    "evaluations.run": _route(settings.celery_queue_evaluations),
+    "connectors.sync.run": _route(settings.celery_queue_connector_sync),
+    "connectors.sync.schedule_poll": _route(settings.celery_queue_connector_sync),
+    "documents.graph_reindex": _route(settings.celery_queue_documents_reindex),
+    "documents.backfill": _route(settings.celery_queue_documents_reindex),
+    "safety_evals.run": _route(settings.celery_queue_evaluations),
+    "agents.approvals.expire": _route(settings.celery_task_default_queue),
+    "usage.touch.flush": _route(settings.celery_task_default_queue),
+    "documents.reap_stale": _route(settings.celery_task_default_queue),
+    "maintenance.retention.purge": _route(settings.celery_task_default_queue),
+    "maintenance.partitions.ensure": _route(settings.celery_task_default_queue),
+    "app.workers.email_tasks.send_transactional_email": _route(settings.celery_queue_email),
+    # anchor: S2
+    **{
+        f"documents.ingest.{stage}": _route(settings.celery_queue_documents_processing)
+        for stage in _INGEST_PROCESSING_STAGES
+    },
+    **{
+        f"documents.ingest.{stage}": _route(settings.celery_queue_documents_embedding)
+        for stage in _INGEST_EMBEDDING_STAGES
+    },
+    "documents.graph_extract": _route(settings.celery_queue_documents_graph),
+    "outbox.relay": _route(settings.celery_task_default_queue),
+    "documents.stage_artifacts.purge": _route(settings.celery_task_default_queue),
+    # anchor: A2
+    "vector_index.build": _route(settings.celery_queue_documents_reindex),
+    "vector_index.drop_retired": _route(settings.celery_task_default_queue),
+    # anchor: A3
+    # anchor: B1
+    "documents.chunks.backfill_tenant": _route(settings.celery_queue_documents_reindex),
+    # anchor: C1
+    # anchor: C2
+    "agents.run.execute": _route(settings.celery_queue_agents),
+    "agents.run.resume": _route(settings.celery_queue_agents),
+    "agents.runs.reap": _route(settings.celery_task_default_queue),
+    # anchor: D1
+    "connectors.sync.reap": _route(settings.celery_queue_connector_sync),
+}
+
+BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
+    "connector-sync-schedule-poll": {
+        "task": "connectors.sync.schedule_poll",
+        "schedule": settings.connector_sync_schedule_poll_interval_seconds,
+    },
+    "agent-approvals-expire": {
+        "task": "agents.approvals.expire",
+        "schedule": 60,
+    },
+    "usage-touch-flush": {
+        "task": "usage.touch.flush",
+        "schedule": settings.usage_touch_flush_interval_seconds,
+    },
+    "documents-reap-stale": {
+        "task": "documents.reap_stale",
+        "schedule": settings.document_reaper_interval_seconds,
+    },
+    "maintenance-retention-purge": {
+        "task": "maintenance.retention.purge",
+        "schedule": crontab(hour=3, minute=15),
+    },
+    "maintenance-partitions-ensure": {
+        "task": "maintenance.partitions.ensure",
+        "schedule": crontab(hour=3, minute=45),
+    },
+    # anchor: S2
+    "outbox-relay": {
+        "task": "outbox.relay",
+        "schedule": settings.outbox_relay_interval_seconds,
+    },
+    "documents-stage-artifacts-purge": {
+        "task": "documents.stage_artifacts.purge",
+        "schedule": crontab(hour=4, minute=5),
+    },
+    # anchor: A2
+    "vector-index-drop-retired": {
+        "task": "vector_index.drop_retired",
+        "schedule": crontab(hour=4, minute=35),
+    },
+    # anchor: A3
+    # anchor: B1
+    # anchor: C1
+    # anchor: C2
+    "agents-runs-reap": {
+        "task": "agents.runs.reap",
+        "schedule": settings.agent_run_reap_interval_seconds,
+    },
+    # anchor: D1
+    "connector-sync-reap": {
+        "task": "connectors.sync.reap",
+        "schedule": settings.connector_sync_reap_interval_seconds,
+    },
+}
+
 
 celery_app = Celery(
     "rag_backend",
     broker=rabbitmq_broker_url(),
     backend=redis_result_backend_url(),
-    include=[
-        "app.workers.document_tasks",
-        "app.workers.email_tasks",
-        "app.workers.evaluation_tasks",
-        "app.workers.connector_sync_tasks",
-        "app.workers.agent_tasks",
-    ],
+    include=INCLUDE,
 )
 
 celery_app.conf.update(
@@ -39,8 +177,6 @@ celery_app.conf.update(
     timezone="UTC",
     task_track_started=True,
     task_default_queue=settings.celery_task_default_queue,
-    task_default_exchange="rudix",
-    task_default_exchange_type="direct",
     task_default_routing_key=settings.celery_task_default_queue,
     task_acks_late=True,
     task_reject_on_worker_lost=True,
@@ -52,73 +188,12 @@ celery_app.conf.update(
         "interval_step": 1,
         "interval_max": settings.celery_retry_backoff_max_seconds,
     },
-    task_queues=(
-        Queue(
-            settings.celery_task_default_queue,
-            routing_key=settings.celery_task_default_queue,
-        ),
-        Queue(
-            settings.celery_queue_documents_processing,
-            routing_key=settings.celery_queue_documents_processing,
-        ),
-        Queue(
-            settings.celery_queue_documents_deletion,
-            routing_key=settings.celery_queue_documents_deletion,
-        ),
-        Queue(
-            settings.celery_queue_documents_reindex,
-            routing_key=settings.celery_queue_documents_reindex,
-        ),
-        Queue(
-            settings.celery_queue_evaluations,
-            routing_key=settings.celery_queue_evaluations,
-        ),
-        Queue(
-            settings.celery_queue_connector_sync,
-            routing_key=settings.celery_queue_connector_sync,
-        ),
-        Queue("email", routing_key="email"),
-    ),
-    beat_schedule={
-        "connector-sync-schedule-poll": {
-            "task": "connectors.sync.schedule_poll",
-            "schedule": settings.connector_sync_schedule_poll_interval_seconds,
-        },
-        "agent-approvals-expire": {
-            "task": "agents.approvals.expire",
-            "schedule": 60,
-        },
-    },
-    task_routes={
-        "documents.process": {
-            "queue": settings.celery_queue_documents_processing,
-            "routing_key": settings.celery_queue_documents_processing,
-        },
-        "documents.delete": {
-            "queue": settings.celery_queue_documents_deletion,
-            "routing_key": settings.celery_queue_documents_deletion,
-        },
-        "documents.reindex": {
-            "queue": settings.celery_queue_documents_reindex,
-            "routing_key": settings.celery_queue_documents_reindex,
-        },
-        "evaluations.run": {
-            "queue": settings.celery_queue_evaluations,
-            "routing_key": settings.celery_queue_evaluations,
-        },
-        "connectors.sync.run": {
-            "queue": settings.celery_queue_connector_sync,
-            "routing_key": settings.celery_queue_connector_sync,
-        },
-        "connectors.sync.schedule_poll": {
-            "queue": settings.celery_queue_connector_sync,
-            "routing_key": settings.celery_queue_connector_sync,
-        },
-        "app.workers.email_tasks.send_transactional_email": {
-            "queue": "email",
-            "routing_key": "email",
-        },
-    },
+    # anchor: C1 (queue declarations, limits, recycling; R06-03, R06-05)
+    task_queues=build_task_queues(settings),
+    **queue_conf(settings),
+    **time_limit_conf(settings),
+    beat_schedule=BEAT_SCHEDULE,
+    task_routes=TASK_ROUTES,
 )
 
 configure_logging(
@@ -128,14 +203,79 @@ configure_logging(
 )
 
 
+install_worker_bootsteps(celery_app)
+import app.workers.queue_metrics  # noqa: E402,F401 — connects the queue wait signals
+
+
+@worker_init.connect
+def _check_worker_limits(*_: object, **__: object) -> None:
+    """Refuse to start (production, staging) when a hard limit reaches the consumer timeout.
+
+    Celery logs and swallows ``Exception`` from signal handlers; ``SystemExit`` stops it.
+    """
+    try:
+        check_consumer_timeout(settings)
+    except ConsumerTimeoutConfigError as exc:
+        raise SystemExit(str(exc)) from exc
+
+
 @worker_process_init.connect
 def _initialize_worker(*_: object, **__: object) -> None:
     import app.models  # noqa: F401 — ensure all SQLAlchemy mappers are registered
 
     init_sentry(runtime="worker")
+    from app.workers.async_runtime import reset_worker_loop_after_fork, run_async
+
+    # A child forked after the main process used the database or an event loop (dead-letter
+    # consumer, hard time-limit on_failure, child recycling) must not share them (R06-03).
+    reset_worker_loop_after_fork()
+    from app.db.session import engine
+
+    run_async(engine.dispose(close=False))
+    run_async(init_neo4j())
+    _bootstrap_qdrant()
+
+
+def _bootstrap_qdrant() -> None:
+    """R06-07: create or check the collection once per worker process, not per write.
+
+    A Qdrant outage must not stop the worker from starting; the write path recreates a
+    missing collection once when Qdrant answers 404 (``QdrantService``).
+    """
+    from app.clients import qdrant_client as qdrant_module
+
+    try:
+        qdrant_module.init_qdrant()
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "worker.qdrant_bootstrap_failed: %s", type(exc).__name__
+        )
+    _reconcile_vector_index()
+
+
+def _reconcile_vector_index() -> None:
+    """R06-08: load the generation registry (and register a changed model) per process."""
+    from app.domains.vector_index.services.startup import reconcile_on_startup
     from app.workers.async_runtime import run_async
 
-    run_async(init_neo4j())
+    try:
+        run_async(reconcile_on_startup())
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "worker.vector_index_reconcile_failed: %s", type(exc).__name__
+        )
+
+
+@worker_process_shutdown.connect
+def _shutdown_worker(*_: object, **__: object) -> None:
+    from app.clients.qdrant_client import close_async_qdrant_clients, close_qdrant
+    from app.workers.async_runtime import run_async
+
+    try:
+        run_async(close_async_qdrant_clients())
+        close_qdrant()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("worker.qdrant_close_failed: %s", type(exc).__name__)
 
 
 @worker_ready.connect

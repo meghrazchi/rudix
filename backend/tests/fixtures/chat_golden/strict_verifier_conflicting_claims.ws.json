@@ -1,0 +1,749 @@
+{
+  "chat_messages": [
+    {
+      "chat_session_id": "<uuid:1>",
+      "confidence_score": null,
+      "content": "How much annual leave is provided?",
+      "cost_usd": null,
+      "id": "<uuid:4>",
+      "model_name": null,
+      "prompt_template_version_id": null,
+      "role": "user",
+      "token_input_count": null,
+      "token_output_count": null,
+      "trust_metadata_json": null
+    },
+    {
+      "chat_session_id": "<uuid:1>",
+      "confidence_score": 0.3054,
+      "content": "I could not find this information in the uploaded documents.",
+      "cost_usd": 0.0,
+      "id": "<uuid:2>",
+      "model_name": "gpt-5.4-mini",
+      "prompt_template_version_id": "<uuid:3>",
+      "role": "assistant",
+      "token_input_count": 38,
+      "token_output_count": 17,
+      "trust_metadata_json": {
+        "citation_validation_failed": false,
+        "citations": [],
+        "confidence": {
+          "average_similarity": 0.93,
+          "category": "low",
+          "citation_coverage_score": 0.0,
+          "citation_support_score": 0.5,
+          "citation_validation_multiplier": 1.0,
+          "citation_validation_score": 1.0,
+          "conflict_multiplier": 1.0,
+          "extraction_quality_multiplier": 1.0,
+          "freshness_multiplier": 1.0,
+          "graph_evidence_boost": 0.0,
+          "no_context": false,
+          "not_found_penalty_multiplier": 0.35,
+          "not_found_signal": true,
+          "ocr_quality_multiplier": 1.0,
+          "raw_score": 0.8725,
+          "reasons": [
+            {
+              "code": "not_found",
+              "impact": "negative",
+              "label": "Answer not found in available sources",
+              "magnitude": 0.65
+            },
+            {
+              "code": "strong_retrieval",
+              "impact": "positive",
+              "label": "Strong semantic match with knowledge base",
+              "magnitude": 0.93
+            }
+          ],
+          "retrieval_agreement_score": 1.0,
+          "score": 0.3054,
+          "table_quality_multiplier": 1.0,
+          "top_rerank_score": 0.93,
+          "top_similarity": 0.93,
+          "trust_level": "not_found",
+          "verification_support_score": null
+        },
+        "conflict": {
+          "agreement_level": "full",
+          "conflict_count": 0,
+          "conflict_summary": null,
+          "conflicting_document_ids": [],
+          "detected": false,
+          "preferred_document_ids": []
+        },
+        "context_injection": {
+          "action": "downrank",
+          "flagged_chunk_ids": [],
+          "flagged_count": 0,
+          "scanned": true
+        },
+        "evidence_quality": {
+          "any_incomplete_documents": false,
+          "extraction_warning_count": 0,
+          "processing_warning_count": 0,
+          "table_low_confidence_count": 0,
+          "warning_reasons": []
+        },
+        "freshness": {
+          "all_excluded_fallback": false,
+          "boosted_count": 0,
+          "deprecated_count": 0,
+          "draft_count": 0,
+          "excluded_count": 0,
+          "stale_count": 0,
+          "unreviewed_count": 0,
+          "warning": false,
+          "warning_reason": null,
+          "warning_reasons": []
+        },
+        "grounded_verification": {
+          "aggregate_support_score": 0.5,
+          "applied": true,
+          "claim_count": 1,
+          "claims": [],
+          "conflicting_count": 1,
+          "mode": "strict",
+          "not_enough_evidence_count": 0,
+          "partially_supported_count": 0,
+          "reason_codes": [
+            "source_conflict"
+          ],
+          "removed_count": 0,
+          "score": 0.5,
+          "supported_count": 1,
+          "threshold": 0.1,
+          "unsupported_count": 0,
+          "unverifiable_count": 0,
+          "verdict": "supported"
+        },
+        "message_id": "<uuid:2>",
+        "model": {
+          "embedding_model": "text-embedding-3-small",
+          "fallback_from": null,
+          "fallback_reason": null,
+          "fallback_to": null,
+          "fallback_used": false,
+          "llm_model": "gpt-5.4-mini",
+          "llm_provider": "openai",
+          "prompt_template_key": "answer_generation",
+          "prompt_template_version": 1
+        },
+        "not_found": true,
+        "organization_id": "<org>",
+        "planner_critic": {
+          "critic_severity": "none",
+          "critic_warnings": [],
+          "draft_changed": false,
+          "high_risk": false,
+          "refiner_applied": false,
+          "strategy": "standard",
+          "unsupported_claims_removed": 0
+        },
+        "policy": {
+          "applied": true,
+          "has_disclaimer": false,
+          "outcome": "warned",
+          "violated_rules": [],
+          "warning_flags": [
+            "not_found_warning"
+          ]
+        },
+        "query_interpretation": {
+          "answer_mode": "grounded",
+          "complexity": "complex",
+          "guidance_topic": null,
+          "intent": "policy",
+          "intent_label": "Policy",
+          "retrieval_strategy": "original",
+          "rewrite_preview_enabled": true,
+          "rewritten_query_preview": null,
+          "sub_queries": []
+        },
+        "retrieval": {
+          "freshness_boosted_count": 0,
+          "freshness_excluded_count": 0,
+          "graph_chunk_count": 0,
+          "graph_context_unavailable": false,
+          "graph_context_used": false,
+          "hybrid_keyword_hit_count": 0,
+          "hybrid_retrieval_enabled": false,
+          "hybrid_vector_hit_count": 0,
+          "parallel_branch_count": 4,
+          "parallel_branch_failure_count": 0,
+          "parallel_branch_timeout_count": 0,
+          "parallel_branches": [
+            {
+              "branch_name": "embedding",
+              "candidate_count": 0,
+              "error_code": null,
+              "retries": 0,
+              "skipped": false,
+              "succeeded": true
+            },
+            {
+              "branch_name": "vector_search",
+              "candidate_count": 1,
+              "error_code": null,
+              "retries": 0,
+              "skipped": false,
+              "succeeded": true
+            },
+            {
+              "branch_name": "keyword_search",
+              "candidate_count": 0,
+              "error_code": null,
+              "retries": 0,
+              "skipped": true,
+              "succeeded": true
+            },
+            {
+              "branch_name": "graph_expansion",
+              "candidate_count": 0,
+              "error_code": null,
+              "retries": 0,
+              "skipped": false,
+              "succeeded": true
+            }
+          ],
+          "parent_context_expanded_count": 0,
+          "query_decomposed": false,
+          "query_rewriting_applied": false,
+          "rerank_applied": false,
+          "rerank_fallback_reason": null,
+          "rerank_fallback_used": false,
+          "rerank_model": null,
+          "rerank_provider": null,
+          "rerank_score_max": null,
+          "rerank_score_min": null,
+          "retrieval_candidate_count": 1,
+          "retrieval_count": 1,
+          "retrieval_filters": [],
+          "retrieval_profile_name": null,
+          "retrieval_profile_scope": "all documents",
+          "retrieval_profile_source": "system_default",
+          "search_mode": "vector",
+          "selected_count": 1,
+          "source_scope_label": null,
+          "source_scope_mode": null,
+          "sub_query_count": 0,
+          "top_k": 3,
+          "trace_request_id": "ws-golden"
+        },
+        "retrieval_method": {
+          "method": "vector",
+          "method_label": "Vector search",
+          "override_applied": false,
+          "override_source": null
+        },
+        "schema_version": "1",
+        "stage_degradations": [],
+        "tool_orchestration": {
+          "authorized_count": 0,
+          "denied_count": 0,
+          "enabled": false,
+          "executed_count": 0,
+          "fallback_count": 0,
+          "succeeded_count": 0,
+          "tool_calls": [],
+          "tool_count": 0
+        },
+        "verification_failed": true
+      }
+    }
+  ],
+  "chat_sessions": [
+    {
+      "id": "<uuid:1>",
+      "title": "How much annual leave is provided?"
+    }
+  ],
+  "citations": [
+    {
+      "chat_message_id": "<uuid:2>",
+      "chunk_id": "<chunk:a>",
+      "document_id": "<doc:a>",
+      "page_number": 1,
+      "rerank_score": null,
+      "similarity_score": 0.93,
+      "text_snippet": "Employees receive twenty days of annual leave."
+    }
+  ],
+  "events": [
+    {
+      "event": "chat.request.received",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "understanding_question"
+    },
+    {
+      "event": "chat.scope.validated",
+      "payload_keys": [
+        "scope_label"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "understanding_question"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "checking_sources"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "checking_sources"
+    },
+    {
+      "event": "retrieval.started",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "searching_documents"
+    },
+    {
+      "event": "retrieval.completed",
+      "payload_keys": [
+        "chunk_count"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "searching_documents"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "skipped",
+      "step_key": "reranking_evidence"
+    },
+    {
+      "event": "generation.started",
+      "payload_keys": [
+        "mode"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "drafting_answer"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "drafting_answer"
+    },
+    {
+      "event": "citation.validation.started",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "verifying_citations"
+    },
+    {
+      "event": "citation.validation.completed",
+      "payload_keys": [
+        "citation_count"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "verifying_citations"
+    },
+    {
+      "event": "generation.delta",
+      "text": "I could not find this information in the uploaded documents."
+    },
+    {
+      "event": "generation.final",
+      "payload_keys": [
+        "answer",
+        "citation_validation_failed",
+        "citations",
+        "confidence_category",
+        "confidence_score",
+        "not_found"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "preparing_final_answer"
+    },
+    {
+      "event": "chat.completed",
+      "payload_keys": [
+        "response"
+      ]
+    }
+  ],
+  "provider_call_count": 2,
+  "provider_calls": [
+    {
+      "kind": "answer",
+      "prompt_sha256": "9bba5cba51ca7481a797e1ca6a481f32ac449a202c2d2df2c190360644df9690"
+    },
+    {
+      "kind": "verifier",
+      "prompt_sha256": "8aa12ef574b9dc711ae26c948aa6242f905ec268dacbe4729c60d8b81af19d43"
+    }
+  ],
+  "questions_quota_delta": 1,
+  "response": {
+    "agreement_level": "full",
+    "answer": "I could not find this information in the uploaded documents.",
+    "chat_session_id": "<uuid:1>",
+    "citation_validation_failed": false,
+    "citations": [],
+    "confidence_category": "low",
+    "confidence_explanation": {
+      "average_similarity": 0.93,
+      "citation_coverage_score": 0.0,
+      "citation_support_score": 0.5,
+      "citation_validation_multiplier": 1.0,
+      "citation_validation_score": 1.0,
+      "no_context": false,
+      "not_found_penalty_multiplier": 0.35,
+      "not_found_signal": true,
+      "raw_score": 0.8725,
+      "retrieval_agreement_score": 1.0,
+      "thresholds": {
+        "high": 0.8,
+        "medium": 0.5
+      },
+      "top_rerank_score": 0.93,
+      "top_similarity": 0.93,
+      "weights": {
+        "agreement": 0.1,
+        "average_similarity": 0.2,
+        "citation_support": 0.15,
+        "rerank_score": 0.2,
+        "top_similarity": 0.35
+      }
+    },
+    "confidence_score": 0.3054,
+    "conflict_detected": false,
+    "conflict_pairs": [],
+    "conflict_summary": null,
+    "conflicting_document_ids": [],
+    "debug": {
+      "answer_language_used": null,
+      "conflict_detection_agreement_level": "full",
+      "conflict_detection_applied": false,
+      "conflict_detection_conflict_count": 0,
+      "conflict_detection_conflicting_document_ids": [],
+      "conflict_detection_enabled": false,
+      "conflict_detection_model": null,
+      "conflict_detection_preferred_document_ids": [],
+      "conflict_detection_provider": null,
+      "detected_language": "en",
+      "embedding_model": "text-embedding-3-small",
+      "fallback_from": null,
+      "fallback_reason": null,
+      "fallback_to": null,
+      "fallback_used": false,
+      "freshness_all_excluded_fallback": false,
+      "freshness_boosted_count": 0,
+      "freshness_deprecated_count": 0,
+      "freshness_excluded_count": 0,
+      "freshness_filter_enabled": true,
+      "freshness_stale_count": 0,
+      "freshness_unreviewed_count": 0,
+      "graph_chunk_count": 0,
+      "graph_context_enabled": false,
+      "graph_context_reason": "disabled",
+      "graph_context_unavailable": false,
+      "graph_context_used": false,
+      "graph_max_hops_used": 0,
+      "graph_related_entity_count": 0,
+      "graph_relation_types_used": [],
+      "graph_seed_entity_count": 0,
+      "grounded_verification_applied": true,
+      "grounded_verification_claim_count": 1,
+      "grounded_verification_conflicting_count": 1,
+      "grounded_verification_enabled": true,
+      "grounded_verification_mode": "strict",
+      "grounded_verification_model": "gpt-5.4-mini",
+      "grounded_verification_not_enough_evidence_count": 0,
+      "grounded_verification_partially_supported_count": 0,
+      "grounded_verification_reason_codes": [
+        "source_conflict"
+      ],
+      "grounded_verification_removed_count": 0,
+      "grounded_verification_score": 0.5,
+      "grounded_verification_supported_count": 1,
+      "grounded_verification_threshold": 0.1,
+      "grounded_verification_unsupported_count": 0,
+      "grounded_verification_unverifiable_count": 0,
+      "grounded_verification_verdict": "supported",
+      "hybrid_exact_match_tokens": [],
+      "hybrid_keyword_hit_count": 0,
+      "hybrid_retrieval_enabled": false,
+      "hybrid_vector_hit_count": 0,
+      "llm_model": "gpt-5.4-mini",
+      "llm_provider": "openai",
+      "ocr_low_confidence_chunk_count": 0,
+      "ocr_quality_downranking_enabled": true,
+      "original_query": null,
+      "parent_context_child_hit_count": 0,
+      "parent_context_expanded_count": 0,
+      "parent_context_expansion_enabled": false,
+      "parent_context_tokens_used": 0,
+      "prompt_template_key": "answer_generation",
+      "prompt_template_version": 1,
+      "prompt_template_version_id": "<uuid:3>",
+      "query_decomposed": false,
+      "query_rewriting_applied": false,
+      "query_rewriting_enabled": false,
+      "query_rewriting_strategy": null,
+      "rerank_applied": false,
+      "rerank_batch_count": 0,
+      "rerank_completion_tokens": 0,
+      "rerank_cost_usd": 0.0,
+      "rerank_enabled": true,
+      "rerank_fallback_reason": null,
+      "rerank_fallback_used": false,
+      "rerank_input_count": 1,
+      "rerank_model": null,
+      "rerank_prompt_tokens": 0,
+      "rerank_provider": null,
+      "rerank_score_max": null,
+      "rerank_score_min": null,
+      "rerank_total_tokens": 0,
+      "retrieval_candidate_count": 1,
+      "retrieval_count": 1,
+      "retrieval_filters": [],
+      "retrieval_profile_name": null,
+      "retrieval_profile_scope": "all documents",
+      "retrieval_profile_source": "system_default",
+      "rewritten_query": null,
+      "search_mode": "vector",
+      "selected_count": 1,
+      "source_scope": null,
+      "source_scope_label": null,
+      "source_scope_mode": null,
+      "sub_queries": [],
+      "table_boost_applied": false,
+      "table_boost_count": 0,
+      "table_boost_enabled": true,
+      "table_chunk_count": 0,
+      "table_query_detected": true,
+      "top_k": 3,
+      "trace_request_id": "ws-golden"
+    },
+    "message_id": "<uuid:2>",
+    "not_found": true,
+    "policy_applied": true,
+    "policy_disclaimer": null,
+    "policy_outcome": "warned",
+    "policy_violated_rules": [],
+    "policy_warning_flags": [
+      "not_found_warning"
+    ],
+    "preferred_document_ids": [],
+    "source_freshness_warning": false,
+    "source_freshness_warning_reason": null,
+    "verification_failed": true
+  },
+  "usage_events": [
+    {
+      "cost_usd": 0.0,
+      "event_type": "chat.completion",
+      "input_tokens": 51,
+      "metadata": {
+        "assistant_message_id": "<uuid:2>",
+        "chat_session_id": "<uuid:1>",
+        "citation_count": 1,
+        "confidence_category": "low",
+        "confidence_score": 0.3054,
+        "conflict_detection_agreement_level": "full",
+        "conflict_detection_applied": false,
+        "conflict_detection_conflict_count": 0,
+        "conflict_detection_conflicting_document_ids": [],
+        "conflict_detection_enabled": false,
+        "conflict_detection_preferred_document_ids": [],
+        "document_ids": [],
+        "embedding_model": "text-embedding-3-small",
+        "fallback_from": null,
+        "fallback_reason": null,
+        "fallback_to": null,
+        "fallback_used": false,
+        "graph_chunk_count": 0,
+        "graph_context_enabled": false,
+        "graph_context_reason": "disabled",
+        "graph_context_unavailable": false,
+        "graph_context_used": false,
+        "graph_max_hops_used": 0,
+        "graph_related_entity_count": 0,
+        "graph_relation_types_used": [],
+        "graph_seed_entity_count": 0,
+        "llm_model": "gpt-5.4-mini",
+        "llm_provider": "openai",
+        "not_found": true,
+        "prompt_template": {
+          "key": "answer_generation",
+          "version_id": "<uuid:3>",
+          "version_number": 1
+        },
+        "rerank_applied": false,
+        "rerank_batch_count": 0,
+        "rerank_completion_tokens": 0,
+        "rerank_cost_usd": 0.0,
+        "rerank_enabled": true,
+        "rerank_fallback_reason": null,
+        "rerank_fallback_used": false,
+        "rerank_input_count": 1,
+        "rerank_model": null,
+        "rerank_prompt_tokens": 0,
+        "rerank_provider": null,
+        "rerank_total_tokens": 0,
+        "retrieval_count": 1,
+        "selected_count": 1,
+        "token_ledger": [
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 17,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 31,
+            "provider": "openai",
+            "stage": "generate"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 9,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 13,
+            "provider": "openai",
+            "stage": "verifier"
+          }
+        ],
+        "transport": "websocket"
+      },
+      "model_name": "gpt-5.4-mini",
+      "output_tokens": 26,
+      "provider_key": "openai"
+    }
+  ]
+}

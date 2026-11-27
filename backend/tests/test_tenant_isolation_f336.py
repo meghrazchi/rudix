@@ -42,7 +42,7 @@ from app.auth.policy_engine import (
     SubjectContext,
 )
 
-pytestmark = pytest.mark.isolation
+pytestmark = [pytest.mark.isolation, pytest.mark.both_dialects]
 
 _engine = PolicyEngine()
 

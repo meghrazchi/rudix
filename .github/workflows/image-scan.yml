@@ -1,0 +1,153 @@
+name: Image scan
+
+# Trivy scan of locally built images (R03-08): backend `api` and `worker` targets
+# and the frontend image. Nothing is pushed. Findings go through
+# ci/scripts/security_severity_gate.py with ci/security/security_gate_allowlist.json.
+# release.yml job `scan-images` scans the pushed digests the same way.
+#
+# No workflow-level `paths` filter: `Image scan` is a required check. The `changes`
+# job decides; a job skipped by `if:` counts as satisfied.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changes:
+    name: Detect image changes
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.diff.outputs.images }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compare with the base
+        id: diff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          zero_sha="0000000000000000000000000000000000000000"
+          case "${EVENT_NAME}" in
+            pull_request) range="${PR_BASE_SHA}...HEAD" ;;
+            push)
+              if [ -n "${PUSH_BEFORE}" ] && [ "${PUSH_BEFORE}" != "${zero_sha}" ] \
+                && git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+                range="${PUSH_BEFORE}..HEAD"
+              else
+                echo "images=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              ;;
+            *)
+              echo "images=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          changed="$(git diff --name-only "${range}")"
+          pattern='^(backend/Dockerfile|frontend/Dockerfile|backend/uv\.lock|backend/pyproject\.toml'
+          pattern="${pattern}|frontend/package-lock\.json|docker-compose[^/]*\.ya?ml|deploy/compose/[^/]+\.ya?ml"
+          pattern="${pattern}|ci/security/security_gate_allowlist\.json|ci/scripts/security_severity_gate\.py"
+          pattern="${pattern}|\.github/workflows/image-scan\.yml)$"
+          if printf '%s\n' "${changed}" | grep -Eq "${pattern}"; then
+            echo "images=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "images=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  image-scan:
+    name: Image scan
+    needs: changes
+    if: needs.changes.outputs.images == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build backend api image
+        run: |
+          mkdir -p artifacts
+          docker build --target api -t rudix-local-api:scan -f backend/Dockerfile backend
+
+      - name: Build backend worker image
+        run: docker build --target worker -t rudix-local-worker:scan -f backend/Dockerfile backend
+
+      - name: Build frontend image
+        # next.config.ts refuses to build without public URLs. The scan covers OS
+        # packages and dependencies, so local placeholder URLs are enough.
+        run: |
+          {
+            printf 'NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1\n'
+            printf 'NEXT_PUBLIC_APP_URL=http://localhost:3000\n'
+          } > frontend/.env.production
+          docker build -t rudix-local-frontend:scan -f frontend/Dockerfile frontend
+
+      - name: Trivy scan api image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: rudix-local-api:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: artifacts/trivy-api.json
+          exit-code: "0"
+
+      - name: Trivy scan worker image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: rudix-local-worker:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: artifacts/trivy-worker.json
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Trivy scan frontend image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: rudix-local-frontend:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: artifacts/trivy-frontend.json
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Upload Trivy reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-scan-trivy-reports
+          path: artifacts/trivy-*.json
+          if-no-files-found: ignore
+
+      - name: Security severity gate (images)
+        run: |
+          python3 ci/scripts/security_severity_gate.py \
+            --trivy artifacts/trivy-api.json \
+            --trivy artifacts/trivy-worker.json \
+            --trivy artifacts/trivy-frontend.json

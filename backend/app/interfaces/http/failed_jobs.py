@@ -24,6 +24,7 @@ from app.models.enums import OrganizationRole
 from app.models.failed_job import FailedJob, FailedJobAuditLog
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.celery_app import celery_app
+from app.workers.queues import current_queue_for_task
 
 router = APIRouter(prefix="/admin/failed-jobs", tags=["admin-failed-jobs"])
 
@@ -146,7 +147,8 @@ def _dispatch_retry(job: FailedJob) -> None:
     celery_app.send_task(
         job.task_name,
         kwargs=kwargs,
-        queue=job.queue_name or "default",
+        # The current route, so a retry after a queue rename (R06-05) reaches a consumed queue.
+        queue=current_queue_for_task(job.task_name, job.queue_name, "default"),
     )
 
 

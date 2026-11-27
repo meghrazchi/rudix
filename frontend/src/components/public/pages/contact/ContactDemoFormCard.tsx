@@ -94,26 +94,28 @@ export function ContactDemoFormCard({
   }
 
   return (
-    <div className="rounded-xl border border-[#d7dce8] bg-white p-7 shadow-sm md:p-10">
-      <h2 className="text-2xl font-black text-[#141826]">{t("title")}</h2>
-      <p className="mt-2 text-sm leading-7 text-[#5e657b]">
+    <div className="border-site-border bg-site-surface rounded-2xl border p-7 md:p-10">
+      <h2 className="text-site-ink text-2xl font-semibold tracking-tight">
+        {t("title")}
+      </h2>
+      <p className="text-site-ink-muted mt-2 text-sm leading-7">
         {t("messagePlaceholder")}
       </p>
 
       {isUnavailable ? (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
           {t("unconfiguredNotice")}
         </div>
       ) : null}
 
       {submissionSuccess ? (
-        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="border-site-success/30 bg-site-success-soft text-site-success mt-4 rounded-lg border px-4 py-3 text-sm">
           {submissionSuccess}
         </div>
       ) : null}
 
       {submissionError ? (
-        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
           <p>{submissionError}</p>
           <PublicActionLink
             href={retryHref}
@@ -142,7 +144,7 @@ export function ContactDemoFormCard({
 
         <div className="grid gap-5 md:grid-cols-2">
           <label htmlFor="fullName" className="block">
-            <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
+            <span className="text-site-ink-muted mb-1.5 block text-xs font-medium">
               {t("firstName")} {t("lastName")}
             </span>
             <input
@@ -150,17 +152,20 @@ export function ContactDemoFormCard({
               type="text"
               autoComplete="name"
               {...form.register("fullName")}
-              className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+              className="border-site-border bg-site-canvas text-site-ink focus:border-site-accent focus:ring-site-accent/20 h-11 w-full rounded-xl border px-3.5 text-sm transition outline-none focus:ring-2"
             />
             {form.formState.errors.fullName?.message ? (
-              <p role="alert" className="mt-1 text-xs text-rose-700">
+              <p
+                role="alert"
+                className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+              >
                 {t("validation.fullName")}
               </p>
             ) : null}
           </label>
 
           <label htmlFor="workEmail" className="block">
-            <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
+            <span className="text-site-ink-muted mb-1.5 block text-xs font-medium">
               {t("email")}
             </span>
             <input
@@ -168,17 +173,20 @@ export function ContactDemoFormCard({
               type="email"
               autoComplete="email"
               {...form.register("workEmail")}
-              className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+              className="border-site-border bg-site-canvas text-site-ink focus:border-site-accent focus:ring-site-accent/20 h-11 w-full rounded-xl border px-3.5 text-sm transition outline-none focus:ring-2"
             />
             {form.formState.errors.workEmail?.message ? (
-              <p role="alert" className="mt-1 text-xs text-rose-700">
+              <p
+                role="alert"
+                className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+              >
                 {t("validation.workEmail")}
               </p>
             ) : null}
           </label>
 
           <label htmlFor="company" className="block">
-            <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
+            <span className="text-site-ink-muted mb-1.5 block text-xs font-medium">
               {t("company")}
             </span>
             <input
@@ -186,23 +194,26 @@ export function ContactDemoFormCard({
               type="text"
               autoComplete="organization"
               {...form.register("company")}
-              className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+              className="border-site-border bg-site-canvas text-site-ink focus:border-site-accent focus:ring-site-accent/20 h-11 w-full rounded-xl border px-3.5 text-sm transition outline-none focus:ring-2"
             />
             {form.formState.errors.company?.message ? (
-              <p role="alert" className="mt-1 text-xs text-rose-700">
+              <p
+                role="alert"
+                className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+              >
                 {t("validation.company")}
               </p>
             ) : null}
           </label>
 
           <label htmlFor="teamSize" className="block">
-            <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
+            <span className="text-site-ink-muted mb-1.5 block text-xs font-medium">
               {t("teamSize")}
             </span>
             <select
               id="teamSize"
               {...form.register("teamSize")}
-              className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+              className="border-site-border bg-site-canvas text-site-ink focus:border-site-accent focus:ring-site-accent/20 h-11 w-full rounded-xl border px-3.5 text-sm transition outline-none focus:ring-2"
             >
               <option value="">{t("teamSizePlaceholder")}</option>
               {CONTACT_TEAM_SIZE_OPTIONS.map((teamSize) => (
@@ -212,20 +223,23 @@ export function ContactDemoFormCard({
               ))}
             </select>
             {form.formState.errors.teamSize?.message ? (
-              <p role="alert" className="mt-1 text-xs text-rose-700">
+              <p
+                role="alert"
+                className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+              >
                 {t("validation.teamSize")}
               </p>
             ) : null}
           </label>
 
           <label htmlFor="roleTitle" className="block">
-            <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
+            <span className="text-site-ink-muted mb-1.5 block text-xs font-medium">
               {t("role")}
             </span>
             <select
               id="roleTitle"
               {...form.register("roleTitle")}
-              className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+              className="border-site-border bg-site-canvas text-site-ink focus:border-site-accent focus:ring-site-accent/20 h-11 w-full rounded-xl border px-3.5 text-sm transition outline-none focus:ring-2"
             >
               <option value="">{t("rolePlaceholder")}</option>
               {CONTACT_ROLE_OPTIONS.map((roleOption) => (
@@ -235,20 +249,23 @@ export function ContactDemoFormCard({
               ))}
             </select>
             {form.formState.errors.roleTitle?.message ? (
-              <p role="alert" className="mt-1 text-xs text-rose-700">
+              <p
+                role="alert"
+                className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+              >
                 {t("validation.roleTitle")}
               </p>
             ) : null}
           </label>
 
           <label htmlFor="useCase" className="block">
-            <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
+            <span className="text-site-ink-muted mb-1.5 block text-xs font-medium">
               {t("useCase")}
             </span>
             <select
               id="useCase"
               {...form.register("useCase")}
-              className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+              className="border-site-border bg-site-canvas text-site-ink focus:border-site-accent focus:ring-site-accent/20 h-11 w-full rounded-xl border px-3.5 text-sm transition outline-none focus:ring-2"
             >
               <option value="">{t("useCasePlaceholder")}</option>
               {CONTACT_USE_CASE_OPTIONS.map((useCaseOption) => (
@@ -258,7 +275,10 @@ export function ContactDemoFormCard({
               ))}
             </select>
             {form.formState.errors.useCase?.message ? (
-              <p role="alert" className="mt-1 text-xs text-rose-700">
+              <p
+                role="alert"
+                className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+              >
                 {t("validation.useCase")}
               </p>
             ) : null}
@@ -266,18 +286,21 @@ export function ContactDemoFormCard({
         </div>
 
         <label htmlFor="message" className="block">
-          <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
+          <span className="text-site-ink-muted mb-1.5 block text-xs font-medium">
             {t("message")}
           </span>
           <textarea
             id="message"
             rows={4}
             {...form.register("message")}
-            className="w-full rounded-lg border border-[#d2d7e4] px-3 py-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+            className="border-site-border bg-site-canvas text-site-ink focus:border-site-accent focus:ring-site-accent/20 w-full rounded-xl border px-3.5 py-3 text-sm transition outline-none focus:ring-2"
             placeholder={t("messagePlaceholder")}
           />
           {form.formState.errors.message?.message ? (
-            <p role="alert" className="mt-1 text-xs text-rose-700">
+            <p
+              role="alert"
+              className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+            >
               {t("validation.message")}
             </p>
           ) : null}
@@ -285,7 +308,7 @@ export function ContactDemoFormCard({
 
         {submissionConfig.captchaProvider ? (
           <label htmlFor="captchaToken" className="block">
-            <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
+            <span className="text-site-ink-muted mb-1.5 block text-xs font-medium">
               {t("captchaToken", {
                 provider: submissionConfig.captchaProvider,
               })}
@@ -294,10 +317,10 @@ export function ContactDemoFormCard({
               id="captchaToken"
               type="text"
               {...form.register("captchaToken")}
-              className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+              className="border-site-border bg-site-canvas text-site-ink focus:border-site-accent focus:ring-site-accent/20 h-11 w-full rounded-xl border px-3.5 text-sm transition outline-none focus:ring-2"
               placeholder={t("captchaPlaceholder")}
             />
-            <p className="mt-1 text-xs text-[#697189]">
+            <p className="text-site-ink-subtle mt-1 text-xs">
               {t("captchaDescription")}
             </p>
           </label>
@@ -308,12 +331,15 @@ export function ContactDemoFormCard({
             id="consentAccepted"
             type="checkbox"
             {...form.register("consentAccepted")}
-            className="mt-1 h-4 w-4 rounded border-[#bfc5d6] text-[#3525cd] focus:ring-[#3525cd]/30"
+            className="border-site-border mt-1 h-4 w-4 rounded accent-[var(--site-accent)]"
           />
-          <span className="text-sm text-[#4f5670]">{t("consent")}</span>
+          <span className="text-site-ink-muted text-sm">{t("consent")}</span>
         </label>
         {form.formState.errors.consentAccepted?.message ? (
-          <p role="alert" className="-mt-2 text-xs text-rose-700">
+          <p
+            role="alert"
+            className="-mt-2 text-xs text-rose-700 dark:text-rose-300"
+          >
             {t("validation.consent")}
           </p>
         ) : null}
@@ -321,29 +347,29 @@ export function ContactDemoFormCard({
         <button
           type="submit"
           disabled={form.formState.isSubmitting || isUnavailable}
-          className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-[#3525cd] px-4 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+          className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover inline-flex h-11 w-full items-center justify-center rounded-full px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
         >
           {form.formState.isSubmitting ? t("submitting") : t("submit")}
         </button>
       </form>
 
       {schedulerHref ? (
-        <div className="mt-5 border-t border-[#e4e8f2] pt-5">
-          <p className="text-sm text-[#5e657b]">{t("schedulerLabel")}</p>
+        <div className="border-site-border mt-5 border-t pt-5">
+          <p className="text-site-ink-muted text-sm">{t("schedulerLabel")}</p>
           <PublicActionLink
             href={schedulerHref}
-            className="mt-1 inline-block text-sm font-semibold text-[#3128ad] underline decoration-[#b8bde9]"
+            className="text-site-accent-ink decoration-site-accent/40 mt-1 inline-block text-sm font-semibold underline"
           >
             {t("schedulerCta")}
           </PublicActionLink>
         </div>
       ) : null}
 
-      <div className="mt-4 border-t border-[#e4e8f2] pt-4">
-        <p className="text-sm text-[#5e657b]">{t("fallbackEmailLabel")}</p>
+      <div className="border-site-border mt-4 border-t pt-4">
+        <p className="text-site-ink-muted text-sm">{t("fallbackEmailLabel")}</p>
         <PublicActionLink
           href={supportHref}
-          className="mt-1 inline-block text-sm font-semibold text-[#3128ad] underline decoration-[#b8bde9]"
+          className="text-site-accent-ink decoration-site-accent/40 mt-1 inline-block text-sm font-semibold underline"
         >
           {t("fallbackCta")}
         </PublicActionLink>

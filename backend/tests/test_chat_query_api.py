@@ -568,8 +568,15 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert len(usage_events) == 1
     assert usage_events[0].event_type == "chat.completion"
     assert usage_events[0].model_name == settings.openai_llm_model
-    assert usage_events[0].input_tokens == 38
-    assert usage_events[0].output_tokens == 17
+    # R05-07: the usage event carries the token-ledger totals, so the rerank batch
+    # (19 prompt / 7 completion) is counted next to the embedding (7) and the answer (31/17).
+    assert usage_events[0].input_tokens == 7 + 31 + 19
+    assert usage_events[0].output_tokens == 17 + 7
+    assert [entry["stage"] for entry in usage_events[0].metadata_json["token_ledger"]] == [
+        "retrieve",
+        "rerank",
+        "generate",
+    ]
     assert usage_events[0].metadata_json["assistant_message_id"] == payload["message_id"]
     assert usage_events[0].metadata_json["chat_session_id"] == payload["chat_session_id"]
     assert usage_events[0].metadata_json["citation_count"] == 1
@@ -817,7 +824,9 @@ async def test_post_chat_persistence_failure_rolls_back_messages_citations_and_u
     async def _raise_on_create_citation(*_: object, **__: object) -> object:
         raise RuntimeError("forced citation write failure")
 
-    monkeypatch.setattr(chat_api.chat_repository, "create_citation", _raise_on_create_citation)
+    monkeypatch.setattr(
+        chat_api.chat_repository, "create_citations_bulk", _raise_on_create_citation
+    )
 
     response = await chat_query_client.post(
         "/api/v1/chat",
@@ -1676,7 +1685,9 @@ async def test_post_chat_strict_grounded_verification_refuses_low_support_answer
         total_tokens=22,
         latency_ms=4,
     )
-    monkeypatch.setattr(chat_api._grounded_verifier, "_resolve_provider", lambda: verifier_provider)
+    monkeypatch.setattr(
+        chat_api._grounded_verifier, "_resolve_provider", lambda *_: verifier_provider
+    )
 
     response = await chat_query_client.post(
         "/api/v1/chat",

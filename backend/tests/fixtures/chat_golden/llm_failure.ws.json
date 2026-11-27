@@ -1,0 +1,173 @@
+{
+  "chat_messages": [],
+  "chat_sessions": [],
+  "citations": [],
+  "error": {
+    "payload": null,
+    "safe_error_code": "generation_failed"
+  },
+  "events": [
+    {
+      "event": "chat.request.received",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "understanding_question"
+    },
+    {
+      "event": "chat.scope.validated",
+      "payload_keys": [
+        "scope_label"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "understanding_question"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "checking_sources"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "checking_sources"
+    },
+    {
+      "event": "retrieval.started",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "searching_documents"
+    },
+    {
+      "event": "retrieval.completed",
+      "payload_keys": [
+        "chunk_count"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "searching_documents"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "skipped",
+      "step_key": "reranking_evidence"
+    },
+    {
+      "event": "generation.started",
+      "payload_keys": [
+        "mode"
+      ]
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "drafting_answer"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "failed",
+      "step_key": "drafting_answer"
+    },
+    {
+      "event": "chat.error",
+      "payload": null,
+      "payload_keys": [],
+      "safe_error_code": "generation_failed"
+    }
+  ],
+  "provider_call_count": 2,
+  "provider_calls": [
+    {
+      "kind": "answer",
+      "prompt_sha256": "4e15beb762254ad0df9de6ad74d3b1e82e103fc5963bbbf28a68ac84e6372fe8"
+    },
+    {
+      "kind": "answer",
+      "prompt_sha256": "4e15beb762254ad0df9de6ad74d3b1e82e103fc5963bbbf28a68ac84e6372fe8"
+    }
+  ],
+  "questions_quota_delta": 0,
+  "usage_events": []
+}

@@ -26,7 +26,7 @@ Use Next.js for the customer-facing app.
 
 ### Responsibilities
 
-- Login and signup.
+- Login (no self-registration; workspace admins invite users).
 - Dashboard.
 - Document upload.
 - Document status view.

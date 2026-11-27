@@ -228,7 +228,7 @@ async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummar
     });
 
     if (offset === 0) {
-      totalDocuments = page.total;
+      totalDocuments = page.total ?? 0;
     }
 
     if (page.items.length === 0) {
@@ -254,7 +254,7 @@ async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummar
       limit: 1,
       offset: 0,
     });
-    indexedDocuments = indexedPage.total;
+    indexedDocuments = indexedPage.total ?? 0;
   }
 
   return {

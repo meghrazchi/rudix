@@ -127,7 +127,7 @@ async def test_list_webhooks_empty_for_new_org(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/webhooks", headers=_auth_headers(token=token, organization_id=str(org.id))
+        "/api/v1/admin/webhooks", headers=_auth_headers(token=token, organization_id=str(org.id))
     )
     assert response.status_code == 200
     data = response.json()
@@ -150,7 +150,7 @@ async def test_list_webhooks_scoped_to_org(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        "/admin/webhooks", headers=_auth_headers(token=token, organization_id=str(org.id))
+        "/api/v1/admin/webhooks", headers=_auth_headers(token=token, organization_id=str(org.id))
     )
     assert response.status_code == 200
     data = response.json()
@@ -168,7 +168,7 @@ async def test_list_webhooks_forbidden_for_viewer(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.viewer.value
     )
     response = await admin_client.get(
-        "/admin/webhooks", headers=_auth_headers(token=token, organization_id=str(org.id))
+        "/api/v1/admin/webhooks", headers=_auth_headers(token=token, organization_id=str(org.id))
     )
     assert response.status_code == 403
 
@@ -186,7 +186,7 @@ async def test_create_webhook_returns_raw_secret(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        "/admin/webhooks",
+        "/api/v1/admin/webhooks",
         json={
             "name": "Doc events",
             "url": "https://receiver.example.com/hook",
@@ -219,7 +219,7 @@ async def test_create_webhook_rejects_ssrf_url(
         "file:///etc/passwd",
     ]:
         response = await admin_client.post(
-            "/admin/webhooks",
+            "/api/v1/admin/webhooks",
             json={"name": "Bad", "url": bad_url, "event_types": []},
             headers=_auth_headers(token=token, organization_id=str(org.id)),
         )
@@ -236,7 +236,7 @@ async def test_create_webhook_rejects_unknown_event_types(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        "/admin/webhooks",
+        "/api/v1/admin/webhooks",
         json={
             "name": "Bad",
             "url": "https://example.com/hook",
@@ -257,7 +257,7 @@ async def test_create_webhook_forbidden_for_developer_without_create(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.member.value
     )
     response = await admin_client.post(
-        "/admin/webhooks",
+        "/api/v1/admin/webhooks",
         json={"name": "X", "url": "https://example.com/hook", "event_types": []},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -278,7 +278,7 @@ async def test_get_webhook_returns_correct_item(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        f"/admin/webhooks/{webhook.id}",
+        f"/api/v1/admin/webhooks/{webhook.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -297,7 +297,7 @@ async def test_get_webhook_404_for_other_org(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        f"/admin/webhooks/{webhook.id}",
+        f"/api/v1/admin/webhooks/{webhook.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 404
@@ -317,7 +317,7 @@ async def test_update_webhook_name_and_status(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.patch(
-        f"/admin/webhooks/{webhook.id}",
+        f"/api/v1/admin/webhooks/{webhook.id}",
         json={"name": "Updated name", "status": "disabled"},
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
@@ -341,14 +341,14 @@ async def test_delete_webhook_returns_204(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.delete(
-        f"/admin/webhooks/{webhook.id}",
+        f"/api/v1/admin/webhooks/{webhook.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 204
 
     # Confirm it's gone
     get_response = await admin_client.get(
-        f"/admin/webhooks/{webhook.id}",
+        f"/api/v1/admin/webhooks/{webhook.id}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert get_response.status_code == 404
@@ -364,7 +364,7 @@ async def test_delete_webhook_not_found(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.delete(
-        f"/admin/webhooks/{uuid4()}",
+        f"/api/v1/admin/webhooks/{uuid4()}",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 404
@@ -384,7 +384,7 @@ async def test_rotate_secret_returns_new_raw_secret(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.post(
-        f"/admin/webhooks/{webhook.id}/rotate-secret",
+        f"/api/v1/admin/webhooks/{webhook.id}/rotate-secret",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200
@@ -407,7 +407,7 @@ async def test_list_deliveries_empty_initially(
         user_id=str(user.id), organization_id=str(org.id), role=OrganizationRole.admin.value
     )
     response = await admin_client.get(
-        f"/admin/webhooks/{webhook.id}/deliveries",
+        f"/api/v1/admin/webhooks/{webhook.id}/deliveries",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
     assert response.status_code == 200

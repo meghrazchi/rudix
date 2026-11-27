@@ -146,9 +146,12 @@ Graph extraction runs as a stage inside the Celery document processing task, aft
 7. for each valid entity:
    a. derive deterministic entity_id = UUID5(org + type + name)
    b. if FEATURE_ENABLE_ENTITY_RESOLUTION: resolve against existing records
-   c. MERGE Entity node in Neo4j
-   d. MERGE EntityAlias node (source mention)
-   e. create Evidence link (Chunk → Entity) with provenance fields
+      (one read per entity)
+   c. collect an Entity row, an EntityAlias row (source mention) and, when the
+      chunk is known, an Evidence row (Chunk → Entity) with provenance fields
+   then write them with UNWIND batches (0.6.0, R06-10): all Entity rows, then the
+   aliases (they MATCH their entity), then the evidence links; one write
+   transaction per GRAPH_WRITE_BATCH_SIZE rows of each kind
 
 ── Relation extraction (if FEATURE_ENABLE_RELATION_EXTRACTION) ──
 8. batch chunks again with entity context → LLM
@@ -159,7 +162,8 @@ Graph extraction runs as a stage inside the Celery document processing task, aft
 10. resolve entity names to UUIDs from the name→id lookup built in step 7
     → relations referencing unknown entities are counted and skipped
 11. derive deterministic relation_id = UUID5(org + from_id + rel_type + to_id)
-12. MERGE typed relationship edge in Neo4j with evidence
+12. MERGE typed relationship edges in Neo4j with evidence, in UNWIND batches
+    (one transaction per batch, one statement per relationship type inside it)
 
 ── Finalise ─────────────────────────────────────────────────────
 13. update ExtractionRun (status = completed, entity_count)
@@ -172,6 +176,38 @@ Both entity and relation IDs are UUID5 (namespace + content key), so the same lo
 
 - **Entity ID**: `UUID5(namespace, "{org_id}:{entity_type}:{name.lower().strip()}")`
 - **Relation ID**: `UUID5(namespace, "{org_id}:{from_entity_id}:{rel_type}:{to_entity_id}")`
+
+### Batched writes and extraction concurrency (0.6.0, R06-10)
+
+Ingestion no longer opens one Neo4j write transaction per entity, alias, evidence link
+and relation. The repository batch methods (`upsert_entities_batch`,
+`upsert_entity_aliases_batch`, `link_evidence_batch`,
+`create_relations_with_evidence_batch`, wrapped by `GraphService`) run the same Cypher as
+the single-item methods under `UNWIND $rows AS row`: the same MERGE keys and
+deterministic ids, the same ON CREATE / ON MATCH rules and provenance fields. Each batch
+binds one `$organization_id`, set on every node and relationship it writes (HAS_ALIAS,
+MENTIONS and EVIDENCE_FOR now carry it too). A document with `n` rows of a kind takes
+`ceil(n / GRAPH_WRITE_BATCH_SIZE)` write transactions for that kind. A failed batch is
+logged (`graph.batch_write.failed`), counted in
+`rudix_graph_write_batches_total{kind,outcome="failed"}` and skipped, like a failed
+single write before; the wrappers return 0 when the graph is unavailable. The
+single-item methods stay for the admin endpoints.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GRAPH_WRITE_BATCH_SIZE` | `200` | Rows per UNWIND write transaction (1–10000). |
+| `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES` | `1` | Entity extraction LLM batches in flight per document (1 = sequential, as before). |
+| `RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` | `1` | Same for relation extraction. |
+
+Results of concurrent batches are merged in batch order, so the output does not depend
+on which call finishes first. Raise the concurrency only within the provider's rate
+limits.
+
+Entity resolution still reads the graph once per entity, and those reads happen before
+the run's writes land. Within one document, an entity can therefore no longer
+auto-merge into a fuzzy variant first seen in the same document (exact duplicates still
+merge through their deterministic ids; matches against earlier documents are
+unchanged). Resolution is off by default.
 
 ---
 
@@ -264,6 +300,9 @@ Each document carries `graph_extraction_status` and `graph_extraction_run_id` co
 └──────────────┴──────────────────────────────────────────────────┘
 ```
 
+**Writes** — while `extracting`, graph facts are written in batches (section 3); a rerun
+of the same document writes the same deterministic ids, so it creates no duplicates.
+
 **Re-extraction** — `POST /documents/{document_id}/graph/reindex` clears the previous graph facts for the document (evidence links, aliases, relations derived from it) and queues a fresh extraction. Orphaned entity nodes (no remaining evidence) are pruned automatically.
 
 **Delete** — document deletion removes all evidence links and relation edges for that document, then prunes orphaned entity nodes.
@@ -289,7 +328,7 @@ Additional semantic labels (`Person`, `Vendor`, `Customer`, `Product`, `Project`
 
 ### Schema migration
 
-Migrations are stored in `app/domains/graph/schema.py` as `GraphMigration` objects and run automatically at API startup via `lifespan.py`. They are idempotent — every DDL statement uses `IF NOT EXISTS`.
+Migrations are stored in `app/domains/graph/schema.py` as `GraphMigration` objects. They are idempotent — every DDL statement uses `IF NOT EXISTS`. The API runs them at startup (`lifespan.py`) only when `GRAPH_MIGRATIONS_ON_STARTUP` allows it: unset means on in development/test and off in staging/production. In staging/production they run in the deploy migrate step (`python scripts/run_graph_migrations.py`, or `make migrate-graph` from `backend/`), which exits non-zero on failure.
 
 Applied migrations are recorded as `__GraphMigration` nodes in Neo4j. Check migration status with:
 
@@ -417,7 +456,7 @@ make restart-api
 make restart-worker
 ```
 
-Migrations run automatically at API startup. Re-index a document to populate the graph:
+In development the API runs the graph migrations at startup; in staging/production run `make migrate-graph` (or let the deploy migrate step do it) before restarting. Re-index a document to populate the graph:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/documents/<doc-id>/graph/reindex \

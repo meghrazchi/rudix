@@ -4,6 +4,11 @@ import type { ChunkingProfileConfigInput } from "@/lib/schemas/chunking-profiles
 
 type Schemas = components["schemas"];
 
+// The full OpenAPI export (R03-10) includes fields the old curated schema left
+// out, and openapi-typescript marks fields with server defaults as required.
+// The frontend's own declarations override the generated ones. Type-only.
+type Overlay<Base, Extra> = Omit<Base, keyof Extra> & Extra;
+
 export type DocumentFileType = Schemas["DocumentDetailResponse"]["file_type"];
 export type DocumentStatus = Schemas["DocumentStatus"];
 export type DocumentQualityState =
@@ -193,47 +198,50 @@ export type DocumentCollectionSummary = {
   name: string;
 };
 
-export type DocumentListItemResponse = Schemas["DocumentListItemResponse"] & {
-  source?: string | null;
-  source_provider?: string | null;
-  source_provider_label?: string | null;
-  graph_extraction_status?:
-    | "pending"
-    | "extracting"
-    | "completed"
-    | "failed"
-    | "skipped"
-    | null;
-  language?: string | null;
-  retention_class?: string | null;
-  notes?: string | null;
-  tags?: string[];
-  collections?: DocumentCollectionSummary[];
-  review_status?:
-    | "current"
-    | "trusted"
-    | "needs_review"
-    | "stale"
-    | "expired"
-    | "archived";
-  review_owner_id?: string | null;
-  review_due_date?: string | null;
-  expiry_date?: string | null;
-  trust_level?: string | null;
-  quality_state?: DocumentQualityState | null;
-  quality_notes?: string | null;
-  trusted_by_id?: string | null;
-  trust_status?:
-    | "draft"
-    | "current"
-    | "verified"
-    | "stale"
-    | "deprecated"
-    | "superseded"
-    | "expired";
-  version_label?: string | null;
-  review_date?: string | null;
-};
+export type DocumentListItemResponse = Overlay<
+  Schemas["DocumentListItemResponse"],
+  {
+    source?: string | null;
+    source_provider?: string | null;
+    source_provider_label?: string | null;
+    graph_extraction_status?:
+      | "pending"
+      | "extracting"
+      | "completed"
+      | "failed"
+      | "skipped"
+      | null;
+    language?: string | null;
+    retention_class?: string | null;
+    notes?: string | null;
+    tags?: string[];
+    collections?: DocumentCollectionSummary[];
+    review_status?:
+      | "current"
+      | "trusted"
+      | "needs_review"
+      | "stale"
+      | "expired"
+      | "archived";
+    review_owner_id?: string | null;
+    review_due_date?: string | null;
+    expiry_date?: string | null;
+    trust_level?: string | null;
+    quality_state?: DocumentQualityState | null;
+    quality_notes?: string | null;
+    trusted_by_id?: string | null;
+    trust_status?:
+      | "draft"
+      | "current"
+      | "verified"
+      | "stale"
+      | "deprecated"
+      | "superseded"
+      | "expired";
+    version_label?: string | null;
+    review_date?: string | null;
+  }
+>;
 export type DocumentListResponse = Omit<
   Schemas["DocumentListResponse"],
   "items"
@@ -251,77 +259,77 @@ export type DocumentListResponse = Omit<
 };
 export type DocumentLifecycleTimelineStepResponse =
   Schemas["DocumentLifecycleTimelineStepResponse"];
-export type DocumentDetailResponse = Omit<
+export type DocumentDetailResponse = Overlay<
   Schemas["DocumentDetailResponse"],
-  "chunking_diagnostics" | "language"
-> & {
-  graph_extraction_status?:
-    | "pending"
-    | "extracting"
-    | "completed"
-    | "failed"
-    | "skipped"
-    | null;
-  language?: string | null;
-  language_confidence?: number | null;
-  language_source?: string | null;
-  ocr_languages_override?: string | null;
-  ocr_quality_snapshot?: OcrQualitySnapshot | null;
-  extraction_snapshot?: ExtractionSnapshot | null;
-  embedding_provider_type?: string | null;
-  embedding_vector_dimension?: number | null;
-  uploaded_by_user_id?: string | null;
-  uploaded_by_user_email?: string | null;
-  uploaded_by_user_display_name?: string | null;
-  source_provider?: string | null;
-  source_provider_label?: string | null;
-  source_title?: string | null;
-  source_key?: string | null;
-  source_url?: string | null;
-  source_link_allowed?: boolean;
-  source_last_synced_at?: string | null;
-  source_sync_version?: number | null;
-  source_visibility?: string | null;
-  source_trust_status?: string | null;
-  document_title?: string | null;
-  document_type?: string | null;
-  document_owner_id?: string | null;
-  document_owner_email?: string | null;
-  document_owner_display_name?: string | null;
-  document_version_label?: string | null;
-  document_last_updated_at?: string | null;
-  document_last_indexed_at?: string | null;
-  chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
-  review_status?:
-    | "current"
-    | "trusted"
-    | "needs_review"
-    | "stale"
-    | "expired"
-    | "archived";
-  review_owner_id?: string | null;
-  review_due_date?: string | null;
-  expiry_date?: string | null;
-  trust_level?: string | null;
-  quality_state?: DocumentQualityState | null;
-  quality_notes?: string | null;
-  trusted_by_id?: string | null;
-  trust_status?:
-    | "draft"
-    | "current"
-    | "verified"
-    | "stale"
-    | "deprecated"
-    | "superseded"
-    | "expired";
-  version_label?: string | null;
-  review_date?: string | null;
-  effective_date?: string | null;
-  trusted_at?: string | null;
-  stale_after_days?: number | null;
-  superseded_by_document_id?: string | null;
-  ocr_quality_status?: string | null;
-};
+  {
+    graph_extraction_status?:
+      | "pending"
+      | "extracting"
+      | "completed"
+      | "failed"
+      | "skipped"
+      | null;
+    language?: string | null;
+    language_confidence?: number | null;
+    language_source?: string | null;
+    ocr_languages_override?: string | null;
+    ocr_quality_snapshot?: OcrQualitySnapshot | null;
+    extraction_snapshot?: ExtractionSnapshot | null;
+    embedding_provider_type?: string | null;
+    embedding_vector_dimension?: number | null;
+    uploaded_by_user_id?: string | null;
+    uploaded_by_user_email?: string | null;
+    uploaded_by_user_display_name?: string | null;
+    source_provider?: string | null;
+    source_provider_label?: string | null;
+    source_title?: string | null;
+    source_key?: string | null;
+    source_url?: string | null;
+    source_link_allowed?: boolean;
+    source_last_synced_at?: string | null;
+    source_sync_version?: number | null;
+    source_visibility?: string | null;
+    source_trust_status?: string | null;
+    document_title?: string | null;
+    document_type?: string | null;
+    document_owner_id?: string | null;
+    document_owner_email?: string | null;
+    document_owner_display_name?: string | null;
+    document_version_label?: string | null;
+    document_last_updated_at?: string | null;
+    document_last_indexed_at?: string | null;
+    chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
+    review_status?:
+      | "current"
+      | "trusted"
+      | "needs_review"
+      | "stale"
+      | "expired"
+      | "archived";
+    review_owner_id?: string | null;
+    review_due_date?: string | null;
+    expiry_date?: string | null;
+    trust_level?: string | null;
+    quality_state?: DocumentQualityState | null;
+    quality_notes?: string | null;
+    trusted_by_id?: string | null;
+    trust_status?:
+      | "draft"
+      | "current"
+      | "verified"
+      | "stale"
+      | "deprecated"
+      | "superseded"
+      | "expired";
+    version_label?: string | null;
+    review_date?: string | null;
+    effective_date?: string | null;
+    trusted_at?: string | null;
+    stale_after_days?: number | null;
+    superseded_by_document_id?: string | null;
+    ocr_quality_status?: string | null;
+  }
+>;
 
 export type OcrPageQuality = {
   page_number: number;

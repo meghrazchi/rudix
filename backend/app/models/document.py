@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
@@ -77,6 +78,20 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_documents_org_trust_status", "organization_id", "trust_status"),
         Index("idx_documents_org_quality_state", "organization_id", "quality_state"),
         Index("idx_documents_org_review_date", "organization_id", "review_date"),
+        Index(
+            "idx_documents_processing_started",
+            "processing_started_at",
+            postgresql_where=sql_text("status = 'processing'"),
+        ),
+        # Created by migrations 20260602_0016 and 20260624_0001; mirrored here (R04-02).
+        Index("idx_documents_duplicate_of", "duplicate_of_document_id"),
+        Index("idx_documents_current_version_id", "current_version_id"),
+        Index(
+            "idx_documents_org_created",
+            "organization_id",
+            sql_text("created_at DESC"),
+            sql_text("id DESC"),
+        ),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -103,6 +118,15 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chunk_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Processing claim (R02-02): the Celery task id that owns the current processing run,
+    # when it claimed the row, and how many times the stale reaper has re-queued it.
+    processing_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    processing_reap_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
     source: Mapped[str | None] = mapped_column(String(512), nullable=True)
     language: Mapped[str | None] = mapped_column(String(32), nullable=True)
     language_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -316,6 +340,9 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_chunks_parent_chunk_id", "parent_chunk_id"),
         Index("idx_chunks_chunk_level", "chunk_level"),
         Index("idx_chunks_chunk_type", "chunk_type"),
+        # 0.6.0 (R06-09): built CONCURRENTLY by migration 20261128_0003.
+        Index("idx_chunks_org_document", "organization_id", "document_id"),
+        Index("idx_chunks_fts_vector", "fts_vector", postgresql_using="gin"),
     )
 
     document_id: Mapped[UUID] = mapped_column(
@@ -362,6 +389,22 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         TSVECTOR,
         Computed("to_tsvector('english', COALESCE(text, ''))", persisted=True),
         nullable=True,
+    )
+
+    # 0.6.0 (R06-09): tenant column and language-aware full-text vector. Nullable until
+    # documents.chunks.backfill_tenant has filled every row and the operator applies
+    # deploy/sql/document_chunks_not_null.sql. No foreign key: the document's own FK and
+    # the writers (chunk stage, backfill) keep it equal to documents.organization_id.
+    organization_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    # PostgreSQL text search configuration the chunk was indexed with (english, german,
+    # spanish, french, simple); see app.domains.documents.services.fts_config.
+    fts_config: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Written by the application (to_tsvector(fts_config, text)), not generated. Deferred so
+    # ordinary chunk loads do not fetch the vector.
+    fts_vector = mapped_column(
+        TSVECTOR().with_variant(Text(), "sqlite"),
+        nullable=True,
+        deferred=True,
     )
 
     document = relationship("Document", back_populates="chunks")

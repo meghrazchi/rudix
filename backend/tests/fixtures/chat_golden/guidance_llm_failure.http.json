@@ -1,0 +1,23 @@
+{
+  "chat_messages": [],
+  "chat_sessions": [],
+  "citations": [],
+  "error": {
+    "code": "generation_failed",
+    "message": "Answer generation is unavailable"
+  },
+  "provider_call_count": 2,
+  "provider_calls": [
+    {
+      "kind": "guidance",
+      "prompt_sha256": "9740df8e15bbb48ace33c63cabfeb10f65752376a33a2ec25d9104238f8480ef"
+    },
+    {
+      "kind": "guidance",
+      "prompt_sha256": "9740df8e15bbb48ace33c63cabfeb10f65752376a33a2ec25d9104238f8480ef"
+    }
+  ],
+  "questions_quota_delta": 0,
+  "status_code": 503,
+  "usage_events": []
+}

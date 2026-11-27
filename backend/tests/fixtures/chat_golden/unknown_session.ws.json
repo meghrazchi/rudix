@@ -1,0 +1,44 @@
+{
+  "chat_messages": [],
+  "chat_sessions": [],
+  "citations": [],
+  "error": {
+    "payload": null,
+    "safe_error_code": "chat_session_not_found"
+  },
+  "events": [
+    {
+      "event": "chat.request.received",
+      "payload_keys": []
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "understanding_question"
+    },
+    {
+      "event": "chat.scope.validated",
+      "payload_keys": [
+        "scope_label"
+      ]
+    },
+    {
+      "event": "chat.error",
+      "payload": null,
+      "payload_keys": [],
+      "safe_error_code": "chat_session_not_found"
+    }
+  ],
+  "provider_call_count": 0,
+  "provider_calls": [],
+  "questions_quota_delta": 0,
+  "usage_events": []
+}

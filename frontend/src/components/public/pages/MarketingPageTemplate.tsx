@@ -70,8 +70,8 @@ export function MarketingPageTemplate({
       <FinalCtaBand
         title="Build with Rudix"
         description="Start with a secure RAG foundation and scale with confidence."
-        primaryLabel="Get Started"
-        primaryHref={links.startTrial}
+        primaryLabel="Request Demo"
+        primaryHref={links.requestDemo}
         secondaryLabel="View Product"
         secondaryHref={links.product}
       />

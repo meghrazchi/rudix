@@ -316,6 +316,24 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("tab", { name: "Billing" })).toBeInTheDocument();
   });
 
+  it("does not render a second h1 next to the app shell page title", () => {
+    renderPage();
+
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Settings" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the Profile tab content inside the panel its tab controls", () => {
+    renderPage();
+
+    const tab = screen.getByRole("tab", { name: "Profile" });
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("id", tab.getAttribute("aria-controls"));
+    expect(panel).toHaveAttribute("aria-labelledby", tab.id);
+  });
+
   it("defaults to the Profile tab when no tab param is set", async () => {
     renderPage();
 

@@ -1,7 +1,16 @@
 name: Playwright E2E
 
 on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -34,17 +43,51 @@ env:
   NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL: /solutions
   NEXT_PUBLIC_PUBLIC_SECURITY_URL: /security
   NEXT_PUBLIC_PUBLIC_PRICING_URL: /pricing
-  NEXT_PUBLIC_PUBLIC_DOCS_URL: /docs
-  NEXT_PUBLIC_PUBLIC_TRIAL_URL: /signup
   NEXT_PUBLIC_PUBLIC_DEMO_URL: /contact
   NEXT_PUBLIC_PUBLIC_CONTACT_URL: /contact
   NEXT_PUBLIC_PUBLIC_STATUS_URL: /status
   NEXT_PUBLIC_PUBLIC_LOGIN_URL: /login
 
 jobs:
+  # No workflow-level `paths` filter: a required check skipped that way stays
+  # pending forever. `changes` decides instead; a job skipped by `if:` reports
+  # as skipped, which satisfies a required check.
+  changes:
+    name: Detect frontend changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.diff.outputs.frontend }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compare with the pull request base
+        id: diff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${EVENT_NAME}" != "pull_request" ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "${BASE_SHA}...HEAD")"
+          if printf '%s\n' "${changed}" \
+            | grep -Eq '^(frontend/|\.github/workflows/playwright\.yml$)'; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+
   frontend-e2e:
     name: Frontend Playwright
-    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    # Playwright 1.60 cannot install browsers on ubuntu-latest (26.04) yet;
+    # pin the last supported image until Playwright adds 26.04.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7

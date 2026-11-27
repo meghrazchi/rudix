@@ -282,6 +282,9 @@ def test_ensure_qdrant_collection_creates_tenant_and_filter_payload_indexes(
         "document_id",
         "index_version",
         "chunk_level",
+        # R06-06: embedding reuse looks points up by chunk hash.
+        "chunk_hash",
     }
+    assert getattr(by_field["chunk_hash"], "is_tenant", None) in (None, False)
     assert getattr(by_field["organization_id"], "is_tenant", False) is True
     assert getattr(by_field["document_id"], "is_tenant", None) in (None, False)

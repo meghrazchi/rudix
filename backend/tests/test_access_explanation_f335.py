@@ -175,7 +175,7 @@ class TestListConflicts:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.admin)
         resp = await conflict_client.get(
-            "/admin/permissions/conflicts",
+            "/api/v1/admin/permissions/conflicts",
             headers=_headers(user, org),
         )
         assert resp.status_code == 200
@@ -188,7 +188,7 @@ class TestListConflicts:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.member)
         resp = await conflict_client.get(
-            "/admin/permissions/conflicts",
+            "/api/v1/admin/permissions/conflicts",
             headers=_headers(user, org),
         )
         assert resp.status_code == 403
@@ -215,7 +215,7 @@ class TestListConflicts:
         await db_session.commit()
 
         resp = await conflict_client.get(
-            "/admin/permissions/conflicts?severity=blocking",
+            "/api/v1/admin/permissions/conflicts?severity=blocking",
             headers=_headers(user, org),
         )
         assert resp.status_code == 200
@@ -245,7 +245,7 @@ class TestListConflicts:
         await db_session.commit()
 
         resp = await conflict_client.get(
-            "/admin/permissions/conflicts?severity=info",
+            "/api/v1/admin/permissions/conflicts?severity=info",
             headers=_headers(user, org),
         )
         assert resp.status_code == 200
@@ -274,7 +274,7 @@ class TestListConflicts:
         await db_session.commit()
 
         resp = await conflict_client.get(
-            "/admin/permissions/conflicts?page_size=2",
+            "/api/v1/admin/permissions/conflicts?page_size=2",
             headers=_headers(user, org),
         )
         assert resp.status_code == 200
@@ -310,7 +310,7 @@ class TestGetConflict:
         await db_session.commit()
 
         resp = await conflict_client.get(
-            f"/admin/permissions/conflicts/{conflict.id}",
+            f"/api/v1/admin/permissions/conflicts/{conflict.id}",
             headers=_headers(user, org),
         )
         assert resp.status_code == 200
@@ -325,7 +325,7 @@ class TestGetConflict:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.admin)
         resp = await conflict_client.get(
-            f"/admin/permissions/conflicts/{uuid4()}",
+            f"/api/v1/admin/permissions/conflicts/{uuid4()}",
             headers=_headers(user, org),
         )
         assert resp.status_code == 404
@@ -353,7 +353,7 @@ class TestGetConflict:
         await db_session.commit()
 
         resp = await conflict_client.get(
-            f"/admin/permissions/conflicts/{conflict.id}",
+            f"/api/v1/admin/permissions/conflicts/{conflict.id}",
             headers=_headers(user_a, org_a),
         )
         assert resp.status_code == 404
@@ -386,7 +386,7 @@ class TestUpdateConflictStatus:
         await db_session.commit()
 
         resp = await conflict_client.patch(
-            f"/admin/permissions/conflicts/{conflict.id}/status",
+            f"/api/v1/admin/permissions/conflicts/{conflict.id}/status",
             json={"status": "investigating", "resolution_note": "Looking into it"},
             headers=_headers(user, org),
         )
@@ -415,7 +415,7 @@ class TestUpdateConflictStatus:
         await db_session.commit()
 
         resp = await conflict_client.patch(
-            f"/admin/permissions/conflicts/{conflict.id}/status",
+            f"/api/v1/admin/permissions/conflicts/{conflict.id}/status",
             json={"status": "resolved"},
             headers=_headers(user, org),
         )
@@ -448,7 +448,7 @@ class TestUpdateConflictStatus:
         await db_session.commit()
 
         resp = await conflict_client.patch(
-            f"/admin/permissions/conflicts/{conflict.id}/status",
+            f"/api/v1/admin/permissions/conflicts/{conflict.id}/status",
             json={"status": "dismissed"},
             headers=_headers(user, org),
         )
@@ -459,7 +459,7 @@ class TestUpdateConflictStatus:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.member)
         resp = await conflict_client.patch(
-            f"/admin/permissions/conflicts/{uuid4()}/status",
+            f"/api/v1/admin/permissions/conflicts/{uuid4()}/status",
             json={"status": "resolved"},
             headers=_headers(user, org),
         )
@@ -476,7 +476,7 @@ class TestScanConflicts:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.admin)
         resp = await conflict_client.post(
-            "/admin/permissions/conflicts/scan",
+            "/api/v1/admin/permissions/conflicts/scan",
             headers=_headers(user, org),
         )
         assert resp.status_code == 200
@@ -493,7 +493,7 @@ class TestScanConflicts:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.member)
         resp = await conflict_client.post(
-            "/admin/permissions/conflicts/scan",
+            "/api/v1/admin/permissions/conflicts/scan",
             headers=_headers(user, org),
         )
         assert resp.status_code == 403
@@ -528,7 +528,7 @@ class TestExplainDecision:
         await db_session.commit()
 
         resp = await conflict_client.get(
-            "/admin/permissions/explain-decision",
+            "/api/v1/admin/permissions/explain-decision",
             params={
                 "subject_user_id": str(subject_user.id),
                 "resource_type": "document",
@@ -567,7 +567,7 @@ class TestExplainDecision:
         await db_session.commit()
 
         resp = await conflict_client.get(
-            "/admin/permissions/explain-decision",
+            "/api/v1/admin/permissions/explain-decision",
             params={
                 "subject_user_id": str(subject_user.id),
                 "resource_type": "document",
@@ -582,7 +582,7 @@ class TestExplainDecision:
     ) -> None:
         admin_user, org = await _seed(db_session, role=OrganizationRole.admin)
         resp = await conflict_client.get(
-            "/admin/permissions/explain-decision",
+            "/api/v1/admin/permissions/explain-decision",
             params={
                 "subject_user_id": str(uuid4()),
                 "resource_type": "document",
@@ -597,7 +597,7 @@ class TestExplainDecision:
     ) -> None:
         user, org = await _seed(db_session, role=OrganizationRole.member)
         resp = await conflict_client.get(
-            "/admin/permissions/explain-decision",
+            "/api/v1/admin/permissions/explain-decision",
             params={
                 "subject_user_id": str(uuid4()),
                 "resource_type": "document",
@@ -630,7 +630,7 @@ class TestExplainDecision:
         await db_session.commit()
 
         resp = await conflict_client.get(
-            "/admin/permissions/explain-decision",
+            "/api/v1/admin/permissions/explain-decision",
             params={
                 "subject_user_id": str(subject_user.id),
                 "resource_type": "document",

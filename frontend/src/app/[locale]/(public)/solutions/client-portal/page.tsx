@@ -18,7 +18,10 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function ClientPortalSolutionRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Client Portal solution page">
+    <PublicMarketingLayout
+      pageLabel="Client Portal solution page"
+      theme="system"
+    >
       <ClientPortalSolutionPage />
     </PublicMarketingLayout>
   );

@@ -208,12 +208,15 @@ export default function OrganizationOnboardingPage() {
 
   if (state.status !== "authenticated" || loadingDraft) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6">
-        <div className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 text-center shadow-sm">
-          <h1 className="text-2xl font-bold text-[#2a2640]">
+      <div
+        data-public-theme="system"
+        className="rudix-public bg-site-canvas text-site-ink flex min-h-screen items-center justify-center bg-[radial-gradient(60%_45%_at_50%_0%,var(--site-accent-soft),transparent)] px-6"
+      >
+        <div className="border-site-border bg-site-surface w-full max-w-xl rounded-2xl border p-7 text-center shadow-sm">
+          <h1 className="text-site-ink text-2xl font-bold">
             Preparing organization setup
           </h1>
-          <p className="mt-2 text-sm text-[#68647b]">
+          <p className="text-site-ink-muted mt-2 text-sm">
             Loading your onboarding state.
           </p>
         </div>
@@ -222,8 +225,11 @@ export default function OrganizationOnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6 py-8">
-      <main className="w-full max-w-3xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
+    <div
+      data-public-theme="system"
+      className="rudix-public bg-site-canvas text-site-ink flex min-h-screen items-center justify-center bg-[radial-gradient(60%_45%_at_50%_0%,var(--site-accent-soft),transparent)] px-6 py-8"
+    >
+      <main className="border-site-border bg-site-surface w-full max-w-3xl rounded-3xl border p-7 shadow-[0_24px_60px_-32px_rgba(15,17,23,0.25)] md:p-9">
         <div className="mb-2 flex items-center gap-2">
           <Image
             src="/brand/rudix-mark.svg"
@@ -232,14 +238,14 @@ export default function OrganizationOnboardingPage() {
             height={18}
             className="h-[18px] w-[18px]"
           />
-          <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+          <p className="text-site-ink-muted text-xs font-bold tracking-[0.18em] uppercase">
             Rudix Setup
           </p>
         </div>
-        <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+        <h1 className="text-site-ink mb-2 text-3xl font-semibold tracking-tight">
           Organization onboarding
         </h1>
-        <p className="mb-5 text-sm text-[#68647b]">
+        <p className="text-site-ink-muted mb-5 text-sm">
           Create your workspace, configure access defaults, and invite initial
           team members.
         </p>
@@ -250,8 +256,8 @@ export default function OrganizationOnboardingPage() {
               key={label}
               className={`rounded-lg border px-3 py-2 text-xs font-semibold tracking-wide uppercase ${
                 index <= currentStep
-                  ? "border-[#3525cd] bg-[#f1efff] text-[#3525cd]"
-                  : "border-[#e0dced] bg-white text-[#78748f]"
+                  ? "border-site-accent bg-site-canvas text-site-accent-ink"
+                  : "border-site-border bg-site-surface text-site-ink-subtle"
               }`}
             >
               Step {index + 1}: {label}
@@ -267,7 +273,7 @@ export default function OrganizationOnboardingPage() {
           {currentStep === 0 ? (
             <section className="space-y-3">
               <label className="block" htmlFor="workspaceName">
-                <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                <span className="text-site-ink-muted mb-1 block text-xs font-medium">
                   Workspace name
                 </span>
                 <input
@@ -275,11 +281,14 @@ export default function OrganizationOnboardingPage() {
                   type="text"
                   autoComplete="organization"
                   {...form.register("workspaceName")}
-                  className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                  className="border-site-border ring-site-accent/20 h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring"
                 />
               </label>
               {form.formState.errors.workspaceName?.message ? (
-                <p role="alert" className="text-xs text-rose-700">
+                <p
+                  role="alert"
+                  className="text-xs text-rose-700 dark:text-rose-300"
+                >
                   {form.formState.errors.workspaceName.message}
                 </p>
               ) : null}
@@ -289,7 +298,7 @@ export default function OrganizationOnboardingPage() {
           {currentStep === 1 ? (
             <section className="space-y-3">
               <label className="block" htmlFor="domainAllowlistText">
-                <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                <span className="text-site-ink-muted mb-1 block text-xs font-medium">
                   Domain allowlist (optional)
                 </span>
                 <textarea
@@ -297,30 +306,33 @@ export default function OrganizationOnboardingPage() {
                   rows={4}
                   placeholder="example.com\nacme.org"
                   {...form.register("domainAllowlistText")}
-                  className="w-full rounded-lg border border-[#d2cee6] px-3 py-2 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                  className="border-site-border ring-site-accent/20 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring"
                 />
               </label>
               {form.formState.errors.domainAllowlistText?.message ? (
-                <p role="alert" className="text-xs text-rose-700">
+                <p
+                  role="alert"
+                  className="text-xs text-rose-700 dark:text-rose-300"
+                >
                   {form.formState.errors.domainAllowlistText.message}
                 </p>
               ) : null}
 
               <label className="block" htmlFor="defaultAccessRole">
-                <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                <span className="text-site-ink-muted mb-1 block text-xs font-medium">
                   Default access role
                 </span>
                 <select
                   id="defaultAccessRole"
                   {...form.register("defaultAccessRole")}
-                  className="h-10 w-full rounded-lg border border-[#d2cee6] bg-white px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                  className="border-site-border bg-site-surface ring-site-accent/20 h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring"
                 >
                   <option value="member">member</option>
                   <option value="viewer">viewer</option>
                 </select>
               </label>
 
-              <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] p-3 text-sm text-[#2d2a3f]">
+              <label className="border-site-border bg-site-surface text-site-ink flex items-start gap-2 rounded-lg border p-3 text-sm">
                 <input
                   type="checkbox"
                   {...form.register("allowSelfServeJoin")}
@@ -336,7 +348,7 @@ export default function OrganizationOnboardingPage() {
           {currentStep === 2 ? (
             <section className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                <p className="text-site-ink-muted text-xs font-medium">
                   Initial invites
                 </p>
                 <button
@@ -344,7 +356,7 @@ export default function OrganizationOnboardingPage() {
                   onClick={() =>
                     invitesArray.append({ email: "", role: "member" })
                   }
-                  className="rounded-lg border border-[#d2cee6] px-3 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+                  className="border-site-border text-site-accent-ink hover:bg-site-canvas rounded-lg border px-3 py-1 text-xs font-semibold"
                 >
                   Add invite
                 </button>
@@ -360,11 +372,11 @@ export default function OrganizationOnboardingPage() {
                       type="email"
                       placeholder="teammate@company.com"
                       {...form.register(`invites.${index}.email` as const)}
-                      className="h-10 rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                      className="border-site-border ring-site-accent/20 h-10 rounded-lg border px-3 text-sm outline-none focus:ring"
                     />
                     <select
                       {...form.register(`invites.${index}.role` as const)}
-                      className="h-10 rounded-lg border border-[#d2cee6] bg-white px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                      className="border-site-border bg-site-surface ring-site-accent/20 h-10 rounded-lg border px-3 text-sm outline-none focus:ring"
                     >
                       <option value="admin">admin</option>
                       <option value="member">member</option>
@@ -374,14 +386,14 @@ export default function OrganizationOnboardingPage() {
                       type="button"
                       onClick={() => invitesArray.remove(index)}
                       disabled={invitesArray.fields.length <= 1}
-                      className="h-10 rounded-lg border border-[#e0dced] px-3 text-xs font-semibold text-[#7c7891] hover:bg-[#f8f6ff] disabled:opacity-50"
+                      className="border-site-border text-site-ink-subtle hover:bg-site-canvas h-10 rounded-lg border px-3 text-xs font-semibold disabled:opacity-50"
                     >
                       Remove
                     </button>
                     {form.formState.errors.invites?.[index]?.email?.message ? (
                       <p
                         role="alert"
-                        className="text-xs text-rose-700 sm:col-span-3"
+                        className="text-xs text-rose-700 sm:col-span-3 dark:text-rose-300"
                       >
                         {form.formState.errors.invites[index]?.email?.message}
                       </p>
@@ -394,38 +406,38 @@ export default function OrganizationOnboardingPage() {
 
           {currentStep === 3 ? (
             <section className="space-y-4">
-              <div className="rounded-lg border border-[#e0dced] bg-[#faf8ff] p-4">
-                <p className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              <div className="border-site-border bg-site-surface rounded-lg border p-4">
+                <p className="text-site-ink-muted mb-2 text-xs font-medium">
                   Workspace
                 </p>
-                <p className="text-sm text-[#2d2a3f]">
+                <p className="text-site-ink text-sm">
                   {watchedWorkspaceName || "-"}
                 </p>
               </div>
 
-              <div className="rounded-lg border border-[#e0dced] bg-[#faf8ff] p-4">
-                <p className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              <div className="border-site-border bg-site-surface rounded-lg border p-4">
+                <p className="text-site-ink-muted mb-2 text-xs font-medium">
                   Allowed domains
                 </p>
                 {reviewDomains.length ? (
-                  <ul className="list-disc pl-5 text-sm text-[#2d2a3f]">
+                  <ul className="text-site-ink list-disc pl-5 text-sm">
                     {reviewDomains.map((domain) => (
                       <li key={domain}>{domain}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-[#6f6b84]">
+                  <p className="text-site-ink-muted text-sm">
                     No domain restrictions configured.
                   </p>
                 )}
               </div>
 
-              <div className="rounded-lg border border-[#e0dced] bg-[#faf8ff] p-4">
-                <p className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              <div className="border-site-border bg-site-surface rounded-lg border p-4">
+                <p className="text-site-ink-muted mb-2 text-xs font-medium">
                   Invites
                 </p>
                 {reviewInvites.length ? (
-                  <ul className="space-y-1 text-sm text-[#2d2a3f]">
+                  <ul className="text-site-ink space-y-1 text-sm">
                     {reviewInvites.map((invite) => (
                       <li key={`${invite.email}:${invite.role}`}>
                         {invite.email} ({invite.role})
@@ -433,7 +445,7 @@ export default function OrganizationOnboardingPage() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-[#6f6b84]">
+                  <p className="text-site-ink-muted text-sm">
                     No initial invites added.
                   </p>
                 )}
@@ -442,7 +454,7 @@ export default function OrganizationOnboardingPage() {
           ) : null}
 
           {saveMessage ? (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
               {saveMessage}
             </p>
           ) : null}
@@ -450,7 +462,7 @@ export default function OrganizationOnboardingPage() {
           {submissionError ? (
             <p
               role="alert"
-              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
             >
               {submissionError}
             </p>
@@ -462,7 +474,7 @@ export default function OrganizationOnboardingPage() {
                 type="button"
                 onClick={goToPreviousStep}
                 disabled={currentStep === 0}
-                className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:opacity-50"
+                className="border-site-border text-site-accent-ink hover:bg-site-canvas rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
               >
                 Back
               </button>
@@ -472,7 +484,7 @@ export default function OrganizationOnboardingPage() {
                   onClick={() => {
                     void goToNextStep();
                   }}
-                  className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
+                  className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover rounded-full px-4 py-2 text-sm font-semibold"
                 >
                   Next
                 </button>
@@ -480,7 +492,7 @@ export default function OrganizationOnboardingPage() {
                 <button
                   type="submit"
                   disabled={form.formState.isSubmitting}
-                  className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:opacity-60"
+                  className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60"
                 >
                   {form.formState.isSubmitting
                     ? "Finishing..."
@@ -498,7 +510,7 @@ export default function OrganizationOnboardingPage() {
                   setCurrentStep(0);
                   setSaveMessage("Draft cleared.");
                 }}
-                className="rounded-lg border border-[#e0dced] px-4 py-2 text-sm font-semibold text-[#7c7891] hover:bg-[#f8f6ff]"
+                className="border-site-border text-site-ink-subtle hover:bg-site-canvas rounded-lg border px-4 py-2 text-sm font-semibold"
               >
                 Reset
               </button>
@@ -507,13 +519,13 @@ export default function OrganizationOnboardingPage() {
                 onClick={() => {
                   void handleSaveDraft();
                 }}
-                className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+                className="border-site-border text-site-accent-ink hover:bg-site-canvas rounded-lg border px-4 py-2 text-sm font-semibold"
               >
                 Save draft
               </button>
               <Link
                 href="/dashboard"
-                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
+                className="text-site-ink-muted decoration-site-ink-subtle text-sm font-semibold underline"
               >
                 Skip to dashboard
               </Link>

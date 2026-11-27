@@ -24,6 +24,16 @@ variable "ssh_user" {
   type        = string
 }
 
+variable "ssh_host_key" {
+  description = "Pinned public host key of the deploy host, \"<type> <base64>\" (fields 2 and 3 of its known_hosts line). No default: an unpinned connection is refused."
+  type        = string
+
+  validation {
+    condition     = length(regexall("^[a-z0-9@.-]+ [A-Za-z0-9+/=]+$", trimspace(var.ssh_host_key))) == 1
+    error_message = "ssh_host_key must look like \"ssh-ed25519 AAAA...\" (key type and base64, no host field)."
+  }
+}
+
 variable "ssh_private_key" {
   description = "SSH private key used for deployment."
   type        = string
@@ -117,25 +127,31 @@ variable "neo4j_password" {
 }
 
 variable "backup_check_enabled" {
-  description = "Whether to enforce remote backup artifact checks before deployment."
+  description = "Deprecated: the backup gate now runs in the release workflow (deploy/scripts/check_remote_backups.sh). Still set by release.yml; kept as a rollout trigger only."
   type        = bool
   default     = false
 }
 
 variable "postgres_backup_path" {
-  description = "Remote path to PostgreSQL backup artifact."
+  description = "Deprecated: unused by Terraform; the release workflow checks backups. Still set by release.yml."
   type        = string
   default     = ""
 }
 
 variable "minio_backup_path" {
-  description = "Remote path to MinIO backup artifact."
+  description = "Deprecated: unused by Terraform; the release workflow checks backups. Still set by release.yml."
   type        = string
   default     = ""
 }
 
 variable "qdrant_backup_path" {
-  description = "Remote path to Qdrant snapshot artifact."
+  description = "Deprecated: unused by Terraform; the release workflow checks backups. Still set by release.yml."
   type        = string
   default     = ""
+}
+
+variable "infra_services" {
+  description = "Space-separated services started with --wait before migrations. Must name only services defined in the environment's compose file."
+  type        = string
+  default     = "postgres rabbitmq redis minio qdrant"
 }

@@ -1,0 +1,9 @@
+Password rotation: workforce account passwords must contain at least sixteen characters. Passwords are rotated only after a suspected compromise, never on a fixed calendar schedule.
+
+Multi-factor authentication: hardware security keys are mandatory for administrators. Other staff may use an authenticator app as the second factor.
+
+Laptop encryption: every company laptop uses full disk encryption, and the recovery key is escrowed in the device management console.
+
+Incident reporting: suspected security incidents must be reported to the security operations desk within one hour of discovery by calling extension 4400.
+
+Visitor badges: visitors receive a temporary red badge at reception and must be escorted by their host at all times.

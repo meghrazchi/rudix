@@ -36,6 +36,8 @@ class ConnectorSyncJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_connector_sync_jobs_org_status", "organization_id", "status"),
         Index("idx_connector_sync_jobs_connection_id", "connection_id"),
         Index("idx_connector_sync_jobs_source_id", "external_source_id"),
+        # Built concurrently by migration 20261128_0003 (R06-11 due-job scan); mirrored here.
+        Index("idx_connector_sync_jobs_due", "status", "next_run_at"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -68,6 +70,8 @@ class ConnectorSyncJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     cursor_json: Mapped[dict] = mapped_column("cursor", JSON, nullable=False, default=dict)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 0.6.0 (migration 20261128_0002): when the job is next due; chain D maintains it.
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     organization = relationship("Organization")
     connection = relationship("ConnectorConnection", back_populates="sync_jobs")
@@ -92,6 +96,8 @@ class ConnectorSyncRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint("items_deleted >= 0", name="connector_sync_runs_deleted_non_negative"),
         Index("idx_connector_sync_runs_org_status", "organization_id", "status"),
         Index("idx_connector_sync_runs_job_created", "sync_job_id", "created_at"),
+        # Created by migration 20260605_0010; mirrored here (R04-02).
+        Index("idx_connector_sync_runs_connection_status", "connection_id", "status"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -136,6 +142,14 @@ class ConnectorSyncRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_details_json: Mapped[dict] = mapped_column(
         "error_details", JSON, nullable=False, default=dict
+    )
+    # 0.6.0 (migration 20261128_0002): page checkpoints and the run lease (chain D).
+    checkpoint_cursor: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    checkpoint_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lease_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    pages_committed: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
     )
 
     organization = relationship("Organization")

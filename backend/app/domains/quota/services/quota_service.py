@@ -7,11 +7,15 @@ quota enforcement checks, and override resolution.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
+from pydantic import TypeAdapter
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import OrgScope, get_or_load
+from app.core.config import settings
 from app.domains.quota.repositories.quota_repository import QuotaRepository
 from app.domains.quota.schemas.quota_schemas import (
     OrgQuotaDashboardResponse,
@@ -104,6 +108,17 @@ def _normalize_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC)
 
 
+# Set on a session whose transaction must stay read-only (the chat pipeline's read phase,
+# R05-02): ``check_quota`` then counts an expired window as zero instead of resetting it, and
+# the increment of the final write resets it.
+DEFER_WINDOW_RESET_INFO_KEY = "quota_defer_window_reset"
+
+
+def defers_window_reset(db_session: object) -> bool:
+    info = getattr(db_session, "info", None)
+    return isinstance(info, dict) and bool(info.get(DEFER_WINDOW_RESET_INFO_KEY, False))
+
+
 def _reset_window_expired(next_reset_at: datetime | None, now: datetime) -> bool:
     normalized_next_reset_at = _normalize_utc(next_reset_at)
     return normalized_next_reset_at is not None and normalized_next_reset_at <= now
@@ -128,11 +143,46 @@ async def _current_seat_count(
 
 def get_effective_limits(policy: OrgQuotaPolicy | None) -> dict[str, dict]:
     """Merge org policy over system defaults for all quota types."""
+    return _merge_limits(dict(policy.limits or {}) if policy is not None else None)
+
+
+NAMESPACE_QUOTA_POLICY = "quota_policy"
+_LIMITS_ADAPTER: TypeAdapter[dict[str, dict[str, Any]] | None] = TypeAdapter(
+    dict[str, dict[str, Any]] | None
+)
+
+
+async def get_effective_limits_cached(
+    db_session: AsyncSession, *, organization_id: UUID
+) -> dict[str, dict]:
+    """Effective limits with the organisation's policy limits cached (R05-05).
+
+    Only the policy's ``limits`` are cached (namespace ``quota_policy``, TTL
+    ``CACHE_TTL_POLICIES_SECONDS``), never usage counters; the system defaults are merged on
+    every call. Policy writes bump the organisation's cache version on commit.
+    """
+
+    async def load() -> dict[str, dict[str, Any]] | None:
+        policy = await _repo.get_policy(db_session, organization_id=organization_id)
+        return dict(policy.limits or {}) if policy is not None else None
+
+    limits = await get_or_load(
+        scope=OrgScope(organization_id),
+        namespace=NAMESPACE_QUOTA_POLICY,
+        key_id="limits",
+        ttl=settings.cache_ttl_policies_seconds,
+        adapter=_LIMITS_ADAPTER,
+        loader=load,
+    )
+    return _merge_limits(limits)
+
+
+def _merge_limits(limits: dict[str, Any] | None) -> dict[str, dict]:
     effective: dict[str, dict] = {}
     for qt in QuotaType:
         default = dict(SYSTEM_DEFAULT_LIMITS[qt])
-        if policy is not None:
-            org_config = (policy.limits or {}).get(qt)
+        if limits is not None:
+            org_config = limits.get(qt)
             if org_config is not None:
                 effective[qt] = {**default, **org_config}
                 continue
@@ -268,7 +318,7 @@ async def get_quota_dashboard(
         if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
             window = limit_config.get("reset_window", ResetWindow.per_day)
             next_reset = _compute_next_reset(window, now)
-            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
+            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset, now=now)
 
         item = _usage_item(qt, usage, limit_config)
         items.append(item)
@@ -291,11 +341,19 @@ async def check_quota(
     quota_type: QuotaType,
     requested_amount: int = 1,
     current_value_override: int | None = None,
+    reset_expired: bool | None = None,
 ) -> QuotaCheckResult:
-    """Check whether the requested action would exceed quota limits."""
+    """Check whether the requested action would exceed quota limits.
+
+    ``reset_expired=False`` keeps the check read-only: an expired window counts as zero and
+    is left for ``increment_quota_usage`` to reset. ``None`` (the default) resets unless the
+    session is marked with ``DEFER_WINDOW_RESET_INFO_KEY`` (the chat pipeline's read phase,
+    R05-02).
+    """
+    if reset_expired is None:
+        reset_expired = not defers_window_reset(db_session)
     now = datetime.now(UTC)
-    policy = await _repo.get_policy(db_session, organization_id=organization_id)
-    effective = get_effective_limits(policy)
+    effective = await get_effective_limits_cached(db_session, organization_id=organization_id)
     limit_config = effective.get(quota_type, SYSTEM_DEFAULT_LIMITS[quota_type])
 
     window = limit_config.get("reset_window", ResetWindow.per_day)
@@ -313,11 +371,19 @@ async def check_quota(
         )
 
         # Reset if window has expired
-        if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
-            next_reset = _compute_next_reset(window, now)
-            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
+        if (
+            not reset_expired
+            and usage is not None
+            and _reset_window_expired(usage.next_reset_at, now)
+        ):
             current = 0
-            next_reset_at = next_reset
+            next_reset_at = _compute_next_reset(window, now)
+        elif _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
+            next_reset = _compute_next_reset(window, now)
+            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset, now=now)
+            # The row is refreshed: another request may have reset and incremented first.
+            current = usage.current_value
+            next_reset_at = _normalize_utc(usage.next_reset_at)
         else:
             current = usage.current_value if usage is not None else 0
             next_reset_at = (
@@ -358,13 +424,20 @@ async def increment_quota_usage(
     organization_id: UUID,
     quota_type: QuotaType,
     amount: int = 1,
-) -> None:
-    """Increment the usage counter for the given quota type."""
+) -> int | None:
+    """Atomically increment the usage counter and return the new value.
+
+    Returns None for seats, which are counted from memberships. The increment is an
+    atomic database upsert and an expired window is reset at most once.
+
+    Known limit: ``check_quota`` and this call are separate steps in the request
+    pipeline, so a burst of concurrent requests can overshoot a hard limit by the
+    number of requests in flight. Closing that gap is planned for 0.5.0.
+    """
     if quota_type == QuotaType.seats:
-        return
+        return None
     now = datetime.now(UTC)
-    policy = await _repo.get_policy(db_session, organization_id=organization_id)
-    effective = get_effective_limits(policy)
+    effective = await get_effective_limits_cached(db_session, organization_id=organization_id)
     limit_config = effective.get(quota_type, SYSTEM_DEFAULT_LIMITS[quota_type])
     window = limit_config.get("reset_window", ResetWindow.per_day)
 
@@ -375,13 +448,14 @@ async def increment_quota_usage(
     if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
         # Window has expired — reset before incrementing
         next_reset = _compute_next_reset(window, now)
-        await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
+        await _repo.reset_usage(db_session, usage, next_reset_at=next_reset, now=now)
 
     next_reset_at = _compute_next_reset(window, now) if usage is None else None
-    await _repo.increment_usage(
+    updated = await _repo.increment_usage(
         db_session,
         organization_id=organization_id,
         quota_type=quota_type,
         amount=amount,
         next_reset_at=next_reset_at,
     )
+    return updated.current_value

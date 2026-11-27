@@ -6,7 +6,14 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache_invalidation import mark_dirty
 from app.models.auth_session import AuthRefreshSession
+
+
+def _mark_revoked_owners(session: AsyncSession, owner_ids: list[UUID]) -> int:
+    """Record revoked sessions' owners for post-commit cache invalidation (R04-05)."""
+    mark_dirty(session, user_ids=owner_ids)
+    return len(owner_ids)
 
 
 class AuthSessionRepository:
@@ -127,8 +134,9 @@ class AuthSessionRepository:
             .where(AuthRefreshSession.session_id == session_id)
             .where(AuthRefreshSession.revoked_at.is_(None))
             .values(revoked_at=revoked_at, revoked_reason=reason)
+            .returning(AuthRefreshSession.user_id)
         )
-        return int(getattr(result, "rowcount", 0) or 0)
+        return _mark_revoked_owners(session, list(result.scalars()))
 
     async def mark_user_sessions_revoked(
         self,
@@ -144,6 +152,8 @@ class AuthSessionRepository:
             .where(AuthRefreshSession.revoked_at.is_(None))
             .values(revoked_at=revoked_at, revoked_reason=reason)
         )
+        # R04-05: cached principal snapshots for this user are dropped on commit.
+        mark_dirty(session, user_ids=[user_id])
         return int(getattr(result, "rowcount", 0) or 0)
 
     async def mark_token_revoked(
@@ -159,8 +169,9 @@ class AuthSessionRepository:
             .where(AuthRefreshSession.refresh_token_hash == refresh_token_hash)
             .where(AuthRefreshSession.revoked_at.is_(None))
             .values(revoked_at=revoked_at, revoked_reason=reason)
+            .returning(AuthRefreshSession.user_id)
         )
-        return int(getattr(result, "rowcount", 0) or 0)
+        return _mark_revoked_owners(session, list(result.scalars()))
 
     async def update_last_used(
         self,

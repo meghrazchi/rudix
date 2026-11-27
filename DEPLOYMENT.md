@@ -166,6 +166,7 @@ All secrets below go under **Repository secrets** (not environment secrets), unl
 | `STAGING_SSH_PORT`        | SSH port — omit if `22`                                                        |
 | `STAGING_SSH_USER`        | Linux user, e.g. `ubuntu`                                                      |
 | `STAGING_SSH_PRIVATE_KEY` | Full content of `~/.ssh/rudix_staging_deploy`                                  |
+| `STAGING_SSH_KNOWN_HOSTS` | Verified `known_hosts` line(s) for the staging host — see [6f](#6f-host-keys)  |
 | `STAGING_APP_PATH`        | `/opt/rudix`                                                                   |
 | `STAGING_ENV_URL`         | `https://staging.getrudix.com`                                                 |
 | `STAGING_ENV_FILE`        | Full `.env` file content — see [step 7](#7-build-the-env-file)                 |
@@ -179,6 +180,7 @@ All secrets below go under **Repository secrets** (not environment secrets), unl
 | `PRODUCTION_SSH_PORT`             | SSH port — omit if `22`                                        |
 | `PRODUCTION_SSH_USER`             | Linux user, e.g. `ubuntu`                                      |
 | `PRODUCTION_SSH_PRIVATE_KEY`      | Full content of `~/.ssh/rudix_production_deploy`               |
+| `PRODUCTION_SSH_KNOWN_HOSTS`      | Verified `known_hosts` line(s) — see [6f](#6f-host-keys)       |
 | `PRODUCTION_APP_PATH`             | `/opt/rudix`                                                   |
 | `PRODUCTION_ENV_URL`              | `https://getrudix.com`                                         |
 | `PRODUCTION_ENV_FILE`             | Full `.env` file content — see [step 7](#7-build-the-env-file) |
@@ -187,6 +189,22 @@ All secrets below go under **Repository secrets** (not environment secrets), unl
 | `PRODUCTION_MINIO_BACKUP_PATH`    | `/opt/backups/minio`                                           |
 | `PRODUCTION_QDRANT_BACKUP_PATH`   | `/opt/backups/qdrant`                                          |
 | `PRODUCTION_BACKUP_CHECK_OK`      | `yes` (confirms backups are running before deploy)             |
+
+Each backup path may be a single file or, as in the examples above, a
+directory of timestamped dumps. Before Terraform runs, the production job calls
+`deploy/scripts/check_remote_backups.sh`, which requires every path to exist and
+to contain at least one regular file modified within the last
+`DEPLOY_BACKUP_MAX_AGE_HOURS` hours (default `26`, so a daily backup always
+passes). A failure names only the failing store (`postgres`, `minio`, or
+`qdrant`) and blocks the deploy. See [step 10](#10-set-up-production-backups).
+
+Optional repository **variables** (Settings → Secrets and variables → Actions →
+Variables) for the production job:
+
+| Variable                       | Default | Effect                                                                                    |
+| ------------------------------ | ------- | ----------------------------------------------------------------------------------------- |
+| `DEPLOY_BACKUP_MAX_AGE_HOURS`  | `26`    | Maximum age of the newest backup file per path (positive integer; also read as a secret). |
+| `DEPLOY_ALLOW_UNPINNED_IMAGES` | `false` | `true` downgrades the unpinned-image errors of the env check (step 7) to warnings.        |
 
 **To paste a private key:** open the file and copy everything including the header and footer lines:
 
@@ -227,7 +245,48 @@ gh secret set PRODUCTION_POSTGRES_BACKUP_PATH --body "/opt/backups/postgres"
 gh secret set PRODUCTION_MINIO_BACKUP_PATH    --body "/opt/backups/minio"
 gh secret set PRODUCTION_QDRANT_BACKUP_PATH   --body "/opt/backups/qdrant"
 gh secret set PRODUCTION_BACKUP_CHECK_OK      --body "yes"
+
+# Pinned host keys (see 6f) and Terraform state (see 6g)
+gh secret set STAGING_SSH_KNOWN_HOSTS    < staging_known_hosts
+gh secret set PRODUCTION_SSH_KNOWN_HOSTS < production_known_hosts
+gh secret set TF_STATE_BUCKET            --body "your-state-bucket"
+gh secret set TF_STATE_REGION            --body "us-east-1"
+gh secret set TF_STATE_ACCESS_KEY_ID     --body "..."
+gh secret set TF_STATE_SECRET_ACCESS_KEY --body "..."
+# Only for an S3-compatible store (MinIO, R2, Spaces):
+gh secret set TF_STATE_ENDPOINT          --body "https://s3.example.com"
 ```
+
+### 6f. Host Keys
+
+Deploys connect with `StrictHostKeyChecking=yes` (`deploy/scripts/ssh_common.sh`) and
+Terraform pins `host_key`, so each environment needs its host key as a secret. There is no
+trust-on-first-use fallback: an empty secret fails the deploy.
+
+```bash
+# From a trusted network; add -p <port> for a non-standard port.
+ssh-keyscan -t ed25519 staging.example.com > staging_known_hosts
+ssh-keygen -lf staging_known_hosts
+# On the server console, compare with:
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+Keep the ed25519 line first: Terraform uses fields 2 and 3 of the first line
+(`ssh-ed25519 AAAA...`). Update the secret whenever the server's host key changes.
+
+### 6g. Terraform State
+
+Terraform keeps its state in an S3 or S3-compatible bucket (`backend "s3" {}` with partial
+configuration), under `rudix/staging.tfstate` and `rudix/production.tfstate`. Create the
+bucket once, with versioning and encryption on and access limited to the deploy credentials,
+then add the `TF_STATE_*` secrets above (`TF_STATE_ENDPOINT` only for S3-compatible stores).
+`deploy/terraform/backend.hcl.example` shows the same settings for a local
+`terraform init -backend-config=...`.
+
+With persistent state, a redeploy with unchanged images, env file, and compose file is a
+no-op. To force a rollout, run `terraform apply -replace=null_resource.compose_rollout` with
+the same variables. Applies are serialized by the per-environment workflow concurrency group
+(Terraform 1.9.8 with S3 has no lock file here), so do not apply by hand while a release runs.
 
 ---
 
@@ -335,7 +394,17 @@ RABBITMQ_DEFAULT_PASS=<strong-password>
 RABBITMQ_URL=amqp://admin:<strong-password>@rabbitmq:5672//   # internal — keep host as-is
 
 # ── Cache ─────────────────────────────────────────────────────────────────────
-REDIS_URL=redis://redis:6379/0             # internal Docker service name — keep as-is
+# Compose builds REDIS_URL as redis://:${REDIS_PASSWORD}@redis:6379/0 for the
+# api, worker, beat, and mcp services and starts Redis with --requirepass.
+REDIS_PASSWORD=<output of: openssl rand -hex 32>   # URL-safe characters only
+
+# ── Infrastructure images (pin exact tags or digests; see below) ─────────────
+QDRANT_IMAGE=qdrant/qdrant@sha256:<digest>
+MINIO_IMAGE=cgr.dev/chainguard/minio@sha256:<digest>
+RABBITMQ_IMAGE=rabbitmq@sha256:<digest>
+# Optional; defaults are redis:7 and clamav/clamav-debian:stable
+# REDIS_IMAGE=redis:7
+# CLAMAV_IMAGE=clamav/clamav-debian:stable
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
 LLM_DEFAULT_PROVIDER=openai
@@ -354,6 +423,62 @@ FEATURE_ENABLE_AGENTS=false
 ```
 
 Everything else in `.env.example` can stay at its default value.
+`MALWARE_SCAN_CLAMAV_HOST` is set to the bundled `clamav` service by the
+staging/production compose files. The backend refuses to start in staging or
+production when malware scanning is enabled and the ClamAV host is a loopback
+address (`localhost`, `127.0.0.1`, `::1`, `0.0.0.0`); set
+`MALWARE_SCAN_ENABLED=false` explicitly only if you accept uploads without a scan.
+
+### Deploy env check
+
+Right after the secrets validation, both deploy jobs run
+`deploy/scripts/check_deploy_env.sh` on the env file (passed through the step's
+`env:` block; values are never printed):
+
+- `REDIS_PASSWORD` must be set and match `^[A-Za-z0-9._~-]+$`.
+- `QDRANT_IMAGE`, `MINIO_IMAGE`, and `RABBITMQ_IMAGE` must be set and pinned:
+  an explicit tag other than `latest`, or a digest.
+
+In production any failure stops the deploy; the image checks become warnings
+when the `DEPLOY_ALLOW_UNPINNED_IMAGES` variable is `true`. In staging every
+finding is a warning.
+
+### Pin the running infrastructure versions before the first deploy
+
+Unset image variables fall back to the previous floating tags
+(`qdrant/qdrant:latest`, `cgr.dev/chainguard/minio:latest`,
+`rabbitmq:3-management`), so pin what each host runs today instead of guessing
+a version. On each server:
+
+```bash
+cd /opt/rudix
+docker compose -f docker-compose.production.yml images   # or docker-compose.staging.yml
+docker inspect --format '{{index .RepoDigests 0}}' "$(docker compose -f docker-compose.production.yml ps -q qdrant)"
+docker inspect --format '{{index .RepoDigests 0}}' "$(docker compose -f docker-compose.production.yml ps -q minio)"
+docker inspect --format '{{index .RepoDigests 0}}' "$(docker compose -f docker-compose.production.yml ps -q rabbitmq)"
+```
+
+Put the printed `image@sha256:...` references into `QDRANT_IMAGE`,
+`MINIO_IMAGE`, and `RABBITMQ_IMAGE` in `PRODUCTION_ENV_FILE` /
+`STAGING_ENV_FILE`. Upgrade later by changing those values deliberately.
+
+### Maintenance window for the Redis/RabbitMQ/ClamAV rollout
+
+The first deploy that adds `REDIS_PASSWORD` and the Redis/RabbitMQ volumes
+recreates the `redis` and `rabbitmq` containers. Plan it in a maintenance window:
+
+- In-flight Celery results and Redis rate-limit counters are lost.
+- Messages queued in RabbitMQ are lost once (they are already lost on every
+  recreate today; from now on `rabbitmq_data` and the fixed `hostname: rabbitmq`
+  keep them across recreates).
+- The first `clamav` start downloads the signature database, which can take
+  several minutes (healthcheck `start_period: 300s`). The API and worker do not
+  wait for it; until it is ready, uploads follow `MALWARE_SCAN_REQUIRED` and
+  `MALWARE_SCAN_BYPASS_ON_UNAVAILABLE`. The final `docker compose up -d --wait`
+  of the Terraform rollout does wait for every service, so that first deploy can
+  take up to about 10 minutes, and it fails if ClamAV never becomes healthy.
+  `clamd` holds the signature database in memory (roughly 1.5 GB, more while it
+  reloads signatures), so check the host's free memory first.
 
 ---
 
@@ -367,11 +492,12 @@ git push origin main
 
 This triggers `release.yml` which:
 
-1. Builds and pushes Docker images to GHCR
-2. Runs the integration smoke test
-3. SSHes into the staging server and deploys via Docker Compose
-4. Runs database migrations on the server
-5. Checks `/api/v1/health` and `/api/v1/ready`
+1. Builds, signs (cosign keyless), and pushes the `api`, `worker`, `frontend-staging`, and
+   `frontend-production` images to GHCR, with SBOM and provenance
+2. Runs the integration smoke test, the image scan, the integration e2e suite, and the quality gate
+3. Deploys staging with Terraform (database migrations run on the server)
+4. Checks `/api/v1/health` and the public endpoints
+5. Tags the deployed digests `staging-passed-<sha>`
 
 Monitor progress at: **GitHub → Actions → Release**
 
@@ -381,20 +507,31 @@ Monitor progress at: **GitHub → Actions → Release**
 gh workflow run release.yml --field target=staging
 ```
 
-### Production (manual dispatch)
+### Production (release by tag)
+
+Production deploys a version tag on `main` whose images already passed staging. Nothing is
+rebuilt: the `api` and `worker` digests are exactly the staged ones.
 
 ```bash
-gh workflow run release.yml --field target=production
+# On a branch, after the commit to release has passed staging:
+python3 scripts/bump_version.py 0.3.0 --changelog   # all version strings + CHANGELOG section
+python3 scripts/bump_version.py --check
+# Merge to main and wait for the staging deploy of that merge commit, then:
+git tag v0.3.0 <merge-commit-sha>
+git push origin v0.3.0
 ```
 
-Or push a version tag:
+The tag run checks that the commit is on `main`, that every version string equals the tag,
+and that `staging-passed-<sha>` images exist; verifies the cosign signatures; deploys;
+tags the images `v0.3.0`; and creates the GitHub Release with the changelog section and
+SBOMs. Re-deploying an existing version without a new tag:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+gh workflow run release.yml --field target=production --field version=v0.3.0
 ```
 
-Production deploy requires approval from the reviewers you added to the `production` Environment in step 5.
+Production dispatch requires `version` and never builds. Production deploy requires
+approval from the reviewers you added to the `production` Environment in step 5.
 
 ---
 
@@ -420,7 +557,20 @@ production, use `https://api.getrudix.com/api/v1/*` and `https://getrudix.com`.
 
 ## 10. Set Up Production Backups
 
-The production deploy job checks that backup artifacts exist before deploying. Set up a cron job on the production server:
+The production deploy job checks that every backup path holds a recent backup
+before deploying. Expected layout: one directory per store with timestamped
+dumps, the newest modified within `DEPLOY_BACKUP_MAX_AGE_HOURS` (default 26 h):
+
+```text
+/opt/backups/postgres/backup-20261125.sql.gz
+/opt/backups/minio/minio-20261125.tar.gz
+/opt/backups/qdrant/documents-20261125.snapshot
+```
+
+A path may also be a single file that is overwritten on each run, or a symlink
+to the latest dump (the check follows a symlinked path). Missing
+paths, empty directories, and stale backups fail the deploy. Set up a cron job
+on the production server:
 
 ```bash
 # On the production server
@@ -432,13 +582,15 @@ crontab -e
 # 0 2 * * * docker exec rudix-postgres pg_dump -U postgres rag_app | gzip > /opt/backups/postgres/backup-$(date +\%Y\%m\%d).sql.gz
 ```
 
-Once at least one backup file exists in each path, the `PRODUCTION_BACKUP_CHECK_OK=yes` secret tells the deploy job the backup system is active.
+Once each path holds a backup newer than the age limit, the `PRODUCTION_BACKUP_CHECK_OK=yes` secret tells the deploy job the backup system is active. Schedule backups at least daily so the 26-hour default always passes.
 
 ---
 
-## 11. Set Up Accuracy Evaluation (Optional)
+## 11. Set Up Accuracy Evaluation
 
 The accuracy eval workflow (`accuracy-eval.yml`) calls your **live deployed API** to measure answer quality. It requires the app to already be deployed.
+
+It runs **nightly at 02:00 UTC** against staging. Before every staging deploy, `release.yml` gates on the **latest completed nightly run** of `ACCURACY_EVAL_SET_ID` (`quality-gate.yml` with `EVALUATION_RUN_ID=latest`); the gate fails when no completed run exists or the newest one is older than **36 hours** (set the repository variable `QUALITY_GATE_MAX_RUN_AGE_HOURS` to change it). Without these secrets the staging deploy is blocked. To bootstrap a repository before staging exists, set the repository variable `QUALITY_GATE_ALLOW_MISSING_CONFIG=true` (missing secrets become a warning); remove it once the secrets below are set.
 
 ### Steps
 
@@ -462,6 +614,13 @@ gh secret set QUALITY_GATE_ID      --body "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 gh workflow run accuracy-eval.yml --field mode=smoke
 ```
 
+Run it once in `nightly` mode after setup so the first staging release has a fresh run to gate on:
+
+```bash
+gh workflow run accuracy-eval.yml --field mode=nightly
+gh variable set QUALITY_GATE_MAX_RUN_AGE_HOURS --body "36"   # optional
+```
+
 ---
 
 ## 12. Set Up Sentry (Optional)
@@ -479,20 +638,40 @@ Sentry releases are tagged automatically on every staging and production deploy.
 
 ## 13. Rollback
 
-To roll back production to a previous image set:
-
-1. Go to **GitHub → Actions → Release → Run workflow**
-2. Set **target** to `rollback`
-3. Paste the image digests from a previous deploy's artifact (download `image-digests` artifact from a prior run)
-
-Or via CLI:
+Roll an environment back to a released version:
 
 ```bash
 gh workflow run release.yml \
   --field target=rollback \
+  --field environment=production \
+  --field version=v0.2.0
+```
+
+`deploy/scripts/rollback.sh <environment> <version>` resolves `api:v0.2.0`,
+`worker:v0.2.0`, and `frontend-<environment>:<commit of v0.2.0>` to digests and swaps the
+images on the host. It does **not** run migrations: the database stays at its current
+revision, and the script prints the revision before rollback and the target image's Alembic
+head.
+
+When old code on the current schema is safe:
+
+- Only additive migrations were applied since the target version (new tables, nullable
+  columns, indexes). Check with `git diff --stat v0.2.0 -- backend/alembic/versions` and
+  `alembic history -r <target head>:<current>`.
+- Never downgrade automatically. If a newer migration dropped, renamed, or rewrote data,
+  restore the database (and the matching MinIO and Qdrant backups) from before the upgrade
+  instead of running `alembic downgrade`.
+
+Deprecated fallback (kept for one milestone): leave `version` empty and pass explicit image
+references, for example from a prior run's `image-digests` artifact:
+
+```bash
+gh workflow run release.yml \
+  --field target=rollback \
+  --field environment=production \
   --field rollback_api_image=ghcr.io/owner/repo/api@sha256:... \
   --field rollback_worker_image=ghcr.io/owner/repo/worker@sha256:... \
-  --field rollback_frontend_image=ghcr.io/owner/repo/frontend@sha256:...
+  --field rollback_frontend_image=ghcr.io/owner/repo/frontend-production@sha256:...
 ```
 
 ---
@@ -515,8 +694,9 @@ gh workflow run release.yml \
  [ ] GHCR_USERNAME secret added
  [ ] GHCR_TOKEN secret added (write:packages scope)
  [ ] OPENAI_API_KEY secret added
- [ ] All STAGING_* secrets added (7 secrets)
- [ ] All PRODUCTION_* secrets added (11 secrets)
+ [ ] All STAGING_* secrets added (8 secrets, including STAGING_SSH_KNOWN_HOSTS)
+ [ ] All PRODUCTION_* secrets added (12 secrets, including PRODUCTION_SSH_KNOWN_HOSTS)
+ [ ] TF_STATE_* secrets added and the state bucket created (versioned, encrypted)
 
  ENV files
  [ ] staging.env file built with real values

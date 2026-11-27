@@ -39,6 +39,9 @@ class DummySession:
 
                 return _Scalars()
 
+            def all(self) -> list[object]:
+                return []
+
             def scalar_one(self) -> int:
                 return 0
 

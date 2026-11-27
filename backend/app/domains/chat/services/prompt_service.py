@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.domains.chat.services.untrusted_context import (
+    neutralise_markers,
+    new_context_boundary,
+    untrusted_context_rule,
+    wrap_context,
+)
 from app.domains.prompt_templates.services.defaults import ANSWER_GENERATION_TEMPLATE
 from app.domains.prompt_templates.services.rendering import render_prompt_template
 
@@ -51,28 +57,40 @@ class PromptService:
         strategy_instruction: str = "",
         answer_language: str | None = None,
         template: str | None = None,
+        context_boundary: str | None = None,
     ) -> str:
+        """Render the answer prompt.
+
+        Each context block sits between ``<<<CONTEXT {b}>>>`` and ``<<<END CONTEXT {b}>>>``
+        lines, where ``b`` is ``context_boundary`` or a fresh random token; any ``<<<`` in
+        the chunk text is neutralised. The untrusted-context rule is prepended in code, so
+        an organisation-edited template cannot drop it (R05-09).
+        """
+        boundary = context_boundary or new_context_boundary()
         allowed_chunk_ids = [chunk.chunk_id for chunk in chunks]
         allowed_chunk_ids_text = ", ".join(allowed_chunk_ids) if allowed_chunk_ids else "<none>"
         context_lines: list[str] = []
         for index, chunk in enumerate(chunks, start=1):
             context_lines.append(
-                f"[{index}]\n"
-                f"document_id={chunk.document_id}\n"
-                f"chunk_id={chunk.chunk_id}\n"
-                f"filename={chunk.filename}\n"
-                f"page_number={chunk.page_number}\n"
-                f"similarity_score={chunk.similarity_score}\n"
-                f"original_rank={chunk.original_rank}\n"
-                f"rerank_score={chunk.rerank_score}\n"
-                f"rerank_rank={chunk.rerank_rank}\n"
-                f"final_rank={chunk.final_rank}\n"
-                f"text:\n{chunk.text}"
+                wrap_context(
+                    f"[{index}]\n"
+                    f"document_id={chunk.document_id}\n"
+                    f"chunk_id={chunk.chunk_id}\n"
+                    f"filename={neutralise_markers(chunk.filename)}\n"
+                    f"page_number={chunk.page_number}\n"
+                    f"similarity_score={chunk.similarity_score}\n"
+                    f"original_rank={chunk.original_rank}\n"
+                    f"rerank_score={chunk.rerank_score}\n"
+                    f"rerank_rank={chunk.rerank_rank}\n"
+                    f"final_rank={chunk.final_rank}\n"
+                    f"text:\n{neutralise_markers(chunk.text)}",
+                    boundary,
+                )
             )
 
         context_block = "\n\n".join(context_lines) if context_lines else "<none>"
         lang_rule = _language_instruction(answer_language)
-        return render_prompt_template(
+        rendered = render_prompt_template(
             template or ANSWER_GENERATION_TEMPLATE,
             {
                 "question": question,
@@ -84,6 +102,7 @@ class PromptService:
                 "answer_language_instruction": lang_rule,
             },
         )
+        return f"{untrusted_context_rule(boundary)}\n\n{rendered}"
 
     def build_guidance_prompt(
         self,

@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function PrivacyPage() {
   return (
-    <PublicMarketingLayout pageLabel="Rudix privacy policy">
+    <PublicMarketingLayout pageLabel="Rudix privacy policy" theme="system">
       <PrivacyPolicyPage />
     </PublicMarketingLayout>
   );

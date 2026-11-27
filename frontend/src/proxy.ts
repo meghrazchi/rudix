@@ -51,7 +51,10 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 export const config = {
+  // Skip Next internals, API routes, static asset folders, and any path with
+  // a file extension (robots.txt, sitemap.xml, llms.txt, icons) so crawlers
+  // and browsers get those files directly instead of a locale redirect.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|brand/|images/|api/).*)",
+    "/((?!_next/static|_next/image|brand/|images/|fonts/|api/|.*\\..*).*)",
   ],
 };

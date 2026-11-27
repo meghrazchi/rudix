@@ -159,7 +159,7 @@ async def viewer_context(db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_get_settings_not_found(mp_client: AsyncClient, admin_context: dict) -> None:
     resp = await mp_client.get(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 404
@@ -173,7 +173,7 @@ async def test_get_settings_not_found(mp_client: AsyncClient, admin_context: dic
 @pytest.mark.asyncio
 async def test_create_settings(mp_client: AsyncClient, admin_context: dict) -> None:
     resp = await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={
             "provider": "openai",
             "llm_model": "gpt-4o",
@@ -206,12 +206,12 @@ async def test_create_settings(mp_client: AsyncClient, admin_context: dict) -> N
 @pytest.mark.asyncio
 async def test_get_settings_after_create(mp_client: AsyncClient, admin_context: dict) -> None:
     await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"provider": "openai", "llm_model": "gpt-4o"},
         headers=_auth(admin_context["token"]),
     )
     resp = await mp_client.get(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 200
@@ -226,12 +226,12 @@ async def test_get_settings_after_create(mp_client: AsyncClient, admin_context: 
 @pytest.mark.asyncio
 async def test_update_settings_bumps_version(mp_client: AsyncClient, admin_context: dict) -> None:
     await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"provider": "openai", "llm_model": "gpt-4o", "max_tokens": 2048},
         headers=_auth(admin_context["token"]),
     )
     resp = await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"llm_model": "gpt-4o-mini"},
         headers=_auth(admin_context["token"]),
     )
@@ -251,19 +251,19 @@ async def test_update_settings_bumps_version(mp_client: AsyncClient, admin_conte
 @pytest.mark.asyncio
 async def test_delete_settings(mp_client: AsyncClient, admin_context: dict) -> None:
     await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"provider": "openai", "llm_model": "gpt-4o"},
         headers=_auth(admin_context["token"]),
     )
     resp = await mp_client.delete(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 204
 
     # Should be 404 after deletion
     resp = await mp_client.get(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 404
@@ -272,7 +272,7 @@ async def test_delete_settings(mp_client: AsyncClient, admin_context: dict) -> N
 @pytest.mark.asyncio
 async def test_delete_settings_not_found(mp_client: AsyncClient, admin_context: dict) -> None:
     resp = await mp_client.delete(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 404
@@ -286,7 +286,7 @@ async def test_delete_settings_not_found(mp_client: AsyncClient, admin_context: 
 @pytest.mark.asyncio
 async def test_effective_policy_system_default(mp_client: AsyncClient, admin_context: dict) -> None:
     resp = await mp_client.get(
-        "/api/model-provider-settings/effective-policy",
+        "/api/v1/model-provider-settings/effective-policy",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 200
@@ -306,12 +306,12 @@ async def test_effective_policy_system_default(mp_client: AsyncClient, admin_con
 @pytest.mark.asyncio
 async def test_effective_policy_org_override(mp_client: AsyncClient, admin_context: dict) -> None:
     await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"provider": "openai", "llm_model": "gpt-4o-mini", "max_retries": 5},
         headers=_auth(admin_context["token"]),
     )
     resp = await mp_client.get(
-        "/api/model-provider-settings/effective-policy",
+        "/api/v1/model-provider-settings/effective-policy",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 200
@@ -330,18 +330,18 @@ async def test_effective_policy_org_override(mp_client: AsyncClient, admin_conte
 @pytest.mark.asyncio
 async def test_change_log_records_updates(mp_client: AsyncClient, admin_context: dict) -> None:
     await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"llm_model": "gpt-4o", "change_note": "First"},
         headers=_auth(admin_context["token"]),
     )
     await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"llm_model": "gpt-4o-mini", "change_note": "Second"},
         headers=_auth(admin_context["token"]),
     )
 
     resp = await mp_client.get(
-        "/api/model-provider-settings/change-log",
+        "/api/v1/model-provider-settings/change-log",
         headers=_auth(admin_context["token"]),
     )
     assert resp.status_code == 200
@@ -362,18 +362,18 @@ async def test_change_log_records_updates(mp_client: AsyncClient, admin_context:
 @pytest.mark.asyncio
 async def test_change_log_includes_reset_entry(mp_client: AsyncClient, admin_context: dict) -> None:
     await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"llm_model": "gpt-4o"},
         headers=_auth(admin_context["token"]),
     )
     await mp_client.delete(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         headers=_auth(admin_context["token"]),
     )
     # Re-create org (change log survives deletion via org FK cascade would delete it,
     # but within same org we test the log count incremented to 2)
     resp = await mp_client.get(
-        "/api/model-provider-settings/change-log",
+        "/api/v1/model-provider-settings/change-log",
         headers=_auth(admin_context["token"]),
     )
     # After DELETE the settings row is gone but log entries are too (CASCADE)
@@ -390,7 +390,7 @@ async def test_change_log_includes_reset_entry(mp_client: AsyncClient, admin_con
 @pytest.mark.asyncio
 async def test_viewer_cannot_update_settings(mp_client: AsyncClient, viewer_context: dict) -> None:
     resp = await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"llm_model": "gpt-4o"},
         headers=_auth(viewer_context["token"]),
     )
@@ -400,7 +400,7 @@ async def test_viewer_cannot_update_settings(mp_client: AsyncClient, viewer_cont
 @pytest.mark.asyncio
 async def test_viewer_cannot_delete_settings(mp_client: AsyncClient, viewer_context: dict) -> None:
     resp = await mp_client.delete(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         headers=_auth(viewer_context["token"]),
     )
     assert resp.status_code == 403
@@ -409,7 +409,7 @@ async def test_viewer_cannot_delete_settings(mp_client: AsyncClient, viewer_cont
 @pytest.mark.asyncio
 async def test_viewer_cannot_view_change_log(mp_client: AsyncClient, viewer_context: dict) -> None:
     resp = await mp_client.get(
-        "/api/model-provider-settings/change-log",
+        "/api/v1/model-provider-settings/change-log",
         headers=_auth(viewer_context["token"]),
     )
     assert resp.status_code == 403
@@ -419,7 +419,7 @@ async def test_viewer_cannot_view_change_log(mp_client: AsyncClient, viewer_cont
 async def test_viewer_can_read_settings(mp_client: AsyncClient, viewer_context: dict) -> None:
     # Viewer can GET effective policy (public-safe endpoint) but cannot read settings (404 since no settings)
     resp = await mp_client.get(
-        "/api/model-provider-settings/effective-policy",
+        "/api/v1/model-provider-settings/effective-policy",
         headers=_auth(viewer_context["token"]),
     )
     assert resp.status_code == 200
@@ -434,7 +434,7 @@ async def test_viewer_can_read_settings(mp_client: AsyncClient, viewer_context: 
 @pytest.mark.asyncio
 async def test_secret_never_in_response(mp_client: AsyncClient, admin_context: dict) -> None:
     resp = await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"provider": "openai", "llm_model": "gpt-4o"},
         headers=_auth(admin_context["token"]),
     )
@@ -454,7 +454,7 @@ async def test_disabled_models_duplicate_rejected(
     mp_client: AsyncClient, admin_context: dict
 ) -> None:
     resp = await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"disabled_models": ["gpt-3.5-turbo", "gpt-3.5-turbo"]},
         headers=_auth(admin_context["token"]),
     )
@@ -466,7 +466,7 @@ async def test_disabled_models_blank_entry_rejected(
     mp_client: AsyncClient, admin_context: dict
 ) -> None:
     resp = await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"disabled_models": ["  "]},
         headers=_auth(admin_context["token"]),
     )
@@ -478,7 +478,7 @@ async def test_max_retries_out_of_range_rejected(
     mp_client: AsyncClient, admin_context: dict
 ) -> None:
     resp = await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"max_retries": 99},
         headers=_auth(admin_context["token"]),
     )
@@ -518,7 +518,7 @@ async def test_org_isolation(mp_client: AsyncClient, db_session: AsyncSession) -
 
     # Org A creates settings
     resp = await mp_client.patch(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         json={"llm_model": "gpt-4o"},
         headers=_auth(token_a),
     )
@@ -526,14 +526,14 @@ async def test_org_isolation(mp_client: AsyncClient, db_session: AsyncSession) -
 
     # Org B should see 404
     resp = await mp_client.get(
-        "/api/model-provider-settings",
+        "/api/v1/model-provider-settings",
         headers=_auth(token_b),
     )
     assert resp.status_code == 404
 
     # Org B effective policy should be system_default
     resp = await mp_client.get(
-        "/api/model-provider-settings/effective-policy",
+        "/api/v1/model-provider-settings/effective-policy",
         headers=_auth(token_b),
     )
     assert resp.json()["source"] == "system_default"

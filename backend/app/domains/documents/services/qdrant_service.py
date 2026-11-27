@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+import asyncio
+import inspect
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from qdrant_client import QdrantClient
-from qdrant_client.http.models import PointStruct
+from qdrant_client.http.exceptions import UnexpectedResponse
+from qdrant_client.http.models import FieldCondition, MatchAny, MatchValue, PointStruct
 
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.domains.documents.services.qdrant_filters import build_organization_filter
+
+logger = get_logger("documents.qdrant")
 
 
 class ChunkLike(Protocol):
@@ -46,8 +52,49 @@ class QdrantDeleteResult:
     deleted: bool
 
 
+def resolve_write_targets() -> list[str]:
+    """Collections a document write goes to, from the last loaded registry snapshot.
+
+    Legacy mode: ``[QDRANT_COLLECTION]``. Alias mode (R06-08): the active generation, plus
+    the building one during a build. ``QdrantService.resolve_write_targets()`` is the
+    async form that refreshes the registry first.
+    """
+    from app.domains.vector_index.services.generation_service import registry
+
+    snapshot = registry.cached()
+    if snapshot is None:
+        return [settings.qdrant_collection]
+    return [target.collection_name for target in snapshot.write_targets]
+
+
+async def _primary_collection() -> str:
+    from app.domains.vector_index.services.generation_service import resolve_write_targets
+
+    return (await resolve_write_targets())[0].collection_name
+
+
+async def _call(method: Callable[..., Any], **kwargs: Any) -> Any:
+    """Await an ``AsyncQdrantClient`` call; an injected sync client returns directly."""
+    result = method(**kwargs)
+    if inspect.isawaitable(result):
+        return await result
+    return result
+
+
 class QdrantService:
-    """Vector index interactions."""
+    """Vector index interactions.
+
+    ``collection_name`` on writes defaults to ``None``, which means the configured
+    ``QDRANT_COLLECTION`` (the behaviour before the argument existed). In alias mode
+    (R06-08) ``None`` means the active generation's collection for upserts, lookups and
+    counts, and every generation whose collection still exists for document deletes.
+
+    R06-07: writes go through ``AsyncQdrantClient`` with ``QDRANT_WRITE_TIMEOUT_SECONDS``
+    (an injected sync client, ``qdrant_client.injected_sync_client()``, is used as is).
+    The collection is ensured at startup and in the migrate job, not here: an upsert is
+    one round trip per batch and a delete one call. A write that finds the configured
+    collection missing (404) bootstraps it once and retries.
+    """
 
     def __init__(self, *, batch_size: int = 128) -> None:
         if batch_size < 1:
@@ -69,13 +116,39 @@ class QdrantService:
         return str(uuid5(NAMESPACE_URL, legacy_key))
 
     @staticmethod
-    def _client() -> QdrantClient:
-        if qdrant_module.qdrant_client is None:
-            qdrant_module.init_qdrant()
-        client = qdrant_module.qdrant_client
-        if client is None:
-            raise RuntimeError("Qdrant client is not initialized")
-        return client
+    def _client() -> Any:
+        injected = qdrant_module.injected_sync_client()
+        if injected is not None:
+            return injected
+        return qdrant_module.get_async_write_client()
+
+    async def _request(self, operation: str, **kwargs: Any) -> Any:
+        method = getattr(self._client(), operation)
+        try:
+            return await _call(method, **kwargs)
+        except UnexpectedResponse as exc:
+            if exc.status_code != 404 or kwargs["collection_name"] != settings.qdrant_collection:
+                raise
+            logger.warning(
+                "qdrant.collection.missing_on_write",
+                collection=kwargs["collection_name"],
+                operation=operation,
+            )
+            from app.clients.qdrant_bootstrap import bootstrap
+
+            if not await asyncio.to_thread(bootstrap):
+                raise
+            return await _call(method, **kwargs)
+
+    async def resolve_write_targets(self) -> list[str]:
+        """``[active]`` or ``[active, building]`` collections (R06-01 seam, R06-08)."""
+        from app.domains.vector_index.services import generation_service
+
+        return [t.collection_name for t in await generation_service.resolve_write_targets()]
+
+    @staticmethod
+    async def _target(collection_name: str | None) -> str:
+        return collection_name or await _primary_collection()
 
     @staticmethod
     def _is_valid_qdrant_point_id(point_id: str) -> bool:
@@ -103,23 +176,31 @@ class QdrantService:
         chunking_strategy: str | None = None,
         chunking_profile_version: str | None = None,
         parent_text_by_chunk_id: dict[UUID, str] | None = None,
+        collection_name: str | None = None,
+        ingest_run_id: str | None = None,
+        embedding_model: str | None = None,
+        vector_size: int | None = None,
     ) -> QdrantUpsertResult:
+        """Upsert the chunks' points.
+
+        ``embedding_model`` overrides the payload's model (a generation filled with another
+        model than the chunk rows name, R06-08); ``vector_size`` is the target collection's
+        dimension (default ``QDRANT_VECTOR_SIZE``).
+        """
         if not chunks:
             return QdrantUpsertResult(point_ids_by_chunk_id={}, upserted_count=0, batch_count=0)
 
-        client = self._client()
-        qdrant_module.ensure_qdrant_collection()
-
+        expected_size = vector_size or settings.qdrant_vector_size
         point_ids_by_chunk_id: dict[UUID, str] = {}
         points: list[PointStruct] = []
         for chunk in chunks:
             vector = vectors_by_chunk_id.get(chunk.id)
             if vector is None:
                 raise ValueError(f"missing embedding vector for chunk {chunk.id}")
-            if len(vector) != settings.qdrant_vector_size:
+            if len(vector) != expected_size:
                 raise ValueError(
                     f"embedding dimension mismatch for chunk {chunk.id}: "
-                    f"expected {settings.qdrant_vector_size}, got {len(vector)}"
+                    f"expected {expected_size}, got {len(vector)}"
                 )
 
             point_id = chunk.qdrant_point_id
@@ -130,45 +211,43 @@ class QdrantService:
                     index_version=chunk.index_version,
                 )
             point_ids_by_chunk_id[chunk.id] = point_id
-            points.append(
-                PointStruct(
-                    id=point_id,
-                    vector=vector,
-                    payload={
-                        "organization_id": str(organization_id),
-                        "user_id": str(user_id),
-                        "document_id": str(document_id),
-                        "chunk_id": str(chunk.id),
-                        "filename": filename,
-                        "file_type": file_type,
-                        "page_number": chunk.page_number,
-                        "chunk_index": chunk.chunk_index,
-                        "text": chunk.text,
-                        "token_count": chunk.token_count,
-                        "embedding_model": chunk.embedding_model,
-                        "index_version": chunk.index_version,
-                        "chunk_hash": chunk.chunk_hash,
-                        "section_path": chunk.section_path,
-                        "language": chunk.language,
-                        "chunking_strategy": chunking_strategy,
-                        "chunking_profile_version": chunking_profile_version,
-                        "chunk_level": chunk.chunk_level,
-                        "parent_chunk_id": (
-                            str(chunk.parent_chunk_id) if chunk.parent_chunk_id else None
-                        ),
-                        "parent_text": ((parent_text_by_chunk_id or {}).get(chunk.id)),
-                        "child_count": chunk.child_count,
-                        "chunk_type": getattr(chunk, "chunk_type", "text"),
-                    },
-                )
-            )
+            payload: dict[str, Any] = {
+                "organization_id": str(organization_id),
+                "user_id": str(user_id),
+                "document_id": str(document_id),
+                "chunk_id": str(chunk.id),
+                "filename": filename,
+                "file_type": file_type,
+                "page_number": chunk.page_number,
+                "chunk_index": chunk.chunk_index,
+                "text": chunk.text,
+                "token_count": chunk.token_count,
+                "embedding_model": embedding_model or chunk.embedding_model,
+                "index_version": chunk.index_version,
+                "chunk_hash": chunk.chunk_hash,
+                "section_path": chunk.section_path,
+                "language": chunk.language,
+                "chunking_strategy": chunking_strategy,
+                "chunking_profile_version": chunking_profile_version,
+                "chunk_level": chunk.chunk_level,
+                "parent_chunk_id": (str(chunk.parent_chunk_id) if chunk.parent_chunk_id else None),
+                "child_count": chunk.child_count,
+                "chunk_type": getattr(chunk, "chunk_type", "text"),
+            }
+            if settings.qdrant_store_parent_text:
+                payload["parent_text"] = (parent_text_by_chunk_id or {}).get(chunk.id)
+            if ingest_run_id is not None:
+                # R06-06: the run that wrote the point; the index stage deletes the rest.
+                payload["ingest_run_id"] = ingest_run_id
+            points.append(PointStruct(id=point_id, vector=vector, payload=payload))
 
+        target = await self._target(collection_name)
         batch_count = 0
         for start in range(0, len(points), self.batch_size):
-            batch_points = points[start : start + self.batch_size]
-            client.upsert(
-                collection_name=settings.qdrant_collection,
-                points=batch_points,
+            await self._request(
+                "upsert",
+                collection_name=target,
+                points=points[start : start + self.batch_size],
                 wait=True,
             )
             batch_count += 1
@@ -185,17 +264,156 @@ class QdrantService:
         organization_id: UUID,
         document_id: UUID,
         index_version: str | None = None,
+        collection_name: str | None = None,
     ) -> QdrantDeleteResult:
-        client = self._client()
-        qdrant_module.ensure_qdrant_collection()
         filter_selector = build_organization_filter(
             organization_id=str(organization_id),
             document_ids=[str(document_id)],
             index_version=index_version,
         )
-        client.delete(
-            collection_name=settings.qdrant_collection,
-            points_selector=filter_selector,
+        from app.domains.vector_index.services.generation_service import (
+            configured_alias,
+            resolve_delete_collections,
+        )
+
+        if collection_name is not None:
+            targets = [collection_name]
+        else:
+            targets = await resolve_delete_collections()
+        # Alias mode only; legacy mode keeps raising on a missing collection, as before.
+        tolerate_missing = collection_name is None and configured_alias() is not None
+        for target in targets:
+            try:
+                await self._request(
+                    "delete",
+                    collection_name=target,
+                    points_selector=filter_selector,
+                    wait=True,
+                )
+            except UnexpectedResponse as exc:
+                # R06-08: a generation whose collection is already gone (drop-retired
+                # stopped between the collection delete and the state update, or an
+                # operator removed it) holds no points; it must not block deletion.
+                if not tolerate_missing or exc.status_code != 404:
+                    raise
+                logger.warning("qdrant.collection.missing_on_delete", collection=target)
+        return QdrantDeleteResult(deleted=True)
+
+    async def find_reusable_vectors(
+        self,
+        *,
+        organization_id: UUID,
+        embedding_model: str,
+        chunk_hashes: Iterable[str | None],
+        collection_name: str | None = None,
+        vector_size: int | None = None,
+    ) -> dict[str, list[float]]:
+        """Stored vectors by chunk hash for this organisation and embedding model (R06-06).
+
+        One scroll per call in the usual case. The filter always carries
+        ``organization_id``, so a vector is never reused across organisations; a hit whose
+        dimension differs from ``QDRANT_VECTOR_SIZE`` is ignored (the chunk is embedded
+        again). The scroll limit is the number of hashes, so copies of one text in other
+        documents of the organisation can fill the page; when a page comes back full and
+        hashes are still missing, a further scroll asks for only the missing hashes, up to
+        ``EMBEDDING_REUSE_MAX_LOOKUPS`` scrolls in all.
+        """
+        missing = sorted({value for value in chunk_hashes if value})
+        if not missing or not embedding_model.strip():
+            return {}
+        expected_size = vector_size or settings.qdrant_vector_size
+        target = await self._target(collection_name)
+        found: dict[str, list[float]] = {}
+        for _ in range(settings.embedding_reuse_max_lookups):
+            points = await self._scroll_reusable(
+                organization_id=organization_id,
+                embedding_model=embedding_model,
+                chunk_hashes=missing,
+                collection_name=target,
+            )
+            before = len(found)
+            for point in points:
+                payload = getattr(point, "payload", None) or {}
+                chunk_hash = payload.get("chunk_hash")
+                vector = getattr(point, "vector", None)
+                if (
+                    chunk_hash in missing
+                    and payload.get("organization_id") == str(organization_id)
+                    and isinstance(vector, list)
+                    and len(vector) == expected_size
+                ):
+                    found.setdefault(str(chunk_hash), [float(value) for value in vector])
+            page_full = len(points) >= len(missing)
+            missing = [value for value in missing if value not in found]
+            if not missing or not page_full or len(found) == before:
+                break
+        return found
+
+    async def _scroll_reusable(
+        self,
+        *,
+        organization_id: UUID,
+        embedding_model: str,
+        chunk_hashes: list[str],
+        collection_name: str,
+    ) -> list[Any]:
+        query_filter = build_organization_filter(organization_id=str(organization_id))
+        query_filter.must = [
+            *(query_filter.must or []),  # type: ignore[misc]
+            FieldCondition(key="embedding_model", match=MatchValue(value=embedding_model)),
+            FieldCondition(key="chunk_hash", match=MatchAny(any=chunk_hashes)),
+        ]
+        points, _ = await self._request(
+            "scroll",
+            collection_name=collection_name,
+            scroll_filter=query_filter,
+            limit=len(chunk_hashes),
+            with_payload=["chunk_hash", "organization_id"],
+            with_vectors=True,
+        )
+        return list(points)
+
+    async def delete_stale_document_points(
+        self,
+        *,
+        organization_id: UUID,
+        document_id: UUID,
+        index_version: str,
+        ingest_run_id: str,
+        collection_name: str | None = None,
+    ) -> None:
+        """Delete the document's points of this index version not written by this run."""
+        query_filter = build_organization_filter(
+            organization_id=str(organization_id),
+            document_ids=[str(document_id)],
+            index_version=index_version,
+        )
+        query_filter.must_not = [
+            FieldCondition(key="ingest_run_id", match=MatchValue(value=ingest_run_id))
+        ]
+        await self._request(
+            "delete",
+            collection_name=await self._target(collection_name),
+            points_selector=query_filter,
             wait=True,
         )
-        return QdrantDeleteResult(deleted=True)
+
+    async def count_document_points(
+        self,
+        *,
+        organization_id: UUID,
+        document_id: UUID,
+        index_version: str,
+        collection_name: str | None = None,
+    ) -> int:
+        result = await self._request(
+            "count",
+            collection_name=await self._target(collection_name),
+            count_filter=build_organization_filter(
+                organization_id=str(organization_id),
+                document_ids=[str(document_id)],
+                index_version=index_version,
+            ),
+            exact=True,
+        )
+        return int(getattr(result, "count", 0))

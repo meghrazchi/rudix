@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from uuid import UUID
+from datetime import datetime
+from typing import Any
+from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.quotas import OrgQuotaChangeLog, OrgQuotaOverride, OrgQuotaPolicy, OrgQuotaUsage
@@ -121,23 +125,48 @@ class QuotaRepository:
         amount: int = 1,
         next_reset_at: object | None = None,
     ) -> OrgQuotaUsage:
-        existing = await self.get_usage(
-            db_session, organization_id=organization_id, quota_type=quota_type
-        )
-        if existing is not None:
-            existing.current_value = max(0, existing.current_value + amount)
-            await db_session.flush()
-            return existing
+        """Atomically add ``amount`` to the counter, creating the row if needed.
 
-        usage = OrgQuotaUsage(
-            organization_id=organization_id,
-            quota_type=quota_type,
-            current_value=max(0, amount),
-            next_reset_at=next_reset_at,
+        A single ``INSERT ... ON CONFLICT DO UPDATE`` runs in the database, so
+        concurrent callers never lose increments. The value floors at 0.
+        ``next_reset_at`` only applies when the row is created.
+        """
+        dialect = db_session.get_bind().dialect.name
+        if dialect == "postgresql":
+            insert_fn: Any = pg_insert
+            floor_fn: Any = func.greatest
+        elif dialect == "sqlite":
+            insert_fn = sqlite_insert
+            floor_fn = func.max  # two-argument scalar max() in SQLite
+        else:
+            raise RuntimeError(f"increment_usage does not support dialect {dialect!r}")
+
+        stmt = (
+            insert_fn(OrgQuotaUsage)
+            .values(
+                id=uuid4(),
+                organization_id=organization_id,
+                quota_type=quota_type,
+                current_value=max(0, amount),
+                next_reset_at=next_reset_at,
+            )
+            .on_conflict_do_update(
+                index_elements=["organization_id", "quota_type"],
+                set_={"current_value": floor_fn(0, OrgQuotaUsage.current_value + amount)},
+            )
         )
-        db_session.add(usage)
-        await db_session.flush()
-        return usage
+        await db_session.execute(stmt)
+
+        reread = (
+            select(OrgQuotaUsage)
+            .where(
+                OrgQuotaUsage.organization_id == organization_id,
+                OrgQuotaUsage.quota_type == quota_type,
+            )
+            .execution_options(populate_existing=True)
+        )
+        result = await db_session.execute(reread)
+        return result.scalar_one()
 
     async def reset_usage(
         self,
@@ -145,10 +174,28 @@ class QuotaRepository:
         usage: OrgQuotaUsage,
         *,
         next_reset_at: object | None,
-    ) -> None:
-        usage.current_value = 0
-        usage.next_reset_at = next_reset_at
-        await db_session.flush()
+        now: datetime,
+    ) -> bool:
+        """Zero an expired counter once per window.
+
+        The WHERE clause mirrors ``_reset_window_expired``: a NULL ``next_reset_at``
+        is a permanent cap and is never reset. Under PostgreSQL READ COMMITTED a
+        second concurrent reset re-evaluates the WHERE after the first commits and
+        matches no rows. Returns True when this call performed the reset.
+        """
+        stmt = (
+            update(OrgQuotaUsage)
+            .where(
+                OrgQuotaUsage.id == usage.id,
+                OrgQuotaUsage.next_reset_at.is_not(None),
+                OrgQuotaUsage.next_reset_at <= now,
+            )
+            .values(current_value=0, next_reset_at=next_reset_at)
+            .execution_options(synchronize_session=False)
+        )
+        result = await db_session.execute(stmt)
+        await db_session.refresh(usage)
+        return bool(getattr(result, "rowcount", 0) == 1)
 
     # ------------------------------------------------------------------
     # Overrides

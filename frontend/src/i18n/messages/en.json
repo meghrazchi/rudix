@@ -2,7 +2,11 @@
   "notificationCenter": {
     "title": "Notifications",
     "menuAriaLabel": "Notifications menu",
-    "severity": { "info": "Info", "warning": "Warning", "error": "Error" },
+    "severity": {
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error"
+    },
     "justNow": "Just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
@@ -129,6 +133,7 @@
     "signOutAllDevicesDescription": "Revoke all active sessions and sign out everywhere.",
     "signOutEverywhere": "Sign out everywhere",
     "createAccount": "Create account",
+    "noAccountHint": "Don't have an account? Ask your workspace administrator to invite you.",
     "backToHome": "Back to public home",
     "email": "Email",
     "password": "Password",
@@ -285,7 +290,7 @@
       }
     },
     "footer": {
-      "tagline": "Enterprise-grade RAG infrastructure for secure, scalable knowledge retrieval and AI applications.",
+      "tagline": "Ask questions across your company documents and get answers you can trust, with every source cited.",
       "copyright": "© 2026 Rudix AI. All rights reserved.",
       "changeLanguage": "Change language",
       "groups": {
@@ -299,6 +304,11 @@
         "documentation": "Documentation",
         "changelog": "Changelog",
         "useCases": "Use Cases",
+        "allSolutions": "All Solutions",
+        "solutionHr": "HR",
+        "solutionLegal": "Legal",
+        "solutionCompliance": "Compliance",
+        "solutionSupport": "Customer Support",
         "security": "Security",
         "pricing": "Pricing",
         "contact": "Contact",
@@ -320,116 +330,116 @@
     },
     "seo": {
       "home": {
-        "title": "Enterprise RAG Infrastructure | Rudix",
-        "description": "Rudix is a production-ready enterprise RAG platform with secure ingestion, grounded chat, evaluation analytics, and pipeline observability."
+        "title": "AI Document Q&A with Cited Answers",
+        "description": "Ask questions across your company documents and get accurate answers with citations to the exact source. Secure, permission-aware AI for every team."
       },
       "product": {
-        "title": "Product Overview | Rudix",
+        "title": "Product Overview: Cited Answers From Your Documents",
         "description": "See how Rudix turns documents into indexed, citation-backed answers with evaluations, pipeline visibility, and governance-ready operations."
       },
       "pricing": {
-        "title": "Pricing | Rudix",
-        "description": "Compare Rudix plans for document AI, RAG chat, evaluations, and governance with configurable packaging guidance."
+        "title": "Pricing and Plans for AI Document Q&A",
+        "description": "Compare Rudix plans for AI document Q&A, evaluations, and governance, from small teams to enterprise-wide deployments."
       },
       "security": {
-        "title": "Security & Trust | Rudix",
+        "title": "Security and Trust for Private Document AI",
         "description": "Rudix is built for regulated environments with architectural boundaries, auditability, and data-handling controls."
       },
       "contact": {
-        "title": "Contact & Demo | Rudix",
+        "title": "Contact Sales and Book a Demo",
         "description": "Speak with the Rudix team about your document workflow, demo request, or security review."
       },
       "solutions": {
-        "title": "Solutions | Rudix",
+        "title": "AI Document Q&A Solutions for Every Team",
         "description": "AI document Q&A for every enterprise team — HR, Legal, Sales, Compliance, Operations, and more."
       },
       "hr": {
-        "title": "HR Solution | Rudix",
+        "title": "HR Policy and Handbook Answers with AI",
         "description": "Help employees find answers from handbooks, benefits guides, and HR policies with citation-backed AI."
       },
       "legal": {
-        "title": "Legal Solution | Rudix",
+        "title": "AI Search for Contracts and Legal Documents",
         "description": "Search contracts, legal policies, and agreements with source-backed answers and audit trails."
       },
       "compliance": {
-        "title": "Compliance Solution | Rudix",
+        "title": "Compliance Evidence and Audit Document Search",
         "description": "Retrieve audit evidence and compliance documentation instantly with citation-backed AI search."
       },
       "sales": {
-        "title": "Sales Solution | Rudix",
+        "title": "Cited Product Answers for Sales Teams",
         "description": "Win deals with cited product intelligence. Empower AEs with instant answers from your knowledge base."
       },
       "support": {
-        "title": "Support Solution | Rudix",
+        "title": "Faster Support Answers From Your Documentation",
         "description": "Help support agents answer faster with instant access to documentation and troubleshooting guides."
       },
       "research": {
-        "title": "Research Solution | Rudix",
+        "title": "AI Research Assistant for Technical Documents",
         "description": "Extract insights from technical PDFs and research reports with RAG-powered document intelligence."
       },
       "operations": {
-        "title": "Operations Solution | Rudix",
+        "title": "Runbook and Process Answers for Operations",
         "description": "Runbook answers when your team needs them — instant retrieval for incident response and process guidance."
       },
       "procurement": {
-        "title": "Procurement Solution | Rudix",
+        "title": "AI Review of Vendor and Procurement Documents",
         "description": "Evaluate vendors with AI-powered document review and instant answers to compliance questions."
       },
       "internalKnowledge": {
-        "title": "Internal Knowledge | Rudix",
+        "title": "Internal Knowledge Search with Cited Answers",
         "description": "Make your team's institutional knowledge instantly accessible with citation-backed search."
       },
       "clientPortal": {
-        "title": "Client Portal | Rudix",
+        "title": "Client Portal Q&A From Approved Documents",
         "description": "Give clients instant answers from your approved documentation with scoped AI Q&A."
       },
       "changelog": {
-        "title": "Changelog | Rudix",
+        "title": "Changelog and Release Notes",
         "description": "Browse public Rudix release notes, product improvements, fixes, and status updates."
       },
       "status": {
-        "title": "Status | Rudix",
+        "title": "Service Status and Incident History",
         "description": "Check the public Rudix service status, active incidents, maintenance windows, and recent history."
       },
       "privacy": {
-        "title": "Privacy Policy | Rudix",
+        "title": "Privacy Policy",
         "description": "Learn how Rudix collects, stores, and protects your data, including uploaded documents, AI queries, audit logs, and user accounts."
       },
       "terms": {
-        "title": "Terms of Service | Rudix",
+        "title": "Terms of Service",
         "description": "Read the Rudix Terms of Service covering permitted use, restrictions, content ownership, service availability, and liability."
       },
       "cookies": {
-        "title": "Cookie Policy | Rudix",
+        "title": "Cookie Policy",
         "description": "Rudix uses only essential session cookies and browser localStorage for preferences. No third-party tracking."
       },
       "dpa": {
-        "title": "Data Processing Addendum | Rudix",
+        "title": "Data Processing Addendum",
         "description": "Rudix DPA covering processor obligations, sub-processors, data subject rights, security measures, and breach notification."
       },
       "subprocessors": {
-        "title": "Subprocessors | Rudix",
+        "title": "Subprocessors",
         "description": "List of Rudix sub-processors including AI model providers, vector storage, object storage, and optional email and observability services."
       },
       "acceptableUse": {
-        "title": "Acceptable Use Policy | Rudix",
+        "title": "Acceptable Use Policy",
         "description": "Rudix Acceptable Use Policy covering permitted document indexing and query uses and prohibited activities including circumvention, abuse, and illegal content."
       },
       "securityDisclosure": {
-        "title": "Security Disclosure Policy | Rudix",
+        "title": "Security Disclosure Policy",
         "description": "How to responsibly disclose security vulnerabilities in the Rudix platform, in-scope targets, response timelines, and researcher recognition."
       }
     },
     "landing": {
       "hero": {
-        "badge": "Enterprise Ready RAG Infrastructure",
+        "badge": "Enterprise-ready document AI",
         "title": "Ask your documents.",
         "titleHighlight": "Get the answers you need.",
         "description": "Turn PDFs, DOCX, and complex technical manuals into precise AI assistants with full citations and infrastructure-level visibility.",
         "primaryCta": "Speak to us",
         "secondaryCta": "Upload documents",
         "imageAlt": "Rudix product interface showing document retrieval and grounded answers",
-        "trustSoc2": "SOC 2 Compliant",
+        "trustSoc2": "SOC 2-aligned controls",
         "trustGdpr": "GDPR Ready",
         "trustPrivateCloud": "Private Cloud"
       },
@@ -443,7 +453,8 @@
         "untrustedAITitle": "Untrusted AI",
         "untrustedAIDesc": "Generic LLMs hallucinating answers without citations or context-specific guardrails.",
         "knowledgeSilosTitle": "Knowledge silos",
-        "knowledgeSilosDesc": "Critical data trapped in departmental silos, unreachable for cross-functional teams."
+        "knowledgeSilosDesc": "Critical data trapped in departmental silos, unreachable for cross-functional teams.",
+        "eyebrow": "The problem"
       },
       "workflow": {
         "heading": "Upload. Ask. Verify.",
@@ -457,7 +468,15 @@
         "retrievalTitle": "Semantic Retrieval",
         "retrievalDesc": "When a user asks a question, our RAG engine retrieves the exact chunks needed to answer it, no more and no less.",
         "generationTitle": "Grounded Generation",
-        "generationDesc": "The AI answers only based on retrieved data, providing direct links to sources for absolute transparency."
+        "generationDesc": "The AI answers only based on retrieved data, providing direct links to sources for absolute transparency.",
+        "eyebrow": "How it works",
+        "description": "From upload to a cited answer in seconds.",
+        "step": "Step {number}",
+        "indexedStatus": "Indexed",
+        "relevance": "Relevance",
+        "citedPassage": "Cited passage",
+        "passageText": "…return shipping is refunded for defective items…",
+        "openSource": "Open source page"
       },
       "useCases": {
         "heading": "Built for every team.",
@@ -476,7 +495,8 @@
         "hrDesc": "Automate employee queries with policy-aligned responses.",
         "salesOpsLabel": "Sales Ops",
         "salesOpsTitle": "\"Do we support SSO for Enterprise clients?\"",
-        "salesOpsDesc": "Get immediate answers for RFPs and security questionnaires."
+        "salesOpsDesc": "Get immediate answers for RFPs and security questionnaires.",
+        "eyebrow": "Use cases"
       },
       "security": {
         "heading": "Designed for private document workflows.",
@@ -487,13 +507,32 @@
         "auditLogsTitle": "Audit Logs",
         "auditLogsDesc": "Track every query, retrieval, and administrative action with detailed time-stamped logs.",
         "encryptionTitle": "End-to-End Encryption",
-        "encryptionDesc": "AES-256 at rest and TLS 1.3 in transit, with Bring Your Own Key support for enterprise."
+        "encryptionDesc": "AES-256 at rest and TLS 1.3 in transit, with Bring Your Own Key support for enterprise.",
+        "eyebrow": "Privacy first"
       },
       "cta": {
         "heading": "Ready to turn your documents into an AI assistant?",
         "description": "Join forward-thinking engineering teams using Rudix for knowledge excellence.",
         "primaryCta": "Speak to us",
         "secondaryCta": "View documentation"
+      },
+      "preview": {
+        "windowLabel": "Support workspace",
+        "documentsIndexed": "34 documents indexed",
+        "you": "You",
+        "justNow": "Just now",
+        "question": "What is the policy for international returns?",
+        "assistant": "Rudix Assistant",
+        "confidence": "High confidence",
+        "answerIntro": "International customers can start a return within 30 days of delivery",
+        "answerMiddle": "Items must be unused with original tags. Return shipping is refunded for defective items",
+        "answerEnd": "while other returns include a small restocking fee.",
+        "sourcesHeading": "Sources",
+        "source1Section": "Page 4 · Returns and exchanges",
+        "source2Section": "Page 11 · Defective items",
+        "viewSource": "View source",
+        "citationLabel": "Citation {number}",
+        "ariaLabel": "Example of a cited answer in Rudix"
       }
     },
     "product": {
@@ -525,11 +564,13 @@
         "feature1": "Smart parsing across mixed document layouts and formats.",
         "feature2": "Reliable re-indexing workflows for updated policy and knowledge documents.",
         "sourceTransparencyLabel": "Source transparency",
-        "sourceTransparencyText": "Citation markers connect each answer to original source snippets, giving reviewers an audit-friendly path from response to supporting evidence."
+        "sourceTransparencyText": "Citation markers connect each answer to original source snippets, giving reviewers an audit-friendly path from response to supporting evidence.",
+        "eyebrow": "Documents"
       },
       "groundedAnswers": {
         "heading": "Grounded Answers with Citations",
-        "description": "Every response is tied to supporting evidence so teams can verify claims and inspect referenced snippets with confidence."
+        "description": "Every response is tied to supporting evidence so teams can verify claims and inspect referenced snippets with confidence.",
+        "eyebrow": "Trust"
       },
       "metrics": {
         "accuracyScore": "Accuracy score",
@@ -540,7 +581,22 @@
         "heading": "Pipeline Explorer Visualizer",
         "description": "Trace ingestion, retrieval, and answer stages in one timeline so teams can debug behavior and improve quality with confidence.",
         "openCta": "Open Pipeline Explorer",
-        "imageAlt": "Pipeline dashboard preview with retrieval and latency signals"
+        "imageAlt": "Pipeline dashboard preview with retrieval and latency signals",
+        "eyebrow": "Observability",
+        "stages": {
+          "uploadTitle": "Upload",
+          "uploadDesc": "File type, size, and safety checks",
+          "extractTitle": "Extract",
+          "extractDesc": "Text, tables, and layout from every page",
+          "chunkTitle": "Chunk",
+          "chunkDesc": "Split into searchable passages",
+          "embedTitle": "Embed",
+          "embedDesc": "Indexed for meaning-based search",
+          "retrieveTitle": "Retrieve",
+          "retrieveDesc": "Most relevant passages found and ranked",
+          "answerTitle": "Answer",
+          "answerDesc": "Grounded reply with verified citations"
+        }
       },
       "admin": {
         "heading": "Unified Admin Control",
@@ -551,7 +607,8 @@
         "usageAnalyticsDesc": "Track token usage, latency, and adoption trends for operational planning.",
         "usageAnalyticsCta": "Usage Analytics",
         "auditLogsCta": "Audit Logs",
-        "monitoringCta": "Monitoring"
+        "monitoringCta": "Monitoring",
+        "eyebrow": "Governance"
       },
       "integration": {
         "apiFirstTitle": "API-first foundation",
@@ -559,7 +616,9 @@
         "futureReadyTitle": "Future-ready connectors",
         "futureReadyDesc": "Plan for controlled connector and MCP expansion without changing core document governance.",
         "operatorVisibilityTitle": "Operator visibility",
-        "operatorVisibilityDesc": "Keep pipeline health and quality metrics in one view for faster incident response and tuning."
+        "operatorVisibilityDesc": "Keep pipeline health and quality metrics in one view for faster incident response and tuning.",
+        "eyebrow": "Integration",
+        "heading": "Built to fit the way you work"
       },
       "cta": {
         "heading": "Ready to architect your data engine?",
@@ -579,6 +638,19 @@
         "isolationA": "Rudix enforces organization-level boundaries across documents, retrieval, and user-facing workflows.",
         "deploymentQ": "Can we deploy Rudix in our own environment?",
         "deploymentA": "Rudix is designed for container-based deployment with environment-driven configuration and operations."
+      },
+      "mock": {
+        "searchPlaceholder": "Search documents",
+        "indexed": "Indexed",
+        "processing": "Processing",
+        "pages": "{count} pages",
+        "pagesLabel": "Pages",
+        "chunksLabel": "Chunks",
+        "languageLabel": "Language",
+        "languageValue": "English",
+        "statusLabel": "Status",
+        "statusReady": "Ready to search",
+        "versionLabel": "Version"
       }
     },
     "pricing": {
@@ -592,7 +664,7 @@
       },
       "plans": {
         "heading": "Plans for every rollout stage",
-        "description": "Prices are intentionally shown as contact placeholders until final packaging is approved for your environment and usage profile.",
+        "description": "Every plan is tailored to your usage and rollout. Talk with us for a quote that fits your team.",
         "contactUs": "Contact us",
         "starterBadge": "For focused pilots",
         "starterTitle": "Starter",
@@ -602,7 +674,7 @@
         "starterH1": "Starter document and indexing quotas",
         "starterH2": "Baseline usage and quality visibility",
         "starterH3": "Email support and onboarding guidance",
-        "starterCta": "Start Trial",
+        "starterCta": "Request Access",
         "teamBadge": "Most selected for rollout",
         "teamTitle": "Team",
         "teamSummary": "Scale across departments with stronger governance, evaluations, and operational controls.",
@@ -620,7 +692,8 @@
         "enterpriseH1": "Advanced governance policies and approval flows",
         "enterpriseH2": "Custom onboarding, success planning, and support",
         "enterpriseH3": "Security review workflow with solution architects",
-        "enterpriseCta": "Contact Sales"
+        "enterpriseCta": "Contact Sales",
+        "eyebrow": "Plans"
       },
       "usageLimits": {
         "heading": "Usage and limit guidance",
@@ -630,11 +703,12 @@
         "questionsTitle": "Questions, tokens, and evaluations",
         "questionsDetail": "Usage controls include chat/question volume, token budgets, and evaluation run allocation.",
         "storageTitle": "Storage and organizations",
-        "storageDetail": "Tiers can map to storage envelopes, team-member allowances, and organization-level governance needs."
+        "storageDetail": "Tiers can map to storage envelopes, team-member allowances, and organization-level governance needs.",
+        "eyebrow": "Usage"
       },
       "comparison": {
         "heading": "Plan comparison",
-        "description": "Compare capabilities at a glance. Mobile view uses stacked cards for readability.",
+        "description": "See how capabilities grow from a first pilot to an enterprise rollout.",
         "capability": "Capability",
         "starter": "Starter",
         "team": "Team",
@@ -666,12 +740,14 @@
         "rowSupportCapabilityLabel": "Support level",
         "rowSupportStarterValue": "Email support",
         "rowSupportTeamValue": "Priority support",
-        "rowSupportEnterpriseValue": "Dedicated success plan"
+        "rowSupportEnterpriseValue": "Dedicated success plan",
+        "eyebrow": "Compare",
+        "tableCaption": "Capabilities by plan"
       },
       "faq": {
         "title": "Pricing FAQ",
         "trialQ": "Can we start with a trial before committing to a plan?",
-        "trialA": "Yes. Teams can begin with a trial workflow and then move to the tier that best fits rollout scope and governance needs.",
+        "trialA": "Yes. Our team can set up a pilot workspace for you. Your administrator then invites teammates, and you can move to the plan that best fits your rollout and governance needs.",
         "upgradesQ": "How do upgrades work when our usage grows?",
         "upgradesA": "Rudix supports staged expansion so you can increase usage, controls, and support without rebuilding your document workflows.",
         "securityReviewQ": "Can we request a security review during pricing discussions?",
@@ -694,7 +770,8 @@
         "heading": "Security and governance for private document AI",
         "description": "Rudix is built for regulated environments and enterprise security teams who need architectural boundaries, auditability, and data-handling controls.",
         "primaryCta": "Request Security Review",
-        "secondaryCta": "View Architecture"
+        "secondaryCta": "View Architecture",
+        "postureLabel": "Security posture"
       },
       "pillars": {
         "heading": "Security pillars",
@@ -719,7 +796,8 @@
         "encryptionCallout": "Encrypted in transit and at rest",
         "observabilityTitle": "Operational observability",
         "observabilityDesc": "Teams can monitor request health and failures with safe telemetry that avoids exposing sensitive document text.",
-        "observabilityCallout": "Safe operational visibility"
+        "observabilityCallout": "Safe operational visibility",
+        "eyebrow": "Pillars"
       },
       "documentHandling": {
         "heading": "Document handling lifecycle",
@@ -741,7 +819,8 @@
         "deleteTitle": "Delete",
         "deleteDesc": "Honor deletion workflows across storage and indices.",
         "reindexTitle": "Re-index",
-        "reindexDesc": "Rebuild index state when content is updated."
+        "reindexDesc": "Rebuild index state when content is updated.",
+        "eyebrow": "Lifecycle"
       },
       "accessGovernance": {
         "heading": "Access and governance",
@@ -753,7 +832,8 @@
         "adminGovernanceTitle": "Admin governance",
         "adminGovernanceDesc": "Administrative controls support policy management, tooling guardrails, and operational review workflows.",
         "routeBoundariesTitle": "Public/private route boundaries",
-        "routeBoundariesDesc": "Marketing routes remain public while application workspaces require authenticated access."
+        "routeBoundariesDesc": "Marketing routes remain public while application workspaces require authenticated access.",
+        "eyebrow": "Governance"
       },
       "compliance": {
         "heading": "Compliance readiness",
@@ -764,7 +844,8 @@
         "retentionHeading": "Retention and deletion",
         "retention0": "Retention timelines should be defined by your organization policy and legal requirements.",
         "retention1": "Deletion workflows should cover object storage, searchable indices, and derived artifacts.",
-        "retention2": "Re-index workflows support stale-document refresh and policy updates."
+        "retention2": "Re-index workflows support stale-document refresh and policy updates.",
+        "eyebrow": "Compliance"
       },
       "faq": {
         "title": "Security FAQ",
@@ -1210,7 +1291,7 @@
         "traceabilityTitle": "Traceability Gaps",
         "traceabilityBody": "Policy answers frequently lack direct links to original source documents, leaving compliance officers to manually re-verify every claim.",
         "manualDrainTitle": "Manual Collection Drain",
-        "manualDrainBody": "Auditors spend 60% of their time collecting evidence instead of analyzing it. Manual retrieval is slow, error-prone, and expensive."
+        "manualDrainBody": "Auditors spend too much time collecting evidence instead of analyzing it. Manual retrieval is slow, error-prone, and expensive."
       },
       "documentSources": {
         "heading": "Upload everything. Find anything.",
@@ -1287,7 +1368,7 @@
         "heading": "The Cost of Sales Friction",
         "description": "Searching for the right collateral shouldn't be the bottleneck in your deal cycle.",
         "lostCaseStudiesTitle": "Lost Case Studies",
-        "lostCaseStudiesBody": "Your best healthcare success story is buried in a 2022 Slack thread. AEs waste 4 hours weekly searching for relevant proof points.",
+        "lostCaseStudiesBody": "Your best healthcare success story is buried in an old Slack thread, so account executives spend time hunting for proof points instead of selling.",
         "outdatedPricingTitle": "Outdated Pricing",
         "outdatedPricingBody": "Reps pitching legacy pricing sheets leads to massive contract friction and margin erosion during closing stages.",
         "battlecardFrictionTitle": "Battlecard Friction",
@@ -1319,6 +1400,12 @@
         "description": "Join high-performing sales teams using Rudix to surface technical intelligence in seconds, not hours.",
         "primaryCta": "Schedule a Demo",
         "secondaryCta": "View Pricing"
+      },
+      "images": {
+        "collateralAlt": "Professional sales collateral and technical product brochures",
+        "teamMeetingAlt": "Enterprise account executives collaborating in a sales strategy meeting",
+        "workspaceAlt": "Sales representative working on a laptop with sales enablement tools",
+        "pricingAlt": "Pricing sheet and contract documentation for enterprise sales"
       }
     },
     "support": {
@@ -1343,7 +1430,7 @@
         "heading": "Support knowledge is often scattered.",
         "description": "Siloed information leads to slower resolutions and agent burnout.",
         "toolFatigueTitle": "Tool Fatigue",
-        "toolFatigueBody": "Agents search too many tools — Confluence, Notion, and Slack — wasting 30% of their shift just looking for answers.",
+        "toolFatigueBody": "Agents search across too many tools — Confluence, Notion, and Slack — and lose valuable time hunting for answers instead of helping customers.",
         "slowOnboardingTitle": "Slow Onboarding",
         "slowOnboardingBody": "New agents need faster onboarding to reach full productivity. Currently, training takes weeks of shadowing senior staff.",
         "inconsistentDataTitle": "Inconsistent Data",
@@ -1467,7 +1554,8 @@
         "description": "Give analysts instant, cited answers from your entire research library.",
         "primaryCta": "Get Started Now",
         "secondaryCta": "Book Sales Call"
-      }
+      },
+      "heroImageAlt": "Enterprise research analyst dashboard showing data visualizations and document insights"
     },
     "operations": {
       "breadcrumb": "Operations",
@@ -1490,7 +1578,7 @@
       },
       "documentSources": {
         "heading": "Universal technical ingestion.",
-        "description": "Rudix supports your existing operational stack. Just upload, and we&apos;ll index the technical nuance.",
+        "description": "Rudix supports your existing operational stack. Just upload, and we'll index the technical nuance.",
         "runbooks": "Incident response runbooks",
         "sops": "SOPs",
         "troubleshooting": "Troubleshooting guides",
@@ -1512,7 +1600,7 @@
       },
       "exampleQueries": {
         "heading": "Built for the high-pressure query.",
-        "description": "Ops teams don&apos;t have time to craft the perfect prompt. Ask naturally, get the technical truth.",
+        "description": "Ops teams don't have time to craft the perfect prompt. Ask naturally, get the technical truth.",
         "q1": "What are the steps for a priority incident?",
         "q2": "How do we restart the failed indexing worker?",
         "q3": "Who needs to be notified during an outage?",
@@ -1528,7 +1616,8 @@
         "description": "Give ops teams verified, cited answers from your entire operational knowledge base.",
         "primaryCta": "Book a Live Demo",
         "secondaryCta": "Speak to us about operations"
-      }
+      },
+      "terminalImageAlt": "Code terminal showing operations runbook and incident response procedures"
     },
     "procurement": {
       "breadcrumb": "Procurement",
@@ -1565,7 +1654,7 @@
         "description": "From document upload to risk decision in minutes.",
         "step01Label": "Step 01",
         "step01Title": "Deep Semantic Indexing",
-        "step01Body": "We don&apos;t just search keywords. Rudix understands the context of security controls and legal obligations across your entire vendor library.",
+        "step01Body": "We don't just search keywords. Rudix understands the context of security controls and legal obligations across your entire vendor library.",
         "step02Label": "Step 02",
         "step02Title": "Automated Extraction",
         "step02Body": "Instantly map vendor responses to your internal risk framework (ISO 27001, SOC2, HIPAA).",
@@ -1588,7 +1677,8 @@
         "primaryCta": "Schedule a Demo",
         "secondaryCta": "Get Started Free",
         "disclaimer": "Rudix surfaces answers for review — it does not replace legal or procurement approval workflows."
-      }
+      },
+      "heroImageAlt": "Procurement analytics dashboard showing vendor evaluation data"
     },
     "internalKnowledge": {
       "breadcrumb": "Internal Knowledge",
@@ -1599,6 +1689,7 @@
         "description": "Stop hunting through outdated PDFs and buried Slack threads. Rudix indexes your entire organizational brain to provide verified, citation-backed answers.",
         "primaryCta": "Get Started",
         "secondaryCta": "Watch Demo",
+        "securityCta": "How we keep data secure",
         "panelQuestion": "What is our policy on remote work stipends for international employees?",
         "panelIntro": "Based on the",
         "panelDocument": "Global Employee Handbook (2024)",
@@ -1756,6 +1847,22 @@
         "secondaryCta": "Get Started Free",
         "disclaimer": "Rudix surfaces answers from approved documents — it does not replace a full external client portal or manage client identity and access."
       }
+    },
+    "a11y": {
+      "skipToContent": "Skip to main content",
+      "homeLink": "Rudix home",
+      "logoAlt": "Rudix logo",
+      "footer": "Footer",
+      "breadcrumb": "Breadcrumb"
+    },
+    "legalLayout": {
+      "badge": "Legal",
+      "noticeLabel": "Legal review notice",
+      "noticeTitle": "Note:",
+      "noticeBody": "This document contains placeholder copy pending formal legal review. It should not be considered final legal advice or a binding agreement until approved by legal counsel.",
+      "onThisPage": "On this page",
+      "versionLine": "Version {version} · Effective {date}",
+      "englishOnly": "This document is currently available in English only."
     }
   },
   "dashboard": {
@@ -2438,6 +2545,10 @@
       "streamingLabel": "Streaming response...",
       "generatingLabel": "Generating answer...",
       "wsConnecting": "Connecting...",
+      "wsReconnecting": "Reconnecting...",
+      "loadOlderMessages": "Load earlier messages",
+      "loadingOlderMessages": "Loading earlier messages...",
+      "loadOlderMessagesRetry": "Could not load earlier messages. Try again",
       "wsRetrieving": "Retrieving sources...",
       "wsReranking": "Ranking sources...",
       "wsGenerating": "Generating answer...",
@@ -2448,6 +2559,15 @@
       "queryForbiddenTitle": "Query is not allowed",
       "queryForbiddenDesc": "You do not have permission to query the selected documents in this organization.",
       "queryErrorTitle": "Unable to complete the query.",
+      "wsErrors": {
+        "planLimitExceeded": "Your plan's question limit has been reached. Upgrade your plan or try again after the limit resets.",
+        "rateLimitExceeded": "Too many questions in a short time. Please wait a moment and try again.",
+        "rateLimiterUnavailable": "The service is temporarily unable to check usage limits. Please try again shortly.",
+        "wsTicketUnavailable": "Live chat could not start a secure connection. Please try again in a moment.",
+        "providerBusy": "The AI service is busy for your organisation right now. Please try again in a moment.",
+        "resumeUnavailable": "The connection dropped and this answer could not be resumed. Please ask the question again.",
+        "connectionLost": "The live chat connection was lost. Please try again."
+      },
       "composerStarting": "Starting session…",
       "composerAgentRunning": "Running agent…",
       "composerGenerating": "Generating answer…",
@@ -4335,6 +4455,9 @@
   "errors": {
     "pageNotFound": "Page not found",
     "pageNotFoundDescription": "The page you're looking for doesn't exist.",
+    "notFoundBadge": "Error 404",
+    "notFoundHome": "Go to homepage",
+    "notFoundContact": "Contact us",
     "forbidden": "Access denied",
     "forbiddenDescription": "You don't have permission to access this page.",
     "serverError": "Something went wrong",
@@ -4641,7 +4764,8 @@
       "accessDebugger": "Access Debugger",
       "permissionsAccessReport": "Permissions & Access Report",
       "ssoSaml": "SSO / SAML",
-      "scimProvisioning": "SCIM Provisioning"
+      "scimProvisioning": "SCIM Provisioning",
+      "vectorIndex": "Vector Index"
     }
   },
   "adminUsage": {
@@ -5368,6 +5492,11 @@
     "statuses": {
       "queued": "Queued",
       "running": "Running",
+      "planning": "Planning",
+      "waiting_approval": "Waiting for approval",
+      "skipped": "Skipped",
+      "succeeded": "Succeeded",
+      "expired": "Expired",
       "completed": "Completed",
       "failed": "Failed",
       "cancelled": "Cancelled",
@@ -6358,7 +6487,8 @@
       "extraction": "Extraction",
       "deletion_cleanup": "Deletion cleanup",
       "reindex": "Reindex",
-      "evaluation": "Evaluation"
+      "evaluation": "Evaluation",
+      "dead_letter": "Dead letter"
     },
     "drawer": {
       "title": "Job detail",
@@ -7484,6 +7614,49 @@
           }
         }
       }
+    }
+  },
+  "adminVectorIndex": {
+    "header": {
+      "eyebrow": "Search index",
+      "title": "Vector index",
+      "description": "The embedding model that answers your questions, and the progress of a background rebuild for your organization. Rebuilds run without interrupting search."
+    },
+    "legacyNotice": "The search index is not using versioned generations yet. Questions are answered with the configured embedding model.",
+    "active": {
+      "title": "Active index",
+      "model": "Embedding model",
+      "dimensions": "Dimensions",
+      "generation": "Generation",
+      "legacyGeneration": "Not versioned",
+      "activatedAt": "Active since",
+      "notAdoptedTitle": "No active generation yet",
+      "notAdoptedDescription": "An operator has not registered the current index as a generation. Search keeps working as before."
+    },
+    "building": {
+      "title": "Rebuild in progress",
+      "model": "New embedding model",
+      "state": "State",
+      "startedAt": "Started",
+      "states": {
+        "building": "Building",
+        "verifying": "Verifying"
+      },
+      "progressLabel": "Your organization's documents",
+      "progressValue": "{done} of {total} ({percent}%)",
+      "servingNote": "Search keeps using the active index until the rebuild is verified and switched over.",
+      "noneTitle": "No rebuild running",
+      "noneDescription": "The active index is up to date."
+    },
+    "states": {
+      "loading": "Loading vector index status...",
+      "errorTitle": "Unable to load the vector index status",
+      "retry": "Retry",
+      "emptyTitle": "No status available"
+    },
+    "access": {
+      "restrictedTitle": "Admin access restricted",
+      "restrictedDescription": "Only owners and admins can view the vector index status."
     }
   }
 }

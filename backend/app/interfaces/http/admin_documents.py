@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.documents import task_outbox
 from app.application.documents.workflows import retry_delete_document_workflow
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
@@ -905,11 +906,18 @@ async def retry_ocr_for_document(
             ),
         )
 
-    reindex_document_task.delay(
-        document_id=str(doc_uuid),
-        organization_id=str(actor_organization_id),
-        user_id=str(actor_user_id),
-        request_id=request_id,
+    # R06-01 part 2: the dispatch commits with the audit row (transactional outbox).
+    await task_outbox.stage(
+        db_session,
+        reindex_document_task,
+        task_name="documents.reindex",
+        organization_id=actor_organization_id,
+        kwargs={
+            "document_id": str(doc_uuid),
+            "organization_id": str(actor_organization_id),
+            "user_id": str(actor_user_id),
+            "request_id": request_id,
+        },
     )
 
     await audit_log_service.record(
@@ -926,6 +934,7 @@ async def retry_ocr_for_document(
         },
     )
     await db_session.commit()
+    await task_outbox.publish(db_session)
 
     return AdminOcrRetryResponse(
         document_id=str(doc_uuid),

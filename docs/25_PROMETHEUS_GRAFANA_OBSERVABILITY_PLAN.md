@@ -3,12 +3,12 @@
 ## Metadata
 
 - `Owner`: `Rudix Platform & Observability Team`
-- `Status`: `Implemented`
-- `Last Updated`: `2026-11-08`
+- `Status`: `Implemented (development overlay); staging and production rollout planned`
+- `Last Updated`: `2026-11-26`
 - `Related Docs`: [01_ARCHITECTURE_OVERVIEW.md](./01_ARCHITECTURE_OVERVIEW.md), [10_DEPLOYMENT_DOCKER.md](./10_DEPLOYMENT_DOCKER.md), [11_SECURITY_AND_PRODUCTION_CHECKLIST.md](./11_SECURITY_AND_PRODUCTION_CHECKLIST.md), [12_EVALUATION_AND_MONITORING.md](./12_EVALUATION_AND_MONITORING.md), [18_LANGFUSE_OBSERVABILITY.md](./18_LANGFUSE_OBSERVABILITY.md)
 
 > [!NOTE]
-> **Implementation Status:** The Prometheus and Grafana observability stack is fully implemented. Backend endpoints, route normalization, Celery worker hooks, Docker Compose infrastructure (`infra/observability/`), 5 pre-provisioned Grafana dashboards, Alertmanager rules, and CI/CD smoke tests are active.
+> **Implementation Status:** Implemented for the development overlay (`make up-observability`): Prometheus, Alertmanager, Grafana (5 pre-provisioned dashboards), the Postgres and Redis exporters, the `/metrics` endpoint, Celery worker metrics hooks, the `METRICS_*` settings in `.env.example` and `app/core/config.py`, CI dashboard JSON validation, and the release `/metrics` smoke check. **Planned:** Prometheus and Grafana services in the staging and production Compose files and deployment, and scrape authentication over untrusted networks.
 
 ---
 
@@ -104,7 +104,8 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
 | `rudix_http_requests_total` | Counter | `method`, `route`, `status_code` | Total HTTP requests by normalized route template |
 | `rudix_http_request_duration_seconds` | Histogram | `method`, `route` | End-to-end HTTP latency (`0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30`) |
 | `rudix_http_requests_in_progress` | Gauge | `method`, `route` | Concurrent in-flight HTTP requests |
-| `rudix_rate_limit_decisions_total` | Counter | `scope`, `decision`, `failure_mode` | Redis rate-limit outcomes (`allowed`, `rejected`, `redis_error`) |
+| `rudix_rate_limit_decisions_total` | Counter | `scope`, `decision`, `failure_mode` | Rate-limit outcomes for HTTP and the chat WebSocket (`decision`: `allowed`, `limited`, `unavailable`; `failure_mode`: `none`, `open`, `closed`) |
+| `rudix_chat_ws_auth_total` | Counter | `method`, `outcome` | Chat WebSocket handshake authentication (`method`: `ticket`, `header`, `query_token`, `none`; `outcome`: `accepted`, `rejected`) |
 | `rudix_auth_verifications_total` | Counter | `provider`, `outcome` | Auth token verification outcomes (`success`, `expired`, `invalid`) |
 | `rudix_authz_decisions_total` | Counter | `resource_type`, `action`, `decision`, `deny_reason` | Authorization policy decisions including `tenant_boundary` |
 
@@ -117,6 +118,9 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
 | `rudix_rag_answers_total` | Counter | `scope_mode`, `confidence_category`, `not_found`, `fallback_used` | Completed RAG answers by grounding outcome |
 | `rudix_rag_confidence_score` | Histogram | `scope_mode` | Distribution of answer confidence scores (`0.1` to `1.0` buckets) |
 | `rudix_rag_citation_validation_failures_total` | Counter | `reason` | Responses where cited chunk IDs failed validation |
+| `rudix_chat_quota_denied_total` | Counter | `transport` | Chat questions refused because the plan question quota is exhausted (`http`, `ws`) |
+| `rudix_retrieval_branch_failures_total` | Counter | `branch`, `error` | Retrieval branch attempts that failed or timed out and were degraded to partial results |
+| `rudix_eval_index_cleanup_failures_total` | Counter | `store` | Per-document evaluation index cleanup steps that failed (`qdrant` or `postgres`); the run still completes |
 | `rudix_llm_requests_total` | Counter | `provider`, `model`, `operation`, `status` | LLM and embedding provider calls (`chat`, `embed`, `rerank`) |
 | `rudix_llm_tokens_total` | Counter | `provider`, `model`, `direction` | Token consumption (`input`, `output`, `embedding`) |
 | `rudix_llm_estimated_cost_usd_total` | Counter | `provider`, `model` | Cumulative estimated USD spend |
@@ -128,6 +132,7 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
 |---|---|---|---|
 | `rudix_document_uploads_total` | Counter | `file_type`, `status`, `malware_scan_result` | Upload validation and ClamAV scan outcomes |
 | `rudix_document_indexing_jobs_total` | Counter | `task_type`, `file_type`, `status` | Ingestion/reindex/delete job outcomes |
+| `rudix_documents_reaped_total` | Counter | `outcome` | Stale processing documents re-queued or failed by the reaper (`requeued`, `failed`, `enqueue_error`) |
 | `rudix_document_indexing_duration_seconds` | Histogram | `stage`, `file_type` | Duration by stage (`extract`, `ocr`, `chunk`, `embed`, `qdrant_upsert`) |
 | `rudix_document_chunks_generated` | Histogram | `strategy`, `file_type` | Chunks produced per document |
 | `rudix_ocr_pages_processed_total` | Counter | `language`, `status` | OCR page processing counts and timeouts |
@@ -155,12 +160,12 @@ All application metrics MUST use the `rudix_` namespace and base units (`_second
    - `vllm:8000/metrics` and `litellm:4000/metrics` when local LLM profiles are active.
    - `neo4j` metrics when enterprise graph is enabled.
 
-### 4.4 Planned Configuration Variables
+### 4.4 Configuration Variables
 
-Add to `.env.example` and `backend/app/core/config.py`:
+Defined in `.env.example` and `backend/app/core/config.py`:
 
 ```env
-# Prometheus & Grafana Observability (Planned)
+# Prometheus & Grafana Observability
 METRICS_ENABLED=false
 METRICS_PATH=/metrics
 METRICS_REQUIRE_AUTH=false
@@ -176,7 +181,7 @@ GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=change-me-in-production
 ```
 
-### 4.5 Planned Grafana Dashboard Suite
+### 4.5 Grafana Dashboard Suite
 
 Provisioned as JSON under `infra/observability/grafana/dashboards/`:
 
@@ -228,13 +233,14 @@ The observability stack provides zero-config defaults for local development whil
 - **Pipeline Deployment Variables (GitHub Secrets)**:
   - `STAGING_ENV_FILE` / `PRODUCTION_ENV_FILE`: Append `METRICS_ENABLED=true`, `WORKER_METRICS_ENABLED=true`, and if auth-gated: `METRICS_REQUIRE_AUTH=true` and `METRICS_BEARER_TOKEN=<secret>`.
 
-### 4.7 Phased Implementation (Completed)
+### 4.7 Phased Implementation
 
-All phases below have been completed and verified:
-1. **Phase 1 — Backend Metrics Core & `/metrics` Endpoint** (Completed)
-2. **Phase 2 — Domain & Worker Instrumentation** (Completed)
-3. **Phase 3 — Compose Stack, Exporters, Dashboards & Alerts** (Completed)
-4. **Phase 4 — Verification & CI Validation** (Completed)
+Phases 1-4 are completed and verified for the development overlay:
+1. **Phase 1 — Backend Metrics Core & `/metrics` Endpoint** (Completed, development overlay)
+2. **Phase 2 — Domain & Worker Instrumentation** (Completed, development overlay)
+3. **Phase 3 — Compose Stack, Exporters, Dashboards & Alerts** (Completed, development overlay)
+4. **Phase 4 — Verification & CI Validation** (Completed, development overlay)
+5. **Phase 5 — Staging and production rollout** (Planned)
 
 ---
 
@@ -264,7 +270,7 @@ All phases below have been completed and verified:
 
 ## 7. Observability and Operations
 
-### Planned SLO Alert Rules (`infra/observability/prometheus/alerts.yml`)
+### SLO Alert Rules (`infra/observability/prometheus/alerts.yml`)
 
 | Alert Name | Expression / Condition | Window | Severity |
 |---|---|---|---|
@@ -289,3 +295,4 @@ All phases below have been completed and verified:
 ## 9. Change Notes
 
 - `2026-11-08`: Initial architecture and implementation plan created for Prometheus and Grafana observability integration.
+- `2026-11-26`: Aligned status wording: implemented as a development overlay; staging and production rollout planned (R02-14).

@@ -111,8 +111,11 @@ function AcceptInviteContent() {
   }
 
   return (
-    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6">
-      <main className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
+    <div
+      data-public-theme="system"
+      className="rudix-public bg-site-canvas text-site-ink flex min-h-screen items-center justify-center bg-[radial-gradient(60%_45%_at_50%_0%,var(--site-accent-soft),transparent)] px-6"
+    >
+      <main className="border-site-border bg-site-surface w-full max-w-xl rounded-3xl border p-7 shadow-[0_24px_60px_-32px_rgba(15,17,23,0.25)] md:p-9">
         <div className="mb-5 flex items-center gap-2">
           <Image
             src="/brand/rudix-mark.svg"
@@ -121,17 +124,17 @@ function AcceptInviteContent() {
             height={18}
             className="h-[18px] w-[18px]"
           />
-          <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+          <p className="text-site-ink-muted text-xs font-bold tracking-[0.18em] uppercase">
             Invitation
           </p>
         </div>
 
         {pageState.status === "form" && (
           <>
-            <h1 className="mb-1 text-3xl font-extrabold text-[#2a2640]">
+            <h1 className="text-site-ink mb-1 text-3xl font-semibold tracking-tight">
               Accept your invite
             </h1>
-            <p className="mb-6 text-sm text-[#68647b]">
+            <p className="text-site-ink-muted mb-6 text-sm">
               Set a password to activate your account and get started.
             </p>
             <form
@@ -139,7 +142,7 @@ function AcceptInviteContent() {
               className="space-y-4"
             >
               <div>
-                <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                <label className="text-site-ink-muted mb-1 block text-xs font-medium">
                   Password
                 </label>
                 <div className="relative">
@@ -148,12 +151,12 @@ function AcceptInviteContent() {
                     placeholder="Min 8 characters"
                     autoComplete="new-password"
                     {...form.register("password")}
-                    className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 pr-10 text-sm text-[#2f2a46] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+                    className="border-site-border text-site-ink focus:border-site-accent focus:ring-site-accent/10 h-10 w-full rounded-lg border px-3 pr-10 text-sm outline-none focus:ring-2"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[#999] hover:text-[#555]"
+                    className="text-site-ink-subtle hover:text-site-ink-muted absolute top-1/2 right-2.5 -translate-y-1/2"
                     aria-label={
                       showPassword ? "Hide password" : "Show password"
                     }
@@ -191,13 +194,16 @@ function AcceptInviteContent() {
                   </button>
                 </div>
                 {form.formState.errors.password && (
-                  <p role="alert" className="mt-1 text-xs text-rose-700">
+                  <p
+                    role="alert"
+                    className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+                  >
                     {form.formState.errors.password.message}
                   </p>
                 )}
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                <label className="text-site-ink-muted mb-1 block text-xs font-medium">
                   Confirm password
                 </label>
                 <input
@@ -205,10 +211,13 @@ function AcceptInviteContent() {
                   placeholder="Repeat password"
                   autoComplete="new-password"
                   {...form.register("confirm")}
-                  className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm text-[#2f2a46] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+                  className="border-site-border text-site-ink focus:border-site-accent focus:ring-site-accent/10 h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring-2"
                 />
                 {form.formState.errors.confirm && (
-                  <p role="alert" className="mt-1 text-xs text-rose-700">
+                  <p
+                    role="alert"
+                    className="mt-1 text-xs text-rose-700 dark:text-rose-300"
+                  >
                     {form.formState.errors.confirm.message}
                   </p>
                 )}
@@ -216,7 +225,7 @@ function AcceptInviteContent() {
               <button
                 type="submit"
                 disabled={form.formState.isSubmitting || loggingIn}
-                className="mt-2 h-10 w-full rounded-lg bg-[#3525cd] text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+                className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover mt-2 h-10 w-full rounded-full text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {form.formState.isSubmitting
                   ? "Accepting…"
@@ -230,10 +239,10 @@ function AcceptInviteContent() {
 
         {pageState.status === "success" && (
           <>
-            <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+            <h1 className="text-site-ink mb-2 text-3xl font-semibold tracking-tight">
               You&rsquo;re in!
             </h1>
-            <p className="mb-6 text-sm text-[#68647b]">
+            <p className="text-site-ink-muted mb-6 text-sm">
               Your invitation has been accepted. You&rsquo;ve joined
               {pageState.orgName ? (
                 <>
@@ -247,7 +256,7 @@ function AcceptInviteContent() {
             </p>
             <Link
               href="/login"
-              className="inline-flex h-10 items-center rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
+              className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover inline-flex h-10 items-center rounded-full px-5 text-sm font-semibold transition"
             >
               Sign in to continue
             </Link>
@@ -256,16 +265,16 @@ function AcceptInviteContent() {
 
         {pageState.status === "already_accepted" && (
           <>
-            <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+            <h1 className="text-site-ink mb-2 text-3xl font-semibold tracking-tight">
               Already accepted
             </h1>
-            <p className="mb-6 text-sm text-[#68647b]">
+            <p className="text-site-ink-muted mb-6 text-sm">
               This invitation has already been accepted. Sign in to access your
               workspace.
             </p>
             <Link
               href="/login"
-              className="inline-flex h-10 items-center rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
+              className="bg-site-accent text-site-on-accent hover:bg-site-accent-hover inline-flex h-10 items-center rounded-full px-5 text-sm font-semibold transition"
             >
               Sign in
             </Link>
@@ -274,10 +283,10 @@ function AcceptInviteContent() {
 
         {pageState.status === "expired" && (
           <>
-            <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+            <h1 className="text-site-ink mb-2 text-3xl font-semibold tracking-tight">
               Invitation expired
             </h1>
-            <p className="text-sm text-[#68647b]">
+            <p className="text-site-ink-muted text-sm">
               This invitation link has expired (invitations are valid for 7
               days). Ask your administrator to send a new invite.
             </p>
@@ -286,10 +295,10 @@ function AcceptInviteContent() {
 
         {pageState.status === "revoked" && (
           <>
-            <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+            <h1 className="text-site-ink mb-2 text-3xl font-semibold tracking-tight">
               Invitation revoked
             </h1>
-            <p className="text-sm text-[#68647b]">
+            <p className="text-site-ink-muted text-sm">
               This invitation has been revoked. Contact your administrator for a
               new invite.
             </p>
@@ -298,10 +307,10 @@ function AcceptInviteContent() {
 
         {pageState.status === "invalid" && (
           <>
-            <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+            <h1 className="text-site-ink mb-2 text-3xl font-semibold tracking-tight">
               Invalid invitation
             </h1>
-            <p className="text-sm text-[#68647b]">
+            <p className="text-site-ink-muted text-sm">
               This invitation link is invalid or has already been used. Contact
               your administrator if you believe this is an error.
             </p>
@@ -310,13 +319,13 @@ function AcceptInviteContent() {
 
         {pageState.status === "error" && (
           <>
-            <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+            <h1 className="text-site-ink mb-2 text-3xl font-semibold tracking-tight">
               Something went wrong
             </h1>
-            <p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
               {pageState.message}
             </p>
-            <p className="text-sm text-[#68647b]">
+            <p className="text-site-ink-muted text-sm">
               Please try again or contact your administrator.
             </p>
           </>
@@ -328,9 +337,12 @@ function AcceptInviteContent() {
 
 function AcceptInviteFallback() {
   return (
-    <div className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6">
-      <main className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
-        <p className="text-sm text-[#68647b]">Loading&hellip;</p>
+    <div
+      data-public-theme="system"
+      className="rudix-public bg-site-canvas text-site-ink flex min-h-screen items-center justify-center bg-[radial-gradient(60%_45%_at_50%_0%,var(--site-accent-soft),transparent)] px-6"
+    >
+      <main className="border-site-border bg-site-surface w-full max-w-xl rounded-3xl border p-7 shadow-[0_24px_60px_-32px_rgba(15,17,23,0.25)] md:p-9">
+        <p className="text-site-ink-muted text-sm">Loading&hellip;</p>
       </main>
     </div>
   );

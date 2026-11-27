@@ -1,0 +1,165 @@
+# Foreign keys without a leading index, exempted by tests/test_fk_index_guard.py (R04-02).
+#
+# These are the single-column foreign keys that were unindexed at release 0.4.0. The list
+# may only shrink: the guard fails when an entry becomes indexed or its foreign key goes
+# away, so remove the line in the same change.
+#
+# A new foreign key needs an index (an Index in the model's __table_args__ plus an Alembic
+# migration that builds it concurrently). Add a line here only with a justification comment,
+# for example a small table or a column that is never joined, filtered, or cascaded on.
+#
+# Format: table.column [@db-only|@model-only]  # optional reason
+#   @db-only     the foreign key exists in the migrated schema but the model omits it
+#   @model-only  the model declares the foreign key but no migration creates it
+# Both tags record model/migration drift found at 0.4.0; fix the drift, then drop the line.
+
+ab_experiment_runs.triggered_by_id
+ab_experiment_variant_runs.variant_id
+ab_experiment_variants.approved_by_id
+ab_experiment_variants.prompt_template_version_id
+ab_experiment_variants.rag_profile_id
+ab_experiments.created_by_id
+ab_experiments.evaluation_set_id
+agent_approvals.agent_step_id
+agent_approvals.decided_by_user_id
+agent_approvals.requested_by_user_id
+agent_approvals.tool_call_id
+agent_runs.user_id
+agent_steps.user_id
+agent_tool_calls.agent_step_id
+agent_tool_calls.user_id
+agent_tool_policy_overrides.updated_by_user_id
+agent_trace_retention_policies.updated_by_user_id
+agent_trace_share_tokens.created_by_user_id
+answer_shares.shared_by_user_id
+api_keys.created_by_id
+authorization_conflicts.user_id
+authorization_decision_logs.user_id
+bot_installations.installed_by_user_id
+bot_user_mappings.created_by_user_id
+bot_user_mappings.rudix_user_id
+chat_shares.shared_by_user_id
+collection_access_grants.granted_by_id
+collection_ai_response_policy_overrides.updated_by_id
+collections.review_owner_id
+connector_connections.created_by_user_id
+connector_connections.provider_id
+connector_oauth_states.collection_id
+connector_oauth_states.created_by_user_id
+connector_permission_reviews.reviewed_by_user_id
+connector_sync_conflicts.connection_id
+connector_sync_conflicts.resolved_by_user_id
+connector_sync_conflicts.sync_run_id
+connector_sync_jobs.collection_id
+connector_sync_runs.external_source_id
+custom_roles.created_by_id
+document_versions.created_by_user_id
+documents.review_owner_id
+documents.superseded_by_document_id
+documents.trusted_by_id
+evaluation_dataset_versions.published_by_id
+evaluation_questions.expected_document_id
+evaluation_questions.owner_id
+evaluation_sets.owner_id
+external_item_tombstones.connection_id
+external_item_tombstones.sync_run_id
+external_sources.connection_id
+failed_job_audit_logs.performed_by_id
+feature_permissions.created_by_user_id
+feedback_review_items.linked_document_id
+feedback_review_items.linked_eval_question_id
+feedback_review_items.reviewer_id
+incident_notes.created_by_id
+incidents.created_by_id
+message_feedback.converted_to_eval_question_id
+message_feedback.rag_profile_id
+message_feedback.user_id
+metadata_audit_log.changed_by_id
+org_ai_response_policies.created_by_id
+org_ai_response_policies.updated_by_id
+org_domain_verifications.created_by_id
+org_feature_flag_overrides.overridden_by_user_id
+org_mcp_policies.updated_by_user_id
+org_model_profile_change_log.changed_by_id
+org_model_profile_change_log.org_model_profile_id
+org_model_profiles.updated_by_id
+org_model_provider_change_log.changed_by_id
+org_model_provider_settings.updated_by_id
+org_quota_change_log.changed_by_id
+org_quota_change_log.org_quota_policy_id
+org_quota_override.created_by_id
+org_quota_override.target_user_id
+org_quota_policy.updated_by_id
+org_scim_configs.created_by_id
+org_scim_configs.updated_by_id
+org_sso_configs.created_by_id
+org_sso_configs.updated_by_id
+org_workflows.verified_knowledge_card_id
+organization_chunking_profiles.created_by_user_id
+organization_chunking_profiles.updated_by_user_id
+organization_governance_policies.updated_by_user_id
+organization_invitations.accepted_by_user_id
+organization_invitations.invited_by_user_id
+organization_invitations.member_id
+organization_invitations.revoked_by_user_id
+organization_members.custom_role_id
+policy_evaluation_logs.collection_id
+policy_evaluation_logs.user_id
+prompt_template_versions.created_by_id
+prompt_template_versions.published_by_id
+prompt_template_versions.reviewed_by_id
+prompt_templates.created_by_id
+prompt_templates.updated_by_id
+quality_gate_runs.overridden_by_id
+quality_gate_runs.safety_eval_run_id
+quality_gate_runs.triggered_by_id
+quality_gates.baseline_evaluation_run_id
+quality_gates.baseline_safety_run_id
+quality_gates.created_by_id
+query_knowledge_gaps.collection_id
+query_knowledge_gaps.linked_document_id
+query_knowledge_gaps.linked_eval_question_id
+rag_profile_collection_overrides.collection_id
+rag_profile_collection_overrides.created_by_id
+rag_profile_collection_overrides.rag_profile_id
+rag_profile_versions.changed_by_id
+rag_profiles.created_by_id
+rag_profiles.updated_by_id
+report_events.collection_id
+report_events.connector_id
+report_events.source_id
+report_events.user_id
+resource_access_denies.created_by_user_id
+resource_access_denies.user_id
+resource_access_grants.created_by_user_id
+resource_access_grants.user_id
+role_permissions.created_by_user_id
+service_account_tokens.created_by_id
+service_accounts.created_by_id
+source_acl_mappings.connector_connection_id
+source_acl_mappings.user_id
+source_documents.review_owner_id
+source_documents.sync_run_id
+source_references.document_id
+source_references.source_document_id
+user_memory_preferences.rag_profile_id
+user_memory_preferences.user_id
+user_notification_preferences.organization_id
+verified_answer_versions.changed_by_id
+verified_answers.approved_by_id
+verified_answers.collection_id
+verified_answers.created_by_id
+verified_answers.owner_id
+verified_answers.source_message_id
+webhooks.created_by_id
+workspace_portability_jobs.created_by_user_id
+
+# Drift: the model columns are plain Uuid without ForeignKey; migration 20260622_0001
+# creates the foreign keys.
+authorization_conflicts.decision_log_id @db-only
+authorization_conflicts.deny_id @db-only
+authorization_conflicts.grant_id @db-only
+
+# Drift: the model declares this column with a foreign key, but no migration creates the
+# column (migration 20260605_0003 builds org_model_provider_change_log without it).
+org_model_provider_change_log.org_model_provider_settings_id @model-only

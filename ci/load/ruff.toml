@@ -1,0 +1,2 @@
+# The load harness lives outside backend/ but follows the backend's Ruff rules.
+extend = "../../backend/pyproject.toml"

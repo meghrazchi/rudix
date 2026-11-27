@@ -54,6 +54,10 @@ class OrganizationGovernancePolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "max_total_cost_usd IS NULL OR max_total_cost_usd >= 0",
             name="org_governance_total_cost_non_negative",
         ),
+        CheckConstraint(
+            "audit_log_retention_days IS NULL OR audit_log_retention_days >= 30",
+            name="audit_retention_min",
+        ),
         Index(
             "idx_org_governance_org_id",
             "organization_id",
@@ -137,6 +141,8 @@ class OrganizationGovernancePolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         default=False,
     )
+    # R04-09: per-organisation audit retention override; NULL = platform default.
+    audit_log_retention_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     organization = relationship("Organization", back_populates="governance_policy")
     updated_by_user = relationship("User", back_populates="governance_policies_updated")

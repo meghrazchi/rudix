@@ -297,6 +297,8 @@ make up-d        # Start services in detached mode
 make down        # Stop services
 make logs        # View logs
 make migrate     # Run database migrations
+make dev         # Infra in Docker + migrations, then API, worker, beat and web on the host (Ctrl+C stops them)
+make dev-down    # Stop the infrastructure containers started by make dev (data is kept)
 make test        # Run backend tests
 make lint        # Run backend lint checks
 make check-backend   # Run backend lint + tests
@@ -335,8 +337,10 @@ npm run test:e2e     # Run Playwright tests
 ```bash
 cd backend
 make install      # Install backend dependencies
+make lock         # Re-resolve backend uv.lock (make lock-check verifies it)
 make run-api      # Run FastAPI locally
 make run-worker   # Run Celery worker locally
+make run-beat     # Run Celery beat scheduler locally (exactly one instance)
 make migrate      # Apply migrations
 make test         # Run tests
 make lint         # Run lint and type checks
@@ -370,11 +374,16 @@ make lint         # Run lint and type checks
 Rudix uses GitHub Actions for repository automation. The workflow files under `.github/workflows/` are the source of truth for maintainer-facing CI, security, release, and evaluation automation:
 
 - `ci.yml` runs configuration validation, backend checks, frontend checks, API type verification, and build validation
-- `playwright.yml` runs the standalone Playwright end-to-end suite on demand
-- `security.yml` runs dependency and filesystem vulnerability scans and publishes the backend dependency audit report as an artifact
+- `playwright.yml` runs the standalone Playwright end-to-end suite on pull requests that touch `frontend/`, on `main`, and on demand
+- `backend-postgres.yml` runs the PostgreSQL test lane (`make test-postgres`) on every push and pull request
+- `accuracy-smoke.yml` runs the deterministic in-process accuracy smoke on pull requests that touch the chat pipeline, and on `main`
+- `openapi-contract.yml` checks that `frontend/openapi.json` and the generated types match the backend schema
+- `security.yml` runs the blocking backend (pip-audit) and frontend (`npm audit --omit=dev`) dependency audits and the Trivy filesystem scan, through the severity gate and its expiring allowlist
+- `secret-scan.yml` runs gitleaks on every push and pull request (weekly full-history report)
+- `image-scan.yml` scans the backend `api`/`worker` and frontend images with Trivy when image inputs change
 - `codeql.yml` runs Python and TypeScript CodeQL analysis
-- `release.yml` builds and publishes images, runs integration smoke tests, deploys staging, deploys production with environment approval, and supports rollback
-- `quality-gate.yml` runs the evaluation quality gate on demand
+- `release.yml` builds signed images with SBOMs on `main`, scans them, runs integration smoke, e2e, and quality gates, deploys staging, and promotes the staged digests to production when a `vX.Y.Z` tag is pushed (no rebuild), then publishes a GitHub Release; rollback takes an environment and a version
+- `quality-gate.yml` runs the evaluation quality gate on demand and, from `release.yml`, on the newest nightly run before staging
 - `accuracy-eval.yml` runs the accuracy evaluation gate on a nightly schedule and on demand
 
 Rudix-hosted deployments use these exact public URLs:
@@ -384,9 +393,15 @@ Rudix-hosted deployments use these exact public URLs:
 | Staging     | `https://staging.getrudix.com` | `https://api-staging.getrudix.com/api/v1` |
 | Production  | `https://getrudix.com`         | `https://api.getrudix.com/api/v1`         |
 
+Releases are cut by version: `python3 scripts/bump_version.py X.Y.Z --changelog` updates every
+version string and moves the `[Unreleased]` changelog entries into the release section, and
+`python3 scripts/bump_version.py --check` verifies they agree. After the change merges and
+staging passes, push the tag `vX.Y.Z`.
+
 For workflow details, see:
 
 - [`docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md`](docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md)
+- [`DEPLOYMENT.md`](DEPLOYMENT.md) for secrets, host keys, Terraform state, releases, and rollback
 
 ---
 
@@ -445,7 +460,7 @@ Start here:
 - [`docs/15_MCP_SERVER_DEPLOYMENT_MODE.md`](docs/15_MCP_SERVER_DEPLOYMENT_MODE.md) — MCP architecture (Mermaid), tools/resources/prompts, deployment
 - [`docs/18_LANGFUSE_OBSERVABILITY.md`](docs/18_LANGFUSE_OBSERVABILITY.md) — Langfuse LLM observability: traces, redaction, sampling, production setup
 - [`docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md`](docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md) — Local LLM providers: Ollama/vLLM/LiteLLM setup, security, evaluation, runbooks
-- [`docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`](docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Planned Prometheus and Grafana metrics, dashboards, exporters, and SLO alerting architecture
+- [`docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`](docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Prometheus and Grafana metrics, dashboards, exporters, and SLO alerts (development overlay implemented; staging and production rollout planned)
 - `ci/security/security_gate_allowlist.json` — tracked temporary allowlist for CI severity gate exceptions
 
 Frontend-specific details are available in:

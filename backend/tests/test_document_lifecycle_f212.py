@@ -39,6 +39,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from vector_fake_support import PointLedgerMixin
+
 from app.clients import minio_client as minio_module
 from app.core.config import settings
 from app.domains.documents.repositories.documents import DocumentRepository
@@ -60,8 +62,12 @@ class _Body:
     def __init__(self, data: bytes) -> None:
         self._data = data
 
-    def read(self) -> bytes:
-        return self._data
+    def read(self, amt: int | None = None) -> bytes:
+        # Sized reads (R06-02): consume the data, then return b"".
+        pos = getattr(self, "_pos", 0)
+        end = len(self._data) if amt is None else pos + amt
+        self._pos = end
+        return self._data[pos:end]
 
     def close(self) -> None:
         pass
@@ -101,7 +107,7 @@ class FakeEmbeddingService:
         )()
 
 
-class FakeQdrantService:
+class FakeQdrantService(PointLedgerMixin):
     def __init__(self) -> None:
         self.upsert_calls: list[dict[str, Any]] = []
         self.delete_calls: list[dict[str, Any]] = []

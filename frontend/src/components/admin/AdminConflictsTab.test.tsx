@@ -202,24 +202,22 @@ beforeEach(() => {
 // ─── tab navigation ───────────────────────────────────────────────────────────
 
 describe("Tab navigation", () => {
-  it("renders the Conflicts tab button", () => {
+  it("renders the Conflicts tab", () => {
     renderPage();
-    expect(
-      screen.getByRole("button", { name: /conflicts/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /conflicts/i })).toBeInTheDocument();
   });
 
-  it("renders the Access Debugger tab button", () => {
+  it("renders the Access Debugger tab", () => {
     renderPage();
     expect(
-      screen.getByRole("button", { name: /access debugger/i }),
+      screen.getByRole("tab", { name: /access debugger/i }),
     ).toBeInTheDocument();
   });
 
   it("clicking Conflicts tab calls listConflicts", async () => {
     const user = userEvent.setup();
     renderPage();
-    await user.click(screen.getByRole("button", { name: /conflicts/i }));
+    await user.click(screen.getByRole("tab", { name: /conflicts/i }));
     await waitFor(() =>
       expect(mockConflictsApi.listConflicts).toHaveBeenCalled(),
     );
@@ -228,7 +226,7 @@ describe("Tab navigation", () => {
   it("clicking Access Debugger tab shows subject user ID input", async () => {
     const user = userEvent.setup();
     renderPage();
-    await user.click(screen.getByRole("button", { name: /access debugger/i }));
+    await user.click(screen.getByRole("tab", { name: /access debugger/i }));
     await waitFor(() =>
       expect(
         screen.getByPlaceholderText(/uuid of the user/i),
@@ -243,7 +241,7 @@ describe("ConflictsTab", () => {
   async function openConflictsTab() {
     const user = userEvent.setup();
     renderPage();
-    await user.click(screen.getByRole("button", { name: /conflicts/i }));
+    await user.click(screen.getByRole("tab", { name: /conflicts/i }));
     return user;
   }
 
@@ -397,7 +395,7 @@ describe("AccessDebuggerTab", () => {
   async function openDebuggerTab() {
     const user = userEvent.setup();
     renderPage();
-    await user.click(screen.getByRole("button", { name: /access debugger/i }));
+    await user.click(screen.getByRole("tab", { name: /access debugger/i }));
     await waitFor(() => screen.getByPlaceholderText(/uuid of the user/i));
     return user;
   }
@@ -544,7 +542,7 @@ describe("Permission-aware rendering", () => {
     );
     const user = userEvent.setup();
     renderPage();
-    await user.click(screen.getByRole("button", { name: /conflicts/i }));
+    await user.click(screen.getByRole("tab", { name: /conflicts/i }));
     await waitFor(() =>
       expect(
         screen.queryByRole("button", { name: /run scan/i }),

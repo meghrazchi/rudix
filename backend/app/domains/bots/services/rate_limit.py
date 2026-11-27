@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from math import floor
-from time import time
-
 from app.clients import redis_client as redis_module
 from app.core.config import RateLimitRedisFailureMode, settings
 from app.core.logging import get_logger
+from app.rate_limit import sliding_window
 
 logger = get_logger("bots.rate_limit")
 
@@ -44,22 +42,19 @@ class BotRateLimitService:
             return
 
         window_seconds = settings.rate_limit_window_seconds
-        window_bucket = floor(time() / window_seconds)
         key = (
-            "rate_limit:v1:bot:"
-            f"{provider}:workspace:{external_workspace_id}:"
-            f"user:{external_user_id}:window:{window_bucket}"
+            f"rate_limit:v2:{{bot:{provider}:{external_workspace_id}}}:bot:"
+            f"{provider}:workspace:{external_workspace_id}:user:{external_user_id}"
         )
         try:
-            count = await redis.incr(key)
-            if count == 1:
-                await redis.expire(key, window_seconds)
-            ttl = await redis.ttl(key)
-            if ttl <= 0:
-                await redis.expire(key, window_seconds)
-                ttl = window_seconds
-            if count > settings.rate_limit_bot_requests:
-                raise BotRateLimitExceededError(max(1, int(ttl)))
+            result = await sliding_window.check(
+                redis,
+                user_key=key,
+                user_limit=settings.rate_limit_bot_requests,
+                window_seconds=window_seconds,
+            )
+            if not result.allowed:
+                raise BotRateLimitExceededError(result.retry_after_seconds)
         except BotRateLimitExceededError:
             raise
         except Exception as exc:

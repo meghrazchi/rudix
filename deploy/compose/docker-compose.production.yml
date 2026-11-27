@@ -1,7 +1,69 @@
+# Shared log rotation for every service (json-file, 5 x 10 MB).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+# Shared worker pool definition (R06-04): same image, env, resources, grace period,
+# and logging as the 0.5.0 single worker. Each pool adds its command and healthcheck.
+x-worker: &worker
+  image: ${RUDIX_WORKER_IMAGE}
+  restart: unless-stopped
+  # Long grace period so Celery can finish acknowledged (acks_late) tasks.
+  stop_grace_period: 120s
+  logging: *default-logging
+  deploy:
+    resources:
+      limits:
+        cpus: "2.0"
+        memory: 4g
+  env_file:
+    - .env
+  environment:
+    ENVIRONMENT: production
+    API_BASE_URL: https://api.getrudix.com
+    FRONTEND_BASE_URL: https://getrudix.com
+    APP_AUTH_AUTO_PROVISION_USERS: "false"
+    DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    QDRANT_URL: http://qdrant:6333
+    MINIO_ENDPOINT: http://minio:9000
+    RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+    REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+    MALWARE_SCAN_CLAMAV_HOST: clamav
+  depends_on:
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    minio:
+      condition: service_healthy
+    qdrant:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+    clamav:
+      condition: service_started
+
 services:
   frontend:
     image: ${RUDIX_FRONTEND_IMAGE}
     restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/login >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     env_file:
       - .env
     environment:
@@ -19,6 +81,13 @@ services:
   api:
     image: ${RUDIX_API_IMAGE}
     restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
     env_file:
       - .env
     environment:
@@ -30,7 +99,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      MALWARE_SCAN_CLAMAV_HOST: clamav
       CORS_ORIGINS: https://getrudix.com
     ports:
       - "8000:8000"
@@ -47,6 +117,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      clamav:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -60,10 +132,98 @@ services:
       retries: 10
       start_period: 60s
 
-  worker:
+  # R06-04: one service per worker pool; queues, concurrency, and pool type come from
+  # WORKER_POOL_<NAME>_* settings (python -m app.workers.pools <name>, docs/10).
+  # documents.processing, .deletion, .reindex; CPU-bound (OCR, parsing)
+  worker-ingest:
+    <<: *worker
+    command: python -m app.workers.pools ingest
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d ingest@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # documents.graph; I/O-bound (LLM calls, Neo4j writes)
+  worker-graph:
+    <<: *worker
+    command: python -m app.workers.pools graph
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d graph@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # connectors.sync; I/O-bound (provider APIs)
+  worker-sync:
+    <<: *worker
+    command: python -m app.workers.pools sync
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d sync@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # evaluations; isolated so a full evaluation queue never delays uploads
+  worker-eval:
+    <<: *worker
+    command: python -m app.workers.pools eval
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d eval@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # default, email, agents; runs the dead-letter consumer and queue sampler
+  worker-default:
+    <<: *worker
+    command: python -m app.workers.pools default
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.workers.celery_app:celery_app inspect ping -d default@$$HOSTNAME --timeout 10 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # Exactly one beat instance per deployment. Never scale this service; duplicate beats double-schedule tasks.
+  beat:
     image: ${RUDIX_WORKER_IMAGE}
-    command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
+    command: celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule
     restart: unless-stopped
+    stop_grace_period: 10s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
+    # The worker image's HEALTHCHECK pings a worker node; beat has none.
+    healthcheck:
+      disable: true
     env_file:
       - .env
     environment:
@@ -75,26 +235,26 @@ services:
       QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      MALWARE_SCAN_CLAMAV_HOST: clamav
     depends_on:
-      postgres:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
 
   mcp:
     profiles: ["mcp"]
     image: ${RUDIX_MCP_IMAGE:-${RUDIX_API_IMAGE}}
     command: python -m app.mcp.main --transport streamable_http
     restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
     env_file:
       - .env
     environment:
@@ -111,7 +271,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      MALWARE_SCAN_CLAMAV_HOST: clamav
     ports:
       - "${MCP_HTTP_PORT:-8010}:${MCP_HTTP_PORT:-8010}"
     depends_on:
@@ -140,6 +301,7 @@ services:
   postgres:
     image: postgres:16
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -153,8 +315,9 @@ services:
       retries: 10
 
   qdrant:
-    image: qdrant/qdrant:latest
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:latest}
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
@@ -164,10 +327,11 @@ services:
       retries: 10
 
   minio:
-    image: cgr.dev/chainguard/minio:latest
+    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
     user: "0:0"
     command: server /data --console-address ":9001"
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -180,7 +344,8 @@ services:
       retries: 10
 
   minio-init:
-    image: cgr.dev/chainguard/minio:latest
+    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
+    logging: *default-logging
     depends_on:
       minio:
         condition: service_healthy
@@ -195,12 +360,38 @@ services:
       mc anonymous set none local/$${MINIO_BUCKET};
       "
 
-  rabbitmq:
-    image: rabbitmq:3-management
+  clamav:
+    image: ${CLAMAV_IMAGE:-clamav/clamav-debian:stable}
     restart: unless-stopped
+    logging: *default-logging
+    # No host ports: reached by api/worker on the internal network only.
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/3310'"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+      # The first start downloads the signature database, which is slow.
+      start_period: 300s
+
+  rabbitmq:
+    image: ${RABBITMQ_IMAGE:-rabbitmq:3-management}
+    # Fixed node name: RabbitMQ keys its data directory by node name, which
+    # follows the container hostname. Without it a recreated container
+    # ignores the existing volume.
+    hostname: rabbitmq
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      # consumer_timeout and per-queue Prometheus metrics (R06-03);
+      # deploy_compose_remote.sh copies infra/rabbitmq/ to ./rabbitmq next to this file.
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/20-rudix.conf:ro
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
       interval: 10s
@@ -209,10 +400,19 @@ services:
       start_period: 60s
 
   redis:
-    image: redis:7
+    image: ${REDIS_IMAGE:-redis:7}
     restart: unless-stopped
+    logging: *default-logging
+    # requirepass is added only when REDIS_PASSWORD is set, so env files
+    # without it keep working (unauthenticated, as before).
+    command: ["sh", "-c", "exec redis-server --appendonly yes $${REDIS_PASSWORD:+--requirepass \"$$REDIS_PASSWORD\"}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # redis-cli ping exits 0 on NOAUTH, so require an actual PONG.
+      test: ["CMD-SHELL", "[ -z \"$$REDIS_PASSWORD\" ] || export REDISCLI_AUTH=\"$$REDIS_PASSWORD\"; redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -220,6 +420,7 @@ services:
   matomo-db:
     image: mariadb:11
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MARIADB_DATABASE: ${MATOMO_DATABASE_DBNAME}
       MARIADB_USER: ${MATOMO_DATABASE_USERNAME}
@@ -240,6 +441,7 @@ services:
   matomo:
     image: matomo:5-apache
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       matomo-db:
         condition: service_healthy
@@ -263,5 +465,8 @@ volumes:
   postgres_data:
   qdrant_data:
   minio_data:
+  redis_data:
+  rabbitmq_data:
+  clamav_data:
   matomo_db_data:
   matomo_data:

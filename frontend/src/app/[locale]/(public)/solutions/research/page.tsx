@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function ResearchSolutionRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Research solution page">
+    <PublicMarketingLayout pageLabel="Research solution page" theme="system">
       <ResearchSolutionPage />
     </PublicMarketingLayout>
   );

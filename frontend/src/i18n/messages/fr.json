@@ -2,7 +2,11 @@
   "notificationCenter": {
     "title": "Notifications",
     "menuAriaLabel": "Notifications menu",
-    "severity": { "info": "Info", "warning": "Warning", "error": "Error" },
+    "severity": {
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error"
+    },
     "justNow": "Just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
@@ -129,6 +133,7 @@
     "signOutAllDevicesDescription": "Révoquer toutes les sessions actives et se déconnecter partout.",
     "signOutEverywhere": "Se déconnecter partout",
     "createAccount": "Créer un compte",
+    "noAccountHint": "Pas encore de compte ? Demandez à l’administrateur de votre espace de travail de vous inviter.",
     "backToHome": "Retour à l’accueil public",
     "email": "E-mail",
     "password": "Mot de passe",
@@ -190,84 +195,211 @@
   "public": {
     "status": {
       "states": {
-        "operational": "Operational",
-        "degraded": "Degraded",
-        "outage": "Outage",
+        "operational": "Opérationnel",
+        "degraded": "Dégradé",
+        "outage": "Panne",
         "maintenance": "Maintenance",
-        "unknown": "Unknown"
+        "unknown": "Inconnu"
       },
-      "allPublicServices": "All public services",
+      "allPublicServices": "Tous les services publics",
       "maintenance": "Maintenance",
       "incident": "Incident",
-      "updatePending": "Update pending.",
+      "updatePending": "Mise à jour en attente.",
       "services": "Services",
-      "severity": "Severity",
-      "started": "Started",
-      "resolved": "Resolved",
-      "recently": "Recently",
-      "open": "Open",
-      "affectedServices": "Affected services",
-      "noneReported": "None reported",
-      "updatedAt": "Updated {date}",
-      "updatedRecently": "Updated recently",
-      "liveUnavailable": "Live status information is temporarily unavailable. The page will recover automatically when the public status API is back online.",
-      "statusUnavailable": "Rudix status information is currently unavailable.",
-      "publicStatus": "Public status",
-      "statusDataUnavailable": "Status data unavailable",
-      "contactSupport": "Contact support",
-      "viewChangelog": "View changelog",
-      "snapshot": "Snapshot",
-      "currentIncidents": "Current incidents",
-      "scheduledMaintenance": "Scheduled maintenance",
-      "lastPublishedUpdate": "Last published update",
-      "componentStatus": "Component status",
-      "componentTitle": "How the public-facing Rudix services are behaving",
-      "componentDescription": "Component states are rolled up from the latest public incidents and maintenance notices. Internal hostnames, logs, and dependency names are intentionally omitted.",
-      "liveIncidents": "Live operational incidents",
-      "incidentSupportingText": "We will keep this section updated until the issue is resolved.",
-      "noActiveIncidents": "No active incidents",
-      "noActiveIncidentsDescription": "There are no currently reported incidents affecting public Rudix services.",
-      "plannedMaintenance": "Planned or in-progress maintenance",
-      "maintenanceSupportingText": "Maintenance notices are published here before and during service windows when possible.",
-      "noScheduledMaintenance": "No scheduled maintenance",
-      "noScheduledMaintenanceDescription": "We do not have any public maintenance windows to report right now.",
-      "recentHistory": "Recent history",
-      "recentlyResolvedIncidents": "Recently resolved incidents",
-      "historySupportingText": "This history is limited to public incidents from the last 30 days.",
-      "noRecentIncidents": "No recent incidents",
-      "noRecentIncidentsDescription": "There are no public incident updates in the recent history window.",
-      "refreshFailed": "Live data could not be refreshed. Showing the latest public-safe copy."
+      "severity": "Gravité",
+      "started": "Début",
+      "resolved": "Résolu",
+      "recently": "Récemment",
+      "open": "Ouvert",
+      "affectedServices": "Services concernés",
+      "noneReported": "Aucun signalé",
+      "updatedAt": "Mis à jour le {date}",
+      "updatedRecently": "Mis à jour récemment",
+      "liveUnavailable": "Les informations de statut en direct sont temporairement indisponibles. La page se rétablira automatiquement dès que l’API de statut publique sera de nouveau en ligne.",
+      "statusUnavailable": "Les informations de statut de Rudix sont actuellement indisponibles.",
+      "publicStatus": "Statut public",
+      "statusDataUnavailable": "Données de statut indisponibles",
+      "contactSupport": "Contacter le support",
+      "viewChangelog": "Voir le journal des modifications",
+      "snapshot": "Aperçu",
+      "currentIncidents": "Incidents en cours",
+      "scheduledMaintenance": "Maintenance planifiée",
+      "lastPublishedUpdate": "Dernière mise à jour publiée",
+      "componentStatus": "Statut des composants",
+      "componentTitle": "État des services publics de Rudix",
+      "componentDescription": "L’état des composants est consolidé à partir des derniers incidents et avis de maintenance publics. Les noms d’hôtes internes, les journaux et les noms de dépendances sont volontairement omis.",
+      "liveIncidents": "Incidents opérationnels en cours",
+      "incidentSupportingText": "Nous mettrons cette section à jour jusqu’à la résolution du problème.",
+      "noActiveIncidents": "Aucun incident actif",
+      "noActiveIncidentsDescription": "Aucun incident affectant les services publics de Rudix n’est actuellement signalé.",
+      "plannedMaintenance": "Maintenance planifiée ou en cours",
+      "maintenanceSupportingText": "Les avis de maintenance sont publiés ici avant et pendant les fenêtres d’intervention, dans la mesure du possible.",
+      "noScheduledMaintenance": "Aucune maintenance planifiée",
+      "noScheduledMaintenanceDescription": "Aucune fenêtre de maintenance publique n’est à signaler pour le moment.",
+      "recentHistory": "Historique récent",
+      "recentlyResolvedIncidents": "Incidents récemment résolus",
+      "historySupportingText": "Cet historique se limite aux incidents publics des 30 derniers jours.",
+      "noRecentIncidents": "Aucun incident récent",
+      "noRecentIncidentsDescription": "Aucune mise à jour d’incident public sur la période récente.",
+      "refreshFailed": "Impossible d’actualiser les données en direct. Affichage de la dernière version publique."
     },
     "changelog": {
-      "publicChangelog": "Public changelog",
-      "heroTitle": "Release notes for product improvements, fixes, and breaking changes",
-      "heroDescription": "Public entries are curated from release tags and milestone summaries. Internal-only issue details and sensitive security information are omitted before publication.",
-      "contactTeam": "Contact the team",
-      "reviewSecurityDisclosure": "Review security disclosure",
-      "latestRelease": "Latest release",
-      "currentRelease": "Current release",
+      "publicChangelog": "Journal des modifications public",
+      "heroTitle": "Notes de version : améliorations du produit, correctifs et changements incompatibles",
+      "heroDescription": "Les entrées publiques sont sélectionnées à partir des tags de version et des synthèses de jalons. Les détails internes des tickets et les informations de sécurité sensibles sont omis avant publication.",
+      "contactTeam": "Contacter l’équipe",
+      "reviewSecurityDisclosure": "Consulter la divulgation de sécurité",
+      "latestRelease": "Dernière version",
+      "currentRelease": "Version actuelle",
       "date": "Date",
       "tag": "Tag",
-      "milestone": "Milestone",
-      "sourceTag": "Source tag",
-      "releaseHistory": "Release history",
-      "historyTitle": "Current and historical release notes",
-      "historyDescription": "Each entry is written so it can ship publicly without exposing private issue details, tenant data, or pre-disclosure security context.",
-      "sourceEyebrow": "Release note source",
-      "sourceTitle": "Manual and structured updates",
-      "sourceDescription": "Keep public release notes in the typed data file. That keeps updates lightweight and avoids code-heavy page edits.",
-      "publishingEyebrow": "Publishing convention",
-      "publishingTitle": "Git tag plus milestone",
-      "publishingDescription": "Start from the release tag and milestone, then publish only public-safe summaries, categories, and safe outbound links.",
-      "disclosureEyebrow": "Disclosure guardrail",
-      "disclosureTitle": "Omit private details",
-      "disclosureDescription": "Do not publish raw issue text, customer data, secrets, or unreleased security details. Use the security disclosure route when something must stay private.",
-      "releases": [],
+      "milestone": "Jalon",
+      "sourceTag": "Tag source",
+      "releaseHistory": "Historique des versions",
+      "historyTitle": "Notes de version actuelles et passées",
+      "historyDescription": "Chaque entrée est rédigée pour être publiée sans exposer de détails de tickets privés, de données de locataires ni de contexte de sécurité non encore divulgué.",
+      "sourceEyebrow": "Source des notes de version",
+      "sourceTitle": "Mises à jour manuelles et structurées",
+      "sourceDescription": "Conservez les notes de version publiques dans le fichier de données typé. Les mises à jour restent légères et évitent des modifications de page lourdes en code.",
+      "publishingEyebrow": "Convention de publication",
+      "publishingTitle": "Tag Git et jalon",
+      "publishingDescription": "Partez du tag de version et du jalon, puis publiez uniquement des synthèses, catégories et liens externes adaptés au public.",
+      "disclosureEyebrow": "Garde-fou de divulgation",
+      "disclosureTitle": "Omettre les détails privés",
+      "disclosureDescription": "Ne publiez pas le texte brut des tickets, les données clients, les secrets ni les détails de sécurité non publiés. Utilisez la procédure de divulgation de sécurité lorsqu’un élément doit rester privé.",
+      "releases": [
+        {
+          "version": "v0.7.0",
+          "date": "20 juin 2026",
+          "milestone": "Finitions produit et juridique",
+          "sourceTag": "v0.7.0",
+          "sourceMilestone": "Product Polish & Legal",
+          "summary": "Les notes de version publiques suivent désormais les changements visibles du produit, des liens sûrs et un processus de publication allégé.",
+          "categories": [
+            {
+              "title": "Added",
+              "items": [
+                "Page publique /changelog avec les notes de version actuelles et passées.",
+                "Liens dans le pied de page et le menu d’aide pour trouver facilement les notes de version.",
+                "Données structurées des notes de version avec version, jalon et catégories."
+              ]
+            },
+            {
+              "title": "Improved",
+              "items": [
+                "Conventions plus claires pour des résumés publiables en toute sécurité.",
+                "Processus de mise à jour simplifié pour les finitions produit et les changements juridiques."
+              ]
+            },
+            {
+              "title": "Fixed",
+              "items": [
+                "Risque réduit d’exposer des détails internes dans les mises à jour publiques."
+              ]
+            }
+          ],
+          "links": [
+            {
+              "label": "Voir la présentation du produit",
+              "href": "/product"
+            },
+            {
+              "label": "Lire la posture de sécurité",
+              "href": "/security"
+            },
+            {
+              "label": "Contacter l’équipe",
+              "href": "/contact"
+            }
+          ],
+          "isCurrent": true
+        },
+        {
+          "version": "v0.6.0",
+          "date": "14 mai 2026",
+          "milestone": "Évaluation et observabilité",
+          "sourceTag": "v0.6.0",
+          "sourceMilestone": "Evaluation & Observability",
+          "summary": "Les rapports d’évaluation et la visibilité opérationnelle ont été étendus pour le travail quotidien sur le produit et les versions.",
+          "categories": [
+            {
+              "title": "Added",
+              "items": [
+                "Rapports d’évaluation enrichis pour le suivi de la qualité.",
+                "Points d’accès au pipeline et à l’observabilité plus visibles dans toute l’application."
+              ]
+            },
+            {
+              "title": "Improved",
+              "items": [
+                "Retours opérationnels plus clairs pour les traitements de documents de longue durée.",
+                "Navigation plus cohérente entre les métriques et les pages produit."
+              ]
+            },
+            {
+              "title": "Fixed",
+              "items": [
+                "Textes et gestion des états affinés dans les synthèses opérationnelles."
+              ]
+            }
+          ],
+          "links": [
+            {
+              "label": "Explorer les évaluations",
+              "href": "/evaluations"
+            },
+            {
+              "label": "Ouvrir l’explorateur de pipeline",
+              "href": "/rag-pipeline"
+            }
+          ]
+        },
+        {
+          "version": "v0.5.0",
+          "date": "3 avril 2026",
+          "milestone": "Sécurité et prise en main",
+          "sourceTag": "v0.5.0",
+          "sourceMilestone": "Security & Onboarding",
+          "summary": "Les points d’entrée publics, les textes de prise en main et les messages de sécurité ont été affinés pour une première utilisation plus claire.",
+          "categories": [
+            {
+              "title": "Added",
+              "items": [
+                "Guide de prise en main plus clair pour les nouveaux utilisateurs et espaces de travail.",
+                "Messages de sécurité et de confiance plus directs pour les visiteurs."
+              ]
+            },
+            {
+              "title": "Improved",
+              "items": [
+                "Meilleure visibilité des pages principales du site public.",
+                "Paramètres par défaut plus sûrs pour les liens publics d’assistance et de politiques."
+              ]
+            },
+            {
+              "title": "Fixed",
+              "items": [
+                "Petites améliorations de contenu dans la navigation publique et les appels à l’action."
+              ]
+            }
+          ],
+          "links": [
+            {
+              "label": "Lire la page de la solution juridique",
+              "href": "/solutions/legal"
+            },
+            {
+              "label": "Voir la page sécurité",
+              "href": "/security"
+            }
+          ]
+        }
+      ],
       "categories": {
-        "added": "Added",
-        "improved": "Improved",
-        "fixed": "Fixed",
-        "breakingChanges": "Breaking changes"
+        "added": "Ajouts",
+        "improved": "Améliorations",
+        "fixed": "Corrections",
+        "breakingChanges": "Changements incompatibles"
       }
     },
     "nav": {
@@ -285,7 +417,7 @@
       }
     },
     "footer": {
-      "tagline": "Infrastructure RAG de niveau entreprise pour une récupération des connaissances et des applications IA sécurisées et évolutives.",
+      "tagline": "Interrogez les documents de votre entreprise et obtenez des réponses fiables, chaque source citée.",
       "copyright": "© 2026 Rudix AI. Tous droits réservés.",
       "changeLanguage": "Changer de langue",
       "groups": {
@@ -298,6 +430,11 @@
         "pipelineExplorer": "Explorateur de pipeline",
         "documentation": "Documentation",
         "useCases": "Cas d’usage",
+        "allSolutions": "Toutes les solutions",
+        "solutionHr": "RH",
+        "solutionLegal": "Juridique",
+        "solutionCompliance": "Conformité",
+        "solutionSupport": "Support client",
         "security": "Sécurité",
         "pricing": "Tarifs",
         "contact": "Contact",
@@ -310,7 +447,7 @@
         "subprocessors": "Sous-traitants",
         "acceptableUse": "Utilisation acceptable",
         "securityDisclosure": "Divulgation de sécurité",
-        "changelog": "Changelog"
+        "changelog": "Journal des modifications"
       }
     },
     "home": "Accueil",
@@ -320,116 +457,116 @@
     },
     "seo": {
       "home": {
-        "title": "Infrastructure RAG d’entreprise | Rudix",
-        "description": "Rudix est une plateforme RAG d’entreprise prête pour la production avec ingestion sécurisée, chat fondé, analyses d’évaluation et observabilité du pipeline."
+        "title": "IA documentaire avec réponses sourcées",
+        "description": "Interrogez les documents de votre entreprise et obtenez des réponses précises avec la source exacte. Une IA sécurisée, adaptée aux droits de chaque équipe."
       },
       "product": {
-        "title": "Présentation du produit | Rudix",
-        "description": "Découvrez comment Rudix transforme les documents en réponses indexées et appuyées par des citations, avec évaluations, visibilité du pipeline et opérations prêtes pour la gouvernance."
+        "title": "Présentation du produit : réponses sourcées",
+        "description": "Découvrez comment Rudix transforme vos documents en réponses sourcées, avec évaluations, visibilité du pipeline et gouvernance intégrée."
       },
       "pricing": {
-        "title": "Tarifs | Rudix",
-        "description": "Comparez les plans Rudix pour l’IA documentaire, le chat RAG, les évaluations et la gouvernance, avec des conseils de packaging configurables."
+        "title": "Tarifs et offres d’IA documentaire",
+        "description": "Comparez les offres Rudix pour l’IA documentaire, les évaluations et la gouvernance, des petites équipes aux déploiements à l’échelle de l’entreprise."
       },
       "security": {
-        "title": "Sécurité et confiance | Rudix",
+        "title": "Sécurité et confiance pour l’IA documentaire privée",
         "description": "Rudix est conçu pour les environnements réglementés avec limites architecturales, auditabilité et contrôles de gestion des données."
       },
       "contact": {
-        "title": "Contact et démo | Rudix",
+        "title": "Contacter l’équipe commerciale et réserver une démo",
         "description": "Échangez avec l’équipe Rudix à propos de votre workflow documentaire, demande de démo ou revue de sécurité."
       },
       "solutions": {
-        "title": "Solutions | Rudix",
+        "title": "Solutions d’IA documentaire pour chaque équipe",
         "description": "Questions-réponses documentaires IA pour chaque équipe d’entreprise — RH, juridique, ventes, conformité, opérations et plus encore."
       },
       "hr": {
-        "title": "HR Solution | Rudix",
+        "title": "Réponses IA sur les politiques et manuels RH",
         "description": "Aidez les employés à trouver des réponses dans les manuels, guides d’avantages sociaux et politiques RH avec une IA appuyée par des citations."
       },
       "legal": {
-        "title": "Juridique Solution | Rudix",
+        "title": "Recherche IA pour contrats et documents juridiques",
         "description": "Recherchez dans les contrats, politiques juridiques et accords avec des réponses appuyées par les sources et des pistes d’audit."
       },
       "compliance": {
-        "title": "Conformité Solution | Rudix",
+        "title": "Preuves de conformité et documents d’audit",
         "description": "Retrouvez instantanément des preuves d’audit et de la documentation de conformité grâce à une recherche IA appuyée par des citations."
       },
       "sales": {
-        "title": "Ventes Solution | Rudix",
+        "title": "Réponses sourcées pour les équipes commerciales",
         "description": "Gagnez des affaires avec une intelligence produit citée. Donnez aux AE des réponses instantanées depuis votre base de connaissances."
       },
       "support": {
-        "title": "Support Solution | Rudix",
+        "title": "Support plus rapide grâce à votre documentation",
         "description": "Aidez les agents de support à répondre plus vite avec un accès instantané à la documentation et aux guides de dépannage."
       },
       "research": {
-        "title": "Recherche Solution | Rudix",
+        "title": "Assistant de recherche IA pour documents techniques",
         "description": "Extrayez des insights de PDF techniques et de rapports de recherche grâce à l’intelligence documentaire propulsée par RAG."
       },
       "operations": {
-        "title": "Opérations Solution | Rudix",
+        "title": "Réponses runbooks et procédures pour les opérations",
         "description": "Des réponses de runbook lorsque votre équipe en a besoin — récupération instantanée pour la réponse aux incidents et les processus."
       },
       "procurement": {
-        "title": "Achats Solution | Rudix",
+        "title": "Analyse IA des documents fournisseurs et achats",
         "description": "Évaluez les fournisseurs avec l’examen documentaire alimenté par l’IA et des réponses instantanées aux questions de conformité."
       },
       "internalKnowledge": {
-        "title": "Connaissances internes | Rudix",
+        "title": "Recherche de connaissances internes sourcées",
         "description": "Rendez le savoir institutionnel de votre équipe instantanément accessible grâce à une recherche appuyée par des citations."
       },
       "clientPortal": {
-        "title": "Portail client | Rudix",
+        "title": "Portail client IA sur documents approuvés",
         "description": "Donnez aux clients des réponses instantanées depuis votre documentation approuvée avec une Q&R IA limitée au périmètre choisi."
       },
       "changelog": {
-        "title": "Journal des modifications | Rudix",
+        "title": "Journal des modifications et notes de version",
         "description": "Consultez les notes de version publiques de Rudix, les améliorations produit, les corrections et les mises à jour de statut."
       },
       "status": {
-        "title": "Statut | Rudix",
+        "title": "État du service et historique des incidents",
         "description": "Consultez l’état public du service Rudix, les incidents en cours, les fenêtres de maintenance et l’historique récent."
       },
       "privacy": {
-        "title": "Politique de confidentialité | Rudix",
-        "description": "Découvrez comment Rudix collecte, stocke et protège vos données, y compris les documents téléversés, les requêtes IA, les journaux d’audit et les comptes utilisateurs."
+        "title": "Politique de confidentialité",
+        "description": "Comment Rudix collecte, stocke et protège vos données : documents téléversés, requêtes IA, journaux d’audit et comptes utilisateurs."
       },
       "terms": {
-        "title": "Conditions d’utilisation | Rudix",
-        "description": "Lisez les conditions d’utilisation de Rudix concernant l’usage autorisé, les restrictions, la propriété du contenu, la disponibilité du service et la responsabilité."
+        "title": "Conditions d’utilisation",
+        "description": "Conditions d’utilisation de Rudix : usage autorisé, restrictions, propriété du contenu, disponibilité du service et responsabilité."
       },
       "cookies": {
-        "title": "Politique de cookies | Rudix",
+        "title": "Politique de cookies",
         "description": "Rudix utilise uniquement des cookies de session essentiels et le localStorage du navigateur pour les préférences. Aucun suivi tiers."
       },
       "dpa": {
-        "title": "Avenant relatif au traitement des données | Rudix",
-        "description": "DPA Rudix couvrant les obligations du sous-traitant, les sous-traitants ultérieurs, les droits des personnes concernées, les mesures de sécurité et la notification des incidents."
+        "title": "Avenant relatif au traitement des données",
+        "description": "DPA Rudix : obligations du sous-traitant, sous-traitants ultérieurs, droits des personnes, mesures de sécurité et notification des incidents."
       },
       "subprocessors": {
-        "title": "Sous-traitants ultérieurs | Rudix",
-        "description": "Liste des sous-traitants ultérieurs de Rudix, notamment les fournisseurs de modèles IA, le stockage vectoriel, le stockage d’objets et les services optionnels d’e-mail et d’observabilité."
+        "title": "Sous-traitants ultérieurs",
+        "description": "Sous-traitants ultérieurs de Rudix : modèles d’IA, stockage vectoriel et d’objets, services optionnels d’e-mail et d’observabilité."
       },
       "acceptableUse": {
-        "title": "Politique d’utilisation acceptable | Rudix",
-        "description": "Politique d’utilisation acceptable de Rudix sur les indexations et requêtes autorisées, ainsi que les activités interdites comme le contournement, les abus et les contenus illégaux."
+        "title": "Politique d’utilisation acceptable",
+        "description": "Politique d’utilisation acceptable de Rudix : indexations et requêtes autorisées, activités interdites comme le contournement ou les abus."
       },
       "securityDisclosure": {
-        "title": "Politique de divulgation de sécurité | Rudix",
-        "description": "Comment divulguer de manière responsable les vulnérabilités de sécurité de la plateforme Rudix, les cibles incluses, les délais de réponse et la reconnaissance des chercheurs."
+        "title": "Politique de divulgation de sécurité",
+        "description": "Comment signaler de manière responsable une vulnérabilité dans Rudix : périmètre, délais de réponse et reconnaissance des chercheurs."
       }
     },
     "landing": {
       "hero": {
-        "badge": "Infrastructure RAG prête pour l’entreprise",
+        "badge": "IA documentaire prête pour l’entreprise",
         "title": "Interrogez vos documents.",
         "titleHighlight": "Obtenez les réponses dont vous avez besoin.",
         "description": "Transformez les PDF, DOCX et manuels techniques complexes en assistants IA précis avec citations complètes et visibilité au niveau de l’infrastructure.",
         "primaryCta": "Parlez-nous",
         "secondaryCta": "Téléverser des documents",
         "imageAlt": "Interface produit Rudix montrant la récupération de documents et des réponses fondées",
-        "trustSoc2": "Conforme SOC 2",
+        "trustSoc2": "Contrôles alignés sur SOC 2",
         "trustGdpr": "Prêt pour le RGPD",
         "trustPrivateCloud": "Cloud privé"
       },
@@ -443,7 +580,8 @@
         "untrustedAITitle": "IA non fiable",
         "untrustedAIDesc": "Des LLM génériques hallucinent des réponses sans citations ni garde-fous propres au contexte.",
         "knowledgeSilosTitle": "Silos de connaissances",
-        "knowledgeSilosDesc": "Des données critiques restent piégées dans des silos départementaux, hors de portée des équipes transverses."
+        "knowledgeSilosDesc": "Des données critiques restent piégées dans des silos départementaux, hors de portée des équipes transverses.",
+        "eyebrow": "Le problème"
       },
       "workflow": {
         "heading": "Téléversez. Demandez. Vérifiez.",
@@ -457,7 +595,15 @@
         "retrievalTitle": "Récupération sémantique",
         "retrievalDesc": "Lorsqu’un utilisateur pose une question, notre moteur RAG récupère exactement les fragments nécessaires pour y répondre, ni plus ni moins.",
         "generationTitle": "Génération fondée",
-        "generationDesc": "L’IA répond uniquement à partir des données récupérées, avec des liens directs vers les sources pour une transparence totale."
+        "generationDesc": "L’IA répond uniquement à partir des données récupérées, avec des liens directs vers les sources pour une transparence totale.",
+        "eyebrow": "Comment ça marche",
+        "description": "Du téléversement à une réponse sourcée en quelques secondes.",
+        "step": "Étape {number}",
+        "indexedStatus": "Indexé",
+        "relevance": "Pertinence",
+        "citedPassage": "Passage cité",
+        "passageText": "…les frais de retour sont remboursés pour les articles défectueux…",
+        "openSource": "Ouvrir la page source"
       },
       "useCases": {
         "heading": "Conçu pour chaque équipe.",
@@ -476,7 +622,8 @@
         "hrDesc": "Automatisez les demandes des employés avec des réponses alignées sur les politiques.",
         "salesOpsLabel": "Opérations commerciales",
         "salesOpsTitle": "« Prenons-nous en charge le SSO pour les clients Enterprise ? »",
-        "salesOpsDesc": "Obtenez des réponses immédiates pour les appels d’offres et questionnaires de sécurité."
+        "salesOpsDesc": "Obtenez des réponses immédiates pour les appels d’offres et questionnaires de sécurité.",
+        "eyebrow": "Cas d’usage"
       },
       "security": {
         "heading": "Conçu pour les workflows de documents privés.",
@@ -487,13 +634,32 @@
         "auditLogsTitle": "Journaux d’audit",
         "auditLogsDesc": "Suivez chaque requête, récupération et action administrative avec des journaux horodatés détaillés.",
         "encryptionTitle": "Chiffrement de bout en bout",
-        "encryptionDesc": "AES-256 au repos et TLS 1.3 en transit, avec prise en charge Bring Your Own Key pour l’entreprise."
+        "encryptionDesc": "AES-256 au repos et TLS 1.3 en transit, avec prise en charge Bring Your Own Key pour l’entreprise.",
+        "eyebrow": "Confidentialité d’abord"
       },
       "cta": {
         "heading": "Prêt à transformer vos documents en assistant IA ?",
         "description": "Rejoignez les équipes d’ingénierie innovantes qui utilisent Rudix pour l’excellence des connaissances.",
         "primaryCta": "Parlez-nous",
         "secondaryCta": "Voir la documentation"
+      },
+      "preview": {
+        "windowLabel": "Espace support",
+        "documentsIndexed": "34 documents indexés",
+        "you": "Vous",
+        "justNow": "À l’instant",
+        "question": "Quelle est la politique de retour pour l’international ?",
+        "assistant": "Assistant Rudix",
+        "confidence": "Confiance élevée",
+        "answerIntro": "Les clients internationaux peuvent demander un retour dans les 30 jours suivant la livraison",
+        "answerMiddle": "Les articles doivent être inutilisés et porter leurs étiquettes d’origine. Les frais de retour sont remboursés pour les articles défectueux",
+        "answerEnd": "tandis que les autres retours entraînent de légers frais de remise en stock.",
+        "sourcesHeading": "Sources",
+        "source1Section": "Page 4 · Retours et échanges",
+        "source2Section": "Page 11 · Articles défectueux",
+        "viewSource": "Voir la source",
+        "citationLabel": "Citation {number}",
+        "ariaLabel": "Exemple de réponse sourcée dans Rudix"
       }
     },
     "product": {
@@ -525,11 +691,13 @@
         "feature1": "Analyse intelligente des mises en page et formats de documents mixtes.",
         "feature2": "Workflows de réindexation fiables pour les documents de politique et de connaissance mis à jour.",
         "sourceTransparencyLabel": "Transparence des sources",
-        "sourceTransparencyText": "Les marqueurs de citation relient chaque réponse aux extraits sources d’origine, offrant aux réviseurs un parcours compatible avec l’audit entre réponse et preuves."
+        "sourceTransparencyText": "Les marqueurs de citation relient chaque réponse aux extraits sources d’origine, offrant aux réviseurs un parcours compatible avec l’audit entre réponse et preuves.",
+        "eyebrow": "Documents"
       },
       "groundedAnswers": {
         "heading": "Réponses fondées avec citations",
-        "description": "Chaque réponse est liée à des preuves, afin que les équipes puissent vérifier les affirmations et inspecter les extraits référencés en toute confiance."
+        "description": "Chaque réponse est liée à des preuves, afin que les équipes puissent vérifier les affirmations et inspecter les extraits référencés en toute confiance.",
+        "eyebrow": "Confiance"
       },
       "metrics": {
         "accuracyScore": "Score de précision",
@@ -540,7 +708,22 @@
         "heading": "Visualiseur de l’explorateur de pipeline",
         "description": "Suivez les étapes d’ingestion, de récupération et de réponse dans une chronologie unique, afin que les équipes puissent déboguer le comportement et améliorer la qualité en toute confiance.",
         "openCta": "Ouvrir l’explorateur de pipeline",
-        "imageAlt": "Aperçu du tableau de bord du pipeline avec signaux de récupération et de latence"
+        "imageAlt": "Aperçu du tableau de bord du pipeline avec signaux de récupération et de latence",
+        "eyebrow": "Observabilité",
+        "stages": {
+          "uploadTitle": "Téléversement",
+          "uploadDesc": "Contrôles du type, de la taille et de la sécurité",
+          "extractTitle": "Extraction",
+          "extractDesc": "Texte, tableaux et mise en page de chaque page",
+          "chunkTitle": "Découpage",
+          "chunkDesc": "Divisé en passages consultables",
+          "embedTitle": "Vectorisation",
+          "embedDesc": "Indexé pour une recherche par le sens",
+          "retrieveTitle": "Recherche",
+          "retrieveDesc": "Passages les plus pertinents trouvés et classés",
+          "answerTitle": "Réponse",
+          "answerDesc": "Réponse sourcée avec citations vérifiées"
+        }
       },
       "admin": {
         "heading": "Contrôle administrateur unifié",
@@ -551,7 +734,8 @@
         "usageAnalyticsDesc": "Suivez l’utilisation des jetons, la latence et les tendances d’adoption pour la planification opérationnelle.",
         "usageAnalyticsCta": "Utilisation Analytique",
         "auditLogsCta": "Journaux d’audit",
-        "monitoringCta": "Surveillance"
+        "monitoringCta": "Surveillance",
+        "eyebrow": "Gouvernance"
       },
       "integration": {
         "apiFirstTitle": "Fondation API-first",
@@ -559,7 +743,9 @@
         "futureReadyTitle": "Connecteurs prêts pour l’avenir",
         "futureReadyDesc": "Planifiez l’extension contrôlée des connecteurs et du MCP sans modifier la gouvernance documentaire centrale.",
         "operatorVisibilityTitle": "Visibilité opérateur",
-        "operatorVisibilityDesc": "Gardez la santé du pipeline et les métriques de qualité dans une vue unique pour accélérer la réponse aux incidents et l’optimisation."
+        "operatorVisibilityDesc": "Gardez la santé du pipeline et les métriques de qualité dans une vue unique pour accélérer la réponse aux incidents et l’optimisation.",
+        "eyebrow": "Intégration",
+        "heading": "Conçu pour s’adapter à votre façon de travailler"
       },
       "cta": {
         "heading": "Prêt à architecturer votre moteur de données ?",
@@ -579,6 +765,19 @@
         "isolationA": "Rudix applique des limites au niveau de l’organisation sur les documents, la récupération et les workflows utilisateur.",
         "deploymentQ": "Pouvons-nous déployer Rudix dans notre propre environnement ?",
         "deploymentA": "Rudix est conçu pour un déploiement basé sur conteneurs avec une configuration et des opérations pilotées par l’environnement."
+      },
+      "mock": {
+        "searchPlaceholder": "Rechercher des documents",
+        "indexed": "Indexé",
+        "processing": "En cours de traitement",
+        "pages": "{count} pages",
+        "pagesLabel": "Pages",
+        "chunksLabel": "Segments",
+        "languageLabel": "Langue",
+        "languageValue": "Anglais",
+        "statusLabel": "Statut",
+        "statusReady": "Prêt pour la recherche",
+        "versionLabel": "Version"
       }
     },
     "pricing": {
@@ -592,7 +791,7 @@
       },
       "plans": {
         "heading": "Des plans pour chaque étape de déploiement",
-        "description": "Les prix sont volontairement affichés comme des espaces réservés de contact jusqu’à validation du packaging final pour votre environnement et votre profil d’utilisation.",
+        "description": "Chaque offre est adaptée à votre usage et à votre déploiement. Contactez-nous pour un devis adapté à votre équipe.",
         "contactUs": "Nous contacter",
         "starterBadge": "Pour des pilotes ciblés",
         "starterTitle": "Starter",
@@ -602,7 +801,7 @@
         "starterH1": "Quotas Starter pour documents et indexation",
         "starterH2": "Visibilité de base sur l’utilisation et la qualité",
         "starterH3": "Support par e-mail et accompagnement d’onboarding",
-        "starterCta": "Démarrer l’essai",
+        "starterCta": "Demander un accès",
         "teamBadge": "Le plus choisi pour le déploiement",
         "teamTitle": "Équipe",
         "teamSummary": "Passez à l’échelle entre départements avec une gouvernance, des évaluations et des contrôles opérationnels renforcés.",
@@ -620,7 +819,8 @@
         "enterpriseH1": "Politiques de gouvernance avancées et flux d’approbation",
         "enterpriseH2": "Onboarding personnalisé, plan de réussite et support",
         "enterpriseH3": "Workflow de revue de sécurité avec des architectes solutions",
-        "enterpriseCta": "Contacter l’équipe commerciale"
+        "enterpriseCta": "Contacter l’équipe commerciale",
+        "eyebrow": "Offres"
       },
       "usageLimits": {
         "heading": "Guide d’utilisation et de limites",
@@ -630,11 +830,12 @@
         "questionsTitle": "Questions, jetons et évaluations",
         "questionsDetail": "Les contrôles d’utilisation incluent le volume de chat/questions, les budgets de jetons et l’allocation des exécutions d’évaluation.",
         "storageTitle": "Stockage et organisations",
-        "storageDetail": "Les niveaux peuvent correspondre à des enveloppes de stockage, des quotas de membres d’équipe et des besoins de gouvernance au niveau organisation."
+        "storageDetail": "Les niveaux peuvent correspondre à des enveloppes de stockage, des quotas de membres d’équipe et des besoins de gouvernance au niveau organisation.",
+        "eyebrow": "Utilisation"
       },
       "comparison": {
         "heading": "Comparaison des plans",
-        "description": "Comparez les capacités en un coup d’œil. La vue mobile utilise des cartes empilées pour une meilleure lisibilité.",
+        "description": "Découvrez comment les fonctionnalités évoluent d’un premier pilote à un déploiement à l’échelle de l’entreprise.",
         "capability": "Capacité",
         "starter": "Starter",
         "team": "Équipe",
@@ -666,12 +867,14 @@
         "rowSupportCapabilityLabel": "Niveau de support",
         "rowSupportStarterValue": "Support par e-mail",
         "rowSupportTeamValue": "Support prioritaire",
-        "rowSupportEnterpriseValue": "Dedicated succès plan"
+        "rowSupportEnterpriseValue": "Dedicated succès plan",
+        "eyebrow": "Comparer",
+        "tableCaption": "Fonctionnalités par offre"
       },
       "faq": {
         "title": "Tarifs FAQ",
         "trialQ": "Pouvons-nous commencer par un essai avant de nous engager sur un plan ?",
-        "trialA": "Oui. Les équipes peuvent démarrer avec un workflow d’essai puis passer au niveau qui correspond le mieux au périmètre de déploiement et aux besoins de gouvernance.",
+        "trialA": "Oui. Notre équipe peut configurer un espace de travail pilote. Votre administrateur invite ensuite vos collègues, puis vous passez à l’offre la mieux adaptée à votre déploiement et à votre gouvernance.",
         "upgradesQ": "Comment fonctionnent les montées en gamme lorsque notre utilisation augmente ?",
         "upgradesA": "Rudix prend en charge une extension progressive afin d’augmenter l’utilisation, les contrôles et le support sans reconstruire vos workflows documentaires.",
         "securityReviewQ": "Pouvons-nous demander une revue de sécurité pendant les discussions tarifaires ?",
@@ -694,7 +897,8 @@
         "heading": "Sécurité et gouvernance pour l’IA documentaire privée",
         "description": "Rudix est conçu pour les environnements réglementés et les équipes de sécurité d’entreprise qui ont besoin de limites architecturales, d’auditabilité et de contrôles de gestion des données.",
         "primaryCta": "Demander une revue de sécurité",
-        "secondaryCta": "Voir l’architecture"
+        "secondaryCta": "Voir l’architecture",
+        "postureLabel": "Posture de sécurité"
       },
       "pillars": {
         "heading": "Sécurité pillars",
@@ -719,7 +923,8 @@
         "encryptionCallout": "Chiffré en transit et au repos",
         "observabilityTitle": "Observabilité opérationnelle",
         "observabilityDesc": "Les équipes peuvent surveiller la santé et les échecs des requêtes avec une télémétrie sûre qui évite d’exposer le texte sensible des documents.",
-        "observabilityCallout": "Safe operational visibilité"
+        "observabilityCallout": "Safe operational visibilité",
+        "eyebrow": "Piliers"
       },
       "documentHandling": {
         "heading": "Cycle de vie de gestion des documents",
@@ -741,7 +946,8 @@
         "deleteTitle": "Supprimer",
         "deleteDesc": "Respecter les workflows de suppression dans le stockage et les index.",
         "reindexTitle": "Re-indexer",
-        "reindexDesc": "Reconstruire l’état de l’index lorsque le contenu est mis à jour."
+        "reindexDesc": "Reconstruire l’état de l’index lorsque le contenu est mis à jour.",
+        "eyebrow": "Cycle de vie"
       },
       "accessGovernance": {
         "heading": "Accès et gouvernance",
@@ -753,7 +959,8 @@
         "adminGovernanceTitle": "Admin gouvernance",
         "adminGovernanceDesc": "Les contrôles administratifs soutiennent la gestion des politiques, les garde-fous d’outillage et les workflows de revue opérationnelle.",
         "routeBoundariesTitle": "Public/privé route boundaries",
-        "routeBoundariesDesc": "Les routes marketing restent publiques tandis que les espaces de travail applicatifs exigent une authentification."
+        "routeBoundariesDesc": "Les routes marketing restent publiques tandis que les espaces de travail applicatifs exigent une authentification.",
+        "eyebrow": "Gouvernance"
       },
       "compliance": {
         "heading": "Préparation à la conformité",
@@ -764,7 +971,8 @@
         "retentionHeading": "Rétention et suppression",
         "retention0": "Les délais de conservation doivent être définis par la politique de votre organisation et les exigences légales.",
         "retention1": "Les workflows de suppression doivent couvrir le stockage objet, les index interrogeables et les artefacts dérivés.",
-        "retention2": "Les workflows de réindexation prennent en charge l’actualisation des documents obsolètes et les mises à jour de politiques."
+        "retention2": "Les workflows de réindexation prennent en charge l’actualisation des documents obsolètes et les mises à jour de politiques.",
+        "eyebrow": "Conformité"
       },
       "faq": {
         "title": "Sécurité FAQ",
@@ -825,50 +1033,50 @@
         "fallbackCta": "Contacter par e-mail",
         "unconfiguredNotice": "L’envoi du formulaire de contact n’est pas configuré pour le moment. Vous pouvez toujours joindre l’équipe via les autres moyens de contact.",
         "retryLink": "Réessayer avec un autre moyen de contact",
-        "website": "Website",
-        "teamSize": "Team size",
-        "teamSizePlaceholder": "Select team size",
-        "captchaToken": "CAPTCHA token ({provider})",
-        "captchaPlaceholder": "Optional placeholder for provider integration",
-        "captchaDescription": "Configure client-side CAPTCHA provider integration to populate this field in production deployments.",
-        "consent": "I agree that Rudix may use this information to contact me about a demo or solution discussion.",
+        "website": "Site web",
+        "teamSize": "Taille de l’équipe",
+        "teamSizePlaceholder": "Sélectionnez la taille de l’équipe",
+        "captchaToken": "Jeton CAPTCHA ({provider})",
+        "captchaPlaceholder": "Espace réservé facultatif pour l’intégration du fournisseur",
+        "captchaDescription": "Configurez l’intégration du fournisseur CAPTCHA côté client pour renseigner ce champ dans les déploiements de production.",
+        "consent": "J’accepte que Rudix utilise ces informations pour me contacter au sujet d’une démo ou d’un échange sur une solution.",
         "roleOptions": {
-          "cto_vp_engineering": "CTO / VP Engineering",
-          "solutions_architect": "Solutions Architect",
+          "cto_vp_engineering": "CTO / VP Ingénierie",
+          "solutions_architect": "Architecte solutions",
           "devops_sre": "DevOps / SRE",
-          "product_management": "Product Management",
-          "security_compliance": "Security / Compliance",
-          "other": "Other"
+          "product_management": "Gestion de produit",
+          "security_compliance": "Sécurité / Conformité",
+          "other": "Autre"
         },
         "useCaseOptions": {
-          "rag_pipeline": "RAG pipeline optimization",
-          "compliance": "Automated compliance workflows",
-          "extraction": "High-volume data extraction",
-          "governance": "Governance and audit readiness",
-          "migration": "Legacy workflow migration",
-          "other": "Other"
+          "rag_pipeline": "Optimisation du pipeline RAG",
+          "compliance": "Workflows de conformité automatisés",
+          "extraction": "Extraction de données à grand volume",
+          "governance": "Gouvernance et préparation aux audits",
+          "migration": "Migration de workflows existants",
+          "other": "Autre"
         },
         "errors": {
-          "validation_failure": "Some fields need attention. Review the form and try again.",
-          "rate_limited": "Too many requests right now. Please wait a moment and retry.",
-          "network_failure": "Submission is temporarily unavailable. Please retry or use email.",
-          "not_configured": "Contact submission is not configured. Use an alternate contact option.",
-          "unknown": "Unable to submit your request right now. Please try again."
+          "validation_failure": "Certains champs nécessitent votre attention. Vérifiez le formulaire et réessayez.",
+          "rate_limited": "Trop de demandes pour le moment. Veuillez patienter un instant avant de réessayer.",
+          "network_failure": "L’envoi est temporairement indisponible. Veuillez réessayer ou utiliser l’e-mail.",
+          "not_configured": "L’envoi du formulaire de contact n’est pas configuré. Utilisez un autre moyen de contact.",
+          "unknown": "Impossible d’envoyer votre demande pour le moment. Veuillez réessayer."
         },
         "successChannels": {
-          "api": "Thanks. Your request was received.",
-          "mailto": "Opening your email client with a prefilled request.",
-          "external": "Redirecting you to the configured scheduling flow."
+          "api": "Merci. Votre demande a bien été reçue.",
+          "mailto": "Ouverture de votre client de messagerie avec une demande pré-remplie.",
+          "external": "Redirection vers le parcours de prise de rendez-vous configuré."
         },
         "validation": {
-          "fullName": "Enter a valid full name.",
-          "workEmail": "Enter a valid work email address.",
-          "company": "Enter a valid company name.",
-          "teamSize": "Select a team size.",
-          "roleTitle": "Select your role or title.",
-          "useCase": "Select your primary use case.",
-          "message": "Enter a message of at least 10 characters.",
-          "consent": "Consent is required before submitting the request."
+          "fullName": "Saisissez un nom complet valide.",
+          "workEmail": "Saisissez une adresse e-mail professionnelle valide.",
+          "company": "Saisissez un nom d’entreprise valide.",
+          "teamSize": "Sélectionnez une taille d’équipe.",
+          "roleTitle": "Sélectionnez votre rôle ou votre poste.",
+          "useCase": "Sélectionnez votre cas d’usage principal.",
+          "message": "Saisissez un message d’au moins 10 caractères.",
+          "consent": "Votre consentement est requis avant d’envoyer la demande."
         }
       },
       "goodFit": {
@@ -991,16 +1199,16 @@
         "complexity": "Complexité",
         "sampleQuery": "Requête exemple",
         "retrievalStrategy": "Récupération Strategy",
-        "singleHopLabel": "SINGLE-HOP",
+        "singleHopLabel": "SAUT UNIQUE",
         "singleHopQuery": "« Quelle est notre politique de télétravail en Allemagne ? »",
         "singleHopStrategy": "Hybrid sémantique + keyword",
-        "multiHopLabel": "MULTI-HOP",
+        "multiHopLabel": "MULTI-SAUTS",
         "multiHopQuery": "« Compare notre croissance de chiffre d’affaires T3 avec la projection du rapport annuel 2022. »",
         "multiHopStrategy": "Chaînage interdocuments",
-        "structuralLabel": "STRUCTURAL",
+        "structuralLabel": "STRUCTUREL",
         "structuralQuery": "« Liste tous les fournisseurs dont les contrats expirent avant le 31 décembre dans un tableau. »",
         "structuralStrategy": "Agent d’extraction JSON/tableau",
-        "reasoningLabel": "REASONING",
+        "reasoningLabel": "RAISONNEMENT",
         "reasoningQuery": "« Le nouvel amendement RGPD entre-t-il en conflit avec notre flux actuel de stockage des données ? »",
         "reasoningStrategy": "Vérification contextuelle par LLM"
       },
@@ -1035,9 +1243,9 @@
         "q0": "Quelle est la politique de congé parental par région ?",
         "q1": "Quels documents d’onboarding sont requis avant le premier jour ?",
         "q2": "Quelle est la limite de remboursement du télétravail ?",
-        "engineLabel": "Rudix HR Engine",
+        "engineLabel": "Moteur RH Rudix",
         "engineAnswer": "Vous êtes éligible à 16 semaines de congé entièrement payé…",
-        "engineCitation": "[Global Benefits Guide, p. 42]"
+        "engineCitation": "[Guide mondial des avantages, p. 42]"
       },
       "problems": {
         "heading": "Les équipes RH répondent aux mêmes questions chaque semaine.",
@@ -1052,10 +1260,10 @@
       "flow": {
         "heading": "Politique infrastructure flow",
         "description": "Comment Rudix transforme les documents RH en réponses fondées.",
-        "step01": "Step 01",
-        "step02": "Step 02",
-        "step03": "Step 03",
-        "step04": "Step 04",
+        "step01": "Étape 01",
+        "step02": "Étape 02",
+        "step03": "Étape 03",
+        "step04": "Étape 04",
         "uploadTitle": "HR téléversements politiques",
         "uploadDesc": "Ingestionez en toute sécurité des PDF, DOCX ou fichiers texte dans l’espace de travail Rudix.",
         "uploadFilename": "politique_v4.pdf",
@@ -1086,15 +1294,15 @@
         "a1Source": "[Leave Politique 2024, §3.2]",
         "q2": "« Quelle est la limite de dépenses de télétravail ? »",
         "a2": "Jusqu’à 75 $/mois pour les dépenses de bureau à domicile avec l’approbation du manager.",
-        "a2Source": "[Remote Work SOP, §4]"
+        "a2Source": "[Procédure de télétravail, §4]"
       },
       "exampleQuestions": {
         "sectionLabel": "Employé experience",
         "heading": "Une clarté instantanée pour chaque question.",
-        "engineLabel": "Rudix HR Engine",
+        "engineLabel": "Moteur RH Rudix",
         "parentalLeaveQ": "Quelle est la politique de congé parental ?",
         "parentalLeaveA": "Notre politique prévoit 16 semaines de congé entièrement payé pour les aidants principaux. Cela s’applique à la naissance, l’adoption ou le placement familial. L’éligibilité commence après 6 mois d’emploi continu.",
-        "parentalLeaveCitation": "Global Benefits Guide, p. 42",
+        "parentalLeaveCitation": "Guide mondial des avantages, p. 42",
         "vacationQ": "Combien de jours de vacances ai-je ?",
         "vacationA": "Les employés standard reçoivent 25 jours par année civile, proratisés selon la date de début. Jusqu’à 5 jours peuvent être reportés à l’année suivante.",
         "vacationCitation": "Employé Handbook, §6.1",
@@ -1131,7 +1339,7 @@
         "queryExample": "« Quel est le préavis de résiliation pour le contrat AWS ? »",
         "answerText": "Le Master Service Agreement AWS exige un préavis écrit de 90 jours avant la fin de la période en cours en cas de non-renouvellement.",
         "citation1": "AWS_MSA_2023.pdf · p. 14",
-        "citation2": "Section 12.2 (Termination)"
+        "citation2": "Section 12.2 (Résiliation)"
       },
       "problems": {
         "heading": "Les contrats sont trop importants pour être recherchés manuellement.",
@@ -1148,8 +1356,8 @@
         "description": "Rudix prend en charge les hiérarchies documentaires complexes et les références croisées entre accords-cadres et énoncés de travaux locaux.",
         "customerContracts": "Client contrats",
         "vendorAgreements": "Fournisseur accords",
-        "ndas": "NDAs",
-        "dpas": "DPAs",
+        "ndas": "Accords de confidentialité (NDA)",
+        "dpas": "DPA",
         "termsOfService": "Conditions d’utilisation",
         "legalGuidance": "Juridique guidance",
         "instantIngestion": "Ingestion instantanée",
@@ -1176,10 +1384,10 @@
         "responsibleUseText": "Rudix soutient la recherche juridique et les workflows documentaires. Il ne remplace pas la revue d’un avocat et ne constitue pas un conseil juridique. Toutes les informations récupérées doivent être vérifiées par un conseiller juridique qualifié avant toute utilisation.",
         "securityCta": "Sécurité & Conformité",
         "viewerLabel": "Contract_Viewer_v2",
-        "snippetLabel1": "Snippet from: MSA_Enterprise_Final.pdf",
-        "snippetBody1": "…either party may terminate this Agreement upon ninety (90) days prior written notice if the other party materially breaches any term…",
-        "snippetLabel2": "Snippet from: Addendum_C.pdf",
-        "snippetBody2": "…notwithstanding Section 12, the pricing tier remains fixed for the duration of the initial term…"
+        "snippetLabel1": "Extrait de : MSA_Enterprise_Final.pdf",
+        "snippetBody1": "…chacune des parties peut résilier le présent Contrat moyennant un préavis écrit de quatre-vingt-dix (90) jours si l’autre partie manque de manière substantielle à l’une quelconque de ses clauses…",
+        "snippetLabel2": "Extrait de : Addendum_C.pdf",
+        "snippetBody2": "…nonobstant la Section 12, le niveau tarifaire reste fixe pendant toute la durée de la période initiale…"
       },
       "cta": {
         "heading": "Trouver contrat réponses faster.",
@@ -1195,12 +1403,12 @@
         "heading": "Trouver audit preuves faster.",
         "description": "Utilisez Rudix pour récupérer des réponses citées depuis les politiques, procédures, documents de sécurité, preuves d’audit et fichiers de conformité.",
         "primaryCta": "Parlez-nous de la conformité",
-        "engineLabel": "Compliance Engine",
-        "queryExample": "What supports our access review process?",
-        "retrievingEvidence": "Retrieving evidence...",
-        "matchesFound": "Matches found in:",
+        "engineLabel": "Moteur de conformité",
+        "queryExample": "Qu’est-ce qui étaye notre processus de revue des accès ?",
+        "retrievingEvidence": "Récupération des preuves...",
+        "matchesFound": "Correspondances trouvées dans :",
         "match1": "SOC2_Evidence_Q4.pdf (p.12)",
-        "match2": "Access_Policy_v2.docx (Sec 4.1)"
+        "match2": "Access_Policy_v2.docx (sect. 4.1)"
       },
       "problems": {
         "heading": "Les preuves d’audit sont difficiles à trouver lorsqu’elles sont réparties entre des fichiers.",
@@ -1210,7 +1418,7 @@
         "traceabilityTitle": "Lacunes de traçabilité",
         "traceabilityBody": "Les réponses de politique manquent souvent de liens directs vers les documents sources d’origine, ce qui oblige les responsables conformité à revérifier manuellement chaque affirmation.",
         "manualDrainTitle": "Fardeau de la collecte manuelle",
-        "manualDrainBody": "Les auditeurs passent 60 % de leur temps à collecter des preuves au lieu de les analyser. La récupération manuelle est lente, sujette aux erreurs et coûteuse."
+        "manualDrainBody": "Les auditeurs passent trop de temps à collecter des preuves au lieu de les analyser. La récupération manuelle est lente, sujette aux erreurs et coûteuse."
       },
       "documentSources": {
         "heading": "Téléverser everything. Trouver anything.",
@@ -1245,14 +1453,14 @@
         "securityCta": "Sécurité & Conformité",
         "activityStream": "Activité Stream",
         "viewFullAuditTrail": "Voir Full Audit Trail",
-        "auditLogRetrieval": "Audit log retrieval",
-        "sourceDownload": "Source download",
-        "newDocumentIndexed": "New document indexed",
-        "verifiedBadge": "Verified",
-        "indexedBadge": "Indexed",
-        "systemUser": "System",
-        "systemPrefix": "System",
-        "userPrefix": "User:"
+        "auditLogRetrieval": "Consultation du journal d’audit",
+        "sourceDownload": "Téléchargement de la source",
+        "newDocumentIndexed": "Nouveau document indexé",
+        "verifiedBadge": "Vérifié",
+        "indexedBadge": "Indexé",
+        "systemUser": "Système",
+        "systemPrefix": "Système",
+        "userPrefix": "Utilisateur :"
       },
       "cta": {
         "heading": "Rendez les preuves de conformité plus faciles à trouver.",
@@ -1270,24 +1478,24 @@
         "description": "Permettez à vos AE et SE de répondre instantanément aux questions techniques complexes. Rudix indexe toute votre base de connaissances pour fournir une intelligence commerciale citée, précise et en temps réel.",
         "primaryCta": "Commencer gratuitement",
         "secondaryCta": "Voir la démo",
-        "mockQuestion": "What are our competitive advantages against AWS Bedrock?",
-        "mockAnswerTitle": "Our primary advantages include:",
-        "mockAnswer1Label": "RAG Accuracy:",
-        "mockAnswer1Body": "24% higher retrieval precision.",
-        "mockAnswer2Label": "Deployment:",
-        "mockAnswer2Body": "On-prem and VPC support.",
-        "mockAnswer3Label": "Pricing:",
-        "mockAnswer3Body": "40% lower TCO for high-fidelity enterprise flows.",
+        "mockQuestion": "Quels sont nos avantages concurrentiels face à AWS Bedrock ?",
+        "mockAnswerTitle": "Nos principaux avantages :",
+        "mockAnswer1Label": "Précision RAG :",
+        "mockAnswer1Body": "Précision de récupération supérieure de 24 %.",
+        "mockAnswer2Label": "Déploiement :",
+        "mockAnswer2Body": "Prise en charge sur site et en VPC.",
+        "mockAnswer3Label": "Tarifs :",
+        "mockAnswer3Body": "TCO inférieur de 40 % pour les flux d’entreprise haute fidélité.",
         "mockTag1": "Battlecard_v2.pdf [p.4]",
         "mockTag2": "Pricing_Q3_Final.xlsx",
-        "mockStatus1": "Indexing Live",
-        "mockStatus2": "Sources Verified"
+        "mockStatus1": "Indexation en direct",
+        "mockStatus2": "Sources vérifiées"
       },
       "problems": {
         "heading": "Le coût de la friction commerciale",
         "description": "Chercher le bon support commercial ne devrait pas être le goulot d’étranglement de votre cycle de vente.",
         "lostCaseStudiesTitle": "Études de cas perdues",
-        "lostCaseStudiesBody": "Votre meilleure réussite dans la santé est enfouie dans un fil Slack de 2022. Les AE perdent 4 heures par semaine à chercher des preuves pertinentes.",
+        "lostCaseStudiesBody": "Votre meilleure réussite dans la santé est enfouie dans un ancien fil Slack : les commerciaux cherchent des preuves au lieu de vendre.",
         "outdatedPricingTitle": "Outdated Tarifs",
         "outdatedPricingBody": "Les représentants qui présentent d’anciennes grilles tarifaires créent une forte friction contractuelle et érodent les marges lors des phases de clôture.",
         "battlecardFrictionTitle": "Friction des battlecards",
@@ -1300,7 +1508,7 @@
         "caseStudies": "Études de cas",
         "rfpTemplates": "Modèles RFP",
         "pricingSheets": "Tarifs Sheets",
-        "battlecards": "Battlecards",
+        "battlecards": "Fiches concurrentielles",
         "proposalDecks": "Présentations de proposition"
       },
       "queries": {
@@ -1319,6 +1527,12 @@
         "description": "Rejoignez les équipes commerciales performantes qui utilisent Rudix pour faire remonter l’intelligence technique en quelques secondes, pas en heures.",
         "primaryCta": "Planifier une démo",
         "secondaryCta": "Voir les tarifs"
+      },
+      "images": {
+        "collateralAlt": "Supports commerciaux professionnels et brochures techniques produit",
+        "teamMeetingAlt": "Commerciaux grands comptes en réunion de stratégie commerciale",
+        "workspaceAlt": "Commercial travaillant sur un ordinateur portable avec des outils d’aide à la vente",
+        "pricingAlt": "Grille tarifaire et documents contractuels pour la vente aux entreprises"
       }
     },
     "support": {
@@ -1329,15 +1543,15 @@
         "description": "Donnez aux équipes de support un accès instantané aux réponses issues de la documentation produit, des guides de dépannage, FAQ, runbooks et notes de version.",
         "primaryCta": "Parlez-nous du support",
         "secondaryCta": "Contact",
-        "workspaceLabel": "Support Workspace — Active",
-        "workspaceQuestion": "How do I escalate a P1 incident under the SLA?",
-        "workspaceSource": "# Source: Escalation_Playbook_v4.pdf",
-        "workspaceStep1": "1. Acknowledge within 15 minutes via on-call channel...",
-        "workspaceStep2": "2. Open a war-room call and notify the customer...",
-        "workspaceStep3": "3. Escalate to Tier 2 if unresolved within 30 min.",
-        "confidenceLabel": "Confidence",
-        "metricLabel": "Response Metric",
-        "metricValue": "Search Time"
+        "workspaceLabel": "Espace de travail Support — Actif",
+        "workspaceQuestion": "Comment escalader un incident P1 conformément au SLA ?",
+        "workspaceSource": "# Source : Escalation_Playbook_v4.pdf",
+        "workspaceStep1": "1. Accuser réception sous 15 minutes via le canal d’astreinte...",
+        "workspaceStep2": "2. Ouvrir une cellule de crise et prévenir le client...",
+        "workspaceStep3": "3. Escalader au niveau 2 si non résolu sous 30 min.",
+        "confidenceLabel": "Confiance",
+        "metricLabel": "Indicateur de réponse",
+        "metricValue": "Temps de recherche"
       },
       "cta": {
         "heading": "Transformez votre base de connaissances de support.",
@@ -1346,58 +1560,58 @@
         "secondaryCta": "Voir le produit"
       },
       "problems": {
-        "heading": "Support knowledge is often scattered.",
-        "description": "Siloed information leads to slower resolutions and agent burnout.",
-        "toolFatigueTitle": "Tool Fatigue",
-        "toolFatigueBody": "Agents search too many tools — Confluence, Notion, and Slack — wasting 30% of their shift just looking for answers.",
-        "slowOnboardingTitle": "Slow Onboarding",
-        "slowOnboardingBody": "New agents need faster onboarding to reach full productivity. Currently, training takes weeks of shadowing senior staff.",
-        "inconsistentDataTitle": "Inconsistent Data",
-        "inconsistentDataBody": "Customers expect fast and consistent answers. Outdated docs lead to conflicting advice and lower CSAT scores."
+        "heading": "Les connaissances du support sont souvent dispersées.",
+        "description": "Les informations cloisonnées ralentissent les résolutions et épuisent les agents.",
+        "toolFatigueTitle": "Lassitude des outils",
+        "toolFatigueBody": "Les agents cherchent dans trop d’outils — Confluence, Notion et Slack — et perdent un temps précieux à chercher des réponses au lieu d’aider les clients.",
+        "slowOnboardingTitle": "Intégration lente",
+        "slowOnboardingBody": "Les nouveaux agents ont besoin d’une intégration plus rapide pour être pleinement productifs. Aujourd’hui, la formation demande des semaines d’accompagnement par des collaborateurs expérimentés.",
+        "inconsistentDataTitle": "Données incohérentes",
+        "inconsistentDataBody": "Les clients attendent des réponses rapides et cohérentes. Des documents obsolètes entraînent des conseils contradictoires et des scores CSAT plus faibles."
       },
       "documentSources": {
-        "heading": "Connect all your support assets.",
-        "description": "Rudix indexes your existing technical knowledge base to create a high-fidelity retrieval engine specifically for your support agents.",
-        "dataSourceLabel": "Data Source",
-        "productDocumentation": "Product Documentation",
-        "troubleshootingGuides": "Troubleshooting Guides",
-        "faqs": "FAQs",
-        "releaseNotes": "Release Notes",
-        "knownIssues": "Known Issue Lists",
-        "escalationRunbooks": "Escalation Runbooks",
-        "feature0": "Real-time sync with Confluence and ZenDesk",
-        "feature1": "Parsing of complex PDF diagrams and runbooks",
-        "feature2": "Version-controlled knowledge retrieval"
+        "heading": "Connectez toutes vos ressources de support.",
+        "description": "Rudix indexe votre base de connaissances technique existante pour créer un moteur de recherche haute fidélité conçu spécifiquement pour vos agents de support.",
+        "dataSourceLabel": "Source de données",
+        "productDocumentation": "Documentation produit",
+        "troubleshootingGuides": "Guides de dépannage",
+        "faqs": "FAQ",
+        "releaseNotes": "Notes de version",
+        "knownIssues": "Listes de problèmes connus",
+        "escalationRunbooks": "Runbooks d’escalade",
+        "feature0": "Synchronisation en temps réel avec Confluence et ZenDesk",
+        "feature1": "Analyse des diagrammes PDF complexes et des runbooks",
+        "feature2": "Recherche de connaissances avec gestion des versions"
       },
       "howItWorks": {
-        "heading": "How it works",
-        "description": "A robust pipeline from raw documentation to verified agent answers.",
-        "step1Title": "1. Upload",
-        "step1Body": "Support uploads docs from multiple formats.",
-        "step2Title": "2. Index",
-        "step2Body": "Rudix creates vector embeddings of your data.",
-        "step3Title": "3. Ask",
-        "step3Body": "Agents ask natural language questions.",
-        "step4Title": "4. Resolve",
-        "step4Body": "Answers with sources for instant resolution."
+        "heading": "Comment ça marche",
+        "description": "Un pipeline robuste, de la documentation brute aux réponses vérifiées pour les agents.",
+        "step1Title": "1. Téléverser",
+        "step1Body": "Le support téléverse des documents dans plusieurs formats.",
+        "step2Title": "2. Indexer",
+        "step2Body": "Rudix crée des embeddings vectoriels de vos données.",
+        "step3Title": "3. Demander",
+        "step3Body": "Les agents posent leurs questions en langage naturel.",
+        "step4Title": "4. Résoudre",
+        "step4Body": "Des réponses sourcées pour une résolution immédiate."
       },
       "exampleQueries": {
-        "heading": "Precision retrieval in action.",
-        "description": "See how Rudix handles complex technical queries with ease.",
-        "agentView": "Agent view",
-        "adminView": "Admin view",
-        "activeQuery": "Active Query",
-        "mockQuestion": "How do I troubleshoot login failures for users on Enterprise Plan v2?",
-        "mockSource": "# Source: Auth_Runbook_v2.1.pdf",
-        "mockStep1": "1. Verify the 'client_id' matches the region...",
-        "mockStep2": "2. Check for 'error_code: 403_STALE' in the logs...",
-        "mockStep3": "3. Ensure SSO provider metadata is rotated.",
-        "q1": "Which plan includes SSO?",
-        "a1": "SSO is available on Enterprise and Custom plans. See pricing.md for details.",
-        "q2": "What changed in the latest release?",
-        "a2": "Release 4.2 introduced Webhooks and enhanced API rate limiting. See CHANGELOG.txt",
-        "smartSuggestLabel": "Smart Suggest",
-        "smartSuggest": "Ask about API keys"
+        "heading": "Une recherche précise, en action.",
+        "description": "Découvrez comment Rudix traite facilement des requêtes techniques complexes.",
+        "agentView": "Vue agent",
+        "adminView": "Vue administrateur",
+        "activeQuery": "Requête active",
+        "mockQuestion": "Comment résoudre les échecs de connexion des utilisateurs du plan Enterprise v2 ?",
+        "mockSource": "# Source : Auth_Runbook_v2.1.pdf",
+        "mockStep1": "1. Vérifier que le 'client_id' correspond à la région...",
+        "mockStep2": "2. Rechercher 'error_code: 403_STALE' dans les journaux...",
+        "mockStep3": "3. S’assurer que les métadonnées du fournisseur SSO ont été renouvelées.",
+        "q1": "Quel plan inclut le SSO ?",
+        "a1": "Le SSO est disponible avec les plans Enterprise et Custom. Consultez pricing.md pour plus de détails.",
+        "q2": "Qu’est-ce qui a changé dans la dernière version ?",
+        "a2": "La version 4.2 a introduit les webhooks et une limitation de débit de l’API améliorée. Voir CHANGELOG.txt",
+        "smartSuggestLabel": "Suggestion intelligente",
+        "smartSuggest": "Posez une question sur les clés API"
       }
     },
     "research": {
@@ -1416,58 +1630,59 @@
         "secondaryCta": "Voir le produit"
       },
       "problems": {
-        "heading": "The research friction point.",
-        "description": "Manual processing of technical reports is the bottleneck of modern enterprise strategy.",
-        "overloadTitle": "Information Overload",
-        "overloadBody": "Technical teams are drowning in 500+ page PDFs. Sifting through noise to find specific implementation risks shouldn’t take days.",
-        "manualTitle": "Manual Summarization",
-        "manualBody": "Subjective, slow, and prone to human error when handling complex data points.",
-        "citationsTitle": "Lack of Citations",
-        "citationsBody": "Insights are useless without lineage. We solve the trust problem in generative AI.",
-        "fragmentationTitle": "Technical Fragmentation",
-        "fragmentationBody": "Data spread across siloed repositories makes cross-document synthesis nearly impossible for traditional tools."
+        "heading": "Le point de friction de la recherche.",
+        "description": "Le traitement manuel des rapports techniques est le goulot d’étranglement de la stratégie d’entreprise moderne.",
+        "overloadTitle": "Surcharge d’informations",
+        "overloadBody": "Les équipes techniques croulent sous des PDF de plus de 500 pages. Trier le superflu pour repérer des risques de mise en œuvre précis ne devrait pas prendre des jours.",
+        "manualTitle": "Synthèse manuelle",
+        "manualBody": "Subjective, lente et sujette à l’erreur humaine face à des données complexes.",
+        "citationsTitle": "Absence de citations",
+        "citationsBody": "Sans traçabilité, les analyses ne valent rien. Nous résolvons le problème de confiance de l’IA générative.",
+        "fragmentationTitle": "Fragmentation technique",
+        "fragmentationBody": "Les données réparties dans des référentiels cloisonnés rendent la synthèse entre documents presque impossible pour les outils traditionnels."
       },
       "documentSources": {
-        "heading": "Ingest everything. Analyze anything.",
-        "description": "Our high-fidelity parser handles high-density documents that break standard LLMs.",
-        "whitepapers": "Whitepapers",
-        "whitepapersDesc": "Technical specs and protocols",
-        "marketResearch": "Market Research",
-        "marketResearchDesc": "Trends and TAM data",
-        "analystReports": "Analyst Reports",
+        "heading": "Ingérez tout. Analysez n’importe quoi.",
+        "description": "Notre analyseur haute fidélité traite les documents denses qui mettent en échec les LLM standard.",
+        "whitepapers": "Livres blancs",
+        "whitepapersDesc": "Spécifications techniques et protocoles",
+        "marketResearch": "Études de marché",
+        "marketResearchDesc": "Tendances et données de TAM",
+        "analystReports": "Rapports d’analystes",
         "analystReportsDesc": "Gartner, Forrester, etc.",
-        "technicalPapers": "Technical Papers",
-        "technicalPapersDesc": "Academic and R&D docs",
-        "strategyDocs": "Strategy Docs",
-        "strategyDocsDesc": "Internal vision and roadmaps"
+        "technicalPapers": "Articles techniques",
+        "technicalPapersDesc": "Documents académiques et de R&D",
+        "strategyDocs": "Documents stratégiques",
+        "strategyDocsDesc": "Vision interne et feuilles de route"
       },
       "pipeline": {
-        "heading": "The High-Fidelity Retrieval Pipeline",
-        "step1Title": "Semantic Chunking",
-        "step1Body": "Unlike basic tools, we preserve table structures and image captions for context-aware extraction.",
-        "step2Title": "Vector Indexing",
-        "step2Body": "Multi-modal embeddings map data into high-dimensional space for ultra-accurate retrieval.",
-        "step3Title": "Verifiable Generation",
-        "step3Body": "Every claim is linked back to a specific page and paragraph in the original source.",
-        "svgSource": "PDF Source",
+        "heading": "Le pipeline de recherche haute fidélité",
+        "step1Title": "Découpage sémantique",
+        "step1Body": "Contrairement aux outils basiques, nous préservons la structure des tableaux et les légendes d’images pour une extraction contextuelle.",
+        "step2Title": "Indexation vectorielle",
+        "step2Body": "Des embeddings multimodaux projettent les données dans un espace de grande dimension pour une récupération ultra-précise.",
+        "step3Title": "Génération vérifiable",
+        "step3Body": "Chaque affirmation est reliée à une page et à un paragraphe précis de la source d’origine.",
+        "svgSource": "Source PDF",
         "svgEmbeddings": "Embeddings",
-        "svgVectorDb": "Vector DB",
-        "svgInsights": "Insights",
-        "metricLatency": "Latency",
-        "metricAccuracy": "Accuracy"
+        "svgVectorDb": "Base vectorielle",
+        "svgInsights": "Analyses",
+        "metricLatency": "Latence",
+        "metricAccuracy": "Précision"
       },
       "exampleQueries": {
-        "heading": "Query your corpus.",
-        "description": "Stop searching. Start asking questions that matter.",
-        "q1": "What are the core market projections for 2025?",
-        "a1": "Synthesizes data across multiple market reports to provide a consensus view with outliers highlighted.",
-        "q2": "Which sources discuss implementation risks?",
-        "a2": "Aggregates risk assessments from technical whitepapers, mapping potential failure modes in a single view.",
-        "q3": "How do these two analyst reports differ on cloud adoption?",
-        "a3": "Compares and contrasts claims across documents side by side, surfacing verbatim quotes from each source.",
-        "q4": "Which papers mention the term 'model drift'?",
-        "a4": "Performs source discovery across your entire corpus, returning every matching passage with its citation."
-      }
+        "heading": "Interrogez votre corpus.",
+        "description": "Arrêtez de chercher. Posez les questions qui comptent.",
+        "q1": "Quelles sont les principales projections de marché pour 2025 ?",
+        "a1": "Synthétise les données de plusieurs rapports de marché pour offrir une vue consensuelle, en mettant en évidence les valeurs atypiques.",
+        "q2": "Quelles sources abordent les risques de mise en œuvre ?",
+        "a2": "Agrège les évaluations de risques issues de livres blancs techniques et cartographie les modes de défaillance potentiels dans une vue unique.",
+        "q3": "En quoi ces deux rapports d’analystes divergent-ils sur l’adoption du cloud ?",
+        "a3": "Compare et met en regard les affirmations de plusieurs documents côte à côte, en faisant ressortir des citations textuelles de chaque source.",
+        "q4": "Quels articles mentionnent le terme « model drift » ?",
+        "a4": "Recherche les sources dans l’ensemble de votre corpus et renvoie chaque passage correspondant avec sa citation."
+      },
+      "heroImageAlt": "Tableau de bord d’analyste de recherche avec visualisations de données et analyses documentaires"
     },
     "operations": {
       "breadcrumb": "Opérations",
@@ -1485,50 +1700,51 @@
         "secondaryCta": "Voir le produit"
       },
       "problems": {
-        "heading": "During incidents, searching documents wastes time.",
-        "description": "Every second spent looking for a wiki page is a second of downtime. Modern ops teams need answers, not archives.",
-        "archiveTitle": "Runbooks scattered across wikis",
-        "archiveBody": "Stop the \"Where is that PDF?\" panic. Rudix unifies knowledge from Confluence, Notion, and GitHub into a single high-availability retrieval engine.",
-        "stepsTitle": "Incident steps need to be followed quickly",
-        "stepsBody": "When services are down, reading a 20-page SOP is impossible. Get exact, bulleted instructions in seconds, not minutes.",
-        "riskTitle": "Outdated procedures create risk",
-        "riskBody": "Deprecated commands in old runbooks lead to catastrophic mistakes. Rudix weights the newest documentation higher, ensuring teams always use current recovery logic."
+        "heading": "En cas d’incident, chercher dans les documents fait perdre du temps.",
+        "description": "Chaque seconde passée à chercher une page wiki est une seconde d’indisponibilité. Les équipes ops modernes ont besoin de réponses, pas d’archives.",
+        "archiveTitle": "Des runbooks dispersés dans plusieurs wikis",
+        "archiveBody": "Fini la panique du « Où est ce PDF ? ». Rudix unifie les connaissances de Confluence, Notion et GitHub dans un moteur de recherche unique à haute disponibilité.",
+        "stepsTitle": "Les étapes d’incident doivent être suivies rapidement",
+        "stepsBody": "Quand les services sont en panne, lire une procédure de 20 pages est impossible. Obtenez des instructions exactes et structurées en quelques secondes, pas en minutes.",
+        "riskTitle": "Les procédures obsolètes créent des risques",
+        "riskBody": "Des commandes dépréciées dans d’anciens runbooks peuvent entraîner des erreurs catastrophiques. Rudix privilégie la documentation la plus récente pour que les équipes appliquent toujours la logique de reprise actuelle."
       },
       "documentSources": {
-        "heading": "Universal technical ingestion.",
-        "description": "Rudix supports your existing operational stack. Just upload, and we&apos;ll index the technical nuance.",
-        "runbooks": "Incident response runbooks",
-        "sops": "SOPs",
-        "troubleshooting": "Troubleshooting guides",
-        "deployment": "Deployment procedures",
-        "escalation": "Escalation policies",
-        "recovery": "System recovery guides"
+        "heading": "Une ingestion technique universelle.",
+        "description": "Rudix s’adapte à votre stack opérationnelle existante. Téléversez simplement vos documents, nous indexons les subtilités techniques.",
+        "runbooks": "Runbooks de réponse aux incidents",
+        "sops": "Procédures opérationnelles (SOP)",
+        "troubleshooting": "Guides de dépannage",
+        "deployment": "Procédures de déploiement",
+        "escalation": "Politiques d’escalade",
+        "recovery": "Guides de reprise des systèmes"
       },
       "howItWorks": {
-        "heading": "How Rudix secures your uptime.",
-        "description": "Automated RAG workflow designed for mission-critical reliability.",
-        "step1Title": "Upload",
-        "step1Body": "Team uploads runbooks and procedures.",
-        "step2Title": "Index",
-        "step2Body": "Rudix indexes technical context and dependencies.",
-        "step3Title": "Ask",
-        "step3Body": "Team asks questions during live incidents.",
-        "step4Title": "Solve",
-        "step4Body": "Immediate answer with precise citations."
+        "heading": "Comment Rudix protège votre disponibilité.",
+        "description": "Un workflow RAG automatisé conçu pour une fiabilité critique.",
+        "step1Title": "Téléverser",
+        "step1Body": "L’équipe téléverse ses runbooks et procédures.",
+        "step2Title": "Indexer",
+        "step2Body": "Rudix indexe le contexte technique et les dépendances.",
+        "step3Title": "Demander",
+        "step3Body": "L’équipe pose ses questions pendant les incidents en cours.",
+        "step4Title": "Résoudre",
+        "step4Body": "Une réponse immédiate avec des citations précises."
       },
       "exampleQueries": {
-        "heading": "Built for the high-pressure query.",
-        "description": "Ops teams don&apos;t have time to craft the perfect prompt. Ask naturally, get the technical truth.",
-        "q1": "What are the steps for a priority incident?",
-        "q2": "How do we restart the failed indexing worker?",
-        "q3": "Who needs to be notified during an outage?",
-        "mockIntro": "According to the 'Infrastructure Recovery SOP (v2.4)':",
-        "mockQuestion": "How do we restart the failed indexing worker?",
-        "mockStep1": "1. Navigate to the /ops/workers directory.",
-        "mockStep2": "2. Run kubectl rollout restart deployment/indexing-worker.",
-        "mockStep3": "3. Verify health by checking the Prometheus dashboard for 200 OK status.",
-        "mockCitations": "Citations: Infrastructure_SOP_v2.4.pdf (Page 12), On-Call_Handbook.md"
-      }
+        "heading": "Conçu pour les questions sous pression.",
+        "description": "Les équipes ops n’ont pas le temps de rédiger le prompt parfait. Posez votre question naturellement, obtenez la réponse technique exacte.",
+        "q1": "Quelles sont les étapes pour un incident prioritaire ?",
+        "q2": "Comment redémarrer le worker d’indexation en échec ?",
+        "q3": "Qui doit être prévenu en cas de panne ?",
+        "mockIntro": "Selon la « Infrastructure Recovery SOP (v2.4) » :",
+        "mockQuestion": "Comment redémarrer le worker d’indexation en échec ?",
+        "mockStep1": "1. Accédez au répertoire /ops/workers.",
+        "mockStep2": "2. Exécutez kubectl rollout restart deployment/indexing-worker.",
+        "mockStep3": "3. Vérifiez l’état de santé en contrôlant le statut 200 OK dans le tableau de bord Prometheus.",
+        "mockCitations": "Citations : Infrastructure_SOP_v2.4.pdf (page 12), On-Call_Handbook.md"
+      },
+      "terminalImageAlt": "Terminal de code affichant le runbook d’exploitation et les procédures de réponse aux incidents"
     },
     "procurement": {
       "breadcrumb": "Achats",
@@ -1544,51 +1760,52 @@
         "description": "Donnez aux équipes achats des réponses instantanées et citées depuis la documentation fournisseur et les fichiers de conformité.",
         "primaryCta": "Demander une démo",
         "secondaryCta": "Voir le produit",
-        "disclaimer": "Rudix surfaces answers for review — it does not replace legal or procurement approval workflows."
+        "disclaimer": "Rudix fait remonter des réponses à valider — il ne remplace pas les circuits d’approbation juridiques ou achats."
       },
       "problems": {
-        "heading": "The Procurement Bottleneck",
-        "description": "Manual vendor assessments are the primary source of friction in modern enterprise deployment cycles.",
-        "questionnairesTitle": "Long security questionnaires",
-        "questionnairesBody": "Weeks spent manually parsing through spreadsheets and vendor responses just to verify basic security standards.",
-        "contractsTitle": "Manual contract comparison",
-        "contractsBody": "Struggling to identify nuanced differences in indemnification and liability clauses across dozens of vendor variants.",
-        "riskTitle": "Risk assessment friction",
-        "riskBody": "Inconsistent risk profiling due to human error and the sheer volume of technical documentation to review."
+        "heading": "Le goulot d’étranglement des achats",
+        "description": "Les évaluations manuelles des fournisseurs sont la principale source de friction dans les cycles de déploiement des entreprises modernes.",
+        "questionnairesTitle": "De longs questionnaires de sécurité",
+        "questionnairesBody": "Des semaines passées à éplucher manuellement des tableurs et des réponses de fournisseurs simplement pour vérifier des normes de sécurité de base.",
+        "contractsTitle": "Comparaison manuelle des contrats",
+        "contractsBody": "Difficile d’identifier les différences subtiles des clauses d’indemnisation et de responsabilité parmi des dizaines de variantes de fournisseurs.",
+        "riskTitle": "Friction dans l’évaluation des risques",
+        "riskBody": "Un profilage des risques incohérent, dû à l’erreur humaine et au volume considérable de documentation technique à examiner."
       },
       "documentSources": {
-        "heading": "Unified Knowledge Ingestion",
-        "description": "Rudix connects directly to your procurement inbox or document repository. Our RAG engine extracts technical lineage from unstructured PDFs, spreadsheets, and legal documents.",
-        "soc2": "SOC2 Reports",
-        "rfp": "RFP Responses",
-        "contracts": "Vendor Contracts",
-        "questionnaires": "Security Questionnaires",
-        "feature0": "OCR for scanned documents",
-        "feature1": "Multi-format support (PDF, DOCX, XLSX)",
-        "feature2": "Automated metadata tagging"
+        "heading": "Une ingestion unifiée des connaissances",
+        "description": "Rudix se connecte directement à votre boîte de réception achats ou à votre référentiel de documents. Notre moteur RAG extrait la traçabilité technique des PDF, tableurs et documents juridiques non structurés.",
+        "soc2": "Rapports SOC2",
+        "rfp": "Réponses aux appels d’offres (RFP)",
+        "contracts": "Contrats fournisseurs",
+        "questionnaires": "Questionnaires de sécurité",
+        "feature0": "OCR pour les documents numérisés",
+        "feature1": "Prise en charge multiformat (PDF, DOCX, XLSX)",
+        "feature2": "Étiquetage automatique des métadonnées"
       },
       "engine": {
-        "heading": "The Rudix Engine for Procurement",
-        "description": "From document upload to risk decision in minutes.",
-        "step01Label": "Step 01",
-        "step01Title": "Deep Semantic Indexing",
-        "step01Body": "We don&apos;t just search keywords. Rudix understands the context of security controls and legal obligations across your entire vendor library.",
-        "step02Label": "Step 02",
-        "step02Title": "Automated Extraction",
-        "step02Body": "Instantly map vendor responses to your internal risk framework (ISO 27001, SOC2, HIPAA).",
-        "step03Label": "Step 03",
-        "step03Title": "Flag Risk",
-        "step04Label": "Step 04",
-        "step04Title": "Approve"
+        "heading": "Le moteur Rudix pour les achats",
+        "description": "Du téléversement du document à la décision de risque en quelques minutes.",
+        "step01Label": "Étape 01",
+        "step01Title": "Indexation sémantique approfondie",
+        "step01Body": "Nous ne nous contentons pas de rechercher des mots-clés. Rudix comprend le contexte des contrôles de sécurité et des obligations juridiques dans toute votre bibliothèque de fournisseurs.",
+        "step02Label": "Étape 02",
+        "step02Title": "Extraction automatisée",
+        "step02Body": "Rapprochez instantanément les réponses des fournisseurs de votre cadre de gestion des risques interne (ISO 27001, SOC2, HIPAA).",
+        "step03Label": "Étape 03",
+        "step03Title": "Signaler les risques",
+        "step04Label": "Étape 04",
+        "step04Title": "Approuver"
       },
       "exampleQueries": {
-        "heading": "Ask Anything. Get Citations.",
-        "q1": "Which vendor meets our data residency requirements for the EU?",
-        "a1": "Vendor A (CloudFlow) specifies in Section 4.2 of their DPA that data is stored in Frankfurt. Vendor B (DataMesh) lacks specific EU region commitments in their current SOC2 report.",
-        "q2": "Summarize the security controls in this SOC2 report.",
-        "a2": "The SOC2 Type II for Vendor C covers Security and Availability. Key controls include AES-256 encryption at rest, quarterly penetration testing, and a 99.9% uptime SLA. No exceptions were noted in the auditor's report.",
-        "analysisLabel": "Rudix Analysis:"
-      }
+        "heading": "Posez n’importe quelle question. Obtenez des citations.",
+        "q1": "Quel fournisseur répond à nos exigences de résidence des données dans l’UE ?",
+        "a1": "Le fournisseur A (CloudFlow) précise à la section 4.2 de son DPA que les données sont stockées à Francfort. Le fournisseur B (DataMesh) ne prend aucun engagement précis sur une région de l’UE dans son rapport SOC2 actuel.",
+        "q2": "Résumez les contrôles de sécurité de ce rapport SOC2.",
+        "a2": "Le rapport SOC2 Type II du fournisseur C couvre la sécurité et la disponibilité. Les principaux contrôles incluent le chiffrement AES-256 au repos, des tests d’intrusion trimestriels et un SLA de disponibilité de 99,9 %. Aucune exception n’a été relevée dans le rapport de l’auditeur.",
+        "analysisLabel": "Analyse Rudix :"
+      },
+      "heroImageAlt": "Tableau de bord d’analyse des achats avec des données d’évaluation des fournisseurs"
     },
     "internalKnowledge": {
       "breadcrumb": "Connaissances internes",
@@ -1599,13 +1816,14 @@
         "description": "Arrêtez de chercher dans des PDF obsolètes et des fils Slack enfouis. Rudix indexe tout le cerveau organisationnel pour fournir des réponses vérifiées et appuyées par des citations.",
         "primaryCta": "Commencer gratuitement",
         "secondaryCta": "Demander une démo",
-        "panelQuestion": "What is our policy on remote work stipends for international employees?",
-        "panelIntro": "Based on the",
-        "panelDocument": "Global Employee Handbook (2024)",
-        "panelBullet1": "Full-time remote workers are eligible for a $500 initial setup stipend.",
-        "panelBullet2": "An annual $200 recurring tech refresh budget applies.",
-        "panelBullet3": "International receipts must be converted to USD using the OANDA rate at date of purchase.",
-        "panelSource": "Source: SOP-HR-042.pdf"
+        "securityCta": "Comment nous protégeons vos données",
+        "panelQuestion": "Quelle est notre politique d’indemnités de télétravail pour les employés à l’international ?",
+        "panelIntro": "D’après le",
+        "panelDocument": "Manuel mondial des employés (2024)",
+        "panelBullet1": "Les télétravailleurs à temps plein ont droit à une indemnité d’installation initiale de 500 $.",
+        "panelBullet2": "Un budget annuel récurrent de 200 $ pour le renouvellement du matériel s’applique.",
+        "panelBullet3": "Les justificatifs internationaux doivent être convertis en USD au taux OANDA en vigueur à la date d’achat.",
+        "panelSource": "Source : SOP-HR-042.pdf"
       },
       "cta": {
         "heading": "Rendez votre savoir institutionnel interrogeable.",
@@ -1614,52 +1832,52 @@
         "secondaryCta": "Voir le produit"
       },
       "problems": {
-        "heading": "The high cost of hidden knowledge",
-        "description": "Inefficiency grows as teams scale. Rudix solves the three core pillars of internal friction.",
-        "silosTitle": "Information Silos",
-        "silosBody": "Critical context is trapped in private DMs, local drives, and individual heads. Rudix brings it into the collective light.",
-        "onboardingTitle": "Onboarding Friction",
-        "onboardingBody": "New hires spend weeks asking \"where is this?\" Rudix acts as a 24/7 mentor, giving instant answers on day one.",
-        "slackTitle": "Slack Overload",
-        "slackBody": "Prevent subject matter experts from answering the same \"How do I…\" questions repeatedly, freeing them for high-value work."
+        "heading": "Le coût élevé des connaissances cachées",
+        "description": "L’inefficacité augmente à mesure que les équipes grandissent. Rudix s’attaque aux trois principales sources de friction interne.",
+        "silosTitle": "Silos d’information",
+        "silosBody": "Un contexte essentiel reste enfermé dans des messages privés, des disques locaux et la tête de chacun. Rudix le met à la disposition de tous.",
+        "onboardingTitle": "Friction à l’intégration",
+        "onboardingBody": "Les nouvelles recrues passent des semaines à demander « où se trouve ceci ? ». Rudix joue le rôle de mentor disponible 24 h/24, 7 j/7, avec des réponses instantanées dès le premier jour.",
+        "slackTitle": "Surcharge Slack",
+        "slackBody": "Évitez aux experts métier de répondre sans cesse aux mêmes questions « Comment faire… ? » et libérez-les pour un travail à forte valeur."
       },
       "documents": {
-        "heading": "One Brain, Every Document",
-        "description": "Rudix isn't limited to simple text files. Our high-fidelity RAG engine ingests complex PDFs, Notion pages, Google Docs, and structured JSON to build a multi-modal knowledge graph.",
-        "sopsLabel": "SOPs",
-        "sopsDesc": "Standard Operating Procedures for all departments.",
-        "handbooksLabel": "Handbooks",
-        "handbooksDesc": "Culture, benefits, and administrative guides.",
+        "heading": "Un seul cerveau, tous vos documents",
+        "description": "Rudix ne se limite pas aux simples fichiers texte. Notre moteur RAG haute fidélité ingère des PDF complexes, des pages Notion, des Google Docs et du JSON structuré pour construire un graphe de connaissances multimodal.",
+        "sopsLabel": "Procédures (SOP)",
+        "sopsDesc": "Procédures opérationnelles standard pour tous les services.",
+        "handbooksLabel": "Manuels internes",
+        "handbooksDesc": "Culture, avantages et guides administratifs.",
         "playbooksLabel": "Playbooks",
-        "playbooksDesc": "Sales, marketing, and engineering strategies.",
-        "manualsLabel": "Manuals",
-        "manualsDesc": "Technical documentation and training kits.",
-        "feature0": "Preserves original citations and links",
-        "feature1": "Automatic re-indexing on file updates",
-        "feature2": "Strict data permission mirroring"
+        "playbooksDesc": "Stratégies commerciales, marketing et d’ingénierie.",
+        "manualsLabel": "Manuels",
+        "manualsDesc": "Documentation technique et kits de formation.",
+        "feature0": "Conserve les citations et liens d’origine",
+        "feature1": "Réindexation automatique lors des mises à jour de fichiers",
+        "feature2": "Reproduction stricte des autorisations sur les données"
       },
       "flow": {
-        "heading": "The Rudix Flow",
-        "description": "Enterprise-grade infrastructure, abstracted for simplicity.",
-        "uploadTitle": "Upload SOPs",
-        "uploadDesc": "Drag and drop your unstructured documents.",
-        "indexTitle": "Vector Index",
-        "indexDesc": "Automatic semantic embedding and storage.",
-        "askTitle": "Ask Anything",
-        "askDesc": "Natural language queries via web or Slack.",
-        "answerTitle": "Verify & Cite",
-        "answerDesc": "Answer delivered with verifiable sources.",
-        "engineStatus": "RAG ENGINE STATUS: ACTIVE",
-        "latency": "latency: 240ms",
+        "heading": "Le flux Rudix",
+        "description": "Une infrastructure de niveau entreprise, simplifiée pour vous.",
+        "uploadTitle": "Téléverser les procédures",
+        "uploadDesc": "Glissez-déposez vos documents non structurés.",
+        "indexTitle": "Index vectoriel",
+        "indexDesc": "Embedding sémantique et stockage automatiques.",
+        "askTitle": "Posez vos questions",
+        "askDesc": "Requêtes en langage naturel via le web ou Slack.",
+        "answerTitle": "Vérifier et citer",
+        "answerDesc": "Une réponse accompagnée de sources vérifiables.",
+        "engineStatus": "STATUT DU MOTEUR RAG : ACTIF",
+        "latency": "latence : 240 ms",
         "codeSample": "Query: What is the budget approval process?\nEmbeddings: vector_f32[1536]\nRetrieval: DOC_ID_091: Finance_Flow_v2.pdf; DOC_ID_212: Manager_Onboarding.notion\nOutput: Budget approvals >$5k require VP sign-off...",
-        "askQuestion": "What is the budget approval process?"
+        "askQuestion": "Quelle est la procédure d’approbation budgétaire ?"
       },
       "exampleQuestions": {
-        "heading": "Ask Rudix Anything",
-        "q1": "What is the budget approval process?",
-        "q2": "Where is the brand style guide?",
-        "q3": "How do I request temporary VPN access?",
-        "q4": "What's our policy on working from abroad?"
+        "heading": "Posez n’importe quelle question à Rudix",
+        "q1": "Quelle est la procédure d’approbation budgétaire ?",
+        "q2": "Où se trouve la charte graphique de la marque ?",
+        "q3": "Comment demander un accès VPN temporaire ?",
+        "q4": "Quelle est notre politique en matière de travail depuis l’étranger ?"
       }
     },
     "clientPortal": {
@@ -1670,92 +1888,108 @@
         "description": "Déployez une couche de Q&R IA limitée sur votre documentation destinée aux clients. Réduisez les questions de support répétitives, accélérez l’onboarding et donnez aux clients des réponses appuyées par des citations — sans surcharger votre équipe.",
         "primaryCta": "Commencer gratuitement",
         "secondaryCta": "Demander une démo",
-        "mockPanelLabel": "Portal Q&A",
-        "mockCustomerLabel": "Customer",
-        "mockQuestion": "How do I set up SSO for my team?",
+        "mockPanelLabel": "Q&R du portail",
+        "mockCustomerLabel": "Client",
+        "mockQuestion": "Comment configurer le SSO pour mon équipe ?",
         "mockAnswerLabel": "Rudix",
-        "mockAnswer": "Navigate to Settings → Security and upload your IdP metadata file. Okta and Azure AD are fully supported.",
-        "mockTag1": "Setup Guide v3.1",
-        "mockTag2": "Admin Docs"
+        "mockAnswer": "Accédez à Paramètres → Sécurité et téléversez le fichier de métadonnées de votre IdP. Okta et Azure AD sont entièrement pris en charge.",
+        "mockTag1": "Guide de configuration v3.1",
+        "mockTag2": "Documentation administrateur"
       },
       "cta": {
         "heading": "Transformez l’expérience de votre documentation client.",
         "description": "Donnez aux clients des réponses instantanées et citées depuis votre bibliothèque de documentation approuvée.",
         "primaryCta": "Demander une démo",
         "secondaryCta": "Voir le produit",
-        "disclaimer": "Rudix surfaces answers from approved documents — it does not replace a full external client portal or manage client identity and access."
+        "disclaimer": "Rudix fournit des réponses issues de documents approuvés — il ne remplace pas un portail client externe complet et ne gère pas l’identité ni les accès des clients."
       },
       "problems": {
-        "heading": "The Client Knowledge Gap",
-        "description": "Customers expect fast, accurate answers. Without a trusted knowledge layer, your support and account teams absorb the cost.",
-        "repeatedQuestionsTitle": "Repeated client questions",
-        "repeatedQuestionsBody": "Support and account teams field the same onboarding and implementation questions daily — questions already answered in your documentation.",
-        "scatteredDocsTitle": "Scattered onboarding docs",
-        "scatteredDocsBody": "Customers can't find what they need across PDFs, wikis, and portals, slowing implementation timelines and frustrating new accounts.",
-        "handoffsTitle": "Slow implementation handoffs",
-        "handoffsBody": "Without a shared, searchable knowledge layer, every account handoff starts from scratch and strains customer success bandwidth."
+        "heading": "Le déficit de connaissances côté client",
+        "description": "Les clients attendent des réponses rapides et exactes. Sans couche de connaissances fiable, ce sont vos équipes support et comptes qui en supportent le coût.",
+        "repeatedQuestionsTitle": "Des questions clients répétées",
+        "repeatedQuestionsBody": "Les équipes support et comptes traitent chaque jour les mêmes questions d’intégration et de mise en œuvre — des questions auxquelles votre documentation répond déjà.",
+        "scatteredDocsTitle": "Une documentation d’intégration dispersée",
+        "scatteredDocsBody": "Les clients ne trouvent pas ce dont ils ont besoin entre PDF, wikis et portails, ce qui ralentit les mises en œuvre et frustre les nouveaux comptes.",
+        "handoffsTitle": "Des passations de mise en œuvre lentes",
+        "handoffsBody": "Sans couche de connaissances partagée et consultable, chaque passation de compte repart de zéro et met à rude épreuve les équipes customer success."
       },
       "documentSources": {
-        "heading": "Approved sources, scoped access.",
-        "description": "Rudix indexes only the documents you approve for client visibility. Every answer cites the exact source so customers and your team can verify every response — with no content surfaced from outside your approved documentation set.",
-        "onboardingGuides": "Onboarding Guides",
-        "apiDocumentation": "API Documentation",
-        "implementationGuides": "Implementation Guides",
-        "knowledgeBase": "Knowledge Base",
-        "productGuides": "Product Guides",
-        "enablementMaterials": "Enablement Materials",
-        "feature0": "Approve and scope which docs are client-visible",
-        "feature1": "Index across PDF, DOCX, and Markdown formats",
-        "feature2": "Citation-backed answers from approved sources only",
-        "feature3": "Access boundaries between customer segments"
+        "heading": "Des sources approuvées, un accès maîtrisé.",
+        "description": "Rudix indexe uniquement les documents que vous approuvez pour les clients. Chaque réponse cite la source exacte, afin que vos clients et votre équipe puissent vérifier chaque réponse — sans aucun contenu provenant d’en dehors de votre documentation approuvée.",
+        "onboardingGuides": "Guides d’intégration",
+        "apiDocumentation": "Documentation API",
+        "implementationGuides": "Guides de mise en œuvre",
+        "knowledgeBase": "Base de connaissances",
+        "productGuides": "Guides produit",
+        "enablementMaterials": "Supports de formation",
+        "feature0": "Approuvez et définissez les documents visibles par les clients",
+        "feature1": "Indexation des formats PDF, DOCX et Markdown",
+        "feature2": "Réponses étayées par des citations issues uniquement de sources approuvées",
+        "feature3": "Cloisonnement des accès entre segments de clients"
       },
       "workflow": {
-        "heading": "From document approval to client Q&A",
-        "description": "A controlled workflow that puts your team in charge of what clients can ask — and what answers they receive.",
-        "step01Label": "Step 01",
-        "step01Title": "Approve Client-Facing Docs",
-        "step01Body": "Your team selects and uploads the documentation clients are allowed to query — onboarding guides, implementation docs, product manuals, and support knowledge. Nothing outside the approved set is ever surfaced.",
-        "step02Label": "Step 02",
-        "step02Title": "Index & Scope Access",
-        "step02Body": "Rudix semantically indexes approved content and applies access boundaries — different customer segments can query different document sets without overlap.",
-        "step03Label": "Step 03",
-        "step03Title": "Expose Q&A",
-        "step04Label": "Step 04",
-        "step04Title": "Verify & Improve"
+        "heading": "De l’approbation des documents aux Q&R clients",
+        "description": "Un workflow maîtrisé qui laisse votre équipe décider de ce que les clients peuvent demander — et des réponses qu’ils reçoivent.",
+        "step01Label": "Étape 01",
+        "step01Title": "Approuver les documents destinés aux clients",
+        "step01Body": "Votre équipe sélectionne et téléverse la documentation que les clients peuvent interroger — guides d’intégration, documents de mise en œuvre, manuels produit et connaissances du support. Rien en dehors de l’ensemble approuvé n’est jamais exposé.",
+        "step02Label": "Étape 02",
+        "step02Title": "Indexer et cloisonner les accès",
+        "step02Body": "Rudix indexe sémantiquement le contenu approuvé et applique des limites d’accès — différents segments de clients peuvent interroger des ensembles de documents distincts, sans chevauchement.",
+        "step03Label": "Étape 03",
+        "step03Title": "Ouvrir les Q&R",
+        "step04Label": "Étape 04",
+        "step04Title": "Vérifier et améliorer"
       },
       "useCases": {
-        "heading": "Built for every client touchpoint",
-        "description": "From first login to long-term account management, Rudix supports the moments where clients need answers fast.",
-        "customerOnboardingTitle": "Customer Onboarding",
-        "customerOnboardingBody": "New customers self-serve setup and configuration questions, reducing time-to-value and cutting onboarding call volume.",
-        "implementationDocsTitle": "Implementation Docs",
-        "implementationDocsBody": "Technical buyers and integration teams query configuration guides with cited answers — no waiting for an SE to respond.",
-        "partnerEnablementTitle": "Partner Enablement",
-        "partnerEnablementBody": "Channel and solution partners get accurate product answers without direct access to your internal knowledge base.",
-        "supportKnowledgeTitle": "Support Knowledge",
-        "supportKnowledgeBody": "Customers resolve common support questions on their own, cutting Tier-1 ticket volume and escalation overhead.",
-        "accountHandoffTitle": "Account Handoff",
-        "accountHandoffBody": "When accounts move between CSM owners, a shared knowledge layer ensures continuity and reduces ramp time."
+        "heading": "Conçu pour chaque point de contact client",
+        "description": "De la première connexion à la gestion de compte sur le long terme, Rudix accompagne les moments où les clients ont besoin de réponses rapides.",
+        "customerOnboardingTitle": "Intégration des clients",
+        "customerOnboardingBody": "Les nouveaux clients trouvent seuls les réponses à leurs questions d’installation et de configuration, ce qui accélère la création de valeur et réduit le nombre d’appels d’intégration.",
+        "implementationDocsTitle": "Documentation de mise en œuvre",
+        "implementationDocsBody": "Les acheteurs techniques et les équipes d’intégration interrogent les guides de configuration et obtiennent des réponses citées — sans attendre la réponse d’un ingénieur avant-vente.",
+        "partnerEnablementTitle": "Accompagnement des partenaires",
+        "partnerEnablementBody": "Les partenaires de distribution et d’intégration obtiennent des réponses produit exactes sans accès direct à votre base de connaissances interne.",
+        "supportKnowledgeTitle": "Connaissances du support",
+        "supportKnowledgeBody": "Les clients résolvent seuls les questions de support courantes, ce qui réduit le volume de tickets de niveau 1 et la charge liée aux escalades.",
+        "accountHandoffTitle": "Passation de compte",
+        "accountHandoffBody": "Lorsqu’un compte change de CSM, une couche de connaissances partagée assure la continuité et réduit le temps de montée en compétence."
       },
       "exampleQueries": {
-        "heading": "Cited answers. Every time.",
-        "answerLabel": "Rudix Answer:",
-        "q1": "How do I configure SAML-based SSO for my organization?",
-        "a1": "Navigate to Settings → Security → SSO and upload your IdP metadata XML file. Supported providers include Okta, Azure AD, and Google Workspace. Full configuration steps are in Admin Setup Guide, Section 3.2.",
-        "source1a": "Admin Setup Guide v3.2",
-        "source1b": "Security Configuration Docs",
-        "q2": "What data is retained after I close my account?",
-        "a2": "Per the Data Retention Policy (Section 5), account data is purged within 30 days of account closure. Audit logs are retained for 90 days as required for compliance. No customer data is shared with third parties after deletion.",
-        "source2a": "Data Retention Policy",
-        "source2b": "Privacy FAQ"
+        "heading": "Des réponses citées. À chaque fois.",
+        "answerLabel": "Réponse de Rudix :",
+        "q1": "Comment configurer le SSO basé sur SAML pour mon organisation ?",
+        "a1": "Accédez à Paramètres → Sécurité → SSO et téléversez le fichier XML de métadonnées de votre IdP. Les fournisseurs pris en charge incluent Okta, Azure AD et Google Workspace. Les étapes de configuration complètes figurent dans le guide de configuration administrateur, section 3.2.",
+        "source1a": "Guide de configuration administrateur v3.2",
+        "source1b": "Documentation de configuration de la sécurité",
+        "q2": "Quelles données sont conservées après la clôture de mon compte ?",
+        "a2": "Conformément à la politique de conservation des données (section 5), les données du compte sont supprimées dans les 30 jours suivant sa clôture. Les journaux d’audit sont conservés 90 jours, comme l’exige la conformité. Aucune donnée client n’est partagée avec des tiers après la suppression.",
+        "source2a": "Politique de conservation des données",
+        "source2b": "FAQ confidentialité"
       },
       "related": {
-        "heading": "Explore related solutions",
+        "heading": "Découvrir les solutions associées",
         "support": "Support",
-        "sales": "Sales",
-        "internalKnowledge": "Internal Knowledge",
-        "security": "Security"
+        "sales": "Ventes",
+        "internalKnowledge": "Connaissances internes",
+        "security": "Sécurité"
       }
+    },
+    "a11y": {
+      "skipToContent": "Aller au contenu principal",
+      "homeLink": "Accueil Rudix",
+      "logoAlt": "Logo Rudix",
+      "footer": "Pied de page",
+      "breadcrumb": "Fil d’Ariane"
+    },
+    "legalLayout": {
+      "badge": "Mentions légales",
+      "noticeLabel": "Avis de relecture juridique",
+      "noticeTitle": "Remarque :",
+      "noticeBody": "Ce document contient un texte provisoire en attente de relecture juridique. Il ne doit pas être considéré comme un avis juridique définitif ni comme un accord contraignant avant validation par un conseiller juridique.",
+      "onThisPage": "Sur cette page",
+      "versionLine": "Version {version} · En vigueur le {date}",
+      "englishOnly": "Ce document est actuellement disponible en anglais uniquement."
     }
   },
   "dashboard": {
@@ -2438,6 +2672,10 @@
       "streamingLabel": "Réponse en streaming...",
       "generatingLabel": "Génération de la réponse...",
       "wsConnecting": "Connexion en cours...",
+      "wsReconnecting": "Reconnexion en cours...",
+      "loadOlderMessages": "Charger les messages précédents",
+      "loadingOlderMessages": "Chargement des messages précédents...",
+      "loadOlderMessagesRetry": "Impossible de charger les messages précédents. Réessayer",
       "wsRetrieving": "Récupération des sources...",
       "wsReranking": "Classement des sources...",
       "wsGenerating": "Génération de la réponse...",
@@ -2448,6 +2686,15 @@
       "queryForbiddenTitle": "La requête n’est pas autorisée",
       "queryForbiddenDesc": "Vous n’avez pas l’autorisation d’interroger les documents sélectionnés dans cette organisation.",
       "queryErrorTitle": "Impossible de terminer la requête.",
+      "wsErrors": {
+        "planLimitExceeded": "La limite de questions de votre forfait est atteinte. Passez à un forfait supérieur ou réessayez après la réinitialisation de la limite.",
+        "rateLimitExceeded": "Trop de questions en peu de temps. Veuillez patienter un instant puis réessayer.",
+        "rateLimiterUnavailable": "Le service ne peut temporairement pas vérifier les limites d'utilisation. Veuillez réessayer sous peu.",
+        "wsTicketUnavailable": "Le chat en direct n'a pas pu établir de connexion sécurisée. Veuillez réessayer dans un instant.",
+        "providerBusy": "Le service d'IA est actuellement saturé pour votre organisation. Veuillez réessayer dans un instant.",
+        "resumeUnavailable": "La connexion a été interrompue et cette réponse n'a pas pu être reprise. Veuillez reposer la question.",
+        "connectionLost": "La connexion du chat en direct a été perdue. Veuillez réessayer."
+      },
       "composerStarting": "Démarrage de la session…",
       "composerAgentRunning": "Agent en cours d’exécution…",
       "composerGenerating": "Génération de la réponse…",
@@ -4335,6 +4582,9 @@
   "errors": {
     "pageNotFound": "Page introuvable",
     "pageNotFoundDescription": "La page que vous recherchez n’existe pas.",
+    "notFoundBadge": "Erreur 404",
+    "notFoundHome": "Retour à l’accueil",
+    "notFoundContact": "Nous contacter",
     "forbidden": "Accès refusé",
     "forbiddenDescription": "Vous n’avez pas l’autorisation d’accéder à cette page.",
     "serverError": "Une erreur s’est produite",
@@ -4641,7 +4891,8 @@
       "accessDebugger": "Diagnostic des accès",
       "permissionsAccessReport": "Rapport des autorisations et accès",
       "ssoSaml": "SSO / SAML",
-      "scimProvisioning": "Provisionnement SCIM"
+      "scimProvisioning": "Provisionnement SCIM",
+      "vectorIndex": "Index vectoriel"
     }
   },
   "adminUsage": {
@@ -5368,10 +5619,15 @@
     "statuses": {
       "queued": "En attente",
       "running": "En cours",
+      "planning": "Planification",
+      "waiting_approval": "En attente d'approbation",
+      "skipped": "Ignorée",
+      "succeeded": "Réussie",
+      "expired": "Expirée",
       "completed": "Terminée",
       "failed": "Échouée",
       "cancelled": "Annulée",
-      "pending": "{count} actions attendent une approbation.",
+      "pending": "En suspens",
       "approved": "Approuver",
       "rejected": "Rejeter",
       "changes_requested": "Demander des modifications"
@@ -6358,7 +6614,8 @@
       "extraction": "Extraction",
       "deletion_cleanup": "Nettoyage de suppression",
       "reindex": "Réindexation",
-      "evaluation": "Évaluation"
+      "evaluation": "Évaluation",
+      "dead_letter": "Lettre morte"
     },
     "drawer": {
       "title": "Détail de la tâche",
@@ -7484,6 +7741,49 @@
           "duplicate": "Doublon"
         }
       }
+    }
+  },
+  "adminVectorIndex": {
+    "header": {
+      "eyebrow": "Index de recherche",
+      "title": "Index vectoriel",
+      "description": "Le modèle d'embeddings qui répond à vos questions et l'avancement d'une reconstruction en arrière-plan pour votre organisation. Les reconstructions n'interrompent pas la recherche."
+    },
+    "legacyNotice": "L'index de recherche n'utilise pas encore de générations versionnées. Les questions sont traitées avec le modèle d'embeddings configuré.",
+    "active": {
+      "title": "Index actif",
+      "model": "Modèle d'embeddings",
+      "dimensions": "Dimensions",
+      "generation": "Génération",
+      "legacyGeneration": "Non versionné",
+      "activatedAt": "Actif depuis",
+      "notAdoptedTitle": "Aucune génération active",
+      "notAdoptedDescription": "L'index actuel n'a pas encore été enregistré comme génération. La recherche fonctionne comme avant."
+    },
+    "building": {
+      "title": "Reconstruction en cours",
+      "model": "Nouveau modèle d'embeddings",
+      "state": "État",
+      "startedAt": "Démarrée",
+      "states": {
+        "building": "Construction",
+        "verifying": "Vérification"
+      },
+      "progressLabel": "Documents de votre organisation",
+      "progressValue": "{done} sur {total} ({percent} %)",
+      "servingNote": "La recherche utilise l'index actif jusqu'à ce que la reconstruction soit vérifiée et basculée.",
+      "noneTitle": "Aucune reconstruction en cours",
+      "noneDescription": "L'index actif est à jour."
+    },
+    "states": {
+      "loading": "Chargement de l'état de l'index vectoriel...",
+      "errorTitle": "Impossible de charger l'état de l'index vectoriel",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucun état disponible"
+    },
+    "access": {
+      "restrictedTitle": "Accès administrateur restreint",
+      "restrictedDescription": "Seuls les propriétaires et les administrateurs peuvent voir l'état de l'index vectoriel."
     }
   }
 }

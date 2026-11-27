@@ -50,6 +50,7 @@ from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun, SyncCo
 from app.models.contact import ContactSubmission
 from app.models.custom_role import CustomRole, CustomRolePermission
 from app.models.document import Document, DocumentChunk, DocumentPage
+from app.models.document_processing import DocumentProcessingStage, DocumentStageArtifact
 from app.models.document_version import DocumentVersion
 from app.models.email import EmailDeliveryLog, UserNotificationPreference
 from app.models.evaluation import (
@@ -81,6 +82,7 @@ from app.models.org_sso_config import OrgSSOConfig
 from app.models.organization import Organization
 from app.models.organization_invitation import OrganizationInvitation
 from app.models.organization_member import OrganizationMember
+from app.models.outbox import OutboxMessage
 from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.portability import WorkspacePortabilityJob
 from app.models.prompt_template import PromptTemplate, PromptTemplateVersion
@@ -93,6 +95,7 @@ from app.models.safety_eval import SafetyEvalCase, SafetyEvalResult, SafetyEvalR
 from app.models.service_account import ServiceAccount, ServiceAccountToken
 from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
+from app.models.vector_index import VectorIndexGeneration, VectorIndexGenerationDocument
 from app.models.verified_answer import VerifiedAnswer, VerifiedAnswerCitation, VerifiedAnswerVersion
 from app.models.webhook import Webhook, WebhookDelivery
 
@@ -139,6 +142,8 @@ __all__ = [
     "DocumentChunk",
     "DocumentMetadata",
     "DocumentPage",
+    "DocumentProcessingStage",
+    "DocumentStageArtifact",
     "DocumentVersion",
     "EmailDeliveryLog",
     "EvaluationDatasetVersion",
@@ -181,6 +186,7 @@ __all__ = [
     "OrganizationGovernancePolicy",
     "OrganizationInvitation",
     "OrganizationMember",
+    "OutboxMessage",
     "PipelineEvent",
     "PipelineRun",
     "PolicyEvaluationLog",
@@ -208,6 +214,8 @@ __all__ = [
     "User",
     "UserMemoryPreference",
     "UserNotificationPreference",
+    "VectorIndexGeneration",
+    "VectorIndexGenerationDocument",
     "VerifiedAnswer",
     "VerifiedAnswerCitation",
     "VerifiedAnswerVersion",

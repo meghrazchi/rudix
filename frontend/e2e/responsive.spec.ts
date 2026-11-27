@@ -216,7 +216,7 @@ test.describe("responsive viewport smoke tests", () => {
 
     // Mobile "Menu" button visible, desktop sidebar hidden
     await expect(
-      page.getByRole("button", { name: /open menu/i }),
+      page.getByRole("button", { name: "Open navigation menu" }),
     ).toBeVisible();
     await expect(
       page.locator("aside.hidden.lg\\:flex, aside.lg\\:flex"),
@@ -224,7 +224,7 @@ test.describe("responsive viewport smoke tests", () => {
 
     // Icon-only search button visible on mobile
     const iconSearchBtn = page
-      .getByRole("button", { name: /open search/i })
+      .getByRole("button", { name: "Open global search" })
       .first();
     await expect(iconSearchBtn).toBeVisible();
 
@@ -262,7 +262,9 @@ test.describe("responsive viewport smoke tests", () => {
     await page.goto("/documents");
     await waitForBoot(page);
 
-    const menuButton = page.getByRole("button", { name: /open menu/i });
+    const menuButton = page.getByRole("button", {
+      name: "Open navigation menu",
+    });
     await menuButton.click();
 
     const mobileNav = page.getByRole("dialog", { name: /navigation menu/i });
@@ -283,12 +285,16 @@ test.describe("responsive viewport smoke tests", () => {
     await waitForBoot(page);
 
     // Desktop sidebar hidden below lg (1024px)
-    const menuButton = page.getByRole("button", { name: /open menu/i });
+    const menuButton = page.getByRole("button", {
+      name: "Open navigation menu",
+    });
     await expect(menuButton).toBeVisible();
 
     // Full search bar is visible at sm+ (768 >= 640)
     // There should be an open-search button with the full bar
-    const searchButtons = page.getByRole("button", { name: /open search/i });
+    const searchButtons = page.getByRole("button", {
+      name: "Open global search",
+    });
     await expect(searchButtons.first()).toBeVisible();
   });
 
@@ -303,7 +309,7 @@ test.describe("responsive viewport smoke tests", () => {
 
     // Chat heading visible
     await expect(
-      page.getByRole("heading", { name: "Chat Session" }),
+      page.getByRole("heading", { name: "Conversation", level: 2 }),
     ).toBeVisible();
 
     // History sidebar (sessions list) should be hidden on tablet
@@ -328,11 +334,15 @@ test.describe("responsive viewport smoke tests", () => {
     await expect(desktopSidebar).toBeVisible();
 
     // Mobile "Menu" button hidden at lg+
-    const menuButton = page.getByRole("button", { name: /open menu/i });
+    const menuButton = page.getByRole("button", {
+      name: "Open navigation menu",
+    });
     await expect(menuButton).toBeHidden();
 
     // Full search bar visible at desktop
-    const searchButtons = page.getByRole("button", { name: /open search/i });
+    const searchButtons = page.getByRole("button", {
+      name: "Open global search",
+    });
     await expect(searchButtons.first()).toBeVisible();
   });
 
@@ -388,7 +398,10 @@ test.describe("responsive viewport smoke tests", () => {
     await page.goto("/settings");
     await waitForBoot(page);
 
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    // Exactly one h1 per page: the app shell title (strict locator).
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Settings",
+    );
 
     // Tab container has overflow-x-auto so tabs don't wrap
     const tabContainer = page.locator(".overflow-x-auto").first();

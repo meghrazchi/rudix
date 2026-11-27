@@ -8,8 +8,12 @@ from uuid import UUID, uuid4
 from celery import Task  # type: ignore[import-untyped]
 
 from app.core.config import settings
+from app.core.document_errors import build_document_error_details
 from app.core.logging import get_logger, log_task_failure
 from app.core.sentry import bind_sentry_context, capture_sentry_exception
+from app.db.tenant_context import bind_worker_tenant
+from app.workers.queues import strip_delay_prefix
+from app.workers.time_limits import SOFT_TIME_LIMIT_ERROR_CODE, time_limit_error_code
 
 _NON_RETRYABLE_TASK_NAMES: frozenset[str] = frozenset({"documents.delete"})
 _UUID_RE = re.compile(
@@ -18,7 +22,40 @@ _UUID_RE = re.compile(
 
 
 def _safe_error_code(exc: Exception) -> str:
-    return type(exc).__name__
+    # R06-03: Celery's time-limit exceptions get stable codes the dashboard can filter on.
+    return time_limit_error_code(exc) or type(exc).__name__
+
+
+def _handle_time_limit(task_name: str, exc: Exception, stage: str) -> None:
+    """Count a time-limit failure and give the exception document error details, so a
+    document task marks the document failed with ``task_soft_time_limit`` /
+    ``task_time_limit`` (R06-03)."""
+    code = time_limit_error_code(exc)
+    if code is None:
+        return
+    from app.core.metrics_workers import record_task_time_limit
+
+    record_task_time_limit(task_name, "soft" if code == SOFT_TIME_LIMIT_ERROR_CODE else "hard")
+    if isinstance(getattr(exc, "error_details", None), dict):
+        return
+    exc.error_details = build_document_error_details(  # type: ignore[attr-defined]
+        stage=stage,
+        code=code,
+        category="infrastructure",
+        retryable=True,
+        message="Processing took longer than its time limit",
+    )
+
+
+def _delivered_queue(delivery_info: Any) -> str | None:
+    """The queue routing key of a delivery, without the native delayed delivery prefix that a
+    countdown retry in quorum mode adds (R06-05), so ``FailedJob.queue_name`` stays a queue."""
+    if not isinstance(delivery_info, dict):
+        return None
+    routing_key = delivery_info.get("routing_key")
+    if not isinstance(routing_key, str) or not routing_key:
+        return None
+    return strip_delay_prefix(routing_key)
 
 
 def _safe_error_message(exc: Exception) -> str:
@@ -51,6 +88,7 @@ async def _persist_failed_job(
     queue_name: str | None,
     exc: Exception,
     attempt_count: int,
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     from app.db.session import SessionLocal
     from app.models.failed_job import FailedJob
@@ -74,26 +112,34 @@ async def _persist_failed_job(
 
     is_retryable = task_name not in _NON_RETRYABLE_TASK_NAMES
 
-    async with SessionLocal() as db:
-        job = FailedJob(
-            id=uuid4(),
-            organization_id=org_uuid,
-            task_id=task_id,
-            task_name=task_name,
-            job_type=_job_type_from_task_name(task_name),
-            status="failed",
-            queue_name=queue_name,
-            error_code=_safe_error_code(exc),
-            error_message=_safe_error_message(exc),
-            attempt_count=attempt_count,
-            is_retryable=is_retryable,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            metadata_json={},
-            last_attempted_at=datetime.now(tz=UTC),
-            created_at=datetime.now(tz=UTC),
-            updated_at=datetime.now(tz=UTC),
+    # Bound explicitly: on_failure runs outside the task's tenant scope (R06-01 part 2).
+    with bind_worker_tenant(org_uuid):
+        await _insert_failed_job(
+            SessionLocal,
+            FailedJob(
+                id=uuid4(),
+                organization_id=org_uuid,
+                task_id=task_id,
+                task_name=task_name,
+                job_type=_job_type_from_task_name(task_name),
+                status="failed",
+                queue_name=queue_name,
+                error_code=_safe_error_code(exc),
+                error_message=_safe_error_message(exc),
+                attempt_count=attempt_count,
+                is_retryable=is_retryable,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                metadata_json=dict(metadata or {}),
+                last_attempted_at=datetime.now(tz=UTC),
+                created_at=datetime.now(tz=UTC),
+                updated_at=datetime.now(tz=UTC),
+            ),
         )
+
+
+async def _insert_failed_job(session_factory: Any, job: Any) -> None:
+    async with session_factory() as db:
         db.add(job)
         await db.commit()
 
@@ -104,6 +150,19 @@ class TransientTaskError(Exception):
 
 class PermanentTaskError(Exception):
     """Non-retryable task failure."""
+
+
+class TenantMismatchError(PermanentTaskError):
+    """The task's entity belongs to another organisation than its ``organization_id`` kwarg.
+
+    Raised before any write (plan contract 4.2.7). No FailedJob row is written for it and
+    no terminal-failure hook runs: either would write into the organisation the message
+    named, about an entity of another organisation.
+    """
+
+    def __init__(self, message: str = "tenant_mismatch") -> None:
+        # The default keeps the exception picklable (Celery stores it by its args).
+        super().__init__(message)
 
 
 class RudixTask(Task):
@@ -118,6 +177,22 @@ class RudixTask(Task):
     def __init__(self) -> None:
         super().__init__()
         self._logger = get_logger("worker.tasks")
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Run the task bound to the tenant of its ``organization_id`` kwarg (contract 4.2.7).
+
+        Every session the task opens then sets ``app.current_organization_id`` for row-level
+        security. A task without the kwarg (beat tasks) runs unbound and uses
+        ``maintenance_session()`` for cross-tenant work.
+        """
+        with bind_worker_tenant(kwargs.get("organization_id")):
+            return super().__call__(*args, **kwargs)
+
+    def failed_job_identity(
+        self, kwargs: dict[str, Any], queue_name: str | None
+    ) -> tuple[str, str | None, dict[str, Any]]:
+        """Task name, queue, and metadata recorded on this task's FailedJob row."""
+        return self.name or "<unknown>", queue_name, {}
 
     @staticmethod
     def _context(args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -225,6 +300,10 @@ class RudixTask(Task):
         from app.workers.async_runtime import run_async
 
         ctx = self._context(args, kwargs)
+        if isinstance(exc, TenantMismatchError):
+            self._on_tenant_mismatch(ctx, task_id)
+            super().on_failure(exc, task_id, args, kwargs, einfo)
+            return
         bind_sentry_context(
             runtime="worker",
             task_name=self.name,
@@ -253,22 +332,44 @@ class RudixTask(Task):
             user_id=ctx["user_id"],
         )
         try:
+            task_name, queue_name, metadata = self.failed_job_identity(
+                kwargs, _delivered_queue(getattr(self.request, "delivery_info", None))
+            )
             run_async(
                 _persist_failed_job(
                     task_id=task_id,
-                    task_name=self.name or "<unknown>",
+                    task_name=task_name,
                     organization_id=ctx["organization_id"],
                     document_id=str(ctx["document_id"]) if ctx["document_id"] else None,
                     job_id=ctx["job_id"],
-                    queue_name=getattr(self.request, "delivery_info", {}).get("routing_key"),
+                    queue_name=queue_name,
                     exc=exc,
                     attempt_count=getattr(self.request, "retries", 0) + 1,
+                    metadata=metadata,
                 )
             )
         except Exception:
             self._logger.warning("failed_job.persist_error", exc_info=True)
-        self.on_terminal_failure(exc=exc, args=args, kwargs=kwargs)
+        _handle_time_limit(
+            self.name or "<unknown>", exc, str(getattr(self, "stage", None) or "unknown")
+        )
+        with bind_worker_tenant(ctx["organization_id"]):
+            self.on_terminal_failure(exc=exc, args=args, kwargs=kwargs)
         super().on_failure(exc, task_id, args, kwargs, einfo)
+
+    def _on_tenant_mismatch(self, ctx: dict[str, Any], task_id: str) -> None:
+        from app.core.metrics_workers import record_worker_tenant_mismatch
+
+        record_worker_tenant_mismatch(self.name or "<unknown>")
+        self._logger.warning(
+            "task.tenant_mismatch",
+            task_name=self.name,
+            job_id=ctx["job_id"] or task_id,
+            request_id=ctx["request_id"],
+            organization_id=ctx["organization_id"],
+            document_id=ctx["document_id"],
+            error_code="tenant_mismatch",
+        )
 
     def on_terminal_failure(
         self,

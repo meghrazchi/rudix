@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function SubprocessorsRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Rudix subprocessors list">
+    <PublicMarketingLayout pageLabel="Rudix subprocessors list" theme="system">
       <SubprocessorsPage />
     </PublicMarketingLayout>
   );

@@ -7,10 +7,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.errors import AuthenticationError, AuthorizationError
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.principal_snapshot import (
+    PRINCIPAL_SNAPSHOT_ADAPTER,
+    PrincipalSnapshot,
+    build_snapshot,
+    store_request_snapshot,
+)
 from app.auth.providers.base import BaseAuthProvider
 from app.auth.repository import AuthRepository
 from app.auth.session_repository import AuthSessionRepository
 from app.auth.token_codec import decode_app_access_token
+from app.core.cache import NAMESPACE_AUTH_PRINCIPAL, UserScope, get_or_load
+from app.core.config import settings
+from app.models.auth_session import AuthRefreshSession
 
 
 class AppAuthProvider(BaseAuthProvider):
@@ -62,6 +71,85 @@ class AppAuthProvider(BaseAuthProvider):
         first_org, first_role = next(iter(organization_roles.items()))
         return first_org, first_role
 
+    async def load_active_session(
+        self,
+        session: AsyncSession,
+        *,
+        session_id: UUID,
+    ) -> AuthRefreshSession | None:
+        """Return the active session row, or raise when the session was revoked or expired.
+
+        A session id with no stored row at all is accepted (returns ``None``), as
+        it always has been; callers then skip the owner check.
+        """
+        session_record = await self._session_repository.get_active_session_by_id(
+            session,
+            session_id=session_id,
+        )
+        if session_record is None:
+            session_history = await self._session_repository.get_session_by_id(
+                session,
+                session_id=session_id,
+            )
+            if session_history is not None:
+                raise AuthenticationError("Session has been revoked")
+        return session_record
+
+    @staticmethod
+    def ensure_session_owner(session_record: AuthRefreshSession | None, *, user_id: UUID) -> None:
+        if session_record is not None and session_record.user_id != user_id:
+            raise AuthenticationError("Session does not belong to the authenticated principal")
+
+    async def _load_snapshot(
+        self,
+        session: AsyncSession,
+        *,
+        subject: str,
+        subject_uuid: UUID | None,
+        session_id: UUID,
+    ) -> PrincipalSnapshot:
+        """Read the session row and the user with memberships (raises when revoked)."""
+        session_record = await self.load_active_session(session, session_id=session_id)
+        if subject_uuid is not None:
+            user = await self._repository.get_user_by_id(session, user_id=subject_uuid)
+        else:
+            user = await self._repository.get_user_by_external_auth_id(
+                session,
+                external_auth_id=subject,
+            )
+        if user is None:
+            raise AuthenticationError("Unknown principal")
+        return build_snapshot(user, session_record)
+
+    async def _principal_snapshot(
+        self,
+        session: AsyncSession,
+        *,
+        subject: str,
+        session_id: UUID,
+    ) -> PrincipalSnapshot:
+        try:
+            subject_uuid: UUID | None = UUID(subject)
+        except ValueError:
+            subject_uuid = None
+
+        async def load() -> PrincipalSnapshot:
+            return await self._load_snapshot(
+                session, subject=subject, subject_uuid=subject_uuid, session_id=session_id
+            )
+
+        if subject_uuid is None:
+            # External subject ids have no user scope until the row is read: not cached.
+            return await load()
+        return await get_or_load(
+            scope=UserScope(subject_uuid),
+            namespace=NAMESPACE_AUTH_PRINCIPAL,
+            key_id=str(session_id),
+            ttl=settings.cache_ttl_auth_session_seconds,
+            adapter=PRINCIPAL_SNAPSHOT_ADAPTER,
+            loader=load,
+        )
+
     async def authenticate(self, request: Request, session: AsyncSession) -> AuthenticatedPrincipal:
         token = self._extract_bearer_token(request)
         claims = decode_app_access_token(token)
@@ -75,41 +163,25 @@ class AppAuthProvider(BaseAuthProvider):
         except ValueError as exc:
             raise AuthenticationError("Token session is invalid") from exc
 
-        session_record = await self._session_repository.get_active_session_by_id(
-            session,
-            session_id=session_uuid,
-        )
-        if session_record is None:
-            session_history = await self._session_repository.get_session_by_id(
-                session,
-                session_id=session_uuid,
-            )
-            if session_history is not None:
-                raise AuthenticationError("Session has been revoked")
-
         subject = str(claims["sub"]).strip()
-        try:
-            user = await self._repository.get_user_by_id(session, user_id=UUID(subject))
-        except ValueError:
-            user = await self._repository.get_user_by_external_auth_id(
-                session,
-                external_auth_id=subject,
-            )
+        snapshot = await self._principal_snapshot(session, subject=subject, session_id=session_uuid)
+        store_request_snapshot(request, snapshot)
 
-        if user is None:
-            raise AuthenticationError("Unknown principal")
+        if snapshot.session.present and snapshot.session.is_expired():
+            # Same outcome as the uncached lookup: no active row, but the session exists.
+            raise AuthenticationError("Session has been revoked")
 
-        if not user.is_active:
+        if not snapshot.is_active:
             raise AuthenticationError("Account has been deprovisioned")
 
-        if session_record is not None and session_record.user_id != user.id:
+        if snapshot.session.present and snapshot.session.owner_user_id != snapshot.user_id:
             raise AuthenticationError("Session does not belong to the authenticated principal")
 
-        if not user.memberships:
+        if not snapshot.memberships:
             raise AuthorizationError("No organization membership found for principal")
 
         organization_roles = {
-            str(membership.organization_id): membership.role for membership in user.memberships
+            org_id: membership.role for org_id, membership in snapshot.memberships.items()
         }
         requested_org = self._resolve_requested_org(request)
         token_org_id = claims.get("org_id")
@@ -117,14 +189,15 @@ class AppAuthProvider(BaseAuthProvider):
             requested_org = token_org_id.strip()
         active_org, active_role = self._select_active_organization(
             requested_org=requested_org,
-            default_org=str(user.organization_id),
+            default_org=str(snapshot.default_organization_id),
             organization_roles=organization_roles,
         )
 
         return AuthenticatedPrincipal(
-            user_id=str(user.id),
+            user_id=str(snapshot.user_id),
             organization_id=active_org,
-            email=user.email,
+            email=snapshot.email,
             roles=[active_role],
             auth_provider="app",
+            auth_session_id=str(session_uuid),
         )

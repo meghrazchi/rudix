@@ -1,5 +1,20 @@
 name: Release
 
+# Versioned, signed, promoted releases (R03-07).
+#
+#   push to main      build-images (api, worker, frontend-staging, frontend-production;
+#                     SBOM + provenance; cosign keyless signatures) -> integration-smoke,
+#                     scan-images, e2e-integration, quality gates -> deploy-staging, which
+#                     tags the deployed digests staging-passed-<sha>.
+#   push tag vX.Y.Z   nothing is built. verify-staged resolves the staging-passed digests
+#                     of the tag commit -> deploy-production (cosign verify, digest
+#                     equality, vX.Y.Z image tags) -> github-release.
+#   dispatch          staging: same as a main push. production: needs `version`, follows
+#                     the tag path, never builds. rollback: `environment` + `version`
+#                     (deploy/scripts/rollback.sh); the three rollback_*_image inputs are a
+#                     deprecated fallback kept for one milestone.
+#
+# Paths filters are not evaluated for tag pushes, so every v* tag runs.
 on:
   push:
     branches:
@@ -12,7 +27,10 @@ on:
       - "ci/**"
       - "deploy/**"
       - "infra/**"
+      - "scripts/**"
       - ".github/workflows/release.yml"
+      - ".github/workflows/e2e-integration.yml"
+      - ".github/workflows/quality-gate.yml"
       - ".env.example"
       - "Makefile"
       - "backend/Makefile"
@@ -33,19 +51,33 @@ on:
           - production
           - rollback
         default: staging
+      version:
+        description: "Release version (vX.Y.Z). Required for production and for rollback by version."
+        required: false
+        type: string
+      environment:
+        description: "Rollback environment"
+        required: false
+        type: choice
+        options:
+          - production
+          - staging
+        default: production
       rollback_api_image:
-        description: "API image to roll back to"
+        description: "Deprecated (use version): API image to roll back to"
         required: false
         type: string
       rollback_worker_image:
-        description: "Worker image to roll back to"
+        description: "Deprecated (use version): worker image to roll back to"
         required: false
         type: string
       rollback_frontend_image:
-        description: "Frontend image to roll back to"
+        description: "Deprecated (use version): frontend image to roll back to"
         required: false
         type: string
 
+# Run-level group; each deploy job also takes a per-environment group so two runs
+# never apply Terraform to the same environment (state) at the same time.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.target || 'auto' }}
   cancel-in-progress: false
@@ -61,12 +93,23 @@ defaults:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAMESPACE: ${{ github.repository }}
+  # <REGISTRY>/<IMAGE_NAMESPACE>; written out because workflow env cannot read env.
+  IMAGE_BASE: ghcr.io/${{ github.repository }}
+  COSIGN_OIDC_ISSUER: https://token.actions.githubusercontent.com
 
 jobs:
   build-images:
     name: Build and push images
     runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.target != 'rollback'
+    # Never on tags (a tag promotes what staging already tested) and never for a
+    # production or rollback dispatch.
+    if: >-
+      github.ref_type != 'tag' &&
+      (github.event_name != 'workflow_dispatch' || github.event.inputs.target == 'staging')
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     outputs:
       api_image: ${{ steps.image-refs.outputs.api_image }}
       worker_image: ${{ steps.image-refs.outputs.worker_image }}
@@ -84,6 +127,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -91,38 +137,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend images
-        env:
-          IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
+      - name: Build and push backend api and worker images
+        # Contract 4: backend/Dockerfile stages `api` and `worker`.
         run: |
-          tags=(
-            --tag "${IMAGE_BASE}/api:${GITHUB_SHA}"
-            --tag "${IMAGE_BASE}/worker:${GITHUB_SHA}"
-          )
-          if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            tags+=(
-              --tag "${IMAGE_BASE}/api:staging"
-              --tag "${IMAGE_BASE}/api:latest"
-              --tag "${IMAGE_BASE}/worker:staging"
-              --tag "${IMAGE_BASE}/worker:latest"
-            )
-          fi
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            tags+=(
-              --tag "${IMAGE_BASE}/api:${GITHUB_REF_NAME}"
-              --tag "${IMAGE_BASE}/worker:${GITHUB_REF_NAME}"
-            )
-          fi
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --push \
-            "${tags[@]}" \
-            -f backend/Dockerfile \
-            backend
+          mkdir -p artifacts/build-metadata
+          for target in api worker; do
+            tags=(--tag "${IMAGE_BASE}/${target}:${GITHUB_SHA}")
+            if [ "${GITHUB_REF_NAME}" = "main" ]; then
+              tags+=(--tag "${IMAGE_BASE}/${target}:staging" --tag "${IMAGE_BASE}/${target}:latest")
+            fi
+            docker buildx build \
+              --platform linux/amd64,linux/arm64 \
+              --target "${target}" \
+              --push \
+              --sbom=true \
+              --provenance=mode=max \
+              --metadata-file "artifacts/build-metadata/${target}.json" \
+              "${tags[@]}" \
+              -f backend/Dockerfile \
+              backend
+          done
 
       - name: Build and push frontend staging image
-        env:
-          IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
           # Strip deploy-owned URL keys from the secret before writing the known
           # staging values, so stale localhost values cannot be baked into Next.
@@ -138,22 +174,22 @@ jobs:
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             staging_tags+=(--tag "${IMAGE_BASE}/frontend-staging:latest")
           fi
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            staging_tags+=(--tag "${IMAGE_BASE}/frontend-staging:${GITHUB_REF_NAME}")
-          fi
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --push \
+            --sbom=true \
+            --provenance=mode=max \
+            --metadata-file artifacts/build-metadata/frontend-staging.json \
             "${staging_tags[@]}" \
             -f frontend/Dockerfile \
             frontend
 
       - name: Build and push frontend production image
-        env:
-          IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
           # Strip deploy-owned URL keys from the secret before writing the known
           # production values, so stale localhost values cannot be baked into Next.
+          # This image is built in the same main run as the staging one and is the
+          # frontend a later vX.Y.Z tag promotes (frontend-production:<sha>).
           {
             printf 'NEXT_PUBLIC_DEPLOYMENT_ENV=production\n'
             printf 'NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1\n'
@@ -164,29 +200,45 @@ jobs:
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             prod_tags+=(--tag "${IMAGE_BASE}/frontend-production:latest")
           fi
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            prod_tags+=(--tag "${IMAGE_BASE}/frontend-production:${GITHUB_REF_NAME}")
-          fi
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --push \
+            --sbom=true \
+            --provenance=mode=max \
+            --metadata-file artifacts/build-metadata/frontend-production.json \
             "${prod_tags[@]}" \
             -f frontend/Dockerfile \
             frontend
 
       - name: Resolve pushed image digests
+        # From the buildx metadata file: no pull, and the digest is the pushed index.
         id: image-refs
-        env:
-          IMAGE_BASE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
         run: |
-          docker pull "${IMAGE_BASE}/api:${GITHUB_SHA}"
-          docker pull "${IMAGE_BASE}/worker:${GITHUB_SHA}"
-          docker pull "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}"
-          docker pull "${IMAGE_BASE}/frontend-production:${GITHUB_SHA}"
-          echo "api_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/api:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
-          echo "worker_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/worker:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
-          echo "frontend_staging_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
-          echo "frontend_production_image=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_BASE}/frontend-production:${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
+          for name in api worker frontend-staging frontend-production; do
+            digest="$(jq -r '."containerimage.digest" // empty' "artifacts/build-metadata/${name}.json")"
+            case "${digest}" in
+              sha256:*) ;;
+              *)
+                echo "No containerimage.digest for ${name}"
+                exit 1
+                ;;
+            esac
+            output_name="$(printf '%s' "${name}" | tr '-' '_')_image"
+            echo "${output_name}=${IMAGE_BASE}/${name}@${digest}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Sign image digests (cosign keyless)
+        # Keyless: the certificate identity is this workflow on this ref, issued by
+        # the GitHub OIDC provider; deploy-production verifies it.
+        env:
+          API_IMAGE: ${{ steps.image-refs.outputs.api_image }}
+          WORKER_IMAGE: ${{ steps.image-refs.outputs.worker_image }}
+          FRONTEND_STAGING_IMAGE: ${{ steps.image-refs.outputs.frontend_staging_image }}
+          FRONTEND_PRODUCTION_IMAGE: ${{ steps.image-refs.outputs.frontend_production_image }}
+        run: |
+          for ref in "${API_IMAGE}" "${WORKER_IMAGE}" "${FRONTEND_STAGING_IMAGE}" "${FRONTEND_PRODUCTION_IMAGE}"; do
+            cosign sign --yes "${ref}"
+          done
 
       - name: Upload image digest references
         if: always()
@@ -278,7 +330,7 @@ jobs:
             sleep 2
           done
           docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps || true
-          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color api worker || true
+          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color api worker beat || true
           exit 1
 
       - name: Check readiness and auth boundary
@@ -317,6 +369,35 @@ jobs:
       - name: Verify worker is running
         run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running worker | grep -q worker
 
+      - name: Verify beat is running
+        run: |
+          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running beat | grep -q beat
+          for i in $(seq 1 30); do
+            docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color beat | grep -q 'beat: Starting...' && exit 0
+            sleep 2
+          done
+          echo 'beat did not start'
+          docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color beat
+          exit 1
+
+      - name: Verify Terraform infra_services are running
+        run: |
+          # Every service the production deploy waits on before migrations must
+          # exist and run in this stack, or `up --wait` fails on the host.
+          infra_services="$(awk '/^variable "infra_services"/ { f = 1 } f && /^[[:space:]]*default[[:space:]]*=/ { sub(/^[^"]*"/, ""); sub(/".*$/, ""); print; exit }' deploy/terraform/variables.tf)"
+          if [ -z "${infra_services}" ]; then
+            echo 'Could not read the infra_services default from deploy/terraform/variables.tf'
+            exit 1
+          fi
+          for svc in ${infra_services}; do
+            if ! docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running --format '{{.Service}}' "${svc}" | grep -qx "${svc}"; then
+              echo "infra service is not running in the integration stack: ${svc}"
+              docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps || true
+              exit 1
+            fi
+          done
+          echo "All infra_services running: ${infra_services}"
+
       - name: Collect integration logs
         if: always()
         run: docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color > artifacts/integration-compose.log || true
@@ -333,15 +414,166 @@ jobs:
           path: artifacts/integration-compose.log
           if-no-files-found: ignore
 
+  scan-images:
+    name: Scan pushed images
+    runs-on: ubuntu-latest
+    needs: build-images
+    permissions:
+      contents: read
+      packages: read
+    env:
+      # Trivy pulls the private GHCR digests with these.
+      TRIVY_USERNAME: ${{ github.actor }}
+      TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare report directory
+        run: mkdir -p artifacts
+
+      - name: Trivy scan api digest
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ needs.build-images.outputs.api_image }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: artifacts/trivy-api.json
+          exit-code: "0"
+
+      - name: Trivy scan worker digest
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ needs.build-images.outputs.worker_image }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: artifacts/trivy-worker.json
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Trivy scan frontend staging digest
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ needs.build-images.outputs.frontend_staging_image }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: artifacts/trivy-frontend-staging.json
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Trivy scan frontend production digest
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ needs.build-images.outputs.frontend_production_image }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: artifacts/trivy-frontend-production.json
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Upload Trivy reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-image-scan-reports
+          path: artifacts/trivy-*.json
+          if-no-files-found: ignore
+
+      - name: Security severity gate (pushed images)
+        run: |
+          python3 ci/scripts/security_severity_gate.py \
+            --trivy artifacts/trivy-api.json \
+            --trivy artifacts/trivy-worker.json \
+            --trivy artifacts/trivy-frontend-staging.json \
+            --trivy artifacts/trivy-frontend-production.json
+
+  # Critical-path Playwright against the built backend images (contract 2, D2).
+  e2e-integration:
+    name: E2E integration
+    needs: build-images
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/e2e-integration.yml
+    with:
+      api_image: ${{ needs.build-images.outputs.api_image }}
+      worker_image: ${{ needs.build-images.outputs.worker_image }}
+
+  # Quality gate before staging (R03-03). Two jobs because a reusable workflow
+  # cannot be a step: the deterministic accuracy smoke at this commit, then the
+  # F149 gate on the newest completed nightly run (quality-gate.yml).
+  quality-gate-smoke:
+    name: Quality gate accuracy smoke
+    runs-on: ubuntu-latest
+    needs: integration-smoke
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'staging')
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend tooling
+        run: make -C backend install
+
+      - name: Run accuracy smoke
+        run: |
+          cd backend
+          .venv/bin/pytest -m accuracy_smoke
+
+  quality-gate:
+    name: Quality gate
+    needs: integration-smoke
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'staging')
+    permissions:
+      contents: read
+    uses: ./.github/workflows/quality-gate.yml
+    with:
+      evaluation_run_id: latest
+      dry_run: false
+    secrets: inherit
+
   deploy-staging:
     name: Deploy staging
     runs-on: ubuntu-latest
     needs:
       - build-images
       - integration-smoke
+      - scan-images
+      - e2e-integration
+      - quality-gate-smoke
+      - quality-gate
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'staging')
     environment:
       name: staging
+    concurrency:
+      group: rudix-deploy-staging
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -352,11 +584,16 @@ jobs:
             STAGING_SSH_HOST \
             STAGING_SSH_USER \
             STAGING_SSH_PRIVATE_KEY \
+            STAGING_SSH_KNOWN_HOSTS \
             STAGING_APP_PATH \
             STAGING_ENV_FILE \
             STAGING_ENV_URL \
             GHCR_USERNAME \
-            GHCR_TOKEN
+            GHCR_TOKEN \
+            TF_STATE_BUCKET \
+            TF_STATE_REGION \
+            TF_STATE_ACCESS_KEY_ID \
+            TF_STATE_SECRET_ACCESS_KEY
           do
             if [ -z "${!var_name:-}" ]; then
               echo "Missing required staging secret: ${var_name}"
@@ -367,11 +604,22 @@ jobs:
           STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
           STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
           STAGING_SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          STAGING_SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
           STAGING_APP_PATH: ${{ secrets.STAGING_APP_PATH }}
           STAGING_ENV_FILE: ${{ secrets.STAGING_ENV_FILE }}
           STAGING_ENV_URL: ${{ secrets.STAGING_ENV_URL }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_STATE_REGION: ${{ secrets.TF_STATE_REGION }}
+          TF_STATE_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+          TF_STATE_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+
+      - name: Check staging env file
+        # Staging reports findings as warnings only.
+        env:
+          DEPLOY_ENV_FILE_CONTENT: ${{ secrets.STAGING_ENV_FILE }}
+        run: deploy/scripts/check_deploy_env.sh staging
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -383,6 +631,14 @@ jobs:
         env:
           TF_IN_AUTOMATION: "true"
           TF_INPUT: "false"
+          # Remote state (rudix/staging.tfstate). No state locking with 1.9.8 S3:
+          # the rudix-deploy-staging concurrency group serializes applies.
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_STATE_REGION: ${{ secrets.TF_STATE_REGION }}
+          TF_STATE_ENDPOINT: ${{ secrets.TF_STATE_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
           TF_VAR_environment_name: staging
           TF_VAR_compose_file_path: ../compose/docker-compose.staging.yml
           TF_VAR_ssh_host: ${{ secrets.STAGING_SSH_HOST }}
@@ -398,6 +654,8 @@ jobs:
           TF_VAR_worker_image: ${{ needs.build-images.outputs.worker_image }}
           TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_staging_image }}
           TF_VAR_backup_check_enabled: "false"
+          # Staging compose defines neo4j; production uses the variable default.
+          TF_VAR_infra_services: "postgres rabbitmq redis minio qdrant neo4j"
           # Optional: creates the first admin account, but only when the
           # database has zero organizations (safe to leave wired in on every
           # deploy). No-ops if these secrets aren't set.
@@ -406,7 +664,35 @@ jobs:
           TF_VAR_neo4j_username: ${{ secrets.STAGING_NEO4J_USERNAME }}
           TF_VAR_neo4j_password: ${{ secrets.STAGING_NEO4J_PASSWORD }}
         run: |
-          terraform init -input=false
+          # Pinned host key: fields 2 and 3 ("<type> <base64>") of the first
+          # known_hosts line. Put the ed25519 line first in the secret.
+          TF_VAR_ssh_host_key="$(printf '%s\n' "${SSH_KNOWN_HOSTS}" | awk '!/^[[:space:]]*(#|$)/ { print $2 " " $3; exit }')"
+          if [ -z "${TF_VAR_ssh_host_key}" ]; then
+            echo "STAGING_SSH_KNOWN_HOSTS has no usable host key line"
+            exit 1
+          fi
+          export TF_VAR_ssh_host_key
+
+          backend_args=(
+            -backend-config="bucket=${TF_STATE_BUCKET}"
+            -backend-config="key=rudix/staging.tfstate"
+            -backend-config="region=${TF_STATE_REGION}"
+          )
+          if [ -n "${TF_STATE_ENDPOINT}" ]; then
+            # S3-compatible store: endpoints is an object, so it goes in a file.
+            printf '%s\n' \
+              "endpoints = { s3 = \"${TF_STATE_ENDPOINT}\" }" \
+              'use_path_style = true' \
+              'skip_credentials_validation = true' \
+              'skip_region_validation = true' \
+              'skip_requesting_account_id = true' \
+              'skip_metadata_api_check = true' \
+              'skip_s3_checksum = true' > "${RUNNER_TEMP}/tf-backend-endpoint.hcl"
+            backend_args+=(-backend-config="${RUNNER_TEMP}/tf-backend-endpoint.hcl")
+          fi
+          terraform init -input=false "${backend_args[@]}"
+          # With persistent state an unchanged redeploy (same images, env, compose)
+          # is a no-op. Force one with -replace=null_resource.compose_rollout.
           terraform apply -auto-approve -input=false
 
       - name: Smoke test staging public endpoints
@@ -431,6 +717,32 @@ jobs:
             echo "Unexpected staging API preflight status: ${preflight_status}"
             exit 1
           fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Promote staged digests (staging-passed-<sha>)
+        # Adds a tag to the existing digests; nothing is rebuilt. verify-staged
+        # reads these tags when a vX.Y.Z tag is pushed for this commit.
+        env:
+          API_IMAGE: ${{ needs.build-images.outputs.api_image }}
+          WORKER_IMAGE: ${{ needs.build-images.outputs.worker_image }}
+          FRONTEND_STAGING_IMAGE: ${{ needs.build-images.outputs.frontend_staging_image }}
+        run: |
+          for pair in "api=${API_IMAGE}" "worker=${WORKER_IMAGE}" "frontend-staging=${FRONTEND_STAGING_IMAGE}"; do
+            name="${pair%%=*}"
+            ref="${pair#*=}"
+            docker buildx imagetools create \
+              --tag "${IMAGE_BASE}/${name}:staging-passed-${GITHUB_SHA}" \
+              "${ref}"
+          done
 
       - name: Write staging deployment metadata
         env:
@@ -478,18 +790,126 @@ jobs:
           path: artifacts/deployment/staging-metadata.json
           if-no-files-found: error
 
-  deploy-production:
-    name: Deploy production
+  # Tag path: production deploys only what staging already passed.
+  verify-staged:
+    name: Verify staged release
     runs-on: ubuntu-latest
-    needs:
-      - build-images
-      - integration-smoke
-    if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'production')
-    environment:
-      name: production
+    # Release candidates (vX.Y.Z-rc.N) deploy to staging only (docs/26 section 4.1).
+    if: >-
+      (github.ref_type == 'tag' && !contains(github.ref_name, '-rc')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'production')
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      commit_sha: ${{ steps.release.outputs.commit_sha }}
+      api_image: ${{ steps.digests.outputs.api_image }}
+      worker_image: ${{ steps.digests.outputs.worker_image }}
+      frontend_image: ${{ steps.digests.outputs.frontend_image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag and commit
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            if [ -z "${INPUT_VERSION}" ]; then
+              echo "A production dispatch needs the version input (vX.Y.Z)."
+              exit 1
+            fi
+            tag="v${INPUT_VERSION#v}"
+            case "${tag}" in
+              *-rc*)
+                echo "Release candidates deploy to staging only."
+                exit 1
+                ;;
+            esac
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          if ! commit_sha="$(git rev-parse --verify --quiet "refs/tags/${tag}^{commit}")"; then
+            echo "Tag ${tag} does not exist."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${commit_sha}" origin/main; then
+            echo "${tag} (${commit_sha}) is not on origin/main; only merged commits are released."
+            exit 1
+          fi
+          git checkout --quiet --detach "${commit_sha}"
+          GITHUB_REF_TYPE=tag GITHUB_REF_NAME="${tag}" python3 scripts/bump_version.py --check
+          python3 scripts/extract_release_notes.py "${tag}" > /dev/null
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=${commit_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Resolve staging-passed digests
+        id: digests
+        env:
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+        run: |
+          resolve() {
+            local ref="$1" digest
+            if ! digest="$(docker buildx imagetools inspect --format '{{ .Manifest.Digest }}' "${ref}")" \
+              || [[ "${digest}" != sha256:* ]]; then
+              echo "Missing ${ref}: this commit did not pass staging."
+              return 1
+            fi
+            printf '%s@%s' "${ref%:*}" "${digest}"
+          }
+          api_image="$(resolve "${IMAGE_BASE}/api:staging-passed-${COMMIT_SHA}")"
+          worker_image="$(resolve "${IMAGE_BASE}/worker:staging-passed-${COMMIT_SHA}")"
+          # The production frontend cannot be the staging digest (public URLs are
+          # baked in at build time); it is the frontend-production image built in
+          # the same main run, and that run must have passed staging (checked above).
+          frontend_image="$(resolve "${IMAGE_BASE}/frontend-production:${COMMIT_SHA}")"
+          {
+            echo "api_image=${api_image}"
+            echo "worker_image=${worker_image}"
+            echo "frontend_image=${frontend_image}"
+          } >> "$GITHUB_OUTPUT"
+          echo "api:      ${api_image}"
+          echo "worker:   ${worker_image}"
+          echo "frontend: ${frontend_image}"
+
+  deploy-production:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    needs: verify-staged
+    environment:
+      name: production
+    concurrency:
+      group: rudix-deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RELEASE_TAG: ${{ needs.verify-staged.outputs.tag }}
+      RELEASE_SHA: ${{ needs.verify-staged.outputs.commit_sha }}
+      DEPLOY_API_IMAGE: ${{ needs.verify-staged.outputs.api_image }}
+      DEPLOY_WORKER_IMAGE: ${{ needs.verify-staged.outputs.worker_image }}
+      DEPLOY_FRONTEND_IMAGE: ${{ needs.verify-staged.outputs.frontend_image }}
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify-staged.outputs.commit_sha }}
 
       - name: Validate production secrets
         run: |
@@ -497,6 +917,7 @@ jobs:
             PRODUCTION_SSH_HOST \
             PRODUCTION_SSH_USER \
             PRODUCTION_SSH_PRIVATE_KEY \
+            PRODUCTION_SSH_KNOWN_HOSTS \
             PRODUCTION_APP_PATH \
             PRODUCTION_ENV_FILE \
             PRODUCTION_ENV_URL \
@@ -505,7 +926,11 @@ jobs:
             PRODUCTION_QDRANT_BACKUP_PATH \
             GHCR_USERNAME \
             GHCR_TOKEN \
-            PRODUCTION_BACKUP_CHECK_OK
+            PRODUCTION_BACKUP_CHECK_OK \
+            TF_STATE_BUCKET \
+            TF_STATE_REGION \
+            TF_STATE_ACCESS_KEY_ID \
+            TF_STATE_SECRET_ACCESS_KEY
           do
             if [ -z "${!var_name:-}" ]; then
               echo "Missing required production secret: ${var_name}"
@@ -521,6 +946,7 @@ jobs:
           PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
           PRODUCTION_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          PRODUCTION_SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
           PRODUCTION_APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
           PRODUCTION_ENV_URL: ${{ secrets.PRODUCTION_ENV_URL }}
@@ -530,6 +956,43 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           PRODUCTION_BACKUP_CHECK_OK: ${{ secrets.PRODUCTION_BACKUP_CHECK_OK }}
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_STATE_REGION: ${{ secrets.TF_STATE_REGION }}
+          TF_STATE_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+          TF_STATE_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+
+      - name: Check production env file
+        # Fails on a missing/unsafe REDIS_PASSWORD or unpinned QDRANT/MINIO/RABBITMQ
+        # images. Set the DEPLOY_ALLOW_UNPINNED_IMAGES variable to true to downgrade
+        # the image checks to warnings.
+        env:
+          DEPLOY_ENV_FILE_CONTENT: ${{ secrets.PRODUCTION_ENV_FILE }}
+          DEPLOY_ALLOW_UNPINNED_IMAGES: ${{ vars.DEPLOY_ALLOW_UNPINNED_IMAGES || 'false' }}
+        run: deploy/scripts/check_deploy_env.sh production
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verify image signatures
+        # Only images signed by this repository's release workflow on main (keyless,
+        # GitHub OIDC issuer) are deployed.
+        run: |
+          repo_regex="$(printf '%s' "${GITHUB_REPOSITORY}" | sed 's/[.[\*^$()+?{|]/\\&/g')"
+          identity_regex="^https://github\.com/${repo_regex}/\.github/workflows/release\.yml@refs/heads/main$"
+          for ref in "${DEPLOY_API_IMAGE}" "${DEPLOY_WORKER_IMAGE}" "${DEPLOY_FRONTEND_IMAGE}"; do
+            cosign verify \
+              --certificate-identity-regexp "${identity_regex}" \
+              --certificate-oidc-issuer "${COSIGN_OIDC_ISSUER}" \
+              "${ref}" > /dev/null
+            echo "signature verified: ${ref}"
+          done
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -537,20 +1000,34 @@ jobs:
           terraform_version: 1.9.8
 
       - name: Check remote backup artifacts
-        run: |
-          DEPLOY_SSH_HOST="${{ secrets.PRODUCTION_SSH_HOST }}" \
-          DEPLOY_SSH_USER="${{ secrets.PRODUCTION_SSH_USER }}" \
-          DEPLOY_SSH_PRIVATE_KEY="${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" \
-          DEPLOY_POSTGRES_BACKUP_PATH="${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}" \
-          DEPLOY_MINIO_BACKUP_PATH="${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}" \
-          DEPLOY_QDRANT_BACKUP_PATH="${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}" \
-          deploy/scripts/check_remote_backups.sh
+        # Each path may be a file or a directory; it must hold a file modified
+        # within DEPLOY_BACKUP_MAX_AGE_HOURS (default 26).
+        env:
+          DEPLOY_ENVIRONMENT: production
+          DEPLOY_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          DEPLOY_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || '22' }}
+          DEPLOY_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          PRODUCTION_SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+          DEPLOY_POSTGRES_BACKUP_PATH: ${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}
+          DEPLOY_MINIO_BACKUP_PATH: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
+          DEPLOY_QDRANT_BACKUP_PATH: ${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}
+          DEPLOY_BACKUP_MAX_AGE_HOURS: ${{ vars.DEPLOY_BACKUP_MAX_AGE_HOURS || secrets.DEPLOY_BACKUP_MAX_AGE_HOURS || '26' }}
+        run: deploy/scripts/check_remote_backups.sh
 
       - name: Deploy production with Terraform
         working-directory: deploy/terraform
         env:
           TF_IN_AUTOMATION: "true"
           TF_INPUT: "false"
+          # Remote state (rudix/production.tfstate). No state locking with 1.9.8
+          # S3: the rudix-deploy-production concurrency group serializes applies.
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_STATE_REGION: ${{ secrets.TF_STATE_REGION }}
+          TF_STATE_ENDPOINT: ${{ secrets.TF_STATE_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
           TF_VAR_environment_name: production
           TF_VAR_compose_file_path: ../compose/docker-compose.production.yml
           TF_VAR_ssh_host: ${{ secrets.PRODUCTION_SSH_HOST }}
@@ -562,9 +1039,9 @@ jobs:
           TF_VAR_registry_user: ${{ secrets.GHCR_USERNAME }}
           TF_VAR_registry_password: ${{ secrets.GHCR_TOKEN }}
           TF_VAR_env_file_content: ${{ secrets.PRODUCTION_ENV_FILE }}
-          TF_VAR_api_image: ${{ needs.build-images.outputs.api_image }}
-          TF_VAR_worker_image: ${{ needs.build-images.outputs.worker_image }}
-          TF_VAR_frontend_image: ${{ needs.build-images.outputs.frontend_production_image }}
+          TF_VAR_api_image: ${{ needs.verify-staged.outputs.api_image }}
+          TF_VAR_worker_image: ${{ needs.verify-staged.outputs.worker_image }}
+          TF_VAR_frontend_image: ${{ needs.verify-staged.outputs.frontend_image }}
           TF_VAR_backup_check_enabled: "true"
           TF_VAR_postgres_backup_path: ${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}
           TF_VAR_minio_backup_path: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
@@ -575,7 +1052,30 @@ jobs:
           TF_VAR_bootstrap_admin_email: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_EMAIL }}
           TF_VAR_bootstrap_admin_password: ${{ secrets.PRODUCTION_BOOTSTRAP_ADMIN_PASSWORD }}
         run: |
-          terraform init -input=false
+          TF_VAR_ssh_host_key="$(printf '%s\n' "${SSH_KNOWN_HOSTS}" | awk '!/^[[:space:]]*(#|$)/ { print $2 " " $3; exit }')"
+          if [ -z "${TF_VAR_ssh_host_key}" ]; then
+            echo "PRODUCTION_SSH_KNOWN_HOSTS has no usable host key line"
+            exit 1
+          fi
+          export TF_VAR_ssh_host_key
+
+          backend_args=(
+            -backend-config="bucket=${TF_STATE_BUCKET}"
+            -backend-config="key=rudix/production.tfstate"
+            -backend-config="region=${TF_STATE_REGION}"
+          )
+          if [ -n "${TF_STATE_ENDPOINT}" ]; then
+            printf '%s\n' \
+              "endpoints = { s3 = \"${TF_STATE_ENDPOINT}\" }" \
+              'use_path_style = true' \
+              'skip_credentials_validation = true' \
+              'skip_region_validation = true' \
+              'skip_requesting_account_id = true' \
+              'skip_metadata_api_check = true' \
+              'skip_s3_checksum = true' > "${RUNNER_TEMP}/tf-backend-endpoint.hcl"
+            backend_args+=(-backend-config="${RUNNER_TEMP}/tf-backend-endpoint.hcl")
+          fi
+          terraform init -input=false "${backend_args[@]}"
           terraform apply -auto-approve -input=false
 
       - name: Smoke test production public endpoints
@@ -601,11 +1101,36 @@ jobs:
             exit 1
           fi
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Tag released digests and assert promotion
+        # api and worker must be byte-identical to what staging passed. The
+        # frontend is the frontend-production image of the same main run (its
+        # URLs are baked in, so it cannot equal the staging digest).
+        run: |
+          digest_of() {
+            docker buildx imagetools inspect --format '{{ .Manifest.Digest }}' "$1"
+          }
+          for pair in "api=${DEPLOY_API_IMAGE}" "worker=${DEPLOY_WORKER_IMAGE}" "frontend-production=${DEPLOY_FRONTEND_IMAGE}"; do
+            name="${pair%%=*}"
+            ref="${pair#*=}"
+            docker buildx imagetools create --tag "${IMAGE_BASE}/${name}:${RELEASE_TAG}" "${ref}"
+          done
+          for name in api worker; do
+            deployed_ref_var="DEPLOY_$(printf '%s' "${name}" | tr '[:lower:]' '[:upper:]')_IMAGE"
+            deployed_digest="${!deployed_ref_var##*@}"
+            staged_digest="$(digest_of "${IMAGE_BASE}/${name}:staging-passed-${RELEASE_SHA}")"
+            released_digest="$(digest_of "${IMAGE_BASE}/${name}:${RELEASE_TAG}")"
+            if [ "${deployed_digest}" != "${staged_digest}" ] || [ "${released_digest}" != "${staged_digest}" ]; then
+              echo "${name}: deployed ${deployed_digest}, staging-passed ${staged_digest}, ${RELEASE_TAG} ${released_digest}"
+              exit 1
+            fi
+            echo "${name}: production digest equals staging digest (${staged_digest})"
+          done
+
       - name: Write production deployment metadata
         env:
-          DEPLOY_API_IMAGE: ${{ needs.build-images.outputs.api_image }}
-          DEPLOY_WORKER_IMAGE: ${{ needs.build-images.outputs.worker_image }}
-          DEPLOY_FRONTEND_IMAGE: ${{ needs.build-images.outputs.frontend_production_image }}
           PRODUCTION_ENV_URL: ${{ secrets.PRODUCTION_ENV_URL }}
         run: |
           mkdir -p artifacts/deployment
@@ -616,7 +1141,8 @@ jobs:
 
           payload = {
               "environment": "production",
-              "commit_sha": os.environ["GITHUB_SHA"],
+              "release_tag": os.environ["RELEASE_TAG"],
+              "commit_sha": os.environ["RELEASE_SHA"],
               "images": {
                   "api": os.environ["DEPLOY_API_IMAGE"],
                   "worker": os.environ["DEPLOY_WORKER_IMAGE"],
@@ -638,7 +1164,7 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-        run: ci/scripts/tag_sentry_release.sh production "${GITHUB_SHA}"
+        run: ci/scripts/tag_sentry_release.sh production "${RELEASE_SHA}"
 
       - name: Upload production deployment metadata
         uses: actions/upload-artifact@v4
@@ -647,57 +1173,141 @@ jobs:
           path: artifacts/deployment/production-metadata.json
           if-no-files-found: error
 
-  rollback-production:
-    name: Roll back production
+  github-release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - verify-staged
+      - deploy-production
+    permissions:
+      contents: write
+      packages: read
+    env:
+      RELEASE_TAG: ${{ needs.verify-staged.outputs.tag }}
+      API_IMAGE: ${{ needs.verify-staged.outputs.api_image }}
+      WORKER_IMAGE: ${{ needs.verify-staged.outputs.worker_image }}
+      FRONTEND_IMAGE: ${{ needs.verify-staged.outputs.frontend_image }}
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify-staged.outputs.commit_sha }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Collect release notes and SBOMs
+        run: |
+          mkdir -p artifacts/release
+          python3 scripts/extract_release_notes.py "${RELEASE_TAG}" > artifacts/release/notes.md
+          {
+            printf '\n## Images\n\n'
+            printf -- '- api: `%s`\n' "${API_IMAGE}"
+            printf -- '- worker: `%s`\n' "${WORKER_IMAGE}"
+            printf -- '- frontend (production): `%s`\n' "${FRONTEND_IMAGE}"
+          } >> artifacts/release/notes.md
+          for pair in "api=${API_IMAGE}" "worker=${WORKER_IMAGE}" "frontend-production=${FRONTEND_IMAGE}"; do
+            name="${pair%%=*}"
+            ref="${pair#*=}"
+            docker buildx imagetools inspect --format '{{ json .SBOM }}' "${ref}" \
+              > "artifacts/release/sbom-${name}.spdx.json"
+          done
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Idempotent: a re-run updates the existing release instead of failing.
+          if gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" --notes-file artifacts/release/notes.md
+            gh release upload "${RELEASE_TAG}" artifacts/release/sbom-*.spdx.json --clobber
+          else
+            gh release create "${RELEASE_TAG}" \
+              --verify-tag \
+              --title "${RELEASE_TAG}" \
+              --notes-file artifacts/release/notes.md \
+              artifacts/release/sbom-*.spdx.json
+          fi
+
+  rollback:
+    name: Roll back
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'rollback'
     environment:
-      name: production
+      name: ${{ github.event.inputs.environment || 'production' }}
+    concurrency:
+      group: rudix-deploy-${{ github.event.inputs.environment || 'production' }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    env:
+      ROLLBACK_ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+      ROLLBACK_VERSION: ${{ github.event.inputs.version }}
+      # Literal prefixes keep `a && b || c` safe: 'STAGING' is never empty.
+      SECRET_PREFIX: ${{ github.event.inputs.environment == 'staging' && 'STAGING' || 'PRODUCTION' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Validate rollback inputs
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Roll back compose deployment
         env:
+          DEPLOY_ENVIRONMENT: ${{ env.ROLLBACK_ENVIRONMENT }}
+          DEPLOY_SSH_HOST: ${{ secrets[format('{0}_SSH_HOST', env.SECRET_PREFIX)] }}
+          DEPLOY_SSH_PORT: ${{ secrets[format('{0}_SSH_PORT', env.SECRET_PREFIX)] || '22' }}
+          DEPLOY_SSH_USER: ${{ secrets[format('{0}_SSH_USER', env.SECRET_PREFIX)] }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets[format('{0}_SSH_PRIVATE_KEY', env.SECRET_PREFIX)] }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets[format('{0}_SSH_KNOWN_HOSTS', env.SECRET_PREFIX)] }}
+          DEPLOY_APP_PATH: ${{ secrets[format('{0}_APP_PATH', env.SECRET_PREFIX)] }}
+          DEPLOY_REGISTRY: ${{ env.REGISTRY }}
+          DEPLOY_IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
+          DEPLOY_REGISTRY_USER: ${{ secrets.GHCR_USERNAME }}
+          DEPLOY_REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
           ROLLBACK_API_IMAGE: ${{ github.event.inputs.rollback_api_image }}
           ROLLBACK_WORKER_IMAGE: ${{ github.event.inputs.rollback_worker_image }}
           ROLLBACK_FRONTEND_IMAGE: ${{ github.event.inputs.rollback_frontend_image }}
-          DEPLOY_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-          DEPLOY_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
-          DEPLOY_APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
-          DEPLOY_REGISTRY: ${{ env.REGISTRY }}
-          DEPLOY_REGISTRY_USER: ${{ secrets.GHCR_USERNAME }}
-          DEPLOY_REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
         run: |
           for var_name in \
-            ROLLBACK_API_IMAGE \
-            ROLLBACK_WORKER_IMAGE \
-            ROLLBACK_FRONTEND_IMAGE \
             DEPLOY_SSH_HOST \
             DEPLOY_SSH_USER \
             DEPLOY_SSH_PRIVATE_KEY \
+            DEPLOY_SSH_KNOWN_HOSTS \
             DEPLOY_APP_PATH \
-            DEPLOY_REGISTRY \
             DEPLOY_REGISTRY_USER \
             DEPLOY_REGISTRY_PASSWORD
           do
             if [ -z "${!var_name:-}" ]; then
-              echo "Missing required rollback value: ${var_name}"
+              echo "Missing required rollback value: ${var_name} (${SECRET_PREFIX} secrets)"
               exit 1
             fi
           done
 
-      - name: Roll back production compose deployment
-        env:
-          DEPLOY_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-          DEPLOY_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
-          DEPLOY_APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
-          DEPLOY_REGISTRY: ${{ env.REGISTRY }}
-          DEPLOY_REGISTRY_USER: ${{ secrets.GHCR_USERNAME }}
-          DEPLOY_REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
-          ROLLBACK_API_IMAGE: ${{ github.event.inputs.rollback_api_image }}
-          ROLLBACK_WORKER_IMAGE: ${{ github.event.inputs.rollback_worker_image }}
-          ROLLBACK_FRONTEND_IMAGE: ${{ github.event.inputs.rollback_frontend_image }}
-        run: deploy/scripts/rollback_compose_remote.sh
+          if [ -n "${ROLLBACK_VERSION}" ]; then
+            deploy/scripts/rollback.sh "${ROLLBACK_ENVIRONMENT}" "${ROLLBACK_VERSION}"
+          elif [ -n "${ROLLBACK_API_IMAGE}" ] && [ -n "${ROLLBACK_WORKER_IMAGE}" ] && [ -n "${ROLLBACK_FRONTEND_IMAGE}" ]; then
+            # Deprecated fallback (one milestone): explicit image references.
+            echo "::warning::rollback_*_image inputs are deprecated; dispatch with version instead."
+            deploy/scripts/rollback_compose_remote.sh
+          else
+            echo "Rollback needs the version input, or all three rollback_*_image inputs."
+            exit 1
+          fi

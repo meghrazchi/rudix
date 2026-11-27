@@ -92,6 +92,69 @@ class PageExtractionResult:
     def has_images(self) -> bool:
         return len(self.image_blocks) > 0
 
+    @property
+    def text_block_count(self) -> int:
+        return len(self.text_blocks)
+
+    @property
+    def table_block_count(self) -> int:
+        return len(self.table_blocks)
+
+    @property
+    def image_block_count(self) -> int:
+        return len(self.image_blocks)
+
+    def summary(self) -> PageSummary:
+        return PageSummary(
+            page_number=self.page_number,
+            char_count=self.char_count,
+            text_coverage_ratio=self.text_coverage_ratio,
+            image_coverage_ratio=self.image_coverage_ratio,
+            requires_ocr=self.requires_ocr,
+            text_block_count=self.text_block_count,
+            table_block_count=self.table_block_count,
+            image_block_count=self.image_block_count,
+            warnings=list(self.warnings),
+        )
+
+
+@dataclass(frozen=True)
+class PageSummary:
+    """Per-page statistics without page content (R06-02).
+
+    A streamed extraction keeps only these for the document profile and the extraction
+    snapshot, so memory does not grow with the text of every page.
+    """
+
+    page_number: int
+    char_count: int
+    text_coverage_ratio: float
+    image_coverage_ratio: float
+    requires_ocr: bool
+    text_block_count: int
+    table_block_count: int
+    image_block_count: int
+    warnings: list[str] = field(default_factory=list)
+
+
+def page_to_section(page: PageExtractionResult) -> ExtractedSection:
+    """One page as an ExtractedSection: text blocks, table markdown, visual references."""
+    parts: list[str] = []
+    for block in page.text_blocks:
+        stripped = block.text.strip()
+        if stripped:
+            parts.append(stripped)
+    for table in page.table_blocks:
+        stripped = table.markdown.strip()
+        if stripped:
+            parts.append(stripped)
+    for img in page.image_blocks:
+        ref = _build_visual_reference(img)
+        if ref:
+            parts.append(ref)
+    combined = "\n\n".join(parts).strip()
+    return ExtractedSection(page_number=page.page_number, text=combined, char_count=len(combined))
+
 
 @dataclass
 class ExtractionResult:
@@ -107,36 +170,17 @@ class ExtractionResult:
     duration_ms: int
     is_encrypted: bool = False
 
+    # Set by a streamed extraction, whose ``pages`` stay empty (R06-02).
+    page_summaries: list[PageSummary] | None = None
+
     def to_sections(self) -> list[ExtractedSection]:
         """Convert to ExtractedSection list for downstream chunking compatibility."""
-        sections: list[ExtractedSection] = []
-        for page in self.pages:
-            parts: list[str] = []
+        return [page_to_section(page) for page in self.pages]
 
-            for block in page.text_blocks:
-                stripped = block.text.strip()
-                if stripped:
-                    parts.append(stripped)
-
-            for table in page.table_blocks:
-                stripped = table.markdown.strip()
-                if stripped:
-                    parts.append(stripped)
-
-            for img in page.image_blocks:
-                ref = _build_visual_reference(img)
-                if ref:
-                    parts.append(ref)
-
-            combined = "\n\n".join(parts).strip()
-            sections.append(
-                ExtractedSection(
-                    page_number=page.page_number,
-                    text=combined,
-                    char_count=len(combined),
-                )
-            )
-        return sections
+    def summaries(self) -> list[PageSummary]:
+        if self.page_summaries is not None:
+            return self.page_summaries
+        return [page.summary() for page in self.pages]
 
     def to_snapshot(self) -> dict:
         """Produce a serializable diagnostics snapshot safe for DB storage (no document text)."""
@@ -158,12 +202,12 @@ class ExtractionResult:
                     "text_coverage_ratio": round(p.text_coverage_ratio, 4),
                     "image_coverage_ratio": round(p.image_coverage_ratio, 4),
                     "requires_ocr": p.requires_ocr,
-                    "text_block_count": len(p.text_blocks),
-                    "table_block_count": len(p.table_blocks),
-                    "image_block_count": len(p.image_blocks),
+                    "text_block_count": p.text_block_count,
+                    "table_block_count": p.table_block_count,
+                    "image_block_count": p.image_block_count,
                     "warnings": p.warnings,
                 }
-                for p in self.pages
+                for p in self.summaries()
             ],
         }
 

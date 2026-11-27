@@ -123,6 +123,7 @@ DEFAULT_PROMPT_TEMPLATES: tuple[DefaultPromptTemplate, ...] = (
         preview_context={
             "question": "What is the leave policy?",
             "context_blocks": (
+                "<<<CONTEXT 0123456789abcdef>>>\n"
                 "[1]\n"
                 "document_id=11111111-1111-1111-1111-111111111111\n"
                 "chunk_id=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n"
@@ -131,7 +132,8 @@ DEFAULT_PROMPT_TEMPLATES: tuple[DefaultPromptTemplate, ...] = (
                 "similarity_score=0.89\n"
                 "rerank_score=0.91\n"
                 "rerank_rank=1\n"
-                "text:\nEmployees receive 20 paid leave days per year."
+                "text:\nEmployees receive 20 paid leave days per year.\n"
+                "<<<END CONTEXT 0123456789abcdef>>>"
             ),
             "allowed_chunk_ids": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
             "not_found_answer": "I could not find this information in the uploaded documents.",

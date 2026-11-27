@@ -49,9 +49,13 @@ class FakeObjectBody:
     def __init__(self, content: bytes) -> None:
         self.content = content
         self.closed = False
+        self._pos = 0
 
-    def read(self) -> bytes:
-        return self.content
+    def read(self, amt: int | None = None) -> bytes:
+        end = len(self.content) if amt is None else self._pos + amt
+        chunk = self.content[self._pos : end]
+        self._pos += len(chunk)
+        return chunk
 
     def close(self) -> None:
         self.closed = True

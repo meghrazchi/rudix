@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import hashlib
 from datetime import UTC, datetime, timedelta
-from math import floor
 from time import time
 from typing import Annotated
 from uuid import UUID, uuid4
@@ -34,6 +33,7 @@ from app.auth.token_codec import (
 from app.clients import redis_client as redis_module
 from app.core.config import AuthProvider, RateLimitRedisFailureMode, settings
 from app.db.session import get_db_session
+from app.db.tenant_context import bind_resolved_tenant
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.auth.schemas.auth import (
     AuthActiveSessionListResponse,
@@ -53,6 +53,7 @@ from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
+from app.rate_limit import sliding_window
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -146,25 +147,21 @@ async def _enforce_auth_rate_limit(
             )
         return
 
-    bucket = floor(time() / max(1, window_seconds))
-    key = f"rate_limit:v1:auth:{action}:{':'.join(key_parts)}:{bucket}"
-    count = await redis.incr(key)
-    if count == 1:
-        await redis.expire(key, window_seconds)
-    ttl = await redis.ttl(key)
-    if ttl <= 0:
-        await redis.expire(key, window_seconds)
-        ttl = window_seconds
-
-    if count > limit:
+    identity = ":".join(key_parts)
+    key = f"rate_limit:v2:{{auth:{action}:{identity}}}:auth:{action}:{identity}"
+    result = await sliding_window.check(
+        redis, user_key=key, user_limit=limit, window_seconds=max(1, window_seconds)
+    )
+    if not result.allowed:
+        retry_after = result.retry_after_seconds
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
                 "code": "rate_limit_exceeded",
                 "message": f"Rate limit exceeded for auth.{action}",
-                "retry_after_seconds": max(1, int(ttl)),
+                "retry_after_seconds": retry_after,
             },
-            headers={"Retry-After": str(max(1, int(ttl)))},
+            headers={"Retry-After": str(retry_after)},
         )
 
 
@@ -179,6 +176,9 @@ async def _record_auth_audit(
 ) -> bool:
     if organization_id is None:
         return False
+    # Login, refresh, logout, and SSO run before a principal is bound: bind the organisation
+    # they resolved so the audit_logs insert passes strict RLS (R04-08 known gap, 0.5.0).
+    await bind_resolved_tenant(db_session, organization_id, path="auth_audit")
     enriched_metadata = dict(metadata)
     request_id = _request_id_from_request(request)
     ip_address = _ip_address_from_request(request)

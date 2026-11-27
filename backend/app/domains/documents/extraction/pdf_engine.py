@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
+from pathlib import Path
 
 import fitz  # type: ignore[import-untyped]
 
@@ -10,38 +12,92 @@ from app.domains.documents.extraction.models import (
     ExtractionResult,
     ImageBlock,
     PageExtractionResult,
+    PageSummary,
     TableBlock,
     TableCell,
     TextBlock,
 )
 from app.domains.documents.extraction.pdf_classifier import classify_document_profile
+from app.domains.documents.services.text_extraction import DocumentSource
 
 _ENGINE_NAME = "pymupdf"
 _TABLE_OVERLAP_THRESHOLD = 0.60
 
 
-def extract_pdf(
-    content: bytes,
-    *,
-    min_chars_per_page: int = 30,
-    max_pages: int | None = None,
-    enable_table_extraction: bool = True,
-    enable_image_extraction: bool = True,
-) -> ExtractionResult:
-    started_at = time.monotonic()
-    warnings: list[str] = []
+class PdfExtractionStream:
+    """Page-by-page PDF extraction from bytes or a file path (R06-02).
 
-    try:
-        doc = fitz.open(stream=content, filetype="pdf")
-    except Exception as exc:
-        raise ValueError(f"malformed or corrupted PDF: {exc}") from exc
+    ``pages()`` yields one ``PageExtractionResult`` at a time and keeps only a
+    ``PageSummary`` of each, so ``result()`` (profile, totals, snapshot) does not hold
+    the content of every page. PyMuPDF loads pages of a file-backed document on demand.
+    """
 
-    try:
-        if doc.is_encrypted and doc.needs_pass:
-            duration_ms = int((time.monotonic() - started_at) * 1000)
+    def __init__(
+        self,
+        source: DocumentSource,
+        *,
+        min_chars_per_page: int = 30,
+        max_pages: int | None = None,
+        enable_table_extraction: bool = True,
+        enable_image_extraction: bool = True,
+    ) -> None:
+        self._started_at = time.monotonic()
+        self._min_chars_per_page = min_chars_per_page
+        self._max_pages = max_pages
+        self._enable_tables = enable_table_extraction
+        self._enable_images = enable_image_extraction
+        self._summaries: list[PageSummary] = []
+        self._warnings: list[str] = []
+        try:
+            if isinstance(source, Path):
+                self._doc = fitz.open(source)
+            else:
+                self._doc = fitz.open(stream=source, filetype="pdf")
+        except Exception as exc:
+            raise ValueError(f"malformed or corrupted PDF: {exc}") from exc
+        self._encrypted = bool(self._doc.is_encrypted and self._doc.needs_pass)
+        self._page_count = int(self._doc.page_count)
+
+    @property
+    def early_profile(self) -> DocumentProfile | None:
+        """``encrypted`` when no page can be read; known before any page is extracted."""
+        return DocumentProfile.encrypted if self._encrypted else None
+
+    def pages(self) -> Iterator[PageExtractionResult]:
+        if self._encrypted:
+            return
+        pages_to_process = self._page_count
+        if self._max_pages is not None:
+            pages_to_process = min(self._page_count, self._max_pages)
+            if pages_to_process < self._page_count:
+                self._warnings.append(
+                    f"Only {pages_to_process} of {self._page_count} pages extracted "
+                    f"(limit: {self._max_pages})"
+                )
+        for page_idx in range(pages_to_process):
+            page_number = page_idx + 1
+            try:
+                page_result = _extract_page(
+                    self._doc[page_idx],
+                    page_number=page_number,
+                    min_chars_per_page=self._min_chars_per_page,
+                    enable_table_extraction=self._enable_tables,
+                    enable_image_extraction=self._enable_images,
+                )
+            except Exception as exc:
+                warning = f"Page {page_number} extraction failed: {exc}"
+                self._warnings.append(warning)
+                page_result = _empty_page_result(page_number, warning=warning)
+            self._summaries.append(page_result.summary())
+            yield page_result
+
+    def result(self) -> ExtractionResult:
+        """Profile, totals, and page summaries of the pages yielded so far."""
+        duration_ms = int((time.monotonic() - self._started_at) * 1000)
+        if self._encrypted:
             return ExtractionResult(
                 document_profile=DocumentProfile.encrypted,
-                page_count=doc.page_count,
+                page_count=self._page_count,
                 pages=[],
                 total_text_blocks=0,
                 total_table_blocks=0,
@@ -52,58 +108,56 @@ def extract_pdf(
                 duration_ms=duration_ms,
                 is_encrypted=True,
             )
-
-        total_page_count = doc.page_count
-        pages_to_process = total_page_count
-        if max_pages is not None:
-            pages_to_process = min(total_page_count, max_pages)
-            if pages_to_process < total_page_count:
-                warnings.append(
-                    f"Only {pages_to_process} of {total_page_count} pages extracted "
-                    f"(limit: {max_pages})"
-                )
-
-        pages: list[PageExtractionResult] = []
-        for page_idx in range(pages_to_process):
-            try:
-                fitz_page = doc[page_idx]
-                page_result = _extract_page(
-                    fitz_page,
-                    page_number=page_idx + 1,
-                    min_chars_per_page=min_chars_per_page,
-                    enable_table_extraction=enable_table_extraction,
-                    enable_image_extraction=enable_image_extraction,
-                )
-                pages.append(page_result)
-            except Exception as exc:
-                page_number = page_idx + 1
-                warning = f"Page {page_number} extraction failed: {exc}"
-                warnings.append(warning)
-                pages.append(_empty_page_result(page_number, warning=warning))
-
-        document_profile = classify_document_profile(pages, min_chars_per_page=min_chars_per_page)
-        total_text_blocks = sum(len(p.text_blocks) for p in pages)
-        total_table_blocks = sum(len(p.table_blocks) for p in pages)
-        total_image_blocks = sum(len(p.image_blocks) for p in pages)
-
-        usable_pages = sum(1 for p in pages if p.char_count > 0 or p.has_images)
-        extraction_confidence = usable_pages / len(pages) if pages else 0.0
-
-        duration_ms = int((time.monotonic() - started_at) * 1000)
+        summaries = self._summaries
+        usable_pages = sum(1 for p in summaries if p.char_count > 0 or p.image_block_count > 0)
         return ExtractionResult(
-            document_profile=document_profile,
-            page_count=total_page_count,
-            pages=pages,
-            total_text_blocks=total_text_blocks,
-            total_table_blocks=total_table_blocks,
-            total_image_blocks=total_image_blocks,
-            warnings=warnings,
+            document_profile=classify_document_profile(
+                summaries, min_chars_per_page=self._min_chars_per_page
+            ),
+            page_count=self._page_count,
+            pages=[],
+            total_text_blocks=sum(p.text_block_count for p in summaries),
+            total_table_blocks=sum(p.table_block_count for p in summaries),
+            total_image_blocks=sum(p.image_block_count for p in summaries),
+            warnings=list(self._warnings),
             extraction_engine=_ENGINE_NAME,
-            extraction_confidence=extraction_confidence,
+            extraction_confidence=usable_pages / len(summaries) if summaries else 0.0,
             duration_ms=duration_ms,
+            page_summaries=list(summaries),
         )
-    finally:
-        doc.close()
+
+    def close(self) -> None:
+        self._doc.close()
+
+    def __enter__(self) -> PdfExtractionStream:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+
+def extract_pdf(
+    content: DocumentSource,
+    *,
+    min_chars_per_page: int = 30,
+    max_pages: int | None = None,
+    enable_table_extraction: bool = True,
+    enable_image_extraction: bool = True,
+) -> ExtractionResult:
+    """Whole-document extraction (every page in ``pages``), built on the stream."""
+    with PdfExtractionStream(
+        content,
+        min_chars_per_page=min_chars_per_page,
+        max_pages=max_pages,
+        enable_table_extraction=enable_table_extraction,
+        enable_image_extraction=enable_image_extraction,
+    ) as stream:
+        pages = list(stream.pages())
+        result = stream.result()
+    if not result.is_encrypted:
+        result.pages = pages
+        result.page_summaries = None
+    return result
 
 
 def _extract_page(
@@ -157,13 +211,35 @@ def _extract_page(
     )
 
 
+def text_blocks_of(page: fitz.Page) -> list[tuple[float, float, float, float, str, int, int]]:
+    """The text blocks of ``page.get_text("blocks")``, built from ``get_text("dict")``.
+
+    Same flags, text (lines joined, each ending in a newline), and block bbox. PyMuPDF
+    1.28's C ``extractBLOCKS`` keeps the Python objects it returns alive, so a page-by-page
+    extraction of a long PDF would still grow with the document's text (R06-02); the dict
+    path frees them.
+    """
+    data = page.get_text("dict", flags=fitz.TEXTFLAGS_BLOCKS)
+    blocks: list[tuple[float, float, float, float, str, int, int]] = []
+    for block_no, block in enumerate(data.get("blocks", [])):
+        if block.get("type") != 0:
+            continue
+        lines: list[str] = []
+        for line in block.get("lines", []):
+            text = "".join(span.get("text", "") for span in line.get("spans", []))
+            lines.append(text if text.endswith("\n") else text + "\n")
+        x0, y0, x1, y1 = block["bbox"]
+        blocks.append((x0, y0, x1, y1, "".join(lines), block_no, 0))
+    return blocks
+
+
 def _extract_text_blocks(
     page: fitz.Page,
     page_number: int,
     *,
     excluded_rects: list[fitz.Rect],
 ) -> tuple[list[TextBlock], int, float]:
-    raw_blocks = page.get_text("blocks")
+    raw_blocks = text_blocks_of(page)
     text_blocks: list[TextBlock] = []
     total_chars = 0
     text_area = 0.0

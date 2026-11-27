@@ -296,9 +296,139 @@ CREATE TABLE document_chunks (
     embedding_model TEXT NOT NULL,
     index_version TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- 0.6.0 (R06-09, migration 20261128_0002; nullable until the operator NOT NULL step)
+    organization_id UUID,           -- = documents.organization_id; no foreign key
+    fts_config VARCHAR(32),         -- english | german | spanish | french | simple
+    fts_vector TSVECTOR,            -- to_tsvector(fts_config, text), written by the app
     UNIQUE (document_id, chunk_index, index_version)
 );
 ```
+
+`text_search_vector` (F293) stays the generated English column. The chunk stage writes
+`organization_id`, `fts_config` (from the document language) and `fts_vector` for new
+chunks. `documents.chunks.backfill_tenant` fills older rows in primary-key batches.
+`deploy/sql/document_chunks_not_null.sql` then sets `organization_id NOT NULL` through a
+validated `NOT VALID` check and adds the strict tenant policy (runbook 27). Indexes:
+`idx_chunks_org_document (organization_id, document_id)` and the GIN
+`idx_chunks_fts_vector`, both from migration `20261128_0003`.
+
+### document_processing_stages
+
+Staged ingestion bookkeeping (`0.6.0`, R06-01, migration `20261128_0001`). One row per
+stage of a processing run; `run_id` is the Celery task id that holds the document's
+processing claim, so a retry or redelivery of the same task finds its completed stages.
+`metrics` holds counts and configuration only, never document text.
+
+```sql
+CREATE TABLE document_processing_stages (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    run_id VARCHAR(255) NOT NULL,
+    stage VARCHAR(32) NOT NULL,           -- extract, clean_detect, dlp, chunk, graph_extract,
+                                          -- embed, index, finalize
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',  -- pending | running | completed | failed
+    attempt INTEGER NOT NULL DEFAULT 0,
+    owner_task_id VARCHAR(255),           -- lease owner
+    started_at TIMESTAMPTZ,
+    heartbeat_at TIMESTAMPTZ,             -- a running row older than INGEST_STAGE_LEASE_SECONDS
+                                          -- may be leased by another task
+    finished_at TIMESTAMPTZ,
+    artifact_ref VARCHAR(512),
+    metrics JSON NOT NULL DEFAULT '{}',
+    error_code VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (document_id, run_id, stage)
+);
+CREATE INDEX idx_document_processing_stages_org_created
+    ON document_processing_stages (organization_id, created_at);
+```
+
+### document_stage_artifacts
+
+Stage output a later stage reads: extracted pages (with table blocks), cleaned pages, and
+embedding batch summaries (token counts and cost, no vectors), as zlib-compressed UTF-8
+JSON. One part per page or per embedding batch; a page larger than
+`INGEST_ARTIFACT_MAX_PART_BYTES` is split across consecutive parts. Finalize deletes the
+run's artifacts and the stage rows of older runs; document deletion deletes both tables'
+rows of the document.
+
+```sql
+CREATE TABLE document_stage_artifacts (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    run_id VARCHAR(255) NOT NULL,
+    stage VARCHAR(32) NOT NULL,
+    part INTEGER NOT NULL,
+    content BYTEA NOT NULL,
+    content_bytes INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (document_id, run_id, stage, part)
+);
+CREATE INDEX idx_document_stage_artifacts_org_created
+    ON document_stage_artifacts (organization_id, created_at);
+```
+
+Both tables are in `RLS_STRICT_TABLES_0_6_0` (strict tenant policy) and in
+`deploy/sql/force_rls.sql`. Artifacts of runs that failed for good with a retryable error
+are kept for the failed-job retry until `documents.stage_artifacts.purge` deletes them
+(`INGEST_STAGE_ARTIFACT_TTL_HOURS`, default 72).
+
+### outbox_messages (0.6.0, migration 20261128_0002)
+
+Request-path Celery dispatches written in the transaction of the document change
+(transactional outbox). Published after commit; `outbox.relay` publishes the rest.
+
+```sql
+CREATE TABLE outbox_messages (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    task_name VARCHAR(128) NOT NULL,
+    queue VARCHAR(64),
+    kwargs JSON NOT NULL DEFAULT '{}',          -- ids, flags, chunking profile only
+    dedupe_key VARCHAR(255) UNIQUE,              -- conflicting enqueue is a no-op
+    status VARCHAR(16) NOT NULL DEFAULT 'pending', -- pending | published | failed
+    attempts INTEGER NOT NULL DEFAULT 0,
+    available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    published_at TIMESTAMPTZ,
+    last_error VARCHAR(128),                     -- exception class name or 'cancelled'
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_outbox_messages_org_created ON outbox_messages (organization_id, created_at);
+CREATE INDEX CONCURRENTLY idx_outbox_pending ON outbox_messages (status, available_at);
+```
+
+### vector_index_generations and vector_index_generation_documents (0.6.0)
+
+Schema for zero-downtime vector index rebuilds (used by chain A). `vector_index_generations`
+is global (no tenant column): `alias_name`, unique `collection_name`, `embedding_model`,
+`vector_size`, `distance`, `generation` (unique with the alias), `state` (`building`,
+`verifying`, `active`, `retired`, `failed`, `dropped`), `build_cursor`, point and document
+counters, `error_code`, `activated_at`, `retire_after`.
+`vector_index_generation_documents` (`generation_id` CASCADE, `organization_id`,
+`document_id` CASCADE, `point_count`, `indexed_at`; unique `(generation_id, document_id)`)
+records which documents a generation holds.
+
+### 0.6.0 columns on existing tables (migration 20261128_0002)
+
+All additive and nullable, or `NOT NULL DEFAULT 0`:
+
+| Table | Columns | Used by |
+|---|---|---|
+| `document_chunks` | `organization_id uuid`, `fts_config varchar(32)`, `fts_vector tsvector` (PostgreSQL only); on the ORM model since B1 (`fts_vector` deferred) | B1 |
+| `connector_sync_runs` | `checkpoint_cursor json`, `checkpoint_at`, `heartbeat_at`, `lease_owner varchar(255)`, `pages_committed int default 0` | D1 |
+| `connector_sync_jobs` | `next_run_at timestamptz` | D1 |
+| `external_items` | `last_seen_sync_run_id uuid` (no foreign key) | D1 |
+| `agent_runs` | `lease_owner`, `lease_expires_at`, `request_snapshot json`, `resume_count int default 0` | C2 |
+
+Migration `20261128_0003` builds `idx_chunks_org_document (organization_id, document_id)`,
+GIN `idx_chunks_fts_vector (fts_vector)`, `idx_outbox_pending`, `idx_connector_sync_jobs_due
+(status, next_run_at)`, `idx_agent_runs_lease (status, lease_expires_at)`, and the non-unique
+`idx_agent_tool_calls_run_idem (agent_run_id, idempotency_key_hash)` with
+`CREATE INDEX CONCURRENTLY`.
 
 ### chat_sessions
 
@@ -509,6 +639,231 @@ CREATE INDEX idx_pipeline_runs_org_created ON pipeline_runs(organization_id, cre
 CREATE INDEX idx_pipeline_events_run_sequence ON pipeline_events(pipeline_run_id, sequence);
 CREATE INDEX idx_usage_org_created ON usage_events(organization_id, created_at DESC);
 ```
+
+### Hot-path and foreign-key indexes (0.4.0, R04-02)
+
+Revisions `20261127_0001`, `20261127_0002`, and `20261127_0003` add these indexes. Each one
+has a matching `Index(...)` entry (same name, column order, and direction) in the model's
+`__table_args__`.
+
+```sql
+-- 20261127_0001
+CREATE INDEX idx_chat_sessions_org_created ON chat_sessions(organization_id, created_at DESC);
+CREATE INDEX idx_chat_sessions_org_user_updated
+    ON chat_sessions(organization_id, user_id, updated_at DESC, id DESC);  -- session list sort
+CREATE INDEX idx_activity_timeline_events_org_created
+    ON activity_timeline_events(organization_id, created_at DESC);
+CREATE INDEX idx_chat_shares_org_created ON chat_shares(organization_id, created_at DESC);
+CREATE INDEX idx_notifications_org_created ON notifications(organization_id, created_at DESC);
+CREATE INDEX idx_citations_document ON citations(document_id);
+CREATE INDEX idx_citations_chunk ON citations(chunk_id);
+-- 20261127_0002
+CREATE INDEX idx_documents_org_created
+    ON documents(organization_id, created_at DESC, id DESC);  -- default document list sort
+CREATE INDEX idx_external_items_connection ON external_items(connection_id);
+CREATE INDEX idx_source_documents_document ON source_documents(document_id);
+CREATE INDEX idx_evaluation_results_question ON evaluation_results(evaluation_question_id);
+CREATE INDEX idx_webhook_deliveries_webhook_created
+    ON webhook_deliveries(webhook_id, created_at DESC);
+CREATE INDEX idx_webhook_deliveries_org_created ON webhook_deliveries(organization_id, created_at);
+-- 20261127_0003
+CREATE INDEX idx_organization_members_user ON organization_members(user_id);
+CREATE INDEX idx_usage_events_user_created ON usage_events(user_id, created_at);
+CREATE INDEX idx_audit_logs_user_created ON audit_logs(user_id, created_at);
+```
+
+Not added because an index already leads with the column: `citations(chat_message_id)`
+(`idx_citations_message`) and `connector_sync_runs(connection_id)`
+(`idx_connector_sync_runs_connection_status`).
+
+**Building and rolling back.** On PostgreSQL the migrations build each index with
+`CREATE INDEX CONCURRENTLY ... IF NOT EXISTS` inside an autocommit block, with
+`statement_timeout = 0` and `lock_timeout = '10s'`, so reads and writes continue during the
+build. A failed concurrent build leaves an `INVALID` index; rerunning the upgrade drops an
+index of the same name only when `pg_index.indisvalid` is false and builds it again, and it
+never rebuilds a valid index. Downgrade drops the indexes with `DROP INDEX CONCURRENTLY IF
+EXISTS`. The migrations change no data, and old application code does not depend on the
+indexes, so an application rollback without a schema downgrade is safe. Because the build
+runs outside a transaction, run these upgrades on their own rather than with other
+migrations in a single maintenance window that expects all-or-nothing behaviour.
+
+**Foreign-key index guard.** `backend/tests/test_fk_index_guard.py` fails when a
+single-column foreign key is not the leading column of a non-partial index, unique
+constraint, or primary key. The foreign keys that were unindexed at 0.4.0 are listed in
+`backend/tests/fixtures/fk_index_exemptions.txt`; the list may only shrink (a stale entry
+also fails). A new foreign key needs an index, or an exemption line with a justification.
+The SQLite test checks the model metadata; a PostgreSQL twin (`requires_postgres`) reads
+`pg_constraint` and `pg_index` from the migrated schema, so drift between models and
+migrations also fails. Known drift at 0.4.0 is tagged in the file: `@db-only` for
+`authorization_conflicts.grant_id`, `deny_id`, and `decision_log_id` (foreign keys only in
+the migrations) and `@model-only` for `org_model_provider_change_log.org_model_provider_settings_id`
+(declared by the model, not created by any migration).
+
+**Query plans.** `backend/tests/test_query_plans_pg.py` runs `EXPLAIN (FORMAT JSON)` for ten
+hot queries (document list, session list, message list, citations by message IDs,
+notification list, audit and usage ranges, memberships by user, API key by hash, auth
+session by ID) under `SET LOCAL enable_seqscan = off` and fails on a `Seq Scan` of the
+target table. The test tables are empty, so this shows each index is usable for the query
+shape, not that the planner picks it on production data.
+
+## Row-level security
+
+PostgreSQL row-level security is defense in depth under the application's own
+`organization_id` filters (`R04-08`). Migration `20261127_0004` puts one policy,
+`tenant_isolation_policy`, on the tables with an `organization_id` column (87 of 90; the
+three identity tables below get none). The lists live in `backend/app/db/rls.py`;
+`tests/test_rls_coverage.py` fails when a new tenant table is in no list or when the
+migration's literal copy differs.
+
+| List | Tables | Unset tenant (`app.current_organization_id` empty) | Bound tenant |
+|---|---|---|---|
+| `RLS_STRICT_TABLES` | 72 frozen in `RLS_STRICT_TABLES_0_4_0` plus `RLS_STRICT_TABLES_0_6_0` (`document_processing_stages`, `document_stage_artifacts`, migration `20261128_0001`; `outbox_messages`, `vector_index_generation_documents`, migration `20261128_0002`): everything not listed below | all rows, unless `app.rls_mode = 'strict'`: then no rows and no writes | own rows only |
+| `RLS_LOOKUP_TABLES` | 15: `api_keys`, `service_accounts`, `service_account_tokens`, `organization_invitations`, `chat_shares`, `answer_shares`, `agent_trace_share_tokens`, `org_sso_configs`, `org_domain_verifications`, `org_scim_configs`, `bot_installations`, `bot_user_mappings`, `connector_oauth_states`, `incidents`, `incident_notes` | all rows (needed before the tenant is known: credential and token lookups, SSO/SCIM discovery, OAuth state, bot inbound, public status) | own rows only |
+| `RLS_IDENTITY_TABLES` | 3: `users`, `organization_members`, `auth_refresh_sessions` | no policy, RLS stays disabled | all rows: one user spans organizations, so a request bound to organization B must still read the user (home organization A), list every membership (workspace switcher), and revoke the user's sessions in every organization (logout-all, password change) |
+
+Both conditions apply to `USING` and `WITH CHECK`, so a bound tenant cannot insert or move
+a row into another organization. The two settings are transaction-local
+(`set_config(..., true)`); the application sets them in one statement per transaction
+(marked `/* rudix:session-context */`). See `docs/22_AUTHORIZATION_SYSTEM.md` section 11
+for the modes and the roles.
+
+Notes:
+
+- Policies do not apply to the table owner, to superusers, or to roles with `BYPASSRLS`.
+  `FORCE ROW LEVEL SECURITY` is not used before `0.5.0`, so isolation takes effect only
+  when the application connects as the non-owner `rudix_app` role
+  (`deploy/sql/provision_roles.sql`).
+- `chat_messages`, `citations`, and `document_pages` have no `organization_id` and are
+  not covered; they are reached through covered parent rows. `document_chunks` has the
+  column since `0.6.0` but no policy until the backfill and
+  `deploy/sql/document_chunks_not_null.sql` (`RLS_PENDING_TABLES`).
+- The policy keeps index use: under the policy the document list still uses
+  `idx_documents_org_created` (`tests/test_rls_enforcement_pg.py`).
+- Migration safety: `ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` take a brief ACCESS
+  EXCLUSIVE lock per table and rewrite nothing. The migration sets `lock_timeout = '5s'`
+  and fails instead of queueing behind long transactions; run it at low traffic and rerun
+  on a lock timeout. Downgrade to `20261127_0003` restores the 12-table policy of
+  `20260715_0001` and disables RLS on the other tables.
+
+## Retention and partitioning
+
+`R04-09` adds two things: retention by batched delete for five append-only tables, and
+tooling for monthly range partitions. No table is partitioned in `0.4.0`.
+
+### Retention by batched delete
+
+| Table | Setting (days, unset = keep) | Floor |
+|---|---|---|
+| `usage_events` | `RETENTION_USAGE_EVENTS_DAYS` | 7 |
+| `audit_logs` | `RETENTION_AUDIT_LOGS_DAYS`, overridden per organisation by `organization_governance_policies.audit_log_retention_days` | 30 |
+| `authorization_decision_logs` | `RETENTION_AUTHORIZATION_DECISION_LOGS_DAYS` | 7 |
+| `activity_timeline_events` | `RETENTION_ACTIVITY_TIMELINE_EVENTS_DAYS` | 7 |
+| `webhook_deliveries` | `RETENTION_WEBHOOK_DELIVERIES_DAYS` | 7 |
+
+Every default is "keep". Usage events feed quotas and invoices, so set their window only
+after billing exports cover the deleted period.
+
+The beat task `maintenance.retention.purge` runs daily at 03:15 UTC on a maintenance
+session (`DATABASE_MAINTENANCE_URL` when set). For each table with a window, it walks every
+organisation and repeats
+`DELETE FROM t WHERE id IN (SELECT id FROM t WHERE organization_id = :org AND created_at < :cutoff ORDER BY created_at LIMIT :batch)`,
+committing after each batch. Each batch walks the table's `(organization_id, created_at)`
+index.
+
+- `RETENTION_DELETE_BATCH_SIZE` (default 5000, 100..50000) sets the batch size.
+- `RETENTION_MAX_BATCHES_PER_RUN` (default 200) caps the non-empty batches per table per
+  run. The next run continues where this one stopped.
+- `RETENTION_ENABLED=false` stops every delete.
+
+The audit window for an organisation is its override when set, and otherwise the platform
+default. The override is set through `PATCH /admin/governance` (30..3650 days, `null`
+clears it), and migration `20261127_0005` enforces the floor with
+`ck_organization_governance_policies_audit_retention_min`. A rerun with nothing to delete
+is a no-op. `authorization_conflicts.decision_log_id` references
+`authorization_decision_logs` with `ON DELETE SET NULL`, so purging a decision log clears
+that link and keeps the conflict.
+
+### Partition tooling
+
+Partitions follow these conventions:
+
+- A partition is named `<table>_pYYYYMM` and holds `[YYYY-MM-01 00:00 UTC, next month)`.
+- There is no default partition, so a row dated in a month without a partition is
+  rejected.
+- The helpers in `backend/app/db/partitioning.py` act only on tables listed in
+  `pg_partitioned_table`.
+
+The beat task `maintenance.partitions.ensure` runs daily at 03:45 UTC. For each retention
+table that is already partitioned, it:
+
+- creates this month's and next month's partitions;
+- detaches and drops partitions whose upper bound is past the retention window, using plain
+  `DETACH` and `DROP` in one short transaction with `lock_timeout` (`DETACH ... CONCURRENTLY`
+  cannot run in a transaction block);
+- sets `rudix_partition_missing{table}`.
+
+For audit logs, a partition is dropped only past the longest window of any organisation,
+and never while the platform default is "keep". Today no table is partitioned, so the task
+does nothing.
+
+### Converting a table (deferred, rehearsal required)
+
+Converting the five tables is deferred. None of them is new, and all of them hold
+production data. A conversion copies every row and needs these things first:
+
+- a rehearsal on a staging copy at production volume, to measure backfill time and the
+  length of the swap lock;
+- a maintenance window for the swap, which holds `ACCESS EXCLUSIVE` on the table while it
+  copies the delta and counts rows;
+- a primary key of `(id, created_at)`, because PostgreSQL requires the partition key in
+  every unique constraint. Unique indexes without `created_at` cannot be copied, and no
+  foreign key can reference the table by `id` alone. For example,
+  `authorization_conflicts.decision_log_id` blocks `authorization_decision_logs` until that
+  foreign key is dropped.
+
+The procedure uses `backend/scripts/partition_table.py`. It is never applied
+automatically, and each subcommand that changes data accepts `--dry-run`, which prints the
+SQL. The connection comes from `DATABASE_MIGRATION_URL`, or `DATABASE_URL` when that is
+not set.
+
+1. Set `RETENTION_ENABLED=false` for the whole conversion. Rows deleted after the backfill
+   copied them make the swap's count check fail.
+2. Run `plan <table>`. It shows the row estimate, the `created_at` range, the partitions,
+   the copied and skipped indexes, the policies, and any blockers.
+3. Run `create-shadow <table>`. It creates `<table>_partitioned` with the same columns,
+   defaults, checks, outbound foreign keys, indexes, RLS policies and grants, the primary
+   key `(id, created_at)`, and monthly partitions from the oldest row through next month.
+   It also builds `(created_at, id)` on the source table concurrently, as the backfill
+   cursor.
+4. Run `backfill <table> --batch-size 5000`. It copies rows in `(created_at, id)` order,
+   commits each batch, and uses `ON CONFLICT DO NOTHING`. It can be interrupted and resumes
+   from the newest row already in the shadow.
+5. Run `verify <table>`. It compares per-month row counts and checksums of the source table
+   and the shadow.
+6. In the window, run `swap <table> --lock-timeout 5s`. This is one transaction. It locks
+   both tables, then:
+   - copies new rows;
+   - copies rows whose `updated_at` is at or after the shadow's creation time minus one
+     hour;
+   - checks that the row counts are equal;
+   - renames `<table>` to `<table>_legacy_<yyyymm>` and the shadow to `<table>`;
+   - moves the index and constraint names.
+7. Run `verify <table> --against <table>_legacy_<yyyymm>`. Then re-run
+   `deploy/sql/provision_roles.sql`, which is idempotent, and set `RETENTION_ENABLED` back.
+8. Keep the legacy table for one release, then drop it. Rollback before that is a rename in
+   the other direction. Rows written after the swap exist only in the new table and have to
+   be copied back.
+
+`tests/test_partitioning_pg.py` runs this procedure on a scratch table,
+`rudix_partition_probe`, shaped like `usage_events`. It checks:
+
+- that an interrupted backfill resumes to an exact copy;
+- that the swap carries rows inserted and updated after the backfill;
+- that `verify` matches;
+- that a one-month range query scans one partition in `EXPLAIN`;
+- that `ensure` creates next month and flips the gauge;
+- that `drop_expired_partitions` removes old months;
+- that `ensure` does nothing on the unpartitioned application tables.
 
 ## Qdrant payload schema
 

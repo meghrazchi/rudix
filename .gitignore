@@ -37,5 +37,14 @@ dist/
 .idea/
 .vscode/
 
-/scripts
+# Root scripts/ stays local-only, except the release tooling (R03-07)
+# and the `make dev` launcher.
+/scripts/*
+!/scripts/bump_version.py
+!/scripts/extract_release_notes.py
+!/scripts/dev-local.sh
 
+
+# uv bootstrap and audit scratch (backend/Makefile)
+backend/.tools/
+backend/.audit-requirements.txt

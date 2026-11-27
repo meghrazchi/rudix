@@ -181,7 +181,7 @@ async def test_empty_org_returns_zero_metrics(
     obs_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     ctx = await _make_org_user(db_session)
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
     data = resp.json()
     assert data["api_metrics"]["total_requests"] == 0
@@ -200,14 +200,14 @@ async def test_empty_org_returns_zero_metrics(
 @pytest.mark.asyncio
 async def test_member_role_forbidden(obs_client: AsyncClient, db_session: AsyncSession) -> None:
     ctx = await _make_org_user(db_session, role=OrganizationRole.member.value)
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_viewer_role_forbidden(obs_client: AsyncClient, db_session: AsyncSession) -> None:
     ctx = await _make_org_user(db_session, role=OrganizationRole.viewer.value)
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     assert resp.status_code == 403
 
 
@@ -228,7 +228,7 @@ async def test_api_metrics_total_requests(
         db_session.add(_audit_log(org_id, result="success"))
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
     assert resp.json()["api_metrics"]["total_requests"] == 3
 
@@ -249,7 +249,7 @@ async def test_api_error_rate(obs_client: AsyncClient, db_session: AsyncSession)
     db_session.add(_audit_log(org_id, result="error"))
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
     api = resp.json()["api_metrics"]
     assert api["total_requests"] == 3
@@ -267,7 +267,7 @@ async def test_api_telemetry_missing_when_no_logs(
     obs_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     ctx = await _make_org_user(db_session)
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     assert resp.json()["api_metrics"]["telemetry_missing"] is True
 
 
@@ -287,7 +287,7 @@ async def test_llm_metrics_total_events(obs_client: AsyncClient, db_session: Asy
     db_session.add(_usage_event(org_id, model_name=None))
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     llm = resp.json()["llm_metrics"]
     assert llm["total_events"] == 2
     assert llm["telemetry_missing"] is False
@@ -309,7 +309,7 @@ async def test_llm_error_rate(obs_client: AsyncClient, db_session: AsyncSession)
     db_session.add(_usage_event(org_id, metadata={"status": "failed"}))
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     llm = resp.json()["llm_metrics"]
     assert llm["failed_events"] == 2
     assert abs(llm["error_rate"] - 2 / 3) < 1e-6
@@ -331,7 +331,7 @@ async def test_llm_top_models_sorted(obs_client: AsyncClient, db_session: AsyncS
     db_session.add(_usage_event(org_id, model_name="gpt-3.5"))
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     models = resp.json()["llm_metrics"]["top_models"]
     assert models[0]["model_name"] == "gpt-4o"
     assert models[0]["event_count"] == 3
@@ -364,7 +364,7 @@ async def test_indexing_metrics_total_jobs(
     db_session.add(_usage_event(org_id, event_type="chat.answer", model_name="gpt-4o", metadata={}))
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     idx = resp.json()["indexing_metrics"]
     assert idx["total_jobs"] == 2
     assert idx["succeeded_jobs"] == 1
@@ -395,7 +395,7 @@ async def test_indexing_success_rate(obs_client: AsyncClient, db_session: AsyncS
     )
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     idx = resp.json()["indexing_metrics"]
     assert abs(idx["success_rate"] - 4 / 5) < 1e-6
 
@@ -419,7 +419,7 @@ async def test_storage_metrics(obs_client: AsyncClient, db_session: AsyncSession
     db_session.add(_document(org_id, user_id, status="deleted"))
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     storage = resp.json()["storage_metrics"]
     assert storage["total_documents"] == 4
     assert storage["indexed_documents"] == 2
@@ -452,7 +452,7 @@ async def test_date_range_filters_audit_logs(
 
     today = _now().date().isoformat()
     resp = await obs_client.get(
-        f"/api/admin/observability?from={today}&to={today}",
+        f"/api/v1/admin/observability?from={today}&to={today}",
         headers=_auth(ctx["token"]),
     )
     assert resp.status_code == 200
@@ -470,7 +470,7 @@ async def test_invalid_date_range_returns_400(
 ) -> None:
     ctx = await _make_org_user(db_session)
     resp = await obs_client.get(
-        "/api/admin/observability?from=2026-06-10&to=2026-06-01",
+        "/api/v1/admin/observability?from=2026-06-10&to=2026-06-01",
         headers=_auth(ctx["token"]),
     )
     assert resp.status_code == 400
@@ -492,7 +492,7 @@ async def test_org_isolation(obs_client: AsyncClient, db_session: AsyncSession) 
     db_session.add(_audit_log(org_b_id, result="failed"))
     await db_session.flush()
 
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx_a["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx_a["token"]))
     assert resp.json()["api_metrics"]["total_requests"] == 0
 
 
@@ -506,7 +506,7 @@ async def test_response_includes_metadata(
     obs_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     ctx = await _make_org_user(db_session)
-    resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
+    resp = await obs_client.get("/api/v1/admin/observability", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
     data = resp.json()
     assert data["organization_id"] == ctx["org_id"]

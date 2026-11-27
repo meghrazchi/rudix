@@ -60,12 +60,58 @@ _SENSITIVE_SUFFIXES = (
     "_service_account_key",
 )
 _SENSITIVE_PATTERN = re.compile(
-    r"(?i)\b(api[_-]?key|x[_-]?api[_-]?key|access[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|private[_-]?key|secret|token|password)\b\s*[:=]\s*([^\s,;]+)"
+    r"(?i)\b(api[_-]?key|x[_-]?api[_-]?key|access[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|private[_-]?key|secret|token|ticket|password)\b\s*[:=]\s*([^\s,;]+)"
 )
 _BEARER_TOKEN_PATTERN = re.compile(r"(?i)\bbearer\s+[a-z0-9._~+/=-]+")
 _AUTHORIZATION_HEADER_PATTERN = re.compile(
     r"(?i)\b(authorization|x-api-key)\b\s*[:=]\s*([^\s,;]+(?:\s+[^\s,;]+)?)"
 )
+
+
+_QUERY_CREDENTIAL_PATTERN = re.compile(r"(?i)([?&](?:access_token|token|ticket)=)[^&\s\"']*")
+_UVICORN_LOGGER_NAMES = ("uvicorn", "uvicorn.error", "uvicorn.access")
+
+
+class QueryCredentialRedactionFilter(logging.Filter):
+    """Mask ``token``/``ticket``/``access_token`` query values in stdlib log records.
+
+    Uvicorn logs WebSocket handshake paths with the query string on its own stdlib
+    loggers, which the structlog redaction processors never see.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+        except Exception:
+            return True
+        redacted = _redact_query_credentials(message)
+        if redacted == message:
+            return True
+        # Redact tuple args in place first: uvicorn's AccessFormatter unpacks
+        # ``record.args`` positionally, so the tuple shape must survive.
+        if isinstance(record.args, tuple):
+            record.args = tuple(_redact_query_credentials(arg) for arg in record.args)
+            if isinstance(record.msg, str):
+                record.msg = _redact_query_credentials(record.msg)
+            if record.getMessage() == redacted:
+                return True
+        record.msg = redacted
+        record.args = None
+        return True
+
+
+def _redact_query_credentials(value: Any) -> Any:
+    if isinstance(value, str):
+        return _QUERY_CREDENTIAL_PATTERN.sub(r"\1***", value)
+    return value
+
+
+def install_query_credential_redaction() -> None:
+    """Attach the redaction filter to the uvicorn loggers once (idempotent)."""
+    for name in _UVICORN_LOGGER_NAMES:
+        target = logging.getLogger(name)
+        if not any(isinstance(f, QueryCredentialRedactionFilter) for f in target.filters):
+            target.addFilter(QueryCredentialRedactionFilter())
 
 
 def _is_sensitive_key(key: str) -> bool:
@@ -125,6 +171,8 @@ def configure_logging(
     else:
         for existing_handler in existing_handlers:
             existing_handler.setLevel(resolved_level)
+
+    install_query_credential_redaction()
 
     renderer: Any
     if resolved_format == LOG_FORMAT_JSON:

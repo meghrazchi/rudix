@@ -14,7 +14,11 @@ Required environment variables:
   QUALITY_GATE_ID        UUID of the quality gate configuration to run against
 
 Optional:
-  EVALUATION_RUN_ID      UUID of the completed evaluation run to check
+  EVALUATION_RUN_ID      UUID of the completed evaluation run to check, or 'latest' to
+                         use the newest completed run of ACCURACY_EVAL_SET_ID
+  ACCURACY_EVAL_SET_ID   Evaluation set UUID; required when EVALUATION_RUN_ID=latest
+  QUALITY_GATE_MAX_RUN_AGE_HOURS  With 'latest': fail when the newest completed run
+                         finished longer ago than this (default: 36)
   SAFETY_EVAL_RUN_ID     UUID of the completed safety eval run to check
   QUALITY_GATE_REPORT_PATH  Path to write the JSON report (default: artifacts/quality-gate-report.json)
   QUALITY_GATE_DRY_RUN   Set to '1' to evaluate and report but always exit 0
@@ -26,8 +30,14 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+LATEST_RUN_ALIAS = "latest"
+DEFAULT_MAX_RUN_AGE_HOURS = 36.0
+RUN_LIST_LIMIT = 50
 
 
 def _env(name: str, required: bool = False, default: str = "") -> str:
@@ -82,6 +92,71 @@ def _api_request(
         _die(f"API connection error: {url}\n{exc.reason}")
 
 
+def _parse_timestamp(raw: object) -> datetime | None:
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def _max_run_age_hours() -> float:
+    raw = _env("QUALITY_GATE_MAX_RUN_AGE_HOURS", default=str(DEFAULT_MAX_RUN_AGE_HOURS))
+    try:
+        hours = float(raw)
+    except ValueError:
+        _die(f"QUALITY_GATE_MAX_RUN_AGE_HOURS must be a number, got {raw!r}.")
+    if hours <= 0:
+        _die("QUALITY_GATE_MAX_RUN_AGE_HOURS must be greater than zero.")
+    return hours
+
+
+def resolve_latest_evaluation_run(
+    api_base: str,
+    *,
+    token: str,
+    evaluation_set_id: str,
+    max_age_hours: float,
+    now: datetime | None = None,
+) -> str:
+    """Return the newest completed run of ``evaluation_set_id``, or exit 1.
+
+    Lists ``GET {api_base}/evaluations/runs?evaluation_set_id=...&status=completed``
+    and picks the run with the latest ``completed_at``. Fails when no completed run
+    exists or the newest one finished more than ``max_age_hours`` ago.
+    """
+    query = urllib.parse.urlencode(
+        {"evaluation_set_id": evaluation_set_id, "status": "completed", "limit": RUN_LIST_LIMIT}
+    )
+    listing = _api_request(f"{api_base}/evaluations/runs?{query}", token=token)
+    candidates: list[tuple[datetime, str]] = []
+    for item in listing.get("items", []) if isinstance(listing, dict) else []:
+        if not isinstance(item, dict) or item.get("status") != "completed":
+            continue
+        if str(item.get("evaluation_set_id", "")) != evaluation_set_id:
+            continue
+        completed_at = _parse_timestamp(item.get("completed_at"))
+        run_id = str(item.get("evaluation_run_id", "")).strip()
+        if completed_at is None or not run_id:
+            continue
+        candidates.append((completed_at, run_id))
+    if not candidates:
+        _die(f"No completed evaluation run found for evaluation set {evaluation_set_id}.")
+    completed_at, run_id = max(candidates)
+    current = now or datetime.now(UTC)
+    age = current - completed_at
+    if age > timedelta(hours=max_age_hours):
+        _die(
+            f"Newest completed evaluation run {run_id} finished at {completed_at.isoformat()}, "
+            f"{age.total_seconds() / 3600:.1f}h ago; older than the {max_age_hours:g}h limit "
+            "(QUALITY_GATE_MAX_RUN_AGE_HOURS). Has the nightly accuracy eval run?"
+        )
+    _info(f"Latest completed run: {run_id} (completed {completed_at.isoformat()})")
+    return run_id
+
+
 def _write_report(report: dict, report_path: Path) -> None:
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2, default=str))
@@ -132,6 +207,14 @@ def main() -> None:
 
     if not evaluation_run_id and not safety_eval_run_id:
         _die("Set at least one of EVALUATION_RUN_ID or SAFETY_EVAL_RUN_ID.")
+
+    if evaluation_run_id.lower() == LATEST_RUN_ALIAS:
+        evaluation_run_id = resolve_latest_evaluation_run(
+            api_base,
+            token=token,
+            evaluation_set_id=_env("ACCURACY_EVAL_SET_ID", required=True),
+            max_age_hours=_max_run_age_hours(),
+        )
 
     _info(f"Gate:          {gate_id}")
     _info(f"Eval run:      {evaluation_run_id or '(not set)'}")

@@ -8,6 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.documents import task_outbox
+from app.clients import object_storage
 from app.core.config import settings
 from app.core.logging import log_document_event
 from app.core.metrics import record_document_upload
@@ -308,7 +310,8 @@ async def upload_document_workflow(
         )
 
     try:
-        minio_client.put_object(
+        await object_storage.put_object(
+            minio_client,
             Bucket=settings.minio_bucket,
             Key=object_key,
             Body=content,
@@ -404,14 +407,29 @@ async def upload_document_workflow(
             content_hash=validated.checksum_sha256,
             created_by_user_id=user_id,
         )
+        # R06-01 part 2: the dispatch commits with the document (transactional outbox).
+        await task_outbox.stage(
+            db_session,
+            process_document_task,
+            task_name="documents.process",
+            organization_id=organization_id,
+            kwargs={
+                "document_id": str(document.id),
+                "request_id": request_id,
+                "organization_id": str(organization_id),
+                "user_id": str(user_id),
+            },
+            dedupe_key=f"documents.process:{document.id}:upload",
+        )
         await db_session.commit()
         await db_session.refresh(document)
     except Exception as exc:
         await db_session.rollback()
-        delete_method = getattr(minio_client, "delete_object", None)
-        if callable(delete_method):
+        if callable(getattr(minio_client, "delete_object", None)):
             try:
-                delete_method(Bucket=settings.minio_bucket, Key=object_key)
+                await object_storage.delete_object(
+                    minio_client, Bucket=settings.minio_bucket, Key=object_key
+                )
             except Exception:
                 pass
         log_document_event(
@@ -441,6 +459,7 @@ async def upload_document_workflow(
         status="accepted",
         malware_scan_result=scan_result.status,
     )
+    publish_outcomes = await task_outbox.outbox.publish_after_commit(db_session)
     await plan_enforcement_service.record_usage(
         db_session,
         organization_id=organization_id,
@@ -455,12 +474,7 @@ async def upload_document_workflow(
     )
 
     try:
-        task_result = process_document_task.delay(
-            str(document.id),
-            request_id=request_id,
-            organization_id=str(organization_id),
-            user_id=str(user_id),
-        )
+        task_result = task_outbox.result_or_raise(publish_outcomes)
     except Exception as exc:
         if not settings.is_production and _is_queue_operational_error(exc):
             wrote_audit = await audit_log_service.record(
@@ -554,6 +568,30 @@ async def upload_document_workflow(
         duplicate_document_id=str(duplicate_result.existing_document_id)
         if duplicate_result.existing_document_id
         else None,
+    )
+
+
+async def _stage_delete(
+    db_session: AsyncSession,
+    delete_document_task: Any,
+    *,
+    document_id: UUID,
+    request_id: str | None,
+    organization_id: UUID,
+    user_id: UUID,
+) -> None:
+    """Outbox row for ``documents.delete``, committed with ``delete_requested`` (R06-01)."""
+    await task_outbox.stage(
+        db_session,
+        delete_document_task,
+        task_name="documents.delete",
+        organization_id=organization_id,
+        kwargs={
+            "document_id": str(document_id),
+            "request_id": request_id,
+            "organization_id": str(organization_id),
+            "user_id": str(user_id),
+        },
     )
 
 
@@ -695,15 +733,18 @@ async def delete_document_workflow(
             "next_status": DocumentStatus.delete_requested.value,
         },
     )
+    await _stage_delete(
+        db_session,
+        delete_document_task,
+        document_id=document.id,
+        request_id=request_id,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+    )
     await db_session.commit()
 
     try:
-        task_result = delete_document_task.delay(
-            str(document.id),
-            request_id=request_id,
-            organization_id=str(actor_organization_id),
-            user_id=str(actor_user_id),
-        )
+        task_result = await task_outbox.publish(db_session)
     except Exception as exc:
         wrote_audit = await audit_log_service.record(
             db_session,
@@ -892,15 +933,18 @@ async def retry_delete_document_workflow(
         request_id=request_id,
         metadata={"previous_status": document.status},
     )
+    await _stage_delete(
+        db_session,
+        delete_document_task,
+        document_id=document.id,
+        request_id=request_id,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+    )
     await db_session.commit()
 
     try:
-        task_result = delete_document_task.delay(
-            str(document.id),
-            request_id=request_id,
-            organization_id=str(actor_organization_id),
-            user_id=str(actor_user_id),
-        )
+        task_result = await task_outbox.publish(db_session)
     except Exception as exc:
         wrote_audit = await audit_log_service.record(
             db_session,
@@ -1019,18 +1063,26 @@ async def reindex_document_workflow(
         created_by_user_id=actor_user_id,
         chunking_profile_snapshot=chunking_profile_config,
     )
+    task_kwargs: dict[str, Any] = {
+        "document_id": str(document.id),
+        "request_id": request_id,
+        "organization_id": str(actor_organization_id),
+        "user_id": str(actor_user_id),
+    }
+    if chunking_profile_config is not None:
+        task_kwargs["chunking_profile_config"] = chunking_profile_config
+    task_kwargs["force"] = force
+    message_id = await task_outbox.stage(
+        db_session,
+        reindex_document_task,
+        task_name="documents.reindex",
+        organization_id=actor_organization_id,
+        kwargs=task_kwargs,
+    )
     await db_session.commit()
 
     try:
-        task_kwargs: dict[str, Any] = {
-            "request_id": request_id,
-            "organization_id": str(actor_organization_id),
-            "user_id": str(actor_user_id),
-        }
-        if chunking_profile_config is not None:
-            task_kwargs["chunking_profile_config"] = chunking_profile_config
-        task_kwargs["force"] = force
-        task_result = reindex_document_task.delay(str(document.id), **task_kwargs)
+        task_result = await task_outbox.publish(db_session)
     except Exception as exc:
         await audit_log_service.record(
             db_session,
@@ -1063,6 +1115,8 @@ async def reindex_document_workflow(
                 status=previous_status,
                 error_message=previous_error_message,
             )
+            # The status is restored, so the pending dispatch must not run later.
+            await task_outbox.outbox.discard(db_session, message_id)
             await db_session.commit()
         except Exception:
             await db_session.rollback()

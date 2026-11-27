@@ -646,6 +646,7 @@ class DocumentIntelligenceToolService:
             document_ids=document_ids,
             initial_top_k=retrieval_top_k,
             qdrant_client=self._qdrant_client,
+            index_versions=settings.active_index_versions,
         )
         retrieved_chunks = [
             _to_retrieved_chunk(candidate) for candidate in retrieval_result.candidates

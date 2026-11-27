@@ -1,0 +1,94 @@
+{
+  "audit_actions": [
+    {
+      "action": "document.processing.dlp_quarantine",
+      "metadata": {
+        "categories": [
+          "ssn"
+        ],
+        "status": "quarantined",
+        "total_findings": 5
+      }
+    }
+  ],
+  "chunks": [],
+  "document": {
+    "chunk_count": null,
+    "chunking_config_snapshot": null,
+    "chunking_profile_version": null,
+    "chunking_strategy": null,
+    "dlp_scan_result": {
+      "action": "quarantine",
+      "findings": [
+        {
+          "category": "ssn",
+          "count": 5
+        }
+      ],
+      "skipped": false,
+      "total_findings": 5
+    },
+    "embedding_provider_type": null,
+    "embedding_vector_dimension": null,
+    "error_message": "DLP policy action: quarantine",
+    "extraction_snapshot": {
+      "document_profile": "text_based",
+      "extraction_confidence": 1.0,
+      "extraction_engine": "legacy_txt",
+      "is_encrypted": false,
+      "page_count": 1,
+      "pages": [
+        {
+          "char_count": 116,
+          "image_block_count": 0,
+          "image_coverage_ratio": 0.0,
+          "page_number": 1,
+          "requires_ocr": false,
+          "table_block_count": 0,
+          "text_block_count": 1,
+          "text_coverage_ratio": 1.0,
+          "warnings": []
+        }
+      ],
+      "total_image_blocks": 0,
+      "total_table_blocks": 0,
+      "total_text_blocks": 1,
+      "warnings": []
+    },
+    "graph_extraction_status": "pending",
+    "language": "en",
+    "language_confidence": 0.9,
+    "language_source": "auto_detected",
+    "ocr_avg_confidence": null,
+    "ocr_quality_snapshot": null,
+    "ocr_quality_status": null,
+    "page_count": null,
+    "processing_task_id": "task-dlp-quarantine",
+    "status": "quarantined"
+  },
+  "embedding_batches": [],
+  "graph_calls": [],
+  "minio_reads": 1,
+  "ocr_calls": [],
+  "outcome": {
+    "code": "DLP_POLICY_BLOCKED",
+    "raised": "DocumentPipelinePermanentError"
+  },
+  "pipeline_runs": [
+    {
+      "events": [
+        "extract:started",
+        "extract:completed",
+        "detect_language:completed",
+        "dlp:started",
+        "dlp:completed"
+      ],
+      "pipeline_type": "document.process",
+      "status": "failed"
+    }
+  ],
+  "qdrant_deletes": [],
+  "qdrant_upserts": [],
+  "source_references": [],
+  "usage_events": []
+}

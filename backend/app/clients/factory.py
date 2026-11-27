@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 
 import boto3  # type: ignore[import-untyped]
 from botocore.config import Config  # type: ignore[import-untyped]
-from qdrant_client import QdrantClient
+from qdrant_client import AsyncQdrantClient, QdrantClient
 from qdrant_client.http.models import Distance
 from redis.asyncio import Redis
 
@@ -58,6 +58,15 @@ def create_qdrant_client(config: Settings) -> QdrantClient:
         url=str(config.qdrant_url),
         api_key=config.qdrant_api_key.get_secret_value() if config.qdrant_api_key else None,
         timeout=timeout_seconds,
+    )
+
+
+def create_async_qdrant_client(config: Settings, *, timeout_seconds: float) -> AsyncQdrantClient:
+    """``AsyncQdrantClient`` for one event loop (R06-07); the timeout is whole seconds."""
+    return AsyncQdrantClient(
+        url=str(config.qdrant_url),
+        api_key=config.qdrant_api_key.get_secret_value() if config.qdrant_api_key else None,
+        timeout=max(1, round(timeout_seconds)),
     )
 
 

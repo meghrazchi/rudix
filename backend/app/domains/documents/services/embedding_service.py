@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Protocol
@@ -14,6 +15,7 @@ from app.domains.ai.providers.errors import (
     ProviderUnavailableError,
 )
 from app.domains.ai.providers.protocols import EmbeddingProvider, EmbeddingRequest
+from app.domains.documents.services.embedding_concurrency import ProviderPauseGate, run_bounded
 
 
 class ChunkLike(Protocol):
@@ -71,6 +73,7 @@ class EmbeddingService:
         retry_max_seconds: float | None = None,
         cost_per_million_tokens_usd: float | None = None,
         provider: EmbeddingProvider | None = None,
+        max_concurrent_batches: int | None = None,
     ) -> None:
         self.model_name = (model_name or settings.openai_embedding_model).strip()
         self.index_version = (index_version or settings.document_index_version).strip()
@@ -86,6 +89,12 @@ class EmbeddingService:
             )
         )
         self._provider = provider
+        # R06-06: provider batches of one call run with this bound (1 = sequential), and
+        # every batch of this service waits on one shared pause after a rate limit.
+        self.max_concurrent_batches = (
+            max_concurrent_batches or settings.embedding_max_concurrent_batches
+        )
+        self.pause_gate = ProviderPauseGate()
 
     @property
     def embedding_provider(self) -> EmbeddingProvider:
@@ -134,6 +143,7 @@ class EmbeddingService:
 
         while attempts < self.retry_max_attempts:
             attempts += 1
+            await self.pause_gate.wait()
             try:
                 response = await self.embedding_provider.embed(
                     EmbeddingRequest(texts=texts, model=self.model_name)
@@ -162,6 +172,11 @@ class EmbeddingService:
                     raise TransientEmbeddingError(
                         f"embedding request failed after retries: {exc}"
                     ) from exc
+                retry_after = getattr(exc, "retry_after_seconds", None)
+                if isinstance(exc, ProviderQuotaExceededError) and retry_after is not None:
+                    # Every batch of this service waits; the next attempt starts after it.
+                    self.pause_gate.pause(retry_after)
+                    continue
                 backoff_seconds = min(
                     self.retry_max_seconds,
                     self.retry_base_seconds * (2 ** (attempts - 1)),
@@ -169,6 +184,11 @@ class EmbeddingService:
                 await asyncio.sleep(backoff_seconds)
 
         raise TransientEmbeddingError("embedding request failed after retries")
+
+    def _batch_factory(
+        self, batch: list[ChunkLike]
+    ) -> Callable[[], Awaitable[tuple[list[list[float]], int, int, int, int]]]:
+        return lambda: self._embed_single_batch(batch=batch)
 
     async def embed_chunks(self, *, chunks: list[ChunkLike]) -> EmbeddingResult:
         if not chunks:
@@ -195,14 +215,17 @@ class EmbeddingService:
         total_latency_ms = 0
         total_retries = 0
 
-        for batch in batches:
+        outcomes = await run_bounded(
+            [self._batch_factory(batch) for batch in batches], self.max_concurrent_batches
+        )
+        for batch, outcome in zip(batches, outcomes, strict=True):
             (
                 vectors,
                 batch_input_tokens,
                 batch_total_tokens,
                 latency_ms,
                 retries_used,
-            ) = await self._embed_single_batch(batch=batch)
+            ) = outcome
             for chunk, vector in zip(batch, vectors, strict=True):
                 vectors_by_chunk_id[chunk.id] = vector
             total_input_tokens += batch_input_tokens

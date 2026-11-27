@@ -26,6 +26,7 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.domains.graph.repositories._base import _get_driver_and_settings
+from app.domains.graph.repositories.fact_batch import EvidenceBatchWriteMixin
 
 logger = get_logger("graph.repositories.evidence")
 
@@ -43,8 +44,11 @@ def _require_citation(
         )
 
 
-class EvidenceRepository:
-    """CRUD for EVIDENCE_FOR relationships between Chunk and Entity nodes."""
+class EvidenceRepository(EvidenceBatchWriteMixin):
+    """CRUD for EVIDENCE_FOR relationships between Chunk and Entity nodes.
+
+    Ingestion uses ``link_evidence_batch`` (R06-10); ``link_evidence`` stays for admin use.
+    """
 
     async def link_evidence(
         self,

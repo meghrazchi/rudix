@@ -253,6 +253,7 @@ class ExternalItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_external_items_collection_id", "collection_id"),
         Index("idx_external_items_parent", "organization_id", "provider_parent_id"),
         Index("idx_external_items_hash", "organization_id", "content_hash"),
+        Index("idx_external_items_connection", "connection_id"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -300,6 +301,9 @@ class ExternalItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "permissions", JSON, nullable=False, default=dict
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 0.6.0 (migration 20261128_0002): last sync run that saw the item; no foreign key
+    # (runs are pruned independently). Full-sync tombstoning compares it (chain D).
+    last_seen_sync_run_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
     organization = relationship("Organization")
     connection = relationship("ConnectorConnection", back_populates="items")

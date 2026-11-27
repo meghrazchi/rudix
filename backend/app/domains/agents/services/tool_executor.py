@@ -14,7 +14,7 @@ from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import get_logger, log_agent_event
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
-from app.domains.agents.repositories import AgentRunRepository
+from app.domains.agents.repositories import AgentRunRepository, AgentRunWorkerRepository
 from app.domains.agents.schemas import (
     ToolCall,
     ToolErrorCode,
@@ -25,6 +25,7 @@ from app.domains.agents.schemas import (
     redact_tool_payload,
     validate_tool_call_budget,
 )
+from app.domains.agents.services.tool_call_reuse import reusable_result
 from app.domains.agents.services.tool_registry import ToolHandler, ToolRegistry
 from app.models.enums import AgentApprovalStatus, AgentToolCallStatus
 
@@ -62,6 +63,7 @@ class AgentToolExecutor:
     ) -> None:
         self._registry = registry
         self._repository = repository or AgentRunRepository()
+        self._worker_repository = AgentRunWorkerRepository()
         self._audit_service = audit_service or AuditLogService()
         self._usage_repository = usage_repository or UsageRepository()
         self._transient_call_counts: dict[tuple[str, str], int] = {}
@@ -99,6 +101,13 @@ class AgentToolExecutor:
                 allow_missing_approval_id=True,
             )
             validate_tool_call_budget(spec, call)
+            # R06-13: a side-effect call that already succeeded under this idempotency key
+            # (a resumed worker run) returns its stored result instead of running again.
+            reused = await reusable_result(
+                self._worker_repository, session=session, spec=spec, call=call
+            )
+            if reused is not None:
+                return reused
             await self._enforce_call_budget(session=session, call=call)
             await self._enforce_approval_requirement(
                 session=session,

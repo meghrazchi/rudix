@@ -14,6 +14,7 @@ from app.domains.safety_evals.schemas.safety_evals import (
     TriggerSafetyEvalRunRequest,
     TriggerSafetyEvalRunResponse,
 )
+from app.workers.dispatch import enqueue
 
 
 async def trigger_safety_eval_workflow(
@@ -74,7 +75,8 @@ async def trigger_safety_eval_workflow(
         status_code=status.HTTP_202_ACCEPTED,
     )
 
-    task_result = run_safety_eval_task.delay(
+    task_result = await enqueue(
+        run_safety_eval_task,
         str(run.id),
         request_id=request_id,
         organization_id=str(organization_id),

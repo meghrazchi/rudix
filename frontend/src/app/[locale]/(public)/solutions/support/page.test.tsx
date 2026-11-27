@@ -7,7 +7,6 @@ const originalEnv = { ...process.env };
 
 function clearPublicEnv() {
   delete process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL;
-  delete process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL;
   delete process.env.NEXT_PUBLIC_PUBLIC_CONTACT_URL;
 }
 
@@ -106,11 +105,13 @@ describe("Support solution page (/solutions/support)", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Get Started" }),
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole("link", { name: "Request a Demo" }),
-    ).toBeInTheDocument();
+    ).toHaveAttribute("href", "/contact");
+    expect(
+      screen.queryByRole("link", { name: "Get Started" }),
+    ).not.toBeInTheDocument();
+    // Self-service signup is disabled; no CTA may lead to /signup.
+    expect(document.querySelector('a[href*="signup"]')).toBeNull();
   });
 
   it("renders hero CTA links pointing to demo and contact", () => {

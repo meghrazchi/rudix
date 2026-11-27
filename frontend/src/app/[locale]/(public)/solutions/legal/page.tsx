@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function LegalSolutionRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Legal solution page">
+    <PublicMarketingLayout pageLabel="Legal solution page" theme="system">
       <LegalSolutionPage />
     </PublicMarketingLayout>
   );

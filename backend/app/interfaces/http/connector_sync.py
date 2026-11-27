@@ -119,6 +119,8 @@ def _run_response(run: ConnectorSyncRun) -> SyncRunResponse:
         error_details=run.error_details_json or {},
         created_at=run.created_at.isoformat(),
         updated_at=run.updated_at.isoformat(),
+        checkpoint_at=run.checkpoint_at.isoformat() if run.checkpoint_at else None,
+        pages_committed=run.pages_committed or 0,
     )
 
 

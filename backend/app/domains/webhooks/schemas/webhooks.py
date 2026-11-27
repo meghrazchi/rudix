@@ -207,4 +207,6 @@ class WebhookDeliveryResponse(BaseModel):
 
 class WebhookDeliveryListResponse(BaseModel):
     items: list[WebhookDeliveryResponse]
+    # Number of items in this page (not a table count), as before.
     total: int
+    next_cursor: str | None = None

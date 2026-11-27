@@ -56,6 +56,10 @@ class SyncRunResponse(BaseModel):
     error_details: dict[str, Any]
     created_at: str
     updated_at: str
+    # 0.6.0 (R06-11): when the last page committed with its checkpoint, and how many pages
+    # have committed. A cancelled or interrupted run keeps both.
+    checkpoint_at: str | None = None
+    pages_committed: int = 0
 
 
 class TriggerSyncNowResponse(BaseModel):

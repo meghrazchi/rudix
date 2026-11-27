@@ -136,6 +136,47 @@ LLM_RETRIES_TOTAL = Counter(
     registry=registry,
 )
 
+# R05-05: query-embedding cache lookups of the chat pipeline (hit, miss).
+CHAT_QUERY_EMBEDDING_CACHE_TOTAL = Counter(
+    "rudix_chat_query_embedding_cache_total",
+    "Chat query-embedding cache lookups by result (hit, miss)",
+    ["result"],
+    registry=registry,
+)
+
+# R05-05: verified-answer shortcut evaluations (stage 4) by result.
+CHAT_VERIFIED_ANSWER_SHORTCUT_TOTAL = Counter(
+    "rudix_chat_verified_answer_shortcut_total",
+    "Verified-answer shortcut evaluations by result",
+    ["result"],
+    registry=registry,
+)
+
+# R05-04: optional stages skipped or degraded, by stage and reason (deadline, budget, error).
+CHAT_STAGE_SKIPPED_TOTAL = Counter(
+    "rudix_chat_stage_skipped_total",
+    "Chat pipeline stages skipped or degraded by stage and reason",
+    ["stage", "reason"],
+    registry=registry,
+)
+
+# Chat token ledger (R05-07): tokens of every provider call in a chat run, by pipeline
+# stage and kind (prompt, completion, cached). Counted once the run is persisted.
+CHAT_TOKENS_TOTAL = Counter(
+    "rudix_chat_tokens_total",
+    "Chat pipeline tokens by stage and kind (prompt, completion, cached)",
+    ["stage", "kind"],
+    registry=registry,
+)
+
+# Retrieved chunks matching prompt-injection patterns (R05-09), by configured action.
+CHAT_CONTEXT_INJECTION_FLAGGED_TOTAL = Counter(
+    "rudix_chat_context_injection_flagged_total",
+    "Retrieved chunks flagged by the context injection scan, by action",
+    ["action"],
+    registry=registry,
+)
+
 # Document Ingestion & Chunking Metrics
 DOCUMENT_UPLOADS_TOTAL = Counter(
     "rudix_document_uploads_total",
@@ -164,6 +205,13 @@ DOCUMENT_CHUNKS_GENERATED = Histogram(
     "Number of chunks produced per document",
     ["strategy", "file_type"],
     buckets=(1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0),
+    registry=registry,
+)
+
+DOCUMENTS_REAPED_TOTAL = Counter(
+    "rudix_documents_reaped_total",
+    "Stale processing documents handled by the reaper",
+    ["outcome"],
     registry=registry,
 )
 
@@ -215,6 +263,128 @@ BOT_ASKS_TOTAL = Counter(
     "rudix_bot_asks_total",
     "Chat bot ask invocations by provider and outcome",
     ["provider", "outcome"],
+    registry=registry,
+)
+
+RETRIEVAL_BRANCH_FAILURES_TOTAL = Counter(
+    "rudix_retrieval_branch_failures_total",
+    "Retrieval branch attempts that failed or timed out and were degraded",
+    ["branch", "error"],
+    registry=registry,
+)
+
+EVAL_INDEX_CLEANUP_FAILURES_TOTAL = Counter(
+    "rudix_eval_index_cleanup_failures_total",
+    "Per-document evaluation index cleanup steps that failed (store: qdrant or postgres)",
+    ["store"],
+    registry=registry,
+)
+
+CHAT_QUOTA_DENIED_TOTAL = Counter(
+    "rudix_chat_quota_denied_total",
+    "Chat questions refused because the plan question quota is exhausted",
+    ["transport"],
+    registry=registry,
+)
+
+# R05-01: one observation per chat pipeline stage run (CHAT_PIPELINE_V2); labels are the
+# fixed stage names, never request data.
+CHAT_STAGE_SECONDS = Histogram(
+    "rudix_chat_stage_seconds",
+    "Duration of one chat pipeline stage in seconds",
+    ["stage"],
+    buckets=(0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
+    registry=registry,
+)
+
+# R05-02: how long the chat pipeline holds a database session per phase (read, short,
+# write). Labels are the fixed phase names; no session is held while the model generates.
+CHAT_DB_SESSION_SECONDS = Histogram(
+    "rudix_chat_db_session_seconds",
+    "Time one chat pipeline database session was held, by phase",
+    ["phase"],
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
+    registry=registry,
+)
+
+CHAT_WS_AUTH_TOTAL = Counter(
+    "rudix_chat_ws_auth_total",
+    "Chat WebSocket handshake authentication attempts by method and outcome",
+    ["method", "outcome"],
+    registry=registry,
+)
+
+# R05-03: pipeline start to the first answer text sent (first delta; in buffered mode the
+# first verified delta; generation.final when no delta was sent). Observed once per answer.
+CHAT_TTFT_SECONDS = Histogram(
+    "rudix_chat_ttft_seconds",
+    "Chat time to first answer token in seconds, by transport",
+    ["transport"],
+    buckets=(0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0, 20.0),
+    registry=registry,
+)
+
+CHAT_STREAM_CANCELLED_TOTAL = Counter(
+    "rudix_chat_stream_cancelled_total",
+    "Chat answers cancelled before completion (chat.cancel or client disconnect)",
+    ["transport"],
+    registry=registry,
+)
+
+# R05-06: provider circuit breaker (0 closed, 1 half-open, 2 open) and its transitions.
+LLM_BREAKER_STATE = Gauge(
+    "rudix_llm_breaker_state",
+    "LLM provider circuit breaker state (0 closed, 1 half-open, 2 open)",
+    ["provider", "model"],
+    registry=registry,
+)
+
+LLM_BREAKER_TRANSITIONS_TOTAL = Counter(
+    "rudix_llm_breaker_transitions_total",
+    "LLM provider circuit breaker transitions, by the state entered",
+    ["provider", "model", "state"],
+    registry=registry,
+)
+
+# R05-06: per-organisation concurrency (Redis semaphore). No organisation label (cardinality).
+LLM_ORG_CONCURRENCY_REJECTED_TOTAL = Counter(
+    "rudix_llm_org_concurrency_rejected_total",
+    "LLM calls rejected because the organisation concurrency limit stayed reached",
+    registry=registry,
+)
+
+LLM_ORG_SEMAPHORE_UNAVAILABLE_TOTAL = Counter(
+    "rudix_llm_org_semaphore_unavailable_total",
+    "LLM calls admitted without a lease because Redis was missing or failing",
+    registry=registry,
+)
+
+LLM_CACHED_PROMPT_TOKENS_TOTAL = Counter(
+    "rudix_llm_cached_prompt_tokens_total",
+    "Prompt tokens the provider reported as served from its prompt cache",
+    ["provider", "model"],
+    registry=registry,
+)
+
+# R05-13: resumable WebSocket runs.
+CHAT_WS_RESUME_TOTAL = Counter(
+    "rudix_chat_ws_resume_total",
+    "chat.resume commands by outcome (replayed, rebuilt, unavailable, redis_unavailable)",
+    ["outcome"],
+    registry=registry,
+)
+
+CHAT_WS_DROP_TOTAL = Counter(
+    "rudix_chat_ws_drop_total",
+    "WebSocket runs whose socket dropped mid-run, by outcome "
+    "(completed, cancelled, cancelled_no_grace)",
+    ["outcome"],
+    registry=registry,
+)
+
+CHAT_RESUME_BUFFER_ERRORS_TOTAL = Counter(
+    "rudix_chat_resume_buffer_errors_total",
+    "Resume buffer writes that failed (Redis error); the run continues unbuffered",
     registry=registry,
 )
 
@@ -355,6 +525,51 @@ def record_llm_retry(provider: str, model: str, reason: str) -> None:
         logger.debug("metrics.record_llm_retry_failed: %s", exc)
 
 
+def record_chat_tokens(stage: str, kind: str, amount: int) -> None:
+    if not is_metrics_enabled() or amount <= 0:
+        return
+    try:
+        CHAT_TOKENS_TOTAL.labels(stage=stage, kind=kind).inc(amount)
+    except Exception as exc:
+        logger.debug("metrics.record_chat_tokens_failed: %s", exc)
+
+
+def record_chat_query_embedding_cache(result: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_QUERY_EMBEDDING_CACHE_TOTAL.labels(result=result).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_query_embedding_cache_failed: %s", exc)
+
+
+def record_chat_verified_answer_shortcut(result: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_VERIFIED_ANSWER_SHORTCUT_TOTAL.labels(result=result).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_verified_answer_shortcut_failed: %s", exc)
+
+
+def record_chat_stage_skipped(stage: str, reason: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_STAGE_SKIPPED_TOTAL.labels(stage=stage, reason=reason).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_stage_skipped_failed: %s", exc)
+
+
+def record_chat_context_injection_flagged(action: str, count: int) -> None:
+    if not is_metrics_enabled() or count <= 0:
+        return
+    try:
+        CHAT_CONTEXT_INJECTION_FLAGGED_TOTAL.labels(action=action).inc(count)
+    except Exception as exc:
+        logger.debug("metrics.record_chat_context_injection_flagged_failed: %s", exc)
+
+
 def record_document_upload(file_type: str, status: str, malware_scan_result: str) -> None:
     if not is_metrics_enabled():
         return
@@ -394,6 +609,15 @@ def record_document_indexing_job(
             )
     except Exception as exc:
         logger.debug("metrics.record_document_indexing_job_failed: %s", exc)
+
+
+def record_document_reaped(outcome: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        DOCUMENTS_REAPED_TOTAL.labels(outcome=outcome).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_document_reaped_failed: %s", exc)
 
 
 def record_celery_task(
@@ -449,6 +673,42 @@ def record_bot_ask(provider: str, outcome: str) -> None:
         logger.debug("metrics.record_bot_ask_failed: %s", exc)
 
 
+def record_retrieval_branch_failure(branch: str, error: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        RETRIEVAL_BRANCH_FAILURES_TOTAL.labels(branch=branch, error=error).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_retrieval_branch_failure_failed: %s", exc)
+
+
+def record_eval_index_cleanup_failure(store: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        EVAL_INDEX_CLEANUP_FAILURES_TOTAL.labels(store=store).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_eval_index_cleanup_failure_failed: %s", exc)
+
+
+def record_chat_quota_denied(transport: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_QUOTA_DENIED_TOTAL.labels(transport=transport).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_quota_denied_failed: %s", exc)
+
+
+def record_chat_ws_auth(method: str, outcome: str) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        CHAT_WS_AUTH_TOTAL.labels(method=method, outcome=outcome).inc()
+    except Exception as exc:
+        logger.debug("metrics.record_chat_ws_auth_failed: %s", exc)
+
+
 def set_dependency_readiness(dependency: str, is_ready: bool) -> None:
     if not is_metrics_enabled():
         return
@@ -465,6 +725,7 @@ def set_dependency_readiness(dependency: str, is_ready: bool) -> None:
 
 def attach_metrics_middleware(app: FastAPI) -> None:
     """Attach low-overhead Prometheus metrics middleware to FastAPI."""
+    from app.core.db_metrics import begin_request_query_count, end_request_query_count
 
     @app.middleware("http")
     async def prometheus_metrics_middleware(request: Request, call_next: Any) -> Any:
@@ -484,6 +745,7 @@ def attach_metrics_middleware(app: FastAPI) -> None:
         HTTP_REQUESTS_IN_PROGRESS.labels(method=method, route=route_template).inc()
         started_at = perf_counter()
         status_code = 500
+        query_scope = begin_request_query_count()
 
         try:
             response = await call_next(request)
@@ -505,6 +767,7 @@ def attach_metrics_middleware(app: FastAPI) -> None:
                 method=method, route=route_template, status_code=str(status_code)
             ).inc()
             HTTP_REQUESTS_IN_PROGRESS.labels(method=method, route=route_template).dec()
+            end_request_query_count(query_scope, method, route_template)
 
 
 def generate_prometheus_metrics() -> Response:

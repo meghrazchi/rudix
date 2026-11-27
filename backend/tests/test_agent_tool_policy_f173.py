@@ -154,7 +154,7 @@ async def test_get_agent_policy_returns_resolved_tools(
     token = _token(user, org, OrganizationRole.admin)
 
     resp = await policy_client.get(
-        "/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -172,7 +172,7 @@ async def test_upsert_tool_policy_creates_override(
 
     # First fetch to get a valid tool name
     resp = await policy_client.get(
-        "/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
     )
     assert resp.status_code == 200
     tools = resp.json()["resolved_tools"]
@@ -181,7 +181,7 @@ async def test_upsert_tool_policy_creates_override(
 
     tool_name = tools[0]["tool_name"]
     resp = await policy_client.put(
-        f"/admin/agent-policy/tools/{tool_name}",
+        f"/api/v1/admin/agent-policy/tools/{tool_name}",
         json={"enabled": False, "approval_required": True, "max_calls_per_run": 5},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -200,7 +200,7 @@ async def test_upsert_tool_policy_updates_existing(
     token = _token(user, org, OrganizationRole.admin)
 
     resp = await policy_client.get(
-        "/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
     )
     tools = resp.json()["resolved_tools"]
     if not tools:
@@ -209,13 +209,13 @@ async def test_upsert_tool_policy_updates_existing(
     tool_name = tools[0]["tool_name"]
     # Create
     await policy_client.put(
-        f"/admin/agent-policy/tools/{tool_name}",
+        f"/api/v1/admin/agent-policy/tools/{tool_name}",
         json={"enabled": True, "max_calls_per_run": 3},
         headers={"Authorization": f"Bearer {token}"},
     )
     # Update
     resp2 = await policy_client.put(
-        f"/admin/agent-policy/tools/{tool_name}",
+        f"/api/v1/admin/agent-policy/tools/{tool_name}",
         json={"enabled": True, "max_calls_per_run": 7},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -231,7 +231,7 @@ async def test_upsert_unknown_tool_returns_422(
     token = _token(user, org, OrganizationRole.admin)
 
     resp = await policy_client.put(
-        "/admin/agent-policy/tools/not_a_real_tool_xyz",
+        "/api/v1/admin/agent-policy/tools/not_a_real_tool_xyz",
         json={"enabled": True},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -246,7 +246,7 @@ async def test_delete_tool_policy_removes_override(
     token = _token(user, org, OrganizationRole.admin)
 
     resp = await policy_client.get(
-        "/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
     )
     tools = resp.json()["resolved_tools"]
     if not tools:
@@ -254,12 +254,12 @@ async def test_delete_tool_policy_removes_override(
 
     tool_name = tools[0]["tool_name"]
     await policy_client.put(
-        f"/admin/agent-policy/tools/{tool_name}",
+        f"/api/v1/admin/agent-policy/tools/{tool_name}",
         json={"enabled": False},
         headers={"Authorization": f"Bearer {token}"},
     )
     del_resp = await policy_client.delete(
-        f"/admin/agent-policy/tools/{tool_name}",
+        f"/api/v1/admin/agent-policy/tools/{tool_name}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert del_resp.status_code == 204
@@ -273,7 +273,7 @@ async def test_delete_nonexistent_override_returns_404(
     token = _token(user, org, OrganizationRole.admin)
 
     resp = await policy_client.get(
-        "/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
     )
     tools = resp.json()["resolved_tools"]
     if not tools:
@@ -281,7 +281,7 @@ async def test_delete_nonexistent_override_returns_404(
 
     tool_name = tools[0]["tool_name"]
     resp = await policy_client.delete(
-        f"/admin/agent-policy/tools/{tool_name}",
+        f"/api/v1/admin/agent-policy/tools/{tool_name}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 404
@@ -295,7 +295,7 @@ async def test_viewer_cannot_access_agent_policy(
     token = _token(user, org, OrganizationRole.viewer)
 
     resp = await policy_client.get(
-        "/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/admin/agent-policy", headers={"Authorization": f"Bearer {token}"}
     )
     assert resp.status_code == 403
 
@@ -308,7 +308,7 @@ async def test_viewer_cannot_upsert_tool_policy(
     token = _token(user, org, OrganizationRole.viewer)
 
     resp = await policy_client.put(
-        "/admin/agent-policy/tools/some_tool",
+        "/api/v1/admin/agent-policy/tools/some_tool",
         json={"enabled": False},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -332,7 +332,7 @@ async def test_effective_policy_for_run_returns_snapshot(
     await db_session.flush()
 
     resp = await policy_client.get(
-        f"/admin/agent-policy/runs/{run.id}/effective-policy",
+        f"/api/v1/admin/agent-policy/runs/{run.id}/effective-policy",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -349,7 +349,7 @@ async def test_effective_policy_run_not_found(
     token = _token(user, org, OrganizationRole.admin)
 
     resp = await policy_client.get(
-        f"/admin/agent-policy/runs/{uuid4()}/effective-policy",
+        f"/api/v1/admin/agent-policy/runs/{uuid4()}/effective-policy",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 404

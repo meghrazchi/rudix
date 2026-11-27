@@ -406,7 +406,12 @@ describe("EvaluationsPage redesign", () => {
       screen.getByRole("button", { name: "Start evaluation run" }),
     );
 
-    await screen.findByRole("dialog", { name: "Start evaluation run" });
+    const dialog = await screen.findByRole("dialog", {
+      name: "Start evaluation run",
+    });
+    // Capped to the viewport and scrollable, so the submit button stays
+    // reachable on short screens (layout itself is covered in e2e/smoke).
+    expect(dialog).toHaveClass("max-h-[calc(100dvh-2rem)]", "overflow-y-auto");
     fireEvent.change(screen.getByLabelText("Model override"), {
       target: { value: "gpt-5.4-mini" },
     });

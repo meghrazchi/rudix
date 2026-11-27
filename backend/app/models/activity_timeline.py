@@ -13,6 +13,7 @@ from sqlalchemy import (
     Text,
     Uuid,
 )
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -31,6 +32,11 @@ class ActivityTimelineEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index("idx_activity_timeline_events_session_seq", "chat_session_id", "sequence"),
         Index("idx_activity_timeline_events_message", "chat_message_id"),
+        Index(
+            "idx_activity_timeline_events_org_created",
+            "organization_id",
+            sql_text("created_at DESC"),
+        ),
     )
 
     organization_id: Mapped[UUID] = mapped_column(

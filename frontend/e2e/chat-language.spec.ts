@@ -1,5 +1,7 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
+import { dismissOnboardingChecklist } from "./support/onboarding";
+
 const SESSION_STORAGE_KEY = "rudix.session.v1";
 const ORG_ID = "c8ae2f17-c58e-499e-88bf-e6b0a8648c21";
 
@@ -49,7 +51,26 @@ async function installApiMocks(page: Page): Promise<void> {
     }
 
     if (path === "/documents" && request.method() === "GET") {
-      await fulfillJson(route, { items: [], total: 0, limit: 20, offset: 0 });
+      // RAG chat stays disabled until at least one document is indexed.
+      await fulfillJson(route, {
+        items: [
+          {
+            document_id: "doc-lang-1",
+            filename: "Leave-Policy.pdf",
+            file_type: "pdf",
+            status: "indexed",
+            page_count: 3,
+            chunk_count: 9,
+            error_message: null,
+            error_details: null,
+            created_at: "2026-06-04T00:00:00Z",
+            updated_at: "2026-06-04T00:00:00Z",
+          },
+        ],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      });
       return;
     }
 
@@ -131,15 +152,34 @@ async function loginAs(
   );
 }
 
+/** Sends a question from the composer and returns the POST /chat body. */
+async function sendQuestion(
+  page: Page,
+  question: string,
+): Promise<Record<string, unknown>> {
+  await page.getByPlaceholder(/Type a message/i).fill(question);
+  const chatRequest = page.waitForRequest(
+    (req) => req.method() === "POST" && /\/api\/v1\/chat$/.test(req.url()),
+  );
+  await page.getByRole("button", { name: /Send message/i }).click();
+  const request = await chatRequest;
+  return JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
+}
+
 test.describe("Chat language selector (F231)", () => {
   test.beforeEach(async ({ page }) => {
     await installApiMocks(page);
     await page.goto("/chat");
     await loginAs(page, memberSession);
     await page.goto("/chat");
+    // The floating checklist covers the composer's settings button.
+    await dismissOnboardingChecklist(page);
+    // The answer-language control lives in the composer's Advanced
+    // settings panel.
+    await page.getByRole("button", { name: "Advanced settings" }).click();
   });
 
-  test("answer language selector is visible in the composer toolbar", async ({
+  test("answer language selector is visible in the composer settings", async ({
     page,
   }) => {
     await expect(page.getByLabel("Answer language")).toBeVisible();
@@ -168,42 +208,17 @@ test.describe("Chat language selector (F231)", () => {
   }) => {
     await page.getByLabel("Answer language").selectOption("de");
 
-    const chatRequests: string[] = [];
-    await page.route("**/api/v1/chat", async (route) => {
-      const body = route.request().postData() ?? "{}";
-      chatRequests.push(body);
-      await route.fallback();
-    });
-
-    await page
-      .getByPlaceholder(/Type a message/i)
-      .fill("Wie viele Urlaubstage?");
-    await page.getByRole("button", { name: /Send message/i }).click();
-
-    await page.waitForTimeout(500);
-
-    expect(chatRequests.length).toBeGreaterThan(0);
-    const lastRequest = JSON.parse(chatRequests.at(-1) ?? "{}");
-    expect(lastRequest.answer_language).toBe("de");
+    const body = await sendQuestion(page, "Wie viele Urlaubstage?");
+    expect(body.answer_language).toBe("de");
   });
 
   test("auto mode does not send answer_language in the request", async ({
     page,
   }) => {
-    const chatRequests: string[] = [];
-    await page.route("**/api/v1/chat", async (route) => {
-      chatRequests.push(route.request().postData() ?? "{}");
-      await route.fallback();
-    });
+    await expect(page.getByLabel("Answer language")).toHaveValue("auto");
 
-    await page.getByPlaceholder(/Type a message/i).fill("What is leave?");
-    await page.getByRole("button", { name: /Send message/i }).click();
-
-    await page.waitForTimeout(500);
-
-    if (chatRequests.length > 0) {
-      const lastRequest = JSON.parse(chatRequests.at(-1) ?? "{}");
-      expect(lastRequest.answer_language).toBeUndefined();
-    }
+    const body = await sendQuestion(page, "What is leave?");
+    expect(body.question).toBe("What is leave?");
+    expect(body).not.toHaveProperty("answer_language");
   });
 });

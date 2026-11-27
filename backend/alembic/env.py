@@ -15,7 +15,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", str(settings.database_url))
+# Migrations run as the schema owner; DATABASE_MIGRATION_URL lets the application connect
+# as a non-owner role (R04-01, R04-08).
+_migration_url = settings.database_migration_url or settings.database_url
+config.set_main_option("sqlalchemy.url", str(_migration_url).replace("%", "%%"))
 
 target_metadata = Base.metadata
 

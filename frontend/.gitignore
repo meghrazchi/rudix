@@ -15,9 +15,14 @@
 /.vite
 /test-results/
 /playwright-report/
+/playwright-report-integration/
 
 # next.js
 /.next/
+# Playwright WebSocket-chat dev server (playwright.config.ts)
+/.next-e2e-ws/
+# Separate dist dir for e2e runs while a local `next dev` holds /.next
+/.next-e2e-main/
 /out/
 
 # production
@@ -42,3 +47,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# licensed fonts (Pelak, Fontiran) are provided per environment, not committed
+/public/fonts/pelak/*
+!/public/fonts/pelak/.gitkeep

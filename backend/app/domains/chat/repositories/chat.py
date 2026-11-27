@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import dataclass
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +12,33 @@ from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
 from app.models.document import Document
 from app.models.enums import ChatRole
+from app.shared.pagination import CursorValue, KeysetColumn, apply_keyset
+
+SESSION_SORT_NAME = "chat_sessions.updated_at.desc"
+MESSAGE_SORT_NAME = "chat_messages.created_at.asc"
+# Newest-first history (R05-11): the same key tuple walked backwards, under its own sort name
+# so a cursor issued for one order is rejected by the other.
+MESSAGE_SORT_NAME_DESC = "chat_messages.created_at.desc"
+SESSION_SORT_COLUMNS = (ChatSession.updated_at, ChatSession.id)
+_ROLE_RANK = {ChatRole.user.value: 0, ChatRole.assistant.value: 1}
+
+
+def _message_sort_columns() -> tuple[KeysetColumn, KeysetColumn, KeysetColumn]:
+    role_rank = case(
+        (ChatMessage.role == ChatRole.user.value, 0),
+        (ChatMessage.role == ChatRole.assistant.value, 1),
+        else_=2,
+    )
+    return (ChatMessage.created_at, role_rank, ChatMessage.id)
+
+
+def session_sort_key(chat_session: ChatSession) -> list[CursorValue]:
+    return [chat_session.updated_at, chat_session.id]
+
+
+def message_sort_key(message: ChatMessage) -> list[CursorValue]:
+    """``(created_at, role rank, id)``: user before assistant within one timestamp."""
+    return [message.created_at, _ROLE_RANK.get(message.role, 2), message.id]
 
 
 class ChatRepository:
@@ -18,12 +49,17 @@ class ChatRepository:
         organization_id: UUID,
         user_id: UUID,
         title: str | None = None,
+        session_id: UUID | None = None,
     ) -> ChatSession:
+        # ``session_id`` lets the chat pipeline write the row under an id it assigned at
+        # the start of the run (R05-02); otherwise the column default applies.
         chat_session = ChatSession(
             organization_id=organization_id,
             user_id=user_id,
             title=title,
         )
+        if session_id is not None:
+            chat_session.id = session_id
         session.add(chat_session)
         await session.flush()
         await session.refresh(chat_session)
@@ -55,13 +91,21 @@ class ChatRepository:
         limit: int = 20,
         offset: int = 0,
         search: str | None = None,
+        keyset: Sequence[CursorValue] | None = None,
     ) -> list[ChatSession]:
+        """List a user's sessions, newest activity first.
+
+        ``keyset`` is ``(updated_at, id)`` of the previous page's last row. Sessions updated
+        between pages move to the top, so a cursor walk can miss or repeat them.
+        """
         query = select(ChatSession).where(
             ChatSession.organization_id == organization_id,
             ChatSession.user_id == user_id,
         )
         if search:
             query = query.where(ChatSession.title.ilike(f"%{search}%"))
+        if keyset is not None:
+            query = apply_keyset(query, SESSION_SORT_COLUMNS, True, keyset)
         query = (
             query.order_by(ChatSession.updated_at.desc(), ChatSession.id.desc())
             .offset(offset)
@@ -140,22 +184,20 @@ class ChatRepository:
         chat_session_id: UUID,
         limit: int = 200,
         offset: int = 0,
+        keyset: Sequence[CursorValue] | None = None,
+        descending: bool = False,
     ) -> list[ChatMessage]:
-        result = await session.execute(
-            select(ChatMessage)
-            .where(ChatMessage.chat_session_id == chat_session_id)
-            .order_by(
-                ChatMessage.created_at.asc(),
-                case(
-                    (ChatMessage.role == ChatRole.user.value, 0),
-                    (ChatMessage.role == ChatRole.assistant.value, 1),
-                    else_=2,
-                ).asc(),
-                ChatMessage.id.asc(),
-            )
-            .offset(offset)
-            .limit(limit)
-        )
+        """Messages in conversation order (newest first when ``descending``).
+
+        ``keyset`` is ``message_sort_key`` of the last row of the previous page in the same
+        order.
+        """
+        columns = _message_sort_columns()
+        query = select(ChatMessage).where(ChatMessage.chat_session_id == chat_session_id)
+        if keyset is not None:
+            query = apply_keyset(query, columns, descending, keyset)
+        ordering = [column.desc() if descending else column.asc() for column in columns]
+        result = await session.execute(query.order_by(*ordering).offset(offset).limit(limit))
         return list(result.scalars().all())
 
     async def count_chat_messages(
@@ -207,6 +249,7 @@ class ChatRepository:
         cost_usd: Decimal | None = None,
         prompt_template_version_id: UUID | None = None,
         trust_metadata_json: dict | None = None,
+        message_id: UUID | None = None,
     ) -> ChatMessage:
         message = ChatMessage(
             chat_session_id=chat_session_id,
@@ -221,6 +264,9 @@ class ChatRepository:
             prompt_template_version_id=prompt_template_version_id,
             trust_metadata_json=trust_metadata_json,
         )
+        if message_id is not None:
+            # Pre-assigned by the chat pipeline so WebSocket events carry it early (R05-02).
+            message.id = message_id
         session.add(message)
         await session.flush()
         await session.refresh(message)
@@ -318,3 +364,76 @@ class ChatRepository:
             .order_by(Citation.created_at.asc())
         )
         return [(row[0], row[1]) for row in result.all()]
+
+    async def list_citations_for_messages_with_filename(
+        self,
+        session: AsyncSession,
+        *,
+        chat_message_ids: list[UUID],
+    ) -> dict[UUID, list[tuple[Citation, str | None]]]:
+        """Citations with document filenames for many messages in one ``IN`` query.
+
+        Rows are grouped by message in ``(created_at, id)`` order; messages without
+        citations are absent from the result.
+        """
+        if not chat_message_ids:
+            return {}
+        result = await session.execute(
+            select(Citation, Document.filename)
+            .join(Document, Document.id == Citation.document_id)
+            .where(Citation.chat_message_id.in_(chat_message_ids))
+            .order_by(Citation.chat_message_id, Citation.created_at.asc(), Citation.id.asc())
+        )
+        grouped: dict[UUID, list[tuple[Citation, str | None]]] = {}
+        for citation, filename in result.all():
+            grouped.setdefault(citation.chat_message_id, []).append((citation, filename))
+        return grouped
+
+    async def create_citations_bulk(
+        self,
+        session: AsyncSession,
+        *,
+        chat_message_id: UUID,
+        rows: Sequence[CitationInsert],
+    ) -> list[Citation]:
+        """Insert all citations of one answer with a single flush and no refresh.
+
+        IDs are generated client side. All rows share one ``created_at`` (the transaction
+        time), so the IDs are assigned in ascending order: reading back by
+        ``(created_at, id)`` returns the citations in the order they were given.
+        """
+        if not rows:
+            return []
+        ids = sorted(uuid4() for _ in rows)
+        citations = [
+            Citation(
+                id=citation_id,
+                chat_message_id=chat_message_id,
+                document_id=row.document_id,
+                chunk_id=row.chunk_id,
+                text_snippet=row.text_snippet,
+                page_number=row.page_number,
+                start_offset=row.start_offset,
+                end_offset=row.end_offset,
+                similarity_score=row.similarity_score,
+                rerank_score=row.rerank_score,
+            )
+            for citation_id, row in zip(ids, rows, strict=True)
+        ]
+        session.add_all(citations)
+        await session.flush()
+        return citations
+
+
+@dataclass(frozen=True)
+class CitationInsert:
+    """One citation row for ``ChatRepository.create_citations_bulk``."""
+
+    document_id: UUID
+    chunk_id: UUID
+    text_snippet: str
+    page_number: int | None = None
+    start_offset: int | None = None
+    end_offset: int | None = None
+    similarity_score: float | None = None
+    rerank_score: float | None = None

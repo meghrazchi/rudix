@@ -168,7 +168,10 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class EvaluationResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "evaluation_results"
-    __table_args__ = (Index("idx_evaluation_results_run_id", "evaluation_run_id"),)
+    __table_args__ = (
+        Index("idx_evaluation_results_run_id", "evaluation_run_id"),
+        Index("idx_evaluation_results_question", "evaluation_question_id"),
+    )
 
     evaluation_run_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),

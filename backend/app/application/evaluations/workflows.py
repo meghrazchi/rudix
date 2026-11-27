@@ -17,6 +17,7 @@ from app.domains.prompt_templates.services.rendering import PromptTemplateValida
 from app.domains.quota.schemas.quota_schemas import QuotaType
 from app.domains.quota.services.plan_enforcement_service import PlanEnforcementService
 from app.models.enums import PromptTemplateKey
+from app.workers.dispatch import enqueue
 
 _chunking_profile_service = ChunkingProfileService()
 _prompt_template_service = PromptTemplateService()
@@ -190,7 +191,8 @@ async def trigger_evaluation_workflow(
     await db_session.refresh(evaluation_run)
 
     try:
-        task_result = run_evaluation_task.delay(
+        task_result = await enqueue(
+            run_evaluation_task,
             str(evaluation_run.id),
             request_id=request_id,
             organization_id=str(organization_id),

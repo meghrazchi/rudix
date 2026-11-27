@@ -1,44 +1,14 @@
 name: CI
 
 on:
+  # No `paths` filters: a required check from a workflow skipped by `paths`
+  # stays pending and blocks the merge, so CI runs on every PR and on
+  # every push to main and develop (a merge is a push to the target branch).
   push:
     branches:
-      - "**"
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "ci/**"
-      - "deploy/**"
-      - "infra/**"
-      - ".github/workflows/**"
-      - ".env.example"
-      - "Makefile"
-      - "backend/Makefile"
-      - "backend/pyproject.toml"
-      - "docker-compose.yml"
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-      - "frontend/next.config.ts"
-      - "frontend/playwright.config.ts"
-      - "frontend/vitest.config.ts"
+      - main
+      - develop
   pull_request:
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "ci/**"
-      - "deploy/**"
-      - "infra/**"
-      - ".github/workflows/**"
-      - ".env.example"
-      - "Makefile"
-      - "backend/Makefile"
-      - "backend/pyproject.toml"
-      - "docker-compose.yml"
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-      - "frontend/next.config.ts"
-      - "frontend/playwright.config.ts"
-      - "frontend/vitest.config.ts"
   workflow_dispatch:
 
 concurrency:
@@ -134,6 +104,15 @@ jobs:
     name: Backend Alembic validation
     runs-on: ubuntu-latest
     services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
       postgres:
         image: postgres:16
         env:
@@ -233,7 +212,7 @@ jobs:
 
       - name: Run frontend tests
         working-directory: frontend
-        run: npm run test
+        run: npm run test:coverage
 
       - name: Verify generated API types
         working-directory: frontend

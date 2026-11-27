@@ -20,6 +20,7 @@ from app.domains.admin.schemas.governance import (
     GovernanceToolSummary,
     ProviderSecurityPolicy,
 )
+from app.domains.admin.services.retention_service import effective_audit_retention_days
 from app.domains.agents.schemas import ToolEffectPolicy, ToolSpec
 from app.domains.agents.services.tool_registry import build_default_tool_specs
 
@@ -76,6 +77,10 @@ class GovernancePolicyService:
             policy_updated_by_user_id=str(stored.updated_by_user_id)
             if stored is not None and stored.updated_by_user_id is not None
             else None,
+            platform_audit_log_retention_days=settings.retention_audit_logs_days,
+            effective_audit_log_retention_days=effective_audit_retention_days(
+                policy_state.audit_log_retention_days, settings.retention_audit_logs_days
+            ),
         )
 
     async def update_policy(
@@ -120,6 +125,7 @@ class GovernancePolicyService:
             allowed_provider_profiles=list(ps.allowed_provider_profiles),
             admin_only_model_selection=ps.admin_only_model_selection,
             retention_warning_acknowledged=ps.retention_warning_acknowledged,
+            audit_log_retention_days=next_state.audit_log_retention_days,
         )
 
         warnings = self._resolve_warnings(policy_state=next_state)
@@ -133,6 +139,10 @@ class GovernancePolicyService:
             else None,
             audit_recorded=bool(changed_fields),
             changed_fields=changed_fields,
+            platform_audit_log_retention_days=settings.retention_audit_logs_days,
+            effective_audit_log_retention_days=effective_audit_retention_days(
+                next_state.audit_log_retention_days, settings.retention_audit_logs_days
+            ),
         )
 
     def _default_budget(self) -> GovernanceBudgetConfig:
@@ -203,6 +213,7 @@ class GovernancePolicyService:
                 admin_only_model_selection=stored.admin_only_model_selection,
                 retention_warning_acknowledged=stored.retention_warning_acknowledged,
             ),
+            audit_log_retention_days=stored.audit_log_retention_days,
         )
 
     def _sanitize_allowed_tools(self, candidates: list[str] | None) -> list[str]:
@@ -310,6 +321,13 @@ class GovernancePolicyService:
         else:
             next_ps = current_ps
 
+        # R04-09: an omitted field keeps the override; an explicit null clears it.
+        next_audit_retention = (
+            payload.audit_log_retention_days
+            if "audit_log_retention_days" in payload.model_fields_set
+            else current_state.audit_log_retention_days
+        )
+
         return GovernancePolicyState(
             agentic_mode_enabled=current_state.agentic_mode_enabled
             if payload.agentic_mode_enabled is None
@@ -322,6 +340,7 @@ class GovernancePolicyService:
             budgets=next_budgets,
             external_mcp_servers=next_external_servers,
             provider_security=next_ps,
+            audit_log_retention_days=next_audit_retention,
         )
 
     def _resolve_warnings(self, *, policy_state: GovernancePolicyState) -> list[str]:

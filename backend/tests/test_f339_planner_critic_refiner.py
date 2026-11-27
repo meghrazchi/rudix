@@ -636,7 +636,7 @@ class TestPipelineHelpers:
     def test_resolve_controls_feature_disabled(self):
         from app.interfaces.http.chat import _resolve_planner_critic_controls
 
-        with patch("app.interfaces.http.chat.settings") as mock_settings:
+        with patch("app.application.chat.pipeline.controls.settings") as mock_settings:
             mock_settings.feature_enable_planner_critic_refiner = False
             mock_settings.planner_critic_refiner_mode = "high_risk_only"
             enabled, _mode, _high_risk = _resolve_planner_critic_controls(None)
@@ -651,7 +651,7 @@ class TestPipelineHelpers:
             planner_critic_refiner_mode="always",
             planner_high_risk_strategies=["comparison"],
         )
-        with patch("app.interfaces.http.chat.settings") as mock_settings:
+        with patch("app.application.chat.pipeline.controls.settings") as mock_settings:
             mock_settings.feature_enable_planner_critic_refiner = False
             mock_settings.planner_critic_refiner_mode = "high_risk_only"
             enabled, mode, high_risk = _resolve_planner_critic_controls(profile)

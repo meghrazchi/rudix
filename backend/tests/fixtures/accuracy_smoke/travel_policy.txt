@@ -1,0 +1,9 @@
+Travel booking: employees book flights through the approved travel portal at least fourteen days before departure. Economy class is the default fare for flights shorter than six hours.
+
+Hotel allowance: the nightly hotel allowance is 180 euros in standard cities and 240 euros in high cost cities such as London, Zurich, and New York.
+
+Meal per diem: the daily meal per diem is 55 euros. Alcohol is never reimbursed and receipts are not required for the per diem.
+
+Expense reports: travel expense reports must be submitted within thirty days of returning, with itemised receipts attached for every reimbursable item above 25 euros.
+
+Mileage: private car mileage is reimbursed at 0.30 euros per kilometre when no train connection is available.

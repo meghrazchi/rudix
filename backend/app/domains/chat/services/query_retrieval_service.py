@@ -1,13 +1,25 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import asyncio
+import inspect
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, replace
 from typing import Any, Protocol
 from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
 from app.domains.ai.providers.protocols import EmbeddingProvider, EmbeddingRequest
 from app.domains.documents.services.qdrant_filters import build_organization_filter
+from app.domains.vector_index.services.generation_service import (
+    cached_read_target,
+    configured_alias,
+    read_target_for_vector,
+    registry,
+)
 
 
 class QdrantClientLike(Protocol):
@@ -39,6 +51,10 @@ class QueryRetrievalResult:
     candidates: list[RetrievedCandidate]
 
 
+def _is_async_client(client: Any) -> bool:
+    return inspect.iscoroutinefunction(getattr(client, "query_points", None))
+
+
 class QueryRetrievalService:
     def __init__(
         self,
@@ -48,12 +64,63 @@ class QueryRetrievalService:
         vector_size: int | None = None,
         embedding_provider: EmbeddingProvider | None = None,
         qdrant_client: QdrantClientLike | None = None,
+        session_factory: Callable[[], AsyncSession] | None = None,
     ) -> None:
-        self.embedding_model = (embedding_model or settings.openai_embedding_model).strip()
-        self.qdrant_collection = (qdrant_collection or settings.qdrant_collection).strip()
-        self.vector_size = vector_size or settings.qdrant_vector_size
+        # None follows the active vector index generation (R06-08); in legacy mode that is
+        # OPENAI_EMBEDDING_MODEL, QDRANT_COLLECTION and QDRANT_VECTOR_SIZE as before.
+        self._embedding_model = embedding_model.strip() if embedding_model else None
+        self._qdrant_collection = qdrant_collection.strip() if qdrant_collection else None
+        self._vector_size = vector_size or None
         self._embedding_provider = embedding_provider
         self._qdrant_client = qdrant_client
+        self._session_factory = session_factory
+
+    @property
+    def embedding_model(self) -> str:
+        if self._embedding_model is not None:
+            return self._embedding_model
+        return cached_read_target()[1].embedding_model
+
+    @embedding_model.setter
+    def embedding_model(self, value: str) -> None:
+        self._embedding_model = value.strip()
+
+    @property
+    def qdrant_collection(self) -> str:
+        if self._qdrant_collection is not None:
+            return self._qdrant_collection
+        return cached_read_target()[0]
+
+    @qdrant_collection.setter
+    def qdrant_collection(self, value: str) -> None:
+        self._qdrant_collection = value.strip()
+
+    @property
+    def vector_size(self) -> int:
+        if self._vector_size is not None:
+            return self._vector_size
+        return cached_read_target()[1].vector_size
+
+    @vector_size.setter
+    def vector_size(self, value: int) -> None:
+        self._vector_size = int(value)
+
+    async def refresh_index_target(self) -> None:
+        """Load the generation registry (TTL cache) before reading model or collection."""
+        if configured_alias() is not None:
+            await registry.snapshot()
+
+    def search_collection(self, query_vector: Sequence[float]) -> str:
+        """Collection to search with this vector (R06-08).
+
+        An explicit ``qdrant_collection`` wins. Otherwise the active generation, or the
+        retired or building generation whose dimension the vector has: a refresh of the
+        shared registry between this query's embedding and its search (a swap or rollback)
+        must not send a vector to a collection of another dimension.
+        """
+        if self._qdrant_collection is not None:
+            return self._qdrant_collection
+        return read_target_for_vector(len(query_vector))[0]
 
     def _resolve_embedding_provider(self) -> EmbeddingProvider:
         if self._embedding_provider is None:
@@ -71,28 +138,61 @@ class QueryRetrievalService:
             self._qdrant_client = qdrant_module.qdrant_client
         return self._qdrant_client
 
+    def _resolve_async_path_client(self) -> Any:
+        """Injected client (constructor or module override), else the async search client."""
+        if self._qdrant_client is not None:
+            return self._qdrant_client
+        injected = qdrant_module.injected_sync_client()
+        if injected is not None:
+            return injected
+        return qdrant_module.get_async_search_client()
+
     async def embed_query(
         self,
         *,
         question: str,
         provider: EmbeddingProvider | None = None,
+        embedding_model: str | None = None,
+        vector_size: int | None = None,
     ) -> tuple[list[float], int]:
+        """Embed the question; ``embedding_model`` and ``vector_size`` pin the target."""
         if not question.strip():
             raise ValueError("question is required")
 
+        if embedding_model is None or vector_size is None:
+            await self.refresh_index_target()
+        # Read once, before the provider call: another request may refresh the shared
+        # registry while this one awaits the provider (R06-08).
+        model = embedding_model or self.embedding_model
+        expected_size = vector_size or self.vector_size
         embedding_provider = provider or self._resolve_embedding_provider()
-        response = await embedding_provider.embed(
-            EmbeddingRequest(texts=[question], model=self.embedding_model)
-        )
+        response = await embedding_provider.embed(EmbeddingRequest(texts=[question], model=model))
         if not response.vectors:
             raise RuntimeError("Embedding response did not include vectors")
 
         vector = response.vectors[0]
-        if len(vector) != self.vector_size:
+        if len(vector) != expected_size:
             raise RuntimeError(
-                f"Embedding dimension mismatch: expected {self.vector_size}, got {len(vector)}"
+                f"Embedding dimension mismatch: expected {expected_size}, got {len(vector)}"
             )
         return vector, response.prompt_tokens
+
+    @staticmethod
+    def _query_filter(
+        *,
+        organization_id: UUID,
+        document_ids: list[UUID] | None,
+        index_version: str | None,
+        index_versions: Sequence[str] | None,
+    ) -> object:
+        return build_organization_filter(
+            organization_id=str(organization_id),
+            document_ids=[str(document_id) for document_id in document_ids]
+            if document_ids is not None
+            else None,
+            index_version=index_version,
+            index_versions=index_versions,
+        )
 
     def retrieve_candidates(
         self,
@@ -103,25 +203,19 @@ class QueryRetrievalService:
         initial_top_k: int,
         index_version: str | None = None,
         qdrant_client: QdrantClientLike | None = None,
+        index_versions: Sequence[str] | None = None,
     ) -> list[RetrievedCandidate]:
+        """Synchronous search (scripts, evaluation, safety scoring); payload parent text."""
         if initial_top_k < 1:
             raise ValueError("initial_top_k must be at least 1")
         if document_ids is not None and len(document_ids) == 0:
             return []
 
-        normalized_organization_id = str(organization_id)
-        normalized_document_ids = (
-            {str(document_id) for document_id in document_ids}
-            if document_ids is not None
-            else set()
-        )
-
-        query_filter = build_organization_filter(
-            organization_id=normalized_organization_id,
-            document_ids=[str(document_id) for document_id in document_ids]
-            if document_ids is not None
-            else None,
+        query_filter = self._query_filter(
+            organization_id=organization_id,
+            document_ids=document_ids,
             index_version=index_version,
+            index_versions=index_versions,
         )
         client = qdrant_client or self._resolve_qdrant_client()
         results = self._search_results(
@@ -130,7 +224,139 @@ class QueryRetrievalService:
             query_filter=query_filter,
             limit=initial_top_k,
         )
+        return self._to_candidates(results, organization_id, document_ids)
 
+    async def aretrieve_candidates(
+        self,
+        *,
+        query_vector: list[float],
+        organization_id: UUID,
+        document_ids: list[UUID] | None,
+        initial_top_k: int,
+        index_version: str | None = None,
+        qdrant_client: QdrantClientLike | None = None,
+        index_versions: Sequence[str] | None = None,
+    ) -> list[RetrievedCandidate]:
+        """Request-path search through ``AsyncQdrantClient`` (R06-07).
+
+        A sync client (an injected ``QdrantClientLike``) runs in a thread, as all searches
+        did before. With ``QDRANT_STORE_PARENT_TEXT=false`` parent text missing from the
+        payload is read from ``document_chunks`` (``resolve_parent_texts``).
+        """
+        if initial_top_k < 1:
+            raise ValueError("initial_top_k must be at least 1")
+        if document_ids is not None and len(document_ids) == 0:
+            return []
+
+        await self.refresh_index_target()
+        client = qdrant_client or self._resolve_async_path_client()
+        if not _is_async_client(client):
+            candidates = await asyncio.to_thread(
+                self.retrieve_candidates,
+                query_vector=query_vector,
+                organization_id=organization_id,
+                document_ids=document_ids,
+                initial_top_k=initial_top_k,
+                index_version=index_version,
+                qdrant_client=client,
+                index_versions=index_versions,
+            )
+        else:
+            candidates = await self._search_async(
+                client,
+                query_vector=query_vector,
+                organization_id=organization_id,
+                document_ids=document_ids,
+                initial_top_k=initial_top_k,
+                index_version=index_version,
+                index_versions=index_versions,
+            )
+        if settings.qdrant_store_parent_text:
+            return candidates
+        return await self.resolve_parent_texts(candidates, organization_id=organization_id)
+
+    async def _search_async(
+        self,
+        client: Any,
+        *,
+        query_vector: list[float],
+        organization_id: UUID,
+        document_ids: list[UUID] | None,
+        initial_top_k: int,
+        index_version: str | None,
+        index_versions: Sequence[str] | None,
+    ) -> list[RetrievedCandidate]:
+        query_filter = self._query_filter(
+            organization_id=organization_id,
+            document_ids=document_ids,
+            index_version=index_version,
+            index_versions=index_versions,
+        )
+        response = await client.query_points(
+            collection_name=self.search_collection(query_vector),
+            query=query_vector,
+            query_filter=query_filter,
+            limit=initial_top_k,
+            with_payload=True,
+            with_vectors=False,
+        )
+        points = getattr(response, "points", None)
+        if points is None:
+            raise RuntimeError("Qdrant query_points returned no points")
+        return self._to_candidates(list(points), organization_id, document_ids)
+
+    async def resolve_parent_texts(
+        self, candidates: list[RetrievedCandidate], *, organization_id: UUID
+    ) -> list[RetrievedCandidate]:
+        """Fill ``parent_text`` of child candidates from ``document_chunks`` (R06-07).
+
+        One batched query in a short session, bound to the organisation and joined to
+        ``documents.organization_id``, so a parent of another organisation is never read.
+        """
+        wanted = {
+            c.parent_chunk_id
+            for c in candidates
+            if c.chunk_level == 1 and c.parent_chunk_id is not None and not c.parent_text
+        }
+        if not wanted:
+            return candidates
+
+        from app.db.tenant_context import tenant_context_scope
+        from app.models.document import Document, DocumentChunk
+
+        factory = self._session_factory
+        if factory is None:
+            from app.db.session import SessionLocal
+
+            factory = SessionLocal
+        statement = (
+            select(DocumentChunk.id, DocumentChunk.text)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(DocumentChunk.id.in_(list(wanted)), Document.organization_id == organization_id)
+        )
+        with tenant_context_scope(organization_id):
+            async with factory() as session:
+                rows = (await session.execute(statement)).all()
+        texts = {row[0]: str(row[1]).strip() for row in rows if row[1]}
+        return [
+            replace(c, parent_text=texts[c.parent_chunk_id])
+            if c.parent_chunk_id in texts and not c.parent_text
+            else c
+            for c in candidates
+        ]
+
+    def _to_candidates(
+        self,
+        results: list[Any],
+        organization_id: UUID,
+        document_ids: list[UUID] | None,
+    ) -> list[RetrievedCandidate]:
+        normalized_organization_id = str(organization_id)
+        normalized_document_ids = (
+            {str(document_id) for document_id in document_ids}
+            if document_ids is not None
+            else set()
+        )
         candidates: list[RetrievedCandidate] = []
         for result in results:
             payload = getattr(result, "payload", None) or {}
@@ -201,18 +427,20 @@ class QueryRetrievalService:
         index_version: str | None = None,
         provider: EmbeddingProvider | None = None,
         qdrant_client: QdrantClientLike | None = None,
+        index_versions: Sequence[str] | None = None,
     ) -> QueryRetrievalResult:
         query_vector, prompt_tokens = await self.embed_query(
             question=question,
             provider=provider,
         )
-        candidates = self.retrieve_candidates(
+        candidates = await self.aretrieve_candidates(
             query_vector=query_vector,
             organization_id=organization_id,
             document_ids=document_ids,
             initial_top_k=initial_top_k,
             index_version=index_version,
             qdrant_client=qdrant_client,
+            index_versions=index_versions,
         )
         return QueryRetrievalResult(
             embedding_model=self.embedding_model,
@@ -233,7 +461,7 @@ class QueryRetrievalService:
         if callable(search_method):
             return list(
                 search_method(
-                    collection_name=self.qdrant_collection,
+                    collection_name=self.search_collection(query_vector),
                     query_vector=query_vector,
                     query_filter=query_filter,
                     limit=limit,
@@ -245,7 +473,7 @@ class QueryRetrievalService:
         query_points_method = getattr(qdrant_client, "query_points", None)
         if callable(query_points_method):
             response = query_points_method(
-                collection_name=self.qdrant_collection,
+                collection_name=self.search_collection(query_vector),
                 query=query_vector,
                 query_filter=query_filter,
                 limit=limit,

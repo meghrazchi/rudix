@@ -33,6 +33,7 @@ type CardKey =
   | "featureFlags"
   | "failedJobs"
   | "sourceHealth"
+  | "vectorIndex"
   | "statusIncidents"
   | "quotasRateLimits"
   | "dataPortability"
@@ -627,6 +628,11 @@ export function AdminLandingPage() {
               <SmallCard
                 cardKey="sourceHealth"
                 href="/admin/source-health"
+                status="available"
+              />
+              <SmallCard
+                cardKey="vectorIndex"
+                href="/admin/vector-index"
                 status="available"
               />
               <SmallCard

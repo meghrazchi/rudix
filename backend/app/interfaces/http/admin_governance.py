@@ -103,6 +103,20 @@ async def update_governance_policy(
 
     audit_recorded = False
     if response.changed_fields:
+        metadata: dict[str, object] = {
+            "changed_fields": response.changed_fields,
+            "status_code": status.HTTP_200_OK,
+            "allowed_tool_count": len(response.policy.allowed_tool_names),
+            "side_effect_tools_allowed": response.policy.allow_side_effect_tools,
+            "external_mcp_server_count": len(response.policy.external_mcp_servers),
+            "updated_at": datetime.now(tz=UTC).isoformat(),
+        }
+        if "audit_log_retention_days" in response.changed_fields:
+            # R04-09: record the new override and the window that now applies.
+            metadata["audit_log_retention_days"] = response.policy.audit_log_retention_days
+            metadata["effective_audit_log_retention_days"] = (
+                response.effective_audit_log_retention_days
+            )
         audit_recorded = await audit_log_service.record(
             db_session,
             organization_id=organization_id,
@@ -110,14 +124,7 @@ async def update_governance_policy(
             action="admin.governance.policy.updated",
             resource_type="organization_governance_policy",
             request_id=request_id,
-            metadata={
-                "changed_fields": response.changed_fields,
-                "status_code": status.HTTP_200_OK,
-                "allowed_tool_count": len(response.policy.allowed_tool_names),
-                "side_effect_tools_allowed": response.policy.allow_side_effect_tools,
-                "external_mcp_server_count": len(response.policy.external_mcp_servers),
-                "updated_at": datetime.now(tz=UTC).isoformat(),
-            },
+            metadata=metadata,
         )
     await db_session.commit()
 

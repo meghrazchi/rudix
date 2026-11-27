@@ -168,6 +168,12 @@ export function createMockApiHandlers(
     http.post(`${apiBaseUrl}/chat`, () =>
       HttpResponse.json(mockChatQueryResponse),
     ),
+    http.post("*/chat/ws-ticket", () =>
+      HttpResponse.json(
+        { ticket: "msw-ws-ticket", expires_in: 30 },
+        { headers: { "Cache-Control": "no-store" } },
+      ),
+    ),
     http.get(`${apiBaseUrl}/evaluation-sets`, ({ request }) => {
       const { limit, offset } = parsePaginationParams(request.url);
       return HttpResponse.json({

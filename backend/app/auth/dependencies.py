@@ -15,14 +15,16 @@ from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.permission_service import PermissionService
 from app.auth.policy_engine import Action
+from app.auth.principal_snapshot import request_snapshot
 from app.auth.resource_context_builder import (
     build_document_resource_context,
     get_subject_accessible_collection_ids,
 )
-from app.core.config import settings
+from app.auth.usage_touch import UsageTouch, UsageTouchKind, record_touches
+from app.core.config import RlsEnforcement, settings
 from app.core.logging import log_authorization_event
 from app.db.session import get_db_session
-from app.db.tenant_context import bind_session_tenant
+from app.db.tenant_context import apply_tenant_context, bind_session_tenant
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.connector import ConnectorConnection, ExternalItem
 from app.models.document import Document
@@ -101,11 +103,16 @@ async def _authenticate_api_key(
     elif request.client:
         client_ip = request.client.host
 
-    await repo.record_usage(
-        db_session,
-        key_id=api_key.id,
-        used_at=datetime.now(tz=UTC),
-        ip_address=client_ip,
+    # R04-06: buffered in Redis and flushed by ``usage.touch.flush``; no write on this path.
+    await record_touches(
+        [
+            UsageTouch(
+                kind=UsageTouchKind.api_key,
+                credential_id=api_key.id,
+                used_at=datetime.now(tz=UTC),
+                ip_address=client_ip,
+            )
+        ]
     )
 
     scopes = api_key.scopes if isinstance(api_key.scopes, list) else []
@@ -161,17 +168,22 @@ async def _authenticate_service_account_token(
     elif request.client:
         client_ip = request.client.host
 
+    # R04-06: one Redis round trip for the token and its account; no write on this path.
     now = datetime.now(tz=UTC)
-    await repo.record_token_usage(
-        db_session,
-        token_id=token.id,
-        used_at=now,
-        ip_address=client_ip,
-    )
-    await repo.record_account_usage(
-        db_session,
-        account_id=account.id,
-        used_at=now,
+    await record_touches(
+        [
+            UsageTouch(
+                kind=UsageTouchKind.service_account_token,
+                credential_id=token.id,
+                used_at=now,
+                ip_address=client_ip,
+            ),
+            UsageTouch(
+                kind=UsageTouchKind.service_account,
+                credential_id=account.id,
+                used_at=now,
+            ),
+        ]
     )
 
     scopes = account.scopes if isinstance(account.scopes, list) else []
@@ -187,40 +199,45 @@ async def _authenticate_service_account_token(
     )
 
 
-async def get_current_principal(
+async def authenticate_bearer_request(
     request: Request,
-    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    db_session: AsyncSession,
 ) -> AuthenticatedPrincipal:
+    """Authenticate the request's ``Authorization`` header without HTTP error mapping.
+
+    Tries service-account tokens (``svc_``), then API keys (``rudix_``), then the
+    configured auth provider. Raises ``AuthenticationError`` / ``AuthorizationError``.
+    Shared by ``get_current_principal`` and the WebSocket handshake.
+    """
     authorization = request.headers.get("authorization", "")
     scheme, _, token = authorization.partition(" ")
     raw = token.strip()
     if scheme.lower() == "bearer" and raw.startswith(_SERVICE_ACCOUNT_TOKEN_PREFIX):
-        try:
-            principal = await _authenticate_service_account_token(request, raw, db_session)
-            bind_session_tenant(db_session, principal.organization_id)
-            request.state.auth_principal = principal
-            return principal
-        except AuthenticationError as exc:
-            raise _unauthorized(str(exc)) from exc
+        return await _authenticate_service_account_token(request, raw, db_session)
     if scheme.lower() == "bearer" and raw.startswith(_API_KEY_PREFIX):
-        try:
-            principal = await _authenticate_api_key(request, raw, db_session)
-            bind_session_tenant(db_session, principal.organization_id)
-            request.state.auth_principal = principal
-            return principal
-        except AuthenticationError as exc:
-            raise _unauthorized(str(exc)) from exc
-
+        return await _authenticate_api_key(request, raw, db_session)
     provider = get_auth_provider()
+    return await provider.authenticate(request, db_session)
+
+
+async def get_current_principal(
+    request: Request,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AuthenticatedPrincipal:
     try:
-        principal = await provider.authenticate(request, db_session)
-        bind_session_tenant(db_session, principal.organization_id)
-        request.state.auth_principal = principal
-        return principal
+        principal = await authenticate_bearer_request(request, db_session)
     except AuthenticationError as exc:
         raise _unauthorized(str(exc)) from exc
     except AuthorizationError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    bind_session_tenant(
+        db_session,
+        principal.organization_id,
+        enforce_guard=settings.effective_rls_enforcement == RlsEnforcement.strict,
+    )
+    await apply_tenant_context(db_session)
+    request.state.auth_principal = principal
+    return principal
 
 
 def require_roles(
@@ -302,7 +319,7 @@ def require_feature(
 
 def require_permission(
     *required_permissions: str,
-) -> Callable[[AuthenticatedPrincipal, AsyncSession], Awaitable[AuthenticatedPrincipal]]:
+) -> Callable[[Request, AuthenticatedPrincipal, AsyncSession], Awaitable[AuthenticatedPrincipal]]:
     """FastAPI dependency that checks the caller has ALL of the given permissions.
 
     Resolves custom role permissions from the database when the member has a
@@ -312,6 +329,7 @@ def require_permission(
     normalized_perms = frozenset(p.strip() for p in required_permissions if p.strip())
 
     async def dependency(
+        request: Request,
         principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
         db_session: Annotated[AsyncSession, Depends(get_db_session)],
     ) -> AuthenticatedPrincipal:
@@ -328,6 +346,7 @@ def require_permission(
             return principal
 
         custom_role_id: UUID | None = None
+        org_uuid: UUID | None = None
         if principal.organization_id:
             try:
                 org_uuid = UUID(principal.organization_id)
@@ -336,7 +355,11 @@ def require_permission(
                 org_uuid = None
                 user_uuid = None
 
-            if org_uuid and user_uuid:
+            snapshot = request_snapshot(request, user_id=principal.user_id)
+            if org_uuid and snapshot is not None:
+                # R04-05: the membership came from the (cached) principal snapshot.
+                custom_role_id = snapshot.custom_role_id_for(principal.organization_id)
+            elif org_uuid and user_uuid:
                 result = await db_session.execute(
                     select(OrganizationMember.custom_role_id).where(
                         OrganizationMember.organization_id == org_uuid,
@@ -351,6 +374,7 @@ def require_permission(
             db_session,
             roles=principal.roles,
             custom_role_id=custom_role_id,
+            organization_id=org_uuid,
         )
         if not normalized_perms.issubset(user_perms):
             raise HTTPException(
@@ -381,41 +405,44 @@ async def ensure_document_ids_access(
         return []
 
     organization_id = _active_organization_id(principal)
-    for parsed_id in parsed_ids:
-        document = await _document_repository.get_document(
-            db_session,
-            document_id=parsed_id,
-            organization_id=organization_id,
-        )
-        if document is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-        if document.connector_external_item_id is not None:
-            result = await db_session.execute(
-                select(ExternalItem.deleted_at, ConnectorConnection.status)
-                .join(
-                    ConnectorConnection,
-                    ConnectorConnection.id == ExternalItem.connection_id,
-                )
-                .where(
-                    ExternalItem.id == document.connector_external_item_id,
-                    ExternalItem.organization_id == organization_id,
-                )
+    # One query for the documents and one for their connector items (R04-03): any missing
+    # document, missing/deleted connector item, or inactive connection is still a 404.
+    documents = await _document_repository.get_documents_by_ids(
+        db_session,
+        document_ids=parsed_ids,
+        organization_id=organization_id,
+    )
+    documents_by_id = {document.id: document for document in documents}
+    if any(parsed_id not in documents_by_id for parsed_id in parsed_ids):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    external_item_ids = {
+        document.connector_external_item_id
+        for document in documents
+        if document.connector_external_item_id is not None
+    }
+    if external_item_ids:
+        result = await db_session.execute(
+            select(ExternalItem.id, ExternalItem.deleted_at, ConnectorConnection.status)
+            .join(
+                ConnectorConnection,
+                ConnectorConnection.id == ExternalItem.connection_id,
             )
-            row = result.first()
-            if row is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Document not found",
-                )
-            deleted_at, connection_status = row
-            if (
-                deleted_at is not None
-                or connection_status != ConnectorConnectionStatus.active.value
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Document not found",
-                )
+            .where(
+                ExternalItem.id.in_(external_item_ids),
+                ExternalItem.organization_id == organization_id,
+            )
+        )
+        usable_item_ids = {
+            item_id
+            for item_id, deleted_at, connection_status in result.all()
+            if deleted_at is None and connection_status == ConnectorConnectionStatus.active.value
+        }
+        if not external_item_ids <= usable_item_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
 
     return parsed_ids
 

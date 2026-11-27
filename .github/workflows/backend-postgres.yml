@@ -1,0 +1,107 @@
+name: Backend PostgreSQL
+
+on:
+  # No `paths` filters: `Backend PostgreSQL tests` is meant to be a required check, and a
+  # required check from a workflow skipped by `paths` stays pending and blocks the merge.
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  backend-postgres:
+    name: Backend PostgreSQL tests
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: rudix_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rudix_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENVIRONMENT: test
+      API_BASE_URL: http://localhost:8000
+      FRONTEND_BASE_URL: http://localhost:3000
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/rudix_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/rudix_test
+      POSTGRES_DB: rudix_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      OPENAI_API_KEY: ci-placeholder-key
+      AUTH_PROVIDER: app
+      APP_AUTH_SECRET: ci-local-secret
+      APP_AUTH_ISSUER: rudix-app
+      APP_AUTH_AUDIENCE: rudix-api
+      MINIO_ENDPOINT: http://localhost:9000
+      MINIO_BUCKET: documents
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      QDRANT_URL: http://localhost:6333
+      QDRANT_COLLECTION: documents
+      QDRANT_BOOTSTRAP_COLLECTION: "true"
+      QDRANT_VECTOR_SIZE: "1536"
+      QDRANT_DISTANCE: cosine
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672//
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+      REDIS_URL: redis://localhost:6379/0
+      # Opt-in for tests/test_rate_limit_redis_live.py (real Lua scripts vs reference impls).
+      TEST_REDIS_URL: redis://localhost:6379/15
+      MINIO_BOOTSTRAP_BUCKET: "true"
+      LLM_DEFAULT_PROVIDER: openai
+      EMBEDDING_DEFAULT_PROVIDER: openai
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install backend tooling
+        run: make -C backend install
+
+      - name: Run PostgreSQL and Redis marked tests
+        # The pg_migrated_url fixture runs `alembic upgrade head` against TEST_DATABASE_URL.
+        run: >-
+          make -C backend test-postgres
+          PYTEST_ARGS="--junitxml=$GITHUB_WORKSPACE/artifacts/backend-postgres-junit.xml"
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-postgres-junit
+          path: artifacts/backend-postgres-junit.xml
+          if-no-files-found: ignore

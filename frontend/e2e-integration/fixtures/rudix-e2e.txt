@@ -1,0 +1,3 @@
+The Rudix integration verification code is AURORA-7319.
+
+This file is uploaded by the Rudix integration end-to-end suite. It checks that an uploaded document is indexed and that chat answers cite it.

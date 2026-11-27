@@ -175,6 +175,79 @@ describe("AdminPermissionsPage", () => {
       });
     });
 
+    it("exposes tabs with ARIA tab semantics and selected state", async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      const tablist = screen.getByRole("tablist", {
+        name: "Permissions tabs",
+      });
+      expect(tablist).toBeInTheDocument();
+      const roleMatrix = screen.getByRole("tab", { name: "Role Matrix" });
+      const grants = screen.getByRole("tab", { name: "Resource Grants" });
+      expect(roleMatrix).toHaveAttribute("aria-selected", "true");
+      expect(roleMatrix).toHaveAttribute("tabindex", "0");
+      expect(grants).toHaveAttribute("aria-selected", "false");
+      expect(grants).toHaveAttribute("tabindex", "-1");
+      expect(screen.getByRole("tabpanel")).toHaveAttribute(
+        "aria-labelledby",
+        roleMatrix.id,
+      );
+
+      await user.click(grants);
+      expect(grants).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tabpanel")).toHaveAttribute(
+        "aria-labelledby",
+        grants.id,
+      );
+
+      // Arrow keys move selection and focus (automatic activation).
+      await user.keyboard("{ArrowRight}");
+      const denies = screen.getByRole("tab", { name: "Resource Denies" });
+      expect(denies).toHaveAttribute("aria-selected", "true");
+      expect(denies).toHaveFocus();
+      await user.keyboard("{Home}");
+      expect(roleMatrix).toHaveAttribute("aria-selected", "true");
+      expect(roleMatrix).toHaveFocus();
+      // Unhandled keys leave the selection unchanged.
+      await user.keyboard("{Enter}");
+      expect(roleMatrix).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("follows visual order for arrow keys in right-to-left layouts", async () => {
+      const user = userEvent.setup();
+      document.documentElement.dir = "rtl";
+      try {
+        renderPage();
+        await user.click(screen.getByRole("tab", { name: "Role Matrix" }));
+        await user.keyboard("{ArrowLeft}");
+        expect(
+          screen.getByRole("tab", { name: "Resource Grants" }),
+        ).toHaveAttribute("aria-selected", "true");
+      } finally {
+        document.documentElement.dir = "";
+      }
+    });
+
+    it("labels every Access Debugger form control", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByRole("tab", { name: "Access Debugger" }));
+
+      expect(
+        screen.getByRole("textbox", { name: /Subject user ID/ }),
+      ).toHaveValue("");
+      expect(
+        screen.getByRole("combobox", { name: "Resource type" }),
+      ).toHaveValue("document");
+      expect(screen.getByRole("combobox", { name: "Action" })).toHaveValue(
+        "view",
+      );
+      expect(
+        screen.getByRole("textbox", { name: /Resource ID/ }),
+      ).toBeInTheDocument();
+    });
+
     it("defaults to role matrix tab", async () => {
       renderPage();
       await waitFor(() =>

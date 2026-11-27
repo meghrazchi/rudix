@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -6,8 +7,10 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.documents.services.fts_config import fts_vector_expression
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.enums import DocumentStatus
+from app.shared.pagination import CursorValue, apply_keyset
 
 
 class DocumentRepository:
@@ -123,7 +126,13 @@ class DocumentRepository:
         offset: int = 0,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        keyset: Sequence[CursorValue] | None = None,
     ) -> list[Document]:
+        """List the organisation's documents.
+
+        ``keyset`` (``created_at``, ``id``) of the previous page's last row selects the rows
+        after it; it is only valid with ``sort_by="created_at"``.
+        """
         statement = select(Document).where(Document.organization_id == organization_id)
         if status is not None:
             statement = statement.where(Document.status == status)
@@ -148,6 +157,15 @@ class DocumentRepository:
         }
         sort_column = sort_columns.get(sort_by, Document.created_at)
         ordered = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+        if keyset is not None:
+            if sort_by != "created_at":
+                raise ValueError("keyset pagination requires sort_by='created_at'")
+            statement = apply_keyset(
+                statement,
+                [Document.created_at, Document.id],
+                [sort_order != "asc", True],
+                keyset,
+            )
         statement = statement.order_by(ordered, Document.id.desc()).offset(offset).limit(limit)
 
         result = await session.execute(statement)
@@ -388,6 +406,7 @@ class DocumentRepository:
         chunking_strategy: str | None = None,
         chunking_profile_version: str | None = None,
         chunking_config_snapshot: dict | None = None,
+        clear_processing_claim: bool = False,
     ) -> Document | None:
         result = await session.execute(select(Document).where(Document.id == document_id))
         document = result.scalar_one_or_none()
@@ -395,6 +414,10 @@ class DocumentRepository:
             return None
         document.status = status
         document.error_message = error_message
+        if clear_processing_claim:
+            document.processing_task_id = None
+            document.processing_started_at = None
+            document.processing_reap_count = 0
         if page_count is not None:
             document.page_count = page_count
         if chunk_count is not None:
@@ -479,8 +502,12 @@ class DocumentRepository:
         child_count: int | None = None,
         chunk_type: str = "text",
         table_metadata: dict | None = None,
+        organization_id: UUID | None = None,
+        fts_config: str | None = None,
     ) -> DocumentChunk:
         chunk = DocumentChunk(
+            organization_id=organization_id,
+            fts_config=fts_config,
             document_id=document_id,
             chunk_index=chunk_index,
             text=text,
@@ -500,6 +527,9 @@ class DocumentRepository:
             chunk_type=chunk_type,
             table_metadata=table_metadata,
         )
+        if fts_config is not None and session.get_bind().dialect.name == "postgresql":
+            # R06-09: language-aware vector, written in the INSERT itself.
+            chunk.fts_vector = fts_vector_expression(fts_config, text)
         session.add(chunk)
         await session.flush()
         await session.refresh(chunk)
@@ -612,6 +642,35 @@ class DocumentRepository:
         result = await session.execute(statement)
         return int(result.scalar_one())
 
+    async def count_document_chunks_for_documents(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        document_ids: list[UUID],
+        index_version: str | None = None,
+    ) -> dict[UUID, int]:
+        """Chunk counts for many documents in one grouped query (R04-03).
+
+        Counts only chunks of the organisation's documents; documents with no chunks are
+        absent, so callers default to ``0`` as ``count_document_chunks`` would return.
+        """
+        if not document_ids:
+            return {}
+        statement = (
+            select(DocumentChunk.document_id, func.count(DocumentChunk.id))
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(
+                DocumentChunk.document_id.in_(document_ids),
+                Document.organization_id == organization_id,
+            )
+            .group_by(DocumentChunk.document_id)
+        )
+        if index_version is not None:
+            statement = statement.where(DocumentChunk.index_version == index_version)
+        result = await session.execute(statement)
+        return {row[0]: int(row[1]) for row in result.all()}
+
     async def set_deletion_requested_at(
         self,
         session: AsyncSession,
@@ -716,14 +775,14 @@ class DocumentRepository:
         await session.refresh(document)
         return document
 
-    async def get_documents_by_ids_for_trust(
+    async def get_documents_by_ids(
         self,
         session: AsyncSession,
         *,
         document_ids: list[UUID],
         organization_id: UUID,
     ) -> list[Document]:
-        """Fetch minimal trust-related fields for a list of document IDs."""
+        """Fetch the organisation's documents matching ``document_ids`` in one query."""
         if not document_ids:
             return []
         result = await session.execute(
@@ -733,6 +792,18 @@ class DocumentRepository:
             )
         )
         return list(result.scalars().all())
+
+    async def get_documents_by_ids_for_trust(
+        self,
+        session: AsyncSession,
+        *,
+        document_ids: list[UUID],
+        organization_id: UUID,
+    ) -> list[Document]:
+        """Fetch minimal trust-related fields for a list of document IDs."""
+        return await self.get_documents_by_ids(
+            session, document_ids=document_ids, organization_id=organization_id
+        )
 
     async def get_document_chunk_token_distribution(
         self,
@@ -761,3 +832,16 @@ class DocumentRepository:
             "avg_tokens": round(float(cast(Any, avg_tokens)), 1),
             "total_tokens": int(cast(Any, total_tokens)),
         }
+
+    async def count_org_documents_summary(
+        self, session: AsyncSession, *, organization_id: UUID
+    ) -> tuple[int, int, int]:
+        """Return (non-deleted docs, indexed docs, chunks in indexed docs) in one query."""
+        indexed = Document.status == DocumentStatus.indexed.value
+        stmt = select(
+            func.count(Document.id).filter(Document.status != DocumentStatus.deleted.value),
+            func.count(Document.id).filter(indexed),
+            func.coalesce(func.sum(Document.chunk_count).filter(indexed), 0),
+        ).where(Document.organization_id == organization_id)
+        row = (await session.execute(stmt)).one()
+        return int(row[0] or 0), int(row[1] or 0), int(row[2] or 0)

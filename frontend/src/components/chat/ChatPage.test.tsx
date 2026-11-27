@@ -3853,8 +3853,20 @@ describe("ChatPage", () => {
   });
 
   it("submits a collection deep link through agentic chat with source scope", async () => {
+    // R05-13: settings are stored per organisation and user.
+    mockAuthSession.state = {
+      status: "authenticated",
+      session: {
+        userId: "user-1",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org 1",
+        accessToken: "token",
+      },
+    };
     window.localStorage.setItem(
-      "rudix.chat.settings.v1",
+      "rudix.chat.settings.v1:org-1:user-1",
       JSON.stringify({
         topK: 5,
         rerank: true,

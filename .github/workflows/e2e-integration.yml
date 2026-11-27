@@ -1,0 +1,188 @@
+name: E2E integration
+
+# Critical-path Playwright suite (R03-04) against the integration stack plus the
+# deterministic LLM stub overlay. release.yml calls it with the built images
+# before deploy-staging; workflow_dispatch builds the backend images locally.
+# No secrets are required: the model provider is the stub and the admin
+# credentials are generated per run.
+
+on:
+  workflow_call:
+    inputs:
+      api_image:
+        description: API image reference to test.
+        required: true
+        type: string
+      worker_image:
+        description: Worker image reference to test.
+        required: true
+        type: string
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: e2e-integration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  e2e-integration:
+    name: E2E against integration stack
+    # Playwright 1.60 cannot install browsers on ubuntu-latest (26.04) yet;
+    # pin the last supported image until Playwright adds 26.04.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUDIX_API_IMAGE: ${{ inputs.api_image || 'rudix-local-api:e2e' }}
+      RUDIX_WORKER_IMAGE: ${{ inputs.worker_image || 'rudix-local-worker:e2e' }}
+      COMPOSE_FILES: -f deploy/compose/docker-compose.integration.yml -f deploy/compose/docker-compose.integration-stub.yml --env-file .env.ci.integration
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Log in to GHCR
+        if: inputs.api_image != ''
+        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build backend images
+        if: inputs.api_image == ''
+        run: |
+          set -euo pipefail
+          for target in api worker; do
+            tag="rudix-local-${target}:e2e"
+            if ! docker build --target "${target}" -t "${tag}" backend; then
+              echo "::warning::Dockerfile target '${target}' failed or is missing; using an untargeted build."
+              docker build -t "${tag}" backend
+            fi
+          done
+
+      - name: Create integration env file
+        run: |
+          cat > .env.ci.integration <<EOF
+          ENVIRONMENT=test
+          API_BASE_URL=http://api:8000
+          FRONTEND_BASE_URL=http://127.0.0.1:3200
+          CORS_ORIGINS=http://127.0.0.1:3200
+          RUDIX_API_IMAGE=${RUDIX_API_IMAGE}
+          RUDIX_WORKER_IMAGE=${RUDIX_WORKER_IMAGE}
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/rag_app
+          POSTGRES_DB=rag_app
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          QDRANT_URL=http://qdrant:6333
+          QDRANT_COLLECTION=documents
+          QDRANT_VECTOR_SIZE=1536
+          QDRANT_BOOTSTRAP_COLLECTION=true
+          MINIO_ENDPOINT=http://minio:9000
+          MINIO_ROOT_USER=minioadmin
+          MINIO_ROOT_PASSWORD=minioadmin
+          MINIO_ACCESS_KEY=minioadmin
+          MINIO_SECRET_KEY=minioadmin
+          MINIO_BUCKET=documents
+          MINIO_BOOTSTRAP_BUCKET=true
+          RABBITMQ_DEFAULT_USER=admin
+          RABBITMQ_DEFAULT_PASS=admin123
+          RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672//
+          REDIS_URL=redis://redis:6379/0
+          OPENAI_API_KEY=ci-placeholder-key
+          OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+          OPENAI_LLM_MODEL=gpt-5.4-mini
+          AUTH_PROVIDER=app
+          APP_AUTH_SECRET=ci-local-secret
+          APP_AUTH_ISSUER=rudix-app
+          APP_AUTH_AUDIENCE=rudix-api
+          FEATURE_ENABLE_AGENTS=true
+          METRICS_ENABLED=true
+          METRICS_PATH=/metrics
+          STUB_EMBEDDING_DIM=1536
+          EOF
+
+      - name: Start integration stack with LLM stub
+        run: docker compose ${COMPOSE_FILES} up -d --remove-orphans
+
+      - name: Run migrations
+        run: docker compose ${COMPOSE_FILES} run --rm migrate
+
+      - name: Wait for API health
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/api/v1/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ${COMPOSE_FILES} ps || true
+          exit 1
+
+      - name: Bootstrap admin with generated credentials
+        run: |
+          set -euo pipefail
+          email="e2e-$(openssl rand -hex 6)@example.com"
+          password="E2e-$(openssl rand -hex 16)"
+          echo "::add-mask::${email}"
+          echo "::add-mask::${password}"
+          docker compose ${COMPOSE_FILES} run --rm --no-deps \
+            -e BOOTSTRAP_ADMIN_EMAIL="${email}" \
+            -e BOOTSTRAP_ADMIN_PASSWORD="${password}" \
+            -e BOOTSTRAP_ORG_NAME="Rudix E2E" \
+            api python scripts/bootstrap_admin.py
+          {
+            echo "RUDIX_E2E_EMAIL=${email}"
+            echo "RUDIX_E2E_PASSWORD=${password}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run integration E2E suite
+        working-directory: frontend
+        env:
+          RUDIX_E2E_INTEGRATION: "1"
+          RUDIX_E2E_APP_URL: http://127.0.0.1:3200
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run test:e2e:integration
+
+      - name: Collect compose logs
+        if: always()
+        run: |
+          mkdir -p e2e-integration-logs
+          docker compose ${COMPOSE_FILES} ps > e2e-integration-logs/ps.txt 2>&1 || true
+          docker compose ${COMPOSE_FILES} logs --no-color > e2e-integration-logs/compose.log 2>&1 || true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-integration-report
+          path: |
+            frontend/playwright-report-integration
+            frontend/test-results/integration
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload compose logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-integration-compose-logs
+          path: e2e-integration-logs
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Tear down integration stack
+        if: always()
+        run: docker compose ${COMPOSE_FILES} down -v --remove-orphans

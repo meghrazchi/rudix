@@ -20,6 +20,14 @@ class InjectionCheckResult:
     reasons: list[str]
 
 
+@dataclass(frozen=True)
+class ContextScanResult:
+    """Outcome of scanning one retrieved chunk; ``reasons`` name patterns, never text."""
+
+    flagged: bool
+    reasons: list[str]
+
+
 class PromptInjectionGuard:
     """Lightweight heuristic guard for unsafe instruction-like content."""
 
@@ -38,6 +46,21 @@ class PromptInjectionGuard:
             if reason is not None:
                 reasons.append(f"{field_name}:{reason}")
         return InjectionCheckResult(blocked=bool(reasons), reasons=reasons)
+
+    def scan_context(self, text: str | None) -> ContextScanResult:
+        """Scan retrieved document text with the question patterns (R05-09).
+
+        Retrieved text is never blocked here: the caller flags, down-ranks, or drops the
+        chunk. Every matching pattern is reported.
+        """
+        if not text or not text.strip():
+            return ContextScanResult(flagged=False, reasons=[])
+        reasons = [
+            f"matched_pattern:{pattern.pattern}"
+            for pattern in _PROMPT_INJECTION_PATTERNS
+            if pattern.search(text)
+        ]
+        return ContextScanResult(flagged=bool(reasons), reasons=reasons)
 
     def is_instruction_like(self, text: str | None) -> bool:
         if not text:

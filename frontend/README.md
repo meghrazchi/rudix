@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/signup session flows, the Documents workspace at `/documents`, the Graph Explorer at `/graph`, and the Pipeline Explorer at `/rag-pipeline`.
+Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login session flows (accounts are created by admins; there is no self-registration), the Documents workspace at `/documents`, the Graph Explorer at `/graph`, and the Pipeline Explorer at `/rag-pipeline`.
 
 ## Stack
 
@@ -27,7 +27,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - `/status` public service-status page backed by the public status API and linked from the footer/help menu
 - `/changelog`
 - `/login` credential-based sign-in form with auth-provider entry points
-- `/signup` account creation form with workspace create/join entry points
+- `/signup` compatibility redirect to `/login` (self-registration is disabled; admins invite users)
 - `/organization-onboarding` authenticated workspace setup flow (workspace, domain allowlist, access defaults, invites)
 - `/onboarding` compatibility redirect to `/organization-onboarding`
 - `/forbidden` unauthorized route destination
@@ -38,6 +38,15 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/graph`
   - `/graph/entities/[entityId]`
   - `/chat`
+    - module map (`src/components/chat/`): `ChatPage.tsx` is the route shell (and re-exports `toTurnResponseFromHistoryMessage`); `ChatSidebar` (session list, search, rename/delete), `ChatHeader`, `ChatThread` > `ChatTurnItem` (+ `ChatCitationChips`, `ChatTurnActions`) and `StreamingMessage` (in-progress turn), `ChatComposerPane` > `ChatComposer` (+ `ChatComposerCommands` settings popover), `EvidenceAside` (`CitationDetails`, `KnowledgeHub`, `AgentRunTimeline`, `RetrievalDebug`), `ScopeControls` (+ `ScopeConnectorSection`), `TrustPanelModal`, `DeleteSessionModal` and `ChatFeedbackModals`
+    - hooks (`chat/hooks/`): `useChatSession` (sessions query, selection, `?session_id` URL sync, history, mutations), `useChatSettings` (persisted per organisation and user), `useChatScope` + `useChatSourceQueries` + `useContextModal`, `useChatStream` (one interface over `useChatWebSocket` or the HTTP mutation, chosen by `NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED`), `useChatSubmit`, `useChatFeedback`, `useChatOverlays`, `useCitationPanel`, `useAgentRunTimeline`
+    - pure helpers: `chat-types.ts`, `chat-format.ts`, `chat-citations.ts`, `chat-turns.ts`, `chat-connectors.ts`, `chat-session-utils.ts`
+    - `AnswerTrustPanel` keeps its props and composes the sections in `chat/trust-panel/` (confidence, sources, retrieval diagnostics, model, GraphRAG, policy, conflicts, verification, planner/critic, tool orchestration); the answer-explanation dialog loads it with `React.lazy` and a `Suspense` fallback
+    - streaming render (R05-11): `generation.delta` text goes into a ref-backed store (`src/lib/chat/streaming-text-store.ts`) that notifies at most once per animation frame (16 ms timer without `requestAnimationFrame`); `StreamingMessage` is its only subscriber (`useSyncExternalStore`), so a token re-renders nothing else. `generation.replace` replaces all streamed text, `generation.final` sets the authoritative text; until then the text is provisional (`data-stream-state="provisional"`, no citation markers) and `chat.completed` still produces the finished turn. `useChatWebSocket().partialAnswer` is a live getter over the store
+    - `ChatTurnItem` is `React.memo` with primitive props and one stable handlers object (`useChatTurnHandlers`); threads with more than `NEXT_PUBLIC_CHAT_VIRTUALIZE_MIN_TURNS` turns (default `50`) are virtualised with `@tanstack/react-virtual` (`ChatTurnRows`, rows measured with `measureElement`)
+    - history loads newest page first (`GET /chat/sessions/{id}/messages?order=desc`, `NEXT_PUBLIC_CHAT_HISTORY_PAGE_SIZE` messages, default `100`, max `500`); scrolling to the top (or "Load earlier messages") loads the next older page by cursor and keeps the scroll position (`chat-history.ts`, `useChatHistoryPages`, `useThreadScroll`). The view follows new content only while the user is at the bottom, and never smooth-scrolls per token
+    - reconnect (R05-13): after an unexpected close during a run, `ChatWSClient` reconnects with exponential backoff and full jitter (500 ms base, 15 s cap, 8 attempts; `reconnect` option), a fresh ticket per attempt, and sends `chat.resume` with the `message_id` and last `stream_sequence`; the hook discards events whose `(message_id, stream_sequence)` it already applied and any second terminal event. Close codes `4401`, `4403`, `4503` and `1008` are not retried. The composer shows "Reconnecting..." meanwhile; `resume_unavailable`, `provider_busy` and `connection_lost` have translated messages (`chat-ws-errors.ts`)
+    - `useChatSettings` stores under `rudix.chat.settings.v1:<organizationId>:<userId>` from the auth session; the old global `rudix.chat.settings.v1` key is never read and is deleted on first read (it may belong to another user of the browser)
   - `/evaluations`
   - `/reports` with role-aware report navigation and shared global filters
   - `/rag-pipeline` Pipeline Explorer
@@ -45,6 +54,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/admin` (owner/admin roles only)
   - `/admin/security-center` (owner/admin roles only)
   - `/admin/governance` (owner/admin roles only)
+  - `/admin/vector-index` (owner/admin roles only): read-only vector index status — active embedding model, a running rebuild's progress for your organisation (polls only while building), legacy-mode notice; data from `GET /admin/vector-index/status` (`src/lib/api/vector-index.ts`)
 
 ### Shared Shell and Protection
 
@@ -75,11 +85,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - redirects already authenticated users away from `/login`
   - redirects successful sign-in to requested protected route (`next`) or `/dashboard`
   - supports environment-driven SSO and forgot-password links when configured
-- Signup behavior:
-  - validates name, email, password, workspace mode, and terms acceptance using React Hook Form + Zod
-  - supports create-workspace and join-workspace entry points
-  - maps duplicate email, weak password, invite-only, and provider/network errors to safe messages
-  - redirects successful signup to `/organization-onboarding` or `/dashboard` based on signup result state
+- Account access behavior:
+  - there is no self-registration; workspace administrators invite users (team invitations, SCIM, or SSO)
+  - `/signup` redirects to `/login` so old links keep working
+  - the login page shows a "ask your workspace administrator to invite you" hint instead of a create-account link
+  - public CTAs (hero, plan cards, final CTA bands) lead to the demo/contact form, never to signup
 - Organization onboarding behavior:
   - requires authenticated session and redirects unauthenticated users to `/login?next=/organization-onboarding`
   - redirects already-onboarded sessions to `/dashboard`
@@ -171,13 +181,32 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - loading/error and permission-aware states
 - Public marketing foundation:
   - reusable marketing header, mobile navigation, footer, and CTA components
+  - header keeps four items (Product, Solutions, Security, Pricing) plus Login and Request Demo, and marks the current section with `aria-current="page"` (sub-pages such as `/solutions/hr` highlight Solutions)
+  - footer groups Product, Solutions, and Company & Support, plus a legal row linking every `/legal/*` page; signed-in app links stay out of the footer
   - centralized public link resolution with environment-driven overrides
   - shared public SEO metadata helper (title, description, canonical, hreflang, Open Graph, social cards)
-  - locale-aware public metadata for `en`, `de`, `es`, and `fr`
+  - SEO titles in `public.seo.*` are stored without the brand; the root layout template appends ` | Rudix` to `<title>`, and the helper adds it once to Open Graph/Twitter titles
+  - locale-aware public metadata for `en`, `de`, `es`, `fr`, `ar`, and `fa`
   - sitemap and robots generation for localized public routes
   - skip-to-content link and semantic landmarks for accessibility
   - typed public changelog source data in `src/lib/public-site/changelog.ts`
   - release notes should be curated from release tags and milestones, then stripped of private issue details before publication
+- Public site redesign (minimal modern):
+  - design source: Stitch project "Rudix Public Site Redesign"
+  - shared `site-*` color tokens in `src/app/globals.css` (`.rudix-public`), used as Tailwind classes such as `bg-site-surface` and `text-site-ink-muted`
+  - `PublicMarketingLayout` takes `theme="light" | "system"`; `system` follows the OS dark preference. All public marketing, solution, contact, status, changelog, and legal routes use `system`; auth pages (login, signup, accept-invite, SSO callback, organization onboarding, forbidden) set `.rudix-public` with `data-public-theme="system"` on their own root
+  - shared building blocks live in `src/components/public/site/*`: `primitives` (tokens-aware icon, section, heading, buttons), `SiteBlocks` (breadcrumb, split hero, icon cards, source chips, query list, step grid, CTA panel), `SiteMocks` (illustrative chat and source mocks), and the crawlable `<details>` `SiteFaq`
+  - page sections live in `src/components/public/{landing,product,pricing,security}/*`; solution pages compose the shared blocks with their existing `public.<solution>.*` messages
+  - legal pages share `LegalPageLayout` (sticky table of contents, review notice)
+  - copy lives in `public.*` messages for every locale; product mocks are built from UI rather than screenshots and must never show invented metrics, statistics, or certification claims
+
+### Persian and Arabic font (Pelak)
+
+- Persian (`fa`) and Arabic (`ar`) use **Pelak** (Fontiran) as the primary typeface, with the bundled Vazirmatn as fallback (`src/app/globals.css`).
+- Pelak is a commercial font. Its files are **not committed** (the repository is public); `public/fonts/pelak/*` is git-ignored except `.gitkeep`.
+- To enable it, place the licensed TTF files in `public/fonts/pelak/` with these names: `Pelak-Thin.ttf`, `Pelak-light.ttf`, `Pelak-Regular.ttf`, `Pelak-Medium.ttf`, `Pelak-SemiBold.ttf`, `Pelak-Bold.ttf`, `Pelak-ExtraBold.ttf`, `Pelak-Black.ttf`. The Docker build copies `public/` as-is, so CI/CD must provide the files from a private source (for example a secret artifact or private bucket) before `docker build`.
+- Serving Pelak on a website requires a Fontiran web license. Without the files, `fa`/`ar` pages fall back to Vazirmatn automatically.
+- `src/proxy.ts` excludes `/fonts/` from locale routing so font requests are not redirected.
 
 ### Localized public SEO conventions
 
@@ -228,6 +257,7 @@ Implementation notes:
 
 - Keep the same visual language as `/rag-pipeline` (spacing, color scale, card treatment).
 - Use typed API clients and show explicit loading, empty, and error states.
+- API errors are parsed by `src/lib/api/errors.ts`: `normalizeBackendError` reads the backend envelope (`error.code`, `error.message`, `error.request_id`, `error.details`) first, then falls back to the legacy `detail` alias and older shapes. `error.details` is preferred for validation lists.
 - Preserve permission-aware behavior for organization-scoped data.
 
 ## Settings Dashboard
@@ -419,13 +449,14 @@ NEXT_PUBLIC_AUTH_LOGIN_URL=
 NEXT_PUBLIC_AUTH_SSO_URL=
 NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL=
 NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
-NEXT_PUBLIC_AUTH_SIGNUP_URL=
-NEXT_PUBLIC_AUTH_SIGNUP_SSO_URL=
-NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK=true
-NEXT_PUBLIC_AUTH_INVITE_ONLY=false
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
+# Development-only: NEXT_PUBLIC_AUTH_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,
+# NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD,
+# NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN and NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN
+# are baked into the browser bundle. `next build` fails when any is set to
+# `true` / non-empty with NEXT_PUBLIC_DEPLOYMENT_ENV=staging or production.
 NEXT_PUBLIC_AUTH_LOGOUT_URL=
 NEXT_PUBLIC_AUTH_REFRESH_SKEW_SECONDS=60
 NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL=/team/members
@@ -448,7 +479,6 @@ NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL=
 NEXT_PUBLIC_PUBLIC_SECURITY_URL=
 NEXT_PUBLIC_PUBLIC_PRICING_URL=
 NEXT_PUBLIC_PUBLIC_DOCS_URL=
-NEXT_PUBLIC_PUBLIC_TRIAL_URL=
 NEXT_PUBLIC_PUBLIC_DEMO_URL=
 NEXT_PUBLIC_PUBLIC_CONTACT_URL=
 NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL=
@@ -534,6 +564,10 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+### Security headers
+
+`next.config.ts` applies security headers to every route from `config/security-headers.mjs`: `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, HSTS in staging/production, and a `Content-Security-Policy-Report-Only` header by default. Set `NEXT_PUBLIC_CSP_ENFORCE=true` (default `false`) to send the same policy as an enforced `Content-Security-Policy` header instead; flip it after a clean report-only period. Analytics, Sentry, API, and contact-submit (`NEXT_PUBLIC_CONTACT_SUBMIT_API_URL`, a `fetch` target) origins are added to the policy only when their `NEXT_PUBLIC_*` variables are set. The external submit and scheduler URLs are navigations and are not listed. When `NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER` is `turnstile`, `hcaptcha`, or `recaptcha` (case-insensitive), that provider's script, frame, and connect hosts are allowed (and styles for hCaptcha); `frame-src` is `'none'` otherwise. Unknown providers add nothing. Set `NEXT_PUBLIC_CSP_REPORT_URI` to send violation reports to a collector. The `config/` directory is copied into the runtime image because `next.config.ts` imports it at `next start`. See `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`.
+
 ## Scripts
 
 | Command                     | Description                                                          |
@@ -560,13 +594,15 @@ Frontend API types in `src/lib/api/generated/schema.d.ts` are generated from the
 npm run api:generate
 ```
 
-**Refresh schema from a running backend** (requires `make up-d`):
+**Refresh schema from the backend code** (no running services; needs `make -C ../backend install`):
 
 ```bash
 npm run api:update-schema
 ```
 
-**Check for stale types** (runs automatically in CI via `make check-all`):
+This exports the full schema with `backend/.venv/bin/python scripts/export_openapi.py`, formats `openapi.json` with Prettier, and regenerates `schema.d.ts`. `openapi.json` is the full export (every route), not a curated subset.
+
+**Check for stale types** (runs automatically in CI via `make check-all` and the `OpenAPI contract` workflow, which also runs `export_openapi.py --check ../frontend/openapi.json` to catch a backend change without a regenerated schema):
 
 ```bash
 npm run api:check
@@ -583,7 +619,17 @@ export type DocumentListResponse = Schemas["DocumentListResponse"];
 
 When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`.
 
+`openapi-typescript` marks response fields that have a server default as required. Where the frontend declares a field itself (or keeps a server-defaulted field optional for fixtures and partial objects), the API modules use small type-only helpers: `Overlay<Generated, FrontendFields>` (frontend declarations replace the generated ones) and `WithOptional<Generated, Keys>`. `src/lib/api/generated/schema.test.ts` checks that every other field still matches the generated schema.
+
 ## Testing
+
+### Coverage
+
+```bash
+npm run test:coverage   # vitest run --coverage; prints a summary, fails below the thresholds
+```
+
+`vitest.config.ts` configures V8 coverage over `src/**`, excluding generated API types, test files and helpers (`src/test/**`, `__tests__/`, `tests/`, `*.test.*`, `*.spec.*`), e2e folders, stories, and `.d.ts` files. Reports: `text-summary` on the console and `coverage/coverage-summary.json` (git-ignored). `coverage.thresholds` holds the measured figures rounded down to one decimal (when set: lines 64.8, functions 58.0, branches 57.6, statements 63.8). The `frontend` CI job runs `npm run test:coverage`, so a drop below a threshold fails CI. Raise the thresholds when coverage rises. Never lower them without a reason in the merge request.
 
 Shared test harness and fixtures:
 
@@ -623,6 +669,55 @@ npm run test
 npm run test:e2e
 ```
 
+### Integration E2E
+
+`npm run test:e2e:integration` runs `e2e-integration/critical-path.spec.ts` with
+`playwright.integration.config.ts` against the real backend: it logs in, uploads
+`e2e-integration/fixtures/rudix-e2e.txt`, waits until the document shows `indexed` (up to
+120 s), asks about the fact in chat, and checks that the answer cites `rudix-e2e.txt`. No API is
+mocked. The model is the deterministic, test-only stub in `ci/stubs/llm_stub.py`. Without
+`RUDIX_E2E_INTEGRATION=1` the suite is reported as skipped and no web server starts. The default
+`npm run test:e2e` (testDir `./e2e`) does not pick these files up.
+
+Run it locally (from the repository root; uses ports 8000 and 3200):
+
+```bash
+# 1. Write .env.ci.integration with the keys from the e2e-integration.yml step
+#    "Create integration env file" (CORS_ORIGINS=http://127.0.0.1:3200).
+docker build --target api -t rudix-local-api:e2e backend
+docker build --target worker -t rudix-local-worker:e2e backend
+COMPOSE="docker compose -f deploy/compose/docker-compose.integration.yml \
+  -f deploy/compose/docker-compose.integration-stub.yml --env-file .env.ci.integration"
+$COMPOSE up -d
+$COMPOSE run --rm migrate
+$COMPOSE run --rm --no-deps -e BOOTSTRAP_ADMIN_EMAIL=e2e@example.com \
+  -e BOOTSTRAP_ADMIN_PASSWORD='<choose one>' api python scripts/bootstrap_admin.py
+
+# 2. Build and start the frontend on :3200, then run the suite.
+cd frontend
+RUDIX_E2E_INTEGRATION=1 RUDIX_E2E_EMAIL=e2e@example.com RUDIX_E2E_PASSWORD='<same>' \
+  npm run test:e2e:integration
+
+# 3. Tear down.
+cd .. && $COMPOSE down -v
+```
+
+| Variable                                | Default                        | Purpose                                     |
+| --------------------------------------- | ------------------------------ | ------------------------------------------- |
+| `RUDIX_E2E_INTEGRATION`                 | unset                          | `1` runs the suite; anything else skips it  |
+| `RUDIX_E2E_EMAIL`, `RUDIX_E2E_PASSWORD` | none                           | real login for the bootstrapped admin       |
+| `RUDIX_E2E_APP_URL`                     | `http://127.0.0.1:3200`        | frontend base URL                           |
+| `RUDIX_E2E_API_URL`                     | `http://localhost:8000/api/v1` | `NEXT_PUBLIC_API_URL` for the build         |
+| `RUDIX_E2E_SKIP_WEBSERVER`              | unset                          | set to reuse a frontend you already started |
+
+The config runs `npm run build && npm run start -- -p 3200` with `NEXT_PUBLIC_AUTH_PROVIDER=app`
+and every dev-only auth fallback variable empty or `false`, so a local `.env.local` cannot
+switch the fallback on. `next start` prints a warning about `output: "standalone"` and then
+serves the build normally. The run overwrites `.next`. On failure, the report attaches
+`request-ids.json` with the `X-Request-ID` of failed API calls and any request IDs shown in the
+UI. It never records bodies or tokens. The overlay sets `MALWARE_SCAN_ENABLED=false`, because the
+integration stack has no ClamAV. CI runs the same flow in `.github/workflows/e2e-integration.yml`.
+
 ## Responsive / Supported Viewports
 
 Rudix targets the following viewport baseline:
@@ -642,6 +737,8 @@ Key responsive behaviours:
 - **Tables**: all data tables are wrapped in `overflow-x-auto` so they scroll horizontally rather than clipping on narrow screens.
 - **Public pages**: marketing/landing pages are responsive from 375 px upward using standard `sm:` / `md:` / `lg:` Tailwind breakpoints.
 
+WebSocket chat specs (`e2e/chat-ws-*.spec.ts`) run in the `chromium-chat-ws` Playwright project against a second dev server on `PLAYWRIGHT_WS_FRONTEND_PORT` (default `3102`) started with `NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED=true` and `NEXT_DIST_DIR=.next-e2e-ws` (NEXT_PUBLIC values are inlined at compile time); every other spec runs unchanged in the `chromium` project. `e2e/chat-ws-resume.spec.ts` serves the socket with `page.routeWebSocket`, drops it mid-stream and checks the resume.
+
 Responsive Playwright tests are in `e2e/responsive.spec.ts` and cover mobile, tablet, and desktop viewports for the main shell, chat, and public landing page.
 
 ## Notes
@@ -652,3 +749,15 @@ Responsive Playwright tests are in `e2e/responsive.spec.ts` and cover mobile, ta
 - Shared UI state primitives are in `src/components/states/*` (`LoadingState`, `EmptyState`, `ErrorState`, `ForbiddenState`, `RateLimitState`, `RetryAction`) with safe trace/request ID rendering.
 - TanStack Query defaults and mutation invalidation helpers are in `src/lib/api/query.ts`.
 - Pipeline fallback graph/data remain in `src/lib/pipeline.ts`.
+
+### Chat WebSocket authentication
+
+- On every connect, `ChatWSClient` awaits `getAuthParam()` and opens `/chat/ws?ticket=…`.
+  `resolveChatWsAuthParam()` in `src/lib/chat-ws-auth.ts` calls `createChatWsTicket()`
+  (`POST /chat/ws-ticket`), which sends `X-Organization-Id`, so the ticket is bound to the
+  active workspace. Tickets are single use and are never cached; a reconnect fetches a new one.
+- Ticket only (0.5.0, R05-13): the legacy `?token=` fallback is removed. Every ticket failure,
+  including a backend without the ticket endpoint (`404`/`405`), `503`, `429` or a network error,
+  puts the client in the error state and the chat page shows
+  `chat.page.wsErrors.wsTicketUnavailable`.
+- Commands sent while the ticket is being fetched are queued and flushed when the socket opens.

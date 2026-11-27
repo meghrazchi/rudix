@@ -1,7 +1,13 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
+import { mockCorsHeaders } from "./support/mock-cors";
+
 const SESSION_STORAGE_KEY = "rudix.session.v1";
 const ORG_ID = "c8ae2f17-c58e-499e-88bf-e6b0a8648c21";
+// The client validates chunking profiles against the API contract, which
+// uses UUIDs for profile and author IDs (src/lib/schemas/chunking-profiles.ts).
+const CHUNKING_PROFILE_ID = "5b0f7f4e-2a51-4c55-9a1e-3f0c1d2b6a01";
+const PROFILE_AUTHOR_ID = "0e6c2f7a-8d34-4b1e-b5a2-7c9d4e1f3a02";
 
 type TestSession = {
   userId: string;
@@ -32,9 +38,7 @@ async function fulfillJson(
     status,
     headers: {
       "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "*",
-      "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+      ...mockCorsHeaders(route.request()),
     },
     body: JSON.stringify(body),
   });
@@ -49,11 +53,7 @@ async function installApiMocks(page: Page): Promise<void> {
     if (request.method() === "OPTIONS") {
       await route.fulfill({
         status: 200,
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-headers": "*",
-          "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-        },
+        headers: mockCorsHeaders(request),
       });
       return;
     }
@@ -258,7 +258,7 @@ async function installApiMocks(page: Page): Promise<void> {
       await fulfillJson(route, {
         profiles: [
           {
-            profile_id: "profile-1",
+            profile_id: CHUNKING_PROFILE_ID,
             organization_id: ORG_ID,
             name: "Operations Default",
             slug: "operations-default",
@@ -274,8 +274,8 @@ async function installApiMocks(page: Page): Promise<void> {
             is_system: false,
             created_at: "2026-05-20T08:00:00Z",
             updated_at: "2026-05-20T08:00:00Z",
-            created_by_user_id: "e2e-user-1",
-            updated_by_user_id: "e2e-user-1",
+            created_by_user_id: PROFILE_AUTHOR_ID,
+            updated_by_user_id: PROFILE_AUTHOR_ID,
           },
         ],
         total: 1,
@@ -661,7 +661,8 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await expect(page).toHaveURL(/\/security$/);
     await expect(
       page.getByRole("heading", {
-        name: "Security-first document AI for trusted enterprise knowledge",
+        // Hero copy since 2a92f1a (rudix#275, public i18n).
+        name: "Security and governance for private document AI",
       }),
     ).toBeVisible();
 
@@ -720,24 +721,18 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await page.goto("/documents");
     await waitForSessionBootstrap(page);
 
-    const loginEmail = page.getByLabel("Email");
-    const documentsHeading = page.getByRole("heading", {
-      name: "Upload Documents",
-    });
+    // No session is seeded, so the protected route must bounce to login
+    // (public routes are locale-prefixed) and keep the return path.
+    await expect(page).toHaveURL(/\/login\?next=%2Fdocuments$/);
 
-    await Promise.race([
-      loginEmail.waitFor({ state: "visible", timeout: 30_000 }),
-      documentsHeading.waitFor({ state: "visible", timeout: 30_000 }),
-    ]);
+    await page.getByLabel("Email").fill("admin@example.com");
+    await page.getByLabel("Password").fill("123123123");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/documents$/);
 
-    if (await loginEmail.isVisible().catch(() => false)) {
-      await page.getByLabel("Email").fill("admin@example.com");
-      await page.getByLabel("Password").fill("123123123");
-      await page.getByRole("button", { name: "Sign in" }).click();
-      await expect(page).toHaveURL(/\/documents$/);
-    }
-
-    await expect(documentsHeading).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Upload Documents" }),
+    ).toBeVisible();
   });
 
   test("loads dashboard with mocked APIs while authenticated", async ({
@@ -770,7 +765,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await page.goto("/chat");
     await waitForSessionBootstrap(page);
     await expect(
-      page.getByRole("heading", { name: "Chat Session" }),
+      page.getByRole("heading", { name: "Conversation", level: 2 }),
     ).toBeVisible();
     await expect(page.getByText("Onboarding FAQ")).toBeVisible();
     await expect(
@@ -847,7 +842,10 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await expect(page).toHaveURL(/\/evaluations\/runs\/run-e2e-1$/, {
       timeout: 15_000,
     });
-    await expect(page.getByText("Run detail")).toBeVisible();
+    // "Run detail" is both a view toggle button and the panel heading.
+    await expect(
+      page.getByRole("heading", { name: "Run detail" }),
+    ).toBeVisible();
     await expect(page.getByText("Case results")).toBeVisible();
   });
 

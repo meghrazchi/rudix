@@ -54,3 +54,106 @@ groups:
         annotations:
           summary: "Backing dependency {{ $labels.dependency }} is degraded or unreachable"
           description: "Readiness probe reports {{ $labels.dependency }} is down."
+
+  - name: rudix-db
+    rules:
+      - alert: RudixDbPoolTimeouts
+        expr: sum(increase(rudix_db_pool_timeouts_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database pool checkouts are timing out"
+          description: "{{ $value }} checkouts waited longer than DB_POOL_TIMEOUT in 5 minutes. Check rudix_db_pool_checked_out and rudix_db_pool_wait_seconds; raise DB_POOL_SIZE/DB_MAX_OVERFLOW or find long transactions."
+
+      - alert: RudixRlsSoftDenials
+        expr: sum by (table) (increase(rudix_rls_soft_denials_total[1h])) > 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queries on {{ $labels.table }} ran with no tenant bound (RLS soft mode)"
+          description: "These statements would be denied with RLS_ENFORCEMENT=strict. Find the rls.soft_denial log lines and bind a tenant or use a maintenance session."
+
+  - name: rudix-retention
+    rules:
+      - alert: RudixPartitionMissing
+        expr: max by (table) (rudix_partition_missing) == 1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Partitioned table {{ $labels.table }} has no partition for next month"
+          description: "maintenance.partitions.ensure could not create next month's partition (see maintenance.partitions.ensure_failed logs). Inserts dated next month will fail once it starts. Run the task again or create the partition by hand. Only tables already converted to partitions report this metric."
+
+  - name: rudix-chat-streaming
+    rules:
+      - alert: RudixChatTimeToFirstTokenHigh
+        expr: histogram_quantile(0.95, sum by (le, transport) (rate(rudix_chat_ttft_seconds_bucket[10m]))) > 2.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chat time to first token p95 is above 2.5 s on {{ $labels.transport }}"
+          description: "p95 of rudix_chat_ttft_seconds has stayed at {{ $value }} s for 10 minutes. Check rudix_chat_stage_seconds for the slow stage (retrieval, rerank, provider latency) and whether CHAT_STREAM_MODE, strict verification, or a blocking AI-policy rule buffers the answer."
+
+  - name: rudix-llm-resilience
+    rules:
+      - alert: RudixLlmBreakerOpen
+        expr: max by (provider, model) (rudix_llm_breaker_state) == 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM circuit breaker open for {{ $labels.provider }} / {{ $labels.model }}"
+          description: "The breaker has been open for 5 minutes: calls skip this provider and use the fallback provider, or fail with generation_failed when none is configured. Check the provider status and llm.breaker.transition logs; tune LLM_BREAKER_* only after the cause is known."
+
+      - alert: RudixLlmOrgConcurrencyRejections
+        expr: sum(increase(rudix_llm_org_concurrency_rejected_total[10m])) > 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Organisations hit their concurrent LLM call limit"
+          description: "{{ $value }} LLM calls were answered provider_busy in 10 minutes (llm.org_semaphore.rejected logs name the organisation). Raise LLM_ORG_MAX_CONCURRENT_CALLS or LLM_ORG_SEMAPHORE_WAIT_MS if the limit is too tight."
+
+  # R06-03..05 worker platform. rudix_celery_queue_depth comes from the default pool's
+  # sampler (passive queue_declare every WORKER_QUEUE_SAMPLE_INTERVAL_SECONDS); the
+  # dead-letter queue exists only with CELERY_QUEUE_TYPE=quorum.
+  - name: rudix-workers
+    rules:
+      - alert: RudixDeadLetterQueueNotEmpty
+        expr: max by (queue) (rudix_celery_queue_depth{queue=~".*dead_letter.*"}) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dead-letter queue {{ $labels.queue }} holds {{ $value }} messages"
+          description: "The dead-letter consumer (worker-default, WORKER_CONSUME_DEAD_LETTER) records each message as a FailedJob and acks it, so a queue that stays non-empty means the consumer is not running or cannot write (dead_letter.persist_failed logs). Check worker-default, then review job type 'Dead letter' on the failed job dashboard."
+
+      - alert: RudixCeleryQueueWaitHigh
+        expr: histogram_quantile(0.95, sum by (le, queue) (rate(rudix_celery_queue_wait_seconds_bucket[10m]))) > 300
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tasks on {{ $labels.queue }} wait {{ $value | humanizeDuration }} (p95) before a worker takes them"
+          description: "p95 queue wait has stayed above 5 minutes for 15 minutes. The pool that consumes this queue is saturated or down: check rudix_celery_queue_consumers and raise WORKER_POOL_<NAME>_CONCURRENCY or the replica count (docs/10 'Worker pools')."
+
+      - alert: RudixCeleryQueueDepthGrowing
+        expr: (deriv(rudix_celery_queue_depth{queue!~".*dead_letter.*"}[15m]) > 0) and (rudix_celery_queue_depth{queue!~".*dead_letter.*"} > 100)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue {{ $labels.queue }} keeps growing"
+          description: "More than 100 ready messages and still rising for 15 minutes: producers outpace the pool. Scale the pool that consumes {{ $labels.queue }} or find the slow task (rudix_celery_task_duration_seconds)."
+
+      - alert: RudixCeleryQueueWithoutConsumers
+        expr: (max by (queue) (rudix_celery_queue_consumers{queue!~".*dead_letter.*"}) == 0) and (max by (queue) (rudix_celery_queue_depth) > 0)
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Queue {{ $labels.queue }} has messages but no consumer"
+          description: "No worker consumes {{ $labels.queue }}. A pool is down, or WORKER_POOL_<NAME>_QUEUES no longer lists this queue."

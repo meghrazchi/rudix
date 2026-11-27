@@ -23,8 +23,12 @@ if [ ! -f "$compose_source" ]; then
   exit 1
 fi
 
+# Pinned host key (<ENV>_SSH_KNOWN_HOSTS or DEPLOY_SSH_KNOWN_HOSTS); see ssh_common.sh.
+. "$(dirname "$0")/ssh_common.sh"
+rudix_ssh_setup "$environment_name"
+
 tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir"' EXIT
+trap 'rm -rf "$tmp_dir"; rudix_ssh_cleanup' EXIT
 
 cp "$compose_source" "$tmp_dir/$compose_file"
 printf '%s\n' "$DEPLOY_ENV_FILE_CONTENT" > "$tmp_dir/.env"
@@ -34,23 +38,39 @@ RUDIX_WORKER_IMAGE=$DEPLOY_WORKER_IMAGE
 RUDIX_FRONTEND_IMAGE=$DEPLOY_FRONTEND_IMAGE
 EOF
 
-install -m 700 -d "$HOME/.ssh"
-printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$HOME/.ssh/rudix_deploy_key"
-chmod 600 "$HOME/.ssh/rudix_deploy_key"
-
-ssh_opts="-i $HOME/.ssh/rudix_deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${DEPLOY_SSH_PORT:-22}"
-
+# shellcheck disable=SC2086
 ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH'"
-scp $ssh_opts "$tmp_dir/$compose_file" "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/$compose_file"
-scp $ssh_opts "$tmp_dir/.env" "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/.env"
+# shellcheck disable=SC2086
+scp $scp_opts "$tmp_dir/$compose_file" "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/$compose_file"
+# shellcheck disable=SC2086
+scp $scp_opts "$tmp_dir/.env" "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/.env"
+# RabbitMQ configuration mounted by the compose file from ./rabbitmq (R06-03). Without it
+# Docker would create empty directories at the mount paths and RabbitMQ would not start.
+for rabbitmq_file in infra/rabbitmq/rabbitmq.conf infra/rabbitmq/enabled_plugins; do
+  if [ ! -f "$rabbitmq_file" ]; then
+    echo "RabbitMQ configuration not found: $rabbitmq_file" >&2
+    exit 1
+  fi
+done
+# shellcheck disable=SC2086
+ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH/rabbitmq'"
+# shellcheck disable=SC2086
+scp $scp_opts infra/rabbitmq/rabbitmq.conf infra/rabbitmq/enabled_plugins "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/rabbitmq/"
 
+# shellcheck disable=SC2086
 ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
   set -eu
   cd '$DEPLOY_APP_PATH'
   echo '$DEPLOY_REGISTRY_PASSWORD' | docker login -u '$DEPLOY_REGISTRY_USER' --password-stdin '$DEPLOY_REGISTRY'
   docker compose -f '$compose_file' pull
   docker compose -f '$compose_file' run --rm api alembic upgrade head
-  docker compose -f '$compose_file' up -d
+  docker compose -f '$compose_file' run --rm api python -m app.clients.qdrant_bootstrap
+  if grep -qE '^ENTERPRISE_GRAPH_ENABLED=true' .env; then
+    docker compose -f '$compose_file' run --rm api python scripts/run_graph_migrations.py
+  fi
+  # --remove-orphans stops services the compose file no longer defines, such as the single
+  # 0.5.0 worker that the 0.6.0 pools replace (R06-04).
+  docker compose -f '$compose_file' up -d --remove-orphans
   curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null
   curl -fsS http://127.0.0.1:8000/api/v1/ready >/dev/null
 "

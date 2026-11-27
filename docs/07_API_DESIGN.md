@@ -104,15 +104,142 @@ When the SAML callback is received as a browser form post, the backend issues th
 
 ## Error format
 
+Every error response (HTTP errors, request validation failures, and unhandled exceptions) uses
+one envelope:
+
 ```json
 {
   "error": {
     "code": "DOCUMENT_NOT_FOUND",
-    "message": "Document not found or access denied.",
-    "details": {}
-  }
+    "message": "Document not found",
+    "request_id": "0b9f6c1e-6a52-4a52-9f0c-3e1f6f7a1a11",
+    "details": null
+  },
+  "detail": "Document not found"
 }
 ```
+
+- `error.code` is a stable machine-readable code. It is resolved from, in order: a structured
+  `detail` that already carries `code` or `error` (kept verbatim, for example
+  `rate_limit_exceeded`, `plan_limit_exceeded`), the registry of frequent messages in
+  `backend/app/core/error_codes.py` (for example `DOCUMENT_NOT_FOUND`, `INVALID_CURSOR`,
+  `CURSOR_SORT_UNSUPPORTED`), and a status fallback: `400 BAD_REQUEST`, `401 UNAUTHENTICATED`,
+  `403 FORBIDDEN`, `404 NOT_FOUND`, `409 CONFLICT`, `413 PAYLOAD_TOO_LARGE`,
+  `422 VALIDATION_ERROR`, `429 RATE_LIMITED`, `500 INTERNAL_ERROR`, `501 NOT_IMPLEMENTED`,
+  `503 SERVICE_UNAVAILABLE`.
+- `error.request_id` echoes `X-Request-ID` (or the generated id) and is also returned as a response
+  header. Quote it when reporting a problem.
+- `error.details` carries structured detail: the validation error list for `422`, the structured
+  object for dict details, otherwise `null`.
+- `detail` is a compatibility alias with exactly the value the API returned before the envelope
+  existed (string, validation list, or structured object). It is kept until `1.0.0`; new clients
+  should read `error`.
+- Response headers set by the failing handler (`WWW-Authenticate`, `Retry-After`,
+  `X-RateLimit-*`) are preserved.
+- Unhandled exceptions return `500` with `INTERNAL_ERROR` and a generic message. Exception text and
+  stack traces are never returned; they are logged server-side and reported to Sentry.
+
+### Chat error codes
+
+Since `0.5.0` every error the chat routes (`/chat/*`, `app/interfaces/http/chat*.py` and the
+chat pipeline) raise has its own code; none falls back to the status code
+(`tests/test_chat_error_codes_registry.py` checks every raise site). The lower-snake codes are
+structured details that existed before the registry and are not renamed: codes are a public
+contract.
+
+| Status | `error.code` | When |
+|---|---|---|
+| 403 | `plan_limit_exceeded` | The organisation's question quota is used up (`POST /chat`, WebSocket). |
+| 403 | `NO_ACTIVE_ORGANIZATION_CONTEXT_FOR_PRINCIPAL`, `PRINCIPAL_IDENTITY_CONTEXT_IS_INVALID` | The principal has no usable organisation or user id. |
+| 403 | `SHARE_LINK_PASSWORD_REQUIRED` | A password-protected answer share was opened without the right password. |
+| 403 | `SHARE_LINK_USER_NOT_ALLOWED` | The viewer is not in the answer share's allowed-users list. |
+| 404 | `document_not_found` | `POST /chat` names a document the caller cannot see. |
+| 404 | `chat_session_not_found` | `POST /chat` names a malformed, foreign, or unknown session. |
+| 404 | `CHAT_SESSION_NOT_FOUND` | Session, message-list, share, and feedback routes with an unknown session. |
+| 404 | `message_not_found`, `trust_metadata_not_available` | `GET /chat/messages/{id}/trust-metadata`. |
+| 404 | `MESSAGE_NOT_FOUND`, `FEEDBACK_NOT_FOUND` | Feedback and answer-share routes. |
+| 404 | `SHARE_NOT_FOUND` | Revoking an unknown session or answer share. |
+| 404 | `SHARE_LINK_NOT_FOUND_EXPIRED_OR_REVOKED` | `GET /chat/shared/{token}`, `GET /chat/answer-shared/{token}`. |
+| 422 | `CHAT_SHARE_LIMIT_REACHED`, `ANSWER_SHARE_LIMIT_REACHED` | More than 10 active share links per session or per answer. |
+| 422 | `SHARE_ALLOWED_USER_IDS_REQUIRED` | `access_mode = "specific_users"` with an empty `allowed_user_ids`. |
+| 429 | `rate_limit_exceeded` | Chat rate limit (`Retry-After` is set). |
+| 429 | `provider_busy` | The organisation's concurrent LLM call limit stayed reached (`POST /chat`, WebSocket; R05-06). |
+| 500 | `chat_persistence_failed` | The answer could not be saved. |
+| 501 | `CHAT_MESSAGE_CREATE_NOT_IMPLEMENTED` | Deprecated `POST /chat/sessions/{id}/messages`. |
+| 503 | `retrieval_failed`, `generation_failed`, `prompt_template_unavailable` | Retrieval, the model provider, or the prompt template is unavailable. |
+| 503 | `chat_websocket_disabled`, `ws_ticket_unavailable` | `POST /chat/ws-ticket` when WebSocket chat or the ticket store is off. |
+
+The activity-step details `No relevant answer found`, `No indexed files found`, and
+`Request could not be processed` are registered too (`NO_RELEVANT_ANSWER_FOUND`,
+`NO_INDEXED_FILES_FOUND`, `REQUEST_COULD_NOT_BE_PROCESSED`), so a client that shows them can map
+them the same way.
+
+## Pagination
+
+List endpoints keep `limit`/`offset` paging. Since `0.4.0` the endpoints below also accept a
+keyset cursor: the next page starts after the last row of the previous one, so the database
+does not read and discard the `offset` rows before it (R04-04).
+
+| Endpoint | Cursor order |
+|---|---|
+| `GET /chat/sessions` | `updated_at` desc, `id` desc |
+| `GET /chat/sessions/{session_id}/messages` | `created_at` asc, role (user before assistant), `id` asc; reversed with `order=desc` |
+| `GET /documents` | `created_at` (direction from `sort_order`), `id` desc; only with `sort_by=created_at` |
+| `GET /notifications` | `created_at` desc, `id` desc |
+| `GET /admin/audit-logs` | `created_at` desc, `id` desc |
+| `GET /admin/webhooks/{webhook_id}/deliveries` | `created_at` desc, `id` desc |
+
+Contract:
+
+- Every response of these endpoints carries `next_cursor` (string or `null`). It is `null` on
+  the last page. Pass it back unchanged as `?cursor=...` with the same filters and sort to get
+  the next page. The first page needs no cursor, so a client can start with `offset=0` and
+  follow `next_cursor`.
+- Cursors are opaque: base64url-encoded, versioned, and bound to the endpoint's sort order.
+  Do not build or parse them. A cursor carries only the sort-key values of the last row; the
+  organization and user filters are always applied on the server, so a cursor from one
+  organization returns nothing from it when used by another.
+- `include_total` controls the `total` count query. It defaults to `true` without a cursor
+  (the behaviour before `0.4.0`) and to `false` with a cursor; when it is `false`, `total` is
+  `null`. `GET /notifications` always returns `unread_count`. `GET
+  /admin/webhooks/{webhook_id}/deliveries` has no count query: its `total` is the number of
+  items in the page, as before, and it now accepts `limit` (1 to 200, default 50).
+- `offset` keeps working. A cursor together with `offset > 0` is rejected.
+- `GET /chat/sessions` orders by `updated_at`: a session that changes between two requests
+  moves to the top, so a cursor walk can skip or repeat it.
+- On `GET /documents`, non-admin results are filtered by document policy after the page is
+  read, so a page can hold fewer than `limit` items while `next_cursor` is still set.
+
+Errors (HTTP `400`):
+
+| `detail` | Cause | `error.code` |
+|---|---|---|
+| `Invalid pagination cursor` | Malformed, tampered, wrong version, or from another sort order | `INVALID_CURSOR` |
+| `Cursor pagination requires sort_by=created_at` | `GET /documents` with a cursor and another `sort_by` | `CURSOR_SORT_UNSUPPORTED` |
+| `Cursor pagination cannot be combined with offset` | `cursor` with `offset > 0` | `BAD_REQUEST` (status fallback) |
+
+A `cursor` longer than 1024 characters fails request validation (`422`).
+
+The admin exports `GET /admin/usage/export` (at most 50,000 rows) and
+`GET /admin/audit-logs/export` (at most 10,000 rows) stream their body with the row limit
+applied in SQL. The CSV and JSON bytes are the same as before. Headers are sent before rows are
+read, so a database failure during an export cuts the body short instead of returning an
+error status; the failure is logged as `admin.export.streamed` with `status=failed`.
+
+## Quotas and plan limits
+
+- Usage counters are kept per organization and quota type. Each increment runs as one atomic
+  database upsert, so concurrent requests never lose updates.
+- Windowed quotas (`per_minute`, `per_hour`, `per_day`, `per_month`) reset once per window. The
+  reset is a conditional update that only matches an expired row, so concurrent requests cannot
+  reset the same window twice. Quotas with `reset_window: none` are permanent caps and never reset.
+- Known limit: the quota check and the usage increment are separate steps in a request, so a
+  burst of concurrent requests can overshoot a hard limit by the number of requests in flight.
+  Closing this gap is planned for a later release.
+- When a hard limit would be exceeded, the API returns HTTP `403` with
+  `detail.code = "plan_limit_exceeded"` and safe metadata: `quota_type`, `current_value`,
+  `requested_amount`, `soft_limit`, `hard_limit`, `reset_window`, `next_reset_at`, `retryable`,
+  and `action`.
 
 ## Health
 
@@ -863,6 +990,52 @@ Response:
 }
 ```
 
+### GET `/chat/sessions/{session_id}/messages`
+
+List the messages of one of the caller's own chat sessions (R04-04 cursors, R05-11 order).
+
+Query parameters:
+
+| Name | Default | Notes |
+|---|---|---|
+| `order` | `asc` | `asc`: oldest first (conversation order, the behaviour before `0.5.0`). `desc`: newest first, for loading the latest page of a long history first. |
+| `limit` | `200` | 1 to 500 |
+| `offset` | `0` | Cannot be combined with `cursor` |
+| `cursor` | none | `next_cursor` of the previous page in the same `order` |
+| `include_total` | `true` without a cursor, `false` with one | |
+
+- The sort key is `(created_at, role rank, id)` with the user turn before the assistant turn
+  within one timestamp; `desc` walks the same key backwards, so a full `desc` walk is exactly
+  the reversed `asc` walk.
+- Items are returned in the order requested. A client that renders oldest at the top reverses
+  each `desc` page.
+- A cursor is bound to its order: an `asc` cursor sent with `order=desc` (or the reverse) is
+  rejected with `400` `Invalid pagination cursor`.
+- A session that does not exist, belongs to another user, or belongs to another organisation
+  returns `404` `Chat session not found` in both orders.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "message_id": "uuid",
+      "role": "assistant",
+      "content": "...",
+      "confidence_score": 0.82,
+      "confidence_category": "high",
+      "citations": [],
+      "created_at": "2026-05-07T10:01:10Z"
+    }
+  ],
+  "total": null,
+  "limit": 50,
+  "offset": 0,
+  "next_cursor": "opaque"
+}
+```
+
 ### POST `/chat`
 
 Main real-time RAG query endpoint.
@@ -1036,9 +1209,291 @@ Not-found behavior:
 - When no relevant chunks are retrieved (or confidence is below threshold), response returns `not_found=true`, no citations, and answer:
 - `"I could not find this information in the uploaded documents."`
 
+Caches, budgets, and the verified-answer shortcut (0.5.0, R05-04 and R05-05; additive):
+
+- `trust_metadata.stage_degradations` (new, default `[]`): one entry per optional stage the
+  latency budget cut short, `{"stage", "reason", "action"}` with `reason` one of
+  `deadline`, `budget`, `error` and `action` such as `original_question`, `vector_only`,
+  `original_order`, `skipped`, `single_generation`, or `answer_withheld`. Empty unless
+  `CHAT_TOTAL_DEADLINE_MS` or a `CHAT_STAGE_BUDGET_*_MS` setting is non-zero. Required stages
+  are never listed; in strict grounded verification an exhausted verify budget returns
+  `not_found=true` and `verification_failed=true`, never unverified text.
+- Verified-answer shortcut (`CHAT_VERIFIED_ANSWER_SHORTCUT_ENABLED`, off by default): when
+  on, a published card whose question equals the normalised question and whose citations all
+  pass the caller's read, cite, scope, and chunk checks is evaluated, but the response is
+  unchanged (shadow mode): the answer is still generated. Returning the card needs a
+  contract decision first, because `confidence_score` is a required number and the API does
+  not invent one for a verified answer. The planned additive trust fields `answer_source`
+  (`"verified_answer"`) and `verified_answer_id` are therefore **not** in the schema yet.
+- Repeated questions reuse the organisation's cached query embedding; the response and
+  `debug` fields are the same as on a cache miss, except that the token ledger in the usage
+  event records zero embedding tokens for a cached query.
+
+### WebSocket `/chat/ws`
+
+Streaming alternative to `POST /chat`, enabled with `FEATURE_CHAT_WEBSOCKET_ENABLED`. The client
+sends `{"command": "chat.start", "payload": <ChatQueryRequest>}` (also `chat.cancel`,
+`chat.resume` (see [Resume](#resume)), and `heartbeat.pong`). The server streams events with one
+envelope (`stream_sequence` is set on the events of a run, `null` on connection events):
+
+```json
+{
+  "event": "chat.error",
+  "request_id": "req_123",
+  "conversation_id": null,
+  "message_id": null,
+  "sequence": 3,
+  "timestamp": "2026-11-26T10:00:00+00:00",
+  "payload": {"quota_type": "questions", "retryable": true, "next_reset_at": "2026-11-27T00:00:00+00:00"},
+  "safe_error_code": "plan_limit_exceeded",
+  "stream_sequence": 3
+}
+```
+
+Events include `chat.request.received`, `activity.step.update`, `retrieval.started`,
+`retrieval.completed`, `generation.started`, `generation.delta`, `generation.replace`,
+`generation.final`, `chat.completed`, `chat.cancelled`, `chat.resumed`, and `chat.error` (see
+[Chat event protocol](#chat-event-protocol)).
+
+Parity with `POST /chat` (shared code in `backend/app/application/chat/`):
+
+- The WebSocket always runs the same pipeline stages as `POST /chat` (since 0.5.0;
+  `CHAT_PIPELINE_V2` is deprecated and ignored): query rewriting, context packing, the grounded verifier (strict-mode refusals
+  apply), tree search, freshness, OCR, table, and extraction-quality signals, and the AI
+  response policy checks. The prompt template is resolved by the same rule (grounded
+  questions only). `chat.completed` carries the same `ChatQueryResponse` as `POST /chat`.
+- The planning, strategy-selection, and tool-orchestration `activity.step.update` events are
+  sent once those decisions are made.
+- `sequence` is one counter per connection: heartbeat, `chat.cancel`, and run events never
+  repeat a number. `conversation_id` is the chat session id (pre-assigned for a new
+  conversation), and `message_id` is the pre-assigned assistant message id on every event
+  from `generation.started` on.
+- No database connection is held while the model generates; a run that fails before
+  persistence writes no chat session or message.
+- The plan question quota is checked before any work starts. Nothing is persisted on refusal.
+- One question is recorded against the quota in the same transaction as the persisted answer.
+- Retrieved chunks from documents the user may not `cite` are dropped before the prompt is built.
+  Owners and admins bypass this check.
+- Scope-inventory answers (for example "which files are in this scope?") list every readable document, but cite only documents the user may `cite`, on both transports.
+- The known quota limit described in [Quotas and plan limits](#quotas-and-plan-limits) applies to
+  both transports: the check and the increment are separate, so a burst can overshoot a hard limit.
+
+`safe_error_code` values (`ChatWSSafeErrorCode` in `app/domains/chat/schemas/chat_ws.py`):
+`already_running`, `chat_persistence_failed`, `chat_session_not_found`, `document_not_found`,
+`generation_failed`, `internal_error`, `invalid_message`, `invalid_request`,
+`plan_limit_exceeded`, `provider_busy`, `rate_limit_exceeded`, `rate_limiter_unavailable`,
+`resume_unavailable`, `retrieval_failed`.
+
+`provider_busy` (R05-06) means the organisation's concurrent LLM call limit
+(`LLM_ORG_MAX_CONCURRENT_CALLS`, off by default) stayed reached for `LLM_ORG_SEMAPHORE_WAIT_MS`;
+`POST /chat` answers `429` with `detail.code = "provider_busy"`. Retry after a short delay. An
+open provider circuit breaker without a fallback provider is reported as `generation_failed`.
+`resume_unavailable` (R05-13) answers a `chat.resume` that cannot be served (see
+[Resume](#resume)).
+
+`plan_limit_exceeded` is the WebSocket form of the HTTP `403` with
+`detail.code = "plan_limit_exceeded"`. Its `payload` carries only `quota_type`, `retryable`, and
+`next_reset_at`. Refusals are counted in `rudix_chat_quota_denied_total{transport}`.
+
+#### Handshake authentication
+
+The handshake is authenticated in this order (`backend/app/application/chat/ws_auth.py`):
+
+1. `?ticket=<ticket>`: a single-use ticket from `POST /chat/ws-ticket`. This is what the browser
+   uses. An invalid, reused, or expired ticket fails the handshake; it never falls through to
+   another mode. The user, the app session, and a current membership in the ticket's organisation
+   are reloaded at redemption, and the role comes from that membership. Handshake headers such as
+   `X-Organization-Id` are ignored for ticket auth.
+2. `Authorization: Bearer <credential>` header: for non-browser clients. Authenticated exactly like
+   HTTP (JWTs, `rudix_` API keys, `svc_` service-account tokens), and `X-Organization-Id` is
+   honoured. API-key and service-account principals carry no role, so they still fail the role
+   check (`4403`), the same as `POST /chat`.
+3. `?token=<access token>`: deprecated and off by default. Accepted only while
+   `CHAT_WS_ALLOW_QUERY_TOKEN=true` (default `true` in 0.2.0, `false` since 0.5.0, removed in
+   1.0.0). Each use logs `chat.ws.query_token_used` with the user and organisation ids only.
+   With the default, a `?token=` handshake closes with `4401`; clients use a ticket instead.
+
+Close codes: `4401` for any authentication failure (`Unauthorized`, or `Missing auth credentials`
+when nothing was sent), `4403` for a role that may not chat, `4429` for too many connections per
+user, and `4503` when WebSocket chat is disabled. Rejections log `chat.ws.auth.rejected` with the
+method and failure reason (never the credential). Attempts are counted in
+`rudix_chat_ws_auth_total{method,outcome}`.
+
+Uvicorn logs the handshake path with its query string. A logging filter on the `uvicorn`,
+`uvicorn.error`, and `uvicorn.access` loggers replaces `token`, `ticket`, and `access_token`
+query values with `***`.
+
+#### Resume
+
+Since 0.5.0 (R05-13, contract 4.2.7 of `docs/roadmap/V0_5_0_IMPLEMENTATION_PLAN.md`) a run
+survives a dropped socket and can be followed again from a new connection.
+
+- Every event of a run carries `stream_sequence` (1, 2, … per assistant message, from
+  `chat.request.received` to the terminal event). `sequence` stays the connection counter.
+- When Redis is configured, every run event is also written to a buffer keyed by the
+  organisation, the user, and the assistant message id
+  (`rudix:{env}:chat:resume:v1:{org}:{user}:{message_id}`), kept for
+  `CHAT_RESUME_BUFFER_TTL_SECONDS` (default 300) after the last event. Past
+  `CHAT_RESUME_BUFFER_MAX_EVENTS` (default 2000) entries, consecutive deltas are merged into
+  one entry; a replay still sends only the text after the client's last sequence.
+- When the socket drops mid-run, the run keeps going for `CHAT_WS_RESUME_GRACE_SECONDS`
+  (default 30; `0` cancels on drop as before 0.5.0), and as long as a resumed connection is
+  following it. Then it is cancelled and its partial usage is recorded
+  (`chat.completion.cancelled`), as for `chat.cancel`. `chat.cancel` always cancels at once.
+  Without Redis there is no buffer and the grace window behaves as `0`. SSE is unchanged: a
+  disconnect cancels.
+
+To resume, open a new connection (with a fresh ticket) and send:
+
+```json
+{"command": "chat.resume", "payload": {"message_id": "<uuid>", "last_stream_sequence": 12}}
+```
+
+`message_id` is the `message_id` of the run's events (set from `generation.started` on);
+`last_stream_sequence` is the highest `stream_sequence` the client applied (`0` for none).
+
+1. While the buffer exists, the server sends `chat.resumed` (`{"message_id", "replayed"}`, the
+   number of buffered events it replays), the buffered events with a higher
+   `stream_sequence` in order, then the live events until `chat.completed`, `chat.error`, or
+   `chat.cancelled`. Replayed events keep their `stream_sequence` and `request_id` and get new
+   `sequence` numbers on this connection.
+2. When the run finished and the buffer expired, it sends `chat.resumed` with `replayed: 0` and
+   one `chat.completed` rebuilt from the stored message: `payload.rebuilt = true` and
+   `payload.response` with `chat_session_id`, `message_id`, `answer`, `confidence_score`,
+   `confidence_category`, `citations`, `trust_metadata`, and `created_at` (no `debug` or
+   `confidence_explanation`; read the trust metadata route for details).
+3. Otherwise it sends `chat.error` with `resume_unavailable`: the message is unknown, belongs
+   to another user or organisation, was cancelled before it was stored, Redis is missing or
+   failing, or the buffer expired while it was being followed.
+
+The client discards events whose `(message_id, stream_sequence)` it already applied. The
+buffer key contains the organisation and user of the principal, so only the user who started
+the run, in the same organisation, can read it. `chat.resume` while another command runs on
+the connection answers `already_running`; an invalid payload answers `invalid_request`.
+`chat.cancel` while following a resumed run asks that run to cancel too. Outcomes are counted
+in `rudix_chat_ws_resume_total{outcome}` and drops in `rudix_chat_ws_drop_total{outcome}`.
+
+### POST `/chat/ws-ticket`
+
+Issues a single-use handshake ticket for `/chat/ws`. Same roles as `POST /chat` (owner, admin,
+member, viewer; API keys get `403`) and the same `chat` rate-limit scope. No request body.
+
+Response `200` (with `Cache-Control: no-store`):
+
+```json
+{
+  "ticket": "opaque-url-safe-string",
+  "expires_in": 30
+}
+```
+
+- The ticket works once and expires after `CHAT_WS_TICKET_TTL_SECONDS` (default 30, range 5-300).
+- It is bound to the user, the active organisation (from `X-Organization-Id`, as for any HTTP
+  request), and the app session. Revoking the session or removing the membership before use makes
+  it fail.
+- Only `sha256(ticket)` is stored in Redis (`rudix:ws_ticket:v1:<hash>`); the raw ticket is never
+  stored or logged.
+
+Errors:
+
+- `503` with `detail.code = "ws_ticket_unavailable"` when Redis is missing or failing.
+- `503` with `detail.code = "chat_websocket_disabled"` when `FEATURE_CHAT_WEBSOCKET_ENABLED=false`.
+- `401`, `403`, and `429` as for any protected chat route.
+
+### Chat event protocol
+
+`/chat/ws` and `POST /chat/query/stream` send the same events in the same envelope (shown under
+WebSocket `/chat/ws`). Since 0.5.0 (R05-03) the answer text streams as the model writes it.
+
+Per answer (contract 4.2.6 of `docs/roadmap/V0_5_0_IMPLEMENTATION_PLAN.md`):
+
+1. `generation.started` with `payload.mode = "live" | "buffered"`.
+2. Any number of `generation.delta` (`{"text": <increment>}`).
+3. Optional `generation.replace` (`{"text": <full text>, "reason": "verification" | "policy" |
+   "retry" | "fallback" | "normalisation"}`).
+4. `citation.validation.*`.
+5. `generation.final` (`{"answer", "not_found", "citations", "confidence_score",
+   "confidence_category", "citation_validation_failed"}`).
+6. The existing `chat.completed` after persistence.
+
+Text before `generation.final` is provisional. On `generation.replace` the client replaces all
+streamed text; `chat.completed` stays the source of truth. `message_id` (the pre-assigned
+assistant message id) is set on every event from `generation.started` on.
+
+Client rules:
+
+- Append each `generation.delta` text to the provisional answer. Render it as provisional (for
+  example without citation markers or confidence); deltas never carry citations.
+- On `generation.replace`, discard everything streamed so far and show `payload.text` (it may be
+  `""`). Later deltas append to that text.
+- On `generation.final`, show `payload.answer` with its citations and confidence. It is the
+  validated answer; nothing after it changes the text.
+- On `chat.completed`, store `payload.response` (the `ChatQueryResponse` of `POST /chat`, with
+  the persisted citation ids). Clients that only read `chat.completed`, or that treat one delta
+  as the whole answer and then wait for `chat.completed`, keep working.
+- `chat.error` can follow any event; provisional text must then be dropped.
+
+When each event is sent:
+
+- `live` mode: the decoded text of the model's JSON `answer` field streams as it arrives. Output
+  that is not a JSON object streams nothing and is sent with `generation.replace`.
+- `buffered` mode (strict grounded verification, an AI response policy with a post-generation
+  rule that can refuse the answer — `citation_mode = "required"`, `min_sources_required`,
+  `min_confidence_threshold`, `no_answer_behavior = "refuse"`, `stale_source_behavior =
+  "refuse"` — tree search, or `CHAT_STREAM_MODE=buffered`): no delta is sent until citations
+  are validated; the verified text then goes out as `generation.delta`, followed by
+  `generation.final`. Text the policy or verifier would withhold is never streamed.
+- A provider retry or fallback after text was streamed sends `generation.replace` with
+  `{"text": "", "reason": "retry" | "fallback"}` before the new attempt's deltas.
+- After verification, when the final text differs from the streamed text, one
+  `generation.replace` carries the final text with the last reason that changed it: `policy`
+  (post-generation block or disclaimer), `verification` (grounded verifier or refiner), or
+  `normalisation` (whitespace trimming, length cap, not-found mapping). This replace comes
+  after the `citation.validation.*` events and before `generation.final`.
+- Guidance answers stream like grounded answers (`live` unless a blocking policy or
+  `CHAT_STREAM_MODE=buffered`); scope-inventory answers send one delta. A blocked question
+  (injection guard, policy topic) or a question with no evidence sends no `generation.started`
+  and no delta, only `generation.final` and `chat.completed`.
+- Cancelling (`chat.cancel` on the WebSocket, a client disconnect on SSE) closes the provider
+  stream. No message is stored and no question is counted against the quota; the tokens spent
+  are recorded as a `usage_events` row with `event_type = "chat.completion.cancelled"`
+  (provider-reported usage, or chars / 4 estimates with `metadata.usage_estimated = true`).
+
+### POST `/chat/query/stream`
+
+Server-Sent Events form of `POST /chat` for clients that cannot use WebSockets. Same request
+body (`ChatQueryRequest`), roles (owner, admin, member, viewer), `chat` rate-limit scope, quota,
+and pipeline.
+
+- Authorisation, the injection guard, and configuration (pipeline stages 1-3) finish before the
+  response starts, so their refusals return the same status and `detail` as `POST /chat`
+  (`403` with `detail.code = "plan_limit_exceeded"`, `404` for an unknown document or chat
+  session, `401`, `429`). Any later failure is sent as a `chat.error` event with the WebSocket
+  `safe_error_code` values, and the stream ends.
+- Response `200` with `Content-Type: text/event-stream`, `Cache-Control: no-store`, and
+  `X-Accel-Buffering: no`. GZip never compresses this media type.
+- Frames (one per event; `data` is the event envelope JSON on one line, and `id` equals its
+  `sequence`):
+
+```text
+id: 12
+event: generation.delta
+data: {"event":"generation.delta","request_id":"…","conversation_id":"…","message_id":"…","sequence":12,"timestamp":"…","payload":{"text":"Employees receive"},"safe_error_code":null}
+
+```
+
+- The first event is `chat.request.received` and the last is `chat.completed` or `chat.error`.
+  A `: keep-alive` comment is sent when no event was sent for
+  `WS_CHAT_HEARTBEAT_INTERVAL_SECONDS`.
+- A client disconnect cancels the run at once (partial usage as above). There is no resume for
+  SSE; reconnecting starts a new question.
+- Usage rows of SSE answers carry `metadata.transport = "sse"`.
+
 ### POST `/chat/sessions/{session_id}/messages`
 
-Ask a question.
+Deprecated (returns 501; removed in 1.0.0)
+
+Legacy ask-a-question contract. Use `POST /chat` instead; the shapes below are kept for reference only.
 
 Request:
 
@@ -1071,9 +1526,9 @@ Response:
 }
 ```
 
-Current scaffold behavior:
+Current behavior:
 
-- Endpoint validates authz and document access, then returns `501` until retrieval/generation pipeline implementation is completed.
+- Endpoint validates authz and document access, then returns `501`. It is marked `deprecated` in OpenAPI and will be removed in `1.0.0`.
 
 ## Prompt templates
 
@@ -1906,6 +2361,20 @@ Response:
 ### POST `/agent/runs`
 
 Creates and executes an agent run. `agentic_mode` must be explicitly `true`.
+Validation, roles, rate limit, and the `agent_runs` quota are the same in both execution
+modes (`AGENT_RUN_EXECUTION`, R06-13):
+
+- `inline` (default, 0.5.0 behaviour): the run executes inside the request and the
+  response carries its final state (example below).
+- `worker`: the request stores the run as `queued` (with the validated request and the
+  caller's identity as `request_snapshot`), records the quota, writes an outbox row for
+  `agents.run.execute` in the same transaction, commits, publishes, and returns `201` at
+  once with the same `AgentRunCreateResponse` shape: `status: "queued"`, zero counters,
+  `outcome: null`. Follow the run with `GET /agent/runs/{run_id}` or the stream below. A
+  broker outage leaves the outbox row pending; the `outbox.relay` beat task publishes it.
+  `POST /agent/runs/{run_id}/cancel` cancels a queued, running, or waiting run with one
+  conditional update: a cancel accepted while a worker finishes the run stays the run's
+  final state, and a run that completed first answers `409 run_already_terminal`.
 
 Request:
 
@@ -1922,7 +2391,7 @@ Request:
 }
 ```
 
-Response (`201 Created`):
+Response (`201 Created`, inline mode):
 
 ```json
 {
@@ -2018,7 +2487,42 @@ Returns persisted run state, steps, tool calls, approvals, budget/costs, and saf
 
 ### GET `/agent/runs/{run_id}/stream`
 
-Reserved endpoint for streaming responses. Currently returns `501 Not Implemented`.
+Server-Sent Events for one run (R06-13; replaces the 0.5.0 `501`). Same roles as
+`GET /agent/runs/{run_id}` (owner, admin, member, viewer) and the same feature flag. The
+run must belong to the caller's organisation; members and viewers see only runs they
+started, owners and admins any run of the organisation. Otherwise `404 Agent run not found`.
+
+Frames use the 0.5.0 framing of `POST /chat/query/stream`:
+
+```text
+id: 3
+event: agent.step.completed
+data: {"id":3,"event":"agent.step.completed","run_id":"uuid","payload":{"sequence":1,"step_name":"discover_documents","tool_name":"search_documents","status":"completed"},"emitted_at":"..."}
+
+: keep-alive
+```
+
+| Event | Payload |
+|---|---|
+| `agent.run.status` | `status` (`queued`, `running`), `resume_count` |
+| `agent.step.started` | `sequence`, `step_name`, `tool_name`, `status` |
+| `agent.step.completed` | `sequence`, `step_name`, `tool_name`, `status` (`completed`, `failed`) |
+| `agent.run.waiting_approval` | `status`, counters, `approval_id`, `error_code` |
+| `agent.run.completed` / `.failed` / `.cancelled` | `status`, `steps_executed`, `tool_calls_executed`, `error_code` |
+
+Payloads carry ids, statuses, tool names, counts, and safe error codes only, never
+document text, prompts, or tool outputs. Ids increase monotonically within a stream. The
+stream ends after a terminal event, or after `AGENT_STREAM_BUFFER_TTL_SECONDS`.
+
+- With Redis, the runtime appends every event to a buffer (TTL
+  `AGENT_STREAM_BUFFER_TTL_SECONDS`) keyed by organisation and run and publishes it on a
+  channel; send `Last-Event-ID` to replay the events with a larger id, then the stream
+  follows new events. While the channel is idle the run row is read every keep-alive
+  interval, so a run the reaper failed still ends the stream.
+- Without Redis (or without a buffer for the run), the endpoint polls the run and its steps
+  every `AGENT_STREAM_POLL_INTERVAL_MS` and sends each state change. Ids then continue after
+  `Last-Event-ID`, and the first poll sends the run's current state, so a reconnecting
+  client may receive an event again but never misses one.
 
 ### POST `/agent/runs/{run_id}/approvals/{approval_id}/decision`
 
@@ -2039,6 +2543,12 @@ Notes:
 - `status` must be `approved` or `rejected`.
 - Non-pending approvals return `409`.
 - Cross-organization runs/approvals return safe `404`.
+- Worker mode (R06-13): approving a run that waits for this approval moves it back to
+  `queued` and writes an outbox row for `agents.run.resume` (dedupe key: the approval id)
+  in the decision's transaction; the worker continues the run with the approval, so
+  clients no longer resubmit with `request.approval_ids`. Inline mode keeps the 0.5.0
+  behaviour (the run is marked `running`; resubmit with `approval_ids`). A rejection fails
+  the run in both modes.
 
 ## Admin endpoints
 
@@ -2242,6 +2752,10 @@ Response includes:
 - runtime budget limits
 - external MCP server policy entries (metadata + secret references only)
 - global MCP endpoint status and deployment warnings
+- audit log retention (`R04-09`): `policy.audit_log_retention_days` (organisation override,
+  `null` = platform default), `platform_audit_log_retention_days`
+  (`RETENTION_AUDIT_LOGS_DAYS`), and `effective_audit_log_retention_days` (override if set,
+  else platform default; `null` = keep every row)
 
 Notes:
 
@@ -2270,6 +2784,7 @@ organization-scoped:
   original cursor snapshot, respects connector rate limits and permission checks,
   and returns the same safe sync-queue response shape as a manual trigger.
 - `GET /connectors/{connection_id}` includes source permission snapshots so the UI can surface access-review hooks without exposing raw credentials.
+- Connector sync run responses (`GET /connectors/sync-runs/{run_id}`, `GET /connectors/{connection_id}/sync-runs`, `POST /connectors/sync-runs/{run_id}/cancel`) carry the additive 0.6.0 fields `checkpoint_at` (ISO timestamp of the last committed page, or `null`) and `pages_committed` (integer, default `0`). Both stay set on cancelled and interrupted runs. A run can stay `running` with no progress while it waits for a provider Retry-After; it is not failed for a rate limit (R06-11).
 - Connector sync completion and failure paths emit audit-safe lifecycle events for start, success, failure, source selection, and permission changes.
 
 Safe-output guarantees:
@@ -2288,8 +2803,47 @@ Safe update semantics:
 - unknown tool names are rejected (`422`)
 - side-effect tool changes require explicit acknowledgment (`side_effect_warning_acknowledged=true`)
 - policy changes are audit-logged as `admin.governance.policy.updated`
+- `audit_log_retention_days` (`R04-09`): integer 30..3650 sets the organisation's audit
+  retention override (`422` outside the range). Omitting the field keeps the current value,
+  and an explicit `null` clears it. A change adds the new override and the effective window
+  to the audit entry's metadata.
 
 The endpoint returns the updated effective policy, changed field names, and whether an audit record was written.
+
+### GET /admin/vector-index/status
+
+Read-only status of the vector index generations (R06-08). Roles `owner` and `admin`
+(`403` for other roles), rate limit scope `admin`. Build, swap, and rollback are operator
+commands (`scripts/vector_index.py`); there is no write endpoint.
+
+```json
+{
+  "alias": "documents_live",
+  "legacy_mode": false,
+  "active": {
+    "generation": 1,
+    "embedding_model": "text-embedding-3-small",
+    "vector_size": 1536,
+    "activated_at": "2026-11-01T00:00:00Z"
+  },
+  "building": {
+    "generation": 2,
+    "embedding_model": "text-embedding-3-large",
+    "state": "building",
+    "started_at": "2026-11-27T10:00:00Z"
+  },
+  "progress": { "documents_total": 120, "documents_done": 45 }
+}
+```
+
+- Legacy mode (`QDRANT_COLLECTION_ALIAS` unset): `legacy_mode: true`, `alias: null`,
+  `active.generation: null` with the configured model and dimension, no `building`.
+- `active` is `null` in alias mode before adoption; `building` and `progress` are `null`
+  when no generation is building or verifying.
+- `progress` counts only the caller's organisation: its indexed documents and, of those, the
+  documents the building generation holds. Other organisations' counts, collection names,
+  and point counts are never returned (cross-tenant progress is the metric
+  `rudix_reindex_progress`).
 
 ## Rate limits
 
@@ -2302,6 +2856,15 @@ Recommended:
 | `/bots/*/events`    | 30 asks/window/workspace/user |
 | `/evaluations/run`  | Admin only             |
 | `/retrieval/search` | Admin/debug only       |
+
+The WebSocket `chat.start` command uses the `chat` scope limit (`RATE_LIMIT_CHAT_REQUESTS`) like
+`POST /chat`, counted in its own `/chat/ws` bucket per user and organisation (buckets are keyed by
+endpoint), and honours `RATE_LIMIT_REDIS_FAILURE_MODE` through the same limiter core
+(`app/rate_limit/counter.py`). In
+`closed` mode, when Redis is unavailable or errors, the socket receives `chat.error` with
+`safe_error_code=rate_limiter_unavailable` (the equivalent of HTTP 503) and the pipeline is not
+started; the connection stays open. In `open` mode the command proceeds and the degradation is
+logged. Decisions are counted in `rudix_rate_limit_decisions_total{scope,decision,failure_mode}`.
 
 ## Status codes
 
