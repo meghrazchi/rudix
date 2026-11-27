@@ -579,13 +579,15 @@ transaction). Authorisation, quota, and document access run before any document 
 `docs/roadmap/V0_5_0_IMPLEMENTATION_PLAN.md`): the service names are the `default_deps`
 objects, and `_openai_client`, `SessionLocal`, and `ensure_chat_quota` are read at call time.
 
-Golden transcripts in `tests/fixtures/chat_golden/` hold what each transport answers for 40
-scenarios; `tests/test_chat_golden_transcripts.py` and `tests/test_chat_golden_edge_transcripts.py`
-compare the legacy body, the pipeline, and the WebSocket against them. Re-record only for the
-reasons in contract 4.2.4:
+Golden transcripts in `tests/fixtures/chat_golden/` hold what each transport answers for 47
+scenarios; `tests/test_chat_golden_transcripts.py`, `tests/test_chat_golden_edge_transcripts.py`,
+and `tests/test_chat_golden_branch_transcripts.py` (freshness, OCR, table, parent context,
+hybrid merge, strict verifier, refiner branches) compare the legacy body, the pipeline, and the
+WebSocket against them. Re-record only for the reasons in contract 4.2.4:
 
 ```bash
-CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py tests/test_chat_golden_edge_transcripts.py
+CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py \
+  tests/test_chat_golden_edge_transcripts.py tests/test_chat_golden_branch_transcripts.py
 ```
 
 ## Application cache
