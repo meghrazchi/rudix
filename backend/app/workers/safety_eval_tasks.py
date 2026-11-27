@@ -205,9 +205,11 @@ async def _run_safety_eval_async(
     scored_results: list[dict[str, Any]] = []
 
     for case in cases:
+        target_stage = (case.metadata_json or {}).get("target_stage")
         scored = _scoring_service.score(
             violation_type=case.violation_type,
             prompt_text=case.prompt_text,
+            target_stage=str(target_stage) if target_stage else None,
         )
         case_summaries.append(
             _CaseSummary(

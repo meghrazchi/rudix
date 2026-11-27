@@ -114,6 +114,12 @@
           "detected": false,
           "preferred_document_ids": []
         },
+        "context_injection": {
+          "action": "downrank",
+          "flagged_chunk_ids": [],
+          "flagged_count": 0,
+          "scanned": true
+        },
         "evidence_quality": {
           "any_incomplete_documents": false,
           "extraction_warning_count": 0,
@@ -465,7 +471,9 @@
     },
     {
       "event": "generation.started",
-      "payload_keys": []
+      "payload_keys": [
+        "mode"
+      ]
     },
     {
       "event": "activity.step.update",
@@ -534,6 +542,17 @@
       "step_key": "verifying_citations"
     },
     {
+      "event": "generation.final",
+      "payload_keys": [
+        "answer",
+        "citation_validation_failed",
+        "citations",
+        "confidence_category",
+        "confidence_score",
+        "not_found"
+      ]
+    },
+    {
       "event": "activity.step.update",
       "payload_keys": [
         "detail",
@@ -561,7 +580,7 @@
     },
     {
       "kind": "answer",
-      "prompt_sha256": "1d7e868b2a82ae29f8f1972247d89f50af34fde16e01d15d4b39bbe2fe6e0296"
+      "prompt_sha256": "d9d933d810e9f508d16d96af7bffac3384b8d8bd9d8324494c59e544ebe1a32c"
     }
   ],
   "questions_quota_delta": 1,
@@ -779,7 +798,7 @@
     {
       "cost_usd": 0.0,
       "event_type": "chat.completion",
-      "input_tokens": 52,
+      "input_tokens": 75,
       "metadata": {
         "assistant_message_id": "<uuid:2>",
         "chat_session_id": "<uuid:1>",
@@ -829,10 +848,62 @@
         "rerank_total_tokens": 0,
         "retrieval_count": 2,
         "selected_count": 2,
+        "token_ledger": [
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 11,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 23,
+            "provider": "openai",
+            "stage": "rewrite"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 17,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 31,
+            "provider": "openai",
+            "stage": "generate"
+          }
+        ],
         "transport": "websocket"
       },
       "model_name": "gpt-5.4-mini",
-      "output_tokens": 17,
+      "output_tokens": 28,
       "provider_key": "openai"
     }
   ]

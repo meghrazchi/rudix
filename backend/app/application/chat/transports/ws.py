@@ -108,6 +108,8 @@ class WsEmitter:
         return None
 
     async def emit(self, event: ChatEvent) -> None:
+        # Every pipeline event is forwarded, generation.final and generation.replace
+        # included (R05-03); deltas carry text only.
         if event.type == "generation.started":
             self._generation_started = True
         await self._send(event.type, event.payload, message_id=self._message_id(event))
@@ -133,6 +135,9 @@ class WsEmitter:
             payload=payload,
             safe_error_code=safe_error_code,
         )
+        await self._deliver(outbound)
+
+    async def _deliver(self, outbound: ChatWSOutboundEvent) -> None:
         await ws_send(self._websocket, outbound)
 
 
@@ -185,27 +190,8 @@ async def run_ws_query(
         )
     except asyncio.CancelledError:
         raise
-    except ChatPipelineError as exc:
-        await emitter.emit_error(exc.code, exc.payload)
-        return
-    except HTTPException as exc:
-        denial = chat_quota_denial(exc)
-        if denial is None:
-            _log_unhandled(principal, exc)
-            await emitter.emit_error("internal_error")
-            return
-        await emitter.emit_error("plan_limit_exceeded", denial)
-        log_query_event(
-            event="query.rejected.quota_exceeded",
-            organization_id=principal.organization_id,
-            user_id=principal.user_id,
-            transport="ws",
-            request_id=request_id,
-        )
-        return
     except Exception as exc:
-        _log_unhandled(principal, exc)
-        await emitter.emit_error("internal_error")
+        await emit_pipeline_failure(emitter, exc, principal, request_id, transport="ws")
         return
 
     response = build_chat_query_response(ctx)
@@ -216,6 +202,34 @@ async def run_ws_query(
             message_id=response.message_id,
         )
     )
+
+
+async def emit_pipeline_failure(
+    emitter: WsEmitter,
+    exc: Exception,
+    principal: AuthenticatedPrincipal,
+    request_id: str,
+    *,
+    transport: str,
+) -> None:
+    """A failed run as one ``chat.error`` with today's safe codes (WebSocket and SSE)."""
+    if isinstance(exc, ChatPipelineError):
+        await emitter.emit_error(exc.code, exc.payload)
+        return
+    if isinstance(exc, HTTPException):
+        denial = chat_quota_denial(exc)
+        if denial is not None:
+            await emitter.emit_error("plan_limit_exceeded", denial)
+            log_query_event(
+                event="query.rejected.quota_exceeded",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                transport=transport,
+                request_id=request_id,
+            )
+            return
+    _log_unhandled(principal, exc)
+    await emitter.emit_error("internal_error")
 
 
 def _log_unhandled(principal: AuthenticatedPrincipal, exc: BaseException) -> None:

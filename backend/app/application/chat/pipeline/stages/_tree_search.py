@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from app.application.chat.pipeline.context import NOT_FOUND_ANSWER, ChatContext
 from app.application.chat.pipeline.controls import _resolve_tree_search_reasoning_enabled
+from app.application.chat.pipeline.stages._ledger import record_llm_results
 from app.application.chat.pipeline.stages._llm import apply_llm_result, start_drafting
 from app.core.config import settings
 from app.core.logging import log_query_event
@@ -25,7 +26,10 @@ from app.domains.chat.services.confidence_calibration import (
     _compute_ocr_quality_multiplier,
 )
 from app.domains.chat.services.llm_service import LLMAnswerResult
-from app.domains.chat.services.tree_search_service import TreeSearchCandidateScore
+from app.domains.chat.services.tree_search_service import (
+    TreeSearchCandidateDraft,
+    TreeSearchCandidateScore,
+)
 
 Evaluation = tuple[
     TreeSearchCandidateScore,
@@ -95,7 +99,6 @@ async def run_tree_search(ctx: ChatContext) -> None:
     """Try tree search; on an accepted (or rejected) selection set ``citation_result``."""
     req = ctx.request
     ret = ctx.retrieval
-    gen = ctx.generation
     planner_result = ctx.config.planner_result
     async with ctx.sessions.short() as db_session:
         enabled = await _resolve_tree_search_reasoning_enabled(
@@ -109,7 +112,7 @@ async def run_tree_search(ctx: ChatContext) -> None:
     )
     if not applicable:
         return
-    await start_drafting(ctx)
+    await start_drafting(ctx, "buffered")  # R05-03: tree search always buffers
     tree_chunks = context_chunks(ctx)
     tree = ctx.deps.tree_search_service
     result = await tree.generate_candidates(
@@ -123,13 +126,33 @@ async def run_tree_search(ctx: ChatContext) -> None:
         timeout_seconds=settings.tree_search_timeout_seconds,
         max_total_tokens=settings.tree_search_max_total_tokens,
         max_total_cost_usd=Decimal(str(settings.tree_search_max_total_cost_usd)),
+        context_boundary=ctx.context_boundary,
     )
     ctx.latencies_ms["tree_search"] = result.latency_ms
     if result.candidate_count <= 0:
         return
+    # R05-07: every candidate call is charged. The one applied below (selected, or the
+    # best rejected) is recorded by ``apply_llm_result``; all others are recorded here.
+    charged = await _select_and_apply(ctx, result.candidates, tree_chunks)
+    record_llm_results(
+        ctx,
+        [c.llm_result for c in result.candidates if c.llm_result is not charged],
+    )
+
+
+async def _select_and_apply(
+    ctx: ChatContext,
+    candidates: list[TreeSearchCandidateDraft],
+    tree_chunks: list[CitationContextChunk],
+) -> LLMAnswerResult | None:
+    """Score the candidates and apply the selection; return the applied candidate's
+    result (``None`` when none was selected and the single grounded call follows)."""
+    ret = ctx.retrieval
+    gen = ctx.generation
+    tree = ctx.deps.tree_search_service
     scores: list[TreeSearchCandidateScore] = []
     evaluations: list[Evaluation] = []
-    for candidate in result.candidates:
+    for candidate in candidates:
         candidate_result = ctx.deps.citation_service.build_citations(
             not_found=False,
             answer=candidate.llm_result.answer,
@@ -167,7 +190,7 @@ async def run_tree_search(ctx: ChatContext) -> None:
         scores, min_selected_score=settings.tree_search_min_selected_score
     )
     if selection.selected_candidate is None:
-        return
+        return None
     selected_score = selection.selected_candidate
     selected = next(
         (ev for ev in evaluations if ev[0].strategy == selected_score.strategy),
@@ -184,7 +207,8 @@ async def run_tree_search(ctx: ChatContext) -> None:
         gen.citations = citations
         ctx.verification.citation_validation_failed = citation_result.invalid_chunk_id_count > 0
         log_citation_validation(ctx, citation_result)
-    elif selected is not None:
+        return llm_result
+    if selected is not None:
         best = selected[3]
         llm_result = LLMAnswerResult(
             answer="",
@@ -210,3 +234,5 @@ async def run_tree_search(ctx: ChatContext) -> None:
         gen.not_found = True
         gen.citations = []
         gen.citation_result = empty_citation_result()
+        return best
+    return None

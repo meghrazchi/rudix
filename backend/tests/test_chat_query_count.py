@@ -30,7 +30,9 @@ pytestmark = [pytest.mark.asyncio]
 
 # Measured on this branch: 46 statements for one grounded question, authentication included
 # (the legacy body sent the same number). Raise it deliberately, never silently.
-GROUNDED_HTTP_QUESTION_STATEMENT_BASELINE = 46
+# R05-07 (B1): +4 for the token-quota increment (QuotaType.tokens) in stage 10: the quota
+# policy and usage reads, the upsert, and the returned row. Measured: 50.
+GROUNDED_HTTP_QUESTION_STATEMENT_BASELINE = 50
 _WRITE_PREFIXES = ("INSERT", "UPDATE", "DELETE")
 
 

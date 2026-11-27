@@ -73,6 +73,12 @@
           "detected": false,
           "preferred_document_ids": []
         },
+        "context_injection": {
+          "action": "downrank",
+          "flagged_chunk_ids": [],
+          "flagged_count": 0,
+          "scanned": true
+        },
         "evidence_quality": {
           "any_incomplete_documents": false,
           "extraction_warning_count": 0,
@@ -377,7 +383,9 @@
     },
     {
       "event": "generation.started",
-      "payload_keys": []
+      "payload_keys": [
+        "mode"
+      ]
     },
     {
       "event": "activity.step.update",
@@ -391,10 +399,6 @@
       ],
       "state": "running",
       "step_key": "drafting_answer"
-    },
-    {
-      "event": "generation.delta",
-      "text": "Employees receive twenty days of annual leave."
     },
     {
       "event": "activity.step.update",
@@ -446,6 +450,21 @@
       "step_key": "verifying_citations"
     },
     {
+      "event": "generation.delta",
+      "text": "I could not find this information in the uploaded documents."
+    },
+    {
+      "event": "generation.final",
+      "payload_keys": [
+        "answer",
+        "citation_validation_failed",
+        "citations",
+        "confidence_category",
+        "confidence_score",
+        "not_found"
+      ]
+    },
+    {
       "event": "activity.step.update",
       "payload_keys": [
         "detail",
@@ -469,7 +488,7 @@
   "provider_calls": [
     {
       "kind": "answer",
-      "prompt_sha256": "277b756f20a7396617d04d5862f55e1a551954917c29d09e3412499d973fefd2"
+      "prompt_sha256": "9bba5cba51ca7481a797e1ca6a481f32ac449a202c2d2df2c190360644df9690"
     }
   ],
   "questions_quota_delta": 1,
@@ -683,6 +702,28 @@
         "rerank_total_tokens": 0,
         "retrieval_count": 1,
         "selected_count": 1,
+        "token_ledger": [
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 17,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 31,
+            "provider": "openai",
+            "stage": "generate"
+          }
+        ],
         "transport": "websocket"
       },
       "model_name": "gpt-5.4-mini",

@@ -15,6 +15,8 @@ from app.application.chat.pipeline.stages._confidence import (
     enrich_citations_and_score,
     score_not_found,
 )
+from app.application.chat.pipeline.stages._final import emit_final_events
+from app.application.chat.pipeline.stages._ledger import record_aux_usage
 from app.core.logging import log_query_event
 from app.domains.chat.services.confidence_calibration import _build_evidence_quality_inputs
 from app.domains.chat.services.grounded_answer_verifier import VerifierChunk
@@ -65,6 +67,7 @@ class VerifyStage:
         self._policy_post_check(ctx)
         # The answer, citations, and confidence are final from here on.
         # anchor: A1 final event
+        await emit_final_events(ctx)
 
     @staticmethod
     async def _grounded_verification(ctx: ChatContext) -> None:
@@ -100,7 +103,10 @@ class VerifyStage:
             citations=_build_verifier_citations(gen.citations),
             mode=cast(Literal["strict", "standard"], gv_mode),
             threshold=gv_threshold,
+            resolved_profile=cfg.chat_profile,
+            context_boundary=ctx.context_boundary,
         )
+        record_aux_usage(ctx, "verifier", result.usage)
         ver.grounded_verifier_result = result
         ctx.latencies_ms["grounded_verification"] = int((perf_counter() - started) * 1000)
         if not result.applied:
@@ -235,7 +241,10 @@ class VerifyStage:
             draft_answer=gen.answer,
             critic_instruction=critic.refiner_instruction,
             citation_snippets=snippets,
+            resolved_profile=cfg.chat_profile,
+            context_boundary=ctx.context_boundary,
         )
+        record_aux_usage(ctx, "refiner", refiner.usage)
         ver.refiner_result = refiner
         ctx.latencies_ms["refiner"] = int((perf_counter() - started) * 1000)
         if not refiner.applied:

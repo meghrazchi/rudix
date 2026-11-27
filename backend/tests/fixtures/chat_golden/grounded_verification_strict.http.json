@@ -73,6 +73,12 @@
           "detected": false,
           "preferred_document_ids": []
         },
+        "context_injection": {
+          "action": "downrank",
+          "flagged_chunk_ids": [],
+          "flagged_count": 0,
+          "scanned": true
+        },
         "evidence_quality": {
           "any_incomplete_documents": false,
           "extraction_warning_count": 0,
@@ -267,11 +273,11 @@
   "provider_calls": [
     {
       "kind": "answer",
-      "prompt_sha256": "277b756f20a7396617d04d5862f55e1a551954917c29d09e3412499d973fefd2"
+      "prompt_sha256": "9bba5cba51ca7481a797e1ca6a481f32ac449a202c2d2df2c190360644df9690"
     },
     {
       "kind": "verifier",
-      "prompt_sha256": "78b2c74d1b3ea3082a6824ffc44238b5d83be5c65ffa6b23eb4a72425bc3dbf8"
+      "prompt_sha256": "d4776980278aebc7953e8b4c9db474d10a145fc4806ea85eaceb2f7c6580c2ec"
     }
   ],
   "questions_quota_delta": 1,
@@ -436,7 +442,7 @@
     {
       "cost_usd": 0.0,
       "event_type": "chat.completion",
-      "input_tokens": 38,
+      "input_tokens": 51,
       "metadata": {
         "assistant_message_id": "<uuid:2>",
         "chat_session_id": "<uuid:1>",
@@ -485,10 +491,42 @@
         "rerank_provider": null,
         "rerank_total_tokens": 0,
         "retrieval_count": 1,
-        "selected_count": 1
+        "selected_count": 1,
+        "token_ledger": [
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 17,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 31,
+            "provider": "openai",
+            "stage": "generate"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 9,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 13,
+            "provider": "openai",
+            "stage": "verifier"
+          }
+        ]
       },
       "model_name": "gpt-5.4-mini",
-      "output_tokens": 17,
+      "output_tokens": 26,
       "provider_key": "openai"
     }
   ]

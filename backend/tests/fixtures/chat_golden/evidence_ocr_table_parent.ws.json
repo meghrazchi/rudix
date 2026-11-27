@@ -114,6 +114,12 @@
           "detected": false,
           "preferred_document_ids": []
         },
+        "context_injection": {
+          "action": "downrank",
+          "flagged_chunk_ids": [],
+          "flagged_count": 0,
+          "scanned": true
+        },
         "evidence_quality": {
           "any_incomplete_documents": false,
           "extraction_warning_count": 0,
@@ -414,7 +420,9 @@
     },
     {
       "event": "generation.started",
-      "payload_keys": []
+      "payload_keys": [
+        "mode"
+      ]
     },
     {
       "event": "activity.step.update",
@@ -483,6 +491,17 @@
       "step_key": "verifying_citations"
     },
     {
+      "event": "generation.final",
+      "payload_keys": [
+        "answer",
+        "citation_validation_failed",
+        "citations",
+        "confidence_category",
+        "confidence_score",
+        "not_found"
+      ]
+    },
+    {
       "event": "activity.step.update",
       "payload_keys": [
         "detail",
@@ -506,7 +525,7 @@
   "provider_calls": [
     {
       "kind": "answer",
-      "prompt_sha256": "d9f88d19e80fb960ff0bff46506fd192c2252f464de55ec743cbf0e1a354980d"
+      "prompt_sha256": "eba4a0c6429a5b45607c35083cfe4e13cc87e275b52802ffe54707b8272759da"
     }
   ],
   "questions_quota_delta": 1,
@@ -771,6 +790,28 @@
         "rerank_total_tokens": 0,
         "retrieval_count": 2,
         "selected_count": 2,
+        "token_ledger": [
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 17,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 31,
+            "provider": "openai",
+            "stage": "generate"
+          }
+        ],
         "transport": "websocket"
       },
       "model_name": "gpt-5.4-mini",

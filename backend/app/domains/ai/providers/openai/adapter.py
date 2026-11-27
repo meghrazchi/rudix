@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from time import perf_counter
 from typing import Any, Protocol
 
@@ -22,7 +23,13 @@ from app.domains.ai.providers.errors import (
     ProviderUnavailableError,
     UnsupportedCapabilityError,
 )
+from app.domains.ai.providers.openai.streaming import (
+    build_chat_payload,
+    close_stream,
+    parse_stream_chunk,
+)
 from app.domains.ai.providers.protocols import (
+    ChatCompletionChunk,
     ChatCompletionRequest,
     ChatCompletionResponse,
     EmbeddingRequest,
@@ -53,6 +60,28 @@ def _extract_content(content: object) -> str:
     return ""
 
 
+def _translate_chat_error(exc: Exception) -> Exception:
+    """Map an OpenAI SDK error to the provider-neutral error (messages redacted)."""
+    if isinstance(exc, RateLimitError):
+        return ProviderQuotaExceededError(f"OpenAI rate limit exceeded: {_redact(str(exc))}")
+    if isinstance(exc, APITimeoutError):
+        return ProviderTimeoutError(f"OpenAI request timed out: {_redact(str(exc))}")
+    if isinstance(exc, APIConnectionError):
+        return ProviderUnavailableError(f"OpenAI is unreachable: {_redact(str(exc))}")
+    if isinstance(exc, AuthenticationError | PermissionDeniedError):
+        return ProviderPolicyBlockedError(f"OpenAI rejected the request: {_redact(str(exc))}")
+    if isinstance(exc, BadRequestError):
+        msg = str(exc).lower()
+        if "response_format" in msg and ("support" in msg or "not supported" in msg):
+            return UnsupportedCapabilityError("Model does not support JSON response_format")
+        return InvalidProviderResponseError(f"OpenAI bad request: {_redact(str(exc))}")
+    if isinstance(exc, InternalServerError):
+        return ProviderInternalError(f"OpenAI internal error: {_redact(str(exc))}")
+    if isinstance(exc, OSError):
+        return ProviderUnavailableError(f"Network error reaching OpenAI: {_redact(str(exc))}")
+    return ProviderInternalError(f"Unexpected OpenAI error: {_redact(str(exc))}")
+
+
 class _ChatEndpointLike(Protocol):
     async def create(self, **kwargs: object) -> Any: ...
 
@@ -74,49 +103,13 @@ class OpenAIChatProvider:
 
     async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         model = request.model or self._model_name
-        payload: dict[str, object] = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": request.system_message},
-                {"role": "user", "content": request.prompt},
-            ],
-            "temperature": request.temperature,
-        }
-        if request.json_mode:
-            payload["response_format"] = {"type": "json_object"}
-        if request.max_tokens is not None:
-            payload["max_tokens"] = request.max_tokens
+        payload = build_chat_payload(request, model=model, json_mode=request.json_mode)
 
         started = perf_counter()
         try:
             response = await self._client.chat.completions.create(**payload)
-        except RateLimitError as exc:
-            raise ProviderQuotaExceededError(
-                f"OpenAI rate limit exceeded: {_redact(str(exc))}"
-            ) from exc
-        except APITimeoutError as exc:
-            raise ProviderTimeoutError(f"OpenAI request timed out: {_redact(str(exc))}") from exc
-        except APIConnectionError as exc:
-            raise ProviderUnavailableError(f"OpenAI is unreachable: {_redact(str(exc))}") from exc
-        except (AuthenticationError, PermissionDeniedError) as exc:
-            raise ProviderPolicyBlockedError(
-                f"OpenAI rejected the request: {_redact(str(exc))}"
-            ) from exc
-        except BadRequestError as exc:
-            msg = str(exc).lower()
-            if "response_format" in msg and ("support" in msg or "not supported" in msg):
-                raise UnsupportedCapabilityError(
-                    "Model does not support JSON response_format"
-                ) from exc
-            raise InvalidProviderResponseError(f"OpenAI bad request: {_redact(str(exc))}") from exc
-        except InternalServerError as exc:
-            raise ProviderInternalError(f"OpenAI internal error: {_redact(str(exc))}") from exc
-        except OSError as exc:
-            raise ProviderUnavailableError(
-                f"Network error reaching OpenAI: {_redact(str(exc))}"
-            ) from exc
         except Exception as exc:
-            raise ProviderInternalError(f"Unexpected OpenAI error: {_redact(str(exc))}") from exc
+            raise _translate_chat_error(exc) from exc
 
         latency_ms = int((perf_counter() - started) * 1000)
         choices = getattr(response, "choices", None) or []
@@ -141,6 +134,25 @@ class OpenAIChatProvider:
             total_tokens=total_tokens,
             latency_ms=latency_ms,
         )
+
+    async def stream(self, request: ChatCompletionRequest) -> AsyncIterator[ChatCompletionChunk]:
+        """Stream the completion (R05-03); usage arrives on the last chunk
+        (``stream_options.include_usage``). Closing this iterator closes the HTTP stream."""
+        model = request.model or self._model_name
+        payload = build_chat_payload(request, model=model, json_mode=request.json_mode)
+        payload["stream"] = True
+        payload["stream_options"] = {"include_usage": True}
+        try:
+            stream = await self._client.chat.completions.create(**payload)
+        except Exception as exc:
+            raise _translate_chat_error(exc) from exc
+        try:
+            async for event in stream:
+                yield parse_stream_chunk(event)
+        except Exception as exc:
+            raise _translate_chat_error(exc) from exc
+        finally:
+            await close_stream(stream)
 
 
 class _EmbeddingsEndpointLike(Protocol):

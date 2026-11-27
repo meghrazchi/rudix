@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from time import perf_counter
@@ -18,6 +19,11 @@ from app.domains.ai.providers.errors import (
     UnsupportedCapabilityError,
 )
 from app.domains.ai.providers.protocols import ChatCompletionProvider, ChatCompletionRequest
+from app.domains.chat.services.answer_stream import (
+    StreamProgress,
+    TextCallback,
+    collect_stream,
+)
 
 if TYPE_CHECKING:
     from app.domains.ai.profile.schemas import ResolvedTaskProfile
@@ -68,6 +74,52 @@ class LLMAnswerResult:
     fallback_from: str | None = None
     fallback_to: str | None = None
     fallback_reason: str | None = None
+    # True when the provider stream reported no usage and the tokens are estimates (R05-03).
+    usage_estimated: bool = False
+
+
+# Called with "retry" or "fallback" when a new provider attempt starts after answer text
+# was already streamed; the caller discards that text (generation.replace).
+ResetCallback = Callable[[str], Awaitable[None]]
+
+
+class _AnswerStream:
+    """Per-generation streaming state: forwards text, signals resets, records attempts."""
+
+    def __init__(
+        self,
+        *,
+        on_text: TextCallback,
+        on_reset: ResetCallback | None,
+        progress: StreamProgress,
+        provider_key: str,
+    ) -> None:
+        self._on_text = on_text
+        self._on_reset = on_reset
+        self.progress = progress
+        self.provider_key = provider_key
+        self._emitted = False
+
+    async def _emit(self, text: str) -> None:
+        self._emitted = True
+        await self._on_text(text)
+
+    async def call(
+        self, provider: ChatCompletionProvider, request: ChatCompletionRequest
+    ) -> ChatCompletionResponse:
+        attempt = self.progress.begin(
+            self.provider_key,
+            request.model,
+            len(request.prompt) + len(request.system_message),
+        )
+        return await collect_stream(provider, request, on_text=self._emit, attempt=attempt)
+
+    async def reset(self, reason: str) -> None:
+        if not self._emitted:
+            return
+        self._emitted = False
+        if self._on_reset is not None:
+            await self._on_reset(reason)
 
 
 _TRANSIENT_PROVIDER_ERRORS = (
@@ -160,6 +212,7 @@ class LLMService:
         provider: ChatCompletionProvider,
         model_name: str,
         max_attempts: int,
+        stream: _AnswerStream | None = None,
     ) -> tuple[ChatCompletionResponse, ParsedLLMOutput, bool, int]:
         """Run a completion with retry loop.
 
@@ -172,7 +225,11 @@ class LLMService:
         last_error: Exception | None = None
 
         attempt = 1
+        first_call = True
         while attempt <= max_attempts:
+            if stream is not None and not first_call:
+                await stream.reset("retry")
+            first_call = False
             request = ChatCompletionRequest(
                 prompt=prompt,
                 model=model_name,
@@ -180,7 +237,10 @@ class LLMService:
                 json_mode=supports_json_mode,
             )
             try:
-                response = await provider.complete(request)
+                if stream is not None:
+                    response = await stream.call(provider, request)
+                else:
+                    response = await provider.complete(request)
             except UnsupportedCapabilityError:
                 if supports_json_mode:
                     supports_json_mode = False
@@ -283,6 +343,7 @@ class LLMService:
             fallback_from=fallback_from,
             fallback_to=fallback_to,
             fallback_reason=fallback_reason,
+            usage_estimated=response.usage_estimated,
         )
 
     async def generate_answer(
@@ -290,6 +351,42 @@ class LLMService:
         *,
         prompt: str,
         resolved_profile: ResolvedTaskProfile | None = None,
+    ) -> LLMAnswerResult:
+        return await self._answer(prompt=prompt, resolved_profile=resolved_profile)
+
+    async def stream_answer(
+        self,
+        *,
+        prompt: str,
+        resolved_profile: ResolvedTaskProfile | None = None,
+        on_text: TextCallback,
+        on_reset: ResetCallback | None = None,
+        progress: StreamProgress | None = None,
+    ) -> LLMAnswerResult:
+        """``generate_answer`` with the answer text streamed to ``on_text`` (R05-03).
+
+        Same parsing, normalisation, retries, provider fallback, and cost. When a retry or
+        the fallback provider starts after text was streamed, ``on_reset`` gets ``"retry"``
+        or ``"fallback"``. Cancelling the caller closes the provider stream; ``progress``
+        keeps every attempt for partial usage.
+        """
+        return await self._answer(
+            prompt=prompt,
+            resolved_profile=resolved_profile,
+            stream=_AnswerStream(
+                on_text=on_text,
+                on_reset=on_reset,
+                progress=progress if progress is not None else StreamProgress(),
+                provider_key="",
+            ),
+        )
+
+    async def _answer(
+        self,
+        *,
+        prompt: str,
+        resolved_profile: ResolvedTaskProfile | None,
+        stream: _AnswerStream | None = None,
     ) -> LLMAnswerResult:
         if not settings.feature_enable_llm:
             raise PermanentLLMServiceError("LLM feature is disabled")
@@ -317,6 +414,8 @@ class LLMService:
             primary_provider = self._resolve_provider(None)
 
         started = perf_counter()
+        if stream is not None:
+            stream.provider_key = primary_provider_key
 
         try:
             response, parsed, used_fallback_parser, retry_count = await self._run_with_retry(
@@ -324,6 +423,7 @@ class LLMService:
                 provider=primary_provider,
                 model_name=primary_model,
                 max_attempts=self.retry_max_attempts,
+                stream=stream,
             )
         except TransientLLMServiceError as primary_exc:
             if not fallback_key:
@@ -338,6 +438,9 @@ class LLMService:
 
             # Use the fallback provider's configured model name when available.
             fb_model = getattr(fallback_provider, "_model_name", None) or primary_model
+            if stream is not None:
+                stream.provider_key = fallback_key
+                await stream.reset("fallback")
 
             try:
                 # Retry with original (untruncated) prompt: fallback likely has larger context.
@@ -346,6 +449,7 @@ class LLMService:
                     provider=fallback_provider,
                     model_name=fb_model,
                     max_attempts=self.retry_max_attempts,
+                    stream=stream,
                 )
             except (TransientLLMServiceError, PermanentLLMServiceError):
                 raise TransientLLMServiceError(

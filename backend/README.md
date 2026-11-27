@@ -614,6 +614,39 @@ CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py \
   tests/test_chat_golden_edge_transcripts.py tests/test_chat_golden_branch_transcripts.py
 ```
 
+- Token streaming (R05-03): the answer is generated with `LLMService.stream_answer`
+  (same parsing, retries, fallback, and cost as `generate_answer`). `OpenAIChatProvider` and
+  `OpenAICompatibleChatProvider` implement `stream()` (usage from the last chunk; a local
+  server that rejects `stream_options` gets one retry without it); other providers send one
+  chunk from `complete()`. `AnswerFieldStreamExtractor` (`app/domains/chat/services/answer_stream.py`)
+  decodes the JSON `answer` field incrementally, so only answer text streams.
+- Events (docs/07 "Chat event protocol"): `generation.started {mode}`, `generation.delta`,
+  `generation.replace {text, reason}`, `generation.final` (after citation validation, emitted by
+  `stages/_final.py` at the end of `verify`), then `chat.completed`. `CHAT_STREAM_MODE=live`
+  (default) or `buffered`; strict verification, blocking AI-policy rules, and tree search always
+  buffer (`stages/generate.py`, `resolve_stream_mode`).
+- `POST /chat/query/stream` (`transports/sse.py`) is the SSE transport: stages 1-3 run before
+  the response starts (same HTTP errors as `POST /chat`), then `id`/`event`/`data` frames.
+- Cancellation (`chat.cancel`, SSE disconnect) closes the provider stream and writes a
+  `chat.completion.cancelled` usage row (`pipeline/partial_usage.py`); no message, no question
+  counted. Metrics: `rudix_chat_ttft_seconds{transport}`, `rudix_chat_stream_cancelled_total{transport}`.
+- The CI stub (`ci/stubs/llm_stub.py`) streams answers in 16-character pieces and sends the
+  usage chunk when `stream_options.include_usage` is set.
+- Auxiliary stages (query rewriting, rerank, conflict detection, grounded verifier, refiner,
+  tree search) run on the organisation's resolved `chat` model profile (R05-08), so with
+  `LLM_DEFAULT_PROVIDER=local` no stage sends `OPENAI_LLM_MODEL`. A rerank provider or model
+  set in the RAG profile still wins; `RERANK_DEFAULT_PROVIDER` applies only to callers
+  without a profile. Query embeddings stay on the index's embedding model.
+- Every provider call records into the run's token ledger (R05-07): the usage event stores
+  the totals and `metadata.token_ledger`, the `tokens` quota records the total, and
+  `rudix_chat_tokens_total{stage,kind}` counts them. Reported usage now includes auxiliary
+  calls.
+- Retrieved text is wrapped in per-request boundary markers in every prompt, the
+  untrusted-context rule is added in code, and chunks matching injection patterns are
+  flagged, down-ranked (default), or dropped (`CHAT_CONTEXT_INJECTION_ACTION`,
+  `CHAT_CONTEXT_INJECTION_DOWNRANK_MULTIPLIER`); see `docs/11` (R05-09). Golden prompt hashes
+  are taken with the boundary token normalised.
+
 ## Application cache
 
 `app/core/cache.py` (R04-05) caches small, hot authorization reads in Redis:

@@ -136,6 +136,23 @@ LLM_RETRIES_TOTAL = Counter(
     registry=registry,
 )
 
+# Chat token ledger (R05-07): tokens of every provider call in a chat run, by pipeline
+# stage and kind (prompt, completion, cached). Counted once the run is persisted.
+CHAT_TOKENS_TOTAL = Counter(
+    "rudix_chat_tokens_total",
+    "Chat pipeline tokens by stage and kind (prompt, completion, cached)",
+    ["stage", "kind"],
+    registry=registry,
+)
+
+# Retrieved chunks matching prompt-injection patterns (R05-09), by configured action.
+CHAT_CONTEXT_INJECTION_FLAGGED_TOTAL = Counter(
+    "rudix_chat_context_injection_flagged_total",
+    "Retrieved chunks flagged by the context injection scan, by action",
+    ["action"],
+    registry=registry,
+)
+
 # Document Ingestion & Chunking Metrics
 DOCUMENT_UPLOADS_TOTAL = Counter(
     "rudix_document_uploads_total",
@@ -270,6 +287,23 @@ CHAT_WS_AUTH_TOTAL = Counter(
     "rudix_chat_ws_auth_total",
     "Chat WebSocket handshake authentication attempts by method and outcome",
     ["method", "outcome"],
+    registry=registry,
+)
+
+# R05-03: pipeline start to the first answer text sent (first delta; in buffered mode the
+# first verified delta; generation.final when no delta was sent). Observed once per answer.
+CHAT_TTFT_SECONDS = Histogram(
+    "rudix_chat_ttft_seconds",
+    "Chat time to first answer token in seconds, by transport",
+    ["transport"],
+    buckets=(0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0, 20.0),
+    registry=registry,
+)
+
+CHAT_STREAM_CANCELLED_TOTAL = Counter(
+    "rudix_chat_stream_cancelled_total",
+    "Chat answers cancelled before completion (chat.cancel or client disconnect)",
+    ["transport"],
     registry=registry,
 )
 
@@ -408,6 +442,24 @@ def record_llm_retry(provider: str, model: str, reason: str) -> None:
         LLM_RETRIES_TOTAL.labels(provider=provider, model=model, reason=reason).inc()
     except Exception as exc:
         logger.debug("metrics.record_llm_retry_failed: %s", exc)
+
+
+def record_chat_tokens(stage: str, kind: str, amount: int) -> None:
+    if not is_metrics_enabled() or amount <= 0:
+        return
+    try:
+        CHAT_TOKENS_TOTAL.labels(stage=stage, kind=kind).inc(amount)
+    except Exception as exc:
+        logger.debug("metrics.record_chat_tokens_failed: %s", exc)
+
+
+def record_chat_context_injection_flagged(action: str, count: int) -> None:
+    if not is_metrics_enabled() or count <= 0:
+        return
+    try:
+        CHAT_CONTEXT_INJECTION_FLAGGED_TOTAL.labels(action=action).inc(count)
+    except Exception as exc:
+        logger.debug("metrics.record_chat_context_injection_flagged_failed: %s", exc)
 
 
 def record_document_upload(file_type: str, status: str, malware_scan_result: str) -> None:

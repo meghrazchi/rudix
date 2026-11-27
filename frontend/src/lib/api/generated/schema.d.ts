@@ -1372,6 +1372,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat/query/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Query Chat Stream */
+        post: operations["query_chat_stream_api_v1_chat_query_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chat/messages/{message_id}/trust-metadata": {
         parameters: {
             query?: never;
@@ -9127,6 +9144,7 @@ export interface components {
             planner_critic?: components["schemas"]["PlannerCriticRecord"];
             retrieval_method?: components["schemas"]["RetrievalMethodRecord"];
             tool_orchestration?: components["schemas"]["ToolOrchestrationRecord"];
+            context_injection?: components["schemas"]["ContextInjectionRecord"];
             /**
              * Generated At
              * Format: date-time
@@ -12282,6 +12300,30 @@ export interface components {
             scopes: string[];
             /** Expires At */
             expires_at: string | null;
+        };
+        /**
+         * ContextInjectionRecord
+         * @description Prompt-injection scan of the retrieved chunks (R05-09).
+         *
+         *     Lists the ids of chunks whose text matched an injection pattern and the action taken
+         *     (flag, downrank, or drop). Never carries chunk text. ``scanned`` is false when no
+         *     chunks reached the scan (refusals, guidance answers, empty retrieval).
+         */
+        ContextInjectionRecord: {
+            /**
+             * Scanned
+             * @default false
+             */
+            scanned: boolean;
+            /** Action */
+            action?: ("flag" | "downrank" | "drop") | null;
+            /**
+             * Flagged Count
+             * @default 0
+             */
+            flagged_count: number;
+            /** Flagged Chunk Ids */
+            flagged_chunk_ids?: string[];
         };
         /** ConvertFeedbackToCasesRequest */
         ConvertFeedbackToCasesRequest: {
@@ -25802,6 +25844,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatQueryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    query_chat_stream_api_v1_chat_query_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatQueryRequest"];
+            };
+        };
+        responses: {
+            /** @description Server-Sent Events: `id`/`event`/`data` frames whose data is a chat event envelope (generation.delta, generation.final, chat.completed, chat.error). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
                 };
             };
             /** @description Validation Error */

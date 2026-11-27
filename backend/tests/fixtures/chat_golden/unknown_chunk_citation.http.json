@@ -120,6 +120,12 @@
           "detected": false,
           "preferred_document_ids": []
         },
+        "context_injection": {
+          "action": "downrank",
+          "flagged_chunk_ids": [],
+          "flagged_count": 0,
+          "scanned": true
+        },
         "evidence_quality": {
           "any_incomplete_documents": false,
           "extraction_warning_count": 0,
@@ -310,7 +316,7 @@
   "provider_calls": [
     {
       "kind": "answer",
-      "prompt_sha256": "44d3e0588ffe273bd53d596c8bce756d8555214201ddee08af8ac3e7d533553c"
+      "prompt_sha256": "4e15beb762254ad0df9de6ad74d3b1e82e103fc5963bbbf28a68ac84e6372fe8"
     }
   ],
   "questions_quota_delta": 1,
@@ -575,7 +581,29 @@
         "rerank_provider": null,
         "rerank_total_tokens": 0,
         "retrieval_count": 1,
-        "selected_count": 1
+        "selected_count": 1,
+        "token_ledger": [
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": null,
+            "estimated": false,
+            "model": "text-embedding-3-small",
+            "prompt_tokens": 7,
+            "provider": null,
+            "stage": "retrieve"
+          },
+          {
+            "cached_tokens": 0,
+            "completion_tokens": 17,
+            "cost_usd": 0.0,
+            "estimated": false,
+            "model": "gpt-5.4-mini",
+            "prompt_tokens": 31,
+            "provider": "openai",
+            "stage": "generate"
+          }
+        ]
       },
       "model_name": "gpt-5.4-mini",
       "output_tokens": 17,

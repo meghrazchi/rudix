@@ -16,6 +16,7 @@ from app.application.chat.pipeline.events import ActivityStepEmitter, ChatEvent,
 from app.application.chat.pipeline.ledger import TokenLedger
 from app.application.chat.pipeline.sessions import ChatSessionScope
 from app.application.chat.pipeline.snapshots import PromptVersionSnapshot, RagProfileSnapshot
+from app.application.chat.pipeline.stream_state import StreamState
 from app.auth.models import AuthenticatedPrincipal
 from app.core.safety_guardrails import InjectionCheckResult
 from app.domains.ai.profile.schemas import ResolvedTaskProfile
@@ -35,6 +36,7 @@ from app.domains.chat.services.confidence_service import (
     ConfidenceExplanation,
 )
 from app.domains.chat.services.conflict_detection_service import ConflictDetectionResult
+from app.domains.chat.services.context_injection_scan import ContextInjectionScanResult
 from app.domains.chat.services.context_packer_service import ContextPackResult
 from app.domains.chat.services.graph_retrieval_service import GraphRetrievalResult
 from app.domains.chat.services.grounded_answer_verifier import GroundedVerifierResult
@@ -49,6 +51,7 @@ from app.domains.chat.services.source_freshness_service import DocumentTrustData
 from app.domains.chat.services.source_scope_service import ResolvedSourceScope
 from app.domains.chat.services.table_retrieval_service import TableBoostResult
 from app.domains.chat.services.tool_orchestrator import ToolOrchestrationResult
+from app.domains.chat.services.untrusted_context import new_context_boundary
 from app.models.chat import ChatMessage
 
 NOT_FOUND_ANSWER = _NOT_FOUND_ANSWER
@@ -263,8 +266,13 @@ class ChatContext:
     # Set by a stage that produced the final answer (blocked, scope inventory, guidance).
     terminal: bool = False
     # anchor: A1 streaming
+    stream: StreamState = field(default_factory=StreamState)
     # anchor: A2 resilience
     # anchor: B1 ledger routing injection
+    # Random boundary of the context markers, shared by every prompt of this run (R05-09).
+    context_boundary: str = field(default_factory=new_context_boundary)
+    # Prompt-injection scan of the reranked chunks (R05-09); ``None`` when no scan ran.
+    context_injection: ContextInjectionScanResult | None = None
     # anchor: B2 budget caches
 
     async def emit(self, event: ChatEvent) -> None:

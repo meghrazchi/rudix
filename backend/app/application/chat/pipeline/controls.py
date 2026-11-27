@@ -12,6 +12,7 @@ from app.application.chat.pipeline.deps import default_deps
 from app.application.chat.pipeline.errors import _safe_http_error
 from app.core.config import settings
 from app.core.logging import log_query_event
+from app.domains.ai.profile.schemas import ResolvedTaskProfile
 from app.domains.chat.services.conflict_detection_service import (
     ConflictDetectionChunk,
 )
@@ -126,6 +127,8 @@ async def _rerank_chunks(
     enabled: bool,
     final_top_k: int,
     settings_override: RerankSettings | None = None,
+    resolved_profile: ResolvedTaskProfile | None = None,
+    context_boundary: str | None = None,
 ) -> tuple[list[RetrievedChunk], RerankResult]:
     if final_top_k < 1 or not chunks:
         empty_result = await _rerank_service.rerank(
@@ -134,6 +137,8 @@ async def _rerank_chunks(
             enabled=enabled,
             final_top_k=final_top_k,
             settings_override=settings_override,
+            resolved_profile=resolved_profile,
+            context_boundary=context_boundary,
         )
         return [], empty_result
 
@@ -154,6 +159,8 @@ async def _rerank_chunks(
         enabled=enabled,
         final_top_k=final_top_k,
         settings_override=settings_override,
+        resolved_profile=resolved_profile,
+        context_boundary=context_boundary,
     )
 
     selected_chunks: list[RetrievedChunk] = []

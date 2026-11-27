@@ -13,6 +13,7 @@ from app.domains.chat.schemas.trust_metadata import (
     ConfidenceReasonRecord,
     ConfidenceTrustRecord,
     ConflictStatusRecord,
+    ContextInjectionRecord,
     GroundedVerificationRecord,
     ModelMetadataRecord,
     PolicyEnforcementRecord,
@@ -35,6 +36,7 @@ from app.domains.chat.services.confidence_calibration import (
 from app.domains.chat.services.conflict_detection_service import (
     ConflictDetectionResult,
 )
+from app.domains.chat.services.context_injection_scan import ContextInjectionScanResult
 from app.domains.chat.services.graph_retrieval_service import (
     GraphRetrievalResult,
 )
@@ -108,6 +110,7 @@ def _build_trust_metadata(
     refiner_result: "RefinerResult | None" = None,
     route_result: "RetrievalRouteResult | None" = None,
     orchestration_result: "ToolOrchestrationResult | None" = None,
+    context_injection: ContextInjectionScanResult | None = None,
 ) -> AnswerTrustMetadataResponse:
     """Build the versioned trust metadata contract from pipeline state.
 
@@ -356,5 +359,19 @@ def _build_trust_metadata(
         ),
         retrieval_method=_build_retrieval_method_record(route_result),
         tool_orchestration=_build_tool_orchestration_record(orchestration_result),
+        context_injection=_build_context_injection_record(context_injection),
         generated_at=generated_at,
+    )
+
+
+def _build_context_injection_record(
+    scan: ContextInjectionScanResult | None,
+) -> ContextInjectionRecord:
+    if scan is None:
+        return ContextInjectionRecord()
+    return ContextInjectionRecord(
+        scanned=True,
+        action=scan.action,
+        flagged_count=scan.flagged_count,
+        flagged_chunk_ids=list(scan.flagged_chunk_ids),
     )

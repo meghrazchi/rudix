@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import (
     BaseModel,
@@ -105,6 +105,11 @@ class RagSettings(BaseModel):
     # or the answer is refused (strict mode). Adds one LLM call after generation.
     # Keep grounded_verification_timeout_seconds well below the overall request timeout.
     feature_enable_grounded_answer_verification: bool = False
+    # Context injection scan (R05-09): retrieved chunks matching the prompt-injection
+    # patterns are flagged in trust metadata, down-ranked (score times the multiplier),
+    # or dropped before context packing.
+    chat_context_injection_action: Literal["flag", "downrank", "drop"] = "downrank"
+    chat_context_injection_downrank_multiplier: float = Field(default=0.5, ge=0.0, le=1.0)
     grounded_verification_timeout_seconds: float = Field(default=12.0, ge=0.5, le=60.0)
     # Planner-critic-refiner pipeline (F339): classifies questions into answer strategies,
     # evaluates quality signals after generation, and rewrites high-risk answers using only

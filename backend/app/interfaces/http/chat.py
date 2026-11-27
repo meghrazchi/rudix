@@ -21,6 +21,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.chat.pipeline.controls import (  # noqa: F401 (re-export)
@@ -37,6 +38,7 @@ from app.application.chat.pipeline.provider_proxies import (  # noqa: F401 (re-e
 from app.application.chat.pipeline.request_helpers import _request_id_from_request
 from app.application.chat.quota import ensure_chat_quota
 from app.application.chat.transports.http import run_http_query
+from app.application.chat.transports.sse import open_sse_query
 from app.application.chat.transports.ws import WsSequence, as_ws_sequence, run_ws_query
 from app.application.chat.ws_auth import authenticate_ws_handshake
 from app.auth.dependencies import require_roles
@@ -206,6 +208,50 @@ async def query_chat(
         principal=principal,
         db_session=db_session,
         request_id=_request_id_from_request(request),
+        ensure_quota=ensure_chat_quota,
+    )
+
+
+@router.post(
+    "/query/stream",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "description": (
+                "Server-Sent Events: `id`/`event`/`data` frames whose data is a chat event "
+                "envelope (generation.delta, generation.final, chat.completed, chat.error)."
+            ),
+            "content": {"text/event-stream": {"schema": {"type": "string"}}},
+        }
+    },
+)
+async def query_chat_stream(
+    request: Request,
+    payload: ChatQueryRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StreamingResponse:
+    # R05-03: the pipeline with short sessions from SessionLocal (read here, like the
+    # WebSocket), so the stream never holds the request session. That session served
+    # authentication only (reads), and FastAPI closes it after the whole stream: end its
+    # transaction now so it returns its connection to the pool before the stream starts.
+    await db_session.commit()
+    return await open_sse_query(
+        payload=payload,
+        principal=principal,
+        request_id=_request_id_from_request(request) or secrets.token_hex(16),
+        session_factory=SessionLocal,
         ensure_quota=ensure_chat_quota,
     )
 
