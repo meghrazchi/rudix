@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache_invalidation import mark_dirty
 from app.models.feature_flags import OrgFeatureFlagOverride
 
 
@@ -62,6 +63,8 @@ class FeatureFlagRepository:
             existing.reason = reason
             existing.overridden_by_user_id = overridden_by_user_id
             override = existing
+        # R04-05: the org's cached override map is dropped on commit.
+        mark_dirty(session, org_ids=[organization_id])
         await session.flush()
         await session.refresh(override)
         return override
@@ -79,4 +82,5 @@ class FeatureFlagRepository:
                 OrgFeatureFlagOverride.flag_name == flag_name,
             )
         )
+        mark_dirty(session, org_ids=[organization_id])
         return int(getattr(result, "rowcount", 0) or 0) > 0

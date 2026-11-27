@@ -22,6 +22,14 @@ class RedisRateLimitSettings(BaseModel):
     redis_url: RedisDsn
     redis_socket_connect_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
     redis_socket_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
+    # R04-05: application cache (versioned keys, post-commit invalidation).
+    cache_enabled: bool = True
+    cache_ttl_flags_seconds: int = Field(default=60, ge=1, le=86400)
+    cache_ttl_policies_seconds: int = Field(default=60, ge=1, le=86400)
+    cache_ttl_profiles_seconds: int = Field(default=300, ge=1, le=86400)
+    cache_ttl_permissions_seconds: int = Field(default=30, ge=1, le=86400)
+    cache_ttl_auth_session_seconds: int = Field(default=30, ge=1, le=86400)
+    cache_operation_timeout_ms: int = Field(default=250, ge=1, le=10000)
     rate_limit_enabled: bool = True
     rate_limit_disable_in_development: bool = True
     rate_limit_disable_in_test: bool = True
