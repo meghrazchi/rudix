@@ -38,6 +38,7 @@ from pathlib import Path
 LATEST_RUN_ALIAS = "latest"
 DEFAULT_MAX_RUN_AGE_HOURS = 36.0
 RUN_LIST_LIMIT = 50
+USER_AGENT = "rudix-ci/1.0 (quality-gate)"
 
 
 def _env(name: str, required: bool = False, default: str = "") -> str:
@@ -80,6 +81,8 @@ def _api_request(
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            # Cloudflare blocks the default Python-urllib User-Agent (error 1010).
+            "User-Agent": USER_AGENT,
         },
     )
     try:

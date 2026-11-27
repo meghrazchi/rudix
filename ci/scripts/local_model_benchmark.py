@@ -39,6 +39,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+USER_AGENT = "rudix-ci/1.0 (local-model-benchmark)"
+
 
 def _env(name: str, required: bool = False, default: str = "") -> str:
     value = os.getenv(name, default).strip()
@@ -86,6 +88,8 @@ def _api_request(
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            # Cloudflare blocks the default Python-urllib User-Agent (error 1010).
+            "User-Agent": USER_AGENT,
         },
         method=method,
     )

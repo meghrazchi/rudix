@@ -1,17 +1,41 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { BillingSettingsTab } from "@/components/settings/BillingSettingsTab";
-import { OrganizationSettingsTab } from "@/components/settings/OrganizationSettingsTab";
-import { SecuritySettingsTab } from "@/components/settings/SecuritySettingsTab";
+import { SkeletonBlock } from "@/components/states/SkeletonBlock";
 import { UserProfilePage } from "@/components/user/UserProfilePage";
 import {
   SettingsTabs,
   useSettingsTab,
   type SettingsTabId,
 } from "@/components/settings/SettingsTabs";
+
+// Only the active tab loads; Profile stays static (R07-03).
+const tabLoading = () => <SkeletonBlock rows={6} />;
+
+const OrganizationSettingsTab = dynamic(
+  () =>
+    import("@/components/settings/OrganizationSettingsTab").then(
+      (module) => module.OrganizationSettingsTab,
+    ),
+  { loading: tabLoading },
+);
+const SecuritySettingsTab = dynamic(
+  () =>
+    import("@/components/settings/SecuritySettingsTab").then(
+      (module) => module.SecuritySettingsTab,
+    ),
+  { loading: tabLoading },
+);
+const BillingSettingsTab = dynamic(
+  () =>
+    import("@/components/settings/BillingSettingsTab").then(
+      (module) => module.BillingSettingsTab,
+    ),
+  { loading: tabLoading },
+);
 
 export function SettingsPage() {
   const t = useTranslations("settings");

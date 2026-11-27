@@ -5,15 +5,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { HorizontalBarChart } from "@/components/admin/AdminBarChartsLazy";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -110,38 +102,11 @@ function ChartCard({
       {!hasData ? (
         <p className="py-8 text-center text-xs text-[#8d8aa3]">{emptyLabel}</p>
       ) : (
-        <div className="h-52 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              layout="vertical"
-              margin={{ left: 4, right: 16 }}
-            >
-              <CartesianGrid horizontal={false} stroke="#ece9f7" />
-              <XAxis type="number" hide domain={[0, "dataMax"]} />
-              <YAxis
-                type="category"
-                dataKey="label"
-                width={140}
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "#5f5b72", fontSize: 11 }}
-              />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, borderColor: "#dfdced" }}
-                formatter={(value) =>
-                  formatValue ? formatValue(Number(value)) : value
-                }
-              />
-              <Bar
-                dataKey="value"
-                radius={[0, 6, 6, 0]}
-                barSize={12}
-                fill="#3525cd"
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <HorizontalBarChart
+          data={data}
+          labelWidth={140}
+          formatValue={formatValue}
+        />
       )}
     </div>
   );
