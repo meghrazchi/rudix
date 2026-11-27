@@ -30,10 +30,11 @@ class _Body:
     def __init__(self, data: Any, fail: bool = False) -> None:
         self.data, self.fail, self.closed = data, fail, False
 
-    def read(self) -> Any:
+    def read(self, amt: int | None = None) -> Any:
         if self.fail:
             raise OSError("reset")
-        return self.data
+        data, self.data = self.data, b""
+        return data
 
     def close(self) -> None:
         self.closed = True

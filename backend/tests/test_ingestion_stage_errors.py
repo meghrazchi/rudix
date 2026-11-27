@@ -7,11 +7,11 @@ from typing import Any
 import pytest
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 from ingestion_golden_support import (
-    EXTRACT_PATCH_TARGET,
     OCR_PATCH_TARGET,
     IngestionEnv,
     Seeded,
     ingestion_env,  # noqa: F401  (fixture)
+    patch_extraction,
 )
 from sqlalchemy import select, update
 from test_ingestion_golden import _table_extraction, _two_page_pdf
@@ -101,7 +101,7 @@ def test_unreadable_pdf_profiles(
         result.document_profile = profile
         return result
 
-    ingestion_env.monkeypatch.setattr(*EXTRACT_PATCH_TARGET, _extract)
+    patch_extraction(ingestion_env.monkeypatch, _extract)
     assert _code(ingestion_env, ingestion_env.seed(file_type="pdf")) == expected
 
 
@@ -109,7 +109,7 @@ def test_extraction_value_error(ingestion_env: IngestionEnv) -> None:  # noqa: F
     def _extract(content: bytes, **_: Any) -> Any:
         raise ValueError("unsupported layout")
 
-    ingestion_env.monkeypatch.setattr(*EXTRACT_PATCH_TARGET, _extract)
+    patch_extraction(ingestion_env.monkeypatch, _extract)
     assert _code(ingestion_env, ingestion_env.seed()) == "TEXT_EXTRACTION_FAILED"
 
 
@@ -306,7 +306,7 @@ def test_adaptive_strategy_snapshot(ingestion_env: IngestionEnv) -> None:  # noq
 
 def test_table_without_text_is_skipped(ingestion_env: IngestionEnv) -> None:  # noqa: F811
     env = ingestion_env
-    env.monkeypatch.setattr(*EXTRACT_PATCH_TARGET, _table_extraction)
+    patch_extraction(env.monkeypatch, _table_extraction)
     real = chunk_stage.build_table_chunk
 
     def _empty(table: Any, **kwargs: Any) -> Any:

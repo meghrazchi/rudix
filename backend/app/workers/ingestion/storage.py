@@ -1,16 +1,21 @@
-"""Object storage helpers for ingestion and deletion (moved from document_tasks, R06-01)."""
+"""Object storage helpers for ingestion and deletion (R06-01; streamed reads R06-02)."""
 
 from __future__ import annotations
 
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from app.clients import minio_client as minio_module
+from app.core.config import settings
 from app.workers.base_task import PermanentTaskError, TransientTaskError
 
 
-def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
+def _open_object_body(*, bucket: str, object_key: str) -> Any:
     minio = minio_module.get_minio_client()
     if minio is None:
         raise TransientTaskError("Object storage is unavailable")
@@ -28,17 +33,65 @@ def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
     body = response.get("Body")
     if body is None:
         raise TransientTaskError("Object storage response body is missing")
+    return body
+
+
+def _close(body: Any) -> None:
+    close_method = getattr(body, "close", None)
+    if callable(close_method):
+        close_method()
+
+
+def _iter_body(body: Any) -> Iterator[bytes]:
+    """Sized reads only (R06-02): ``read()`` without a size would load the whole object."""
+    size = settings.ingest_download_chunk_bytes
     try:
-        data = body.read()
-    except Exception as exc:
-        raise TransientTaskError("Object storage read failed") from exc
+        while True:
+            try:
+                data = body.read(size)
+            except Exception as exc:
+                raise TransientTaskError("Object storage read failed") from exc
+            if not isinstance(data, bytes):
+                raise TransientTaskError("Object storage returned invalid payload")
+            if not data:
+                return
+            yield data
     finally:
-        close_method = getattr(body, "close", None)
-        if callable(close_method):
-            close_method()
-    if not isinstance(data, bytes):
-        raise TransientTaskError("Object storage returned invalid payload")
-    return data
+        _close(body)
+
+
+def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
+    """The whole object in memory; kept for facade callers (the extract stage streams)."""
+    body = _open_object_body(bucket=bucket, object_key=object_key)
+    return b"".join(_iter_body(body))
+
+
+@contextmanager
+def download_to_tempfile(bucket: str, key: str) -> Iterator[Path]:
+    """Stream the object to a temporary file under ``INGEST_TEMP_DIR`` (R06-02).
+
+    The file is removed when the block exits, on success and on failure. Memory stays at
+    one ``INGEST_DOWNLOAD_CHUNK_BYTES`` read whatever the object size.
+    """
+    body = _open_object_body(bucket=bucket, object_key=key)
+    try:
+        handle = tempfile.NamedTemporaryFile(
+            prefix="rudix-ingest-", dir=settings.ingest_temp_dir, delete=False
+        )
+    except OSError as exc:
+        _close(body)
+        raise TransientTaskError("Ingestion temporary file could not be created") from exc
+    path = Path(handle.name)
+    try:
+        with handle:
+            for data in _iter_body(body):
+                try:
+                    handle.write(data)
+                except OSError as exc:
+                    raise TransientTaskError("Ingestion temporary file write failed") from exc
+        yield path
+    finally:
+        path.unlink(missing_ok=True)
 
 
 def _object_key_prefix(object_key: str) -> str:

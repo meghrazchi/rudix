@@ -48,8 +48,12 @@ class _Body:
         self._data = data
         self.closed = False
 
-    def read(self) -> bytes:
-        return self._data
+    def read(self, amt: int | None = None) -> bytes:
+        # Sized reads (R06-02): consume the data, then return b"".
+        pos = getattr(self, "_pos", 0)
+        end = len(self._data) if amt is None else pos + amt
+        self._pos = end
+        return self._data[pos:end]
 
     def close(self) -> None:
         self.closed = True

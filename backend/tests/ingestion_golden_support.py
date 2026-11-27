@@ -52,6 +52,8 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from app.clients import minio_client as minio_module
 from app.core.config import settings
 from app.db import session as db_session_module
+from app.domains.documents.extraction.extraction_service import ResultExtractionStream
+from app.domains.documents.extraction.models import ExtractionResult
 from app.models.connector_source import SourceReference
 from app.models.document import Document, DocumentChunk
 from app.models.organization import Organization
@@ -83,15 +85,32 @@ PINNED_SETTINGS: dict[str, Any] = {
     "qdrant_vector_size": 1536,
 }
 OCR_PATCH_TARGET: tuple[Any, str] = (extract_stage, "run_ocr")
-EXTRACT_PATCH_TARGET: tuple[Any, str] = (extract_stage, "extract_document")
+# R06-02: the stage streams pages through ``stream_document``; a fake that returns a whole
+# ExtractionResult is wrapped by ``patch_extraction``.
+EXTRACT_PATCH_TARGET: tuple[Any, str] = (extract_stage, "stream_document")
+
+
+def patch_extraction(
+    monkeypatch: pytest.MonkeyPatch, extract: Callable[..., ExtractionResult]
+) -> None:
+    def _stream(source: Any, **kwargs: Any) -> ResultExtractionStream:
+        return ResultExtractionStream(extract(source, **kwargs))
+
+    monkeypatch.setattr(*EXTRACT_PATCH_TARGET, _stream)
 
 
 class _Body:
+    """Object body with sized reads (the stage never reads without a size)."""
+
     def __init__(self, data: bytes) -> None:
         self._data = data
+        self._pos = 0
 
-    def read(self) -> bytes:
-        return self._data
+    def read(self, amt: int | None = None) -> bytes:
+        end = len(self._data) if amt is None else self._pos + amt
+        chunk = self._data[self._pos : end]
+        self._pos += len(chunk)
+        return chunk
 
     def close(self) -> None:
         return None
