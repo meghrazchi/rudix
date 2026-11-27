@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.chat.transports.internal import run_internal_query
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
+from app.db.tenant_context import bind_pipeline_session
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.bots.repositories.bots import BotRepository
 from app.domains.bots.schemas.bots import BotAskResponse
@@ -21,12 +22,6 @@ from app.domains.bots.services.rate_limit import (
 from app.domains.bots.services.rendering import BotResponseRenderer
 from app.domains.chat.schemas.chat import ChatQueryRequest, SourceScopeRequest
 from app.models.bot import BotInstallation
-
-
-class _InternalChatRequest:
-    def __init__(self, *, request_id: str | None) -> None:
-        self.state = SimpleNamespace(request_id=request_id)
-        self.headers: dict[str, str] = {}
 
 
 class BotAskService:
@@ -76,6 +71,9 @@ class BotAskService:
             )
 
         organization_id = installation.organization_id
+        # The inbound route has no Rudix token: bind the installation's organisation before
+        # the first tenant-scoped read or audit write, so strict RLS sees a tenant.
+        await bind_pipeline_session(session, organization_id)
         audit_base = {
             "provider": event.provider,
             "external_workspace_id": event.external_workspace_id,
@@ -232,15 +230,7 @@ class BotAskService:
         await session.commit()
 
         try:
-            from app.interfaces.http import chat as chat_api
-
-            chat_response = await chat_api.query_chat(
-                request=_InternalChatRequest(request_id=request_id),  # type: ignore[arg-type]
-                payload=payload,
-                principal=principal,
-                _=None,
-                db_session=session,
-            )
+            chat_response = await run_internal_query(principal, payload, session, request_id)
         except HTTPException as exc:
             await session.rollback()
             await self._record_outcome(
