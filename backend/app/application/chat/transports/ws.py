@@ -113,7 +113,8 @@ class WsEmitter:
         await self._send(event.type, event.payload, message_id=self._message_id(event))
 
     async def emit_error(self, code: str, payload: dict[str, Any] | None = None) -> None:
-        await self._send("chat.error", payload, safe_error_code=code)
+        message_id = str(self._ids.assistant_message_id) if self._generation_started else None
+        await self._send("chat.error", payload, message_id=message_id, safe_error_code=code)
 
     async def _send(
         self,

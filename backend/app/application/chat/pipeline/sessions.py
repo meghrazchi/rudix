@@ -99,10 +99,6 @@ class ShortSessionScope:
         self._read_stack: AsyncExitStack | None = None
         self._read_started = 0.0
 
-    @property
-    def read_open(self) -> bool:
-        return self._read_session is not None
-
     async def _open(self, stack: AsyncExitStack) -> AsyncSession:
         if self._request_session is not None:
             session = self._request_session
