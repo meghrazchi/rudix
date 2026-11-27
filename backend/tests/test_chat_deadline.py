@@ -126,6 +126,7 @@ async def test_required_stages_never_get_a_budget() -> None:
 async def test_exceeded_rerank_budget_keeps_the_retrieval_order_and_is_recorded(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(settings, "metrics_enabled", True)  # the counter is asserted below
     monkeypatch.setattr(settings, "chat_stage_budget_rerank_ms", 30)
     world = await _world(db_session, monkeypatch, {"rerank": SLOW}, two_docs=True)
     before = _skipped("rerank", "budget")
@@ -145,6 +146,7 @@ async def test_exceeded_rerank_budget_keeps_the_retrieval_order_and_is_recorded(
 async def test_total_deadline_skips_optional_stages_but_not_required_ones(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(settings, "metrics_enabled", True)  # the counter is asserted below
     monkeypatch.setattr(settings, "chat_total_deadline_ms", 1)
     world = await _world(db_session, monkeypatch, {"answer": 0.05}, two_docs=True)
     original_start = policies.start_deadline

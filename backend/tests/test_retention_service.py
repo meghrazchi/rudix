@@ -110,7 +110,10 @@ def _deleted_metric(table: str) -> float:
 
 
 @pytest.mark.asyncio
-async def test_rows_older_than_window_deleted_newer_kept(db_session: AsyncSession) -> None:
+async def test_rows_older_than_window_deleted_newer_kept(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "metrics_enabled", True)  # the counter is asserted below
     org_id = await _org(db_session)
     await _usage(db_session, org_id, 1, 29.9, 30.1, 45, 400)
     await db_session.commit()

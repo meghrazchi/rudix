@@ -60,6 +60,7 @@ async def test_key_normalises_text_and_separates_model_dimensions_and_index() ->
 async def test_repeated_question_skips_the_second_embedding_call(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(settings, "metrics_enabled", True)  # the counters are asserted below
     redis = install_fake_redis(monkeypatch)
     world = await make_world(db_session, monkeypatch)
     hits, misses = _metric("hit"), _metric("miss")

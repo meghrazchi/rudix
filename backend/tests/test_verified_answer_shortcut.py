@@ -101,6 +101,7 @@ async def test_flag_is_off_by_default(
 async def test_exact_normalised_match_is_a_hit_without_any_provider_call_in_stage_4(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch, shortcut_on: None
 ) -> None:
+    monkeypatch.setattr(settings, "metrics_enabled", True)  # the counter is asserted below
     world = await make_world(db_session, monkeypatch)
     card = await _card(db_session, world, question=f"  {QUESTION.upper()}\n")
     hits = _metric("hit")
@@ -230,6 +231,7 @@ async def test_expired_or_other_collection_cards_do_not_match(
 async def test_over_cap_organisation_never_shortcuts(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch, shortcut_on: None
 ) -> None:
+    monkeypatch.setattr(settings, "metrics_enabled", True)  # the counter is asserted below
     monkeypatch.setattr(settings, "chat_verified_answer_max_candidates", 1)
     world = await make_world(db_session, monkeypatch)
     await _card(db_session, world)
