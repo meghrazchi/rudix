@@ -21,7 +21,7 @@ export function SiteIcon({ name, className = "", filled = false }: IconProps) {
 
 type SectionHeadingProps = {
   id?: string;
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   description?: string;
   align?: "start" | "center";
@@ -37,12 +37,14 @@ export function SectionHeading({
   const alignment = align === "center" ? "mx-auto text-center" : "";
   return (
     <div className={`max-w-2xl ${alignment}`}>
-      <p className="text-site-accent-ink text-xs font-semibold tracking-[0.08em] uppercase">
-        {eyebrow}
-      </p>
+      {eyebrow ? (
+        <p className="text-site-accent-ink mb-3 text-xs font-semibold tracking-[0.08em] uppercase">
+          {eyebrow}
+        </p>
+      ) : null}
       <h2
         id={id}
-        className="text-site-ink mt-3 text-3xl font-semibold tracking-tight text-balance break-words hyphens-auto md:text-4xl"
+        className="text-site-ink text-3xl font-semibold tracking-tight text-balance break-words hyphens-auto md:text-4xl lg:hyphens-manual"
       >
         {title}
       </h2>

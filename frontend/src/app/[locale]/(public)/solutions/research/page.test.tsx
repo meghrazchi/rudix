@@ -103,13 +103,6 @@ describe("Research solution page (/solutions/research)", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the pipeline latency and accuracy metrics", () => {
-    render(<ResearchSolutionPage />);
-
-    expect(screen.getByText("124ms")).toBeInTheDocument();
-    expect(screen.getByText("99.8%")).toBeInTheDocument();
-  });
-
   it("renders example queries section with four research questions", () => {
     render(<ResearchSolutionPage />);
 

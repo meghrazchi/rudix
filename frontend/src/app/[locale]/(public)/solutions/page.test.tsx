@@ -21,9 +21,6 @@ describe("Solutions public page", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Choose Your Workflow" }),
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole("heading", {
         name: "From scattered documents to trusted answers",
       }),

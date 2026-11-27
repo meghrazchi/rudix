@@ -1,583 +1,296 @@
 "use client";
 
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
+import {
+  IconCard,
+  PrimaryLink,
+  SiteBreadcrumb,
+  SiteCtaPanel,
+  SiteSplitHero,
+} from "@/components/public/site/SiteBlocks";
+import { MockFrame, MockQuestion } from "@/components/public/site/SiteMocks";
+import {
+  SectionHeading,
+  SiteIcon,
+  SiteSection,
+  StatusPill,
+  TEXT_LINK_CLASS,
+} from "@/components/public/site/primitives";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
-function Sym({ name, className = "" }: { name: string; className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`material-symbols-outlined ${className}`}
-    >
-      {name}
-    </span>
-  );
-}
+const SOURCES = [
+  { key: "securityPolicies", icon: "gpp_good" },
+  { key: "auditEvidence", icon: "fact_check" },
+  { key: "riskAssessments", icon: "warning" },
+  { key: "accessReviews", icon: "group" },
+  { key: "incidentResponse", icon: "emergency" },
+] as const;
 
-// ── breadcrumb ────────────────────────────────────────────────────────────────
+const EXAMPLES = [
+  { key: "retention", icon: "question_mark" },
+  { key: "accessReviews", icon: "verified" },
+  { key: "encryption", icon: "enhanced_encryption" },
+] as const;
 
-function ComplianceBreadcrumb() {
-  const t = useTranslations("public");
+const TRUST_FEATURES = [
+  { key: "auditRefs", icon: "menu_book" },
+  { key: "permFilter", icon: "lock_person" },
+  { key: "activityLogs", icon: "receipt_long" },
+] as const;
 
-  return (
-    <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
-      <nav
-        aria-label="Breadcrumb"
-        className="mx-auto w-full max-w-[1440px] px-10 py-3"
-      >
-        <ol className="flex items-center gap-2 text-xs text-[#777587]">
-          <li>
-            <PublicActionLink href="/" className="hover:text-[#3525cd]">
-              {t("home")}
-            </PublicActionLink>
-          </li>
-          <li aria-hidden="true" className="text-[#c7c4d8]">
-            /
-          </li>
-          <li>
-            <PublicActionLink
-              href="/solutions"
-              className="hover:text-[#3525cd]"
-            >
-              {t("breadcrumb.solutions")}
-            </PublicActionLink>
-          </li>
-          <li aria-hidden="true" className="text-[#c7c4d8]">
-            /
-          </li>
-          <li aria-current="page" className="font-semibold text-[#1a1b20]">
-            {t("compliance.breadcrumb")}
-          </li>
-        </ol>
-      </nav>
-    </div>
-  );
-}
-
-// ── hero ──────────────────────────────────────────────────────────────────────
-
-function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
+/** Compliance solution page (minimal modern redesign, shared solution kit). */
+export function ComplianceSolutionPage() {
+  const tp = useTranslations("public");
   const t = useTranslations("public.compliance");
+  const links = resolvePublicSiteLinks();
 
-  return (
-    <section
-      aria-labelledby="compliance-hero-title"
-      className="relative overflow-hidden bg-[#faf9ff] pt-24 pb-32"
-    >
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(53,37,205,0.05),transparent_50%)]" />
-      <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
-        <div className="space-y-8">
-          <span className="inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
-            {t("hero.badge")}
-          </span>
-          <h1
-            id="compliance-hero-title"
-            className="max-w-xl text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
-          >
-            {t("hero.heading")}
-          </h1>
-          <p className="max-w-lg text-lg leading-7 text-[#464555]">
-            {t("hero.description")}
-          </p>
-          <div className="flex flex-wrap gap-4 pt-4">
-            <PublicActionLink
-              href={demoHref}
-              className="rounded-xl bg-[#3525cd] px-8 py-4 text-[24px] leading-8 font-semibold text-white shadow-lg transition hover:opacity-90 active:scale-95"
-            >
-              {t("hero.primaryCta")}
-            </PublicActionLink>
-          </div>
-        </div>
-
-        <div className="group relative">
-          <div className="absolute -inset-4 -z-10 rounded-full bg-[#3525cd]/10 opacity-50 blur-3xl transition-opacity group-hover:opacity-75" />
-          <div className="rudix-landing-glass relative rounded-xl border border-[#c7c4d8]/50 p-8 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between border-b border-[#c7c4d8] pb-4">
-              <div className="flex items-center gap-3">
-                <Sym name="shield" className="text-[#3525cd]" />
-                <span className="text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
-                  {t("hero.engineLabel")}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <span className="h-3 w-3 rounded-full bg-[#ba1a1a]/20" />
-                <span className="h-3 w-3 rounded-full bg-[#00542a]/20" />
-                <span className="h-3 w-3 rounded-full bg-[#3525cd]/20" />
-              </div>
-            </div>
-            <div className="space-y-4 font-mono text-[14px] leading-5">
-              <div className="flex items-start gap-4 rounded-lg border border-[#c7c4d8]/20 bg-[#eeedf3] p-3">
-                <Sym name="search" className="mt-1 shrink-0 text-[#3525cd]" />
-                <p className="text-[#464555] italic">
-                  &quot;{t("hero.queryExample")}&quot;
-                </p>
-              </div>
-              <div className="rounded-lg border border-[#3525cd]/30 bg-[#0A0A0F] p-4 text-[#faf9ff]">
-                <p className="mb-2">{t("hero.retrievingEvidence")}</p>
-                <div className="mb-4 h-1 overflow-hidden rounded-full bg-[#e3e2e8]">
-                  <div className="h-full w-2/3 rounded-full bg-[#3525cd]" />
-                </div>
-                <div className="space-y-2 opacity-90">
-                  <p className="text-[#c3c0ff]">{t("hero.matchesFound")}</p>
-                  <ul className="list-inside list-disc text-[#e2dfff]">
-                    <li>{t("hero.match1")}</li>
-                    <li>{t("hero.match2")}</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── problem ───────────────────────────────────────────────────────────────────
-
-function ComplianceProblemSection() {
-  const t = useTranslations("public.compliance");
-
-  const problems = [
-    {
-      icon: "folder_off",
-      iconBg: "bg-[#ffdad6]/30 text-[#ba1a1a]",
-      title: t("problems.evidenceFragTitle"),
-      body: t("problems.evidenceFragBody"),
-    },
-    {
-      icon: "link",
-      iconBg: "bg-[#3525cd]/10 text-[#3525cd]",
-      title: t("problems.traceabilityTitle"),
-      body: t("problems.traceabilityBody"),
-    },
-    {
-      icon: "timer",
-      iconBg: "bg-[#E24329]/10 text-[#E24329]",
-      title: t("problems.manualDrainTitle"),
-      body: t("problems.manualDrainBody"),
-    },
-  ];
-
-  return (
-    <section
-      aria-labelledby="compliance-problem-title"
-      className="bg-[#f4f3f9] py-24"
-    >
-      <div className="mx-auto max-w-[1440px] px-10">
-        <div className="mb-16 space-y-4 text-center">
-          <h2
-            id="compliance-problem-title"
-            className="text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-          >
-            {t("problems.heading")}
-          </h2>
-          <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            {t("problems.description")}
-          </p>
-        </div>
-        <ul className="grid grid-cols-1 gap-8 md:grid-cols-3">
-          {problems.map((p) => (
-            <li
-              key={p.title}
-              className="rounded-xl border border-[#c7c4d8] bg-white p-8 shadow-sm transition hover:shadow-md"
-            >
-              <div
-                className={`mb-6 flex h-12 w-12 items-center justify-center rounded-lg ${p.iconBg}`}
-              >
-                <Sym name={p.icon} />
-              </div>
-              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                {p.title}
-              </h3>
-              <p className="text-base leading-6 text-[#464555]">{p.body}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-// ── document sources ──────────────────────────────────────────────────────────
-
-function ComplianceDocumentSourcesSection() {
-  const t = useTranslations("public.compliance");
-
-  const sources = [
-    { icon: "gpp_good", label: t("documentSources.securityPolicies") },
-    { icon: "fact_check", label: t("documentSources.auditEvidence") },
-    { icon: "warning", label: t("documentSources.riskAssessments") },
-    { icon: "group", label: t("documentSources.accessReviews") },
-    { icon: "emergency", label: t("documentSources.incidentResponse") },
-  ];
-
-  return (
-    <section
-      aria-labelledby="compliance-doc-sources-title"
-      className="bg-white py-24"
-    >
-      <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
-        <div>
-          <h2
-            id="compliance-doc-sources-title"
-            className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-          >
-            {t("documentSources.heading")}
-          </h2>
-          <p className="mb-12 text-lg leading-7 text-[#464555]">
-            {t("documentSources.description")}
-          </p>
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {sources.map((s) => (
-              <li
-                key={s.label}
-                className="flex items-center gap-3 rounded-lg border border-[#c7c4d8] bg-[#faf9ff] p-4"
-              >
-                <Sym name={s.icon} className="text-[#3525cd]" />
-                <span className="text-base leading-6 text-[#1a1b20]">
-                  {s.label}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="relative h-48 overflow-hidden rounded-xl shadow-lg">
-            <Image
-              src="/images/solutions/compliance/documents.jpg"
-              alt="Contract documents on a desk — compliance and audit preparation"
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
-          </div>
-          <div className="relative h-64 translate-y-8 overflow-hidden rounded-xl shadow-lg">
-            <Image
-              src="/images/solutions/compliance/audit-workspace.jpg"
-              alt="Professional auditor reviewing data analytics on a laptop"
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
-          </div>
-          <div className="relative h-64 -translate-y-16 overflow-hidden rounded-xl shadow-lg">
-            <Image
-              src="/images/solutions/compliance/data-center.jpg"
-              alt="Enterprise data center server racks — secure infrastructure"
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
-          </div>
-          <div className="relative h-48 -translate-y-8 overflow-hidden rounded-xl shadow-lg">
-            <Image
-              src="/images/solutions/compliance/data-visualization.jpg"
-              alt="Abstract data visualization representing connected compliance systems"
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── example questions ─────────────────────────────────────────────────────────
-
-function ComplianceExampleQuestionsSection() {
-  const t = useTranslations("public.compliance");
-
-  const examples = [
-    {
-      icon: "question_mark",
-      question: t("examples.retentionQ"),
-      answer: t("examples.retentionA"),
-    },
-    {
-      icon: "verified",
-      question: t("examples.accessReviewsQ"),
-      answer: t("examples.accessReviewsA"),
-    },
-    {
-      icon: "enhanced_encryption",
-      question: t("examples.encryptionQ"),
-      answer: t("examples.encryptionA"),
-    },
-  ];
-
-  return (
-    <section
-      aria-labelledby="compliance-questions-title"
-      className="relative overflow-hidden bg-[#0A0A0F] py-24 text-[#faf9ff]"
-    >
-      <div className="absolute top-0 right-0 h-full w-1/2 bg-[radial-gradient(circle_at_center,rgba(53,37,205,0.15),transparent_70%)]" />
-      <div className="relative z-10 mx-auto max-w-[1440px] px-10">
-        <div className="mb-16">
-          <h2
-            id="compliance-questions-title"
-            className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
-          >
-            {t("examples.heading")}
-          </h2>
-          <p className="max-w-xl text-lg leading-7 text-[#e3e2e8]">
-            {t("examples.description")}
-          </p>
-        </div>
-        <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {examples.map((e) => (
-            <li
-              key={e.question}
-              className="group rounded-xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm transition hover:border-[#3525cd]"
-            >
-              <Sym name={e.icon} className="mb-6 block text-[#c3c0ff]" />
-              <p className="mb-4 text-lg leading-7 font-semibold italic">
-                &quot;{e.question}&quot;
-              </p>
-              <div className="mb-6 h-px w-12 bg-white/10 transition-all group-hover:w-full" />
-              <p className="text-base leading-6 text-[#e3e2e8]">{e.answer}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-// ── trust / governance ────────────────────────────────────────────────────────
-
-function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
-  const t = useTranslations("public.compliance");
-
-  const features = [
-    {
-      icon: "menu_book",
-      title: t("trust.auditRefsTitle"),
-      body: t("trust.auditRefsBody"),
-    },
-    {
-      icon: "lock_person",
-      title: t("trust.permFilterTitle"),
-      body: t("trust.permFilterBody"),
-    },
-    {
-      icon: "receipt_long",
-      title: t("trust.activityLogsTitle"),
-      body: t("trust.activityLogsBody"),
-    },
-  ];
-
-  const activityItems = [
+  // Illustrative activity rows shown inside the decorative audit-trail mock.
+  const activity = [
     {
       action: t("trust.auditLogRetrieval"),
       doc: "SOC2_v2",
-      user: "j_smith@enterprise.com",
-      time: "2m ago",
+      meta: `${t("trust.userPrefix")} j_smith@enterprise.com • 2m ago`,
       badge: t("trust.verifiedBadge"),
-      badgeBg: "bg-[#91f8ae] text-[#00210d]",
+      tone: "success" as const,
+      dim: false,
     },
     {
       action: t("trust.sourceDownload"),
       doc: "ISO_Annex_A",
-      user: "k_chen@corp.com",
-      time: "15m ago",
+      meta: `${t("trust.userPrefix")} k_chen@corp.com • 15m ago`,
       badge: t("trust.verifiedBadge"),
-      badgeBg: "bg-[#91f8ae] text-[#00210d]",
+      tone: "success" as const,
+      dim: false,
     },
     {
       action: t("trust.newDocumentIndexed"),
       doc: "Q4_Evidence_01",
-      user: t("trust.systemUser"),
-      time: "1h ago",
+      meta: `${t("trust.systemPrefix")} • 1h ago`,
       badge: t("trust.indexedBadge"),
-      badgeBg: "bg-[#e2dfff] text-[#0f0069]",
+      tone: "accent" as const,
       dim: true,
     },
   ];
 
   return (
-    <section
-      aria-labelledby="compliance-trust-title"
-      className="bg-white py-24"
-    >
-      <div className="mx-auto max-w-[1440px] px-10">
-        <div className="relative overflow-hidden rounded-3xl border border-[#c7c4d8] bg-[#eeedf3] p-12 lg:p-16">
-          <div className="absolute -right-24 -bottom-24 h-96 w-96 rounded-full bg-[#3525cd]/5 blur-3xl" />
-          <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
-            <div className="space-y-12">
-              <div>
-                <h2
-                  id="compliance-trust-title"
-                  className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-                >
-                  {t("trust.heading")}
-                </h2>
-                <p className="text-lg leading-7 text-[#464555]">
-                  {t("trust.description")}
-                </p>
-              </div>
+    <div className="bg-site-canvas text-site-ink">
+      <SiteBreadcrumb
+        items={[
+          { label: tp("home"), href: "/" },
+          { label: tp("breadcrumb.solutions"), href: "/solutions" },
+          { label: t("breadcrumb") },
+        ]}
+      />
 
-              <div className="space-y-8">
-                {features.map((f) => (
-                  <div key={f.title} className="flex gap-6">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#c7c4d8] bg-white shadow-sm">
-                      <Sym name={f.icon} className="text-[#3525cd]" />
-                    </div>
-                    <div>
-                      <h3 className="mb-2 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                        {f.title}
-                      </h3>
-                      <p className="text-base leading-6 text-[#464555]">
-                        {f.body}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+      <SiteSplitHero
+        id="compliance-hero-title"
+        badge={t("hero.badge")}
+        title={t("hero.heading")}
+        description={t("hero.description")}
+        actions={
+          <PrimaryLink href={links.requestDemo} label={t("hero.primaryCta")} />
+        }
+        aside={
+          <MockFrame title={t("hero.engineLabel")}>
+            <MockQuestion>{t("hero.queryExample")}</MockQuestion>
+            <div className="border-site-border rounded-2xl border p-4">
+              <p className="text-site-ink-muted flex items-center gap-2 text-xs font-medium">
+                <SiteIcon name="shield" className="text-site-accent text-sm" />
+                {t("hero.retrievingEvidence")}
+              </p>
+              <div className="bg-site-muted mt-3 h-1 overflow-hidden rounded-full">
+                <div className="bg-site-accent h-full w-2/3 rounded-full" />
               </div>
-
-              <div className="rounded-xl border border-[#c7c4d8] bg-[#f4f3f9] p-5">
-                <div className="mb-2 flex items-center gap-2 text-[#777587]">
-                  <Sym name="info" className="text-base" />
-                  <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
-                    {t("trust.disclaimerLabel")}
-                  </span>
-                </div>
-                <p className="text-sm leading-5 text-[#464555]">
-                  {t("trust.disclaimerText")}
-                </p>
-                <PublicActionLink
-                  href={securityHref}
-                  className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[#3525cd] hover:underline"
-                >
-                  {t("trust.securityCta")}
-                  <Sym name="arrow_forward" className="text-sm" />
-                </PublicActionLink>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="space-y-6 rounded-2xl border border-[#c7c4d8] bg-white p-8 shadow-xl">
-                <div className="mb-2 flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3525cd]/10">
-                    <Sym
-                      name="history"
-                      className="text-[20px] text-[#3525cd]"
+              <p className="text-site-ink mt-4 text-xs font-semibold">
+                {t("hero.matchesFound")}
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {[t("hero.match1"), t("hero.match2")].map((match) => (
+                  <li
+                    key={match}
+                    className="bg-site-canvas flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs"
+                  >
+                    <SiteIcon
+                      name="description"
+                      className="text-site-ink-subtle text-sm"
                     />
+                    <span className="text-site-ink-muted min-w-0 truncate">
+                      {match}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </MockFrame>
+        }
+      />
+
+      <SiteSection
+        labelledBy="compliance-problem-title"
+        className="bg-site-surface border-site-border border-y"
+      >
+        <SectionHeading
+          id="compliance-problem-title"
+          title={t("problems.heading")}
+          description={t("problems.description")}
+        />
+        <ul className="mt-12 grid gap-4 md:grid-cols-3">
+          <IconCard
+            icon="folder_off"
+            title={t("problems.evidenceFragTitle")}
+            body={t("problems.evidenceFragBody")}
+          />
+          <IconCard
+            icon="link"
+            title={t("problems.traceabilityTitle")}
+            body={t("problems.traceabilityBody")}
+          />
+          <IconCard
+            icon="timer"
+            title={t("problems.manualDrainTitle")}
+            body={t("problems.manualDrainBody")}
+          />
+        </ul>
+      </SiteSection>
+
+      <SiteSection labelledBy="compliance-doc-sources-title">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
+          <div className="min-w-0 lg:col-span-6">
+            <SectionHeading
+              id="compliance-doc-sources-title"
+              title={t("documentSources.heading")}
+              description={t("documentSources.description")}
+            />
+          </div>
+          <ul className="grid min-w-0 gap-3 sm:grid-cols-2 lg:col-span-6">
+            {SOURCES.map((s) => (
+              <li
+                key={s.key}
+                className="border-site-border bg-site-surface flex min-w-0 items-center gap-3 rounded-2xl border px-4 py-3.5"
+              >
+                <span className="bg-site-accent-soft text-site-accent-ink flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                  <SiteIcon name={s.icon} className="text-lg" />
+                </span>
+                <span className="text-site-ink min-w-0 text-sm font-medium break-words">
+                  {t(`documentSources.${s.key}`)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </SiteSection>
+
+      <SiteSection
+        labelledBy="compliance-questions-title"
+        className="bg-site-surface border-site-border border-y"
+      >
+        <SectionHeading
+          id="compliance-questions-title"
+          title={t("examples.heading")}
+          description={t("examples.description")}
+        />
+        <ul className="mt-12 grid gap-4 md:grid-cols-3">
+          {EXAMPLES.map((e) => (
+            <li
+              key={e.key}
+              className="border-site-border bg-site-surface min-w-0 rounded-2xl border p-6"
+            >
+              <SiteIcon name={e.icon} className="text-site-accent text-xl" />
+              <p className="text-site-ink mt-4 text-base font-semibold break-words">
+                {`"${t(`examples.${e.key}Q`)}"`}
+              </p>
+              <p className="text-site-ink-muted border-site-border mt-4 border-t pt-4 text-sm leading-6">
+                {t(`examples.${e.key}A`)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </SiteSection>
+
+      <SiteSection labelledBy="compliance-trust-title">
+        <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-2">
+          <div className="min-w-0">
+            <SectionHeading
+              id="compliance-trust-title"
+              title={t("trust.heading")}
+              description={t("trust.description")}
+            />
+            <ul className="mt-8 space-y-5">
+              {TRUST_FEATURES.map((f) => (
+                <li key={f.key} className="flex items-start gap-4">
+                  <span className="border-site-border bg-site-surface text-site-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
+                    <SiteIcon name={f.icon} className="text-xl" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-site-ink text-base font-semibold">
+                      {t(`trust.${f.key}Title`)}
+                    </h3>
+                    <p className="text-site-ink-muted mt-1 text-sm leading-6">
+                      {t(`trust.${f.key}Body`)}
+                    </p>
                   </div>
-                  <span className="text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
-                    {t("trust.activityStream")}
-                  </span>
-                </div>
-
-                <ul className="space-y-4">
-                  {activityItems.map((item) => (
-                    <li
-                      key={item.doc}
-                      className={`flex items-center justify-between rounded-lg border border-[#c7c4d8]/30 bg-[#f4f3f9] p-4 transition ${item.dim ? "opacity-60" : ""}`}
-                    >
-                      <div className="space-y-1">
-                        <p className="text-base leading-6 text-[#1a1b20]">
-                          {item.action}:{" "}
-                          <span className="font-bold">{item.doc}</span>
-                        </p>
-                        <p className="text-xs text-[#464555]">
-                          {item.user === t("trust.systemUser")
-                            ? `${t("trust.systemPrefix")} • ${item.time}`
-                            : `${t("trust.userPrefix")} ${item.user} • ${item.time}`}
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded px-2 py-1 text-[10px] font-bold ${item.badgeBg}`}
-                      >
-                        {item.badge.toUpperCase()}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="flex justify-center border-t border-[#c7c4d8] pt-4">
-                  <span className="text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
-                    {t("trust.viewFullAuditTrail")}
-                  </span>
-                </div>
-              </div>
+                </li>
+              ))}
+            </ul>
+            <div className="border-site-border bg-site-surface mt-8 rounded-2xl border p-5">
+              <p className="text-site-ink flex items-center gap-2 text-sm font-semibold">
+                <SiteIcon name="info" className="text-site-accent text-base" />
+                {t("trust.disclaimerLabel")}
+              </p>
+              <p className="text-site-ink-muted mt-2 text-sm leading-6">
+                {t("trust.disclaimerText")}
+              </p>
+              <PublicActionLink
+                href={links.security}
+                className={`${TEXT_LINK_CLASS} mt-3`}
+              >
+                {t("trust.securityCta")}
+                <SiteIcon
+                  name="arrow_forward"
+                  className="rtl-mirror text-base"
+                />
+              </PublicActionLink>
             </div>
           </div>
+
+          <MockFrame title={t("trust.activityStream")}>
+            <ul className="space-y-2.5">
+              {activity.map((item) => (
+                <li
+                  key={item.doc}
+                  className={`border-site-border bg-site-canvas flex min-w-0 items-center justify-between gap-3 rounded-xl border p-3.5 ${
+                    item.dim ? "opacity-60" : ""
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-site-ink text-sm break-words">
+                      {item.action}:{" "}
+                      <strong className="font-semibold">{item.doc}</strong>
+                    </p>
+                    <p className="text-site-ink-subtle mt-0.5 truncate text-xs">
+                      {item.meta}
+                    </p>
+                  </div>
+                  <StatusPill tone={item.tone}>{item.badge}</StatusPill>
+                </li>
+              ))}
+            </ul>
+            <p className="text-site-accent-ink border-site-border border-t pt-3 text-center text-xs font-semibold">
+              {t("trust.viewFullAuditTrail")}
+            </p>
+          </MockFrame>
         </div>
-      </div>
-    </section>
-  );
-}
+      </SiteSection>
 
-// ── final cta ─────────────────────────────────────────────────────────────────
-
-function ComplianceFinalCtaSection({
-  demoHref,
-  docsHref,
-}: {
-  demoHref: string;
-  docsHref: string;
-}) {
-  const t = useTranslations("public.compliance");
-
-  return (
-    <section
-      aria-labelledby="compliance-cta-title"
-      className="relative overflow-hidden py-32"
-    >
-      <div className="absolute inset-0 -z-10 bg-[#3525cd]/5" />
-      <div className="mx-auto max-w-4xl px-10 text-center">
-        <h2
-          id="compliance-cta-title"
-          className="mb-8 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
-        >
-          {t("cta.heading")}
-        </h2>
-        <p className="mb-12 text-lg leading-7 text-[#464555]">
-          {t("cta.description")}
-        </p>
-        <div className="flex flex-col justify-center gap-4 sm:flex-row">
-          <PublicActionLink
-            href={demoHref}
-            className="rounded-xl bg-[#3525cd] px-10 py-5 text-[24px] leading-8 font-semibold text-white shadow-lg transition hover:shadow-xl active:scale-95"
-          >
-            {t("cta.primaryCta")}
-          </PublicActionLink>
-          <PublicActionLink
-            href={docsHref}
-            className="rounded-xl border border-[#3525cd] bg-white px-10 py-5 text-[24px] leading-8 font-semibold text-[#3525cd] transition hover:bg-[#e2dfff]/30 active:scale-95"
-          >
-            {t("cta.secondaryCta")}
-          </PublicActionLink>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── page export ───────────────────────────────────────────────────────────────
-
-export function ComplianceSolutionPage() {
-  const links = resolvePublicSiteLinks();
-
-  return (
-    <>
-      <ComplianceBreadcrumb />
-      <ComplianceHeroSection demoHref={links.requestDemo} />
-      <ComplianceProblemSection />
-      <ComplianceDocumentSourcesSection />
-      <ComplianceExampleQuestionsSection />
-      <ComplianceTrustSection securityHref={links.security} />
-      <ComplianceFinalCtaSection
-        demoHref={links.requestDemo}
-        docsHref={links.docs}
+      <SiteCtaPanel
+        id="compliance-cta-title"
+        title={t("cta.heading")}
+        description={t("cta.description")}
+        primary={{ href: links.requestDemo, label: t("cta.primaryCta") }}
+        secondary={{ href: links.docs, label: t("cta.secondaryCta") }}
       />
-    </>
+    </div>
   );
 }

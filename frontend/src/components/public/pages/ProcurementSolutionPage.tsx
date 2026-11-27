@@ -3,482 +3,217 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import { PublicActionLink } from "@/components/public/PublicActionLink";
+import {
+  IconCard,
+  PrimaryLink,
+  SecondaryLink,
+  SiteBreadcrumb,
+  SiteCtaPanel,
+  SiteSplitHero,
+} from "@/components/public/site/SiteBlocks";
+import { MockAnswer, MockQuestion } from "@/components/public/site/SiteMocks";
+import {
+  SectionHeading,
+  SiteIcon,
+  SiteSection,
+} from "@/components/public/site/primitives";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
-function Sym({ name, className = "" }: { name: string; className?: string }) {
+const PROBLEMS = [
+  { key: "questionnaires", icon: "assignment_late" },
+  { key: "contracts", icon: "compare_arrows" },
+  { key: "risk", icon: "warning_amber" },
+] as const;
+
+const SOURCES = [
+  { key: "soc2", icon: "description" },
+  { key: "rfp", icon: "fact_check" },
+  { key: "contracts", icon: "gavel" },
+  { key: "questionnaires", icon: "security" },
+] as const;
+
+const STEPS = [
+  { key: "01", icon: "manage_search", hasBody: true },
+  { key: "02", icon: "data_object", hasBody: true },
+  { key: "03", icon: "report", hasBody: false },
+  { key: "04", icon: "verified", hasBody: false },
+] as const;
+
+/** Procurement solution page (minimal modern redesign, shared solution kit). */
+export function ProcurementSolutionPage() {
+  const tp = useTranslations("public");
+  const t = useTranslations("public.procurement");
+  const links = resolvePublicSiteLinks();
+
   return (
-    <span
-      aria-hidden="true"
-      className={`material-symbols-outlined ${className}`}
-    >
-      {name}
-    </span>
-  );
-}
+    <div className="bg-site-canvas text-site-ink">
+      <SiteBreadcrumb
+        items={[
+          { label: tp("home"), href: "/" },
+          { label: tp("breadcrumb.solutions"), href: "/solutions" },
+          { label: t("breadcrumb") },
+        ]}
+      />
 
-// ── breadcrumb ────────────────────────────────────────────────────────────────
+      <SiteSplitHero
+        id="proc-hero-title"
+        badge={t("hero.badge")}
+        title={t("hero.heading")}
+        description={t("hero.description")}
+        actions={
+          <>
+            <PrimaryLink href={links.startTrial} label={t("hero.primaryCta")} />
+            <SecondaryLink
+              href={links.requestDemo}
+              label={t("hero.secondaryCta")}
+            />
+          </>
+        }
+        aside={
+          <figure className="border-site-border bg-site-surface w-full rounded-2xl border p-2 shadow-[0_24px_60px_-32px_rgba(15,17,23,0.25)]">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl">
+              <Image
+                src="/images/solutions/procurement/vendor-dashboard.jpg"
+                alt="Procurement analytics dashboard showing vendor evaluation data"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                priority
+              />
+            </div>
+          </figure>
+        }
+      />
 
-function ProcurementBreadcrumb() {
-  const t = useTranslations("public");
-
-  return (
-    <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
-      <nav
-        aria-label="Breadcrumb"
-        className="mx-auto w-full max-w-[1440px] px-10 py-3"
+      <SiteSection
+        labelledBy="proc-problem-title"
+        className="bg-site-surface border-site-border border-y"
       >
-        <ol className="flex items-center gap-2 text-xs text-[#777587]">
-          <li>
-            <PublicActionLink href="/" className="hover:text-[#3525cd]">
-              {t("home")}
-            </PublicActionLink>
-          </li>
-          <li aria-hidden="true" className="text-[#c7c4d8]">
-            /
-          </li>
-          <li>
-            <PublicActionLink
-              href="/solutions"
-              className="hover:text-[#3525cd]"
-            >
-              {t("breadcrumb.solutions")}
-            </PublicActionLink>
-          </li>
-          <li aria-hidden="true" className="text-[#c7c4d8]">
-            /
-          </li>
-          <li aria-current="page" className="font-semibold text-[#1a1b20]">
-            {t("procurement.breadcrumb")}
-          </li>
-        </ol>
-      </nav>
-    </div>
-  );
-}
-
-// ── hero ──────────────────────────────────────────────────────────────────────
-
-function ProcurementHeroSection({
-  trialHref,
-  demoHref,
-}: {
-  trialHref: string;
-  demoHref: string;
-}) {
-  const t = useTranslations("public.procurement");
-
-  return (
-    <section
-      aria-labelledby="proc-hero-title"
-      className="relative overflow-hidden bg-[#faf9ff] pt-24 pb-32"
-    >
-      <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
-        <div className="z-10">
-          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
-            {t("hero.badge")}
-          </span>
-          <h1
-            id="proc-hero-title"
-            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
-          >
-            {t("hero.heading")}
-          </h1>
-          <p className="mb-10 max-w-xl text-lg leading-7 text-[#464555]">
-            {t("hero.description")}
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <PublicActionLink
-              href={trialHref}
-              className="rounded-lg bg-[#3525cd] px-8 py-4 font-semibold text-white shadow-lg transition hover:shadow-xl active:scale-95"
-            >
-              {t("hero.primaryCta")}
-            </PublicActionLink>
-            <PublicActionLink
-              href={demoHref}
-              className="rounded-lg border border-[#c7c4d8] px-8 py-4 font-semibold text-[#0A0A0F] transition hover:bg-[#eeedf3] active:scale-95"
-            >
-              {t("hero.secondaryCta")}
-            </PublicActionLink>
-          </div>
-        </div>
-
-        <div className="relative">
-          <div
-            aria-hidden="true"
-            className="absolute -top-10 -right-10 -z-10 h-64 w-64 rounded-full bg-[#c3c0ff]/30 blur-3xl"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute -bottom-10 -left-10 -z-10 h-80 w-80 rounded-full bg-[#75db94]/20 blur-3xl"
-          />
-          <div className="rudix-landing-glass relative z-20 aspect-square overflow-hidden rounded-2xl shadow-2xl">
-            <Image
-              src="/images/solutions/procurement/vendor-dashboard.jpg"
-              alt="Procurement analytics dashboard showing vendor evaluation data"
-              fill
-              className="object-cover opacity-90"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              priority
+        <SectionHeading
+          id="proc-problem-title"
+          title={t("problems.heading")}
+          description={t("problems.description")}
+        />
+        <ul className="mt-12 grid gap-4 md:grid-cols-3">
+          {PROBLEMS.map((p) => (
+            <IconCard
+              key={p.key}
+              icon={p.icon}
+              title={t(`problems.${p.key}Title`)}
+              body={t(`problems.${p.key}Body`)}
             />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-[#3525cd]/10 to-transparent"
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── problem ───────────────────────────────────────────────────────────────────
-
-function ProcurementProblemSection() {
-  const t = useTranslations("public.procurement");
-  const problems = [
-    {
-      icon: "assignment_late",
-      title: t("problems.questionnairesTitle"),
-      body: t("problems.questionnairesBody"),
-    },
-    {
-      icon: "compare_arrows",
-      title: t("problems.contractsTitle"),
-      body: t("problems.contractsBody"),
-    },
-    {
-      icon: "warning_amber",
-      title: t("problems.riskTitle"),
-      body: t("problems.riskBody"),
-    },
-  ];
-
-  return (
-    <section
-      aria-labelledby="proc-problem-title"
-      className="bg-[#f4f3f9] py-24"
-    >
-      <div className="mx-auto max-w-[1440px] px-10">
-        <div className="mb-16 text-center">
-          <h2
-            id="proc-problem-title"
-            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-          >
-            {t("problems.heading")}
-          </h2>
-          <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            {t("problems.description")}
-          </p>
-        </div>
-        <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {problems.map((p) => (
-            <li
-              key={p.title}
-              className="rounded-xl border border-[#c7c4d8] bg-white p-8 transition hover:border-[#3525cd]"
-            >
-              <Sym name={p.icon} className="mb-6 text-4xl text-[#3525cd]" />
-              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                {p.title}
-              </h3>
-              <p className="text-base leading-6 text-[#464555]">{p.body}</p>
-            </li>
           ))}
         </ul>
-      </div>
-    </section>
-  );
-}
+      </SiteSection>
 
-// ── document sources ──────────────────────────────────────────────────────────
-
-function ProcurementDocumentSourcesSection() {
-  const t = useTranslations("public.procurement");
-  const sources = [
-    { icon: "description", label: t("documentSources.soc2") },
-    { icon: "fact_check", label: t("documentSources.rfp") },
-    { icon: "gavel", label: t("documentSources.contracts") },
-    { icon: "security", label: t("documentSources.questionnaires") },
-  ];
-
-  const features = [
-    t("documentSources.feature0"),
-    t("documentSources.feature1"),
-    t("documentSources.feature2"),
-  ];
-
-  return (
-    <section aria-labelledby="proc-doc-title" className="bg-white py-24">
-      <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
-        <div className="order-2 grid grid-cols-2 gap-4 lg:order-1">
-          {sources.map((s) => (
-            <div
-              key={s.label}
-              className="rudix-landing-glass flex flex-col items-center justify-center rounded-lg p-6 text-center"
-            >
-              <Sym name={s.icon} className="mb-3 text-3xl text-[#3525cd]" />
-              <span className="font-semibold text-[#0A0A0F]">{s.label}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="order-1 lg:order-2">
-          <h2
-            id="proc-doc-title"
-            className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-          >
-            {t("documentSources.heading")}
-          </h2>
-          <p className="mb-6 text-lg leading-7 text-[#464555]">
-            {t("documentSources.description")}
-          </p>
-          <ul className="space-y-4">
-            {features.map((f) => (
+      <SiteSection labelledBy="proc-doc-title">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
+          <div className="min-w-0">
+            <SectionHeading
+              id="proc-doc-title"
+              title={t("documentSources.heading")}
+              description={t("documentSources.description")}
+            />
+            <ul className="mt-8 space-y-3">
+              {[0, 1, 2].map((n) => (
+                <li key={n} className="flex items-start gap-3">
+                  <SiteIcon
+                    name="check_circle"
+                    className="text-site-success mt-0.5 text-lg"
+                  />
+                  <span className="text-site-ink-muted min-w-0 text-sm leading-6">
+                    {t(`documentSources.feature${n}`)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            {SOURCES.map((s) => (
               <li
-                key={f}
-                className="flex items-center gap-3 text-base leading-6"
+                key={s.key}
+                className="border-site-border bg-site-surface flex min-w-0 items-center gap-3 rounded-2xl border p-5"
               >
-                <Sym name="check_circle" className="shrink-0 text-[#108548]" />
-                <span>{f}</span>
+                <span className="bg-site-accent-soft text-site-accent-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+                  <SiteIcon name={s.icon} className="text-xl" />
+                </span>
+                <span className="text-site-ink min-w-0 text-sm font-semibold break-words">
+                  {t(`documentSources.${s.key}`)}
+                </span>
               </li>
             ))}
           </ul>
         </div>
-      </div>
-    </section>
-  );
-}
+      </SiteSection>
 
-// ── engine / how it works ─────────────────────────────────────────────────────
-
-function ProcurementEngineSection() {
-  const t = useTranslations("public.procurement");
-  return (
-    <section
-      aria-labelledby="proc-engine-title"
-      className="bg-[#0A0A0F] py-24 text-[#faf9ff]"
-    >
-      <div className="mx-auto max-w-[1440px] px-10">
-        <div className="mb-16 text-center">
-          <h2
-            id="proc-engine-title"
-            className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
-          >
-            {t("engine.heading")}
-          </h2>
-          <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            {t("engine.description")}
-          </p>
-        </div>
-
-        <div className="grid h-auto grid-cols-1 gap-6 md:h-[600px] md:grid-cols-4 md:grid-rows-2">
-          {/* Step 01 — large card */}
-          <div className="group relative col-span-1 flex flex-col justify-end overflow-hidden rounded-2xl border border-white/10 bg-[#3525cd]/10 p-10 md:col-span-2 md:row-span-2">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#3525cd]/20 via-transparent to-transparent opacity-60"
-            />
-            {/* decorative grid pattern */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 opacity-10"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle at 2px 2px, #c3c0ff 1px, transparent 0)",
-                backgroundSize: "28px 28px",
-              }}
-            />
-            <div className="relative z-10">
-              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                {t("engine.step01Label")}
-              </span>
-              <h3 className="mb-4 text-[30px] leading-[38px] font-semibold text-white">
-                {t("engine.step01Title")}
-              </h3>
-              <p className="text-base leading-6 text-[#464555]">
-                {t("engine.step01Body")}
-              </p>
-            </div>
-          </div>
-
-          {/* Step 02 */}
-          <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8 md:col-span-2">
-            <div>
-              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                {t("engine.step02Label")}
-              </span>
-              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                {t("engine.step02Title")}
-              </h3>
-            </div>
-            <p className="text-base leading-6 text-[#464555]">
-              {t("engine.step02Body")}
-            </p>
-          </div>
-
-          {/* Step 03 */}
-          <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8">
-            <div>
-              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-                {t("engine.step03Label")}
-              </span>
-              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                {t("engine.step03Title")}
-              </h3>
-            </div>
-            <Sym name="report" className="text-4xl text-[#ba1a1a]" />
-          </div>
-
-          {/* Step 04 */}
-          <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-[#3525cd] bg-[#3525cd] p-8 text-white">
-            <div>
-              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-white/60 uppercase">
-                {t("engine.step04Label")}
-              </span>
-              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
-                {t("engine.step04Title")}
-              </h3>
-            </div>
-            <Sym name="verified" className="text-4xl text-white" />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── example queries ───────────────────────────────────────────────────────────
-
-function ProcurementExampleQueriesSection() {
-  const t = useTranslations("public.procurement");
-  const examples = [
-    {
-      question: t("exampleQueries.q1"),
-      answer: t("exampleQueries.a1"),
-    },
-    {
-      question: t("exampleQueries.q2"),
-      answer: t("exampleQueries.a2"),
-    },
-  ];
-
-  return (
-    <section
-      aria-labelledby="proc-queries-title"
-      className="overflow-hidden bg-white py-24"
-    >
-      <div className="mx-auto max-w-[1440px] px-10">
-        <h2
-          id="proc-queries-title"
-          className="mb-16 text-center text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-        >
-          {t("exampleQueries.heading")}
-        </h2>
-        <div className="mx-auto flex max-w-4xl flex-col gap-8">
-          {examples.map((e) => (
-            <div
-              key={e.question}
-              className="rounded-xl border-l-4 border-[#3525cd] bg-[#eeedf3] p-6 shadow-sm"
+      <SiteSection
+        labelledBy="proc-engine-title"
+        className="bg-site-surface border-site-border border-y"
+      >
+        <SectionHeading
+          id="proc-engine-title"
+          title={t("engine.heading")}
+          description={t("engine.description")}
+        />
+        <ol className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {STEPS.map((step) => (
+            <li
+              key={step.key}
+              className="border-site-border bg-site-surface flex min-w-0 flex-col rounded-2xl border p-6"
             >
-              <div className="flex items-start gap-4">
-                <Sym
-                  name="help_center"
-                  className="mt-1 shrink-0 text-[#3525cd]"
+              <div className="flex items-center justify-between gap-3">
+                <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold">
+                  {t(`engine.step${step.key}Label`)}
+                </span>
+                <SiteIcon
+                  name={step.icon}
+                  className="text-site-ink-subtle text-xl"
                 />
-                <div>
-                  <p className="mb-4 text-lg leading-7 font-semibold text-[#0A0A0F]">
-                    {e.question}
-                  </p>
-                  <div className="rounded-lg border border-[#c7c4d8]/30 bg-white p-4 text-base leading-6 text-[#464555]">
-                    <span className="mb-2 block font-semibold text-[#3525cd]">
-                      {t("exampleQueries.analysisLabel")}
-                    </span>
-                    {e.answer}
-                  </div>
-                </div>
               </div>
-            </div>
+              <h3 className="text-site-ink mt-5 text-base font-semibold break-words">
+                {t(`engine.step${step.key}Title`)}
+              </h3>
+              {step.hasBody ? (
+                <p className="text-site-ink-muted mt-2 text-sm leading-6">
+                  {t(`engine.step${step.key}Body`)}
+                </p>
+              ) : null}
+            </li>
           ))}
-        </div>
-      </div>
-    </section>
-  );
-}
+        </ol>
+      </SiteSection>
 
-// ── final cta ─────────────────────────────────────────────────────────────────
-
-function ProcurementFinalCtaSection({
-  demoHref,
-  trialHref,
-}: {
-  demoHref: string;
-  trialHref: string;
-}) {
-  const t = useTranslations("public.procurement");
-
-  return (
-    <section
-      aria-labelledby="proc-cta-title"
-      className="relative overflow-hidden bg-[#faf9ff] py-32"
-    >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[#3525cd]/5"
-      />
-      <div className="mx-auto max-w-[1440px] px-10 text-center">
-        <div className="rudix-landing-glass mx-auto max-w-3xl rounded-3xl border border-[#3525cd]/20 p-12 lg:p-16">
-          <h2
-            id="proc-cta-title"
-            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
-          >
-            {t("cta.heading")}
-          </h2>
-          <p className="mb-10 text-lg leading-7 text-[#464555]">
-            {t("cta.description")}
-          </p>
-          <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <PublicActionLink
-              href={demoHref}
-              className="rounded-xl bg-[#3525cd] px-10 py-5 text-lg font-bold text-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl active:scale-95"
+      <SiteSection labelledBy="proc-queries-title">
+        <SectionHeading
+          id="proc-queries-title"
+          title={t("exampleQueries.heading")}
+        />
+        <ul className="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {[1, 2].map((n) => (
+            <li
+              key={n}
+              className="border-site-border bg-site-surface min-w-0 space-y-4 rounded-2xl border p-4 md:p-5"
             >
-              {t("cta.primaryCta")}
-            </PublicActionLink>
-            <PublicActionLink
-              href={trialHref}
-              className="rounded-xl bg-[#0A0A0F] px-10 py-5 text-lg font-bold text-[#faf9ff] transition hover:bg-black active:scale-95"
-            >
-              {t("cta.secondaryCta")}
-            </PublicActionLink>
-          </div>
-          <p className="mt-8 text-[12px] font-semibold tracking-[0.05em] text-[#777587] uppercase">
-            {t("cta.disclaimer")}
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
+              <MockQuestion>{t(`exampleQueries.q${n}`)}</MockQuestion>
+              <MockAnswer label={t("exampleQueries.analysisLabel")}>
+                {t(`exampleQueries.a${n}`)}
+              </MockAnswer>
+            </li>
+          ))}
+        </ul>
+        <p className="text-site-ink-muted mt-8 flex max-w-3xl items-start gap-2 text-sm leading-6">
+          <SiteIcon name="info" className="text-site-accent mt-0.5 text-base" />
+          <span className="min-w-0">{t("cta.disclaimer")}</span>
+        </p>
+      </SiteSection>
 
-// ── page export ───────────────────────────────────────────────────────────────
-
-export function ProcurementSolutionPage() {
-  const links = resolvePublicSiteLinks();
-
-  return (
-    <>
-      <ProcurementBreadcrumb />
-      <ProcurementHeroSection
-        trialHref={links.startTrial}
-        demoHref={links.requestDemo}
+      <SiteCtaPanel
+        id="proc-cta-title"
+        title={t("cta.heading")}
+        description={t("cta.description")}
+        primary={{ href: links.requestDemo, label: t("cta.primaryCta") }}
+        secondary={{ href: links.startTrial, label: t("cta.secondaryCta") }}
       />
-      <ProcurementProblemSection />
-      <ProcurementDocumentSourcesSection />
-      <ProcurementEngineSection />
-      <ProcurementExampleQueriesSection />
-      <ProcurementFinalCtaSection
-        demoHref={links.requestDemo}
-        trialHref={links.startTrial}
-      />
-    </>
+    </div>
   );
 }

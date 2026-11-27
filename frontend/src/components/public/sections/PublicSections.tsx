@@ -205,7 +205,7 @@ export function HeroSection({
   return (
     <section
       aria-labelledby="hero-title"
-      className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-12 lg:grid-cols-2 lg:items-center lg:gap-12 lg:px-8 lg:py-16"
+      className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-8 px-4 py-12 lg:grid-cols-2 lg:items-center lg:gap-12 lg:px-8 lg:py-16"
     >
       <div>
         {badge ? <StatusPill label={badge} /> : null}

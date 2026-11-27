@@ -1285,7 +1285,7 @@
         "traceabilityTitle": "Lacunes de traçabilité",
         "traceabilityBody": "Les réponses de politique manquent souvent de liens directs vers les documents sources d’origine, ce qui oblige les responsables conformité à revérifier manuellement chaque affirmation.",
         "manualDrainTitle": "Fardeau de la collecte manuelle",
-        "manualDrainBody": "Les auditeurs passent 60 % de leur temps à collecter des preuves au lieu de les analyser. La récupération manuelle est lente, sujette aux erreurs et coûteuse."
+        "manualDrainBody": "Les auditeurs passent trop de temps à collecter des preuves au lieu de les analyser. La récupération manuelle est lente, sujette aux erreurs et coûteuse."
       },
       "documentSources": {
         "heading": "Téléverser everything. Trouver anything.",
@@ -1362,7 +1362,7 @@
         "heading": "Le coût de la friction commerciale",
         "description": "Chercher le bon support commercial ne devrait pas être le goulot d’étranglement de votre cycle de vente.",
         "lostCaseStudiesTitle": "Études de cas perdues",
-        "lostCaseStudiesBody": "Votre meilleure réussite dans la santé est enfouie dans un fil Slack de 2022. Les AE perdent 4 heures par semaine à chercher des preuves pertinentes.",
+        "lostCaseStudiesBody": "Votre meilleure réussite dans la santé est enfouie dans un ancien fil Slack : les commerciaux cherchent des preuves au lieu de vendre.",
         "outdatedPricingTitle": "Outdated Tarifs",
         "outdatedPricingBody": "Les représentants qui présentent d’anciennes grilles tarifaires créent une forte friction contractuelle et érodent les marges lors des phases de clôture.",
         "battlecardFrictionTitle": "Friction des battlecards",
@@ -1424,7 +1424,7 @@
         "heading": "Support knowledge is often scattered.",
         "description": "Siloed information leads to slower resolutions and agent burnout.",
         "toolFatigueTitle": "Tool Fatigue",
-        "toolFatigueBody": "Agents search too many tools — Confluence, Notion, and Slack — wasting 30% of their shift just looking for answers.",
+        "toolFatigueBody": "Les agents cherchent dans trop d’outils — Confluence, Notion et Slack — et perdent un temps précieux à chercher des réponses au lieu d’aider les clients.",
         "slowOnboardingTitle": "Slow Onboarding",
         "slowOnboardingBody": "New agents need faster onboarding to reach full productivity. Currently, training takes weeks of shadowing senior staff.",
         "inconsistentDataTitle": "Inconsistent Data",
@@ -1571,7 +1571,7 @@
       },
       "documentSources": {
         "heading": "Universal technical ingestion.",
-        "description": "Rudix supports your existing operational stack. Just upload, and we&apos;ll index the technical nuance.",
+        "description": "Rudix supports your existing operational stack. Just upload, and we'll index the technical nuance.",
         "runbooks": "Incident response runbooks",
         "sops": "SOPs",
         "troubleshooting": "Troubleshooting guides",
@@ -1593,7 +1593,7 @@
       },
       "exampleQueries": {
         "heading": "Built for the high-pressure query.",
-        "description": "Ops teams don&apos;t have time to craft the perfect prompt. Ask naturally, get the technical truth.",
+        "description": "Ops teams don't have time to craft the perfect prompt. Ask naturally, get the technical truth.",
         "q1": "What are the steps for a priority incident?",
         "q2": "How do we restart the failed indexing worker?",
         "q3": "Who needs to be notified during an outage?",
@@ -1647,7 +1647,7 @@
         "description": "From document upload to risk decision in minutes.",
         "step01Label": "Step 01",
         "step01Title": "Deep Semantic Indexing",
-        "step01Body": "We don&apos;t just search keywords. Rudix understands the context of security controls and legal obligations across your entire vendor library.",
+        "step01Body": "Nous ne nous contentons pas de rechercher des mots-clés. Rudix comprend le contexte des contrôles de sécurité et des obligations juridiques dans toute votre bibliothèque de fournisseurs.",
         "step02Label": "Step 02",
         "step02Title": "Automated Extraction",
         "step02Body": "Instantly map vendor responses to your internal risk framework (ISO 27001, SOC2, HIPAA).",

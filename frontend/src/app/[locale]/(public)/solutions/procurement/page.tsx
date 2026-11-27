@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function ProcurementSolutionRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Procurement solution page">
+    <PublicMarketingLayout pageLabel="Procurement solution page" theme="system">
       <ProcurementSolutionPage />
     </PublicMarketingLayout>
   );
