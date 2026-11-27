@@ -1,12 +1,20 @@
+import { lazy, Suspense } from "react";
+
 import { useTranslations } from "next-intl";
 
-import { AnswerTrustPanel } from "@/components/chat/AnswerTrustPanel";
+import { LoadingState } from "@/components/states/LoadingState";
 import type { ChatTurn } from "@/components/chat/chat-types";
 import type { ChatFeedbackController } from "@/components/chat/hooks/useChatFeedback";
 import type { ChatOverlaysController } from "@/components/chat/hooks/useChatOverlays";
 import type { ChatSessionController } from "@/components/chat/hooks/useChatSession";
 import type { CitationPanelController } from "@/components/chat/hooks/useCitationPanel";
 import type { ChatCitationResponse } from "@/lib/api/chat";
+
+const AnswerTrustPanel = lazy(() =>
+  import("@/components/chat/AnswerTrustPanel").then((module) => ({
+    default: module.AnswerTrustPanel,
+  })),
+);
 
 /** "Explain answer" dialog that hosts the trust panel. */
 export function TrustPanelModal({
@@ -110,68 +118,74 @@ export function TrustPanelModal({
           </div>
         </div>
         <div className="rudix-chat-scrollbar max-h-[calc(90vh-5.25rem)] overflow-y-auto p-4 md:p-6">
-          <AnswerTrustPanel
-            messageId={openTrustPanelTurn.response.message_id}
-            confidenceScore={openTrustPanelTurn.response.confidence_score}
-            confidenceCategory={openTrustPanelTurn.response.confidence_category}
-            confidenceExplanation={
-              openTrustPanelTurn.response.confidence_explanation
-            }
-            citationValidationFailed={
-              openTrustPanelTurn.response.citation_validation_failed
-            }
-            verificationFailed={openTrustPanelTurn.response.verification_failed}
-            sourceFreshnessWarning={
-              openTrustPanelTurn.response.source_freshness_warning
-            }
-            sourceFreshnessWarningReason={
-              openTrustPanelTurn.response.source_freshness_warning_reason
-            }
-            policyApplied={openTrustPanelTurn.response.policy_applied}
-            policyOutcome={openTrustPanelTurn.response.policy_outcome}
-            policyViolatedRules={
-              openTrustPanelTurn.response.policy_violated_rules
-            }
-            policyWarningFlags={
-              openTrustPanelTurn.response.policy_warning_flags
-            }
-            policyDisclaimer={openTrustPanelTurn.response.policy_disclaimer}
-            citations={openTrustPanelTurn.response.citations}
-            debug={openTrustPanelTurn.response.debug}
-            trustMetadata={openTrustPanelTurn.response.trust_metadata}
-            showInterpretationDetails={showDebugDetails}
-            hideHeader
-            onOpenCitation={(citation) => {
-              const previewCitation = citation as ChatCitationResponse;
-              const siblings = openTrustPanelTurn.response.citations.filter(
-                (item) => item.document_id === citation.document_id,
-              );
-              setSelectedResponseMessageId(
-                openTrustPanelTurn.response.message_id,
-              );
-              setOpenTrustPanelMessageId(null);
-              setIsKnowledgeHubOpen(false);
-              setPreviewCitationSet({
-                citations: siblings.length > 0 ? siblings : [previewCitation],
-                initialIndex: Math.max(0, siblings.indexOf(previewCitation)),
-              });
-            }}
-            onReportIssue={
-              chatFeedbackEnabled
-                ? (context) => {
-                    setTrustPanelFeedbackMessageId(
-                      openTrustPanelTurn.response.message_id,
-                    );
-                    setTrustPanelFeedbackContext(context);
-                  }
-                : undefined
-            }
-            onSaveAsKnowledgeCard={() =>
-              setSaveKnowledgeCardMessageId(
-                openTrustPanelTurn.response.message_id,
-              )
-            }
-          />
+          <Suspense fallback={<LoadingState compact />}>
+            <AnswerTrustPanel
+              messageId={openTrustPanelTurn.response.message_id}
+              confidenceScore={openTrustPanelTurn.response.confidence_score}
+              confidenceCategory={
+                openTrustPanelTurn.response.confidence_category
+              }
+              confidenceExplanation={
+                openTrustPanelTurn.response.confidence_explanation
+              }
+              citationValidationFailed={
+                openTrustPanelTurn.response.citation_validation_failed
+              }
+              verificationFailed={
+                openTrustPanelTurn.response.verification_failed
+              }
+              sourceFreshnessWarning={
+                openTrustPanelTurn.response.source_freshness_warning
+              }
+              sourceFreshnessWarningReason={
+                openTrustPanelTurn.response.source_freshness_warning_reason
+              }
+              policyApplied={openTrustPanelTurn.response.policy_applied}
+              policyOutcome={openTrustPanelTurn.response.policy_outcome}
+              policyViolatedRules={
+                openTrustPanelTurn.response.policy_violated_rules
+              }
+              policyWarningFlags={
+                openTrustPanelTurn.response.policy_warning_flags
+              }
+              policyDisclaimer={openTrustPanelTurn.response.policy_disclaimer}
+              citations={openTrustPanelTurn.response.citations}
+              debug={openTrustPanelTurn.response.debug}
+              trustMetadata={openTrustPanelTurn.response.trust_metadata}
+              showInterpretationDetails={showDebugDetails}
+              hideHeader
+              onOpenCitation={(citation) => {
+                const previewCitation = citation as ChatCitationResponse;
+                const siblings = openTrustPanelTurn.response.citations.filter(
+                  (item) => item.document_id === citation.document_id,
+                );
+                setSelectedResponseMessageId(
+                  openTrustPanelTurn.response.message_id,
+                );
+                setOpenTrustPanelMessageId(null);
+                setIsKnowledgeHubOpen(false);
+                setPreviewCitationSet({
+                  citations: siblings.length > 0 ? siblings : [previewCitation],
+                  initialIndex: Math.max(0, siblings.indexOf(previewCitation)),
+                });
+              }}
+              onReportIssue={
+                chatFeedbackEnabled
+                  ? (context) => {
+                      setTrustPanelFeedbackMessageId(
+                        openTrustPanelTurn.response.message_id,
+                      );
+                      setTrustPanelFeedbackContext(context);
+                    }
+                  : undefined
+              }
+              onSaveAsKnowledgeCard={() =>
+                setSaveKnowledgeCardMessageId(
+                  openTrustPanelTurn.response.message_id,
+                )
+              }
+            />
+          </Suspense>
         </div>
       </div>
     </div>
