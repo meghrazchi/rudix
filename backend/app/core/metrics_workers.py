@@ -158,5 +158,53 @@ def record_dead_letter_message(outcome: str) -> None:
 
 
 # anchor: C2
+# R06-13: agent run tasks. ``task`` is agents.run.execute or agents.run.resume; ``outcome``
+# is the run status the task left (completed, failed, cancelled, waiting_approval) or why it
+# did nothing (lease_held, not_runnable, not_found, lease_lost, principal_revoked).
+AGENT_RUN_TASKS_TOTAL = Counter(
+    "rudix_agent_run_tasks_total",
+    "Agent run worker tasks by task name and outcome",
+    ["task", "outcome"],
+    registry=registry,
+)
+# outcome: requeued (expired lease, resume_count += 1) or failed (worker_lost).
+AGENT_RUNS_REAPED_TOTAL = Counter(
+    "rudix_agent_runs_reaped_total",
+    "Agent runs with an expired lease handled by agents.runs.reap",
+    ["outcome"],
+    registry=registry,
+)
+# A side-effect tool call answered from its completed agent_tool_calls row on resume.
+AGENT_TOOL_CALLS_REUSED_TOTAL = Counter(
+    "rudix_agent_tool_calls_reused_total",
+    "Side-effect tool calls reused by idempotency key instead of executed again",
+    ["tool"],
+    registry=registry,
+)
+# source: redis (buffer and pub/sub) or database (polling fallback); outcome: published,
+# publish_failed (runtime side), streamed (endpoint side).
+AGENT_STREAM_EVENTS_TOTAL = Counter(
+    "rudix_agent_stream_events_total",
+    "Agent run stream events by source and outcome",
+    ["source", "outcome"],
+    registry=registry,
+)
+
+
+def record_agent_run_task(task: str, outcome: str) -> None:
+    _inc(AGENT_RUN_TASKS_TOTAL, task=task, outcome=outcome)
+
+
+def record_agent_run_reaped(outcome: str) -> None:
+    _inc(AGENT_RUNS_REAPED_TOTAL, outcome=outcome)
+
+
+def record_agent_tool_call_reused(tool: str) -> None:
+    _inc(AGENT_TOOL_CALLS_REUSED_TOTAL, tool=tool)
+
+
+def record_agent_stream_event(source: str, outcome: str) -> None:
+    _inc(AGENT_STREAM_EVENTS_TOTAL, source=source, outcome=outcome)
+
 
 # anchor: D1

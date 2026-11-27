@@ -5,12 +5,19 @@
 argument resolution, one ``AgentToolExecutor`` call per step (authorization, payload and
 output budgets, redaction, and safe errors stay inside the executor), and the step row
 updates. It returns the run result; terminal transitions go through ``runtime_outcome``.
+
+Worker mode (R06-13) adds three things, all absent inline: ``checkpoint`` (commit and renew
+the lease) after a step row is running, after the tool call returned, and after the step
+ended, so a resumed task finds every finished tool call; ``existing_steps``, the rows a
+previous task left running or waiting for approval, which are reused instead of inserted
+again (``agent_steps`` is unique per run and sequence); and ``base_elapsed_ms``, the
+runtime earlier tasks already spent, so the runtime budget spans the whole run.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
@@ -31,7 +38,14 @@ from app.domains.agents.schemas import (
     ToolErrorCode,
     ToolResult,
 )
+from app.domains.agents.services.run_stream import (
+    STEP_COMPLETED,
+    STEP_STARTED,
+    NullRunEvents,
+    RunEventSink,
+)
 from app.domains.agents.services.runtime_context import _RuntimeContext
+from app.models.agent import AgentStep
 from app.models.enums import AgentRunStatus, AgentStepStatus
 
 if TYPE_CHECKING:
@@ -54,9 +68,30 @@ class StepLoop:
     request_id: str | None
     started_perf: float
     cancel_signal: Callable[[], bool] | None = None
+    events: RunEventSink = field(default_factory=NullRunEvents)
+    checkpoint: Callable[[], Awaitable[None]] | None = None
+    existing_steps: dict[int, AgentStep] = field(default_factory=dict)
+    base_elapsed_ms: int = 0
 
     def elapsed_ms(self) -> int:
-        return int((perf_counter() - self.started_perf) * 1000)
+        return self.base_elapsed_ms + int((perf_counter() - self.started_perf) * 1000)
+
+    async def save(self) -> None:
+        if self.checkpoint is not None:
+            await self.checkpoint()
+
+    async def emit_step(
+        self, event: str, sequence: int, selection: PlannedToolSelection, **extra: Any
+    ) -> None:
+        await self.events.emit(
+            event,
+            {
+                "sequence": sequence,
+                "step_name": selection.step_name,
+                "tool_name": selection.tool_name,
+                **extra,
+            },
+        )
 
 
 def side_effect_idempotency_key(run_id: UUID, sequence: int, tool_name: str) -> str:
@@ -334,21 +369,9 @@ async def _run_step(
     except ValueError as exc:
         return await _fail(rt, loop, code="validation_failed", message=str(exc), details={})
     step_started_perf = perf_counter()
-    step = await rt._repository.create_agent_step(
-        loop.session,
-        agent_run_id=loop.run_id,
-        organization_id=loop.organization_id,
-        user_id=loop.user_id,
-        sequence=sequence,
-        step_name=selection.step_name,
-        status=AgentStepStatus.running.value,
-        inputs={
-            "tool_name": selection.tool_name,
-            "arguments": arguments,
-            "rationale": selection.rationale,
-        },
-        started_at=datetime.now(tz=UTC),
-    )
+    step = await _start_step(rt, loop, sequence, selection, arguments)
+    await loop.emit_step(STEP_STARTED, sequence, selection, status="running")
+    await loop.save()
     spec = rt._registry.get_spec(selection.tool_name)
     idempotency_key: str | None = None
     if spec is not None and spec.effect_policy is ToolEffectPolicy.side_effect:
@@ -369,6 +392,56 @@ async def _run_step(
         request_id=loop.request_id,
     )
     loop.context.tool_calls_executed += 1
+    # Worker mode: the finished tool call is committed before the step ends, so a task that
+    # dies now is resumed with the call's result instead of running the tool again.
+    await loop.save()
+    result = await _finish_step(rt, loop, step, sequence, selection, tool_result, step_started_perf)
+    if result is None or result.status != AgentRunStatus.waiting_approval.value:
+        status = "completed" if result is None else "failed"
+        await loop.emit_step(STEP_COMPLETED, sequence, selection, status=status)
+    await loop.save()
+    return result
+
+
+async def _start_step(
+    rt: AgentRuntime,
+    loop: StepLoop,
+    sequence: int,
+    selection: PlannedToolSelection,
+    arguments: dict[str, Any],
+) -> AgentStep:
+    inputs = {
+        "tool_name": selection.tool_name,
+        "arguments": arguments,
+        "rationale": selection.rationale,
+    }
+    existing = loop.existing_steps.pop(sequence, None)
+    if existing is not None:
+        return await rt._worker_repository.reset_step_for_retry(
+            loop.session, step=existing, inputs=inputs, started_at=datetime.now(tz=UTC)
+        )
+    return await rt._repository.create_agent_step(
+        loop.session,
+        agent_run_id=loop.run_id,
+        organization_id=loop.organization_id,
+        user_id=loop.user_id,
+        sequence=sequence,
+        step_name=selection.step_name,
+        status=AgentStepStatus.running.value,
+        inputs=inputs,
+        started_at=datetime.now(tz=UTC),
+    )
+
+
+async def _finish_step(
+    rt: AgentRuntime,
+    loop: StepLoop,
+    step: AgentStep,
+    sequence: int,
+    selection: PlannedToolSelection,
+    tool_result: ToolResult,
+    step_started_perf: float,
+) -> AgentRuntimeResult | None:
     if not tool_result.success:
         error = tool_result.error
         if error is not None and error.code == ToolErrorCode.approval_required:

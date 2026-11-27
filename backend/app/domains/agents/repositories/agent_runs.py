@@ -71,6 +71,7 @@ class AgentRunRepository:
         trace_request_id: str | None = None,
         error_message: str | None = None,
         error_details: dict[str, Any] | None = None,
+        request_snapshot: dict[str, Any] | None = None,
     ) -> AgentRun:
         normalized_status = _validate_value(
             status,
@@ -102,6 +103,9 @@ class AgentRunRepository:
             trace_request_id=trace_request_id,
             error_message=error_message,
             error_details_json=_sanitize_payload(error_details),
+            # Worker mode (R06-13): the validated request the worker resumes from. Stored
+            # as given (not sanitised): the question is needed to run the plan.
+            request_snapshot=request_snapshot,
         )
         session.add(agent_run)
         await session.flush()

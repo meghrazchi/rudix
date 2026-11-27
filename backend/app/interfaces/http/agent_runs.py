@@ -6,12 +6,16 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
 
+from app.application import outbox
+from app.application.agents import run_stream_http, run_submission
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.clients import redis_client as redis_module
 from app.core.config import settings
 from app.core.logging import get_logger, log_agent_event
 from app.db.session import get_db_session
@@ -24,6 +28,7 @@ from app.domains.agents import (
     AgentRuntimeRequest,
     AgentRuntimeResult,
 )
+from app.domains.agents.services.run_stream import build_run_events
 from app.domains.agents.services.trace_service import AgentTraceService
 from app.domains.quota.schemas.quota_schemas import QuotaType
 from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
@@ -389,7 +394,7 @@ async def create_agent_run(
         )
 
     request_id = _request_id_from_request(request)
-    organization_id, _ = _org_and_user(principal)
+    organization_id, user_id = _org_and_user(principal)
     await plan_enforcement_service.ensure_within_limit(
         db_session,
         organization_id=organization_id,
@@ -398,12 +403,35 @@ async def create_agent_run(
         resource="agent runs",
         guidance="Upgrade your plan or reduce agent usage.",
     )
+    if run_submission.worker_mode():
+        # R06-13: store the run as queued and return at once; agents.run.execute runs it.
+        run = await run_submission.create_queued_run(
+            db_session,
+            principal=principal,
+            organization_id=organization_id,
+            user_id=user_id,
+            request=payload.request,
+            request_id=request_id,
+        )
+        await plan_enforcement_service.record_usage(
+            db_session,
+            organization_id=organization_id,
+            quota_type=QuotaType.agent_runs,
+            amount=1,
+        )
+        await run_submission.enqueue_execute(db_session, run=run)
+        await db_session.commit()
+        await run_submission.publish(db_session, run=run, redis=redis_module.redis_client)
+        return AgentRunCreateResponse(run=run_submission.queued_result(run))
     try:
         run_result = await agent_runtime.execute(
             session=db_session,
             principal=principal,
             request=payload.request,
             request_id=request_id,
+            events_factory=lambda run_id: build_run_events(
+                redis_module.redis_client, organization_id=organization_id, run_id=run_id
+            ),
         )
     except HTTPException:
         raise
@@ -672,9 +700,28 @@ async def cancel_agent_run(
     )
 
 
-@router.get("/runs/{run_id}/stream")
+_STREAM_ALL_RUNS_ROLES = {OrganizationRole.owner.value, OrganizationRole.admin.value}
+_STREAM_DESCRIPTION = (
+    "Server-Sent Events (0.5.0 framing: `id`, `event`, `data`) for one agent run: "
+    "`agent.run.status`, `agent.step.started`, `agent.step.completed`, "
+    "`agent.run.waiting_approval`, and the terminal `agent.run.completed`, "
+    "`agent.run.failed`, or `agent.run.cancelled`, after which the stream ends. Send "
+    "`Last-Event-ID` to replay events after that id. Payloads carry ids, statuses, tool "
+    "names, counts, and safe error codes only."
+)
+
+
+@router.get(
+    "/runs/{run_id}/stream",
+    response_class=StreamingResponse,
+    responses={
+        200: {"description": _STREAM_DESCRIPTION, "content": {"text/event-stream": {}}},
+        404: {"description": "Run not found in the caller's organisation, or not visible."},
+    },
+)
 async def stream_agent_run(
     run_id: str,
+    request: Request,
     principal: Annotated[
         AuthenticatedPrincipal,
         Depends(
@@ -686,16 +733,43 @@ async def stream_agent_run(
             )
         ),
     ],
-) -> dict[str, str]:
-    del run_id, principal
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StreamingResponse:
     _feature_enabled()
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail={
-            "code": "stream_not_implemented",
-            "message": "Agent run streaming is not implemented yet.",
-        },
+    organization_id, user_id = _org_and_user(principal)
+    run_uuid = _parse_run_id(run_id)
+    run = await agent_run_repository.get_agent_run(
+        db_session, agent_run_id=run_uuid, organization_id=organization_id
     )
+    roles = {role.strip().lower() for role in principal.roles}
+    if run is None or (roles.isdisjoint(_STREAM_ALL_RUNS_ROLES) and run.user_id != user_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+    await db_session.commit()
+    reader = run_stream_http.RunStreamReader(
+        organization_id=organization_id,
+        run_id=run_uuid,
+        last_event_id=run_stream_http.parse_last_event_id(request.headers.get("last-event-id")),
+        redis=redis_module.redis_client,
+        load_state=lambda: run_stream_http.load_run_state(
+            stream_session_factory(), organization_id=organization_id, run_id=run_uuid
+        ),
+    )
+    log_agent_event(
+        event="agent.run.stream_opened",
+        organization_id=str(organization_id),
+        user_id=str(user_id),
+        run_id=str(run_uuid),
+        last_event_id=reader.last_id,
+    )
+    response: StreamingResponse = run_stream_http.stream_response(reader)
+    return response
+
+
+def stream_session_factory() -> Any:
+    """Short sessions of the stream's database reads (read at call time; tests replace it)."""
+    from app.db import session as db_session_module
+
+    return db_session_module.SessionLocal
 
 
 @router.get("/approvals", response_model=AgentApprovalQueueResponse)
@@ -832,7 +906,11 @@ async def decide_agent_run_approval(
         )
 
     # Transition run status based on decision outcome.
-    if run.status == AgentRunStatus.waiting_approval.value:
+    resume_in_worker = payload.status == "approved" and run_submission.can_resume(run)
+    if resume_in_worker:
+        # R06-13: back to queued; agents.run.resume continues the run with this approval.
+        await run_submission.queue_resume(db_session, run=run, approval_id=approval_uuid)
+    elif run.status == AgentRunStatus.waiting_approval.value:
         if payload.status == "approved":
             await agent_run_repository.update_agent_run(
                 db_session,
@@ -894,6 +972,8 @@ async def decide_agent_run_approval(
         approval_id=str(approval_uuid),
     )
     await db_session.commit()
+    if resume_in_worker:
+        await outbox.publish_after_commit(db_session)
     return _to_approval_response(updated)
 
 

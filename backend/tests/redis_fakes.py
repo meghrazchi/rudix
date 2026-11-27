@@ -310,6 +310,68 @@ class FakeRedis:
 
         return run
 
+    async def publish(self, channel: str, message: Any) -> int:
+        """Deliver to every subscriber of ``channel`` (R06-13 agent run stream)."""
+        self._count("PUBLISH")
+        subscribers = list(getattr(self, "_subscribers", {}).get(channel, []))
+        for subscriber in subscribers:
+            subscriber.deliver(channel, str(message))
+        return len(subscribers)
+
+    def pubsub(self) -> FakePubSub:
+        if not hasattr(self, "_subscribers"):
+            self._subscribers: dict[str, list[FakePubSub]] = {}
+        return FakePubSub(self)
+
+
+class FakePubSub:
+    """``redis.asyncio`` ``PubSub`` subset: subscribe, get_message, unsubscribe, aclose.
+
+    Messages are kept in a plain list (publishers may run in another thread, as an eager
+    Celery task does under ``asyncio.to_thread``); ``get_message`` polls it until timeout.
+    """
+
+    def __init__(self, redis: FakeRedis) -> None:
+        self._redis = redis
+        self.channels: list[str] = []
+        self.messages: list[dict[str, Any]] = []
+        self.closed = False
+
+    def deliver(self, channel: str, data: str) -> None:
+        self.messages.append({"type": "message", "channel": channel, "data": data})
+
+    async def subscribe(self, *channels: str) -> None:
+        self._redis._count("SUBSCRIBE")
+        for channel in channels:
+            self._redis._subscribers.setdefault(channel, []).append(self)
+            self.channels.append(channel)
+
+    async def get_message(
+        self, ignore_subscribe_messages: bool = False, timeout: float | None = 0.0
+    ) -> dict[str, Any] | None:
+        del ignore_subscribe_messages
+        import asyncio
+
+        waited = 0.0
+        while not self.messages:
+            if timeout is None or waited >= timeout:
+                return None
+            await asyncio.sleep(0.005)
+            waited += 0.005
+        return self.messages.pop(0)
+
+    async def unsubscribe(self, *channels: str) -> None:
+        for channel in channels or tuple(self.channels):
+            subscribers = self._redis._subscribers.get(channel, [])
+            if self in subscribers:
+                subscribers.remove(self)
+        self.channels = [channel for channel in self.channels if channel not in channels]
+        if not channels:
+            self.channels = []
+
+    async def aclose(self) -> None:
+        self.closed = True
+
 
 class BrokenRedis:
     """Every command raises, like a Redis that is down mid-request."""
