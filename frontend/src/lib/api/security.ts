@@ -73,27 +73,13 @@ export function getSecurityCapabilities(): SecurityCapabilities {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type SecuritySession = {
-  id: string;
-  device: string;
-  ip_address: string | null;
-  location: string | null;
-  created_at: string | null;
-  last_active_at: string | null;
-  is_current: boolean;
-};
+export type SecuritySession = Served<Schemas["SessionItem"]>;
 
 export type LoginPolicy = Served<Schemas["LoginPolicy"]>;
 
 export type SecurityPosture = Served<Schemas["SecurityPosture"]>;
 
-export type AuditEvent = {
-  id: string;
-  event_type: string;
-  actor_email: string | null;
-  created_at: string;
-  summary: string;
-};
+export type AuditEvent = Served<Schemas["AuditEventItem"]>;
 
 // ── API functions ─────────────────────────────────────────────────────────────
 

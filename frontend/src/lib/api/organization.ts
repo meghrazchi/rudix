@@ -26,19 +26,14 @@ export type OrganizationProfile = Overlay<
   { id: string | null }
 >;
 
-export type OrganizationSettings = {
-  default_member_role: "member" | "viewer";
-  invite_only: boolean;
-  allowed_email_domains: string[];
-  default_document_visibility: "public" | "private";
-  default_collection: string | null;
-  retention_days: number | null;
-  source_download: "all" | "admins" | "none";
-  evaluation_access: boolean;
-  agentic_access: boolean;
-  mcp_access: boolean;
-  analytics_enabled: boolean;
-};
+export type OrganizationSettings = Overlay<
+  Served<Schemas["OrgSettings"]>,
+  {
+    default_member_role: "member" | "viewer";
+    default_document_visibility: "public" | "private";
+    source_download: "all" | "admins" | "none";
+  }
+>;
 
 export type IngestionDefaults = Overlay<
   Served<Schemas["IngestionDefaults"]>,

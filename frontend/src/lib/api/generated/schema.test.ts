@@ -33,6 +33,9 @@ import type { KnowledgeGapResponse } from "@/lib/api/query-analytics";
 import type { OrgQuotaPolicyResponse } from "@/lib/api/quotas";
 import type { QuotaType } from "@/lib/api/quotas";
 import type { QualityGateThresholds } from "@/lib/api/quality-gates";
+import type { AuditEvent, SecuritySession } from "@/lib/api/security";
+import type { GovernanceMcpStatus } from "@/lib/api/admin-governance";
+import type { OrganizationSettings } from "@/lib/api/organization";
 
 type Schemas = components["schemas"];
 
@@ -202,6 +205,28 @@ describe("generated schema types", () => {
       >();
     expectTypeOf<OrgQuotaPolicyResponse["limits"]>().toEqualTypeOf<
       Partial<Record<QuotaType, Served<Schemas["QuotaLimitConfig"]>>>
+    >();
+  });
+
+  it("security, governance and organization view types use the schema", () => {
+    expectTypeOf<SecuritySession>().toEqualTypeOf<
+      Served<Schemas["SessionItem"]>
+    >();
+    expectTypeOf<AuditEvent>().toEqualTypeOf<
+      Served<Schemas["AuditEventItem"]>
+    >();
+    expectTypeOf<GovernanceMcpStatus>().toEqualTypeOf<
+      Served<Schemas["GovernanceMCPStatus"]>
+    >();
+    type SettingsOverlay =
+      | "default_member_role"
+      | "default_document_visibility"
+      | "source_download";
+    expectTypeOf<Omit<OrganizationSettings, SettingsOverlay>>().toEqualTypeOf<
+      Omit<Served<Schemas["OrgSettings"]>, SettingsOverlay>
+    >();
+    expectTypeOf<OrganizationSettings["source_download"]>().toEqualTypeOf<
+      "all" | "admins" | "none"
     >();
   });
 

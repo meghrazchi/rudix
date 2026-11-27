@@ -32,17 +32,7 @@ export type GovernancePolicyState = Overlay<
   { budgets: GovernanceBudgetConfig }
 >;
 
-export type GovernanceMcpStatus = {
-  feature_enable_mcp: boolean;
-  mcp_transport: string;
-  mcp_http_path: string;
-  mcp_http_host: string;
-  mcp_http_port: number;
-  mcp_auth_required: boolean;
-  mcp_rate_limit_enabled: boolean;
-  feature_enable_external_mcp_connectors: boolean;
-  configured_global_external_servers: number;
-};
+export type GovernanceMcpStatus = Served<Schemas["GovernanceMCPStatus"]>;
 
 export type GovernancePolicyResponse = Overlay<
   Served<Schemas["GovernancePolicyResponse"]>,
