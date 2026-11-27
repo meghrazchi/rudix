@@ -11,7 +11,13 @@ from __future__ import annotations
 import pytest
 from chat_golden_providers import install_providers
 from chat_golden_support import SeedDoc, seed_documents
-from chat_pipeline_probe import PoolProbe, ProbingChatProvider, run_ws_question, ws_principal
+from chat_pipeline_probe import (
+    PoolProbe,
+    ProbingChatProvider,
+    ProbingEmbeddingProvider,
+    run_ws_question,
+    ws_principal,
+)
 from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -132,6 +138,51 @@ async def test_websocket_holds_no_connection_while_the_model_generates(
     assert [o.checked_out for o in provider.observations] == [0]
     assert held_after_run == 0
     assert await _chat_rows(db_session, world) == (1, 2)
+
+
+async def test_http_holds_no_connection_while_the_question_is_embedded(
+    chat_query_client: AsyncClient,  # noqa: F811
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The query embedding is a provider call too: the graph flag lookup that precedes it
+    runs in its own short session, so no connection is held across it."""
+    monkeypatch.setattr(settings, "chat_pipeline_v2", True)
+    provider = ProbingChatProvider()
+    embed_provider = install_providers(monkeypatch, provider)
+    world = await _world(db_session, provider)
+
+    assert db_session.bind is not None
+    with PoolProbe(db_session.bind) as probe:
+        probing = ProbingEmbeddingProvider(embed_provider, probe=probe, request_session=db_session)
+        monkeypatch.setattr(chat_api._query_retrieval_service, "_embedding_provider", probing)
+        status_code = await _ask_http(chat_query_client, world)
+
+    assert status_code == 200
+    assert probing.observations == [(0, False)]
+
+
+async def test_websocket_holds_no_connection_while_the_question_is_embedded(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "chat_pipeline_v2", True)
+    provider = ProbingChatProvider()
+    embed_provider = install_providers(monkeypatch, provider)
+    world = await _world(db_session, provider)
+    monkeypatch.setattr(chat_api, "SessionLocal", _factory(db_session))
+    assert db_session.bind is not None
+
+    with PoolProbe(db_session.bind) as probe:
+        probing = ProbingEmbeddingProvider(embed_provider, probe=probe)
+        monkeypatch.setattr(chat_api._query_retrieval_service, "_embedding_provider", probing)
+        websocket = await run_ws_question(
+            principal=ws_principal(world.user.id, world.organization.id, "member"),
+            payload=world.payload,
+        )
+
+    assert websocket.events[-1]["event"] == "chat.completed", websocket.events
+    assert [checked_out for checked_out, _ in probing.observations] == [0]
 
 
 async def test_control_probe_sees_a_session_held_across_generation(

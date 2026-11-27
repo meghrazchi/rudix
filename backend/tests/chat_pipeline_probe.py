@@ -89,6 +89,22 @@ class ProbingChatProvider(RecordingChatProvider):
         return await super().complete(request)
 
 
+class ProbingEmbeddingProvider:
+    """A fake embedding provider that records, per call, the connections the probe sees
+    checked out and whether the request session has an open transaction."""
+
+    def __init__(self, inner: Any, *, probe: PoolProbe, request_session: Any = None) -> None:
+        self._inner = inner
+        self.probe = probe
+        self.request_session = request_session
+        self.observations: list[tuple[int, bool | None]] = []
+
+    async def embed(self, request: Any) -> Any:
+        in_tx = None if self.request_session is None else self.request_session.in_transaction()
+        self.observations.append((self.probe.checked_out, in_tx))
+        return await self._inner.embed(request)
+
+
 def ws_principal(user_id: object, organization_id: object, role: str) -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
         user_id=str(user_id),

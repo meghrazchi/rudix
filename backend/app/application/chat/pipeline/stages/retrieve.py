@@ -75,8 +75,15 @@ class RetrieveStage:
         await ctx.emit_step("searching_documents", "Searching knowledge base", "running")
         retrieve_started = perf_counter()
         try:
-            # R05-02: two short sessions, each closed before the next step: the retrieval
-            # branches with access filtering, then the trust, table, and OCR lookups.
+            # R05-02: short sessions, each closed before the next step. The graph flag is
+            # read on its own so no connection is held while the question is embedded;
+            # then the retrieval branches with access filtering; then the trust, table,
+            # and OCR lookups.
+            async with ctx.sessions.short() as db_session:
+                ret.graph_enabled = await _resolve_graph_rag_enabled(
+                    db_session,
+                    organization_id=req.organization_id,
+                )
             async with ctx.sessions.short() as db_session:
                 await self._retrieve(ctx, db_session)
             async with ctx.sessions.short() as db_session:
@@ -122,10 +129,6 @@ class RetrieveStage:
         deps = ctx.deps
         ret = ctx.retrieval
         document_ids = ctx.scope.document_ids
-        ret.graph_enabled = await _resolve_graph_rag_enabled(
-            db_session,
-            organization_id=req.organization_id,
-        )
         route_result = ctx.config.route_result
         route_wants_vector_only = route_result is not None and route_result.method == "vector"
         effective_hybrid = settings.feature_enable_hybrid_retrieval and not route_wants_vector_only
