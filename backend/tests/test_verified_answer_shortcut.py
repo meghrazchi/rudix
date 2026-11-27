@@ -17,6 +17,7 @@ from chat_b2_support import QUESTION, TEXT, B2World, make_world, run_pipeline
 from chat_golden_support import SeedDoc
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.chat.pipeline.stages import shortcut
 from app.application.chat.pipeline.stages.shortcut import single_collection_scope
 from app.core.config import settings
 from app.core.metrics import CHAT_VERIFIED_ANSWER_SHORTCUT_TOTAL
@@ -261,7 +262,7 @@ def _candidate(**overrides: Any) -> VerifiedAnswerCandidate:
     return VerifiedAnswerCandidate(**{**values, **overrides})
 
 
-def test_match_rule_prefers_the_collection_card_and_respects_scope_and_expiry() -> None:
+async def test_match_rule_prefers_the_collection_card_and_respects_scope_and_expiry() -> None:
     collection = uuid4()
     today = date(2026, 11, 27)
     unscoped = _candidate()
@@ -291,7 +292,7 @@ def test_match_rule_prefers_the_collection_card_and_respects_scope_and_expiry() 
     )
 
 
-def test_single_collection_scope_needs_exactly_one_collection() -> None:
+async def test_single_collection_scope_needs_exactly_one_collection() -> None:
     collection = str(uuid4())
 
     def scope(**source_scope: Any) -> UUID | None:
@@ -304,3 +305,41 @@ def test_single_collection_scope_needs_exactly_one_collection() -> None:
     assert scope(mode="all") is None
     assert scope(mode="collections", collection_ids=["not-a-uuid"]) is None
     assert single_collection_scope(ChatQueryRequest(question="q")) is None
+
+
+async def _deny_all(*_args: Any, **_kwargs: Any) -> list[Any]:
+    return []
+
+
+@pytest.mark.parametrize(
+    "check", ["_filter_authorized_document_ids_for_chat", "filter_chunks_by_cite_access"]
+)
+async def test_unreadable_or_uncitable_document_falls_through(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    shortcut_on: None,
+    check: str,
+) -> None:
+    world = await make_world(db_session, monkeypatch)
+    await _card(db_session, world)
+    # Only the shortcut's own read/cite check denies; retrieval keeps its real checks.
+    monkeypatch.setattr(shortcut, check, _deny_all)
+
+    ctx = await run_pipeline(db_session, world.principal)
+
+    assert _result(ctx) == "citation_rejected"
+
+
+async def test_empty_document_scope_never_shortcuts(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch, shortcut_on: None
+) -> None:
+    world = await make_world(db_session, monkeypatch)
+    await _card(db_session, world, requires_citations=False, citations=[])
+
+    ctx = await run_pipeline(
+        db_session,
+        world.principal,
+        source_scope={"mode": "collections", "collection_ids": []},
+    )
+
+    assert _result(ctx) == "citation_rejected"

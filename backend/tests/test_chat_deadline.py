@@ -113,7 +113,7 @@ async def test_defaults_set_no_deadline_and_no_budget(
     assert ctx.retrieval.rerank_applied is True
 
 
-def test_required_stages_never_get_a_budget() -> None:
+async def test_required_stages_never_get_a_budget() -> None:
     assert {"authorize", "guard", "retrieve", "generate", "persist"} <= REQUIRED_STAGES
     assert not REQUIRED_STAGES & set(OPTIONAL_STAGE_POLICIES)
 

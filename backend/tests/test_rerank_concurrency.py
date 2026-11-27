@@ -144,3 +144,26 @@ async def test_a_failed_batch_falls_back_to_the_original_order(
     assert [c.key for c in result.candidates] == ["k1", "k2", "k3", "k4", "k5", "k6"]  # type: ignore[attr-defined]
     # Tokens count the batches that were scored; the failed one is not among them.
     assert diagnostics.prompt_tokens == 10 * (diagnostics.batch_count - 1)
+
+
+@pytest.mark.parametrize(
+    ("error", "reason"),
+    [(TimeoutError(), "timeout"), (RuntimeError("provider bug"), "RuntimeError")],
+)
+async def test_timeout_and_unexpected_errors_fall_back_with_counted_batches(
+    monkeypatch: pytest.MonkeyPatch, error: Exception, reason: str
+) -> None:
+    monkeypatch.setattr(settings, "rerank_max_concurrent_batches", 2)
+
+    class _Raising(_GatedProvider):
+        async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+            if "key: k1\n" in request.prompt:
+                raise error
+            return await super().complete(request)
+
+    result = await _rerank(_Raising(limit=1, total_batches=2), 4)
+
+    diagnostics = result.diagnostics  # type: ignore[attr-defined]
+    assert diagnostics.fallback_used is True and diagnostics.fallback_reason == reason
+    assert 1 <= diagnostics.batch_count <= 2
+    assert diagnostics.prompt_tokens == 10 * (diagnostics.batch_count - 1)

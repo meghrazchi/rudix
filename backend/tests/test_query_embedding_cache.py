@@ -31,6 +31,7 @@ from app.domains.chat.services.query_embedding_cache import (
 from app.interfaces.http import chat as chat_api
 from app.models.enums import OrganizationRole
 from app.models.organization_member import OrganizationMember
+from app.models.rag_profile import RagProfile
 from app.models.user import User
 from tests.redis_fakes import BrokenRedis
 
@@ -45,7 +46,7 @@ def _retrieve_entries(ctx: Any) -> list[Any]:
     return [entry for entry in ctx.ledger.entries if entry.stage == "retrieve"]
 
 
-def test_key_normalises_text_and_separates_model_dimensions_and_index() -> None:
+async def test_key_normalises_text_and_separates_model_dimensions_and_index() -> None:
     base = {"model": "m", "dimensions": 8, "index_version": "v1"}
     key = query_embedding_key(question="How many  Days?", **base)  # type: ignore[arg-type]
     assert key == query_embedding_key(question="  how many days? ", **base)  # type: ignore[arg-type]
@@ -244,4 +245,48 @@ async def test_other_user_of_the_same_organisation_shares_the_vector(
         db_session, principal_for(colleague, world.organization, OrganizationRole.member)
     )
 
+    assert len(world.embed.calls) == 1
+
+
+async def test_profile_without_rewriting_allows_the_prefetch(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "chat_query_embedding_prefetch_enabled", True)
+    monkeypatch.setattr(settings, "feature_enable_query_rewriting", True)
+    world = await make_world(db_session, monkeypatch)
+    db_session.add(
+        RagProfile(
+            organization_id=world.organization.id,
+            name="No rewriting",
+            is_default=True,
+            config={"query_rewriting_enabled": False, "query_decomposition_enabled": False},
+        )
+    )
+    await db_session.commit()
+
+    ctx = await run_pipeline(db_session, world.principal)
+
+    assert ctx.prefetched_embedding is not None
+    assert len(world.embed.calls) == 1
+
+
+async def test_cancelled_prefetch_is_embedded_again(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "chat_query_embedding_prefetch_enabled", True)
+    world = await make_world(db_session, monkeypatch)
+    ctx = await run_pipeline(db_session, world.principal)
+    world.embed.calls.clear()
+
+    async def never() -> Any:
+        await asyncio.Event().wait()
+
+    task = asyncio.create_task(never())
+    ctx.prefetched_embedding = task
+    task.cancel()
+    embed = build_query_embedder(ctx)
+
+    vector, tokens = await embed(QUESTION)
+
+    assert tokens == 7 and len(vector) == settings.qdrant_vector_size
     assert len(world.embed.calls) == 1
