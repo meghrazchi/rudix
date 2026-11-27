@@ -5264,18 +5264,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Server-Sent Events (0.5.0 framing: `id`, `event`, `data`) for one agent run: `agent.run.status`, `agent.step.started`, `agent.step.completed`, `agent.run.waiting_approval`, and the terminal `agent.run.completed`, `agent.run.failed`, or `agent.run.cancelled`, after which the stream ends. Send `Last-Event-ID` to replay events after that id. Payloads carry ids, statuses, tool names, counts, and safe error codes only.",
             "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Stream Agent Run Api V1 Agent Runs  Run Id  Stream Get"
-                }
-              }
+              "text/event-stream": {}
             }
+          },
+          "404": {
+            "description": "Run not found in the caller's organisation, or not visible."
           },
           "422": {
             "description": "Validation Error",
