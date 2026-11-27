@@ -158,6 +158,12 @@ flowchart LR
 
 - Treat as one document.
 - Use synthetic page number `1`.
+- A file longer than `INGEST_TEXT_SEGMENT_CHARS` (default 200 000) characters is decoded in
+  segments, cut at a line (else word) boundary, numbered as pages `1..n` (R06-02).
+
+The worker streams the stored object to a temporary file and extracts PDF and TXT from that
+file page by page; DOCX is still loaded whole by `python-docx` and is bounded by the upload
+limit.
 
 ### DOCX
 
@@ -238,6 +244,30 @@ Rules:
 - Store index version.
 - Use the same embedding model for user queries.
 - Re-index when embedding model changes.
+
+Reuse, concurrency, and the run marker (R06-06):
+
+- The vector index is the embedding cache. Before an embed batch goes to the provider, one
+  Qdrant scroll looks up points with the same `organization_id`, `embedding_model`, and
+  `chunk_hash` (SHA-256 of the NFC-normalised, stripped chunk text; keyword payload index
+  `chunk_hash`). Hits with the configured vector size are reused; only the misses are
+  embedded. The filter always carries the organisation, so a vector is never reused across
+  organisations. Reindexing an unchanged document makes no embedding call; a changed chunk
+  re-embeds only that chunk. A failed lookup embeds the whole batch. Reused chunks cost no
+  tokens, so the `document.embedding` usage event counts only embedded chunks.
+- Every point carries `ingest_run_id` (the ingestion run). The old points are no longer
+  deleted before chunking: after all embed batches the `index` stage deletes the document's
+  points of that index version whose `ingest_run_id` is not the current run (one delete,
+  for example the higher chunk indexes of a longer previous version) and checks with one
+  exact count that the document has as many points as embeddable chunk rows
+  (`QDRANT_POINT_COUNT_MISMATCH`, transient, otherwise). During a reindex the previous
+  points stay searchable until they are overwritten.
+- `EMBEDDING_MAX_CONCURRENT_BATCHES` (default `1`, sequential) bounds both the embed batches
+  of one stage run and the provider batches inside one `EmbeddingService.embed_chunks` call;
+  results keep their order and artifact parts stay keyed by batch index. A
+  `ProviderQuotaExceededError` with a `Retry-After` (OpenAI and local adapters read
+  `retry-after-ms` / `retry-after`) pauses every batch of the service until that deadline
+  (capped at 60 s) before the retry.
 
 ## Multilingual behavior
 

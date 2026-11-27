@@ -111,6 +111,62 @@ document's organisation with the kwarg before any write and raise `tenant_mismat
 `documents.process` message without `organization_id` (published before `0.6.0`) resolves it
 with one `maintenance_session()` read. Beat tasks use `maintenance_session()`.
 
+### Vector writes and memory
+
+R06-02, R06-06, R06-07.
+
+**Temporary files.** The `extract` stage streams the stored object to a temporary file in
+`INGEST_TEMP_DIR` (unset: the system temporary directory) with reads of
+`INGEST_DOWNLOAD_CHUNK_BYTES` (1 MiB) and removes it when the stage ends, also on failure.
+Size the directory for the largest accepted upload (`MAX_UPLOAD_SIZE_MB`) times the number of
+ingestion tasks that run at once on the host (worker concurrency of the processing queue), plus
+headroom; use local disk, not a network mount. A full disk fails the stage as transient
+`SOURCE_OBJECT_READ_FAILED` (log `Ingestion temporary file write failed`). Leftover
+`rudix-ingest-*` files after a hard kill (SIGKILL, OOM) can be deleted when no worker runs.
+
+**Memory.** PDF pages are extracted one at a time from the file and written to the stage
+artifacts as they are produced; TXT is decoded in `INGEST_TEXT_SEGMENT_CHARS` sections. Text
+blocks are read through `get_text("dict")` because PyMuPDF 1.28's `get_text("blocks")` keeps
+the objects it returns alive (`tests/test_ingestion_memory_bounds.py` checks both the bound
+and that the blocks are identical). `INGEST_MEMORY_CEILING_MB` (512) is the documented design
+bound for one extract run; it is not enforced. `clean_detect`, `dlp`, and `chunk` still hold
+the text of every page, and DOCX is still loaded whole, so the upload limit stays the bound for
+those.
+
+**Reuse and cleanup.** `embed` reuses stored vectors by `(organization_id, embedding_model,
+chunk_hash)` and marks every point with `ingest_run_id`; `index` deletes the document's points of
+other runs and requires the point count to match the embeddable chunks. A
+`QDRANT_POINT_COUNT_MISMATCH` failure is transient: the retry resumes at `index`; if it
+persists, check for concurrent writers of the same document or a partially applied delete,
+then reindex the document. Reuse needs the `chunk_hash` payload index, which
+`python -m app.clients.qdrant_bootstrap` adds to an existing collection.
+
+**Qdrant clients and bootstrap.** Writes use `AsyncQdrantClient` with
+`QDRANT_WRITE_TIMEOUT_SECONDS` (30), chat retrieval one with `QDRANT_SEARCH_TIMEOUT_SECONDS`
+(unset: `QDRANT_TIMEOUT_SECONDS`, 2 s). `ensure_qdrant_collection()` runs at API startup, at
+worker process start (both gated by `QDRANT_BOOTSTRAP_COLLECTION`), and in the deploy step
+`python -m app.clients.qdrant_bootstrap` (`make migrate-qdrant`), not on the write path. A write
+that gets 404 for the configured collection bootstraps it once and retries
+(`qdrant.collection.missing_on_write`).
+
+**Settings to evaluate on staging before changing.** Every tuning setting defaults to unset
+(the server default) and applies only when a collection is created; an existing collection
+only logs `qdrant.collection.tuning_differs`. Change them only after the accuracy gate
+(`make eval-smoke`, the nightly suite, `docs/12`) passes on a staging collection built with the
+new values, and compare recall and latency there:
+
+| Setting | What to evaluate |
+|---|---|
+| `QDRANT_HNSW_M`, `QDRANT_HNSW_EF_CONSTRUCT` | Graph density and build effort; recall against index size and build time. |
+| `QDRANT_HNSW_M=0` with `QDRANT_HNSW_PAYLOAD_M` (e.g. 16) | Tenant-partitioned HNSW from Qdrant's multitenancy guide: per-tenant graphs on the `organization_id` tenant index instead of one global graph. Every Rudix search filters by organisation; measure recall for small and large tenants. |
+| `QDRANT_SCALAR_QUANTIZATION`, `QDRANT_QUANTIZATION_QUANTILE`, `QDRANT_QUANTIZATION_ALWAYS_RAM` | int8 vectors (about 4x less vector memory); recall loss and rescoring cost. |
+| `QDRANT_VECTORS_ON_DISK`, `QDRANT_HNSW_ON_DISK`, `QDRANT_ON_DISK_PAYLOAD` | RAM against latency. qdrant-client 1.20 marks the `on_disk` flags deprecated in favour of `memory`; the server image is not pinned (`qdrant/qdrant:latest`), so check them against the deployed server version. |
+| `QDRANT_SHARD_NUMBER`, `QDRANT_REPLICATION_FACTOR` | Only for a Qdrant cluster; a single node keeps 1. |
+| `QDRANT_STORE_PARENT_TEXT=false` | Smaller payloads; chat retrieval then reads parent text from `document_chunks` in one query per search. Measure retrieval latency first. Points written while it is false have no parent text: setting it back to true needs a reindex of those documents. Evaluation and safety scoring use the payload only. |
+
+Applying a new value to an existing deployment means building a new collection (reindex)
+with it; 0.6.0 package A2 adds index generations for that.
+
 ## Failure Modes and Recovery
 
 | Symptom | Cause | Recovery |

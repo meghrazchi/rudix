@@ -729,6 +729,31 @@ after `finalize` on its own queue.
   `superseded` or `lease_held` rising (duplicate publications or competing claims).
 - No throughput or latency figure is recorded for the chain; the tests assert call counts.
 
+### Vector writes, embedding reuse, and Qdrant clients (R06-02, R06-06, R06-07)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_embedding_cache_hits_total` | `outcome` | Embed-stage chunks whose vector was reused from the vector index (`hit`) or sent to the provider (`miss`). A reindex of unchanged documents is all `hit`; a hit ratio that drops to zero after a deploy means the lookup fails (log `ingestion.embedding_reuse_lookup_failed`) or the `chunk_hash` payload index is missing. |
+
+- The `document.embedding` usage event counts only embedded chunks, so reindex cost falls
+  with the hit ratio; tokens of reused chunks are not counted.
+- The pipeline-explorer stage `index_cleanup` now runs after `index` (stale points of other
+  runs are deleted after the upserts) and reports `point_count`. Error codes:
+  `QDRANT_POINT_COUNT_MISMATCH` (transient: the document's point count differs from its
+  embeddable chunks after cleanup), `QDRANT_CLEANUP_FAILED`, `QDRANT_CLEANUP_FILTER_INVALID`.
+- Logs: `qdrant.async_client.created` (kind, timeout), `qdrant.collection.missing_on_write`
+  (the write path bootstrapped a missing collection), `qdrant.collection.tuning_differs`
+  (configured tuning differs from an existing collection; nothing is changed),
+  `qdrant.bootstrap.completed` / `qdrant.bootstrap.failed`, `worker.qdrant_bootstrap_failed`.
+- Recall: every tuning setting defaults to the server default and `QDRANT_STORE_PARENT_TEXT`
+  stays `true`, so retrieval results on the evaluation set cannot change from these items
+  unless an operator sets a value. Run the accuracy gate on a staging collection before
+  setting any of them (`docs/27`, "Vector writes and memory").
+- Memory: `tests/test_ingestion_memory_bounds.py` bounds the traced Python memory of the
+  extract path (a 64 MiB TXT under 16 MiB, a 300-page PDF of about 2.8 million characters
+  under 4 MiB); these are test bounds, not production measurements. No latency figure is
+  recorded for the async clients or for parent-text resolution.
+
 ## Continuous evaluation
 
 Run evaluations:
