@@ -614,3 +614,26 @@ def test_failed_job_run_lookup_ignores_bad_ids_and_other_organizations(
     )
     assert (run_id, resumed) == ("claim", False)
     assert chain_module.first_incomplete({str(s) for s in CHAIN_ORDER}) is None
+
+
+def test_redelivered_reindex_after_its_run_committed_restores_indexed(
+    chain: ChainHarness,  # noqa: F811
+) -> None:
+    seeded = chain.env.seed()
+    chain.process(seeded, chunking_profile_config=PROFILE_CONFIG)
+    kwargs = {
+        "organization_id": str(seeded.organization_id),
+        "chunking_profile_config": PROFILE_CONFIG,
+    }
+    args = [str(seeded.document_id)]
+    first = document_tasks.reindex_document.apply(args=args, kwargs=kwargs, task_id="rx").get()
+    batches = len(chain.env.fakes.embeddings.batches)
+    # Redelivery of the same reindex message after its run finished: it re-claims the
+    # document, reaches the same run, and finalize restores indexed without new work.
+    again = document_tasks.reindex_document.apply(args=args, kwargs=kwargs, task_id="rx").get()
+    assert again["run_id"] == first["run_id"]
+    final = chain.env.run_async(state(chain.env, seeded))
+    assert final["status"] == DocumentStatus.indexed.value
+    assert final["claim"] is None
+    assert final["usage"] == 2  # upload run + reindex run, no third
+    assert len(chain.env.fakes.embeddings.batches) == batches

@@ -40,6 +40,7 @@ from app.workers.ingestion.pipeline import (
 from app.workers.ingestion.runner import run_leased
 from app.workers.ingestion.stages import build_stage
 from app.workers.ingestion.stages.base import ARTIFACT_CONSUMERS, StageName
+from app.workers.ingestion.stages.finalize import refinalize
 from app.workers.ingestion.store import COMPLETED, StageRecord
 from app.workers.ingestion.tenant import check_document_tenant
 
@@ -192,6 +193,11 @@ async def run_stage_message(
 
     record = records.get(stage)
     if record is not None and record.status == COMPLETED:
+        if stage == StageName.finalize and document.processing_task_id == kw["claim_token"]:
+            # A redelivered reindex re-claimed a committed run: restore ``indexed``
+            # (no second usage event; the stage row and usage committed with finalize).
+            ctx = await _context(deps, document, kw, options, store, records, message_id)
+            await refinalize(ctx)
         return _result(
             stage,
             "skipped",
@@ -205,6 +211,34 @@ async def run_stage_message(
             await store.reset(producer)
             return _result(stage, "rerun_producer", kw, dispatch=[(producer, _message(kw))])
 
+    ctx = await _context(deps, document, kw, options, store, records, message_id)
+    leased = await store.lease(stage, owner=message_id)
+    if leased is None:
+        return _result(stage, "lease_held", kw)
+    try:
+        await run_leased(ctx, build_stage(stage), leased)
+    except Exception as exc:
+        await _on_stage_error(ctx, exc, retried=bool(will_retry(exc)), kw=kw)
+        raise
+    return _result(
+        stage,
+        "completed",
+        kw,
+        dispatch=_forward(stage, kw),
+        report=stage == StageName.finalize,
+    )
+
+
+async def _context(
+    deps: IngestionDeps,
+    document: Any,
+    kw: dict[str, Any],
+    options: IngestionOptions,
+    store: Any,
+    records: dict[str, StageRecord],
+    message_id: str,
+) -> StageContext:
+    expected = kw.get("organization_id")
     resolved_org = str(expected or document.organization_id)
     resolved_user = str(kw.get("user_id") or document.uploaded_by_user_id)
     ctx = StageContext(
@@ -212,7 +246,7 @@ async def run_stage_message(
         organization_id=resolved_org,
         user_id=resolved_user,
         request_id=kw.get("request_id"),
-        run_id=run_id,
+        run_id=str(kw["run_id"]),
         claim_token=str(kw["claim_token"]),
         options=options,
         deps=deps,
@@ -230,22 +264,7 @@ async def run_stage_message(
     for name, row in records.items():
         if row.status == COMPLETED:
             ctx.metrics[name] = dict(row.metrics)
-
-    leased = await store.lease(stage, owner=message_id)
-    if leased is None:
-        return _result(stage, "lease_held", kw)
-    try:
-        await run_leased(ctx, build_stage(stage), leased)
-    except Exception as exc:
-        await _on_stage_error(ctx, exc, retried=bool(will_retry(exc)), kw=kw)
-        raise
-    return _result(
-        stage,
-        "completed",
-        kw,
-        dispatch=_forward(stage, kw),
-        report=stage == StageName.finalize,
-    )
+    return ctx
 
 
 async def _artifacts_lost(store: Any, record: StageRecord | None, producer: StageName) -> bool:
