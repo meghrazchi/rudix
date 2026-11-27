@@ -65,6 +65,18 @@ pytestmark = [pytest.mark.isolation, pytest.mark.both_dialects]
 
 EVAL_VERSION = "eval-abc1234567-1"
 CHAT_PY = Path(__file__).resolve().parents[1] / "app" / "interfaces" / "http" / "chat.py"
+# R05-01 (S3): the legacy HTTP and WebSocket bodies of chat.py are gone; both transports run
+# the pipeline's retrieve stage, which holds the one parallel retrieval call.
+CHAT_RETRIEVAL_SOURCES = (
+    CHAT_PY,
+    Path(__file__).resolve().parents[1]
+    / "app"
+    / "application"
+    / "chat"
+    / "pipeline"
+    / "stages"
+    / "retrieve.py",
+)
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -461,17 +473,25 @@ async def test_inventory_answer_cites_only_production_version_chunks(
 
 
 def test_every_chat_parallel_retrieval_call_passes_index_versions() -> None:
-    tree = ast.parse(CHAT_PY.read_text(encoding="utf-8"))
     calls = [
         node
-        for node in ast.walk(tree)
+        for source in CHAT_RETRIEVAL_SOURCES
+        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8")))
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "execute"
-        and isinstance(node.func.value, ast.Name)
-        and node.func.value.id == "_parallel_retrieval_optimizer"
+        and (
+            (
+                isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "_parallel_retrieval_optimizer"
+            )
+            or (
+                isinstance(node.func.value, ast.Attribute)
+                and node.func.value.attr == "parallel_retrieval_optimizer"
+            )
+        )
     ]
-    assert len(calls) >= 2, "expected the HTTP and WebSocket retrieval calls"
+    assert len(calls) >= 1, "expected the pipeline retrieval call (HTTP and WebSocket)"
     for call in calls:
         keywords = {kw.arg for kw in call.keywords}
         assert "index_versions" in keywords, f"line {call.lineno} omits index_versions"

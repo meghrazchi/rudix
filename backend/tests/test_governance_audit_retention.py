@@ -51,7 +51,14 @@ async def client(
     get_auth_provider.cache_clear()
 
     async def _override() -> AsyncIterator[AsyncSession]:
-        yield db_session
+        try:
+            yield db_session
+        finally:
+            # Every request gets a fresh session in the app; this harness shares one, so drop
+            # the tenant binding (and the strict-mode ORM guard, RLS default since 0.5.0) that
+            # a request left on it before the test reads through the same session.
+            db_session.info.pop("organization_id", None)
+            db_session.info.pop("enforce_tenant_guard", None)
 
     app.dependency_overrides[get_db_session] = _override
     async with AsyncClient(
