@@ -278,8 +278,8 @@ The query pipeline runs when a user asks a question.
 ### Steps
 
 `POST /api/v1/chat` and the chat WebSocket (`chat.start` on `/api/v1/chat/ws`) run the same
-staged pipeline (`backend/app/application/chat/pipeline/`, `CHAT_PIPELINE_V2=true`, the
-default). Each stage is one file under `stages/`; the transports only translate events.
+staged pipeline (`backend/app/application/chat/pipeline/`; since 0.5.0 the only implementation,
+`CHAT_PIPELINE_V2` is deprecated and ignored). Each stage is one file under `stages/`; the transports only translate events.
 
 1. **Auth.** The route verifies the token (HTTP) or the handshake ticket (WebSocket) and the
    role, then the pipeline binds the run to the principal's organisation: every database

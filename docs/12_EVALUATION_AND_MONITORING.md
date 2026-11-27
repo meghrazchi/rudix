@@ -528,8 +528,8 @@ call on the event loop shows up as lag. It needs no labels.
 
 ### Chat pipeline stages (R05-01)
 
-With `CHAT_PIPELINE_V2=true` (the default), `POST /api/v1/chat` and the chat WebSocket run the
-staged chat pipeline and record one observation per stage run and per database session:
+`POST /api/v1/chat` and the chat WebSocket always run the staged chat pipeline (since 0.5.0 the
+legacy bodies are gone and `CHAT_PIPELINE_V2` has no effect) and record one observation per stage run and per database session:
 
 | Metric | Labels | Meaning |
 |---|---|---|
@@ -544,7 +544,8 @@ staged chat pipeline and record one observation per stage run and per database s
   timed-out stage logs `query.stage.degraded` with the stage name and reason only.
 - The stage logs carry ids, counts, flags, and models; no question, prompt, answer, or document
   text.
-- The legacy path (`CHAT_PIPELINE_V2=false`) records no stage metric.
+- `CHAT_PIPELINE_V2=false` is ignored since 0.5.0 (startup warning `chat.pipeline_v2_ignored`);
+  every chat request records the stage metrics.
 
 ## Continuous evaluation
 

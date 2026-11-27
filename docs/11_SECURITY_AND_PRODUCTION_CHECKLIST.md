@@ -91,7 +91,9 @@ Multi-tenant defense-in-depth requirements:
   (`bind_resolved_tenant`, counted in `rudix_rls_resolved_tenant_bindings_total{path}`): the
   shared agent trace page (share token), pre-authentication audit writes for login, refresh,
   logout, and SSO, and Slack/Teams inbound events (installation). New unauthenticated routes
-  must do the same. Celery tasks are bound in `R06-01`.
+  must do the same. Celery tasks are bound in `R06-01`. SCIM provisioning, invitation
+  acceptance, and the browser OAuth callback are not bound yet (`docs/22`, "Known gaps before
+  `strict`"); bind them before `strict` in staging.
 
 Connector operations must also enforce:
 
@@ -163,9 +165,10 @@ Collaboration bot operations must also enforce:
 - PostgreSQL row-level security (`R04-08`) backs the application filters on the 87 tables
   with `organization_id` other than the user-scoped identity tables (`users`,
   `organization_members`, `auth_refresh_sessions`), which keep RLS disabled. `RLS_ENFORCEMENT` is `off`, `soft` (default in staging and
-  production), or `strict` (never the default in `0.4.0`). It only takes effect when the
-  API connects as the non-owner, non-`BYPASSRLS` role `rudix_app`
-  (`deploy/sql/provision_roles.sql`); cross-tenant beat tasks use `maintenance_session()`
+  production), or `strict` (the default in development and test since `0.5.0`). It only
+  takes effect when the API connects as the non-owner, non-`BYPASSRLS` role `rudix_app`
+  (`deploy/sql/provision_roles.sql`), or as a non-superuser table owner once
+  `deploy/sql/force_rls.sql` is applied; cross-tenant beat tasks use `maintenance_session()`
   and `DATABASE_MAINTENANCE_URL`. Watch `rudix_rls_soft_denials_total` before switching to
   `strict`. Details: `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
 

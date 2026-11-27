@@ -1186,8 +1186,8 @@ Events include `chat.request.received`, `activity.step.update`, `retrieval.start
 
 Parity with `POST /chat` (shared code in `backend/app/application/chat/`):
 
-- With `CHAT_PIPELINE_V2=true` (the default) the WebSocket runs the same pipeline stages as
-  `POST /chat`: query rewriting, context packing, the grounded verifier (strict-mode refusals
+- The WebSocket always runs the same pipeline stages as `POST /chat` (since 0.5.0;
+  `CHAT_PIPELINE_V2` is deprecated and ignored): query rewriting, context packing, the grounded verifier (strict-mode refusals
   apply), tree search, freshness, OCR, table, and extraction-quality signals, and the AI
   response policy checks. The prompt template is resolved by the same rule (grounded
   questions only). `chat.completed` carries the same `ChatQueryResponse` as `POST /chat`.
