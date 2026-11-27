@@ -134,6 +134,10 @@ class DocumentMetadataResponse(BaseModel):
     values: list[DocumentMetadataValueResponse]
 
 
+class FilterDocumentsResponse(BaseModel):
+    document_ids: list[str]
+
+
 class BulkSetMetadataResponse(BaseModel):
     updated: int
     skipped: int
