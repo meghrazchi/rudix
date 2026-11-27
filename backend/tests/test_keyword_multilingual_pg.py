@@ -191,8 +191,15 @@ async def test_multilingual_keeps_english_and_unbackfilled_rows(
         await _document(pg_session, org, user, language="en"),
         "Reimbursements of travel expenses need receipts.",
     )
+    unknown_language = await _chunk(
+        pg_session,
+        await _document(pg_session, org, user, language=None),
+        "Travel expenses are reimbursed monthly.",
+    )
+    assert unknown_language.fts_config == "simple"
     found = await _search(pg_session, "travel expense reimbursement", org.id, language="en")
-    assert set(found) == {english.id, legacy.id}
+    # Nothing the English column found before is lost with multilingual on.
+    assert set(found) == {english.id, legacy.id, unknown_language.id}
 
 
 async def test_candidate_limit_bounds_the_ranked_rows(

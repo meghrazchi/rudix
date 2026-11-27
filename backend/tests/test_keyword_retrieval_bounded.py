@@ -112,8 +112,12 @@ def test_question_configuration_when_multilingual_is_on() -> None:
     assert "document_chunks.fts_vector @@ plainto_tsquery(CAST(" in sql
     assert "AS REGCONFIG)" in sql
     assert "german" in params.values()
-    # Rows not backfilled yet still match through the English column.
-    assert "document_chunks.fts_vector IS NULL AND (document_chunks.text_search_vector @@" in sql
+    # Additive: the English column stays a second arm (rows not backfilled yet, unknown
+    # languages), and the rank is the better of the two.
+    inner = _candidate_sql(sql)
+    assert " OR (document_chunks.text_search_vector @@ plainto_tsquery(" in inner
+    assert "english" in params.values()
+    assert "greatest(ts_rank(document_chunks.fts_vector" in sql
 
 
 @pytest.mark.parametrize(

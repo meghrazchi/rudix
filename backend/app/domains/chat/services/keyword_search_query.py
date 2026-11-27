@@ -16,9 +16,10 @@ Tenant scoping:
   ``organization_id``, checked once per process and cached.
 
 Matching: with ``KEYWORD_SEARCH_MULTILINGUAL`` off, the generated English column
-``text_search_vector`` and ``plainto_tsquery('english', q)``, as before. With it on,
-``fts_vector @@ plainto_tsquery(<question config>, q)`` (index ``idx_chunks_fts_vector``);
-a chunk not backfilled yet (``fts_vector`` NULL) still matches through the English column.
+``text_search_vector`` and ``plainto_tsquery('english', q)``, as before. With it on, a
+chunk also matches ``fts_vector @@ plainto_tsquery(<question config>, q)`` (index
+``idx_chunks_fts_vector``) and is ranked by the better of the two; the English arm stays,
+so chunks not backfilled yet and chunks of unknown language (``simple``) are still found.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, and_, case, cast, func, or_, select
+from sqlalchemy import Select, cast, func, or_, select
 from sqlalchemy.dialects.postgresql import REGCONFIG
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,14 +87,13 @@ def _match_and_rank(plan: KeywordSearchPlan, query: str) -> tuple[Any, Any]:
     if not plan.multilingual:
         return english_match, english_rank
     question = func.plainto_tsquery(cast(plan.question_config, REGCONFIG), query)
-    match = or_(
-        DocumentChunk.fts_vector.op("@@")(question),
-        and_(DocumentChunk.fts_vector.is_(None), english_match),
-    )
-    rank = case(
-        (DocumentChunk.fts_vector.is_not(None), func.ts_rank(DocumentChunk.fts_vector, question)),
-        else_=english_rank,
-    )
+    # Additive: a chunk matches through its language-aware vector or, as before, through
+    # the English column. Nothing found today is lost (chunks not backfilled yet, chunks
+    # indexed with ``simple`` because their language is unknown), and both arms use a GIN
+    # index (idx_chunks_fts_vector, idx_chunks_text_search). ts_rank of a NULL vector is
+    # NULL, which greatest() ignores.
+    match = or_(DocumentChunk.fts_vector.op("@@")(question), english_match)
+    rank = func.greatest(func.ts_rank(DocumentChunk.fts_vector, question), english_rank)
     return match, rank
 
 
