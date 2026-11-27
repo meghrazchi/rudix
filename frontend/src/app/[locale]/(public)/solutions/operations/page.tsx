@@ -2,6 +2,7 @@ import { PublicMarketingLayout } from "@/components/public/PublicMarketingLayout
 import { OperationsSolutionPage } from "@/components/public/pages/OperationsSolutionPage";
 import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
 import type { SupportedLocale } from "@/i18n/routing";
+import { useRequestLocale } from "@/i18n/request-locale";
 
 type PublicRouteParams = {
   params: Promise<{ locale: string }>;
@@ -16,7 +17,11 @@ export async function generateMetadata({ params }: PublicRouteParams) {
   });
 }
 
-export default function OperationsSolutionRoute() {
+export default function OperationsSolutionRoute({
+  params,
+}: Partial<PublicRouteParams>) {
+  useRequestLocale(params);
+
   return (
     <PublicMarketingLayout pageLabel="Operations solution page" theme="system">
       <OperationsSolutionPage />

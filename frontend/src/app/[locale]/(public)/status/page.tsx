@@ -3,11 +3,13 @@ import { StatusPage } from "@/components/public/pages/StatusPage";
 import { getPublicStatusSnapshot } from "@/lib/api/public-status";
 import { buildLocalizedPublicMetadata } from "@/lib/public-site/seo";
 import type { SupportedLocale } from "@/i18n/routing";
+import { setRequestLocaleFromParams } from "@/i18n/request-locale";
 
 type PublicRouteParams = {
   params: Promise<{ locale: string }>;
 };
 
+// Live status data: rendered per request, never prerendered (R07-01).
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PublicRouteParams) {
@@ -19,7 +21,10 @@ export async function generateMetadata({ params }: PublicRouteParams) {
   });
 }
 
-export default async function StatusRoute() {
+export default async function StatusRoute({
+  params,
+}: Partial<PublicRouteParams> = {}) {
+  await setRequestLocaleFromParams(params);
   let snapshot = null;
   let loadError: string | null = null;
 

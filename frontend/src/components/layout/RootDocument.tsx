@@ -1,6 +1,5 @@
-import type { Metadata } from "next";
-import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
 
 import { AppQueryProvider } from "@/components/providers/AppQueryProvider";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
@@ -9,35 +8,28 @@ import { getFrontendRuntimeConfigErrors } from "@/lib/runtime-config";
 import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
 import { getLocaleDirection } from "@/i18n/direction";
-import { resolvePublicSiteBaseUrl } from "@/lib/public-site/links";
 
 import "@fontsource-variable/inter";
 import "@fontsource-variable/vazirmatn";
-import "./globals.css";
+import "@/app/globals.css";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(resolvePublicSiteBaseUrl()),
-  title: {
-    default: "Rudix",
-    template: "%s | Rudix",
-  },
-  description:
-    "AI document Q&A with cited answers from your company documents.",
-  icons: {
-    icon: "/brand/rudix-mark.svg",
-    shortcut: "/brand/rudix-mark.svg",
-    apple: "/brand/rudix-mark.svg",
-  },
+type RootDocumentProps = {
+  locale: SupportedLocale;
+  messages: Record<string, unknown>;
+  children: ReactNode;
 };
 
-export default async function RootLayout({
+/**
+ * The `<html>` document shared by both root layouts (R07-01): `app/[locale]`
+ * (prerendered public pages) and `app/(app)` (the signed-in app). It holds
+ * the only `NextIntlClientProvider`; callers pass the picked messages.
+ */
+export function RootDocument({
+  locale,
+  messages,
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: RootDocumentProps) {
   const runtimeConfigErrors = getFrontendRuntimeConfigErrors();
-  const locale = (await getLocale()) as SupportedLocale;
-  const messages = await getMessages();
 
   return (
     <html
@@ -45,7 +37,10 @@ export default async function RootLayout({
       dir={getLocaleDirection(locale)}
       className="h-full antialiased"
     >
+      {/* Rendered by the root layouts, where <head> is the App Router way. */}
+      {/* eslint-disable-next-line @next/next/no-head-element */}
       <head>
+        {/* anchor: A2 head */}
         {/* eslint-disable-next-line @next/next/google-font-display, @next/next/no-page-custom-font */}
         <link
           rel="stylesheet"
@@ -61,6 +56,7 @@ export default async function RootLayout({
               <ConsentProvider>
                 {children}
                 <CookieConsentBanner />
+                {/* anchor: A2 body */}
               </ConsentProvider>
             </AppQueryProvider>
           )}
