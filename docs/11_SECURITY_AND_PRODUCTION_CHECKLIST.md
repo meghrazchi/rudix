@@ -634,9 +634,18 @@ When deleting a document:
 1. Mark document as `deleting`.
 2. Delete Qdrant vectors by `document_id`.
 3. Delete MinIO object prefix.
-4. Delete or soft-delete pages/chunks.
+4. Delete or soft-delete pages/chunks, and delete the document's ingestion stage rows
+   (`document_processing_stages`) and stage artifacts (`document_stage_artifacts`) in the
+   same metadata transaction (R06-01). Artifacts hold copies of extracted and cleaned page
+   text, so none may survive deletion; the delete is scoped by `organization_id` and
+   `document_id`, and both tables also cascade when a document or organization row is
+   removed.
 5. Preserve audit logs if required.
 6. Mark document as `deleted`.
+
+Stage artifacts of a finished run are deleted by its `finalize` stage; artifacts of an
+interrupted run stay until the next run of the document finalizes or the document is
+deleted. Stage `metrics` hold counts and configuration only, never document text.
 
 ## Reproducible builds and container hardening
 

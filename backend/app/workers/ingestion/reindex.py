@@ -1,4 +1,8 @@
-"""Graph re-extraction for an existing document (moved from document_tasks, R06-01)."""
+"""Bodies of ``documents.reindex`` and ``documents.graph_reindex`` (R06-01).
+
+``_reindex_document_graph_async`` moved from document_tasks unchanged; collaborators are
+read from the facade through ``current_deps()``.
+"""
 
 from __future__ import annotations
 

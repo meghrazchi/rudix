@@ -693,6 +693,44 @@ CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py \
 - A warm-cache grounded question sends 30 SQL statements (`tests/test_chat_query_count.py`);
   the 12-statement target is not met yet.
 
+## Ingestion pipeline
+
+`documents.process` and `documents.reindex` (R06-01) run the ingestion stages in
+`app/workers/ingestion/stages/` in order: `extract` (MinIO read, text extraction, OCR),
+`clean_detect` (cleaning, language), `dlp`, `chunk` (Qdrant cleanup of the index version,
+pages, chunk rows, table chunks), `graph_extract` (inline, only when document state is
+persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `index`
+(connector source references), and `finalize` (the only writer of `indexed` and of the
+`document.embedding` usage event, in one transaction with its stage row).
+
+- `app/workers/document_tasks.py` is a compatibility facade: task names, signatures, and
+  return values are unchanged, and the module globals tests rebind (`SessionLocal`,
+  `_qdrant_service`, `_embedding_service`, `_graph_service`, ...) are read at call time
+  through `app/workers/ingestion/deps.py::current_deps()`.
+- Run id: the Celery task id that holds the processing claim (`self.request.id`). It
+  survives `self.retry` and `acks_late` redelivery, so a retried or redelivered task skips
+  completed stages and embed batches. A reaper re-queue or a new upload, reindex, or
+  `force` starts a new run. `finalize` writes `indexed` only while
+  `documents.processing_task_id` still equals the run's claim (`CLAIM_SUPERSEDED`
+  otherwise).
+- Stage rows: `document_processing_stages` (status, attempt, lease owner and heartbeat,
+  counts-only metrics, error code). A running stage can be taken over once its heartbeat is
+  older than `INGEST_STAGE_LEASE_SECONDS` (default 900).
+- Artifacts: `document_stage_artifacts` holds the extracted and cleaned pages (one part per
+  page, split above `INGEST_ARTIFACT_MAX_PART_BYTES`) and one summary part per embed batch
+  (token counts and cost; vectors are dropped after the upsert). A missing artifact re-runs
+  the stage that produced it. `finalize` deletes the run's artifacts and older runs' rows;
+  document deletion removes both.
+- Sessions: every stage opens short sessions; none is open while MinIO, OCR, the
+  embedding provider, Qdrant, or Neo4j is called (`tests/test_ingestion_sessions_pg.py`).
+- Evaluation re-ingest (`persist_document_state=False`) runs the same stages with the stage
+  state in memory (`MemoryStageStore`) and without graph extraction or status writes.
+- Tests: `tests/test_ingestion_golden.py` (behaviour fixtures recorded through the
+  single-pass worker; `INGESTION_GOLDEN_UPDATE=1` rewrites them),
+  `tests/test_ingestion_resume.py` (kill a worker inside each stage, redeliver, assert no
+  duplicates), `tests/test_document_tasks_compat.py` (facade names).
+- Metric `rudix_ingest_stage_seconds{stage,outcome}` (`app/core/metrics_workers.py`).
+
 ## Application cache
 
 `app/core/cache.py` (R04-05) caches small, hot authorization reads in Redis:

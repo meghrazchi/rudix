@@ -65,13 +65,26 @@ model and extension pattern.
 4. Backend uploads clean files to MinIO.
 5. Backend creates a `documents` row with status `uploaded`.
 6. Backend enqueues a Celery task.
-7. Worker extracts text.
-8. Worker cleans and normalizes text.
-9. Worker chunks text.
-10. Worker stores chunk metadata in PostgreSQL.
-11. Worker calls embedding model for each chunk.
-12. Worker stores vectors and payload metadata in Qdrant.
-13. Worker updates document status to `indexed`.
+7. Worker extracts text (stage `extract`: object read, text extraction, OCR detection and
+   OCR).
+8. Worker cleans and normalizes text and detects the language (stage `clean_detect`), then
+   runs the DLP scan (stage `dlp`).
+9. Worker chunks text and stores pages and chunk metadata in PostgreSQL (stage `chunk`).
+   Graph extraction runs next, inline, when it is enabled (stage `graph_extract`).
+10. Worker calls the embedding model batch by batch and stores each batch's vectors and
+    payload metadata in Qdrant (stage `embed`), then records connector source references
+    (stage `index`).
+11. Worker updates document status to `indexed` and records the embedding usage event in
+    one transaction (stage `finalize`, the only writer of `indexed`).
+
+Since `0.6.0` (R06-01) each stage is a row in `document_processing_stages` for the run
+(`run_id` = the Celery task id holding the processing claim), and stage output a later
+stage reads (pages, cleaned pages, embedding batch summaries) is stored in
+`document_stage_artifacts`. A retry or redelivery of the same task skips completed stages
+and embedding batches, so no chunk, vector, or usage event is written twice. Each stage
+uses short database sessions; none is open while MinIO, OCR, the embedding provider,
+Qdrant, or Neo4j is called. Evaluation re-ingest runs the same stages with the stage state
+held in memory.
 
 Connector ingestion adds a provider-neutral pre-step before item 5:
 
@@ -96,13 +109,18 @@ flowchart LR
     MinIO --> DocRow[Create documents Row]
     DocRow --> Queue[Publish Celery Task]
     Queue --> Worker[Celery Worker]
-    Worker --> Extract[Extract Text]
-    Extract --> Clean[Clean Text]
-    Clean --> Chunk[Chunk Text]
-    Chunk --> Embed[Embed Chunks]
-    Embed --> PG[Store Chunk Metadata]
-    Embed --> Qdrant[Store Vectors]
-    Qdrant --> Indexed[Document Status = Indexed]
+    Worker --> Extract[extract: Extract Text and OCR]
+    Extract --> Clean[clean_detect: Clean Text and Detect Language]
+    Clean --> DLP[dlp: DLP Scan]
+    DLP --> Chunk[chunk: Chunk Text]
+    Chunk --> PG[Store Pages and Chunk Metadata]
+    Chunk --> Graph[graph_extract: Graph Extraction if enabled]
+    Graph --> Embed[embed: Embed Chunks per Batch]
+    Embed --> Qdrant[Store Vectors per Batch]
+    Qdrant --> IndexStage[index: Connector Source References]
+    IndexStage --> Indexed[finalize: Document Status = Indexed]
+    Extract -.-> Stages[(document_processing_stages and stage artifacts)]
+    Embed -.-> Stages
 ```
 
 ## Supported files

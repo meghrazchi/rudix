@@ -83,6 +83,15 @@ async def run_inline(ctx: StageContext, stages: Sequence[Stage]) -> dict[str, St
                     run_id=ctx.run_id,
                 )
             record_ingest_stage(stage.name, "failed", time.monotonic() - started)
+            logger.info(
+                "ingestion.stage.failed",
+                stage=stage.name,
+                document_id=ctx.document_id_str,
+                organization_id=ctx.organization_id,
+                run_id=ctx.run_id,
+                attempt=leased.attempt,
+                error_code=code,
+            )
             raise
         if not outcome.marked:
             await ctx.store.mark_completed(
@@ -92,5 +101,15 @@ async def run_inline(ctx: StageContext, stages: Sequence[Stage]) -> dict[str, St
         records[stage.name] = StageRecord(
             stage=stage.name, status=COMPLETED, attempt=leased.attempt, metrics=outcome.metrics
         )
-        record_ingest_stage(stage.name, "completed", time.monotonic() - started)
+        elapsed = time.monotonic() - started
+        record_ingest_stage(stage.name, "completed", elapsed)
+        logger.info(
+            "ingestion.stage.completed",
+            stage=stage.name,
+            document_id=ctx.document_id_str,
+            organization_id=ctx.organization_id,
+            run_id=ctx.run_id,
+            attempt=leased.attempt,
+            duration_ms=int(elapsed * 1000),
+        )
     return records

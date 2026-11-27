@@ -684,6 +684,29 @@ WebSocket runs are buffered in Redis so a dropped socket can resume.
   the remaining statements are document authorisation reads and the final write.
 - The p95 latency target is not measured by these tests.
 
+### Ingestion stages (R06-01)
+
+Document processing runs as stages (`extract`, `clean_detect`, `dlp`, `chunk`,
+`graph_extract`, `embed`, `index`, `finalize`), each recorded in
+`document_processing_stages` for the run (`run_id` = the claiming Celery task id).
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_ingest_stage_seconds` | `stage`, `outcome` | Duration of one stage run. `outcome` is `completed`, `failed`, or `skipped` (the stage was already completed for this run, so a retry or redelivery did not repeat it). |
+
+- A rising `skipped` count after worker restarts is expected: redelivered tasks resume at the
+  first unfinished stage instead of re-reading the file, re-running OCR, or re-embedding.
+- Log events `ingestion.stage.completed`, `ingestion.stage.failed` (with `error_code`), and
+  `ingestion.stage.skipped` carry the stage, document, organization, run id, attempt, and
+  duration only; no document text. The existing `document.pipeline.stage` events and the
+  pipeline explorer stage names (`extract`, `detect_ocr`, `ocr`, `detect_language`, `dlp`,
+  `index_cleanup`, `chunk`, `extract_entities`, `embed`, `index`) are unchanged.
+- `STAGE_LEASE_HELD` (transient) means another task holds a fresh lease on the same stage of
+  the same run; `CLAIM_SUPERSEDED` (permanent) means another task took the processing claim
+  before `finalize`, which then does not write `indexed`.
+- The metric is recorded only when `METRICS_ENABLED=true`. Per-stage latency is not measured
+  by the tests; no latency target is set here.
+
 ## Continuous evaluation
 
 Run evaluations:

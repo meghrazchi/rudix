@@ -300,6 +300,68 @@ CREATE TABLE document_chunks (
 );
 ```
 
+### document_processing_stages
+
+Staged ingestion bookkeeping (`0.6.0`, R06-01, migration `20261128_0001`). One row per
+stage of a processing run; `run_id` is the Celery task id that holds the document's
+processing claim, so a retry or redelivery of the same task finds its completed stages.
+`metrics` holds counts and configuration only, never document text.
+
+```sql
+CREATE TABLE document_processing_stages (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    run_id VARCHAR(255) NOT NULL,
+    stage VARCHAR(32) NOT NULL,           -- extract, clean_detect, dlp, chunk, graph_extract,
+                                          -- embed, index, finalize
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',  -- pending | running | completed | failed
+    attempt INTEGER NOT NULL DEFAULT 0,
+    owner_task_id VARCHAR(255),           -- lease owner
+    started_at TIMESTAMPTZ,
+    heartbeat_at TIMESTAMPTZ,             -- a running row older than INGEST_STAGE_LEASE_SECONDS
+                                          -- may be leased by another task
+    finished_at TIMESTAMPTZ,
+    artifact_ref VARCHAR(512),
+    metrics JSON NOT NULL DEFAULT '{}',
+    error_code VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (document_id, run_id, stage)
+);
+CREATE INDEX idx_document_processing_stages_org_created
+    ON document_processing_stages (organization_id, created_at);
+```
+
+### document_stage_artifacts
+
+Stage output a later stage reads: extracted pages (with table blocks), cleaned pages, and
+embedding batch summaries (token counts and cost, no vectors), as zlib-compressed UTF-8
+JSON. One part per page or per embedding batch; a page larger than
+`INGEST_ARTIFACT_MAX_PART_BYTES` is split across consecutive parts. Finalize deletes the
+run's artifacts and the stage rows of older runs; document deletion deletes both tables'
+rows of the document.
+
+```sql
+CREATE TABLE document_stage_artifacts (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    run_id VARCHAR(255) NOT NULL,
+    stage VARCHAR(32) NOT NULL,
+    part INTEGER NOT NULL,
+    content BYTEA NOT NULL,
+    content_bytes INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (document_id, run_id, stage, part)
+);
+CREATE INDEX idx_document_stage_artifacts_org_created
+    ON document_stage_artifacts (organization_id, created_at);
+```
+
+Both tables are in `RLS_STRICT_TABLES_0_6_0` (strict tenant policy) and in
+`deploy/sql/force_rls.sql`.
+
 ### chat_sessions
 
 ```sql
@@ -587,7 +649,7 @@ migration's literal copy differs.
 
 | List | Tables | Unset tenant (`app.current_organization_id` empty) | Bound tenant |
 |---|---|---|---|
-| `RLS_STRICT_TABLES` | 72, everything not listed below | all rows, unless `app.rls_mode = 'strict'`: then no rows and no writes | own rows only |
+| `RLS_STRICT_TABLES` | 72 frozen in `RLS_STRICT_TABLES_0_4_0` plus `RLS_STRICT_TABLES_0_6_0` (`document_processing_stages`, `document_stage_artifacts`, migration `20261128_0001`): everything not listed below | all rows, unless `app.rls_mode = 'strict'`: then no rows and no writes | own rows only |
 | `RLS_LOOKUP_TABLES` | 15: `api_keys`, `service_accounts`, `service_account_tokens`, `organization_invitations`, `chat_shares`, `answer_shares`, `agent_trace_share_tokens`, `org_sso_configs`, `org_domain_verifications`, `org_scim_configs`, `bot_installations`, `bot_user_mappings`, `connector_oauth_states`, `incidents`, `incident_notes` | all rows (needed before the tenant is known: credential and token lookups, SSO/SCIM discovery, OAuth state, bot inbound, public status) | own rows only |
 | `RLS_IDENTITY_TABLES` | 3: `users`, `organization_members`, `auth_refresh_sessions` | no policy, RLS stays disabled | all rows: one user spans organizations, so a request bound to organization B must still read the user (home organization A), list every membership (workspace switcher), and revoke the user's sessions in every organization (logout-all, password change) |
 
