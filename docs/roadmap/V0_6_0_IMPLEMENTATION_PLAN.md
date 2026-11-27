@@ -3,7 +3,7 @@
 ## Metadata
 
 - `Owner`: Rudix maintainers
-- `Status`: Planned
+- `Status`: In progress (seven of nine packages merged; see section 9)
 - `Last Updated`: 2026-11-27
 - `Related Docs`: [V0_6_0_INGESTION_AND_WORKERS.md](./V0_6_0_INGESTION_AND_WORKERS.md),
   [V0_5_0_IMPLEMENTATION_PLAN.md](./V0_5_0_IMPLEMENTATION_PLAN.md),
@@ -354,7 +354,54 @@ functions 58.8, branches 58.2). `alembic heads` reports `20261128_0003`. No modu
    sync cancel and resume against a provider sandbox; agent approval resume across a worker
    restart with real Redis.
 
-## 9. Change Notes
+## 9. Status (2026-11-27)
+
+Merged into `develop` (seven of nine): S1, S2 (staged ingestion, distributed stages, outbox,
+tenant binding, schema `20261128_0001` to `20261128_0003`), A1 (vector write path, embedding
+reuse, Qdrant client), B1 (chunk tenant column, keyword search, batched graph writes), C1
+(task limits, worker pools, dead-letter queues), C2 (agent runs in workers, run stream), D1
+(connector sync at tenant scale).
+
+Not merged:
+
+- A2 (`R06-08`, index generations and alias swap): reviewed, branch `feat/v0.6.0-a2` kept
+  and up to date with `develop`. It is held because its PostgreSQL tests (build, dual write,
+  and row delete under strict RLS) have never run: the local PostgreSQL test container was
+  down for the package and for this integration check.
+- A3 (`R06-12`, evaluation isolation): not started; no branch or commit exists. It follows
+  A2 in chain A. Until it lands, `backend/app/workers/evaluation_tasks.py` is 1,838 lines, so
+  "no module under `backend/app/workers/` exceeds 500 lines" (section 7) is not met.
+
+Checked on `develop` plus the integration fixes, with no `.env` (as in CI):
+
+- Backend: `make lint` passes (ruff, mypy on 900 files); `make test` 5,968 passed, 384
+  skipped; `make test-cov` 81.81% (ratchet raised from 79.7 to 81.8); one Alembic head
+  (`20261128_0003`); the OpenAPI contract check passes; `deploy/scripts/check_compose_config.sh`
+  passes; `pytest -m "isolation or guardrails or accuracy_smoke"` 120 passed, 30 skipped.
+- Frontend: typecheck, lint (0 errors, 3 older warnings), format, build, and `api:check`
+  pass; Vitest 2,382 passed with coverage 65.07% statements, 58.46% branches, 59.05%
+  functions, 65.94% lines (ratchets raised to 65.0, 58.4, 59.0, 65.9); Playwright 233 passed.
+- Fixed here: on `develop` the frontend coverage was below its ratchet (lines 65.79%,
+  functions 58.76%); the ten static solution routes added by the public site redesign had no
+  test, and a route test for them restores it. `scripts/export_openapi.py` failed on a runner without `.env`
+  (no `OPENAI_API_KEY`); it now stubs the key.
+- No setting, metric name, or `docs/CHANGELOG.md` entry is duplicated; every merged package
+  has one changelog entry; every new `rudix_*` metric is listed in docs/12.
+
+Not run here, so not verified for the release:
+
+- `make test-postgres` and the migration round trip (`alembic downgrade 20261127_0005` and
+  back to head): no PostgreSQL was reachable. Both must pass before `0.6.0` is declared done.
+- `make audit` fails on the dev-only `virtualenv` 21.14.5 (13 advisories), as in `0.5.0`.
+
+Still to verify on staging: the items of section 8, and the open items the package reviews
+reported (not re-checked here), among them the reaper's handling of queue waits between chain
+stages, outbox row retention, dead-letter consumer backoff while the database is down, the
+connector page transaction that still holds downloads, the agent lease against tool timeouts,
+and the default `KEYWORD_SEARCH_CANDIDATE_LIMIT=1000` in the accuracy run.
+
+## 10. Change Notes
 
 - 2026-11-27: Initial version, written after checking the `0.6.0` spec against the code at
   `51f61d2f`.
+- 2026-11-27: Status section added after seven packages merged; coverage ratchets raised.

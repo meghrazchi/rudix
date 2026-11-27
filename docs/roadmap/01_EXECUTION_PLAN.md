@@ -24,11 +24,13 @@ The per-version specs say what to build. This document says how the work is run.
 | `0.3.0` | Test and release foundation | Implemented on `develop`. No workflow has run on GitHub yet. |
 | `0.4.0` | Data layer performance | Implemented on `develop`. Partition conversion and strict RLS in production are deferred; see [V0_4_0_IMPLEMENTATION_PLAN.md](./V0_4_0_IMPLEMENTATION_PLAN.md). |
 | `0.5.0` | Chat pipeline and streaming | Implemented on `develop`, except `R05-12` (needs a decision). See the Status section of [V0_5_0_IMPLEMENTATION_PLAN.md](./V0_5_0_IMPLEMENTATION_PLAN.md). |
-| `0.6.0` | Ingestion and workers | Planned: nine packages in five chains, migrations only in the first chain. See [V0_6_0_IMPLEMENTATION_PLAN.md](./V0_6_0_IMPLEMENTATION_PLAN.md). |
+| `0.6.0` | Ingestion and workers | Seven of nine packages on `develop`; A2 (`R06-08`) waits for its PostgreSQL tests, A3 (`R06-12`) is not started. See the Status section of [V0_6_0_IMPLEMENTATION_PLAN.md](./V0_6_0_IMPLEMENTATION_PLAN.md). |
 | `0.7.0` – `1.0.0` | See section 5 | Not started. |
 
 Measured on `develop` after `0.5.0`: backend coverage 79.7%; frontend coverage 64.9% statements,
-58.2% branches, 58.8% functions, 65.8% lines. CI fails when a figure drops.
+58.2% branches, 58.8% functions, 65.8% lines. Measured after seven `0.6.0` packages: backend
+81.8%; frontend 65.0% statements, 58.4% branches, 59.0% functions, 65.9% lines (ratchets
+raised to these). CI fails when a figure drops.
 
 ## 3. Roles
 
@@ -168,3 +170,4 @@ Operational readiness needs an on-call rota and a completed restore drill.
 - 2026-11-27: The `0.5.0` row points at its implementation plan.
 - 2026-11-27: Status after `0.4.0` and `0.5.0`; coverage figures updated.
 - 2026-11-27: The `0.6.0` row points at its implementation plan.
+- 2026-11-27: `0.6.0` status after seven packages merged; coverage figures updated.
