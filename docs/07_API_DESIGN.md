@@ -114,6 +114,57 @@ When the SAML callback is received as a browser form post, the backend issues th
 }
 ```
 
+## Pagination
+
+List endpoints keep `limit`/`offset` paging. Since `0.4.0` the endpoints below also accept a
+keyset cursor, which costs the same on page 500 as on page 1 (R04-04).
+
+| Endpoint | Cursor order |
+|---|---|
+| `GET /chat/sessions` | `updated_at` desc, `id` desc |
+| `GET /chat/sessions/{session_id}/messages` | `created_at` asc, role (user before assistant), `id` asc |
+| `GET /documents` | `created_at` (direction from `sort_order`), `id` desc; only with `sort_by=created_at` |
+| `GET /notifications` | `created_at` desc, `id` desc |
+| `GET /admin/audit-logs` | `created_at` desc, `id` desc |
+| `GET /admin/webhooks/{webhook_id}/deliveries` | `created_at` desc, `id` desc |
+
+Contract:
+
+- Every response of these endpoints carries `next_cursor` (string or `null`). It is `null` on
+  the last page. Pass it back unchanged as `?cursor=...` with the same filters and sort to get
+  the next page. The first page needs no cursor, so a client can start with `offset=0` and
+  follow `next_cursor`.
+- Cursors are opaque: base64url-encoded, versioned, and bound to the endpoint's sort order.
+  Do not build or parse them. A cursor carries only the sort-key values of the last row; the
+  organization and user filters are always applied on the server, so a cursor from one
+  organization returns nothing from it when used by another.
+- `include_total` controls the `total` count query. It defaults to `true` without a cursor
+  (the behaviour before `0.4.0`) and to `false` with a cursor; when it is `false`, `total` is
+  `null`. `GET /notifications` always returns `unread_count`. `GET
+  /admin/webhooks/{webhook_id}/deliveries` has no count query: its `total` is the number of
+  items in the page, as before, and it now accepts `limit` (1 to 200, default 50).
+- `offset` keeps working. A cursor together with `offset > 0` is rejected.
+- `GET /chat/sessions` orders by `updated_at`: a session that changes between two requests
+  moves to the top, so a cursor walk can skip or repeat it.
+- On `GET /documents`, non-admin results are filtered by document policy after the page is
+  read, so a page can hold fewer than `limit` items while `next_cursor` is still set.
+
+Errors (HTTP `400`):
+
+| `detail` | Cause | Error code (C1 mapping) |
+|---|---|---|
+| `Invalid pagination cursor` | Malformed, tampered, wrong version, or from another sort order | `INVALID_CURSOR` |
+| `Cursor pagination requires sort_by=created_at` | `GET /documents` with a cursor and another `sort_by` | `CURSOR_SORT_UNSUPPORTED` |
+| `Cursor pagination cannot be combined with offset` | `cursor` with `offset > 0` | generic `400` code |
+
+A `cursor` longer than 1024 characters fails request validation (`422`).
+
+The admin exports `GET /admin/usage/export` (at most 50,000 rows) and
+`GET /admin/audit-logs/export` (at most 10,000 rows) stream their body with the row limit
+applied in SQL. The CSV and JSON bytes are the same as before. Headers are sent before rows are
+read, so a database failure during an export cuts the body short instead of returning an
+error status; the failure is logged as `admin.export.streamed` with `status=failed`.
+
 ## Quotas and plan limits
 
 - Usage counters are kept per organization and quota type. Each increment runs as one atomic
