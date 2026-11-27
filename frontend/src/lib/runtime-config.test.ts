@@ -203,6 +203,10 @@ describe("frontend env usage", () => {
         if (
           key === "NODE_ENV" ||
           key === "NEXT_PHASE" ||
+          // Build-output directory for the second Playwright dev server
+          // (next.config.ts only; never read by app code or sent to the browser).
+          (key === "NEXT_DIST_DIR" &&
+            filePath === path.join(repoRoot, "next.config.ts")) ||
           key.startsWith("NEXT_PUBLIC_")
         ) {
           continue;

@@ -12,23 +12,26 @@ from uuid import UUID
 from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.chat.pipeline.config_cache import (
+    answer_prompt_version,
+    effective_ai_policy,
+    rag_profile_for_context,
+)
 from app.application.chat.pipeline.context import ChatContext
 from app.application.chat.pipeline.controls import (
     _build_rerank_settings,
-    _resolve_answer_prompt_version,
     _resolve_planner_critic_controls,
 )
-from app.application.chat.pipeline.snapshots import PromptVersionSnapshot, RagProfileSnapshot
+from app.application.chat.pipeline.stages._embedding import start_embedding_prefetch
 from app.application.chat.scope_inventory import _is_scope_inventory_question
 from app.core.config import settings
 from app.core.logging import log_query_event
 from app.domains.ai.profile.schemas import TaskType
-from app.domains.ai.profile.service import resolve_task_profile
+from app.domains.ai.profile.service import resolve_task_profile_cached
 from app.domains.chat.services.answer_planner_service import STRATEGY_LABELS
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
 from app.domains.chat.services.retrieval_strategy_router import FeatureAvailability
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
-from app.domains.rag_profiles.services.rag_profile_service import resolve_profile_for_context
 
 
 class ResolveConfigStage:
@@ -40,6 +43,9 @@ class ResolveConfigStage:
         async with ctx.sessions.read() as db_session:
             await self._resolve_policy(ctx, db_session)
             await self._resolve_profiles(ctx, db_session)
+            # R05-04: the original question's embedding overlaps the rest of stage 2 to 4
+            # when no later stage can change the retrieval query (stages/_embedding.py).
+            start_embedding_prefetch(ctx)
             await self._plan(ctx, db_session)
         self._resolve_language(ctx)
         await self._emit_steps(ctx)
@@ -51,27 +57,18 @@ class ResolveConfigStage:
         payload = req.payload
         injection_blocked = cfg.injection_blocked
         # AI response policy pre-generation check — topic blocking (F268).
-        ai_org_policy = await deps.ai_policy_repo.get_active(
+        # Resolve the collection override when the query is scoped to a single collection
+        # (source_scope may be a collection-id string). The merged policy is a plain
+        # dataclass, cached per organisation and collection (R05-05); no row is kept.
+        policy_collection_id = _collection_id_or_none(payload.source_scope)
+        cfg.ai_effective_policy = await effective_ai_policy(
             db_session,
+            deps,
             organization_id=req.organization_id,
+            collection_id=policy_collection_id,
         )
-        ai_collection_override = None
-        # Resolve collection override when the query is scoped to a single collection.
-        if ai_org_policy is not None and payload.source_scope is not None:
-            # source_scope may be a collection-id string when scoping to one collection.
-            try:
-                cfg.ai_policy_collection_id = UUID(str(payload.source_scope))
-                ai_collection_override = await deps.ai_policy_repo.get_collection_override(
-                    db_session,
-                    org_policy_id=ai_org_policy.id,
-                    collection_id=cfg.ai_policy_collection_id,
-                )
-            except (ValueError, AttributeError):
-                pass
-        # The merged policy is a plain dataclass; the policy rows are not kept.
-        cfg.ai_effective_policy = deps.ai_policy_engine.resolve(
-            ai_org_policy, ai_collection_override
-        )
+        if cfg.ai_effective_policy.source != "none":
+            cfg.ai_policy_collection_id = policy_collection_id
         ai_pre_result = deps.ai_policy_engine.evaluate_pre_generation(
             payload.question, cfg.ai_effective_policy
         )
@@ -89,11 +86,8 @@ class ResolveConfigStage:
         cfg.answer_mode_result = deps.answer_mode_service.classify(question=payload.question)
         cfg.scope_inventory_requested = _is_scope_inventory_question(payload.question)
         if cfg.answer_mode_result.mode == "grounded" and not cfg.scope_inventory_requested:
-            cfg.answer_prompt_version = PromptVersionSnapshot.from_model(
-                await _resolve_answer_prompt_version(
-                    db_session,
-                    organization_id=req.organization_id,
-                )
+            cfg.answer_prompt_version = await answer_prompt_version(
+                db_session, organization_id=req.organization_id
             )
             cfg.answer_prompt_template = cfg.answer_prompt_version.content
 
@@ -103,14 +97,11 @@ class ResolveConfigStage:
         ctx.latencies_ms = {}
         ctx.total_started = perf_counter()
         ctx.retrieval.embedding_model = ctx.deps.query_retrieval_service.embedding_model
-        rag_profile, cfg.rag_profile_source = await resolve_profile_for_context(
-            db_session,
-            organization_id=req.organization_id,
-            collection_id=None,
+        resolved_rag = await rag_profile_for_context(
+            db_session, organization_id=req.organization_id, collection_id=None
         )
-        cfg.rag_profile = (
-            RagProfileSnapshot.from_model(rag_profile) if rag_profile is not None else None
-        )
+        cfg.rag_profile = resolved_rag.profile
+        cfg.rag_profile_source = resolved_rag.source
         cfg.rerank_settings = _build_rerank_settings(
             dict(cfg.rag_profile.config) if cfg.rag_profile is not None else None
         )
@@ -119,7 +110,7 @@ class ResolveConfigStage:
         cfg.query_rewrite_preview_enabled = settings.feature_enable_query_rewrite_preview
 
         # Resolve the effective model profile for this organisation (F223).
-        cfg.chat_profile = await resolve_task_profile(
+        cfg.chat_profile = await resolve_task_profile_cached(
             db_session,
             organization_id=req.organization_id,
             task_type=TaskType.chat,
@@ -187,11 +178,10 @@ class ResolveConfigStage:
                 "feature_enable_connectors": settings.feature_enable_connectors,
                 "feature_enable_graph_rag": settings.feature_enable_graph_rag,
             }
-            overrides = await deps.chat_tool_policy_repo.list_by_organization(
+            cfg.tool_policy_disabled = await deps.chat_tool_policy_repo.disabled_tool_names_cached(
                 db_session,
                 organization_id=req.organization_id,
             )
-            cfg.tool_policy_disabled = frozenset(o.tool_name for o in overrides if not o.enabled)
             cfg.orchestration_result = deps.chat_tool_orchestrator.orchestrate(
                 planner_strategy=planner_strategy,
                 principal=req.principal,
@@ -252,3 +242,13 @@ class ResolveConfigStage:
                 ),
             )
         await ctx.emit_step("checking_sources", "Checking accessible sources", "running")
+
+
+def _collection_id_or_none(source_scope: object) -> UUID | None:
+    """The collection id when ``source_scope`` is a collection-id string (F268 rule)."""
+    if source_scope is None:
+        return None
+    try:
+        return UUID(str(source_scope))
+    except (ValueError, AttributeError):
+        return None

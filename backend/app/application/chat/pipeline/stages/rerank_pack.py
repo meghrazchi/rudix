@@ -1,6 +1,7 @@
 """Stage 7: rerank, context packing, the not-found decision, parent context, and source
 conflict detection (R05-01)."""
 
+from collections.abc import Awaitable
 from time import perf_counter
 
 from app.application.chat.pipeline.context import ChatContext
@@ -15,12 +16,15 @@ from app.application.chat.pipeline.stages._packing import (
     apply_context_packing,
     apply_parent_context_expansion,
 )
+from app.application.chat.pipeline.stages.policies import run_with_budget
 from app.core.config import settings
 from app.core.logging import log_query_event
 from app.domains.chat.services.confidence_calibration import (
     _compute_freshness_multiplier,
     _to_confidence_signals,
 )
+from app.domains.chat.services.rerank_service import RerankResult
+from app.domains.chat.services.retrieved_chunk import RetrievedChunk
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
 
 
@@ -37,20 +41,26 @@ class RerankPackStage:
         else:
             await ctx.emit_step("reranking_evidence", "Ranking evidence by relevance", "skipped")
         rerank_started = perf_counter()
-        ret.selected_chunks, ret.rerank_result = await _rerank_chunks(
-            query=ctx.request.payload.question,
-            chunks=ret.retrieved_chunks,
-            enabled=ret.rerank_applied,
-            final_top_k=ret.final_top_k,
-            settings_override=ctx.config.rerank_settings,
-            resolved_profile=ctx.config.chat_profile,
-            context_boundary=ctx.context_boundary,
-        )
+        degraded = await self._rerank(ctx)
         ctx.latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
         record_rerank_usage(
             ctx, ret.rerank_result.diagnostics if ret.rerank_result is not None else None
         )
-        if ret.rerank_applied:
+        if degraded:
+            await ctx.emit(
+                ChatEvent(
+                    type="rerank.completed",
+                    payload={"selected_count": len(ret.selected_chunks)},
+                )
+            )
+            await ctx.emit_step(
+                "reranking_evidence",
+                "Ranking evidence by relevance",
+                "warning",
+                detail="Kept retrieval order (time budget reached)",
+                duration_ms=ctx.latencies_ms["rerank"],
+            )
+        elif ret.rerank_applied:
             await ctx.emit(
                 ChatEvent(
                     type="rerank.completed",
@@ -71,6 +81,37 @@ class RerankPackStage:
         apply_parent_context_expansion(ctx)
         if ret.selected_chunks and not ctx.generation.not_found:
             await self._detect_conflicts(ctx)
+
+    @staticmethod
+    async def _rerank(ctx: ChatContext) -> bool:
+        """Rerank within the rerank budget; return True when it degraded (R05-04).
+
+        A degraded rerank keeps the retrieval order (``_rerank_chunks`` with reranking off)
+        and the run continues without rerank scores.
+        """
+        ret = ctx.retrieval
+
+        def rerank(enabled: bool) -> Awaitable[tuple[list[RetrievedChunk], RerankResult]]:
+            return _rerank_chunks(
+                query=ctx.request.payload.question,
+                chunks=ret.retrieved_chunks,
+                enabled=enabled,
+                final_top_k=ret.final_top_k,
+                settings_override=ctx.config.rerank_settings,
+                resolved_profile=ctx.config.chat_profile,
+                context_boundary=ctx.context_boundary,
+            )
+
+        if ret.rerank_applied:
+            outcome = await run_with_budget(ctx, "rerank", lambda: rerank(True))
+            if outcome.completed and outcome.value is not None:
+                ret.selected_chunks, ret.rerank_result = outcome.value
+                return False
+            ret.rerank_applied = False
+            ret.selected_chunks, ret.rerank_result = await rerank(False)
+            return True
+        ret.selected_chunks, ret.rerank_result = await rerank(False)
+        return False
 
     @staticmethod
     def _decide_not_found(ctx: ChatContext) -> None:
@@ -127,17 +168,25 @@ class RerankPackStage:
         if not enabled:
             return
         started = perf_counter()
-        result = await ctx.deps.conflict_detection_service.detect(
-            chunks=_build_conflict_detection_chunks(
-                chunks=ret.selected_chunks,
-                parent_context_map=ret.parent_context_map if ret.parent_context_map else None,
-                trust_map=ret.freshness_trust_map,
-                org_stale_threshold_days=ret.freshness_stale_threshold_days,
+        # R05-04: an exhausted conflict budget skips detection (defaults: no conflict).
+        outcome = await run_with_budget(
+            ctx,
+            "conflict",
+            lambda: ctx.deps.conflict_detection_service.detect(
+                chunks=_build_conflict_detection_chunks(
+                    chunks=ret.selected_chunks,
+                    parent_context_map=ret.parent_context_map if ret.parent_context_map else None,
+                    trust_map=ret.freshness_trust_map,
+                    org_stale_threshold_days=ret.freshness_stale_threshold_days,
+                ),
+                min_source_docs=min_docs,
+                resolved_profile=ctx.config.chat_profile,
+                context_boundary=ctx.context_boundary,
             ),
-            min_source_docs=min_docs,
-            resolved_profile=ctx.config.chat_profile,
-            context_boundary=ctx.context_boundary,
         )
+        if not outcome.completed or outcome.value is None:
+            return
+        result = outcome.value
         record_aux_usage(ctx, "conflict", result.usage)
         ret.conflict_detection_result = result
         ret.conflict_detection_applied = result.applied

@@ -13,9 +13,11 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
+from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import OrgScope, get_or_load
 from app.core.config import settings as app_settings
 from app.domains.admin.schemas.governance import ProviderSecurityPolicy
 from app.domains.ai.profile.schemas import (
@@ -312,6 +314,41 @@ async def resolve_task_profile(
     if profile is not None:
         return _profile_to_resolved(profile)
     return _env_default_for_task(task_type)
+
+
+NAMESPACE_MODEL_PROFILE = "model_profile"
+_ORG_PROFILE_ADAPTER: TypeAdapter[ResolvedTaskProfile | None] = TypeAdapter(
+    ResolvedTaskProfile | None  # type: ignore[arg-type]
+)
+
+
+async def resolve_task_profile_cached(
+    db: AsyncSession,
+    *,
+    organization_id: UUID,
+    task_type: TaskType,
+) -> ResolvedTaskProfile:
+    """``resolve_task_profile`` with the organisation's row cached (R05-05).
+
+    Only the organisation's own profile row is cached (namespace ``model_profile``, TTL
+    ``CACHE_TTL_PROFILES_SECONDS``); the environment default is computed on every call, so a
+    settings change never serves a stale default. Profile writes bump the organisation's
+    cache version on commit.
+    """
+
+    async def load() -> ResolvedTaskProfile | None:
+        profile = await get_profile(db, organization_id=organization_id, task_type=task_type)
+        return _profile_to_resolved(profile) if profile is not None else None
+
+    resolved = await get_or_load(
+        scope=OrgScope(organization_id),
+        namespace=NAMESPACE_MODEL_PROFILE,
+        key_id=f"task:{task_type.value}",
+        ttl=app_settings.cache_ttl_profiles_seconds,
+        adapter=_ORG_PROFILE_ADAPTER,
+        loader=load,
+    )
+    return resolved if resolved is not None else _env_default_for_task(task_type)
 
 
 async def resolve_effective_policy(

@@ -17,6 +17,7 @@ from app.application.chat.pipeline.stages._confidence import (
 )
 from app.application.chat.pipeline.stages._final import emit_final_events
 from app.application.chat.pipeline.stages._ledger import record_aux_usage
+from app.application.chat.pipeline.stages.policies import ACTION_ANSWER_WITHHELD, run_with_budget
 from app.core.logging import log_query_event
 from app.domains.chat.services.confidence_calibration import _build_evidence_quality_inputs
 from app.domains.chat.services.grounded_answer_verifier import VerifierChunk
@@ -90,22 +91,37 @@ class VerifyStage:
         if not gv_enabled:
             return
         started = perf_counter()
-        result = await ctx.deps.grounded_verifier.verify(
-            answer=gen.answer,
-            chunks=[
-                VerifierChunk(
-                    chunk_id=str(chunk.chunk_id),
-                    text=chunk.text,
-                    similarity_score=chunk.similarity_score,
-                )
-                for chunk in ctx.retrieval.selected_chunks
-            ],
-            citations=_build_verifier_citations(gen.citations),
-            mode=cast(Literal["strict", "standard"], gv_mode),
-            threshold=gv_threshold,
-            resolved_profile=cfg.chat_profile,
-            context_boundary=ctx.context_boundary,
+        strict = gv_mode == "strict"
+        outcome = await run_with_budget(
+            ctx,
+            "verify",
+            lambda: ctx.deps.grounded_verifier.verify(
+                answer=gen.answer,
+                chunks=[
+                    VerifierChunk(
+                        chunk_id=str(chunk.chunk_id),
+                        text=chunk.text,
+                        similarity_score=chunk.similarity_score,
+                    )
+                    for chunk in ctx.retrieval.selected_chunks
+                ],
+                citations=_build_verifier_citations(gen.citations),
+                mode=cast(Literal["strict", "standard"], gv_mode),
+                threshold=gv_threshold,
+                resolved_profile=cfg.chat_profile,
+                context_boundary=ctx.context_boundary,
+            ),
+            action=ACTION_ANSWER_WITHHELD if strict else None,
         )
+        if not outcome.completed or outcome.value is None:
+            # R05-04: strict verification is never skipped; without a verdict the answer
+            # is withheld. Standard mode returns the unverified answer as before F296.
+            if strict:
+                gen.not_found = True
+                ver.verification_failed = True
+                gen.answer = NOT_FOUND_ANSWER
+            return
+        result = outcome.value
         record_aux_usage(ctx, "verifier", result.usage)
         ver.grounded_verifier_result = result
         ctx.latencies_ms["grounded_verification"] = int((perf_counter() - started) * 1000)
@@ -237,13 +253,22 @@ class VerifyStage:
             [c.text_snippet for c in gen.citations if getattr(c, "text_snippet", None)][:10],
         )
         started = perf_counter()
-        refiner = await ctx.deps.answer_refiner.refine(
-            draft_answer=gen.answer,
-            critic_instruction=critic.refiner_instruction,
-            citation_snippets=snippets,
-            resolved_profile=cfg.chat_profile,
-            context_boundary=ctx.context_boundary,
+        outcome = await run_with_budget(
+            ctx,
+            "refine",
+            lambda: ctx.deps.answer_refiner.refine(
+                draft_answer=gen.answer,
+                critic_instruction=critic.refiner_instruction,
+                citation_snippets=snippets,
+                resolved_profile=cfg.chat_profile,
+                context_boundary=ctx.context_boundary,
+            ),
         )
+        if not outcome.completed or outcome.value is None:
+            # R05-04: an exhausted refine budget keeps the verified draft.
+            await ctx.emit_step("refining_answer", "Refining with verified claims", "skipped")
+            return
+        refiner = outcome.value
         record_aux_usage(ctx, "refiner", refiner.usage)
         ver.refiner_result = refiner
         ctx.latencies_ms["refiner"] = int((perf_counter() - started) * 1000)

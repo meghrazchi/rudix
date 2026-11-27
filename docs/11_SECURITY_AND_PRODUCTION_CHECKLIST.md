@@ -441,11 +441,47 @@ R03-07 and R03-08; workflow details in `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md
 
 ## Caching of security-sensitive data
 
-The application cache (`app/core/cache.py`, R04-05) holds three namespaces in `0.4.0`: the
-auth principal snapshot (user active flag, email, default organisation, memberships with role
-and custom role, and the token's session row state), custom-role permission sets, and
-organisation feature-flag overrides. AI response policy, RAG and model profiles, tool policy,
-and quota policy are not cached yet; they move onto the cache in `0.5.0`.
+The application cache (`app/core/cache.py`, R04-05) holds three namespaces since `0.4.0`:
+the auth principal snapshot (user active flag, email, default organisation, memberships with
+role and custom role, and the token's session row state), custom-role permission sets, and
+organisation feature-flag overrides. `0.5.0` (R05-05) adds organisation-scoped chat
+namespaces: `ai_policy` (effective AI response policy with the collection override),
+`rag_profile`, `answer_prompt` (active answer prompt version), `model_profile` (the
+organisation's row only), `chat_tool_policy` (disabled tool names), `quota_policy` (policy
+limits only, never usage counters), `verified_answer_candidates` (published cards and their
+citations, capped by `CHAT_VERIFIED_ANSWER_MAX_CANDIDATES`), and `query_embedding` (query
+vectors keyed by a SHA-256 of model, dimensions, index version, and normalised question; the
+question text is never part of a key).
+
+- What invalidates the chat namespaces. ORM writes to `OrgAiResponsePolicy`,
+  `CollectionAiResponsePolicyOverride`, `RagProfile`, `RagProfileVersion`,
+  `RagProfileCollectionOverride`, `OrgModelProfile`, `AgentToolPolicyOverride`,
+  `OrgQuotaPolicy`, `OrgQuotaOverride`, `PromptTemplate`, `PromptTemplateVersion`,
+  `VerifiedAnswer`, and `VerifiedAnswerCitation` bump the owning organisation's version on
+  commit (child rows resolve the organisation through their parent). The Core paths
+  `RagProfileRepository.clear_default_flag` and `AgentToolPolicyRepository.delete_by_tool`
+  call `mark_dirty`. None of these reads depend on rows with a NULL organisation id; system
+  defaults (environment model profile, system quota limits) are computed on every call. Query
+  vectors are not invalidated by writes (they depend only on settings and the text); a model,
+  dimension, or index-version change produces new keys, and `CHAT_QUERY_EMBEDDING_CACHE_TTL_SECONDS`
+  (3600) bounds their life. A value loaded in a transaction that has already written rows
+  of the same organisation (the answer prompt seeds its default templates on an
+  organisation's first question) is returned but not cached, so a rollback never leaves an
+  uncommitted row id in Redis.
+- Redis holds verified-answer text. With the shortcut on, `verified_answer_candidates` stores
+  each published card's answer text and its citation snippets (document text) in Redis under
+  the organisation key, for at most `CACHE_TTL_POLICIES_SECONDS`. Treat the Redis instance as
+  holding organisation content (private network and authentication).
+- Verified answers never bypass permissions. The shortcut matches only on exact equality of
+  the normalised question, and every citation must pass the checks a generated answer's
+  sources pass: document in the organisation with a usable connector item
+  (`ensure_document_ids_access`), indexed, readable and citable by the caller
+  (`_filter_authorized_document_ids_for_chat`, `filter_chunks_by_cite_access`), inside the
+  run's resolved document scope, and the cited chunk exists in that document. Any failure is
+  no shortcut. Permission checks run per request and are never cached with the candidates.
+  The shortcut is off by default and currently evaluates in shadow mode only.
+- No semantic answer cache. Generated answers are never cached; they depend on per-user
+  permissions. A semantic cache is a post-1.0 candidate.
 
 - Never across organisations. Organisation-scoped values live under
   `rudix:{env}:org:{org_id}:v{n}:...` and user-scoped values under
@@ -465,7 +501,9 @@ and quota policy are not cached yet; they move onto the cache in `0.5.0`.
 - TTL bound if Redis write fails. When the invalidation `INCR` fails or Redis is unreachable
   (`rudix_cache_invalidations_total{result="error"|"unavailable"}`), stale values survive at
   most their TTL: `CACHE_TTL_AUTH_SESSION_SECONDS` (30), `CACHE_TTL_PERMISSIONS_SECONDS` (30),
-  `CACHE_TTL_FLAGS_SECONDS` (60). Keep these short. Celery workers do not open the API Redis
+  `CACHE_TTL_FLAGS_SECONDS` (60), `CACHE_TTL_POLICIES_SECONDS` (60: AI policy, tool policy,
+  quota limits, verified-answer candidates), `CACHE_TTL_PROFILES_SECONDS` (300: RAG profile,
+  model profile, answer prompt). Keep these short. Celery workers do not open the API Redis
   client, so a write made in a worker relies on the TTL; do not move membership or session
   writes into workers without wiring invalidation there.
 - Reads fail safe to the database. Any Redis error, timeout (`CACHE_OPERATION_TIMEOUT_MS`),

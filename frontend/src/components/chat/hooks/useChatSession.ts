@@ -15,7 +15,10 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
+import { buildHistoryPage } from "@/components/chat/chat-history";
+import { useChatHistoryPages } from "@/components/chat/hooks/useChatHistoryPages";
 import {
+  CHAT_HISTORY_PAGE_SIZE,
   SESSION_LIST_LIMIT,
   type ChatSessionListInfiniteData,
   type ChatSessionListItem,
@@ -23,7 +26,6 @@ import {
 } from "@/components/chat/chat-types";
 import {
   activeThreadKey,
-  buildTurnsFromSessionMessages,
   toSessionDisplayTitle,
 } from "@/components/chat/chat-turns";
 import { replaceSessionParamInUrl } from "@/components/chat/chat-session-utils";
@@ -137,18 +139,25 @@ export function useChatSession({
     lastAppliedSessionIdRef.current = sessionIdFromQuery;
   }, [searchParams]);
 
+  const history = useChatHistoryPages({ activeSessionId, setThreadsBySession });
+  const { recordHistoryPage } = history;
+
+  // Newest page first (R05-11); older pages load from the top of the thread.
   const sessionMessagesQuery = useQuery({
     queryKey: queryKeys.chat.sessionMessages(activeSessionId ?? ""),
     queryFn: async () => {
       const response = await listChatSessionMessages(activeSessionId ?? "", {
-        limit: 500,
-        offset: 0,
+        limit: CHAT_HISTORY_PAGE_SIZE,
+        order: "desc",
       });
       if (!activeSessionId) {
         return response;
       }
       const threadKey = activeThreadKey(activeSessionId);
-      const hydratedTurns = buildTurnsFromSessionMessages(response.items);
+      const { turns: hydratedTurns, state: pageState } = buildHistoryPage(
+        response.items,
+        response.next_cursor,
+      );
       setThreadsBySession((previous) => {
         const existing = previous[threadKey];
         if (existing && existing.length > 0) {
@@ -159,6 +168,8 @@ export function useChatSession({
           [threadKey]: hydratedTurns,
         };
       });
+      // The query only runs while this thread is empty, so the cursor matches.
+      recordHistoryPage(activeSessionId, pageState);
       if (chatFeedbackEnabled) {
         try {
           const feedbackResponse = await listSessionFeedback(activeSessionId);
@@ -442,6 +453,10 @@ export function useChatSession({
     sessions,
     totalSessions,
     sessionMessagesQuery,
+    hasOlderMessages: history.hasOlderMessages,
+    isLoadingOlder: history.isLoadingOlder,
+    olderMessagesError: history.olderMessagesError,
+    loadOlderMessages: history.loadOlderMessages,
     activeSession,
     deleteSessionCandidate,
     thread,

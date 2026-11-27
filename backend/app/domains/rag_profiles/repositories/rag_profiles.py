@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache_invalidation import mark_dirty
 from app.models.rag_profile import (
     RagProfile,
     RagProfileCollectionOverride,
@@ -131,6 +132,8 @@ class RagProfileRepository:
         if exclude_id is not None:
             stmt = stmt.where(RagProfile.id != exclude_id)
         await db_session.execute(stmt)
+        # Core UPDATE: no ORM flush event, so record the cache invalidation (R05-05).
+        mark_dirty(db_session, org_ids=[organization_id])
 
     async def update_profile(
         self,

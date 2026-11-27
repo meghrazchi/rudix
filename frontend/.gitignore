@@ -19,6 +19,8 @@
 
 # next.js
 /.next/
+# Playwright WebSocket-chat dev server (playwright.config.ts)
+/.next-e2e-ws/
 /out/
 
 # production

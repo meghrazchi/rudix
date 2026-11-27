@@ -653,6 +653,37 @@ WebSocket runs are buffered in Redis so a dropped socket can resume.
   Lua scripts against Redis 7 (`TEST_REDIS_URL=... make test-postgres`), and a resume across
   two API replicas.
 
+### Chat caches, verified-answer shortcut, and stage budgets (R05-04, R05-05)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_chat_query_embedding_cache_total` | `result` (`hit`, `miss`) | Query-embedding lookups; a miss calls the embedding provider (also when Redis is down or `CACHE_ENABLED=false`). |
+| `rudix_chat_verified_answer_shortcut_total` | `result` (`hit`, `no_match`, `citation_rejected`, `over_cap`) | Stage 4 evaluations when `CHAT_VERIFIED_ANSWER_SHORTCUT_ENABLED=true` (shadow mode: a hit is not returned yet). |
+| `rudix_chat_stage_skipped_total` | `stage`, `reason` (`deadline`, `budget`, `error`) | Optional stages cut short by `CHAT_TOTAL_DEADLINE_MS` or a `CHAT_STAGE_BUDGET_*_MS`. |
+| `rudix_cache_hits_total`, `rudix_cache_misses_total`, `rudix_cache_errors_total` | `namespace` | Existing R04-05 cache metrics, now also for `ai_policy`, `rag_profile`, `answer_prompt`, `model_profile`, `chat_tool_policy`, `quota_policy`, `verified_answer_candidates`, `query_embedding`. |
+
+- Embedding hit rate: `sum(rate(rudix_chat_query_embedding_cache_total{result="hit"}[1h])) /
+  sum(rate(rudix_chat_query_embedding_cache_total[1h]))`. A hit records a zero-token
+  `retrieve` entry in the token ledger, so embedding cost falls with the hit rate.
+- Configuration cache health: `rudix_cache_misses_total` by namespace should stay near the
+  write rate of the underlying rows; a sustained rise in `rudix_cache_errors_total` means the
+  chat path is reading PostgreSQL again (correct, but slower).
+- Shadow-mode shortcut: `rudix_chat_verified_answer_shortcut_total{result="hit"}` is the share
+  of questions a verified card could answer; `citation_rejected` means cards whose citations
+  the asker could not read or cite, or that point at deleted or out-of-scope documents.
+  `over_cap` means the organisation has more published cards than the cap and the shortcut is
+  skipped. The log event `query.verified_answer_shortcut.evaluated` carries the result and the
+  card id only.
+- Budgets: any `rudix_chat_stage_skipped_total` increase means answers were produced with a
+  degraded step; the answer's trust metadata lists the step in `stage_degradations` and the
+  log event `query.stage.degraded` carries the stage, reason, and action (no text). Budgets
+  are off by default (`0`); turn them on per environment and watch this counter before
+  tightening them.
+- Statement budget: a warm-cache grounded HTTP question sends 30 SQL statements (cold: 50),
+  asserted in `tests/test_chat_query_count.py`. The `0.5.0` exit criterion of 12 is not met;
+  the remaining statements are document authorisation reads and the final write.
+- The p95 latency target is not measured by these tests.
+
 ## Continuous evaluation
 
 Run evaluations:

@@ -4360,6 +4360,17 @@
               ],
               "title": "Include Total"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["asc", "desc"],
+              "type": "string",
+              "default": "asc",
+              "title": "Order"
+            }
           }
         ],
         "responses": {
@@ -29648,6 +29659,13 @@
           },
           "context_injection": {
             "$ref": "#/components/schemas/ContextInjectionRecord"
+          },
+          "stage_degradations": {
+            "items": {
+              "$ref": "#/components/schemas/StageDegradationRecord"
+            },
+            "type": "array",
+            "title": "Stage Degradations"
           },
           "generated_at": {
             "type": "string",
@@ -63281,6 +63299,27 @@
         "type": "object",
         "required": ["status", "count"],
         "title": "SourceStatusCount"
+      },
+      "StageDegradationRecord": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "reason": {
+            "type": "string",
+            "enum": ["deadline", "budget", "error"],
+            "title": "Reason"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": ["stage", "reason", "action"],
+        "title": "StageDegradationRecord",
+        "description": "An optional pipeline stage that was skipped or degraded (R05-04).\n\n``reason`` is ``deadline`` (the run's total deadline ran out), ``budget`` (the stage's\nown budget ran out) or ``error``. ``action`` names what the run did instead, for\nexample ``original_question``, ``vector_only``, ``original_order``, ``skipped``,\n``single_generation`` or ``answer_withheld``. Never carries request or document text."
       },
       "StaleByCollection": {
         "properties": {

@@ -2438,6 +2438,10 @@
       "streamingLabel": "Streaming response...",
       "generatingLabel": "Generating answer...",
       "wsConnecting": "Connecting...",
+      "wsReconnecting": "Reconnecting...",
+      "loadOlderMessages": "Load earlier messages",
+      "loadingOlderMessages": "Loading earlier messages...",
+      "loadOlderMessagesRetry": "Could not load earlier messages. Try again",
       "wsRetrieving": "Retrieving sources...",
       "wsReranking": "Ranking sources...",
       "wsGenerating": "Generating answer...",
@@ -2452,7 +2456,10 @@
         "planLimitExceeded": "Your plan's question limit has been reached. Upgrade your plan or try again after the limit resets.",
         "rateLimitExceeded": "Too many questions in a short time. Please wait a moment and try again.",
         "rateLimiterUnavailable": "The service is temporarily unable to check usage limits. Please try again shortly.",
-        "wsTicketUnavailable": "Live chat could not start a secure connection. Please try again in a moment."
+        "wsTicketUnavailable": "Live chat could not start a secure connection. Please try again in a moment.",
+        "providerBusy": "The AI service is busy for your organisation right now. Please try again in a moment.",
+        "resumeUnavailable": "The connection dropped and this answer could not be resumed. Please ask the question again.",
+        "connectionLost": "The live chat connection was lost. Please try again."
       },
       "composerStarting": "Starting session…",
       "composerAgentRunning": "Running agent…",

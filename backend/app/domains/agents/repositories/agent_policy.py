@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from pydantic import TypeAdapter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import OrgScope, get_or_load
+from app.core.cache_invalidation import mark_dirty
+from app.core.config import settings
 from app.models.agent_policy import AgentToolPolicyOverride
+
+NAMESPACE_CHAT_TOOL_POLICY = "chat_tool_policy"
+_TOOL_NAMES_ADAPTER: TypeAdapter[list[str]] = TypeAdapter(list[str])
 
 
 class AgentToolPolicyRepository:
@@ -21,6 +28,33 @@ class AgentToolPolicyRepository:
             .order_by(AgentToolPolicyOverride.tool_name)
         )
         return list(result.scalars().all())
+
+    async def disabled_tool_names_cached(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+    ) -> frozenset[str]:
+        """Names of the organisation's disabled tools, cached per organisation (R05-05).
+
+        Only the names are cached (namespace ``chat_tool_policy``, TTL
+        ``CACHE_TTL_POLICIES_SECONDS``); any override write bumps the organisation's cache
+        version on commit.
+        """
+
+        async def load() -> list[str]:
+            overrides = await self.list_by_organization(session, organization_id=organization_id)
+            return sorted(o.tool_name for o in overrides if not o.enabled)
+
+        names = await get_or_load(
+            scope=OrgScope(organization_id),
+            namespace=NAMESPACE_CHAT_TOOL_POLICY,
+            key_id="disabled",
+            ttl=settings.cache_ttl_policies_seconds,
+            adapter=_TOOL_NAMES_ADAPTER,
+            loader=load,
+        )
+        return frozenset(names)
 
     async def get_by_tool(
         self,
@@ -101,4 +135,6 @@ class AgentToolPolicyRepository:
                 AgentToolPolicyOverride.tool_name == tool_name,
             )
         )
+        # Core DELETE: no ORM flush event, so record the cache invalidation (R05-05).
+        mark_dirty(session, org_ids=[organization_id])
         return int(getattr(result, "rowcount", 0) or 0) > 0

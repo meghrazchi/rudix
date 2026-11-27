@@ -183,7 +183,7 @@ does not read and discard the `offset` rows before it (R04-04).
 | Endpoint | Cursor order |
 |---|---|
 | `GET /chat/sessions` | `updated_at` desc, `id` desc |
-| `GET /chat/sessions/{session_id}/messages` | `created_at` asc, role (user before assistant), `id` asc |
+| `GET /chat/sessions/{session_id}/messages` | `created_at` asc, role (user before assistant), `id` asc; reversed with `order=desc` |
 | `GET /documents` | `created_at` (direction from `sort_order`), `id` desc; only with `sort_by=created_at` |
 | `GET /notifications` | `created_at` desc, `id` desc |
 | `GET /admin/audit-logs` | `created_at` desc, `id` desc |
@@ -990,6 +990,52 @@ Response:
 }
 ```
 
+### GET `/chat/sessions/{session_id}/messages`
+
+List the messages of one of the caller's own chat sessions (R04-04 cursors, R05-11 order).
+
+Query parameters:
+
+| Name | Default | Notes |
+|---|---|---|
+| `order` | `asc` | `asc`: oldest first (conversation order, the behaviour before `0.5.0`). `desc`: newest first, for loading the latest page of a long history first. |
+| `limit` | `200` | 1 to 500 |
+| `offset` | `0` | Cannot be combined with `cursor` |
+| `cursor` | none | `next_cursor` of the previous page in the same `order` |
+| `include_total` | `true` without a cursor, `false` with one | |
+
+- The sort key is `(created_at, role rank, id)` with the user turn before the assistant turn
+  within one timestamp; `desc` walks the same key backwards, so a full `desc` walk is exactly
+  the reversed `asc` walk.
+- Items are returned in the order requested. A client that renders oldest at the top reverses
+  each `desc` page.
+- A cursor is bound to its order: an `asc` cursor sent with `order=desc` (or the reverse) is
+  rejected with `400` `Invalid pagination cursor`.
+- A session that does not exist, belongs to another user, or belongs to another organisation
+  returns `404` `Chat session not found` in both orders.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "message_id": "uuid",
+      "role": "assistant",
+      "content": "...",
+      "confidence_score": 0.82,
+      "confidence_category": "high",
+      "citations": [],
+      "created_at": "2026-05-07T10:01:10Z"
+    }
+  ],
+  "total": null,
+  "limit": 50,
+  "offset": 0,
+  "next_cursor": "opaque"
+}
+```
+
 ### POST `/chat`
 
 Main real-time RAG query endpoint.
@@ -1162,6 +1208,26 @@ Not-found behavior:
 
 - When no relevant chunks are retrieved (or confidence is below threshold), response returns `not_found=true`, no citations, and answer:
 - `"I could not find this information in the uploaded documents."`
+
+Caches, budgets, and the verified-answer shortcut (0.5.0, R05-04 and R05-05; additive):
+
+- `trust_metadata.stage_degradations` (new, default `[]`): one entry per optional stage the
+  latency budget cut short, `{"stage", "reason", "action"}` with `reason` one of
+  `deadline`, `budget`, `error` and `action` such as `original_question`, `vector_only`,
+  `original_order`, `skipped`, `single_generation`, or `answer_withheld`. Empty unless
+  `CHAT_TOTAL_DEADLINE_MS` or a `CHAT_STAGE_BUDGET_*_MS` setting is non-zero. Required stages
+  are never listed; in strict grounded verification an exhausted verify budget returns
+  `not_found=true` and `verification_failed=true`, never unverified text.
+- Verified-answer shortcut (`CHAT_VERIFIED_ANSWER_SHORTCUT_ENABLED`, off by default): when
+  on, a published card whose question equals the normalised question and whose citations all
+  pass the caller's read, cite, scope, and chunk checks is evaluated, but the response is
+  unchanged (shadow mode): the answer is still generated. Returning the card needs a
+  contract decision first, because `confidence_score` is a required number and the API does
+  not invent one for a verified answer. The planned additive trust fields `answer_source`
+  (`"verified_answer"`) and `verified_answer_id` are therefore **not** in the schema yet.
+- Repeated questions reuse the organisation's cached query embedding; the response and
+  `debug` fields are the same as on a cache miss, except that the token ledger in the usage
+  event records zero embedding tokens for a cached query.
 
 ### WebSocket `/chat/ws`
 

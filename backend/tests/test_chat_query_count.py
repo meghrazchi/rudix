@@ -9,6 +9,7 @@ read; the chat session row is only written by stage 10.
 from __future__ import annotations
 
 import pytest
+from chat_b2_support import install_fake_redis
 from chat_golden_providers import RecordingChatProvider, install_providers
 from chat_golden_support import SeedDoc, seed_documents
 from httpx import AsyncClient
@@ -33,6 +34,18 @@ pytestmark = [pytest.mark.asyncio]
 # R05-07 (B1): +4 for the token-quota increment (QuotaType.tokens) in stage 10: the quota
 # policy and usage reads, the upsert, and the returned row. Measured: 50.
 GROUNDED_HTTP_QUESTION_STATEMENT_BASELINE = 50
+# R05-05 (B2), exit criterion "12 or fewer statements per chat request": with warm caches
+# (Redis up, a second identical question, a login-shaped token whose subject is the user
+# id) the configuration reads, the auth principal snapshot, and the quota policy reads are
+# served from the cache. Measured: 30. The target of 12 is NOT reached; what remains is
+#   1  quota usage counter read (stage 1; counters are never cached)
+#  11  document access and scope: source scope, read and cite authorisation (documents,
+#      collections, collection_documents, resource grants and denies, custom role),
+#      provenance (source_references) and chunk metadata (document_chunks)
+#  18  the stage 10 write: chat_sessions, two chat_messages, trust-metadata UPDATE,
+#      citations, usage_events, audit_logs (five of these INSERTs re-read their row), and
+#      the questions and tokens quota increments (read, upsert, re-read each).
+WARM_GROUNDED_HTTP_QUESTION_STATEMENT_BUDGET = 30
 _WRITE_PREFIXES = ("INSERT", "UPDATE", "DELETE")
 
 
@@ -81,3 +94,51 @@ async def test_grounded_http_question_statement_count_and_read_only_until_persis
     before_persist = statements[:first_write]
     assert not [s for s in before_persist if s.startswith(_WRITE_PREFIXES)]
     assert counter.count <= GROUNDED_HTTP_QUESTION_STATEMENT_BASELINE, counter.statements
+
+
+async def test_warm_cache_grounded_http_question_statement_budget(
+    chat_query_client: AsyncClient,  # noqa: F811
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_redis(monkeypatch)
+    provider = RecordingChatProvider()
+    install_providers(monkeypatch, provider)
+    user, organization, _ = await _seed_principal(db_session)
+    world = GoldenWorld(
+        user=user,
+        organization=organization,
+        role=OrganizationRole.member,
+        provider=provider,
+        payload={"question": QUESTION, "top_k": 3, "rerank": False},
+    )
+    await seed_documents(db_session, world, [SeedDoc("a", TEXT_A, 0.92)])
+    await PromptTemplateService().ensure_default_templates(
+        db_session, organization_id=organization.id
+    )
+    await db_session.commit()
+    # Login issues tokens whose subject is the user id; that is the cacheable principal.
+    token = create_app_access_token(
+        subject=str(user.id), organization_id=str(organization.id), expires_in_seconds=600
+    )
+    headers = _auth_headers(token=token, organization_id=str(organization.id))
+    warm_up = await chat_query_client.post("/api/v1/chat", headers=headers, json=world.payload)
+    assert warm_up.status_code == 200, warm_up.text
+
+    async with count_queries(db_session) as counter:
+        response = await chat_query_client.post("/api/v1/chat", headers=headers, json=world.payload)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["not_found"] is False
+    tables = " ".join(counter.statements).lower()
+    for cached in (
+        "org_ai_response_policies",
+        "prompt_templates",
+        "rag_profiles",
+        "org_model_profiles",
+        "org_quota_policy",
+        "org_feature_flag_overrides",
+        "auth_refresh_sessions",
+    ):
+        assert cached not in tables, cached
+    assert counter.count <= WARM_GROUNDED_HTTP_QUESTION_STATEMENT_BUDGET, counter.statements

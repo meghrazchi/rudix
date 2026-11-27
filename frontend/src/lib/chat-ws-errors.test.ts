@@ -28,6 +28,27 @@ describe("getChatWsErrorMessageKey", () => {
     );
   });
 
+  it("maps the 0.5.0 resilience codes (R05-13)", () => {
+    expect(getChatWsErrorMessageKey("provider_busy")).toBe("providerBusy");
+    expect(getChatWsErrorMessageKey("resume_unavailable")).toBe(
+      "resumeUnavailable",
+    );
+    expect(getChatWsErrorMessageKey("connection_lost")).toBe("connectionLost");
+  });
+
+  it("has every mapped message in all locales", async () => {
+    for (const locale of ["en", "de", "es", "fr", "ar", "fa"]) {
+      const messages = (await import(`@/i18n/messages/${locale}.json`))
+        .default as { chat: { page: { wsErrors: Record<string, string> } } };
+      for (const key of Object.values(CHAT_WS_ERROR_MESSAGE_KEYS)) {
+        expect(
+          messages.chat.page.wsErrors[key],
+          `${locale}.${key}`,
+        ).toBeTruthy();
+      }
+    }
+  });
+
   it("returns null for unknown, empty, and inherited codes", () => {
     expect(getChatWsErrorMessageKey(null)).toBeNull();
     expect(getChatWsErrorMessageKey("")).toBeNull();

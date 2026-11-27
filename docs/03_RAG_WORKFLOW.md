@@ -378,6 +378,60 @@ To change `DOCUMENT_INDEX_VERSION`:
 While both versions are listed, a reindexed document has chunks under both, so
 retrieval can return duplicate chunks for it.
 
+### Caches and shortcuts
+
+Since 0.5.0 (R05-05, R05-04) the query path reads less and waits less. Every cache below is
+organisation-scoped (`rudix:{env}:org:{org_id}:v{n}:{namespace}:...`), invalidated on commit
+by bumping the organisation's version, and falls back to the database or provider when Redis
+is down, times out, or `CACHE_ENABLED=false`.
+
+- **Query-embedding cache** (namespace `query_embedding`, TTL
+  `CHAT_QUERY_EMBEDDING_CACHE_TTL_SECONDS`, default 3600). Keyed by the SHA-256 of
+  `embedding model | dimensions | DOCUMENT_INDEX_VERSION | normalised question` (NFKC,
+  casefold, whitespace collapsed, stripped); the question text never appears in a key. A
+  repeated question (also by another user of the same organisation) skips the embedding
+  call; the ledger records a zero-token `retrieve` entry. Another organisation never reuses
+  the vector.
+- **Configuration caches** (stage 2). The effective AI response policy (with the collection
+  override), the RAG profile, the active answer prompt version, the chat model profile (the
+  organisation's row only; the environment default is computed each time), the disabled
+  chat tools, and the quota policy limits (never usage counters). None of these reads rows
+  with a NULL organisation id: system defaults come from settings and code.
+- **Verified-answer shortcut** (stage 4, `CHAT_VERIFIED_ANSWER_SHORTCUT_ENABLED`, off by
+  default). The organisation's published cards are cached (namespace
+  `verified_answer_candidates`, at most `CHAT_VERIFIED_ANSWER_MAX_CANDIDATES`; above the cap
+  the shortcut is skipped and counted). A card matches only on exact equality of the
+  normalised question (never `ILIKE` or similarity), only when unexpired, and only when its
+  collection is NULL or equals the request's single collection scope. Every citation must
+  then pass the same checks as a generated answer's sources: the document exists in the
+  organisation with a usable connector item and is indexed, the user may read and cite it,
+  it is inside the run's document scope, and the cited chunk exists in it. Any failure, or a
+  card that requires citations with none valid, means no shortcut. **Current state:** the
+  stage evaluates in shadow mode only. A hit is recorded (metric and log, card id only) and
+  the run still retrieves and generates, because `ChatQueryResponse.confidence_score` and the
+  trust metadata confidence require a number and none is invented for a verified answer.
+  Returning the card is pending that contract decision.
+- **No semantic answer cache.** Answers are permission-sensitive; a semantic cache is a
+  post-1.0 candidate.
+
+Latency budget (R05-04). `CHAT_TOTAL_DEADLINE_MS` and `CHAT_STAGE_BUDGET_*_MS` (all 0 = off)
+bound the optional steps only; required steps (authorise, guard, vector retrieval, generate,
+citation validation, persist) always run. When a budget runs out the step degrades: rewrite
+uses the original question, the graph branch is dropped (vector only), rerank keeps the
+retrieval order, conflict detection is skipped, tree search falls back to one generation, the
+standard-mode verifier and the refiner are skipped. In strict grounded verification the
+answer is withheld (not found, `verification_failed`); unverified text is never returned.
+Every degradation is listed in the trust metadata `stage_degradations` (`stage`, `reason`:
+`deadline`, `budget` or `error`, `action`). Rerank batches run concurrently, at most
+`RERANK_MAX_CONCURRENT_BATCHES` (default 4) at a time, merged in batch order.
+
+Embedding overlap. The query embedding depends only on the retrieval text and the index's
+embedding model (settings), never on the RAG profile, model profile, or policies. With
+`CHAT_QUERY_EMBEDDING_PREFETCH_ENABLED=true` the original question's embedding starts during
+stage 2 when no rewriting can apply, and stage 6 awaits it. It is off by default because the
+embedding then runs while the read-phase connection is checked out (R05-02 holds no
+connection during provider calls).
+
 ## Re-ranking
 
 Reranking is a production-only relevance pass that runs after retrieval and before

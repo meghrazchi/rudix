@@ -186,6 +186,7 @@ class PersistStage:
             route_result=cfg.route_result,
             orchestration_result=cfg.orchestration_result,
             context_injection=ctx.context_injection,
+            stage_degradations=ctx.stage_degradations,
         )
         out.trust_metadata = trust_metadata
         assistant_message.trust_metadata_json = trust_metadata.model_dump(mode="json")

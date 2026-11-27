@@ -25,7 +25,10 @@ from app.domains.ai_response_policy.services.policy_engine import (
     PolicyEvaluationResult as AiPolicyEvaluationResult,
 )
 from app.domains.chat.schemas.chat import ChatCitationResponse, ChatQueryRequest
-from app.domains.chat.schemas.trust_metadata import AnswerTrustMetadataResponse
+from app.domains.chat.schemas.trust_metadata import (
+    AnswerTrustMetadataResponse,
+    StageDegradationRecord,
+)
 from app.domains.chat.services.answer_critic_service import CriticResult
 from app.domains.chat.services.answer_mode_service import AnswerModeResult
 from app.domains.chat.services.answer_planner_service import PlannerResult
@@ -43,6 +46,7 @@ from app.domains.chat.services.grounded_answer_verifier import GroundedVerifierR
 from app.domains.chat.services.llm_service import LLMAnswerResult
 from app.domains.chat.services.parallel_retrieval_optimizer import ParallelRetrievalResult
 from app.domains.chat.services.parent_context_expansion_service import ParentExpansionResult
+from app.domains.chat.services.query_embedding_cache import CachedEmbedding
 from app.domains.chat.services.query_rewriting_service import QueryRewritingResult
 from app.domains.chat.services.rerank_service import RerankDiagnostics, RerankResult, RerankSettings
 from app.domains.chat.services.retrieval_strategy_router import RetrievalRouteResult
@@ -52,6 +56,7 @@ from app.domains.chat.services.source_scope_service import ResolvedSourceScope
 from app.domains.chat.services.table_retrieval_service import TableBoostResult
 from app.domains.chat.services.tool_orchestrator import ToolOrchestrationResult
 from app.domains.chat.services.untrusted_context import new_context_boundary
+from app.domains.verified_answers.services.shortcut_matcher import VerifiedAnswerMatch
 from app.models.chat import ChatMessage
 
 NOT_FOUND_ANSWER = _NOT_FOUND_ANSWER
@@ -274,6 +279,17 @@ class ChatContext:
     # Prompt-injection scan of the reranked chunks (R05-09); ``None`` when no scan ran.
     context_injection: ContextInjectionScanResult | None = None
     # anchor: B2 budget caches
+    # R05-04: absolute ``perf_counter`` deadline applied by the optional-stage policies
+    # (stages/policies.py); ``None`` when CHAT_TOTAL_DEADLINE_MS is 0. Required stages never
+    # see it (the runner's own ``deadline`` hook stays unset).
+    budget_deadline: float | None = None
+    # Optional stages skipped or degraded (trust metadata ``stage_degradations``).
+    stage_degradations: list[StageDegradationRecord] = field(default_factory=list)
+    # R05-04/R05-05: the original question's embedding, started by resolve_config while
+    # the configuration is resolved and awaited by retrieve.
+    prefetched_embedding: asyncio.Task[CachedEmbedding] | None = None
+    # R05-05: verified-answer shortcut evaluation (stage 4); ``None`` when it did not run.
+    verified_answer_match: VerifiedAnswerMatch | None = None
 
     async def emit(self, event: ChatEvent) -> None:
         await self.emitter.emit(event)

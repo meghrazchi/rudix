@@ -9,6 +9,7 @@ import {
   type ChatQueryRequest,
   type ChatQueryResponse,
 } from "@/lib/api/chat";
+import { EMPTY_STREAMING_TEXT_STORE } from "@/lib/chat/streaming-text-store";
 import { useChatWebSocket } from "@/lib/use-chat-websocket";
 
 export type ChatStreamPayload = ChatQueryRequest & { _scopeLabel?: string };
@@ -98,17 +99,19 @@ export function useChatStream(options: ChatStreamOptions) {
   }
 
   const phaseLabel = CHAT_WEBSOCKET_ENABLED
-    ? wsChat.phase === "retrieving"
-      ? tc("wsRetrieving")
-      : wsChat.phase === "reranking"
-        ? tc("wsReranking")
-        : wsChat.phase === "generating"
-          ? tc("wsGenerating")
-          : wsChat.phase === "validating_citations"
-            ? tc("wsValidating")
-            : wsChat.isPending
-              ? tc("wsConnecting")
-              : null
+    ? wsChat.reconnecting
+      ? tc("wsReconnecting")
+      : wsChat.phase === "retrieving"
+        ? tc("wsRetrieving")
+        : wsChat.phase === "reranking"
+          ? tc("wsReranking")
+          : wsChat.phase === "generating"
+            ? tc("wsGenerating")
+            : wsChat.phase === "validating_citations"
+              ? tc("wsValidating")
+              : wsChat.isPending
+                ? tc("wsConnecting")
+                : null
     : null;
 
   return {
@@ -116,7 +119,12 @@ export function useChatStream(options: ChatStreamOptions) {
     cancel: () => wsChat.cancel(),
     phase: wsChat.phase,
     phaseLabel,
-    partialAnswer: wsChat.partialAnswer,
+    /** Live read of the streamed text; does not subscribe (R05-11). */
+    get partialAnswer() {
+      return wsChat.partialAnswer;
+    },
+    /** Ref-backed streamed text; only StreamingMessage subscribes to it. */
+    textStore: wsChat.textStore ?? EMPTY_STREAMING_TEXT_STORE,
     finalResponse: wsChat.finalResponse,
     timelineSteps: wsChat.timelineSteps,
     /** WebSocket error code, when the WebSocket transport is active. */

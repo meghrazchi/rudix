@@ -326,7 +326,14 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 
 export async function listChatSessionMessages(
   sessionId: string,
-  params: { limit?: number; offset?: number } = {},
+  params: {
+    limit?: number;
+    offset?: number;
+    /** `desc` pages newest first (R05-11); omitted means oldest first. */
+    order?: "asc" | "desc";
+    /** `next_cursor` of the previous page in the same order. */
+    cursor?: string | null;
+  } = {},
 ): Promise<ChatSessionMessageListResponse> {
   return apiRequest<ChatSessionMessageListResponse>(
     `/chat/sessions/${encodeURIComponent(sessionId)}/messages`,
@@ -334,6 +341,8 @@ export async function listChatSessionMessages(
       query: {
         limit: params.limit,
         offset: params.offset,
+        order: params.order,
+        cursor: params.cursor ?? undefined,
       },
     },
   );

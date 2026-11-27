@@ -16,6 +16,9 @@ from app.shared.pagination import CursorValue, KeysetColumn, apply_keyset
 
 SESSION_SORT_NAME = "chat_sessions.updated_at.desc"
 MESSAGE_SORT_NAME = "chat_messages.created_at.asc"
+# Newest-first history (R05-11): the same key tuple walked backwards, under its own sort name
+# so a cursor issued for one order is rejected by the other.
+MESSAGE_SORT_NAME_DESC = "chat_messages.created_at.desc"
 SESSION_SORT_COLUMNS = (ChatSession.updated_at, ChatSession.id)
 _ROLE_RANK = {ChatRole.user.value: 0, ChatRole.assistant.value: 1}
 
@@ -182,15 +185,19 @@ class ChatRepository:
         limit: int = 200,
         offset: int = 0,
         keyset: Sequence[CursorValue] | None = None,
+        descending: bool = False,
     ) -> list[ChatMessage]:
-        """Messages in conversation order; ``keyset`` is ``message_sort_key`` of the last row."""
+        """Messages in conversation order (newest first when ``descending``).
+
+        ``keyset`` is ``message_sort_key`` of the last row of the previous page in the same
+        order.
+        """
         columns = _message_sort_columns()
         query = select(ChatMessage).where(ChatMessage.chat_session_id == chat_session_id)
         if keyset is not None:
-            query = apply_keyset(query, columns, False, keyset)
-        result = await session.execute(
-            query.order_by(*(column.asc() for column in columns)).offset(offset).limit(limit)
-        )
+            query = apply_keyset(query, columns, descending, keyset)
+        ordering = [column.desc() if descending else column.asc() for column in columns]
+        result = await session.execute(query.order_by(*ordering).offset(offset).limit(limit))
         return list(result.scalars().all())
 
     async def count_chat_messages(

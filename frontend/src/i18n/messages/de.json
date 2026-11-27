@@ -2438,6 +2438,10 @@
       "streamingLabel": "Antwort wird gestreamt...",
       "generatingLabel": "Antwort wird generiert...",
       "wsConnecting": "Verbindung wird hergestellt...",
+      "wsReconnecting": "Verbindung wird wiederhergestellt...",
+      "loadOlderMessages": "Ältere Nachrichten laden",
+      "loadingOlderMessages": "Ältere Nachrichten werden geladen...",
+      "loadOlderMessagesRetry": "Ältere Nachrichten konnten nicht geladen werden. Erneut versuchen",
       "wsRetrieving": "Quellen werden abgerufen...",
       "wsReranking": "Quellen werden sortiert...",
       "wsGenerating": "Antwort wird generiert...",
@@ -2452,7 +2456,10 @@
         "planLimitExceeded": "Das Fragenlimit Ihres Tarifs ist erreicht. Führen Sie ein Upgrade Ihres Tarifs durch oder versuchen Sie es nach dem Zurücksetzen des Limits erneut.",
         "rateLimitExceeded": "Zu viele Fragen in kurzer Zeit. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
         "rateLimiterUnavailable": "Der Dienst kann die Nutzungslimits vorübergehend nicht prüfen. Bitte versuchen Sie es in Kürze erneut.",
-        "wsTicketUnavailable": "Der Live-Chat konnte keine sichere Verbindung herstellen. Bitte versuchen Sie es gleich noch einmal."
+        "wsTicketUnavailable": "Der Live-Chat konnte keine sichere Verbindung herstellen. Bitte versuchen Sie es gleich noch einmal.",
+        "providerBusy": "Der KI-Dienst ist für Ihre Organisation gerade ausgelastet. Bitte versuchen Sie es gleich noch einmal.",
+        "resumeUnavailable": "Die Verbindung wurde unterbrochen und diese Antwort konnte nicht fortgesetzt werden. Bitte stellen Sie die Frage erneut.",
+        "connectionLost": "Die Live-Chat-Verbindung wurde unterbrochen. Bitte versuchen Sie es erneut."
       },
       "composerStarting": "Sitzung wird gestartet…",
       "composerAgentRunning": "Agent wird ausgeführt…",

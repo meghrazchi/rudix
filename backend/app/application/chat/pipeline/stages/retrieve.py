@@ -19,14 +19,19 @@ from app.application.chat.pipeline.controls import (
 from app.application.chat.pipeline.errors import ChatPipelineError
 from app.application.chat.pipeline.events import ChatEvent, plural
 from app.application.chat.pipeline.request_helpers import _get_qdrant_client
+from app.application.chat.pipeline.stages._embedding import build_query_embedder
 from app.application.chat.pipeline.stages._evidence import (
     apply_freshness,
     apply_ocr_quality,
     apply_table_boost,
 )
+from app.application.chat.pipeline.stages.policies import record_stage_degradation, stage_budget
 from app.core.config import settings
 from app.core.logging import log_query_event
-from app.domains.chat.services.parallel_retrieval_optimizer import ParallelRetrievalBudget
+from app.domains.chat.services.parallel_retrieval_optimizer import (
+    ParallelRetrievalBudget,
+    ParallelRetrievalResult,
+)
 from app.domains.chat.services.retrieved_chunk import (
     RetrievedChunk,
     _hybrid_to_retrieved_chunk,
@@ -154,6 +159,10 @@ class RetrieveStage:
                 else settings.retrieval_parallel_max_total_cost_usd  # type: ignore[arg-type]
             ),
         )
+        graph_budget = stage_budget(ctx, "graph") if ret.graph_enabled else None
+        graph_timeout_ms = (
+            max(1, int(graph_budget.seconds * 1000)) if graph_budget is not None else None
+        )
         parallel_result = await deps.parallel_retrieval_optimizer.execute(
             session=db_session,
             organization_id=req.organization_id,
@@ -169,8 +178,13 @@ class RetrieveStage:
             exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
             budget=budget,
             index_versions=settings.active_index_versions,
+            embed_query=build_query_embedder(ctx),
+            graph_timeout_ms=graph_timeout_ms,
         )
         ret.parallel_result = parallel_result
+        if graph_budget is not None and _graph_branch_timed_out(parallel_result):
+            # R05-04: the graph branch ran out of budget; retrieval is vector (and keyword).
+            record_stage_degradation(ctx, "graph", graph_budget.reason)
         ret.embedding_model = parallel_result.embedding_model or ret.embedding_model
         ret.embedding_prompt_tokens = parallel_result.total_embedding_prompt_tokens
         ret.graph_context_result = parallel_result.graph_result
@@ -225,3 +239,12 @@ class RetrieveStage:
             graph_result=ret.graph_context_result,
         )
         ret.retrieved_chunks = _with_original_ranks(retrieved)
+
+
+def _graph_branch_timed_out(result: ParallelRetrievalResult) -> bool:
+    return any(
+        record.branch_name == "graph_expansion"
+        and not record.succeeded
+        and record.error_code == "timeout"
+        for record in result.branch_records
+    )

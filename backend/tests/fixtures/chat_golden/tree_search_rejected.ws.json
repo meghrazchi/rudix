@@ -240,6 +240,7 @@
           "override_source": null
         },
         "schema_version": "1",
+        "stage_degradations": [],
         "tool_orchestration": {
           "authorized_count": 0,
           "denied_count": 0,

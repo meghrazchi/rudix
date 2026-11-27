@@ -41,7 +41,7 @@ describe("resolveChatWsAuthParam", () => {
   });
 
   it.each([404, 405])(
-    "falls back to the session token when the endpoint returns %i",
+    "throws without a token fallback when the endpoint returns %i",
     async (status) => {
       writeSessionToStorage({
         userId: "user-1",
@@ -52,20 +52,14 @@ describe("resolveChatWsAuthParam", () => {
         accessToken: "legacy-access-token",
       });
       ticketStatus(status);
-      await expect(resolveChatWsAuthParam()).resolves.toEqual({
-        name: "token",
-        value: "legacy-access-token",
-      });
+      const result = resolveChatWsAuthParam();
+      await expect(result).rejects.toBeInstanceOf(ChatWsAuthUnavailableError);
+      await expect(result).rejects.not.toHaveProperty(
+        "value",
+        "legacy-access-token",
+      );
     },
   );
-
-  it("uses an empty token on fallback when there is no session", async () => {
-    ticketStatus(404);
-    await expect(resolveChatWsAuthParam()).resolves.toEqual({
-      name: "token",
-      value: "",
-    });
-  });
 
   it.each([503, 429])(
     "throws without a token fallback on %i",
