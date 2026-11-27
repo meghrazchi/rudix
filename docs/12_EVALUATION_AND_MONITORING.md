@@ -525,6 +525,25 @@ call on the event loop shows up as lag. It needs no labels.
 - Failures log `cache.fallback` and `cache.invalidation.failed` with namespace or scope and
   the error type; no values, tokens, or ids beyond the scope id are logged.
 
+### Chat pipeline stages (R05-01)
+
+With `CHAT_PIPELINE_V2=true`, `POST /api/v1/chat` runs the staged chat pipeline and records one
+observation per stage run:
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_chat_stage_seconds` | `stage` | Duration of one stage: `authorize`, `guard`, `resolve_config`, `shortcut`, `rewrite`, `direct_answers`, `retrieve`, `rerank_pack`, `generate`, `verify`, `persist`. |
+
+- `retrieve`, `rerank_pack`, and `generate` are skipped for blocked, scope-inventory, and
+  guidance answers, so their counts are lower than the `authorize` count.
+- A stage that fails still records its duration; the request then ends with the same safe
+  error code as before (`retrieval_failed`, `generation_failed`, `chat_persistence_failed`).
+- Stage timeouts and a run deadline exist but are off. When a later release turns them on, a
+  timed-out stage logs `query.stage.degraded` with the stage name and reason only.
+- The stage logs carry ids, counts, flags, and models; no question, prompt, answer, or document
+  text.
+- The legacy path (`CHAT_PIPELINE_V2=false`) records no stage metric.
+
 ## Continuous evaluation
 
 Run evaluations:

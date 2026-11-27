@@ -545,6 +545,49 @@ make test-cov   # pytest --cov=app --cov-report=term; fails below the ratchet
 `--cov=app`, so pytest-cov enforces it there too. Raise the threshold when coverage rises. Never
 lower it without a reason in the merge request.
 
+## Chat pipeline
+
+`POST /api/v1/chat` can run through a staged pipeline instead of the long `query_chat`
+function (R05-01). `CHAT_PIPELINE_V2=false` (the default) keeps the legacy body;
+`CHAT_PIPELINE_V2=true` runs the pipeline, which returns the same responses, rows, and errors.
+The WebSocket (`/chat/ws`) still runs its own code; it moves onto the pipeline in a later step.
+
+Modules:
+
+| Module | Contents |
+|---|---|
+| `app/application/chat/pipeline/pipeline.py` | `ChatPipeline(deps).run(request, principal, transport, emitter, scope, request_id)` returns the finished `ChatContext` |
+| `app/application/chat/pipeline/context.py` | `ChatContext`: request, scope, config, retrieval, generation, verification, and persist state |
+| `app/application/chat/pipeline/runner.py` | `StageRunner`: stage order, optional per-stage timeouts and run deadline (off), degradation records, background-task cleanup, `rudix_chat_stage_seconds{stage}` |
+| `app/application/chat/pipeline/deps.py` | `ChatPipelineDeps` and `default_deps`, the one instance of every chat service |
+| `app/application/chat/pipeline/events.py` | `ChatEvent`, `Emitter`, `CollectingEmitter`, activity-step payloads |
+| `app/application/chat/pipeline/ledger.py` | `TokenLedger`: query embedding and generation tokens and cost per run |
+| `app/application/chat/pipeline/sessions.py` | `ChatSessionScope`; `SingleSessionScope` uses the request session for every phase |
+| `app/application/chat/pipeline/stages/` | one file per stage, helpers in `_*.py` |
+| `app/application/chat/transports/http.py` | `run_http_query`: runs the pipeline and builds `ChatQueryResponse` |
+| `app/domains/chat/services/` | `query_intent_service`, `confidence_calibration`, `trust_metadata_builder`, `trust_records`, `citation_enrichment`, `retrieved_chunk` (moved out of `chat.py`) |
+
+Stages, in the order `query_chat` runs them: `authorize` (quota, document access, source
+scope, chat session), `guard` (prompt-injection check), `resolve_config` (AI response policy,
+answer mode, RAG and model profiles, planner, routing, tools, language), `shortcut`
+(pass-through), `rewrite`, `direct_answers` (blocked, scope-inventory, and guidance answers;
+these end the run early), `retrieve`, `rerank_pack`, `generate`, `verify` (citations, grounded
+verifier, critic and refiner, AI policy post-check, confidence), and `persist` (one
+transaction). Authorisation, quota, and document access run before any document text is read.
+
+`app/interfaces/http/chat.py` keeps the names tests and the bot service use (contract 4.2.2 in
+`docs/roadmap/V0_5_0_IMPLEMENTATION_PLAN.md`): the service names are the `default_deps`
+objects, and `_openai_client`, `SessionLocal`, and `ensure_chat_quota` are read at call time.
+
+Golden transcripts in `tests/fixtures/chat_golden/` hold what each transport answers for 40
+scenarios; `tests/test_chat_golden_transcripts.py` and `tests/test_chat_golden_edge_transcripts.py`
+compare the legacy body, the pipeline, and the WebSocket against them. Re-record only for the
+reasons in contract 4.2.4:
+
+```bash
+CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py tests/test_chat_golden_edge_transcripts.py
+```
+
 ## Application cache
 
 `app/core/cache.py` (R04-05) caches small, hot authorization reads in Redis:
