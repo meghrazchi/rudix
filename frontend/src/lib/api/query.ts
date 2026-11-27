@@ -80,6 +80,7 @@ export async function clearAuthSensitiveQueryState(): Promise<void> {
 }
 
 export const queryKeys = {
+  // anchor: C
   collections: {
     all: ["collections"] as const,
     list: (params?: Record<string, unknown>) =>
@@ -405,6 +406,7 @@ export const queryKeys = {
       scope,
       params ?? {},
     ] as const,
+  // anchor: D
 };
 
 export type FrontendMutationKind =
