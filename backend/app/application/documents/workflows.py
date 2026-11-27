@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clients import object_storage
 from app.core.config import settings
 from app.core.logging import log_document_event
 from app.core.metrics import record_document_upload
@@ -31,6 +32,7 @@ from app.domains.quota.services.plan_enforcement_service import PlanEnforcementS
 from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document
 from app.models.enums import DocumentStatus, DocumentVersionChangeReason
+from app.workers.dispatch import enqueue
 
 _LEGAL_HOLD_RETENTION_CLASSES = frozenset({"legal_hold"})
 
@@ -308,7 +310,8 @@ async def upload_document_workflow(
         )
 
     try:
-        minio_client.put_object(
+        await object_storage.put_object(
+            minio_client,
             Bucket=settings.minio_bucket,
             Key=object_key,
             Body=content,
@@ -408,10 +411,11 @@ async def upload_document_workflow(
         await db_session.refresh(document)
     except Exception as exc:
         await db_session.rollback()
-        delete_method = getattr(minio_client, "delete_object", None)
-        if callable(delete_method):
+        if callable(getattr(minio_client, "delete_object", None)):
             try:
-                delete_method(Bucket=settings.minio_bucket, Key=object_key)
+                await object_storage.delete_object(
+                    minio_client, Bucket=settings.minio_bucket, Key=object_key
+                )
             except Exception:
                 pass
         log_document_event(
@@ -455,7 +459,8 @@ async def upload_document_workflow(
     )
 
     try:
-        task_result = process_document_task.delay(
+        task_result = await enqueue(
+            process_document_task,
             str(document.id),
             request_id=request_id,
             organization_id=str(organization_id),
@@ -698,7 +703,8 @@ async def delete_document_workflow(
     await db_session.commit()
 
     try:
-        task_result = delete_document_task.delay(
+        task_result = await enqueue(
+            delete_document_task,
             str(document.id),
             request_id=request_id,
             organization_id=str(actor_organization_id),
@@ -895,7 +901,8 @@ async def retry_delete_document_workflow(
     await db_session.commit()
 
     try:
-        task_result = delete_document_task.delay(
+        task_result = await enqueue(
+            delete_document_task,
             str(document.id),
             request_id=request_id,
             organization_id=str(actor_organization_id),
@@ -1030,7 +1037,7 @@ async def reindex_document_workflow(
         if chunking_profile_config is not None:
             task_kwargs["chunking_profile_config"] = chunking_profile_config
         task_kwargs["force"] = force
-        task_result = reindex_document_task.delay(str(document.id), **task_kwargs)
+        task_result = await enqueue(reindex_document_task, str(document.id), **task_kwargs)
     except Exception as exc:
         await audit_log_service.record(
             db_session,

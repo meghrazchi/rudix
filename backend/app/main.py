@@ -2,6 +2,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.router import api_router
 from app.core.config import Environment, settings
@@ -48,6 +49,12 @@ app.add_middleware(
 
 attach_access_log_middleware(app)
 attach_metrics_middleware(app)
+if settings.http_gzip_minimum_bytes > 0:
+    app.add_middleware(
+        GZipMiddleware,
+        minimum_size=settings.http_gzip_minimum_bytes,
+        compresslevel=5,
+    )
 app.add_middleware(
     SecurityHeadersMiddleware,
     hsts_enabled=settings.environment in {Environment.production, Environment.staging},

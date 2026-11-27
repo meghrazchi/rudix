@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Annotated, Literal
 from urllib.parse import quote
@@ -15,11 +16,12 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.documents.sample_dataset import load_sample_dataset_workflow
 from app.application.documents.workflows import (
     bulk_delete_documents_workflow,
     delete_document_workflow,
@@ -40,6 +42,7 @@ from app.auth.resource_context_builder import (
 )
 from app.clients import clamav_client as clamav_module
 from app.clients import minio_client as minio_module
+from app.clients import object_storage
 from app.core.config import settings
 from app.core.document_errors import decode_document_error
 from app.core.logging import log_document_event
@@ -53,6 +56,7 @@ from app.domains.chat.services.source_freshness_service import (
     SourceFreshnessService,
 )
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
+from app.domains.documents.repositories.document_lookups import DocumentLookupRepository
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.schemas.documents import (
     BulkDeleteDocumentsRequest,
@@ -92,10 +96,6 @@ from app.domains.pipeline.services.pipeline_graph_service import (
     pipeline_node_label,
 )
 from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
-from app.models.authorization import SourceAclMapping
-from app.models.collection import Collection, CollectionDocument
-from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
-from app.models.connector_source import SourceDocument
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
 from app.models.enums import (
@@ -108,6 +108,7 @@ from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.user import User
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.shared.pagination import encode_cursor, resolve_page_request, split_page
+from app.workers.dispatch import enqueue
 from app.workers.document_tasks import (
     delete_document as delete_document_task,
 )
@@ -122,6 +123,7 @@ from app.workers.document_tasks import (
 )
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+document_lookup_repository = DocumentLookupRepository()
 document_repository = DocumentRepository()
 chat_repository = ChatRepository()
 pipeline_repository = PipelineRepository()
@@ -231,17 +233,12 @@ async def _connector_source_link_allowed(
         return False
     if source_visibility == "org_wide":
         return True
-    result = await db_session.execute(
-        select(SourceAclMapping.id).where(
-            SourceAclMapping.organization_id == organization_id,
-            SourceAclMapping.connector_connection_id == connection_id,
-            SourceAclMapping.user_id == user_id,
-            SourceAclMapping.principal_type == "user",
-            SourceAclMapping.acl_effect == "allow",
-            SourceAclMapping.is_active.is_(True),
-        )
+    return await document_lookup_repository.has_user_source_acl_allow(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        connection_id=connection_id,
     )
-    return result.scalar_one_or_none() is not None
 
 
 def _safe_log_lines(
@@ -851,31 +848,20 @@ async def list_documents(
     collections_by_doc: dict[object, list[DocumentCollectionSummary]] = {}
     source_provider_by_doc: dict[object, str] = {}
     if doc_ids:
-        coll_result = await db_session.execute(
-            select(CollectionDocument.document_id, Collection.id, Collection.name)
-            .join(Collection, CollectionDocument.collection_id == Collection.id)
-            .where(
-                CollectionDocument.document_id.in_(doc_ids),
-                Collection.is_archived.is_(False),
-            )
-            .order_by(Collection.name)
-        )
-        for doc_id, coll_id, coll_name in coll_result:
+        for (
+            doc_id,
+            coll_id,
+            coll_name,
+        ) in await document_lookup_repository.collections_for_documents(
+            db_session, document_ids=doc_ids
+        ):
             collections_by_doc.setdefault(doc_id, []).append(
                 DocumentCollectionSummary(collection_id=str(coll_id), name=coll_name)
             )
-
-        # Batch-fetch connector source provider for all documents in one query.
-        src_result = await db_session.execute(
-            select(SourceDocument.document_id, ConnectorProvider.key)
-            .join(ExternalItem, ExternalItem.id == SourceDocument.external_item_id)
-            .join(ConnectorConnection, ConnectorConnection.id == ExternalItem.connection_id)
-            .join(ConnectorProvider, ConnectorProvider.id == ConnectorConnection.provider_id)
-            .where(SourceDocument.document_id.in_(doc_ids))
-            .distinct(SourceDocument.document_id)
+        # Connector source provider for all documents in one query.
+        source_provider_by_doc = await document_lookup_repository.source_providers_for_documents(
+            db_session, document_ids=doc_ids
         )
-        for doc_id, provider_key in src_result:
-            source_provider_by_doc[doc_id] = provider_key
 
     chunk_counts = await document_repository.count_document_chunks_for_documents(
         db_session,
@@ -1534,6 +1520,30 @@ async def get_document(
     )
 
 
+def _log_download_failed(
+    document: Document,
+    principal: AuthenticatedPrincipal,
+    request_id: str | None,
+    exc: Exception,
+) -> None:
+    log_document_event(
+        event="document.download.failed",
+        document_id=str(document.id),
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        request_id=request_id,
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        error=exc.__class__.__name__,
+    )
+
+
+async def _close_quietly(stored: object_storage.StoredObject) -> None:
+    try:
+        await stored.close()
+    except Exception:
+        pass
+
+
 @router.get("/{document_id}/download")
 async def download_document(
     request: Request,
@@ -1550,34 +1560,38 @@ async def download_document(
             detail="Object storage is unavailable",
         )
 
-    body = None
     try:
-        object_response = minio.get_object(
+        stored = await object_storage.get_object(
+            minio,
             Bucket=document.storage_bucket,
             Key=document.storage_object_key,
         )
-        body = object_response["Body"]
-        content = body.read()
     except Exception as exc:
-        log_document_event(
-            event="document.download.failed",
-            document_id=str(document.id),
-            organization_id=principal.organization_id,
-            user_id=principal.user_id,
-            request_id=request_id,
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            error=exc.__class__.__name__,
-        )
+        _log_download_failed(document, principal, request_id, exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Document file is unavailable",
         ) from exc
-    finally:
+    # Read the first chunk before responding so a storage failure still maps to 503.
+    chunks = stored.iter_chunks()
+    try:
+        first_chunk = await anext(chunks, b"")
+    except Exception as exc:
+        await _close_quietly(stored)
+        _log_download_failed(document, principal, request_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document file is unavailable",
+        ) from exc
+
+    async def _body() -> AsyncIterator[bytes]:
         try:
-            if body is not None:
-                body.close()
-        except Exception:
-            pass
+            if first_chunk:
+                yield first_chunk
+            async for chunk in chunks:
+                yield chunk
+        finally:
+            await _close_quietly(stored)
 
     filename = document.filename or f"{document.id}.{document.file_type}"
     content_disposition = f"attachment; filename*=UTF-8''{quote(filename)}"
@@ -1591,8 +1605,8 @@ async def download_document(
         request_id=request_id,
         status_code=status.HTTP_200_OK,
     )
-    return Response(
-        content=content,
+    return StreamingResponse(
+        _body(),
         media_type=media_type,
         headers={"Content-Disposition": content_disposition},
     )
@@ -1771,7 +1785,8 @@ async def reindex_document_graph_endpoint(
     del document_id
     request_id = _request_id_from_request(request)
     actor_user_id, actor_organization_id = _principal_user_and_org(principal)
-    reindex_document_graph_task.delay(
+    await enqueue(
+        reindex_document_graph_task,
         str(document.id),
         request_id=request_id,
         organization_id=str(actor_organization_id),
@@ -1884,33 +1899,6 @@ async def list_document_versions(
 # Sample dataset
 # ---------------------------------------------------------------------------
 
-_SAMPLE_DOCUMENTS = [
-    {
-        "filename": "Rudix Quick Start Guide.pdf",
-        "file_type": "pdf",
-        "source": "sample-dataset",
-        "notes": "Sample document — demonstrates PDF ingestion and citation extraction.",
-        "page_count": 8,
-        "chunk_count": 24,
-    },
-    {
-        "filename": "Enterprise RAG Best Practices.docx",
-        "file_type": "docx",
-        "source": "sample-dataset",
-        "notes": "Sample document — covers retrieval-augmented generation patterns for enterprise teams.",
-        "page_count": 12,
-        "chunk_count": 38,
-    },
-    {
-        "filename": "Data Governance Policy Template.txt",
-        "file_type": "txt",
-        "source": "sample-dataset",
-        "notes": "Sample document — plain-text policy template for knowledge-base governance.",
-        "page_count": None,
-        "chunk_count": 14,
-    },
-]
-
 
 class LoadSampleDatasetResponse(BaseModel):
     created: int
@@ -1941,53 +1929,12 @@ async def load_sample_dataset(
     Only available when the org has sample_docs_enabled=True.  Idempotent — already-present
     sample documents (identified by source='sample-dataset') are skipped.
     """
-    from app.models.organization import Organization as _Org
-
     user_id, organization_id = _principal_user_and_org(principal)
-
-    result = await db_session.execute(select(_Org).where(_Org.id == organization_id))
-    _org = result.scalar_one_or_none()
-    if _org is None or not _org.sample_docs_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Sample dataset is not enabled for this organization.",
-        )
-
-    existing = await db_session.execute(
-        select(Document.filename).where(
-            Document.organization_id == organization_id,
-            Document.source == "sample-dataset",
-        )
+    outcome = await load_sample_dataset_workflow(
+        db_session, organization_id=organization_id, user_id=user_id
     )
-    existing_names = {row[0] for row in existing.all()}
-
-    created_ids: list[str] = []
-    skipped = 0
-    for spec in _SAMPLE_DOCUMENTS:
-        if spec["filename"] in existing_names:
-            skipped += 1
-            continue
-        doc = Document(
-            organization_id=organization_id,
-            uploaded_by_user_id=user_id,
-            filename=spec["filename"],
-            file_type=spec["file_type"],
-            storage_bucket="sample",
-            storage_object_key=f"sample/{organization_id}/{spec['filename']}",
-            status=DocumentStatus.indexed.value,
-            source=spec["source"],
-            notes=spec["notes"],
-            page_count=spec["page_count"],
-            chunk_count=spec["chunk_count"],
-            ingestion_source="upload",
-        )
-        db_session.add(doc)
-        await db_session.flush()
-        created_ids.append(str(doc.id))
-
-    await db_session.commit()
     return LoadSampleDatasetResponse(
-        created=len(created_ids),
-        skipped=skipped,
-        document_ids=created_ids,
+        created=outcome.created,
+        skipped=outcome.skipped,
+        document_ids=outcome.document_ids,
     )

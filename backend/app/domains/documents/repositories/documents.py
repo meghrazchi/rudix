@@ -824,3 +824,16 @@ class DocumentRepository:
             "avg_tokens": round(float(cast(Any, avg_tokens)), 1),
             "total_tokens": int(cast(Any, total_tokens)),
         }
+
+    async def count_org_documents_summary(
+        self, session: AsyncSession, *, organization_id: UUID
+    ) -> tuple[int, int, int]:
+        """Return (non-deleted docs, indexed docs, chunks in indexed docs) in one query."""
+        indexed = Document.status == DocumentStatus.indexed.value
+        stmt = select(
+            func.count(Document.id).filter(Document.status != DocumentStatus.deleted.value),
+            func.count(Document.id).filter(indexed),
+            func.coalesce(func.sum(Document.chunk_count).filter(indexed), 0),
+        ).where(Document.organization_id == organization_id)
+        row = (await session.execute(stmt)).one()
+        return int(row[0] or 0), int(row[1] or 0), int(row[2] or 0)
