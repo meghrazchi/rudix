@@ -18,10 +18,11 @@ MIGRATION_PATH = (
     / "versions"
     / "20261127_0004_tenant_rls_modes.py"
 )
+MIGRATION_0_6_0_PATH = MIGRATION_PATH.with_name("20261128_0001_document_processing_stages.py")
 
 
-def _load_migration() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("migration_20261127_0004", MIGRATION_PATH)
+def _load_migration(path: Path = MIGRATION_PATH) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(f"migration_{path.stem}", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -70,12 +71,20 @@ def test_migration_literal_lists_match_constants() -> None:
     migration = _load_migration()
     assert migration.revision == "20261127_0004"
     assert migration.down_revision == "20261127_0003"
-    assert tuple(migration.STRICT_TABLES) == rls.RLS_STRICT_TABLES
+    assert tuple(migration.STRICT_TABLES) == rls.RLS_STRICT_TABLES_0_4_0
     assert tuple(migration.LOOKUP_TABLES) == rls.RLS_LOOKUP_TABLES
     assert tuple(migration.IDENTITY_TABLES) == rls.RLS_IDENTITY_TABLES
     assert tuple(migration.LEGACY_TABLES) == rls.TENANT_RLS_TABLES
     assert migration.STRICT_CONDITION == rls.STRICT_RLS_CONDITION
     assert migration.LEGACY_CONDITION == rls.LEGACY_RLS_CONDITION
+
+
+def test_0_6_0_migration_literal_matches_the_prefix_it_created() -> None:
+    migration = _load_migration(MIGRATION_0_6_0_PATH)
+    assert migration.revision == "20261128_0001"
+    created = tuple(migration.STRICT_TABLES)
+    assert created == rls.RLS_STRICT_TABLES_0_6_0[: len(created)]
+    assert rls.RLS_STRICT_TABLES == rls.RLS_STRICT_TABLES_0_4_0 + rls.RLS_STRICT_TABLES_0_6_0
 
 
 def test_legacy_builder_is_unchanged() -> None:

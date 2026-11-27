@@ -98,8 +98,9 @@ RLS_IDENTITY_TABLES: tuple[str, ...] = (
 )
 
 # Every other table with an ``organization_id`` column. In ``strict`` mode an unset tenant
-# sees no rows and cannot write.
-RLS_STRICT_TABLES: tuple[str, ...] = (
+# sees no rows and cannot write. The 0.4.0 list is frozen (migration 20261127_0004 copies it);
+# tables added later go into the per-release tuple their migration created.
+RLS_STRICT_TABLES_0_4_0: tuple[str, ...] = (
     "ab_experiments",
     "activity_timeline_events",
     "agent_approvals",
@@ -173,6 +174,14 @@ RLS_STRICT_TABLES: tuple[str, ...] = (
     "webhooks",
     "workspace_portability_jobs",
 )
+
+# 0.6.0 (migration 20261128_0001 created the first two; S2 appends its tables).
+RLS_STRICT_TABLES_0_6_0: tuple[str, ...] = (
+    "document_processing_stages",
+    "document_stage_artifacts",
+)
+
+RLS_STRICT_TABLES: tuple[str, ...] = RLS_STRICT_TABLES_0_4_0 + RLS_STRICT_TABLES_0_6_0
 
 LEGACY_RLS_CONDITION = f"{_SETTING_ORG} IS NULL OR organization_id = {_SETTING_ORG}::uuid"
 STRICT_RLS_CONDITION = (

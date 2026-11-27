@@ -50,6 +50,7 @@ from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun, SyncCo
 from app.models.contact import ContactSubmission
 from app.models.custom_role import CustomRole, CustomRolePermission
 from app.models.document import Document, DocumentChunk, DocumentPage
+from app.models.document_processing import DocumentProcessingStage, DocumentStageArtifact
 from app.models.document_version import DocumentVersion
 from app.models.email import EmailDeliveryLog, UserNotificationPreference
 from app.models.evaluation import (
@@ -139,6 +140,8 @@ __all__ = [
     "DocumentChunk",
     "DocumentMetadata",
     "DocumentPage",
+    "DocumentProcessingStage",
+    "DocumentStageArtifact",
     "DocumentVersion",
     "EmailDeliveryLog",
     "EvaluationDatasetVersion",
