@@ -1,5 +1,5 @@
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -238,6 +238,39 @@ async def test_chat_repository_crud(
         session_ids=[chat_session.id],
     )
     assert message_counts[chat_session.id] == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_rows_can_be_written_under_pre_assigned_ids(
+    db_session: AsyncSession,
+    chat_repository: ChatRepository,
+    organization_user_ids: tuple[UUID, UUID],
+) -> None:
+    """R05-02: the chat pipeline assigns the session and assistant message ids up front."""
+    organization_id, user_id = organization_user_ids
+    session_id, message_id = uuid4(), uuid4()
+
+    chat_session = await chat_repository.create_chat_session(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        title="Pre-assigned",
+        session_id=session_id,
+    )
+    message = await chat_repository.create_chat_message(
+        db_session,
+        chat_session_id=session_id,
+        content="Answer",
+        role="assistant",
+        message_id=message_id,
+    )
+    default_message = await chat_repository.create_chat_message(
+        db_session, chat_session_id=session_id, content="Question"
+    )
+
+    assert chat_session.id == session_id
+    assert message.id == message_id
+    assert default_message.id not in {message_id, session_id}
 
 
 @pytest.mark.asyncio

@@ -46,12 +46,17 @@ class ChatRepository:
         organization_id: UUID,
         user_id: UUID,
         title: str | None = None,
+        session_id: UUID | None = None,
     ) -> ChatSession:
+        # ``session_id`` lets the chat pipeline write the row under an id it assigned at
+        # the start of the run (R05-02); otherwise the column default applies.
         chat_session = ChatSession(
             organization_id=organization_id,
             user_id=user_id,
             title=title,
         )
+        if session_id is not None:
+            chat_session.id = session_id
         session.add(chat_session)
         await session.flush()
         await session.refresh(chat_session)
@@ -237,6 +242,7 @@ class ChatRepository:
         cost_usd: Decimal | None = None,
         prompt_template_version_id: UUID | None = None,
         trust_metadata_json: dict | None = None,
+        message_id: UUID | None = None,
     ) -> ChatMessage:
         message = ChatMessage(
             chat_session_id=chat_session_id,
@@ -251,6 +257,9 @@ class ChatRepository:
             prompt_template_version_id=prompt_template_version_id,
             trust_metadata_json=trust_metadata_json,
         )
+        if message_id is not None:
+            # Pre-assigned by the chat pipeline so WebSocket events carry it early (R05-02).
+            message.id = message_id
         session.add(message)
         await session.flush()
         await session.refresh(message)
