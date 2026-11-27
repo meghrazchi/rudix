@@ -4360,6 +4360,17 @@
               ],
               "title": "Include Total"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["asc", "desc"],
+              "type": "string",
+              "default": "asc",
+              "title": "Order"
+            }
           }
         ],
         "responses": {
@@ -4457,6 +4468,45 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ChatQueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/query/stream": {
+      "post": {
+        "tags": ["chat"],
+        "summary": "Query Chat Stream",
+        "operationId": "query_chat_stream_api_v1_chat_query_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events: `id`/`event`/`data` frames whose data is a chat event envelope (generation.delta, generation.final, chat.completed, chat.error).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }

@@ -182,7 +182,7 @@ does not read and discard the `offset` rows before it (R04-04).
 | Endpoint | Cursor order |
 |---|---|
 | `GET /chat/sessions` | `updated_at` desc, `id` desc |
-| `GET /chat/sessions/{session_id}/messages` | `created_at` asc, role (user before assistant), `id` asc |
+| `GET /chat/sessions/{session_id}/messages` | `created_at` asc, role (user before assistant), `id` asc; reversed with `order=desc` |
 | `GET /documents` | `created_at` (direction from `sort_order`), `id` desc; only with `sort_by=created_at` |
 | `GET /notifications` | `created_at` desc, `id` desc |
 | `GET /admin/audit-logs` | `created_at` desc, `id` desc |
@@ -989,6 +989,52 @@ Response:
 }
 ```
 
+### GET `/chat/sessions/{session_id}/messages`
+
+List the messages of one of the caller's own chat sessions (R04-04 cursors, R05-11 order).
+
+Query parameters:
+
+| Name | Default | Notes |
+|---|---|---|
+| `order` | `asc` | `asc`: oldest first (conversation order, the behaviour before `0.5.0`). `desc`: newest first, for loading the latest page of a long history first. |
+| `limit` | `200` | 1 to 500 |
+| `offset` | `0` | Cannot be combined with `cursor` |
+| `cursor` | none | `next_cursor` of the previous page in the same `order` |
+| `include_total` | `true` without a cursor, `false` with one | |
+
+- The sort key is `(created_at, role rank, id)` with the user turn before the assistant turn
+  within one timestamp; `desc` walks the same key backwards, so a full `desc` walk is exactly
+  the reversed `asc` walk.
+- Items are returned in the order requested. A client that renders oldest at the top reverses
+  each `desc` page.
+- A cursor is bound to its order: an `asc` cursor sent with `order=desc` (or the reverse) is
+  rejected with `400` `Invalid pagination cursor`.
+- A session that does not exist, belongs to another user, or belongs to another organisation
+  returns `404` `Chat session not found` in both orders.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "message_id": "uuid",
+      "role": "assistant",
+      "content": "...",
+      "confidence_score": 0.82,
+      "confidence_category": "high",
+      "citations": [],
+      "created_at": "2026-05-07T10:01:10Z"
+    }
+  ],
+  "total": null,
+  "limit": 50,
+  "offset": 0,
+  "next_cursor": "opaque"
+}
+```
+
 ### POST `/chat`
 
 Main real-time RAG query endpoint.
@@ -1202,7 +1248,9 @@ sends `{"command": "chat.start", "payload": <ChatQueryRequest>}` (also `chat.can
 ```
 
 Events include `chat.request.received`, `activity.step.update`, `retrieval.started`,
-`retrieval.completed`, `generation.delta`, `chat.completed`, `chat.cancelled`, and `chat.error`.
+`retrieval.completed`, `generation.started`, `generation.delta`, `generation.replace`,
+`generation.final`, `chat.completed`, `chat.cancelled`, and `chat.error` (see
+[Chat event protocol](#chat-event-protocol)).
 
 Parity with `POST /chat` (shared code in `backend/app/application/chat/`):
 
@@ -1290,6 +1338,95 @@ Errors:
 - `503` with `detail.code = "ws_ticket_unavailable"` when Redis is missing or failing.
 - `503` with `detail.code = "chat_websocket_disabled"` when `FEATURE_CHAT_WEBSOCKET_ENABLED=false`.
 - `401`, `403`, and `429` as for any protected chat route.
+
+### Chat event protocol
+
+`/chat/ws` and `POST /chat/query/stream` send the same events in the same envelope (shown under
+WebSocket `/chat/ws`). Since 0.5.0 (R05-03) the answer text streams as the model writes it.
+
+Per answer (contract 4.2.6 of `docs/roadmap/V0_5_0_IMPLEMENTATION_PLAN.md`):
+
+1. `generation.started` with `payload.mode = "live" | "buffered"`.
+2. Any number of `generation.delta` (`{"text": <increment>}`).
+3. Optional `generation.replace` (`{"text": <full text>, "reason": "verification" | "policy" |
+   "retry" | "fallback" | "normalisation"}`).
+4. `citation.validation.*`.
+5. `generation.final` (`{"answer", "not_found", "citations", "confidence_score",
+   "confidence_category", "citation_validation_failed"}`).
+6. The existing `chat.completed` after persistence.
+
+Text before `generation.final` is provisional. On `generation.replace` the client replaces all
+streamed text; `chat.completed` stays the source of truth. `message_id` (the pre-assigned
+assistant message id) is set on every event from `generation.started` on.
+
+Client rules:
+
+- Append each `generation.delta` text to the provisional answer. Render it as provisional (for
+  example without citation markers or confidence); deltas never carry citations.
+- On `generation.replace`, discard everything streamed so far and show `payload.text` (it may be
+  `""`). Later deltas append to that text.
+- On `generation.final`, show `payload.answer` with its citations and confidence. It is the
+  validated answer; nothing after it changes the text.
+- On `chat.completed`, store `payload.response` (the `ChatQueryResponse` of `POST /chat`, with
+  the persisted citation ids). Clients that only read `chat.completed`, or that treat one delta
+  as the whole answer and then wait for `chat.completed`, keep working.
+- `chat.error` can follow any event; provisional text must then be dropped.
+
+When each event is sent:
+
+- `live` mode: the decoded text of the model's JSON `answer` field streams as it arrives. Output
+  that is not a JSON object streams nothing and is sent with `generation.replace`.
+- `buffered` mode (strict grounded verification, an AI response policy with a post-generation
+  rule that can refuse the answer — `citation_mode = "required"`, `min_sources_required`,
+  `min_confidence_threshold`, `no_answer_behavior = "refuse"`, `stale_source_behavior =
+  "refuse"` — tree search, or `CHAT_STREAM_MODE=buffered`): no delta is sent until citations
+  are validated; the verified text then goes out as `generation.delta`, followed by
+  `generation.final`. Text the policy or verifier would withhold is never streamed.
+- A provider retry or fallback after text was streamed sends `generation.replace` with
+  `{"text": "", "reason": "retry" | "fallback"}` before the new attempt's deltas.
+- After verification, when the final text differs from the streamed text, one
+  `generation.replace` carries the final text with the last reason that changed it: `policy`
+  (post-generation block or disclaimer), `verification` (grounded verifier or refiner), or
+  `normalisation` (whitespace trimming, length cap, not-found mapping). This replace comes
+  after the `citation.validation.*` events and before `generation.final`.
+- Guidance answers stream like grounded answers (`live` unless a blocking policy or
+  `CHAT_STREAM_MODE=buffered`); scope-inventory answers send one delta. A blocked question
+  (injection guard, policy topic) or a question with no evidence sends no `generation.started`
+  and no delta, only `generation.final` and `chat.completed`.
+- Cancelling (`chat.cancel` on the WebSocket, a client disconnect on SSE) closes the provider
+  stream. No message is stored and no question is counted against the quota; the tokens spent
+  are recorded as a `usage_events` row with `event_type = "chat.completion.cancelled"`
+  (provider-reported usage, or chars / 4 estimates with `metadata.usage_estimated = true`).
+
+### POST `/chat/query/stream`
+
+Server-Sent Events form of `POST /chat` for clients that cannot use WebSockets. Same request
+body (`ChatQueryRequest`), roles (owner, admin, member, viewer), `chat` rate-limit scope, quota,
+and pipeline.
+
+- Authorisation, the injection guard, and configuration (pipeline stages 1-3) finish before the
+  response starts, so their refusals return the same status and `detail` as `POST /chat`
+  (`403` with `detail.code = "plan_limit_exceeded"`, `404` for an unknown document or chat
+  session, `401`, `429`). Any later failure is sent as a `chat.error` event with the WebSocket
+  `safe_error_code` values, and the stream ends.
+- Response `200` with `Content-Type: text/event-stream`, `Cache-Control: no-store`, and
+  `X-Accel-Buffering: no`. GZip never compresses this media type.
+- Frames (one per event; `data` is the event envelope JSON on one line, and `id` equals its
+  `sequence`):
+
+```text
+id: 12
+event: generation.delta
+data: {"event":"generation.delta","request_id":"…","conversation_id":"…","message_id":"…","sequence":12,"timestamp":"…","payload":{"text":"Employees receive"},"safe_error_code":null}
+
+```
+
+- The first event is `chat.request.received` and the last is `chat.completed` or `chat.error`.
+  A `: keep-alive` comment is sent when no event was sent for
+  `WS_CHAT_HEARTBEAT_INTERVAL_SECONDS`.
+- A client disconnect cancels the run at once (partial usage as above). There is no resume for
+  SSE; reconnecting starts a new question.
+- Usage rows of SSE answers carry `metadata.transport = "sse"`.
 
 ### POST `/chat/sessions/{session_id}/messages`
 

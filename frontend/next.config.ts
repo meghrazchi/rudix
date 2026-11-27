@@ -45,6 +45,9 @@ const nextConfig: NextConfig = {
   // headers() and rewrites() are evaluated once at `next build` and baked into
   // the output, so security headers come from the build environment.
   output: "standalone",
+  // A second dev server (the Playwright WebSocket-chat project) needs its own
+  // build directory; everything else uses the default.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   async headers() {
     return [
       {

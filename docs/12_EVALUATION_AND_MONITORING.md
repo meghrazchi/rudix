@@ -547,6 +547,37 @@ legacy bodies are gone and `CHAT_PIPELINE_V2` has no effect) and record one obse
 - `CHAT_PIPELINE_V2=false` is ignored since 0.5.0 (startup warning `chat.pipeline_v2_ignored`);
   every chat request records the stage metrics.
 
+### Chat streaming and time to first token (R05-03)
+
+The WebSocket and `POST /chat/query/stream` (SSE) stream the answer as it is generated.
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_chat_ttft_seconds` | `transport` (`ws`, `sse`) | Pipeline start to the first answer text sent: the first `generation.delta` in `live` mode, the first verified delta in `buffered` mode, or `generation.final` when no delta was sent (blocked or no-evidence answers). One observation per answer; `POST /chat` does not record it. |
+| `rudix_chat_stream_cancelled_total` | `transport` | Answers cancelled before completion (`chat.cancel`, SSE client disconnect). |
+
+- Dashboard: Grafana `06 — Rudix Chat Pipeline`
+  (`infra/observability/grafana/dashboards/06-rudix-chat-pipeline.json`) shows TTFT p50/p95 per
+  transport, cancellations, `rudix_chat_stage_seconds` p95, `rudix_chat_stage_skipped_total`,
+  `rudix_llm_breaker_state`, and `rudix_chat_tokens_total`. The last three panels stay empty
+  until the budget, breaker, and ledger metrics ship (R05-04, R05-06, R05-07).
+- Alert: `RudixChatTimeToFirstTokenHigh` (group `rudix-chat-streaming` in
+  `infra/observability/prometheus/alerts.yml`) fires when TTFT p95 stays above 2.5 s for
+  10 minutes. The 2.5 s target is not measured in CI (no load environment); it is checked in
+  the staging load baseline.
+- Buffered answers (strict grounded verification, blocking AI-policy rules, tree search,
+  `CHAT_STREAM_MODE=buffered`) wait for verification, so their TTFT is close to the full
+  answer latency. Compare TTFT with `rudix_chat_stage_seconds{stage="verify"}` before tuning.
+- A cancelled answer writes one `usage_events` row with `event_type =
+  "chat.completion.cancelled"`: the tokens already spent (provider-reported usage, else chars / 4
+  estimates with `metadata.usage_estimated = true`), no chat message, and no question counted.
+  Usage dashboards that sum `chat.completion` rows do not include these; add the event type
+  when reporting total spend.
+- Logs: `chat.stream.cancelled` (transport, stream mode, ids) and
+  `chat.stream.cancelled_usage_failed` (error type only) when the partial-usage write fails or
+  times out; `chat.sse.stream_started` when an SSE stream passed stages 1-3. No question,
+  prompt, answer, or document text is logged.
+
 ### Chat token ledger and context injection scan (R05-07, R05-09)
 
 Every provider call of a chat run is recorded in a per-request token ledger. **Reported totals

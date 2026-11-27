@@ -39,9 +39,14 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/graph/entities/[entityId]`
   - `/chat`
     - module map (`src/components/chat/`): `ChatPage.tsx` is the route shell (and re-exports `toTurnResponseFromHistoryMessage`); `ChatSidebar` (session list, search, rename/delete), `ChatHeader`, `ChatThread` > `ChatTurnItem` (+ `ChatCitationChips`, `ChatTurnActions`) and `StreamingMessage` (in-progress turn), `ChatComposerPane` > `ChatComposer` (+ `ChatComposerCommands` settings popover), `EvidenceAside` (`CitationDetails`, `KnowledgeHub`, `AgentRunTimeline`, `RetrievalDebug`), `ScopeControls` (+ `ScopeConnectorSection`), `TrustPanelModal`, `DeleteSessionModal` and `ChatFeedbackModals`
-    - hooks (`chat/hooks/`): `useChatSession` (sessions query, selection, `?session_id` URL sync, history, mutations), `useChatSettings` (persisted `rudix.chat.settings.v1`), `useChatScope` + `useChatSourceQueries` + `useContextModal`, `useChatStream` (one interface over `useChatWebSocket` or the HTTP mutation, chosen by `NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED`), `useChatSubmit`, `useChatFeedback`, `useChatOverlays`, `useCitationPanel`, `useAgentRunTimeline`
+    - hooks (`chat/hooks/`): `useChatSession` (sessions query, selection, `?session_id` URL sync, history, mutations), `useChatSettings` (persisted per organisation and user), `useChatScope` + `useChatSourceQueries` + `useContextModal`, `useChatStream` (one interface over `useChatWebSocket` or the HTTP mutation, chosen by `NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED`), `useChatSubmit`, `useChatFeedback`, `useChatOverlays`, `useCitationPanel`, `useAgentRunTimeline`
     - pure helpers: `chat-types.ts`, `chat-format.ts`, `chat-citations.ts`, `chat-turns.ts`, `chat-connectors.ts`, `chat-session-utils.ts`
     - `AnswerTrustPanel` keeps its props and composes the sections in `chat/trust-panel/` (confidence, sources, retrieval diagnostics, model, GraphRAG, policy, conflicts, verification, planner/critic, tool orchestration); the answer-explanation dialog loads it with `React.lazy` and a `Suspense` fallback
+    - streaming render (R05-11): `generation.delta` text goes into a ref-backed store (`src/lib/chat/streaming-text-store.ts`) that notifies at most once per animation frame (16 ms timer without `requestAnimationFrame`); `StreamingMessage` is its only subscriber (`useSyncExternalStore`), so a token re-renders nothing else. `generation.replace` replaces all streamed text, `generation.final` sets the authoritative text; until then the text is provisional (`data-stream-state="provisional"`, no citation markers) and `chat.completed` still produces the finished turn. `useChatWebSocket().partialAnswer` is a live getter over the store
+    - `ChatTurnItem` is `React.memo` with primitive props and one stable handlers object (`useChatTurnHandlers`); threads with more than `NEXT_PUBLIC_CHAT_VIRTUALIZE_MIN_TURNS` turns (default `50`) are virtualised with `@tanstack/react-virtual` (`ChatTurnRows`, rows measured with `measureElement`)
+    - history loads newest page first (`GET /chat/sessions/{id}/messages?order=desc`, `NEXT_PUBLIC_CHAT_HISTORY_PAGE_SIZE` messages, default `100`, max `500`); scrolling to the top (or "Load earlier messages") loads the next older page by cursor and keeps the scroll position (`chat-history.ts`, `useChatHistoryPages`, `useThreadScroll`). The view follows new content only while the user is at the bottom, and never smooth-scrolls per token
+    - reconnect (R05-13): after an unexpected close during a run, `ChatWSClient` reconnects with exponential backoff and full jitter (500 ms base, 15 s cap, 8 attempts; `reconnect` option), a fresh ticket per attempt, and sends `chat.resume` with the `message_id` and last `stream_sequence`; the hook discards events whose `(message_id, stream_sequence)` it already applied and any second terminal event. Close codes `4401`, `4403`, `4503` and `1008` are not retried. The composer shows "Reconnecting..." meanwhile; `resume_unavailable`, `provider_busy` and `connection_lost` have translated messages (`chat-ws-errors.ts`)
+    - `useChatSettings` stores under `rudix.chat.settings.v1:<organizationId>:<userId>` from the auth session; the old global `rudix.chat.settings.v1` key is never read and is deleted on first read (it may belong to another user of the browser)
   - `/evaluations`
   - `/reports` with role-aware report navigation and shared global filters
   - `/rag-pipeline` Pipeline Explorer
@@ -717,6 +722,8 @@ Key responsive behaviours:
 - **Tables**: all data tables are wrapped in `overflow-x-auto` so they scroll horizontally rather than clipping on narrow screens.
 - **Public pages**: marketing/landing pages are responsive from 375 px upward using standard `sm:` / `md:` / `lg:` Tailwind breakpoints.
 
+WebSocket chat specs (`e2e/chat-ws-*.spec.ts`) run in the `chromium-chat-ws` Playwright project against a second dev server on `PLAYWRIGHT_WS_FRONTEND_PORT` (default `3102`) started with `NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED=true` and `NEXT_DIST_DIR=.next-e2e-ws` (NEXT_PUBLIC values are inlined at compile time); every other spec runs unchanged in the `chromium` project. `e2e/chat-ws-resume.spec.ts` serves the socket with `page.routeWebSocket`, drops it mid-stream and checks the resume.
+
 Responsive Playwright tests are in `e2e/responsive.spec.ts` and cover mobile, tablet, and desktop viewports for the main shell, chat, and public landing page.
 
 ## Notes
@@ -734,8 +741,8 @@ Responsive Playwright tests are in `e2e/responsive.spec.ts` and cover mobile, ta
   `resolveChatWsAuthParam()` in `src/lib/chat-ws-auth.ts` calls `createChatWsTicket()`
   (`POST /chat/ws-ticket`), which sends `X-Organization-Id`, so the ticket is bound to the
   active workspace. Tickets are single use and are never cached; a reconnect fetches a new one.
-- Only a backend without the ticket endpoint (`404`/`405`) gets the legacy `?token=` handshake.
-  This fallback is removed with the query token in 0.5.0.
-- Any other ticket failure (`503`, `429`, network) puts the client in the error state and the chat
-  page shows `chat.page.wsErrors.wsTicketUnavailable`. There is no silent downgrade to `?token=`.
+- Ticket only (0.5.0, R05-13): the legacy `?token=` fallback is removed. Every ticket failure,
+  including a backend without the ticket endpoint (`404`/`405`), `503`, `429` or a network error,
+  puts the client in the error state and the chat page shows
+  `chat.page.wsErrors.wsTicketUnavailable`.
 - Commands sent while the ticket is being fetched are queued and flushed when the socket opens.

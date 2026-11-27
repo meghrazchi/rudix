@@ -5,8 +5,11 @@
  */
 export const CHAT_WS_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   plan_limit_exceeded: "planLimitExceeded",
+  provider_busy: "providerBusy",
   rate_limit_exceeded: "rateLimitExceeded",
   rate_limiter_unavailable: "rateLimiterUnavailable",
+  resume_unavailable: "resumeUnavailable",
+  connection_lost: "connectionLost",
   ws_ticket_unavailable: "wsTicketUnavailable",
 };
 

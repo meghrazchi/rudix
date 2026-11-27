@@ -85,3 +85,14 @@ groups:
         annotations:
           summary: "Partitioned table {{ $labels.table }} has no partition for next month"
           description: "maintenance.partitions.ensure could not create next month's partition (see maintenance.partitions.ensure_failed logs). Inserts dated next month will fail once it starts. Run the task again or create the partition by hand. Only tables already converted to partitions report this metric."
+
+  - name: rudix-chat-streaming
+    rules:
+      - alert: RudixChatTimeToFirstTokenHigh
+        expr: histogram_quantile(0.95, sum by (le, transport) (rate(rudix_chat_ttft_seconds_bucket[10m]))) > 2.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chat time to first token p95 is above 2.5 s on {{ $labels.transport }}"
+          description: "p95 of rudix_chat_ttft_seconds has stayed at {{ $value }} s for 10 minutes. Check rudix_chat_stage_seconds for the slow stage (retrieval, rerank, provider latency) and whether CHAT_STREAM_MODE, strict verification, or a blocking AI-policy rule buffers the answer."

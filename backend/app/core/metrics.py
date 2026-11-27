@@ -314,6 +314,23 @@ CHAT_WS_AUTH_TOTAL = Counter(
     registry=registry,
 )
 
+# R05-03: pipeline start to the first answer text sent (first delta; in buffered mode the
+# first verified delta; generation.final when no delta was sent). Observed once per answer.
+CHAT_TTFT_SECONDS = Histogram(
+    "rudix_chat_ttft_seconds",
+    "Chat time to first answer token in seconds, by transport",
+    ["transport"],
+    buckets=(0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0, 20.0),
+    registry=registry,
+)
+
+CHAT_STREAM_CANCELLED_TOTAL = Counter(
+    "rudix_chat_stream_cancelled_total",
+    "Chat answers cancelled before completion (chat.cancel or client disconnect)",
+    ["transport"],
+    registry=registry,
+)
+
 DEPENDENCY_READINESS = Gauge(
     "rudix_dependency_readiness",
     "Health and readiness status of backing dependencies (1 = healthy, 0 = degraded)",

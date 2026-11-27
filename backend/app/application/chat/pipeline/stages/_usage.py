@@ -27,8 +27,13 @@ def _prompt_template_meta(ctx: ChatContext) -> dict[str, Any] | None:
 
 def transport_fields(ctx: ChatContext) -> dict[str, Any]:
     """``{"transport": "websocket"}`` on WebSocket runs, as the WebSocket path recorded
-    before the pipeline; HTTP rows and logs stay unchanged."""
-    return {"transport": "websocket"} if ctx.request.transport == "ws" else {}
+    before the pipeline, and ``{"transport": "sse"}`` on ``POST /chat/query/stream``
+    (R05-03); HTTP rows and logs stay unchanged."""
+    if ctx.request.transport == "ws":
+        return {"transport": "websocket"}
+    if ctx.request.transport == "sse":
+        return {"transport": "sse"}
+    return {}
 
 
 def usage_metadata(ctx: ChatContext) -> dict[str, Any]:
@@ -97,6 +102,8 @@ def usage_metadata(ctx: ChatContext) -> dict[str, Any]:
         "fallback_to": gen.llm_fallback_to,
         "fallback_reason": gen.llm_fallback_reason,
         "prompt_template": _prompt_template_meta(ctx),
+        # R05-03: only present when a provider stream reported no usage (chars / 4).
+        **({"usage_estimated": True} if ctx.ledger.totals().estimated else {}),
         **transport_fields(ctx),
     }
 

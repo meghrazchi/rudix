@@ -88,6 +88,16 @@ export const STREAMING_PLACEHOLDER_ENABLED =
   process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
 export const CHAT_WEBSOCKET_ENABLED =
   process.env.NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED === "true";
+/** Threads with more turns than this are virtualised (R05-11). */
+export const CHAT_VIRTUALIZE_MIN_TURNS = parsePositiveIntegerEnv(
+  process.env.NEXT_PUBLIC_CHAT_VIRTUALIZE_MIN_TURNS,
+  50,
+);
+/** Messages per history page, newest page first (R05-11). */
+export const CHAT_HISTORY_PAGE_SIZE = Math.min(
+  parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_HISTORY_PAGE_SIZE, 100),
+  500,
+);
 
 export type ChatTurn = {
   question: string;

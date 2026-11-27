@@ -372,7 +372,9 @@
     },
     {
       "event": "generation.started",
-      "payload_keys": []
+      "payload_keys": [
+        "mode"
+      ]
     },
     {
       "event": "activity.step.update",
@@ -386,10 +388,6 @@
       ],
       "state": "running",
       "step_key": "drafting_answer"
-    },
-    {
-      "event": "generation.delta",
-      "text": "Employees receive twenty days of annual leave."
     },
     {
       "event": "activity.step.update",
@@ -439,6 +437,21 @@
       ],
       "state": "success",
       "step_key": "verifying_citations"
+    },
+    {
+      "event": "generation.delta",
+      "text": "Confidence is too low to answer."
+    },
+    {
+      "event": "generation.final",
+      "payload_keys": [
+        "answer",
+        "citation_validation_failed",
+        "citations",
+        "confidence_category",
+        "confidence_score",
+        "not_found"
+      ]
     },
     {
       "event": "activity.step.update",

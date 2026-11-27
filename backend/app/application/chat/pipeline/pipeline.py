@@ -9,14 +9,19 @@ session), binds the tenant context variable for its whole duration (tasks it sta
 parallel retrieval branches, inherit it), and ends the read phase of its session scope after
 the shortcut stage, so no connection is held from rewriting onwards except inside a short
 lookup or the final write.
+
+R05-03: a cancelled run (``chat.cancel``, SSE disconnect) records its partial usage before
+the cancellation propagates (``partial_usage.py``).
 """
 
+import asyncio
 from collections.abc import Sequence
 from uuid import uuid4
 
 from app.application.chat.pipeline.context import ChatContext, RequestState, RunIds
 from app.application.chat.pipeline.deps import ChatPipelineDeps
 from app.application.chat.pipeline.events import ActivityStepEmitter, Emitter
+from app.application.chat.pipeline.partial_usage import record_cancelled_usage
 from app.application.chat.pipeline.request_helpers import _principal_user_and_org
 from app.application.chat.pipeline.runner import Stage, StageRunner
 from app.application.chat.pipeline.sessions import ChatSessionScope
@@ -118,5 +123,9 @@ class ChatPipeline:
         with tenant_context_scope(organization_id):
             try:
                 return await self._runner.run(ctx)
+            except asyncio.CancelledError:
+                # R05-03: chat.cancel or a client disconnect; record what was spent.
+                await record_cancelled_usage(ctx)
+                raise
             finally:
                 await scope.close()

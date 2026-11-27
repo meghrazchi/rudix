@@ -1,43 +1,52 @@
+import { memo } from "react";
+
 import { useTranslations } from "next-intl";
 
 import { ChatCitationChips } from "@/components/chat/ChatCitationChips";
-import { ChatTurnActions } from "@/components/chat/ChatTurnActions";
+import {
+  ChatTurnActions,
+  type ChatTurnView,
+} from "@/components/chat/ChatTurnActions";
 import { ConflictWarningCard } from "@/components/chat/ConflictIndicators";
 import { agentRunStatusClass } from "@/components/chat/chat-session-utils";
 import type { ChatTurn } from "@/components/chat/chat-types";
-import type { ChatFeedbackController } from "@/components/chat/hooks/useChatFeedback";
-import type { ChatOverlaysController } from "@/components/chat/hooks/useChatOverlays";
-import type { ChatSessionController } from "@/components/chat/hooks/useChatSession";
-import type { CitationPanelController } from "@/components/chat/hooks/useCitationPanel";
+import type { ChatTurnHandlers } from "@/components/chat/hooks/useChatTurnHandlers";
 import { SuggestedKnowledgeCard } from "@/components/verified-answers/SuggestedKnowledgeCard";
 
-export function ChatTurnItem({
-  turn,
-  isLatestTurn,
-  selectedCollectionIds,
-  regenerateDisabled,
-  onRegenerate,
-  session,
-  panel,
-  feedback,
-  overlays,
-}: {
+export type ChatTurnItemProps = ChatTurnView & {
   turn: ChatTurn;
-  isLatestTurn: boolean;
-  selectedCollectionIds: string[];
-  regenerateDisabled: boolean;
-  onRegenerate: (question: string) => void;
-  session: ChatSessionController;
-  panel: CitationPanelController;
-  feedback: ChatFeedbackController;
-  overlays: ChatOverlaysController;
-}) {
+  /** First selected collection, for knowledge-card suggestions. */
+  collectionId: string | null;
+  /** Stable for the life of the thread (useChatTurnHandlers). */
+  handlers: ChatTurnHandlers;
+  /** Position in the thread; set as data-index for the virtualiser. */
+  index?: number;
+  /** Virtualiser measuring ref (stable), so rows can have dynamic heights. */
+  measureRef?: (element: Element | null) => void;
+};
+
+/**
+ * One completed question/answer turn. Memoised (R05-11): every prop is a
+ * primitive, the immutable turn object, or the stable handlers object, so a
+ * streaming token or an unrelated page update never re-renders it.
+ */
+export const ChatTurnItem = memo(function ChatTurnItem({
+  turn,
+  collectionId,
+  handlers,
+  index,
+  measureRef,
+  ...view
+}: ChatTurnItemProps) {
   const tc = useTranslations("chat.page");
-  const { setSelectedResponseMessageId } = session;
-  const { setIsKnowledgeHubOpen } = panel;
 
   return (
-    <li key={turn.response.message_id} className="space-y-3">
+    <li
+      ref={measureRef}
+      data-index={index}
+      data-chat-turn={turn.response.message_id}
+      className="space-y-3"
+    >
       <div className="flex flex-col items-end gap-2">
         <article className="max-w-[85%] rounded-3xl rounded-tr-none bg-[#f0ecf9] px-6 py-4 shadow-sm">
           <p className="sr-only">{tc("questionLabel")}</p>
@@ -141,7 +150,7 @@ export function ChatTurnItem({
             {!turn.response.not_found && (
               <SuggestedKnowledgeCard
                 query={turn.question}
-                collectionId={selectedCollectionIds[0] ?? null}
+                collectionId={collectionId}
               />
             )}
             {turn.response.not_found ? (
@@ -156,17 +165,12 @@ export function ChatTurnItem({
                 <p className="rudix-chat-scrollbar max-h-80 overflow-y-auto pr-1 text-[16px] leading-relaxed break-words whitespace-pre-wrap text-[#2f2a46]">
                   {turn.response.answer}
                 </p>
-                <ChatCitationChips
-                  turn={turn}
-                  session={session}
-                  panel={panel}
-                />
+                <ChatCitationChips turn={turn} handlers={handlers} />
                 {turn.response.citations[0]?.text_snippet && (
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedResponseMessageId(turn.response.message_id);
-                      setIsKnowledgeHubOpen(true);
+                      handlers.openKnowledgeHub(turn.response.message_id);
                     }}
                     className="mt-4 w-full cursor-pointer rounded-3xl border border-[#e4e1ee] bg-white px-5 py-4 text-left text-sm leading-relaxed text-[#464555] italic shadow-sm transition-colors hover:border-[#c3c0ff] hover:bg-[#f5f2ff]"
                   >
@@ -183,17 +187,9 @@ export function ChatTurnItem({
               </p>
             ) : null}
           </article>
-          <ChatTurnActions
-            turn={turn}
-            isLatestTurn={isLatestTurn}
-            regenerateDisabled={regenerateDisabled}
-            onRegenerate={onRegenerate}
-            session={session}
-            feedback={feedback}
-            overlays={overlays}
-          />
+          <ChatTurnActions turn={turn} view={view} handlers={handlers} />
         </div>
       </div>
     </li>
   );
-}
+});

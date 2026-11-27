@@ -6,6 +6,7 @@
 
 # Runtime artifacts not needed at build time
 .next
+.next-e2e-ws
 node_modules
 
 # Dev/test files

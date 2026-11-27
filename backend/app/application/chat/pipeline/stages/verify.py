@@ -15,6 +15,7 @@ from app.application.chat.pipeline.stages._confidence import (
     enrich_citations_and_score,
     score_not_found,
 )
+from app.application.chat.pipeline.stages._final import emit_final_events
 from app.application.chat.pipeline.stages._ledger import record_aux_usage
 from app.application.chat.pipeline.stages.policies import ACTION_ANSWER_WITHHELD, run_with_budget
 from app.core.logging import log_query_event
@@ -67,6 +68,7 @@ class VerifyStage:
         self._policy_post_check(ctx)
         # The answer, citations, and confidence are final from here on.
         # anchor: A1 final event
+        await emit_final_events(ctx)
 
     @staticmethod
     async def _grounded_verification(ctx: ChatContext) -> None:

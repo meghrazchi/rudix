@@ -42,7 +42,10 @@ export function ChatPage() {
   const [question, setQuestion] = useState("");
   const activeOrgId = state.session?.organizationId ?? null;
 
-  const settings = useChatSettings();
+  const settings = useChatSettings({
+    organizationId: activeOrgId,
+    userId: state.session?.userId ?? null,
+  });
   const feedback = useChatFeedback();
   const overlays = useChatOverlays();
   const contextModal = useContextModal();

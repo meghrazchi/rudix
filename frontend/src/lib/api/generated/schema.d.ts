@@ -1372,6 +1372,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat/query/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Query Chat Stream */
+        post: operations["query_chat_stream_api_v1_chat_query_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chat/messages/{message_id}/trust-metadata": {
         parameters: {
             query?: never;
@@ -25764,6 +25781,7 @@ export interface operations {
                 offset?: number;
                 cursor?: string | null;
                 include_total?: boolean | null;
+                order?: "asc" | "desc";
             };
             header?: never;
             path: {
@@ -25848,6 +25866,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatQueryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    query_chat_stream_api_v1_chat_query_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatQueryRequest"];
+            };
+        };
+        responses: {
+            /** @description Server-Sent Events: `id`/`event`/`data` frames whose data is a chat event envelope (generation.delta, generation.final, chat.completed, chat.error). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
                 };
             };
             /** @description Validation Error */
