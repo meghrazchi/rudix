@@ -13,6 +13,9 @@ with an ``organization_id`` column and makes the policy aware of ``app.rls_mode`
 - Lookup tables (read before a tenant is known: credentials, share tokens, SSO and SCIM
   discovery, OAuth state, bot inbound, public status): the legacy condition, an unset
   tenant is never denied.
+- Identity tables (``users``, ``organization_members``, ``auth_refresh_sessions``): no
+  policy. A user spans organizations, and a request bound to one organization must still
+  read the user, every membership, and revoke the user's sessions everywhere.
 
 Data-safety notes:
 - No rows or columns change. ``FORCE ROW LEVEL SECURITY`` is not applied, so the table
@@ -59,9 +62,6 @@ LEGACY_TABLES: tuple[str, ...] = (
 )
 
 LOOKUP_TABLES: tuple[str, ...] = (
-    "users",
-    "organization_members",
-    "auth_refresh_sessions",
     "api_keys",
     "service_accounts",
     "service_account_tokens",
@@ -77,6 +77,14 @@ LOOKUP_TABLES: tuple[str, ...] = (
     "connector_oauth_states",
     "incidents",
     "incident_notes",
+)
+
+# User-scoped identity tables (one user spans organizations): no policy, RLS stays off.
+# Listed only so the coverage test can check that every organization_id table is placed.
+IDENTITY_TABLES: tuple[str, ...] = (
+    "users",
+    "organization_members",
+    "auth_refresh_sessions",
 )
 
 STRICT_TABLES: tuple[str, ...] = (

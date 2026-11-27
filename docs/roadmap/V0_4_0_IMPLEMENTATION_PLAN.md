@@ -265,7 +265,11 @@ principal snapshot, permission sets, feature flags. `CACHE_ENABLED` kill switch.
   `RLS_ENFORCEMENT=strict` and the ORM guard on; still unbound under `strict` are the shared
   agent trace page (`agent_runs`, `agent_steps`, `agent_tool_calls`), Slack/Teams inbound
   events, and pre-authentication `audit_logs` writes (login, SSO); see
-  `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
+  `docs/22_AUTHORIZATION_SYSTEM.md` section 11. A2 review correction: `users`,
+  `organization_members`, and `auth_refresh_sessions` are not lookup tables but
+  `RLS_IDENTITY_TABLES` with no policy (a user spans organizations; a bound tenant must
+  still read the user, every membership, and revoke sessions everywhere). A cross-org
+  design for them (for example a user-scoped setting) is open for `0.5.0`.
 - RLS on child tables without `organization_id` (`chat_messages`, `citations`,
   `document_chunks`, `document_pages`): needs a backfilled column; `R06-09` adds it to chunks.
 - Cache namespaces for AI policy, RAG/model profiles, tool and quota policy: `0.5.0`.

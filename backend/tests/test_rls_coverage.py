@@ -9,7 +9,7 @@ from types import ModuleType
 import pytest
 
 import app.models  # noqa: F401  (registers every model on Base.metadata)
-from app.db import rls
+from app.db import rls, tenant_context
 from app.db.base import Base
 
 MIGRATION_PATH = (
@@ -35,12 +35,30 @@ def _tenant_tables() -> set[str]:
 def test_every_organization_table_is_in_exactly_one_list() -> None:
     strict = set(rls.RLS_STRICT_TABLES)
     lookup = set(rls.RLS_LOOKUP_TABLES)
+    identity = set(rls.RLS_IDENTITY_TABLES)
     assert len(strict) == len(rls.RLS_STRICT_TABLES), "duplicate in RLS_STRICT_TABLES"
     assert len(lookup) == len(rls.RLS_LOOKUP_TABLES), "duplicate in RLS_LOOKUP_TABLES"
+    assert len(identity) == len(rls.RLS_IDENTITY_TABLES), "duplicate in RLS_IDENTITY_TABLES"
     assert not strict & lookup
+    assert not identity & (strict | lookup)
     tables = _tenant_tables()
-    assert sorted(tables - strict - lookup) == [], "add new tenant tables to app.db.rls"
-    assert sorted((strict | lookup) - tables) == [], "stale table in app.db.rls"
+    covered = strict | lookup | identity
+    assert sorted(tables - covered) == [], "add new tenant tables to app.db.rls"
+    assert sorted(covered - tables) == [], "stale table in app.db.rls"
+
+
+def test_orm_guard_exempt_models_have_no_tenant_policy() -> None:
+    # Models the ORM guard exempts as cross-organization identity lookups must not get a
+    # database policy that filters them by the bound tenant either.
+    exempt_tables = {
+        mapper.local_table.name
+        for mapper in Base.registry.mappers
+        if mapper.class_.__name__ in tenant_context._EXEMPT_MODEL_NAMES
+        and "organization_id" in mapper.local_table.c
+    }
+    assert exempt_tables == {"users", "organization_members"}
+    assert exempt_tables <= set(rls.RLS_IDENTITY_TABLES)
+    assert not set(rls.RLS_IDENTITY_TABLES) & set(rls.TENANT_RLS_TABLES)
 
 
 def test_legacy_tables_are_all_covered() -> None:
@@ -54,6 +72,7 @@ def test_migration_literal_lists_match_constants() -> None:
     assert migration.down_revision == "20261127_0003"
     assert tuple(migration.STRICT_TABLES) == rls.RLS_STRICT_TABLES
     assert tuple(migration.LOOKUP_TABLES) == rls.RLS_LOOKUP_TABLES
+    assert tuple(migration.IDENTITY_TABLES) == rls.RLS_IDENTITY_TABLES
     assert tuple(migration.LEGACY_TABLES) == rls.TENANT_RLS_TABLES
     assert migration.STRICT_CONDITION == rls.STRICT_RLS_CONDITION
     assert migration.LEGACY_CONDITION == rls.LEGACY_RLS_CONDITION

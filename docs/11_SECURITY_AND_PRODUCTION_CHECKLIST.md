@@ -152,8 +152,9 @@ Collaboration bot operations must also enforce:
 - The cite filter fails closed: chunks whose document cannot be found in the organization are
   dropped. WebSocket quota refusals send only `quota_type`, `retryable`, and `next_reset_at`, and
   are counted in `rudix_chat_quota_denied_total{transport}`.
-- PostgreSQL row-level security (`R04-08`) backs the application filters on all 90 tables
-  with `organization_id`. `RLS_ENFORCEMENT` is `off`, `soft` (default in staging and
+- PostgreSQL row-level security (`R04-08`) backs the application filters on the 87 tables
+  with `organization_id` other than the user-scoped identity tables (`users`,
+  `organization_members`, `auth_refresh_sessions`), which keep RLS disabled. `RLS_ENFORCEMENT` is `off`, `soft` (default in staging and
   production), or `strict` (never the default in `0.4.0`). It only takes effect when the
   API connects as the non-owner, non-`BYPASSRLS` role `rudix_app`
   (`deploy/sql/provision_roles.sql`); cross-tenant beat tasks use `maintenance_session()`

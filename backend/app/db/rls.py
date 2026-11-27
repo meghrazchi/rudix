@@ -57,7 +57,7 @@ def build_disable_rls_sql(table_name: str) -> tuple[str, str]:
 
 # --- R04-08: mode-aware policies -------------------------------------------------------
 # The legacy names above stay frozen because migration 20260715_0001 imports them at run
-# time. Migration 20261127_0004 copies the two lists below as literals; keep them in sync
+# time. Migration 20261127_0004 copies the lists below as literals; keep them in sync
 # (tests/test_rls_coverage.py checks both directions).
 
 _SETTING_ORG = "NULLIF(current_setting('app.current_organization_id', true), '')"
@@ -67,9 +67,6 @@ _SETTING_MODE = "COALESCE(current_setting('app.rls_mode', true), '')"
 # discovery, OAuth state, bot inbound events, the public status page). Their policy keeps
 # the legacy condition: an unset tenant sees all rows, a bound tenant sees only its own.
 RLS_LOOKUP_TABLES: tuple[str, ...] = (
-    "users",
-    "organization_members",
-    "auth_refresh_sessions",
     "api_keys",
     "service_accounts",
     "service_account_tokens",
@@ -85,6 +82,19 @@ RLS_LOOKUP_TABLES: tuple[str, ...] = (
     "connector_oauth_states",
     "incidents",
     "incident_notes",
+)
+
+# User-scoped identity tables. One user spans several organizations (home organization on
+# ``users``, one ``organization_members`` row and refresh sessions per organization), and a
+# request bound to organization B must still read the user, list every membership for the
+# workspace switcher, and revoke the user's sessions in every organization (logout-all,
+# password change). A tenant policy would hide those rows, so these tables get no policy
+# and keep RLS disabled, as before; the ORM guard exempts ``User`` and
+# ``OrganizationMember`` for the same reason.
+RLS_IDENTITY_TABLES: tuple[str, ...] = (
+    "users",
+    "organization_members",
+    "auth_refresh_sessions",
 )
 
 # Every other table with an ``organization_id`` column. In ``strict`` mode an unset tenant

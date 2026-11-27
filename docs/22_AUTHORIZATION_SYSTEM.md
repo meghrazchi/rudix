@@ -499,11 +499,18 @@ How the tenant reaches PostgreSQL:
 ### Lookup tables
 
 Some org-scoped tables are read before any tenant is known: API-key and service-account
-hash lookups, refresh sessions and memberships during login, share tokens
-(`/agent/traces/shared/{token}` is unauthenticated), invitations, SSO discovery and SAML
-callback, SCIM, connector and Slack OAuth state, Slack/Teams inbound events, and the
-public status page. These 18 tables keep the legacy condition (an unset tenant is never
-denied) in every mode; a bound tenant still sees only its own rows.
+hash lookups, share tokens (`/agent/traces/shared/{token}` is unauthenticated),
+invitations, SSO discovery and SAML callback, SCIM, connector and Slack OAuth state,
+Slack/Teams inbound events, and the public status page. These 15 tables keep the legacy
+condition (an unset tenant is never denied) in every mode; a bound tenant still sees only
+its own rows.
+
+`users`, `organization_members`, and `auth_refresh_sessions` (`RLS_IDENTITY_TABLES`) get
+no policy. They are user-scoped: one user has a home organization, a membership and
+refresh sessions in each organization, and a request bound to organization B must still
+read the user, list every membership, and revoke the user's sessions in every organization
+(logout-all, password change). The ORM guard exempts `User` and `OrganizationMember` for
+the same reason.
 
 ### Database roles
 

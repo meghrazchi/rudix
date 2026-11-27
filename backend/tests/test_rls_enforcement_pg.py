@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -27,14 +28,16 @@ from app.db.tenant_context import (
     install_sqlalchemy_tenant_guard,
 )
 from app.models.api_key import ApiKey
+from app.models.auth_session import AuthRefreshSession
 from app.models.chat import ChatSession
 from app.models.collection import Collection
 from app.models.document import Document
 from app.models.enums import DocumentStatus
 from app.models.organization import Organization
+from app.models.organization_member import OrganizationMember
 from app.models.usage import UsageEvent
 from app.models.user import User
-from tests.conftest import RlsProbe
+from tests.conftest import RLS_PROBE_ROLE, RlsProbe
 
 pytestmark = pytest.mark.requires_postgres
 
@@ -173,6 +176,52 @@ async def test_lookup_table_readable_without_tenant_in_strict(
     # A bound tenant still only sees its own lookup rows.
     await rls_probe_session.become_probe(organization_id=seed.org_a, mode="strict")
     assert await _org_ids(rls_probe_session.session, "api_keys") == {seed.org_a}
+
+
+async def test_identity_tables_span_organizations_under_strict(
+    rls_probe_session: RlsProbe,
+) -> None:
+    """A user of org A who works in org B: user row, memberships, sessions stay reachable."""
+    seed = await _seed_two_orgs(rls_probe_session.session)
+    session = rls_probe_session.session
+    user_id = seed.user_a  # home organization A
+    session.add_all(
+        [
+            OrganizationMember(organization_id=seed.org_a, user_id=user_id, role="member"),
+            OrganizationMember(organization_id=seed.org_b, user_id=user_id, role="member"),
+            *(
+                AuthRefreshSession(
+                    organization_id=org,
+                    user_id=user_id,
+                    session_id=uuid4(),
+                    refresh_token_hash=uuid4().hex + uuid4().hex,
+                    refresh_token_jti=uuid4().hex,
+                    expires_at=datetime.now(UTC) + timedelta(days=1),
+                )
+                for org in (seed.org_a, seed.org_b)
+            ),
+        ]
+    )
+    await session.flush()
+    await session.execute(text(f"GRANT UPDATE ON auth_refresh_sessions TO {RLS_PROBE_ROLE}"))
+    await rls_probe_session.become_probe(organization_id=seed.org_b, mode="strict")
+
+    params = {"user_id": user_id}
+    users = await session.execute(text("SELECT id FROM users WHERE id = :user_id"), params)
+    assert users.scalar_one() == user_id  # /auth/session, member lists, invites
+    memberships = await session.execute(
+        text("SELECT organization_id FROM organization_members WHERE user_id = :user_id"),
+        params,
+    )
+    assert {row[0] for row in memberships} == {seed.org_a, seed.org_b}  # workspace switcher
+    revoked = await session.execute(
+        text(
+            "UPDATE auth_refresh_sessions SET revoked_at = now() "
+            "WHERE user_id = :user_id AND revoked_at IS NULL"
+        ),
+        params,
+    )
+    assert revoked.rowcount == 2  # logout-all revokes the sessions of every organization
 
 
 async def test_document_list_plan_uses_org_index_under_policy(
@@ -349,13 +398,31 @@ async def _policy_state(url: str) -> tuple[int, int]:
         await engine.dispose()
 
 
+async def _rls_enabled(url: str, tables: tuple[str, ...]) -> int:
+    engine = create_async_engine(url, poolclass=NullPool)
+    try:
+        async with engine.connect() as conn:
+            result = await conn.execute(
+                text(
+                    "SELECT count(*) FROM pg_class "
+                    "WHERE relname = ANY(:tables) AND (relrowsecurity OR EXISTS ("
+                    "SELECT 1 FROM pg_policies p WHERE p.tablename = pg_class.relname))"
+                ),
+                {"tables": list(tables)},
+            )
+            return int(result.scalar_one())
+    finally:
+        await engine.dispose()
+
+
 async def test_migration_round_trip() -> None:
     url = os.environ.get("TEST_MIGRATIONS_DATABASE_URL", "").strip()
     if not url:
         pytest.skip("TEST_MIGRATIONS_DATABASE_URL is not set (a database safe to downgrade)")
     _alembic(url, "upgrade", "head")
     total, strict = await _policy_state(url)
-    assert total >= 90 and strict >= 72
+    assert total >= 87 and strict >= 72
+    assert await _rls_enabled(url, ("users", "organization_members", "auth_refresh_sessions")) == 0
     _alembic(url, "downgrade", "20261127_0003")
     assert await _policy_state(url) == (12, 0)
     _alembic(url, "upgrade", "head")
