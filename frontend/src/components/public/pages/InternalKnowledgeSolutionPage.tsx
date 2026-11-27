@@ -2,523 +2,227 @@
 
 import { useTranslations } from "next-intl";
 
-import { PublicActionLink } from "@/components/public/PublicActionLink";
+import {
+  IconCard,
+  PrimaryLink,
+  QueryList,
+  SecondaryLink,
+  SiteBreadcrumb,
+  SiteCtaPanel,
+  SiteSplitHero,
+  StepGrid,
+} from "@/components/public/site/SiteBlocks";
+import {
+  MockAnswer,
+  MockFrame,
+  MockQuestion,
+} from "@/components/public/site/SiteMocks";
+import {
+  SectionHeading,
+  SiteIcon,
+  SiteSection,
+  StatusPill,
+} from "@/components/public/site/primitives";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
-function Sym({ name, className = "" }: { name: string; className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`material-symbols-outlined ${className}`}
-    >
-      {name}
-    </span>
-  );
-}
+const PROBLEMS = [
+  { key: "silos", icon: "cloud_off" },
+  { key: "onboarding", icon: "person_add" },
+  { key: "slack", icon: "forum" },
+] as const;
 
-// ── breadcrumb ────────────────────────────────────────────────────────────────
+const DOC_TYPES = [
+  { key: "sops", icon: "description" },
+  { key: "handbooks", icon: "menu_book" },
+  { key: "playbooks", icon: "play_circle" },
+  { key: "manuals", icon: "school" },
+] as const;
 
-function InternalKnowledgeBreadcrumb() {
-  const t = useTranslations("public");
+const FLOW_STEPS = ["upload", "index", "ask", "answer"] as const;
 
-  return (
-    <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
-      <nav
-        aria-label="Breadcrumb"
-        className="mx-auto w-full max-w-[1440px] px-10 py-3"
-      >
-        <ol className="flex items-center gap-2 text-xs text-[#777587]">
-          <li>
-            <PublicActionLink href="/" className="hover:text-[#3525cd]">
-              {t("home")}
-            </PublicActionLink>
-          </li>
-          <li aria-hidden="true" className="text-[#c7c4d8]">
-            /
-          </li>
-          <li>
-            <PublicActionLink
-              href="/solutions"
-              className="hover:text-[#3525cd]"
-            >
-              {t("breadcrumb.solutions")}
-            </PublicActionLink>
-          </li>
-          <li aria-hidden="true" className="text-[#c7c4d8]">
-            /
-          </li>
-          <li aria-current="page" className="font-semibold text-[#1a1b20]">
-            {t("internalKnowledge.breadcrumb")}
-          </li>
-        </ol>
-      </nav>
-    </div>
-  );
-}
-
-// ── hero ──────────────────────────────────────────────────────────────────────
-
-function InternalKnowledgeHeroSection({
-  trialHref,
-  demoHref,
+/** Renders the hero heading with the highlight phrase accented when present. */
+function HighlightedHeading({
+  heading,
+  highlight,
 }: {
-  trialHref: string;
-  demoHref: string;
+  heading: string;
+  highlight: string;
 }) {
-  const t = useTranslations("public.internalKnowledge");
-
+  const index = highlight ? heading.lastIndexOf(highlight) : -1;
+  if (index < 0) return <>{heading}</>;
   return (
-    <section
-      aria-labelledby="ik-hero-title"
-      className="relative overflow-hidden bg-[#faf9ff] pt-24 pb-32"
-    >
-      <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
-        <div>
-          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
-            {t("hero.badge")}
-          </span>
-          <h1
-            id="ik-hero-title"
-            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
-          >
-            {t("hero.heading")}
-          </h1>
-          <p className="mb-10 max-w-xl text-lg leading-7 text-[#464555]">
-            {t("hero.description")}
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <PublicActionLink
-              href={trialHref}
-              className="rounded-xl bg-[#3525cd] px-8 py-4 text-lg font-semibold text-white shadow-lg transition hover:shadow-xl active:scale-95"
-            >
-              {t("hero.primaryCta")}
-            </PublicActionLink>
-            <PublicActionLink
-              href={demoHref}
-              className="rounded-xl border border-[#777587] px-8 py-4 text-lg font-semibold text-[#1a1b20] transition hover:bg-[#f4f3f9] active:scale-95"
-            >
-              {t("hero.secondaryCta")}
-            </PublicActionLink>
-          </div>
-        </div>
-
-        <div className="relative">
-          <div
-            aria-hidden="true"
-            className="absolute -top-10 -right-10 -z-10 h-64 w-64 animate-pulse rounded-full bg-[#3525cd]/10 blur-3xl"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute -bottom-10 -left-10 -z-10 h-48 w-48 animate-pulse rounded-full bg-[#75db94]/20 blur-3xl [animation-delay:2s]"
-          />
-
-          <div className="rudix-animate-float rudix-landing-glass relative z-10 rounded-2xl border border-white/30 p-6 shadow-2xl">
-            <div className="mb-6 flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-[#ba1a1a]" />
-              <span className="h-3 w-3 rounded-full bg-[#E24329]" />
-              <span className="h-3 w-3 rounded-full bg-[#108548]" />
-            </div>
-
-            <div className="space-y-4">
-              {/* user message */}
-              <div className="flex justify-end">
-                <div className="max-w-[80%] rounded-2xl rounded-tr-none bg-[#4f46e5] p-4 text-sm text-[#dad7ff]">
-                  &quot;{t("hero.panelQuestion")}&quot;
-                </div>
-              </div>
-
-              {/* AI response */}
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3525cd] shadow-md">
-                  <Sym name="smart_toy" className="text-sm text-white" />
-                </div>
-                <div className="max-w-[85%] rounded-2xl rounded-tl-none border border-[#c7c4d8]/30 bg-[#f4f3f9] p-4">
-                  <p className="mb-3 text-sm text-[#1a1b20]">
-                    {t("hero.panelIntro")}{" "}
-                    <strong>{t("hero.panelDocument")}</strong>:
-                  </p>
-                  <ul className="list-disc space-y-1.5 pl-4 text-xs text-[#464555]">
-                    <li>{t("hero.panelBullet1")}</li>
-                    <li>{t("hero.panelBullet2")}</li>
-                    <li>{t("hero.panelBullet3")}</li>
-                  </ul>
-                  <div className="mt-4 flex items-center justify-between border-t border-[#c7c4d8]/50 pt-3">
-                    <span className="flex items-center gap-1 text-[10px] text-[#3525cd]">
-                      <Sym name="verified" className="text-[12px]" />
-                      {t("hero.panelSource")}
-                    </span>
-                    <div className="flex gap-2">
-                      <Sym
-                        name="thumb_up"
-                        className="cursor-pointer text-sm text-[#777587] hover:text-[#3525cd]"
-                      />
-                      <Sym
-                        name="thumb_down"
-                        className="cursor-pointer text-sm text-[#777587] hover:text-[#3525cd]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+    <>
+      {heading.slice(0, index)}
+      <span className="text-site-accent-ink">{highlight}</span>
+      {heading.slice(index + highlight.length)}
+    </>
   );
 }
 
-// ── problem ───────────────────────────────────────────────────────────────────
-
-function InternalKnowledgeProblemSection() {
-  const t = useTranslations("public.internalKnowledge");
-  const problems = [
-    {
-      icon: "cloud_off",
-      iconBg: "bg-[#ffdad6] text-[#ba1a1a]",
-      title: t("problems.silosTitle"),
-      body: t("problems.silosBody"),
-    },
-    {
-      icon: "person_add",
-      iconBg: "bg-[#e2dee6] text-[#47464d]",
-      title: t("problems.onboardingTitle"),
-      body: t("problems.onboardingBody"),
-    },
-    {
-      icon: "forum",
-      iconBg: "bg-[#e2dfff] text-[#3323cc]",
-      title: t("problems.slackTitle"),
-      body: t("problems.slackBody"),
-    },
-  ];
-
-  return (
-    <section aria-labelledby="ik-problem-title" className="bg-[#f4f3f9] py-24">
-      <div className="mx-auto max-w-[1440px] px-10">
-        <div className="mb-16 text-center">
-          <h2
-            id="ik-problem-title"
-            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-          >
-            {t("problems.heading")}
-          </h2>
-          <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            {t("problems.description")}
-          </p>
-        </div>
-        <ul className="grid grid-cols-1 gap-8 md:grid-cols-3">
-          {problems.map((p) => (
-            <li
-              key={p.title}
-              className="group rounded-2xl border border-[#c7c4d8]/30 bg-white p-8 shadow-sm transition hover:shadow-md"
-            >
-              <div
-                className={`mb-6 flex h-12 w-12 items-center justify-center rounded-xl transition group-hover:scale-110 ${p.iconBg}`}
-              >
-                <Sym name={p.icon} />
-              </div>
-              <h3 className="mb-3 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                {p.title}
-              </h3>
-              <p className="text-base leading-6 text-[#464555]">{p.body}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-// ── document support ──────────────────────────────────────────────────────────
-
-function InternalKnowledgeDocumentSection() {
-  const t = useTranslations("public.internalKnowledge");
-  const docTypes = [
-    {
-      icon: "description",
-      label: t("documents.sopsLabel"),
-      desc: t("documents.sopsDesc"),
-    },
-    {
-      icon: "menu_book",
-      label: t("documents.handbooksLabel"),
-      desc: t("documents.handbooksDesc"),
-    },
-    {
-      icon: "play_circle",
-      label: t("documents.playbooksLabel"),
-      desc: t("documents.playbooksDesc"),
-    },
-    {
-      icon: "school",
-      label: t("documents.manualsLabel"),
-      desc: t("documents.manualsDesc"),
-    },
-  ];
-
-  const features = [
-    t("documents.feature0"),
-    t("documents.feature1"),
-    t("documents.feature2"),
-  ];
-
-  return (
-    <section aria-labelledby="ik-doc-title" className="bg-white py-24">
-      <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-20 px-10 lg:grid-cols-2">
-        <div className="order-2 grid grid-cols-2 gap-4 lg:order-1">
-          {docTypes.map((d) => (
-            <div
-              key={d.label}
-              className="rounded-2xl border border-[#c7c4d8]/50 bg-[#e8e7ed] p-6"
-            >
-              <Sym name={d.icon} className="mb-4 text-[#3525cd]" />
-              <h4 className="mb-1 font-bold text-[#1a1b20]">{d.label}</h4>
-              <p className="text-xs text-[#464555]">{d.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="order-1 lg:order-2">
-          <h2
-            id="ik-doc-title"
-            className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-          >
-            {t("documents.heading")}
-          </h2>
-          <p className="mb-8 text-lg leading-7 text-[#464555]">
-            {t("documents.description")}
-          </p>
-          <ul className="space-y-4">
-            {features.map((f) => (
-              <li
-                key={f}
-                className="flex items-center gap-3 text-base leading-6"
-              >
-                <Sym name="check_circle" className="shrink-0 text-[#108548]" />
-                <span className="font-semibold text-[#1a1b20]">{f}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── how it works ──────────────────────────────────────────────────────────────
-
-function InternalKnowledgeHowItWorksSection() {
-  const t = useTranslations("public.internalKnowledge");
-  const steps = [
-    {
-      n: "01",
-      icon: "upload_file",
-      label: t("flow.uploadTitle"),
-      desc: t("flow.uploadDesc"),
-    },
-    {
-      n: "02",
-      icon: "database",
-      label: t("flow.indexTitle"),
-      desc: t("flow.indexDesc"),
-    },
-    {
-      n: "03",
-      icon: "chat_paste_go",
-      label: t("flow.askTitle"),
-      desc: t("flow.askDesc"),
-    },
-    {
-      n: "04",
-      icon: "fact_check",
-      label: t("flow.answerTitle"),
-      desc: t("flow.answerDesc"),
-    },
-  ];
-
-  return (
-    <section
-      aria-labelledby="ik-flow-title"
-      className="overflow-hidden bg-[#0A0A0F] py-24 text-[#faf9ff]"
-    >
-      <div className="mx-auto max-w-[1440px] px-10">
-        <div className="mb-20 text-center">
-          <h2
-            id="ik-flow-title"
-            className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
-          >
-            {t("flow.heading")}
-          </h2>
-          <p className="text-base leading-6 text-[#464555]">
-            {t("flow.description")}
-          </p>
-        </div>
-
-        <div className="relative">
-          {/* animated gradient connector */}
-          <div
-            aria-hidden="true"
-            className="absolute top-10 left-0 hidden h-0.5 w-full overflow-hidden bg-gradient-to-r from-[#dad7ff]/20 via-[#3525cd]/50 to-[#dad7ff]/20 lg:block"
-            style={{ filter: "drop-shadow(0 0 8px rgba(79,70,229,0.4))" }}
-          >
-            <div className="rudix-data-pulse-line" />
-          </div>
-
-          <ol className="relative z-10 grid grid-cols-1 gap-8 lg:grid-cols-4">
-            {steps.map((s) => (
-              <li key={s.n} className="group text-center">
-                <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/10 transition duration-500 group-hover:scale-110 group-hover:border-[#3525cd] group-hover:shadow-[0_0_20px_rgba(79,70,229,0.3)]">
-                  <Sym name={s.icon} className="text-3xl text-[#3525cd]" />
-                  <span className="absolute -right-2 -bottom-2 rounded bg-[#3525cd] px-2 py-0.5 text-[10px] font-bold text-white shadow-lg">
-                    {s.n}
-                  </span>
-                </div>
-                <h3 className="mb-2 text-lg font-bold text-white transition group-hover:text-[#c3c0ff]">
-                  {s.label}
-                </h3>
-                <p className="text-sm leading-5 text-[#464555]">{s.desc}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        {/* technical card with typing animation */}
-        <div className="mt-20 rounded-2xl border border-white/10 bg-[#1F1E24] p-8 transition duration-700 hover:border-[#3525cd]/50">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[#3525cd]" />
-              <span className="font-mono text-xs text-[#c3c0ff]">
-                {t("flow.engineStatus")}
-              </span>
-            </div>
-            <span className="font-mono text-xs text-[#464555]">
-              {t("flow.latency")}
-            </span>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-[#0A0A0F] p-4 font-mono text-[13px] leading-5 text-[#e2dfff]">
-            <pre className="overflow-x-auto whitespace-pre-wrap">
-              <code>{t("flow.codeSample")}</code>
-            </pre>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── example questions ─────────────────────────────────────────────────────────
-
-function InternalKnowledgeExampleQueriesSection() {
-  const t = useTranslations("public.internalKnowledge");
-  const questions = [
-    t("exampleQuestions.q1"),
-    t("exampleQuestions.q2"),
-    t("exampleQuestions.q3"),
-    t("exampleQuestions.q4"),
-  ];
-
-  return (
-    <section aria-labelledby="ik-queries-title" className="bg-white py-24">
-      <div className="mx-auto max-w-[1440px] px-10">
-        <h2
-          id="ik-queries-title"
-          className="mb-12 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
-        >
-          {t("exampleQuestions.heading")}
-        </h2>
-        <ul className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {questions.map((q) => (
-            <li
-              key={q}
-              className="group flex cursor-default items-center justify-between rounded-xl border border-[#c7c4d8]/30 bg-[#eeedf3] p-6 transition hover:bg-[#e8e7ed]"
-            >
-              <span className="font-semibold text-[#0A0A0F]">
-                &quot;{q}&quot;
-              </span>
-              <Sym
-                name="arrow_forward"
-                className="shrink-0 text-[#3525cd] transition group-hover:translate-x-1"
-              />
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-// ── final cta ─────────────────────────────────────────────────────────────────
-
-function InternalKnowledgeFinalCtaSection({
-  demoHref,
-  pricingHref,
-}: {
-  demoHref: string;
-  pricingHref: string;
-}) {
-  const t = useTranslations("public.internalKnowledge");
-
-  return (
-    <section
-      aria-labelledby="ik-cta-title"
-      className="relative overflow-hidden bg-[#faf9ff] py-24"
-    >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-1/2 -z-0 h-[400px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-[100%] bg-[#e2dfff]/30 blur-[120px]"
-      />
-      <div className="relative z-10 mx-auto max-w-4xl px-10">
-        <div className="rounded-3xl bg-[#3525cd] p-12 text-center lg:p-20">
-          <h2
-            id="ik-cta-title"
-            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
-          >
-            {t("cta.heading")}
-          </h2>
-          <p className="mb-10 text-lg leading-7 text-[#dad7ff] opacity-90">
-            {t("cta.description")}
-          </p>
-          <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <PublicActionLink
-              href={demoHref}
-              className="rounded-xl bg-white px-8 py-4 text-lg font-bold text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
-            >
-              {t("cta.primaryCta")}
-            </PublicActionLink>
-            <PublicActionLink
-              href={pricingHref}
-              className="rounded-xl border border-white/20 bg-white/10 px-8 py-4 text-lg font-bold text-white transition hover:bg-white/20 active:scale-95"
-            >
-              {t("cta.secondaryCta")}
-            </PublicActionLink>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── page export ───────────────────────────────────────────────────────────────
-
+/** Internal knowledge solution page (minimal modern redesign, shared kit). */
 export function InternalKnowledgeSolutionPage() {
+  const tp = useTranslations("public");
+  const t = useTranslations("public.internalKnowledge");
   const links = resolvePublicSiteLinks();
 
   return (
-    <>
-      <InternalKnowledgeBreadcrumb />
-      <InternalKnowledgeHeroSection
-        trialHref={links.startTrial}
-        demoHref={links.requestDemo}
+    <div className="bg-site-canvas text-site-ink">
+      <SiteBreadcrumb
+        items={[
+          { label: tp("home"), href: "/" },
+          { label: tp("breadcrumb.solutions"), href: "/solutions" },
+          { label: t("breadcrumb") },
+        ]}
       />
-      <InternalKnowledgeProblemSection />
-      <InternalKnowledgeDocumentSection />
-      <InternalKnowledgeHowItWorksSection />
-      <InternalKnowledgeExampleQueriesSection />
-      <InternalKnowledgeFinalCtaSection
-        demoHref={links.requestDemo}
-        pricingHref={links.pricing}
+
+      <SiteSplitHero
+        id="ik-hero-title"
+        badge={t("hero.badge")}
+        title={
+          <HighlightedHeading
+            heading={t("hero.heading")}
+            highlight={t("hero.headingHighlight")}
+          />
+        }
+        description={t("hero.description")}
+        actions={
+          <>
+            <PrimaryLink
+              href={links.requestDemo}
+              label={t("hero.secondaryCta")}
+            />
+            <SecondaryLink
+              href={links.security}
+              label={t("hero.securityCta")}
+            />
+          </>
+        }
+        aside={
+          <MockFrame>
+            <MockQuestion>&quot;{t("hero.panelQuestion")}&quot;</MockQuestion>
+            <MockAnswer label="Rudix" sources={[t("hero.panelSource")]}>
+              <p className="break-words">
+                {t("hero.panelIntro")}{" "}
+                <strong className="font-semibold">
+                  {t("hero.panelDocument")}
+                </strong>
+                :
+              </p>
+              <ul className="text-site-ink-muted mt-2 list-disc space-y-1.5 ps-4 text-xs leading-5">
+                <li className="break-words">{t("hero.panelBullet1")}</li>
+                <li className="break-words">{t("hero.panelBullet2")}</li>
+                <li className="break-words">{t("hero.panelBullet3")}</li>
+              </ul>
+            </MockAnswer>
+          </MockFrame>
+        }
       />
-    </>
+
+      <SiteSection
+        labelledBy="ik-problem-title"
+        className="bg-site-surface border-site-border border-y"
+      >
+        <SectionHeading
+          id="ik-problem-title"
+          title={t("problems.heading")}
+          description={t("problems.description")}
+        />
+        <ul className="mt-12 grid gap-4 md:grid-cols-3">
+          {PROBLEMS.map((item) => (
+            <IconCard
+              key={item.key}
+              icon={item.icon}
+              title={t(`problems.${item.key}Title`)}
+              body={t(`problems.${item.key}Body`)}
+            />
+          ))}
+        </ul>
+      </SiteSection>
+
+      <SiteSection labelledBy="ik-doc-title">
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
+          <div className="min-w-0">
+            <SectionHeading
+              id="ik-doc-title"
+              title={t("documents.heading")}
+              description={t("documents.description")}
+            />
+            <ul className="mt-8 space-y-3">
+              {[0, 1, 2].map((n) => (
+                <li key={n} className="flex items-start gap-3">
+                  <SiteIcon
+                    name="check_circle"
+                    className="text-site-success mt-0.5 text-xl"
+                  />
+                  <span className="text-site-ink min-w-0 text-sm leading-6 font-medium md:text-base">
+                    {t(`documents.feature${n}`)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <ul className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+            {DOC_TYPES.map((d) => (
+              <IconCard
+                key={d.key}
+                icon={d.icon}
+                title={t(`documents.${d.key}Label`)}
+                body={t(`documents.${d.key}Desc`)}
+              />
+            ))}
+          </ul>
+        </div>
+      </SiteSection>
+
+      <SiteSection
+        labelledBy="ik-flow-title"
+        className="bg-site-surface border-site-border border-y"
+      >
+        <SectionHeading
+          id="ik-flow-title"
+          title={t("flow.heading")}
+          description={t("flow.description")}
+        />
+        <div className="mt-12">
+          <StepGrid
+            steps={FLOW_STEPS.map((key) => ({
+              title: t(`flow.${key}Title`),
+              description: t(`flow.${key}Desc`),
+            }))}
+          />
+        </div>
+        <div className="mt-8">
+          <MockFrame>
+            <StatusPill tone="success">
+              <span className="bg-site-success h-1.5 w-1.5 rounded-full" />
+              {t("flow.engineStatus")}
+            </StatusPill>
+            <pre className="border-site-border bg-site-canvas text-site-ink-muted overflow-x-auto rounded-xl border px-4 py-3 font-mono text-xs leading-5 break-words whitespace-pre-wrap">
+              <code>{t("flow.codeSample")}</code>
+            </pre>
+          </MockFrame>
+        </div>
+      </SiteSection>
+
+      <SiteSection labelledBy="ik-queries-title">
+        <SectionHeading
+          id="ik-queries-title"
+          title={t("exampleQuestions.heading")}
+        />
+        <div className="mt-10 max-w-3xl">
+          <QueryList
+            items={[1, 2, 3, 4].map((n) => `"${t(`exampleQuestions.q${n}`)}"`)}
+          />
+        </div>
+      </SiteSection>
+
+      <SiteCtaPanel
+        id="ik-cta-title"
+        title={t("cta.heading")}
+        description={t("cta.description")}
+        primary={{ href: links.requestDemo, label: t("cta.primaryCta") }}
+        secondary={{ href: links.pricing, label: t("cta.secondaryCta") }}
+      />
+    </div>
   );
 }

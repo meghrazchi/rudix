@@ -18,7 +18,10 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function InternalKnowledgeSolutionRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Internal Knowledge solution page">
+    <PublicMarketingLayout
+      pageLabel="Internal Knowledge solution page"
+      theme="system"
+    >
       <InternalKnowledgeSolutionPage />
     </PublicMarketingLayout>
   );

@@ -29,7 +29,6 @@ export type PublicSiteLinks = {
   changelog: string;
   login: string;
   requestDemo: string;
-  startTrial: string;
   docs: string;
   contact: string;
   securityContact: string;
@@ -108,7 +107,6 @@ export function resolvePublicSiteLinks(): PublicSiteLinks {
   const login = resolveEnv("NEXT_PUBLIC_PUBLIC_LOGIN_URL") ?? "/login";
   const requestDemo =
     resolveEnv("NEXT_PUBLIC_PUBLIC_DEMO_URL") ?? PUBLIC_ROUTE_PATHS.contact;
-  const startTrial = resolveEnv("NEXT_PUBLIC_PUBLIC_TRIAL_URL") ?? "/signup";
   const docs =
     resolveEnv("NEXT_PUBLIC_PUBLIC_DOCS_URL", "NEXT_PUBLIC_HELP_DOCS_URL") ??
     "/documents";
@@ -151,7 +149,6 @@ export function resolvePublicSiteLinks(): PublicSiteLinks {
     changelog,
     login,
     requestDemo,
-    startTrial,
     docs,
     contact,
     securityContact: normalizeContactHref(securityContactRaw),
@@ -185,7 +182,8 @@ export function buildFooterLinkGroups(links: PublicSiteLinks): Array<{
       heading: "Product",
       items: [
         { label: "Product Overview", href: links.product },
-        { label: "Pipeline Explorer", href: links.app },
+        { label: "Security", href: links.security },
+        { label: "Pricing", href: links.pricing },
         { label: "Documentation", href: links.docs },
         { label: "Changelog", href: links.changelog },
       ],
@@ -193,9 +191,11 @@ export function buildFooterLinkGroups(links: PublicSiteLinks): Array<{
     {
       heading: "Solutions",
       items: [
-        { label: "Use Cases", href: links.solutions },
-        { label: "Security", href: links.security },
-        { label: "Pricing", href: links.pricing },
+        { label: "All Solutions", href: links.solutions },
+        { label: "HR", href: "/solutions/hr" },
+        { label: "Legal", href: "/solutions/legal" },
+        { label: "Compliance", href: "/solutions/compliance" },
+        { label: "Customer Support", href: "/solutions/support" },
       ],
     },
     {

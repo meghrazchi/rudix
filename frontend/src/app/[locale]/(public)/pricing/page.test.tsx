@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import PricingPage, { generateMetadata } from "./page";
@@ -34,10 +34,9 @@ describe("Pricing public page", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen
-        .getAllByRole("link", { name: "Start Trial" })
-        .some((link) => link.getAttribute("href") === "/signup"),
-    ).toBe(true);
+      screen.queryByRole("link", { name: "Start Trial" }),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector('a[href*="signup"]')).toBeNull();
     expect(
       screen.getAllByRole("link", { name: "Request Demo" }).length,
     ).toBeGreaterThanOrEqual(1);
@@ -51,6 +50,16 @@ describe("Pricing public page", () => {
         .getAllByRole("link", { name: "Login" })
         .some((link) => link.getAttribute("href") === "/login"),
     ).toBe(true);
+
+    const hero = screen.getByRole("region", {
+      name: "Choose a plan for trusted document AI operations",
+    });
+    expect(
+      within(hero).queryByRole("link", { name: "Login" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(hero).getByRole("link", { name: "Request Demo" }),
+    ).toHaveAttribute("href", "/contact");
   });
 
   it("defines localized SEO metadata for /pricing", async () => {
@@ -58,7 +67,7 @@ describe("Pricing public page", () => {
       params: Promise.resolve({ locale: "de" }),
     });
 
-    expect(metadata.title).toBe("Preise | Rudix");
+    expect(metadata.title).toBe("Preise und Pläne für KI-Dokumenten-Q&A");
     expect(metadata.alternates?.canonical).toContain("/de/pricing");
   });
 });

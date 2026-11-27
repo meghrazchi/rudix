@@ -7,7 +7,6 @@ const originalEnv = { ...process.env };
 
 function clearPublicEnv() {
   delete process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL;
-  delete process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL;
 }
 
 describe("Procurement solution page (/solutions/procurement)", () => {
@@ -41,17 +40,18 @@ describe("Procurement solution page (/solutions/procurement)", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders hero CTAs pointing to trial and demo", () => {
+  it("renders the hero CTA pointing to the demo request, not signup", () => {
     render(<ProcurementSolutionPage />);
 
-    expect(screen.getByRole("link", { name: "Start Review" })).toHaveAttribute(
-      "href",
-      "/signup",
-    );
     expect(screen.getByRole("link", { name: "View Demo" })).toHaveAttribute(
       "href",
       "/contact",
     );
+    expect(
+      screen.queryByRole("link", { name: "Start Review" }),
+    ).not.toBeInTheDocument();
+    // Self-service signup is disabled; no CTA may lead to /signup.
+    expect(document.querySelector('a[href*="signup"]')).toBeNull();
   });
 
   it("renders the problem section with three bottleneck cards", () => {
@@ -122,7 +122,7 @@ describe("Procurement solution page (/solutions/procurement)", () => {
     expect(screen.getByText(/Frankfurt/i)).toBeInTheDocument();
   });
 
-  it("renders the final CTA with demo and trial links", () => {
+  it("renders the final CTA with a single demo link", () => {
     render(<ProcurementSolutionPage />);
 
     expect(
@@ -132,8 +132,8 @@ describe("Procurement solution page (/solutions/procurement)", () => {
       screen.getByRole("link", { name: "Schedule a Demo" }),
     ).toHaveAttribute("href", "/contact");
     expect(
-      screen.getByRole("link", { name: "Get Started Free" }),
-    ).toHaveAttribute("href", "/signup");
+      screen.queryByRole("link", { name: "Get Started Free" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders responsible-use disclaimer in the final CTA", () => {
@@ -144,17 +144,6 @@ describe("Procurement solution page (/solutions/procurement)", () => {
         /does not replace legal or procurement approval workflows/i,
       ),
     ).toBeInTheDocument();
-  });
-
-  it("applies env-driven trial URL when configured", () => {
-    process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL = "https://trial.example.com";
-
-    render(<ProcurementSolutionPage />);
-
-    expect(screen.getByRole("link", { name: "Start Review" })).toHaveAttribute(
-      "href",
-      "https://trial.example.com",
-    );
   });
 
   it("applies env-driven demo URL when configured", () => {

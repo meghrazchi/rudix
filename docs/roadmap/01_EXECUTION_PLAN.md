@@ -126,7 +126,7 @@ tests, autoscaling tests.
 
 ### 0.9.0 — Product completeness
 
-Ten items. Independent chains: signup, verification, password reset, and MFA; bots and email
+Ten items. Independent chains: verification, password reset, and MFA (no self-serve signup); bots and email
 admin UI; public API documentation and deprecation policy; flag graduation; cost controls;
 enterprise identity verification.
 Needs decisions before planning: payment provider (`R09-03`), connector catalogue including

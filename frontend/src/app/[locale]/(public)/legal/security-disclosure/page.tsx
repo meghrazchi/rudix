@@ -18,7 +18,10 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function SecurityDisclosureRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Rudix security disclosure policy">
+    <PublicMarketingLayout
+      pageLabel="Rudix security disclosure policy"
+      theme="system"
+    >
       <SecurityDisclosurePage />
     </PublicMarketingLayout>
   );

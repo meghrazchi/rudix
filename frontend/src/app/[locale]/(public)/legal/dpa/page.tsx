@@ -18,7 +18,10 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function DpaPage() {
   return (
-    <PublicMarketingLayout pageLabel="Rudix data processing addendum">
+    <PublicMarketingLayout
+      pageLabel="Rudix data processing addendum"
+      theme="system"
+    >
       <DataProcessingAddendumPage />
     </PublicMarketingLayout>
   );

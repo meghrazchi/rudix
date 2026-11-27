@@ -43,6 +43,17 @@ For app-managed auth, also require:
 - Explicit logout-all support for revoking all active sessions.
 - Safe session listing endpoints that never expose the raw refresh token.
 
+Account creation (no self-registration):
+
+- There is no public signup. The backend exposes no register endpoint, and the frontend
+  `/signup` route only redirects to `/login`.
+- Accounts are created by workspace administrators: team invitations (`/accept-invite`),
+  SCIM provisioning, or SSO configured by an organization admin.
+- Public pages must not link to signup or "start trial" flows; every plan CTA leads to the
+  contact/demo form. Frontend tests assert no public CTA points at `/signup`.
+- The login page tells users without an account to ask their workspace administrator for an
+  invitation.
+
 WebSocket chat (`/chat/ws`):
 
 - Browsers authenticate with a single-use, short-lived ticket from `POST /chat/ws-ticket`

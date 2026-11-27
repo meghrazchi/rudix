@@ -15,21 +15,23 @@ on the retrieval and trust features that are built but off by default.
 
 ## 2. Work items
 
-### R09-01 — Self-serve signup, email verification, and password reset (L)
+### R09-01 — Email verification and password reset (L)
 
-- **Problem:** `interfaces/http/auth.py` has no register, forgot-password, or verify-email
-  route. The signup page depends on an external URL or a local fallback.
+> **Decision (2026-11-27):** self-serve signup is out of scope. Accounts are created only by
+> workspace administrators (invitations, SCIM, SSO); the frontend `/signup` route redirects
+> to `/login`. Do not add `POST /auth/register`.
+
+- **Problem:** `interfaces/http/auth.py` has no forgot-password or verify-email route.
 - **Change:**
-  - `POST /auth/register` creates a user, an organisation, and an owner membership.
-  - `POST /auth/verify-email` and `POST /auth/resend-verification`.
+  - `POST /auth/verify-email` and `POST /auth/resend-verification` for invited users.
   - `POST /auth/forgot-password` and `POST /auth/reset-password`.
   - Tokens are single-use, hashed at rest, short-lived, and sent through the existing
     transactional email service (F251). Responses do not reveal whether an email exists.
-  - Rate limits per IP and per email; the existing captcha hook is enforced on register.
+  - Rate limits per IP and per email on reset and verification requests.
   - Password policy and breach check are settings. Reset revokes all sessions.
-  - Frontend: wire the existing signup page, add verify and reset pages in all six locales.
-- **Done when:** A Playwright test signs up, verifies, logs in, resets the password, and
-  confirms the old session is rejected.
+  - Frontend: add verify and reset pages in all six locales.
+- **Done when:** A Playwright test accepts an invitation, verifies, logs in, resets the
+  password, and confirms the old session is rejected.
 
 ### R09-02 — Multi-factor authentication (L)
 
@@ -134,7 +136,7 @@ on the retrieval and trust features that are built but off by default.
 
 ## 6. Observability and Operations
 
-Metrics: signup funnel (extends F353), verification and reset rates, MFA enrolment, payment
+Metrics: invitation-acceptance funnel (extends F353), verification and reset rates, MFA enrolment, payment
 failures, webhook lag, cost per question by plan.
 
 ## 7. Change Notes

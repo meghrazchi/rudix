@@ -18,7 +18,10 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function AcceptableUsePage() {
   return (
-    <PublicMarketingLayout pageLabel="Rudix acceptable use policy">
+    <PublicMarketingLayout
+      pageLabel="Rudix acceptable use policy"
+      theme="system"
+    >
       <AcceptableUsePolicyPage />
     </PublicMarketingLayout>
   );

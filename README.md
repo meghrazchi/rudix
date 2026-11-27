@@ -297,6 +297,8 @@ make up-d        # Start services in detached mode
 make down        # Stop services
 make logs        # View logs
 make migrate     # Run database migrations
+make dev         # Infra in Docker + migrations, then API, worker, beat and web on the host (Ctrl+C stops them)
+make dev-down    # Stop the infrastructure containers started by make dev (data is kept)
 make test        # Run backend tests
 make lint        # Run backend lint checks
 make check-backend   # Run backend lint + tests

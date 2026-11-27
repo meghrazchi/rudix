@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function SupportSolutionRoute() {
   return (
-    <PublicMarketingLayout pageLabel="Support solution page">
+    <PublicMarketingLayout pageLabel="Support solution page" theme="system">
       <SupportSolutionPage />
     </PublicMarketingLayout>
   );

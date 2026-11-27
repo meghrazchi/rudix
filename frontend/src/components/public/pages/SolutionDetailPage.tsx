@@ -94,7 +94,7 @@ function SolutionDetailBody({ solution }: { solution: SolutionAudience }) {
       aria-labelledby="solution-detail-title"
       className="mx-auto w-full max-w-7xl px-4 py-10 lg:px-8 lg:py-14"
     >
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <article className="rounded-2xl border border-[#d8dce7] bg-white p-5 shadow-sm">
           <h2 className="text-xl font-semibold text-[#171a24]">Pain point</h2>
           <p className="mt-3 text-sm leading-7 text-[#5a6071]">

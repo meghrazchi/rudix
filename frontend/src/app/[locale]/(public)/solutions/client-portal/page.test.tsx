@@ -7,7 +7,6 @@ const originalEnv = { ...process.env };
 
 function clearPublicEnv() {
   delete process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL;
-  delete process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL;
   delete process.env.NEXT_PUBLIC_PUBLIC_PRICING_URL;
 }
 
@@ -32,16 +31,17 @@ describe("Client Portal solution page (/solutions/client-portal)", () => {
     expect(screen.getByText("Client Knowledge Portal")).toBeInTheDocument();
   });
 
-  it("renders the hero CTAs pointing to trial and demo", () => {
+  it("renders the hero CTA pointing to the demo request, not signup", () => {
     render(<ClientPortalSolutionPage />);
 
     expect(
-      screen.getByRole("link", { name: /Start Free Trial/i }),
-    ).toHaveAttribute("href", "/signup");
-    expect(screen.getByRole("link", { name: "Request Demo" })).toHaveAttribute(
-      "href",
-      "/contact",
-    );
+      screen.getAllByRole("link", { name: "Request Demo" })[0],
+    ).toHaveAttribute("href", "/contact");
+    expect(
+      screen.queryByRole("link", { name: /Start Free Trial/i }),
+    ).not.toBeInTheDocument();
+    // Self-service signup is disabled; no CTA may lead to /signup.
+    expect(document.querySelector('a[href*="signup"]')).toBeNull();
   });
 
   it("renders the problem section with three friction cards", () => {
@@ -160,7 +160,7 @@ describe("Client Portal solution page (/solutions/client-portal)", () => {
     );
   });
 
-  it("renders the final CTA section with demo and trial links", () => {
+  it("renders the final CTA section with a single demo link", () => {
     render(<ClientPortalSolutionPage />);
 
     expect(
@@ -172,21 +172,8 @@ describe("Client Portal solution page (/solutions/client-portal)", () => {
       screen.getByRole("link", { name: "Schedule a Demo" }),
     ).toHaveAttribute("href", "/contact");
     expect(
-      screen.getByRole("link", { name: "Get Started Free" }),
-    ).toHaveAttribute("href", "/signup");
-  });
-
-  it("applies env-driven trial URL when configured", () => {
-    process.env.NEXT_PUBLIC_PUBLIC_TRIAL_URL = "https://trial.example.com";
-
-    render(<ClientPortalSolutionPage />);
-
-    expect(
-      screen.getByRole("link", { name: /Start Free Trial/i }),
-    ).toHaveAttribute("href", "https://trial.example.com");
-    expect(
-      screen.getByRole("link", { name: /Get Started Free/i }),
-    ).toHaveAttribute("href", "https://trial.example.com");
+      screen.queryByRole("link", { name: "Get Started Free" }),
+    ).not.toBeInTheDocument();
   });
 
   it("applies env-driven demo URL when configured", () => {

@@ -70,7 +70,7 @@ describe("Changelog public page", () => {
       params: Promise.resolve({ locale: "en" }),
     });
 
-    expect(metadata.title).toBe("Changelog | Rudix");
+    expect(metadata.title).toBe("Changelog and Release Notes");
     expect(metadata.alternates?.canonical).toContain("/en/changelog");
   });
 });

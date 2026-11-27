@@ -1,4 +1,4 @@
-.PHONY: up up-d up-mcp down down-v down-mcp restart ps logs logs-api logs-worker logs-mcp logs-infra \
+.PHONY: dev dev-down up up-d up-mcp down down-v down-mcp restart ps logs logs-api logs-worker logs-mcp logs-infra \
 	up-observability down-observability logs-observability \
 	up-ollama up-vllm up-litellm down-local-llm logs-local-llm pull-local-model \
 	up-graph down-graph logs-graph reset-graph \
@@ -12,6 +12,15 @@ COMPOSE := docker compose
 BACKEND_MAKE := $(MAKE) -C backend
 NPM := npm
 FRONTEND_DIR := frontend
+
+# Local dev: infrastructure in Docker; API, workers and web on the host.
+# Ctrl+C stops the host processes. See scripts/dev-local.sh for env toggles.
+dev:
+	./scripts/dev-local.sh
+
+# Stop the infrastructure containers started by `make dev` (data is kept).
+dev-down:
+	$(COMPOSE) --profile enterprise-graph stop postgres redis rabbitmq qdrant minio clamav matomo-db matomo neo4j
 
 up:
 	$(COMPOSE) up --build

@@ -30,7 +30,7 @@ export default async function StatusRoute() {
   }
 
   return (
-    <PublicMarketingLayout pageLabel="Rudix status page">
+    <PublicMarketingLayout pageLabel="Rudix status page" theme="system">
       <StatusPage snapshot={snapshot} loadError={loadError} />
     </PublicMarketingLayout>
   );

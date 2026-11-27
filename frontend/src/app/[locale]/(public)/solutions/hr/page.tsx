@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function HRSolutionRoute() {
   return (
-    <PublicMarketingLayout pageLabel="HR solution page">
+    <PublicMarketingLayout pageLabel="HR solution page" theme="system">
       <HRSolutionPage />
     </PublicMarketingLayout>
   );
