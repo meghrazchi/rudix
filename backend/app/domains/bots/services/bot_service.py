@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.chat.transports.internal import run_internal_query
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
-from app.db.tenant_context import bind_pipeline_session
+from app.db.tenant_context import bind_resolved_tenant
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.bots.repositories.bots import BotRepository
 from app.domains.bots.schemas.bots import BotAskResponse
@@ -73,7 +73,7 @@ class BotAskService:
         organization_id = installation.organization_id
         # The inbound route has no Rudix token: bind the installation's organisation before
         # the first tenant-scoped read or audit write, so strict RLS sees a tenant.
-        await bind_pipeline_session(session, organization_id)
+        await bind_resolved_tenant(session, organization_id, path="bot_inbound")
         audit_base = {
             "provider": event.provider,
             "external_workspace_id": event.external_workspace_id,

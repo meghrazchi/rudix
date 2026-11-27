@@ -192,8 +192,12 @@ class Settings(
 
     @property
     def effective_rls_enforcement(self) -> RlsEnforcement:
+        """``RLS_ENFORCEMENT`` when set; else ``strict`` in development and test (0.5.0) and
+        ``soft`` in staging and production until the soft-denial week and the role split."""
         if self.rls_enforcement is not None:
             return self.rls_enforcement
+        if self.environment in {Environment.development, Environment.test}:
+            return RlsEnforcement.strict
         if self.environment in {Environment.production, Environment.staging}:
             return RlsEnforcement.soft
         return RlsEnforcement.off

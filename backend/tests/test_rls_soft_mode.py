@@ -61,8 +61,8 @@ def _denials(table: str) -> float:
 @pytest.mark.parametrize(
     ("environment", "configured", "expected"),
     [
-        (Environment.development, None, RlsEnforcement.off),
-        (Environment.test, None, RlsEnforcement.off),
+        (Environment.development, None, RlsEnforcement.strict),
+        (Environment.test, None, RlsEnforcement.strict),
         (Environment.staging, None, RlsEnforcement.soft),
         (Environment.production, None, RlsEnforcement.soft),
         (Environment.production, RlsEnforcement.strict, RlsEnforcement.strict),
@@ -77,11 +77,20 @@ def test_effective_rls_enforcement(
     assert config.effective_rls_enforcement == expected
 
 
-def test_strict_is_not_the_default() -> None:
+def test_unknown_environment_defaults_to_off() -> None:
+    # model_copy skips validation, so this stands in for an environment added later.
+    config = settings.model_copy(update={"environment": "preview", "rls_enforcement": None})
+    assert config.effective_rls_enforcement == RlsEnforcement.off
+
+
+def test_strict_is_the_default_only_in_development_and_test() -> None:
+    # 0.5.0 (S3): strict by default where no deployment depends on it; staging and production
+    # stay soft until the soft-denial week and the role split (plan section 6).
     assert Settings.model_fields["rls_enforcement"].default is None
     for environment in Environment:
         config = settings.model_copy(update={"environment": environment, "rls_enforcement": None})
-        assert config.effective_rls_enforcement != RlsEnforcement.strict
+        is_strict = config.effective_rls_enforcement == RlsEnforcement.strict
+        assert is_strict is (environment in {Environment.development, Environment.test})
 
 
 # --- session-context statement ----------------------------------------------------------

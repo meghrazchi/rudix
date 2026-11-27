@@ -33,6 +33,7 @@ from app.auth.token_codec import (
 from app.clients import redis_client as redis_module
 from app.core.config import AuthProvider, RateLimitRedisFailureMode, settings
 from app.db.session import get_db_session
+from app.db.tenant_context import bind_resolved_tenant
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.auth.schemas.auth import (
     AuthActiveSessionListResponse,
@@ -175,6 +176,9 @@ async def _record_auth_audit(
 ) -> bool:
     if organization_id is None:
         return False
+    # Login, refresh, logout, and SSO run before a principal is bound: bind the organisation
+    # they resolved so the audit_logs insert passes strict RLS (R04-08 known gap, 0.5.0).
+    await bind_resolved_tenant(db_session, organization_id, path="auth_audit")
     enriched_metadata = dict(metadata)
     request_id = _request_id_from_request(request)
     ip_address = _ip_address_from_request(request)

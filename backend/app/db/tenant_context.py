@@ -29,7 +29,7 @@ import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from prometheus_client import Counter
@@ -51,6 +51,16 @@ RLS_SOFT_DENIALS_TOTAL = Counter(
     "rudix_rls_soft_denials_total",
     "ORM statements or flushes on a strict RLS table with no tenant bound (soft mode)",
     ["table"],
+    registry=registry,
+)
+
+# 0.5.0 (S3): tenants bound by unauthenticated paths from the token, installation, or
+# organisation they resolved (`bind_resolved_tenant`). The label set is fixed.
+ResolvedTenantPath = Literal["agent_trace_share", "auth_audit", "bot_inbound"]
+RLS_RESOLVED_TENANT_BINDINGS_TOTAL = Counter(
+    "rudix_rls_resolved_tenant_bindings_total",
+    "Tenants bound by unauthenticated paths before they touch strict RLS tables",
+    ["path"],
     registry=registry,
 )
 
@@ -317,6 +327,34 @@ async def apply_tenant_context(db_session: AsyncSession) -> None:
     statement = _context_statement_for(db_session.sync_session)
     if statement is not None:
         await connection.execute(text(statement[0]), statement[1])
+
+
+async def bind_resolved_tenant(
+    db_session: AsyncSession,
+    organization_id: UUID | str | None,
+    *,
+    path: ResolvedTenantPath,
+) -> UUID | None:
+    """Bind the tenant an unauthenticated path resolved before it touches strict tables.
+
+    For the known gaps of R04-08 (0.5.0, S3): the shared agent trace page (from the share
+    token), pre-authentication audit writes (login, refresh, logout, SSO: from the user,
+    session, or SSO configuration), and bot inbound events (from the installation). It binds
+    `session.info` and the context variable, then runs the session-context statement for a
+    transaction that is already open. Unlike `bind_pipeline_session` it never turns on the
+    ORM guard: these flows switch organisation as they go (a login audits the home
+    organisation, then opens a session in the selected one); the database policy is the check.
+    """
+    org_uuid = bind_session_tenant(db_session, organization_id)
+    await apply_tenant_context(db_session)
+    RLS_RESOLVED_TENANT_BINDINGS_TOTAL.labels(path=path).inc()
+    _rls_logger.debug(
+        "rls.tenant_bound",
+        path=path,
+        organization_id=str(org_uuid) if org_uuid is not None else None,
+        mode=effective_rls_mode().value,
+    )
+    return org_uuid
 
 
 async def bind_pipeline_session(

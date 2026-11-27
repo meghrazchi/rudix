@@ -15,6 +15,7 @@ from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.core.logging import get_logger, log_agent_event
 from app.db.session import get_db_session
+from app.db.tenant_context import bind_resolved_tenant
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.agents import (
@@ -1270,6 +1271,9 @@ async def get_shared_agent_trace(
 
     from app.domains.agents.services.trace_service import RetentionPolicySnapshot
 
+    # The page is unauthenticated: bind the token's organisation before the strict
+    # agent_runs, agent_steps, and agent_tool_calls reads (R04-08 known gap, 0.5.0).
+    await bind_resolved_tenant(db_session, share_token.organization_id, path="agent_trace_share")
     run = await _load_run_with_relations(
         db_session, share_token.agent_run_id, share_token.organization_id
     )
