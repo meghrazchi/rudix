@@ -34,6 +34,7 @@ class SourceDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_source_documents_org_document", "organization_id", "document_id"),
         Index("idx_source_documents_external_item", "external_item_id"),
         Index("idx_source_documents_collection_id", "collection_id"),
+        Index("idx_source_documents_document", "document_id"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(

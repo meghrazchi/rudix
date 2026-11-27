@@ -92,6 +92,8 @@ class ConnectorSyncRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint("items_deleted >= 0", name="connector_sync_runs_deleted_non_negative"),
         Index("idx_connector_sync_runs_org_status", "organization_id", "status"),
         Index("idx_connector_sync_runs_job_created", "sync_job_id", "created_at"),
+        # Created by migration 20260605_0010; mirrored here (R04-02).
+        Index("idx_connector_sync_runs_connection_status", "connection_id", "status"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(

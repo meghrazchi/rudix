@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String, Text, Uuid
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -24,6 +25,7 @@ class Notification(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index("idx_notifications_user_org", "user_id", "organization_id", "created_at"),
         Index("idx_notifications_unread", "user_id", "organization_id", "is_read"),
+        Index("idx_notifications_org_created", "organization_id", sql_text("created_at DESC")),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
