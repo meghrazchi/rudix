@@ -23,7 +23,7 @@ export function ProductPipeline({ links }: { links: PublicSiteLinks }) {
 
   return (
     <SiteSection labelledBy="product-pipeline-title">
-      <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-16">
+      <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-5">
           <SectionHeading
             id="product-pipeline-title"

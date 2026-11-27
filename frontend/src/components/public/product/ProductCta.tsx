@@ -20,7 +20,7 @@ export function ProductCta({ links }: { links: PublicSiteLinks }) {
       <div className="mx-auto max-w-3xl text-center">
         <h2
           id="product-cta-title"
-          className="text-site-ink text-3xl font-semibold tracking-tight text-balance md:text-5xl"
+          className="text-site-ink text-3xl font-semibold tracking-tight text-balance break-words hyphens-auto md:text-5xl lg:hyphens-manual"
         >
           {t("heading")}
         </h2>

@@ -28,7 +28,7 @@ export function PricingHero({ links }: { links: PublicSiteLinks }) {
         </p>
         <h1
           id="pricing-hero-title"
-          className="text-site-ink mt-6 text-4xl font-semibold tracking-[-0.03em] text-balance break-words hyphens-auto sm:text-5xl"
+          className="text-site-ink mt-6 text-4xl font-semibold tracking-[-0.03em] text-balance break-words hyphens-auto sm:text-5xl lg:hyphens-manual"
         >
           {t("heading")}
         </h1>

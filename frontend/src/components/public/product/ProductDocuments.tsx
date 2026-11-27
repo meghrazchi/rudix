@@ -63,7 +63,7 @@ export function ProductDocuments() {
 
   return (
     <SiteSection labelledBy="product-documents-title">
-      <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+      <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div>
           <SectionHeading
             id="product-documents-title"

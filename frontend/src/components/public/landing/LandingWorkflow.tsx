@@ -122,7 +122,7 @@ export function LandingWorkflow() {
           aria-hidden="true"
           className="bg-site-border absolute inset-x-[16%] top-[42px] hidden h-px lg:block"
         />
-        <ol className="relative grid gap-4 lg:grid-cols-3">
+        <ol className="relative grid grid-cols-1 gap-4 lg:grid-cols-3">
           {steps.map((step, index) => (
             <li
               key={step.title}

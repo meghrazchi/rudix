@@ -187,12 +187,14 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - skip-to-content link and semantic landmarks for accessibility
   - typed public changelog source data in `src/lib/public-site/changelog.ts`
   - release notes should be curated from release tags and milestones, then stripped of private issue details before publication
-- Public site redesign (minimal modern, in progress page by page):
+- Public site redesign (minimal modern):
   - design source: Stitch project "Rudix Public Site Redesign"
   - shared `site-*` color tokens in `src/app/globals.css` (`.rudix-public`), used as Tailwind classes such as `bg-site-surface` and `text-site-ink-muted`
-  - `PublicMarketingLayout` takes `theme="light" | "system"`; `system` follows the OS dark preference and is enabled only for pages already moved to the tokens (currently `/`, `/product`, `/pricing`, and `/security`)
-  - shared section primitives and the crawlable `<details>` FAQ live in `src/components/public/site/*`; page sections live in `src/components/public/{landing,product,pricing,security}/*`
-  - all copy is in `public.landing.*`, `public.product.*`, `public.pricing.*`, and `public.security.*` messages for every locale; product previews are built from UI rather than screenshots and never show invented metrics
+  - `PublicMarketingLayout` takes `theme="light" | "system"`; `system` follows the OS dark preference. All public marketing, solution, contact, status, changelog, and legal routes use `system`; auth pages (login, signup, accept-invite, SSO callback, organization onboarding, forbidden) set `.rudix-public` with `data-public-theme="system"` on their own root
+  - shared building blocks live in `src/components/public/site/*`: `primitives` (tokens-aware icon, section, heading, buttons), `SiteBlocks` (breadcrumb, split hero, icon cards, source chips, query list, step grid, CTA panel), `SiteMocks` (illustrative chat and source mocks), and the crawlable `<details>` `SiteFaq`
+  - page sections live in `src/components/public/{landing,product,pricing,security}/*`; solution pages compose the shared blocks with their existing `public.<solution>.*` messages
+  - legal pages share `LegalPageLayout` (sticky table of contents, review notice)
+  - copy lives in `public.*` messages for every locale; product mocks are built from UI rather than screenshots and must never show invented metrics, statistics, or certification claims
 
 ### Localized public SEO conventions
 

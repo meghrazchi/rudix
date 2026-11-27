@@ -38,7 +38,7 @@ export function PricingPlans({ links }: { links: PublicSiteLinks }) {
         description={t("description")}
         align="center"
       />
-      <ul className="mt-14 grid items-stretch gap-6 lg:grid-cols-3">
+      <ul className="mt-14 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
         {PLAN_IDS.map((planId) => {
           const featured = planId === FEATURED_PLAN;
           return (

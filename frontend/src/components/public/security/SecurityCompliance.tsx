@@ -62,7 +62,7 @@ export function SecurityCompliance({ links }: { links: PublicSiteLinks }) {
       <p className="text-site-accent-ink text-xs font-semibold tracking-[0.08em] uppercase">
         {t("compliance.eyebrow")}
       </p>
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel
           id="security-readiness-title"
           icon="assignment_turned_in"
@@ -99,7 +99,7 @@ export function SecurityCta({ links }: { links: PublicSiteLinks }) {
       <div className="border-site-border bg-site-muted/60 mx-auto max-w-5xl rounded-3xl border px-6 py-14 text-center md:px-12 md:py-20">
         <h2
           id="security-cta-title"
-          className="text-site-ink text-3xl font-semibold tracking-tight text-balance md:text-4xl"
+          className="text-site-ink text-3xl font-semibold tracking-tight text-balance break-words hyphens-auto md:text-4xl lg:hyphens-manual"
         >
           {t("heading")}
         </h2>

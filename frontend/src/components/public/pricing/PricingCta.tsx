@@ -19,7 +19,7 @@ export function PricingCta({ links }: { links: PublicSiteLinks }) {
       <div className="border-site-border bg-site-muted/60 mx-auto max-w-5xl rounded-3xl border px-6 py-14 text-center md:px-12 md:py-20">
         <h2
           id="pricing-cta-title"
-          className="text-site-ink text-3xl font-semibold tracking-tight text-balance md:text-4xl"
+          className="text-site-ink text-3xl font-semibold tracking-tight text-balance break-words hyphens-auto md:text-4xl lg:hyphens-manual"
         >
           {t("heading")}
         </h2>

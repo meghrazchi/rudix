@@ -34,7 +34,7 @@ export function LandingHero({ links }: { links: PublicSiteLinks }) {
 
         <h1
           id="landing-hero-title"
-          className="rudix-site-rise text-site-ink mt-6 max-w-4xl text-4xl font-semibold tracking-[-0.03em] text-balance break-words hyphens-auto sm:text-5xl lg:text-6xl"
+          className="rudix-site-rise text-site-ink mt-6 max-w-4xl text-4xl font-semibold tracking-[-0.03em] text-balance break-words hyphens-auto sm:text-5xl lg:text-6xl lg:hyphens-manual"
         >
           <span className="block">{t("title")}</span>
           <span className="text-site-ink-subtle block">

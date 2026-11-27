@@ -29,7 +29,7 @@ export function LandingSecurity({ links }: { links: PublicSiteLinks }) {
             </p>
             <h2
               id="landing-security-title"
-              className="text-site-ink mt-4 text-3xl font-semibold tracking-tight text-balance md:text-4xl"
+              className="text-site-ink mt-4 text-3xl font-semibold tracking-tight text-balance break-words hyphens-auto md:text-4xl lg:hyphens-manual"
             >
               {t("heading")}
             </h2>

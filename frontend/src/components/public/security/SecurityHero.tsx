@@ -59,7 +59,7 @@ export function SecurityHero({ links }: { links: PublicSiteLinks }) {
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-[480px] bg-[radial-gradient(50%_60%_at_25%_0%,var(--site-accent-soft),transparent)]"
       />
-      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-14 lg:grid-cols-12">
+      <div className="relative mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-14 lg:grid-cols-12">
         <div className="rudix-site-rise min-w-0 lg:col-span-7">
           <p className="border-site-border bg-site-surface text-site-ink-muted inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-medium">
             <SiteIcon name="shield" className="text-site-accent text-sm" />
@@ -67,7 +67,7 @@ export function SecurityHero({ links }: { links: PublicSiteLinks }) {
           </p>
           <h1
             id="security-hero-title"
-            className="text-site-ink mt-6 text-4xl font-semibold tracking-[-0.03em] text-balance break-words hyphens-auto sm:text-5xl"
+            className="text-site-ink mt-6 text-4xl font-semibold tracking-[-0.03em] text-balance break-words hyphens-auto sm:text-5xl lg:hyphens-manual"
           >
             {t("heading")}
           </h1>
