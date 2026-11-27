@@ -328,7 +328,46 @@ tests. `alembic heads` must report `20261127_0005` (or `20261128_0001` if S3 add
 5. Turn on `CHAT_VERIFIED_ANSWER_SHORTCUT_ENABLED` per environment after reviewing the
    published verified answers.
 
-## 9. Change Notes
+## 9. Status (2026-11-27)
+
+All nine packages are merged into `develop`: S1, S2, S3 (single pipeline, short sessions,
+tenant binding), A1 (token streaming), A2 (provider resilience, resumable runs), B1 (routing,
+cost accounting, prompt-injection hardening), B2 (caches, latency budget), C1 (chat page
+split), C2 (streaming render, resilient connection).
+
+Checked on `develop` after the last merge:
+
+- Backend: lint and mypy pass; 5,514 tests pass on SQLite and 273 on PostgreSQL; coverage
+  79.77%; one Alembic head (`20261127_0005`); the OpenAPI contract check passes.
+- Frontend: typecheck, lint, unit tests, and build pass; coverage 64.93% statements, 58.24%
+  branches, 58.88% functions, 65.8% lines; Playwright 233 passed.
+- `backend/app/interfaces/http/chat.py` is 493 lines.
+
+Review note: packages S1 to C2 except A2 were reviewed by the Opus reviewer. A2 and the
+release integration check were reviewed in the orchestrating session after the reviewer
+model's usage limit was reached.
+
+Not met or not done:
+
+- Exit criterion "12 or fewer database statements per chat request": a warm-cache grounded
+  question sends 30 (`tests/test_chat_query_count.py`). Remaining: repeated document
+  authorisation and scope reads, and the persistence writes.
+- The verified-answer shortcut runs in shadow mode only; returning a hit needs a response
+  contract change (confidence is a required number).
+- `R05-12` rich answer rendering: not started; needs an owner decision on the renderer.
+- Strict RLS is the default in development and test only. SCIM provisioning, invitation
+  accept, and the connector OAuth callback still write strict tables without a tenant binding
+  and must be bound before strict is enabled on staging.
+- The AI policy collection override is never applied (bug that predates this version, kept
+  because the extraction had to preserve behaviour).
+- `make audit` still fails on dev-only `virtualenv` (see `docs/CHANGELOG.md`).
+
+Not verified here (needs staging or CI): time to first token and concurrent-stream targets,
+streaming against a real provider, the Redis Lua scripts (semaphore, resume buffer) on a real
+Redis, and resume across two API replicas.
+
+## 10. Change Notes
 
 - 2026-11-27: Initial version, written after checking the `0.5.0` spec against the code at
   `21bdb6a`.
+- 2026-11-27: Status section added after all packages merged.

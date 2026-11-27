@@ -22,12 +22,12 @@ The per-version specs say what to build. This document says how the work is run.
 |---|---|---|
 | `0.2.0` | Correctness and safety | Implemented on `develop`. Not tagged, not deployed. |
 | `0.3.0` | Test and release foundation | Implemented on `develop`. No workflow has run on GitHub yet. |
-| `0.4.0` | Data layer performance | In progress. Detailed plan: [V0_4_0_IMPLEMENTATION_PLAN.md](./V0_4_0_IMPLEMENTATION_PLAN.md). |
-| `0.5.0` | Chat pipeline and streaming | Planned. Detailed plan: [V0_5_0_IMPLEMENTATION_PLAN.md](./V0_5_0_IMPLEMENTATION_PLAN.md) (nine packages; chain S first, then A, B, C in parallel). |
+| `0.4.0` | Data layer performance | Implemented on `develop`. Partition conversion and strict RLS in production are deferred; see [V0_4_0_IMPLEMENTATION_PLAN.md](./V0_4_0_IMPLEMENTATION_PLAN.md). |
+| `0.5.0` | Chat pipeline and streaming | Implemented on `develop`, except `R05-12` (needs a decision). See the Status section of [V0_5_0_IMPLEMENTATION_PLAN.md](./V0_5_0_IMPLEMENTATION_PLAN.md). |
 | `0.6.0` – `1.0.0` | See section 5 | Not started. |
 
-Measured baseline after `0.3.0`: backend coverage 76.0%; frontend coverage 63.9% statements,
-57.7% branches, 58.0% functions, 64.8% lines. CI fails when a figure drops.
+Measured on `develop` after `0.5.0`: backend coverage 79.7%; frontend coverage 64.9% statements,
+58.2% branches, 58.8% functions, 65.8% lines. CI fails when a figure drops.
 
 ## 3. Roles
 
@@ -165,3 +165,4 @@ Operational readiness needs an on-call rota and a completed restore drill.
 
 - 2026-11-27: Initial version.
 - 2026-11-27: The `0.5.0` row points at its implementation plan.
+- 2026-11-27: Status after `0.4.0` and `0.5.0`; coverage figures updated.
