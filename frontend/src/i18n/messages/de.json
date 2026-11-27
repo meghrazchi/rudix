@@ -558,11 +558,13 @@
         "feature1": "Intelligentes Parsen über gemischte Dokumentlayouts und -formate hinweg.",
         "feature2": "Zuverlässige Re-Indexierungs-Workflows für aktualisierte Richtlinien- und Wissensdokumente.",
         "sourceTransparencyLabel": "Quellentransparenz",
-        "sourceTransparencyText": "Zitiermarkierungen verbinden jede Antwort mit den ursprünglichen Quelltextausschnitten und geben Prüfern einen prüffreundlichen Weg von der Antwort zum Belegnachweise."
+        "sourceTransparencyText": "Zitiermarkierungen verbinden jede Antwort mit den ursprünglichen Quelltextausschnitten und geben Prüfern einen prüffreundlichen Weg von der Antwort zum Belegnachweise.",
+        "eyebrow": "Dokumente"
       },
       "groundedAnswers": {
         "heading": "Fundierte Antworten mit Quellenangaben",
-        "description": "Jede Antwort ist an Belegnachweise geknüpft, damit Teams Behauptungen verifizieren und referenzierte Ausschnitte mit Sicherheit prüfen können."
+        "description": "Jede Antwort ist an Belegnachweise geknüpft, damit Teams Behauptungen verifizieren und referenzierte Ausschnitte mit Sicherheit prüfen können.",
+        "eyebrow": "Vertrauen"
       },
       "metrics": {
         "accuracyScore": "Genauigkeitsbewertung",
@@ -573,7 +575,22 @@
         "heading": "Pipeline-Explorer-Visualizer",
         "description": "Verfolgen Sie Aufnahme-, Abruf- und Antwortphasen in einer Zeitachse, damit Teams das Verhalten debuggen und die Qualität zuverlässig verbessern können.",
         "openCta": "Pipeline-Explorer öffnen",
-        "imageAlt": "Pipeline-Dashboard-Vorschau mit Abruf- und Latenzsignalen"
+        "imageAlt": "Pipeline-Dashboard-Vorschau mit Abruf- und Latenzsignalen",
+        "eyebrow": "Transparenz",
+        "stages": {
+          "uploadTitle": "Hochladen",
+          "uploadDesc": "Prüfung von Dateityp, Größe und Sicherheit",
+          "extractTitle": "Extrahieren",
+          "extractDesc": "Text, Tabellen und Layout jeder Seite",
+          "chunkTitle": "Aufteilen",
+          "chunkDesc": "In durchsuchbare Passagen gegliedert",
+          "embedTitle": "Einbetten",
+          "embedDesc": "Für bedeutungsbasierte Suche indexiert",
+          "retrieveTitle": "Abrufen",
+          "retrieveDesc": "Relevanteste Passagen gefunden und gewichtet",
+          "answerTitle": "Antworten",
+          "answerDesc": "Belegte Antwort mit geprüften Quellen"
+        }
       },
       "admin": {
         "heading": "Einheitliche Admin-Kontrolle",
@@ -584,7 +601,8 @@
         "usageAnalyticsDesc": "Token-Nutzung, Latenz und Adoptionstrends für die Betriebsplanung verfolgen.",
         "usageAnalyticsCta": "Nutzungsanalysen",
         "auditLogsCta": "Prüfprotokolle",
-        "monitoringCta": "Überwachung"
+        "monitoringCta": "Überwachung",
+        "eyebrow": "Governance"
       },
       "integration": {
         "apiFirstTitle": "API-First-Grundlage",
@@ -592,7 +610,9 @@
         "futureReadyTitle": "Zukunftssichere Konnektoren",
         "futureReadyDesc": "Kontrollierte Konnektor- und MCP-Erweiterung planen, ohne die Kerndokumenten-Governance zu ändern.",
         "operatorVisibilityTitle": "Operator-Transparenz",
-        "operatorVisibilityDesc": "Pipeline-Zustand und Qualitätsmetriken in einer Ansicht für schnellere Incident-Response und Feinabstimmung."
+        "operatorVisibilityDesc": "Pipeline-Zustand und Qualitätsmetriken in einer Ansicht für schnellere Incident-Response und Feinabstimmung.",
+        "eyebrow": "Integration",
+        "heading": "Passt sich Ihrer Arbeitsweise an"
       },
       "cta": {
         "heading": "Bereit, Ihre Daten-Engine zu gestalten?",
@@ -612,6 +632,19 @@
         "isolationA": "Rudix setzt organisationsweite Grenzen für Dokumente, Abruf und benutzerseitige Workflows durch.",
         "deploymentQ": "Können wir Rudix in unserer eigenen Umgebung bereitstellen?",
         "deploymentA": "Rudix ist für containerbasierte Bereitstellung mit umgebungsgesteuerter Konfiguration und Betrieb ausgelegt."
+      },
+      "mock": {
+        "searchPlaceholder": "Dokumente durchsuchen",
+        "indexed": "Indexiert",
+        "processing": "Wird verarbeitet",
+        "pages": "{count} Seiten",
+        "pagesLabel": "Seiten",
+        "chunksLabel": "Abschnitte",
+        "languageLabel": "Sprache",
+        "languageValue": "Englisch",
+        "statusLabel": "Status",
+        "statusReady": "Bereit für die Suche",
+        "versionLabel": "Version"
       }
     },
     "pricing": {

@@ -42,7 +42,7 @@ export function SectionHeading({
       </p>
       <h2
         id={id}
-        className="text-site-ink mt-3 text-3xl font-semibold tracking-tight text-balance md:text-4xl"
+        className="text-site-ink mt-3 text-3xl font-semibold tracking-tight text-balance break-words hyphens-auto md:text-4xl"
       >
         {title}
       </h2>
@@ -82,3 +82,28 @@ export const PRIMARY_BUTTON_CLASS =
 
 export const SECONDARY_BUTTON_CLASS =
   "inline-flex h-11 items-center justify-center gap-2 rounded-full border border-site-border bg-site-surface px-6 text-sm font-medium text-site-ink transition-colors hover:bg-site-muted";
+
+export const TEXT_LINK_CLASS =
+  "inline-flex items-center gap-1 rounded-md text-sm font-medium text-site-accent-ink hover:underline";
+
+/** Status pill used in illustrative product mocks. */
+export function StatusPill({
+  tone,
+  children,
+}: {
+  tone: "success" | "accent" | "neutral";
+  children: ReactNode;
+}) {
+  const tones = {
+    success: "bg-site-success-soft text-site-success",
+    accent: "bg-site-accent-soft text-site-accent-ink",
+    neutral: "bg-site-muted text-site-ink-muted",
+  } as const;
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}

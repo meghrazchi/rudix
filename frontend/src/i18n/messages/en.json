@@ -558,11 +558,13 @@
         "feature1": "Smart parsing across mixed document layouts and formats.",
         "feature2": "Reliable re-indexing workflows for updated policy and knowledge documents.",
         "sourceTransparencyLabel": "Source transparency",
-        "sourceTransparencyText": "Citation markers connect each answer to original source snippets, giving reviewers an audit-friendly path from response to supporting evidence."
+        "sourceTransparencyText": "Citation markers connect each answer to original source snippets, giving reviewers an audit-friendly path from response to supporting evidence.",
+        "eyebrow": "Documents"
       },
       "groundedAnswers": {
         "heading": "Grounded Answers with Citations",
-        "description": "Every response is tied to supporting evidence so teams can verify claims and inspect referenced snippets with confidence."
+        "description": "Every response is tied to supporting evidence so teams can verify claims and inspect referenced snippets with confidence.",
+        "eyebrow": "Trust"
       },
       "metrics": {
         "accuracyScore": "Accuracy score",
@@ -573,7 +575,22 @@
         "heading": "Pipeline Explorer Visualizer",
         "description": "Trace ingestion, retrieval, and answer stages in one timeline so teams can debug behavior and improve quality with confidence.",
         "openCta": "Open Pipeline Explorer",
-        "imageAlt": "Pipeline dashboard preview with retrieval and latency signals"
+        "imageAlt": "Pipeline dashboard preview with retrieval and latency signals",
+        "eyebrow": "Observability",
+        "stages": {
+          "uploadTitle": "Upload",
+          "uploadDesc": "File type, size, and safety checks",
+          "extractTitle": "Extract",
+          "extractDesc": "Text, tables, and layout from every page",
+          "chunkTitle": "Chunk",
+          "chunkDesc": "Split into searchable passages",
+          "embedTitle": "Embed",
+          "embedDesc": "Indexed for meaning-based search",
+          "retrieveTitle": "Retrieve",
+          "retrieveDesc": "Most relevant passages found and ranked",
+          "answerTitle": "Answer",
+          "answerDesc": "Grounded reply with verified citations"
+        }
       },
       "admin": {
         "heading": "Unified Admin Control",
@@ -584,7 +601,8 @@
         "usageAnalyticsDesc": "Track token usage, latency, and adoption trends for operational planning.",
         "usageAnalyticsCta": "Usage Analytics",
         "auditLogsCta": "Audit Logs",
-        "monitoringCta": "Monitoring"
+        "monitoringCta": "Monitoring",
+        "eyebrow": "Governance"
       },
       "integration": {
         "apiFirstTitle": "API-first foundation",
@@ -592,7 +610,9 @@
         "futureReadyTitle": "Future-ready connectors",
         "futureReadyDesc": "Plan for controlled connector and MCP expansion without changing core document governance.",
         "operatorVisibilityTitle": "Operator visibility",
-        "operatorVisibilityDesc": "Keep pipeline health and quality metrics in one view for faster incident response and tuning."
+        "operatorVisibilityDesc": "Keep pipeline health and quality metrics in one view for faster incident response and tuning.",
+        "eyebrow": "Integration",
+        "heading": "Built to fit the way you work"
       },
       "cta": {
         "heading": "Ready to architect your data engine?",
@@ -612,6 +632,19 @@
         "isolationA": "Rudix enforces organization-level boundaries across documents, retrieval, and user-facing workflows.",
         "deploymentQ": "Can we deploy Rudix in our own environment?",
         "deploymentA": "Rudix is designed for container-based deployment with environment-driven configuration and operations."
+      },
+      "mock": {
+        "searchPlaceholder": "Search documents",
+        "indexed": "Indexed",
+        "processing": "Processing",
+        "pages": "{count} pages",
+        "pagesLabel": "Pages",
+        "chunksLabel": "Chunks",
+        "languageLabel": "Language",
+        "languageValue": "English",
+        "statusLabel": "Status",
+        "statusReady": "Ready to search",
+        "versionLabel": "Version"
       }
     },
     "pricing": {

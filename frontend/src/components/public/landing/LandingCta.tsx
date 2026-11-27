@@ -5,7 +5,7 @@ import {
   PRIMARY_BUTTON_CLASS,
   SECONDARY_BUTTON_CLASS,
   SiteIcon,
-} from "@/components/public/landing/primitives";
+} from "@/components/public/site/primitives";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
 
 export function LandingCta({ links }: { links: PublicSiteLinks }) {

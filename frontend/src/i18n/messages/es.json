@@ -558,11 +558,13 @@
         "feature1": "Análisis inteligente en diseños y formatos de documentos mixtos.",
         "feature2": "Flujos de reindexación fiables para documentos de políticas y conocimiento actualizados.",
         "sourceTransparencyLabel": "Transparencia de fuentes",
-        "sourceTransparencyText": "Los marcadores de cita conectan cada respuesta con fragmentos de la fuente original, dando a los revisores una ruta apta para auditoría desde la respuesta hasta la evidencia de respaldo."
+        "sourceTransparencyText": "Los marcadores de cita conectan cada respuesta con fragmentos de la fuente original, dando a los revisores una ruta apta para auditoría desde la respuesta hasta la evidencia de respaldo.",
+        "eyebrow": "Documentos"
       },
       "groundedAnswers": {
         "heading": "Respuestas fundamentadas con citas",
-        "description": "Cada respuesta está vinculada a evidencia de respaldo para que los equipos puedan verificar afirmaciones e inspeccionar los fragmentos referenciados con confianza."
+        "description": "Cada respuesta está vinculada a evidencia de respaldo para que los equipos puedan verificar afirmaciones e inspeccionar los fragmentos referenciados con confianza.",
+        "eyebrow": "Confianza"
       },
       "metrics": {
         "accuracyScore": "Puntuación de precisión",
@@ -573,7 +575,22 @@
         "heading": "Visualizador del explorador de canalización",
         "description": "Traza las etapas de ingesta, recuperación y respuesta en una sola cronología para que los equipos puedan depurar el comportamiento y mejorar la calidad con confianza.",
         "openCta": "Abrir explorador de canalización",
-        "imageAlt": "Vista previa del panel de canalización con señales de recuperación y latencia"
+        "imageAlt": "Vista previa del panel de canalización con señales de recuperación y latencia",
+        "eyebrow": "Observabilidad",
+        "stages": {
+          "uploadTitle": "Carga",
+          "uploadDesc": "Comprobación de tipo, tamaño y seguridad",
+          "extractTitle": "Extracción",
+          "extractDesc": "Texto, tablas y estructura de cada página",
+          "chunkTitle": "División",
+          "chunkDesc": "Dividido en fragmentos consultables",
+          "embedTitle": "Vectorización",
+          "embedDesc": "Indexado para búsqueda por significado",
+          "retrieveTitle": "Recuperación",
+          "retrieveDesc": "Fragmentos más relevantes encontrados y ordenados",
+          "answerTitle": "Respuesta",
+          "answerDesc": "Respuesta fundamentada con citas verificadas"
+        }
       },
       "admin": {
         "heading": "Control de administración unificado",
@@ -584,7 +601,8 @@
         "usageAnalyticsDesc": "Rastrea el uso de tokens, latencia y tendencias de adopción para la planificación operativa.",
         "usageAnalyticsCta": "Analítica de uso",
         "auditLogsCta": "Registros de auditoría",
-        "monitoringCta": "Monitoreo"
+        "monitoringCta": "Monitoreo",
+        "eyebrow": "Gobernanza"
       },
       "integration": {
         "apiFirstTitle": "Base API-first",
@@ -592,7 +610,9 @@
         "futureReadyTitle": "Conectores preparados para el futuro",
         "futureReadyDesc": "Planifica la expansión controlada de conectores y MCP sin cambiar la gobernanza documental principal.",
         "operatorVisibilityTitle": "Visibilidad del operador",
-        "operatorVisibilityDesc": "Mantén el estado de la canalización y las métricas de calidad en una sola vista para responder y ajustar incidentes más rápido."
+        "operatorVisibilityDesc": "Mantén el estado de la canalización y las métricas de calidad en una sola vista para responder y ajustar incidentes más rápido.",
+        "eyebrow": "Integración",
+        "heading": "Diseñado para adaptarse a tu forma de trabajar"
       },
       "cta": {
         "heading": "¿Listo para diseñar tu motor de datos?",
@@ -612,6 +632,19 @@
         "isolationA": "Rudix aplica límites a nivel de organización en documentos, recuperación y flujos orientados al usuario.",
         "deploymentQ": "¿Podemos desplegar Rudix en nuestro propio entorno?",
         "deploymentA": "Rudix está diseñado para despliegue basado en contenedores con configuración y operaciones basadas en el entorno."
+      },
+      "mock": {
+        "searchPlaceholder": "Buscar documentos",
+        "indexed": "Indexado",
+        "processing": "Procesando",
+        "pages": "{count} páginas",
+        "pagesLabel": "Páginas",
+        "chunksLabel": "Fragmentos",
+        "languageLabel": "Idioma",
+        "languageValue": "Inglés",
+        "statusLabel": "Estado",
+        "statusReady": "Listo para buscar",
+        "versionLabel": "Versión"
       }
     },
     "pricing": {

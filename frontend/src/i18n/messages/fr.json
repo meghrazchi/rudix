@@ -558,11 +558,13 @@
         "feature1": "Analyse intelligente des mises en page et formats de documents mixtes.",
         "feature2": "Workflows de réindexation fiables pour les documents de politique et de connaissance mis à jour.",
         "sourceTransparencyLabel": "Transparence des sources",
-        "sourceTransparencyText": "Les marqueurs de citation relient chaque réponse aux extraits sources d’origine, offrant aux réviseurs un parcours compatible avec l’audit entre réponse et preuves."
+        "sourceTransparencyText": "Les marqueurs de citation relient chaque réponse aux extraits sources d’origine, offrant aux réviseurs un parcours compatible avec l’audit entre réponse et preuves.",
+        "eyebrow": "Documents"
       },
       "groundedAnswers": {
         "heading": "Réponses fondées avec citations",
-        "description": "Chaque réponse est liée à des preuves, afin que les équipes puissent vérifier les affirmations et inspecter les extraits référencés en toute confiance."
+        "description": "Chaque réponse est liée à des preuves, afin que les équipes puissent vérifier les affirmations et inspecter les extraits référencés en toute confiance.",
+        "eyebrow": "Confiance"
       },
       "metrics": {
         "accuracyScore": "Score de précision",
@@ -573,7 +575,22 @@
         "heading": "Visualiseur de l’explorateur de pipeline",
         "description": "Suivez les étapes d’ingestion, de récupération et de réponse dans une chronologie unique, afin que les équipes puissent déboguer le comportement et améliorer la qualité en toute confiance.",
         "openCta": "Ouvrir l’explorateur de pipeline",
-        "imageAlt": "Aperçu du tableau de bord du pipeline avec signaux de récupération et de latence"
+        "imageAlt": "Aperçu du tableau de bord du pipeline avec signaux de récupération et de latence",
+        "eyebrow": "Observabilité",
+        "stages": {
+          "uploadTitle": "Téléversement",
+          "uploadDesc": "Contrôles du type, de la taille et de la sécurité",
+          "extractTitle": "Extraction",
+          "extractDesc": "Texte, tableaux et mise en page de chaque page",
+          "chunkTitle": "Découpage",
+          "chunkDesc": "Divisé en passages consultables",
+          "embedTitle": "Vectorisation",
+          "embedDesc": "Indexé pour une recherche par le sens",
+          "retrieveTitle": "Recherche",
+          "retrieveDesc": "Passages les plus pertinents trouvés et classés",
+          "answerTitle": "Réponse",
+          "answerDesc": "Réponse sourcée avec citations vérifiées"
+        }
       },
       "admin": {
         "heading": "Contrôle administrateur unifié",
@@ -584,7 +601,8 @@
         "usageAnalyticsDesc": "Suivez l’utilisation des jetons, la latence et les tendances d’adoption pour la planification opérationnelle.",
         "usageAnalyticsCta": "Utilisation Analytique",
         "auditLogsCta": "Journaux d’audit",
-        "monitoringCta": "Surveillance"
+        "monitoringCta": "Surveillance",
+        "eyebrow": "Gouvernance"
       },
       "integration": {
         "apiFirstTitle": "Fondation API-first",
@@ -592,7 +610,9 @@
         "futureReadyTitle": "Connecteurs prêts pour l’avenir",
         "futureReadyDesc": "Planifiez l’extension contrôlée des connecteurs et du MCP sans modifier la gouvernance documentaire centrale.",
         "operatorVisibilityTitle": "Visibilité opérateur",
-        "operatorVisibilityDesc": "Gardez la santé du pipeline et les métriques de qualité dans une vue unique pour accélérer la réponse aux incidents et l’optimisation."
+        "operatorVisibilityDesc": "Gardez la santé du pipeline et les métriques de qualité dans une vue unique pour accélérer la réponse aux incidents et l’optimisation.",
+        "eyebrow": "Intégration",
+        "heading": "Conçu pour s’adapter à votre façon de travailler"
       },
       "cta": {
         "heading": "Prêt à architecturer votre moteur de données ?",
@@ -612,6 +632,19 @@
         "isolationA": "Rudix applique des limites au niveau de l’organisation sur les documents, la récupération et les workflows utilisateur.",
         "deploymentQ": "Pouvons-nous déployer Rudix dans notre propre environnement ?",
         "deploymentA": "Rudix est conçu pour un déploiement basé sur conteneurs avec une configuration et des opérations pilotées par l’environnement."
+      },
+      "mock": {
+        "searchPlaceholder": "Rechercher des documents",
+        "indexed": "Indexé",
+        "processing": "En cours de traitement",
+        "pages": "{count} pages",
+        "pagesLabel": "Pages",
+        "chunksLabel": "Segments",
+        "languageLabel": "Langue",
+        "languageValue": "Anglais",
+        "statusLabel": "Statut",
+        "statusReady": "Prêt pour la recherche",
+        "versionLabel": "Version"
       }
     },
     "pricing": {

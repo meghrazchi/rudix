@@ -5,7 +5,7 @@ import {
   SectionHeading,
   SiteIcon,
   SiteSection,
-} from "@/components/public/landing/primitives";
+} from "@/components/public/site/primitives";
 
 function StepWidget({ children }: { children: ReactNode }) {
   return (

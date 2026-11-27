@@ -4,7 +4,7 @@ import {
   SectionHeading,
   SiteIcon,
   SiteSection,
-} from "@/components/public/landing/primitives";
+} from "@/components/public/site/primitives";
 
 const USE_CASES = [
   { key: "legal", icon: "gavel" },

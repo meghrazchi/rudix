@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
-import { SiteIcon, SiteSection } from "@/components/public/landing/primitives";
+import { SiteIcon, SiteSection } from "@/components/public/site/primitives";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
 
 const FEATURES = [

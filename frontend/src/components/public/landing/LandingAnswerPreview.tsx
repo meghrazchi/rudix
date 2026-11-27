@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import { SiteIcon } from "@/components/public/landing/primitives";
+import { SiteIcon } from "@/components/public/site/primitives";
 
 const SOURCES = [
   { number: 1, file: "returns-policy.pdf", sectionKey: "source1Section" },

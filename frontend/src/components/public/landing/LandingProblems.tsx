@@ -4,7 +4,7 @@ import {
   SectionHeading,
   SiteIcon,
   SiteSection,
-} from "@/components/public/landing/primitives";
+} from "@/components/public/site/primitives";
 
 const PROBLEMS = [
   { icon: "find_in_page", key: "manualSearching" },

@@ -6,7 +6,7 @@ import {
   PRIMARY_BUTTON_CLASS,
   SECONDARY_BUTTON_CLASS,
   SiteIcon,
-} from "@/components/public/landing/primitives";
+} from "@/components/public/site/primitives";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
 
 export function LandingHero({ links }: { links: PublicSiteLinks }) {
@@ -34,7 +34,7 @@ export function LandingHero({ links }: { links: PublicSiteLinks }) {
 
         <h1
           id="landing-hero-title"
-          className="rudix-site-rise text-site-ink mt-6 max-w-4xl text-4xl font-semibold tracking-[-0.03em] text-balance sm:text-5xl lg:text-6xl"
+          className="rudix-site-rise text-site-ink mt-6 max-w-4xl text-4xl font-semibold tracking-[-0.03em] text-balance break-words hyphens-auto sm:text-5xl lg:text-6xl"
         >
           <span className="block">{t("title")}</span>
           <span className="text-site-ink-subtle block">
