@@ -28,6 +28,9 @@ class AuthSettings(BaseModel):
     app_auth_issuer: str = Field(default="rudix-app", min_length=3, max_length=120)
     app_auth_audience: str = Field(default="rudix-api", min_length=3, max_length=120)
     app_auth_clock_skew_seconds: int = Field(default=30, ge=0, le=300)
+    # SSO admin setup fetches IdP metadata server side. Private, loopback and
+    # link-local hosts are refused unless an on-prem IdP needs them.
+    sso_metadata_allow_private_hosts: bool = False
     app_auth_cookie_domain: str | None = Field(default=None, max_length=255)
     app_auth_cookie_secure: bool | None = None
     app_auth_cookie_same_site: str = Field(default="lax", min_length=3, max_length=16)

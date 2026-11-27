@@ -54,6 +54,15 @@ Account creation (no self-registration):
 - The login page tells users without an account to ask their workspace administrator for an
   invitation.
 
+SSO/SAML setup hardening:
+
+- IdP metadata and SAML responses are parsed with DTDs, entity expansion and network access
+  disabled (`app/domains/sso/services/saml_io.py`); any document with a DOCTYPE is rejected.
+- Admin "test connection" and metadata fetches only reach public http(s) hosts: the host is
+  resolved and private, loopback, link-local and multicast addresses are refused, URLs with
+  credentials are refused, and redirects are not followed.
+- On-prem identity providers on a private network need `SSO_METADATA_ALLOW_PRIVATE_HOSTS=true`.
+
 WebSocket chat (`/chat/ws`):
 
 - Browsers authenticate with a single-use, short-lived ticket from `POST /chat/ws-ticket`

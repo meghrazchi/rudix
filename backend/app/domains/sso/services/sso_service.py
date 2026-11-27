@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import base64
 import urllib.error
-import urllib.request
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
-from xml.etree import ElementTree
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.domains.sso.services.saml_io import open_idp_url, parse_untrusted_xml
 from app.models.org_sso_config import OrgSSOConfig
 
 _SAML_NS = "urn:oasis:names:tc:SAML:2.0:metadata"
@@ -31,9 +30,9 @@ def _sp_acs_url_for_org(organization_id: str) -> str:
 def _parse_saml_metadata(xml_bytes: bytes) -> dict:
     """Extract SSO URL, entity ID, and signing cert from IdP SAML metadata XML."""
     try:
-        root = ElementTree.fromstring(xml_bytes)
-    except ElementTree.ParseError as exc:
-        raise ValueError(f"Invalid XML in IdP metadata: {exc}") from exc
+        root = parse_untrusted_xml(xml_bytes)
+    except ValueError as exc:
+        raise ValueError(f"Invalid IdP metadata: {exc}") from exc
 
     tag = root.tag
     entity_id: str | None = None
@@ -69,10 +68,11 @@ def _parse_saml_metadata(xml_bytes: bytes) -> dict:
 
 def _fetch_metadata_url(url: str) -> bytes:
     """Fetch IdP metadata XML from a URL. Raises ValueError on failure."""
-    req = urllib.request.Request(url, headers={"User-Agent": "Rudix-SSO/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS) as resp:
+        with open_idp_url(url, method="GET", timeout=_FETCH_TIMEOUT_SECONDS) as resp:
             content_bytes = resp.read(_MAX_METADATA_BYTES + 1)
+    except ValueError:
+        raise
     except urllib.error.URLError as exc:
         raise ValueError(f"Could not reach IdP metadata URL: {exc.reason}") from exc
     except Exception as exc:
@@ -114,8 +114,8 @@ def _build_authn_request(sp_entity_id: str, idp_sso_url: str, relay_state: str) 
 def _extract_name_id_from_saml_response(xml_bytes: bytes) -> str | None:
     """Parse a SAML Response and extract the NameID."""
     try:
-        root = ElementTree.fromstring(xml_bytes)
-    except ElementTree.ParseError:
+        root = parse_untrusted_xml(xml_bytes)
+    except ValueError:
         return None
 
     # Try both SAML assertion namespaces
@@ -133,8 +133,8 @@ def _extract_attributes_from_saml_response(xml_bytes: bytes) -> dict[str, str]:
     """Extract SAML attribute values as a flat name→value dict."""
     attrs: dict[str, str] = {}
     try:
-        root = ElementTree.fromstring(xml_bytes)
-    except ElementTree.ParseError:
+        root = parse_untrusted_xml(xml_bytes)
+    except ValueError:
         return attrs
 
     for ns_uri in (
@@ -262,11 +262,8 @@ class SSOService:
                 success = True
             elif idp_sso_url:
                 # Minimal reachability: try a HEAD/GET to the SSO URL
-                req = urllib.request.Request(
-                    idp_sso_url, method="HEAD", headers={"User-Agent": "Rudix-SSO/1.0"}
-                )
                 try:
-                    urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS)
+                    open_idp_url(idp_sso_url, method="HEAD", timeout=_FETCH_TIMEOUT_SECONDS).close()
                     detail = "IdP SSO URL is reachable."
                     success = True
                 except urllib.error.HTTPError as http_err:
