@@ -9128,6 +9128,8 @@ export interface components {
             retrieval_method?: components["schemas"]["RetrievalMethodRecord"];
             tool_orchestration?: components["schemas"]["ToolOrchestrationRecord"];
             context_injection?: components["schemas"]["ContextInjectionRecord"];
+            /** Stage Degradations */
+            stage_degradations?: components["schemas"]["StageDegradationRecord"][];
             /**
              * Generated At
              * Format: date-time
@@ -20641,6 +20643,26 @@ export interface components {
             status: string;
             /** Count */
             count: number;
+        };
+        /**
+         * StageDegradationRecord
+         * @description An optional pipeline stage that was skipped or degraded (R05-04).
+         *
+         *     ``reason`` is ``deadline`` (the run's total deadline ran out), ``budget`` (the stage's
+         *     own budget ran out) or ``error``. ``action`` names what the run did instead, for
+         *     example ``original_question``, ``vector_only``, ``original_order``, ``skipped``,
+         *     ``single_generation`` or ``answer_withheld``. Never carries request or document text.
+         */
+        StageDegradationRecord: {
+            /** Stage */
+            stage: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "deadline" | "budget" | "error";
+            /** Action */
+            action: string;
         };
         /** StaleByCollection */
         StaleByCollection: {
