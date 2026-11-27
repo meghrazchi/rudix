@@ -442,6 +442,27 @@ Notes:
 - The flush task logs `usage_touch.flushed` (rows) and, on a database error,
   `usage_touch.flush_failed` (rows re-buffered, error type) before Celery retries it.
 
+### Application cache (R04-05)
+
+| Metric | Labels | Meaning |
+| --- | --- | --- |
+| `rudix_cache_hits_total` | `namespace` | Values served from Redis (including in-process single-flight followers). |
+| `rudix_cache_misses_total` | `namespace` | Values loaded from the database and written to Redis. |
+| `rudix_cache_errors_total` | `namespace`, `operation` | Reads that fell back to the database. `operation` is `version`, `get`, `set`, `decode` (Redis error or timeout), `unavailable` (no Redis client), or `disabled` (`CACHE_ENABLED=false`). |
+| `rudix_cache_invalidations_total` | `scope`, `result` | Post-commit version bumps. `scope` is `org` or `user`; `result` is `ok`, `error`, `unavailable`, `skipped` (sync session, no event loop), or `unresolved` (custom-role permission whose organisation could not be found). |
+
+`namespace` is `auth_principal`, `permission_set`, or `feature_flags`.
+
+- Hit ratio is `hits / (hits + misses)` per namespace. A warm authenticated request issues no
+  auth statements; a low `auth_principal` hit ratio usually means frequent session refreshes or
+  user-level writes (each bumps the user's version).
+- Alert on a sustained rate of `rudix_cache_errors_total{operation!~"unavailable|disabled"}`:
+  Redis is slow or failing and every request is reading the database again.
+- Alert on any `rudix_cache_invalidations_total{result="error"}`: until the TTL passes, a
+  revoked session, removed member, or changed permission may still be served from cache.
+- Failures log `cache.fallback` and `cache.invalidation.failed` with namespace or scope and
+  the error type; no values, tokens, or ids beyond the scope id are logged.
+
 ## Continuous evaluation
 
 Run evaluations:

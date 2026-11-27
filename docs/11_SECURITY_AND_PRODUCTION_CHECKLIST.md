@@ -388,6 +388,43 @@ R03-07 and R03-08; workflow details in `docs/14_GITHUB_ACTIONS_CI_CD_PIPELINE.md
   owned by `frontend/config/security-headers.mjs`; see [Security headers](#security-headers)).
   Turn it on per environment after a clean report-only period.
 
+## Caching of security-sensitive data
+
+The application cache (`app/core/cache.py`, R04-05) holds three namespaces in `0.4.0`: the
+auth principal snapshot (user active flag, email, default organisation, memberships with role
+and custom role, and the token's session row state), custom-role permission sets, and
+organisation feature-flag overrides. AI response policy, RAG and model profiles, tool policy,
+and quota policy are not cached yet; they move onto the cache in `0.5.0`.
+
+- Never across organisations. Organisation-scoped values live under
+  `rudix:{env}:org:{org_id}:v{n}:...` and user-scoped values under
+  `rudix:{env}:user:{user_id}:v{n}:...`; a key without the owning id is not allowed. A custom
+  role's permission set is keyed by organisation and custom role id.
+- Invalidation happens before `commit()` returns. Writes to memberships, users (`is_active`,
+  `email`, `organization_id`), custom roles and their permissions, feature-flag overrides,
+  and session revocations record the affected organisation or user in the SQLAlchemy session.
+  The `after_commit` listener increments the version key in Redis synchronously, so the next
+  request after a logout, role change, member removal, SCIM deprovisioning, custom-role edit,
+  or flag change reads fresh rows. Core `UPDATE`/`DELETE` paths call `mark_dirty` explicitly
+  (`session_repository.py`, `feature_flags.py`); new bulk writes to these tables must do the
+  same.
+- Revoked sessions are never cached: the loader raises before a snapshot exists, and a
+  revocation bumps the user's version. Cached snapshots also re-check the session expiry on
+  every request. JWT signature and expiry are verified on every request, never cached.
+- TTL bound if Redis write fails. When the invalidation `INCR` fails or Redis is unreachable
+  (`rudix_cache_invalidations_total{result="error"|"unavailable"}`), stale values survive at
+  most their TTL: `CACHE_TTL_AUTH_SESSION_SECONDS` (30), `CACHE_TTL_PERMISSIONS_SECONDS` (30),
+  `CACHE_TTL_FLAGS_SECONDS` (60). Keep these short. Celery workers do not open the API Redis
+  client, so a write made in a worker relies on the TTL; do not move membership or session
+  writes into workers without wiring invalidation there.
+- Reads fail safe to the database. Any Redis error, timeout (`CACHE_OPERATION_TIMEOUT_MS`),
+  or missing client loads from PostgreSQL and counts `rudix_cache_errors_total`.
+- Kill switch: `CACHE_ENABLED=false` (a configuration change and API restart, no code change)
+  sends every read to the database. Invalidations keep running so the cache is consistent
+  when it is turned back on.
+- Version keys restart from the epoch-millisecond clock when missing (eviction), never from
+  `0` or `1`, so an evicted version cannot resurrect orphaned values.
+
 ## Logging safety
 
 Do log:
