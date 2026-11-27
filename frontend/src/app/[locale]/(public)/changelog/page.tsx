@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PublicRouteParams) {
 
 export default function ChangelogRoutePage() {
   return (
-    <PublicMarketingLayout pageLabel="Rudix changelog page">
+    <PublicMarketingLayout pageLabel="Rudix changelog page" theme="system">
       <ChangelogPage />
     </PublicMarketingLayout>
   );

@@ -81,22 +81,22 @@ export function SubprocessorsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-[#d8dbe5]">
-                    <th className="pr-4 pb-2 font-semibold text-[#25283a]">
+                  <tr className="border-site-border border-b">
+                    <th className="text-site-ink pe-4 pb-2 font-semibold">
                       Subprocessor
                     </th>
-                    <th className="pr-4 pb-2 font-semibold text-[#25283a]">
+                    <th className="text-site-ink pe-4 pb-2 font-semibold">
                       Purpose
                     </th>
-                    <th className="pb-2 font-semibold text-[#25283a]">
+                    <th className="text-site-ink pb-2 font-semibold">
                       Location
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#eaecf0]">
+                <tbody className="divide-site-border divide-y">
                   {SUBPROCESSORS.map((sp) => (
                     <tr key={sp.name}>
-                      <td className="py-2 pr-4 align-top font-medium text-[#11131a]">
+                      <td className="text-site-ink py-2 pe-4 align-top font-medium">
                         {sp.link ? (
                           <a
                             href={sp.link}
@@ -110,10 +110,10 @@ export function SubprocessorsPage() {
                           sp.name
                         )}
                       </td>
-                      <td className="py-2 pr-4 align-top text-[#4b4f60]">
+                      <td className="text-site-ink-muted py-2 pe-4 align-top">
                         {sp.purpose}
                       </td>
-                      <td className="py-2 align-top text-[#4b4f60]">
+                      <td className="text-site-ink-muted py-2 align-top">
                         {sp.location}
                       </td>
                     </tr>
