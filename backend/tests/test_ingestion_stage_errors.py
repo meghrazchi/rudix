@@ -321,3 +321,33 @@ def test_table_without_text_is_skipped(ingestion_env: IngestionEnv) -> None:  # 
     _run(env, seeded)
     snapshot = env.run_async(_document(env, seeded)).chunking_config_snapshot or {}
     assert "table_chunk_count" not in snapshot
+
+
+def test_connector_document_without_source_document_writes_no_references(
+    ingestion_env: IngestionEnv,  # noqa: F811
+) -> None:
+    from sqlalchemy import delete
+
+    from app.models.connector_source import SourceDocument, SourceReference
+
+    env = ingestion_env
+    env.set_content(TEXT)
+    seeded = env.seed(connector=True)
+
+    async def _drop_source() -> None:
+        async with env.factory() as session:
+            await session.execute(
+                delete(SourceDocument).where(SourceDocument.document_id == seeded.document_id)
+            )
+            await session.commit()
+
+    async def _references() -> int:
+        async with env.factory() as session:
+            rows = await session.execute(
+                select(SourceReference.id).where(SourceReference.document_id == seeded.document_id)
+            )
+            return len(rows.all())
+
+    env.run_async(_drop_source())
+    _run(env, seeded)
+    assert env.run_async(_references()) == 0
