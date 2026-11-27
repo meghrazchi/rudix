@@ -764,6 +764,20 @@ persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `
 - Every Celery task binds the tenant of its `organization_id` kwarg (`RudixTask.__call__`,
   `bind_worker_tenant`); document and stage tasks raise `tenant_mismatch` before any write
   for another organisation's document. Runbook: `docs/27_INGESTION_AND_WORKERS_RUNBOOK.md`.
+- Agent runs (R06-13): `AGENT_RUN_EXECUTION=inline` (default) runs `POST /agent/runs` in the
+  request; `worker` stores the run as `queued` with `request_snapshot`, writes an outbox row
+  for `agents.run.execute` (queue `CELERY_QUEUE_AGENTS`, default `default`), and returns
+  `201` with `status: queued`. The task (`app/application/agents/worker_execution.py`) takes
+  a lease (`AGENT_RUN_LEASE_SECONDS`), rebuilds the principal from the database
+  (`principal_revoked` when access is gone), resumes after the last completed step, and
+  commits after every step; approval enqueues `agents.run.resume`.
+- `app/domains/agents/services/runtime.py` is split into `runtime_context`, `runtime_plan`,
+  `runtime_outcome`, `runtime_steps`, `runtime_start`, and `runtime_resume` (each under 500
+  lines); `AgentRuntime` keeps every name callers use.
+- `GET /agent/runs/{run_id}/stream` is Server-Sent Events (0.5.0 framing) from a Redis
+  buffer and pub/sub (`AGENT_STREAM_BUFFER_TTL_SECONDS`), falling back to database polling
+  (`AGENT_STREAM_POLL_INTERVAL_MS`). Worker tests: `tests/agent_worker_support.py` (eager
+  Celery, `FakeRedis` with `publish`/`pubsub`).
 
 ## Application cache
 
@@ -1063,9 +1077,13 @@ Celery beat is the scheduler that enqueues periodic tasks. It schedules these en
 - `documents-stage-artifacts-purge` (`documents.stage_artifacts.purge`) daily at 04:05 UTC:
   deletes stage artifacts older than `INGEST_STAGE_ARTIFACT_TTL_HOURS` (default 72) of
   documents that are not processing.
+- `agents-runs-reap` (`agents.runs.reap`) every `AGENT_RUN_REAP_INTERVAL_SECONDS` seconds
+  (default 60): re-queues worker-executed agent runs whose lease expired (`resume_count + 1`)
+  and fails them with `worker_lost` after `AGENT_RUN_MAX_RESUMES` (default 3). Runs executed
+  inline are never touched.
 
-Without a beat process, scheduled connector syncs, approval expiry, and stale-document
-recovery never run.
+Without a beat process, scheduled connector syncs, approval expiry, stale-document
+recovery, and agent run recovery never run.
 
 Worker platform (0.6.0, R06-03 to R06-05): beat schedules nothing new for it. The queue depth
 gauges come from a sampler in `worker-default`'s main process

@@ -292,3 +292,60 @@ Failure modes:
 Not verified in this repository (no broker in CI): real dead-lettering, `consumer_timeout`,
 child recycling, and the load test that an evaluation does not delay uploads. They are the
 manual checks in [plan section 8](./roadmap/V0_6_0_IMPLEMENTATION_PLAN.md#8-manual-steps-staging-and-production).
+
+## Agent workers (R06-13)
+
+`AGENT_RUN_EXECUTION` selects where `POST /agent/runs` executes a run. `inline` (the
+default) keeps the 0.5.0 behaviour: the request runs the whole plan. `worker` stores the run
+as `queued` with `request_snapshot` and an outbox row for `agents.run.execute`, and returns
+`201` at once. The tasks run on `CELERY_QUEUE_AGENTS` (default `default`, consumed by the
+`default` pool and the single dev worker).
+
+### Lease and resume
+
+| Step | What happens |
+|---|---|
+| Take the lease | One conditional `UPDATE`: `queued`, or `running` with an expired `lease_expires_at`, or the same `lease_owner` (a redelivered message keeps its task id). Sets `running`, `lease_owner` = task id, `lease_expires_at` = now + `AGENT_RUN_LEASE_SECONDS` (300). |
+| Rebuild the principal | Active user, current membership and role in the run's organisation, every planned tool's `required_roles`. Otherwise the run fails with `principal_revoked`. |
+| Run or resume | A run without its planning step (sequence 0) is planned; otherwise it resumes at the first sequence without a completed step, replaying the completed ones into the runtime state (they are never executed again). |
+| Per step | Commit and renew the lease when the step row is running, after the tool call returns, and when the step ends. A finished side-effect call is reused by its idempotency key on resume. |
+| Exit | The lease is cleared; the run is `completed`, `failed`, `cancelled`, or `waiting_approval`. A lost lease (renewal found another owner) stops the task without further writes. |
+
+Approval: approving a `waiting_approval` run moves it to `queued` and writes an outbox row
+for `agents.run.resume` (dedupe key: the approval id). The resume task adds the approval to
+the snapshot's `approval_ids` and continues like `agents.run.execute`. Rejected and expired
+approvals fail the run as in 0.5.0. Runs submitted inline (no `request_snapshot`) are never
+picked up by a worker, even after the setting changes.
+
+### Reaper
+
+Beat task `agents.runs.reap` (every `AGENT_RUN_REAP_INTERVAL_SECONDS`, 60) reads up to
+`AGENT_RUN_REAP_BATCH_SIZE` running runs with an expired lease (`FOR UPDATE SKIP LOCKED`,
+maintenance session). Below `AGENT_RUN_MAX_RESUMES` (3) it sets `queued`, `resume_count + 1`
+and writes an outbox row (dedupe key `agents.run.execute:<run>:resume:<n>`); at the limit it
+fails the run with `worker_lost`. Inline runs never hold a lease and are never reaped.
+
+### Turning it on
+
+1. Deploy the release with `AGENT_RUN_EXECUTION=inline` (no change).
+2. Make sure the `default` pool (or the queue named by `CELERY_QUEUE_AGENTS`) runs, beat runs
+   (`outbox.relay`, `agents.runs.reap`), and Redis is reachable from API and workers (stream).
+3. Set `AGENT_RUN_EXECUTION=worker` on the API and the workers, restart. Clients already poll
+   `GET /agent/runs/{run_id}` and render `queued`; the stream endpoint works in both modes.
+4. Rollback: set `inline` again. Runs already queued stay queued until a worker runs them,
+   so keep the workers running until `SELECT count(*) FROM agent_runs WHERE status IN
+   ('queued', 'running') AND request_snapshot IS NOT NULL` is 0.
+
+### Failure modes
+
+| Symptom | Cause | Recovery |
+|---|---|---|
+| Runs stay `queued` | No worker consumes `CELERY_QUEUE_AGENTS`, or the outbox row is pending | Start the pool; check `outbox_messages` for `agents.run.execute` rows and `outbox.relay` logs. |
+| Runs fail with `worker_lost` | The task died `AGENT_RUN_MAX_RESUMES` times (time limit, OOM) | Check worker logs for the run id; raise the task time limit (`CELERY_TASK_TIME_LIMITS`, below the consumer timeout) if steps are slow. |
+| Runs fail with `principal_revoked` | The user was removed, deactivated, or downgraded before the task ran | Expected; the user (or an admin) starts a new run. |
+| `waiting_approval` runs do not continue after approval | Run submitted inline, or the approval was decided while the setting was `inline` | Resubmit with `request.approval_ids`, as in 0.5.0. |
+| Stream clients only get updates every second | Redis unavailable (`agent.stream.redis_fallback`) or `publish_failed` | Fix Redis; the database fallback keeps the stream correct meanwhile. |
+
+Not verified here (no broker or Redis in CI): a real worker restart mid-run and live Redis
+pub/sub. They are staging checks in plan section 8; the tests use eager Celery and the
+in-memory Redis fake.
