@@ -353,6 +353,20 @@ async def test_without_org_filter_walks_every_organisation(db_session: AsyncSess
 
 
 @pytest.mark.asyncio
+async def test_empty_org_filter_deletes_nothing(db_session: AsyncSession) -> None:
+    org_id = await _org(db_session)
+    await _usage(db_session, org_id, 60)
+    await db_session.commit()
+
+    result = await RetentionService().purge(
+        db_session, now=NOW, config=_config({"usage_events": 30}), organization_ids=[]
+    )
+
+    assert result.rows_deleted == 0
+    assert await _count(db_session, UsageEvent, org_id) == 1
+
+
+@pytest.mark.asyncio
 async def test_purge_task_uses_maintenance_session(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -124,7 +124,10 @@ class RetentionService:
             return RetentionRunResult(enabled=False)
 
         result = RetentionRunResult(enabled=True)
-        org_ids: list[UUID] | None = list(organization_ids) if organization_ids else None
+        # An explicit empty list means "no organisation", never "every organisation".
+        org_ids: list[UUID] | None = (
+            list(organization_ids) if organization_ids is not None else None
+        )
         for table in RETENTION_TABLES:
             windows = await self._windows_for_table(session, table=table, config=cfg)
             if windows is None:

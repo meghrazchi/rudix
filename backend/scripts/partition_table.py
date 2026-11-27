@@ -44,7 +44,7 @@ from app.db.partition_migration import (
     swap,
     verify,
 )
-from app.db.partitioning import monthly_partition_name, quote_identifier
+from app.db.partitioning import lock_timeout_sql, monthly_partition_name, quote_identifier
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
@@ -144,7 +144,18 @@ async def _run(args: argparse.Namespace) -> int:
             if args.dry_run:
                 async with engine.connect() as conn:
                     info = await inspect_table(conn, args.table)
-                print(";\n".join(build_swap_rename_sql(info, now=now)) + ";")
+                if info.blockers:
+                    raise PartitionMigrationError("; ".join(info.blockers))
+                table = quote_identifier(args.table)
+                shadow = quote_identifier(shadow_name(args.table))
+                preamble = [
+                    lock_timeout_sql(args.lock_timeout),
+                    f"LOCK TABLE {table} IN ACCESS EXCLUSIVE MODE",
+                    f"LOCK TABLE {shadow} IN ACCESS EXCLUSIVE MODE",
+                    "-- copy the delta (new and updated rows), then compare row counts",
+                ]
+                renames = build_swap_rename_sql(info, now=now)
+                print("BEGIN;\n" + ";\n".join([*preamble, *renames]) + ";\nCOMMIT;")
                 return 0
             legacy = await swap(engine, args.table, now=now, lock_timeout=args.lock_timeout)
             print(f"swapped: {args.table} is partitioned; old table kept as {legacy}")

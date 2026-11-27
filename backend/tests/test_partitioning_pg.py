@@ -281,7 +281,11 @@ def test_script_plan_dry_run_and_verify(
     assert "ON CONFLICT DO NOTHING" in capsys.readouterr().out
 
     assert script.main(["swap", "usage_events", "--dry-run"]) == 0
-    assert "RENAME TO" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "RENAME TO" in out
+    assert "SET LOCAL lock_timeout = '5s'" in out
+    assert 'LOCK TABLE "usage_events" IN ACCESS EXCLUSIVE MODE' in out
+    assert script.main(["swap", "authorization_decision_logs", "--dry-run"]) == 1
 
     assert script.main(["verify", "usage_events", "--against", "usage_events"]) == 0
     assert "match" in capsys.readouterr().out
