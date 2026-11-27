@@ -112,8 +112,9 @@ enabled, every response that sets the refresh cookie (login, refresh, SSO JSON a
 paths) also sets `rudix_session_hint=1` (`APP_AUTH_SESSION_HINT_COOKIE_NAME`) with
 `HttpOnly`, the refresh cookie's `Secure` and `SameSite`, `Path=/`,
 `Domain=APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` and `Max-Age=APP_AUTH_REFRESH_TOKEN_TTL_SECONDS`.
-Logout, logout-all and every `401` from `/auth/token/refresh` (revoked, reused, invalid)
-clear it. The value carries no secret, claim or role and authorises nothing; the frontend
+Logout, logout-all and every `401` or `403` from `/auth/token/refresh` (missing, invalid or
+revoked token `401`; reused token or cross-organisation `403`) clear it; a `429` or the
+Origin-check `403` leaves it. The value carries no secret, claim or role and authorises nothing; the frontend
 route gate (`RUDIX_ROUTE_GATE=enforce`) only checks that it exists. Response bodies and the
 refresh cookie are unchanged.
 

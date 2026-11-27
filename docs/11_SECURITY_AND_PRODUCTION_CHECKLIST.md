@@ -68,7 +68,8 @@ Browser token storage and route gate (R07-09, 0.7.0):
   - session hint: `HttpOnly`, same `Secure` and `SameSite` as the refresh cookie, `Path=/`,
     `Domain=APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` (for example `.getrudix.com` so the
     frontend host receives it), same `Max-Age`. Set on login, refresh and SSO; cleared on
-    logout, logout-all and every refresh `401`.
+    logout, logout-all and every refresh `401` or `403` rejection (invalid, revoked or
+    reused token).
 - CSRF defence: `SameSite=Lax` plus the `CORS_ORIGINS` allowlist with credentials. When
   `APP_AUTH_COOKIE_SAME_SITE=none`, `POST /auth/token/refresh` and `POST /auth/logout` also
   reject a missing or foreign `Origin` with `403 csrf_origin_rejected`
@@ -82,7 +83,11 @@ Browser token storage and route gate (R07-09, 0.7.0):
 - Rollout order: deploy, turn on `APP_AUTH_SESSION_HINT_COOKIE_ENABLED` and leave it on for one
   refresh-token lifetime (`APP_AUTH_REFRESH_TOKEN_TTL_SECONDS`) so every live session has
   the hint, then set `RUDIX_ROUTE_GATE=enforce`. Turning the gate on earlier sends users
-  without the hint to the login page once.
+  without the hint to the login page once (the login page's refresh then sets the hint).
+  Never enforce the gate while the hint is disabled or its `Domain` does not cover the
+  frontend host: the proxy would then never see the cookie, and a signed-in user would be
+  sent back and forth between the login page and the app. Check with a signed-in browser
+  that the frontend host receives `rudix_session_hint` before enforcing.
 
 Account creation (no self-registration):
 
