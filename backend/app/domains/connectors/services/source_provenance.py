@@ -11,7 +11,7 @@ from sqlalchemy.orm import aliased
 
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
 from app.models.connector_source import SourceDocument, SourceReference
-from app.models.document import Document
+from app.models.document import Document, DocumentChunk
 from app.models.enums import ConnectorConnectionStatus
 
 
@@ -128,6 +128,28 @@ class SourceProvenanceService:
         ]
         if not document_ids:
             return chunks
+
+        chunk_ids = [
+            chunk_id
+            for chunk_id in {getattr(chunk, "chunk_id", None) for chunk in chunks}
+            if isinstance(chunk_id, UUID)
+        ]
+        if chunk_ids:
+            # R06-06: during a reindex the previous vector points stay searchable until the
+            # index stage removes them, but the chunk stage has already replaced the chunk
+            # rows they reference. Keep only chunks whose row exists (one statement, as
+            # before), so no answer cites a replaced chunk.
+            live = await self._active_chunk_pairs(
+                session,
+                organization_id=organization_id,
+                document_ids=document_ids,
+                chunk_ids=chunk_ids,
+            )
+            return [
+                chunk
+                for chunk in chunks
+                if (getattr(chunk, "document_id", None), getattr(chunk, "chunk_id", None)) in live
+            ]
 
         active_documents = await self._active_document_ids(
             session,
@@ -342,6 +364,44 @@ class SourceProvenanceService:
         )
         rows = await session.execute(statement)
         return [UUID(str(row[0])) for row in rows.all()]
+
+    async def _active_chunk_pairs(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        document_ids: list[UUID],
+        chunk_ids: list[UUID],
+    ) -> set[tuple[UUID, UUID]]:
+        """``(document_id, chunk_id)`` of existing chunk rows in active documents.
+
+        Same document rule as ``_active_document_ids`` plus the chunk row itself, in the
+        same single statement (R06-06, see ``filter_active_chunks``).
+        """
+        statement = (
+            select(Document.id, DocumentChunk.id)
+            .select_from(DocumentChunk)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(SourceDocument, SourceDocument.document_id == Document.id, isouter=True)
+            .join(ExternalItem, ExternalItem.id == SourceDocument.external_item_id, isouter=True)
+            .join(
+                ConnectorConnection,
+                ConnectorConnection.id == ExternalItem.connection_id,
+                isouter=True,
+            )
+            .where(DocumentChunk.id.in_(chunk_ids))
+            .where(Document.id.in_(document_ids))
+            .where(Document.organization_id == organization_id)
+            .where(
+                (SourceDocument.id.is_(None))
+                | (
+                    (ExternalItem.deleted_at.is_(None))
+                    & (ConnectorConnection.status == ConnectorConnectionStatus.active.value)
+                )
+            )
+        )
+        rows = await session.execute(statement)
+        return {(UUID(str(row[0])), UUID(str(row[1]))) for row in rows.all()}
 
     @staticmethod
     def _source_section(*, locator: dict[str, Any], metadata: dict[str, Any]) -> str | None:

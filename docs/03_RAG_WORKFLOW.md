@@ -261,7 +261,10 @@ Reuse, concurrency, and the run marker (R06-06):
   for example the higher chunk indexes of a longer previous version) and checks with one
   exact count that the document has as many points as embeddable chunk rows
   (`QDRANT_POINT_COUNT_MISMATCH`, transient, otherwise). During a reindex the previous
-  points stay searchable until they are overwritten.
+  points stay in the index until they are overwritten or deleted, but the chunk stage has
+  already replaced the chunk rows they reference: chat retrieval keeps only hits whose
+  chunk row exists (`SourceProvenanceService.filter_active_chunks`, the same single
+  statement as the active-source check), so no answer cites a replaced chunk.
 - `EMBEDDING_MAX_CONCURRENT_BATCHES` (default `1`, sequential) bounds both the embed batches
   of one stage run and the provider batches inside one `EmbeddingService.embed_chunks` call;
   results keep their order and artifact parts stay keyed by batch index. A
