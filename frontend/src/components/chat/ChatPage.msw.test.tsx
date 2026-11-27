@@ -99,6 +99,9 @@ const server = setupServer(
   http.get(`${apiBaseUrl}/connectors/connections`, async () =>
     HttpResponse.json({ items: [], total: 0 }),
   ),
+  http.get(`${apiBaseUrl}/connectors/available`, async () =>
+    HttpResponse.json({ items: [], total: 0 }),
+  ),
   http.post(`${apiBaseUrl}/chat/sessions`, async () =>
     HttpResponse.json(
       {
@@ -258,12 +261,14 @@ describe("ChatPage sessions (MSW)", () => {
     ).toBeInTheDocument();
   });
 
-  it.skip("submits a new question and renders the successful response", async () => {
+  it("submits a new question and renders the successful response", async () => {
     renderPage();
 
-    const textarea = screen.getByPlaceholderText(
+    // Wait until documents load so the composer is enabled before submitting.
+    const textarea = await screen.findByPlaceholderText(
       "Type a message or use '/' for commands...",
     );
+    await waitFor(() => expect(textarea).not.toBeDisabled());
     await userEvent.type(textarea, "When did it start?");
     fireEvent.submit(textarea.closest("form") as HTMLFormElement);
 
