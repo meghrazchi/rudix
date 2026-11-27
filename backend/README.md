@@ -86,6 +86,13 @@ make seed-dev
 - Structured logging is configured for both API and Celery worker.
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
 
+## Settings layout and startup behavior
+
+- `app/core/config.py` holds the `Settings` class, validation, and `settings`/`get_settings`. The fields live in per-area mixins under `app/core/settings/` (`app.py`, `database.py`, `redis_rate_limit.py`, `storage.py`, `celery.py`, `auth.py`, `ai_providers.py`, `rag.py`, `graph.py`, `mcp.py`, `connectors.py`, `observability.py`, `email_bots.py`, `features.py`); enums are in `enums.py` and the sanitized snapshot in `snapshot.py`. Environment variable names are unchanged and every symbol previously imported from `app.core.config` is still re-exported there. Keep each file under 500 lines.
+- Redis, RabbitMQ, and Qdrant are optional at boot: if their init fails the API logs `startup.dependency_unavailable` (dependency and error class) and keeps starting; `/api/v1/ready` reports them down and retries the Redis and Qdrant connection on each probe, so the API recovers without a restart.
+- `GRAPH_MIGRATIONS_ON_STARTUP` controls Neo4j graph migrations at API startup. Unset means on in development/test and off in staging/production. In staging/production run `make migrate-graph` (or `python scripts/run_graph_migrations.py`) as part of the migrate step; it is a no-op unless `ENTERPRISE_GRAPH_ENABLED=true` and exits non-zero on failure.
+- API errors use one envelope (`error.code`, `error.message`, `error.request_id`, `error.details`) with the legacy `detail` alias; see `docs/07_API_DESIGN.md`.
+
 ## Authentication quick check
 
 Generate a local app token:

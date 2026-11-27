@@ -19,6 +19,38 @@ describe("normalizeBackendError", () => {
     expect(normalized.message).toBe("Chat session not found");
   });
 
+  it("reads the error envelope first and keeps legacy detail as fallback", () => {
+    const normalized = normalizeBackendError({
+      error: {
+        code: "DOCUMENT_NOT_FOUND",
+        message: "Document not found",
+        request_id: "req-env",
+        details: null,
+      },
+      detail: "Document not found",
+    });
+
+    expect(normalized.code).toBe("DOCUMENT_NOT_FOUND");
+    expect(normalized.message).toBe("Document not found");
+    expect(normalized.details).toBe("Document not found");
+  });
+
+  it("prefers envelope details for validation lists", () => {
+    const list = [{ loc: ["body", "name"], msg: "Field required" }];
+    const normalized = normalizeBackendError({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        request_id: "req-422",
+        details: list,
+      },
+      detail: [],
+    });
+
+    expect(normalized.code).toBe("VALIDATION_ERROR");
+    expect(normalized.details).toEqual(list);
+  });
+
   it("falls back to plain string payloads", () => {
     const normalized = normalizeBackendError("Document not found");
 
@@ -28,6 +60,25 @@ describe("normalizeBackendError", () => {
 });
 
 describe("normalizeApiError", () => {
+  it("reads code and request id from the error envelope", () => {
+    const error = normalizeApiError({
+      status: 500,
+      payload: {
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "An unexpected error occurred.",
+          request_id: "req-500",
+          details: null,
+        },
+        detail: "An unexpected error occurred.",
+      },
+    });
+
+    expect(error.code).toBe("INTERNAL_ERROR");
+    expect(error.requestId).toBe("req-500");
+    expect(error.message).toBe("An unexpected error occurred.");
+  });
+
   it("maps status 409 to actionable user messaging", () => {
     const error = normalizeApiError({
       status: 409,

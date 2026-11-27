@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, Uuid
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -62,6 +63,12 @@ class WebhookDelivery(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("idx_webhook_deliveries_webhook_id", "webhook_id"),
         Index("idx_webhook_deliveries_org_id", "organization_id"),
+        Index(
+            "idx_webhook_deliveries_webhook_created",
+            "webhook_id",
+            sql_text("created_at DESC"),
+        ),
+        Index("idx_webhook_deliveries_org_created", "organization_id", "created_at"),
     )
 
     webhook_id: Mapped[UUID] = mapped_column(

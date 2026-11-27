@@ -289,7 +289,7 @@ Deterministic accuracy smoke over pinned fixtures (R03-03). Runs on every pull r
 push to `main`, with no workflow-level `paths` filter. A `changes` job sets `pipeline=true`
 when the PR touches `backend/app/domains/{chat,ai,rag_profiles,prompt_templates,evaluations,
 quality_gates}/`, `backend/app/application/chat/`, `backend/app/interfaces/http/chat.py`,
-`backend/app/core/config.py`, `ci/config/accuracy_eval_thresholds.yml`,
+`backend/app/core/config.py`, `backend/app/core/settings/`, `ci/config/accuracy_eval_thresholds.yml`,
 `backend/tests/fixtures/accuracy_smoke/`, `backend/tests/test_accuracy_smoke.py`,
 `backend/tests/accuracy_smoke_support.py`, or the workflow itself (always `true` on `main`).
 

@@ -39,6 +39,20 @@ const server = setupServer(
       { status: 409 },
     ),
   ),
+  http.get(`${apiBaseUrl}/case/envelope-404`, () =>
+    HttpResponse.json(
+      {
+        error: {
+          code: "DOCUMENT_NOT_FOUND",
+          message: "Document not found",
+          request_id: "req-env-404",
+          details: null,
+        },
+        detail: "Document not found",
+      },
+      { status: 404 },
+    ),
+  ),
   http.get(`${apiBaseUrl}/case/429`, () =>
     HttpResponse.json({ detail: "Rate limit exceeded" }, { status: 429 }),
   ),
@@ -163,6 +177,25 @@ describe("apiRequest status normalization", () => {
       } satisfies Partial<ApiClientError>);
     },
   );
+});
+
+describe("apiRequest error envelope", () => {
+  it("surfaces envelope code, message and request id", async () => {
+    await expect(
+      apiRequest("/case/envelope-404", {
+        apiBaseUrl,
+        retry: false,
+        attachAuth: false,
+        attachOrganizationId: false,
+        skipAuthRefresh: true,
+      }),
+    ).rejects.toMatchObject({
+      status: 404,
+      code: "DOCUMENT_NOT_FOUND",
+      message: "Document not found",
+      requestId: "req-env-404",
+    } satisfies Partial<ApiClientError>);
+  });
 });
 
 describe("apiRequest refresh integration", () => {

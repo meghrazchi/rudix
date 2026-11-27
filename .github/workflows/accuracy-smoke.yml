@@ -51,7 +51,7 @@ jobs:
           pattern='^backend/app/domains/(chat|ai|rag_profiles|prompt_templates|evaluations|quality_gates)/'
           pattern="${pattern}|^backend/app/application/chat/"
           pattern="${pattern}|^backend/app/interfaces/http/chat\.py$"
-          pattern="${pattern}|^backend/app/core/config\.py$"
+          pattern="${pattern}|^backend/app/core/(config\.py|settings/)"
           pattern="${pattern}|^ci/config/accuracy_eval_thresholds\.yml$"
           pattern="${pattern}|^backend/tests/fixtures/accuracy_smoke/"
           pattern="${pattern}|^backend/tests/test_accuracy_smoke\.py$"

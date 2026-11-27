@@ -24,6 +24,7 @@ class OrganizationMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="organization_members_role_allowed",
         ),
         Index("idx_organization_members_org_role", "organization_id", "role"),
+        Index("idx_organization_members_user", "user_id"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(

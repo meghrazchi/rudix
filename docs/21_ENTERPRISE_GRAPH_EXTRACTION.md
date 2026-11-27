@@ -289,7 +289,7 @@ Additional semantic labels (`Person`, `Vendor`, `Customer`, `Product`, `Project`
 
 ### Schema migration
 
-Migrations are stored in `app/domains/graph/schema.py` as `GraphMigration` objects and run automatically at API startup via `lifespan.py`. They are idempotent — every DDL statement uses `IF NOT EXISTS`.
+Migrations are stored in `app/domains/graph/schema.py` as `GraphMigration` objects. They are idempotent — every DDL statement uses `IF NOT EXISTS`. The API runs them at startup (`lifespan.py`) only when `GRAPH_MIGRATIONS_ON_STARTUP` allows it: unset means on in development/test and off in staging/production. In staging/production they run in the deploy migrate step (`python scripts/run_graph_migrations.py`, or `make migrate-graph` from `backend/`), which exits non-zero on failure.
 
 Applied migrations are recorded as `__GraphMigration` nodes in Neo4j. Check migration status with:
 
@@ -417,7 +417,7 @@ make restart-api
 make restart-worker
 ```
 
-Migrations run automatically at API startup. Re-index a document to populate the graph:
+In development the API runs the graph migrations at startup; in staging/production run `make migrate-graph` (or let the deploy migrate step do it) before restarting. Re-index a document to populate the graph:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/documents/<doc-id>/graph/reindex \
