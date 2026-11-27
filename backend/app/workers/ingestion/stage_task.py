@@ -41,6 +41,7 @@ from app.workers.ingestion.runner import run_leased
 from app.workers.ingestion.stages import build_stage
 from app.workers.ingestion.stages.base import ARTIFACT_CONSUMERS, StageName
 from app.workers.ingestion.store import COMPLETED, StageRecord
+from app.workers.ingestion.tenant import check_document_tenant
 
 logger = get_logger("worker.ingestion")
 
@@ -174,6 +175,8 @@ async def run_stage_message(
             session, document_id=document_uuid
         )
     if document is None:
+        # Invisible under strict RLS when it belongs to another organisation.
+        await check_document_tenant(document_uuid, kw.get("organization_id"))
         return _result(stage, "superseded", kw, reason="document_missing")
     expected = kw.get("organization_id")
     if expected is not None and str(document.organization_id) != str(expected):

@@ -124,8 +124,9 @@ class TenantMismatchError(PermanentTaskError):
     named, about an entity of another organisation.
     """
 
-    def __init__(self) -> None:
-        super().__init__("tenant_mismatch")
+    def __init__(self, message: str = "tenant_mismatch") -> None:
+        # The default keeps the exception picklable (Celery stores it by its args).
+        super().__init__(message)
 
 
 class RudixTask(Task):
