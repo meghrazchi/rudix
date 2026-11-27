@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import settings
-from app.main import app
+from app.main import app, attach_gzip_middleware
 
 
 @pytest.mark.asyncio
@@ -41,21 +41,35 @@ async def test_large_json_is_gzip_encoded() -> None:
 
 
 @pytest.mark.asyncio
-async def test_minimum_size_threshold_is_respected() -> None:
-    mini = FastAPI()
-    mini.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+async def test_minimum_size_threshold_is_respected_on_real_app() -> None:
+    """The BaseHTTPMiddleware layers re-stream bodies; GZip must sit inside them."""
+    probe_path = "/__gzip_small_probe"
+    before = list(app.router.routes)
 
-    @mini.get("/small")
-    async def small() -> dict[str, str]:
+    @app.get(probe_path, include_in_schema=False)
+    async def _small() -> dict[str, str]:
         return {"ok": "yes"}
 
-    async with AsyncClient(
-        transport=ASGITransport(app=mini), base_url="http://testserver"
-    ) as client:
-        response = await client.get("/small", headers={"Accept-Encoding": "gzip"})
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            response = await client.get(probe_path, headers={"Accept-Encoding": "gzip"})
+    finally:
+        app.router.routes[:] = before
 
     assert response.status_code == 200
     assert "content-encoding" not in response.headers
+    assert response.headers["content-length"] == str(len(response.content))
+    assert response.json() == {"ok": "yes"}
+
+
+def test_gzip_middleware_is_inside_the_http_middleware_layers() -> None:
+    names = [m.cls.__name__ for m in app.user_middleware]
+    # user_middleware is outermost first; GZip must come after the BaseHTTPMiddleware layers.
+    assert names.index("GZipMiddleware") > max(
+        i for i, name in enumerate(names) if name == "BaseHTTPMiddleware"
+    )
 
 
 @pytest.mark.asyncio
@@ -81,16 +95,12 @@ async def test_event_stream_is_not_buffered_or_compressed() -> None:
     assert response.text.count("data: ") == 3
 
 
-@pytest.mark.asyncio
-async def test_gzip_disabled_when_minimum_bytes_is_zero(monkeypatch: pytest.MonkeyPatch) -> None:
-    import importlib
+@pytest.mark.parametrize(("minimum_bytes", "installed"), [(0, False), (1024, True)])
+def test_attach_gzip_middleware_respects_setting(minimum_bytes: int, installed: bool) -> None:
+    target = FastAPI()
+    attach_gzip_middleware(target, minimum_bytes)
 
-    import app.main as main_module
-
-    monkeypatch.setattr(settings, "http_gzip_minimum_bytes", 0)
-    reloaded = importlib.reload(main_module)
-    try:
-        assert all(m.cls is not GZipMiddleware for m in reloaded.app.user_middleware)
-    finally:
-        monkeypatch.undo()
-        importlib.reload(main_module)
+    gzip = [m for m in target.user_middleware if m.cls is GZipMiddleware]
+    assert bool(gzip) is installed
+    if installed:
+        assert gzip[0].kwargs == {"minimum_size": minimum_bytes, "compresslevel": 5}

@@ -541,7 +541,7 @@ When deleting a document:
 - [ ] Error responses standardized.
 - [ ] Input validation with Pydantic.
 - [ ] Sentry integrated.
-- [ ] Response compression: responses of at least `HTTP_GZIP_MINIMUM_BYTES` (default 1024; `0` disables) are gzip-encoded, and `text/event-stream` is never compressed. Compression exposes BREACH-style size side channels, so never reflect a secret (CSRF token, API key) in the same compressed body as attacker-controlled input.
+- [ ] Response compression: responses of at least `HTTP_GZIP_MINIMUM_BYTES` (default 1024; `0` disables) are gzip-encoded (streamed bodies such as exports and downloads whenever the client accepts gzip), and `text/event-stream` and image/archive types are never compressed. Compression exposes BREACH-style size side channels, so never reflect a secret (CSRF token, API key) in the same compressed body as attacker-controlled input.
 
 ### Documents
 

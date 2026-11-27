@@ -2,7 +2,7 @@
 
 A background task sleeps for a short interval and measures how late it wakes up.
 Any blocking call on the loop shows up as drift, exported as a Prometheus gauge
-(worst lag since the last scrape window) and a histogram.
+(worst lag in the current rolling window) and a histogram of every tick.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ logger = get_logger("core.loop_lag")
 
 EVENT_LOOP_LAG_SECONDS = Gauge(
     "rudix_event_loop_lag_seconds",
-    "Worst event-loop scheduling lag observed since the previous sample window",
+    "Worst event-loop scheduling lag in the current rolling window (seconds)",
     registry=registry,
 )
 EVENT_LOOP_LAG_SECONDS_HIST = Histogram(
@@ -31,10 +31,19 @@ EVENT_LOOP_LAG_SECONDS_HIST = Histogram(
 )
 
 
+# The gauge holds the worst lag of a rolling window so one spike does not pin it forever.
+# Keep the window at or above the Prometheus scrape interval.
+DEFAULT_GAUGE_WINDOW_SECONDS = 30.0
+
+
 class LoopLagMonitor:
-    def __init__(self, interval_ms: int = 50) -> None:
+    def __init__(
+        self, interval_ms: int = 50, gauge_window_seconds: float = DEFAULT_GAUGE_WINDOW_SECONDS
+    ) -> None:
         self._interval = interval_ms / 1000.0
+        self._gauge_window = gauge_window_seconds
         self._max_lag = 0.0
+        self._window_max = 0.0
         self._task: asyncio.Task[None] | None = None
 
     @property
@@ -63,15 +72,25 @@ class LoopLagMonitor:
         with contextlib.suppress(asyncio.CancelledError):
             await task
 
+    @property
+    def window_max_lag_seconds(self) -> float:
+        """Worst lag in the current gauge window (the value exported as the gauge)."""
+        return self._window_max
+
     async def _run(self) -> None:
         loop = asyncio.get_running_loop()
+        window_ends = loop.time() + self._gauge_window
         while True:
             expected = loop.time() + self._interval
             await asyncio.sleep(self._interval)
-            lag = max(0.0, loop.time() - expected)
-            if lag > self._max_lag:
-                self._max_lag = lag
-            EVENT_LOOP_LAG_SECONDS.set(self._max_lag)
+            now = loop.time()
+            if now >= window_ends:
+                self._window_max = 0.0
+                window_ends = now + self._gauge_window
+            lag = max(0.0, now - expected)
+            self._max_lag = max(self._max_lag, lag)
+            self._window_max = max(self._window_max, lag)
+            EVENT_LOOP_LAG_SECONDS.set(self._window_max)
             EVENT_LOOP_LAG_SECONDS_HIST.observe(lag)
 
 

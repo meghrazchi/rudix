@@ -117,6 +117,33 @@ async def test_loop_lag_monitor_lifecycle_and_reset() -> None:
 
 
 @pytest.mark.asyncio
+async def test_lag_gauge_reports_window_max_then_decays() -> None:
+    """The gauge holds a spike for one window only; the all-time max does not pin it."""
+    import time
+
+    from app.core.metrics import registry
+
+    # Wide margins: the spike stays in its 1 s window long enough to be read under load,
+    # and the decay check allows up to 250 ms of unrelated scheduling noise.
+    monitor = LoopLagMonitor(interval_ms=5, gauge_window_seconds=1.0)
+    monitor.start()
+    try:
+        await asyncio.sleep(0.02)
+        time.sleep(0.5)  # deliberate block on the loop
+        await asyncio.sleep(0.02)
+        spike = registry.get_sample_value("rudix_event_loop_lag_seconds")
+        assert spike is not None and spike >= 0.4
+        assert monitor.window_max_lag_seconds >= 0.4
+
+        await asyncio.sleep(2.2)  # at least one full window without the block
+        decayed = registry.get_sample_value("rudix_event_loop_lag_seconds")
+        assert decayed is not None and decayed < 0.25
+        assert monitor.max_lag_seconds >= 0.4  # the probe value is kept until reset()
+    finally:
+        await monitor.stop()
+
+
+@pytest.mark.asyncio
 async def test_start_and_stop_helpers_respect_setting(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "loop_lag_monitor_enabled", False)
     assert loop_lag.start_loop_lag_monitor() is None
@@ -279,3 +306,55 @@ async def test_download_empty_object_returns_empty_body(
     assert response.status_code == 200
     assert response.content == b""
     assert client.body.closed is True
+
+
+@pytest.mark.asyncio
+async def test_download_streams_with_content_length_from_storage(
+    monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession
+) -> None:
+    client = RecordingClient()
+    monkeypatch.setattr(minio_module, "minio_client", client)
+    configure_app_auth(monkeypatch)
+    tenant = await seed_tenant(db_session)
+    document, _ = await seed_document(db_session, tenant, chunks=0)
+    await db_session.commit()
+
+    async with api_client(monkeypatch, db_session) as http:
+        identity = await http.get(
+            f"/api/v1/documents/{document.id}/download",
+            headers={**tenant.headers, "Accept-Encoding": "identity"},
+        )
+        client.body = RecordingBody(b"abcdefgh")
+        compressed = await http.get(
+            f"/api/v1/documents/{document.id}/download",
+            headers={**tenant.headers, "Accept-Encoding": "gzip"},
+        )
+
+    assert identity.status_code == 200
+    assert identity.content == b"abcdefgh"
+    assert identity.headers["content-length"] == "8"
+    assert identity.headers["content-disposition"].startswith("attachment;")
+    # GZip replaces the storage length with chunked transfer; httpx decodes the body.
+    assert compressed.status_code == 200
+    assert compressed.headers.get("content-encoding") == "gzip"
+    assert "content-length" not in compressed.headers
+    assert compressed.content == b"abcdefgh"
+
+
+@pytest.mark.asyncio
+async def test_account_deletion_removes_avatar_object_via_async_wrapper(
+    monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession
+) -> None:
+    client = RecordingClient()
+    monkeypatch.setattr(profile_api, "get_minio_client", lambda **_: client)
+    configure_app_auth(monkeypatch)
+    tenant = await seed_tenant(db_session, role=OrganizationRole.member)
+    avatar_key = f"avatars/{tenant.user.id}/old.png"
+    tenant.user.avatar_url = avatar_key
+    await db_session.commit()
+
+    async with api_client(monkeypatch, db_session) as http:
+        response = await http.delete("/api/v1/me", headers=tenant.headers)
+
+    assert response.status_code == 204, response.text
+    assert client.calls == [("delete", {"Bucket": settings.minio_bucket, "Key": avatar_key})]

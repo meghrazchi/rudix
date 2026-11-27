@@ -47,14 +47,21 @@ app.add_middleware(
     expose_headers=["X-Request-ID"],
 )
 
+
+def attach_gzip_middleware(target: FastAPI, minimum_bytes: int) -> None:
+    """GZip responses of at least ``minimum_bytes``; 0 disables compression (R04-11).
+
+    Must be added before the ``@app.middleware("http")`` layers: those re-stream every
+    body, so a GZip layer outside them never sees the final size and compresses all
+    responses regardless of ``minimum_size``.
+    """
+    if minimum_bytes > 0:
+        target.add_middleware(GZipMiddleware, minimum_size=minimum_bytes, compresslevel=5)
+
+
+attach_gzip_middleware(app, settings.http_gzip_minimum_bytes)
 attach_access_log_middleware(app)
 attach_metrics_middleware(app)
-if settings.http_gzip_minimum_bytes > 0:
-    app.add_middleware(
-        GZipMiddleware,
-        minimum_size=settings.http_gzip_minimum_bytes,
-        compresslevel=5,
-    )
 app.add_middleware(
     SecurityHeadersMiddleware,
     hsts_enabled=settings.environment in {Environment.production, Environment.staging},

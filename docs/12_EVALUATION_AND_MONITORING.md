@@ -450,7 +450,7 @@ call on the event loop shows up as lag. It needs no labels.
 
 | Metric | Type | Meaning |
 |---|---|---|
-| `rudix_event_loop_lag_seconds` | gauge | Worst lag seen since the previous reset window. |
+| `rudix_event_loop_lag_seconds` | gauge | Worst lag in the current rolling 30-second window (resets each window, so one spike does not pin it). |
 | `rudix_event_loop_lag_seconds_hist` | histogram | Lag of every monitor tick. |
 
 - Sustained lag above roughly 100 ms means something is blocking the loop (a sync client

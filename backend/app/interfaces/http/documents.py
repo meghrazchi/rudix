@@ -1605,11 +1605,12 @@ async def download_document(
         request_id=request_id,
         status_code=status.HTTP_200_OK,
     )
-    return StreamingResponse(
-        _body(),
-        media_type=media_type,
-        headers={"Content-Disposition": content_disposition},
-    )
+    headers = {"Content-Disposition": content_disposition}
+    # Keep Content-Length as the buffered response had it (GZip drops it when compressing).
+    content_length = stored.response.get("ContentLength")
+    if isinstance(content_length, int) and content_length >= 0:
+        headers["Content-Length"] = str(content_length)
+    return StreamingResponse(_body(), media_type=media_type, headers=headers)
 
 
 @router.delete(
