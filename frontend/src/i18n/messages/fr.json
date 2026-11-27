@@ -4891,7 +4891,8 @@
       "accessDebugger": "Diagnostic des accès",
       "permissionsAccessReport": "Rapport des autorisations et accès",
       "ssoSaml": "SSO / SAML",
-      "scimProvisioning": "Provisionnement SCIM"
+      "scimProvisioning": "Provisionnement SCIM",
+      "vectorIndex": "Index vectoriel"
     }
   },
   "adminUsage": {
@@ -7740,6 +7741,49 @@
           "duplicate": "Doublon"
         }
       }
+    }
+  },
+  "adminVectorIndex": {
+    "header": {
+      "eyebrow": "Index de recherche",
+      "title": "Index vectoriel",
+      "description": "Le modèle d'embeddings qui répond à vos questions et l'avancement d'une reconstruction en arrière-plan pour votre organisation. Les reconstructions n'interrompent pas la recherche."
+    },
+    "legacyNotice": "L'index de recherche n'utilise pas encore de générations versionnées. Les questions sont traitées avec le modèle d'embeddings configuré.",
+    "active": {
+      "title": "Index actif",
+      "model": "Modèle d'embeddings",
+      "dimensions": "Dimensions",
+      "generation": "Génération",
+      "legacyGeneration": "Non versionné",
+      "activatedAt": "Actif depuis",
+      "notAdoptedTitle": "Aucune génération active",
+      "notAdoptedDescription": "L'index actuel n'a pas encore été enregistré comme génération. La recherche fonctionne comme avant."
+    },
+    "building": {
+      "title": "Reconstruction en cours",
+      "model": "Nouveau modèle d'embeddings",
+      "state": "État",
+      "startedAt": "Démarrée",
+      "states": {
+        "building": "Construction",
+        "verifying": "Vérification"
+      },
+      "progressLabel": "Documents de votre organisation",
+      "progressValue": "{done} sur {total} ({percent} %)",
+      "servingNote": "La recherche utilise l'index actif jusqu'à ce que la reconstruction soit vérifiée et basculée.",
+      "noneTitle": "Aucune reconstruction en cours",
+      "noneDescription": "L'index actif est à jour."
+    },
+    "states": {
+      "loading": "Chargement de l'état de l'index vectoriel...",
+      "errorTitle": "Impossible de charger l'état de l'index vectoriel",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucun état disponible"
+    },
+    "access": {
+      "restrictedTitle": "Accès administrateur restreint",
+      "restrictedDescription": "Seuls les propriétaires et les administrateurs peuvent voir l'état de l'index vectoriel."
     }
   }
 }

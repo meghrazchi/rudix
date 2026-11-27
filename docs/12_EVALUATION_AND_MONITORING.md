@@ -353,6 +353,11 @@ filter), but they must still be removed:
   `evaluation.index_cleanup.qdrant_failed` / `evaluation.index_cleanup.chunks_failed`
   per document. Metric: `rudix_eval_index_cleanup_failures_total{store}` with
   `store` set to `qdrant` or `postgres`.
+- 0.6.0 (R06-12): with `QDRANT_EVALUATION_COLLECTION` set, eval vectors are written to
+  and deleted from that collection only, with the same organisation, document and index
+  version filter; the production collection receives no eval writes. A missing
+  evaluation collection counts as nothing to delete, not as a `qdrant` failure. Eval
+  chunk rows stay in `document_chunks` and are cleaned up as before.
 
 ### Purging legacy eval versions
 
@@ -372,6 +377,9 @@ cd backend
 - It never deletes non-eval versions. Non-eval versions outside the active set are
   reported as `inactive: hidden from retrieval`, and the script exits with code `2`
   when any exist. Otherwise it exits with `0`.
+- With `QDRANT_EVALUATION_COLLECTION` set it scans that collection as well as
+  `QDRANT_COLLECTION` (legacy eval points stay there until purged) and deletes each eval
+  point from the collection it was found in. A missing evaluation collection is empty.
 
 ### Required pre-deploy check for 0.2.0
 
@@ -831,6 +839,28 @@ after `finalize` on its own queue.
 - The thresholds are starting points, not measured values; no queue wait or depth baseline has
   been recorded (the load test is a manual step in plan section 8).
 
+### Vector index generations and reindex (R06-08)
+
+- Metric `rudix_reindex_progress{generation}`: fraction of indexed documents (all
+  organisations) a building generation holds, set by the build after each page. Metrics
+  only; the admin API reports the caller's organisation.
+- Logs: `vector_index.adopted`, `vector_index.generation.registered` (with `reason`, for
+  example `startup_config_change`), `vector_index.embedding_model_differs` (startup warning),
+  `vector_index.build.started` / `.progress` / `.completed`,
+  `vector_index.generation.verified` (expected and actual points, `error_code`),
+  `vector_index.alias.swapped`, `vector_index.alias.rolled_back`,
+  `vector_index.generation.dropped`, `vector_index.dual_write_failed`,
+  `vector_index.dual_write_incomplete`, `qdrant.collection.mismatch_deferred`,
+  `vector_index.query.dimension_fallback`, `vector_index.generation_documents.forgotten`,
+  `qdrant.collection.missing_on_delete`. They carry
+  generation, model, counts, document and organisation ids; never document text.
+- Usage events `document.embedding` with `metadata.reason` `vector_reindex` (build) or
+  `vector_reindex_dual_write` (ingestion during a build) attribute the reindex cost per
+  organisation.
+- Watch after a swap: chat retrieval errors and latency for at least
+  `VECTOR_INDEX_REGISTRY_CACHE_SECONDS`, and the accuracy gate; roll back if either regresses.
+- No staging measurement has been recorded yet (plan section 8 item 4).
+
 ### Agent runs in workers and the run stream (R06-13)
 
 | Metric | Labels | Meaning |
@@ -856,6 +886,30 @@ after `finalize` on its own queue.
   `error_details.code`) as the source of truth.
 - No measured baseline exists yet; a live worker restart and Redis pub/sub are staging
   checks (plan section 8).
+
+### Evaluation isolation (R06-12)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_evaluation_questions_in_flight` | none | Questions inside the per-target bound `EVALUATION_MAX_CONCURRENT_QUESTIONS` right now (answer, citation and LLM judge calls included). |
+| `rudix_eval_index_cleanup_failures_total` | `store` | Unchanged; with `QDRANT_EVALUATION_COLLECTION` set, `qdrant` failures refer to that collection. |
+
+- `evaluations.run` routes to `CELERY_QUEUE_EVALUATIONS`, which only the `eval` worker
+  pool consumes in staging and production (R06-04), so a run shares no worker with chat
+  or ingestion queues.
+- Questions of one target run concurrently up to the bound (default `1`, the previous
+  sequential behaviour); results of the first target are written in question order, each
+  in its own short session. A bound above 1 runs the synchronous Qdrant search in a worker
+  thread. Raise the bound only as far as the LLM provider's rate limits allow.
+- Logs: `evaluation.collection.ensured` (collection, vector size, distance),
+  `evaluation.collection.missing_on_delete`, plus the existing `evaluation.question.*` and
+  `evaluation.index_cleanup.*` events. No log carries question, answer, or chunk text.
+- Watch: the gauge stays at or below `bound x eval worker processes`; a run whose
+  re-ingest fails with `EvaluationCollectionMismatchError` means the evaluation
+  collection or the active generation changed vector size (drop the evaluation
+  collection; it is recreated on the next run).
+- "No measurable change in chat or ingestion latency during a full evaluation run" is a
+  staging load-test check; no measurement has been recorded yet.
 
 ## Continuous evaluation
 

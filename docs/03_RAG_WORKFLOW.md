@@ -476,6 +476,66 @@ To change `DOCUMENT_INDEX_VERSION`:
 While both versions are listed, a reindexed document has chunks under both, so
 retrieval can return duplicate chunks for it.
 
+### Vector index generations
+
+R06-08. `QDRANT_COLLECTION_ALIAS` unset (default) is legacy mode: reads and writes use
+`QDRANT_COLLECTION` and `OPENAI_EMBEDDING_MODEL` exactly as before, and no generation table
+is read. With the alias set, every Qdrant collection is a *generation* registered in
+`vector_index_generations` (global) and the alias points at the active one:
+
+- `scripts/vector_index.py adopt` registers the existing `QDRANT_COLLECTION` as generation 1
+  (`active`) and creates the alias pointing at it; no data is copied.
+- A new generation is named `{QDRANT_COLLECTION}_{model_slug}_v{n}` (slug: lowercase,
+  `[a-z0-9_]`, at most 40 characters) and is `building` until its build finishes.
+- The registry (active and building generation) is cached per process for
+  `VECTOR_INDEX_REGISTRY_CACHE_SECONDS` (30).
+- **Reads** use the active generation: query embedding (`QueryRetrievalService.embedding_model`
+  and `vector_size`, and the chat query-embedding cache key) follows its model and dimension,
+  and the search names the active generation's collection (the one the alias points at).
+  The snapshot is shared by the process's requests, so a refresh can land between a query's
+  embedding and its search (the chat prefetch embeds seconds before retrieval). The query
+  embedding reads model and dimension once and the cache key uses the same pair; the search
+  picks the collection by the query vector's dimension: the active generation, else the
+  newest retired (or building) one with that dimension
+  (`vector_index.query.dimension_fallback`). A query embedded just before a swap or rollback
+  is therefore served by the collection its model fills instead of failing. When old and new
+  model have the same dimension such an in-flight query searches the new collection with the
+  old model's vector once (weaker ranking, no error). External readers can use the alias.
+- **Writes** (`QdrantService.resolve_write_targets()`) go to `[active]`, or `[active,
+  building]` while a generation is building or verifying. The embed stage writes each batch
+  to the active generation with its model and to the building one with the building model
+  (dual write); vectors are reused when both use the same model. The index stage then cleans
+  and counts the document's points in the building collection and records
+  `vector_index_generation_documents`; a dual-write failure never fails the document, it
+  only leaves the row out so the build fills the document later. The index stage also
+  deletes the document's rows in every generation it did not write (for example a `failed`
+  one, which gets no dual writes), so a rerun of the build writes the reindexed document
+  again instead of skipping its stale points.
+- **Deletes** go to every generation whose collection still exists (not `dropped`); a
+  generation whose collection is already gone (404) is skipped with
+  `qdrant.collection.missing_on_delete`.
+- The **build** (`vector_index.build` task or the CLI) walks indexed documents by
+  `(organization_id, document_id)` from `build_cursor`, binds each document's tenant, reads
+  the embeddable chunk rows of the active index versions from PostgreSQL (no re-extraction),
+  reuses vectors already in the target, embeds the rest with the generation's model, and
+  commits the generation row, the `document.embedding` usage event
+  (`metadata.reason=vector_reindex`, `generation`), and the cursor in one transaction per
+  document. A killed build resumes from the cursor; upserts use the same point ids, so no
+  point or usage event is duplicated.
+- **Verify** compares the exact Qdrant count of the active index versions in the generation
+  with the embeddable chunk rows of indexed documents, and checks every indexed document has
+  a row; a mismatch sets `failed` with `error_code` (`point_count_mismatch`,
+  `documents_missing`) and blocks the swap.
+- **Swap** is one `update_collection_aliases` call (delete alias, create alias). The old
+  generation becomes `retired` with `retire_after = now + QDRANT_RETIRED_GRACE_HOURS` (168);
+  rollback points the alias back at the newest retired one; `drop-retired` deletes retired
+  collections past `retire_after`, never the active one and never in legacy mode.
+- At startup a configured model or dimension that differs from the active generation no
+  longer fails: a warning is logged and a `building` generation is registered for the
+  configured model (`vector_index.generation.registered`); the active one keeps serving.
+
+Operator steps: docs/27 "Reindex and alias swap".
+
 ### Caches and shortcuts
 
 Since 0.5.0 (R05-05, R05-04) the query path reads less and waits less. Every cache below is
@@ -731,6 +791,33 @@ flowchart LR
     H --> I[Store in PostgreSQL]
     I --> J[Evaluation Dashboard]
 ```
+
+Runs execute in the `evaluations.run` Celery task on the evaluations queue (the `eval`
+worker pool in staging and production). The code lives in `backend/app/workers/evaluation/`
+(`config`, `corpus`, `question`, `judge`, `target`, `comparison`, `run`, `tasks`,
+`collection`); `app/workers/evaluation_tasks.py` is the facade that keeps the task name
+and the names tests rebind.
+
+- **Targets.** A run evaluates one or more chunking targets. A baseline target (no
+  chunking profile config) reads the live index: the production collection or alias with
+  `DOCUMENT_INDEX_VERSION`. A profile target re-ingests the corpus under
+  `eval-<run hex10>-<n>` with persistence of document state, pages and usage turned off,
+  evaluates against that version, and is cleaned up in a `finally` block.
+- **Evaluation collection (R06-12).** `QDRANT_EVALUATION_COLLECTION` unset keeps eval
+  vectors in the production collection under `eval-` versions (hidden from chat by the
+  index version filter). When it is set, the collection is created on first use with the
+  active generation's vector size and distance and the same payload indexes
+  (`organization_id` as tenant index); re-ingest writes there through
+  `IngestionOptions.vector_collection` (embedded with `OPENAI_EMBEDDING_MODEL`), eval
+  retrieval embeds questions with that same model and searches there with the usual
+  organisation, document and index version filter, and cleanup deletes there. Eval chunk
+  rows stay in `document_chunks`. Document deletion also deletes the document's points
+  from the evaluation collection.
+- **Bounded concurrency.** `EVALUATION_MAX_CONCURRENT_QUESTIONS` (default `1`) questions
+  of a target run at the same time, LLM judge included; results are written in question
+  order, each in its own short session. The question pipeline opens no session.
+- Retrieved text is untrusted in evaluation as in chat: prompts are built by the same
+  `PromptService`, and citations are validated by the same `CitationService`.
 
 ## Evaluation metrics
 

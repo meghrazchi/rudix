@@ -52,8 +52,22 @@ async def embed_query_cached(
     """Return the question's vector from the cache, or embed it and cache the vector."""
     calls: list[int] = []
 
+    # R06-08: the key names the active generation's model and dimensions. Both are read
+    # once and the loader embeds with exactly them, so a registry refresh by another
+    # request during the cache lookup never stores one model's vector under another's key.
+    refresh = getattr(service, "refresh_index_target", None)
+    if refresh is not None:
+        await refresh()
+    model = service.embedding_model
+    dimensions = service.vector_size
+
     async def load() -> list[float]:
-        vector, prompt_tokens = await service.embed_query(question=question)
+        if isinstance(service, QueryRetrievalService):
+            vector, prompt_tokens = await service.embed_query(
+                question=question, embedding_model=model, vector_size=dimensions
+            )
+        else:
+            vector, prompt_tokens = await service.embed_query(question=question)
         calls.append(prompt_tokens)
         return vector
 
@@ -61,8 +75,8 @@ async def embed_query_cached(
         scope=OrgScope(organization_id),
         namespace=NAMESPACE_QUERY_EMBEDDING,
         key_id=query_embedding_key(
-            model=service.embedding_model,
-            dimensions=service.vector_size,
+            model=model,
+            dimensions=dimensions,
             index_version=settings.document_index_version,
             question=question,
         ),

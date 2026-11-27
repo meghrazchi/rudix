@@ -14,6 +14,12 @@ from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
 from app.domains.ai.providers.protocols import EmbeddingProvider, EmbeddingRequest
 from app.domains.documents.services.qdrant_filters import build_organization_filter
+from app.domains.vector_index.services.generation_service import (
+    cached_read_target,
+    configured_alias,
+    read_target_for_vector,
+    registry,
+)
 
 
 class QdrantClientLike(Protocol):
@@ -60,12 +66,61 @@ class QueryRetrievalService:
         qdrant_client: QdrantClientLike | None = None,
         session_factory: Callable[[], AsyncSession] | None = None,
     ) -> None:
-        self.embedding_model = (embedding_model or settings.openai_embedding_model).strip()
-        self.qdrant_collection = (qdrant_collection or settings.qdrant_collection).strip()
-        self.vector_size = vector_size or settings.qdrant_vector_size
+        # None follows the active vector index generation (R06-08); in legacy mode that is
+        # OPENAI_EMBEDDING_MODEL, QDRANT_COLLECTION and QDRANT_VECTOR_SIZE as before.
+        self._embedding_model = embedding_model.strip() if embedding_model else None
+        self._qdrant_collection = qdrant_collection.strip() if qdrant_collection else None
+        self._vector_size = vector_size or None
         self._embedding_provider = embedding_provider
         self._qdrant_client = qdrant_client
         self._session_factory = session_factory
+
+    @property
+    def embedding_model(self) -> str:
+        if self._embedding_model is not None:
+            return self._embedding_model
+        return cached_read_target()[1].embedding_model
+
+    @embedding_model.setter
+    def embedding_model(self, value: str) -> None:
+        self._embedding_model = value.strip()
+
+    @property
+    def qdrant_collection(self) -> str:
+        if self._qdrant_collection is not None:
+            return self._qdrant_collection
+        return cached_read_target()[0]
+
+    @qdrant_collection.setter
+    def qdrant_collection(self, value: str) -> None:
+        self._qdrant_collection = value.strip()
+
+    @property
+    def vector_size(self) -> int:
+        if self._vector_size is not None:
+            return self._vector_size
+        return cached_read_target()[1].vector_size
+
+    @vector_size.setter
+    def vector_size(self, value: int) -> None:
+        self._vector_size = int(value)
+
+    async def refresh_index_target(self) -> None:
+        """Load the generation registry (TTL cache) before reading model or collection."""
+        if configured_alias() is not None:
+            await registry.snapshot()
+
+    def search_collection(self, query_vector: Sequence[float]) -> str:
+        """Collection to search with this vector (R06-08).
+
+        An explicit ``qdrant_collection`` wins. Otherwise the active generation, or the
+        retired or building generation whose dimension the vector has: a refresh of the
+        shared registry between this query's embedding and its search (a swap or rollback)
+        must not send a vector to a collection of another dimension.
+        """
+        if self._qdrant_collection is not None:
+            return self._qdrant_collection
+        return read_target_for_vector(len(query_vector))[0]
 
     def _resolve_embedding_provider(self) -> EmbeddingProvider:
         if self._embedding_provider is None:
@@ -97,21 +152,28 @@ class QueryRetrievalService:
         *,
         question: str,
         provider: EmbeddingProvider | None = None,
+        embedding_model: str | None = None,
+        vector_size: int | None = None,
     ) -> tuple[list[float], int]:
+        """Embed the question; ``embedding_model`` and ``vector_size`` pin the target."""
         if not question.strip():
             raise ValueError("question is required")
 
+        if embedding_model is None or vector_size is None:
+            await self.refresh_index_target()
+        # Read once, before the provider call: another request may refresh the shared
+        # registry while this one awaits the provider (R06-08).
+        model = embedding_model or self.embedding_model
+        expected_size = vector_size or self.vector_size
         embedding_provider = provider or self._resolve_embedding_provider()
-        response = await embedding_provider.embed(
-            EmbeddingRequest(texts=[question], model=self.embedding_model)
-        )
+        response = await embedding_provider.embed(EmbeddingRequest(texts=[question], model=model))
         if not response.vectors:
             raise RuntimeError("Embedding response did not include vectors")
 
         vector = response.vectors[0]
-        if len(vector) != self.vector_size:
+        if len(vector) != expected_size:
             raise RuntimeError(
-                f"Embedding dimension mismatch: expected {self.vector_size}, got {len(vector)}"
+                f"Embedding dimension mismatch: expected {expected_size}, got {len(vector)}"
             )
         return vector, response.prompt_tokens
 
@@ -186,6 +248,7 @@ class QueryRetrievalService:
         if document_ids is not None and len(document_ids) == 0:
             return []
 
+        await self.refresh_index_target()
         client = qdrant_client or self._resolve_async_path_client()
         if not _is_async_client(client):
             candidates = await asyncio.to_thread(
@@ -230,7 +293,7 @@ class QueryRetrievalService:
             index_versions=index_versions,
         )
         response = await client.query_points(
-            collection_name=self.qdrant_collection,
+            collection_name=self.search_collection(query_vector),
             query=query_vector,
             query_filter=query_filter,
             limit=initial_top_k,
@@ -398,7 +461,7 @@ class QueryRetrievalService:
         if callable(search_method):
             return list(
                 search_method(
-                    collection_name=self.qdrant_collection,
+                    collection_name=self.search_collection(query_vector),
                     query_vector=query_vector,
                     query_filter=query_filter,
                     limit=limit,
@@ -410,7 +473,7 @@ class QueryRetrievalService:
         query_points_method = getattr(qdrant_client, "query_points", None)
         if callable(query_points_method):
             response = query_points_method(
-                collection_name=self.qdrant_collection,
+                collection_name=self.search_collection(query_vector),
                 query=query_vector,
                 query_filter=query_filter,
                 limit=limit,

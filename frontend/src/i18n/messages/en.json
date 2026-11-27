@@ -4764,7 +4764,8 @@
       "accessDebugger": "Access Debugger",
       "permissionsAccessReport": "Permissions & Access Report",
       "ssoSaml": "SSO / SAML",
-      "scimProvisioning": "SCIM Provisioning"
+      "scimProvisioning": "SCIM Provisioning",
+      "vectorIndex": "Vector Index"
     }
   },
   "adminUsage": {
@@ -7613,6 +7614,49 @@
           }
         }
       }
+    }
+  },
+  "adminVectorIndex": {
+    "header": {
+      "eyebrow": "Search index",
+      "title": "Vector index",
+      "description": "The embedding model that answers your questions, and the progress of a background rebuild for your organization. Rebuilds run without interrupting search."
+    },
+    "legacyNotice": "The search index is not using versioned generations yet. Questions are answered with the configured embedding model.",
+    "active": {
+      "title": "Active index",
+      "model": "Embedding model",
+      "dimensions": "Dimensions",
+      "generation": "Generation",
+      "legacyGeneration": "Not versioned",
+      "activatedAt": "Active since",
+      "notAdoptedTitle": "No active generation yet",
+      "notAdoptedDescription": "An operator has not registered the current index as a generation. Search keeps working as before."
+    },
+    "building": {
+      "title": "Rebuild in progress",
+      "model": "New embedding model",
+      "state": "State",
+      "startedAt": "Started",
+      "states": {
+        "building": "Building",
+        "verifying": "Verifying"
+      },
+      "progressLabel": "Your organization's documents",
+      "progressValue": "{done} of {total} ({percent}%)",
+      "servingNote": "Search keeps using the active index until the rebuild is verified and switched over.",
+      "noneTitle": "No rebuild running",
+      "noneDescription": "The active index is up to date."
+    },
+    "states": {
+      "loading": "Loading vector index status...",
+      "errorTitle": "Unable to load the vector index status",
+      "retry": "Retry",
+      "emptyTitle": "No status available"
+    },
+    "access": {
+      "restrictedTitle": "Admin access restricted",
+      "restrictedDescription": "Only owners and admins can view the vector index status."
     }
   }
 }

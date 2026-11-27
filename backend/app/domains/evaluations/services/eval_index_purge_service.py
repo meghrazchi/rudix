@@ -8,6 +8,12 @@ outside ``settings.active_index_versions`` are only reported, because production
 retrieval no longer serves them and an operator must decide (reindex or list them in
 ``DOCUMENT_ACTIVE_INDEX_VERSIONS``).
 
+R06-12: with ``QDRANT_EVALUATION_COLLECTION`` set, new eval vectors live in that
+collection. The service then scans it as well as the production collection (which still
+holds legacy eval points and is the only place inactive versions are reported from) and
+deletes each eval point from the collection it was found in. A missing evaluation
+collection is treated as empty.
+
 Only counts are reported. Chunk text is never read.
 """
 
@@ -18,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 from uuid import UUID
 
+from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.http.models import PointIdsList
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,11 +118,16 @@ class EvalIndexPurgeService:
         collection: str | None = None,
         batch_size: int = 256,
         active_versions: Sequence[str] | None = None,
+        evaluation_collection: str | None = None,
     ) -> None:
         if batch_size < 1:
             raise ValueError("batch_size must be at least 1")
         self._qdrant_client = qdrant_client
         self._collection = collection or settings.qdrant_collection
+        # Production first, then the evaluation collection when it is a different one.
+        self._collections = [self._collection]
+        if evaluation_collection and evaluation_collection != self._collection:
+            self._collections.append(evaluation_collection)
         self._batch_size = batch_size
         self._active_versions = tuple(
             active_versions if active_versions is not None else settings.active_index_versions
@@ -149,12 +161,15 @@ class EvalIndexPurgeService:
         for org_id, version, count in await self._chunk_counts(session, organization_id):
             _entry(org_id, version).chunk_count = count
 
-        points_by_key: dict[tuple[str, str], list[Any]] = {}
+        # collection -> (org, version) -> eval point ids found there.
+        points_by_collection: dict[str, dict[tuple[str, str], list[Any]]] = {}
         if self._qdrant_client is not None:
             point_counts: dict[tuple[str, str], int] = {}
-            report.points_without_version = self._scan_points(
-                organization_id, points_by_key, point_counts
-            )
+            for collection in self._collections:
+                points_by_key = points_by_collection.setdefault(collection, {})
+                report.points_without_version += self._scan_points(
+                    collection, organization_id, points_by_key, point_counts
+                )
             for (org_id, version), count in point_counts.items():
                 _entry(org_id, version).point_count = count
 
@@ -168,9 +183,11 @@ class EvalIndexPurgeService:
                         organization_id=UUID(entry.organization_id),
                         index_version=entry.index_version,
                     )
-                point_ids = points_by_key.get((entry.organization_id, entry.index_version), [])
-                if point_ids:
-                    entry.points_deleted = self._delete_points(point_ids)
+                key = (entry.organization_id, entry.index_version)
+                for collection, points_by_key in points_by_collection.items():
+                    point_ids = points_by_key.get(key, [])
+                    if point_ids:
+                        entry.points_deleted += self._delete_points(collection, point_ids)
 
         report.versions = sorted(
             by_key.values(), key=lambda item: (item.organization_id, item.index_version)
@@ -242,6 +259,7 @@ class EvalIndexPurgeService:
 
     def _scan_points(
         self,
+        collection: str,
         organization_id: UUID | None,
         points_by_key: dict[tuple[str, str], list[Any]],
         point_counts: dict[tuple[str, str], int],
@@ -256,13 +274,19 @@ class EvalIndexPurgeService:
         without_version = 0
         offset: Any = None
         while True:
-            points, offset = self._qdrant_client.scroll(
-                collection_name=self._collection,
-                limit=self._batch_size,
-                offset=offset,
-                with_payload=["organization_id", "document_id", "index_version"],
-                with_vectors=False,
-            )
+            try:
+                points, offset = self._qdrant_client.scroll(
+                    collection_name=collection,
+                    limit=self._batch_size,
+                    offset=offset,
+                    with_payload=["organization_id", "document_id", "index_version"],
+                    with_vectors=False,
+                )
+            except UnexpectedResponse as exc:
+                # Only the evaluation collection may be missing (never created yet).
+                if collection == self._collection or exc.status_code != 404:
+                    raise
+                return without_version
             for point in points:
                 payload = getattr(point, "payload", None) or {}
                 org_id = str(payload.get("organization_id") or "").strip()
@@ -279,12 +303,12 @@ class EvalIndexPurgeService:
             if offset is None:
                 return without_version
 
-    def _delete_points(self, point_ids: list[Any]) -> int:
+    def _delete_points(self, collection: str, point_ids: list[Any]) -> int:
         assert self._qdrant_client is not None
         for start in range(0, len(point_ids), self._batch_size):
             batch = point_ids[start : start + self._batch_size]
             self._qdrant_client.delete(
-                collection_name=self._collection,
+                collection_name=collection,
                 points_selector=PointIdsList(points=batch),
                 wait=True,
             )

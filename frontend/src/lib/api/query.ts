@@ -184,6 +184,7 @@ export const queryKeys = {
       ["admin", "observability", params ?? {}] as const,
     trustAnalytics: (params?: Record<string, unknown>) =>
       ["admin", "trust-analytics", params ?? {}] as const,
+    vectorIndexStatus: ["admin", "vector-index", "status"] as const,
     sourceHealthSummary: ["admin", "source-health", "summary"] as const,
     sourceHealthCharts: ["admin", "source-health", "charts"] as const,
     sourceHealthSources: (params?: Record<string, unknown>) =>

@@ -5,6 +5,15 @@ Implements the calls the service makes (``upsert``, ``scroll``, ``delete``, ``co
 ``MatchAny`` in ``must`` and ``must_not``, and counts every call by name, including the
 collection and payload-index calls that must not happen on the write path. The ``Async``
 variant exposes the same calls as coroutines, like ``AsyncQdrantClient``.
+
+R06-08: collections and aliases. ``create_collection`` registers a collection with its
+vector size and distance; once one is registered, ``collection_exists`` and
+``get_collection`` answer from the registry (before that every collection "exists" and
+``get_collection`` stays forbidden, the write-path guard of R06-07). Aliases follow the
+1.20.0 calls (``get_aliases``, ``get_collection_aliases``, ``update_collection_aliases``
+with create/delete operations, applied together), and point and search calls resolve an
+alias to its collection as the server does. ``alias_calls`` records every
+``update_collection_aliases`` call with its operations.
 """
 
 from __future__ import annotations
@@ -14,7 +23,16 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
-from qdrant_client.http.models import FieldCondition, Filter, MatchAny, MatchValue
+from qdrant_client.http.models import (
+    AliasDescription,
+    CollectionsAliasesResponse,
+    CreateAliasOperation,
+    DeleteAliasOperation,
+    FieldCondition,
+    Filter,
+    MatchAny,
+    MatchValue,
+)
 
 
 @dataclass
@@ -59,9 +77,17 @@ class InMemoryQdrant:
         self.collections: dict[str, dict[str, StoredPoint]] = {}
         self.calls: Counter[str] = Counter()
         self.filters: list[tuple[str, Filter | None]] = []
+        # R06-08: registered collections (size, distance) and aliases.
+        self.vector_configs: dict[str, tuple[int, str]] = {}
+        self.aliases: dict[str, str] = {}
+        self.alias_calls: list[list[Any]] = []
+        self.deleted_collections: list[str] = []
+
+    def _resolve(self, collection_name: str) -> str:
+        return self.aliases.get(collection_name, collection_name)
 
     def _store(self, collection_name: str) -> dict[str, StoredPoint]:
-        return self.collections.setdefault(collection_name, {})
+        return self.collections.setdefault(self._resolve(collection_name), {})
 
     def points(self, collection_name: str) -> dict[str, StoredPoint]:
         return self._store(collection_name)
@@ -117,16 +143,87 @@ class InMemoryQdrant:
         return type("QueryResponse", (), {"points": hits[:limit]})()
 
     # Calls that must stay off the write path (R06-07).
-    def collection_exists(self, *_: Any, **__: Any) -> bool:
+    def collection_exists(self, collection_name: str | None = None, **__: Any) -> bool:
         self.calls["collection_exists"] += 1
+        if not self.vector_configs:
+            return True
+        return collection_name in self.vector_configs
+
+    def get_collection(self, collection_name: str | None = None, **__: Any) -> Any:
+        self.calls["get_collection"] += 1
+        name = self._resolve(str(collection_name))
+        if name not in self.vector_configs:
+            raise AssertionError("get_collection on the write path")
+        size, distance = self.vector_configs[name]
+        vectors = type("Vectors", (), {"size": size, "distance": distance})()
+        params = type("Params", (), {"vectors": vectors})()
+        config = type("Config", (), {"params": params})()
+        return type("CollectionInfo", (), {"config": config})()
+
+    def create_payload_index(self, **kwargs: Any) -> None:
+        self.calls["create_payload_index"] += 1
+        self.__dict__.setdefault("payload_indexes", []).append(
+            (kwargs.get("collection_name"), kwargs.get("field_name"))
+        )
+
+    # Collections and aliases (R06-08).
+    def add_collection(self, name: str, *, size: int, distance: str = "cosine") -> None:
+        """Test helper: an existing collection with the given vector parameters."""
+        self.vector_configs[name] = (size, distance)
+        self.collections.setdefault(name, {})
+
+    def create_collection(self, *, collection_name: str, vectors_config: Any, **_: Any) -> None:
+        self.calls["create_collection"] += 1
+        distance = str(getattr(vectors_config.distance, "value", vectors_config.distance)).lower()
+        self.add_collection(collection_name, size=int(vectors_config.size), distance=distance)
+
+    def delete_collection(self, *, collection_name: str, **_: Any) -> bool:
+        self.calls["delete_collection"] += 1
+        self.vector_configs.pop(collection_name, None)
+        self.collections.pop(collection_name, None)
+        self.deleted_collections.append(collection_name)
         return True
 
-    def get_collection(self, *_: Any, **__: Any) -> Any:
-        self.calls["get_collection"] += 1
-        raise AssertionError("get_collection on the write path")
+    def get_aliases(self) -> CollectionsAliasesResponse:
+        self.calls["get_aliases"] += 1
+        return CollectionsAliasesResponse(
+            aliases=[
+                AliasDescription(alias_name=alias, collection_name=target)
+                for alias, target in self.aliases.items()
+            ]
+        )
 
-    def create_payload_index(self, **_: Any) -> None:
-        self.calls["create_payload_index"] += 1
+    def get_collection_aliases(self, collection_name: str) -> CollectionsAliasesResponse:
+        self.calls["get_collection_aliases"] += 1
+        return CollectionsAliasesResponse(
+            aliases=[
+                AliasDescription(alias_name=alias, collection_name=target)
+                for alias, target in self.aliases.items()
+                if target == collection_name
+            ]
+        )
+
+    def update_collection_aliases(
+        self, *, change_aliases_operations: list[Any], timeout: int | None = None
+    ) -> bool:
+        """Apply every operation of one call together (atomic, as on the server)."""
+        self.calls["update_collection_aliases"] += 1
+        self.alias_calls.append(list(change_aliases_operations))
+        aliases = dict(self.aliases)
+        for operation in change_aliases_operations:
+            if isinstance(operation, DeleteAliasOperation):
+                aliases.pop(operation.delete_alias.alias_name, None)
+            elif isinstance(operation, CreateAliasOperation):
+                create = operation.create_alias
+                if create.collection_name not in self.vector_configs:
+                    raise AssertionError(f"alias to missing collection {create.collection_name}")
+                if create.alias_name in aliases:
+                    raise AssertionError(f"alias {create.alias_name} already exists")
+                aliases[create.alias_name] = create.collection_name
+            else:
+                raise AssertionError(f"unsupported alias operation {type(operation).__name__}")
+        self.aliases = aliases
+        return True
 
 
 class AsyncInMemoryQdrant(InMemoryQdrant):

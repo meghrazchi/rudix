@@ -107,8 +107,45 @@ def record_embedding_cache(hits: int, misses: int) -> None:
 
 
 # anchor: A2
+# R06-08: fraction of indexed documents (all organisations) a building generation holds.
+# Metrics only; the admin API reports the caller's organisation and never this value.
+REINDEX_PROGRESS = Gauge(
+    "rudix_reindex_progress",
+    "Fraction of indexed documents written to a building vector index generation",
+    ["generation"],
+    registry=registry,
+)
+
+
+def record_reindex_progress(generation: int, done: int, total: int) -> None:
+    if not is_metrics_enabled():
+        return
+    try:
+        fraction = 1.0 if total <= 0 else min(max(done / total, 0.0), 1.0)
+        REINDEX_PROGRESS.labels(generation=str(int(generation))).set(fraction)
+    except Exception as exc:
+        logger.debug("metrics.reindex_progress_failed: %s", exc)
+
 
 # anchor: A3
+# R06-12: evaluation questions currently inside the per-target concurrency bound
+# (EVALUATION_MAX_CONCURRENT_QUESTIONS), summed over the worker processes of this registry.
+EVALUATION_QUESTIONS_IN_FLIGHT = Gauge(
+    "rudix_evaluation_questions_in_flight",
+    "Evaluation questions being evaluated now (inside the concurrency bound)",
+    registry=registry,
+)
+
+
+def record_evaluation_question_in_flight(delta: int) -> None:
+    """Add ``delta`` (+1 on entry, -1 on exit); a no-op when metrics are disabled."""
+    if not is_metrics_enabled():
+        return
+    try:
+        EVALUATION_QUESTIONS_IN_FLIGHT.inc(delta)
+    except Exception as exc:
+        logger.debug("metrics.evaluation_in_flight_failed: %s", exc)
+
 
 # anchor: B1
 # R06-09: chunk rows the tenant backfill updated. R06-10: graph UNWIND write transactions,

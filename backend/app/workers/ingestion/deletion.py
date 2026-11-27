@@ -2,6 +2,8 @@
 
 R06-01: the metadata transaction also deletes the document's ingestion stage rows and
 stage artifacts (F143 deletion lifecycle). Collaborators come from ``current_deps()``.
+R06-12: with ``QDRANT_EVALUATION_COLLECTION`` set, the document's points are also deleted
+from the evaluation collection (organisation and document filter).
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from app.core.document_errors import details_from_exception
 from app.models.document_processing import DocumentProcessingStage, DocumentStageArtifact
 from app.models.enums import DocumentStatus
 from app.workers.base_task import PermanentTaskError, TransientTaskError
+from app.workers.evaluation.collection import delete_document_evaluation_points
 from app.workers.ingestion.deps import current_deps
 from app.workers.ingestion.errors import (
     DocumentPipelinePermanentError,
@@ -103,6 +106,12 @@ async def _delete_document_assets_async(
             await pipeline_recorder.emit_stage(stage="delete_index", stage_status="started")
             try:
                 await deps.qdrant_service.delete_document_points(
+                    organization_id=document.organization_id,
+                    document_id=document.id,
+                )
+                # R06-12: the evaluation collection holds the same document text.
+                await delete_document_evaluation_points(
+                    deps.qdrant_service,
                     organization_id=document.organization_id,
                     document_id=document.id,
                 )

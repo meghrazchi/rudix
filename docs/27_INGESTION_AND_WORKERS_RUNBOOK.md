@@ -466,6 +466,93 @@ Not verified in this repository (no broker in CI): real dead-lettering, `consume
 child recycling, and the load test that an evaluation does not delay uploads. They are the
 manual checks in [plan section 8](./roadmap/V0_6_0_IMPLEMENTATION_PLAN.md#8-manual-steps-staging-and-production).
 
+## Reindex and alias swap
+
+R06-08. Use this to change the embedding model or dimension, or to rebuild the vector
+index (for example after a tuning change), without stopping search. Every command runs from
+`backend/` with the production settings and `DATABASE_MAINTENANCE_URL` set to the BYPASSRLS
+role (the build walks every organisation). Output is one JSON line per command.
+
+One-time adoption (no data copy):
+
+1. Set `QDRANT_COLLECTION_ALIAS` (a name no collection has, for example
+   `documents_live`) on the API and the workers; restart. Nothing changes yet: until
+   adoption, alias mode behaves like legacy mode.
+2. `python scripts/vector_index.py adopt` registers `QDRANT_COLLECTION` as generation 1
+   (`active`) and creates the alias. Pass `--embedding-model` if the collection was built
+   with another model than `OPENAI_EMBEDDING_MODEL`. Adopt before changing the model.
+
+Model change, step by step:
+
+1. Set the new `OPENAI_EMBEDDING_MODEL` and `QDRANT_VECTOR_SIZE` and restart. The startup
+   reconcile logs `vector_index.embedding_model_differs` and registers a `building`
+   generation with its own collection (`vector_index.generation.registered`); queries keep
+   the active generation's model. (Or run `python scripts/vector_index.py plan` first to see
+   what would be created, then `build`, which registers it.)
+2. From now on new and reindexed documents are written to both generations.
+3. `python scripts/vector_index.py build --enqueue` queues `vector_index.build` on
+   `CELERY_QUEUE_DOCUMENTS_REINDEX`; it re-enqueues itself every
+   `VECTOR_INDEX_BUILD_MAX_PAGES_PER_TASK` pages of `VECTOR_INDEX_BUILD_BATCH_DOCUMENTS`.
+   Without `--enqueue` the CLI runs the build inline. A killed build resumes from its
+   cursor: run the same command again. Follow `status`, the admin page
+   (`/admin/vector-index`), or `rudix_reindex_progress`.
+4. When the walk finishes the build verifies the generation: `verifying` means the point
+   count matches the expected chunk rows; `failed` with `point_count_mismatch` or
+   `documents_missing` means run `build` again (it restarts the walk, skipping documents
+   already recorded) and check `vector_index.dual_write_failed` logs.
+5. `python scripts/vector_index.py swap` shows the plan; `swap --yes` verifies again and
+   moves the alias in one `update_collection_aliases` call. The old generation becomes
+   `retired` for `QDRANT_RETIRED_GRACE_HOURS` (168). Processes switch their query model
+   within `VECTOR_INDEX_REGISTRY_CACHE_SECONDS`.
+
+Rollback:
+
+- `python scripts/vector_index.py rollback --yes` points the alias back at the newest
+  retired generation and retires the current one. Set `OPENAI_EMBEDDING_MODEL` and
+  `QDRANT_VECTOR_SIZE` back too, or the next start reports `pending` against the retired
+  generation instead of registering a new one.
+- A retired generation receives no writes. Documents indexed or reindexed after the swap
+  are missing or stale in it (deletes do reach it): reindex them after a rollback
+  (those indexed after the swap time).
+
+Grace period and drop:
+
+- `python scripts/vector_index.py drop-retired` lists retired generations whose
+  `retire_after` has passed; `--yes` deletes their collections (state `dropped`). The
+  active generation and the alias's current target are never dropped; legacy mode refuses.
+- The beat entry `vector-index-drop-retired` (daily 04:35 UTC) does the same only with
+  `VECTOR_INDEX_AUTO_DROP_RETIRED=true` (default `false`).
+
+Staging procedure (plan section 8 item 4): adopt the alias, run a model change end to end
+(build, verify, swap) under chat load and confirm no failed queries, roll back once, swap
+again, and drop the retired collection after the grace period (set a short
+`QDRANT_RETIRED_GRACE_HOURS` on staging). Run the accuracy gate before and after the swap.
+No staging run has been recorded yet.
+
+Known limits:
+
+- Tokens spent on a document whose build transaction did not commit (killed worker) are
+  not recorded as usage; the rerun reuses the vectors already in the target and records no
+  second event.
+- While a building generation uses another model, every new document is embedded twice
+  (once per model) and both are billed.
+- Queries in flight when a process refreshes its registry after a swap or rollback are
+  searched in the collection whose dimension matches their vector
+  (`vector_index.query.dimension_fallback`). With equal dimensions they search the new
+  collection with the old model's vector once: no error, weaker ranking for those queries.
+- No single-flight lock guards `vector_index.build`: do not run the CLI build inline while
+  a queued build runs. Two builders write the same point ids (no duplicate points); when
+  both reach the same document, the second fails on the unique generation row (its usage
+  event rolls back with it), after spending the embedding tokens. Rerun the failed one.
+- A `failed` generation gets no dual writes and is not dropped by `drop-retired`; rerun
+  `build` (documents reindexed meanwhile lost their row and are written again) or leave it.
+  Points of documents that are not `indexed` (failed or still processing) written by a dual
+  write count in verify: reprocess or delete such documents, then verify again.
+- Once `drop-retired` has deleted the original `QDRANT_COLLECTION` (generation 1), legacy
+  mode (unsetting `QDRANT_COLLECTION_ALIAS`) would start from an empty collection: keep the
+  alias set.
+
+
 ## Agent workers (R06-13)
 
 `AGENT_RUN_EXECUTION` selects where `POST /agent/runs` executes a run. `inline` (the
@@ -522,3 +609,64 @@ fails the run with `worker_lost`. Inline runs never hold a lease and are never r
 Not verified here (no broker or Redis in CI): a real worker restart mid-run and live Redis
 pub/sub. They are staging checks in plan section 8; the tests use eager Celery and the
 in-memory Redis fake.
+
+## Evaluation isolation (R06-12)
+
+Evaluation runs (`evaluations.run`) and safety evaluations (`safety_evals.run`) route to
+`CELERY_QUEUE_EVALUATIONS` (default `evaluations`), which the `eval` worker pool consumes
+(`python -m app.workers.pools eval`, `worker-eval` in the staging and production compose
+files). The single development worker consumes it too.
+
+### Settings
+
+| Setting | Default | Effect |
+|---|---|---|
+| `QDRANT_EVALUATION_COLLECTION` | unset | Unset: chunking-comparison vectors go to the production collection under `eval-` index versions, as before 0.6.0. Set: re-ingest, eval retrieval and cleanup use this collection only. Must differ from `QDRANT_COLLECTION` and `QDRANT_COLLECTION_ALIAS` (checked at startup). |
+| `EVALUATION_MAX_CONCURRENT_QUESTIONS` | `1` | Questions of one target evaluated at the same time (1 to 32), LLM judge included. `1` is the previous sequential behaviour. |
+
+### Evaluation collection
+
+- Created on the first chunking-comparison target that needs it, with the active
+  generation's vector size and distance (the collection behind the alias, or
+  `QDRANT_COLLECTION`) and the production payload indexes, `organization_id` as tenant
+  index. Points carry the production payload, so every search and delete is filtered by
+  organisation, document and index version.
+- Its existence is checked before every chunking-comparison target, so a collection an
+  operator dropped while workers run is re-created on the next target without a restart.
+- Re-ingest embeds with the ingestion embedding model (`OPENAI_EMBEDDING_MODEL`), and eval
+  retrieval embeds questions with that same model, also in alias mode where the active
+  generation may use another model of the same dimension.
+- If its vector size differs from the active generation, or the active generation differs
+  from `QDRANT_VECTOR_SIZE` (a model change is building), re-ingest fails with
+  `EvaluationCollectionMismatchError` and the run fails after cleanup. After the swap, drop
+  the evaluation collection (it only holds transient eval versions); it is recreated on the
+  next run.
+- Cleanup deletes each target's eval version from the evaluation collection at the end of
+  the target; eval chunk rows stay in `document_chunks` and are deleted as before.
+- Document deletion (`documents.delete`) also deletes the document's points from the
+  evaluation collection.
+- `scripts/purge_eval_index_versions.py` scans and purges both collections.
+
+### Turning it on
+
+1. Deploy with the setting unset (no change).
+2. Set `QDRANT_EVALUATION_COLLECTION` (for example `rudix_eval_vectors`) on the API and every
+   worker, restart. New chunking comparisons write there; nothing has to be migrated.
+3. Run `scripts/purge_eval_index_versions.py` (dry run, then `--apply`) to remove legacy eval
+   points left in the production collection.
+4. Rollback: unset the setting and restart. Points left in the evaluation collection are
+   invisible to chat; delete the collection once no run is queued or running.
+
+### Concurrency
+
+Raise `EVALUATION_MAX_CONCURRENT_QUESTIONS` step by step while watching
+`rudix_evaluation_questions_in_flight`, provider rate-limit errors, and chat latency. The
+bound applies per target and per worker process, so the provider sees up to
+`bound x eval pool concurrency` questions. "No measurable change in chat or ingestion
+latency during a full evaluation run" is a staging load-test check; it has not been measured.
+
+| Symptom | Cause | Recovery |
+|---|---|---|
+| Eval vectors still appear in the production collection | Setting not set on the worker that ran the evaluation | Set it on every worker; purge the leftovers with the script. |
+| Run fails with `EvaluationCollectionMismatchError` | Vector size changed (model change) | Finish the generation swap, drop the evaluation collection, rerun. |
+| Many questions fail with provider rate-limit errors | Bound too high | Lower `EVALUATION_MAX_CONCURRENT_QUESTIONS`. |

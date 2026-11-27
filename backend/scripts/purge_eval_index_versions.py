@@ -4,6 +4,9 @@ Dry run is the default: it prints counts per organization and index version and
 deletes nothing. Pass --apply to delete eligible eval- chunk rows and vectors.
 Versions belonging to queued or running evaluation runs are always skipped.
 
+With QDRANT_EVALUATION_COLLECTION set (R06-12) the evaluation collection is scanned and
+purged as well as QDRANT_COLLECTION.
+
 Non-eval versions outside DOCUMENT_INDEX_VERSION + DOCUMENT_ACTIVE_INDEX_VERSIONS
 are reported as "inactive: hidden from retrieval" and are never deleted. When any
 are found the script exits with code 2, so it can gate a deploy.
@@ -72,6 +75,7 @@ async def run(argv: Sequence[str] | None = None) -> int:
         qdrant_client=create_qdrant_client(settings),
         collection=settings.qdrant_collection,
         batch_size=args.batch_size,
+        evaluation_collection=settings.qdrant_evaluation_collection,
     )
     async with SessionLocal() as session:
         report = await service.run(session, apply=args.apply, organization_id=args.organization_id)

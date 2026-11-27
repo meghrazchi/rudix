@@ -830,6 +830,23 @@ R06-06, connector source references), and `finalize` (the only writer of `indexe
   batch. Extraction LLM batches run with `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES` /
   `RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` (default 1). Single-item graph methods stay
   for the admin endpoints.
+- Vector index generations (R06-08): `QDRANT_COLLECTION_ALIAS` unset keeps legacy mode
+  (`QDRANT_COLLECTION` directly). With it set, run `.venv/bin/python scripts/vector_index.py
+  adopt` once, then `plan`, `build [--enqueue]`, `status`, `swap [--yes]`, `rollback [--yes]`,
+  `drop-retired [--yes]` (swap, rollback and drop-retired are dry runs without `--yes`).
+  Code: `app/domains/vector_index/`, task `vector_index.build` (reindex queue), beat
+  `vector-index-drop-retired` (acts only with `VECTOR_INDEX_AUTO_DROP_RETIRED=true`). A
+  changed embedding model or dimension at startup registers a building generation instead
+  of failing. Read API: `GET /admin/vector-index/status`. Runbook: docs/27 "Reindex and
+  alias swap".
+- Evaluation isolation (R06-12): `evaluations.run` lives in `app/workers/evaluation/`
+  (`app/workers/evaluation_tasks.py` is the facade tests patch) and runs on the evaluations
+  queue (`eval` pool). `QDRANT_EVALUATION_COLLECTION` (unset keeps eval vectors in the
+  production collection) sends chunking-comparison re-ingest, eval retrieval, cleanup,
+  `scripts/purge_eval_index_versions.py` and the document-deletion cascade to a dedicated
+  collection. `EVALUATION_MAX_CONCURRENT_QUESTIONS` (default 1) bounds concurrent
+  questions per target; gauge `rudix_evaluation_questions_in_flight`. Runbook: docs/27
+  "Evaluation isolation".
 
 ## Application cache
 

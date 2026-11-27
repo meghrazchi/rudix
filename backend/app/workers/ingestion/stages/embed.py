@@ -9,6 +9,9 @@ part keeps token counts and cost for finalize.
 R06-06: vectors of unchanged chunks are reused from the index (``embed_reuse``), every
 point carries ``ingest_run_id``, and up to ``EMBEDDING_MAX_CONCURRENT_BATCHES`` batches
 run at once. Stale points of earlier runs are removed by the index stage.
+
+R06-08: in alias mode the batch goes to the active generation (with its model) and, while
+a generation is building, also to that one (``embed_generations``).
 """
 
 from __future__ import annotations
@@ -36,6 +39,7 @@ from app.workers.ingestion.errors import (
     DocumentPipelineTransientError,
 )
 from app.workers.ingestion.heartbeat import note_parts
+from app.workers.ingestion.stages import embed_generations
 from app.workers.ingestion.stages.base import StageName, StageOutcome
 from app.workers.ingestion.stages.embed_reuse import embed_with_reuse
 from app.workers.ingestion.stages.embed_summary import log_embed_completed, summarize_parts
@@ -105,7 +109,12 @@ async def _embed(ctx: StageContext, rows: list[Any]) -> Any:
 
 
 async def _upsert(
-    ctx: StageContext, document: Any, rows: list[Any], vectors: dict, parents: dict
+    ctx: StageContext,
+    document: Any,
+    rows: list[Any],
+    vectors: dict,
+    parents: dict,
+    target: Any = None,
 ) -> Any:
     chunk = ctx.metrics[StageName.chunk]
     kwargs: dict[str, Any] = {
@@ -124,6 +133,9 @@ async def _upsert(
     }
     if ctx.options.vector_collection is not None:
         kwargs["collection_name"] = ctx.options.vector_collection
+    elif target is not None:
+        kwargs["collection_name"] = target.collection_name
+        kwargs["embedding_model"] = target.embedding_model
     try:
         return await ctx.deps.qdrant_service.upsert_chunks(**kwargs)
     except ValueError as exc:
@@ -180,15 +192,30 @@ async def _completed_batches(ctx: StageContext, size: int) -> set[int]:
 
 
 async def _process_batch(
-    ctx: StageContext, document: Any, batch: int, size: int, db_lock: asyncio.Lock
+    ctx: StageContext,
+    document: Any,
+    batch: int,
+    size: int,
+    db_lock: asyncio.Lock,
+    targets: list[Any] | None = None,
 ) -> None:
     async with db_lock:
         rows, parents = await _read_batch(ctx, batch, size)
     ctx.current_stage = "embed"
-    vectors, result, reused = await embed_with_reuse(ctx, document, rows, _embed)
-    ctx.current_stage = "index"
-    upsert = await _upsert(ctx, document, rows, vectors, parents)
+    primary = targets[0] if targets else None
+    if primary is None or embed_generations.primary_uses_configured_service(ctx, primary):
+        vectors, result, reused = await embed_with_reuse(ctx, document, rows, _embed)
+        ctx.current_stage = "index"
+        upsert = await _upsert(ctx, document, rows, vectors, parents, primary)
+    else:
+        vectors, result, upsert, reused = await embed_generations.write_primary_other_model(
+            ctx, document, rows, parents, primary
+        )
     part = {**_part(result, rows, upsert, size), "reused_count": reused}
+    if primary is not None and targets is not None and len(targets) > 1:
+        part[embed_generations.WRITES_KEY] = await embed_generations.dual_write(
+            ctx, document, rows, parents, vectors=vectors, primary=primary, extra=targets[1:]
+        )
     del result, rows, parents, vectors
     async with db_lock:
         await ctx.store.write_artifacts(StageName.embed, {batch: part}, replace_stage=False)
@@ -209,13 +236,14 @@ async def run(ctx: StageContext) -> StageOutcome:
     total = int(ctx.metrics[StageName.chunk]["embeddable_count"])
     batches = math.ceil(total / size)
     done = await _completed_batches(ctx, size)
+    targets = await embed_generations.resolve_targets(ctx)
     # R06-06: up to EMBEDDING_MAX_CONCURRENT_BATCHES batches at once (1 = in order). The
     # provider and Qdrant calls overlap; database reads and part writes take the lock, so
     # one batch at a time uses a session. Parts are keyed by batch index.
     db_lock = asyncio.Lock()
     await run_bounded(
         [
-            functools.partial(_process_batch, ctx, document, batch, size, db_lock)
+            functools.partial(_process_batch, ctx, document, batch, size, db_lock, targets)
             for batch in range(batches)
             if batch not in done
         ],
@@ -224,4 +252,9 @@ async def run(ctx: StageContext) -> StageOutcome:
 
     summary = await summarize_parts(ctx)
     await log_embed_completed(ctx, summary)
-    return StageOutcome(metrics={**summary, "artifact_parts": batches})
+    metrics = {**summary, "artifact_parts": batches}
+    if targets is not None:
+        parts = [part async for part in ctx.store.iter_artifacts(StageName.embed)]
+        metrics[embed_generations.METRICS_KEY] = embed_generations.to_metrics(targets)
+        metrics[embed_generations.WRITES_KEY] = embed_generations.sum_generation_writes(parts)
+    return StageOutcome(metrics=metrics)

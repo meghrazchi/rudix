@@ -4891,7 +4891,8 @@
       "accessDebugger": "Depurador de acceso",
       "permissionsAccessReport": "Informe de permisos y acceso",
       "ssoSaml": "SSO / SAML",
-      "scimProvisioning": "Aprovisionamiento SCIM"
+      "scimProvisioning": "Aprovisionamiento SCIM",
+      "vectorIndex": "Índice vectorial"
     }
   },
   "adminUsage": {
@@ -7740,6 +7741,49 @@
           "duplicate": "Duplicado"
         }
       }
+    }
+  },
+  "adminVectorIndex": {
+    "header": {
+      "eyebrow": "Índice de búsqueda",
+      "title": "Índice vectorial",
+      "description": "El modelo de embeddings que responde a sus preguntas y el progreso de una reconstrucción en segundo plano para su organización. Las reconstrucciones no interrumpen la búsqueda."
+    },
+    "legacyNotice": "El índice de búsqueda aún no usa generaciones con versión. Las preguntas se responden con el modelo de embeddings configurado.",
+    "active": {
+      "title": "Índice activo",
+      "model": "Modelo de embeddings",
+      "dimensions": "Dimensiones",
+      "generation": "Generación",
+      "legacyGeneration": "Sin versión",
+      "activatedAt": "Activo desde",
+      "notAdoptedTitle": "Aún no hay una generación activa",
+      "notAdoptedDescription": "El índice actual aún no se ha registrado como generación. La búsqueda sigue funcionando como antes."
+    },
+    "building": {
+      "title": "Reconstrucción en curso",
+      "model": "Nuevo modelo de embeddings",
+      "state": "Estado",
+      "startedAt": "Iniciada",
+      "states": {
+        "building": "Construyendo",
+        "verifying": "Verificando"
+      },
+      "progressLabel": "Documentos de su organización",
+      "progressValue": "{done} de {total} ({percent} %)",
+      "servingNote": "La búsqueda sigue usando el índice activo hasta que la reconstrucción se verifique y se active.",
+      "noneTitle": "No hay reconstrucciones en curso",
+      "noneDescription": "El índice activo está al día."
+    },
+    "states": {
+      "loading": "Cargando el estado del índice vectorial...",
+      "errorTitle": "No se pudo cargar el estado del índice vectorial",
+      "retry": "Reintentar",
+      "emptyTitle": "No hay estado disponible"
+    },
+    "access": {
+      "restrictedTitle": "Acceso de administrador restringido",
+      "restrictedDescription": "Solo propietarios y administradores pueden ver el estado del índice vectorial."
     }
   }
 }

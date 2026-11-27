@@ -95,6 +95,13 @@ async def _init_optional_dependency(name: str, init: Callable[[], Awaitable[None
         )
 
 
+async def _reconcile_vector_index() -> None:
+    """R06-08: register a building generation when the configured model changed."""
+    from app.domains.vector_index.services.startup import reconcile_on_startup
+
+    await reconcile_on_startup()
+
+
 def warn_deprecated_settings() -> None:
     """Log one warning per deprecated setting that is set but no longer has an effect.
 
@@ -121,6 +128,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await _init_optional_dependency("redis", init_redis)
         await _init_optional_dependency("rabbitmq", init_rabbitmq)
         await _init_optional_dependency("qdrant", init_qdrant)
+        await _init_optional_dependency("vector_index", _reconcile_vector_index)
         init_minio()
         init_clamav()
         await init_neo4j()

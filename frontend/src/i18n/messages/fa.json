@@ -4889,7 +4889,8 @@
       "accessDebugger": "عیب‌یاب دسترسی",
       "permissionsAccessReport": "گزارش مجوزها و دسترسی",
       "ssoSaml": "ورود یکپارچه / SAML",
-      "scimProvisioning": "تأمین کاربران SCIM"
+      "scimProvisioning": "تأمین کاربران SCIM",
+      "vectorIndex": "نمایه برداری"
     }
   },
   "adminUsage": {
@@ -7738,6 +7739,49 @@
           "duplicate": "تکراری"
         }
       }
+    }
+  },
+  "adminVectorIndex": {
+    "header": {
+      "eyebrow": "نمایه جستجو",
+      "title": "نمایه برداری",
+      "description": "مدل جاسازی که به پرسش‌های شما پاسخ می‌دهد و پیشرفت بازسازی پس‌زمینه برای سازمان شما. بازسازی جستجو را متوقف نمی‌کند."
+    },
+    "legacyNotice": "نمایه جستجو هنوز از نسل‌های نسخه‌دار استفاده نمی‌کند. پرسش‌ها با مدل جاسازی پیکربندی‌شده پاسخ داده می‌شوند.",
+    "active": {
+      "title": "نمایه فعال",
+      "model": "مدل جاسازی",
+      "dimensions": "ابعاد",
+      "generation": "نسل",
+      "legacyGeneration": "بدون نسخه",
+      "activatedAt": "فعال از",
+      "notAdoptedTitle": "هنوز نسل فعالی وجود ندارد",
+      "notAdoptedDescription": "نمایه فعلی هنوز به‌عنوان یک نسل ثبت نشده است. جستجو مانند قبل کار می‌کند."
+    },
+    "building": {
+      "title": "بازسازی در حال انجام",
+      "model": "مدل جاسازی جدید",
+      "state": "وضعیت",
+      "startedAt": "شروع",
+      "states": {
+        "building": "در حال ساخت",
+        "verifying": "در حال بررسی"
+      },
+      "progressLabel": "اسناد سازمان شما",
+      "progressValue": "{done} از {total} ({percent}٪)",
+      "servingNote": "جستجو تا زمان بررسی و جابه‌جایی بازسازی از نمایه فعال استفاده می‌کند.",
+      "noneTitle": "بازسازی در حال انجام نیست",
+      "noneDescription": "نمایه فعال به‌روز است."
+    },
+    "states": {
+      "loading": "در حال بارگذاری وضعیت نمایه برداری...",
+      "errorTitle": "بارگذاری وضعیت نمایه برداری ممکن نشد",
+      "retry": "تلاش دوباره",
+      "emptyTitle": "وضعیتی موجود نیست"
+    },
+    "access": {
+      "restrictedTitle": "دسترسی مدیر محدود است",
+      "restrictedDescription": "فقط مالکان و مدیران می‌توانند وضعیت نمایه برداری را ببینند."
     }
   }
 }
