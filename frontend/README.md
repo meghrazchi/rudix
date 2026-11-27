@@ -305,6 +305,41 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   `robots.txt`, `llms.txt` and `icon.svg` are byte-identical; `sitemap.xml` is identical
   except `<lastmod>` (the build time).
 
+### Token storage and route gate (R07-09)
+
+- The access token is kept only in memory (`src/lib/auth/session-store.ts`, read through
+  `useAuthSession`, which uses `useSyncExternalStore`). Nothing token-bearing is written to
+  `localStorage`. A reload or a new tab calls the refresh endpoint with the HttpOnly refresh
+  cookie (`credentials: "include"`) and is signed out on `401`, so set
+  `NEXT_PUBLIC_AUTH_REFRESH_URL` in every deployment; without it a reload signs the user out.
+- `src/lib/auth-session.ts` keeps its exported names: `readSessionFromStorage()` returns the
+  in-memory session, `writeSessionToStorage()` writes memory, `clearSessionStorage()` clears
+  memory and the legacy keys.
+- Compatibility: a session stored by 0.6.x in `localStorage["rudix.session.v1"]` is loaded
+  once into memory (`NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ`, default on) and removed after the
+  first successful refresh or authenticated response, so signed-in users stay signed in across
+  the deploy. Removed in 0.8.0. Playwright specs still seed that key.
+- The dev-only local fallback (`NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true` or
+  `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN`) has no refresh cookie and keeps a tab-scoped copy
+  in `sessionStorage["rudix.session.dev.v1"]`.
+- Refreshes across tabs are serial: the token-free lease `rudix.auth.refresh.lock.v1` is held
+  during each refresh, and a waiting tab runs its own refresh after the holder releases
+  (never reusing a rotated refresh token). Sign-out still reaches other tabs through the
+  auth-boundary storage event.
+- The SSO callback page moves the token from the query into memory and replaces the URL.
+- Route gate: with `RUDIX_ROUTE_GATE=enforce` (server env, default `off`), `src/proxy.ts`
+  redirects an app-route request without the `RUDIX_SESSION_HINT_COOKIE_NAME` cookie
+  (default `rudix_session_hint`, set by the backend when
+  `APP_AUTH_SESSION_HINT_COOKIE_ENABLED=true`) with `307` to
+  `/{locale}/login?next=...` before the shell renders. It never reads roles or claims; role
+  checks stay in `ProtectedAppLayout` and the backend. Enable the backend hint for one
+  refresh-token lifetime before enforcing the gate (docs/11 `## Authentication`).
+- `AUTHENTICATED_APP_ROUTE_SEGMENTS` now includes `knowledge`; a test derives the segment list
+  from `src/app/(app)` so new app routes cannot be missed. `robots.txt` now disallows
+  `/knowledge`.
+- E2E: the `chromium-route-gate` project runs `e2e/route-gate.spec.ts` against a third dev
+  server (`PLAYWRIGHT_GATE_FRONTEND_PORT`, default 3103, dist dir `.next-e2e-gate`).
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)
@@ -520,6 +555,11 @@ NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
+# Read a 0.6.x localStorage session once (removed in 0.8.0)
+NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ=true
+# Server env, read per request by src/proxy.ts: off | enforce
+RUDIX_ROUTE_GATE=off
+RUDIX_SESSION_HINT_COOKIE_NAME=rudix_session_hint
 # Development-only: NEXT_PUBLIC_AUTH_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,
 # NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD,
 # NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN and NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN

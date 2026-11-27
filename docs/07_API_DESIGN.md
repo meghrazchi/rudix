@@ -102,6 +102,25 @@ Returns the active refresh sessions for the authenticated user.
 
 When the SAML callback is received as a browser form post, the backend issues the refresh cookie and redirects to the frontend callback route with access-token/session metadata in the query string. API clients can still receive JSON when they do not send a browser-form payload.
 
+The frontend callback route moves the access token into memory and replaces the URL so the
+token leaves the address bar and the history entry (R07-09).
+
+#### Session hint cookie
+
+Additive and off by default (`APP_AUTH_SESSION_HINT_COOKIE_ENABLED=false`, R07-09). When
+enabled, every response that sets the refresh cookie (login, refresh, SSO JSON and redirect
+paths) also sets `rudix_session_hint=1` (`APP_AUTH_SESSION_HINT_COOKIE_NAME`) with
+`HttpOnly`, the refresh cookie's `Secure` and `SameSite`, `Path=/`,
+`Domain=APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` and `Max-Age=APP_AUTH_REFRESH_TOKEN_TTL_SECONDS`.
+Logout, logout-all and every `401` from `/auth/token/refresh` (revoked, reused, invalid)
+clear it. The value carries no secret, claim or role and authorises nothing; the frontend
+route gate (`RUDIX_ROUTE_GATE=enforce`) only checks that it exists. Response bodies and the
+refresh cookie are unchanged.
+
+With `APP_AUTH_COOKIE_SAME_SITE=none`, `POST /auth/token/refresh` and `POST /auth/logout`
+return `403` with `error.code = "csrf_origin_rejected"` when the `Origin` header is missing or
+not in `CORS_ORIGINS`. With `lax` or `strict` nothing changes.
+
 ## Error format
 
 Every error response (HTTP errors, request validation failures, and unhandled exceptions) uses

@@ -60,6 +60,8 @@ make seed-dev
 - The API and worker fail at startup if required configuration is missing or malformed.
 - URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth provider URLs when applicable, and service base URLs).
 - App-managed auth is enabled by default (`AUTH_PROVIDER=app`) and uses a signed bearer token.
+- Session-hint cookie (R07-09): `APP_AUTH_SESSION_HINT_COOKIE_ENABLED` (default `false`), `APP_AUTH_SESSION_HINT_COOKIE_NAME` (default `rudix_session_hint`) and `APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` (default host-only) add a non-secret `"1"` cookie (`HttpOnly`, refresh-cookie `Secure`/`SameSite`, `Path=/`) set with the refresh cookie on login, refresh and SSO, and cleared on logout, logout-all and refresh `401`s. It grants nothing; the frontend route gate only checks it exists. Code: `app/interfaces/http/auth_cookies.py`.
+- With `APP_AUTH_COOKIE_SAME_SITE=none`, `POST /auth/token/refresh` and `POST /auth/logout` reject a missing or foreign `Origin` (not in `CORS_ORIGINS`) with `403 csrf_origin_rejected`; metric `rudix_auth_csrf_origin_rejections_total{endpoint,reason}`. With `lax`/`strict` nothing changes.
 - `clerk` auth provider is implemented with JWKS-based JWT verification (signature, issuer, audience, expiry, subject).
 - `supabase` provider wiring exists and uses the same JWKS verifier contract, but requires provider-specific JWT settings and full integration validation.
 - Dependency clients are initialized through centralized factories (`app/clients/factory.py`) for consistent timeout/retry handling.
