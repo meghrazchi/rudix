@@ -11,7 +11,7 @@ function CitationChip({ number, label }: { number: number; label: string }) {
   return (
     <sup
       aria-label={label}
-      className="bg-site-accent-soft text-site-accent-ink mx-0.5 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-full px-1.5 align-middle font-mono text-[11px] font-semibold"
+      className="bg-site-accent-soft text-site-accent-ink mx-0.5 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-full px-1.5 align-middle font-mono text-xs font-semibold"
     >
       {number}
     </sup>
@@ -99,7 +99,7 @@ export function LandingAnswerPreview() {
                   className="bg-site-canvas flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2"
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="bg-site-accent-soft text-site-accent-ink rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold">
+                    <span className="bg-site-accent-soft text-site-accent-ink rounded px-1.5 py-0.5 font-mono text-xs font-semibold">
                       {source.number}
                     </span>
                     <SiteIcon

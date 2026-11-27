@@ -131,7 +131,7 @@ export function OperationsSolutionPage() {
           <div className="border-site-border bg-site-muted relative aspect-[4/3] w-full overflow-hidden rounded-2xl border">
             <Image
               src="/images/solutions/operations/terminal-ops.jpg"
-              alt="Code terminal showing operations runbook and incident response procedures"
+              alt={t("terminalImageAlt")}
               fill
               className="object-cover"
               sizes="(max-width: 1024px) 100vw, 50vw"

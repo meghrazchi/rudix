@@ -133,6 +133,7 @@
     "signOutAllDevicesDescription": "Revoke all active sessions and sign out everywhere.",
     "signOutEverywhere": "Sign out everywhere",
     "createAccount": "Create account",
+    "noAccountHint": "Don't have an account? Ask your workspace administrator to invite you.",
     "backToHome": "Back to public home",
     "email": "Email",
     "password": "Password",
@@ -289,7 +290,7 @@
       }
     },
     "footer": {
-      "tagline": "Enterprise-grade RAG infrastructure for secure, scalable knowledge retrieval and AI applications.",
+      "tagline": "Ask questions across your company documents and get answers you can trust, with every source cited.",
       "copyright": "© 2026 Rudix AI. All rights reserved.",
       "changeLanguage": "Change language",
       "groups": {
@@ -303,6 +304,11 @@
         "documentation": "Documentation",
         "changelog": "Changelog",
         "useCases": "Use Cases",
+        "allSolutions": "All Solutions",
+        "solutionHr": "HR",
+        "solutionLegal": "Legal",
+        "solutionCompliance": "Compliance",
+        "solutionSupport": "Customer Support",
         "security": "Security",
         "pricing": "Pricing",
         "contact": "Contact",
@@ -324,103 +330,103 @@
     },
     "seo": {
       "home": {
-        "title": "Enterprise RAG Infrastructure | Rudix",
-        "description": "Rudix is a production-ready enterprise RAG platform with secure ingestion, grounded chat, evaluation analytics, and pipeline observability."
+        "title": "AI Document Q&A with Cited Answers",
+        "description": "Ask questions across your company documents and get accurate answers with citations to the exact source. Secure, permission-aware AI for every team."
       },
       "product": {
-        "title": "Product Overview | Rudix",
+        "title": "Product Overview: Cited Answers From Your Documents",
         "description": "See how Rudix turns documents into indexed, citation-backed answers with evaluations, pipeline visibility, and governance-ready operations."
       },
       "pricing": {
-        "title": "Pricing | Rudix",
-        "description": "Compare Rudix plans for document AI, RAG chat, evaluations, and governance with configurable packaging guidance."
+        "title": "Pricing and Plans for AI Document Q&A",
+        "description": "Compare Rudix plans for AI document Q&A, evaluations, and governance, from small teams to enterprise-wide deployments."
       },
       "security": {
-        "title": "Security & Trust | Rudix",
+        "title": "Security and Trust for Private Document AI",
         "description": "Rudix is built for regulated environments with architectural boundaries, auditability, and data-handling controls."
       },
       "contact": {
-        "title": "Contact & Demo | Rudix",
+        "title": "Contact Sales and Book a Demo",
         "description": "Speak with the Rudix team about your document workflow, demo request, or security review."
       },
       "solutions": {
-        "title": "Solutions | Rudix",
+        "title": "AI Document Q&A Solutions for Every Team",
         "description": "AI document Q&A for every enterprise team — HR, Legal, Sales, Compliance, Operations, and more."
       },
       "hr": {
-        "title": "HR Solution | Rudix",
+        "title": "HR Policy and Handbook Answers with AI",
         "description": "Help employees find answers from handbooks, benefits guides, and HR policies with citation-backed AI."
       },
       "legal": {
-        "title": "Legal Solution | Rudix",
+        "title": "AI Search for Contracts and Legal Documents",
         "description": "Search contracts, legal policies, and agreements with source-backed answers and audit trails."
       },
       "compliance": {
-        "title": "Compliance Solution | Rudix",
+        "title": "Compliance Evidence and Audit Document Search",
         "description": "Retrieve audit evidence and compliance documentation instantly with citation-backed AI search."
       },
       "sales": {
-        "title": "Sales Solution | Rudix",
+        "title": "Cited Product Answers for Sales Teams",
         "description": "Win deals with cited product intelligence. Empower AEs with instant answers from your knowledge base."
       },
       "support": {
-        "title": "Support Solution | Rudix",
+        "title": "Faster Support Answers From Your Documentation",
         "description": "Help support agents answer faster with instant access to documentation and troubleshooting guides."
       },
       "research": {
-        "title": "Research Solution | Rudix",
+        "title": "AI Research Assistant for Technical Documents",
         "description": "Extract insights from technical PDFs and research reports with RAG-powered document intelligence."
       },
       "operations": {
-        "title": "Operations Solution | Rudix",
+        "title": "Runbook and Process Answers for Operations",
         "description": "Runbook answers when your team needs them — instant retrieval for incident response and process guidance."
       },
       "procurement": {
-        "title": "Procurement Solution | Rudix",
+        "title": "AI Review of Vendor and Procurement Documents",
         "description": "Evaluate vendors with AI-powered document review and instant answers to compliance questions."
       },
       "internalKnowledge": {
-        "title": "Internal Knowledge | Rudix",
+        "title": "Internal Knowledge Search with Cited Answers",
         "description": "Make your team's institutional knowledge instantly accessible with citation-backed search."
       },
       "clientPortal": {
-        "title": "Client Portal | Rudix",
+        "title": "Client Portal Q&A From Approved Documents",
         "description": "Give clients instant answers from your approved documentation with scoped AI Q&A."
       },
       "changelog": {
-        "title": "Changelog | Rudix",
+        "title": "Changelog and Release Notes",
         "description": "Browse public Rudix release notes, product improvements, fixes, and status updates."
       },
       "status": {
-        "title": "Status | Rudix",
+        "title": "Service Status and Incident History",
         "description": "Check the public Rudix service status, active incidents, maintenance windows, and recent history."
       },
       "privacy": {
-        "title": "Privacy Policy | Rudix",
+        "title": "Privacy Policy",
         "description": "Learn how Rudix collects, stores, and protects your data, including uploaded documents, AI queries, audit logs, and user accounts."
       },
       "terms": {
-        "title": "Terms of Service | Rudix",
+        "title": "Terms of Service",
         "description": "Read the Rudix Terms of Service covering permitted use, restrictions, content ownership, service availability, and liability."
       },
       "cookies": {
-        "title": "Cookie Policy | Rudix",
+        "title": "Cookie Policy",
         "description": "Rudix uses only essential session cookies and browser localStorage for preferences. No third-party tracking."
       },
       "dpa": {
-        "title": "Data Processing Addendum | Rudix",
+        "title": "Data Processing Addendum",
         "description": "Rudix DPA covering processor obligations, sub-processors, data subject rights, security measures, and breach notification."
       },
       "subprocessors": {
-        "title": "Subprocessors | Rudix",
+        "title": "Subprocessors",
         "description": "List of Rudix sub-processors including AI model providers, vector storage, object storage, and optional email and observability services."
       },
       "acceptableUse": {
-        "title": "Acceptable Use Policy | Rudix",
+        "title": "Acceptable Use Policy",
         "description": "Rudix Acceptable Use Policy covering permitted document indexing and query uses and prohibited activities including circumvention, abuse, and illegal content."
       },
       "securityDisclosure": {
-        "title": "Security Disclosure Policy | Rudix",
+        "title": "Security Disclosure Policy",
         "description": "How to responsibly disclose security vulnerabilities in the Rudix platform, in-scope targets, response timelines, and researcher recognition."
       }
     },
@@ -668,7 +674,7 @@
         "starterH1": "Starter document and indexing quotas",
         "starterH2": "Baseline usage and quality visibility",
         "starterH3": "Email support and onboarding guidance",
-        "starterCta": "Start Trial",
+        "starterCta": "Request Access",
         "teamBadge": "Most selected for rollout",
         "teamTitle": "Team",
         "teamSummary": "Scale across departments with stronger governance, evaluations, and operational controls.",
@@ -741,7 +747,7 @@
       "faq": {
         "title": "Pricing FAQ",
         "trialQ": "Can we start with a trial before committing to a plan?",
-        "trialA": "Yes. Teams can begin with a trial workflow and then move to the tier that best fits rollout scope and governance needs.",
+        "trialA": "Yes. Our team can set up a pilot workspace for you. Your administrator then invites teammates, and you can move to the plan that best fits your rollout and governance needs.",
         "upgradesQ": "How do upgrades work when our usage grows?",
         "upgradesA": "Rudix supports staged expansion so you can increase usage, controls, and support without rebuilding your document workflows.",
         "securityReviewQ": "Can we request a security review during pricing discussions?",
@@ -1394,6 +1400,12 @@
         "description": "Join high-performing sales teams using Rudix to surface technical intelligence in seconds, not hours.",
         "primaryCta": "Schedule a Demo",
         "secondaryCta": "View Pricing"
+      },
+      "images": {
+        "collateralAlt": "Professional sales collateral and technical product brochures",
+        "teamMeetingAlt": "Enterprise account executives collaborating in a sales strategy meeting",
+        "workspaceAlt": "Sales representative working on a laptop with sales enablement tools",
+        "pricingAlt": "Pricing sheet and contract documentation for enterprise sales"
       }
     },
     "support": {
@@ -1542,7 +1554,8 @@
         "description": "Give analysts instant, cited answers from your entire research library.",
         "primaryCta": "Get Started Now",
         "secondaryCta": "Book Sales Call"
-      }
+      },
+      "heroImageAlt": "Enterprise research analyst dashboard showing data visualizations and document insights"
     },
     "operations": {
       "breadcrumb": "Operations",
@@ -1603,7 +1616,8 @@
         "description": "Give ops teams verified, cited answers from your entire operational knowledge base.",
         "primaryCta": "Book a Live Demo",
         "secondaryCta": "Speak to us about operations"
-      }
+      },
+      "terminalImageAlt": "Code terminal showing operations runbook and incident response procedures"
     },
     "procurement": {
       "breadcrumb": "Procurement",
@@ -1663,7 +1677,8 @@
         "primaryCta": "Schedule a Demo",
         "secondaryCta": "Get Started Free",
         "disclaimer": "Rudix surfaces answers for review — it does not replace legal or procurement approval workflows."
-      }
+      },
+      "heroImageAlt": "Procurement analytics dashboard showing vendor evaluation data"
     },
     "internalKnowledge": {
       "breadcrumb": "Internal Knowledge",
@@ -1674,6 +1689,7 @@
         "description": "Stop hunting through outdated PDFs and buried Slack threads. Rudix indexes your entire organizational brain to provide verified, citation-backed answers.",
         "primaryCta": "Get Started",
         "secondaryCta": "Watch Demo",
+        "securityCta": "How we keep data secure",
         "panelQuestion": "What is our policy on remote work stipends for international employees?",
         "panelIntro": "Based on the",
         "panelDocument": "Global Employee Handbook (2024)",
@@ -1831,6 +1847,22 @@
         "secondaryCta": "Get Started Free",
         "disclaimer": "Rudix surfaces answers from approved documents — it does not replace a full external client portal or manage client identity and access."
       }
+    },
+    "a11y": {
+      "skipToContent": "Skip to main content",
+      "homeLink": "Rudix home",
+      "logoAlt": "Rudix logo",
+      "footer": "Footer",
+      "breadcrumb": "Breadcrumb"
+    },
+    "legalLayout": {
+      "badge": "Legal",
+      "noticeLabel": "Legal review notice",
+      "noticeTitle": "Note:",
+      "noticeBody": "This document contains placeholder copy pending formal legal review. It should not be considered final legal advice or a binding agreement until approved by legal counsel.",
+      "onThisPage": "On this page",
+      "versionLine": "Version {version} · Effective {date}",
+      "englishOnly": "This document is currently available in English only."
     }
   },
   "dashboard": {
@@ -4423,6 +4455,9 @@
   "errors": {
     "pageNotFound": "Page not found",
     "pageNotFoundDescription": "The page you're looking for doesn't exist.",
+    "notFoundBadge": "Error 404",
+    "notFoundHome": "Go to homepage",
+    "notFoundContact": "Contact us",
     "forbidden": "Access denied",
     "forbiddenDescription": "You don't have permission to access this page.",
     "serverError": "Something went wrong",

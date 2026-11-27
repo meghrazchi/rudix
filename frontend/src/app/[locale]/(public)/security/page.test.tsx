@@ -68,7 +68,9 @@ describe("Security public page", () => {
       params: Promise.resolve({ locale: "es" }),
     });
 
-    expect(metadata.title).toBe("Seguridad y confianza | Rudix");
+    expect(metadata.title).toBe(
+      "Seguridad y confianza para IA documental privada",
+    );
     expect(metadata.alternates?.canonical).toContain("/es/security");
   });
 });

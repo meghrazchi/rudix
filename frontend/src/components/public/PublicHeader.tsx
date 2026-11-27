@@ -9,7 +9,16 @@ import {
   PUBLIC_FOCUS_RING_CLASS,
   PublicActionLink,
 } from "@/components/public/PublicActionLink";
+import { usePathname } from "@/i18n/navigation";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
+
+/** True when `pathname` is `href` or one of its sub-pages (e.g. /solutions/hr). */
+export function isActiveNavHref(pathname: string, href: string): boolean {
+  if (!href.startsWith("/") || href === "/") {
+    return false;
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 type PublicHeaderProps = {
   links: PublicSiteLinks;
@@ -17,12 +26,14 @@ type PublicHeaderProps = {
 
 export function PublicHeader({ links }: PublicHeaderProps) {
   const t = useTranslations("public.nav");
+  const a11y = useTranslations("public.a11y");
   const navItems = [
     { label: t("items.product"), href: links.product },
     { label: t("items.solutions"), href: links.solutions },
     { label: t("items.security"), href: links.security },
     { label: t("items.pricing"), href: links.pricing },
   ];
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const firstMobileLinkRef = useRef<HTMLAnchorElement | null>(null);
@@ -66,11 +77,11 @@ export function PublicHeader({ links }: PublicHeaderProps) {
         <PublicActionLink
           href={links.home}
           className="flex items-center gap-2 justify-self-start rounded-md"
-          ariaLabel="Rudix home"
+          ariaLabel={a11y("homeLink")}
         >
           <Image
             src="/brand/rudix-mark.svg"
-            alt="Rudix logo"
+            alt={a11y("logoAlt")}
             width={24}
             height={24}
             className="h-6 w-6"
@@ -84,15 +95,23 @@ export function PublicHeader({ links }: PublicHeaderProps) {
           aria-label={t("primaryNav")}
           className="hidden items-center gap-1 md:flex"
         >
-          {navItems.map((item) => (
-            <PublicActionLink
-              key={item.label}
-              href={item.href}
-              className="text-site-ink-muted hover:bg-site-muted hover:text-site-ink rounded-full px-3 py-1.5 text-sm transition-colors"
-            >
-              {item.label}
-            </PublicActionLink>
-          ))}
+          {navItems.map((item) => {
+            const isActive = isActiveNavHref(pathname, item.href);
+            return (
+              <PublicActionLink
+                key={item.label}
+                href={item.href}
+                ariaCurrent={isActive ? "page" : undefined}
+                className={`hover:bg-site-muted hover:text-site-ink rounded-full px-3 py-1.5 text-sm transition-colors ${
+                  isActive
+                    ? "bg-site-muted text-site-ink font-medium"
+                    : "text-site-ink-muted"
+                }`}
+              >
+                {item.label}
+              </PublicActionLink>
+            );
+          })}
         </nav>
 
         <div className="hidden items-center gap-3 justify-self-end md:flex">
@@ -157,7 +176,14 @@ export function PublicHeader({ links }: PublicHeaderProps) {
                 <li key={item.label}>
                   <PublicActionLink
                     href={item.href}
-                    className="text-site-ink hover:bg-site-muted block rounded-xl px-3 py-2.5 text-base font-medium"
+                    ariaCurrent={
+                      isActiveNavHref(pathname, item.href) ? "page" : undefined
+                    }
+                    className={`text-site-ink hover:bg-site-muted block rounded-xl px-3 py-2.5 text-base font-medium ${
+                      isActiveNavHref(pathname, item.href)
+                        ? "bg-site-muted"
+                        : ""
+                    }`}
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                     }}

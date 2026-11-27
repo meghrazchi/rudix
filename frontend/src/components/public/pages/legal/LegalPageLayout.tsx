@@ -1,3 +1,5 @@
+import { useLocale, useTranslations } from "next-intl";
+
 type LegalSection = {
   heading: string;
   body: React.ReactNode;
@@ -28,6 +30,8 @@ export function LegalPageLayout({
   effectiveDate,
   sections,
 }: LegalPageLayoutProps) {
+  const t = useTranslations("public.legalLayout");
+  const locale = useLocale();
   const items = sections.map((section, index) => ({
     ...section,
     id: sectionId(section.heading, index),
@@ -39,30 +43,33 @@ export function LegalPageLayout({
         <div className="max-w-3xl">
           <p className="border-site-border bg-site-surface text-site-ink-muted inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-medium">
             <span className="bg-site-accent h-1.5 w-1.5 rounded-full" />
-            Legal
+            {t("badge")}
           </p>
           <h1 className="text-site-ink mt-6 text-4xl font-semibold tracking-[-0.03em] text-balance break-words hyphens-auto sm:text-5xl lg:hyphens-manual">
             {title}
           </h1>
           <p className="text-site-ink-subtle mt-4 text-sm">
-            Version {version} &middot; Effective {effectiveDate}
+            {t("versionLine", { version, date: effectiveDate })}
           </p>
           <div
             role="note"
-            aria-label="Legal review notice"
+            aria-label={t("noticeLabel")}
             className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
           >
-            <strong>Note:</strong> This document contains placeholder copy
-            pending formal legal review. It should not be considered final legal
-            advice or a binding agreement until approved by legal counsel.
+            <strong>{t("noticeTitle")}</strong> {t("noticeBody")}
           </div>
+          {locale !== "en" ? (
+            <p className="text-site-ink-muted mt-4 text-sm">
+              {t("englishOnly")}
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">
-          <nav aria-label="On this page" className="hidden lg:block">
+          <nav aria-label={t("onThisPage")} className="hidden lg:block">
             <div className="sticky top-24">
               <p className="text-site-ink-subtle text-xs font-medium tracking-wide uppercase">
-                On this page
+                {t("onThisPage")}
               </p>
               <ol className="border-site-border mt-4 space-y-2.5 border-s ps-4 text-sm">
                 {items.map((item) => (

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { PublicHeader } from "@/components/public/PublicHeader";
@@ -27,6 +28,7 @@ export function PublicMarketingLayout({
 }: PublicMarketingLayoutProps) {
   const links = resolvePublicSiteLinks();
   const pathname = usePathname();
+  const a11y = useTranslations("public.a11y");
 
   useEffect(() => {
     void trackPageView({
@@ -46,7 +48,7 @@ export function PublicMarketingLayout({
         href="#main-content"
         className="bg-site-surface text-site-ink sr-only z-50 m-2 rounded-md px-3 py-2 text-sm font-semibold shadow focus:not-sr-only focus:absolute"
       >
-        Skip to main content
+        {a11y("skipToContent")}
       </a>
       <PublicHeader links={links} />
       <main id="main-content" aria-label={pageLabel}>

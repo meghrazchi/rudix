@@ -53,7 +53,7 @@ function StatusBadge({ state }: { state: PublicComponentState }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold tracking-[0.12em] uppercase ${STATE_BADGE_CLASSES[state]}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold tracking-[0.12em] uppercase ${STATE_BADGE_CLASSES[state]}`}
     >
       <span
         className={`h-1.5 w-1.5 rounded-full ${STATE_DOT_CLASSES[state]}`}

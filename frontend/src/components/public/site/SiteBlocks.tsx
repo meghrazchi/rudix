@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
@@ -15,8 +16,9 @@ export function SiteBreadcrumb({
 }: {
   items: { label: string; href?: string }[];
 }) {
+  const a11y = useTranslations("public.a11y");
   return (
-    <nav aria-label="Breadcrumb" className="px-4 pt-6 lg:px-8">
+    <nav aria-label={a11y("breadcrumb")} className="px-4 pt-6 lg:px-8">
       <ol className="text-site-ink-subtle mx-auto flex w-full max-w-6xl flex-wrap items-center gap-2 text-xs">
         {items.map((item, index) => (
           <li key={item.label} className="flex items-center gap-2">
@@ -215,7 +217,7 @@ export function StepGrid({
           key={step.title}
           className="border-site-border bg-site-surface rounded-2xl border p-6"
         >
-          <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold">
+          <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-xs font-semibold">
             {step.label ?? String(index + 1).padStart(2, "0")}
           </span>
           <h3 className="text-site-ink mt-5 text-base font-semibold">

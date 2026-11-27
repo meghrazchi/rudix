@@ -37,7 +37,7 @@ type ChangelogLabels = {
 
 function ReleaseBadge({ label }: { label: string }) {
   return (
-    <span className="border-site-border bg-site-surface text-site-ink-muted inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold tracking-[0.12em] uppercase">
+    <span className="border-site-border bg-site-surface text-site-ink-muted inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold tracking-[0.12em] uppercase">
       {label}
     </span>
   );
@@ -46,7 +46,7 @@ function ReleaseBadge({ label }: { label: string }) {
 function MetadataItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-site-ink-subtle text-[11px] font-bold tracking-[0.12em] uppercase">
+      <dt className="text-site-ink-subtle text-xs font-bold tracking-[0.12em] uppercase">
         {label}
       </dt>
       <dd className="text-site-ink mt-1 text-sm font-semibold">{value}</dd>
@@ -237,7 +237,7 @@ export function ChangelogPage() {
         <section aria-labelledby="release-history-title" className="mt-16">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-site-ink-subtle text-[11px] font-bold tracking-[0.16em] uppercase">
+              <p className="text-site-ink-subtle text-xs font-bold tracking-[0.16em] uppercase">
                 {labels.releaseHistory}
               </p>
               <h2
@@ -269,7 +269,7 @@ export function ChangelogPage() {
           className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-3"
         >
           <article className="border-site-border bg-site-surface rounded-2xl border p-6">
-            <p className="text-site-ink-subtle text-[11px] font-bold tracking-[0.16em] uppercase">
+            <p className="text-site-ink-subtle text-xs font-bold tracking-[0.16em] uppercase">
               {labels.sourceEyebrow}
             </p>
             <h2
@@ -284,7 +284,7 @@ export function ChangelogPage() {
           </article>
 
           <article className="border-site-border bg-site-surface rounded-2xl border p-6">
-            <p className="text-site-ink-subtle text-[11px] font-bold tracking-[0.16em] uppercase">
+            <p className="text-site-ink-subtle text-xs font-bold tracking-[0.16em] uppercase">
               {labels.publishingEyebrow}
             </p>
             <h2 className="text-site-ink mt-2 text-xl font-semibold">
@@ -296,7 +296,7 @@ export function ChangelogPage() {
           </article>
 
           <article className="border-site-border bg-site-surface rounded-2xl border p-6">
-            <p className="text-site-ink-subtle text-[11px] font-bold tracking-[0.16em] uppercase">
+            <p className="text-site-ink-subtle text-xs font-bold tracking-[0.16em] uppercase">
               {labels.disclosureEyebrow}
             </p>
             <h2 className="text-site-ink mt-2 text-xl font-semibold">

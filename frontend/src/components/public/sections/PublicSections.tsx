@@ -187,7 +187,7 @@ function CapabilityIcon({ icon }: { icon: PublicFeatureItem["icon"] }) {
 
 function StatusPill({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-[#e2def7] bg-[#f2f0ff] px-3 py-1 text-[11px] font-bold tracking-[0.12em] text-[#5a53a4] uppercase">
+    <span className="rounded-full border border-[#e2def7] bg-[#f2f0ff] px-3 py-1 text-xs font-bold tracking-[0.12em] text-[#5a53a4] uppercase">
       {label}
     </span>
   );

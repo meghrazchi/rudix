@@ -11,13 +11,14 @@ type PublicActionLinkProps = {
   className?: string;
   children: React.ReactNode;
   ariaLabel?: string;
+  ariaCurrent?: "page";
   onClick?: () => void;
 };
 
 export const PublicActionLink = forwardRef<
   HTMLAnchorElement,
   PublicActionLinkProps
->(({ href, className, children, ariaLabel, onClick }, ref) => {
+>(({ href, className, children, ariaLabel, ariaCurrent, onClick }, ref) => {
   const mergedClassName =
     `${className ?? ""} ${PUBLIC_FOCUS_RING_CLASS}`.trim();
 
@@ -28,6 +29,7 @@ export const PublicActionLink = forwardRef<
         target="_blank"
         rel="noreferrer noopener"
         aria-label={ariaLabel}
+        aria-current={ariaCurrent}
         className={mergedClassName}
         onClick={onClick}
         ref={ref}
@@ -41,6 +43,7 @@ export const PublicActionLink = forwardRef<
     <Link
       href={href}
       aria-label={ariaLabel}
+      aria-current={ariaCurrent}
       className={mergedClassName}
       onClick={onClick}
       ref={ref}

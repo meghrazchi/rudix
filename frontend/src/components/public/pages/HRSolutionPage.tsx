@@ -125,7 +125,7 @@ function FlowSteps() {
           key={step.title}
           className="border-site-border bg-site-surface flex min-w-0 flex-col rounded-2xl border p-6"
         >
-          <span className="bg-site-accent-soft text-site-accent-ink self-start rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold">
+          <span className="bg-site-accent-soft text-site-accent-ink self-start rounded-full px-2.5 py-1 font-mono text-xs font-semibold">
             {step.label}
           </span>
           <h3 className="text-site-ink mt-5 text-base font-semibold">

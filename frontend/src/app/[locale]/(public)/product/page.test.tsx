@@ -51,10 +51,14 @@ describe("Product public page", () => {
   });
 
   it.each([
-    ["en", "Product Overview | Rudix", "/en/product"],
-    ["de", "Produktübersicht | Rudix", "/de/product"],
-    ["es", "Resumen del producto | Rudix", "/es/product"],
-    ["fr", "Présentation du produit | Rudix", "/fr/product"],
+    [
+      "en",
+      "Product Overview: Cited Answers From Your Documents",
+      "/en/product",
+    ],
+    ["de", "Produktübersicht: Antworten mit Quellenangaben", "/de/product"],
+    ["es", "Producto: respuestas citadas de tus documentos", "/es/product"],
+    ["fr", "Présentation du produit : réponses sourcées", "/fr/product"],
   ] as const)(
     "defines locale-aware SEO metadata for the /product route (%s)",
     async (locale, expectedTitle, expectedCanonicalSuffix) => {

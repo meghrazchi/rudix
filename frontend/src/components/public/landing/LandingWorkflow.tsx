@@ -129,7 +129,7 @@ export function LandingWorkflow() {
               className="border-site-border bg-site-surface relative flex flex-col rounded-2xl border p-6"
             >
               <div className="flex items-center justify-between">
-                <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wide uppercase">
+                <span className="bg-site-accent-soft text-site-accent-ink rounded-full px-2.5 py-1 font-mono text-xs font-semibold tracking-wide uppercase">
                   {t("step", { number: String(index + 1).padStart(2, "0") })}
                 </span>
                 <SiteIcon
