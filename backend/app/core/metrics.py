@@ -246,6 +246,16 @@ CHAT_QUOTA_DENIED_TOTAL = Counter(
     registry=registry,
 )
 
+# R05-01: one observation per chat pipeline stage run (CHAT_PIPELINE_V2); labels are the
+# fixed stage names, never request data.
+CHAT_STAGE_SECONDS = Histogram(
+    "rudix_chat_stage_seconds",
+    "Duration of one chat pipeline stage in seconds",
+    ["stage"],
+    buckets=(0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
+    registry=registry,
+)
+
 CHAT_WS_AUTH_TOTAL = Counter(
     "rudix_chat_ws_auth_total",
     "Chat WebSocket handshake authentication attempts by method and outcome",
