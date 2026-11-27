@@ -312,20 +312,44 @@ its exports, and the extracted pieces live in sibling folders (each file under 5
 lines). Query keys moved into `queryKeys` in `src/lib/api/query.ts` (after
 `// anchor: D`) and return the same arrays as the former literals.
 
-Split so far:
+Split in this part (every resulting file is under 500 lines; the original module
+path keeps its exports):
 
 - `components/connectors/ConnectorSetupPage.tsx` -> `components/connectors/setup/`
   (config helpers, wizard steps, scope-risk analysis, permission review step, and
   one setup guide per provider).
 - `components/admin/AdminPermissionsPage.tsx` -> `components/admin/permissions/`
   (role matrix, resource access, conflicts, conflict drawer, access debugger tabs).
+- `components/settings/OrganizationSettingsTab.tsx` -> `components/settings/organization/`
+  (profile, workspace defaults, ingestion defaults and danger-zone sections plus
+  shared helpers).
+- `components/settings/SecuritySettingsTab.tsx` -> `components/settings/security/`
+  (one component per card plus shared helpers).
+- `components/settings/BillingSettingsTab.tsx` -> `components/settings/billing/`
+  (plan card, usage, quotas, invoices, contact and portal sections).
+- `components/user/UserProfilePage.tsx` -> `components/user/profile/`
+  (`useUserProfileController` hook plus identity, preferences, RAG defaults,
+  dialogs, action bar, account actions and toast views).
+- `components/admin/AdminFeedbackReviewPage.tsx` -> `components/admin/feedback-review/`
+  (controller hook, summary, filters, results, overlays, detail panel, convert modal).
+- `components/admin/AdminTeamPage.tsx` -> `components/admin/team/`
+  (controller hook, members and invitations sections, dialogs, role editor).
+- `components/admin/AdminMCPPage.tsx` -> `components/admin/mcp/`
+  (status card, capability and tag editors, trust controls, policy form, panels).
+- `components/admin/AdminAuditLogsPage.tsx` -> `components/admin/audit-logs/`
+  (controller hook, summary, filters, results table, event drawer).
+- `components/admin/AdminServiceAccountsPage.tsx` -> `components/admin/service-accounts/`
+  (account form, token form, tokens panel, cards, created-token banner).
+- `components/admin/AdminAIResponsePolicyPage.tsx` -> `components/admin/ai-response-policy/`
+  (policy form, preview panel, shared labels and helpers).
 
-Still over 500 lines (not yet split): `OrganizationSettingsTab.tsx`,
-`SecuritySettingsTab.tsx`, `BillingSettingsTab.tsx`, `UserProfilePage.tsx`,
-`AdminFeedbackReviewPage.tsx`, `AdminTeamPage.tsx`, `AdminMCPPage.tsx`,
-`AdminAuditLogsPage.tsx`, `AdminServiceAccountsPage.tsx`,
-`AdminAIResponsePolicyPage.tsx`. These hold one large component with shared form
-state and need hook extraction before the JSX can move.
+Where a page held one large component, the state and mutations moved into a
+`useXxxController` hook and the JSX into view components that receive the
+controller, so behaviour, markup, classes and message keys are unchanged.
+
+Still over 500 lines in these folders (owned by other packages or not in scope):
+`ConnectorConnectionDetailPage.tsx`, `AdminSecurityCenterPage.tsx`,
+`AdminSourceHealthPage.tsx`, `RagProfilesSection.tsx`, `AdminQueryAnalyticsPage.tsx`.
 
 ## Dashboard Design Sample
 
