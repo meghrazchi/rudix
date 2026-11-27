@@ -242,6 +242,9 @@ Staging and production run one service per pool instead of the single `worker`. 
 replaces itself with `celery -A app.workers.celery_app:celery_app worker -Q <queues>
 --concurrency <n> --pool <pool> -n <name>@%h [--max-tasks-per-child <n>]`. Compose never
 names queues, so renaming a queue (for the quorum cut-over) is an environment change only.
+Both deploy paths run `docker compose up -d --remove-orphans`, so the first 0.6.0 deploy
+stops the 0.5.0 `worker` container; a host updated by hand needs the same flag, or that
+container keeps consuming every queue with the previous image.
 
 | Service | Queues (default) | Load | Default concurrency |
 |---|---|---|---|
@@ -304,9 +307,10 @@ and failure codes: [27_INGESTION_AND_WORKERS_RUNBOOK.md](./27_INGESTION_AND_WORK
 - Plugins `rabbitmq_management` and `rabbitmq_prometheus`.
 
 The staging and production compose files mount them from `./rabbitmq/` next to the compose
-file; `deploy/scripts/deploy_compose_remote.sh` copies `infra/rabbitmq/` there on every deploy
-and stops if the files are missing (Docker would otherwise create empty directories at the
-mount paths and RabbitMQ would not start). A host deployed by hand needs the same two files
+file; `deploy/scripts/deploy_compose_remote.sh` and the Terraform rollout
+(`deploy/terraform/main.tf`, used by the release workflow) copy `infra/rabbitmq/` there on
+every deploy, and the script stops if the files are missing (Docker would otherwise create
+empty directories at the mount paths and RabbitMQ would not start). A host deployed by hand needs the same two files
 in `<app path>/rabbitmq/`. Applying the files recreates the `rabbitmq` container once.
 
 ### Quorum queues and dead-lettering (R06-05)

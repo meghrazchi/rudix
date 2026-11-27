@@ -67,7 +67,9 @@ ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
   if grep -qE '^ENTERPRISE_GRAPH_ENABLED=true' .env; then
     docker compose -f '$compose_file' run --rm api python scripts/run_graph_migrations.py
   fi
-  docker compose -f '$compose_file' up -d
+  # --remove-orphans stops services the compose file no longer defines, such as the single
+  # 0.5.0 worker that the 0.6.0 pools replace (R06-04).
+  docker compose -f '$compose_file' up -d --remove-orphans
   curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null
   curl -fsS http://127.0.0.1:8000/api/v1/ready >/dev/null
 "
