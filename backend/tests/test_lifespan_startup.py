@@ -161,3 +161,29 @@ async def test_graph_migration_script_paths(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(script, "run_graph_migrations", AsyncMock(return_value=ok))
     monkeypatch.setattr(script.asyncio, "run", lambda coro: (coro.close(), 0)[1])
     assert script.main() == 0
+
+
+@pytest.mark.parametrize(("pipeline_v2", "expected_warnings"), [(False, 1), (True, 0)])
+def test_chat_pipeline_v2_false_logs_one_startup_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    pipeline_v2: bool,
+    expected_warnings: int,
+) -> None:
+    from app.core.config import settings
+    from app.main import app
+
+    _patch_everything(monkeypatch)
+    monkeypatch.setattr(lifespan_module, "init_redis", AsyncMock())
+    monkeypatch.setattr(lifespan_module, "init_rabbitmq", MagicMock())
+    monkeypatch.setattr(lifespan_module, "init_qdrant", MagicMock())
+    monkeypatch.setattr(settings, "chat_pipeline_v2", pipeline_v2)
+
+    with caplog.at_level("WARNING"):
+        with TestClient(app):
+            pass
+
+    ignored = [r for r in caplog.records if r.message == "chat.pipeline_v2_ignored"]
+    assert len(ignored) == expected_warnings
+    for record in ignored:
+        assert getattr(record, "setting", None) == "CHAT_PIPELINE_V2"

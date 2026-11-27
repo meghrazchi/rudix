@@ -352,17 +352,14 @@ SCENARIOS: dict[str, tuple[Setup, OrganizationRole, dict[str, Any], frozenset[st
     "stale_deprecated": (_stale, OrganizationRole.member, {}, frozenset()),
 }
 
-# (transport, CHAT_PIPELINE_V2). The pipeline must reproduce the HTTP goldens recorded through
-# the legacy query_chat body. Since S2 the WebSocket runs every pipeline stage ("ws-v2" owns
-# the ws fixtures); the legacy WebSocket body is compared with the frozen ws_legacy fixtures.
-# "http_direct" calls query_chat in-process (as the bot service does) and compares with the
-# HTTP golden; coverage only traces the pipeline on that path.
+# Transports. One pipeline serves all of them (S3 removed the legacy bodies and the
+# CHAT_PIPELINE_V2 runs); the HTTP goldens were recorded through the legacy query_chat body
+# and the ws goldens through the converged pipeline (S2). "http_direct" calls query_chat
+# in-process and compares with the HTTP golden; coverage only traces the pipeline on that path.
 RUNS = [
-    pytest.param("http", False, id="http"),
-    pytest.param("http", True, id="http-v2"),
-    pytest.param("http_direct", True, id="http-v2-direct"),
-    pytest.param("ws", False, id="ws"),
-    pytest.param("ws", True, id="ws-v2"),
+    pytest.param("http", id="http"),
+    pytest.param("http_direct", id="http-direct"),
+    pytest.param("ws", id="ws"),
 ]
 
 
@@ -401,17 +398,15 @@ async def run_golden(
     )
 
 
-@pytest.mark.parametrize(("transport", "pipeline_v2"), RUNS)
+@pytest.mark.parametrize("transport", RUNS)
 @pytest.mark.parametrize("scenario", list(SCENARIOS))
 async def test_chat_golden_transcript(
     scenario: str,
     transport: str,
-    pipeline_v2: bool,
     chat_query_client: AsyncClient,  # noqa: F811
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(settings, "chat_pipeline_v2", pipeline_v2)
     transcript = await run_golden(
         SCENARIOS[scenario],
         transport,
@@ -419,5 +414,5 @@ async def test_chat_golden_transcript(
         db_session=db_session,
         monkeypatch=monkeypatch,
     )
-    fixture_transport, allow_update = golden_target(transport, pipeline_v2)
+    fixture_transport, allow_update = golden_target(transport)
     assert_matches_golden(scenario, fixture_transport, transcript, allow_update=allow_update)

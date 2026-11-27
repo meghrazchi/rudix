@@ -95,11 +95,27 @@ async def _init_optional_dependency(name: str, init: Callable[[], Awaitable[None
         )
 
 
+def warn_deprecated_settings() -> None:
+    """Log one warning per deprecated setting that is set but no longer has an effect.
+
+    ``CHAT_PIPELINE_V2`` (R05-01): since 0.5.0 both chat transports always run the staged
+    pipeline; ``false`` is ignored and the setting is removed in the next milestone.
+    """
+    from app.core.config import settings
+
+    if not settings.chat_pipeline_v2:
+        logger.warning(
+            "chat.pipeline_v2_ignored",
+            extra={"setting": "CHAT_PIPELINE_V2", "value": False, "effect": "none"},
+        )
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     from app.core.config import settings
 
     try:
+        warn_deprecated_settings()
         init_sentry(runtime="api")
         init_langfuse(runtime="api")
         await _init_optional_dependency("redis", init_redis)

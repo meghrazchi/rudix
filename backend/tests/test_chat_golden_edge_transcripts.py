@@ -1,7 +1,7 @@
 """Golden transcripts of chat refusals and rarer branches (R05-01).
 
 Recorded through the legacy ``query_chat`` body and WebSocket pipeline like the core goldens
-in test_chat_golden_transcripts.py; the HTTP pipeline (``CHAT_PIPELINE_V2``) must match them.
+in test_chat_golden_transcripts.py; the one chat pipeline (S3) must match them.
 """
 
 from __future__ import annotations
@@ -369,17 +369,15 @@ EDGE_SCENARIOS: dict[str, ScenarioSpec] = {
 }
 
 
-@pytest.mark.parametrize(("transport", "pipeline_v2"), RUNS)
+@pytest.mark.parametrize("transport", RUNS)
 @pytest.mark.parametrize("scenario", list(EDGE_SCENARIOS))
 async def test_chat_golden_edge_transcript(
     scenario: str,
     transport: str,
-    pipeline_v2: bool,
     chat_query_client: AsyncClient,  # noqa: F811
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(settings, "chat_pipeline_v2", pipeline_v2)
     transcript = await run_golden(
         EDGE_SCENARIOS[scenario],
         transport,
@@ -387,5 +385,5 @@ async def test_chat_golden_edge_transcript(
         db_session=db_session,
         monkeypatch=monkeypatch,
     )
-    fixture_transport, allow_update = golden_target(transport, pipeline_v2)
+    fixture_transport, allow_update = golden_target(transport)
     assert_matches_golden(scenario, fixture_transport, transcript, allow_update=allow_update)

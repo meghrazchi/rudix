@@ -394,19 +394,16 @@ def normalise_prompt(prompt: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def golden_target(transport: str, pipeline_v2: bool) -> tuple[str, bool]:
+def golden_target(transport: str) -> tuple[str, bool]:
     """Fixture transport and whether ``CHAT_GOLDEN_UPDATE=1`` may rewrite it.
 
-    HTTP fixtures are recorded by the legacy body and reproduced by the pipeline. Since S2
-    the WebSocket runs every pipeline stage: ``ws`` fixtures are recorded by the pipeline
-    run, and ``ws_legacy`` keeps the pre-pipeline WebSocket transcripts (never rewritten)
-    for the legacy body that stays reachable with ``CHAT_PIPELINE_V2=false`` until S3.
+    Since S3 one pipeline serves every transport (the legacy bodies are gone). The ASGI
+    ``http`` and ``ws`` runs own their fixtures; ``http_direct`` (``query_chat`` called
+    in-process) is compared with the HTTP fixture and never rewrites it.
     """
-    if transport == "ws":
-        return ("ws", True) if pipeline_v2 else ("ws_legacy", False)
     if transport == "http_direct":
         return "http", False
-    return transport, not pipeline_v2
+    return transport, True
 
 
 def fixture_path(scenario: str, transport: str) -> Path:
