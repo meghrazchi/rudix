@@ -466,7 +466,6 @@ Not verified in this repository (no broker in CI): real dead-lettering, `consume
 child recycling, and the load test that an evaluation does not delay uploads. They are the
 manual checks in [plan section 8](./roadmap/V0_6_0_IMPLEMENTATION_PLAN.md#8-manual-steps-staging-and-production).
 
-<<<<<<< HEAD
 ## Reindex and alias swap
 
 R06-08. Use this to change the embedding model or dimension, or to rebuild the vector
@@ -553,7 +552,7 @@ Known limits:
   mode (unsetting `QDRANT_COLLECTION_ALIAS`) would start from an empty collection: keep the
   alias set.
 
-=======
+
 ## Agent workers (R06-13)
 
 `AGENT_RUN_EXECUTION` selects where `POST /agent/runs` executes a run. `inline` (the
@@ -610,4 +609,3 @@ fails the run with `worker_lost`. Inline runs never hold a lease and are never r
 Not verified here (no broker or Redis in CI): a real worker restart mid-run and live Redis
 pub/sub. They are staging checks in plan section 8; the tests use eager Celery and the
 in-memory Redis fake.
->>>>>>> develop

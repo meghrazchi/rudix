@@ -831,7 +831,6 @@ after `finalize` on its own queue.
 - The thresholds are starting points, not measured values; no queue wait or depth baseline has
   been recorded (the load test is a manual step in plan section 8).
 
-<<<<<<< HEAD
 ### Vector index generations and reindex (R06-08)
 
 - Metric `rudix_reindex_progress{generation}`: fraction of indexed documents (all
@@ -853,7 +852,7 @@ after `finalize` on its own queue.
 - Watch after a swap: chat retrieval errors and latency for at least
   `VECTOR_INDEX_REGISTRY_CACHE_SECONDS`, and the accuracy gate; roll back if either regresses.
 - No staging measurement has been recorded yet (plan section 8 item 4).
-=======
+
 ### Agent runs in workers and the run stream (R06-13)
 
 | Metric | Labels | Meaning |
@@ -879,7 +878,6 @@ after `finalize` on its own queue.
   `error_details.code`) as the source of truth.
 - No measured baseline exists yet; a live worker restart and Redis pub/sub are staging
   checks (plan section 8).
->>>>>>> develop
 
 ## Continuous evaluation
 
