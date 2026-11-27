@@ -1,12 +1,10 @@
 import asyncio
 import json
 import secrets
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from time import perf_counter
-from types import MethodType
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import (
@@ -19,7 +17,6 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.chat.citation_access import filter_chunks_by_cite_access
@@ -27,13 +24,46 @@ from app.application.chat.message_citations import (
     load_message_citations,
     persist_answer_citations,
 )
+from app.application.chat.pipeline.controls import (
+    _NOT_FOUND_ANSWER,
+    _augment_retrieval_with_graph_context,
+    _build_conflict_detection_chunks,
+    _build_prompt,
+    _build_rerank_settings,
+    _rerank_chunks,
+    _resolve_answer_prompt_version,
+    _resolve_graph_rag_enabled,
+    _resolve_grounded_verification_controls,
+    _resolve_planner_critic_controls,
+    _resolve_query_rewrite_preview_enabled,
+    _resolve_tree_search_reasoning_enabled,
+)
+from app.application.chat.pipeline.deps import default_deps
+from app.application.chat.pipeline.errors import _safe_http_error
+from app.application.chat.pipeline.provider_proxies import (  # noqa: F401 (re-export)
+    _ChatCompletionProviderProxy,
+    _EmbeddingProviderProxy,
+    bind_openai_client_proxies,
+)
 from app.application.chat.quota import (
     chat_quota_denial,
     ensure_chat_quota,
     record_chat_usage,
 )
+from app.application.chat.scope_inventory import (  # noqa: F401 (re-export)
+    _SCOPE_INVENTORY_MAX_CITATIONS,
+    _SCOPE_INVENTORY_MAX_LISTED_DOCUMENTS,
+    _SCOPE_INVENTORY_SNIPPET_CHARS,
+    ScopeInventoryDocument,
+    ScopeInventoryResult,
+    _build_scope_inventory_answer,
+    _build_scope_inventory_result,
+    _filter_authorized_document_ids_for_chat,
+    _filter_authorized_documents_for_chat,
+    _is_scope_inventory_question,
+    _scope_inventory_snippet,
+)
 from app.application.chat.ws_auth import authenticate_ws_handshake
-from app.auth.authorization_service import AuthorizationService
 from app.auth.dependencies import ensure_document_ids_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.passwords import (
@@ -42,36 +72,13 @@ from app.auth.passwords import (
     hash_password,
     verify_password,
 )
-from app.auth.policy_engine import Action
-from app.auth.resource_context_builder import (
-    build_document_resource_contexts_batch,
-    get_subject_accessible_collection_ids,
-)
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
 from app.core.langfuse_tracer import ChatTraceMetadata, trace_chat_query
 from app.core.logging import log_query_event
-from app.core.safety_guardrails import PromptInjectionGuard
 from app.db.session import SessionLocal, get_db_session
-from app.domains.admin.repositories.usage import UsageRepository
-from app.domains.admin.services.audit_service import AuditLogService
-from app.domains.admin.services.feature_flag_service import FeatureFlagService
-from app.domains.agents.repositories.agent_policy import AgentToolPolicyRepository
 from app.domains.ai.profile.schemas import TaskType
 from app.domains.ai.profile.service import resolve_task_profile
-from app.domains.ai.providers.factory import default_provider_factory
-from app.domains.ai.providers.protocols import (
-    ChatCompletionRequest,
-    ChatCompletionResponse,
-    EmbeddingRequest,
-    EmbeddingResponse,
-)
-from app.domains.ai_response_policy.repositories.ai_response_policy import (
-    AiResponsePolicyRepository,
-)
-from app.domains.ai_response_policy.services.policy_engine import (
-    AiResponsePolicyEngine,
-)
 from app.domains.ai_response_policy.services.policy_engine import (
     PolicyEvaluationResult as AiPolicyEvaluationResult,
 )
@@ -79,7 +86,6 @@ from app.domains.chat.repositories.answer_share import AnswerShareRepository
 from app.domains.chat.repositories.chat import (
     MESSAGE_SORT_NAME,
     SESSION_SORT_NAME,
-    ChatRepository,
     message_sort_key,
     session_sort_key,
 )
@@ -123,133 +129,130 @@ from app.domains.chat.schemas.share import (
 )
 from app.domains.chat.schemas.trust_metadata import (
     AnswerTrustMetadataResponse,
-    ChatToolCallRecord,
-    CitationTrustRecord,
-    ClaimSupportRecord,
-    ConfidenceReasonRecord,
-    ConfidenceTrustRecord,
-    ConflictStatusRecord,
-    CriticWarningRecord,
-    EvidenceQualityRecord,
-    GroundedVerificationRecord,
-    ModelMetadataRecord,
-    PlannerCriticRecord,
-    PolicyEnforcementRecord,
-    QueryInterpretationRecord,
-    RetrievalBranchRecord,
-    RetrievalDiagnosticsRecord,
-    RetrievalMethodRecord,
-    SourceFreshnessRecord,
-    ToolOrchestrationRecord,
 )
-from app.domains.chat.services.answer_critic_service import AnswerCriticService, CriticResult
-from app.domains.chat.services.answer_mode_service import (
-    AnswerModeResult,
-    AnswerModeService,
-)
+from app.domains.chat.services.answer_critic_service import CriticResult
 from app.domains.chat.services.answer_planner_service import (
     STRATEGY_LABELS,
-    AnswerPlannerService,
     PlannerResult,
 )
-from app.domains.chat.services.answer_refiner_service import AnswerRefinerService, RefinerResult
+from app.domains.chat.services.answer_refiner_service import RefinerResult
+from app.domains.chat.services.chat_values import (
+    _decimal_to_float_or_none,
+    _list_or_empty,
+    _parse_uuid_or_none,
+)
+from app.domains.chat.services.citation_enrichment import (
+    _build_conflict_context,
+    _with_conflict_status,
+    _with_extraction_quality,
+    _with_freshness,
+    _with_ocr_quality,
+    _with_provenance,
+    _with_table_metadata,
+)
 from app.domains.chat.services.citation_service import (
     CitationBuildResult,
     CitationContextChunk,
-    CitationService,
 )
-from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.domains.chat.services.confidence_calibration import (  # noqa: F401 (re-export)
+    _EXTRACTION_CONFIDENCE_WARN_THRESHOLD,
+    _EXTRACTION_WARNING_PROFILES,
+    _PROCESSING_INCOMPLETE_STATUSES,
+    _TABLE_CONFIDENCE_LOW_THRESHOLD,
+    _TABLE_CONFIDENCE_VERY_LOW_THRESHOLD,
+    _build_evidence_quality_inputs,
+    _build_evidence_quality_record,
+    _compute_conflict_multiplier,
+    _compute_extraction_quality_multiplier,
+    _compute_freshness_multiplier,
+    _compute_ocr_quality_multiplier,
+    _compute_table_quality_multiplier,
+    _confidence_category_from_score,
+    _to_confidence_signals,
+)
 from app.domains.chat.services.conflict_detection_service import (
-    ConflictDetectionChunk,
     ConflictDetectionResult,
-    ConflictDetectionService,
 )
 from app.domains.chat.services.context_packer_service import (
     ContextPackerConfig,
-    ContextPackerService,
     ContextPackResult,
 )
-from app.domains.chat.services.graph_retrieval_service import (
+from app.domains.chat.services.graph_retrieval_service import (  # noqa: F401 (re-export)
     GraphRetrievalResult,
     GraphRetrievalService,
     GraphRetrievedChunk,
 )
 from app.domains.chat.services.grounded_answer_verifier import (
-    GroundedAnswerVerifier,
     GroundedVerifierResult,
     VerifierChunk,
-    VerifierCitation,
 )
-from app.domains.chat.services.hybrid_retrieval_service import (
-    HybridCandidate,
-    HybridRetrievalService,
-)
-from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
 from app.domains.chat.services.llm_service import (
     LLMAnswerResult,
-    LLMService,
     PermanentLLMServiceError,
     TransientLLMServiceError,
 )
 from app.domains.chat.services.parallel_retrieval_optimizer import (
     ParallelRetrievalBudget,
-    ParallelRetrievalOptimizer,
     ParallelRetrievalResult,
 )
 from app.domains.chat.services.parent_context_expansion_service import (
-    ParentContextExpansionService,
     ParentExpansionResult,
 )
-from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
-from app.domains.chat.services.query_retrieval_service import (
-    QueryRetrievalService,
-    RetrievedCandidate,
+from app.domains.chat.services.query_intent_service import (  # noqa: F401 (re-export)
+    _QUERY_INTENT_LABELS,
+    _build_query_interpretation_record,
+    _build_retrieval_filters,
+    _build_retrieval_profile_scope,
+    _build_search_mode,
+    _guidance_label,
+    _infer_query_intent,
+    _query_complexity,
 )
 from app.domains.chat.services.query_rewriting_service import (
     QueryRewritingResult,
-    QueryRewritingService,
 )
 from app.domains.chat.services.rerank_service import (
-    RerankCandidate,
     RerankResult,
-    RerankService,
-    RerankSettings,
 )
 from app.domains.chat.services.retrieval_strategy_router import (
     FeatureAvailability,
     RetrievalRouteResult,
-    RetrievalStrategyRouter,
+)
+from app.domains.chat.services.retrieved_chunk import (  # noqa: F401 (re-export)
+    RetrievedChunk,
+    _hybrid_to_retrieved_chunk,
+    _merge_retrieved_chunks,
+    _to_graph_retrieved_chunk,
+    _to_retrieved_chunk,
+    _with_original_ranks,
 )
 from app.domains.chat.services.source_freshness_service import (
     DocumentTrustData,
-    SourceFreshnessService,
-)
-from app.domains.chat.services.source_scope_service import (
-    ResolvedSourceScope,
-    SourceScopeService,
 )
 from app.domains.chat.services.table_retrieval_service import (
     TableBoostResult,
-    TableRetrievalService,
 )
 from app.domains.chat.services.tool_orchestrator import (
-    ChatToolOrchestrator,
     ToolOrchestrationResult,
 )
 from app.domains.chat.services.tree_search_service import (
     TreeSearchCandidateScore,
-    TreeSearchService,
 )
-from app.domains.connectors.services.source_provenance import SourceProvenanceService
-from app.domains.documents.repositories.documents import DocumentRepository as _DocumentRepository
-from app.domains.documents.services.ocr_quality_service import OcrQualityService
-from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
-from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
+from app.domains.chat.services.trust_metadata_builder import _build_trust_metadata
+from app.domains.chat.services.trust_records import (  # noqa: F401 (re-export)
+    _build_claim_support_records,
+    _build_parallel_branch_records,
+    _build_planner_critic_record,
+    _build_rerank_score_range,
+    _build_retrieval_diagnostics_payload,
+    _build_retrieval_method_record,
+    _build_tool_orchestration_record,
+    _build_verifier_citations,
+)
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
 from app.domains.rag_profiles.services.rag_profile_service import resolve_profile_for_context
-from app.models.document import Document, DocumentChunk
-from app.models.enums import ChatRole, DocumentStatus, OrganizationRole, PromptTemplateKey
+from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
 from app.models.prompt_template import PromptTemplateVersion
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.rate_limit.counter import RateLimitDecision, consume_rate_limit
@@ -260,442 +263,59 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 # the browser WebSocket API cannot send an Authorization header during the HTTP
 # upgrade, so FastAPI's router-level get_current_principal dependency would fail.
 ws_router = APIRouter(prefix="/chat", tags=["chat"])
-chat_repository = ChatRepository()
+chat_repository = default_deps.chat_repository
 share_repository = ChatShareRepository()
 answer_share_repository = AnswerShareRepository()
 feedback_repository = FeedbackRepository()
-usage_repository = UsageRepository()
-audit_log_service = AuditLogService()
+usage_repository = default_deps.usage_repository
+audit_log_service = default_deps.audit_log_service
 
 _MAX_ACTIVE_SHARES_PER_SESSION = 10
-_SCOPE_INVENTORY_MAX_LISTED_DOCUMENTS = 200
-_SCOPE_INVENTORY_MAX_CITATIONS = 20
-_SCOPE_INVENTORY_SNIPPET_CHARS = 400
-_query_retrieval_service = QueryRetrievalService()
-_keyword_retrieval_service = KeywordRetrievalService()
-_hybrid_retrieval_service = HybridRetrievalService()
-_source_scope_service = SourceScopeService()
-_rerank_service = RerankService()
-_prompt_service = PromptService()
-_prompt_template_service = PromptTemplateService()
-_citation_service = CitationService()
-_source_provenance_service = SourceProvenanceService()
-_confidence_service = ConfidenceService()
-_conflict_detection_service = ConflictDetectionService()
-_graph_retrieval_service = GraphRetrievalService()
-_feature_flag_service = FeatureFlagService()
+# Legacy module names of the pipeline singletons (contract 4.2.2): the same objects as
+# ``default_deps``, so patching an attribute through ``chat_api`` patches the pipeline.
+_query_retrieval_service = default_deps.query_retrieval_service
+_keyword_retrieval_service = default_deps.keyword_retrieval_service
+_hybrid_retrieval_service = default_deps.hybrid_retrieval_service
+_source_scope_service = default_deps.source_scope_service
+_rerank_service = default_deps.rerank_service
+_prompt_service = default_deps.prompt_service
+_prompt_template_service = default_deps.prompt_template_service
+_citation_service = default_deps.citation_service
+_source_provenance_service = default_deps.source_provenance_service
+_confidence_service = default_deps.confidence_service
+_conflict_detection_service = default_deps.conflict_detection_service
+_graph_retrieval_service = default_deps.graph_retrieval_service
+_feature_flag_service = default_deps.feature_flag_service
+# Rebindable: tests set it to a fake OpenAI client; the proxies read it on every call.
 _openai_client: Any | None = None
 
-
-class _ChatCompletionProviderProxy:
-    async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
-        if _openai_client is None:
-            provider = default_provider_factory.get_chat_provider(None)
-            return await provider.complete(request)
-
-        messages: list[dict[str, Any]] = [
-            {"role": "system", "content": f"{request.system_message}\n\n{request.prompt}"},
-        ]
-        create_kwargs: dict[str, Any] = {
-            "model": request.model,
-            "messages": messages,
-            "temperature": request.temperature,
-        }
-        if request.json_mode:
-            create_kwargs["response_format"] = {"type": "json_object"}
-        if request.max_tokens is not None:
-            create_kwargs["max_tokens"] = request.max_tokens
-
-        started = perf_counter()
-        response = await _openai_client.chat.completions.create(**create_kwargs)
-        latency_ms = max(0, int((perf_counter() - started) * 1000))
-        choice = response.choices[0]
-        message = getattr(choice, "message", None)
-        content = getattr(message, "content", None) if message is not None else None
-        usage = getattr(response, "usage", None)
-        prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
-        completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-        total_tokens = int(getattr(usage, "total_tokens", 0) or (prompt_tokens + completion_tokens))
-        return ChatCompletionResponse(
-            content=str(content or ""),
-            model=str(getattr(response, "model", request.model) or request.model),
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            latency_ms=latency_ms,
-        )
-
-
-class _EmbeddingProviderProxy:
-    async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        if _openai_client is None:
-            provider = default_provider_factory.get_embedding_provider()
-            return await provider.embed(request)
-
-        started = perf_counter()
-        response = await _openai_client.embeddings.create(
-            model=request.model,
-            input=request.texts,
-        )
-        latency_ms = max(0, int((perf_counter() - started) * 1000))
-        data = getattr(response, "data", []) or []
-        vectors = [list(getattr(item, "embedding", []) or []) for item in data]
-        usage = getattr(response, "usage", None)
-        prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
-        total_tokens = int(getattr(usage, "total_tokens", 0) or prompt_tokens)
-        return EmbeddingResponse(
-            vectors=vectors,
-            model=str(getattr(response, "model", request.model) or request.model),
-            prompt_tokens=prompt_tokens,
-            total_tokens=total_tokens,
-            latency_ms=latency_ms,
-        )
-
-
-_llm_service = LLMService(provider=_ChatCompletionProviderProxy())
-_injection_guard = PromptInjectionGuard()
-_query_rewriting_service = QueryRewritingService()
-_grounded_verifier = GroundedAnswerVerifier()
-_answer_mode_service = AnswerModeService()
-_answer_planner = AnswerPlannerService()
-_answer_critic = AnswerCriticService()
-_answer_refiner = AnswerRefinerService()
-_authorization_service = AuthorizationService()
-_source_freshness_service = SourceFreshnessService()
-_table_retrieval_service = TableRetrievalService()
-_ocr_quality_service = OcrQualityService()
-_parent_context_expansion_service = ParentContextExpansionService()
-_parallel_retrieval_optimizer = ParallelRetrievalOptimizer()
-_context_packer_service = ContextPackerService()
-_retrieval_strategy_router = RetrievalStrategyRouter()
-_chat_tool_orchestrator = ChatToolOrchestrator()
-_tree_search_service = TreeSearchService()
-_chat_tool_policy_repo = AgentToolPolicyRepository()
-_document_repository_for_trust = _DocumentRepository()
-_ai_policy_repo = AiResponsePolicyRepository()
-_ai_policy_engine = AiResponsePolicyEngine()
-_NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
-_query_retrieval_service._embedding_provider = _EmbeddingProviderProxy()
-
-
-def _resolve_chat_embedding_provider(self: QueryRetrievalService):
-    if self._embedding_provider is not None:
-        return self._embedding_provider
-    if _openai_client is not None:
-        return _EmbeddingProviderProxy()
-    from app.domains.ai.providers.factory import default_provider_factory
-
-    return default_provider_factory.get_embedding_provider()
-
-
-def _resolve_chat_completion_provider(self: LLMService, provider_key: str | None = None):
-    if self._provider is not None:
-        return self._provider
-    if _openai_client is not None:
-        return _ChatCompletionProviderProxy()
-    from app.domains.ai.providers.factory import default_provider_factory
-
-    return default_provider_factory.get_chat_provider(provider_key)
-
-
-def _resolve_grounded_verification_controls(
-    *,
-    effective_policy: Any,
-    rag_profile: RagProfileConfig | None,
-) -> tuple[bool, str, float]:
-    """Resolve grounded-verification activation and strictness.
-
-    Collection/org policy can elevate verification for sensitive workspaces.
-    When no policy override is set, fall back to the RAG profile config.
-    """
-
-    enabled = settings.feature_enable_grounded_answer_verification
-    mode: str = "standard"
-    threshold = 0.7
-
-    if rag_profile is not None:
-        enabled = rag_profile.grounded_answer_verification_enabled
-        mode = rag_profile.grounded_answer_verification_mode
-        threshold = rag_profile.grounded_answer_verification_threshold
-
-    policy_mode = getattr(effective_policy, "grounded_verification_mode", "off")
-    if policy_mode != "off":
-        enabled = True
-        mode = policy_mode
-        policy_threshold = getattr(effective_policy, "grounded_verification_threshold", None)
-        if policy_threshold is not None:
-            threshold = policy_threshold
-
-    return enabled, mode, threshold
-
-
-def _resolve_planner_critic_controls(
-    rag_profile: RagProfileConfig | None,
-) -> tuple[bool, str, frozenset[str]]:
-    """Resolve planner-critic-refiner activation, mode, and high-risk strategy set.
-
-    Returns (enabled, mode, high_risk_strategies).
-    """
-    enabled: bool = settings.feature_enable_planner_critic_refiner
-    mode: str = settings.planner_critic_refiner_mode
-    high_risk: frozenset[str] = frozenset({"legal_compliance", "policy_lookup", "comparison"})
-
-    if rag_profile is not None:
-        enabled = rag_profile.planner_critic_refiner_enabled
-        mode = rag_profile.planner_critic_refiner_mode
-        if rag_profile.planner_high_risk_strategies:
-            high_risk = frozenset(rag_profile.planner_high_risk_strategies)
-
-    return enabled, mode, high_risk
-
-
-async def _resolve_tree_search_reasoning_enabled(
-    db_session: AsyncSession,
-    *,
-    organization_id: UUID,
-) -> bool:
-    try:
-        return await _feature_flag_service.is_enabled(
-            db_session,
-            organization_id=organization_id,
-            flag_name="tree_search_reasoning",
-        )
-    except Exception as exc:
-        log_query_event(
-            event="query.tree_search.feature_flag_fallback",
-            organization_id=str(organization_id),
-            error=exc.__class__.__name__,
-            detail=str(exc),
-            enabled=settings.feature_enable_tree_search_reasoning,
-        )
-        return settings.feature_enable_tree_search_reasoning
-
-
-def _build_retrieval_method_record(
-    route_result: "RetrievalRouteResult | None",
-) -> RetrievalMethodRecord:
-    """Build a RetrievalMethodRecord from a route result (F341).
-
-    Returns an empty default record when routing is disabled or unavailable.
-    """
-    if route_result is None:
-        return RetrievalMethodRecord()
-    return RetrievalMethodRecord(
-        method=route_result.method,
-        method_label=route_result.method_label,
-        override_applied=route_result.override_applied,
-        override_source=route_result.override_source,  # type: ignore[arg-type]
-        routing_latency_ms=route_result.routing_latency_ms,
-    )
-
-
-def _build_parallel_branch_records(
-    parallel_result: ParallelRetrievalResult | None,
-) -> list[RetrievalBranchRecord]:
-    if parallel_result is None:
-        return []
-    return [
-        RetrievalBranchRecord(
-            branch_name=record.branch_name,
-            latency_ms=record.latency_ms,
-            succeeded=record.succeeded,
-            retries=record.retries,
-            candidate_count=record.candidate_count,
-            error_code=record.error_code,
-            skipped=record.skipped,
-        )
-        for record in parallel_result.branch_records
-    ]
-
-
-def _build_tool_orchestration_record(
-    orchestration_result: "ToolOrchestrationResult | None",
-) -> ToolOrchestrationRecord:
-    """Build a ToolOrchestrationRecord for trust metadata from pipeline state (F342).
-
-    Returns an empty default record when orchestration is disabled or unavailable.
-    """
-    if orchestration_result is None or not orchestration_result.enabled:
-        return ToolOrchestrationRecord()
-    return ToolOrchestrationRecord(
-        enabled=True,
-        tool_count=orchestration_result.tool_count,
-        authorized_count=orchestration_result.authorized_count,
-        executed_count=orchestration_result.executed_count,
-        succeeded_count=orchestration_result.succeeded_count,
-        fallback_count=orchestration_result.fallback_count,
-        denied_count=orchestration_result.denied_count,
-        orchestration_latency_ms=orchestration_result.orchestration_latency_ms,
-        tool_calls=[
-            ChatToolCallRecord(
-                tool_name=t.tool_name,
-                tool_purpose=t.tool_purpose,
-                authorized=t.authorized,
-                executed=t.executed,
-                succeeded=t.succeeded,
-                fallback_used=t.fallback_used,
-                latency_ms=t.latency_ms,
-                denial_reason=t.denial_reason,
-                error_code=t.error_code,
-            )
-            for t in orchestration_result.tool_calls
-        ],
-    )
-
-
-def _build_planner_critic_record(
-    *,
-    planner_result: "PlannerResult | None",
-    critic_result: "CriticResult | None",
-    refiner_result: "RefinerResult | None",
-) -> PlannerCriticRecord:
-    """Build the PlannerCriticRecord for trust metadata from pipeline state."""
-    if planner_result is None:
-        return PlannerCriticRecord()
-
-    _severity_label = {1: "low", 2: "medium", 3: "high"}
-    critic_warnings: list[CriticWarningRecord] = []
-    critic_severity = "none"
-    if critic_result is not None:
-        critic_severity = critic_result.severity
-        for w in critic_result.warnings:
-            critic_warnings.append(
-                CriticWarningRecord(
-                    code=w.code,
-                    detail=w.detail,
-                    severity=_severity_label.get(w.severity_level, "low"),  # type: ignore[arg-type]
-                )
-            )
-
-    refiner_applied = False
-    draft_changed = False
-    unsupported_removed = 0
-    refiner_latency_ms = 0
-    if refiner_result is not None:
-        refiner_applied = refiner_result.applied
-        draft_changed = refiner_result.draft_changed
-        unsupported_removed = refiner_result.unsupported_claims_removed
-        refiner_latency_ms = refiner_result.latency_ms
-
-    return PlannerCriticRecord(
-        strategy=planner_result.strategy,
-        high_risk=planner_result.high_risk,
-        critic_warnings=critic_warnings,
-        critic_severity=critic_severity,  # type: ignore[arg-type]
-        refiner_applied=refiner_applied,
-        draft_changed=draft_changed,
-        unsupported_claims_removed=unsupported_removed,
-        planner_latency_ms=planner_result.latency_ms,
-        critic_latency_ms=critic_result.latency_ms if critic_result is not None else 0,
-        refiner_latency_ms=refiner_latency_ms,
-    )
-
-
-def _build_verifier_citations(citations: list[ChatCitationResponse]) -> list[VerifierCitation]:
-    verifier_citations: list[VerifierCitation] = []
-    for citation in citations:
-        if not citation.document_id or not citation.chunk_id:
-            continue
-        verifier_citations.append(
-            VerifierCitation(
-                document_id=citation.document_id,
-                chunk_id=citation.chunk_id,
-                filename=citation.filename or "",
-                page_number=citation.page_number,
-                text_snippet=(citation.text_snippet or "")[:400],
-                score=citation.score or 0.0,
-                similarity_score=citation.similarity_score or 0.0,
-                rerank_score=citation.rerank_score,
-                source_trust_status=citation.source_trust_status,
-                doc_ocr_quality_status=citation.doc_ocr_quality_status,
-                doc_ocr_low_confidence_warning=citation.doc_ocr_low_confidence_warning,
-                doc_stale_warning=citation.doc_stale_warning,
-                doc_expired_warning=citation.doc_expired_warning,
-                doc_is_excluded_status=citation.doc_is_excluded_status,
-            )
-        )
-    return verifier_citations
-
-
-def _build_claim_support_records(
-    *,
-    grounded_verifier_result: GroundedVerifierResult | None,
-) -> list[ClaimSupportRecord]:
-    if grounded_verifier_result is None:
-        return []
-    records: list[ClaimSupportRecord] = []
-    for claim_index, claim in enumerate(grounded_verifier_result.claims, start=1):
-        records.append(
-            ClaimSupportRecord(
-                claim_index=claim_index,
-                claim_text=claim.claim_text,
-                support_status=claim.support_status,
-                support_score=claim.support_score,
-                evidence_match_score=claim.evidence_match_score,
-                source_quality_score=claim.source_quality_score,
-                rerank_score=claim.rerank_score,
-                chunk_coverage_score=claim.chunk_coverage_score,
-                citation_indices=list(claim.citation_indices),
-            )
-        )
-    return records
-
-
-_query_retrieval_service._resolve_embedding_provider = MethodType(
-    _resolve_chat_embedding_provider,
-    _query_retrieval_service,
+_llm_service = default_deps.llm_service
+_injection_guard = default_deps.injection_guard
+_query_rewriting_service = default_deps.query_rewriting_service
+_grounded_verifier = default_deps.grounded_verifier
+_answer_mode_service = default_deps.answer_mode_service
+_answer_planner = default_deps.answer_planner
+_answer_critic = default_deps.answer_critic
+_answer_refiner = default_deps.answer_refiner
+_authorization_service = default_deps.authorization_service
+_source_freshness_service = default_deps.source_freshness_service
+_table_retrieval_service = default_deps.table_retrieval_service
+_ocr_quality_service = default_deps.ocr_quality_service
+_parent_context_expansion_service = default_deps.parent_context_expansion_service
+_parallel_retrieval_optimizer = default_deps.parallel_retrieval_optimizer
+_context_packer_service = default_deps.context_packer_service
+_retrieval_strategy_router = default_deps.retrieval_strategy_router
+_chat_tool_orchestrator = default_deps.chat_tool_orchestrator
+_tree_search_service = default_deps.tree_search_service
+_chat_tool_policy_repo = default_deps.chat_tool_policy_repo
+_document_repository_for_trust = default_deps.document_repository_for_trust
+_ai_policy_repo = default_deps.ai_policy_repo
+_ai_policy_engine = default_deps.ai_policy_engine
+bind_openai_client_proxies(
+    llm_service=_llm_service,
+    query_retrieval_service=_query_retrieval_service,
+    client_getter=lambda: _openai_client,
 )
-_llm_service._resolve_provider = MethodType(_resolve_chat_completion_provider, _llm_service)
-
-
-@dataclass(frozen=True)
-class RetrievedChunk:
-    document_id: UUID
-    chunk_id: UUID
-    filename: str
-    page_number: int | None
-    text: str
-    similarity_score: float
-    original_rank: int | None = None
-    rerank_score: float | None = None
-    rerank_rank: int | None = None
-    final_rank: int | None = None
-    retrieval_source: str = "vector"
-    graph_score: float | None = None
-    graph_hops: int = 0
-    keyword_score: float | None = None
-    hybrid_score: float | None = None
-    chunk_type: str = "text"
-    # Parent-child context (F300): present when a child chunk was retrieved.
-    chunk_level: int = 0
-    parent_text: str | None = None
-
-
-@dataclass(frozen=True)
-class ScopeInventoryDocument:
-    document_id: UUID
-    filename: str
-    file_type: str
-    page_count: int | None
-    chunk_count: int | None
-
-
-@dataclass(frozen=True)
-class ScopeInventoryResult:
-    total_count: int
-    listed_documents: list[ScopeInventoryDocument]
-    retrieved_chunks: list[RetrievedChunk]
-    citations: list[ChatCitationResponse]
-
-
-def _safe_http_error(*, status_code: int, code: str, message: str) -> HTTPException:
-    return HTTPException(
-        status_code=status_code,
-        detail={
-            "code": code,
-            "message": message,
-        },
-    )
 
 
 def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
@@ -728,1947 +348,7 @@ def _request_id_from_request(request: Request) -> str | None:
     return request.headers.get("x-request-id")
 
 
-def _parse_uuid_or_none(value: object) -> UUID | None:
-    try:
-        return UUID(str(value))
-    except (AttributeError, TypeError, ValueError):
-        return None
-
-
-def _decimal_to_float_or_none(value: object) -> float | None:
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _list_or_empty(value: object) -> list[object]:
-    if value is None:
-        return []
-    try:
-        return list(value)  # type: ignore[arg-type]
-    except TypeError:
-        return []
-
-
-def _is_scope_inventory_question(question: str) -> bool:
-    normalized = " ".join(question.lower().split())
-    if not normalized:
-        return False
-
-    plural_source_terms = (
-        "files",
-        "documents",
-        "docs",
-        "sources",
-        "source files",
-        "indexed files",
-    )
-    singular_source_terms = ("file", "document", "doc", "source")
-    has_plural_source_term = any(term in normalized for term in plural_source_terms)
-    has_any_source_term = has_plural_source_term or any(
-        term in normalized for term in singular_source_terms
-    )
-    if not has_any_source_term:
-        return False
-
-    if any(
-        phrase in normalized
-        for phrase in (
-            "which files",
-            "what files",
-            "which documents",
-            "what documents",
-            "which docs",
-            "what docs",
-            "which sources",
-            "what sources",
-            "files are included",
-            "documents are included",
-            "docs are included",
-            "sources are included",
-            "files included",
-            "documents included",
-            "docs included",
-            "sources included",
-            "included files",
-            "included documents",
-            "selected files",
-            "selected documents",
-            "selected sources",
-            "available files",
-            "available documents",
-            "available sources",
-            "files in this collection",
-            "documents in this collection",
-            "files in this connector",
-            "documents in this connector",
-            "files in scope",
-            "documents in scope",
-            "sources in scope",
-            "tell me about files",
-            "tell me about the files",
-            "explain about files",
-            "explain about the files",
-        )
-    ):
-        return True
-
-    if has_plural_source_term and normalized.startswith(("list ", "show ")):
-        return True
-
-    return False
-
-
-def _scope_inventory_snippet(text: str) -> str:
-    normalized = " ".join(text.split())
-    if len(normalized) <= _SCOPE_INVENTORY_SNIPPET_CHARS:
-        return normalized
-    return normalized[:_SCOPE_INVENTORY_SNIPPET_CHARS].rsplit(" ", 1)[0].strip()
-
-
-async def _filter_authorized_documents_for_chat(
-    db_session: AsyncSession,
-    *,
-    principal: AuthenticatedPrincipal,
-    organization_id: UUID,
-    user_id: UUID,
-    user_roles: list[str],
-    documents: list[Document],
-) -> list[Document]:
-    if not documents or frozenset({"owner", "admin"}).intersection(user_roles):
-        return documents
-
-    accessible_col_ids = await get_subject_accessible_collection_ids(
-        db_session,
-        organization_id=organization_id,
-        user_id=user_id,
-        user_roles=user_roles,
-    )
-    resource_contexts = await build_document_resource_contexts_batch(
-        db_session,
-        documents=documents,
-        organization_id=organization_id,
-        subject_accessible_collection_ids=accessible_col_ids,
-    )
-    allowed_ids = {
-        ctx.resource_id
-        for ctx in await _authorization_service.filter_accessible_resources(
-            principal, Action.chat, resource_contexts, db_session
-        )
-    }
-    return [document for document in documents if str(document.id) in allowed_ids]
-
-
-async def _filter_authorized_document_ids_for_chat(
-    db_session: AsyncSession,
-    *,
-    principal: AuthenticatedPrincipal,
-    organization_id: UUID,
-    user_id: UUID,
-    user_roles: list[str],
-    document_ids: list[UUID] | None,
-) -> list[UUID] | None:
-    if document_ids is None or not document_ids:
-        return document_ids
-    if frozenset({"owner", "admin"}).intersection(user_roles):
-        return document_ids
-
-    result = await db_session.execute(
-        select(Document).where(
-            Document.organization_id == organization_id,
-            Document.id.in_(document_ids),
-        )
-    )
-    documents = list(result.scalars().all())
-    allowed_documents = await _filter_authorized_documents_for_chat(
-        db_session,
-        principal=principal,
-        organization_id=organization_id,
-        user_id=user_id,
-        user_roles=user_roles,
-        documents=documents,
-    )
-    allowed_ids = {document.id for document in allowed_documents}
-    return [document_id for document_id in document_ids if document_id in allowed_ids]
-
-
-async def _build_scope_inventory_result(
-    db_session: AsyncSession,
-    *,
-    principal: AuthenticatedPrincipal,
-    organization_id: UUID,
-    user_id: UUID,
-    user_roles: list[str],
-    document_ids: list[UUID] | None,
-) -> ScopeInventoryResult:
-    statement = select(Document).where(
-        Document.organization_id == organization_id,
-        Document.status == DocumentStatus.indexed.value,
-    )
-    if document_ids is not None:
-        if not document_ids:
-            return ScopeInventoryResult(
-                total_count=0,
-                listed_documents=[],
-                retrieved_chunks=[],
-                citations=[],
-            )
-        statement = statement.where(Document.id.in_(document_ids))
-
-    result = await db_session.execute(
-        statement.order_by(Document.filename.asc(), Document.id.asc())
-    )
-    documents = list(result.scalars().all())
-    if document_ids is not None:
-        order_by_scope = {document_id: index for index, document_id in enumerate(document_ids)}
-        documents.sort(key=lambda document: order_by_scope.get(document.id, len(order_by_scope)))
-
-    documents = await _filter_authorized_documents_for_chat(
-        db_session,
-        principal=principal,
-        organization_id=organization_id,
-        user_id=user_id,
-        user_roles=user_roles,
-        documents=documents,
-    )
-    listed_documents = [
-        ScopeInventoryDocument(
-            document_id=document.id,
-            filename=document.filename,
-            file_type=document.file_type,
-            page_count=document.page_count,
-            chunk_count=document.chunk_count,
-        )
-        for document in documents[:_SCOPE_INVENTORY_MAX_LISTED_DOCUMENTS]
-    ]
-    citation_document_ids = [
-        document.document_id for document in listed_documents[:_SCOPE_INVENTORY_MAX_CITATIONS]
-    ]
-    if not citation_document_ids:
-        return ScopeInventoryResult(
-            total_count=len(documents),
-            listed_documents=listed_documents,
-            retrieved_chunks=[],
-            citations=[],
-        )
-
-    chunks_result = await db_session.execute(
-        select(DocumentChunk)
-        .where(
-            DocumentChunk.document_id.in_(citation_document_ids),
-            DocumentChunk.index_version.in_(settings.active_index_versions),
-        )
-        .order_by(DocumentChunk.document_id.asc(), DocumentChunk.chunk_index.asc())
-    )
-    first_chunk_by_document_id: dict[UUID, DocumentChunk] = {}
-    for chunk in chunks_result.scalars().all():
-        if chunk.document_id not in first_chunk_by_document_id:
-            first_chunk_by_document_id[chunk.document_id] = chunk
-    # Listing needs read access; citing needs the cite permission as well.
-    citable_chunks = await filter_chunks_by_cite_access(
-        db_session,
-        principal=principal,
-        organization_id=organization_id,
-        user_id=user_id,
-        user_roles=user_roles,
-        chunks=list(first_chunk_by_document_id.values()),
-    )
-    first_chunk_by_document_id = {chunk.document_id: chunk for chunk in citable_chunks}
-
-    provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
-        db_session,
-        organization_id=organization_id,
-        chunk_ids=[chunk.id for chunk in first_chunk_by_document_id.values()],
-    )
-    retrieved_chunks: list[RetrievedChunk] = []
-    citations: list[ChatCitationResponse] = []
-    for rank, document in enumerate(listed_documents, start=1):
-        chunk = first_chunk_by_document_id.get(document.document_id)
-        if chunk is None:
-            continue
-        retrieved_chunk = RetrievedChunk(
-            document_id=document.document_id,
-            chunk_id=chunk.id,
-            filename=document.filename,
-            page_number=chunk.page_number,
-            text=chunk.text,
-            similarity_score=1.0,
-            original_rank=rank,
-            final_rank=rank,
-            retrieval_source="scope_inventory",
-            chunk_type=chunk.chunk_type,
-            chunk_level=chunk.chunk_level or 0,
-        )
-        retrieved_chunks.append(retrieved_chunk)
-        citation = ChatCitationResponse(
-            document_id=str(document.document_id),
-            chunk_id=str(chunk.id),
-            filename=document.filename,
-            page_number=chunk.page_number,
-            score=1.0,
-            similarity_score=1.0,
-            original_rank=rank,
-            final_rank=rank,
-            text_snippet=_scope_inventory_snippet(chunk.text),
-            start_offset=chunk.source_start_offset,
-            end_offset=chunk.source_end_offset,
-        )
-        citations.append(
-            _with_provenance(
-                citation,
-                provenance_by_chunk_id.get(chunk.id),
-            )
-        )
-
-    return ScopeInventoryResult(
-        total_count=len(documents),
-        listed_documents=listed_documents,
-        retrieved_chunks=retrieved_chunks,
-        citations=citations,
-    )
-
-
-def _build_scope_inventory_answer(
-    *,
-    inventory: ScopeInventoryResult,
-    source_scope_result: ResolvedSourceScope,
-) -> str:
-    scope_label = source_scope_result.label or "All indexed files"
-    if inventory.total_count == 0:
-        return f"No indexed files were found in the selected scope ({scope_label})."
-
-    lines = [
-        f"The selected scope ({scope_label}) includes {inventory.total_count} indexed file(s).",
-        "",
-        "Files included:",
-    ]
-    for document in inventory.listed_documents:
-        details: list[str] = [document.file_type.upper()]
-        if document.page_count is not None:
-            page_label = "page" if document.page_count == 1 else "pages"
-            details.append(f"{document.page_count} {page_label}")
-        if document.chunk_count is not None:
-            chunk_label = "chunk" if document.chunk_count == 1 else "chunks"
-            details.append(f"{document.chunk_count} {chunk_label}")
-        lines.append(f"- {document.filename} ({', '.join(details)})")
-
-    if inventory.total_count > len(inventory.listed_documents):
-        lines.append(
-            f"- Showing first {len(inventory.listed_documents)} of "
-            f"{inventory.total_count} indexed files."
-        )
-    if inventory.citations:
-        lines.append("")
-        lines.append("Citations reference the first indexed chunk for the listed files.")
-    return "\n".join(lines)
-
-
-def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
-    return RetrievedChunk(
-        document_id=candidate.document_id,
-        chunk_id=candidate.chunk_id,
-        filename=candidate.filename,
-        page_number=candidate.page_number,
-        text=candidate.text,
-        similarity_score=candidate.similarity_score,
-        chunk_type=candidate.chunk_type,
-        chunk_level=candidate.chunk_level,
-        parent_text=candidate.parent_text,
-    )
-
-
-def _hybrid_to_retrieved_chunk(candidate: HybridCandidate) -> RetrievedChunk:
-    return RetrievedChunk(
-        document_id=candidate.document_id,
-        chunk_id=candidate.chunk_id,
-        filename=candidate.filename,
-        page_number=candidate.page_number,
-        text=candidate.text,
-        similarity_score=candidate.similarity_score,
-        retrieval_source=candidate.retrieval_source,
-        keyword_score=candidate.keyword_score,
-        hybrid_score=candidate.hybrid_score,
-        chunk_type=getattr(candidate, "chunk_type", "text"),
-        chunk_level=candidate.chunk_level,
-        parent_text=candidate.parent_text,
-    )
-
-
-def _to_graph_retrieved_chunk(candidate: GraphRetrievedChunk) -> RetrievedChunk:
-    return RetrievedChunk(
-        document_id=candidate.document_id,
-        chunk_id=candidate.chunk_id,
-        filename=candidate.filename,
-        page_number=candidate.page_number,
-        text=candidate.text,
-        similarity_score=candidate.similarity_score,
-        retrieval_source="graph",
-        graph_score=candidate.graph_score,
-        graph_hops=candidate.graph_hops,
-    )
-
-
-def _merge_retrieved_chunks(
-    vector_chunks: list[RetrievedChunk],
-    graph_chunks: list[RetrievedChunk],
-) -> list[RetrievedChunk]:
-    merged: dict[str, RetrievedChunk] = {}
-    insertion_order: list[str] = []
-
-    def _merge_graph_hops(existing_hops: int, new_hops: int) -> int:
-        if existing_hops == 0:
-            return new_hops
-        if new_hops == 0:
-            return existing_hops
-        return min(existing_hops, new_hops)
-
-    def _upsert(chunk: RetrievedChunk) -> None:
-        key = str(chunk.chunk_id)
-        existing = merged.get(key)
-        if existing is None:
-            merged[key] = chunk
-            insertion_order.append(key)
-            return
-
-        merged[key] = RetrievedChunk(
-            document_id=existing.document_id,
-            chunk_id=existing.chunk_id,
-            filename=existing.filename or chunk.filename,
-            page_number=(
-                existing.page_number if existing.page_number is not None else chunk.page_number
-            ),
-            text=existing.text if len(existing.text) >= len(chunk.text) else chunk.text,
-            similarity_score=max(existing.similarity_score, chunk.similarity_score),
-            rerank_score=existing.rerank_score,
-            rerank_rank=existing.rerank_rank,
-            retrieval_source="merged",
-            graph_score=max(
-                existing.graph_score or 0.0,
-                chunk.graph_score or 0.0,
-            )
-            or None,
-            graph_hops=_merge_graph_hops(existing.graph_hops, chunk.graph_hops),
-            chunk_type=existing.chunk_type,
-            chunk_level=existing.chunk_level,
-            parent_text=existing.parent_text or chunk.parent_text,
-        )
-
-    for chunk in vector_chunks:
-        _upsert(chunk)
-    for chunk in graph_chunks:
-        _upsert(chunk)
-
-    return [merged[key] for key in insertion_order]
-
-
-def _with_original_ranks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
-    ranked_chunks: list[RetrievedChunk] = []
-    for index, chunk in enumerate(chunks, start=1):
-        ranked_chunks.append(
-            RetrievedChunk(
-                document_id=chunk.document_id,
-                chunk_id=chunk.chunk_id,
-                filename=chunk.filename,
-                page_number=chunk.page_number,
-                text=chunk.text,
-                similarity_score=chunk.similarity_score,
-                original_rank=index,
-                rerank_score=chunk.rerank_score,
-                rerank_rank=chunk.rerank_rank,
-                final_rank=chunk.final_rank,
-                retrieval_source=chunk.retrieval_source,
-                graph_score=chunk.graph_score,
-                graph_hops=chunk.graph_hops,
-                keyword_score=chunk.keyword_score,
-                hybrid_score=chunk.hybrid_score,
-                chunk_type=chunk.chunk_type,
-                chunk_level=chunk.chunk_level,
-                parent_text=chunk.parent_text,
-            )
-        )
-    return ranked_chunks
-
-
-def _with_freshness(
-    citation: ChatCitationResponse,
-    trust_map: dict[str, DocumentTrustData],
-    stale_document_ids: frozenset[str],
-) -> ChatCitationResponse:
-    """Annotate a citation with document trust/freshness metadata (F297/F311)."""
-    trust = trust_map.get(citation.document_id)
-    if trust is None:
-        return citation
-    effective_status = _source_freshness_service.compute_effective_trust_status(trust)
-    freshness_state = _source_freshness_service.derive_freshness_state(trust)
-    is_stale = citation.document_id in stale_document_ids or effective_status in {
-        "stale",
-        "needs_review",
-    }
-    is_unreviewed = effective_status == "needs_review"
-    is_deprecated = effective_status in {"archived", "deprecated", "superseded"}
-    is_draft = effective_status == "draft" or trust.quality_state == "draft"
-    return ChatCitationResponse(
-        citation_id=citation.citation_id,
-        document_id=citation.document_id,
-        chunk_id=citation.chunk_id,
-        filename=citation.filename,
-        page_number=citation.page_number,
-        score=citation.score,
-        similarity_score=citation.similarity_score,
-        original_rank=citation.original_rank,
-        rerank_score=citation.rerank_score,
-        rerank_rank=citation.rerank_rank,
-        final_rank=citation.final_rank,
-        text_snippet=citation.text_snippet,
-        start_offset=citation.start_offset,
-        end_offset=citation.end_offset,
-        source_provider=citation.source_provider,
-        source_provider_label=citation.source_provider_label,
-        source_title=citation.source_title,
-        source_key=citation.source_key,
-        source_section=citation.source_section,
-        source_deep_link=citation.source_deep_link,
-        source_last_synced_at=citation.source_last_synced_at,
-        source_trust_status=citation.source_trust_status,
-        source_acl_snapshot=citation.source_acl_snapshot,
-        conflict_status=citation.conflict_status,
-        doc_trust_status=trust.trust_status,
-        doc_quality_state=trust.quality_state,
-        doc_review_status=trust.review_status or trust.trust_status,
-        doc_review_owner_id=str(trust.review_owner_id) if trust.review_owner_id else None,
-        doc_review_due_date=trust.review_due_date,
-        doc_expiry_date=trust.expiry_date,
-        doc_version_label=trust.version_label,
-        doc_review_date=trust.review_date,
-        doc_effective_date=trust.effective_date,
-        doc_stale_warning=is_stale,
-        doc_expired_warning=effective_status == "expired",
-        doc_is_excluded_status=effective_status
-        in {"archived", "deprecated", "superseded", "expired"},
-        freshness_state=freshness_state,
-        doc_last_updated_at=trust.last_updated_at,
-        doc_unreviewed_warning=is_unreviewed,
-        doc_deprecated_warning=is_deprecated,
-        doc_draft_warning=is_draft,
-    )
-
-
-def _with_provenance(
-    citation: ChatCitationResponse,
-    provenance: Any | None,
-) -> ChatCitationResponse:
-    if provenance is None:
-        return citation
-
-    return ChatCitationResponse(
-        citation_id=citation.citation_id,
-        document_id=citation.document_id,
-        chunk_id=citation.chunk_id,
-        filename=citation.filename,
-        page_number=citation.page_number,
-        score=citation.score,
-        similarity_score=citation.similarity_score,
-        rerank_score=citation.rerank_score,
-        rerank_rank=citation.rerank_rank,
-        text_snippet=citation.text_snippet,
-        start_offset=citation.start_offset,
-        end_offset=citation.end_offset,
-        source_provider=provenance.provider_key,
-        source_provider_label=provenance.provider_label,
-        source_title=provenance.source_title,
-        source_key=provenance.source_key,
-        source_section=provenance.source_section,
-        source_deep_link=provenance.source_deep_link,
-        source_last_synced_at=provenance.source_last_synced_at,
-        source_trust_status=cast(Any, provenance.source_trust_status),
-        source_acl_snapshot=provenance.source_acl_snapshot,
-        conflict_status=citation.conflict_status,
-    )
-
-
-def _with_table_metadata(
-    citation: ChatCitationResponse,
-    table_metadata_map: dict[str, dict],
-) -> ChatCitationResponse:
-    """Annotate a citation with table structure metadata when available."""
-    meta = table_metadata_map.get(citation.chunk_id)
-    if not meta:
-        return citation
-    raw_conf = meta.get("confidence")
-    table_conf: float | None = float(raw_conf) if raw_conf is not None else None
-    table_low_conf_warn = table_conf is not None and table_conf < _TABLE_CONFIDENCE_LOW_THRESHOLD
-    return ChatCitationResponse(
-        citation_id=citation.citation_id,
-        document_id=citation.document_id,
-        chunk_id=citation.chunk_id,
-        filename=citation.filename,
-        page_number=citation.page_number,
-        score=citation.score,
-        similarity_score=citation.similarity_score,
-        original_rank=citation.original_rank,
-        rerank_score=citation.rerank_score,
-        rerank_rank=citation.rerank_rank,
-        final_rank=citation.final_rank,
-        text_snippet=citation.text_snippet,
-        start_offset=citation.start_offset,
-        end_offset=citation.end_offset,
-        source_provider=citation.source_provider,
-        source_provider_label=citation.source_provider_label,
-        source_title=citation.source_title,
-        source_key=citation.source_key,
-        source_section=citation.source_section,
-        source_deep_link=citation.source_deep_link,
-        source_last_synced_at=citation.source_last_synced_at,
-        source_trust_status=citation.source_trust_status,
-        source_acl_snapshot=citation.source_acl_snapshot,
-        conflict_status=citation.conflict_status,
-        doc_trust_status=citation.doc_trust_status,
-        doc_version_label=citation.doc_version_label,
-        doc_review_date=citation.doc_review_date,
-        doc_effective_date=citation.doc_effective_date,
-        doc_stale_warning=citation.doc_stale_warning,
-        doc_is_excluded_status=citation.doc_is_excluded_status,
-        is_table_chunk=True,
-        table_caption=meta.get("caption"),
-        table_row_count=meta.get("row_count"),
-        table_col_count=meta.get("col_count"),
-        table_headers=list(meta.get("headers") or []),
-        table_section_context=meta.get("section_context"),
-        table_extraction_confidence=table_conf,
-        table_low_confidence_warning=table_low_conf_warn,
-    )
-
-
-def _with_ocr_quality(
-    citation: ChatCitationResponse,
-    ocr_quality_map: dict[str, str],
-) -> ChatCitationResponse:
-    """Annotate a citation with OCR quality status and low-confidence warning."""
-    quality_status = ocr_quality_map.get(citation.document_id)
-    if quality_status is None:
-        return citation
-    return ChatCitationResponse(
-        citation_id=citation.citation_id,
-        document_id=citation.document_id,
-        chunk_id=citation.chunk_id,
-        filename=citation.filename,
-        page_number=citation.page_number,
-        score=citation.score,
-        similarity_score=citation.similarity_score,
-        original_rank=citation.original_rank,
-        rerank_score=citation.rerank_score,
-        rerank_rank=citation.rerank_rank,
-        final_rank=citation.final_rank,
-        text_snippet=citation.text_snippet,
-        start_offset=citation.start_offset,
-        end_offset=citation.end_offset,
-        source_provider=citation.source_provider,
-        source_provider_label=citation.source_provider_label,
-        source_title=citation.source_title,
-        source_key=citation.source_key,
-        source_section=citation.source_section,
-        source_deep_link=citation.source_deep_link,
-        source_last_synced_at=citation.source_last_synced_at,
-        source_trust_status=citation.source_trust_status,
-        source_acl_snapshot=citation.source_acl_snapshot,
-        conflict_status=citation.conflict_status,
-        doc_trust_status=citation.doc_trust_status,
-        doc_review_status=citation.doc_review_status,
-        doc_review_owner_id=citation.doc_review_owner_id,
-        doc_review_due_date=citation.doc_review_due_date,
-        doc_expiry_date=citation.doc_expiry_date,
-        doc_version_label=citation.doc_version_label,
-        doc_review_date=citation.doc_review_date,
-        doc_effective_date=citation.doc_effective_date,
-        doc_stale_warning=citation.doc_stale_warning,
-        doc_expired_warning=citation.doc_expired_warning,
-        doc_is_excluded_status=citation.doc_is_excluded_status,
-        freshness_state=citation.freshness_state,
-        doc_last_updated_at=citation.doc_last_updated_at,
-        doc_unreviewed_warning=citation.doc_unreviewed_warning,
-        doc_deprecated_warning=citation.doc_deprecated_warning,
-        is_table_chunk=citation.is_table_chunk,
-        table_caption=citation.table_caption,
-        table_row_count=citation.table_row_count,
-        table_col_count=citation.table_col_count,
-        table_headers=citation.table_headers,
-        table_section_context=citation.table_section_context,
-        table_extraction_confidence=citation.table_extraction_confidence,
-        table_low_confidence_warning=citation.table_low_confidence_warning,
-        doc_ocr_quality_status=quality_status,
-        doc_ocr_low_confidence_warning=_ocr_quality_service.is_low_confidence(quality_status),
-        doc_extraction_quality=citation.doc_extraction_quality,
-        doc_extraction_warning=citation.doc_extraction_warning,
-        doc_processing_warning=citation.doc_processing_warning,
-    )
-
-
-def _with_conflict_status(
-    citation: ChatCitationResponse,
-    conflict_result: ConflictDetectionResult,
-) -> ChatCitationResponse:
-    if not conflict_result.applied or not conflict_result.conflict_detected:
-        return citation
-
-    status: Literal["preferred", "conflicting", "neutral"] = "neutral"
-    if citation.document_id in conflict_result.preferred_document_ids:
-        status = "preferred"
-    elif citation.document_id in conflict_result.conflicting_document_ids:
-        status = "conflicting"
-
-    return ChatCitationResponse(
-        citation_id=citation.citation_id,
-        document_id=citation.document_id,
-        chunk_id=citation.chunk_id,
-        filename=citation.filename,
-        page_number=citation.page_number,
-        score=citation.score,
-        similarity_score=citation.similarity_score,
-        original_rank=citation.original_rank,
-        rerank_score=citation.rerank_score,
-        rerank_rank=citation.rerank_rank,
-        final_rank=citation.final_rank,
-        text_snippet=citation.text_snippet,
-        start_offset=citation.start_offset,
-        end_offset=citation.end_offset,
-        source_provider=citation.source_provider,
-        source_provider_label=citation.source_provider_label,
-        source_title=citation.source_title,
-        source_key=citation.source_key,
-        source_section=citation.source_section,
-        source_deep_link=citation.source_deep_link,
-        source_last_synced_at=citation.source_last_synced_at,
-        source_trust_status=citation.source_trust_status,
-        source_acl_snapshot=citation.source_acl_snapshot,
-        conflict_status=status,
-        doc_trust_status=citation.doc_trust_status,
-        doc_review_status=citation.doc_review_status,
-        doc_review_owner_id=citation.doc_review_owner_id,
-        doc_review_due_date=citation.doc_review_due_date,
-        doc_expiry_date=citation.doc_expiry_date,
-        doc_version_label=citation.doc_version_label,
-        doc_review_date=citation.doc_review_date,
-        doc_effective_date=citation.doc_effective_date,
-        doc_stale_warning=citation.doc_stale_warning,
-        doc_expired_warning=citation.doc_expired_warning,
-        doc_is_excluded_status=citation.doc_is_excluded_status,
-        freshness_state=citation.freshness_state,
-        doc_last_updated_at=citation.doc_last_updated_at,
-        doc_unreviewed_warning=citation.doc_unreviewed_warning,
-        doc_deprecated_warning=citation.doc_deprecated_warning,
-        is_table_chunk=citation.is_table_chunk,
-        table_caption=citation.table_caption,
-        table_row_count=citation.table_row_count,
-        table_col_count=citation.table_col_count,
-        table_headers=citation.table_headers,
-        table_section_context=citation.table_section_context,
-        table_extraction_confidence=citation.table_extraction_confidence,
-        table_low_confidence_warning=citation.table_low_confidence_warning,
-        doc_ocr_quality_status=citation.doc_ocr_quality_status,
-        doc_ocr_low_confidence_warning=citation.doc_ocr_low_confidence_warning,
-        doc_extraction_quality=citation.doc_extraction_quality,
-        doc_extraction_warning=citation.doc_extraction_warning,
-        doc_processing_warning=citation.doc_processing_warning,
-    )
-
-
-def _with_extraction_quality(
-    citation: ChatCitationResponse,
-    extraction_quality_map: dict[str, tuple[str | None, float | None, str]],
-) -> ChatCitationResponse:
-    """Annotate a citation with document extraction quality and processing status (F315).
-
-    extraction_quality_map maps document_id to (document_profile, extraction_confidence, doc_status).
-    Sets doc_extraction_quality, doc_extraction_warning, and doc_processing_warning.
-    """
-    entry = extraction_quality_map.get(citation.document_id)
-    if entry is None:
-        return citation
-    doc_profile, extraction_conf, doc_status = entry
-    is_bad_profile = doc_profile in _EXTRACTION_WARNING_PROFILES
-    is_low_conf = (
-        extraction_conf is not None and extraction_conf < _EXTRACTION_CONFIDENCE_WARN_THRESHOLD
-    )
-    extraction_warning = is_bad_profile or is_low_conf
-    processing_warning = doc_status in _PROCESSING_INCOMPLETE_STATUSES
-    return ChatCitationResponse(
-        citation_id=citation.citation_id,
-        document_id=citation.document_id,
-        chunk_id=citation.chunk_id,
-        filename=citation.filename,
-        page_number=citation.page_number,
-        score=citation.score,
-        similarity_score=citation.similarity_score,
-        original_rank=citation.original_rank,
-        rerank_score=citation.rerank_score,
-        rerank_rank=citation.rerank_rank,
-        final_rank=citation.final_rank,
-        text_snippet=citation.text_snippet,
-        start_offset=citation.start_offset,
-        end_offset=citation.end_offset,
-        source_provider=citation.source_provider,
-        source_provider_label=citation.source_provider_label,
-        source_title=citation.source_title,
-        source_key=citation.source_key,
-        source_section=citation.source_section,
-        source_deep_link=citation.source_deep_link,
-        source_last_synced_at=citation.source_last_synced_at,
-        source_trust_status=citation.source_trust_status,
-        source_acl_snapshot=citation.source_acl_snapshot,
-        conflict_status=citation.conflict_status,
-        doc_trust_status=citation.doc_trust_status,
-        doc_review_status=citation.doc_review_status,
-        doc_review_owner_id=citation.doc_review_owner_id,
-        doc_review_due_date=citation.doc_review_due_date,
-        doc_expiry_date=citation.doc_expiry_date,
-        doc_version_label=citation.doc_version_label,
-        doc_review_date=citation.doc_review_date,
-        doc_effective_date=citation.doc_effective_date,
-        doc_stale_warning=citation.doc_stale_warning,
-        doc_expired_warning=citation.doc_expired_warning,
-        doc_is_excluded_status=citation.doc_is_excluded_status,
-        freshness_state=citation.freshness_state,
-        doc_last_updated_at=citation.doc_last_updated_at,
-        doc_unreviewed_warning=citation.doc_unreviewed_warning,
-        doc_deprecated_warning=citation.doc_deprecated_warning,
-        is_table_chunk=citation.is_table_chunk,
-        table_caption=citation.table_caption,
-        table_row_count=citation.table_row_count,
-        table_col_count=citation.table_col_count,
-        table_headers=citation.table_headers,
-        table_section_context=citation.table_section_context,
-        table_extraction_confidence=citation.table_extraction_confidence,
-        table_low_confidence_warning=citation.table_low_confidence_warning,
-        doc_ocr_quality_status=citation.doc_ocr_quality_status,
-        doc_ocr_low_confidence_warning=citation.doc_ocr_low_confidence_warning,
-        doc_extraction_quality=doc_profile,
-        doc_extraction_warning=extraction_warning,
-        doc_processing_warning=processing_warning,
-    )
-
-
-def _build_conflict_context(conflict_result: ConflictDetectionResult) -> str:
-    if not conflict_result.applied or conflict_result.agreement_level == "full":
-        return ""
-
-    preferred = ", ".join(conflict_result.preferred_document_ids) or "<none>"
-    conflicting = ", ".join(conflict_result.conflicting_document_ids) or "<none>"
-    pair_lines = [
-        f"- {pair.document_id_a} vs {pair.document_id_b}: {pair.topic} ({pair.severity})"
-        for pair in conflict_result.conflict_pairs[:5]
-    ]
-    pair_block = "\n".join(pair_lines) if pair_lines else "- No valid conflict pairs returned."
-    return (
-        "Source agreement guidance:\n"
-        f"- agreement_level: {conflict_result.agreement_level}\n"
-        f"- conflict_summary: {conflict_result.conflict_summary or 'Conflicting sources detected.'}\n"
-        f"- preferred_document_ids: {preferred}\n"
-        f"- conflicting_document_ids: {conflicting}\n"
-        f"- conflict_pairs:\n{pair_block}\n"
-        "Use the preferred sources as the primary basis, mention disagreements clearly, "
-        "and avoid presenting a single certain answer when the sources do not agree.\n"
-    )
-
-
-async def _rerank_chunks(
-    *,
-    query: str,
-    chunks: list[RetrievedChunk],
-    enabled: bool,
-    final_top_k: int,
-    settings_override: RerankSettings | None = None,
-) -> tuple[list[RetrievedChunk], RerankResult]:
-    if final_top_k < 1 or not chunks:
-        empty_result = await _rerank_service.rerank(
-            query=query,
-            candidates=[],
-            enabled=enabled,
-            final_top_k=final_top_k,
-            settings_override=settings_override,
-        )
-        return [], empty_result
-
-    chunk_by_key = {str(chunk.chunk_id): chunk for chunk in chunks}
-    rerank_inputs = [
-        RerankCandidate(
-            key=str(chunk.chunk_id),
-            text=chunk.text,
-            similarity_score=chunk.similarity_score,
-            original_rank=chunk.original_rank,
-        )
-        for chunk in chunks
-    ]
-
-    rerank_result: RerankResult = await _rerank_service.rerank(
-        query=query,
-        candidates=rerank_inputs,
-        enabled=enabled,
-        final_top_k=final_top_k,
-        settings_override=settings_override,
-    )
-
-    selected_chunks: list[RetrievedChunk] = []
-    for reranked in rerank_result.candidates:
-        source_chunk = chunk_by_key.get(reranked.key)
-        if source_chunk is None:
-            continue
-        selected_chunks.append(
-            RetrievedChunk(
-                document_id=source_chunk.document_id,
-                chunk_id=source_chunk.chunk_id,
-                filename=source_chunk.filename,
-                page_number=source_chunk.page_number,
-                text=source_chunk.text,
-                similarity_score=source_chunk.similarity_score,
-                original_rank=reranked.original_rank,
-                rerank_score=reranked.rerank_score,
-                rerank_rank=reranked.rerank_rank,
-                final_rank=reranked.final_rank,
-                retrieval_source=source_chunk.retrieval_source,
-                graph_score=source_chunk.graph_score,
-                graph_hops=source_chunk.graph_hops,
-                keyword_score=source_chunk.keyword_score,
-                hybrid_score=source_chunk.hybrid_score,
-                chunk_type=source_chunk.chunk_type,
-                chunk_level=source_chunk.chunk_level,
-                parent_text=source_chunk.parent_text,
-            )
-        )
-    return selected_chunks, rerank_result
-
-
-def _build_prompt(
-    *,
-    question: str,
-    chunks: list[RetrievedChunk],
-    parent_context_map: dict[str, str] | None = None,
-    conflict_context: str = "",
-    answer_language: str | None = None,
-    template: str | None = None,
-) -> str:
-    _ctx = parent_context_map or {}
-    return _prompt_service.build_prompt(
-        question=question,
-        not_found_answer=_NOT_FOUND_ANSWER,
-        conflict_context=conflict_context,
-        answer_language=answer_language,
-        template=template,
-        chunks=[
-            PromptContextChunk(
-                document_id=str(chunk.document_id),
-                chunk_id=str(chunk.chunk_id),
-                filename=chunk.filename,
-                page_number=chunk.page_number,
-                text=_ctx.get(str(chunk.chunk_id)) or chunk.text,
-                similarity_score=chunk.similarity_score,
-                original_rank=chunk.original_rank,
-                rerank_score=chunk.rerank_score,
-                rerank_rank=chunk.rerank_rank,
-                final_rank=chunk.final_rank,
-            )
-            for chunk in chunks
-        ],
-    )
-
-
-def _build_conflict_detection_chunks(
-    *,
-    chunks: list[RetrievedChunk],
-    parent_context_map: dict[str, str] | None,
-    trust_map: dict[str, DocumentTrustData],
-    org_stale_threshold_days: int | None,
-) -> list[ConflictDetectionChunk]:
-    context_map = parent_context_map or {}
-    detection_chunks: list[ConflictDetectionChunk] = []
-    for chunk in chunks:
-        trust = trust_map.get(str(chunk.document_id))
-        effective_trust_status = (
-            _source_freshness_service.compute_effective_trust_status(
-                trust,
-                org_stale_threshold_days=org_stale_threshold_days,
-            )
-            if trust is not None
-            else "current"
-        )
-        detection_chunks.append(
-            ConflictDetectionChunk(
-                chunk_id=str(chunk.chunk_id),
-                document_id=str(chunk.document_id),
-                text=context_map.get(str(chunk.chunk_id)) or chunk.text,
-                similarity_score=chunk.similarity_score,
-                trust_status=effective_trust_status,
-            )
-        )
-    return detection_chunks
-
-
-async def _resolve_answer_prompt_version(
-    db_session: AsyncSession,
-    *,
-    organization_id: UUID,
-) -> PromptTemplateVersion:
-    try:
-        return await _prompt_template_service.resolve_active_version(
-            db_session,
-            organization_id=organization_id,
-            template_key=PromptTemplateKey.answer_generation.value,
-        )
-    except PromptTemplateValidationError as exc:
-        raise _safe_http_error(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            code="prompt_template_unavailable",
-            message="Answer prompt template is unavailable",
-        ) from exc
-
-
-def _build_rerank_settings(config: dict | None) -> RerankSettings:
-    profile_config = RagProfileConfig.model_validate(config or {})
-    return RerankSettings(
-        enabled=profile_config.rerank_enabled if config is not None else True,
-        provider_key=profile_config.rerank_provider,
-        model_name=profile_config.rerank_model,
-        timeout_seconds=profile_config.rerank_timeout_seconds,
-        batch_size=profile_config.rerank_batch_size,
-        max_input_candidates=profile_config.rerank_input_max_candidates,
-        max_candidate_chars=profile_config.rerank_max_candidate_chars,
-        fallback_behavior=profile_config.rerank_fallback_behavior,
-    )
-
-
-def _to_confidence_signals(
-    *, chunks: list[RetrievedChunk], rerank_applied: bool
-) -> list[ConfidenceChunkSignal]:
-    return [
-        ConfidenceChunkSignal(
-            similarity_score=chunk.similarity_score,
-            rerank_score=chunk.rerank_score if rerank_applied else None,
-        )
-        for chunk in chunks
-    ]
-
-
-def _confidence_category_from_score(score: float | None) -> str | None:
-    if score is None:
-        return None
-    if score >= settings.confidence_high_threshold:
-        return "high"
-    if score >= settings.confidence_medium_threshold:
-        return "medium"
-    return "low"
-
-
-def _compute_freshness_multiplier(stale_count: int, total_count: int) -> float:
-    """Map stale-source fraction to a [0.70, 1.0] confidence multiplier."""
-    if total_count == 0 or stale_count == 0:
-        return 1.0
-    stale_fraction = stale_count / total_count
-    return max(0.70, 1.0 - stale_fraction * settings.confidence_freshness_stale_penalty)
-
-
-def _compute_ocr_quality_multiplier(citations: list) -> float:
-    """Average OCR-quality multiplier across all citations that carry OCR status."""
-    _ocr_map: dict[str, float] = {
-        "high": 1.0,
-        "not_required": 1.0,
-        "medium": settings.confidence_ocr_medium_multiplier,
-        "low": settings.confidence_ocr_low_multiplier,
-        "failed": settings.confidence_ocr_failed_multiplier,
-    }
-    multipliers = [
-        _ocr_map[q]
-        for c in citations
-        if (q := getattr(c, "doc_ocr_quality_status", None)) in _ocr_map
-    ]
-    return round(sum(multipliers) / len(multipliers), 4) if multipliers else 1.0
-
-
-def _compute_conflict_multiplier(conflict_result: ConflictDetectionResult) -> float:
-    """Map conflict agreement_level to a confidence multiplier."""
-    level = conflict_result.agreement_level
-    if level == "conflicting":
-        return max(0.0, 1.0 - settings.confidence_conflict_penalty_conflicting)
-    if level == "partial":
-        return max(0.0, 1.0 - settings.confidence_conflict_penalty_partial)
-    return 1.0
-
-
 # F315 — evidence quality thresholds
-_TABLE_CONFIDENCE_LOW_THRESHOLD = 0.4
-_TABLE_CONFIDENCE_VERY_LOW_THRESHOLD = 0.2
-_EXTRACTION_CONFIDENCE_WARN_THRESHOLD = 0.5
-_EXTRACTION_WARNING_PROFILES = frozenset({"corrupted", "unsupported", "encrypted"})
-_PROCESSING_INCOMPLETE_STATUSES = frozenset(
-    {"processing", "failed", "extraction_failed", "quarantined", "blocked", "infected"}
-)
-
-
-def _compute_table_quality_multiplier(citations: list) -> float:
-    """Average table-extraction quality penalty across table citations (F315).
-
-    Citations that are not table chunks are excluded. A low-confidence table
-    (< 0.4) yields a 0.85 multiplier; very low-confidence (< 0.2) yields 0.70.
-    """
-    multipliers: list[float] = []
-    for c in citations:
-        if not getattr(c, "is_table_chunk", False):
-            continue
-        conf = getattr(c, "table_extraction_confidence", None)
-        if conf is None:
-            continue
-        if conf < _TABLE_CONFIDENCE_VERY_LOW_THRESHOLD:
-            multipliers.append(0.70)
-        elif conf < _TABLE_CONFIDENCE_LOW_THRESHOLD:
-            multipliers.append(0.85)
-        else:
-            multipliers.append(1.0)
-    return round(sum(multipliers) / len(multipliers), 4) if multipliers else 1.0
-
-
-def _compute_extraction_quality_multiplier(citations: list) -> float:
-    """Return 0.85 when any citation carries a document extraction warning (F315)."""
-    if any(getattr(c, "doc_extraction_warning", False) for c in citations):
-        return 0.85
-    return 1.0
-
-
-def _build_evidence_quality_record(citations: list) -> "EvidenceQualityRecord":
-    """Build an aggregated evidence quality summary from annotated citations (F315)."""
-    table_low_conf_count = sum(
-        1 for c in citations if getattr(c, "table_low_confidence_warning", False)
-    )
-    extraction_warn_count = sum(1 for c in citations if getattr(c, "doc_extraction_warning", False))
-    processing_warn_count = sum(1 for c in citations if getattr(c, "doc_processing_warning", False))
-    any_incomplete = processing_warn_count > 0
-
-    warning_reasons: list[str] = []
-    if table_low_conf_count > 0:
-        warning_reasons.append(
-            f"{table_low_conf_count} cited table chunk"
-            f"{'s have' if table_low_conf_count > 1 else ' has'} low extraction confidence"
-            " — table data may be inaccurate."
-        )
-    if extraction_warn_count > 0:
-        warning_reasons.append(
-            f"{extraction_warn_count} source document"
-            f"{'s have' if extraction_warn_count > 1 else ' has'} poor extraction quality"
-            " — text coverage may be incomplete."
-        )
-    if processing_warn_count > 0:
-        warning_reasons.append(
-            f"{processing_warn_count} source document"
-            f"{'s have' if processing_warn_count > 1 else ' has'} incomplete or failed"
-            " processing — content may be missing."
-        )
-
-    return EvidenceQualityRecord(
-        table_low_confidence_count=table_low_conf_count,
-        extraction_warning_count=extraction_warn_count,
-        processing_warning_count=processing_warn_count,
-        any_incomplete_documents=any_incomplete,
-        warning_reasons=warning_reasons,
-    )
-
-
-def _build_evidence_quality_inputs(citations: list) -> dict[str, int]:
-    """Extract integer quality signal counts from citations for the critic (F339)."""
-    return {
-        "table_low_confidence_count": sum(
-            1 for c in citations if getattr(c, "table_low_confidence_warning", False)
-        ),
-        "extraction_warning_count": sum(
-            1 for c in citations if getattr(c, "doc_extraction_warning", False)
-        ),
-    }
-
-
-async def _resolve_graph_rag_enabled(
-    db_session: AsyncSession,
-    *,
-    organization_id: UUID,
-) -> bool:
-    try:
-        return await _feature_flag_service.is_enabled(
-            db_session,
-            organization_id=organization_id,
-            flag_name="graph_rag",
-        )
-    except Exception as exc:
-        log_query_event(
-            event="query.graph.feature_flag_fallback",
-            organization_id=str(organization_id),
-            error=exc.__class__.__name__,
-            detail=str(exc),
-            enabled=settings.feature_enable_graph_rag,
-        )
-        return settings.feature_enable_graph_rag
-
-
-async def _resolve_query_rewrite_preview_enabled(
-    db_session: AsyncSession,
-    *,
-    organization_id: UUID,
-) -> bool:
-    try:
-        return await _feature_flag_service.is_enabled(
-            db_session,
-            organization_id=organization_id,
-            flag_name="query_rewrite_preview",
-        )
-    except Exception as exc:
-        log_query_event(
-            event="query.rewrite_preview.feature_flag_fallback",
-            organization_id=str(organization_id),
-            error=exc.__class__.__name__,
-            detail=str(exc),
-            enabled=settings.feature_enable_query_rewrite_preview,
-        )
-        return settings.feature_enable_query_rewrite_preview
-
-
-_QUERY_INTENT_LABELS: dict[str, str] = {
-    "lookup": "Lookup",
-    "summary": "Summary",
-    "comparison": "Comparison",
-    "policy": "Policy",
-    "troubleshooting": "Troubleshooting",
-    "compliance": "Compliance",
-    "connector_search": "Connector search",
-    "graph_entity_search": "Graph/entity search",
-    "product_guidance": "Product guidance",
-}
-
-
-def _infer_query_intent(question: str) -> str:
-    normalized = question.lower()
-    if any(
-        token in normalized
-        for token in (
-            "connector",
-            "connectors",
-            "integration",
-            "integrations",
-            "datasource",
-            "data source",
-            "slack",
-            "jira",
-            "salesforce",
-            "sharepoint",
-            "confluence",
-            "google drive",
-            "onedrive",
-            "box",
-        )
-    ):
-        return "connector_search"
-    if any(
-        token in normalized
-        for token in (
-            "graph",
-            "entity",
-            "entities",
-            "relationship",
-            "relationships",
-            "linked to",
-            "connected to",
-            "reports to",
-            "reporting line",
-            "org chart",
-        )
-    ):
-        return "graph_entity_search"
-    if any(
-        token in normalized
-        for token in (
-            "compare",
-            "comparison",
-            "difference",
-            "differences",
-            "versus",
-            "vs ",
-            " vs",
-            "better than",
-            "tradeoff",
-            "trade-offs",
-            "which is more",
-        )
-    ):
-        return "comparison"
-    if any(
-        token in normalized
-        for token in (
-            "troubleshoot",
-            "troubleshooting",
-            "debug",
-            "fix",
-            "issue",
-            "problem",
-            "error",
-            "failed",
-            "not working",
-            "why can't",
-            "why is",
-        )
-    ):
-        return "troubleshooting"
-    if any(
-        token in normalized
-        for token in (
-            "compliance",
-            "compliant",
-            "gdpr",
-            "hipaa",
-            "sox",
-            "pci",
-            "audit",
-            "regulation",
-            "regulatory",
-            "retention",
-            "privacy",
-            "legal",
-        )
-    ):
-        return "compliance"
-    if any(
-        token in normalized
-        for token in (
-            "summarize",
-            "summarise",
-            "summary",
-            "overview",
-            "brief",
-            "recap",
-            "what does",
-            "tell me about",
-        )
-    ):
-        return "summary"
-    if any(
-        token in normalized
-        for token in (
-            "policy",
-            "policies",
-            "guideline",
-            "guidelines",
-            "procedure",
-            "procedures",
-            "rule",
-            "rules",
-            "benefit",
-            "benefits",
-            "leave",
-            "vacation",
-            "expense",
-            "expenses",
-        )
-    ):
-        return "policy"
-    return "lookup"
-
-
-def _guidance_label(topic: str | None) -> str:
-    if topic == "onboarding":
-        return "Onboarding"
-    if topic == "ui_help":
-        return "UI help"
-    if topic == "empty_state":
-        return "Empty state help"
-    if topic == "source_scope":
-        return "Source scope guidance"
-    if topic == "how_to_use":
-        return "How to use Rudix"
-    return "Product guidance"
-
-
-def _query_complexity(
-    *,
-    intent: str,
-    query_rewrite_result: QueryRewritingResult | None,
-    question: str,
-) -> str:
-    if query_rewrite_result is not None and query_rewrite_result.decomposition_applied:
-        return "multi_part"
-    if query_rewrite_result is not None and query_rewrite_result.rewriting_applied:
-        return "complex"
-    if intent in {
-        "comparison",
-        "policy",
-        "troubleshooting",
-        "compliance",
-        "connector_search",
-        "graph_entity_search",
-    }:
-        return "complex"
-    if len(question.split()) >= 18:
-        return "complex"
-    return "simple"
-
-
-def _build_query_interpretation_record(
-    *,
-    question: str,
-    query_rewrite_result: QueryRewritingResult | None,
-    rewrite_preview_enabled: bool,
-    answer_mode_result: AnswerModeResult,
-) -> QueryInterpretationRecord:
-    intent = (
-        "product_guidance"
-        if answer_mode_result.mode == "guidance"
-        else _infer_query_intent(question)
-    )
-    strategy = query_rewrite_result.strategy if query_rewrite_result is not None else "original"
-    complexity = _query_complexity(
-        intent=intent,
-        query_rewrite_result=query_rewrite_result,
-        question=question,
-    )
-    preview_available = (
-        rewrite_preview_enabled
-        and query_rewrite_result is not None
-        and (query_rewrite_result.rewriting_applied or query_rewrite_result.decomposition_applied)
-    )
-    rewritten_query_preview = (
-        query_rewrite_result.primary_query
-        if preview_available
-        and query_rewrite_result is not None
-        and query_rewrite_result.primary_query.strip()
-        else None
-    )
-    sub_queries = (
-        list(query_rewrite_result.sub_queries)
-        if preview_available
-        and query_rewrite_result is not None
-        and query_rewrite_result.decomposition_applied
-        else []
-    )
-    return QueryInterpretationRecord(
-        answer_mode=answer_mode_result.mode,
-        intent=intent,
-        intent_label=(
-            _guidance_label(answer_mode_result.topic)
-            if answer_mode_result.mode == "guidance"
-            else _QUERY_INTENT_LABELS.get(intent, "Lookup")
-        ),
-        complexity=complexity,
-        retrieval_strategy=strategy,
-        rewrite_preview_enabled=rewrite_preview_enabled,
-        rewritten_query_preview=rewritten_query_preview,
-        sub_queries=sub_queries,
-        guidance_topic=answer_mode_result.topic,
-    )
-
-
-def _build_search_mode(
-    *,
-    hybrid_retrieval_enabled: bool,
-    graph_context_result: GraphRetrievalResult,
-) -> str:
-    if graph_context_result.graph_context_used and hybrid_retrieval_enabled:
-        return "hybrid+graph"
-    if graph_context_result.graph_context_used:
-        return "graph"
-    if hybrid_retrieval_enabled:
-        return "hybrid"
-    return "vector"
-
-
-def _build_retrieval_profile_scope(
-    *,
-    payload: ChatQueryRequest,
-    source_scope_result: ResolvedSourceScope,
-    graph_context_result: GraphRetrievalResult,
-    document_ids: list[UUID] | None,
-) -> str:
-    if payload.scope_mode == "none":
-        return "none"
-    if graph_context_result.graph_context_used:
-        return "graph"
-    if payload.source_scope is not None:
-        if payload.source_scope.mode == "collections":
-            return "selected collection"
-        if payload.source_scope.mode in {"connector_sources", "connector_items"}:
-            return "connector"
-        if payload.source_scope.mode == "uploaded":
-            return "document"
-        if payload.source_scope.mode == "all" and (
-            payload.source_scope.collection_ids
-            or payload.source_scope.provider_keys
-            or payload.source_scope.connection_ids
-            or payload.source_scope.provider_source_ids
-            or payload.source_scope.external_source_ids
-            or payload.source_scope.external_item_ids
-        ):
-            return "document"
-    if document_ids:
-        return "document"
-    if source_scope_result.label == "All sources":
-        return "all documents"
-    return "all documents"
-
-
-def _build_retrieval_filters(
-    *,
-    payload: ChatQueryRequest,
-    source_scope_result: ResolvedSourceScope,
-    document_ids: list[UUID] | None,
-    graph_context_result: GraphRetrievalResult,
-) -> list[str]:
-    filters: list[str] = []
-    if payload.scope_mode is not None:
-        filters.append(f"scope_mode={payload.scope_mode}")
-    if document_ids:
-        filters.append(f"documents={len(document_ids)}")
-    if payload.source_scope is not None:
-        scope = payload.source_scope
-        if scope.mode != "all":
-            filters.append(f"source_scope={scope.mode}")
-        if scope.collection_ids:
-            filters.append(f"collections={len(scope.collection_ids)}")
-        if scope.provider_keys:
-            filters.append(f"providers={len(scope.provider_keys)}")
-        if scope.connection_ids:
-            filters.append(f"connections={len(scope.connection_ids)}")
-        if scope.provider_source_ids:
-            filters.append(f"provider_sources={len(scope.provider_source_ids)}")
-        if scope.external_source_ids:
-            filters.append(f"external_sources={len(scope.external_source_ids)}")
-        if scope.external_item_ids:
-            filters.append(f"external_items={len(scope.external_item_ids)}")
-        if scope.document_types:
-            filters.append(f"document_types={', '.join(scope.document_types[:3])}")
-        if scope.sync_statuses:
-            filters.append(f"sync_statuses={', '.join(scope.sync_statuses[:3])}")
-    if graph_context_result.graph_context_used:
-        filters.append("graph=enabled")
-    if source_scope_result.label:
-        filters.append(f"scope={source_scope_result.label}")
-    # Keep the list short and readable in the trust panel.
-    return filters[:8]
-
-
-def _build_rerank_score_range(chunks: list[RetrievedChunk]) -> tuple[float | None, float | None]:
-    scores = [
-        score
-        for score in (chunk.rerank_score for chunk in chunks)
-        if isinstance(score, (int, float))
-    ]
-    if not scores:
-        return None, None
-    return min(scores), max(scores)
-
-
-def _build_retrieval_diagnostics_payload(
-    *,
-    request_id: str | None,
-    rag_profile: object | None,
-    rag_profile_source: str,
-    payload: ChatQueryRequest,
-    source_scope_result: ResolvedSourceScope,
-    retrieved_chunks: list[RetrievedChunk],
-    selected_chunks: list[RetrievedChunk],
-    rerank_applied: bool,
-    rerank_diagnostics: object | None,
-    parallel_result: ParallelRetrievalResult | None,
-    hybrid_retrieval_enabled: bool,
-    hybrid_vector_hit_count: int,
-    hybrid_keyword_hit_count: int,
-    query_rewrite_result: object | None,
-    graph_context_result: GraphRetrievalResult,
-    document_ids: list[UUID] | None,
-    final_top_k: int,
-) -> dict[str, object]:
-    profile_name = getattr(rag_profile, "name", None) if rag_profile is not None else None
-    search_mode = _build_search_mode(
-        hybrid_retrieval_enabled=hybrid_retrieval_enabled,
-        graph_context_result=graph_context_result,
-    )
-    retrieval_profile_scope = _build_retrieval_profile_scope(
-        payload=payload,
-        source_scope_result=source_scope_result,
-        graph_context_result=graph_context_result,
-        document_ids=document_ids,
-    )
-    retrieval_filters = _build_retrieval_filters(
-        payload=payload,
-        source_scope_result=source_scope_result,
-        document_ids=document_ids,
-        graph_context_result=graph_context_result,
-    )
-    rerank_score_min, rerank_score_max = _build_rerank_score_range(retrieved_chunks)
-    rerank_fallback_used = bool(getattr(rerank_diagnostics, "fallback_used", False))
-    rerank_fallback_reason = getattr(rerank_diagnostics, "fallback_reason", None)
-    parallel_branches = _build_parallel_branch_records(parallel_result)
-    return {
-        "retrieval_candidate_count": len(retrieved_chunks),
-        "retrieval_count": len(retrieved_chunks),
-        "selected_count": len(selected_chunks),
-        "top_k": final_top_k,
-        "search_mode": search_mode,
-        "source_scope_mode": payload.source_scope.mode
-        if payload.source_scope is not None
-        else payload.scope_mode,
-        "source_scope_label": source_scope_result.label,
-        "retrieval_profile_name": profile_name,
-        "retrieval_profile_scope": retrieval_profile_scope,
-        "retrieval_profile_source": rag_profile_source,
-        "retrieval_filters": retrieval_filters,
-        "rerank_applied": rerank_applied,
-        "rerank_provider": getattr(rerank_diagnostics, "provider_key", None)
-        if rerank_diagnostics is not None
-        else None,
-        "rerank_model": getattr(rerank_diagnostics, "model_name", None)
-        if rerank_diagnostics is not None
-        else None,
-        "rerank_score_min": rerank_score_min,
-        "rerank_score_max": rerank_score_max,
-        "rerank_fallback_used": rerank_fallback_used,
-        "rerank_fallback_reason": rerank_fallback_reason,
-        "request_id": request_id,
-        "trace_request_id": request_id,
-        "parallel_branch_count": len(parallel_branches),
-        "parallel_branch_failure_count": sum(
-            1 for branch in parallel_branches if not branch.succeeded
-        ),
-        "parallel_branch_timeout_count": sum(
-            1 for branch in parallel_branches if branch.error_code == "timeout"
-        ),
-        "parallel_branches": parallel_branches,
-    }
-
-
-async def _augment_retrieval_with_graph_context(
-    db_session: AsyncSession,
-    *,
-    organization_id: UUID,
-    question: str,
-    vector_chunks: list[RetrievedChunk],
-    allowed_document_ids: list[UUID] | None,
-    graph_enabled: bool,
-    graph_result: GraphRetrievalResult | None = None,
-) -> tuple[list[RetrievedChunk], GraphRetrievalResult]:
-    if not graph_enabled:
-        return vector_chunks, GraphRetrievalResult(
-            graph_context_enabled=False,
-            graph_context_used=False,
-            graph_context_reason="disabled",
-        )
-
-    if graph_result is None:
-        graph_result = await _graph_retrieval_service.expand(
-            session=db_session,
-            organization_id=organization_id,
-            question=question,
-            allowed_document_ids=allowed_document_ids,
-            graph_enabled=True,
-        )
-    if not graph_result.chunks:
-        return vector_chunks, graph_result
-
-    graph_chunks = [_to_graph_retrieved_chunk(chunk) for chunk in graph_result.chunks]
-    return _merge_retrieved_chunks(vector_chunks, graph_chunks), graph_result
-
-
-def _build_trust_metadata(
-    *,
-    organization_id: UUID,
-    message_id: str,
-    question: str,
-    query_rewrite_preview_enabled: bool,
-    not_found: bool,
-    citation_validation_failed: bool,
-    verification_failed: bool,
-    confidence_score: float,
-    confidence_category: str,
-    confidence_explanation: object,
-    citations: list[ChatCitationResponse],
-    retrieval_diagnostics_payload: dict[str, object],
-    retrieved_chunks: list,
-    selected_chunks: list,
-    rerank_applied: bool,
-    rerank_diagnostics: object | None,
-    hybrid_vector_hit_count: int,
-    hybrid_keyword_hit_count: int,
-    query_rewrite_result: object | None,
-    parent_context_expanded_count: int,
-    graph_context_result: GraphRetrievalResult,
-    freshness_excluded_count: int,
-    freshness_boosted_count: int,
-    freshness_stale_count: int,
-    freshness_unreviewed_count: int,
-    freshness_deprecated_count: int,
-    freshness_draft_count: int,
-    freshness_all_excluded_fallback: bool,
-    grounded_verifier_result: GroundedVerifierResult | None,
-    answer_mode_result: AnswerModeResult,
-    llm_model: str | None,
-    llm_provider: str | None,
-    embedding_model: str | None,
-    llm_fallback_used: bool,
-    llm_fallback_from: str | None,
-    llm_fallback_to: str | None,
-    llm_fallback_reason: str | None,
-    answer_prompt_version: object | None,
-    conflict_detection_result: ConflictDetectionResult,
-    ai_policy_applied: bool,
-    ai_policy_result: object,
-    generated_at: datetime,
-    planner_result: "PlannerResult | None" = None,
-    critic_result: "CriticResult | None" = None,
-    refiner_result: "RefinerResult | None" = None,
-    route_result: "RetrievalRouteResult | None" = None,
-    orchestration_result: "ToolOrchestrationResult | None" = None,
-) -> AnswerTrustMetadataResponse:
-    """Build the versioned trust metadata contract from pipeline state.
-
-    Never includes raw prompts, chain-of-thought, ACL snapshots, or internal
-    version UUIDs — only user-facing fields that the trust panel needs.
-    """
-    expl = confidence_explanation
-
-    source_freshness_warning = freshness_all_excluded_fallback or any(
-        getattr(c, "doc_stale_warning", False)
-        or getattr(c, "doc_expired_warning", False)
-        or getattr(c, "doc_is_excluded_status", False)
-        or getattr(c, "doc_unreviewed_warning", False)
-        or getattr(c, "doc_deprecated_warning", False)
-        or getattr(c, "doc_draft_warning", False)
-        for c in citations
-    )
-
-    citation_records = [
-        CitationTrustRecord(
-            document_id=c.document_id,
-            chunk_id=c.chunk_id,
-            filename=c.filename,
-            page_number=c.page_number,
-            score=c.score,
-            similarity_score=c.similarity_score,
-            rerank_score=c.rerank_score,
-            original_rank=c.original_rank,
-            final_rank=c.final_rank,
-            text_snippet=c.text_snippet,
-            source_provider=c.source_provider,
-            source_provider_label=c.source_provider_label,
-            source_title=c.source_title,
-            source_key=c.source_key,
-            source_section=c.source_section,
-            source_deep_link=c.source_deep_link,
-            source_last_synced_at=c.source_last_synced_at,
-            source_trust_status=c.source_trust_status,
-            conflict_status=c.conflict_status,
-            doc_trust_status=c.doc_trust_status,
-            doc_quality_state=getattr(c, "doc_quality_state", None),
-            doc_review_status=c.doc_review_status,
-            doc_version_label=c.doc_version_label,
-            doc_review_due_date=c.doc_review_due_date,
-            doc_expiry_date=c.doc_expiry_date,
-            doc_stale_warning=c.doc_stale_warning,
-            doc_expired_warning=c.doc_expired_warning,
-            doc_is_excluded_status=c.doc_is_excluded_status,
-            is_table_chunk=c.is_table_chunk,
-            table_caption=c.table_caption,
-            table_row_count=c.table_row_count,
-            table_col_count=c.table_col_count,
-            table_headers=list(c.table_headers),
-            doc_ocr_quality_status=c.doc_ocr_quality_status,
-            doc_ocr_low_confidence_warning=c.doc_ocr_low_confidence_warning,
-            freshness_state=getattr(c, "freshness_state", None),
-            doc_last_updated_at=getattr(c, "doc_last_updated_at", None),
-            doc_review_owner_id=getattr(c, "doc_review_owner_id", None),
-            doc_unreviewed_warning=getattr(c, "doc_unreviewed_warning", False),
-            doc_deprecated_warning=getattr(c, "doc_deprecated_warning", False),
-            doc_draft_warning=getattr(c, "doc_draft_warning", False),
-            table_extraction_confidence=getattr(c, "table_extraction_confidence", None),
-            table_low_confidence_warning=getattr(c, "table_low_confidence_warning", False),
-            doc_extraction_quality=getattr(c, "doc_extraction_quality", None),
-            doc_extraction_warning=getattr(c, "doc_extraction_warning", False),
-            doc_processing_warning=getattr(c, "doc_processing_warning", False),
-        )
-        for c in ([] if not_found else citations)
-    ]
-
-    prompt_key: str | None = None
-    prompt_ver: int | None = None
-    if answer_prompt_version is not None:
-        prompt_key = PromptTemplateKey.answer_generation.value
-        prompt_ver = getattr(answer_prompt_version, "version_number", None)
-
-    gv_applied = grounded_verifier_result is not None and grounded_verifier_result.applied
-    query_interpretation = _build_query_interpretation_record(
-        question=question,
-        query_rewrite_result=query_rewrite_result,
-        rewrite_preview_enabled=query_rewrite_preview_enabled,
-        answer_mode_result=answer_mode_result,
-    )
-
-    return AnswerTrustMetadataResponse(
-        schema_version="1",
-        organization_id=str(organization_id),
-        message_id=message_id,
-        not_found=not_found,
-        citation_validation_failed=citation_validation_failed,
-        verification_failed=verification_failed,
-        confidence=ConfidenceTrustRecord(
-            score=confidence_score,
-            category=confidence_category,
-            trust_level=expl.trust_level,
-            citation_support_score=expl.citation_support_score,
-            citation_validation_score=expl.citation_validation_score,
-            citation_coverage_score=expl.citation_coverage_score,
-            retrieval_agreement_score=expl.retrieval_agreement_score,
-            top_similarity=expl.top_similarity,
-            average_similarity=expl.average_similarity,
-            top_rerank_score=expl.top_rerank_score,
-            raw_score=expl.raw_score,
-            citation_validation_multiplier=expl.citation_validation_multiplier,
-            not_found_penalty_multiplier=expl.not_found_penalty_multiplier,
-            freshness_multiplier=expl.freshness_multiplier,
-            ocr_quality_multiplier=expl.ocr_quality_multiplier,
-            conflict_multiplier=expl.conflict_multiplier,
-            table_quality_multiplier=expl.table_quality_multiplier,
-            extraction_quality_multiplier=expl.extraction_quality_multiplier,
-            graph_evidence_boost=expl.graph_evidence_boost,
-            verification_support_score=expl.verification_support_score,
-            not_found_signal=expl.not_found_signal,
-            no_context=expl.no_context,
-            reasons=[
-                ConfidenceReasonRecord(
-                    code=r.code,
-                    label=r.label,
-                    impact=r.impact,
-                    magnitude=r.magnitude,
-                )
-                for r in expl.reasons
-            ],
-        ),
-        citations=citation_records,
-        retrieval=RetrievalDiagnosticsRecord(
-            **retrieval_diagnostics_payload,
-            hybrid_retrieval_enabled=settings.feature_enable_hybrid_retrieval,
-            hybrid_vector_hit_count=hybrid_vector_hit_count,
-            hybrid_keyword_hit_count=hybrid_keyword_hit_count,
-            query_rewriting_applied=query_rewrite_result is not None
-            and query_rewrite_result.rewriting_applied,
-            query_decomposed=query_rewrite_result is not None
-            and query_rewrite_result.decomposition_applied,
-            sub_query_count=(
-                len(query_rewrite_result.sub_queries) if query_rewrite_result is not None else 0
-            ),
-            parent_context_expanded_count=parent_context_expanded_count,
-            graph_context_used=graph_context_result.graph_context_used,
-            graph_context_unavailable=graph_context_result.graph_context_unavailable,
-            graph_chunk_count=graph_context_result.graph_chunk_count,
-            freshness_excluded_count=freshness_excluded_count,
-            freshness_boosted_count=freshness_boosted_count,
-        ),
-        query_interpretation=query_interpretation,
-        grounded_verification=GroundedVerificationRecord(
-            applied=gv_applied,
-            verdict=grounded_verifier_result.verdict if gv_applied else None,
-            score=grounded_verifier_result.verification_score if gv_applied else None,
-            aggregate_support_score=grounded_verifier_result.aggregate_support_score
-            if grounded_verifier_result is not None
-            else 0.0,
-            claim_count=grounded_verifier_result.claim_count
-            if grounded_verifier_result is not None
-            else 0,
-            supported_count=grounded_verifier_result.supported_claim_count
-            if grounded_verifier_result is not None
-            else 0,
-            partially_supported_count=grounded_verifier_result.partially_supported_claim_count
-            if grounded_verifier_result is not None
-            else 0,
-            unsupported_count=grounded_verifier_result.unsupported_claim_count
-            if grounded_verifier_result is not None
-            else 0,
-            unverifiable_count=grounded_verifier_result.unverifiable_claim_count
-            if grounded_verifier_result is not None
-            else 0,
-            conflicting_count=grounded_verifier_result.conflicting_claim_count
-            if grounded_verifier_result is not None
-            else 0,
-            not_enough_evidence_count=grounded_verifier_result.not_enough_evidence_claim_count
-            if grounded_verifier_result is not None
-            else 0,
-            removed_count=len(grounded_verifier_result.removed_claims)
-            if grounded_verifier_result is not None
-            else 0,
-            reason_codes=list(grounded_verifier_result.reason_codes)
-            if grounded_verifier_result is not None
-            else [],
-            claims=_build_claim_support_records(
-                grounded_verifier_result=grounded_verifier_result if gv_applied else None
-            ),
-            mode=grounded_verifier_result.mode if grounded_verifier_result is not None else None,
-            threshold=grounded_verifier_result.threshold
-            if grounded_verifier_result is not None
-            else None,
-        ),
-        model=ModelMetadataRecord(
-            llm_model=llm_model,
-            llm_provider=llm_provider,
-            embedding_model=embedding_model,
-            fallback_used=llm_fallback_used,
-            fallback_from=llm_fallback_from,
-            fallback_to=llm_fallback_to,
-            fallback_reason=llm_fallback_reason,
-            prompt_template_key=prompt_key,
-            prompt_template_version=prompt_ver,
-        ),
-        conflict=ConflictStatusRecord(
-            detected=conflict_detection_result.conflict_detected,
-            agreement_level=conflict_detection_result.agreement_level,
-            conflict_count=len(conflict_detection_result.conflict_pairs),
-            conflicting_document_ids=_list_or_empty(
-                conflict_detection_result.conflicting_document_ids
-            ),
-            preferred_document_ids=_list_or_empty(conflict_detection_result.preferred_document_ids),
-            conflict_summary=conflict_detection_result.conflict_summary
-            if conflict_detection_result.conflict_detected
-            else None,
-        ),
-        policy=PolicyEnforcementRecord(
-            applied=ai_policy_applied,
-            outcome=getattr(ai_policy_result, "outcome", None) if ai_policy_applied else None,
-            violated_rules=list(getattr(ai_policy_result, "violated_rules", []) or []),
-            warning_flags=list(getattr(ai_policy_result, "warning_flags", []) or []),
-            has_disclaimer=bool(getattr(ai_policy_result, "disclaimer_text", None))
-            if ai_policy_applied
-            else False,
-        ),
-        freshness=SourceFreshnessRecord(
-            warning=source_freshness_warning,
-            warning_reason="One or more citations come from stale, draft, unreviewed, deprecated, or archived sources."
-            if source_freshness_warning
-            else None,
-            warning_reasons=_source_freshness_service.build_warning_reasons(
-                stale_count=freshness_stale_count,
-                excluded_count=freshness_excluded_count,
-                unreviewed_count=freshness_unreviewed_count,
-                deprecated_count=freshness_deprecated_count,
-                draft_count=freshness_draft_count,
-                all_excluded_fallback=freshness_all_excluded_fallback,
-            ),
-            stale_count=freshness_stale_count,
-            excluded_count=freshness_excluded_count,
-            boosted_count=freshness_boosted_count,
-            unreviewed_count=freshness_unreviewed_count,
-            deprecated_count=freshness_deprecated_count,
-            draft_count=freshness_draft_count,
-            all_excluded_fallback=freshness_all_excluded_fallback,
-        ),
-        evidence_quality=_build_evidence_quality_record(citation_records),
-        planner_critic=_build_planner_critic_record(
-            planner_result=planner_result,
-            critic_result=critic_result,
-            refiner_result=refiner_result,
-        ),
-        retrieval_method=_build_retrieval_method_record(route_result),
-        tool_orchestration=_build_tool_orchestration_record(orchestration_result),
-        generated_at=generated_at,
-    )
 
 
 @router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
