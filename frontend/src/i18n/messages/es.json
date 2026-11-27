@@ -658,7 +658,7 @@
       },
       "plans": {
         "heading": "Planes para cada etapa de despliegue",
-        "description": "Los precios se muestran intencionalmente como marcadores de contacto hasta que se apruebe el empaquetado final para tu entorno y perfil de uso.",
+        "description": "Cada plan se adapta a tu uso y despliegue. Habla con nosotros para obtener una propuesta a la medida de tu equipo.",
         "contactUs": "Contáctanos",
         "starterBadge": "Para pilotos enfocados",
         "starterTitle": "Inicial",
@@ -686,7 +686,8 @@
         "enterpriseH1": "Avanzados gobernanza políticas y aprobación flows",
         "enterpriseH2": "Personalizado incorporación, éxito planificación, y soporte",
         "enterpriseH3": "revisión de seguridad flujo de trabajo con solución arquitectos",
-        "enterpriseCta": "Contactar con ventas"
+        "enterpriseCta": "Contactar con ventas",
+        "eyebrow": "Planes"
       },
       "usageLimits": {
         "heading": "Guía de uso y límites",
@@ -696,11 +697,12 @@
         "questionsTitle": "Preguntas, tokens y evaluaciones",
         "questionsDetail": "Los controles de uso incluyen volumen de chat/preguntas, presupuestos de tokens y asignación de ejecuciones de evaluación.",
         "storageTitle": "Almacenamiento y organizaciones",
-        "storageDetail": "Los niveles pueden mapearse a límites de almacenamiento, cupos de miembros del equipo y necesidades de gobernanza a nivel de organización."
+        "storageDetail": "Los niveles pueden mapearse a límites de almacenamiento, cupos de miembros del equipo y necesidades de gobernanza a nivel de organización.",
+        "eyebrow": "Uso"
       },
       "comparison": {
         "heading": "Comparación de planes",
-        "description": "Compara capacidades de un vistazo. La vista móvil usa tarjetas apiladas para mayor legibilidad.",
+        "description": "Descubre cómo crecen las capacidades desde un primer piloto hasta un despliegue empresarial.",
         "capability": "Capacidad",
         "starter": "Inicial",
         "team": "Equipo",
@@ -732,7 +734,9 @@
         "rowSupportCapabilityLabel": "Nivel de soporte",
         "rowSupportStarterValue": "Soporte por correo electrónico",
         "rowSupportTeamValue": "Soporte prioritario",
-        "rowSupportEnterpriseValue": "Plan de éxito dedicado"
+        "rowSupportEnterpriseValue": "Plan de éxito dedicado",
+        "eyebrow": "Comparar",
+        "tableCaption": "Capacidades por plan"
       },
       "faq": {
         "title": "Preguntas frecuentes de precios",

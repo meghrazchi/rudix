@@ -658,7 +658,7 @@
       },
       "plans": {
         "heading": "Pläne für jede Einführungsphase",
-        "description": "Die Preise werden bewusst als Kontaktplatzhalter angezeigt, bis die endgültige Paketierung für Ihre Umgebung und Ihr Nutzungsprofil genehmigt ist.",
+        "description": "Jeder Plan wird an Ihre Nutzung und Einführung angepasst. Sprechen Sie mit uns für ein passendes Angebot.",
         "contactUs": "Kontaktieren Sie uns",
         "starterBadge": "Für gezielte Pilotprojekte",
         "starterTitle": "Starter",
@@ -686,7 +686,8 @@
         "enterpriseH1": "Erweiterte Governance-Richtlinien und Genehmigungsworkflows",
         "enterpriseH2": "Individuelles Onboarding, Erfolgsplanung und Support",
         "enterpriseH3": "Sicherheitsprüfungsworkflow mit Lösungsarchitekten",
-        "enterpriseCta": "Vertrieb kontaktieren"
+        "enterpriseCta": "Vertrieb kontaktieren",
+        "eyebrow": "Pläne"
       },
       "usageLimits": {
         "heading": "Nutzungs- und Kontingentleitfaden",
@@ -696,11 +697,12 @@
         "questionsTitle": "Fragen, Token und Bewertungen",
         "questionsDetail": "Nutzungskontrollen umfassen Chat-/Fragenvolumen, Token-Budgets und Bewertungslaufkontingente.",
         "storageTitle": "Speicher und Organisationen",
-        "storageDetail": "Stufen können auf Speicherrahmen, Teammitgliederkontingente und organisationsweite Governance-Anforderungen abgestimmt werden."
+        "storageDetail": "Stufen können auf Speicherrahmen, Teammitgliederkontingente und organisationsweite Governance-Anforderungen abgestimmt werden.",
+        "eyebrow": "Nutzung"
       },
       "comparison": {
         "heading": "Planvergleich",
-        "description": "Vergleichen Sie Funktionen auf einen Blick. Die mobile Ansicht verwendet gestapelte Karten für bessere Lesbarkeit.",
+        "description": "Sehen Sie, wie die Funktionen vom ersten Pilotprojekt bis zur unternehmensweiten Einführung wachsen.",
         "capability": "Funktion",
         "starter": "Starter",
         "team": "Team",
@@ -732,7 +734,9 @@
         "rowSupportCapabilityLabel": "Support-Stufe",
         "rowSupportStarterValue": "E-Mail-Support",
         "rowSupportTeamValue": "Priorisierter Support",
-        "rowSupportEnterpriseValue": "Dedizierter Erfolgsplan"
+        "rowSupportEnterpriseValue": "Dedizierter Erfolgsplan",
+        "eyebrow": "Vergleich",
+        "tableCaption": "Funktionen nach Plan"
       },
       "faq": {
         "title": "Preis-FAQ",

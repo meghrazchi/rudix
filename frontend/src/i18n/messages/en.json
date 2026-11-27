@@ -658,7 +658,7 @@
       },
       "plans": {
         "heading": "Plans for every rollout stage",
-        "description": "Prices are intentionally shown as contact placeholders until final packaging is approved for your environment and usage profile.",
+        "description": "Every plan is tailored to your usage and rollout. Talk with us for a quote that fits your team.",
         "contactUs": "Contact us",
         "starterBadge": "For focused pilots",
         "starterTitle": "Starter",
@@ -686,7 +686,8 @@
         "enterpriseH1": "Advanced governance policies and approval flows",
         "enterpriseH2": "Custom onboarding, success planning, and support",
         "enterpriseH3": "Security review workflow with solution architects",
-        "enterpriseCta": "Contact Sales"
+        "enterpriseCta": "Contact Sales",
+        "eyebrow": "Plans"
       },
       "usageLimits": {
         "heading": "Usage and limit guidance",
@@ -696,11 +697,12 @@
         "questionsTitle": "Questions, tokens, and evaluations",
         "questionsDetail": "Usage controls include chat/question volume, token budgets, and evaluation run allocation.",
         "storageTitle": "Storage and organizations",
-        "storageDetail": "Tiers can map to storage envelopes, team-member allowances, and organization-level governance needs."
+        "storageDetail": "Tiers can map to storage envelopes, team-member allowances, and organization-level governance needs.",
+        "eyebrow": "Usage"
       },
       "comparison": {
         "heading": "Plan comparison",
-        "description": "Compare capabilities at a glance. Mobile view uses stacked cards for readability.",
+        "description": "See how capabilities grow from a first pilot to an enterprise rollout.",
         "capability": "Capability",
         "starter": "Starter",
         "team": "Team",
@@ -732,7 +734,9 @@
         "rowSupportCapabilityLabel": "Support level",
         "rowSupportStarterValue": "Email support",
         "rowSupportTeamValue": "Priority support",
-        "rowSupportEnterpriseValue": "Dedicated success plan"
+        "rowSupportEnterpriseValue": "Dedicated success plan",
+        "eyebrow": "Compare",
+        "tableCaption": "Capabilities by plan"
       },
       "faq": {
         "title": "Pricing FAQ",

@@ -658,7 +658,7 @@
       },
       "plans": {
         "heading": "Des plans pour chaque étape de déploiement",
-        "description": "Les prix sont volontairement affichés comme des espaces réservés de contact jusqu’à validation du packaging final pour votre environnement et votre profil d’utilisation.",
+        "description": "Chaque offre est adaptée à votre usage et à votre déploiement. Contactez-nous pour un devis adapté à votre équipe.",
         "contactUs": "Nous contacter",
         "starterBadge": "Pour des pilotes ciblés",
         "starterTitle": "Starter",
@@ -686,7 +686,8 @@
         "enterpriseH1": "Politiques de gouvernance avancées et flux d’approbation",
         "enterpriseH2": "Onboarding personnalisé, plan de réussite et support",
         "enterpriseH3": "Workflow de revue de sécurité avec des architectes solutions",
-        "enterpriseCta": "Contacter l’équipe commerciale"
+        "enterpriseCta": "Contacter l’équipe commerciale",
+        "eyebrow": "Offres"
       },
       "usageLimits": {
         "heading": "Guide d’utilisation et de limites",
@@ -696,11 +697,12 @@
         "questionsTitle": "Questions, jetons et évaluations",
         "questionsDetail": "Les contrôles d’utilisation incluent le volume de chat/questions, les budgets de jetons et l’allocation des exécutions d’évaluation.",
         "storageTitle": "Stockage et organisations",
-        "storageDetail": "Les niveaux peuvent correspondre à des enveloppes de stockage, des quotas de membres d’équipe et des besoins de gouvernance au niveau organisation."
+        "storageDetail": "Les niveaux peuvent correspondre à des enveloppes de stockage, des quotas de membres d’équipe et des besoins de gouvernance au niveau organisation.",
+        "eyebrow": "Utilisation"
       },
       "comparison": {
         "heading": "Comparaison des plans",
-        "description": "Comparez les capacités en un coup d’œil. La vue mobile utilise des cartes empilées pour une meilleure lisibilité.",
+        "description": "Découvrez comment les fonctionnalités évoluent d’un premier pilote à un déploiement à l’échelle de l’entreprise.",
         "capability": "Capacité",
         "starter": "Starter",
         "team": "Équipe",
@@ -732,7 +734,9 @@
         "rowSupportCapabilityLabel": "Niveau de support",
         "rowSupportStarterValue": "Support par e-mail",
         "rowSupportTeamValue": "Support prioritaire",
-        "rowSupportEnterpriseValue": "Dedicated succès plan"
+        "rowSupportEnterpriseValue": "Dedicated succès plan",
+        "eyebrow": "Comparer",
+        "tableCaption": "Fonctionnalités par offre"
       },
       "faq": {
         "title": "Tarifs FAQ",
