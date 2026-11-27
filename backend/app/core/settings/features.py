@@ -57,9 +57,10 @@ class FeaturesSettings(BaseModel):
     # to true in 0.2.0, flips to false in 0.5.0, and is removed in 1.0.0.
     chat_ws_ticket_ttl_seconds: int = Field(default=30, ge=5, le=300)
     chat_ws_allow_query_token: bool = True
-    # R05-01: POST /chat runs the staged chat pipeline when true; false keeps the legacy
-    # query_chat body. Flips to true by the end of 0.5.0, then the legacy body is deleted.
-    chat_pipeline_v2: bool = False
+    # R05-01/R05-02: POST /chat and the chat WebSocket run the staged chat pipeline (short
+    # database sessions, tenant-bound) when true; false keeps the legacy bodies until S3
+    # deletes them.
+    chat_pipeline_v2: bool = True
     # Table-aware retrieval (F298): boost table chunks when the query looks tabular.
     # feature_enable_table_aware_retrieval gates the entire feature.
     # table_retrieval_boost_multiplier: score multiplier applied to table chunks on table-like queries.
