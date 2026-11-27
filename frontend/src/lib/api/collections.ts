@@ -1,5 +1,8 @@
 import { apiRequest } from "@/lib/api/request";
-import type { DocumentListItemResponse } from "@/lib/api/documents";
+import type { Overlay, WithOptional } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
+type Schemas = components["schemas"];
 
 export type CollectionAccessPolicy =
   | "org_wide"
@@ -28,98 +31,54 @@ export type RuleOperator =
 
 export type RuleLogic = "and" | "or";
 
-export type RuleCondition = {
-  field: RuleField;
-  operator: RuleOperator;
-  value: string | string[];
-};
+// The schema types the value as free-form; the UI only produces a string or a list.
+export type RuleCondition = Overlay<
+  Schemas["RuleCondition"],
+  { value: string | string[] }
+>;
 
-export type DynamicRuleSet = {
-  logic: RuleLogic;
-  conditions: RuleCondition[];
-};
+export type DynamicRuleSet = Overlay<
+  Schemas["DynamicRuleSet"],
+  { conditions: RuleCondition[] }
+>;
 
-export type CollectionListItemResponse = {
-  collection_id: string;
-  name: string;
-  description: string | null;
-  owner_id: string;
-  owner_email: string | null;
-  document_count: number;
-  indexed_count: number;
-  access_policy: CollectionAccessPolicy;
-  is_dynamic: boolean;
-  last_rule_evaluated_at: string | null;
-  review_status?:
-    | "current"
-    | "trusted"
-    | "needs_review"
-    | "stale"
-    | "expired"
-    | "archived";
-  review_owner_id?: string | null;
-  review_due_date?: string | null;
-  expiry_date?: string | null;
-  trust_level?: string | null;
-  created_at: string;
-  updated_at: string;
-};
+// review_status has a server default; fixtures and older payloads may omit it.
+export type CollectionListItemResponse = WithOptional<
+  Schemas["CollectionListItemResponse"],
+  "review_status"
+>;
 
-export type CollectionDetailResponse = CollectionListItemResponse & {
-  created_by_email: string | null;
-  rule_schema: DynamicRuleSet | null;
-};
+export type CollectionDetailResponse = Overlay<
+  WithOptional<Schemas["CollectionDetailResponse"], "review_status">,
+  { rule_schema: DynamicRuleSet | null }
+>;
 
-export type CollectionListResponse = {
-  items: CollectionListItemResponse[];
-  total: number;
-  freshness?: CollectionListItemResponse["review_status"] | null;
-};
+export type CollectionListResponse = Overlay<
+  Schemas["CollectionListResponse"],
+  { items: CollectionListItemResponse[] }
+>;
 
-export type CreateCollectionRequest = {
-  name: string;
-  description?: string | null;
-  access_policy?: CollectionAccessPolicy;
-  is_dynamic?: boolean;
-  rule_schema?: DynamicRuleSet | null;
-};
+export type CreateCollectionRequest = Schemas["CreateCollectionRequest"];
 
-export type UpdateCollectionRequest = {
-  name?: string;
-  description?: string | null;
-  access_policy?: CollectionAccessPolicy;
-  review_status?:
-    | "current"
-    | "trusted"
-    | "needs_review"
-    | "stale"
-    | "expired"
-    | "archived"
-    | null;
-  review_owner_id?: string | null;
-  review_due_date?: string | null;
-  expiry_date?: string | null;
-  trust_level?: string | null;
-};
+export type UpdateCollectionRequest = Schemas["UpdateCollectionRequest"];
 
-export type DeleteCollectionResponse = {
-  collection_id: string;
-  archived: boolean;
-};
+export type DeleteCollectionResponse = Schemas["DeleteCollectionResponse"];
 
-export type CollectionDocumentsResponse = {
-  items: DocumentListItemResponse[];
-  total: number;
-};
+export type CollectionDocumentItem = WithOptional<
+  Schemas["CollectionDocumentItem"],
+  "review_status"
+>;
 
-export type AddDocumentToCollectionResponse = {
-  collection_id: string;
-  document_id: string;
-};
+export type CollectionDocumentsResponse = Overlay<
+  Schemas["CollectionDocumentsResponse"],
+  { items: CollectionDocumentItem[] }
+>;
 
-export type DocumentCollectionsResponse = {
-  items: CollectionListItemResponse[];
-};
+export type AddDocumentToCollectionResponse =
+  Schemas["AddDocumentToCollectionResponse"];
+
+export type DocumentCollectionsResponse =
+  Schemas["DocumentCollectionsResponse"];
 
 export type ListCollectionsOptions = {
   limit?: number;
@@ -136,21 +95,12 @@ export type ListCollectionsOptions = {
 
 // ── Access policy types ────────────────────────────────────────────────────────
 
-export type CollectionAccessGrant = {
-  grantee_type: GranteeType;
-  grantee_value: string; // role name or user_id
-};
+export type CollectionAccessGrant = Schemas["CollectionAccessGrantItem"];
 
-export type CollectionPolicyResponse = {
-  collection_id: string;
-  access_policy: CollectionAccessPolicy;
-  grants: CollectionAccessGrant[];
-};
+export type CollectionPolicyResponse = Schemas["CollectionPolicyResponse"];
 
-export type UpdateCollectionPolicyRequest = {
-  access_policy: CollectionAccessPolicy;
-  grants?: CollectionAccessGrant[];
-};
+export type UpdateCollectionPolicyRequest =
+  Schemas["UpdateCollectionPolicyRequest"];
 
 // ── Collection CRUD ────────────────────────────────────────────────────────────
 
@@ -303,35 +253,13 @@ export async function setDocumentCollections(
 
 // ── Dynamic rules ──────────────────────────────────────────────────────────────
 
-export type CollectionRulesResponse = {
-  collection_id: string;
-  is_dynamic: boolean;
-  rule_schema: DynamicRuleSet | null;
-  last_rule_evaluated_at: string | null;
-  matched_count: number;
-};
+export type CollectionRulesResponse = Schemas["CollectionRulesResponse"];
 
-export type PreviewRulesDocumentItem = {
-  document_id: string;
-  filename: string;
-  file_type: string;
-  language: string | null;
-  status: string;
-  trust_status: string | null;
-  tags: string | null;
-  ingestion_source: string | null;
-};
+export type PreviewRulesDocumentItem = Schemas["PreviewRulesDocumentItem"];
 
-export type PreviewRulesResponse = {
-  total: number;
-  items: PreviewRulesDocumentItem[];
-};
+export type PreviewRulesResponse = Schemas["PreviewRulesResponse"];
 
-export type RefreshRulesResponse = {
-  collection_id: string;
-  matched_count: number;
-  last_rule_evaluated_at: string | null;
-};
+export type RefreshRulesResponse = Schemas["RefreshRulesResponse"];
 
 export async function setCollectionRules(
   collectionId: string,

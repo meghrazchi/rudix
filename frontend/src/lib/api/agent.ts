@@ -1,200 +1,60 @@
 import { apiRequest } from "@/lib/api/request";
 import type { ChatSourceScopeRequest } from "@/lib/api/chat";
+import type {
+  Overlay,
+  WithOptional,
+  WithRequired,
+} from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
 
-export type AgentRuntimeMode = "auto" | "answer" | "summarize" | "compare";
+type Schemas = components["schemas"];
 
-export type AgentBudgetConfig = {
-  max_steps?: number;
-  max_runtime_ms?: number;
-  max_tool_calls?: number;
-  max_total_tokens?: number | null;
-  max_total_cost_usd?: number | null;
-};
+export type AgentRuntimeMode = Schemas["AgentRuntimeMode"];
 
-export type AgentRuntimeRequest = {
-  objective: string;
-  mode?: AgentRuntimeMode;
-  question?: string | null;
-  document_query?: string | null;
-  document_ids?: string[];
+export type AgentBudgetConfig = Partial<Schemas["AgentBudgetConfig-Input"]>;
+
+export type AgentRuntimeRequest = WithOptional<
+  Omit<Schemas["AgentRuntimeRequest-Input"], "budget" | "source_scope">,
+  "mode"
+> & {
   source_scope?: ChatSourceScopeRequest | null;
-  top_k?: number;
-  rerank?: boolean;
-  approval_ids?: Record<string, string>;
   budget?: AgentBudgetConfig | null;
-  metadata?: Record<string, unknown>;
 };
 
-export type AgentRuntimeError = {
-  code: string;
-  message: string;
-  retryable: boolean;
-  request_id?: string | null;
-  details: Record<string, unknown>;
-};
+export type AgentRuntimeError = Schemas["AgentRuntimeError"];
 
-export type AgentRuntimeOutcome = {
-  answer: string;
-  citations: Array<Record<string, unknown>>;
-  confidence: Record<string, unknown>;
-  not_found: boolean;
-  mode: AgentRuntimeMode;
-};
+export type AgentRuntimeOutcome = Schemas["AgentRuntimeOutcome"];
 
-export type AgentRuntimeResult = {
-  run_id: string;
-  status: string;
-  steps_executed: number;
-  tool_calls_executed: number;
-  total_tokens: number;
-  total_cost_usd: number;
-  outcome?: AgentRuntimeOutcome | null;
-  error?: AgentRuntimeError | null;
-};
+export type AgentRuntimeResult = Schemas["AgentRuntimeResult"];
 
-export type AgentRunCreateRequest = {
-  agentic_mode: boolean;
-  request: AgentRuntimeRequest;
-};
+export type AgentRunCreateRequest = Overlay<
+  Schemas["AgentRunCreateRequest"],
+  { request: AgentRuntimeRequest }
+>;
 
-export type AgentRunCreateResponse = {
-  run: AgentRuntimeResult;
-};
+export type AgentRunCreateResponse = Schemas["AgentRunCreateResponse"];
 
-export type AgentStepResponse = {
-  step_id: string;
-  sequence: number;
-  step_name: string;
-  status: string;
-  inputs: Record<string, unknown>;
-  outputs: Record<string, unknown>;
-  metrics: Record<string, unknown>;
-  observation: Record<string, unknown>;
-  error_message: string | null;
-  error_details: Record<string, unknown>;
-  started_at: string | null;
-  completed_at: string | null;
-  duration_ms: number | null;
-  created_at: string;
-  updated_at: string;
-};
+export type AgentStepResponse = Schemas["AgentStepResponse"];
 
-export type AgentToolCallResponse = {
-  tool_call_id: string;
-  agent_step_id: string | null;
-  call_id: string;
-  tool_name: string;
-  surface: string;
-  effect_policy: string;
-  status: string;
-  attempt_number: number;
-  arguments: Record<string, unknown>;
-  output: Record<string, unknown>;
-  error: Record<string, unknown>;
-  input_size_bytes: number | null;
-  output_size_bytes: number | null;
-  latency_ms: number | null;
-  started_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type AgentToolCallResponse = Schemas["AgentToolCallResponse"];
 
-export type AgentApprovalResponse = {
-  approval_id: string;
-  agent_run_id: string;
-  agent_step_id: string | null;
-  tool_call_id: string | null;
-  requested_by_user_id: string | null;
-  decided_by_user_id: string | null;
-  status: string;
-  request_summary: string | null;
-  decision_reason: string | null;
-  request_payload: Record<string, unknown>;
-  decision_payload: Record<string, unknown>;
-  expires_at: string | null;
-  decided_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type AgentApprovalResponse = Schemas["AgentApprovalResponse"];
 
-export type AgentApprovalQueueItem = {
-  approval_id: string;
-  agent_run_id: string;
-  agent_step_id: string | null;
-  tool_call_id: string | null;
-  requested_by_user_id: string | null;
-  status: string;
-  risk_level: string | null;
-  tool_name: string | null;
-  request_summary: string | null;
-  request_payload: Record<string, unknown>;
-  expires_at: string | null;
-  run_objective: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type AgentApprovalQueueItem = Schemas["AgentApprovalQueueItem"];
 
-export type AgentApprovalQueueResponse = {
-  approvals: AgentApprovalQueueItem[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type AgentApprovalQueueResponse = Schemas["AgentApprovalQueueResponse"];
 
-export type AgentApprovalDecisionRequest = {
-  status: "approved" | "rejected" | "changes_requested";
-  reason?: string | null;
-  decision_payload?: Record<string, unknown>;
-};
+export type AgentApprovalDecisionRequest =
+  Schemas["AgentApprovalDecisionRequest"];
 
-export type AgentRunDetailResponse = {
-  run_id: string;
-  organization_id: string;
-  user_id: string | null;
-  status: string;
-  surface: string;
-  objective: string | null;
-  max_steps: number | null;
-  max_parallel_tool_calls: number | null;
-  budget: Record<string, unknown>;
-  costs: Record<string, unknown>;
-  outcome: Record<string, unknown>;
-  observations: Record<string, unknown>;
-  total_cost_usd: number | null;
-  trace_request_id: string | null;
-  error_message: string | null;
-  error_details: Record<string, unknown>;
-  started_at: string | null;
-  completed_at: string | null;
-  cancelled_at: string | null;
-  created_at: string;
-  updated_at: string;
-  steps: AgentStepResponse[];
-  tool_calls: AgentToolCallResponse[];
-  approvals: AgentApprovalResponse[];
-};
+export type AgentRunDetailResponse = WithRequired<
+  Schemas["AgentRunDetailResponse"],
+  "steps" | "tool_calls" | "approvals"
+>;
 
-export type AgentRunListItem = {
-  run_id: string;
-  status: string;
-  objective: string | null;
-  total_cost_usd: number | null;
-  trace_request_id: string | null;
-  error_message: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-  cancelled_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type AgentRunListItem = Schemas["AgentRunListItem"];
 
-export type AgentRunListResponse = {
-  runs: AgentRunListItem[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type AgentRunListResponse = Schemas["AgentRunListResponse"];
 
 export async function listAgentApprovals(params?: {
   limit?: number;
@@ -266,13 +126,7 @@ export async function decideAgentRunApproval(
   );
 }
 
-export type AgentApprovalCreateRequest = {
-  request_summary?: string | null;
-  request_payload?: Record<string, unknown>;
-  expires_in_seconds?: number | null;
-  agent_step_id?: string | null;
-  tool_call_id?: string | null;
-};
+export type AgentApprovalCreateRequest = Schemas["AgentApprovalCreateRequest"];
 
 export async function createAgentRunApproval(
   runId: string,
@@ -305,38 +159,9 @@ export async function commentAgentRunApproval(
 
 // ── Trace replay ──────────────────────────────────────────────────────────────
 
-export type AgentTraceEvent = {
-  event_type: string;
-  run_id: string;
-  step_id?: string | null;
-  tool_call_id?: string | null;
-  approval_id?: string | null;
-  timestamp: string;
-  data: Record<string, unknown>;
-};
+export type AgentTraceEvent = Schemas["AgentTraceEventResponse"];
 
-export type AgentTraceResponse = {
-  run_id: string;
-  organization_id: string;
-  status: string;
-  objective: string | null;
-  surface: string;
-  started_at: string | null;
-  completed_at: string | null;
-  cancelled_at: string | null;
-  created_at: string;
-  total_cost_usd: string | null;
-  error_message: string | null;
-  trace_request_id: string | null;
-  redacted: boolean;
-  timeline: AgentTraceEvent[];
-  total_events: number;
-  step_count: number;
-  tool_call_count: number;
-  approval_count: number;
-  policy_snapshot: Record<string, unknown> | null;
-  shared_via_token?: boolean;
-};
+export type AgentTraceResponse = Schemas["AgentTraceResponse"];
 
 export type AgentTraceExportResponse = {
   run_id: string;
@@ -383,34 +208,14 @@ export type AgentTraceExportResponse = {
   exported_at: string;
 };
 
-export type AgentTraceShareRequest = {
-  label?: string | null;
-  expires_in_hours?: number;
-};
+export type AgentTraceShareRequest = Schemas["AgentTraceShareRequest"];
 
-export type AgentTraceShareResponse = {
-  token_id: string;
-  token: string;
-  expires_at: string;
-  label: string | null;
-  share_url: string;
-};
+export type AgentTraceShareResponse = Schemas["AgentTraceShareResponse"];
 
-export type AgentTraceRetentionResponse = {
-  organization_id: string;
-  retain_days: number;
-  redact_prompts: boolean;
-  redact_raw_content: boolean;
-  redact_tool_arguments: boolean;
-  is_default: boolean;
-};
+export type AgentTraceRetentionResponse =
+  Schemas["AgentTraceRetentionResponse"];
 
-export type AgentTraceRetentionRequest = {
-  retain_days?: number;
-  redact_prompts?: boolean;
-  redact_raw_content?: boolean;
-  redact_tool_arguments?: boolean;
-};
+export type AgentTraceRetentionRequest = Schemas["AgentTraceRetentionRequest"];
 
 export async function getAgentRunTrace(
   runId: string,
