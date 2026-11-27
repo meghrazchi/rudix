@@ -135,7 +135,11 @@ async def test_shadow_backfill_resume_swap_verify(pg_engine: AsyncEngine, probe:
     assert await pm.verify(pg_engine, PROBE, pm.shadow_name(PROBE)) == []
 
     # Writes after the backfill: a new row and an update of a copied row reach the swap.
-    await _insert(pg_engine, probe, [NOW])
+    # The new row is later than every copied row, as a real insert is. At exactly ``NOW`` it
+    # tied the backfill cursor's created_at, and with ``updated_at`` older than the shadow it
+    # was copied only when its random id sorted after the cursor's (flaky once the wall
+    # clock passed ``NOW``).
+    await _insert(pg_engine, probe, [NOW + timedelta(minutes=1)])
     async with pg_engine.begin() as conn:
         await conn.execute(
             text(
