@@ -1,0 +1,19 @@
+{
+  "chat_messages": [],
+  "chat_sessions": [],
+  "citations": [],
+  "error": {
+    "code": "chat_persistence_failed",
+    "message": "Failed to persist chat response"
+  },
+  "provider_call_count": 1,
+  "provider_calls": [
+    {
+      "kind": "answer",
+      "prompt_sha256": "44d3e0588ffe273bd53d596c8bce756d8555214201ddee08af8ac3e7d533553c"
+    }
+  ],
+  "questions_quota_delta": 0,
+  "status_code": 500,
+  "usage_events": []
+}

@@ -40,6 +40,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from app.application.chat.pipeline.stages import rewrite as rewrite_stage
 from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.clients import qdrant_client as qdrant_module
@@ -483,6 +484,11 @@ async def test_query_chat_response_includes_trust_metadata(
         AsyncMock(return_value=True),
     )
     monkeypatch.setattr(
+        rewrite_stage,
+        "_resolve_query_rewrite_preview_enabled",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
         chat_api._query_rewriting_service,
         "rewrite",
         AsyncMock(
@@ -574,6 +580,11 @@ async def test_query_chat_trust_metadata_persisted_in_db(
     monkeypatch.setattr(settings, "feature_enable_query_rewriting", True)
     monkeypatch.setattr(
         chat_api,
+        "_resolve_query_rewrite_preview_enabled",
+        AsyncMock(return_value=False),
+    )
+    monkeypatch.setattr(
+        rewrite_stage,
         "_resolve_query_rewrite_preview_enabled",
         AsyncMock(return_value=False),
     )

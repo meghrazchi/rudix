@@ -1,0 +1,19 @@
+{
+  "chat_messages": [],
+  "chat_sessions": [
+    {
+      "id": "<uuid:1>",
+      "title": "How much annual leave is provided?"
+    }
+  ],
+  "citations": [],
+  "error": {
+    "code": "retrieval_failed",
+    "message": "Retrieval is unavailable"
+  },
+  "provider_call_count": 0,
+  "provider_calls": [],
+  "questions_quota_delta": 0,
+  "status_code": 503,
+  "usage_events": []
+}

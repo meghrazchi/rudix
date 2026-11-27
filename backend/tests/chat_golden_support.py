@@ -19,11 +19,14 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid5
 
 import pytest
 from chat_golden_providers import RecordingChatProvider
+from chat_golden_state import persisted_state
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,15 +41,13 @@ from test_chat_transport_parity import _SessionLocalOverride
 from app.auth.token_codec import create_app_access_token
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
+from app.domains.chat.schemas.chat import ChatQueryRequest
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.interfaces.http import chat as chat_api
-from app.models.chat import ChatMessage, ChatSession
-from app.models.citation import Citation
 from app.models.document import DocumentChunk
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.quotas import OrgQuotaUsage
-from app.models.usage import UsageEvent
 from app.models.user import User
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "chat_golden"
@@ -185,6 +186,37 @@ async def ask_http(client: AsyncClient, world: GoldenWorld) -> dict[str, Any]:
     return {"status_code": response.status_code, "response": body}
 
 
+async def ask_http_direct(db_session: AsyncSession, world: GoldenWorld) -> dict[str, Any]:
+    """Call ``query_chat`` in-process, the way the bot service does.
+
+    Same transcript as ``ask_http``; it exists because code awaited inside the ASGI request
+    is not traced by coverage in this test setup, so the pipeline lines are measured here.
+    """
+    request = SimpleNamespace(
+        state=SimpleNamespace(request_id="6a1f7c2e-0d4b-4e8a-9c3f-5b2d1e0a9f87"), headers={}
+    )
+    principal = chat_api.AuthenticatedPrincipal(
+        user_id=str(world.user.id),
+        organization_id=str(world.organization.id),
+        email=world.user.email,
+        roles=[world.role.value],
+        auth_provider="app",
+    )
+    try:
+        response = await chat_api.query_chat(
+            request=request,  # type: ignore[arg-type]
+            payload=ChatQueryRequest.model_validate(world.payload),
+            principal=principal,
+            _=None,
+            db_session=db_session,
+        )
+    except HTTPException as exc:
+        return {"status_code": exc.status_code, "error": exc.detail}
+    body = json.loads(response.model_dump_json())
+    body.pop("trust_metadata", None)
+    return {"status_code": 200, "response": body}
+
+
 def _collapse_ws_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     collapsed: list[dict[str, Any]] = []
     for event in events:
@@ -247,117 +279,6 @@ async def ask_ws(
 
 
 # ---------------------------------------------------------------------------
-# Persisted state
-# ---------------------------------------------------------------------------
-
-
-def _decimal(value: object) -> object:
-    if isinstance(value, Decimal):
-        return float(value)
-    return value
-
-
-async def persisted_state(db_session: AsyncSession, organization_id: UUID) -> dict[str, Any]:
-    db_session.expire_all()
-    sessions = list(
-        (
-            await db_session.execute(
-                select(ChatSession)
-                .where(ChatSession.organization_id == organization_id)
-                .order_by(ChatSession.created_at)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    session_ids = [row.id for row in sessions]
-    messages: list[ChatMessage] = []
-    if session_ids:
-        messages = list(
-            (
-                await db_session.execute(
-                    select(ChatMessage).where(ChatMessage.chat_session_id.in_(session_ids))
-                )
-            )
-            .scalars()
-            .all()
-        )
-    messages.sort(key=lambda m: (m.created_at, 0 if m.role == "user" else 1))
-    message_ids = [row.id for row in messages]
-    citations: list[Citation] = []
-    if message_ids:
-        citations = list(
-            (
-                await db_session.execute(
-                    select(Citation).where(Citation.chat_message_id.in_(message_ids))
-                )
-            )
-            .scalars()
-            .all()
-        )
-    order = {message_id: index for index, message_id in enumerate(message_ids)}
-    citations.sort(key=lambda c: (order[c.chat_message_id], c.created_at, c.text_snippet))
-    usage = list(
-        (
-            await db_session.execute(
-                select(UsageEvent)
-                .where(UsageEvent.organization_id == organization_id)
-                .order_by(UsageEvent.created_at)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    return {
-        "chat_sessions": [{"id": str(row.id), "title": row.title} for row in sessions],
-        "chat_messages": [
-            {
-                "id": str(row.id),
-                "chat_session_id": str(row.chat_session_id),
-                "role": row.role,
-                "content": row.content,
-                "confidence_score": _decimal(row.confidence_score),
-                "model_name": row.model_name,
-                "token_input_count": row.token_input_count,
-                "token_output_count": row.token_output_count,
-                "cost_usd": _decimal(row.cost_usd),
-                "prompt_template_version_id": (
-                    str(row.prompt_template_version_id)
-                    if row.prompt_template_version_id is not None
-                    else None
-                ),
-                "trust_metadata_json": row.trust_metadata_json,
-            }
-            for row in messages
-        ],
-        "citations": [
-            {
-                "chat_message_id": str(row.chat_message_id),
-                "document_id": str(row.document_id),
-                "chunk_id": str(row.chunk_id),
-                "page_number": row.page_number,
-                "text_snippet": row.text_snippet,
-                "similarity_score": _decimal(row.similarity_score),
-                "rerank_score": _decimal(row.rerank_score),
-            }
-            for row in citations
-        ],
-        "usage_events": [
-            {
-                "event_type": row.event_type,
-                "model_name": row.model_name,
-                "provider_key": row.provider_key,
-                "input_tokens": row.input_tokens,
-                "output_tokens": row.output_tokens,
-                "cost_usd": _decimal(row.cost_usd),
-                "metadata": row.metadata_json,
-            }
-            for row in usage
-        ],
-    }
-
-
-# ---------------------------------------------------------------------------
 # Recording and normalisation
 # ---------------------------------------------------------------------------
 
@@ -374,6 +295,8 @@ async def record_transcript(
     before = await _question_usage(db_session, organization_id)
     if transport == "http":
         outcome = await ask_http(client, world)
+    elif transport == "http_direct":
+        outcome = await ask_http_direct(db_session, world)
     else:
         outcome = await ask_ws(db_session, monkeypatch, world)
     persisted = await persisted_state(db_session, organization_id)
@@ -475,10 +398,12 @@ def _dump(transcript: dict[str, Any]) -> str:
     return json.dumps(transcript, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
-def assert_matches_golden(scenario: str, transport: str, transcript: dict[str, Any]) -> None:
+def assert_matches_golden(
+    scenario: str, transport: str, transcript: dict[str, Any], *, allow_update: bool = True
+) -> None:
     path = fixture_path(scenario, transport)
     rendered = _dump(transcript)
-    if os.environ.get(UPDATE_ENV) == "1":
+    if allow_update and os.environ.get(UPDATE_ENV) == "1":
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(rendered, encoding="utf-8")
         return

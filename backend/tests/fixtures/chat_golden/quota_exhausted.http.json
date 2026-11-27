@@ -1,0 +1,24 @@
+{
+  "chat_messages": [],
+  "chat_sessions": [],
+  "citations": [],
+  "error": {
+    "action": "Upgrade your plan or reduce chat volume.",
+    "code": "plan_limit_exceeded",
+    "current_value": 0,
+    "hard_limit": 0,
+    "message": "Chat Questions usage would exceed the plan limit (1/0).",
+    "organization_id": "<org>",
+    "quota_type": "questions",
+    "requested_amount": 1,
+    "reset_window": "per_day",
+    "resource": "chat questions",
+    "retryable": true,
+    "soft_limit": 0
+  },
+  "provider_call_count": 0,
+  "provider_calls": [],
+  "questions_quota_delta": 0,
+  "status_code": 403,
+  "usage_events": []
+}

@@ -342,18 +342,31 @@ SCENARIOS: dict[str, tuple[Setup, OrganizationRole, dict[str, Any], frozenset[st
     "stale_deprecated": (_stale, OrganizationRole.member, {}, frozenset()),
 }
 
-TRANSPORTS = ("http", "ws")
+# (transport, CHAT_PIPELINE_V2). The pipeline must reproduce the HTTP goldens recorded through
+# the legacy query_chat body; WebSocket converges in S2.
+# "http_direct" calls query_chat in-process (as the bot service does) and compares with the
+# HTTP golden; coverage only traces the pipeline on that path.
+RUNS = [
+    pytest.param("http", False, id="http"),
+    pytest.param("http", True, id="http-v2"),
+    pytest.param("http_direct", True, id="http-v2-direct"),
+    pytest.param("ws", False, id="ws"),
+]
 
 
-async def _run(
-    scenario: str,
+ScenarioSpec = tuple[Setup, OrganizationRole, dict[str, Any], frozenset[str]]
+
+
+async def run_golden(
+    spec: ScenarioSpec,
     transport: str,
     *,
     client: AsyncClient,
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> dict[str, Any]:
-    setup, role, responders, fail_kinds = SCENARIOS[scenario]
+    """Seed a principal, install the recording provider, run the setup, record a transcript."""
+    setup, role, responders, fail_kinds = spec
     user, organization, _ = await _seed_principal(db_session, role=role)
     provider = RecordingChatProvider(responders=responders, fail_kinds=fail_kinds)
     install_providers(monkeypatch, provider)
@@ -376,20 +389,29 @@ async def _run(
     )
 
 
-@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize(("transport", "pipeline_v2"), RUNS)
 @pytest.mark.parametrize("scenario", list(SCENARIOS))
 async def test_chat_golden_transcript(
     scenario: str,
     transport: str,
+    pipeline_v2: bool,
     chat_query_client: AsyncClient,  # noqa: F811
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    transcript = await _run(
-        scenario,
+    monkeypatch.setattr(settings, "chat_pipeline_v2", pipeline_v2)
+    transcript = await run_golden(
+        SCENARIOS[scenario],
         transport,
         client=chat_query_client,
         db_session=db_session,
         monkeypatch=monkeypatch,
     )
-    assert_matches_golden(scenario, transport, transcript)
+    # The pipeline run never rewrites a fixture: it must match what the legacy body recorded.
+    fixture_transport = "http" if transport == "http_direct" else transport
+    assert_matches_golden(
+        scenario,
+        fixture_transport,
+        transcript,
+        allow_update=transport != "http_direct" and not pipeline_v2,
+    )

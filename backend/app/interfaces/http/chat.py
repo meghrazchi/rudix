@@ -45,6 +45,11 @@ from app.application.chat.pipeline.provider_proxies import (  # noqa: F401 (re-e
     _EmbeddingProviderProxy,
     bind_openai_client_proxies,
 )
+from app.application.chat.pipeline.request_helpers import (
+    _get_qdrant_client,
+    _principal_user_and_org,
+    _request_id_from_request,
+)
 from app.application.chat.quota import (
     chat_quota_denial,
     ensure_chat_quota,
@@ -63,6 +68,7 @@ from app.application.chat.scope_inventory import (  # noqa: F401 (re-export)
     _is_scope_inventory_question,
     _scope_inventory_snippet,
 )
+from app.application.chat.transports.http import run_http_query
 from app.application.chat.ws_auth import authenticate_ws_handshake
 from app.auth.dependencies import ensure_document_ids_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
@@ -72,7 +78,6 @@ from app.auth.passwords import (
     hash_password,
     verify_password,
 )
-from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
 from app.core.langfuse_tracer import ChatTraceMetadata, trace_chat_query
 from app.core.logging import log_query_event
@@ -316,36 +321,6 @@ bind_openai_client_proxies(
     query_retrieval_service=_query_retrieval_service,
     client_getter=lambda: _openai_client,
 )
-
-
-def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
-    if principal.organization_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No active organization context for principal",
-        )
-    try:
-        return UUID(principal.user_id), UUID(principal.organization_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Principal identity context is invalid",
-        ) from exc
-
-
-def _get_qdrant_client():
-    if qdrant_module.qdrant_client is None:
-        qdrant_module.init_qdrant()
-    if qdrant_module.qdrant_client is None:
-        raise RuntimeError("Qdrant client is not initialized")
-    return qdrant_module.qdrant_client
-
-
-def _request_id_from_request(request: Request) -> str | None:
-    request_id = getattr(request.state, "request_id", None)
-    if isinstance(request_id, str) and request_id.strip():
-        return request_id
-    return request.headers.get("x-request-id")
 
 
 # F315 — evidence quality thresholds
@@ -686,6 +661,16 @@ async def query_chat(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ChatQueryResponse:
     request_id = _request_id_from_request(request)
+    if settings.chat_pipeline_v2:
+        # R05-01: the staged pipeline; ensure_chat_quota is read here so a rebinding of
+        # this module's global reaches it. Bots keep calling query_chat either way.
+        return await run_http_query(
+            payload=payload,
+            principal=principal,
+            db_session=db_session,
+            request_id=request_id,
+            ensure_quota=ensure_chat_quota,
+        )
     user_id, organization_id = _principal_user_and_org(principal)
     user_roles = list(principal.roles or [])
     await ensure_chat_quota(db_session, organization_id=organization_id, transport="http")

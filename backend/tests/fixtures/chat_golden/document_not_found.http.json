@@ -1,0 +1,14 @@
+{
+  "chat_messages": [],
+  "chat_sessions": [],
+  "citations": [],
+  "error": {
+    "code": "document_not_found",
+    "message": "Document not found"
+  },
+  "provider_call_count": 0,
+  "provider_calls": [],
+  "questions_quota_delta": 0,
+  "status_code": 404,
+  "usage_events": []
+}
