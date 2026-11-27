@@ -31,32 +31,6 @@
       ]
     },
     {
-      "event": "activity.step.update",
-      "payload_keys": [
-        "detail",
-        "duration_ms",
-        "label",
-        "sequence",
-        "state",
-        "step_key"
-      ],
-      "state": "success",
-      "step_key": "understanding_question"
-    },
-    {
-      "event": "activity.step.update",
-      "payload_keys": [
-        "detail",
-        "duration_ms",
-        "label",
-        "sequence",
-        "state",
-        "step_key"
-      ],
-      "state": "running",
-      "step_key": "checking_sources"
-    },
-    {
       "event": "chat.error",
       "payload": null,
       "payload_keys": [],

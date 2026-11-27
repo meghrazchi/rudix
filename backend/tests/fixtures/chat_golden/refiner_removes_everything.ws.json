@@ -16,7 +16,7 @@
     {
       "chat_session_id": "<uuid:1>",
       "confidence_score": 0.8965,
-      "content": "Employees receive twenty days of annual leave. Parking is free.",
+      "content": "I could not find this information in the uploaded documents.",
       "cost_usd": 0.0,
       "id": "<uuid:2>",
       "model_name": "gpt-5.4-mini",
@@ -26,54 +26,7 @@
       "token_output_count": 17,
       "trust_metadata_json": {
         "citation_validation_failed": false,
-        "citations": [
-          {
-            "chunk_id": "<chunk:a>",
-            "conflict_status": null,
-            "doc_deprecated_warning": false,
-            "doc_draft_warning": false,
-            "doc_expired_warning": false,
-            "doc_expiry_date": null,
-            "doc_extraction_quality": null,
-            "doc_extraction_warning": false,
-            "doc_is_excluded_status": false,
-            "doc_ocr_low_confidence_warning": false,
-            "doc_ocr_quality_status": null,
-            "doc_processing_warning": false,
-            "doc_quality_state": null,
-            "doc_review_due_date": null,
-            "doc_review_owner_id": null,
-            "doc_review_status": null,
-            "doc_stale_warning": false,
-            "doc_trust_status": null,
-            "doc_unreviewed_warning": false,
-            "doc_version_label": null,
-            "document_id": "<doc:a>",
-            "filename": "a.pdf",
-            "final_rank": 1,
-            "freshness_state": null,
-            "is_table_chunk": false,
-            "original_rank": 1,
-            "page_number": 1,
-            "rerank_score": null,
-            "score": 0.92,
-            "similarity_score": 0.92,
-            "source_deep_link": null,
-            "source_key": null,
-            "source_provider": null,
-            "source_provider_label": null,
-            "source_section": null,
-            "source_title": null,
-            "source_trust_status": null,
-            "table_caption": null,
-            "table_col_count": null,
-            "table_extraction_confidence": null,
-            "table_headers": [],
-            "table_low_confidence_warning": false,
-            "table_row_count": null,
-            "text_snippet": "Employees receive twenty days of annual leave."
-          }
-        ],
+        "citations": [],
         "confidence": {
           "average_similarity": 0.9,
           "category": "high",
@@ -134,22 +87,24 @@
           "warning_reasons": []
         },
         "grounded_verification": {
-          "aggregate_support_score": 0.0,
-          "applied": false,
-          "claim_count": 0,
+          "aggregate_support_score": 0.5,
+          "applied": true,
+          "claim_count": 1,
           "claims": [],
           "conflicting_count": 0,
-          "mode": null,
+          "mode": "standard",
           "not_enough_evidence_count": 0,
           "partially_supported_count": 0,
-          "reason_codes": [],
+          "reason_codes": [
+            "source_conflict"
+          ],
           "removed_count": 0,
-          "score": null,
-          "supported_count": 0,
-          "threshold": null,
-          "unsupported_count": 0,
+          "score": 0.5,
+          "supported_count": 1,
+          "threshold": 0.7,
+          "unsupported_count": 1,
           "unverifiable_count": 0,
-          "verdict": null
+          "verdict": "supported"
         },
         "message_id": "<uuid:2>",
         "model": {
@@ -163,16 +118,22 @@
           "prompt_template_key": "answer_generation",
           "prompt_template_version": 1
         },
-        "not_found": false,
+        "not_found": true,
         "organization_id": "<org>",
         "planner_critic": {
-          "critic_severity": "none",
-          "critic_warnings": [],
-          "draft_changed": false,
+          "critic_severity": "high",
+          "critic_warnings": [
+            {
+              "code": "citation_unsupported",
+              "detail": "1 claim(s) lacked direct source support.",
+              "severity": "high"
+            }
+          ],
+          "draft_changed": true,
           "high_risk": true,
-          "refiner_applied": false,
+          "refiner_applied": true,
           "strategy": "policy_lookup",
-          "unsupported_claims_removed": 0
+          "unsupported_claims_removed": 2
         },
         "policy": {
           "applied": false,
@@ -279,7 +240,7 @@
           "tool_calls": [],
           "tool_count": 0
         },
-        "verification_failed": false
+        "verification_failed": true
       }
     }
   ],
@@ -336,6 +297,19 @@
       ],
       "state": "success",
       "step_key": "understanding_question"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "success",
+      "step_key": "planning_answer"
     },
     {
       "event": "activity.step.update",
@@ -492,8 +466,34 @@
         "state",
         "step_key"
       ],
-      "state": "success",
+      "state": "warning",
       "step_key": "reviewing_answer"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "running",
+      "step_key": "refining_answer"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
+      "state": "warning",
+      "step_key": "refining_answer"
     },
     {
       "event": "activity.step.update",
@@ -515,75 +515,28 @@
       ]
     }
   ],
-  "provider_call_count": 1,
+  "provider_call_count": 3,
   "provider_calls": [
     {
       "kind": "answer",
       "prompt_sha256": "bae4d7ab205519fe5ba3d3dff84514ecb18b6627e4d6b88c6581bba61bea5e39"
+    },
+    {
+      "kind": "verifier",
+      "prompt_sha256": "dd3697d5bbf58078b7f025ee352423618003f5c1903e47f2b23eab763e5b219e"
+    },
+    {
+      "kind": "refiner",
+      "prompt_sha256": "aec4beae3977837ea4a1f08f2ac467edf990e3faaf3ad702bcb94aa842caf45f"
     }
   ],
   "questions_quota_delta": 1,
   "response": {
     "agreement_level": "full",
-    "answer": "Employees receive twenty days of annual leave. Parking is free.",
+    "answer": "I could not find this information in the uploaded documents.",
     "chat_session_id": "<uuid:1>",
     "citation_validation_failed": false,
-    "citations": [
-      {
-        "chunk_id": "<chunk:a>",
-        "citation_id": null,
-        "conflict_status": null,
-        "doc_deprecated_warning": false,
-        "doc_draft_warning": false,
-        "doc_effective_date": null,
-        "doc_expired_warning": false,
-        "doc_expiry_date": null,
-        "doc_extraction_quality": null,
-        "doc_extraction_warning": false,
-        "doc_is_excluded_status": false,
-        "doc_ocr_low_confidence_warning": false,
-        "doc_ocr_quality_status": null,
-        "doc_processing_warning": false,
-        "doc_quality_state": null,
-        "doc_review_date": null,
-        "doc_review_due_date": null,
-        "doc_review_owner_id": null,
-        "doc_review_status": null,
-        "doc_stale_warning": false,
-        "doc_trust_status": null,
-        "doc_unreviewed_warning": false,
-        "doc_version_label": null,
-        "document_id": "<doc:a>",
-        "end_offset": 46,
-        "filename": "a.pdf",
-        "final_rank": 1,
-        "freshness_state": null,
-        "is_table_chunk": false,
-        "original_rank": 1,
-        "page_number": 1,
-        "rerank_rank": null,
-        "rerank_score": null,
-        "score": 0.92,
-        "similarity_score": 0.92,
-        "source_acl_snapshot": {},
-        "source_deep_link": null,
-        "source_key": null,
-        "source_provider": null,
-        "source_provider_label": null,
-        "source_section": null,
-        "source_title": null,
-        "source_trust_status": null,
-        "start_offset": 0,
-        "table_caption": null,
-        "table_col_count": null,
-        "table_extraction_confidence": null,
-        "table_headers": [],
-        "table_low_confidence_warning": false,
-        "table_row_count": null,
-        "table_section_context": null,
-        "text_snippet": "Employees receive twenty days of annual leave."
-      }
-    ],
+    "citations": [],
     "confidence_category": "high",
     "confidence_explanation": {
       "average_similarity": 0.9,
@@ -635,7 +588,7 @@
       "freshness_boosted_count": 0,
       "freshness_deprecated_count": 0,
       "freshness_excluded_count": 0,
-      "freshness_filter_enabled": false,
+      "freshness_filter_enabled": true,
       "freshness_stale_count": 0,
       "freshness_unreviewed_count": 0,
       "graph_chunk_count": 0,
@@ -647,22 +600,24 @@
       "graph_related_entity_count": 0,
       "graph_relation_types_used": [],
       "graph_seed_entity_count": 0,
-      "grounded_verification_applied": false,
-      "grounded_verification_claim_count": 0,
+      "grounded_verification_applied": true,
+      "grounded_verification_claim_count": 1,
       "grounded_verification_conflicting_count": 0,
-      "grounded_verification_enabled": false,
-      "grounded_verification_mode": null,
-      "grounded_verification_model": null,
+      "grounded_verification_enabled": true,
+      "grounded_verification_mode": "standard",
+      "grounded_verification_model": "gpt-5.4-mini",
       "grounded_verification_not_enough_evidence_count": 0,
       "grounded_verification_partially_supported_count": 0,
-      "grounded_verification_reason_codes": [],
+      "grounded_verification_reason_codes": [
+        "source_conflict"
+      ],
       "grounded_verification_removed_count": 0,
-      "grounded_verification_score": null,
-      "grounded_verification_supported_count": 0,
-      "grounded_verification_threshold": null,
-      "grounded_verification_unsupported_count": 0,
+      "grounded_verification_score": 0.5,
+      "grounded_verification_supported_count": 1,
+      "grounded_verification_threshold": 0.7,
+      "grounded_verification_unsupported_count": 1,
       "grounded_verification_unverifiable_count": 0,
-      "grounded_verification_verdict": null,
+      "grounded_verification_verdict": "supported",
       "hybrid_exact_match_tokens": [],
       "hybrid_keyword_hit_count": 0,
       "hybrid_retrieval_enabled": false,
@@ -670,7 +625,7 @@
       "llm_model": "gpt-5.4-mini",
       "llm_provider": "openai",
       "ocr_low_confidence_chunk_count": 0,
-      "ocr_quality_downranking_enabled": false,
+      "ocr_quality_downranking_enabled": true,
       "original_query": null,
       "parent_context_child_hit_count": 0,
       "parent_context_expanded_count": 0,
@@ -712,14 +667,14 @@
       "sub_queries": [],
       "table_boost_applied": false,
       "table_boost_count": 0,
-      "table_boost_enabled": false,
+      "table_boost_enabled": true,
       "table_chunk_count": 0,
       "table_query_detected": false,
       "top_k": 3,
       "trace_request_id": "ws-golden"
     },
     "message_id": "<uuid:2>",
-    "not_found": false,
+    "not_found": true,
     "policy_applied": false,
     "policy_disclaimer": null,
     "policy_outcome": null,
@@ -728,7 +683,7 @@
     "preferred_document_ids": [],
     "source_freshness_warning": false,
     "source_freshness_warning_reason": null,
-    "verification_failed": false
+    "verification_failed": true
   },
   "usage_events": [
     {
@@ -744,9 +699,32 @@
         "conflict_detection_agreement_level": "full",
         "conflict_detection_applied": false,
         "conflict_detection_conflict_count": 0,
+        "conflict_detection_conflicting_document_ids": [],
         "conflict_detection_enabled": false,
+        "conflict_detection_preferred_document_ids": [],
         "document_ids": [],
-        "not_found": false,
+        "embedding_model": "text-embedding-3-small",
+        "fallback_from": null,
+        "fallback_reason": null,
+        "fallback_to": null,
+        "fallback_used": false,
+        "graph_chunk_count": 0,
+        "graph_context_enabled": false,
+        "graph_context_reason": "disabled",
+        "graph_context_unavailable": false,
+        "graph_context_used": false,
+        "graph_max_hops_used": 0,
+        "graph_related_entity_count": 0,
+        "graph_relation_types_used": [],
+        "graph_seed_entity_count": 0,
+        "llm_model": "gpt-5.4-mini",
+        "llm_provider": "openai",
+        "not_found": true,
+        "prompt_template": {
+          "key": "answer_generation",
+          "version_id": "<uuid:3>",
+          "version_number": 1
+        },
         "rerank_applied": false,
         "rerank_batch_count": 0,
         "rerank_completion_tokens": 0,
@@ -759,6 +737,8 @@
         "rerank_prompt_tokens": 0,
         "rerank_provider": null,
         "rerank_total_tokens": 0,
+        "retrieval_count": 2,
+        "selected_count": 2,
         "transport": "websocket"
       },
       "model_name": "gpt-5.4-mini",

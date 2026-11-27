@@ -5,7 +5,7 @@
       "confidence_score": null,
       "content": "What does the leave policy require for annual leave?",
       "cost_usd": null,
-      "id": "<uuid:4>",
+      "id": "<uuid:5>",
       "model_name": null,
       "prompt_template_version_id": null,
       "role": "user",
@@ -15,15 +15,15 @@
     },
     {
       "chat_session_id": "<uuid:1>",
-      "confidence_score": 0.8965,
+      "confidence_score": 0.859,
       "content": "Employees receive twenty days of annual leave.",
       "cost_usd": 0.0,
       "id": "<uuid:2>",
       "model_name": "gpt-5.4-mini",
-      "prompt_template_version_id": "<uuid:3>",
+      "prompt_template_version_id": "<uuid:4>",
       "role": "assistant",
-      "token_input_count": 38,
-      "token_output_count": 17,
+      "token_input_count": 44,
+      "token_output_count": 19,
       "trust_metadata_json": {
         "citation_validation_failed": false,
         "citations": [
@@ -38,20 +38,20 @@
             "doc_extraction_warning": false,
             "doc_is_excluded_status": false,
             "doc_ocr_low_confidence_warning": false,
-            "doc_ocr_quality_status": null,
+            "doc_ocr_quality_status": "not_required",
             "doc_processing_warning": false,
             "doc_quality_state": null,
             "doc_review_due_date": null,
             "doc_review_owner_id": null,
-            "doc_review_status": null,
+            "doc_review_status": "current",
             "doc_stale_warning": false,
-            "doc_trust_status": null,
+            "doc_trust_status": "current",
             "doc_unreviewed_warning": false,
             "doc_version_label": null,
             "document_id": "<doc:a>",
             "filename": "a.pdf",
             "final_rank": 1,
-            "freshness_state": null,
+            "freshness_state": "current",
             "is_table_chunk": false,
             "original_rank": 1,
             "page_number": 1,
@@ -77,8 +77,8 @@
         "confidence": {
           "average_similarity": 0.9,
           "category": "high",
-          "citation_coverage_score": 0.5,
-          "citation_support_score": 0.75,
+          "citation_coverage_score": 0.0,
+          "citation_support_score": 0.5,
           "citation_validation_multiplier": 1.0,
           "citation_validation_score": 1.0,
           "conflict_multiplier": 1.0,
@@ -89,7 +89,7 @@
           "not_found_penalty_multiplier": 1.0,
           "not_found_signal": false,
           "ocr_quality_multiplier": 1.0,
-          "raw_score": 0.8965,
+          "raw_score": 0.859,
           "reasons": [
             {
               "code": "strong_retrieval",
@@ -99,7 +99,7 @@
             }
           ],
           "retrieval_agreement_score": 0.98,
-          "score": 0.8965,
+          "score": 0.859,
           "table_quality_multiplier": 1.0,
           "top_rerank_score": 0.92,
           "top_similarity": 0.92,
@@ -347,6 +347,19 @@
         "state",
         "step_key"
       ],
+      "state": "success",
+      "step_key": "planning_answer"
+    },
+    {
+      "event": "activity.step.update",
+      "payload_keys": [
+        "detail",
+        "duration_ms",
+        "label",
+        "sequence",
+        "state",
+        "step_key"
+      ],
       "state": "running",
       "step_key": "checking_sources"
     },
@@ -515,11 +528,19 @@
       ]
     }
   ],
-  "provider_call_count": 1,
+  "provider_call_count": 3,
   "provider_calls": [
     {
-      "kind": "answer",
-      "prompt_sha256": "bae4d7ab205519fe5ba3d3dff84514ecb18b6627e4d6b88c6581bba61bea5e39"
+      "kind": "tree_search",
+      "prompt_sha256": "6aa84388233b9940f13e8f3b3f6e56477aa10eb3ee99bec17cd7a824dff3fcd6"
+    },
+    {
+      "kind": "tree_search",
+      "prompt_sha256": "2cb9e9ca36b70a3bbe05b7ab462d1d5b79a370c1a941f059c0b5227935f4dfd4"
+    },
+    {
+      "kind": "tree_search",
+      "prompt_sha256": "a44fca8aea8691183f95e9c908ed53942694b74b0f817f7a6b36042f63ef398f"
     }
   ],
   "questions_quota_delta": 1,
@@ -531,7 +552,7 @@
     "citations": [
       {
         "chunk_id": "<chunk:a>",
-        "citation_id": null,
+        "citation_id": "<uuid:3>",
         "conflict_status": null,
         "doc_deprecated_warning": false,
         "doc_draft_warning": false,
@@ -542,22 +563,22 @@
         "doc_extraction_warning": false,
         "doc_is_excluded_status": false,
         "doc_ocr_low_confidence_warning": false,
-        "doc_ocr_quality_status": null,
+        "doc_ocr_quality_status": "not_required",
         "doc_processing_warning": false,
         "doc_quality_state": null,
         "doc_review_date": null,
         "doc_review_due_date": null,
         "doc_review_owner_id": null,
-        "doc_review_status": null,
+        "doc_review_status": "current",
         "doc_stale_warning": false,
-        "doc_trust_status": null,
+        "doc_trust_status": "current",
         "doc_unreviewed_warning": false,
         "doc_version_label": null,
         "document_id": "<doc:a>",
         "end_offset": 46,
         "filename": "a.pdf",
         "final_rank": 1,
-        "freshness_state": null,
+        "freshness_state": "current",
         "is_table_chunk": false,
         "original_rank": 1,
         "page_number": 1,
@@ -587,14 +608,14 @@
     "confidence_category": "high",
     "confidence_explanation": {
       "average_similarity": 0.9,
-      "citation_coverage_score": 0.5,
-      "citation_support_score": 0.75,
+      "citation_coverage_score": 0.0,
+      "citation_support_score": 0.5,
       "citation_validation_multiplier": 1.0,
       "citation_validation_score": 1.0,
       "no_context": false,
       "not_found_penalty_multiplier": 1.0,
       "not_found_signal": false,
-      "raw_score": 0.8965,
+      "raw_score": 0.859,
       "retrieval_agreement_score": 0.98,
       "thresholds": {
         "high": 0.8,
@@ -610,7 +631,7 @@
         "top_similarity": 0.35
       }
     },
-    "confidence_score": 0.8965,
+    "confidence_score": 0.859,
     "conflict_detected": false,
     "conflict_pairs": [],
     "conflict_summary": null,
@@ -635,7 +656,7 @@
       "freshness_boosted_count": 0,
       "freshness_deprecated_count": 0,
       "freshness_excluded_count": 0,
-      "freshness_filter_enabled": false,
+      "freshness_filter_enabled": true,
       "freshness_stale_count": 0,
       "freshness_unreviewed_count": 0,
       "graph_chunk_count": 0,
@@ -670,7 +691,7 @@
       "llm_model": "gpt-5.4-mini",
       "llm_provider": "openai",
       "ocr_low_confidence_chunk_count": 0,
-      "ocr_quality_downranking_enabled": false,
+      "ocr_quality_downranking_enabled": true,
       "original_query": null,
       "parent_context_child_hit_count": 0,
       "parent_context_expanded_count": 0,
@@ -678,7 +699,7 @@
       "parent_context_tokens_used": 0,
       "prompt_template_key": "answer_generation",
       "prompt_template_version": 1,
-      "prompt_template_version_id": "<uuid:3>",
+      "prompt_template_version_id": "<uuid:4>",
       "query_decomposed": false,
       "query_rewriting_applied": false,
       "query_rewriting_enabled": false,
@@ -712,7 +733,7 @@
       "sub_queries": [],
       "table_boost_applied": false,
       "table_boost_count": 0,
-      "table_boost_enabled": false,
+      "table_boost_enabled": true,
       "table_chunk_count": 0,
       "table_query_detected": false,
       "top_k": 3,
@@ -734,19 +755,42 @@
     {
       "cost_usd": 0.0,
       "event_type": "chat.completion",
-      "input_tokens": 38,
+      "input_tokens": 44,
       "metadata": {
         "assistant_message_id": "<uuid:2>",
         "chat_session_id": "<uuid:1>",
         "citation_count": 1,
         "confidence_category": "high",
-        "confidence_score": 0.8965,
+        "confidence_score": 0.859,
         "conflict_detection_agreement_level": "full",
         "conflict_detection_applied": false,
         "conflict_detection_conflict_count": 0,
+        "conflict_detection_conflicting_document_ids": [],
         "conflict_detection_enabled": false,
+        "conflict_detection_preferred_document_ids": [],
         "document_ids": [],
+        "embedding_model": "text-embedding-3-small",
+        "fallback_from": null,
+        "fallback_reason": null,
+        "fallback_to": null,
+        "fallback_used": false,
+        "graph_chunk_count": 0,
+        "graph_context_enabled": false,
+        "graph_context_reason": "disabled",
+        "graph_context_unavailable": false,
+        "graph_context_used": false,
+        "graph_max_hops_used": 0,
+        "graph_related_entity_count": 0,
+        "graph_relation_types_used": [],
+        "graph_seed_entity_count": 0,
+        "llm_model": "gpt-5.4-mini",
+        "llm_provider": "openai",
         "not_found": false,
+        "prompt_template": {
+          "key": "answer_generation",
+          "version_id": "<uuid:4>",
+          "version_number": 1
+        },
         "rerank_applied": false,
         "rerank_batch_count": 0,
         "rerank_completion_tokens": 0,
@@ -759,10 +803,12 @@
         "rerank_prompt_tokens": 0,
         "rerank_provider": null,
         "rerank_total_tokens": 0,
+        "retrieval_count": 2,
+        "selected_count": 2,
         "transport": "websocket"
       },
       "model_name": "gpt-5.4-mini",
-      "output_tokens": 17,
+      "output_tokens": 19,
       "provider_key": "openai"
     }
   ]

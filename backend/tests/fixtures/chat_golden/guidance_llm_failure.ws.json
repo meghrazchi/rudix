@@ -1,11 +1,6 @@
 {
   "chat_messages": [],
-  "chat_sessions": [
-    {
-      "id": "<uuid:1>",
-      "title": "How do I choose a source scope?"
-    }
-  ],
+  "chat_sessions": [],
   "citations": [],
   "error": {
     "payload": null,

@@ -1,11 +1,6 @@
 {
   "chat_messages": [],
-  "chat_sessions": [
-    {
-      "id": "<uuid:1>",
-      "title": "How much annual leave is provided?"
-    }
-  ],
+  "chat_sessions": [],
   "citations": [],
   "error": {
     "payload": null,

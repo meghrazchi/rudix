@@ -362,6 +362,7 @@ RUNS = [
     pytest.param("http", True, id="http-v2"),
     pytest.param("http_direct", True, id="http-v2-direct"),
     pytest.param("ws", False, id="ws"),
+    pytest.param("ws", True, id="ws-v2"),
 ]
 
 
