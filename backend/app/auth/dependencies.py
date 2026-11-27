@@ -15,6 +15,7 @@ from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.permission_service import PermissionService
 from app.auth.policy_engine import Action
+from app.auth.principal_snapshot import request_snapshot
 from app.auth.resource_context_builder import (
     build_document_resource_context,
     get_subject_accessible_collection_ids,
@@ -313,7 +314,7 @@ def require_feature(
 
 def require_permission(
     *required_permissions: str,
-) -> Callable[[AuthenticatedPrincipal, AsyncSession], Awaitable[AuthenticatedPrincipal]]:
+) -> Callable[[Request, AuthenticatedPrincipal, AsyncSession], Awaitable[AuthenticatedPrincipal]]:
     """FastAPI dependency that checks the caller has ALL of the given permissions.
 
     Resolves custom role permissions from the database when the member has a
@@ -323,6 +324,7 @@ def require_permission(
     normalized_perms = frozenset(p.strip() for p in required_permissions if p.strip())
 
     async def dependency(
+        request: Request,
         principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
         db_session: Annotated[AsyncSession, Depends(get_db_session)],
     ) -> AuthenticatedPrincipal:
@@ -339,6 +341,7 @@ def require_permission(
             return principal
 
         custom_role_id: UUID | None = None
+        org_uuid: UUID | None = None
         if principal.organization_id:
             try:
                 org_uuid = UUID(principal.organization_id)
@@ -347,7 +350,11 @@ def require_permission(
                 org_uuid = None
                 user_uuid = None
 
-            if org_uuid and user_uuid:
+            snapshot = request_snapshot(request, user_id=principal.user_id)
+            if org_uuid and snapshot is not None:
+                # R04-05: the membership came from the (cached) principal snapshot.
+                custom_role_id = snapshot.custom_role_id_for(principal.organization_id)
+            elif org_uuid and user_uuid:
                 result = await db_session.execute(
                     select(OrganizationMember.custom_role_id).where(
                         OrganizationMember.organization_id == org_uuid,
@@ -362,6 +369,7 @@ def require_permission(
             db_session,
             roles=principal.roles,
             custom_role_id=custom_role_id,
+            organization_id=org_uuid,
         )
         if not normalized_perms.issubset(user_perms):
             raise HTTPException(

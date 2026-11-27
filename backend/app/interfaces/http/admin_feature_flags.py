@@ -127,6 +127,8 @@ async def set_feature_flag(
             "reason": payload.reason,
         },
     )
+    # Persist the override; the commit also drops the org's cached flag map (R04-05).
+    await db_session.commit()
     return result
 
 
@@ -168,4 +170,5 @@ async def clear_feature_flag(
         request_id=_request_id(request),
         metadata={"flag_name": flag_name},
     )
+    await db_session.commit()
     return result
