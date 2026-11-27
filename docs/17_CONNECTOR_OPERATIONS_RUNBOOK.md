@@ -134,8 +134,9 @@ Use this sequence for a new provider or a major connector change:
   processing messages.
 - To stop a run that keeps resuming, cancel it; to stop all syncs of a connection, pause
   or disable its jobs first, then cancel the active run.
-- A full sync tombstones unseen items only when it completes; a cancelled full sync
-  tombstones nothing.
+- A full sync tombstones unseen items only after its last page. A full sync cancelled
+  while paging tombstones nothing; one cancelled during the tombstone phase keeps the
+  tombstone batches it already committed (`CONNECTOR_SYNC_TOMBSTONE_BATCH_SIZE` each).
 
 ### Scheduled syncs never start
 

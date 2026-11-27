@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.domains.connectors.services.sync import lease
+from app.domains.connectors.services.sync.schedule import due_jobs_statement
 from app.models.connector import ExternalItem
 from app.models.connector_sync import ConnectorSyncRun
 from app.models.organization import Organization
@@ -98,6 +99,31 @@ async def test_capped_due_poll_is_still_one_locking_select(
     selects = [s for s in counter.statements if s.lstrip().upper().startswith("SELECT")]
     assert len(selects) == 1 and "SKIP LOCKED" in selects[0]
     assert [org for _, org in dispatched].count(tenant.org_id) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cap", ["org", "connection"])
+async def test_capped_due_poll_filters_jobs_at_the_cap_in_sql(
+    pg_session: AsyncSession, monkeypatch: pytest.MonkeyPatch, cap: str
+) -> None:
+    """Jobs of a tenant at its cap never reach the LIMIT, so they cannot starve others."""
+    monkeypatch.setattr(settings, f"connector_sync_max_concurrent_per_{cap}", 1)
+    busy = await seed_tenant(pg_session)
+    extra = await make_engine(None).create_sync_job(
+        pg_session, organization_id=busy.org_id, connection_id=busy.connection_id, name="j2"
+    )
+    other = await seed_tenant(pg_session)
+    await make_engine(None).trigger_manual_sync(
+        pg_session, organization_id=busy.org_id, connection_id=busy.connection_id,
+        job_id=busy.job_id,
+    )  # fmt: skip
+    await pg_session.flush()
+
+    stmt = due_jobs_statement(datetime.now(UTC), limit=10_000, postgres=True)
+    job_ids = {row[0].id for row in (await pg_session.execute(stmt)).all()}
+
+    assert extra.id not in job_ids
+    assert other.job_id in job_ids
 
 
 @pytest.mark.asyncio

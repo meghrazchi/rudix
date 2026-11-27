@@ -181,8 +181,9 @@ run is not failed.
 
 **Caps.** `CONNECTOR_SYNC_MAX_CONCURRENT_PER_ORG` and
 `CONNECTOR_SYNC_MAX_CONCURRENT_PER_CONNECTION` (default 0, no cap) limit runs per
-organization and connection. The poll skips jobs over a cap (queued and running runs
-count). At lease time running runs with a fresh heartbeat count, serialized by a
+organization and connection. The poll query filters out jobs whose organization or
+connection is already at a cap (queued and running runs count), so capped tenants cannot
+fill the poll batch and hold back other tenants' due jobs. At lease time running runs with a fresh heartbeat count, serialized by a
 transaction-scoped advisory lock on PostgreSQL; a run over a cap stays `queued` and the
 task re-enqueues it after `CONNECTOR_SYNC_CAP_RETRY_SECONDS`.
 
@@ -197,8 +198,12 @@ behaviour, used by tests and tools). `SyncRunResult.pending_document_ids` stays 
 is deprecated; documents are dispatched through the outbox.
 
 Known limits: file downloads and the ingestion bridge (malware scan, object storage
-upload) still run inside the page transaction, as in 0.5. Real provider rate limits are a
-staging check.
+upload) still run inside the page transaction, as in 0.5, so a page of large files holds a
+database connection for the whole page. The heartbeat moves only when a page commits (and
+during Retry-After sleeps): a page that takes longer than `CONNECTOR_SYNC_STALE_SECONDS`
+is released by `connectors.sync.reap`, rolled back, and fetched again by the new owner.
+Keep `CONNECTOR_SYNC_PAGE_SIZE` small enough for file-heavy providers that a page commits
+well within that window. Real provider rate limits are a staging check.
 
 ## Observability and Rollout Controls
 

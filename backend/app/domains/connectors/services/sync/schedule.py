@@ -3,8 +3,9 @@
 One statement selects the due jobs: active, ``next_run_at`` NULL or past, and no queued or
 running run (``NOT EXISTS``), ordered ``next_run_at NULLS FIRST``, limited to
 ``CONNECTOR_SYNC_POLL_BATCH_SIZE`` and locked ``FOR UPDATE SKIP LOCKED`` on PostgreSQL so
-two pollers never claim the same job. The same statement returns the active-run counts
-per organization and connection when a concurrency cap is set.
+two pollers never claim the same job. When a concurrency cap is set, the same statement
+filters out jobs whose organization or connection is already at the cap and returns the
+active-run counts, so jobs claimed in one batch are capped too.
 
 ``next_run_at`` bookkeeping:
 
@@ -53,14 +54,21 @@ def due_jobs_statement(now: datetime, *, limit: int, postgres: bool) -> Any:
     org_cap = settings.connector_sync_max_concurrent_per_org
     connection_cap = settings.connector_sync_max_concurrent_per_connection
     columns: list[Any] = [ConnectorSyncJob]
+    # Jobs whose organization or connection is already at its cap are filtered here, not
+    # after the LIMIT, so they cannot fill the batch and starve other tenants' due jobs.
+    under_cap: list[Any] = []
     if org_cap > 0:
-        columns.append(
-            _active_count(ConnectorSyncRun.organization_id, ConnectorSyncJob.organization_id)
+        org_active = _active_count(
+            ConnectorSyncRun.organization_id, ConnectorSyncJob.organization_id
         )
+        columns.append(org_active)
+        under_cap.append(org_active < org_cap)
     if connection_cap > 0:
-        columns.append(
-            _active_count(ConnectorSyncRun.connection_id, ConnectorSyncJob.connection_id)
+        connection_active = _active_count(
+            ConnectorSyncRun.connection_id, ConnectorSyncJob.connection_id
         )
+        columns.append(connection_active)
+        under_cap.append(connection_active < connection_cap)
     no_active_run = ~exists().where(
         ConnectorSyncRun.sync_job_id == ConnectorSyncJob.id,
         ConnectorSyncRun.status.in_(_ACTIVE),
@@ -71,6 +79,7 @@ def due_jobs_statement(now: datetime, *, limit: int, postgres: bool) -> Any:
             ConnectorSyncJob.status == ConnectorSyncJobStatus.active.value,
             or_(ConnectorSyncJob.next_run_at.is_(None), ConnectorSyncJob.next_run_at <= now),
             no_active_run,
+            *under_cap,
         )
         .order_by(ConnectorSyncJob.next_run_at.asc().nulls_first(), ConnectorSyncJob.id)
         .limit(limit)
