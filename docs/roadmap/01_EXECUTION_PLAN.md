@@ -25,7 +25,8 @@ The per-version specs say what to build. This document says how the work is run.
 | `0.4.0` | Data layer performance | Implemented on `develop`. Partition conversion and strict RLS in production are deferred; see [V0_4_0_IMPLEMENTATION_PLAN.md](./V0_4_0_IMPLEMENTATION_PLAN.md). |
 | `0.5.0` | Chat pipeline and streaming | Implemented on `develop`, except `R05-12` (needs a decision). See the Status section of [V0_5_0_IMPLEMENTATION_PLAN.md](./V0_5_0_IMPLEMENTATION_PLAN.md). |
 | `0.6.0` | Ingestion and workers | Implemented on `develop` (all nine packages); staging checks pending. See the Status section of [V0_6_0_IMPLEMENTATION_PLAN.md](./V0_6_0_IMPLEMENTATION_PLAN.md). |
-| `0.7.0` – `1.0.0` | See section 5 | Not started. |
+| `0.7.0` | Frontend performance | Planned: nine packages in five chains, no migrations. See [V0_7_0_IMPLEMENTATION_PLAN.md](./V0_7_0_IMPLEMENTATION_PLAN.md). |
+| `0.8.0` – `1.0.0` | See section 5 | Not started. |
 
 Measured on `develop` after `0.5.0`: backend coverage 79.7%; frontend coverage 64.9% statements,
 58.2% branches, 58.8% functions, 65.8% lines. Measured after `0.6.0`: backend 82.2%;
@@ -172,3 +173,4 @@ Operational readiness needs an on-call rota and a completed restore drill.
 - 2026-11-27: The `0.6.0` row points at its implementation plan.
 - 2026-11-27: `0.6.0` status after seven packages merged; coverage figures updated.
 - 2026-11-27: `0.6.0` implemented on `develop`; coverage figures updated.
+- 2026-11-27: The `0.7.0` row points at its implementation plan.

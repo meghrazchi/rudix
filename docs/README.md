@@ -49,6 +49,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 - [roadmap/V0_6_0_INGESTION_AND_WORKERS.md](./roadmap/V0_6_0_INGESTION_AND_WORKERS.md)
 - [roadmap/V0_6_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_6_0_IMPLEMENTATION_PLAN.md) — Work packages, chains, migration chain, shared-file anchors, and cross-chain contracts for `0.6.0`
 - [roadmap/V0_7_0_FRONTEND_PERFORMANCE.md](./roadmap/V0_7_0_FRONTEND_PERFORMANCE.md)
+- [roadmap/V0_7_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_7_0_IMPLEMENTATION_PLAN.md) — Work packages, chains, shared-file anchors, measured bundle baseline, and cross-chain contracts for `0.7.0`
 - [roadmap/V0_8_0_PRODUCTION_INFRASTRUCTURE.md](./roadmap/V0_8_0_PRODUCTION_INFRASTRUCTURE.md)
 - [roadmap/V0_9_0_PRODUCT_COMPLETENESS.md](./roadmap/V0_9_0_PRODUCT_COMPLETENESS.md)
 - [roadmap/V1_0_0_GENERAL_AVAILABILITY.md](./roadmap/V1_0_0_GENERAL_AVAILABILITY.md)
