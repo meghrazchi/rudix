@@ -60,7 +60,8 @@ SSO/SAML setup hardening:
   disabled (`app/domains/sso/services/saml_io.py`); any document with a DOCTYPE is rejected.
 - Admin "test connection" and metadata fetches only reach public http(s) hosts: the host is
   resolved and private, loopback, link-local and multicast addresses are refused, URLs with
-  credentials are refused, and redirects are not followed.
+  credentials are refused, and redirects are not followed. The connection goes to the IP that
+  was checked (TLS still verifies the hostname), so DNS rebinding cannot reach an internal host.
 - On-prem identity providers on a private network need `SSO_METADATA_ALLOW_PRIVATE_HOSTS=true`.
 
 WebSocket chat (`/chat/ws`):

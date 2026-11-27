@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+import urllib.error
 from typing import Any
 from unittest.mock import patch
 
@@ -85,20 +86,103 @@ def test_outbound_url_private_hosts_allowed_when_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(settings, "sso_metadata_allow_private_hosts", True)
-    url = "https://adfs.corp.local/metadata"
-    assert saml_io.validate_outbound_url(url) == url
+    with patch.object(saml_io.socket, "getaddrinfo", return_value=_addrinfo("10.0.0.7")):
+        target = saml_io.resolve_outbound_target("https://adfs.corp.local/metadata")
+    assert (target.ip, target.host) == ("10.0.0.7", "adfs.corp.local")
 
 
 def test_fetch_metadata_refuses_private_host_without_request() -> None:
     with (
         patch.object(saml_io.socket, "getaddrinfo", return_value=_addrinfo("10.1.2.3")),
-        patch.object(saml_io._OPENER, "open") as opener,
+        patch.object(saml_io, "_connection_for") as connection_for,
     ):
         with pytest.raises(ValueError, match="public host"):
             _fetch_metadata_url("https://idp.example.com/metadata")
-    opener.assert_not_called()
+    connection_for.assert_not_called()
 
 
-def test_redirects_are_not_followed() -> None:
-    handler = saml_io._NoRedirectHandler()
-    assert handler.redirect_request(None, None, 302, "Found", {}, "http://10.0.0.1/") is None
+class _FakeResponse:
+    def __init__(self, status: int, body: bytes = b"") -> None:
+        self.status = status
+        self.reason = "Reason"
+        self.msg: dict[str, str] = {}
+        self._body = body
+        self.closed = False
+
+    def read(self, amount: int | None = None) -> bytes:
+        return self._body if amount is None else self._body[:amount]
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class _FakeConnection:
+    def __init__(self, response: _FakeResponse) -> None:
+        self.response = response
+        self.requests: list[tuple[str, str, dict[str, str]]] = []
+        self.closed = False
+
+    def request(self, method: str, path: str, headers: dict[str, str]) -> None:
+        self.requests.append((method, path, headers))
+
+    def getresponse(self) -> _FakeResponse:
+        return self.response
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_request_connects_to_checked_ip_and_sends_real_host() -> None:
+    connection = _FakeConnection(_FakeResponse(200, _METADATA))
+    with (
+        patch.object(saml_io.socket, "getaddrinfo", return_value=_addrinfo("93.184.216.34")),
+        patch.object(saml_io, "_connection_for", return_value=connection) as connection_for,
+    ):
+        body = _fetch_metadata_url("https://idp.example.com:8443/saml/metadata?tenant=a")
+    target = connection_for.call_args.args[0]
+    assert target.ip == "93.184.216.34"
+    assert target.host == "idp.example.com"
+    method, path, headers = connection.requests[0]
+    assert (method, path) == ("GET", "/saml/metadata?tenant=a")
+    assert headers["Host"] == "idp.example.com:8443"
+    assert body == _METADATA
+    assert connection.closed
+
+
+def test_redirect_is_not_followed() -> None:
+    connection = _FakeConnection(_FakeResponse(302))
+    with (
+        patch.object(saml_io.socket, "getaddrinfo", return_value=_addrinfo("93.184.216.34")),
+        patch.object(saml_io, "_connection_for", return_value=connection),
+    ):
+        with pytest.raises(urllib.error.HTTPError) as excinfo:
+            saml_io.open_idp_url("https://idp.example.com/sso", method="HEAD", timeout=1)
+    assert excinfo.value.code == 302
+    assert len(connection.requests) == 1
+    assert connection.closed
+
+
+def test_network_error_is_reported_as_url_error() -> None:
+    connection = _FakeConnection(_FakeResponse(200))
+    connection.request = lambda *args, **kwargs: (_ for _ in ()).throw(  # type: ignore[method-assign]
+        ConnectionRefusedError("refused")
+    )
+    with (
+        patch.object(saml_io.socket, "getaddrinfo", return_value=_addrinfo("93.184.216.34")),
+        patch.object(saml_io, "_connection_for", return_value=connection),
+    ):
+        with pytest.raises(ValueError, match="Could not reach"):
+            _fetch_metadata_url("https://idp.example.com/metadata")
+    assert connection.closed
+
+
+def test_https_connection_pins_ip_and_verifies_hostname() -> None:
+    target = saml_io.OutboundTarget(
+        scheme="https", host="idp.example.com", port=443, ip="93.184.216.34", path="/"
+    )
+    connection = saml_io._connection_for(target, timeout=1)
+    assert isinstance(connection, saml_io._PinnedHTTPSConnection)
+    assert connection.host == "93.184.216.34"
+    assert connection._server_hostname == "idp.example.com"
+    assert connection._tls_context.check_hostname is True
+    assert target.host_header == "idp.example.com"
