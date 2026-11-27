@@ -2755,6 +2755,41 @@ Safe update semantics:
 
 The endpoint returns the updated effective policy, changed field names, and whether an audit record was written.
 
+### GET /admin/vector-index/status
+
+Read-only status of the vector index generations (R06-08). Roles `owner` and `admin`
+(`403` for other roles), rate limit scope `admin`. Build, swap, and rollback are operator
+commands (`scripts/vector_index.py`); there is no write endpoint.
+
+```json
+{
+  "alias": "documents_live",
+  "legacy_mode": false,
+  "active": {
+    "generation": 1,
+    "embedding_model": "text-embedding-3-small",
+    "vector_size": 1536,
+    "activated_at": "2026-11-01T00:00:00Z"
+  },
+  "building": {
+    "generation": 2,
+    "embedding_model": "text-embedding-3-large",
+    "state": "building",
+    "started_at": "2026-11-27T10:00:00Z"
+  },
+  "progress": { "documents_total": 120, "documents_done": 45 }
+}
+```
+
+- Legacy mode (`QDRANT_COLLECTION_ALIAS` unset): `legacy_mode: true`, `alias: null`,
+  `active.generation: null` with the configured model and dimension, no `building`.
+- `active` is `null` in alias mode before adoption; `building` and `progress` are `null`
+  when no generation is building or verifying.
+- `progress` counts only the caller's organisation: its indexed documents and, of those, the
+  documents the building generation holds. Other organisations' counts, collection names,
+  and point counts are never returned (cross-tenant progress is the metric
+  `rudix_reindex_progress`).
+
 ## Rate limits
 
 Recommended:

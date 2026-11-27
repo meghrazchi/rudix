@@ -831,6 +831,26 @@ after `finalize` on its own queue.
 - The thresholds are starting points, not measured values; no queue wait or depth baseline has
   been recorded (the load test is a manual step in plan section 8).
 
+### Vector index generations and reindex (R06-08)
+
+- Metric `rudix_reindex_progress{generation}`: fraction of indexed documents (all
+  organisations) a building generation holds, set by the build after each page. Metrics
+  only; the admin API reports the caller's organisation.
+- Logs: `vector_index.adopted`, `vector_index.generation.registered` (with `reason`, for
+  example `startup_config_change`), `vector_index.embedding_model_differs` (startup warning),
+  `vector_index.build.started` / `.progress` / `.completed`,
+  `vector_index.generation.verified` (expected and actual points, `error_code`),
+  `vector_index.alias.swapped`, `vector_index.alias.rolled_back`,
+  `vector_index.generation.dropped`, `vector_index.dual_write_failed`,
+  `vector_index.dual_write_incomplete`, `qdrant.collection.mismatch_deferred`. They carry
+  generation, model, counts, document and organisation ids; never document text.
+- Usage events `document.embedding` with `metadata.reason` `vector_reindex` (build) or
+  `vector_reindex_dual_write` (ingestion during a build) attribute the reindex cost per
+  organisation.
+- Watch after a swap: chat retrieval errors and latency for at least
+  `VECTOR_INDEX_REGISTRY_CACHE_SECONDS`, and the accuracy gate; roll back if either regresses.
+- No staging measurement has been recorded yet (plan section 8 item 4).
+
 ## Continuous evaluation
 
 Run evaluations:

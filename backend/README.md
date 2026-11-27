@@ -816,6 +816,15 @@ R06-06, connector source references), and `finalize` (the only writer of `indexe
   batch. Extraction LLM batches run with `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES` /
   `RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` (default 1). Single-item graph methods stay
   for the admin endpoints.
+- Vector index generations (R06-08): `QDRANT_COLLECTION_ALIAS` unset keeps legacy mode
+  (`QDRANT_COLLECTION` directly). With it set, run `.venv/bin/python scripts/vector_index.py
+  adopt` once, then `plan`, `build [--enqueue]`, `status`, `swap [--yes]`, `rollback [--yes]`,
+  `drop-retired [--yes]` (swap, rollback and drop-retired are dry runs without `--yes`).
+  Code: `app/domains/vector_index/`, task `vector_index.build` (reindex queue), beat
+  `vector-index-drop-retired` (acts only with `VECTOR_INDEX_AUTO_DROP_RETIRED=true`). A
+  changed embedding model or dimension at startup registers a building generation instead
+  of failing. Read API: `GET /admin/vector-index/status`. Runbook: docs/27 "Reindex and
+  alias swap".
 
 ## Application cache
 

@@ -476,6 +476,54 @@ To change `DOCUMENT_INDEX_VERSION`:
 While both versions are listed, a reindexed document has chunks under both, so
 retrieval can return duplicate chunks for it.
 
+### Vector index generations
+
+R06-08. `QDRANT_COLLECTION_ALIAS` unset (default) is legacy mode: reads and writes use
+`QDRANT_COLLECTION` and `OPENAI_EMBEDDING_MODEL` exactly as before, and no generation table
+is read. With the alias set, every Qdrant collection is a *generation* registered in
+`vector_index_generations` (global) and the alias points at the active one:
+
+- `scripts/vector_index.py adopt` registers the existing `QDRANT_COLLECTION` as generation 1
+  (`active`) and creates the alias pointing at it; no data is copied.
+- A new generation is named `{QDRANT_COLLECTION}_{model_slug}_v{n}` (slug: lowercase,
+  `[a-z0-9_]`, at most 40 characters) and is `building` until its build finishes.
+- The registry (active and building generation) is cached per process for
+  `VECTOR_INDEX_REGISTRY_CACHE_SECONDS` (30).
+- **Reads** use the active generation: query embedding (`QueryRetrievalService.embedding_model`
+  and `vector_size`, and the chat query-embedding cache key) follows its model and dimension,
+  and the search names the collection the alias points at, taken from the same cached
+  snapshot as the model, so a query never pairs one generation's model with another's
+  collection while caches expire after a swap. External readers can use the alias.
+- **Writes** (`QdrantService.resolve_write_targets()`) go to `[active]`, or `[active,
+  building]` while a generation is building or verifying. The embed stage writes each batch
+  to the active generation with its model and to the building one with the building model
+  (dual write); vectors are reused when both use the same model. The index stage then cleans
+  and counts the document's points in the building collection and records
+  `vector_index_generation_documents`; a dual-write failure never fails the document, it
+  only leaves the row out so the build fills the document later.
+- **Deletes** go to every generation whose collection still exists (not `dropped`).
+- The **build** (`vector_index.build` task or the CLI) walks indexed documents by
+  `(organization_id, document_id)` from `build_cursor`, binds each document's tenant, reads
+  the embeddable chunk rows of the active index versions from PostgreSQL (no re-extraction),
+  reuses vectors already in the target, embeds the rest with the generation's model, and
+  commits the generation row, the `document.embedding` usage event
+  (`metadata.reason=vector_reindex`, `generation`), and the cursor in one transaction per
+  document. A killed build resumes from the cursor; upserts use the same point ids, so no
+  point or usage event is duplicated.
+- **Verify** compares the exact Qdrant count of the active index versions in the generation
+  with the embeddable chunk rows of indexed documents, and checks every indexed document has
+  a row; a mismatch sets `failed` with `error_code` (`point_count_mismatch`,
+  `documents_missing`) and blocks the swap.
+- **Swap** is one `update_collection_aliases` call (delete alias, create alias). The old
+  generation becomes `retired` with `retire_after = now + QDRANT_RETIRED_GRACE_HOURS` (168);
+  rollback points the alias back at the newest retired one; `drop-retired` deletes retired
+  collections past `retire_after`, never the active one and never in legacy mode.
+- At startup a configured model or dimension that differs from the active generation no
+  longer fails: a warning is logged and a `building` generation is registered for the
+  configured model (`vector_index.generation.registered`); the active one keeps serving.
+
+Operator steps: docs/27 "Reindex and alias swap".
+
 ### Caches and shortcuts
 
 Since 0.5.0 (R05-05, R05-04) the query path reads less and waits less. Every cache below is

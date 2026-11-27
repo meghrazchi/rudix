@@ -772,6 +772,8 @@ never document text.
 - [ ] `CELERY_WORKER_MAX_TASKS_PER_CHILD` (default 200) and, for `worker-ingest`, `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` are set below the container memory limit divided by concurrency.
 - [ ] Only `worker-default` sets `WORKER_CONSUME_DEAD_LETTER=true`. Dead-letter messages are read raw and never executed; a message without an `organization_id` kwarg is acked and logged, never shown to a tenant.
 - [ ] The quorum cut-over (docs/27) used new queue names and drained the old classic queues; no classic queue name is reused with `CELERY_QUEUE_TYPE=quorum`.
+- [ ] `scripts/vector_index.py` (adopt, build, swap, rollback, drop-retired) is a cross-tenant operator command: only operators run it, with `DATABASE_MAINTENANCE_URL` for the document walk; the build binds each document's tenant before writing generation rows and usage events. `GET /admin/vector-index/status` returns the caller's organisation's progress only (R06-08).
+- [ ] `QDRANT_COLLECTION_ALIAS` differs from every collection name; `VECTOR_INDEX_AUTO_DROP_RETIRED` stays `false` unless retired collections may be deleted without review.
 
 ### Observability
 

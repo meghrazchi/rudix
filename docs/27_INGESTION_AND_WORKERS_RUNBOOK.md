@@ -465,3 +465,75 @@ Failure modes:
 Not verified in this repository (no broker in CI): real dead-lettering, `consumer_timeout`,
 child recycling, and the load test that an evaluation does not delay uploads. They are the
 manual checks in [plan section 8](./roadmap/V0_6_0_IMPLEMENTATION_PLAN.md#8-manual-steps-staging-and-production).
+
+## Reindex and alias swap
+
+R06-08. Use this to change the embedding model or dimension, or to rebuild the vector
+index (for example after a tuning change), without stopping search. Every command runs from
+`backend/` with the production settings and `DATABASE_MAINTENANCE_URL` set to the BYPASSRLS
+role (the build walks every organisation). Output is one JSON line per command.
+
+One-time adoption (no data copy):
+
+1. Set `QDRANT_COLLECTION_ALIAS` (a name no collection has, for example
+   `documents_live`) on the API and the workers; restart. Nothing changes yet: until
+   adoption, alias mode behaves like legacy mode.
+2. `python scripts/vector_index.py adopt` registers `QDRANT_COLLECTION` as generation 1
+   (`active`) and creates the alias. Pass `--embedding-model` if the collection was built
+   with another model than `OPENAI_EMBEDDING_MODEL`. Adopt before changing the model.
+
+Model change, step by step:
+
+1. Set the new `OPENAI_EMBEDDING_MODEL` and `QDRANT_VECTOR_SIZE` and restart. The startup
+   reconcile logs `vector_index.embedding_model_differs` and registers a `building`
+   generation with its own collection (`vector_index.generation.registered`); queries keep
+   the active generation's model. (Or run `python scripts/vector_index.py plan` first to see
+   what would be created, then `build`, which registers it.)
+2. From now on new and reindexed documents are written to both generations.
+3. `python scripts/vector_index.py build --enqueue` queues `vector_index.build` on
+   `CELERY_QUEUE_DOCUMENTS_REINDEX`; it re-enqueues itself every
+   `VECTOR_INDEX_BUILD_MAX_PAGES_PER_TASK` pages of `VECTOR_INDEX_BUILD_BATCH_DOCUMENTS`.
+   Without `--enqueue` the CLI runs the build inline. A killed build resumes from its
+   cursor: run the same command again. Follow `status`, the admin page
+   (`/admin/vector-index`), or `rudix_reindex_progress`.
+4. When the walk finishes the build verifies the generation: `verifying` means the point
+   count matches the expected chunk rows; `failed` with `point_count_mismatch` or
+   `documents_missing` means run `build` again (it restarts the walk, skipping documents
+   already recorded) and check `vector_index.dual_write_failed` logs.
+5. `python scripts/vector_index.py swap` shows the plan; `swap --yes` verifies again and
+   moves the alias in one `update_collection_aliases` call. The old generation becomes
+   `retired` for `QDRANT_RETIRED_GRACE_HOURS` (168). Processes switch their query model
+   within `VECTOR_INDEX_REGISTRY_CACHE_SECONDS`.
+
+Rollback:
+
+- `python scripts/vector_index.py rollback --yes` points the alias back at the newest
+  retired generation and retires the current one. Set `OPENAI_EMBEDDING_MODEL` and
+  `QDRANT_VECTOR_SIZE` back too, or the next start reports `pending` against the retired
+  generation instead of registering a new one.
+- A retired generation receives no writes. Documents indexed or reindexed after the swap
+  are missing or stale in it (deletes do reach it): reindex them after a rollback
+  (those indexed after the swap time).
+
+Grace period and drop:
+
+- `python scripts/vector_index.py drop-retired` lists retired generations whose
+  `retire_after` has passed; `--yes` deletes their collections (state `dropped`). The
+  active generation and the alias's current target are never dropped; legacy mode refuses.
+- The beat entry `vector-index-drop-retired` (daily 04:35 UTC) does the same only with
+  `VECTOR_INDEX_AUTO_DROP_RETIRED=true` (default `false`).
+
+Staging procedure (plan section 8 item 4): adopt the alias, run a model change end to end
+(build, verify, swap) under chat load and confirm no failed queries, roll back once, swap
+again, and drop the retired collection after the grace period (set a short
+`QDRANT_RETIRED_GRACE_HOURS` on staging). Run the accuracy gate before and after the swap.
+No staging run has been recorded yet.
+
+Known limits:
+
+- Tokens spent on a document whose build transaction did not commit (killed worker) are
+  not recorded as usage; the rerun reuses the vectors already in the target and records no
+  second event.
+- While a building generation uses another model, every new document is embedded twice
+  (once per model) and both are billed.
+
