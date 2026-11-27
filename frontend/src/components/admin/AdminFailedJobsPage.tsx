@@ -30,6 +30,7 @@ const JOB_TYPE_OPTIONS = [
   "deletion_cleanup",
   "reindex",
   "evaluation",
+  "dead_letter",
 ];
 
 const STATUS_OPTIONS: (FailedJobStatus | "")[] = [

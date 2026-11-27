@@ -424,7 +424,8 @@ make install
 make lint
 make test
 make run-api
-make run-worker
+make run-worker              # one worker, every queue (dev)
+make run-worker-pool POOL=ingest   # one R06-04 pool: ingest|graph|sync|eval|default
 make run-beat
 make migrate
 make downgrade
@@ -771,6 +772,22 @@ persisted), `embed` (embed and upsert per `INGEST_EMBED_BATCH_CHUNKS` chunks), `
   `CONNECTOR_SYNC_MAX_CONCURRENT_PER_ORG` / `_PER_CONNECTION` cap runs (0 = off). The engine
   facade is `app/domains/connectors/services/sync_engine.py` over `services/sync/`. Details:
   `docs/16_CONNECTOR_PLATFORM.md` (Sync Lifecycle and Checkpoints).
+- Chunk tenant column (R06-09): the chunk stage writes `document_chunks.organization_id`,
+  `fts_config` (document language: english, german, spanish, french, else simple) and
+  `fts_vector`. Older rows: `documents.chunks.backfill_tenant` (reindex queue) or
+  `.venv/bin/python scripts/backfill_chunk_tenant.py [--dry-run]`, then the operator SQL
+  `deploy/sql/document_chunks_not_null.sql` (rendered by
+  `scripts/render_chunk_not_null_sql.py --check`). Until then the table is in
+  `RLS_PENDING_TABLES` and the ORM guard does not filter it.
+- Keyword search (R06-09): `KEYWORD_SEARCH_MULTILINGUAL` (default `false`),
+  `KEYWORD_SEARCH_TENANT_COLUMN` (`auto|on|off`), `KEYWORD_SEARCH_CANDIDATE_LIMIT` (default
+  1000, `0` unbounded). The pipeline passes the detected question language. The SQL is in
+  `app/domains/chat/services/keyword_search_query.py`.
+- Graph writes (R06-10): ingestion writes entities, aliases, evidence and relations with
+  `UNWIND` batches (`GRAPH_WRITE_BATCH_SIZE`, default 200), one Neo4j write transaction per
+  batch. Extraction LLM batches run with `ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES` /
+  `RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES` (default 1). Single-item graph methods stay
+  for the admin endpoints.
 
 ## Application cache
 
@@ -1076,6 +1093,26 @@ Celery beat is the scheduler that enqueues periodic tasks. It schedules these en
 
 Without a beat process, scheduled connector syncs, approval expiry, stale-document
 recovery, and stale connector-sync recovery never run.
+
+Worker platform (0.6.0, R06-03 to R06-05): beat schedules nothing new for it. The queue depth
+gauges come from a sampler in `worker-default`'s main process
+(`WORKER_SAMPLE_QUEUE_DEPTH`, every `WORKER_QUEUE_SAMPLE_INTERVAL_SECONDS`, default 30), not
+from a beat task, because a task in a prefork child cannot export metrics on the worker's
+metrics port. Beat itself stays a single process outside the pools; its tasks run on the
+`default` queue, so `worker-default` must be running for them. Every task, beat tasks
+included, now has a soft and a hard time limit (defaults 300 s / 360 s unless
+`CELERY_TASK_TIME_LIMITS` names it; `maintenance.retention.purge` 1500 s / 1620 s).
+
+Worker notes:
+
+- `make run-worker` consumes every queue in `task_queues`. Staging and production run five
+  pools (`python -m app.workers.pools ingest|graph|sync|eval|default`), each with `-Q`,
+  `--concurrency`, and `--pool` from `WORKER_POOL_<NAME>_*` (docs/10 "Worker pools").
+- `CELERY_WORKER_MAX_TASKS_PER_CHILD` (200) and `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` (0,
+  off) recycle children. A time-limited task records `FailedJob.error_code`
+  `task_soft_time_limit` or `task_time_limit`.
+- `CELERY_QUEUE_TYPE=quorum` switches to quorum queues with a dead-letter exchange; follow the
+  cut-over in docs/27 (new queue names, drain the old ones).
 
 Document processing claim and stale reaper: `documents.process` and `documents.reindex`
 atomically claim the document by writing their Celery task ID to

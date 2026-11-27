@@ -84,6 +84,13 @@ run-api:
 run-worker:
 	$(CELERY) -A app.workers.celery_app:celery_app worker --loglevel=INFO
 
+.PHONY: run-worker-pool
+# One worker pool (R06-04): POOL=ingest|graph|sync|eval|default, queues and concurrency from
+# WORKER_POOL_<NAME>_* settings. `make run-worker` still consumes every queue.
+POOL ?= default
+run-worker-pool:
+	$(PYTHON_VENV) -m app.workers.pools $(POOL)
+
 .PHONY: run-beat
 run-beat:
 	$(CELERY) -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule /tmp/celerybeat-schedule

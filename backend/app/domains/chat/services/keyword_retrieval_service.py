@@ -5,10 +5,16 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.document import Document, DocumentChunk
+from app.core.config import settings
+from app.domains.chat.services.keyword_search_query import (
+    KeywordSearchPlan,
+    build_keyword_search_statement,
+    question_fts_config,
+    row_belongs_to,
+    use_tenant_column,
+)
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -89,7 +95,13 @@ class KeywordRetrievalService:
         exact_match_boost: float = 1.5,
         index_version: str | None = None,
         index_versions: Sequence[str] | None = None,
+        query_language: str | None = None,
     ) -> KeywordRetrievalResult:
+        """Rank chunks of ``organization_id`` against ``query`` (R03-01, R06-09).
+
+        ``query_language`` (the pipeline's detected question language) picks the text
+        search configuration when ``KEYWORD_SEARCH_MULTILINGUAL`` is on.
+        """
         if index_version is not None and index_versions is not None:
             raise ValueError("pass either index_version or index_versions, not both")
         if not query.strip():
@@ -103,41 +115,21 @@ class KeywordRetrievalService:
 
         exact_match_tokens = _extract_exact_match_tokens(query)
 
-        tsquery = func.plainto_tsquery("english", query)
-        rank_expr = func.ts_rank(DocumentChunk.text_search_vector, tsquery)
-
-        # Left-join parent chunk at table level to avoid ORM mapper ambiguity (F300).
-        _parent_alias = DocumentChunk.__table__.alias("parent_chunk")
-        stmt = (
-            select(
-                DocumentChunk.id.label("chunk_id"),
-                DocumentChunk.document_id,
-                DocumentChunk.text,
-                DocumentChunk.page_number,
-                DocumentChunk.section_path,
-                DocumentChunk.chunk_level,
-                DocumentChunk.parent_chunk_id,
-                _parent_alias.c.text.label("parent_text"),
-                Document.filename,
-                rank_expr.label("rank_score"),
-            )
-            .join(Document, DocumentChunk.document_id == Document.id)
-            .outerjoin(_parent_alias, DocumentChunk.parent_chunk_id == _parent_alias.c.id)
-            .where(
-                Document.organization_id == organization_id,
-                Document.status == "indexed",
-                DocumentChunk.text_search_vector.op("@@")(tsquery),
-            )
-            .order_by(rank_expr.desc())
-            .limit(top_k)
+        search = KeywordSearchPlan(
+            multilingual=settings.keyword_search_multilingual,
+            tenant_column=await use_tenant_column(session),
+            candidate_limit=settings.keyword_search_candidate_limit,
+            question_config=question_fts_config(query, query_language),
         )
-
-        if document_ids is not None:
-            stmt = stmt.where(DocumentChunk.document_id.in_(document_ids))
-        if index_version is not None:
-            stmt = stmt.where(DocumentChunk.index_version == index_version)
-        if allowed_versions is not None:
-            stmt = stmt.where(DocumentChunk.index_version.in_(allowed_versions))
+        stmt = build_keyword_search_statement(
+            plan=search,
+            query=query,
+            organization_id=organization_id,
+            document_ids=document_ids,
+            top_k=top_k,
+            index_version=index_version,
+            index_versions=allowed_versions,
+        )
 
         rows = (await session.execute(stmt)).mappings().all()
 
@@ -155,7 +147,10 @@ class KeywordRetrievalService:
             raw_page = row["page_number"]
             page_number = int(raw_page) if isinstance(raw_page, int) and raw_page >= 1 else None
 
-            # Double-check org isolation on each row (defence-in-depth).
+            # Double-check org isolation on each row (defence-in-depth): the owning document
+            # and, once written, the chunk's own tenant column must both be the caller's.
+            if not row_belongs_to(row, organization_id):
+                continue
             try:
                 doc_id = UUID(str(row["document_id"]))
             except (TypeError, ValueError):

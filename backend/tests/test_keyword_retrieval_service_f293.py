@@ -106,8 +106,10 @@ def _make_row(
     chunk_level: int = 0,
     parent_chunk_id: UUID | None = None,
     parent_text: str | None = None,
+    document_organization_id: UUID | None = None,
 ) -> dict:
     return {
+        "document_organization_id": document_organization_id,
         "chunk_id": chunk_id or uuid4(),
         "document_id": document_id or uuid4(),
         "text": text,
@@ -168,7 +170,14 @@ class TestKeywordRetrievalService:
         org_id = uuid4()
         doc_id = uuid4()
         chunk_id = uuid4()
-        rows = [_make_row(chunk_id=chunk_id, document_id=doc_id, rank_score=0.8)]
+        rows = [
+            _make_row(
+                document_organization_id=org_id,
+                chunk_id=chunk_id,
+                document_id=doc_id,
+                rank_score=0.8,
+            )
+        ]
 
         service = KeywordRetrievalService()
         session = _make_session(rows)
@@ -195,6 +204,7 @@ class TestKeywordRetrievalService:
         chunk_id = uuid4()
         rows = [
             _make_row(
+                document_organization_id=org_id,
                 chunk_id=chunk_id,
                 document_id=doc_id,
                 text="GDPR article 5 applies here",
@@ -258,7 +268,14 @@ class TestKeywordRetrievalService:
         allowed_doc_id = uuid4()
         other_doc_id = uuid4()
         chunk_id = uuid4()
-        rows = [_make_row(chunk_id=chunk_id, document_id=other_doc_id, rank_score=0.9)]
+        rows = [
+            _make_row(
+                document_organization_id=org_id,
+                chunk_id=chunk_id,
+                document_id=other_doc_id,
+                rank_score=0.9,
+            )
+        ]
 
         service = KeywordRetrievalService()
         session = _make_session(rows)
@@ -277,7 +294,7 @@ class TestKeywordRetrievalService:
     @pytest.mark.asyncio
     async def test_invalid_chunk_id_skipped(self) -> None:
         org_id = uuid4()
-        bad_row = _make_row(rank_score=0.3)
+        bad_row = _make_row(document_organization_id=org_id, rank_score=0.3)
         bad_row["chunk_id"] = "not-a-uuid"
 
         service = KeywordRetrievalService()
@@ -296,7 +313,7 @@ class TestKeywordRetrievalService:
     @pytest.mark.asyncio
     async def test_page_number_none_for_zero(self) -> None:
         org_id = uuid4()
-        rows = [_make_row(page_number=0, rank_score=0.4)]
+        rows = [_make_row(document_organization_id=org_id, page_number=0, rank_score=0.4)]
 
         service = KeywordRetrievalService()
         session = _make_session(rows)

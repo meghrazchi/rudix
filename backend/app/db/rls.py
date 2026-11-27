@@ -185,6 +185,14 @@ RLS_STRICT_TABLES_0_6_0: tuple[str, ...] = (
 
 RLS_STRICT_TABLES: tuple[str, ...] = RLS_STRICT_TABLES_0_4_0 + RLS_STRICT_TABLES_0_6_0
 
+# Tables that carry a tenant column but no policy yet (0.6.0, R06-09). Existing rows are
+# NULL until the backfill (``documents.chunks.backfill_tenant``) finishes; a policy before
+# then would hide them. The operator step ``deploy/sql/document_chunks_not_null.sql`` adds
+# NOT NULL and the strict policy; a later release then moves the table to a strict list.
+# The ORM guard exempts these models for the same reason
+# (``tenant_context._PENDING_TENANT_MODEL_NAMES``). Never overlaps the policy lists.
+RLS_PENDING_TABLES: tuple[str, ...] = ("document_chunks",)
+
 LEGACY_RLS_CONDITION = f"{_SETTING_ORG} IS NULL OR organization_id = {_SETTING_ORG}::uuid"
 STRICT_RLS_CONDITION = (
     f"organization_id = {_SETTING_ORG}::uuid "

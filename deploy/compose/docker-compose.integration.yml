@@ -146,6 +146,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin123
+    # consumer_timeout and per-queue Prometheus metrics (R06-03). The integration stack keeps
+    # one worker that consumes every queue.
+    volumes:
+      - ../../infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/20-rudix.conf:ro
+      - ../../infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s

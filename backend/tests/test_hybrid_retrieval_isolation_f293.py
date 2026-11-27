@@ -83,8 +83,8 @@ async def test_keyword_service_drops_chunk_from_wrong_document_id() -> None:
     intruder_doc_id = uuid4()
 
     rows = [
-        _make_row(document_id=allowed_doc_id, rank_score=0.8),
-        _make_row(document_id=intruder_doc_id, rank_score=0.9),
+        _make_row(document_organization_id=org_id, document_id=allowed_doc_id, rank_score=0.8),
+        _make_row(document_organization_id=org_id, document_id=intruder_doc_id, rank_score=0.9),
     ]
     session = _make_session(rows)
     service = KeywordRetrievalService()
@@ -106,7 +106,7 @@ async def test_keyword_service_drops_chunk_from_wrong_document_id() -> None:
 async def test_keyword_service_returns_empty_for_empty_document_id_list() -> None:
     """Empty allowed document_ids ⇒ no candidates regardless of DB rows."""
     org_id = uuid4()
-    rows = [_make_row(rank_score=0.9)]
+    rows = [_make_row(document_organization_id=org_id, rank_score=0.9)]
     session = _make_session(rows)
     service = KeywordRetrievalService()
 
@@ -187,8 +187,8 @@ async def test_hybrid_merge_no_cross_org_contamination() -> None:
 async def test_keyword_service_invalid_doc_id_row_dropped() -> None:
     """Rows with an unparseable document_id are silently skipped."""
     org_id = uuid4()
-    valid_row = _make_row(rank_score=0.7)
-    bad_row = _make_row(rank_score=0.9)
+    valid_row = _make_row(document_organization_id=org_id, rank_score=0.7)
+    bad_row = _make_row(document_organization_id=org_id, rank_score=0.9)
     bad_row["document_id"] = "not-a-valid-uuid"
 
     session = _make_session([valid_row, bad_row])
@@ -217,8 +217,18 @@ async def test_keyword_service_exact_match_boost_does_not_leak_org() -> None:
     another_doc_id = uuid4()
 
     rows = [
-        _make_row(document_id=allowed_doc_id, text="GDPR compliance rules", rank_score=0.4),
-        _make_row(document_id=another_doc_id, text="GDPR more data", rank_score=0.6),
+        _make_row(
+            document_organization_id=org_id,
+            document_id=allowed_doc_id,
+            text="GDPR compliance rules",
+            rank_score=0.4,
+        ),
+        _make_row(
+            document_organization_id=org_id,
+            document_id=another_doc_id,
+            text="GDPR more data",
+            rank_score=0.6,
+        ),
     ]
     session = _make_session(rows)
     service = KeywordRetrievalService()

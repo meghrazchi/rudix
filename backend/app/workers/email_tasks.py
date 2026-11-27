@@ -68,7 +68,6 @@ async def _send_email_async(
     bind=True,
     base=RudixTask,
     name="app.workers.email_tasks.send_transactional_email",
-    queue="email",
     max_retries=3,
     default_retry_delay=30,
     autoretry_for=(TransientTaskError,),

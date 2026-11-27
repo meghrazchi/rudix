@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from app.core.logging import get_logger
 from app.domains.ai.providers.factory import default_provider_factory
+from app.domains.graph.services.bounded_batches import gather_in_order
 
 logger = get_logger("graph.relation_extraction")
 
@@ -241,11 +242,21 @@ class RelationExtractionService:
         timeout_seconds: float = 60.0,
         max_retries: int = 2,
         confidence_threshold: float = 0.5,
+        max_concurrent_batches: int | None = None,
     ) -> None:
         self._batch_size = max(1, batch_size)
         self._timeout_seconds = timeout_seconds
         self._max_retries = max_retries
         self._confidence_threshold = confidence_threshold
+        # None reads RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES at call time (R06-10).
+        self._max_concurrent_batches = max_concurrent_batches
+
+    def _concurrency(self) -> int:
+        if self._max_concurrent_batches is not None:
+            return max(1, self._max_concurrent_batches)
+        from app.core.config import settings
+
+        return max(1, int(settings.relation_extraction_max_concurrent_batches))
 
     async def extract_from_chunks(
         self,
@@ -276,10 +287,11 @@ class RelationExtractionService:
         ]
         result.batch_count = len(batches)
 
-        for batch in batches:
+        async def _run_batch(batch: list[tuple[int, str]]) -> RelationExtractionBatchResult:
+            partial = RelationExtractionBatchResult()
             valid_pairs = [(idx, text) for idx, text in batch if text.strip()]
             if not valid_pairs:
-                continue
+                return partial
 
             prompt = _build_user_prompt(valid_pairs, entity_names_by_chunk)
             valid_indices = {idx for idx, _ in valid_pairs}
@@ -307,7 +319,7 @@ class RelationExtractionService:
                         timeout_seconds=self._timeout_seconds,
                     )
                     if attempt == self._max_retries:
-                        result.llm_errors += 1
+                        partial.llm_errors += 1
                 except Exception as exc:
                     logger.warning(
                         "relation_extraction.llm_error",
@@ -316,16 +328,16 @@ class RelationExtractionService:
                         detail=str(exc),
                     )
                     if attempt == self._max_retries:
-                        result.llm_errors += 1
+                        partial.llm_errors += 1
 
             if raw_response is None:
-                continue
+                return partial
 
             batch_schema, err = _parse_and_validate(raw_response)
             if err is not None:
                 logger.warning("relation_extraction.validation_error", error=err)
-                result.validation_errors += 1
-                continue
+                partial.validation_errors += 1
+                return partial
 
             for rel in batch_schema.relations:
                 if rel.source_chunk_index not in valid_indices:
@@ -343,10 +355,10 @@ class RelationExtractionService:
                         to_entity=rel.to_entity_name,
                         rel_type=rel.rel_type,
                     )
-                    result.skipped_unknown_entity += 1
+                    partial.skipped_unknown_entity += 1
                     continue
 
-                result.relations.append(
+                partial.relations.append(
                     ExtractedRelationItem(
                         relation_id=_relation_uuid(
                             org_id=organization_id,
@@ -364,6 +376,15 @@ class RelationExtractionService:
                         source_chunk_index=chunk_index,
                     )
                 )
+            return partial
+
+        # R06-10: up to RELATION_EXTRACTION_MAX_CONCURRENT_BATCHES LLM calls in flight;
+        # results are merged in batch order, so the output does not depend on timing.
+        for partial in await gather_in_order(batches, _run_batch, limit=self._concurrency()):
+            result.relations.extend(partial.relations)
+            result.llm_errors += partial.llm_errors
+            result.validation_errors += partial.validation_errors
+            result.skipped_unknown_entity += partial.skipped_unknown_entity
 
         return result
 

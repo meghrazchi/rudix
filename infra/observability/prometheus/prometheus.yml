@@ -22,7 +22,15 @@ scrape_configs:
     metrics_path: "/metrics"
     scrape_interval: 15s
     static_configs:
-      - targets: ["worker:9808"]
+      # `worker` (dev, all queues) or the R06-04 pools; a target that does not exist in a
+      # deployment is reported down and ignored by the worker alerts.
+      - targets:
+          - "worker:9808"
+          - "worker-ingest:9808"
+          - "worker-graph:9808"
+          - "worker-sync:9808"
+          - "worker-eval:9808"
+          - "worker-default:9808"
 
   - job_name: "qdrant"
     metrics_path: "/metrics"

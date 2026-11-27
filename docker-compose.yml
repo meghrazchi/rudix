@@ -1,3 +1,44 @@
+# Shared worker definition (R06-04): the all-queues `worker` and the five pool services.
+x-dev-worker-environment: &dev-worker-environment
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-rag_app}
+  QDRANT_URL: http://qdrant:6333
+  MINIO_ENDPOINT: http://minio:9000
+  RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-admin}:${RABBITMQ_DEFAULT_PASS:-admin123}@rabbitmq:5672//
+  REDIS_URL: redis://redis:6379/0
+  MALWARE_SCAN_CLAMAV_HOST: clamav
+
+x-dev-worker: &dev-worker
+  build:
+    context: ./backend
+    target: worker
+  env_file:
+    - .env
+  environment: *dev-worker-environment
+  volumes:
+    - ./backend:/app
+  depends_on:
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    minio:
+      condition: service_healthy
+    qdrant:
+      condition: service_healthy
+    clamav:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+
+# The image HEALTHCHECK pings celery@$HOSTNAME; pool nodes are named <pool>@$HOSTNAME.
+x-dev-pool-healthcheck: &dev-pool-healthcheck
+  interval: 30s
+  timeout: 15s
+  retries: 5
+  start_period: 60s
+
 services:
   api:
     build:
@@ -44,37 +85,58 @@ services:
       timeout: 5s
       retries: 5
 
+  # Consumes every queue (task_queues). For one worker per pool as in staging and
+  # production, run `docker compose --profile pools up` and stop this service.
   worker:
-    build:
-      context: ./backend
-      target: worker
+    <<: *dev-worker
     command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
-    env_file:
-      - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-rag_app}
-      QDRANT_URL: http://qdrant:6333
-      MINIO_ENDPOINT: http://minio:9000
-      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-admin}:${RABBITMQ_DEFAULT_PASS:-admin123}@rabbitmq:5672//
-      REDIS_URL: redis://redis:6379/0
-      MALWARE_SCAN_CLAMAV_HOST: clamav
-    volumes:
-      - ./backend:/app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-      clamav:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
+      <<: *dev-worker-environment
+      # The single dev worker also runs the main-process bootsteps of the default pool.
+      WORKER_CONSUME_DEAD_LETTER: "true"
+      WORKER_SAMPLE_QUEUE_DEPTH: "true"
+
+  # R06-04 worker pools (profile `pools`): queues, concurrency, and pool type come from the
+  # WORKER_POOL_<NAME>_* settings via `python -m app.workers.pools <name>`.
+  worker-ingest:
+    <<: *dev-worker
+    profiles: ["pools"]
+    command: python -m app.workers.pools ingest
+    healthcheck:
+      <<: *dev-pool-healthcheck
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app:celery_app inspect ping -d ingest@$$HOSTNAME --timeout 10 >/dev/null || exit 1"]
+
+  worker-graph:
+    <<: *dev-worker
+    profiles: ["pools"]
+    command: python -m app.workers.pools graph
+    healthcheck:
+      <<: *dev-pool-healthcheck
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app:celery_app inspect ping -d graph@$$HOSTNAME --timeout 10 >/dev/null || exit 1"]
+
+  worker-sync:
+    <<: *dev-worker
+    profiles: ["pools"]
+    command: python -m app.workers.pools sync
+    healthcheck:
+      <<: *dev-pool-healthcheck
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app:celery_app inspect ping -d sync@$$HOSTNAME --timeout 10 >/dev/null || exit 1"]
+
+  worker-eval:
+    <<: *dev-worker
+    profiles: ["pools"]
+    command: python -m app.workers.pools eval
+    healthcheck:
+      <<: *dev-pool-healthcheck
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app:celery_app inspect ping -d eval@$$HOSTNAME --timeout 10 >/dev/null || exit 1"]
+
+  worker-default:
+    <<: *dev-worker
+    profiles: ["pools"]
+    command: python -m app.workers.pools default
+    healthcheck:
+      <<: *dev-pool-healthcheck
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app:celery_app inspect ping -d default@$$HOSTNAME --timeout 10 >/dev/null || exit 1"]
 
   # Exactly one beat instance per deployment. Never scale this service; duplicate beats double-schedule tasks.
   beat:
@@ -241,6 +303,10 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-admin123}
       RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit deprecated_features [{permit,[{management_metrics_collection,true}]}]"
+    # consumer_timeout and per-queue Prometheus metrics (R06-03).
+    volumes:
+      - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/20-rudix.conf:ro
+      - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     ports:
       - "5672:5672"
       - "15672:15672"

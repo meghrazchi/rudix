@@ -27,6 +27,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.logging import get_logger
+from app.domains.graph.services.bounded_batches import gather_in_order
 
 logger = get_logger("graph.entity_extraction")
 
@@ -226,10 +227,20 @@ class EntityExtractionService:
         batch_size: int = 10,
         timeout_seconds: float = 60.0,
         max_retries: int = 2,
+        max_concurrent_batches: int | None = None,
     ) -> None:
         self._batch_size = max(1, batch_size)
         self._timeout_seconds = timeout_seconds
         self._max_retries = max_retries
+        # None reads ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES at call time (R06-10).
+        self._max_concurrent_batches = max_concurrent_batches
+
+    def _concurrency(self) -> int:
+        if self._max_concurrent_batches is not None:
+            return max(1, self._max_concurrent_batches)
+        from app.core.config import settings
+
+        return max(1, int(settings.entity_extraction_max_concurrent_batches))
 
     async def extract_from_chunks(
         self,
@@ -259,10 +270,11 @@ class EntityExtractionService:
         ]
         result.batch_count = len(batches)
 
-        for batch in batches:
+        async def _run_batch(batch: list[tuple[int, str]]) -> ExtractionBatchResult:
+            partial = ExtractionBatchResult()
             valid_pairs = [(idx, text) for idx, text in batch if text.strip()]
             if not valid_pairs:
-                continue
+                return partial
 
             prompt = _build_user_prompt(valid_pairs)
             valid_indices = {idx for idx, _ in valid_pairs}
@@ -290,7 +302,7 @@ class EntityExtractionService:
                         timeout_seconds=self._timeout_seconds,
                     )
                     if attempt == self._max_retries:
-                        result.llm_errors += 1
+                        partial.llm_errors += 1
                 except Exception as exc:
                     logger.warning(
                         "entity_extraction.llm_error",
@@ -299,16 +311,16 @@ class EntityExtractionService:
                         detail=str(exc),
                     )
                     if attempt == self._max_retries:
-                        result.llm_errors += 1
+                        partial.llm_errors += 1
 
             if raw_response is None:
-                continue
+                return partial
 
             batch_schema, err = _parse_and_validate(raw_response)
             if err is not None:
                 logger.warning("entity_extraction.validation_error", error=err)
-                result.validation_errors += 1
-                continue
+                partial.validation_errors += 1
+                return partial
 
             for entity in batch_schema.entities:
                 # Clamp source_chunk_index to one of the indices in this batch.
@@ -317,7 +329,7 @@ class EntityExtractionService:
                 else:
                     entity_chunk_index = entity.source_chunk_index
 
-                result.entities.append(
+                partial.entities.append(
                     ExtractedEntityItem(
                         entity_id=_entity_uuid(
                             org_id=organization_id,
@@ -334,5 +346,13 @@ class EntityExtractionService:
                         source_chunk_index=entity_chunk_index,
                     )
                 )
+            return partial
+
+        # R06-10: up to ENTITY_EXTRACTION_MAX_CONCURRENT_BATCHES LLM calls in flight;
+        # results are merged in batch order, so the output does not depend on timing.
+        for partial in await gather_in_order(batches, _run_batch, limit=self._concurrency()):
+            result.entities.extend(partial.entities)
+            result.llm_errors += partial.llm_errors
+            result.validation_errors += partial.validation_errors
 
         return result

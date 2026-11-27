@@ -38,13 +38,17 @@ def test_every_organization_table_is_in_exactly_one_list() -> None:
     strict = set(rls.RLS_STRICT_TABLES)
     lookup = set(rls.RLS_LOOKUP_TABLES)
     identity = set(rls.RLS_IDENTITY_TABLES)
+    pending = set(rls.RLS_PENDING_TABLES)
     assert len(strict) == len(rls.RLS_STRICT_TABLES), "duplicate in RLS_STRICT_TABLES"
     assert len(lookup) == len(rls.RLS_LOOKUP_TABLES), "duplicate in RLS_LOOKUP_TABLES"
     assert len(identity) == len(rls.RLS_IDENTITY_TABLES), "duplicate in RLS_IDENTITY_TABLES"
+    assert len(pending) == len(rls.RLS_PENDING_TABLES), "duplicate in RLS_PENDING_TABLES"
     assert not strict & lookup
     assert not identity & (strict | lookup)
+    # A pending table has a tenant column but no policy yet: never in a policy list.
+    assert not pending & (strict | lookup | identity)
     tables = _tenant_tables()
-    covered = strict | lookup | identity
+    covered = strict | lookup | identity | pending
     assert sorted(tables - covered) == [], "add new tenant tables to app.db.rls"
     assert sorted(covered - tables) == [], "stale table in app.db.rls"
 
@@ -61,6 +65,31 @@ def test_orm_guard_exempt_models_have_no_tenant_policy() -> None:
     assert exempt_tables == {"users", "organization_members"}
     assert exempt_tables <= set(rls.RLS_IDENTITY_TABLES)
     assert not set(rls.RLS_IDENTITY_TABLES) & set(rls.TENANT_RLS_TABLES)
+
+
+def test_pending_tables_match_the_guard_exemption() -> None:
+    # R06-09: chunks carry organization_id before every row is backfilled. The ORM guard
+    # must not filter them (unbackfilled rows would vanish) and no policy may exist yet.
+    pending_tables = {
+        mapper.local_table.name
+        for mapper in Base.registry.mappers
+        if mapper.class_.__name__ in tenant_context._PENDING_TENANT_MODEL_NAMES
+    }
+    assert pending_tables == set(rls.RLS_PENDING_TABLES) == {"document_chunks"}
+    assert not tenant_context._PENDING_TENANT_MODEL_NAMES & tenant_context._EXEMPT_MODEL_NAMES
+    assert "organization_id" in Base.metadata.tables["document_chunks"].c
+    assert "document_chunks" not in rls.RLS_STRICT_TABLES
+    from app.models.document import DocumentChunk
+
+    assert tenant_context._is_tenant_scoped_entity(DocumentChunk) is False
+
+
+def test_pending_tables_get_no_force_rls() -> None:
+    # force_rls.sql covers only tables with a policy; a pending table has none yet.
+    module = _load_migration(
+        Path(__file__).resolve().parent.parent / "scripts" / "render_force_rls_sql.py"
+    )
+    assert not set(module.forced_tables()) & set(rls.RLS_PENDING_TABLES)
 
 
 def test_legacy_tables_are_all_covered() -> None:
