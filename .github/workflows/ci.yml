@@ -221,3 +221,7 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+
+      - name: Check prerendered public routes
+        working-directory: frontend
+        run: node scripts/check-prerendered-routes.mjs
