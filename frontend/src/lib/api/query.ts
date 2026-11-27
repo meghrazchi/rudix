@@ -407,6 +407,35 @@ export const queryKeys = {
       params ?? {},
     ] as const,
   // anchor: D
+  adminPermissions: {
+    roleMatrix: ["admin", "permissions", "role-matrix"] as const,
+    grants: ["admin", "permissions", "grants"] as const,
+    denies: ["admin", "permissions", "denies"] as const,
+    conflicts: ["admin", "permissions", "conflicts"] as const,
+    resourceAccess: (
+      kind: "grant" | "deny",
+      resourceType: string,
+      status: string,
+    ) =>
+      [
+        "admin",
+        "permissions",
+        kind === "grant" ? "grants" : "denies",
+        resourceType,
+        status,
+      ] as const,
+    conflict: (conflictId: string) =>
+      ["admin", "permissions", "conflicts", conflictId] as const,
+    conflictList: (severity: string, status: string, resourceType: string) =>
+      [
+        "admin",
+        "permissions",
+        "conflicts",
+        severity,
+        status,
+        resourceType,
+      ] as const,
+  },
 };
 
 export type FrontendMutationKind =

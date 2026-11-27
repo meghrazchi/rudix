@@ -1,0 +1,41 @@
+import { describe, expect, it } from "vitest";
+
+import { queryKeys } from "@/lib/api/query";
+
+// Each factory must return exactly the array literal the component used
+// before the key moved into the shared factory (R07-10).
+describe("queryKeys (D1 factories)", () => {
+  it("adminPermissions keys match the former literals", () => {
+    const k = queryKeys.adminPermissions;
+    expect(k.roleMatrix).toEqual(["admin", "permissions", "role-matrix"]);
+    expect(k.grants).toEqual(["admin", "permissions", "grants"]);
+    expect(k.denies).toEqual(["admin", "permissions", "denies"]);
+    expect(k.conflicts).toEqual(["admin", "permissions", "conflicts"]);
+    expect(k.resourceAccess("grant", "document", "active")).toEqual([
+      ...["admin", "permissions", "grants"],
+      "document",
+      "active",
+    ]);
+    expect(k.resourceAccess("deny", "", "")).toEqual([
+      "admin",
+      "permissions",
+      "denies",
+      "",
+      "",
+    ]);
+    expect(k.conflict("c1")).toEqual([
+      "admin",
+      "permissions",
+      "conflicts",
+      "c1",
+    ]);
+    expect(k.conflictList("high", "open", "document")).toEqual([
+      "admin",
+      "permissions",
+      "conflicts",
+      "high",
+      "open",
+      "document",
+    ]);
+  });
+});
