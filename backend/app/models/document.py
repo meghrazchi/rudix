@@ -83,6 +83,15 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "processing_started_at",
             postgresql_where=sql_text("status = 'processing'"),
         ),
+        # Created by migrations 20260602_0016 and 20260624_0001; mirrored here (R04-02).
+        Index("idx_documents_duplicate_of", "duplicate_of_document_id"),
+        Index("idx_documents_current_version_id", "current_version_id"),
+        Index(
+            "idx_documents_org_created",
+            "organization_id",
+            sql_text("created_at DESC"),
+            sql_text("id DESC"),
+        ),
     )
 
     organization_id: Mapped[UUID] = mapped_column(

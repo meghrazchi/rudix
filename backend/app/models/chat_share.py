@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Uuid
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -13,6 +14,7 @@ class ChatShare(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("idx_chat_shares_token", "token", unique=True),
         Index("idx_chat_shares_session", "chat_session_id"),
+        Index("idx_chat_shares_org_created", "organization_id", sql_text("created_at DESC")),
     )
 
     chat_session_id: Mapped[UUID] = mapped_column(
