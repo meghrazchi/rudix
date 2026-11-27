@@ -609,3 +609,59 @@ fails the run with `worker_lost`. Inline runs never hold a lease and are never r
 Not verified here (no broker or Redis in CI): a real worker restart mid-run and live Redis
 pub/sub. They are staging checks in plan section 8; the tests use eager Celery and the
 in-memory Redis fake.
+
+## Evaluation isolation (R06-12)
+
+Evaluation runs (`evaluations.run`) and safety evaluations (`safety_evals.run`) route to
+`CELERY_QUEUE_EVALUATIONS` (default `evaluations`), which the `eval` worker pool consumes
+(`python -m app.workers.pools eval`, `worker-eval` in the staging and production compose
+files). The single development worker consumes it too.
+
+### Settings
+
+| Setting | Default | Effect |
+|---|---|---|
+| `QDRANT_EVALUATION_COLLECTION` | unset | Unset: chunking-comparison vectors go to the production collection under `eval-` index versions, as before 0.6.0. Set: re-ingest, eval retrieval and cleanup use this collection only. Must differ from `QDRANT_COLLECTION` and `QDRANT_COLLECTION_ALIAS` (checked at startup). |
+| `EVALUATION_MAX_CONCURRENT_QUESTIONS` | `1` | Questions of one target evaluated at the same time (1 to 32), LLM judge included. `1` is the previous sequential behaviour. |
+
+### Evaluation collection
+
+- Created on the first chunking-comparison target that needs it, with the active
+  generation's vector size and distance (the collection behind the alias, or
+  `QDRANT_COLLECTION`) and the production payload indexes, `organization_id` as tenant
+  index. Points carry the production payload, so every search and delete is filtered by
+  organisation, document and index version.
+- If its vector size differs from the active generation, or the active generation differs
+  from `QDRANT_VECTOR_SIZE` (a model change is building), re-ingest fails with
+  `EvaluationCollectionMismatchError` and the run fails after cleanup. After the swap, drop
+  the evaluation collection (it only holds transient eval versions); it is recreated on the
+  next run.
+- Cleanup deletes each target's eval version from the evaluation collection at the end of
+  the target; eval chunk rows stay in `document_chunks` and are deleted as before.
+- Document deletion (`documents.delete`) also deletes the document's points from the
+  evaluation collection.
+- `scripts/purge_eval_index_versions.py` scans and purges both collections.
+
+### Turning it on
+
+1. Deploy with the setting unset (no change).
+2. Set `QDRANT_EVALUATION_COLLECTION` (for example `rudix_eval_vectors`) on the API and every
+   worker, restart. New chunking comparisons write there; nothing has to be migrated.
+3. Run `scripts/purge_eval_index_versions.py` (dry run, then `--apply`) to remove legacy eval
+   points left in the production collection.
+4. Rollback: unset the setting and restart. Points left in the evaluation collection are
+   invisible to chat; delete the collection once no run is queued or running.
+
+### Concurrency
+
+Raise `EVALUATION_MAX_CONCURRENT_QUESTIONS` step by step while watching
+`rudix_evaluation_questions_in_flight`, provider rate-limit errors, and chat latency. The
+bound applies per target and per worker process, so the provider sees up to
+`bound x eval pool concurrency` questions. "No measurable change in chat or ingestion
+latency during a full evaluation run" is a staging load-test check; it has not been measured.
+
+| Symptom | Cause | Recovery |
+|---|---|---|
+| Eval vectors still appear in the production collection | Setting not set on the worker that ran the evaluation | Set it on every worker; purge the leftovers with the script. |
+| Run fails with `EvaluationCollectionMismatchError` | Vector size changed (model change) | Finish the generation swap, drop the evaluation collection, rerun. |
+| Many questions fail with provider rate-limit errors | Bound too high | Lower `EVALUATION_MAX_CONCURRENT_QUESTIONS`. |

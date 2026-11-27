@@ -792,6 +792,32 @@ flowchart LR
     I --> J[Evaluation Dashboard]
 ```
 
+Runs execute in the `evaluations.run` Celery task on the evaluations queue (the `eval`
+worker pool in staging and production). The code lives in `backend/app/workers/evaluation/`
+(`config`, `corpus`, `question`, `judge`, `target`, `comparison`, `run`, `tasks`,
+`collection`); `app/workers/evaluation_tasks.py` is the facade that keeps the task name
+and the names tests rebind.
+
+- **Targets.** A run evaluates one or more chunking targets. A baseline target (no
+  chunking profile config) reads the live index: the production collection or alias with
+  `DOCUMENT_INDEX_VERSION`. A profile target re-ingests the corpus under
+  `eval-<run hex10>-<n>` with persistence of document state, pages and usage turned off,
+  evaluates against that version, and is cleaned up in a `finally` block.
+- **Evaluation collection (R06-12).** `QDRANT_EVALUATION_COLLECTION` unset keeps eval
+  vectors in the production collection under `eval-` versions (hidden from chat by the
+  index version filter). When it is set, the collection is created on first use with the
+  active generation's vector size and distance and the same payload indexes
+  (`organization_id` as tenant index); re-ingest writes there through
+  `IngestionOptions.vector_collection`, eval retrieval searches there with the usual
+  organisation, document and index version filter, and cleanup deletes there. Eval chunk
+  rows stay in `document_chunks`. Document deletion also deletes the document's points
+  from the evaluation collection.
+- **Bounded concurrency.** `EVALUATION_MAX_CONCURRENT_QUESTIONS` (default `1`) questions
+  of a target run at the same time, LLM judge included; results are written in question
+  order, each in its own short session. The question pipeline opens no session.
+- Retrieved text is untrusted in evaluation as in chat: prompts are built by the same
+  `PromptService`, and citations are validated by the same `CitationService`.
+
 ## Evaluation metrics
 
 | Metric             | Description                                       |

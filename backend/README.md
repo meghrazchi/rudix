@@ -839,6 +839,14 @@ R06-06, connector source references), and `finalize` (the only writer of `indexe
   changed embedding model or dimension at startup registers a building generation instead
   of failing. Read API: `GET /admin/vector-index/status`. Runbook: docs/27 "Reindex and
   alias swap".
+- Evaluation isolation (R06-12): `evaluations.run` lives in `app/workers/evaluation/`
+  (`app/workers/evaluation_tasks.py` is the facade tests patch) and runs on the evaluations
+  queue (`eval` pool). `QDRANT_EVALUATION_COLLECTION` (unset keeps eval vectors in the
+  production collection) sends chunking-comparison re-ingest, eval retrieval, cleanup,
+  `scripts/purge_eval_index_versions.py` and the document-deletion cascade to a dedicated
+  collection. `EVALUATION_MAX_CONCURRENT_QUESTIONS` (default 1) bounds concurrent
+  questions per target; gauge `rudix_evaluation_questions_in_flight`. Runbook: docs/27
+  "Evaluation isolation".
 
 ## Application cache
 

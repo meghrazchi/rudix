@@ -668,7 +668,10 @@ Requirements:
 When deleting a document:
 
 1. Mark document as `deleting`.
-2. Delete Qdrant vectors by `document_id`.
+2. Delete Qdrant vectors by `document_id`. With `QDRANT_EVALUATION_COLLECTION` set
+   (R06-12), also delete the document's points from the evaluation collection, filtered
+   by `organization_id` and `document_id`; it holds re-ingested copies of the document
+   text and is scoped like production data. A missing evaluation collection is skipped.
 3. Delete MinIO object prefix.
 4. Delete or soft-delete pages/chunks, and delete the document's ingestion stage rows
    (`document_processing_stages`) and stage artifacts (`document_stage_artifacts`) in the
