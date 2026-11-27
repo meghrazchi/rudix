@@ -74,3 +74,14 @@ groups:
         annotations:
           summary: "Queries on {{ $labels.table }} ran with no tenant bound (RLS soft mode)"
           description: "These statements would be denied with RLS_ENFORCEMENT=strict. Find the rls.soft_denial log lines and bind a tenant or use a maintenance session."
+
+  - name: rudix-retention
+    rules:
+      - alert: RudixPartitionMissing
+        expr: max by (table) (rudix_partition_missing) == 1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Partitioned table {{ $labels.table }} has no partition for next month"
+          description: "maintenance.partitions.ensure could not create next month's partition (see maintenance.partitions.ensure_failed logs). Inserts dated next month will fail once it starts. Run the task again or create the partition by hand. Only tables already converted to partitions report this metric."

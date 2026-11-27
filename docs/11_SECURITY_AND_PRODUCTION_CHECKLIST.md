@@ -451,6 +451,22 @@ Audit explorer/export requirements:
 - Export only safe structured metadata (no secrets, tokens, or raw private document text).
 - Respect configured workspace retention policies for audit-data lifecycle.
 
+Audit retention (`R04-09`):
+
+- By default audit logs are kept. Nothing is deleted until `RETENTION_AUDIT_LOGS_DAYS` or
+  an organisation override is set.
+- Owners and admins can set `audit_log_retention_days` through `PATCH /admin/governance`.
+  The value must be 30..3650 days, and `null` returns the organisation to the platform
+  default. The 30-day floor is enforced by the API schema, the setting validator, and the
+  database check `ck_organization_governance_policies_audit_retention_min`.
+- Every change is written to the audit log as `admin.governance.policy.updated`, with the
+  new override and the window that now applies.
+- The override applies only to the caller's organisation.
+- Deletion runs in the daily `maintenance.retention.purge` task, one organisation at a time
+  and in batches. `RETENTION_ENABLED=false` stops it. Check legal hold and compliance
+  requirements before shortening a window: deleted audit rows cannot be recovered except
+  from database backups.
+
 ## Workspace portability
 
 Export/import requirements:

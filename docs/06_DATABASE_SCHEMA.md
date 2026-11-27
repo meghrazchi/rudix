@@ -613,6 +613,126 @@ Notes:
   on a lock timeout. Downgrade to `20261127_0003` restores the 12-table policy of
   `20260715_0001` and disables RLS on the other tables.
 
+## Retention and partitioning
+
+`R04-09` adds two things: retention by batched delete for five append-only tables, and
+tooling for monthly range partitions. No table is partitioned in `0.4.0`.
+
+### Retention by batched delete
+
+| Table | Setting (days, unset = keep) | Floor |
+|---|---|---|
+| `usage_events` | `RETENTION_USAGE_EVENTS_DAYS` | 7 |
+| `audit_logs` | `RETENTION_AUDIT_LOGS_DAYS`, overridden per organisation by `organization_governance_policies.audit_log_retention_days` | 30 |
+| `authorization_decision_logs` | `RETENTION_AUTHORIZATION_DECISION_LOGS_DAYS` | 7 |
+| `activity_timeline_events` | `RETENTION_ACTIVITY_TIMELINE_EVENTS_DAYS` | 7 |
+| `webhook_deliveries` | `RETENTION_WEBHOOK_DELIVERIES_DAYS` | 7 |
+
+Every default is "keep". Usage events feed quotas and invoices, so set their window only
+after billing exports cover the deleted period.
+
+The beat task `maintenance.retention.purge` runs daily at 03:15 UTC on a maintenance
+session (`DATABASE_MAINTENANCE_URL` when set). For each table with a window, it walks every
+organisation and repeats
+`DELETE FROM t WHERE id IN (SELECT id FROM t WHERE organization_id = :org AND created_at < :cutoff ORDER BY created_at LIMIT :batch)`,
+committing after each batch. Each batch walks the table's `(organization_id, created_at)`
+index.
+
+- `RETENTION_DELETE_BATCH_SIZE` (default 5000, 100..50000) sets the batch size.
+- `RETENTION_MAX_BATCHES_PER_RUN` (default 200) caps the non-empty batches per table per
+  run. The next run continues where this one stopped.
+- `RETENTION_ENABLED=false` stops every delete.
+
+The audit window for an organisation is its override when set, and otherwise the platform
+default. The override is set through `PATCH /admin/governance` (30..3650 days, `null`
+clears it), and migration `20261127_0005` enforces the floor with
+`ck_organization_governance_policies_audit_retention_min`. A rerun with nothing to delete
+is a no-op. `authorization_conflicts.decision_log_id` references
+`authorization_decision_logs` with `ON DELETE SET NULL`, so purging a decision log clears
+that link and keeps the conflict.
+
+### Partition tooling
+
+Partitions follow these conventions:
+
+- A partition is named `<table>_pYYYYMM` and holds `[YYYY-MM-01 00:00 UTC, next month)`.
+- There is no default partition, so a row dated in a month without a partition is
+  rejected.
+- The helpers in `backend/app/db/partitioning.py` act only on tables listed in
+  `pg_partitioned_table`.
+
+The beat task `maintenance.partitions.ensure` runs daily at 03:45 UTC. For each retention
+table that is already partitioned, it:
+
+- creates this month's and next month's partitions;
+- detaches and drops partitions whose upper bound is past the retention window, using plain
+  `DETACH` and `DROP` in one short transaction with `lock_timeout` (`DETACH ... CONCURRENTLY`
+  cannot run in a transaction block);
+- sets `rudix_partition_missing{table}`.
+
+For audit logs, a partition is dropped only past the longest window of any organisation,
+and never while the platform default is "keep". Today no table is partitioned, so the task
+does nothing.
+
+### Converting a table (deferred, rehearsal required)
+
+Converting the five tables is deferred. None of them is new, and all of them hold
+production data. A conversion copies every row and needs these things first:
+
+- a rehearsal on a staging copy at production volume, to measure backfill time and the
+  length of the swap lock;
+- a maintenance window for the swap, which holds `ACCESS EXCLUSIVE` on the table while it
+  copies the delta and counts rows;
+- a primary key of `(id, created_at)`, because PostgreSQL requires the partition key in
+  every unique constraint. Unique indexes without `created_at` cannot be copied, and no
+  foreign key can reference the table by `id` alone. For example,
+  `authorization_conflicts.decision_log_id` blocks `authorization_decision_logs` until that
+  foreign key is dropped.
+
+The procedure uses `backend/scripts/partition_table.py`. It is never applied
+automatically, and each subcommand that changes data accepts `--dry-run`, which prints the
+SQL. The connection comes from `DATABASE_MIGRATION_URL`, or `DATABASE_URL` when that is
+not set.
+
+1. Set `RETENTION_ENABLED=false` for the whole conversion. Rows deleted after the backfill
+   copied them make the swap's count check fail.
+2. Run `plan <table>`. It shows the row estimate, the `created_at` range, the partitions,
+   the copied and skipped indexes, the policies, and any blockers.
+3. Run `create-shadow <table>`. It creates `<table>_partitioned` with the same columns,
+   defaults, checks, outbound foreign keys, indexes, RLS policies and grants, the primary
+   key `(id, created_at)`, and monthly partitions from the oldest row through next month.
+   It also builds `(created_at, id)` on the source table concurrently, as the backfill
+   cursor.
+4. Run `backfill <table> --batch-size 5000`. It copies rows in `(created_at, id)` order,
+   commits each batch, and uses `ON CONFLICT DO NOTHING`. It can be interrupted and resumes
+   from the newest row already in the shadow.
+5. Run `verify <table>`. It compares per-month row counts and checksums of the source table
+   and the shadow.
+6. In the window, run `swap <table> --lock-timeout 5s`. This is one transaction. It locks
+   both tables, then:
+   - copies new rows;
+   - copies rows whose `updated_at` is at or after the shadow's creation time minus one
+     hour;
+   - checks that the row counts are equal;
+   - renames `<table>` to `<table>_legacy_<yyyymm>` and the shadow to `<table>`;
+   - moves the index and constraint names.
+7. Run `verify <table> --against <table>_legacy_<yyyymm>`. Then re-run
+   `deploy/sql/provision_roles.sql`, which is idempotent, and set `RETENTION_ENABLED` back.
+8. Keep the legacy table for one release, then drop it. Rollback before that is a rename in
+   the other direction. Rows written after the swap exist only in the new table and have to
+   be copied back.
+
+`tests/test_partitioning_pg.py` runs this procedure on a scratch table,
+`rudix_partition_probe`, shaped like `usage_events`. It checks:
+
+- that an interrupted backfill resumes to an exact copy;
+- that the swap carries rows inserted and updated after the backfill;
+- that `verify` matches;
+- that a one-month range query scans one partition in `EXPLAIN`;
+- that `ensure` creates next month and flips the gauge;
+- that `drop_expired_partitions` removes old months;
+- that `ensure` does nothing on the unpartitioned application tables.
+
 ## Qdrant payload schema
 
 Qdrant payload should duplicate important metadata for fast filtering.

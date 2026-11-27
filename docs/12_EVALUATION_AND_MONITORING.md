@@ -461,6 +461,32 @@ Notes:
 - The flush task logs `usage_touch.flushed` (rows) and, on a database error,
   `usage_touch.flush_failed` (rows re-buffered, error type) before Celery retries it.
 
+### Retention and partition maintenance (R04-09)
+
+| Metric | Labels | Meaning |
+| --- | --- | --- |
+| `rudix_retention_rows_deleted_total` | `table` | Rows deleted by `maintenance.retention.purge` (daily, 03:15 UTC). |
+| `rudix_partition_missing` | `table` | 1 when a partitioned table has no partition for next month, else 0. Set by `maintenance.partitions.ensure` (daily, 03:45 UTC). |
+
+- With the default settings (every `RETENTION_<TABLE>_DAYS` unset), the counter stays at
+  zero. A sudden jump after a configuration change is expected once and then flattens to the
+  daily expiry rate.
+- No table is partitioned in `0.4.0`, so `rudix_partition_missing` has no samples until an
+  operator converts one (`docs/06_DATABASE_SCHEMA.md`, "Retention and partitioning").
+  Alert `RudixPartitionMissing` (group `rudix-retention`, warning) fires when the gauge is
+  1 for an hour. Inserts dated next month fail once that month starts, so create the
+  partition before then.
+- Both tasks log on `events.maintenance`:
+  - `maintenance.retention.table_purged`: table, rows deleted, batches, organisations,
+    whether the run was truncated;
+  - `maintenance.retention.organization_purged`: table, organisation ID, rows, window;
+  - `maintenance.retention.disabled`;
+  - `maintenance.partitions.created`, `maintenance.partitions.dropped`, and
+    `maintenance.partitions.ensure_failed` (table, error type).
+- `truncated=true` on several days in a row means the backlog is larger than
+  `RETENTION_DELETE_BATCH_SIZE` x `RETENTION_MAX_BATCHES_PER_RUN` per day. Raise one of the
+  two, or let the backlog drain over several runs.
+
 ## Continuous evaluation
 
 Run evaluations:

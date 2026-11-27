@@ -834,6 +834,27 @@ Rate limits use one Lua sliding-window script per check (one Redis round trip); 
 only with `TEST_REDIS_URL` set: `TEST_REDIS_URL=redis://localhost:6379/15 .venv/bin/pytest
 tests/test_rate_limit_redis_live.py`.
 
+Retention and partitions (R04-09): beat schedules `maintenance.retention.purge` daily at 03:15
+UTC and `maintenance.partitions.ensure` daily at 03:45 UTC (default queue, maintenance
+session). Every retention window defaults to keep. Details are in
+`docs/06_DATABASE_SCHEMA.md` `## Retention and partitioning`.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `RETENTION_USAGE_EVENTS_DAYS` | unset (keep) | Delete usage events older than N days (min 7). Usage events feed quotas and invoices. |
+| `RETENTION_AUDIT_LOGS_DAYS` | unset (keep) | Platform audit retention (min 30); an organisation override in `PATCH /admin/governance` wins. |
+| `RETENTION_AUTHORIZATION_DECISION_LOGS_DAYS` | unset (keep) | Delete authorization decision logs older than N days (min 7). |
+| `RETENTION_ACTIVITY_TIMELINE_EVENTS_DAYS` | unset (keep) | Delete activity timeline events older than N days (min 7). |
+| `RETENTION_WEBHOOK_DELIVERIES_DAYS` | unset (keep) | Delete webhook deliveries older than N days (min 7). |
+| `RETENTION_DELETE_BATCH_SIZE` | `5000` | Rows per delete batch (100 to 50000); each batch commits. |
+| `RETENTION_MAX_BATCHES_PER_RUN` | `200` | Non-empty batches per table per run; the rest waits for the next run. |
+| `RETENTION_ENABLED` | `true` | Kill switch: `false` stops all retention deletes and partition drops. |
+
+`scripts/partition_table.py` (`plan`, `create-shadow`, `backfill --batch-size`, `swap`,
+`verify`, and `--dry-run` on the subcommands that change data) converts a table to monthly
+partitions. It is an operator tool that is never run automatically. Rehearse every
+conversion on staging volume first.
+
 ## Prometheus & Grafana Observability
 
 - Enable application metrics with `METRICS_ENABLED=true` in `.env`.

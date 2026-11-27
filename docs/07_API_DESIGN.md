@@ -2432,6 +2432,10 @@ Response includes:
 - runtime budget limits
 - external MCP server policy entries (metadata + secret references only)
 - global MCP endpoint status and deployment warnings
+- audit log retention (`R04-09`): `policy.audit_log_retention_days` (organisation override,
+  `null` = platform default), `platform_audit_log_retention_days`
+  (`RETENTION_AUDIT_LOGS_DAYS`), and `effective_audit_log_retention_days` (override if set,
+  else platform default; `null` = keep every row)
 
 Notes:
 
@@ -2478,6 +2482,10 @@ Safe update semantics:
 - unknown tool names are rejected (`422`)
 - side-effect tool changes require explicit acknowledgment (`side_effect_warning_acknowledged=true`)
 - policy changes are audit-logged as `admin.governance.policy.updated`
+- `audit_log_retention_days` (`R04-09`): integer 30..3650 sets the organisation's audit
+  retention override (`422` outside the range). Omitting the field keeps the current value,
+  and an explicit `null` clears it. A change adds the new override and the effective window
+  to the audit entry's metadata.
 
 The endpoint returns the updated effective policy, changed field names, and whether an audit record was written.
 
