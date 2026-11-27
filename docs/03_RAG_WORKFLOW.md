@@ -491,17 +491,29 @@ is read. With the alias set, every Qdrant collection is a *generation* registere
   `VECTOR_INDEX_REGISTRY_CACHE_SECONDS` (30).
 - **Reads** use the active generation: query embedding (`QueryRetrievalService.embedding_model`
   and `vector_size`, and the chat query-embedding cache key) follows its model and dimension,
-  and the search names the collection the alias points at, taken from the same cached
-  snapshot as the model, so a query never pairs one generation's model with another's
-  collection while caches expire after a swap. External readers can use the alias.
+  and the search names the active generation's collection (the one the alias points at).
+  The snapshot is shared by the process's requests, so a refresh can land between a query's
+  embedding and its search (the chat prefetch embeds seconds before retrieval). The query
+  embedding reads model and dimension once and the cache key uses the same pair; the search
+  picks the collection by the query vector's dimension: the active generation, else the
+  newest retired (or building) one with that dimension
+  (`vector_index.query.dimension_fallback`). A query embedded just before a swap or rollback
+  is therefore served by the collection its model fills instead of failing. When old and new
+  model have the same dimension such an in-flight query searches the new collection with the
+  old model's vector once (weaker ranking, no error). External readers can use the alias.
 - **Writes** (`QdrantService.resolve_write_targets()`) go to `[active]`, or `[active,
   building]` while a generation is building or verifying. The embed stage writes each batch
   to the active generation with its model and to the building one with the building model
   (dual write); vectors are reused when both use the same model. The index stage then cleans
   and counts the document's points in the building collection and records
   `vector_index_generation_documents`; a dual-write failure never fails the document, it
-  only leaves the row out so the build fills the document later.
-- **Deletes** go to every generation whose collection still exists (not `dropped`).
+  only leaves the row out so the build fills the document later. The index stage also
+  deletes the document's rows in every generation it did not write (for example a `failed`
+  one, which gets no dual writes), so a rerun of the build writes the reindexed document
+  again instead of skipping its stale points.
+- **Deletes** go to every generation whose collection still exists (not `dropped`); a
+  generation whose collection is already gone (404) is skipped with
+  `qdrant.collection.missing_on_delete`.
 - The **build** (`vector_index.build` task or the CLI) walks indexed documents by
   `(organization_id, document_id)` from `build_cursor`, binds each document's tenant, reads
   the embeddable chunk rows of the active index versions from PostgreSQL (no re-extraction),

@@ -842,7 +842,9 @@ after `finalize` on its own queue.
   `vector_index.generation.verified` (expected and actual points, `error_code`),
   `vector_index.alias.swapped`, `vector_index.alias.rolled_back`,
   `vector_index.generation.dropped`, `vector_index.dual_write_failed`,
-  `vector_index.dual_write_incomplete`, `qdrant.collection.mismatch_deferred`. They carry
+  `vector_index.dual_write_incomplete`, `qdrant.collection.mismatch_deferred`,
+  `vector_index.query.dimension_fallback`, `vector_index.generation_documents.forgotten`,
+  `qdrant.collection.missing_on_delete`. They carry
   generation, model, counts, document and organisation ids; never document text.
 - Usage events `document.embedding` with `metadata.reason` `vector_reindex` (build) or
   `vector_reindex_dual_write` (ingestion during a build) attribute the reindex cost per

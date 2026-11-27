@@ -536,4 +536,19 @@ Known limits:
   second event.
 - While a building generation uses another model, every new document is embedded twice
   (once per model) and both are billed.
+- Queries in flight when a process refreshes its registry after a swap or rollback are
+  searched in the collection whose dimension matches their vector
+  (`vector_index.query.dimension_fallback`). With equal dimensions they search the new
+  collection with the old model's vector once: no error, weaker ranking for those queries.
+- No single-flight lock guards `vector_index.build`: do not run the CLI build inline while
+  a queued build runs. Two builders write the same point ids (no duplicate points); when
+  both reach the same document, the second fails on the unique generation row (its usage
+  event rolls back with it), after spending the embedding tokens. Rerun the failed one.
+- A `failed` generation gets no dual writes and is not dropped by `drop-retired`; rerun
+  `build` (documents reindexed meanwhile lost their row and are written again) or leave it.
+  Points of documents that are not `indexed` (failed or still processing) written by a dual
+  write count in verify: reprocess or delete such documents, then verify again.
+- Once `drop-retired` has deleted the original `QDRANT_COLLECTION` (generation 1), legacy
+  mode (unsetting `QDRANT_COLLECTION_ALIAS`) would start from an empty collection: keep the
+  alias set.
 
