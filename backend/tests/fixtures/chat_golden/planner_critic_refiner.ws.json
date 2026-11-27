@@ -435,7 +435,9 @@
     },
     {
       "event": "generation.started",
-      "payload_keys": []
+      "payload_keys": [
+        "mode"
+      ]
     },
     {
       "event": "activity.step.update",
@@ -541,6 +543,24 @@
       ],
       "state": "success",
       "step_key": "refining_answer"
+    },
+    {
+      "event": "generation.replace",
+      "payload_keys": [
+        "reason",
+        "text"
+      ]
+    },
+    {
+      "event": "generation.final",
+      "payload_keys": [
+        "answer",
+        "citation_validation_failed",
+        "citations",
+        "confidence_category",
+        "confidence_score",
+        "not_found"
+      ]
     },
     {
       "event": "activity.step.update",

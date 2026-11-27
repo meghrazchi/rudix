@@ -120,7 +120,9 @@
     },
     {
       "event": "generation.started",
-      "payload_keys": []
+      "payload_keys": [
+        "mode"
+      ]
     },
     {
       "event": "activity.step.update",
@@ -187,6 +189,17 @@
       ],
       "state": "success",
       "step_key": "verifying_citations"
+    },
+    {
+      "event": "generation.final",
+      "payload_keys": [
+        "answer",
+        "citation_validation_failed",
+        "citations",
+        "confidence_category",
+        "confidence_score",
+        "not_found"
+      ]
     },
     {
       "event": "chat.error",
