@@ -128,6 +128,24 @@ def record_reindex_progress(generation: int, done: int, total: int) -> None:
 
 
 # anchor: A3
+# R06-12: evaluation questions currently inside the per-target concurrency bound
+# (EVALUATION_MAX_CONCURRENT_QUESTIONS), summed over the worker processes of this registry.
+EVALUATION_QUESTIONS_IN_FLIGHT = Gauge(
+    "rudix_evaluation_questions_in_flight",
+    "Evaluation questions being evaluated now (inside the concurrency bound)",
+    registry=registry,
+)
+
+
+def record_evaluation_question_in_flight(delta: int) -> None:
+    """Add ``delta`` (+1 on entry, -1 on exit); a no-op when metrics are disabled."""
+    if not is_metrics_enabled():
+        return
+    try:
+        EVALUATION_QUESTIONS_IN_FLIGHT.inc(delta)
+    except Exception as exc:
+        logger.debug("metrics.evaluation_in_flight_failed: %s", exc)
+
 
 # anchor: B1
 # R06-09: chunk rows the tenant backfill updated. R06-10: graph UNWIND write transactions,

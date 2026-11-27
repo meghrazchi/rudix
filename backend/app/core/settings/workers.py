@@ -108,6 +108,27 @@ class WorkersSettings(BaseModel):
     vector_index_build_max_pages_per_task: int = Field(default=20, ge=1, le=10_000)
 
     # anchor: A3
+    # R06-12: chunking-comparison re-ingest, its retrieval and its cleanup use this
+    # collection instead of the production one. None keeps the pre-0.6.0 behaviour (eval
+    # vectors in QDRANT_COLLECTION under eval- index versions, removed after the run).
+    qdrant_evaluation_collection: str | None = Field(
+        default=None, min_length=2, max_length=128, pattern=r"^[A-Za-z0-9_-]+$"
+    )
+    # Questions of one evaluation target evaluated at the same time (1 = sequential).
+    evaluation_max_concurrent_questions: int = Field(default=1, ge=1, le=32)
+
+    @model_validator(mode="after")
+    def _evaluation_collection_is_separate(self) -> WorkersSettings:
+        name = self.qdrant_evaluation_collection
+        if name is None:
+            return self
+        production = {getattr(self, "qdrant_collection", None), self.qdrant_collection_alias}
+        if name in production:
+            raise ValueError(
+                "QDRANT_EVALUATION_COLLECTION must differ from QDRANT_COLLECTION and "
+                "QDRANT_COLLECTION_ALIAS"
+            )
+        return self
 
     # anchor: B1
     # R06-09: documents.chunks.backfill_tenant fills document_chunks.organization_id,

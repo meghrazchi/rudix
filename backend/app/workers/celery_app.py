@@ -51,6 +51,8 @@ INCLUDE: list[str] = [
     # anchor: A2
     "app.workers.vector_index_tasks",
     # anchor: A3
+    # evaluations.run lives here; app.workers.evaluation_tasks is its facade (R06-12).
+    "app.workers.evaluation.tasks",
     # anchor: B1
     "app.workers.chunk_backfill_tasks",
     # anchor: C1
