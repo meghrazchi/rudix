@@ -360,3 +360,42 @@ async def test_migration_round_trip() -> None:
     assert await _policy_state(url) == (12, 0)
     _alembic(url, "upgrade", "head")
     assert await _policy_state(url) == (total, strict)
+
+
+# --- deploy/sql/provision_roles.sql -----------------------------------------------------
+
+PROVISION_SQL = BACKEND_DIR.parent / "deploy" / "sql" / "provision_roles.sql"
+
+
+async def test_provision_roles_script(rls_probe_session: RlsProbe) -> None:
+    session = rls_probe_session.session
+    seed = await _seed_two_orgs(session)
+    raw = await (await session.connection()).get_raw_connection()
+    driver = raw.driver_connection
+    assert driver is not None
+    sql = PROVISION_SQL.read_text()
+    await driver.execute(sql)
+    await driver.execute(sql)  # idempotent
+    roles = {
+        row[0]: (row[1], row[2])
+        for row in await session.execute(
+            text(
+                "SELECT rolname, rolsuper, rolbypassrls FROM pg_roles "
+                "WHERE rolname IN ('rudix_app', 'rudix_maintenance')"
+            )
+        )
+    }
+    assert roles == {"rudix_app": (False, False), "rudix_maintenance": (False, True)}
+
+    await session.execute(text("SET LOCAL ROLE rudix_app"))
+    await session.execute(
+        text(
+            "SELECT set_config('app.current_organization_id', :org, true), "
+            "set_config('app.rls_mode', 'strict', true)"
+        ),
+        {"org": str(seed.org_a)},
+    )
+    assert await _org_ids(session, "documents") == {seed.org_a}
+    await session.execute(text("RESET ROLE"))
+    await session.execute(text("SET LOCAL ROLE rudix_maintenance"))
+    assert {seed.org_a, seed.org_b} <= await _org_ids(session, "documents")

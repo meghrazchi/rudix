@@ -54,3 +54,23 @@ groups:
         annotations:
           summary: "Backing dependency {{ $labels.dependency }} is degraded or unreachable"
           description: "Readiness probe reports {{ $labels.dependency }} is down."
+
+  - name: rudix-db
+    rules:
+      - alert: RudixDbPoolTimeouts
+        expr: sum(increase(rudix_db_pool_timeouts_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database pool checkouts are timing out"
+          description: "{{ $value }} checkouts waited longer than DB_POOL_TIMEOUT in 5 minutes. Check rudix_db_pool_checked_out and rudix_db_pool_wait_seconds; raise DB_POOL_SIZE/DB_MAX_OVERFLOW or find long transactions."
+
+      - alert: RudixRlsSoftDenials
+        expr: sum by (table) (increase(rudix_rls_soft_denials_total[1h])) > 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queries on {{ $labels.table }} ran with no tenant bound (RLS soft mode)"
+          description: "These statements would be denied with RLS_ENFORCEMENT=strict. Find the rls.soft_denial log lines and bind a tenant or use a maintenance session."
