@@ -110,6 +110,10 @@ check-revisions:
 migrate: check-revisions
 	$(ALEMBIC) upgrade head
 
+# Neo4j graph schema migrations (no-op unless ENTERPRISE_GRAPH_ENABLED=true).
+migrate-graph:
+	$(PYTHON_VENV) scripts/run_graph_migrations.py
+
 downgrade:
 	$(ALEMBIC) downgrade -1
 

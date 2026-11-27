@@ -129,9 +129,11 @@ class ChatSessionResponse(BaseModel):
 
 class ChatSessionListResponse(BaseModel):
     items: list[ChatSessionResponse]
-    total: int
+    # ``None`` when ``include_total=false`` (the default when a cursor is sent).
+    total: int | None
     limit: int
     offset: int
+    next_cursor: str | None = None
 
 
 class ChatStatsResponse(BaseModel):
@@ -174,9 +176,11 @@ class ChatSessionMessageResponse(BaseModel):
 
 class ChatSessionMessageListResponse(BaseModel):
     items: list[ChatSessionMessageResponse]
-    total: int
+    # ``None`` when ``include_total=false`` (the default when a cursor is sent).
+    total: int | None
     limit: int
     offset: int
+    next_cursor: str | None = None
 
 
 class ChatCitationResponse(BaseModel):

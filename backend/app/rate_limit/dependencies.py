@@ -10,6 +10,7 @@ from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.rate_limit.counter import (
     RateLimitDecision,
+    RateLimitedBy,
     RateLimitOutcome,
     RateLimitScope,
     _build_key,
@@ -22,6 +23,7 @@ __all__ = [
     "RateLimitDecision",
     "RateLimitOutcome",
     "RateLimitScope",
+    "RateLimitedBy",
     "_build_key",
     "_rate_limit_disabled",
     "_scope_limit",
@@ -39,9 +41,22 @@ def _route_path_template(request: Request) -> str:
 
 
 def _http_429(
-    *, scope: RateLimitScope, limit: int, retry_after: int, remaining: int
+    *,
+    scope: RateLimitScope,
+    limit: int,
+    retry_after: int,
+    remaining: int,
+    limited_by: RateLimitedBy | None = None,
 ) -> HTTPException:
     reset_epoch = int(time()) + retry_after
+    headers = {
+        "Retry-After": str(retry_after),
+        "X-RateLimit-Limit": str(limit),
+        "X-RateLimit-Remaining": str(max(0, remaining)),
+        "X-RateLimit-Reset": str(reset_epoch),
+    }
+    if limited_by is not None:
+        headers["X-RateLimit-Scope"] = limited_by.value
     return HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         detail={
@@ -49,12 +64,7 @@ def _http_429(
             "message": f"Rate limit exceeded for {scope.value}",
             "retry_after_seconds": retry_after,
         },
-        headers={
-            "Retry-After": str(retry_after),
-            "X-RateLimit-Limit": str(limit),
-            "X-RateLimit-Remaining": str(max(0, remaining)),
-            "X-RateLimit-Reset": str(reset_epoch),
-        },
+        headers=headers,
     )
 
 
@@ -80,6 +90,7 @@ async def _consume(
             limit=outcome.limit,
             retry_after=outcome.retry_after_seconds,
             remaining=outcome.remaining,
+            limited_by=outcome.limited_by,
         )
     if outcome.decision == RateLimitDecision.unavailable:
         raise _http_503_rate_limiter_unavailable()

@@ -268,13 +268,17 @@ async def list_evaluation_sets(
         organization_id=organization_id,
     )
 
-    items: list[EvaluationSetResponse] = []
-    for evaluation_set in evaluation_sets:
-        question_count = await evaluation_repository.count_evaluation_questions(
-            db_session,
-            evaluation_set_id=evaluation_set.id,
+    question_counts = await evaluation_repository.count_evaluation_questions_by_set(
+        db_session,
+        organization_id=organization_id,
+        evaluation_set_ids=[evaluation_set.id for evaluation_set in evaluation_sets],
+    )
+    items = [
+        _to_evaluation_set_response(
+            evaluation_set, question_count=question_counts.get(evaluation_set.id, 0)
         )
-        items.append(_to_evaluation_set_response(evaluation_set, question_count=question_count))
+        for evaluation_set in evaluation_sets
+    ]
 
     log_evaluation_event(
         event="evaluation_set.listed",

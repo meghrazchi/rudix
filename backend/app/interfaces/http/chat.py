@@ -23,6 +23,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.chat.citation_access import filter_chunks_by_cite_access
+from app.application.chat.message_citations import (
+    load_message_citations,
+    persist_answer_citations,
+)
 from app.application.chat.quota import (
     chat_quota_denial,
     ensure_chat_quota,
@@ -72,7 +76,13 @@ from app.domains.ai_response_policy.services.policy_engine import (
     PolicyEvaluationResult as AiPolicyEvaluationResult,
 )
 from app.domains.chat.repositories.answer_share import AnswerShareRepository
-from app.domains.chat.repositories.chat import ChatRepository
+from app.domains.chat.repositories.chat import (
+    MESSAGE_SORT_NAME,
+    SESSION_SORT_NAME,
+    ChatRepository,
+    message_sort_key,
+    session_sort_key,
+)
 from app.domains.chat.repositories.feedback import FeedbackRepository
 from app.domains.chat.repositories.share import ChatShareRepository
 from app.domains.chat.schemas.answer_share import (
@@ -243,6 +253,7 @@ from app.models.enums import ChatRole, DocumentStatus, OrganizationRole, PromptT
 from app.models.prompt_template import PromptTemplateVersion
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.rate_limit.counter import RateLimitDecision, consume_rate_limit
+from app.shared.pagination import encode_cursor, resolve_page_request, split_page
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 # Separate router for WebSocket — must NOT be under protected_router because
@@ -2721,22 +2732,35 @@ async def list_chat_sessions(
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     search: Annotated[str | None, Query(max_length=255)] = None,
+    cursor: Annotated[str | None, Query(max_length=1024)] = None,
+    include_total: bool | None = None,
 ) -> ChatSessionListResponse:
     user_id, organization_id = _principal_user_and_org(principal)
     normalized_search = search.strip() if search and search.strip() else None
-    sessions = await chat_repository.list_chat_sessions(
-        db_session,
-        organization_id=organization_id,
-        user_id=user_id,
-        limit=limit,
-        offset=offset,
-        search=normalized_search,
+    page = resolve_page_request(
+        cursor=cursor, offset=offset, include_total=include_total, sort_name=SESSION_SORT_NAME
     )
-    total = await chat_repository.count_chat_sessions(
-        db_session,
-        organization_id=organization_id,
-        user_id=user_id,
-        search=normalized_search,
+    sessions, has_more = split_page(
+        await chat_repository.list_chat_sessions(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            limit=limit + 1,
+            offset=offset,
+            search=normalized_search,
+            keyset=page.keyset,
+        ),
+        limit,
+    )
+    total = (
+        await chat_repository.count_chat_sessions(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            search=normalized_search,
+        )
+        if page.include_total
+        else None
     )
     message_counts = await chat_repository.count_messages_by_session_ids(
         db_session,
@@ -2769,6 +2793,9 @@ async def list_chat_sessions(
         total=total,
         limit=limit,
         offset=offset,
+        next_cursor=(
+            encode_cursor(SESSION_SORT_NAME, session_sort_key(sessions[-1])) if has_more else None
+        ),
     )
 
 
@@ -2875,8 +2902,13 @@ async def list_chat_session_messages(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=500)] = 200,
     offset: Annotated[int, Query(ge=0)] = 0,
+    cursor: Annotated[str | None, Query(max_length=1024)] = None,
+    include_total: bool | None = None,
 ) -> ChatSessionMessageListResponse:
     user_id, organization_id = _principal_user_and_org(principal)
+    page = resolve_page_request(
+        cursor=cursor, offset=offset, include_total=include_total, sort_name=MESSAGE_SORT_NAME
+    )
     try:
         chat_session_id = UUID(session_id)
     except ValueError as exc:
@@ -2893,66 +2925,45 @@ async def list_chat_session_messages(
     if chat_session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
 
-    messages = await chat_repository.list_chat_messages(
-        db_session,
-        chat_session_id=chat_session.id,
-        limit=limit,
-        offset=offset,
+    messages, has_more = split_page(
+        await chat_repository.list_chat_messages(
+            db_session,
+            chat_session_id=chat_session.id,
+            limit=limit + 1,
+            offset=offset,
+            keyset=page.keyset,
+        ),
+        limit,
     )
-    total = await chat_repository.count_chat_messages(
-        db_session,
-        chat_session_id=chat_session.id,
-    )
-
-    items: list[ChatSessionMessageResponse] = []
-    for message in messages:
-        message_citations: list[ChatCitationResponse] = []
-        if message.role == ChatRole.assistant.value:
-            citation_rows = await chat_repository.list_citations_for_message_with_filename(
-                db_session,
-                chat_message_id=message.id,
-            )
-            provenance_by_document_id = (
-                await _source_provenance_service.load_citation_details_for_documents(
-                    db_session,
-                    organization_id=organization_id,
-                    document_ids=[citation.document_id for citation, _ in citation_rows],
-                )
-            )
-            message_citations = [
-                _with_provenance(
-                    ChatCitationResponse(
-                        citation_id=str(citation.id),
-                        document_id=str(citation.document_id),
-                        chunk_id=str(citation.chunk_id),
-                        filename=filename,
-                        page_number=citation.page_number,
-                        score=citation.rerank_score
-                        if citation.rerank_score is not None
-                        else citation.similarity_score,
-                        similarity_score=citation.similarity_score,
-                        rerank_score=citation.rerank_score,
-                        rerank_rank=None,
-                        text_snippet=citation.text_snippet,
-                        start_offset=citation.start_offset,
-                        end_offset=citation.end_offset,
-                    ),
-                    provenance_by_document_id.get(citation.document_id),
-                )
-                for citation, filename in citation_rows
-            ]
-
-        items.append(
-            ChatSessionMessageResponse(
-                message_id=str(message.id),
-                role=message.role,
-                content=message.content,
-                confidence_score=message.confidence_score,
-                confidence_category=_confidence_category_from_score(message.confidence_score),
-                citations=message_citations,
-                created_at=message.created_at,
-            )
+    total = (
+        await chat_repository.count_chat_messages(
+            db_session,
+            chat_session_id=chat_session.id,
         )
+        if page.include_total
+        else None
+    )
+
+    citations_by_message = await load_message_citations(
+        db_session,
+        messages=messages,
+        organization_id=organization_id,
+        decorate=_with_provenance,
+        repository=chat_repository,
+        provenance_service=_source_provenance_service,
+    )
+    items = [
+        ChatSessionMessageResponse(
+            message_id=str(message.id),
+            role=message.role,
+            content=message.content,
+            confidence_score=message.confidence_score,
+            confidence_category=_confidence_category_from_score(message.confidence_score),
+            citations=citations_by_message.get(message.id, []),
+            created_at=message.created_at,
+        )
+        for message in messages
+    ]
 
     log_query_event(
         event="chat.session.messages.listed",
@@ -2970,6 +2981,9 @@ async def list_chat_session_messages(
         total=total,
         limit=limit,
         offset=offset,
+        next_cursor=(
+            encode_cursor(MESSAGE_SORT_NAME, message_sort_key(messages[-1])) if has_more else None
+        ),
     )
 
 
@@ -4693,27 +4707,13 @@ async def query_chat(
         db_session.add(assistant_message)
         await db_session.flush()
 
-        response_citations: list[ChatCitationResponse] = []
-        for citation in citations:
-            document_uuid = _parse_uuid_or_none(citation.document_id)
-            chunk_uuid = _parse_uuid_or_none(citation.chunk_id)
-            if document_uuid is None or chunk_uuid is None:
-                continue
-            persisted_citation = await chat_repository.create_citation(
-                db_session,
-                chat_message_id=assistant_message.id,
-                document_id=document_uuid,
-                chunk_id=chunk_uuid,
-                text_snippet=citation.text_snippet or "",
-                page_number=citation.page_number,
-                start_offset=citation.start_offset,
-                end_offset=citation.end_offset,
-                similarity_score=citation.similarity_score,
-                rerank_score=citation.rerank_score if rerank_applied else None,
-            )
-            response_citations.append(
-                citation.model_copy(update={"citation_id": str(persisted_citation.id)})
-            )
+        response_citations = await persist_answer_citations(
+            db_session,
+            chat_message_id=assistant_message.id,
+            citations=citations,
+            rerank_applied=rerank_applied,
+            repository=chat_repository,
+        )
 
         await usage_repository.create_usage_event(
             db_session,
@@ -5666,45 +5666,25 @@ async def get_shared_session(
         chat_session_id=chat_session.id,
     )
 
-    items: list[ChatSessionMessageResponse] = []
-    for message in messages_orm:
-        message_citations: list[ChatCitationResponse] = []
-        if message.role == ChatRole.assistant.value:
-            citation_rows = await chat_repository.list_citations_for_message_with_filename(
-                db_session,
-                chat_message_id=message.id,
-            )
-            message_citations = [
-                ChatCitationResponse(
-                    citation_id=str(citation.id),
-                    document_id=str(citation.document_id),
-                    chunk_id=str(citation.chunk_id),
-                    filename=filename,
-                    page_number=citation.page_number,
-                    score=citation.rerank_score
-                    if citation.rerank_score is not None
-                    else citation.similarity_score,
-                    similarity_score=citation.similarity_score,
-                    rerank_score=citation.rerank_score,
-                    rerank_rank=None,
-                    text_snippet=citation.text_snippet,
-                    start_offset=citation.start_offset,
-                    end_offset=citation.end_offset,
-                )
-                for citation, filename in citation_rows
-            ]
-
-        items.append(
-            ChatSessionMessageResponse(
-                message_id=str(message.id),
-                role=message.role,
-                content=message.content,
-                confidence_score=message.confidence_score,
-                confidence_category=_confidence_category_from_score(message.confidence_score),
-                citations=message_citations,
-                created_at=message.created_at,
-            )
+    # Shared views have never carried source provenance; keep that (no ``decorate``).
+    shared_citations = await load_message_citations(
+        db_session,
+        messages=messages_orm,
+        organization_id=organization_id,
+        repository=chat_repository,
+    )
+    items = [
+        ChatSessionMessageResponse(
+            message_id=str(message.id),
+            role=message.role,
+            content=message.content,
+            confidence_score=message.confidence_score,
+            confidence_category=_confidence_category_from_score(message.confidence_score),
+            citations=shared_citations.get(message.id, []),
+            created_at=message.created_at,
         )
+        for message in messages_orm
+    ]
 
     await audit_log_service.record(
         db_session,
@@ -7053,23 +7033,13 @@ async def _run_ws_chat_pipeline(
                     if answer_prompt_version is not None
                     else None,
                 )
-                for citation in citations:
-                    document_uuid = _parse_uuid_or_none(citation.document_id)
-                    chunk_uuid = _parse_uuid_or_none(citation.chunk_id)
-                    if document_uuid is None or chunk_uuid is None:
-                        continue
-                    await chat_repository.create_citation(
-                        db_session,
-                        chat_message_id=assistant_message.id,
-                        document_id=document_uuid,
-                        chunk_id=chunk_uuid,
-                        text_snippet=citation.text_snippet or "",
-                        page_number=citation.page_number,
-                        start_offset=citation.start_offset,
-                        end_offset=citation.end_offset,
-                        similarity_score=citation.similarity_score,
-                        rerank_score=citation.rerank_score if rerank_applied else None,
-                    )
+                await persist_answer_citations(
+                    db_session,
+                    chat_message_id=assistant_message.id,
+                    citations=citations,
+                    rerank_applied=rerank_applied,
+                    repository=chat_repository,
+                )
                 persisted_document_ids = (
                     [str(d) for d in document_ids] if document_ids is not None else []
                 )

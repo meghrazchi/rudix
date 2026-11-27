@@ -5,7 +5,7 @@ from datetime import date
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, delete, exists, func, or_, select
+from sqlalchemy import and_, case, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -193,6 +193,41 @@ class CollectionRepository:
             )
         )
         return result.scalar_one()
+
+    async def count_documents_by_collection_ids(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        collection_ids: list_[UUID],
+    ) -> dict[UUID, tuple[int, int]]:
+        """Return ``{collection_id: (document_count, indexed_count)}`` in one grouped query.
+
+        Matches ``count_documents`` (every membership row) and ``count_indexed_documents``
+        (memberships whose document is indexed). Collections outside ``organization_id`` and
+        collections with no documents are absent; callers default to ``(0, 0)``.
+        """
+        if not collection_ids:
+            return {}
+        indexed = func.coalesce(
+            func.sum(case((Document.status == DocumentStatus.indexed.value, 1), else_=0)),
+            0,
+        )
+        result = await session.execute(
+            select(
+                CollectionDocument.collection_id,
+                func.count(CollectionDocument.document_id),
+                indexed,
+            )
+            .join(Collection, Collection.id == CollectionDocument.collection_id)
+            .outerjoin(Document, Document.id == CollectionDocument.document_id)
+            .where(
+                CollectionDocument.collection_id.in_(collection_ids),
+                Collection.organization_id == organization_id,
+            )
+            .group_by(CollectionDocument.collection_id)
+        )
+        return {row[0]: (int(row[1]), int(row[2])) for row in result.all()}
 
     async def update(
         self,

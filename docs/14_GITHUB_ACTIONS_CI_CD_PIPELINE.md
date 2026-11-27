@@ -66,7 +66,9 @@ no `paths` filter, so the check always reports and can be required in branch pro
 
 - starts ephemeral `postgres:16` (database `rudix_test`) and `redis:7` services
 - runs `make -C backend install`
-- runs `make -C backend test-postgres` with `TEST_DATABASE_URL` set; the target and the
+- runs `make -C backend test-postgres` with `TEST_DATABASE_URL` and `TEST_REDIS_URL` set
+  (the latter opts in `tests/test_rate_limit_redis_live.py`, which runs the production Lua
+  scripts on the `redis:7` service); the target and the
   `pg_migrated_url` fixture both apply `alembic upgrade head`, then pytest runs every
   `requires_postgres` / `requires_redis` test, including the PostgreSQL parameters of
   `both_dialects` suites
@@ -287,7 +289,7 @@ Deterministic accuracy smoke over pinned fixtures (R03-03). Runs on every pull r
 push to `main`, with no workflow-level `paths` filter. A `changes` job sets `pipeline=true`
 when the PR touches `backend/app/domains/{chat,ai,rag_profiles,prompt_templates,evaluations,
 quality_gates}/`, `backend/app/application/chat/`, `backend/app/interfaces/http/chat.py`,
-`backend/app/core/config.py`, `ci/config/accuracy_eval_thresholds.yml`,
+`backend/app/core/config.py`, `backend/app/core/settings/`, `ci/config/accuracy_eval_thresholds.yml`,
 `backend/tests/fixtures/accuracy_smoke/`, `backend/tests/test_accuracy_smoke.py`,
 `backend/tests/accuracy_smoke_support.py`, or the workflow itself (always `true` on `main`).
 

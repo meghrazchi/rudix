@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from math import floor
-from time import time
-
 from app.auth.models import AuthenticatedPrincipal
 from app.clients import redis_client as redis_module
 from app.core.config import RateLimitRedisFailureMode, settings
 from app.core.logging import get_logger
+from app.rate_limit import sliding_window
 
 _logger = get_logger("mcp.rate_limit")
 
@@ -34,12 +32,8 @@ def _build_key(
     tool_name: str,
     user_id: str,
     organization_id: str,
-    window_bucket: int,
 ) -> str:
-    return (
-        f"rate_limit:v1:mcp:tool:{tool_name}:"
-        f"org:{organization_id}:user:{user_id}:window:{window_bucket}"
-    )
+    return f"rate_limit:v2:{{org:{organization_id}}}:mcp:tool:{tool_name}:user:{user_id}"
 
 
 async def enforce_mcp_rate_limit(
@@ -52,14 +46,11 @@ async def enforce_mcp_rate_limit(
 
     limit = settings.mcp_rate_limit_requests
     window_seconds = settings.mcp_rate_limit_window_seconds
-    window_bucket = floor(time() / window_seconds)
-
     organization_id = principal.organization_id or "none"
     key = _build_key(
         tool_name=tool_name,
         user_id=principal.user_id,
         organization_id=organization_id,
-        window_bucket=window_bucket,
     )
 
     redis = redis_module.redis_client
@@ -75,28 +66,22 @@ async def enforce_mcp_rate_limit(
         return
 
     try:
-        count = await redis.incr(key)
-        if count == 1:
-            await redis.expire(key, window_seconds)
-        ttl = await redis.ttl(key)
-        if ttl <= 0:
-            await redis.expire(key, window_seconds)
-            ttl = window_seconds
-
-        remaining = limit - int(count)
-        if count > limit:
+        result = await sliding_window.check(
+            redis, user_key=key, user_limit=limit, window_seconds=window_seconds
+        )
+        if not result.allowed:
             _logger.info(
                 "mcp.rate_limit.exceeded",
                 tool_name=tool_name,
                 user_id=principal.user_id,
                 organization_id=organization_id,
                 limit=limit,
-                retry_after_seconds=int(ttl),
+                retry_after_seconds=result.retry_after_seconds,
             )
             raise MCPRateLimitExceededError(
-                retry_after_seconds=max(1, int(ttl)),
+                retry_after_seconds=result.retry_after_seconds,
                 limit=limit,
-                remaining=remaining,
+                remaining=result.remaining,
             )
     except MCPRateLimitExceededError:
         raise

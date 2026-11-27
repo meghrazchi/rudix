@@ -5,7 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_permission
@@ -13,7 +13,11 @@ from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import get_logger
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
-from app.domains.webhooks.repositories.webhooks import WebhooksRepository
+from app.domains.webhooks.repositories.webhooks import (
+    DELIVERIES_PAGE_SIZE,
+    DELIVERY_SORT_NAME,
+    WebhooksRepository,
+)
 from app.domains.webhooks.schemas.webhooks import (
     CreateWebhookRequest,
     UpdateWebhookRequest,
@@ -24,6 +28,7 @@ from app.domains.webhooks.schemas.webhooks import (
 )
 from app.domains.webhooks.services.webhooks_service import WebhooksService
 from app.models.permissions import PermissionType
+from app.shared.pagination import encode_cursor, resolve_page_request, split_page
 
 router = APIRouter(prefix="/admin/webhooks", tags=["webhooks"])
 webhooks_repository = WebhooksRepository()
@@ -468,8 +473,13 @@ async def list_webhook_deliveries(
         Depends(require_permission(PermissionType.webhooks_list)),
     ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: Annotated[int, Query(ge=1, le=200)] = DELIVERIES_PAGE_SIZE,
+    cursor: Annotated[str | None, Query(max_length=1024)] = None,
 ) -> WebhookDeliveryListResponse:
     organization_id = _org_id(principal)
+    page = resolve_page_request(
+        cursor=cursor, offset=0, include_total=None, sort_name=DELIVERY_SORT_NAME
+    )
     try:
         parsed_id = UUID(webhook_id)
     except ValueError as exc:
@@ -483,8 +493,20 @@ async def list_webhook_deliveries(
     if webhook is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
 
-    deliveries = await webhooks_repository.list_deliveries(
-        db_session, webhook_id=parsed_id, organization_id=organization_id
+    deliveries, has_more = split_page(
+        await webhooks_repository.list_deliveries(
+            db_session,
+            webhook_id=parsed_id,
+            organization_id=organization_id,
+            limit=limit + 1,
+            keyset=page.keyset,
+        ),
+        limit,
     )
     items = [webhooks_service.to_delivery_response(d) for d in deliveries]
-    return WebhookDeliveryListResponse(items=items, total=len(items))
+    next_cursor = (
+        encode_cursor(DELIVERY_SORT_NAME, [deliveries[-1].created_at, deliveries[-1].id])
+        if has_more
+        else None
+    )
+    return WebhookDeliveryListResponse(items=items, total=len(items), next_cursor=next_cursor)

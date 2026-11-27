@@ -74,6 +74,8 @@ jobs:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin123
       REDIS_URL: redis://localhost:6379/0
+      # Opt-in for tests/test_rate_limit_redis_live.py (real Lua scripts vs reference impls).
+      TEST_REDIS_URL: redis://localhost:6379/15
       MINIO_BOOTSTRAP_BUCKET: "true"
       LLM_DEFAULT_PROVIDER: openai
       EMBEDDING_DEFAULT_PROVIDER: openai

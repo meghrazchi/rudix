@@ -54,6 +54,7 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog
 from app.models.user import User
+from tests.redis_fakes import FakeRedis
 
 
 @dataclass
@@ -70,24 +71,6 @@ class FakeQdrantClient:
     def search(self, **kwargs: object) -> list[FakeQdrantResult]:
         self.calls.append(kwargs)
         return list(self._results)
-
-
-class FakeRedis:
-    def __init__(self) -> None:
-        self.counts: dict[str, int] = {}
-        self.expiries: dict[str, int] = {}
-
-    async def incr(self, key: str) -> int:
-        count = self.counts.get(key, 0) + 1
-        self.counts[key] = count
-        return count
-
-    async def expire(self, key: str, seconds: int) -> bool:
-        self.expiries[key] = seconds
-        return True
-
-    async def ttl(self, key: str) -> int:
-        return self.expiries.get(key, 60)
 
 
 class FakeAsyncHttpClient:

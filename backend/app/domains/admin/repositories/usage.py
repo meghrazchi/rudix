@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -11,6 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
 from app.models.usage import AuditLog, UsageEvent
+from app.shared.pagination import CursorValue, apply_keyset
+
+AUDIT_LOG_SORT_NAME = "audit_logs.created_at.desc"
+AUDIT_LOG_SORT_COLUMNS = (AuditLog.created_at, AuditLog.id)
 
 
 class UsageRepository:
@@ -283,10 +288,13 @@ class UsageRepository:
         result: str | None = None,
         severity: str | None = None,
         search: str | None = None,
+        keyset: Sequence[CursorValue] | None = None,
     ) -> list[AuditLog]:
-        statement = self._with_audit_filters(
-            select(AuditLog),
+        statement = self.audit_logs_statement(
             organization_id=organization_id,
+            limit=limit,
+            offset=offset,
+            keyset=keyset,
             from_created_at=from_created_at,
             to_created_at=to_created_at,
             user_id=user_id,
@@ -304,14 +312,33 @@ class UsageRepository:
             severity=severity,
             search=search,
         )
+        query_result = await session.execute(statement)
+        return list(query_result.scalars().all())
 
-        statement = (
+    def audit_logs_statement(
+        self,
+        *,
+        organization_id: UUID,
+        limit: int,
+        offset: int = 0,
+        keyset: Sequence[CursorValue] | None = None,
+        **filters: Any,
+    ) -> Select[tuple[AuditLog]]:
+        """The audit-log list query, newest first, with ``LIMIT`` in SQL.
+
+        ``keyset`` is ``(created_at, id)`` of the previous page's last row. ``filters`` are
+        the keyword filters of ``list_audit_logs``.
+        """
+        statement = self._with_audit_filters(
+            select(AuditLog), organization_id=organization_id, **filters
+        )
+        if keyset is not None:
+            statement = apply_keyset(statement, AUDIT_LOG_SORT_COLUMNS, True, keyset)
+        return (
             statement.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
             .offset(offset)
             .limit(limit)
         )
-        query_result = await session.execute(statement)
-        return list(query_result.scalars().all())
 
     async def count_audit_logs(
         self,
@@ -393,7 +420,33 @@ class UsageRepository:
         user_id: UUID | None = None,
         model_name: str | None = None,
         event_type_prefix: str | None = None,
+        limit: int | None = None,
     ) -> list[UsageEvent]:
+        result = await session.execute(
+            self.usage_events_filtered_statement(
+                organization_id=organization_id,
+                from_created_at=from_created_at,
+                to_created_at=to_created_at,
+                user_id=user_id,
+                model_name=model_name,
+                event_type_prefix=event_type_prefix,
+                limit=limit,
+            )
+        )
+        return list(result.scalars().all())
+
+    def usage_events_filtered_statement(
+        self,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        user_id: UUID | None = None,
+        model_name: str | None = None,
+        event_type_prefix: str | None = None,
+        limit: int | None = None,
+    ) -> Select[tuple[UsageEvent]]:
+        """Filtered usage events, oldest first; ``limit`` (when set) is applied in SQL."""
         statement = select(UsageEvent).where(UsageEvent.organization_id == organization_id)
         if from_created_at is not None:
             statement = statement.where(UsageEvent.created_at >= from_created_at)
@@ -405,10 +458,10 @@ class UsageRepository:
             statement = statement.where(UsageEvent.model_name == model_name)
         if event_type_prefix is not None:
             statement = statement.where(UsageEvent.event_type.like(f"{event_type_prefix}%"))
-        result = await session.execute(
-            statement.order_by(UsageEvent.created_at.asc(), UsageEvent.id.asc())
-        )
-        return list(result.scalars().all())
+        statement = statement.order_by(UsageEvent.created_at.asc(), UsageEvent.id.asc())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return statement
 
     async def count_active_users(
         self,

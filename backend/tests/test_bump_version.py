@@ -22,7 +22,7 @@ VERSION_FILES = (
     "backend/pyproject.toml",
     "frontend/package.json",
     "frontend/package-lock.json",
-    "backend/app/core/config.py",
+    "backend/app/core/settings/app.py",
     ".env.example",
     "frontend/openapi.json",
     "docs/CHANGELOG.md",
@@ -168,11 +168,11 @@ def test_changelog_with_unreleased_as_last_section() -> None:
 
 
 def test_missing_anchor_is_reported(tree: Path) -> None:
-    config = tree / "backend/app/core/config.py"
+    config = tree / "backend/app/core/settings/app.py"
     config.write_text(config.read_text().replace("api_version: str", "api_ver: str"))
     with pytest.raises(bv.VersionError, match="api_version"):
         bv.read_versions(tree)
-    location = next(loc for loc in bv.LOCATIONS if "config.py" in loc.label)
+    location = next(loc for loc in bv.LOCATIONS if "settings/app.py" in loc.label)
     with pytest.raises(bv.VersionError, match="not found"):
         location.rewrite(config.read_text(), "1.0.0")
 

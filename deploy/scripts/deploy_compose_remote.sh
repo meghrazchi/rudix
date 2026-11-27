@@ -52,6 +52,9 @@ ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
   echo '$DEPLOY_REGISTRY_PASSWORD' | docker login -u '$DEPLOY_REGISTRY_USER' --password-stdin '$DEPLOY_REGISTRY'
   docker compose -f '$compose_file' pull
   docker compose -f '$compose_file' run --rm api alembic upgrade head
+  if grep -qE '^ENTERPRISE_GRAPH_ENABLED=true' .env; then
+    docker compose -f '$compose_file' run --rm api python scripts/run_graph_migrations.py
+  fi
   docker compose -f '$compose_file' up -d
   curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null
   curl -fsS http://127.0.0.1:8000/api/v1/ready >/dev/null

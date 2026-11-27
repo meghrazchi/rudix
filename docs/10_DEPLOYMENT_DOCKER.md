@@ -421,7 +421,8 @@ Before deployment:
 
 - Run unit tests.
 - Run API integration tests.
-- Run database migrations.
+- Run database migrations (`alembic upgrade head`). When `ENTERPRISE_GRAPH_ENABLED=true`, the migrate step also runs the Neo4j graph migrations (`python scripts/run_graph_migrations.py`, or `make migrate-graph` from `backend/`); `deploy/scripts/deploy_compose_remote.sh` and the Terraform rollout (`deploy/terraform/main.tf`) do this automatically. The API only runs graph migrations at startup in development/test unless `GRAPH_MIGRATIONS_ON_STARTUP=true`.
+- Redis, RabbitMQ, and Qdrant outages no longer abort API boot: the API logs `startup.dependency_unavailable` and `/ready` reports the dependency as down (each `/ready` call retries the Redis and Qdrant connection, so the API recovers without a restart), so verify `/ready` after deploy.
 - Verify Qdrant collection exists.
 - Verify MinIO bucket exists.
 - Verify RabbitMQ and worker connectivity.

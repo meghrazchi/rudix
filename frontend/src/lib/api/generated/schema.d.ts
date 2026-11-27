@@ -9311,12 +9311,14 @@ export interface components {
             /** Items */
             items: components["schemas"]["AuditLogListItemResponse"][];
             /** Total */
-            total: number;
+            total: number | null;
             /** Limit */
             limit: number;
             /** Offset */
             offset: number;
             range: components["schemas"]["UsageSummaryRange"];
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** AuthActiveSessionListResponse */
         AuthActiveSessionListResponse: {
@@ -10843,22 +10845,26 @@ export interface components {
             /** Items */
             items: components["schemas"]["ChatSessionResponse"][];
             /** Total */
-            total: number;
+            total: number | null;
             /** Limit */
             limit: number;
             /** Offset */
             offset: number;
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** ChatSessionMessageListResponse */
         ChatSessionMessageListResponse: {
             /** Items */
             items: components["schemas"]["ChatSessionMessageResponse"][];
             /** Total */
-            total: number;
+            total: number | null;
             /** Limit */
             limit: number;
             /** Offset */
             offset: number;
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** ChatSessionMessageResponse */
         ChatSessionMessageResponse: {
@@ -13523,11 +13529,13 @@ export interface components {
             /** Items */
             items: components["schemas"]["DocumentListItemResponse"][];
             /** Total */
-            total: number;
+            total: number | null;
             /** Limit */
             limit: number;
             /** Offset */
             offset: number;
+            /** Next Cursor */
+            next_cursor?: string | null;
             status?: components["schemas"]["DocumentStatus"] | null;
             freshness?: components["schemas"]["DocumentReviewStatus"] | null;
             quality_state?: components["schemas"]["DocumentQualityState"] | null;
@@ -16521,13 +16529,15 @@ export interface components {
             /** Items */
             items: components["schemas"]["NotificationResponse"][];
             /** Total */
-            total: number;
+            total: number | null;
             /** Limit */
             limit: number;
             /** Offset */
             offset: number;
             /** Unread Count */
             unread_count: number;
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** NotificationPreferenceItem */
         NotificationPreferenceItem: {
@@ -22558,6 +22568,8 @@ export interface components {
             items: components["schemas"]["WebhookDeliveryResponse"][];
             /** Total */
             total: number;
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** WebhookDeliveryResponse */
         WebhookDeliveryResponse: {
@@ -23796,6 +23808,8 @@ export interface operations {
                 filename_query?: string | null;
                 file_type?: string | null;
                 language?: string | null;
+                cursor?: string | null;
+                include_total?: boolean | null;
             };
             header?: never;
             path?: never;
@@ -25507,6 +25521,8 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 search?: string | null;
+                cursor?: string | null;
+                include_total?: boolean | null;
             };
             header?: never;
             path?: never;
@@ -25687,6 +25703,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                cursor?: string | null;
+                include_total?: boolean | null;
             };
             header?: never;
             path: {
@@ -28283,6 +28301,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                cursor?: string | null;
+                include_total?: boolean | null;
             };
             header?: never;
             path?: never;
@@ -30688,6 +30708,8 @@ export interface operations {
                 result?: "all" | "success" | "failure" | "unknown";
                 severity?: string | null;
                 search?: string | null;
+                cursor?: string | null;
+                include_total?: boolean | null;
             };
             header?: never;
             path?: never;
@@ -35041,7 +35063,10 @@ export interface operations {
     };
     list_webhook_deliveries_api_v1_admin_webhooks__webhook_id__deliveries_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+            };
             header?: never;
             path: {
                 webhook_id: string;

@@ -38,7 +38,12 @@ def init_qdrant() -> None:
             error=exc.__class__.__name__,
             exc_info=exc,
         )
-        close_qdrant()
+        try:
+            close_qdrant()
+        finally:
+            # A closed client cannot reconnect; None lets consumers and the
+            # readiness probe re-initialize once Qdrant is reachable (R04-12).
+            qdrant_client = None
         raise
 
 
@@ -50,9 +55,16 @@ def close_qdrant() -> None:
 
 def check_qdrant_health() -> bool:
     if qdrant_client is None:
+        # Degraded boot (R04-12): reconnect from the readiness probe.
+        try:
+            init_qdrant()
+        except Exception:
+            return False
+    client = qdrant_client
+    if client is None:
         return False
     try:
-        qdrant_client.get_collections()
+        client.get_collections()
         return True
     except Exception:
         return False
