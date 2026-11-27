@@ -628,6 +628,28 @@ CHAT_GOLDEN_UPDATE=1 .venv/bin/pytest tests/test_chat_golden_transcripts.py \
   flagged, down-ranked (default), or dropped (`CHAT_CONTEXT_INJECTION_ACTION`,
   `CHAT_CONTEXT_INJECTION_DOWNRANK_MULTIPLIER`); see `docs/11` (R05-09). Golden prompt hashes
   are taken with the boundary token normalised.
+- Query embeddings are cached per organisation (`query_embedding`,
+  `CHAT_QUERY_EMBEDDING_CACHE_TTL_SECONDS`, R05-05); a hit records a zero-token ledger entry
+  and counts `rudix_chat_query_embedding_cache_total{result}`.
+- Stage 2 reads (AI policy and collection override, RAG profile, answer prompt version, model
+  profile, chat tool policy, quota policy limits) and the verified-answer candidates are
+  cached under the organisation scope and invalidated on commit (`app/core/cache_invalidation.py`;
+  reads in `pipeline/config_cache.py` and next to their repositories). With Redis down they
+  read PostgreSQL.
+- Stage 4 (`stages/shortcut.py`, `CHAT_VERIFIED_ANSWER_SHORTCUT_ENABLED=false`) matches
+  published verified answers by exact normalised question and checks every citation's read,
+  cite, scope, and chunk; it runs in shadow mode (records the result, still generates) until
+  the response contract allows an answer without a numeric confidence.
+- Latency budget (R05-04): `CHAT_TOTAL_DEADLINE_MS` and `CHAT_STAGE_BUDGET_{REWRITE,GRAPH,
+  RERANK,CONFLICT,TREE_SEARCH,VERIFY,REFINE}_MS` (0 = off) degrade optional steps per
+  `stages/policies.py`, list them in trust metadata `stage_degradations`, and count
+  `rudix_chat_stage_skipped_total{stage,reason}`; strict verification withholds the answer.
+  Rerank batches run concurrently (`RERANK_MAX_CONCURRENT_BATCHES`, default 4).
+- `CHAT_QUERY_EMBEDDING_PREFETCH_ENABLED` (default `false`) overlaps the original question's
+  embedding with configuration resolution; it is off because the embedding would run while
+  the read-phase connection is checked out.
+- A warm-cache grounded question sends 30 SQL statements (`tests/test_chat_query_count.py`);
+  the 12-statement target is not met yet.
 
 ## Application cache
 
