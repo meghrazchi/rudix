@@ -87,7 +87,7 @@ make seed-dev
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
 - Database engine settings (R04-01): `DB_POOL_SIZE` (5), `DB_MAX_OVERFLOW` (10), `DB_POOL_TIMEOUT` (30 s), `DB_STATEMENT_TIMEOUT_MS` and `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` (0 = off), `DB_PGBOUNCER_MODE` (false). The defaults keep the previous behaviour. Alembic uses `DATABASE_MIGRATION_URL` when set; `maintenance_session()` (cross-tenant beat tasks) uses `DATABASE_MAINTENANCE_URL` when set. The engine is disposed on API shutdown. Pool metrics: `rudix_db_pool_wait_seconds`, `rudix_db_pool_timeouts_total`.
 - Handlers that make a slow network call inside a request (`POST /admin/model-providers/test`, `POST /admin/webhooks/{id}/test`, `POST /admin/sso/test-connection`) commit before the call so the pooled connection is returned while it runs.
-- Row-level security (R04-08): `RLS_ENFORCEMENT` is `off` (default in development/test), `soft` (default in staging/production), or `strict`. Migration `20261127_0004` covers every table with `organization_id` except the user-scoped identity tables (`users`, `organization_members`, `auth_refresh_sessions`); `deploy/sql/provision_roles.sql` creates the `rudix_app` and `rudix_maintenance` roles. PostgreSQL tests prove isolation with a non-owner probe role (`rls_probe_session` fixture, `tests/test_rls_enforcement_pg.py`); set `TEST_MIGRATIONS_DATABASE_URL` to a database that may be downgraded to also run the migration round trip. See `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
+- Row-level security (R04-08): `RLS_ENFORCEMENT` is `off`, `soft` (default in staging/production), or `strict` (default in development/test since 0.5.0). `FORCE ROW LEVEL SECURITY` is operator SQL (`deploy/sql/force_rls.sql`, rollback `unforce_rls.sql`, rendered by `scripts/render_force_rls_sql.py`), applied after the role split. Migration `20261127_0004` covers every table with `organization_id` except the user-scoped identity tables (`users`, `organization_members`, `auth_refresh_sessions`); `deploy/sql/provision_roles.sql` creates the `rudix_app` and `rudix_maintenance` roles. PostgreSQL tests prove isolation with a non-owner probe role (`rls_probe_session` fixture, `tests/test_rls_enforcement_pg.py`); set `TEST_MIGRATIONS_DATABASE_URL` to a database that may be downgraded to also run the migration round trip. See `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
 
 ## Settings layout and startup behavior
 
@@ -548,11 +548,24 @@ lower it without a reason in the merge request.
 ## Chat pipeline
 
 `POST /api/v1/chat` and the chat WebSocket (`/chat/ws`) run one staged pipeline (R05-01).
-`CHAT_PIPELINE_V2=true` (the default since R05-02) runs it on both transports;
-`CHAT_PIPELINE_V2=false` keeps the legacy `query_chat` and `_run_ws_chat_pipeline` bodies until
-they are deleted. HTTP returns the same responses, rows, and errors as the legacy body; the
-WebSocket gains the stages it lacked (rewriting, packing, grounded verifier, tree search,
-freshness, OCR, table, and extraction quality, AI policy checks).
+Since 0.5.0 (S3) the legacy `query_chat` and `_run_ws_chat_pipeline` bodies are gone: both
+functions keep their signatures and only delegate (`transports/http.py`, `transports/ws.py`).
+HTTP returns the same responses, rows, and errors as the legacy body did; the WebSocket gained
+the stages it lacked (rewriting, packing, grounded verifier, tree search, freshness, OCR,
+table, and extraction quality, AI policy checks). Slack/Teams bots answer through
+`transports/internal.py` (`run_internal_query`), which binds the installation's tenant first.
+
+`CHAT_PIPELINE_V2` is deprecated: it has no effect, `false` logs one startup warning
+(`chat.pipeline_v2_ignored`), and the setting is removed in 0.6.0. Remove it from your `.env`.
+
+Chat routes (`app/interfaces/http/`): `chat.py` keeps `router`, `ws_router`, `POST /chat`
+(`query_chat`), `/chat/ws` (`chat_websocket`), and the compatibility names; the other routes are
+in `chat_sessions.py` (sessions, stats, message list, the deprecated message create),
+`chat_trust.py` (trust metadata), `chat_shares.py` (session shares, `GET /chat/shared/{token}`),
+`chat_feedback.py`, and `chat_answer_shares.py` (answer shares, `GET /chat/answer-shared/{token}`).
+Each module defines an `APIRouter` without prefix or tags; `chat.router` includes them in the
+original registration order, so paths and the OpenAPI document did not change. `chat.py`
+re-exports the moved route functions by name.
 
 Database sessions (R05-02): stages 1, 2, and 4 share one read session committed after stage 4;
 each lookup in stages 5 to 9 uses its own short session; stage 10 writes in one session with one
@@ -593,7 +606,7 @@ objects, and `_openai_client`, `SessionLocal`, and `ensure_chat_quota` are read 
 Golden transcripts in `tests/fixtures/chat_golden/` hold what each transport answers for 47
 scenarios; `tests/test_chat_golden_transcripts.py`, `tests/test_chat_golden_edge_transcripts.py`,
 and `tests/test_chat_golden_branch_transcripts.py` (freshness, OCR, table, parent context,
-hybrid merge, strict verifier, refiner branches) compare the legacy body, the pipeline, and the
+hybrid merge, strict verifier, refiner branches) compare HTTP (ASGI and in-process) and the
 WebSocket against them. Re-record only for the reasons in contract 4.2.4:
 
 ```bash

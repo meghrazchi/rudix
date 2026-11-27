@@ -84,6 +84,14 @@ Multi-tenant defense-in-depth requirements:
 - Cross-tenant authorization denials (`DenyReason.tenant_boundary`) in `AuthorizationService.authorize_or_raise` must always return HTTP `404 Not Found` (preventing cross-organization UUID enumeration) while recording `deny_reason="tenant_boundary"` in the security audit log.
 - Authenticated requests bind `organization_id` onto the SQLAlchemy `AsyncSession` (`bind_session_tenant`), and `tenant_scoped_session` enforces ORM `do_orm_execute` loader criteria (`organization_id == tenant_id`) and `before_flush` cross-tenant write blocking.
 - PostgreSQL tenant tables enforce Row-Level Security (`ENABLE ROW LEVEL SECURITY` with `tenant_isolation_policy` keyed on `current_setting('app.current_organization_id', true)`).
+- `RLS_ENFORCEMENT` unset means `strict` in `development` and `test` since `0.5.0` (an unbound
+  session sees no rows of a strict table), and `soft` in staging and production until the
+  soft-denial week and the role split are done. The test suites run under `strict`.
+- Unauthenticated paths bind the tenant they resolved before they touch a strict table
+  (`bind_resolved_tenant`, counted in `rudix_rls_resolved_tenant_bindings_total{path}`): the
+  shared agent trace page (share token), pre-authentication audit writes for login, refresh,
+  logout, and SSO, and Slack/Teams inbound events (installation). New unauthenticated routes
+  must do the same. Celery tasks are bound in `R06-01`.
 
 Connector operations must also enforce:
 
@@ -638,6 +646,12 @@ When deleting a document:
       `DATABASE_MIGRATION_URL` the owner, `DATABASE_MAINTENANCE_URL` `rudix_maintenance`.
 - [ ] `RLS_ENFORCEMENT=soft` and `rudix_rls_soft_denials_total` reviewed for a week before
       `strict`.
+- [ ] After the role split and the clean soft-denial week: `deploy/sql/force_rls.sql` applied as
+      the migration owner (`psql -1 -v ON_ERROR_STOP=1 -f deploy/sql/force_rls.sql`), then
+      `RLS_ENFORCEMENT=strict`. `FORCE ROW LEVEL SECURITY` is operator SQL, not a migration;
+      rollback is `deploy/sql/unforce_rls.sql` plus `RLS_ENFORCEMENT=soft`. Re-render both files
+      with `backend/scripts/render_force_rls_sql.py` when the RLS table lists change.
+- [ ] Development and test databases run with the `strict` default (`RLS_ENFORCEMENT` unset).
 
 ### Workers
 

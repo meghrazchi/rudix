@@ -477,9 +477,12 @@ policy text are in `docs/06_DATABASE_SCHEMA.md` (`## Row-level security`).
 
 | Mode | Default for | Effect |
 |---|---|---|
-| `off` | development, test (unset) | No session context is sent. Policies behave like the legacy NULL-permissive policy. |
+| `off` | never by default (an environment other than the four known ones) | No session context is sent. Policies behave like the legacy NULL-permissive policy. |
 | `soft` | staging, production (unset) | A bound tenant is filtered by the policy. ORM statements and flushes on a strict table with no tenant bound are allowed, logged (`rls.soft_denial`, once per table per 60 s per process), and counted in `rudix_rls_soft_denials_total{table}`. |
-| `strict` | never by default | Every transaction sends `app.rls_mode = 'strict'`, so an unset tenant sees no rows of a strict table and cannot write one. `get_current_principal` also turns on the ORM tenant guard (`enforce_guard`). |
+| `strict` | development, test (unset, since 0.5.0) | Every transaction sends `app.rls_mode = 'strict'`, so an unset tenant sees no rows of a strict table and cannot write one. `get_current_principal` also turns on the ORM tenant guard (`enforce_guard`). |
+
+Before 0.5.0 an unset `RLS_ENFORCEMENT` meant `off` in development and test. Set
+`RLS_ENFORCEMENT=off` locally to get that back (for example against an old database dump).
 
 How the tenant reaches PostgreSQL:
 
@@ -523,31 +526,54 @@ the same reason.
 | `rudix_app` | `LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEROLE`, DML grants, not an owner | API and workers via `DATABASE_URL` |
 | `rudix_maintenance` | `BYPASSRLS`, same grants | `maintenance_session()` via `DATABASE_MAINTENANCE_URL` |
 
-Policies do not apply to table owners or `BYPASSRLS` roles, and `FORCE ROW LEVEL SECURITY`
-is not set, so nothing changes until `DATABASE_URL` points at `rudix_app`.
+Policies do not apply to table owners or `BYPASSRLS` roles unless `FORCE ROW LEVEL SECURITY`
+is set, so nothing changes until `DATABASE_URL` points at `rudix_app` (or `force_rls.sql`
+is applied).
+
+### `FORCE ROW LEVEL SECURITY` (operator SQL)
+
+`deploy/sql/force_rls.sql` sets `FORCE ROW LEVEL SECURITY` on every table with a tenant
+policy (`RLS_STRICT_TABLES` and `RLS_LOOKUP_TABLES`); `deploy/sql/unforce_rls.sql` undoes it.
+Both are rendered from `app.db.rls` by `backend/scripts/render_force_rls_sql.py`
+(`--check` fails on a stale file; `tests/test_force_rls_sql.py` checks the committed files and,
+on PostgreSQL, that a non-superuser table owner sees only its tenant under `strict` once the
+file is applied). It ships as operator SQL, not as a migration, because it only changes
+deployments that still connect as the owner: run it as the migration owner with
+`psql -1 -v ON_ERROR_STOP=1 -f deploy/sql/force_rls.sql`. Each statement takes a short
+`ACCESS EXCLUSIVE` lock and rewrites no data.
 
 ### Rollout
 
-1. `0.4.0` (now): provision the roles, switch `DATABASE_URL` to `rudix_app`, keep `soft`.
+1. `0.4.0`: provision the roles, switch `DATABASE_URL` to `rudix_app`, keep `soft`.
    Watch `rudix_rls_soft_denials_total` and the `RudixRlsSoftDenials` alert for one week;
    every table that shows up is a code path that would break under `strict`.
-2. `0.5.0`: bind a tenant on the WebSocket chat path and in per-tenant Celery tasks, apply
-   `FORCE ROW LEVEL SECURITY`, then make `strict` the default.
-3. Rollback at any time: `RLS_ENFORCEMENT=off` (no deploy of code needed), or point
-   `DATABASE_URL` back at the owner role. The migration can be downgraded to
-   `20261127_0003`.
+2. `0.5.0` (now): the chat WebSocket, bot inbound events, the shared agent trace page, and
+   pre-authentication audit writes bind a tenant; `strict` is the default in development and
+   test, and the F144 isolation cases run under the probe role on PostgreSQL
+   (`tests/test_rag_isolation_probe_pg.py`). Staging and production stay `soft`.
+3. After the soft-denial week and the role split: apply `deploy/sql/force_rls.sql`, then set
+   `RLS_ENFORCEMENT=strict` in staging, then production. Making `strict` the default there
+   waits for the Celery binding (`R06-01`).
+4. Rollback at any time: `RLS_ENFORCEMENT=soft` or `off` (no deploy of code needed),
+   `deploy/sql/unforce_rls.sql`, or point `DATABASE_URL` back at the owner role. The policy
+   migration can be downgraded to `20261127_0003`.
 
 ### Known gaps before `strict`
 
-- Celery tasks other than the maintenance tasks do not bind a tenant. The chat WebSocket is
-  bound since 0.5.0 (R05-02): with `CHAT_PIPELINE_V2=true` (the default) every session the chat
-  pipeline opens goes through `bind_pipeline_session` (tenant context, ORM guard in `strict`),
-  and the run binds the tenant context variable so parallel retrieval branches inherit it. The
-  legacy WebSocket body (`CHAT_PIPELINE_V2=false`, removed in S3) is still unbound.
-- Unauthenticated reads of strict tables: the shared agent trace page loads `agent_runs`,
-  `agent_steps`, and `agent_tool_calls`; Slack/Teams inbound events run the chat pipeline;
-  pre-authentication audit writes (login, SSO) insert `audit_logs` rows. Each needs an
-  explicit tenant binding from the token, installation, or organization it resolved.
+- Celery tasks other than the maintenance tasks do not bind a tenant (`R06-01`).
+- Closed in 0.5.0: the chat WebSocket and HTTP pipeline (R05-02: every session the pipeline
+  opens goes through `bind_pipeline_session`, and the run binds the tenant context variable
+  so parallel retrieval branches inherit it; the legacy bodies are gone since S3). Paths that
+  run before a principal exists use `bind_resolved_tenant` (session and context variable, no
+  ORM guard, counted in `rudix_rls_resolved_tenant_bindings_total{path}`):
+  - `agent_trace_share`: the shared agent trace page binds the share token's organisation
+    before it reads `agent_runs`, `agent_steps`, and `agent_tool_calls`;
+  - `auth_audit`: login, refresh, logout, and SSO bind the organisation they resolved before
+    each `audit_logs` insert;
+  - `bot_inbound`: Slack/Teams events bind the installation's organisation before the user
+    mapping lookup and audit rows; the chat run itself goes through
+    `transports/internal.py` (`run_internal_query`, `bind_pipeline_session`).
+  `tests/test_rls_resolved_tenant_pg.py` runs each path as the probe role under `strict`.
 - Raw SQL (`text()`) is not seen by the soft-mode detector; only ORM statements and flushes
   are counted.
 
@@ -564,7 +590,10 @@ pytest -m isolation -v
 
 # RLS (R04-08): coverage and soft mode on SQLite, enforcement on PostgreSQL
 pytest tests/test_rls_coverage.py tests/test_rls_soft_mode.py
-TEST_DATABASE_URL=... pytest tests/test_rls_enforcement_pg.py
+TEST_DATABASE_URL=... pytest tests/test_rls_enforcement_pg.py \
+    tests/test_rag_isolation_probe_pg.py tests/test_rls_resolved_tenant_pg.py \
+    tests/test_force_rls_sql.py
+python scripts/render_force_rls_sql.py --check   # deploy/sql/force_rls.sql is current
 
 # All F336 tests
 pytest tests/test_tenant_isolation_f336.py \

@@ -425,6 +425,7 @@ Notes:
 | `rudix_db_pool_wait_seconds` | Histogram (0.5 ms to 30 s) | none | Time to check a connection out of the API engine's pool (`TimedAsyncAdaptedQueuePool`). |
 | `rudix_db_pool_timeouts_total` | Counter | none | Checkouts that gave up after `DB_POOL_TIMEOUT` seconds (`sqlalchemy.exc.TimeoutError`). |
 | `rudix_rls_soft_denials_total` | Counter | `table` | In `RLS_ENFORCEMENT=soft`, ORM statements and flushes on a strict RLS table with no tenant bound, which `strict` would deny. |
+| `rudix_rls_resolved_tenant_bindings_total` | Counter | `path` (`agent_trace_share`, `auth_audit`, `bot_inbound`) | Tenants bound by unauthenticated paths from the token, user, or installation they resolved (0.5.0). |
 
 - Alerts, group `rudix-db` in `infra/observability/prometheus/alerts.yml`:
   `RudixDbPoolTimeouts` (critical, any pool timeout in 5 minutes, for 5 minutes) and
