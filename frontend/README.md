@@ -196,6 +196,14 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - legal pages share `LegalPageLayout` (sticky table of contents, review notice)
   - copy lives in `public.*` messages for every locale; product mocks are built from UI rather than screenshots and must never show invented metrics, statistics, or certification claims
 
+### Persian and Arabic font (Pelak)
+
+- Persian (`fa`) and Arabic (`ar`) use **Pelak** (Fontiran) as the primary typeface, with the bundled Vazirmatn as fallback (`src/app/globals.css`).
+- Pelak is a commercial font. Its files are **not committed** (the repository is public); `public/fonts/pelak/*` is git-ignored except `.gitkeep`.
+- To enable it, place the licensed TTF files in `public/fonts/pelak/` with these names: `Pelak-Thin.ttf`, `Pelak-light.ttf`, `Pelak-Regular.ttf`, `Pelak-Medium.ttf`, `Pelak-SemiBold.ttf`, `Pelak-Bold.ttf`, `Pelak-ExtraBold.ttf`, `Pelak-Black.ttf`. The Docker build copies `public/` as-is, so CI/CD must provide the files from a private source (for example a secret artifact or private bucket) before `docker build`.
+- Serving Pelak on a website requires a Fontiran web license. Without the files, `fa`/`ar` pages fall back to Vazirmatn automatically.
+- `src/proxy.ts` excludes `/fonts/` from locale routing so font requests are not redirected.
+
 ### Localized public SEO conventions
 
 - Use `buildLocalizedPublicMetadata()` for public pages so canonical URLs, Open Graph locale tags, and hreflang alternates stay aligned.

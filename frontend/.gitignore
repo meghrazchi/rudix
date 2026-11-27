@@ -45,3 +45,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# licensed fonts (Pelak, Fontiran) are provided per environment, not committed
+/public/fonts/pelak/*
+!/public/fonts/pelak/.gitkeep

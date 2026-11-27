@@ -12,10 +12,88 @@
     monospace;
 }
 
+/*
+ * Pelak (Fontiran, commercial) is the primary face for Persian and Arabic.
+ * The font files are licensed separately and are NOT committed: place them in
+ * public/fonts/pelak/ (see frontend README). If they are missing, browsers
+ * skip the failed faces and fall back to the bundled Vazirmatn.
+ */
+@font-face {
+  font-family: "Pelak";
+  src: url("/fonts/pelak/Pelak-Thin.ttf") format("truetype");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pelak";
+  src: url("/fonts/pelak/Pelak-light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pelak";
+  src: url("/fonts/pelak/Pelak-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pelak";
+  src: url("/fonts/pelak/Pelak-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pelak";
+  src: url("/fonts/pelak/Pelak-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pelak";
+  src: url("/fonts/pelak/Pelak-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pelak";
+  src: url("/fonts/pelak/Pelak-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pelak";
+  src: url("/fonts/pelak/Pelak-Black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 html:lang(fa),
 html:lang(ar) {
   --font-geist-sans:
-    "Vazirmatn Variable", "Vazirmatn", "Tahoma", "Arial", sans-serif;
+    "Pelak", "Vazirmatn Variable", "Vazirmatn", "Tahoma", "Arial", sans-serif;
+}
+
+/* Persian/Arabic script is connected and taller: no negative tracking and
+   roomier heading line height. Unlayered, so it wins over utilities. */
+html:lang(fa) :is(h1, h2, h3),
+html:lang(ar) :is(h1, h2, h3) {
+  letter-spacing: normal;
+  line-height: 1.45;
 }
 
 @theme inline {
