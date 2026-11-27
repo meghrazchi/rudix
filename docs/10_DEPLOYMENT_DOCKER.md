@@ -417,6 +417,13 @@ output. Security headers, HSTS, and the CSP therefore come from the **build** en
 `NEXT_PUBLIC_CSP_*` or `NEXT_PUBLIC_DEPLOYMENT_ENV` on a running container has no effect;
 rebuild the image.
 
+The public pages under `/[locale]` are prerendered at `next build` (R07-01) and served with
+`Cache-Control: s-maxage=31536000`; only `/[locale]/status`, `/[locale]/forbidden`,
+`/[locale]/403` and the signed-in app render per request. Each build's HTML references that
+build's chunk hashes, so a CDN or caching proxy placed in front of the frontend must purge
+the public HTML on every deploy. Without one, nothing extra is needed: each image carries its
+own prerendered pages.
+
 ## Backend deployment options
 
 ### Option A: Single VM with Docker Compose

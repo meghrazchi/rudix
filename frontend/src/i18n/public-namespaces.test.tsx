@@ -142,13 +142,16 @@ describe("public pages render with PUBLIC_NAMESPACES only", () => {
     consoleError.mockRestore();
   });
 
-  it("cookie consent banner", () => {
-    const { container } = renderWithPublicMessages(
+  it("cookie consent banner", async () => {
+    window.localStorage.clear();
+    renderWithPublicMessages(
       <ConsentProvider>
         <CookieConsentBanner />
       </ConsentProvider>,
     );
-    expect(container).toBeTruthy();
+    expect(
+      await screen.findByRole("dialog", { name: "Cookie consent" }),
+    ).toHaveTextContent("We use cookies");
   });
 });
 
