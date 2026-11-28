@@ -29,6 +29,7 @@ from app.domains.agents import (
     AgentRuntimeResult,
 )
 from app.domains.agents.repositories import AgentRunWorkerRepository
+from app.domains.agents.schemas.trace import AgentTraceResponse
 from app.domains.agents.services.run_stream import build_run_events
 from app.domains.agents.services.trace_service import AgentTraceService
 from app.domains.quota.schemas.quota_schemas import QuotaType
@@ -432,7 +433,10 @@ async def create_agent_run(
             request=payload.request,
             request_id=request_id,
             events_factory=lambda run_id: build_run_events(
-                redis_module.redis_client, organization_id=organization_id, run_id=run_id
+                redis_module.redis_client,
+                organization_id=organization_id,
+                run_id=run_id,
+                user_id=user_id,
             ),
         )
     except HTTPException:
@@ -1216,7 +1220,11 @@ async def _load_run_with_relations(
     return run
 
 
-@router.get("/runs/{run_id}/trace", response_model=dict)
+@router.get(
+    "/runs/{run_id}/trace",
+    response_model=AgentTraceResponse,
+    response_model_exclude_unset=True,
+)
 async def get_agent_run_trace(
     run_id: str,
     principal: Annotated[
@@ -1338,7 +1346,11 @@ async def share_agent_run_trace(
 public_trace_router = APIRouter(prefix="/agent", tags=["agent"])
 
 
-@public_trace_router.get("/traces/shared/{token}", response_model=dict)
+@public_trace_router.get(
+    "/traces/shared/{token}",
+    response_model=AgentTraceResponse,
+    response_model_exclude_unset=True,
+)
 async def get_shared_agent_trace(
     token: str,
     db_session: Annotated[AsyncSession, Depends(get_db_session)],

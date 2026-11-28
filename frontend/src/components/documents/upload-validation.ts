@@ -1,3 +1,5 @@
+import { publicEnv } from "@/lib/public-env";
+
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 25;
 
 export const ACCEPTED_UPLOAD_EXTENSIONS = [".pdf", ".txt", ".docx"] as const;
@@ -42,7 +44,10 @@ function fileExtension(filename: string): string {
 
 export function maxUploadSizeMbFromEnv(): number {
   return parsePositiveIntegerEnv(
-    process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB,
+    publicEnv(
+      "NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB",
+      process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB,
+    ),
     DEFAULT_MAX_UPLOAD_SIZE_MB,
   );
 }

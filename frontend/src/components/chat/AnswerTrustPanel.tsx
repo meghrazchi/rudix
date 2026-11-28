@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useTranslations } from "next-intl";
+
 import type {
   ChatConfidenceExplanationResponse,
   ChatDebugResponse,
@@ -84,6 +86,7 @@ export function AnswerTrustPanel({
   onSaveAsKnowledgeCard,
   hideHeader = false,
 }: TrustPanelProps) {
+  const t = useTranslations("chat.trustPanel");
   const [diagnosticsMode, setDiagnosticsMode] = useState<"basic" | "expert">(
     "basic",
   );
@@ -106,26 +109,31 @@ export function AnswerTrustPanel({
   const queryInterpretation = trustMetadata?.query_interpretation ?? null;
   const answerModeBadgeRecord = answerModeBadge(
     queryInterpretation?.answer_mode ?? null,
+    t,
   );
   const retrievalSummary =
     retrievalDiagnostics != null
-      ? buildRetrievalSummary({
-          retrieval_candidate_count:
-            retrievalDiagnostics.retrieval_candidate_count ??
-            retrievalDiagnostics.retrieval_count,
-          retrieval_count: retrievalDiagnostics.retrieval_count,
-          selected_count: retrievalDiagnostics.selected_count,
-          top_k: retrievalDiagnostics.top_k,
-          search_mode: retrievalDiagnostics.search_mode,
-          source_scope_label: retrievalDiagnostics.source_scope_label,
-          retrieval_profile_name: retrievalDiagnostics.retrieval_profile_name,
-          retrieval_profile_scope: retrievalDiagnostics.retrieval_profile_scope,
-          retrieval_profile_source:
-            retrievalDiagnostics.retrieval_profile_source,
-          rerank_applied: retrievalDiagnostics.rerank_applied,
-          rerank_fallback_used: retrievalDiagnostics.rerank_fallback_used,
-          rerank_fallback_reason: retrievalDiagnostics.rerank_fallback_reason,
-        })
+      ? buildRetrievalSummary(
+          {
+            retrieval_candidate_count:
+              retrievalDiagnostics.retrieval_candidate_count ??
+              retrievalDiagnostics.retrieval_count,
+            retrieval_count: retrievalDiagnostics.retrieval_count,
+            selected_count: retrievalDiagnostics.selected_count,
+            top_k: retrievalDiagnostics.top_k,
+            search_mode: retrievalDiagnostics.search_mode,
+            source_scope_label: retrievalDiagnostics.source_scope_label,
+            retrieval_profile_name: retrievalDiagnostics.retrieval_profile_name,
+            retrieval_profile_scope:
+              retrievalDiagnostics.retrieval_profile_scope,
+            retrieval_profile_source:
+              retrievalDiagnostics.retrieval_profile_source,
+            rerank_applied: retrievalDiagnostics.rerank_applied,
+            rerank_fallback_used: retrievalDiagnostics.rerank_fallback_used,
+            rerank_fallback_reason: retrievalDiagnostics.rerank_fallback_reason,
+          },
+          t,
+        )
       : null;
   const verificationApplied =
     groundedVerification?.applied ??
@@ -170,6 +178,7 @@ export function AnswerTrustPanel({
     trustMetadata,
     trustCitations,
     debug,
+    t,
   });
   const conflictRecord = trustMetadata?.conflict ?? null;
   const showModelSection =

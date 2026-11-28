@@ -1,13 +1,13 @@
 import {
   readSessionFromStorage,
   SESSION_STORAGE_EVENT_NAME,
-  SESSION_STORAGE_KEY,
   type AuthenticatedSession,
 } from "@/lib/auth-session";
 
 const REFRESH_LOCK_KEY = "rudix.auth.refresh.lock.v1";
 const REFRESH_LOCK_TTL_MS = 15_000;
 const REFRESH_LOCK_SETTLE_MS = 25;
+const REFRESH_LOCK_POLL_MS = 50;
 const REFRESH_ACTOR_ID = generateId();
 
 type RefreshLockRecord = {
@@ -129,9 +129,7 @@ function delay(ms: number): Promise<void> {
   });
 }
 
-function tryAcquireLock(
-  sessionFingerprint: string | null,
-): RefreshLockRecord | null {
+function tryAcquireLock(): RefreshLockRecord | null {
   if (typeof window === "undefined") {
     return null;
   }
@@ -161,17 +159,6 @@ function tryAcquireLock(
     return null;
   }
 
-  const currentSessionFingerprint = getSessionFingerprint(
-    readSessionFromStorage(),
-  );
-  if (
-    currentSessionFingerprint !== sessionFingerprint &&
-    sessionFingerprint !== null
-  ) {
-    clearLockRecordIfOwned(candidate);
-    return null;
-  }
-
   return candidate;
 }
 
@@ -181,66 +168,74 @@ function isRefreshSessionChanged(baselineFingerprint: string | null): boolean {
   );
 }
 
-async function waitForSessionUpdate(
+function isLeaseHeldByAnotherActor(): boolean {
+  const current = readLockRecord();
+  return (
+    current !== null &&
+    !isExpired(current) &&
+    current.ownerId !== getRefreshActorId()
+  );
+}
+
+/**
+ * Waits until no other tab holds the lease (released or expired), or until
+ * this tab's own in-memory session changed. The lease record carries no
+ * token, and a waiting tab never reads a token from storage (R07-09).
+ */
+async function waitForLeaseRelease(
   baselineFingerprint: string | null,
-): Promise<boolean> {
+): Promise<void> {
   if (typeof window === "undefined") {
-    return false;
+    return;
   }
 
-  if (isRefreshSessionChanged(baselineFingerprint)) {
-    return true;
-  }
-
-  return new Promise<boolean>((resolve) => {
+  await new Promise<void>((resolve) => {
     let resolved = false;
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      resolve(isRefreshSessionChanged(baselineFingerprint));
-    }, REFRESH_LOCK_TTL_MS + 500);
-
-    function cleanup(): void {
-      if (resolved) {
-        return;
-      }
-      resolved = true;
-      window.clearTimeout(timeoutId);
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener(
-        SESSION_STORAGE_EVENT_NAME,
-        onSessionStorageEvent as EventListener,
-      );
-    }
+    const intervalId = window.setInterval(check, REFRESH_LOCK_POLL_MS);
+    const timeoutId = window.setTimeout(finish, REFRESH_LOCK_TTL_MS + 500);
 
     function finish(): void {
       if (resolved) {
         return;
       }
-      if (isRefreshSessionChanged(baselineFingerprint)) {
-        cleanup();
-        resolve(true);
+      resolved = true;
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(SESSION_STORAGE_EVENT_NAME, check);
+      resolve();
+    }
+
+    function check(): void {
+      if (
+        !isLeaseHeldByAnotherActor() ||
+        isRefreshSessionChanged(baselineFingerprint)
+      ) {
+        finish();
       }
     }
 
     function onStorage(event: StorageEvent): void {
-      if (event.key !== SESSION_STORAGE_KEY) {
-        return;
+      if (event.key === REFRESH_LOCK_KEY || event.key === null) {
+        check();
       }
-      finish();
-    }
-
-    function onSessionStorageEvent(): void {
-      finish();
     }
 
     window.addEventListener("storage", onStorage);
-    window.addEventListener(
-      SESSION_STORAGE_EVENT_NAME,
-      onSessionStorageEvent as EventListener,
-    );
+    window.addEventListener(SESSION_STORAGE_EVENT_NAME, check);
+    check();
   });
 }
 
+/**
+ * Runs `refresh` while holding the cross-tab lease, so refresh requests from
+ * different tabs never overlap. A rotated refresh token presented twice
+ * revokes every session of the user, so a tab that waited never reuses a
+ * token: once the holder releases, it takes the lease and runs its own
+ * refresh with the cookie the holder already rotated. Only when this tab's
+ * own in-memory session changed meanwhile (another caller in the same tab
+ * refreshed) does it return that session instead.
+ */
 export async function refreshWithCrossTabLease<T>(
   baselineSession: AuthenticatedSession | null,
   refresh: () => Promise<T>,
@@ -248,7 +243,11 @@ export async function refreshWithCrossTabLease<T>(
   const baselineFingerprint = getSessionFingerprint(baselineSession);
 
   while (true) {
-    const lease = tryAcquireLock(baselineFingerprint);
+    if (isRefreshSessionChanged(baselineFingerprint)) {
+      return readSessionFromStorage() as T;
+    }
+
+    const lease = tryAcquireLock();
     if (lease) {
       try {
         await delay(REFRESH_LOCK_SETTLE_MS);
@@ -266,9 +265,6 @@ export async function refreshWithCrossTabLease<T>(
       }
     }
 
-    const sessionChanged = await waitForSessionUpdate(baselineFingerprint);
-    if (sessionChanged) {
-      return readSessionFromStorage() as T;
-    }
+    await waitForLeaseRelease(baselineFingerprint);
   }
 }

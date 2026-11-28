@@ -17,6 +17,7 @@ import {
   type NotificationSeverity,
 } from "@/lib/api/notification-center";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { isExternalHref } from "@/lib/public-site/links";
 
 // ---------------------------------------------------------------------------
@@ -290,11 +291,13 @@ export function NotificationCenter({
   const [showPreferences, setShowPreferences] = useState(false);
   const [offset, setOffset] = useState(0);
 
+  const listInterval = useRealtimeAwareInterval(isOpen ? 30_000 : false);
   const notificationsQuery = useQuery({
     queryKey: queryKeys.notifications.list({ limit: PAGE_SIZE, offset }),
     queryFn: () => listNotifications({ limit: PAGE_SIZE, offset }),
     enabled: isOpen,
-    refetchInterval: isOpen ? 30_000 : false,
+    refetchInterval: listInterval,
+    refetchIntervalInBackground: false,
   });
 
   const markReadMutation = useMutation({
@@ -457,10 +460,12 @@ export function NotificationCenter({
 // ---------------------------------------------------------------------------
 
 export function useNotificationUnreadCount(): number {
+  const refetchInterval = useRealtimeAwareInterval(30_000);
   const query = useQuery({
     queryKey: queryKeys.notifications.unreadCount,
     queryFn: getUnreadCount,
-    refetchInterval: 30_000,
+    refetchInterval,
+    refetchIntervalInBackground: false,
     staleTime: 15_000,
   });
   return query.data?.unread_count ?? 0;

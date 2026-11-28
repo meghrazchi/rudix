@@ -735,6 +735,27 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     ).toBeVisible();
   });
 
+  test("signing in writes no access token to localStorage (R07-09)", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await page.goto("/login?next=%2Fdocuments");
+    await page.getByLabel("Email").fill("admin@example.com");
+    await page.getByLabel("Password").fill("123123123");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/documents$/);
+    await expect(
+      page.getByRole("heading", { name: "Upload Documents" }),
+    ).toBeVisible();
+
+    const values = await page.evaluate(() =>
+      Object.values(window.localStorage),
+    );
+    for (const value of values) {
+      expect(value).not.toContain("login-token");
+    }
+  });
+
   test("loads dashboard with mocked APIs while authenticated", async ({
     page,
   }) => {
@@ -781,7 +802,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await waitForSessionBootstrap(page);
 
     await expect(
-      page.getByRole("heading", { name: "Chunking Profiles" }),
+      page.getByRole("heading", { name: "Chunking Profiles", exact: true }),
     ).toBeVisible();
     await expect(page.getByLabel("Profile Name")).toHaveValue(
       "Operations Default",

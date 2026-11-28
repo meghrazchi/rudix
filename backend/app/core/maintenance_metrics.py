@@ -31,6 +31,7 @@ PARTITION_MISSING = Gauge(
     "1 when a partitioned table has no partition for next month, else 0",
     ["table"],
     registry=registry,
+    multiprocess_mode="mostrecent",
 )
 
 

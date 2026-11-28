@@ -1,0 +1,5 @@
+{
+  "distDir": ".next-e2e-runtime",
+  "buildApiUrl": "https://api-build.rudix.invalid/api/v1",
+  "runtimeApiUrl": "https://api-runtime.rudix.invalid/api/v1"
+}

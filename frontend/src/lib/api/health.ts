@@ -1,17 +1,13 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 
-export type HealthDependency = {
-  ok: boolean;
-  detail: string | null;
-  metadata: Record<string, string | number | boolean | null>;
-};
+type Schemas = components["schemas"];
 
-export type HealthResponse = {
-  status: string;
-  timestamp: string;
-  dependencies: Record<string, HealthDependency>;
-  failed_dependencies: string[];
-};
+export type HealthDependency = Served<Schemas["HealthDependency"]>;
+
+export type HealthResponse = Served<Schemas["HealthResponse"]>;
 
 export async function getHealth(): Promise<HealthResponse> {
   return apiRequest<HealthResponse>("/health", {

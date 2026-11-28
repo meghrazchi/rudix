@@ -115,12 +115,15 @@ export function buildContentSecurityPolicy(env, { isDev }) {
   // NEXT_PUBLIC_CONTACT_SCHEDULER_URL are navigations (window.location.assign),
   // not fetches, so they are not listed and form-action stays 'self'.
   const contactSubmitOrigin = originOf(env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL);
+  // CDN origin for /_next/static when assetPrefix is set (R08-12).
+  const assetOrigin = originOf(env.NEXT_PUBLIC_ASSET_PREFIX);
   const optional = (value) => (value ? [value] : []);
 
   const scriptSrc = [
     "'self'",
     "'unsafe-inline'",
     ...(isDev ? ["'unsafe-eval'"] : []),
+    ...optional(assetOrigin),
     ...(gaEnabled ? GA_SCRIPT_HOSTS : []),
     ...optional(matomoOrigin),
     ...captcha.script,
@@ -129,6 +132,7 @@ export function buildContentSecurityPolicy(env, { isDev }) {
     "'self'",
     "data:",
     "blob:",
+    ...optional(assetOrigin),
     ...optional(apiOrigin),
     ...(gaEnabled ? GA_IMG_HOSTS : []),
     ...optional(matomoOrigin),
@@ -151,13 +155,8 @@ export function buildContentSecurityPolicy(env, { isDev }) {
   const directives = [
     "default-src 'self'",
     `script-src ${joinSources(scriptSrc)}`,
-    `style-src ${joinSources([
-      "'self'",
-      "'unsafe-inline'",
-      "https://fonts.googleapis.com",
-      ...captcha.style,
-    ])}`,
-    "font-src 'self' data: https://fonts.gstatic.com",
+    `style-src ${joinSources(["'self'", "'unsafe-inline'", ...optional(assetOrigin), ...captcha.style])}`,
+    `font-src ${joinSources(["'self'", "data:", ...optional(assetOrigin)])}`,
     `img-src ${joinSources(imgSrc)}`,
     `connect-src ${joinSources(connectSrc)}`,
     `frame-src ${joinSources(frameSrc)}`,
@@ -188,6 +187,21 @@ function sentryOrigin(dsn) {
   } catch {
     return null;
   }
+}
+
+/** Header names that carry the Content-Security-Policy (either mode). */
+export const CSP_HEADER_KEYS = Object.freeze([
+  "Content-Security-Policy",
+  "Content-Security-Policy-Report-Only",
+]);
+
+/**
+ * True for the enforced or report-only CSP header name.
+ * @param {string} key
+ * @returns {boolean}
+ */
+export function isContentSecurityPolicyHeader(key) {
+  return CSP_HEADER_KEYS.includes(key);
 }
 
 /**

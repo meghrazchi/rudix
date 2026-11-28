@@ -309,7 +309,9 @@ async def _run_locked(
     owner: str,
 ) -> str:
     ref = _RunRef(run_id=run.id, organization_id=run.organization_id, user_id=run.user_id)
-    events = build_run_events(redis, organization_id=ref.organization_id, run_id=ref.run_id)
+    events = build_run_events(
+        redis, organization_id=ref.organization_id, run_id=ref.run_id, user_id=ref.user_id
+    )
     await events.emit(RUN_STATUS, {"status": "running", "resume_count": run.resume_count})
     try:
         result = await _execute(session, runtime, run, owner, events)

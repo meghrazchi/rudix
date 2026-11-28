@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
 import { isApiClientError } from "@/lib/api/errors";
+import { publicEnv } from "@/lib/public-env";
 
 function parseIntegerEnv(value: string | undefined, fallback: number): number {
   if (!value) {
@@ -17,7 +18,10 @@ function parseIntegerEnv(value: string | undefined, fallback: number): number {
 function parseRetryCountFromEnv(): number {
   const defaultValue = process.env.NODE_ENV === "production" ? 2 : 1;
   return parseIntegerEnv(
-    process.env.NEXT_PUBLIC_QUERY_RETRY_COUNT,
+    publicEnv(
+      "NEXT_PUBLIC_QUERY_RETRY_COUNT",
+      process.env.NEXT_PUBLIC_QUERY_RETRY_COUNT,
+    ),
     defaultValue,
   );
 }
@@ -25,7 +29,10 @@ function parseRetryCountFromEnv(): number {
 function parseStaleTimeFromEnv(): number {
   const defaultMs = process.env.NODE_ENV === "production" ? 30_000 : 10_000;
   return parseIntegerEnv(
-    process.env.NEXT_PUBLIC_QUERY_STALE_TIME_MS,
+    publicEnv(
+      "NEXT_PUBLIC_QUERY_STALE_TIME_MS",
+      process.env.NEXT_PUBLIC_QUERY_STALE_TIME_MS,
+    ),
     defaultMs,
   );
 }
@@ -81,6 +88,40 @@ export async function clearAuthSensitiveQueryState(): Promise<void> {
 
 export const queryKeys = {
   // anchor: C
+  // R07-07 (C3): prefixes the realtime invalidation map refetches.
+  realtime: {
+    agentRuns: ["agent", "runs"] as const,
+    agentApprovals: ["agent", "approvals"] as const,
+    topBarNotifications: ["top-bar", "notifications"] as const,
+    connectors: ["connectors"] as const,
+    adminIncidents: ["admin", "incidents"] as const,
+  },
+  documentViews: {
+    indexingStatusSummary: ["documents", "indexing-status-summary"] as const,
+    collectionPicker: (search: string, offset: number) =>
+      ["documents", "collection-picker", search, offset] as const,
+  },
+  collectionViews: {
+    forUpload: ["collections", "for-upload"] as const,
+    forAssign: ["collections", "for-assign"] as const,
+    picker: (scope: string, nameQuery: string) =>
+      ["collections", scope, { name_query: nameQuery }] as const,
+    documentMembership: (documentId: string) =>
+      ["collections", "doc", documentId] as const,
+    allDocuments: (collectionId: string) =>
+      [
+        "collections",
+        "documents",
+        collectionId,
+        { limit: 200, offset: 0 },
+        "all",
+      ] as const,
+  },
+  teamMemberPolicyPicker: ["team", "members", "policy-picker"] as const,
+  teamMemberPicker: (scope: string, search: string) =>
+    ["team", "members", scope, { search }] as const,
+  citationChunk: (documentId: string, chunkId: string) =>
+    ["citation-chunk", documentId, chunkId] as const,
   collections: {
     all: ["collections"] as const,
     list: (params?: Record<string, unknown>) =>
@@ -407,6 +448,66 @@ export const queryKeys = {
       params ?? {},
     ] as const,
   // anchor: D
+  adminServiceAccounts: {
+    list: ["admin", "service_accounts", "list"] as const,
+    tokens: (accountId: string) =>
+      ["admin", "service_accounts", accountId, "tokens"] as const,
+  },
+  adminTeam: {
+    all: ["admin", "team"] as const,
+    members: (
+      pageSize: number,
+      offset: number,
+      search: string,
+      role: string,
+      status: string,
+    ) =>
+      [
+        "admin",
+        "team",
+        "members",
+        pageSize,
+        offset,
+        search,
+        role,
+        status,
+      ] as const,
+    membersAll: ["admin", "team", "members"] as const,
+    invitations: ["admin", "team", "invitations"] as const,
+  },
+  evaluationSetsList: ["evaluation-sets-list"] as const,
+  profileMe: ["profile", "me"] as const,
+  settingsPreferences: ["settings", "preferences"] as const,
+  securityAudit: ["security", "audit"] as const,
+  adminPermissions: {
+    roleMatrix: ["admin", "permissions", "role-matrix"] as const,
+    grants: ["admin", "permissions", "grants"] as const,
+    denies: ["admin", "permissions", "denies"] as const,
+    conflicts: ["admin", "permissions", "conflicts"] as const,
+    resourceAccess: (
+      kind: "grant" | "deny",
+      resourceType: string,
+      status: string,
+    ) =>
+      [
+        "admin",
+        "permissions",
+        kind === "grant" ? "grants" : "denies",
+        resourceType,
+        status,
+      ] as const,
+    conflict: (conflictId: string) =>
+      ["admin", "permissions", "conflicts", conflictId] as const,
+    conflictList: (severity: string, status: string, resourceType: string) =>
+      [
+        "admin",
+        "permissions",
+        "conflicts",
+        severity,
+        status,
+        resourceType,
+      ] as const,
+  },
 };
 
 export type FrontendMutationKind =

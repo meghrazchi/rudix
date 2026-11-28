@@ -1,0 +1,40 @@
+{{- /*
+The ingress controller namespace (A1's Ingress objects route there) may reach frontend, api,
+and mcp on their `http` port; nothing else may, except the policies in this directory.
+*/ -}}
+{{- if .Values.networkPolicy.enabled }}
+{{- $policy := .Values.networkPolicy -}}
+{{- $components := list "frontend" "api" -}}
+{{- if .Values.mcp.enabled -}}
+{{- $components = append $components "mcp" -}}
+{{- end -}}
+{{- range $component := $components }}
+{{- $ctx := dict "root" $ "component" $component }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rudix.c1.policyName" (dict "root" $ "name" (printf "%s-from-ingress" $component)) }}
+  labels:
+    {{- include "rudix.c1.policyLabels" (dict "root" $) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rudix.selectorLabels" $ctx | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $policy.ingressControllerNamespaceSelector | nindent 14 }}
+          {{- with $policy.ingressControllerPodSelector }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+      ports:
+        - port: http
+          protocol: TCP
+{{- end }}
+{{- end }}

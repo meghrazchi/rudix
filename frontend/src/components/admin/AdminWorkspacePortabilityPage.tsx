@@ -10,6 +10,7 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import {
   DEFAULT_WORKSPACE_EXPORT_SECTIONS,
   createWorkspaceExport,
@@ -86,11 +87,13 @@ export function AdminWorkspacePortabilityPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const jobsQueryParams = useMemo(() => ({ limit: 25, offset: 0 }), []);
+  const jobsInterval = useRealtimeAwareInterval(10_000, { covered: false });
   const jobsQuery = useQuery({
     queryKey: queryKeys.admin.portabilityJobs(jobsQueryParams),
     queryFn: () => listWorkspacePortabilityJobs(jobsQueryParams),
     enabled: isAdminUser,
-    refetchInterval: 10_000,
+    refetchInterval: jobsInterval,
+    refetchIntervalInBackground: false,
   });
 
   const exportMutation = useMutation({

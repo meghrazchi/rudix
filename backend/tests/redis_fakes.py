@@ -25,6 +25,7 @@ REFERENCE_IMPLS: dict[str, ReferenceImpl] = {
     script_sha1(usage_touch.TOUCH_SCRIPT): usage_touch.touch_reference_impl,
     script_sha1(usage_touch.POP_SCRIPT): usage_touch.pop_reference_impl,
     script_sha1(concurrency.ACQUIRE_SCRIPT): concurrency.acquire_reference_impl,
+    script_sha1(concurrency.REFRESH_SCRIPT): concurrency.refresh_reference_impl,
     script_sha1(resume_buffer.APPEND_SCRIPT): resume_buffer.append_reference_impl,
 }
 
@@ -157,6 +158,10 @@ class _Store:
         self._purge(key)
         return len(self.zsets.get(key, {}))
 
+    def zscore(self, key: str, member: str) -> float | None:
+        self._purge(key)
+        return self.zsets.get(key, {}).get(member)
+
     # Lists (R05-13).
     def rpush(self, key: str, value: str) -> int:
         self._purge(key)
@@ -177,6 +182,21 @@ class _Store:
         items = self.lists.get(key, [])
         end = len(items) if stop == -1 else stop + 1
         return list(items[start:end])
+
+    def ltrim(self, key: str, start: int, stop: int) -> None:
+        """Keep ``start..stop`` (inclusive, negative from the end) like Redis (R07-07)."""
+        self._purge(key)
+        items = self.lists.get(key)
+        if items is None:
+            return
+        size = len(items)
+        first = max(0, start + size if start < 0 else start)
+        last = min(size - 1, stop + size if stop < 0 else stop)
+        kept = items[first : last + 1] if first <= last else []
+        if kept:
+            self.lists[key] = kept
+        else:
+            self.delete(key)
 
 
 class FakeRedis:
@@ -277,6 +297,10 @@ class FakeRedis:
         self._count("ZCARD")
         return self.keyspace.zcard(key)
 
+    async def zscore(self, key: str, member: str) -> float | None:
+        self._count("ZSCORE")
+        return self.keyspace.zscore(key, member)
+
     async def rpush(self, key: str, *values: str) -> int:
         self._count("RPUSH")
         length = 0
@@ -287,6 +311,11 @@ class FakeRedis:
     async def lrange(self, key: str, start: int, stop: int) -> list[str]:
         self._count("LRANGE")
         return self.keyspace.lrange(key, start, stop)
+
+    async def ltrim(self, key: str, start: int, stop: int) -> bool:
+        self._count("LTRIM")
+        self.keyspace.ltrim(key, start, stop)
+        return True
 
     async def llen(self, key: str) -> int:
         self._count("LLEN")

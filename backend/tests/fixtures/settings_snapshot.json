@@ -176,6 +176,26 @@
     "retrieval_parallel_timeout_ms": 8000
   },
   "frontend_base_url": "http://localhost:3000/",
+  "infrastructure": {
+    "api_shutdown_drain_seconds": 0.0,
+    "app_auth_secret_previous_set": false,
+    "backup_bucket": null,
+    "backup_encryption_key_file_set": false,
+    "backup_prefix": "rudix",
+    "backup_s3_credentials_set": false,
+    "backup_s3_endpoint_set": false,
+    "backup_s3_kms_key_id_set": false,
+    "beat_heartbeat_interval_seconds": 60,
+    "celery_result_backend_url_set": false,
+    "database_replica_url_set": false,
+    "db_replica_max_lag_seconds": 30.0,
+    "otel_exporter_otlp_endpoint_set": false,
+    "redis_cache_url_set": false,
+    "tracing_enabled": false,
+    "tracing_sample_ratio": 0.05,
+    "worker_metrics_multiprocess": true,
+    "ws_chat_connection_limit_backend": "memory"
+  },
   "langfuse_base_url_set": false,
   "langfuse_capture_input_output": true,
   "langfuse_enabled": false,
@@ -273,6 +293,10 @@
   "openai_llm_input_cost_per_million_tokens_usd": 0.0,
   "openai_llm_model": "gpt-5.4-mini",
   "openai_llm_output_cost_per_million_tokens_usd": 0.0,
+  "product_completeness": {
+    "auth_one_time_token_retention_hours": 24,
+    "billing_provider": "none"
+  },
   "qdrant_api_key_set": false,
   "qdrant_bootstrap_collection": true,
   "qdrant_collection": "snapshot_chunks",

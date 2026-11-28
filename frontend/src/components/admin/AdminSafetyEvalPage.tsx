@@ -22,6 +22,7 @@ import { canViewAdminUsage } from "@/lib/dashboard";
 import { isForbiddenError, extractRequestIdFromError } from "@/lib/forbidden";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 
 const PAGE_LIMIT = 20;
 
@@ -278,17 +279,23 @@ export function AdminSafetyEvalPage() {
     [suiteNameFilter, offset],
   );
 
-  const runsQuery = useQuery({
-    queryKey: ["safety-evals", "runs", "list", queryParams],
-    queryFn: () => listSafetyEvalRuns(queryParams),
-    enabled: isAdminUser,
-    refetchInterval: (query) => {
+  // Safety evaluation runs have no realtime event: poll while visible.
+  const runsInterval = useRealtimeAwareInterval(
+    (query: { state: { data?: { items?: { status: string }[] } } }) => {
       const items = query.state.data?.items ?? [];
       const hasRunning = items.some(
         (r) => r.status === "running" || r.status === "queued",
       );
       return hasRunning ? 5000 : false;
     },
+    { covered: false },
+  );
+  const runsQuery = useQuery({
+    queryKey: ["safety-evals", "runs", "list", queryParams],
+    queryFn: () => listSafetyEvalRuns(queryParams),
+    enabled: isAdminUser,
+    refetchInterval: runsInterval,
+    refetchIntervalInBackground: false,
   });
 
   const casesQuery = useQuery({

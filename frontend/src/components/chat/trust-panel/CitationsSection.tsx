@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import {
   conflictBadge,
   extractionQualityBadge,
@@ -21,28 +23,30 @@ export function CitationsSection({
   messageId: string;
   onOpenCitation: (citation: TrustPanelCitation) => void;
 }) {
+  const t = useTranslations("chat.trustPanel");
   return (
     <>
       {trustCitations.length > 0 && (
         <div className="space-y-2 px-4 pt-4 md:px-6 md:pt-5">
           <SectionHeader
             icon="source"
-            label={`Sources (${trustCitations.length})`}
+            label={t("sources.title", { count: trustCitations.length })}
           />
           <div className="space-y-1.5">
             {trustCitations.map((citation, ci) => {
               const title =
                 citation.source_title ??
                 citation.filename ??
-                "Unknown document";
-              const trust = trustStatusBadge(citation.source_trust_status);
+                t("unknownDocument");
+              const trust = trustStatusBadge(citation.source_trust_status, t);
               const ocr = ocrBadge(
                 citation.doc_ocr_quality_status,
                 citation.doc_ocr_low_confidence_warning,
+                t,
               );
-              const conflict = conflictBadge(citation.conflict_status);
+              const conflict = conflictBadge(citation.conflict_status, t);
               const pageRef = citation.page_number
-                ? `p. ${citation.page_number}`
+                ? t("pageShort", { page: citation.page_number })
                 : (citation.source_section ?? null);
               const citExt = citation as {
                 freshness_state?: string | null;
@@ -62,16 +66,20 @@ export function CitationsSection({
                 citation.doc_expired_warning,
                 citExt.doc_unreviewed_warning,
                 citExt.doc_deprecated_warning,
+                t,
               );
               const tableConfBadge = tableExtractionBadge(
                 citExt.table_low_confidence_warning,
+                t,
               );
               const extractionBadge = extractionQualityBadge(
                 citExt.doc_extraction_quality,
                 citExt.doc_extraction_warning,
+                t,
               );
               const processingBadge = processingWarningBadge(
                 citExt.doc_processing_warning,
+                t,
               );
               const lastUpdated = fmtDate(citExt.doc_last_updated_at);
               const lastSynced = fmtDate(citExt.source_last_synced_at);
@@ -141,24 +149,30 @@ export function CitationsSection({
                     </div>
                     {lastUpdated || lastSynced ? (
                       <p className="mt-0.5 text-[10px] text-[#9d98b5]">
-                        {lastUpdated ? `Updated ${lastUpdated}` : null}
+                        {lastUpdated
+                          ? t("sources.updated", { date: lastUpdated })
+                          : null}
                         {lastUpdated && lastSynced ? " · " : null}
-                        {lastSynced ? `Synced ${lastSynced}` : null}
+                        {lastSynced
+                          ? t("sources.synced", { date: lastSynced })
+                          : null}
                       </p>
                     ) : null}
                     {typeof citation.score === "number" ? (
                       <p className="mt-0.5 text-[10px] text-[#9d98b5]">
-                        Score {score(citation.score)}
+                        {t("sources.score", { score: score(citation.score) })}
                         {typeof citation.rerank_score === "number"
-                          ? ` · Rerank ${score(citation.rerank_score)}`
+                          ? ` · ${t("sources.rerank", { score: score(citation.rerank_score) })}`
                           : ""}
-                        {citation.is_table_chunk ? " · Table" : ""}
+                        {citation.is_table_chunk
+                          ? ` · ${t("sources.table")}`
+                          : ""}
                       </p>
                     ) : null}
                   </div>
                   <button
                     type="button"
-                    aria-label={`Preview ${title}`}
+                    aria-label={t("sources.previewAria", { title })}
                     onClick={() => {
                       void trackFeatureEvent(
                         "feature.chat.trust_panel_citation_clicked",

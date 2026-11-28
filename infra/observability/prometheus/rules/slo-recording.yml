@@ -1,0 +1,142 @@
+# SLO recording rules (R08-09, B2). Generated from infra/observability/slo_targets.yml:
+# one group per target, ratios over the windows 5m, 30m, 1h, 6h, 3d. Latency ratios are
+# 1 - (observations at or below an existing bucket boundary / all observations).
+# Edit slo_targets.yml and this file together; backend/tests/test_slo_rules.py checks
+# that they agree.
+groups:
+- name: rudix-slo-chat-ttft-p95
+  rules:
+  - record: slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate5m
+    expr: 1 - (sum(rate(rudix_chat_ttft_seconds_bucket{le="2.5"}[5m])) / sum(rate(rudix_chat_ttft_seconds_count[5m])))
+  - record: slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate30m
+    expr: 1 - (sum(rate(rudix_chat_ttft_seconds_bucket{le="2.5"}[30m])) / sum(rate(rudix_chat_ttft_seconds_count[30m])))
+  - record: slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate1h
+    expr: 1 - (sum(rate(rudix_chat_ttft_seconds_bucket{le="2.5"}[1h])) / sum(rate(rudix_chat_ttft_seconds_count[1h])))
+  - record: slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate6h
+    expr: 1 - (sum(rate(rudix_chat_ttft_seconds_bucket{le="2.5"}[6h])) / sum(rate(rudix_chat_ttft_seconds_count[6h])))
+  - record: slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate3d
+    expr: 1 - (sum(rate(rudix_chat_ttft_seconds_bucket{le="2.5"}[3d])) / sum(rate(rudix_chat_ttft_seconds_count[3d])))
+- name: rudix-slo-chat-full-answer-p95
+  rules:
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate5m
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="15.0"}[5m])) / sum(rate(rudix_rag_query_duration_seconds_count[5m])))
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate30m
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="15.0"}[30m])) / sum(rate(rudix_rag_query_duration_seconds_count[30m])))
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate1h
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="15.0"}[1h])) / sum(rate(rudix_rag_query_duration_seconds_count[1h])))
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate6h
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="15.0"}[6h])) / sum(rate(rudix_rag_query_duration_seconds_count[6h])))
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate3d
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="15.0"}[3d])) / sum(rate(rudix_rag_query_duration_seconds_count[3d])))
+- name: rudix-slo-api-read-p95
+  rules:
+  - record: slo:rudix_http_request_duration_seconds:read_slow_ratio_le0_5_rate5m
+    expr: 1 - (sum(rate(rudix_http_request_duration_seconds_bucket{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*", le="0.5"}[5m])) / sum(rate(rudix_http_request_duration_seconds_count{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*"}[5m])))
+  - record: slo:rudix_http_request_duration_seconds:read_slow_ratio_le0_5_rate30m
+    expr: 1 - (sum(rate(rudix_http_request_duration_seconds_bucket{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*", le="0.5"}[30m])) / sum(rate(rudix_http_request_duration_seconds_count{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*"}[30m])))
+  - record: slo:rudix_http_request_duration_seconds:read_slow_ratio_le0_5_rate1h
+    expr: 1 - (sum(rate(rudix_http_request_duration_seconds_bucket{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*", le="0.5"}[1h])) / sum(rate(rudix_http_request_duration_seconds_count{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*"}[1h])))
+  - record: slo:rudix_http_request_duration_seconds:read_slow_ratio_le0_5_rate6h
+    expr: 1 - (sum(rate(rudix_http_request_duration_seconds_bucket{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*", le="0.5"}[6h])) / sum(rate(rudix_http_request_duration_seconds_count{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*"}[6h])))
+  - record: slo:rudix_http_request_duration_seconds:read_slow_ratio_le0_5_rate3d
+    expr: 1 - (sum(rate(rudix_http_request_duration_seconds_bucket{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*", le="0.5"}[3d])) / sum(rate(rudix_http_request_duration_seconds_count{method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*"}[3d])))
+- name: rudix-slo-ingestion-50-page-pdf-p95
+  rules:
+  - record: slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate5m
+    expr: 1 - (sum(rate(rudix_document_indexing_duration_seconds_bucket{le="120.0"}[5m])) / sum(rate(rudix_document_indexing_duration_seconds_count[5m])))
+  - record: slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate30m
+    expr: 1 - (sum(rate(rudix_document_indexing_duration_seconds_bucket{le="120.0"}[30m])) / sum(rate(rudix_document_indexing_duration_seconds_count[30m])))
+  - record: slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate1h
+    expr: 1 - (sum(rate(rudix_document_indexing_duration_seconds_bucket{le="120.0"}[1h])) / sum(rate(rudix_document_indexing_duration_seconds_count[1h])))
+  - record: slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate6h
+    expr: 1 - (sum(rate(rudix_document_indexing_duration_seconds_bucket{le="120.0"}[6h])) / sum(rate(rudix_document_indexing_duration_seconds_count[6h])))
+  - record: slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate3d
+    expr: 1 - (sum(rate(rudix_document_indexing_duration_seconds_bucket{le="120.0"}[3d])) / sum(rate(rudix_document_indexing_duration_seconds_count[3d])))
+- name: rudix-slo-chat-streams-per-replica
+  rules:
+  - record: slo:rudix_chat_ws_connections:max_per_instance
+    expr: max by (instance) (rudix_chat_ws_connections)
+- name: rudix-slo-db-queries-per-chat-request
+  rules:
+  - record: slo:rudix_db_queries_per_request:chat_over_ratio_le20_rate5m
+    expr: 1 - (sum(rate(rudix_db_queries_per_request_bucket{method="POST", route=~"/api/v1/chat(/query/stream)?", le="20.0"}[5m])) / sum(rate(rudix_db_queries_per_request_count{method="POST", route=~"/api/v1/chat(/query/stream)?"}[5m])))
+  - record: slo:rudix_db_queries_per_request:chat_over_ratio_le20_rate30m
+    expr: 1 - (sum(rate(rudix_db_queries_per_request_bucket{method="POST", route=~"/api/v1/chat(/query/stream)?", le="20.0"}[30m])) / sum(rate(rudix_db_queries_per_request_count{method="POST", route=~"/api/v1/chat(/query/stream)?"}[30m])))
+  - record: slo:rudix_db_queries_per_request:chat_over_ratio_le20_rate1h
+    expr: 1 - (sum(rate(rudix_db_queries_per_request_bucket{method="POST", route=~"/api/v1/chat(/query/stream)?", le="20.0"}[1h])) / sum(rate(rudix_db_queries_per_request_count{method="POST", route=~"/api/v1/chat(/query/stream)?"}[1h])))
+  - record: slo:rudix_db_queries_per_request:chat_over_ratio_le20_rate6h
+    expr: 1 - (sum(rate(rudix_db_queries_per_request_bucket{method="POST", route=~"/api/v1/chat(/query/stream)?", le="20.0"}[6h])) / sum(rate(rudix_db_queries_per_request_count{method="POST", route=~"/api/v1/chat(/query/stream)?"}[6h])))
+  - record: slo:rudix_db_queries_per_request:chat_over_ratio_le20_rate3d
+    expr: 1 - (sum(rate(rudix_db_queries_per_request_bucket{method="POST", route=~"/api/v1/chat(/query/stream)?", le="20.0"}[3d])) / sum(rate(rudix_db_queries_per_request_count{method="POST", route=~"/api/v1/chat(/query/stream)?"}[3d])))
+- name: rudix-slo-api-availability-monthly
+  rules:
+  - record: slo:rudix_http_requests:error_ratio_rate5m
+    expr: sum(rate(rudix_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(rudix_http_requests_total[5m]))
+  - record: slo:rudix_http_requests:error_ratio_rate30m
+    expr: sum(rate(rudix_http_requests_total{status_code=~"5.."}[30m])) / sum(rate(rudix_http_requests_total[30m]))
+  - record: slo:rudix_http_requests:error_ratio_rate1h
+    expr: sum(rate(rudix_http_requests_total{status_code=~"5.."}[1h])) / sum(rate(rudix_http_requests_total[1h]))
+  - record: slo:rudix_http_requests:error_ratio_rate6h
+    expr: sum(rate(rudix_http_requests_total{status_code=~"5.."}[6h])) / sum(rate(rudix_http_requests_total[6h]))
+  - record: slo:rudix_http_requests:error_ratio_rate3d
+    expr: sum(rate(rudix_http_requests_total{status_code=~"5.."}[3d])) / sum(rate(rudix_http_requests_total[3d]))
+- name: rudix-slo-rpo-15m
+  rules:
+  - record: slo:rudix_backup_last_success_timestamp_seconds:age_max
+    expr: time() - max by (kind) (rudix_backup_last_success_timestamp_seconds)
+- name: rudix-slo-docs12-chat-p95-latency
+  rules:
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le5_rate5m
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="5.0"}[5m])) / sum(rate(rudix_rag_query_duration_seconds_count[5m])))
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le5_rate30m
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="5.0"}[30m])) / sum(rate(rudix_rag_query_duration_seconds_count[30m])))
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le5_rate1h
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="5.0"}[1h])) / sum(rate(rudix_rag_query_duration_seconds_count[1h])))
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le5_rate6h
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="5.0"}[6h])) / sum(rate(rudix_rag_query_duration_seconds_count[6h])))
+  - record: slo:rudix_rag_query_duration_seconds:slow_ratio_le5_rate3d
+    expr: 1 - (sum(rate(rudix_rag_query_duration_seconds_bucket{le="5.0"}[3d])) / sum(rate(rudix_rag_query_duration_seconds_count[3d])))
+- name: rudix-slo-docs12-document-indexing-success
+  rules:
+  - record: slo:rudix_document_indexing_jobs:failure_ratio_rate5m
+    expr: sum(rate(rudix_document_indexing_jobs_total{status="failed"}[5m])) / sum(rate(rudix_document_indexing_jobs_total[5m]))
+  - record: slo:rudix_document_indexing_jobs:failure_ratio_rate30m
+    expr: sum(rate(rudix_document_indexing_jobs_total{status="failed"}[30m])) / sum(rate(rudix_document_indexing_jobs_total[30m]))
+  - record: slo:rudix_document_indexing_jobs:failure_ratio_rate1h
+    expr: sum(rate(rudix_document_indexing_jobs_total{status="failed"}[1h])) / sum(rate(rudix_document_indexing_jobs_total[1h]))
+  - record: slo:rudix_document_indexing_jobs:failure_ratio_rate6h
+    expr: sum(rate(rudix_document_indexing_jobs_total{status="failed"}[6h])) / sum(rate(rudix_document_indexing_jobs_total[6h]))
+  - record: slo:rudix_document_indexing_jobs:failure_ratio_rate3d
+    expr: sum(rate(rudix_document_indexing_jobs_total{status="failed"}[3d])) / sum(rate(rudix_document_indexing_jobs_total[3d]))
+- name: rudix-slo-docs12-failed-task-rate
+  rules:
+  - record: slo:rudix_celery_tasks:failure_ratio_rate5m
+    expr: sum(rate(rudix_celery_tasks_total{status="failed"}[5m])) / sum(rate(rudix_celery_tasks_total{status="started"}[5m]))
+  - record: slo:rudix_celery_tasks:failure_ratio_rate30m
+    expr: sum(rate(rudix_celery_tasks_total{status="failed"}[30m])) / sum(rate(rudix_celery_tasks_total{status="started"}[30m]))
+  - record: slo:rudix_celery_tasks:failure_ratio_rate1h
+    expr: sum(rate(rudix_celery_tasks_total{status="failed"}[1h])) / sum(rate(rudix_celery_tasks_total{status="started"}[1h]))
+  - record: slo:rudix_celery_tasks:failure_ratio_rate6h
+    expr: sum(rate(rudix_celery_tasks_total{status="failed"}[6h])) / sum(rate(rudix_celery_tasks_total{status="started"}[6h]))
+  - record: slo:rudix_celery_tasks:failure_ratio_rate3d
+    expr: sum(rate(rudix_celery_tasks_total{status="failed"}[3d])) / sum(rate(rudix_celery_tasks_total{status="started"}[3d]))
+- name: rudix-slo-celery-queue-wait-p95
+  rules:
+  - record: slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate5m
+    expr: 1 - (sum by (queue)(rate(rudix_celery_queue_wait_seconds_bucket{le="300.0"}[5m])) / sum by (queue)(rate(rudix_celery_queue_wait_seconds_count[5m])))
+  - record: slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate30m
+    expr: 1 - (sum by (queue)(rate(rudix_celery_queue_wait_seconds_bucket{le="300.0"}[30m])) / sum by (queue)(rate(rudix_celery_queue_wait_seconds_count[30m])))
+  - record: slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate1h
+    expr: 1 - (sum by (queue)(rate(rudix_celery_queue_wait_seconds_bucket{le="300.0"}[1h])) / sum by (queue)(rate(rudix_celery_queue_wait_seconds_count[1h])))
+  - record: slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate6h
+    expr: 1 - (sum by (queue)(rate(rudix_celery_queue_wait_seconds_bucket{le="300.0"}[6h])) / sum by (queue)(rate(rudix_celery_queue_wait_seconds_count[6h])))
+  - record: slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate3d
+    expr: 1 - (sum by (queue)(rate(rudix_celery_queue_wait_seconds_bucket{le="300.0"}[3d])) / sum by (queue)(rate(rudix_celery_queue_wait_seconds_count[3d])))
+- name: rudix-slo-beat-heartbeat-age
+  rules:
+  - record: slo:rudix_beat_heartbeat_timestamp_seconds:age_max
+    expr: time() - max(rudix_beat_heartbeat_timestamp_seconds)
+- name: rudix-slo-db-replica-lag
+  rules:
+  - record: slo:rudix_db_replica_lag_seconds:max
+    expr: max(rudix_db_replica_lag_seconds)

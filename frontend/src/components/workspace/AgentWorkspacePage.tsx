@@ -21,7 +21,7 @@ import {
   type AgentRunListItem,
   type AgentRuntimeMode,
 } from "@/lib/api/agent";
-import { listCollections } from "@/lib/api/collections";
+import { useCollectionSearchList } from "@/components/collections/useCollectionSearchList";
 import { listAvailableConnectorConnections } from "@/lib/api/connectors";
 import { listDocuments } from "@/lib/api/documents";
 import {
@@ -32,6 +32,7 @@ import {
 import type { ChatSourceScopeRequest } from "@/lib/api/chat";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { SourceScopeSelector } from "@/components/chat/SourceScopeSelector";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -503,14 +504,20 @@ function RunDetailPane({ runId }: { runId: string }) {
     "reasoning",
   );
 
-  const runQuery = useQuery({
-    queryKey: queryKeys.agent.run(runId),
-    queryFn: () => getAgentRun(runId),
-    refetchInterval: (query) => {
+  // Step progress has no realtime event (only run-level status): keep polling.
+  const runInterval = useRealtimeAwareInterval(
+    (query: { state: { data?: { status: string } } }) => {
       const data = query.state.data;
       if (!data) return POLL_INTERVAL_MS;
       return isTerminal(data.status) ? false : POLL_INTERVAL_MS;
     },
+    { covered: false },
+  );
+  const runQuery = useQuery({
+    queryKey: queryKeys.agent.run(runId),
+    queryFn: () => getAgentRun(runId),
+    refetchInterval: runInterval,
+    refetchIntervalInBackground: false,
   });
 
   const cancelMutation = useMutation({
@@ -976,10 +983,11 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
         sort_order: "desc",
       }),
   });
-  const collectionsQuery = useQuery({
-    queryKey: [...queryKeys.collections.all, "workspace-workflow-scope"],
-    queryFn: () => listCollections({ limit: 200 }),
+  // Server-side name search with load more instead of one 200-row page.
+  const collectionsSearch = useCollectionSearchList({
+    scope: "workspace-workflow-scope",
   });
+  const collectionsQuery = collectionsSearch.query;
   const connectorConnectionsQuery = useQuery({
     queryKey: [...queryKeys.connectorConnections, "workspace-workflow-scope"],
     queryFn: () => listAvailableConnectorConnections(),
@@ -988,10 +996,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
     () => indexedDocumentsQuery.data?.items ?? [],
     [indexedDocumentsQuery.data?.items],
   );
-  const collections = useMemo(
-    () => collectionsQuery.data?.items ?? [],
-    [collectionsQuery.data?.items],
-  );
+  const collections = collectionsSearch.items;
   const connectorConnections = useMemo(
     () => connectorConnectionsQuery.data?.items ?? [],
     [connectorConnectionsQuery.data?.items],
@@ -1176,6 +1181,13 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
         connectorConnections={connectorConnections}
         indexedDocuments={indexedDocuments}
         isCollectionsLoading={collectionsQuery.isLoading}
+        onCollectionSearchQueryChange={collectionsSearch.setSearch}
+        collectionsPaging={{
+          total: collectionsSearch.total,
+          hasMore: collectionsSearch.hasMore,
+          isLoadingMore: collectionsSearch.isLoadingMore,
+          onLoadMore: collectionsSearch.loadMore,
+        }}
         isConnectorsLoading={connectorConnectionsQuery.isLoading}
         isDocumentsLoading={indexedDocumentsQuery.isLoading}
         onToggleCollection={(collectionId) => {
@@ -1548,10 +1560,12 @@ export function AgentWorkspacePage() {
   >(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
+  const runsInterval = useRealtimeAwareInterval(POLL_INTERVAL_MS);
   const runsQuery = useQuery({
     queryKey: queryKeys.agent.runs({ limit: RUN_LIST_LIMIT }),
     queryFn: () => listAgentRuns({ limit: RUN_LIST_LIMIT }),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval: runsInterval,
+    refetchIntervalInBackground: false,
   });
 
   const handleRunCreated = useCallback((runId: string) => {

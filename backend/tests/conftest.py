@@ -1,8 +1,15 @@
+"""Shared fixtures.
+
+The first statements pin the provider environment (``tests/hermetic.py``) before anything
+imports ``app``: tests run as in CI whatever a developer's ``.env`` or shell holds. Nothing
+above that block may import application code.
+"""
+
 import os
 import shutil
 import subprocess
 import sys
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -20,7 +27,38 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.pool import NullPool, StaticPool
 
-from app.db.base import Base
+from tests import hermetic
+
+# --- Hermetic environment (0.9.0, S1): before any application import. ---
+hermetic.pin_provider_environment()
+
+
+def _load_application_settings() -> None:
+    from app.core.config import settings
+
+    hermetic.rebuild_settings_without_env_file(settings)
+    hermetic.clear_provider_credentials(settings)
+
+
+_load_application_settings()
+
+
+def _base() -> type:
+    from app.db.base import Base
+
+    return Base
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _network_guard() -> Iterator[hermetic.NetworkGuard]:
+    """Fail any connection to a non-loopback host other than the test database and Redis."""
+    guard = hermetic.NetworkGuard(hermetic.allowed_hosts())
+    guard.install()
+    try:
+        yield guard
+    finally:
+        guard.uninstall()
+
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 DB_BACKEND_SQLITE = "sqlite"
@@ -108,7 +146,7 @@ def build_sqlite_template(path: Path) -> Path:
     engine = create_engine(f"sqlite:///{path}", poolclass=NullPool)
     event.listen(engine, "connect", _configure_sqlite_connection)
     try:
-        Base.metadata.create_all(engine)
+        _base().metadata.create_all(engine)
     finally:
         engine.dispose()
     return path

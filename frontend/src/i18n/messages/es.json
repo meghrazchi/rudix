@@ -74,7 +74,15 @@
     "viewAll": "Ver todo",
     "refresh": "Actualizar",
     "noResults": "No se encontraron resultados",
-    "page": "Página"
+    "page": "Página",
+    "pagination": {
+      "loadMore": "Cargar más",
+      "loadingMore": "Cargando más…",
+      "showingCount": "Mostrando {shown} de {total}",
+      "noMore": "Se muestran todos los elementos",
+      "searchToFind": "Busca para encontrar más",
+      "partialSummary": "Basado en los primeros {shown} de {total} documentos"
+    }
   },
   "navigation": {
     "dashboard": "Panel",
@@ -182,6 +190,8 @@
     "inviteCodeRequired": "Se requiere un código de invitación para unirse a un espacio de trabajo",
     "termsRequired": "Debes aceptar los términos para crear una cuenta"
   },
+  "authAccount": {},
+  "authMfa": {},
   "validation": {
     "emailRequired": "El correo electrónico es obligatorio",
     "emailInvalid": "Introduce una dirección de correo electrónico válida",
@@ -2710,6 +2720,7 @@
       "sourceDocsNone": "No hay citas para esta respuesta.",
       "viewPipelineRun": "Ver ejecución de canalización",
       "agentTimeline": "Cronología del agente",
+      "agentRunShortId": "ejecución {id}…",
       "loadingTimeline": "Cargando cronología...",
       "approvalsTitle": "Aprobaciones",
       "approvalNeeded": "Se necesita aprobación",
@@ -2828,7 +2839,15 @@
       "closeKnowledgeHub": "Cerrar Centro de conocimiento",
       "answerExplanation": "Explicación de la respuesta",
       "saveKnowledgeCard": "Guardar como tarjeta de conocimiento",
-      "closeAnswerExplanation": "Cerrar explicación"
+      "closeAnswerExplanation": "Cerrar explicación",
+      "assistantName": "Rudix AI",
+      "emptyGreeting": "Rudix está aquí.",
+      "explainAnswerShort": "Explicar respuesta",
+      "staleCitationsNotice": "Algunas citas proceden de fuentes obsoletas, caducadas o archivadas.",
+      "deleteSessionBody": "Esta sesión se eliminará de forma permanente del espacio de trabajo. La acción no se puede deshacer.",
+      "loadingChunkText": "Cargando el texto del fragmento...",
+      "citationPageUpper": "PÁGINA {page}",
+      "citationScoreLower": "puntuación {score}"
     },
     "composer": {
       "selectScope": "seleccionar alcance",
@@ -2976,6 +2995,449 @@
         "dimensions": "({rows} rows × {columns} columns)",
         "headers": "Headers: {headers}"
       }
+    },
+    "trustPanel": {
+      "na": "N/D",
+      "yes": "Sí",
+      "unknownDocument": "Documento desconocido",
+      "source": "Fuente",
+      "pageShort": "p. {page}",
+      "level": {
+        "high": "Alta",
+        "medium": "Media",
+        "warning": "Advertencia",
+        "notFound": "No encontrado",
+        "low": "Baja"
+      },
+      "badge": {
+        "trusted": "De confianza",
+        "stale": "Obsoleto",
+        "revoked": "Revocado",
+        "deleted": "Eliminado",
+        "expired": "Caducado",
+        "deprecated": "Obsoleto (descontinuado)",
+        "draft": "Borrador",
+        "unreviewed": "Sin revisar",
+        "preferred": "Preferida",
+        "conflicting": "En conflicto",
+        "supported": "Respaldada",
+        "partial": "Parcial",
+        "unverifiable": "No verificable",
+        "unsupported": "Sin respaldo",
+        "ocrLow": "OCR de baja confianza",
+        "ocrMedium": "OCR media",
+        "tableLow": "Tabla de baja confianza",
+        "corrupted": "Dañado",
+        "unsupportedFormat": "Formato no compatible",
+        "encrypted": "Cifrado",
+        "extractionIssue": "Problema de extracción",
+        "processingIncomplete": "Procesamiento incompleto",
+        "guidance": "Orientación general del producto"
+      },
+      "range": {
+        "from": "desde {value}",
+        "upTo": "hasta {value}"
+      },
+      "complexity": {
+        "simple": "simple",
+        "complex": "complejo",
+        "multiPart": "de varias partes"
+      },
+      "summary": {
+        "scope": "Alcance: {scope}",
+        "scopeAll": "Alcance: todos los documentos",
+        "profile": "Perfil: {profile}",
+        "candidates": "{count, plural, one {# candidato revisado} other {# candidatos revisados}}",
+        "chunks": "{count, plural, one {# fragmento seleccionado} other {# fragmentos seleccionados}}",
+        "topK": "top-k {value}",
+        "mode": "Modo: {mode}",
+        "rerankFellBack": "el reordenamiento usó una alternativa",
+        "rerankFellBackReason": "el reordenamiento usó una alternativa ({reason})",
+        "rerankApplied": "se aplicó el reordenamiento",
+        "rerankOff": "el reordenamiento estaba desactivado"
+      },
+      "warn": {
+        "lowConfidence": "Confianza baja: valide esta respuesta con las fuentes citadas.",
+        "citationFailed": "Falló la validación de citas: algunas citas no se pudieron verificar.",
+        "verificationFailed": "Falló la verificación de la respuesta: puede que las afirmaciones no estén totalmente fundamentadas.",
+        "sourcesStale": "Una o más fuentes pueden estar obsoletas o sin revisar.",
+        "allExcluded": "Se excluyeron todas las fuentes de confianza. La respuesta usa contenido obsoleto o caducado.",
+        "citedStale": "Una o más fuentes citadas están obsoletas o caducadas.",
+        "citedPending": "Una o más fuentes citadas están pendientes de revisión.",
+        "citedDeprecated": "Una o más fuentes citadas están obsoletas o archivadas.",
+        "citedOcr": "Una o más fuentes tienen baja confianza de OCR: la precisión del texto puede ser menor.",
+        "tableLow": "Una o más tablas citadas tienen baja confianza de extracción: los datos pueden ser inexactos.",
+        "extractionPoor": "Uno o más documentos fuente tienen mala calidad de extracción: la cobertura del texto puede ser incompleta.",
+        "processingIncomplete": "Uno o más documentos fuente tienen un procesamiento incompleto o fallido: puede faltar contenido.",
+        "removedClaims": "Se eliminaron {count} afirmación(es) sin respaldo de la respuesta.",
+        "weakSupport": "El respaldo de las citas es débil: revise las afirmaciones asociadas.",
+        "unsupportedClaims": "{unsupported}/{total} afirmación(es) no están respaldadas por citas.",
+        "conflictSummary": "Conflicto entre fuentes: {summary}",
+        "conflictDefault": "Las fuentes discrepan en una o más afirmaciones. Prefiera la fuente marcada.",
+        "conflictPartial": "Las fuentes discrepan parcialmente. Verifique las afirmaciones con las fuentes citadas."
+      },
+      "header": {
+        "modeAria": "Modo de diagnóstico de recuperación",
+        "basic": "Básico",
+        "expert": "Experto",
+        "answerExplanation": "Explicación de la respuesta",
+        "modelView": "Vista del modelo",
+        "description": "La confianza, la selección de fuentes y el respaldo de citas se agrupan en un único panel de revisión.",
+        "saveAria": "Guardar como tarjeta de conocimiento",
+        "saveAsCard": "Guardar como tarjeta",
+        "reportAria": "Informar de un problema con esta respuesta",
+        "reportIssue": "Informar de un problema"
+      },
+      "sources": {
+        "title": "Fuentes ({count})",
+        "updated": "Actualizado {date}",
+        "synced": "Sincronizado {date}",
+        "score": "Puntuación {score}",
+        "rerank": "Reordenamiento {score}",
+        "table": "Tabla",
+        "previewAria": "Ver vista previa de {title}"
+      },
+      "claims": {
+        "title": "Respaldo de afirmaciones ({supported}/{total})",
+        "aggregate": "Respaldo agregado",
+        "verificationScore": "Puntuación de verificación",
+        "supported": "Afirmaciones respaldadas",
+        "partial": "Afirmaciones parciales",
+        "unsupported": "Afirmaciones sin respaldo",
+        "unverifiable": "Afirmaciones no verificables",
+        "claimN": "Afirmación {n}",
+        "supportPct": "Respaldo {pct}",
+        "previewAria": "Ver la fuente {index} de la afirmación {claim}",
+        "sourceN": "Fuente {index}",
+        "noMapped": "No hay citas validadas asociadas a esta afirmación.",
+        "noMapping": "La asignación de citas por afirmación no está disponible para esta instantánea de la respuesta."
+      },
+      "confidence": {
+        "title": "Puntuación de confianza",
+        "scoreAria": "Puntuación de confianza",
+        "signals": "Señales de confianza",
+        "category": {
+          "low": "baja",
+          "medium": "media",
+          "high": "alta"
+        },
+        "topSimilarity": "Similitud máxima",
+        "avgSimilarity": "Similitud media",
+        "rerankScore": "Puntuación de reordenamiento",
+        "citationCoverage": "Cobertura de citas",
+        "citationSupport": "Respaldo de citas",
+        "sourceAgreement": "Acuerdo entre fuentes",
+        "freshnessFactor": "Factor de actualidad",
+        "ocrFactor": "Factor de calidad de OCR",
+        "conflictFactor": "Factor de conflicto",
+        "tableFactor": "Factor de calidad de tablas",
+        "extractionFactor": "Factor de calidad de extracción",
+        "graphBoost": "Impulso del grafo"
+      },
+      "conflict": {
+        "title": "Conflicto entre fuentes",
+        "pairs": "{count, plural, one {# par en conflicto} other {# pares en conflicto}}",
+        "sourcesInConflict": "Fuentes en conflicto",
+        "preferredCount": "Número de fuentes preferidas",
+        "noPreferred": "No se pudo determinar una fuente preferida: trate todas las fuentes con la misma cautela.",
+        "level": {
+          "full": "Acuerdo total",
+          "partial": "Acuerdo parcial",
+          "conflicting": "Fuentes en conflicto"
+        },
+        "detected": "Conflicto entre fuentes detectado",
+        "comparison": "Comparación de fuentes",
+        "preferredIds": "ID de las fuentes preferidas: {ids}",
+        "preferredSources": "Fuentes preferidas",
+        "conflictingSources": "Fuentes en conflicto",
+        "document": "Documento",
+        "noSnippet": "No hay fragmento disponible."
+      },
+      "graph": {
+        "title": "Grafo de conocimiento",
+        "unavailable": "Contexto del grafo no disponible.",
+        "seedEntities": "Entidades iniciales",
+        "relatedEntities": "Entidades relacionadas",
+        "chunks": "Fragmentos del grafo",
+        "maxHops": "Saltos máximos",
+        "relationTypes": "Tipos de relación"
+      },
+      "model": {
+        "title": "Modelo",
+        "provider": "Proveedor",
+        "llmModel": "Modelo LLM",
+        "embeddings": "Embeddings",
+        "promptTemplate": "Plantilla de prompt",
+        "fallbackFrom": "Alternativa desde",
+        "fallbackPrimary": "principal",
+        "fallbackTo": "Alternativa hacia",
+        "fallbackReason": "Motivo de la alternativa",
+        "detectedLanguage": "Idioma detectado",
+        "answerLanguage": "Idioma de la respuesta"
+      },
+      "policy": {
+        "title": "Política",
+        "outcome": "Resultado",
+        "violated": "Reglas infringidas",
+        "warnings": "Advertencias"
+      },
+      "pipeline": {
+        "title": "Canal de respuesta",
+        "strategy": "Estrategia",
+        "highRisk": "Revisión de alto riesgo",
+        "criticSeverity": "Gravedad de la crítica",
+        "refiner": "Refinador",
+        "refinerRevised": "Aplicado: respuesta revisada",
+        "refinerNoChange": "Aplicado: sin cambios",
+        "claimsRemoved": "Afirmaciones eliminadas",
+        "criticWarnings": "Advertencias de la crítica",
+        "strategies": {
+          "policy_lookup": "Consulta de políticas",
+          "comparison": "Comparación",
+          "legal_compliance": "Legal / cumplimiento",
+          "table_heavy": "Con muchas tablas",
+          "graph_assisted": "Asistido por grafo",
+          "connector_search": "Búsqueda en conectores",
+          "standard": "Estándar"
+        },
+        "severity": {
+          "none": "ninguna",
+          "low": "baja",
+          "medium": "media",
+          "high": "alta"
+        }
+      },
+      "query": {
+        "title": "Interpretación de la consulta",
+        "intent": "Intención",
+        "strategy": "Estrategia",
+        "complexity": "Complejidad",
+        "rewritePreview": "Vista previa de la reescritura",
+        "subQueries": "Subconsultas",
+        "rewriteDisabled": "La vista previa de la reescritura está desactivada por la política de la organización."
+      },
+      "diag": {
+        "title": "Diagnóstico de recuperación",
+        "candidates": "Candidatos",
+        "selectedChunks": "Fragmentos seleccionados",
+        "topK": "Top-k",
+        "searchMode": "Modo de búsqueda",
+        "scopeMode": "Modo de alcance",
+        "scopeLabel": "Etiqueta de alcance",
+        "profile": "Perfil",
+        "profileScope": "Alcance del perfil",
+        "profileSource": "Origen del perfil",
+        "requestId": "ID de solicitud",
+        "traceId": "ID de traza",
+        "rerankRange": "Rango de reordenamiento",
+        "vectorHits": "Resultados vectoriales",
+        "keywordHits": "Resultados por palabras clave",
+        "reranker": "Reordenador",
+        "enabled": "Activado",
+        "rerankFallback": "Alternativa de reordenamiento",
+        "parentExpansion": "Expansión del contexto padre",
+        "parentChunks": "{count} fragmentos",
+        "parentTokens": "Tokens del contexto padre",
+        "freshnessBoosted": "Impulsadas por actualidad",
+        "excluded": "Excluidas (obsoletas/caducadas)",
+        "staleSources": "Fuentes obsoletas",
+        "unreviewedSources": "Fuentes sin revisar",
+        "deprecatedSources": "Fuentes obsoletas (descontinuadas)",
+        "allExcludedFallback": "Alternativa por exclusión total",
+        "ocrLowChunks": "Fragmentos de OCR con baja confianza"
+      },
+      "method": {
+        "title": "Estrategia de búsqueda",
+        "method": "Método",
+        "override": "Anulación",
+        "overrideUser": "Especificado por el usuario",
+        "overrideAdmin": "Perfil de administrador",
+        "selection": "Selección",
+        "auto": "Selección automática"
+      },
+      "selection": {
+        "title": "Selección de fuentes",
+        "request": "Solicitud {id}",
+        "trace": "Traza {id}",
+        "mode": "Modo {mode}",
+        "rerankFallback": "Alternativa de reordenamiento",
+        "rerankOn": "Reordenamiento activado",
+        "rerankOff": "Reordenamiento desactivado"
+      },
+      "tools": {
+        "title": "Orquestación de herramientas",
+        "evaluated": "Herramientas evaluadas",
+        "authorized": "Autorizadas",
+        "denied": "Denegadas",
+        "deniedDefault": "Denegado",
+        "reason": {
+          "org_policy_disabled": "Desactivado por la política",
+          "feature_unavailable": "Función no disponible",
+          "insufficient_role": "Rol insuficiente",
+          "insufficient_permission": "Permiso insuficiente",
+          "source_scope_mismatch": "Alcance no coincide"
+        }
+      },
+      "verification": {
+        "title": "Verificación",
+        "verdict": "Veredicto",
+        "score": "Puntuación",
+        "claimsChecked": "Afirmaciones comprobadas",
+        "supported": "Respaldadas",
+        "unsupported": "Sin respaldo",
+        "removed": "Eliminadas",
+        "verifierModel": "Modelo verificador"
+      },
+      "excerpt": {
+        "cited": "Extracto citado",
+        "chunk": "Texto del fragmento citado"
+      }
+    },
+    "activity": {
+      "timelineAria": "Cronología de la generación de la respuesta",
+      "stepsAria": "Pasos de actividad",
+      "milliseconds": "{value} ms",
+      "seconds": "{value} s"
+    },
+    "feedback": {
+      "title": {
+        "edit": "Editar comentarios",
+        "new": "Informar de un problema"
+      },
+      "closeAria": "Cerrar el cuadro de comentarios",
+      "issueType": "Tipo de problema (opcional)",
+      "categoryLegend": "Categoría de comentarios",
+      "noneOfAbove": "Ninguna de las anteriores",
+      "additionalClassification": "Clasificación adicional (opcional)",
+      "legacyLegend": "Motivo heredado",
+      "noneSkip": "Ninguno / prefiero no decirlo",
+      "details": "Detalles adicionales (opcional)",
+      "placeholder": "Describa el problema…",
+      "removing": "Eliminando…",
+      "remove": "Eliminar comentarios",
+      "cancel": "Cancelar",
+      "submitting": "Enviando…",
+      "submit": "Enviar",
+      "reasons": {
+        "wrong_citation": "Cita incorrecta o ausente",
+        "hallucination": "Afirmación sin respaldo o inventada",
+        "outdated_source": "Fuente obsoleta",
+        "missing_document": "Documento relevante no utilizado",
+        "unsafe_content": "Contenido inseguro o sensible",
+        "other": "Otro"
+      },
+      "categoryLabels": {
+        "wrong_answer": "Respuesta incorrecta",
+        "bad_citation": "Cita incorrecta",
+        "missing_citation": "Cita ausente",
+        "missing_source": "Fuente ausente",
+        "outdated_source": "Fuente obsoleta",
+        "hallucination_risk": "Riesgo de alucinación",
+        "conflict_not_detected": "Conflicto no detectado",
+        "unclear_answer": "Respuesta poco clara",
+        "should_have_said_not_found": "Debió indicar que no se encontró"
+      },
+      "categoryDescriptions": {
+        "wrong_answer": "La respuesta es factualmente incorrecta",
+        "bad_citation": "La cita es incorrecta, falta o es irrelevante",
+        "missing_citation": "Falta una cita que debería estar",
+        "missing_source": "No se usó ni se mostró una fuente relevante",
+        "outdated_source": "El material de origen ya no está vigente",
+        "hallucination_risk": "La respuesta puede carecer de respaldo o ser inventada",
+        "conflict_not_detected": "No se marcaron fuentes en conflicto",
+        "unclear_answer": "La respuesta es demasiado vaga o incompleta",
+        "should_have_said_not_found": "El sistema debió negarse o indicar que no se encontró"
+      },
+      "trustCategoryDescriptions": {
+        "bad_citation": "Una cita es incorrecta, irrelevante o apunta al lugar equivocado",
+        "missing_source": "La respuesta debió usar una fuente que no está",
+        "outdated_source": "La fuente citada está obsoleta o ya no es precisa",
+        "conflict_not_detected": "El modelo no detectó un conflicto entre fuentes",
+        "should_have_said_not_found": "No existe información relevante: el modelo debió decirlo"
+      },
+      "trust": {
+        "title": "Informar de un problema con la respuesta",
+        "closeAria": "Cerrar el cuadro del informe",
+        "question": "¿Qué problema tiene esta respuesta?",
+        "categoryLegend": "Categoría del problema",
+        "otherNotListed": "Otro / no incluido",
+        "flagSources": "Marcar fuentes concretas (opcional)",
+        "placeholder": "Describa qué estaba mal…",
+        "traceId": "ID de traza: <mono>{id}</mono>",
+        "reporting": "Informando…",
+        "report": "Informar de un problema"
+      },
+      "unknownSource": "Fuente desconocida"
+    },
+    "share": {
+      "expiry": {
+        "never": "Nunca",
+        "24h": "24 horas",
+        "7d": "7 días",
+        "30d": "30 días"
+      },
+      "close": "Cerrar",
+      "copyLink": "Copiar enlace",
+      "revokeLink": "Revocar enlace",
+      "createLink": "Crear enlace",
+      "expiresLabel": "Caduca:",
+      "generate": "Generar enlace",
+      "creating": "Creando...",
+      "loadingLinks": "Cargando enlaces para compartir...",
+      "activeLinks": "Enlaces activos",
+      "expiresValue": "Caduca: {value}",
+      "accessOrg": "Organización",
+      "accessSpecific": "Usuarios concretos",
+      "passwordProtected": "Protegido con contraseña",
+      "answerModal": {
+        "title": "Compartir respuesta",
+        "description": "Cree un enlace con permisos controlados a este turno de preguntas y respuestas.",
+        "notice": "Quienes lo vean deben ser miembros de su organización con sesión iniciada. Las citas solo muestran el texto del extracto; los ID de los documentos no se exponen.",
+        "access": "Acceso",
+        "userIds": "ID de usuario (separados por comas o espacios)",
+        "userIdsPlaceholder": "uuid-1, uuid-2, ...",
+        "requirePassword": "Exigir contraseña",
+        "passwordPlaceholder": "Introduzca la contraseña del enlace (mín. 4 caracteres)",
+        "noActive": "No hay enlaces para compartir activos para esta respuesta."
+      },
+      "sessionModal": {
+        "title": "Compartir sesión",
+        "untitled": "Sesión sin título",
+        "notice": "Los enlaces para compartir solo son accesibles para miembros de su organización con sesión iniciada.",
+        "noActive": "No hay enlaces para compartir activos para esta sesión."
+      },
+      "page": {
+        "passwordTitle": "Contraseña obligatoria",
+        "passwordBody": "Esta respuesta compartida está protegida con contraseña. Introduzca la contraseña para verla.",
+        "passwordPlaceholder": "Introduzca la contraseña",
+        "checking": "Comprobando...",
+        "unlock": "Desbloquear",
+        "loadingAnswer": "Cargando la respuesta compartida...",
+        "loadingSession": "Cargando la sesión compartida...",
+        "accessDenied": "Acceso denegado",
+        "answerForbidden": "Este enlace para compartir no es accesible con su cuenta.",
+        "sessionForbidden": "Este enlace para compartir no es accesible con su cuenta. Debe ser miembro de la organización que lo creó.",
+        "notFound": "Enlace para compartir no encontrado",
+        "answerHeading": "Respuesta compartida",
+        "sessionHeading": "Sesión compartida",
+        "sessionFallbackTitle": "Sesión compartida",
+        "shared": "Compartido el {date}",
+        "sharedExpires": "Compartido el {date} · Caduca el {expires}",
+        "sharedMessages": "Compartido el {date} • {count, plural, one {# mensaje} other {# mensajes}}",
+        "copyAll": "Copiar todo",
+        "downloadMd": "Descargar .md",
+        "aiNoticeAnswer": "Esta respuesta la genera la IA y se basa en extractos de fuentes citadas. Verifíquela con los documentos originales antes de actuar.",
+        "aiNoticeSession": "Las respuestas las genera la IA y se basan en evidencia de fuentes citadas. Verifíquelas con los documentos de origen antes de actuar.",
+        "staleAnswer": "Algunas citas proceden de fuentes obsoletas, caducadas o archivadas.",
+        "staleSession": "Algunas citas de esta sesión compartida proceden de fuentes obsoletas, revocadas o eliminadas.",
+        "question": "Pregunta",
+        "aiAnswer": "Respuesta generada por IA",
+        "confidence": "Confianza {category}",
+        "noMessages": "No hay mensajes en esta sesión compartida.",
+        "document": "Documento",
+        "pageN": "Página {page}",
+        "archived": "Archivado"
+      }
     }
   },
   "evaluations": {
@@ -3117,6 +3579,535 @@
       "runNotFoundDescription": "Puede pertenecer a otra organización o haber sido eliminada.",
       "createSetPermission": "Solo propietarios y administradores pueden crear conjuntos de evaluación.",
       "setNameRequired": "El nombre del conjunto es obligatorio."
+    },
+    "chunkingComparison": {
+      "title": "Comparación de estrategias de fragmentación",
+      "description": "Los resultados por pregunta de abajo reflejan el objetivo principal. Este panel compara todos los perfiles configurados con el mismo conjunto de evaluación.",
+      "targets": "{count, plural, one {# objetivo} other {# objetivos}}",
+      "columns": {
+        "profile": "Perfil",
+        "strategy": "Estrategia",
+        "score": "Puntuación",
+        "retrieval": "Recuperación",
+        "citation": "Cita",
+        "faithfulness": "Fidelidad",
+        "chunks": "Fragmentos",
+        "avgTokens": "Tokens medios",
+        "notFound": "No encontrado",
+        "regression": "Regresión"
+      },
+      "targetN": "Objetivo {n}",
+      "versionUnavailable": "Versión no disponible",
+      "unknown": "Desconocido",
+      "clear": "Sin problemas",
+      "metricFallback": "métrica",
+      "bestByDocumentType": "Mejor por tipo de documento",
+      "noDocumentTypes": "No hay desglose por tipo de documento.",
+      "bestByUseCase": "Mejor por caso de uso",
+      "noUseCases": "No hay desglose por caso de uso."
+    },
+    "multilingual": {
+      "coverageWarning": "Cobertura insuficiente (<5 preguntas) para: <strong>{languages}</strong>. Añada más casos para que estas métricas sean estadísticamente fiables.",
+      "lowBadge": "bajo",
+      "lowBadgeAria": "cobertura insuficiente",
+      "lowBadgeTitle": "Menos de 5 preguntas: las métricas pueden no ser fiables",
+      "loadingCoverage": "Cargando cobertura de idiomas…",
+      "coverageFailed": "No se pudo cargar la cobertura de idiomas.",
+      "noLabels": "Ninguna pregunta tiene aún una etiqueta <code>question_language</code>. Defina el campo de idioma al crear o importar preguntas para activar el seguimiento de cobertura.",
+      "columns": {
+        "language": "Idioma",
+        "questions": "Preguntas",
+        "withExpected": "Con respuesta esperada",
+        "questionsTitle": "Aciertos / Total de preguntas",
+        "retrieval": "Recuperación",
+        "citation": "Cita",
+        "faithfulness": "Fidelidad",
+        "relevance": "Relevancia",
+        "langAdherence": "Adhesión al idioma",
+        "langAdherenceTitle": "Fracción de respuestas cuyo idioma detectado coincide con expected_answer_language",
+        "avgLatency": "Latencia media",
+        "cost": "Coste"
+      },
+      "unlabelled": "Sin etiquetar",
+      "totalQuestions": "Total de preguntas: {count}",
+      "loadingBreakdown": "Cargando desglose por idioma…",
+      "breakdownFailed": "No se pudo cargar el desglose por idioma.",
+      "noRunLabels": "Ninguna pregunta de esta ejecución tiene etiqueta de idioma. Defina <code>question_language</code> en las preguntas de evaluación para ver aquí las métricas por idioma."
+    },
+    "runDetail": {
+      "na": "N/D",
+      "summary": {
+        "runId": "ID de ejecución",
+        "dataset": "Conjunto de datos",
+        "started": "Iniciado",
+        "completed": "Completado",
+        "duration": "Duración",
+        "updated": "Actualizado"
+      },
+      "comparison": {
+        "baseline": "Comparación con la línea base",
+        "baselineVsLatest": "Línea base frente a la última",
+        "delta": "Diferencia"
+      },
+      "filters": {
+        "searchCases": "Buscar casos",
+        "searchPlaceholder": "Pregunta, respuesta esperada, respuesta real",
+        "caseStatus": "Estado del caso",
+        "all": "Todos",
+        "failed": "Fallidos",
+        "lowQuality": "Baja calidad",
+        "completed": "Completados",
+        "sort": "Ordenar",
+        "newest": "Más recientes primero",
+        "latencyDesc": "Latencia de mayor a menor",
+        "latencyAsc": "Latencia de menor a mayor",
+        "qualityDesc": "Calidad de mayor a menor",
+        "qualityAsc": "Calidad de menor a mayor"
+      },
+      "case": {
+        "expected": "Esperada: {value}",
+        "actual": "Real: {value}",
+        "unavailable": "No disponible",
+        "quality": "Calidad {value}",
+        "confidence": "Confianza {value}",
+        "latency": "Latencia: {value}",
+        "citationAccuracy": "Precisión de citas: {value}",
+        "retrieval": "Recuperación: {value}",
+        "faithfulness": "Fidelidad: {value}",
+        "openSource": "Abrir documento de origen",
+        "linkUnavailable": "Enlace de cita no disponible",
+        "hideDetails": "Ocultar detalles",
+        "showDetails": "Mostrar detalles",
+        "retrievedCitations": "Citas recuperadas",
+        "noCitationPayload": "No hay datos de citas disponibles.",
+        "unknownDocument": "Documento desconocido",
+        "page": "página {page}",
+        "score": "puntuación {score}",
+        "errorPayload": "Datos de errores y métricas"
+      },
+      "modelProfile": {
+        "title": "Perfil del modelo",
+        "provider": "Proveedor",
+        "local": "local",
+        "baseModel": "Modelo base",
+        "source": "Origen"
+      },
+      "localMetrics": {
+        "title": "Métricas del modelo local",
+        "invalidJson": "Tasa de JSON no válido",
+        "timeout": "Tasa de tiempo de espera",
+        "fallback": "Frecuencia de alternativas"
+      },
+      "detail": {
+        "ariaLabel": "Detalle de la ejecución",
+        "openTrace": "Abrir traza del pipeline",
+        "dataset": "Conjunto de datos: {name}",
+        "multilingualAria": "Desglose de calidad multilingüe",
+        "qualityByLanguage": "Calidad por idioma"
+      },
+      "cases": {
+        "ariaLabel": "Resultados de casos de la ejecución",
+        "title": "Resultados de casos",
+        "showing": "Mostrando {count, plural, one {# caso} other {# casos}}",
+        "emptyTitle": "Ningún caso coincide con los filtros seleccionados.",
+        "emptyDescription": "Cambie los filtros para revisar respuestas fallidas, de baja calidad o completadas."
+      }
+    },
+    "setsSection": {
+      "ariaLabel": "Conjuntos de datos de evaluación y casos de prueba",
+      "datasetsTitle": "Conjuntos de datos de evaluación",
+      "datasetsDescription": "Seleccione un conjunto de datos para revisar casos de prueba y configuraciones de ejecución.",
+      "searchDatasets": "Buscar conjuntos de datos",
+      "datasetNamePlaceholder": "Nombre del conjunto de datos",
+      "loadingDatasets": "Cargando conjuntos de datos de evaluación...",
+      "noDatasets": "No se encontraron conjuntos de datos.",
+      "noDatasetsHint": "Cree un conjunto o cambie los filtros de búsqueda.",
+      "noDescription": "Sin descripción",
+      "questionsUpdated": "{count, plural, one {# pregunta} other {# preguntas}} • actualizado {date}",
+      "testCasesTitle": "Casos de prueba",
+      "testCasesDescription": "Busque y ordene las preguntas y respuestas esperadas para comprobar la calidad del conjunto de datos.",
+      "selectDataset": "Seleccione un conjunto de datos para revisar los casos de prueba.",
+      "selectDatasetHint": "Una vez seleccionado, podrá buscar y gestionar casos de prueba.",
+      "searchTestCases": "Buscar casos de prueba",
+      "searchTestCasesPlaceholder": "Pregunta, respuesta esperada o etiqueta",
+      "sort": "Ordenar",
+      "sortNewest": "Más recientes primero",
+      "sortOldest": "Más antiguos primero",
+      "sortQuestion": "Pregunta A-Z",
+      "addTitle": "Añadir caso de prueba",
+      "question": "Pregunta",
+      "questionPlaceholder": "¿Cuál es la política de conservación de datos?",
+      "expectedAnswer": "Respuesta esperada",
+      "expectedAnswerPlaceholder": "Respuesta esperada opcional",
+      "expectedPage": "Página esperada",
+      "optional": "Opcional",
+      "tags": "Etiquetas",
+      "tagsPlaceholder": "cumplimiento, conservación",
+      "adding": "Añadiendo...",
+      "readOnlyNotice": "Su rol puede ver los casos de prueba, pero solo el propietario o el administrador puede añadir nuevos.",
+      "loadingTestCases": "Cargando casos de prueba...",
+      "noTestCases": "Ningún caso de prueba coincide con los filtros actuales.",
+      "noTestCasesHint": "Añada nuevos casos de prueba o ajuste los filtros.",
+      "tableCaption": "Casos de prueba con respuestas esperadas, página esperada y etiquetas.",
+      "columnPage": "Página",
+      "unavailable": "No disponible"
+    },
+    "dialogs": {
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "createSet": {
+        "title": "Crear conjunto de evaluación",
+        "description": "Añada un conjunto de datos para las preguntas de evaluación antes de iniciar ejecuciones.",
+        "name": "Nombre del conjunto",
+        "namePlaceholder": "Suite de regresión",
+        "descriptionLabel": "Descripción",
+        "descriptionPlaceholder": "Contexto opcional para este conjunto de datos de evaluación",
+        "creating": "Creando...",
+        "submit": "Crear conjunto"
+      },
+      "startRun": {
+        "title": "Iniciar ejecución de evaluación",
+        "queueFor": "Poner en cola una ejecución para <strong>{name}</strong>.",
+        "topK": "Top K",
+        "modelOverride": "Modelo alternativo",
+        "modelPlaceholder": "Modelo de backend opcional",
+        "modelProfile": "Perfil del modelo",
+        "modelProfileHint": "Seleccione un perfil de modelo guardado para la comparativa. Déjelo sin definir para usar el perfil de evaluaciones predeterminado de la organización.",
+        "loadingModelProfiles": "Cargando perfiles de modelo...",
+        "orgDefault": "Predeterminado de la organización (perfil de evaluaciones)",
+        "experimental": "(experimental)",
+        "enableRerank": "Activar reordenamiento",
+        "rerankHint": "Aplicar una segunda etapa de ordenación antes de generar.",
+        "metricOptions": "Opciones de métricas (JSON)",
+        "scopeDocuments": "Limitar a documentos indexados",
+        "loadingDocuments": "Cargando documentos indexados...",
+        "noDocuments": "No hay documentos indexados disponibles.",
+        "chunkingProfiles": "Perfiles de fragmentación",
+        "chunkingHint": "Deje todos los perfiles sin seleccionar para evaluar el índice activo actual. Seleccione un perfil para fijar la ejecución. Seleccione varios para comparar estrategias con el mismo conjunto de datos.",
+        "loadingChunking": "Cargando perfiles de fragmentación...",
+        "noChunking": "No hay perfiles de fragmentación guardados.",
+        "noChunkingHint": "La ejecución usará el corpus indexado actual salvo que cree perfiles antes.",
+        "default": "Predeterminado",
+        "thresholds": "Umbrales de regresión",
+        "thresholdsHint": "Puertas de publicación opcionales. Cualquier umbral configurado puede marcar un objetivo de comparación como regresado.",
+        "minRetrieval": "Tasa mínima de aciertos de recuperación",
+        "minCitation": "Precisión mínima de citas",
+        "minFaithfulness": "Fidelidad mínima",
+        "maxNotFound": "Tasa máxima de no encontrados",
+        "queueing": "Poniendo en cola...",
+        "queueRun": "Poner ejecución en cola"
+      }
+    },
+    "modelProfiles": {
+      "profiles": {
+        "cloud_baseline": "Línea base en la nube",
+        "local_profile": "Perfil local",
+        "fallback_profile": "Perfil alternativo"
+      },
+      "ready": "Listo",
+      "notReady": "No listo",
+      "runQueued": "Ejecución en cola: {id}… ({profile})",
+      "loadingSuites": "Cargando suites de benchmark…",
+      "runSuite": "Ejecutar una suite de benchmark",
+      "suiteOption": "{name} ({count, plural, one {# caso} other {# casos}})",
+      "triggering": "Iniciando…",
+      "runBenchmark": "Ejecutar benchmark",
+      "title": "Comparación de perfiles de modelo",
+      "description": "Línea base en la nube frente a perfil local y alternativa: métricas de calidad y recomendaciones de puerta de publicación.",
+      "refreshing": "Actualizando…",
+      "refresh": "Actualizar",
+      "loadingReport": "Cargando informe de comparación…",
+      "empty": "No se encontraron ejecuciones de evaluación completadas con etiquetas de perfil de proveedor. Inicie una ejecución de benchmark arriba para rellenar este informe.",
+      "columns": {
+        "metric": "Métrica"
+      },
+      "runs": "({count, plural, one {# ejecución} other {# ejecuciones}})",
+      "metrics": {
+        "retrievalHitRate": "Tasa de aciertos de recuperación",
+        "citationAccuracy": "Precisión de citas",
+        "faithfulness": "Fidelidad",
+        "answerRelevance": "Relevancia de la respuesta",
+        "notFoundRate": "Tasa de no encontrados",
+        "avgLatency": "Latencia media (ms)",
+        "totalCost": "Coste total (USD)",
+        "invalidJson": "Tasa de JSON no válido",
+        "timeout": "Tasa de tiempo de espera",
+        "fallbackFrequency": "Frecuencia de alternativas",
+        "computeLatency": "Latencia de cómputo est. (ms)",
+        "tokensPerSecond": "Tokens / segundo"
+      },
+      "releaseGate": "Puerta de publicación",
+      "thresholds": "Umbrales: {value}",
+      "generated": "Informe generado el {date}"
+    },
+    "abTest": {
+      "status": {
+        "completed": "completado",
+        "running": "en ejecución",
+        "failed": "fallido",
+        "draft": "borrador",
+        "pending": "pendiente",
+        "approved": "aprobado",
+        "rejected": "rechazado",
+        "cancelled": "cancelado"
+      },
+      "noVariantResults": "Aún no hay resultados de variantes.",
+      "metrics": {
+        "faithfulness": "Fidelidad",
+        "citationAccuracy": "Precisión de citas",
+        "answerRelevance": "Relevancia de la respuesta",
+        "latencyP95": "Latencia p95 (ms)"
+      },
+      "columns": {
+        "metric": "Métrica"
+      },
+      "ref": "(ref.)",
+      "variant": {
+        "ragProfile": "Perfil RAG v{version}",
+        "model": "Modelo: {key}",
+        "promptVersion": "Versión del prompt: {id}",
+        "approve": "Aprobar",
+        "reject": "Rechazar",
+        "remove": "Quitar",
+        "confirmRemove": "¿Quitar la variante «{label}»?"
+      },
+      "create": {
+        "title": "Nuevo experimento A/B",
+        "name": "Nombre *",
+        "namePlaceholder": "p. ej. Prompt v2 frente a v3: fidelidad",
+        "description": "Descripción",
+        "setId": "ID del conjunto de evaluación *",
+        "setIdPlaceholder": "UUID del conjunto de datos de evaluación",
+        "creating": "Creando…",
+        "submit": "Crear experimento"
+      },
+      "cancel": "Cancelar",
+      "addVariant": {
+        "title": "Añadir variante",
+        "label": "Etiqueta *",
+        "labelPlaceholder": "p. ej. Control / Prompt-v2 / perfil-A",
+        "ragProfileId": "ID del perfil RAG",
+        "profileVersion": "Versión del perfil",
+        "modelProfileKey": "Clave del perfil de modelo",
+        "modelProfilePlaceholder": "p. ej. cloud_baseline",
+        "promptVersionId": "ID de la versión del prompt",
+        "adding": "Añadiendo…"
+      },
+      "loading": "Cargando…",
+      "detail": {
+        "dataset": "Conjunto de datos: <code>{id}</code>",
+        "starting": "Iniciando…",
+        "run": "Ejecutar experimento",
+        "variants": "Variantes ({count})",
+        "addVariantToggle": "+ Añadir variante",
+        "noVariants": "Aún no hay variantes: añada al menos dos para comparar.",
+        "latestRun": "Última ejecución",
+        "finalizing": "Finalizando…",
+        "finalize": "Finalizar y comparar",
+        "inProgress": "Las ejecuciones de evaluación de variantes están en curso. Finalice cuando todas terminen.",
+        "noComparison": "No hay datos de comparación disponibles.",
+        "winners": "<strong>Ganadores por métrica:</strong> {value}"
+      },
+      "panel": {
+        "title": "Experimentos A/B",
+        "new": "+ Nuevo",
+        "none": "Aún no hay experimentos.",
+        "variantCount": "{count, plural, one {# variante} other {# variantes}}",
+        "confirmDelete": "¿Eliminar este experimento y todos sus datos?",
+        "delete": "Eliminar experimento",
+        "select": "Seleccione un experimento para ver los detalles."
+      }
+    },
+    "runComparison": {
+      "regression": "Regresión",
+      "improvement": "Mejora",
+      "unchanged": "Sin cambios",
+      "noMetricSummary": "No hay resumen de métricas para estas ejecuciones.",
+      "metricCaption": "Comparación de métricas entre dos ejecuciones de evaluación.",
+      "metric": "Métrica",
+      "runA": "{label} (A)",
+      "runB": "{label} (B)",
+      "delta": "Diferencia (B−A)",
+      "status": "Estado",
+      "searchCases": "Buscar casos",
+      "searchPlaceholder": "Buscar casos…",
+      "filterStatus": "Filtrar por estado del caso",
+      "allCases": "Todos los casos",
+      "regressionsOnly": "Solo regresiones",
+      "improvementsOnly": "Solo mejoras",
+      "failedAny": "Fallidos en cualquiera de las ejecuciones",
+      "filterDifficulty": "Filtrar por dificultad",
+      "allDifficulties": "Todas las dificultades",
+      "easy": "Fácil",
+      "medium": "Media",
+      "hard": "Difícil",
+      "casesCount": "{visible} de {total} casos",
+      "noCasesMatch": "Ningún caso coincide con los filtros actuales.",
+      "caseCaption": "Comparación por pregunta entre ejecuciones.",
+      "question": "Pregunta",
+      "diff": "Dif.",
+      "noResult": "Sin resultado",
+      "failed": "fallido",
+      "ok": "ok",
+      "retShort": "rec. {value}%",
+      "faithShort": "fidel. {value}%",
+      "hideAnswer": "Ocultar respuesta",
+      "viewAnswer": "Ver respuesta",
+      "answerFrom": "Respuesta de {label} ({side})",
+      "noAnswer": "No se generó ninguna respuesta.",
+      "failure": "<strong>Fallo:</strong> {reason}",
+      "panelAria": "Comparación de ejecuciones de evaluación",
+      "title": "Comparación de ejecuciones",
+      "vs": " frente a ",
+      "exportCsv": "Exportar CSV",
+      "exportJson": "Exportar JSON",
+      "close": "Cerrar",
+      "regressionCount": "{count, plural, one {regresión} other {regresiones}}",
+      "improvementCount": "{count, plural, one {mejora} other {mejoras}}",
+      "totalCases": "casos en total",
+      "metricSummary": "Resumen de métricas",
+      "baselineLabel": "A (línea base)",
+      "candidateLabel": "B (candidato)",
+      "caseComparison": "Comparación de casos",
+      "started": "Iniciado {date}",
+      "runStatus": {
+        "completed": "completado",
+        "failed": "fallido",
+        "running": "en ejecución",
+        "queued": "en cola",
+        "cancelled": "cancelado"
+      }
+    },
+    "qualityGate": {
+      "verdict": {
+        "passed": "aprobado",
+        "failed": "fallido",
+        "overridden": "anulado"
+      },
+      "checkLine": "{label}: real {actual} / umbral {threshold}",
+      "failedCount": "{count} fallidas",
+      "passedCount": "{count} aprobadas",
+      "failingChecks": "Comprobaciones fallidas",
+      "passingChecks": "Comprobaciones superadas",
+      "override": "Anulación: {reason}",
+      "downloadReport": "Descargar informe de CI (JSON)",
+      "overrideButton": "Anular la puerta (requiere un motivo documentado)",
+      "overridePlaceholder": "Indique un motivo detallado para esta anulación (mín. 10 caracteres)…",
+      "applying": "Aplicando…",
+      "applyOverride": "Aplicar anulación",
+      "cancel": "Cancelar",
+      "configuredThresholds": "Umbrales configurados",
+      "triggerRun": "Iniciar ejecución de la puerta",
+      "evalRunPlaceholder": "ID de ejecución de evaluación (UUID)",
+      "safetyRunPlaceholder": "ID de ejecución de evaluación de seguridad (UUID): opcional",
+      "running": "Ejecutando…",
+      "runGate": "Ejecutar puerta",
+      "runCompleted": "Ejecución de la puerta completada: vea los resultados abajo.",
+      "runHistory": "Historial de ejecuciones",
+      "loadingRuns": "Cargando ejecuciones…",
+      "noRuns": "Aún no hay ejecuciones",
+      "noRunsHint": "Inicie la puerta de arriba para ver resultados.",
+      "thresholds": {
+        "retrieval_hit_rate_min": "Tasa mínima de aciertos de recuperación",
+        "citation_accuracy_score_min": "Precisión mínima de citas",
+        "faithfulness_score_min": "Puntuación mínima de fidelidad",
+        "answer_relevance_score_min": "Relevancia mínima de la respuesta",
+        "not_found_rate_max": "Tasa máxima de no encontrados",
+        "safety_pass_rate_min": "Tasa mínima de aprobación de seguridad",
+        "latency_ms_p95_max": "Latencia p95 máx. (ms)",
+        "cost_usd_per_question_max": "Coste máximo por pregunta (USD)"
+      },
+      "hint": {
+        "range": "0–1",
+        "ms": "ms",
+        "usd": "$"
+      },
+      "gateNamePlaceholder": "Nombre de la puerta",
+      "descriptionPlaceholder": "Descripción (opcional)",
+      "blankToSkip": "déjelo en blanco para omitir",
+      "creating": "Creando…",
+      "createGate": "Crear puerta",
+      "loadingGates": "Cargando puertas de calidad…",
+      "title": "Puertas de calidad",
+      "newGate": "+ Nueva puerta",
+      "noGates": "No hay puertas de calidad",
+      "noGatesHint": "Cree una para aplicar umbrales de publicación.",
+      "confirmDelete": "¿Eliminar la puerta de calidad «{name}»? También se eliminará todo el historial de ejecuciones.",
+      "delete": "Eliminar",
+      "select": "Seleccione una puerta de calidad para ver los detalles y el historial de ejecuciones."
+    },
+    "datasetBuilder": {
+      "difficulty": {
+        "easy": "fácil",
+        "medium": "media",
+        "hard": "difícil"
+      },
+      "status": {
+        "draft": "borrador",
+        "published": "publicado"
+      },
+      "validating": "Validando el conjunto de datos…",
+      "valid": "El conjunto de datos es válido: no se encontraron problemas.",
+      "issuesFound": "{count, plural, one {Se encontró # problema de validación} other {Se encontraron # problemas de validación}}",
+      "moreIssues": "+{count, plural, one {# problema más} other {# problemas más}}",
+      "loadingVersions": "Cargando versiones…",
+      "noVersions": "Aún no hay versiones publicadas. Publique el conjunto de datos para crear una instantánea.",
+      "versionCases": "{count, plural, one {# caso} other {# casos}}",
+      "import": {
+        "title": "Importar casos",
+        "skipDuplicates": "Omitir preguntas duplicadas",
+        "required": "Los datos de importación son obligatorios.",
+        "importing": "Importando…",
+        "submit": "Importar"
+      },
+      "cancel": "Cancelar",
+      "edit": {
+        "title": "Editar caso",
+        "question": "Pregunta",
+        "expectedAnswer": "Respuesta esperada",
+        "difficulty": "Dificultad",
+        "none": "— ninguna —",
+        "easy": "Fácil",
+        "medium": "Media",
+        "hard": "Difícil",
+        "tags": "Etiquetas (separadas por comas)",
+        "questionRequired": "La pregunta es obligatoria.",
+        "saving": "Guardando…",
+        "save": "Guardar"
+      },
+      "row": {
+        "hasExpected": "tiene respuesta esperada",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "sure": "¿Seguro?",
+        "yes": "Sí",
+        "no": "No"
+      },
+      "panel": {
+        "namePlaceholder": "Nombre del conjunto de datos",
+        "descriptionPlaceholder": "Descripción (opcional)",
+        "alreadyPublished": "Ya publicado",
+        "duplicating": "Duplicando…",
+        "duplicate": "Duplicar",
+        "publishing": "Publicando…",
+        "publish": "Publicar",
+        "deleteDataset": "Eliminar conjunto de datos",
+        "deleteDatasetQuestion": "¿Eliminar el conjunto de datos?",
+        "deleting": "Eliminando…",
+        "yesDelete": "Sí, eliminar",
+        "importedSkipped": "Se importó {imported, plural, one {# caso} other {# casos}} y se omitió {skipped, plural, one {# duplicado} other {# duplicados}}.",
+        "imported": "Se importó {imported, plural, one {# caso} other {# casos}}.",
+        "validation": "Validación",
+        "versionHistory": "Historial de versiones",
+        "cases": "Casos ({count})",
+        "casesPartial": "Casos ({loaded} de {total})",
+        "noCases": "Aún no hay casos",
+        "noCasesHint": "Añada casos manualmente o impórtelos desde CSV/JSON.",
+        "loadMore": "Cargar más",
+        "loadingMore": "Cargando…",
+        "loadMoreFailed": "No se pudieron cargar más casos.",
+        "languageCoverage": "Cobertura de idiomas"
+      }
     }
   },
   "collections": {
@@ -4593,7 +5584,15 @@
     "retryFailed": "El reintento falló. Inténtalo de nuevo más tarde.",
     "configIncomplete": "La configuración del frontend está incompleta",
     "configIncompleteDescription": "Faltan valores públicos de entorno requeridos o no son válidos. Actualiza el archivo de entorno del frontend y reinicia la app.",
-    "startupCheck": "Comprobación de inicio de Rudix"
+    "startupCheck": "Comprobación de inicio de Rudix",
+    "routeBoundary": {
+      "title": "No se puede mostrar esta página",
+      "description": "Un error en tiempo de ejecución interrumpió la carga. Puedes reintentar o volver al panel.",
+      "retry": "Reintentar",
+      "backToDashboard": "Volver al panel",
+      "backHome": "Volver al inicio",
+      "reference": "Referencia del error"
+    }
   },
   "toasts": {
     "saved": "Guardado correctamente",
@@ -4610,6 +5609,45 @@
     "fr": "Francés",
     "ar": "Árabe",
     "fa": "Persa"
+  },
+  "states": {
+    "retry": "Reintentar",
+    "traceId": "ID de traza:",
+    "empty": {
+      "title": "No hay datos disponibles",
+      "aria": "Estado vacío"
+    },
+    "error": {
+      "aria": "Estado de error",
+      "conflict": "Conflicto de solicitud",
+      "invalidSession": "La sesión no es válida",
+      "unableToLoad": "No se puede cargar"
+    },
+    "forbidden": {
+      "aria": "Estado de acceso prohibido",
+      "eyebrow": "Control de acceso de Rudix",
+      "title": "Prohibido",
+      "description": "No tiene permiso para completar esta acción.",
+      "backLabel": "Volver al panel"
+    },
+    "loading": {
+      "title": "Cargando...",
+      "aria": "Estado de carga"
+    },
+    "network": {
+      "aria": "Estado de error de red",
+      "title": "Sin conexión",
+      "description": "No se pudo conectar con el servidor. Compruebe su conexión de red e inténtelo de nuevo."
+    },
+    "rateLimit": {
+      "aria": "Estado de límite de solicitudes",
+      "title": "Se alcanzó el límite de solicitudes",
+      "description": "Se enviaron demasiadas solicitudes. Espere un momento y vuelva a intentarlo."
+    },
+    "skeleton": {
+      "aria": "Cargando contenido",
+      "text": "Cargando…"
+    }
   },
   "adminTeam": {
     "title": "Gestión del equipo",
@@ -5583,6 +6621,7 @@
       "documentsWrite": "Documentos — escritura",
       "chatWrite": "Chat — escritura",
       "evaluationsRun": "Evaluaciones — ejecutar",
+      "qualityGatesRun": "Puertas de calidad — ejecutar (CI)",
       "webhooksManage": "Webhooks — gestionar",
       "connectorsManage": "Conectores — gestionar"
     },
@@ -7785,5 +8824,7 @@
       "restrictedTitle": "Acceso de administrador restringido",
       "restrictedDescription": "Solo propietarios y administradores pueden ver el estado del índice vectorial."
     }
-  }
+  },
+  "adminBots": {},
+  "adminEmail": {}
 }

@@ -1,4 +1,9 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 // ---------------------------------------------------------------------------
 // Enums / constants
@@ -26,54 +31,27 @@ export const RESET_WINDOWS = [
   "none",
 ] as const;
 
-export type ResetWindow = (typeof RESET_WINDOWS)[number];
+export type ResetWindow = Served<Schemas["ResetWindow"]>;
 
 // ---------------------------------------------------------------------------
 // Shared types
 // ---------------------------------------------------------------------------
 
-export type QuotaLimitConfig = {
-  soft_limit: number | null;
-  hard_limit: number | null;
-  reset_window: ResetWindow;
-};
+export type QuotaLimitConfig = Served<Schemas["QuotaLimitConfig"]>;
 
-export type QuotaUsageItem = {
-  quota_type: QuotaType;
-  current_value: number;
-  soft_limit: number | null;
-  hard_limit: number | null;
-  reset_window: ResetWindow;
-  next_reset_at: string | null;
-  near_limit: boolean;
-  over_soft_limit: boolean;
-  over_hard_limit: boolean;
-};
+export type QuotaUsageItem = Served<Schemas["QuotaUsageItem"]>;
 
 // ---------------------------------------------------------------------------
 // Policy
 // ---------------------------------------------------------------------------
 
-export type OrgQuotaPolicyResponse = {
-  organization_id: string;
-  limits: Partial<Record<QuotaType, QuotaLimitConfig>>;
-  version: number;
-  updated_by_id: string | null;
-  updated_at: string;
-};
+export type OrgQuotaPolicyResponse = Overlay<
+  Served<Schemas["OrgQuotaPolicyResponse"]>,
+  { limits: Partial<Record<QuotaType, QuotaLimitConfig>> }
+>;
 
-export type UpdateOrgQuotaPolicyRequest = {
-  seats?: QuotaLimitConfig | null;
-  uploads?: QuotaLimitConfig | null;
-  questions?: QuotaLimitConfig | null;
-  tokens?: QuotaLimitConfig | null;
-  storage_bytes?: QuotaLimitConfig | null;
-  evaluations?: QuotaLimitConfig | null;
-  api_calls?: QuotaLimitConfig | null;
-  connectors?: QuotaLimitConfig | null;
-  agent_runs?: QuotaLimitConfig | null;
-  change_note?: string | null;
-};
+export type UpdateOrgQuotaPolicyRequest =
+  Schemas["UpdateOrgQuotaPolicyRequest"];
 
 export async function getQuotaPolicy(): Promise<OrgQuotaPolicyResponse> {
   return apiRequest<OrgQuotaPolicyResponse>("/admin/quotas/policy");
@@ -99,13 +77,9 @@ export async function resetQuotaPolicy(changeNote?: string): Promise<void> {
 // Usage dashboard
 // ---------------------------------------------------------------------------
 
-export type OrgQuotaDashboardResponse = {
-  organization_id: string;
-  policy_version: number;
-  quota_usage: QuotaUsageItem[];
-  has_overages: boolean;
-  checked_at: string;
-};
+export type OrgQuotaDashboardResponse = Served<
+  Schemas["OrgQuotaDashboardResponse"]
+>;
 
 export async function getAdminQuotaUsage(): Promise<OrgQuotaDashboardResponse> {
   return apiRequest<OrgQuotaDashboardResponse>("/admin/quotas/usage");
@@ -119,30 +93,13 @@ export async function getMyQuotaUsage(): Promise<OrgQuotaDashboardResponse> {
 // Overrides
 // ---------------------------------------------------------------------------
 
-export type QuotaOverride = {
-  override_id: string;
-  organization_id: string;
-  quota_type: QuotaType;
-  target_user_id: string | null;
-  hard_limit_override: number | null;
-  reason: string;
-  created_by_id: string | null;
-  expires_at: string | null;
-  created_at: string;
-};
+export type QuotaOverride = Served<Schemas["QuotaOverrideResponse"]>;
 
-export type QuotaOverrideListResponse = {
-  items: QuotaOverride[];
-  total: number;
-};
+export type QuotaOverrideListResponse = Served<
+  Schemas["QuotaOverrideListResponse"]
+>;
 
-export type CreateQuotaOverrideRequest = {
-  quota_type: QuotaType;
-  target_user_id?: string | null;
-  hard_limit_override?: number | null;
-  reason: string;
-  expires_at?: string | null;
-};
+export type CreateQuotaOverrideRequest = Schemas["CreateQuotaOverrideRequest"];
 
 export async function listQuotaOverrides(
   params: {
@@ -174,20 +131,11 @@ export async function deleteQuotaOverride(overrideId: string): Promise<void> {
 // Change log
 // ---------------------------------------------------------------------------
 
-export type QuotaChangeLogEntry = {
-  entry_id: string;
-  organization_id: string;
-  version_number: number;
-  policy_snapshot: Record<string, unknown>;
-  change_note: string | null;
-  changed_by_id: string | null;
-  created_at: string;
-};
+export type QuotaChangeLogEntry = Served<
+  Schemas["QuotaChangeLogEntryResponse"]
+>;
 
-export type QuotaChangeLogResponse = {
-  items: QuotaChangeLogEntry[];
-  total: number;
-};
+export type QuotaChangeLogResponse = Served<Schemas["QuotaChangeLogResponse"]>;
 
 export async function listQuotaChangeLog(
   params: {

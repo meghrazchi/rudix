@@ -1,0 +1,163 @@
+# Staging overrides for the Rudix chart (0.8.0).
+#
+# Same keys as values-production.yaml (R08-12): the two files differ only in scale, hosts,
+# and secret names. Hosts use the reserved `.invalid` TLD and secret names are placeholders;
+# the operator replaces them (docs/28_KUBERNETES_HELM_DEPLOYMENT.md, "Operator steps").
+# Image tags or digests are set at deploy time, never here.
+
+# owner: S1
+nameOverride: ""
+
+# owner: S1
+fullnameOverride: ""
+
+# owner: S1
+global:
+  environment: staging
+
+# owner: S1
+image: {}
+
+# owner: S1
+config:
+  env:
+    ENVIRONMENT: staging
+    API_BASE_URL: https://api.staging.rudix.invalid
+    FRONTEND_BASE_URL: https://app.staging.rudix.invalid
+    LOG_FORMAT: json
+    # v080-A1
+    # v080-A2
+    # v080-B1
+    # v080-B2
+    # Contract 5.2.8: /metrics and worker port 9808 always need the bearer token here.
+    METRICS_REQUIRE_AUTH: "true"
+    # v080-B3
+    # v080-C1
+    # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
+    READINESS_REQUIRED_DEPENDENCIES: postgres,redis
+    # v080-C2
+    DB_PGBOUNCER_MODE: "false"
+    DB_REPLICA_MAX_LAG_SECONDS: "30"
+    DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS: "10"
+    DB_REPLICA_LAG_QUERY_TIMEOUT_MS: "500"
+    # v080-D1
+
+# owner: S1
+secrets:
+  existingSecret: rudix-staging-app-env
+  create: false
+  # owner: D1
+  externalSecret:
+    enabled: false
+    secretStoreRef: {}
+    data: []
+
+# owner: S1
+serviceAccount: {}
+
+# owner: S1
+podSecurityContext: {}
+
+# owner: S1
+containerSecurityContext: {}
+
+# owner: S1
+tmpVolume: {}
+
+# owner: S1
+metrics:
+  # owner: B2
+  workers:
+    multiprocess: true
+  # owner: B2
+  serviceMonitor:
+    enabled: false
+
+# owner: A1
+ingress:
+  enabled: true
+  noindex: true
+  certManager:
+    clusterIssuer: ""
+  app:
+    host: app.staging.rudix.invalid
+    tlsSecretName: rudix-staging-app-tls
+  api:
+    host: api.staging.rudix.invalid
+    tlsSecretName: rudix-staging-api-tls
+
+# owner: A2
+backup:
+  # Off until the operator creates the bucket, the credentials, and the key Secret
+  # (docs/runbooks/BACKUP_AND_RESTORE.md).
+  enabled: false
+  encryptionKeySecret:
+    name: rudix-staging-backup-key
+
+# owner: A2
+dataStores: {}
+
+# owner: C1
+frontend:
+  replicas: 2
+
+# owner: C1
+api:
+  replicas: 2
+
+# owner: C1
+mcp: {}
+
+# owner: C1
+workers:
+  pools:
+    ingest:
+      replicas: 1
+
+# owner: C1
+beat: {}
+
+# owner: C1
+migrations:
+  useMigrationUrl: true
+
+# owner: C1
+autoscaling:
+  api:
+    maxReplicas: 4
+
+# owner: C1
+networkPolicy: {}
+
+# owner: C1
+podDisruptionBudget: {}
+
+# owner: C1
+rollout: {}
+
+# owner: C1
+connectionBudget: {}
+
+# owner: C2
+database: {}
+
+# owner: C2
+pgbouncer: {}
+
+# owner: B3
+tracing:
+  # Off; see values.yaml. Set an https:// private collector to enable (docs/28 Tracing).
+  enabled: false
+  endpoint: ""
+  headersSecretKey: OTEL_EXPORTER_OTLP_HEADERS
+
+# owner: D1
+runtimeConfig:
+  env:
+    NEXT_PUBLIC_DEPLOYMENT_ENV: staging
+    NEXT_PUBLIC_API_URL: https://api.staging.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.staging.rudix.invalid
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: staging
+
+# owner: D1
+cdn: {}

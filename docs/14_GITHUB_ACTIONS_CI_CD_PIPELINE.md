@@ -54,6 +54,9 @@ Jobs:
    - starts ephemeral PostgreSQL and Redis services
    - runs `alembic upgrade head`
    - runs a downgrade/upgrade round trip to catch migration regressions
+   - "Check migration safety" (0.8.0, R08-08): `scripts/check_migration_safety.py --all`, and
+     on pull requests `--base-ref origin/<base>` (the checkout uses `fetch-depth: 0`); rules in
+     `docs/CONTRIBUTING.md`, "Database migrations"
    - job name `Backend Alembic validation`; the PostgreSQL test lane moved to
      `backend-postgres.yml` (R03-01)
 4. `frontend`
@@ -63,6 +66,41 @@ Jobs:
      `coverage.thresholds` in `frontend/vitest.config.ts` (R03-02 ratchet)
    - verifies generated API types against the committed OpenAPI schema
    - runs the production frontend build
+
+The `deploy-config` job (name `Deploy config`, added in `0.8.0`) checks deployment files
+without deploying anything: "Set up Helm" installs Helm `v3.19.0` (`azure/setup-helm@v4`),
+"Lint and render Helm chart" runs `deploy/scripts/check_helm_chart.sh` (`helm lint --strict`
+and `helm template` of `deploy/helm/rudix` with the defaults, `values-staging.yaml`,
+`values-production.yaml`, and every `ci/*-values.yaml`) and writes the manifests to
+`$RUNNER_TEMP/helm`, "Validate rendered manifests" runs `kubeconform` `v0.6.7` (strict,
+Kubernetes `1.30.0` schemas, unknown kinds such as CRDs skipped) on them, and "Check compose
+files" runs `deploy/scripts/check_compose_config.sh` (`docker compose config` of every Compose
+file with placeholder env). The `backend` job also installs Helm before "Run backend tests" so
+the chart tests (`tests/test_helm_chart_*.py`) run instead of skipping. `kubeconform` and this
+job are first exercised in CI; they were not run on a development machine when the job was
+added, so add `Deploy config` to the required checks only after it has passed on `develop`.
+
+Edge and parity checks in `deploy-config` (`0.8.0`, `R08-01`, `R08-12`): "Check compose files"
+also checks staging and production with `--profile graph --profile analytics --profile pooler
+--profile redis-split --profile mcp`, and fails when any service other than `edge` publishes a
+host port or `edge` publishes one other than 80 or 443 (`docker compose config --format json`).
+"Validate Caddyfile" (after "Check compose files") runs `caddy validate` from the pinned
+`caddy:2.10` image on `deploy/compose/edge/Caddyfile` for every combination of
+`EDGE_TLS_MODE` (`acme`, `files` with a throwaway self-signed certificate), `EDGE_NOINDEX`
+(`true`, `false`), and `EDGE_MATOMO` (`off`, `on`). It is first exercised in CI; Caddy is not
+installed on development machines, where `backend/tests/test_edge_proxy_config.py` checks the
+Caddyfile text instead.
+
+Release deploys (`0.8.0`): both Terraform steps set the new variable `TF_VAR_compose_profiles`
+(staging `graph`, production `analytics`, which keeps Neo4j on staging and Matomo on
+production running now that both sit behind profiles). Terraform writes it to the host `.env`
+as `COMPOSE_PROFILES=` when not empty and uploads `deploy/compose/edge/` (the Caddyfile and
+its snippets, each hashed into the rollout triggers) next to the compose file. The edge image
+is pinned like the data stores: the production env file must set `CADDY_IMAGE` (and
+`PGBOUNCER_IMAGE` when `COMPOSE_PROFILES` includes `pooler`) to an exact tag or digest, or
+`deploy/scripts/check_deploy_env.sh` fails the production deploy unless
+`DEPLOY_ALLOW_UNPINNED_IMAGES=true`; staging only warns. Add `CADDY_IMAGE` to
+`PRODUCTION_ENV_FILE` before the first `0.8.0` production deploy.
 
 Coverage thresholds are ratchets: raise them when coverage rises and never lower them without
 a reason in the pull request.
@@ -224,6 +262,15 @@ Rollback (dispatch `target=rollback`): inputs `environment` (`production` or `st
 `api:vX.Y.Z`, `worker:vX.Y.Z`, and `frontend-<environment>:<sha of vX.Y.Z>` to digests and
 swaps the images without running migrations. The three `rollback_*_image` inputs still work
 as a deprecated fallback when `version` is empty (kept for one milestone).
+
+Kubernetes (`0.8.0`): `release.yml` does not deploy to a cluster; it still rolls Compose out
+with Terraform. Installing or upgrading the Helm chart is an operator step: resolve the digests
+the workflow promoted (`api:staging-passed-<sha>` or `api:vX.Y.Z`, the same for `worker`, and
+`frontend-<environment>:<sha>`) with `docker buildx imagetools inspect`, then render and apply
+with `image.<name>.digest` (and `image.frontend.repository=frontend-<environment>`) as in
+[docs/28](./28_KUBERNETES_HELM_DEPLOYMENT.md#workloads-rollout-autoscaling-and-network-policy).
+The chart's migrate Job runs as a `pre-install,pre-upgrade` hook, so no separate migration step
+is needed there; `helm rollback` runs no migrations.
 
 Concurrency: each deploy job (and rollback) holds `rudix-deploy-staging` or
 `rudix-deploy-production`, so two runs never apply Terraform to the same environment at once.
@@ -491,6 +538,31 @@ NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1
 NEXT_PUBLIC_APP_URL=https://getrudix.com
 ```
 
+### Single frontend image (optional, R08-11)
+
+By default `build-images` builds two frontend images, `frontend-staging` and
+`frontend-production`, each with its environment's public URLs baked in. Set the repository
+variable `RUDIX_FRONTEND_IMAGE_MODE=single` to build one image instead, in request mode
+(`NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request`), with `NEXT_PUBLIC_PUBLIC_SITE_URL` from the
+variable `RUDIX_PUBLIC_SITE_URL` (required, `https://`). The image is pushed under both
+repositories, so `frontend_staging_image` and `frontend_production_image` are the same digest
+and the rest of the workflow (scan, sign, staging deploy, promotion) is unchanged. Each
+environment then sets its public values at runtime (container env or the chart's
+`runtimeConfig.env`). Canonical URLs stay build-time, so staging serves the production
+canonical URL and must send `X-Robots-Tag: noindex` (`EDGE_NOINDEX=true`); a CDN asset prefix
+must be one host for both. This path is first exercised in GitHub Actions; leave the variable
+unset until the owner has accepted those two decisions.
+
+### Per-secret environment secrets (recommended, R08-11)
+
+`STAGING_ENV_FILE` and `PRODUCTION_ENV_FILE` carry every backend secret in one GitHub secret.
+Rotating one value means rewriting and re-pasting the whole file, and every reader of the
+secret sees all values. Move to one GitHub environment secret per value (for example
+`APP_AUTH_SECRET`, `APP_AUTH_SECRET_PREVIOUS`, `DATABASE_URL`, `METRICS_BEARER_TOKEN`) that
+the deploy step writes into the env file, or to a secret manager read by the chart's
+`secrets.externalSecret` (External Secrets Operator). Until then, keep the whole-file secrets;
+the rotation order for each value is in `docs/11` `### Rotation`.
+
 ### Evaluation and quality gates
 
 | Secret                 | Expected content                                                                      |
@@ -499,6 +571,21 @@ NEXT_PUBLIC_APP_URL=https://getrudix.com
 | `RUDIX_API_TOKEN`      | Bearer token value only, without the `Bearer ` prefix.                                |
 | `QUALITY_GATE_ID`      | UUID of the quality gate configuration.                                               |
 | `ACCURACY_EVAL_SET_ID` | UUID of the published evaluation set.                                                 |
+
+`RUDIX_API_TOKEN` should be a service-account token:
+
+1. In **Admin → Service accounts**, create an account (for example `github-ci`, environment
+   `ci`) with the `quality_gates:run` scope.
+2. Create a token for it and copy the `svc_…` value. It is shown only once.
+3. Store only that raw value, with no `Bearer ` prefix and no quotes:
+   `gh secret set RUDIX_API_TOKEN`.
+
+`quality_gates:run` lets the token list evaluation runs, trigger a gate run and read its
+report. It cannot create, edit, delete or override gates; overriding a failed gate stays an
+owner/admin action. A token without the scope gets `403`, and a value that is not a `svc_`,
+`rudix_` or valid session token gets `401 Invalid token format`. Rotate by creating a second
+token, updating the secret, then revoking the old one. An admin's session token also works
+but expires after `APP_AUTH_ACCESS_TOKEN_TTL_SECONDS` (default 1 hour), so do not use it for CI.
 
 ### Optional Sentry release tagging
 

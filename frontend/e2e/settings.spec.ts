@@ -507,7 +507,7 @@ test.describe("Settings E2E smoke", () => {
     await waitForSessionBootstrap(page);
 
     await expect(
-      page.getByRole("heading", { name: "Chunking Profiles" }),
+      page.getByRole("heading", { name: "Chunking Profiles", exact: true }),
     ).toBeVisible();
   });
 

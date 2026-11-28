@@ -1,4 +1,9 @@
+import type { Served, WithOptional } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -11,140 +16,40 @@ export type DisclaimerPosition = "prepend" | "append";
 export type PolicyOutcome = "allowed" | "blocked" | "warned";
 export type PolicySource = "org" | "collection" | "none";
 
-export type AiResponsePolicyResponse = {
-  policy_id: string;
-  organization_id: string;
-  policy_name: string;
-  description: string | null;
-  is_active: boolean;
-  citation_mode: CitationMode;
-  min_confidence_threshold: number | null;
-  no_answer_behavior: NoAnswerBehavior;
-  stale_source_behavior: StaleSourceBehavior;
-  blocked_topics: string[];
-  allowed_topics: string[] | null;
-  min_sources_required: number | null;
-  disclaimer_text: string | null;
-  disclaimer_position: DisclaimerPosition;
-  refusal_message: string | null;
-  created_by_id: string | null;
-  updated_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type AiResponsePolicyResponse = Served<
+  Schemas["AiResponsePolicyResponse"]
+>;
 
-export type AiResponsePolicyListResponse = {
-  items: AiResponsePolicyResponse[];
-  total: number;
-};
+export type AiResponsePolicyListResponse = Served<
+  Schemas["AiResponsePolicyListResponse"]
+>;
 
-export type CreateAiResponsePolicyRequest = {
-  policy_name: string;
-  description?: string | null;
-  citation_mode?: CitationMode;
-  min_confidence_threshold?: number | null;
-  no_answer_behavior?: NoAnswerBehavior;
-  stale_source_behavior?: StaleSourceBehavior;
-  blocked_topics?: string[];
-  allowed_topics?: string[] | null;
-  min_sources_required?: number | null;
-  disclaimer_text?: string | null;
-  disclaimer_position?: DisclaimerPosition;
-  refusal_message?: string | null;
-};
+export type CreateAiResponsePolicyRequest = WithOptional<
+  Schemas["CreateAiResponsePolicyRequest"],
+  "grounded_verification_mode"
+>;
 
-export type UpdateAiResponsePolicyRequest = {
-  policy_name?: string;
-  description?: string | null;
-  citation_mode?: CitationMode;
-  min_confidence_threshold?: number | null;
-  no_answer_behavior?: NoAnswerBehavior;
-  stale_source_behavior?: StaleSourceBehavior;
-  blocked_topics?: string[];
-  allowed_topics?: string[] | null;
-  min_sources_required?: number | null;
-  disclaimer_text?: string | null;
-  disclaimer_position?: DisclaimerPosition;
-  refusal_message?: string | null;
-  is_active?: boolean;
-};
+export type UpdateAiResponsePolicyRequest =
+  Schemas["UpdateAiResponsePolicyRequest"];
 
-export type CollectionPolicyOverrideResponse = {
-  override_id: string;
-  org_policy_id: string;
-  collection_id: string;
-  citation_mode: CitationMode | null;
-  min_confidence_threshold: number | null;
-  no_answer_behavior: NoAnswerBehavior | null;
-  stale_source_behavior: StaleSourceBehavior | null;
-  blocked_topics: string[] | null;
-  allowed_topics: string[] | null;
-  min_sources_required: number | null;
-  disclaimer_text: string | null;
-  refusal_message: string | null;
-  updated_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type CollectionPolicyOverrideResponse = Served<
+  Schemas["CollectionPolicyOverrideResponse"]
+>;
 
-export type UpsertCollectionPolicyOverrideRequest = {
-  citation_mode?: CitationMode | null;
-  min_confidence_threshold?: number | null;
-  no_answer_behavior?: NoAnswerBehavior | null;
-  stale_source_behavior?: StaleSourceBehavior | null;
-  blocked_topics?: string[] | null;
-  allowed_topics?: string[] | null;
-  min_sources_required?: number | null;
-  disclaimer_text?: string | null;
-  refusal_message?: string | null;
-};
+export type UpsertCollectionPolicyOverrideRequest =
+  Schemas["UpsertCollectionPolicyOverrideRequest"];
 
-export type PolicyPreviewRequest = {
-  question: string;
-  confidence_score?: number;
-  citation_count?: number;
-  stale_source_count?: number;
-  collection_id?: string | null;
-  policy_id?: string | null;
-};
+export type PolicyPreviewRequest = Schemas["PolicyPreviewRequest"];
 
-export type PolicyPreviewResponse = {
-  outcome: PolicyOutcome;
-  policy_source: PolicySource;
-  policy_id: string | null;
-  violated_rules: string[];
-  warning_flags: string[];
-  refusal_message: string | null;
-  disclaimer_text: string | null;
-  disclaimer_position: DisclaimerPosition;
-};
+export type PolicyPreviewResponse = Served<Schemas["PolicyPreviewResponse"]>;
 
-export type PolicyEvaluationLogResponse = {
-  log_id: string;
-  organization_id: string;
-  user_id: string | null;
-  org_policy_id: string | null;
-  collection_id: string | null;
-  chat_session_id: string | null;
-  chat_message_id: string | null;
-  outcome: PolicyOutcome;
-  policy_source: PolicySource;
-  violated_rules: string[];
-  warning_flags: string[];
-  question_preview: string | null;
-  confidence_score: number | null;
-  citation_count: number | null;
-  stale_source_count: number | null;
-  is_preview_run: boolean;
-  created_at: string;
-};
+export type PolicyEvaluationLogResponse = Served<
+  Schemas["PolicyEvaluationLogResponse"]
+>;
 
-export type PolicyEvaluationLogListResponse = {
-  items: PolicyEvaluationLogResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type PolicyEvaluationLogListResponse = Served<
+  Schemas["PolicyEvaluationLogListResponse"]
+>;
 
 // ---------------------------------------------------------------------------
 // API functions — org policy CRUD

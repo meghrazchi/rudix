@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import {
   SectionHeader,
   StatRow,
@@ -7,37 +9,43 @@ import type {
   ToolOrchestrationRecord,
 } from "@/lib/api/trust_metadata";
 
-const DENIAL_REASON_LABEL: Record<string, string> = {
-  org_policy_disabled: "Disabled by policy",
-  feature_unavailable: "Feature unavailable",
-  insufficient_role: "Insufficient role",
-  insufficient_permission: "Insufficient permission",
-  source_scope_mismatch: "Scope mismatch",
-};
+const DENIAL_REASONS = new Set([
+  "org_policy_disabled",
+  "feature_unavailable",
+  "insufficient_role",
+  "insufficient_permission",
+  "source_scope_mismatch",
+]);
 
 export function ToolOrchestrationSection({
   toolOrchestration,
 }: {
   toolOrchestration: ToolOrchestrationRecord | null;
 }) {
+  const t = useTranslations("chat.trustPanel");
   if (toolOrchestration === null || !toolOrchestration.enabled) {
     return null;
   }
 
-  const deniedCalls = toolOrchestration.tool_calls.filter((t) => !t.authorized);
+  const deniedCalls = toolOrchestration.tool_calls.filter(
+    (call) => !call.authorized,
+  );
 
   return (
     <div className="space-y-2">
-      <SectionHeader icon="build" label="Tool Orchestration" />
+      <SectionHeader icon="build" label={t("tools.title")} />
       <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
-        <StatRow label="Tools evaluated" value={toolOrchestration.tool_count} />
         <StatRow
-          label="Authorized"
+          label={t("tools.evaluated")}
+          value={toolOrchestration.tool_count}
+        />
+        <StatRow
+          label={t("tools.authorized")}
           value={toolOrchestration.authorized_count}
         />
         {toolOrchestration.denied_count > 0 ? (
           <StatRow
-            label="Denied"
+            label={t("tools.denied")}
             value={
               <span className="font-semibold text-[#d97706]">
                 {toolOrchestration.denied_count}
@@ -56,9 +64,9 @@ export function ToolOrchestrationSection({
               <span className="font-medium">{call.tool_name}</span>
               <span className="text-amber-600">—</span>
               <span>
-                {DENIAL_REASON_LABEL[call.denial_reason ?? ""] ??
-                  call.denial_reason ??
-                  "Denied"}
+                {DENIAL_REASONS.has(call.denial_reason ?? "")
+                  ? t(`tools.reason.${call.denial_reason}`)
+                  : (call.denial_reason ?? t("tools.deniedDefault"))}
               </span>
             </div>
           ))}

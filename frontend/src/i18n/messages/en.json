@@ -74,7 +74,15 @@
     "viewAll": "View all",
     "refresh": "Refresh",
     "noResults": "No results found",
-    "page": "Page"
+    "page": "Page",
+    "pagination": {
+      "loadMore": "Load more",
+      "loadingMore": "Loading more…",
+      "showingCount": "Showing {shown} of {total}",
+      "noMore": "All items are shown",
+      "searchToFind": "Search to find more",
+      "partialSummary": "Based on the first {shown} of {total} documents"
+    }
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -182,6 +190,8 @@
     "inviteCodeRequired": "Invite code is required to join a workspace",
     "termsRequired": "You must accept the terms to create an account"
   },
+  "authAccount": {},
+  "authMfa": {},
   "validation": {
     "emailRequired": "Email is required",
     "emailInvalid": "Enter a valid email address",
@@ -2583,6 +2593,7 @@
       "sourceDocsNone": "No citations for this response.",
       "viewPipelineRun": "View pipeline run",
       "agentTimeline": "Agent timeline",
+      "agentRunShortId": "run {id}…",
       "loadingTimeline": "Loading timeline...",
       "approvalsTitle": "Approvals",
       "approvalNeeded": "Approval needed",
@@ -2701,7 +2712,15 @@
       "closeKnowledgeHub": "Close Knowledge Hub",
       "answerExplanation": "Answer Explanation",
       "saveKnowledgeCard": "Save as knowledge card",
-      "closeAnswerExplanation": "Close answer explanation"
+      "closeAnswerExplanation": "Close answer explanation",
+      "assistantName": "Rudix AI",
+      "emptyGreeting": "Rudix is here.",
+      "explainAnswerShort": "Explain answer",
+      "staleCitationsNotice": "Some citations come from stale, expired, or archived sources.",
+      "deleteSessionBody": "This session will be permanently deleted from the workspace. The action cannot be undone.",
+      "loadingChunkText": "Loading chunk text...",
+      "citationPageUpper": "PAGE {page}",
+      "citationScoreLower": "score {score}"
     },
     "composer": {
       "selectScope": "select scope",
@@ -2849,6 +2868,449 @@
         "dimensions": "({rows} rows × {columns} columns)",
         "headers": "Headers: {headers}"
       }
+    },
+    "trustPanel": {
+      "na": "N/A",
+      "yes": "Yes",
+      "unknownDocument": "Unknown document",
+      "source": "Source",
+      "pageShort": "p. {page}",
+      "level": {
+        "high": "High",
+        "medium": "Medium",
+        "warning": "Warning",
+        "notFound": "Not Found",
+        "low": "Low"
+      },
+      "badge": {
+        "trusted": "Trusted",
+        "stale": "Stale",
+        "revoked": "Revoked",
+        "deleted": "Deleted",
+        "expired": "Expired",
+        "deprecated": "Deprecated",
+        "draft": "Draft",
+        "unreviewed": "Unreviewed",
+        "preferred": "Preferred",
+        "conflicting": "Conflicting",
+        "supported": "Supported",
+        "partial": "Partial",
+        "unverifiable": "Unverifiable",
+        "unsupported": "Unsupported",
+        "ocrLow": "OCR low confidence",
+        "ocrMedium": "OCR medium",
+        "tableLow": "Table low confidence",
+        "corrupted": "Corrupted",
+        "unsupportedFormat": "Unsupported format",
+        "encrypted": "Encrypted",
+        "extractionIssue": "Extraction issue",
+        "processingIncomplete": "Processing incomplete",
+        "guidance": "General product guidance"
+      },
+      "range": {
+        "from": "from {value}",
+        "upTo": "up to {value}"
+      },
+      "complexity": {
+        "simple": "simple",
+        "complex": "complex",
+        "multiPart": "multi-part"
+      },
+      "summary": {
+        "scope": "Scope: {scope}",
+        "scopeAll": "Scope: all documents",
+        "profile": "Profile: {profile}",
+        "candidates": "{count, plural, one {# candidate} other {# candidates}} reviewed",
+        "chunks": "{count, plural, one {# chunk} other {# chunks}} selected",
+        "topK": "top-k {value}",
+        "mode": "Mode: {mode}",
+        "rerankFellBack": "reranking fell back",
+        "rerankFellBackReason": "reranking fell back ({reason})",
+        "rerankApplied": "reranking was applied",
+        "rerankOff": "reranking was off"
+      },
+      "warn": {
+        "lowConfidence": "Low confidence — validate this answer against cited sources.",
+        "citationFailed": "Citation validation failed — some citations could not be verified.",
+        "verificationFailed": "Answer verification failed — claims may not be fully grounded.",
+        "sourcesStale": "One or more sources may be stale or unreviewed.",
+        "allExcluded": "All trusted sources were excluded. The answer uses deprecated or expired content.",
+        "citedStale": "One or more cited sources are stale or expired.",
+        "citedPending": "One or more cited sources are pending review.",
+        "citedDeprecated": "One or more cited sources are deprecated or archived.",
+        "citedOcr": "One or more sources have low OCR confidence — text accuracy may be reduced.",
+        "tableLow": "One or more cited tables have low extraction confidence — table data may be inaccurate.",
+        "extractionPoor": "One or more source documents have poor extraction quality — text coverage may be incomplete.",
+        "processingIncomplete": "One or more source documents have incomplete or failed processing — content may be missing.",
+        "removedClaims": "{count} unsupported claim(s) were removed from the answer.",
+        "weakSupport": "Citation support is weak — review the mapped claims.",
+        "unsupportedClaims": "{unsupported}/{total} claim(s) are not supported by citations.",
+        "conflictSummary": "Source conflict: {summary}",
+        "conflictDefault": "Sources disagree on one or more claims. Prefer the marked source.",
+        "conflictPartial": "Sources partially disagree. Verify claims against cited sources."
+      },
+      "header": {
+        "modeAria": "Retrieval diagnostics mode",
+        "basic": "Basic",
+        "expert": "Expert",
+        "answerExplanation": "Answer Explanation",
+        "modelView": "Model view",
+        "description": "Confidence, source selection, and citation support are grouped into a single review panel.",
+        "saveAria": "Save as knowledge card",
+        "saveAsCard": "Save as card",
+        "reportAria": "Report an issue with this answer",
+        "reportIssue": "Report issue"
+      },
+      "sources": {
+        "title": "Sources ({count})",
+        "updated": "Updated {date}",
+        "synced": "Synced {date}",
+        "score": "Score {score}",
+        "rerank": "Rerank {score}",
+        "table": "Table",
+        "previewAria": "Preview {title}"
+      },
+      "claims": {
+        "title": "Claim Support ({supported}/{total})",
+        "aggregate": "Aggregate support",
+        "verificationScore": "Verification score",
+        "supported": "Supported claims",
+        "partial": "Partial claims",
+        "unsupported": "Unsupported claims",
+        "unverifiable": "Unverifiable claims",
+        "claimN": "Claim {n}",
+        "supportPct": "Support {pct}",
+        "previewAria": "Preview source {index} for claim {claim}",
+        "sourceN": "Source {index}",
+        "noMapped": "No validated citations mapped to this claim.",
+        "noMapping": "Claim-level citation mapping is not available for this answer snapshot."
+      },
+      "confidence": {
+        "title": "Trust Score",
+        "scoreAria": "Confidence score",
+        "signals": "Confidence signals",
+        "category": {
+          "low": "low",
+          "medium": "medium",
+          "high": "high"
+        },
+        "topSimilarity": "Top similarity",
+        "avgSimilarity": "Avg similarity",
+        "rerankScore": "Rerank score",
+        "citationCoverage": "Citation coverage",
+        "citationSupport": "Citation support",
+        "sourceAgreement": "Source agreement",
+        "freshnessFactor": "Freshness factor",
+        "ocrFactor": "OCR quality factor",
+        "conflictFactor": "Conflict factor",
+        "tableFactor": "Table quality factor",
+        "extractionFactor": "Extraction quality factor",
+        "graphBoost": "Graph boost"
+      },
+      "conflict": {
+        "title": "Source Conflict",
+        "pairs": "{count, plural, one {# conflict pair} other {# conflict pairs}}",
+        "sourcesInConflict": "Sources in conflict",
+        "preferredCount": "Preferred source count",
+        "noPreferred": "No preferred source could be determined — treat all sources with equal caution.",
+        "level": {
+          "full": "Full agreement",
+          "partial": "Partial agreement",
+          "conflicting": "Conflicting sources"
+        },
+        "detected": "Source conflict detected",
+        "comparison": "Source comparison",
+        "preferredIds": "Preferred source IDs: {ids}",
+        "preferredSources": "Preferred sources",
+        "conflictingSources": "Conflicting sources",
+        "document": "Document",
+        "noSnippet": "No snippet available."
+      },
+      "graph": {
+        "title": "Knowledge Graph",
+        "unavailable": "Graph context unavailable.",
+        "seedEntities": "Seed entities",
+        "relatedEntities": "Related entities",
+        "chunks": "Graph chunks",
+        "maxHops": "Max hops",
+        "relationTypes": "Relation types"
+      },
+      "model": {
+        "title": "Model",
+        "provider": "Provider",
+        "llmModel": "LLM model",
+        "embeddings": "Embeddings",
+        "promptTemplate": "Prompt template",
+        "fallbackFrom": "Fallback from",
+        "fallbackPrimary": "primary",
+        "fallbackTo": "Fallback to",
+        "fallbackReason": "Fallback reason",
+        "detectedLanguage": "Detected language",
+        "answerLanguage": "Answer language"
+      },
+      "policy": {
+        "title": "Policy",
+        "outcome": "Outcome",
+        "violated": "Violated rules",
+        "warnings": "Warnings"
+      },
+      "pipeline": {
+        "title": "Answer Pipeline",
+        "strategy": "Strategy",
+        "highRisk": "High-risk review",
+        "criticSeverity": "Critic severity",
+        "refiner": "Refiner",
+        "refinerRevised": "Applied — answer revised",
+        "refinerNoChange": "Applied — no changes",
+        "claimsRemoved": "Claims removed",
+        "criticWarnings": "Critic warnings",
+        "strategies": {
+          "policy_lookup": "Policy lookup",
+          "comparison": "Comparison",
+          "legal_compliance": "Legal / compliance",
+          "table_heavy": "Table-heavy",
+          "graph_assisted": "Graph-assisted",
+          "connector_search": "Connector search",
+          "standard": "Standard"
+        },
+        "severity": {
+          "none": "none",
+          "low": "low",
+          "medium": "medium",
+          "high": "high"
+        }
+      },
+      "query": {
+        "title": "Query Interpretation",
+        "intent": "Intent",
+        "strategy": "Strategy",
+        "complexity": "Complexity",
+        "rewritePreview": "Rewrite preview",
+        "subQueries": "Sub-queries",
+        "rewriteDisabled": "Rewrite preview is disabled by organization policy."
+      },
+      "diag": {
+        "title": "Retrieval Diagnostics",
+        "candidates": "Candidates",
+        "selectedChunks": "Selected chunks",
+        "topK": "Top-k",
+        "searchMode": "Search mode",
+        "scopeMode": "Scope mode",
+        "scopeLabel": "Scope label",
+        "profile": "Profile",
+        "profileScope": "Profile scope",
+        "profileSource": "Profile source",
+        "requestId": "Request ID",
+        "traceId": "Trace ID",
+        "rerankRange": "Rerank score range",
+        "vectorHits": "Vector hits",
+        "keywordHits": "Keyword hits",
+        "reranker": "Reranker",
+        "enabled": "Enabled",
+        "rerankFallback": "Rerank fallback",
+        "parentExpansion": "Parent expansion",
+        "parentChunks": "{count} chunks",
+        "parentTokens": "Parent tokens",
+        "freshnessBoosted": "Freshness boosted",
+        "excluded": "Excluded (deprecated/expired)",
+        "staleSources": "Stale sources",
+        "unreviewedSources": "Unreviewed sources",
+        "deprecatedSources": "Deprecated sources",
+        "allExcludedFallback": "All-excluded fallback",
+        "ocrLowChunks": "OCR low-conf chunks"
+      },
+      "method": {
+        "title": "Search Strategy",
+        "method": "Method",
+        "override": "Override",
+        "overrideUser": "User-specified",
+        "overrideAdmin": "Admin profile",
+        "selection": "Selection",
+        "auto": "Auto-selected"
+      },
+      "selection": {
+        "title": "Source selection",
+        "request": "Request {id}",
+        "trace": "Trace {id}",
+        "mode": "Mode {mode}",
+        "rerankFallback": "Rerank fallback",
+        "rerankOn": "Rerank on",
+        "rerankOff": "Rerank off"
+      },
+      "tools": {
+        "title": "Tool Orchestration",
+        "evaluated": "Tools evaluated",
+        "authorized": "Authorized",
+        "denied": "Denied",
+        "deniedDefault": "Denied",
+        "reason": {
+          "org_policy_disabled": "Disabled by policy",
+          "feature_unavailable": "Feature unavailable",
+          "insufficient_role": "Insufficient role",
+          "insufficient_permission": "Insufficient permission",
+          "source_scope_mismatch": "Scope mismatch"
+        }
+      },
+      "verification": {
+        "title": "Verification",
+        "verdict": "Verdict",
+        "score": "Score",
+        "claimsChecked": "Claims checked",
+        "supported": "Supported",
+        "unsupported": "Unsupported",
+        "removed": "Removed",
+        "verifierModel": "Verifier model"
+      },
+      "excerpt": {
+        "cited": "Cited excerpt",
+        "chunk": "Cited chunk text"
+      }
+    },
+    "activity": {
+      "timelineAria": "Answer generation timeline",
+      "stepsAria": "Activity steps",
+      "milliseconds": "{value}ms",
+      "seconds": "{value}s"
+    },
+    "feedback": {
+      "title": {
+        "edit": "Edit feedback",
+        "new": "Report an issue"
+      },
+      "closeAria": "Close feedback dialog",
+      "issueType": "Issue type (optional)",
+      "categoryLegend": "Feedback category",
+      "noneOfAbove": "None of the above",
+      "additionalClassification": "Additional classification (optional)",
+      "legacyLegend": "Legacy reason",
+      "noneSkip": "None / prefer not to say",
+      "details": "Additional details (optional)",
+      "placeholder": "Describe the issue…",
+      "removing": "Removing…",
+      "remove": "Remove feedback",
+      "cancel": "Cancel",
+      "submitting": "Submitting…",
+      "submit": "Submit",
+      "reasons": {
+        "wrong_citation": "Wrong or missing citation",
+        "hallucination": "Unsupported or fabricated claim",
+        "outdated_source": "Outdated source",
+        "missing_document": "Relevant document not used",
+        "unsafe_content": "Unsafe or sensitive content",
+        "other": "Other"
+      },
+      "categoryLabels": {
+        "wrong_answer": "Wrong answer",
+        "bad_citation": "Bad citation",
+        "missing_citation": "Missing citation",
+        "missing_source": "Missing source",
+        "outdated_source": "Outdated source",
+        "hallucination_risk": "Hallucination risk",
+        "conflict_not_detected": "Conflict not detected",
+        "unclear_answer": "Unclear answer",
+        "should_have_said_not_found": "Should have said not found"
+      },
+      "categoryDescriptions": {
+        "wrong_answer": "The answer is factually incorrect",
+        "bad_citation": "Citation is wrong, missing, or irrelevant",
+        "missing_citation": "A citation that should be there is absent",
+        "missing_source": "A relevant source was not used or surfaced",
+        "outdated_source": "The source material is no longer current",
+        "hallucination_risk": "The answer may be unsupported or fabricated",
+        "conflict_not_detected": "Conflicting sources were not flagged",
+        "unclear_answer": "The answer is too vague or incomplete",
+        "should_have_said_not_found": "The system should have refused or said not found"
+      },
+      "trustCategoryDescriptions": {
+        "bad_citation": "A citation is wrong, irrelevant, or points to the wrong place",
+        "missing_source": "The answer should have used a source that is absent",
+        "outdated_source": "The cited source is outdated or no longer accurate",
+        "conflict_not_detected": "The model missed a conflict between sources",
+        "should_have_said_not_found": "No relevant information exists - the model should have said so"
+      },
+      "trust": {
+        "title": "Report answer issue",
+        "closeAria": "Close report dialog",
+        "question": "What is wrong with this answer?",
+        "categoryLegend": "Issue category",
+        "otherNotListed": "Other / not listed",
+        "flagSources": "Flag specific sources (optional)",
+        "placeholder": "Describe what was wrong…",
+        "traceId": "Trace ID: <mono>{id}</mono>",
+        "reporting": "Reporting…",
+        "report": "Report issue"
+      },
+      "unknownSource": "Unknown source"
+    },
+    "share": {
+      "expiry": {
+        "never": "Never",
+        "24h": "24 hours",
+        "7d": "7 days",
+        "30d": "30 days"
+      },
+      "close": "Close",
+      "copyLink": "Copy link",
+      "revokeLink": "Revoke link",
+      "createLink": "Create link",
+      "expiresLabel": "Expires:",
+      "generate": "Generate link",
+      "creating": "Creating...",
+      "loadingLinks": "Loading share links...",
+      "activeLinks": "Active links",
+      "expiresValue": "Expires: {value}",
+      "accessOrg": "Organization",
+      "accessSpecific": "Specific users",
+      "passwordProtected": "Password protected",
+      "answerModal": {
+        "title": "Share answer",
+        "description": "Create a permission-controlled link to this Q&A turn.",
+        "notice": "Viewers must be signed-in members of your organization. Citations show excerpt text only — underlying document IDs are not exposed.",
+        "access": "Access",
+        "userIds": "User IDs (comma or space separated)",
+        "userIdsPlaceholder": "uuid-1, uuid-2, ...",
+        "requirePassword": "Require password",
+        "passwordPlaceholder": "Enter link password (min 4 characters)",
+        "noActive": "No active share links for this answer."
+      },
+      "sessionModal": {
+        "title": "Share session",
+        "untitled": "Untitled session",
+        "notice": "Share links are only accessible to signed-in members of your organization.",
+        "noActive": "No active share links for this session."
+      },
+      "page": {
+        "passwordTitle": "Password required",
+        "passwordBody": "This shared answer is password protected. Enter the password to view it.",
+        "passwordPlaceholder": "Enter password",
+        "checking": "Checking...",
+        "unlock": "Unlock",
+        "loadingAnswer": "Loading shared answer...",
+        "loadingSession": "Loading shared session...",
+        "accessDenied": "Access denied",
+        "answerForbidden": "This share link is not accessible with your account.",
+        "sessionForbidden": "This share link is not accessible with your account. You must be a member of the organization that created it.",
+        "notFound": "Share link not found",
+        "answerHeading": "Shared Answer",
+        "sessionHeading": "Shared Session",
+        "sessionFallbackTitle": "Shared session",
+        "shared": "Shared {date}",
+        "sharedExpires": "Shared {date} · Expires {expires}",
+        "sharedMessages": "Shared {date} • {count, plural, one {# message} other {# messages}}",
+        "copyAll": "Copy all",
+        "downloadMd": "Download .md",
+        "aiNoticeAnswer": "This answer is AI-generated and grounded in cited source excerpts. Verify against original documents before acting on it.",
+        "aiNoticeSession": "Answers are AI-generated and grounded in cited source evidence. Verify against source documents before acting on them.",
+        "staleAnswer": "Some citations come from stale, expired, or archived sources.",
+        "staleSession": "Some citations in this shared session come from stale, revoked, or deleted sources.",
+        "question": "Question",
+        "aiAnswer": "AI-generated answer",
+        "confidence": "{category} confidence",
+        "noMessages": "No messages in this shared session.",
+        "document": "Document",
+        "pageN": "Page {page}",
+        "archived": "Archived"
+      }
     }
   },
   "evaluations": {
@@ -2990,6 +3452,535 @@
       "runNotFoundDescription": "The run may belong to a different organization or was removed.",
       "createSetPermission": "Only owners and admins can create evaluation sets.",
       "setNameRequired": "Set name is required."
+    },
+    "chunkingComparison": {
+      "title": "Chunking strategy comparison",
+      "description": "Question-level results below reflect the primary target. This panel compares all configured profiles on the same evaluation set.",
+      "targets": "{count, plural, one {# target} other {# targets}}",
+      "columns": {
+        "profile": "Profile",
+        "strategy": "Strategy",
+        "score": "Score",
+        "retrieval": "Retrieval",
+        "citation": "Citation",
+        "faithfulness": "Faithfulness",
+        "chunks": "Chunks",
+        "avgTokens": "Avg tokens",
+        "notFound": "Not found",
+        "regression": "Regression"
+      },
+      "targetN": "Target {n}",
+      "versionUnavailable": "Version unavailable",
+      "unknown": "Unknown",
+      "clear": "Clear",
+      "metricFallback": "metric",
+      "bestByDocumentType": "Best by document type",
+      "noDocumentTypes": "No document-type breakdown available.",
+      "bestByUseCase": "Best by use case",
+      "noUseCases": "No use-case breakdown available."
+    },
+    "multilingual": {
+      "coverageWarning": "Insufficient coverage (<5 questions) for: <strong>{languages}</strong>. Add more cases to make these metrics statistically reliable.",
+      "lowBadge": "low",
+      "lowBadgeAria": "insufficient coverage",
+      "lowBadgeTitle": "Fewer than 5 questions — metrics may not be reliable",
+      "loadingCoverage": "Loading language coverage…",
+      "coverageFailed": "Failed to load language coverage.",
+      "noLabels": "No questions have a <code>question_language</code> label yet. Set the language field when creating or importing questions to enable coverage tracking.",
+      "columns": {
+        "language": "Language",
+        "questions": "Questions",
+        "withExpected": "With expected answer",
+        "questionsTitle": "Successes / Total questions",
+        "retrieval": "Retrieval",
+        "citation": "Citation",
+        "faithfulness": "Faithfulness",
+        "relevance": "Relevance",
+        "langAdherence": "Lang adherence",
+        "langAdherenceTitle": "Fraction of answers whose detected language matches expected_answer_language",
+        "avgLatency": "Avg latency",
+        "cost": "Cost"
+      },
+      "unlabelled": "Unlabelled",
+      "totalQuestions": "Total questions: {count}",
+      "loadingBreakdown": "Loading language breakdown…",
+      "breakdownFailed": "Failed to load language breakdown.",
+      "noRunLabels": "No questions in this run have a language label. Set <code>question_language</code> on evaluation questions to see per-language metrics here."
+    },
+    "runDetail": {
+      "na": "N/A",
+      "summary": {
+        "runId": "Run ID",
+        "dataset": "Dataset",
+        "started": "Started",
+        "completed": "Completed",
+        "duration": "Duration",
+        "updated": "Updated"
+      },
+      "comparison": {
+        "baseline": "Baseline comparison",
+        "baselineVsLatest": "Baseline vs latest",
+        "delta": "Delta"
+      },
+      "filters": {
+        "searchCases": "Search cases",
+        "searchPlaceholder": "Question, expected answer, actual answer",
+        "caseStatus": "Case status",
+        "all": "All",
+        "failed": "Failed",
+        "lowQuality": "Low quality",
+        "completed": "Completed",
+        "sort": "Sort",
+        "newest": "Newest first",
+        "latencyDesc": "Latency high to low",
+        "latencyAsc": "Latency low to high",
+        "qualityDesc": "Quality high to low",
+        "qualityAsc": "Quality low to high"
+      },
+      "case": {
+        "expected": "Expected: {value}",
+        "actual": "Actual: {value}",
+        "unavailable": "Unavailable",
+        "quality": "Quality {value}",
+        "confidence": "Confidence {value}",
+        "latency": "Latency: {value}",
+        "citationAccuracy": "Citation accuracy: {value}",
+        "retrieval": "Retrieval: {value}",
+        "faithfulness": "Faithfulness: {value}",
+        "openSource": "Open source document",
+        "linkUnavailable": "Citation link unavailable",
+        "hideDetails": "Hide details",
+        "showDetails": "Show details",
+        "retrievedCitations": "Retrieved citations",
+        "noCitationPayload": "No citation payload available.",
+        "unknownDocument": "Unknown document",
+        "page": "page {page}",
+        "score": "score {score}",
+        "errorPayload": "Error and metrics payload"
+      },
+      "modelProfile": {
+        "title": "Model profile",
+        "provider": "Provider",
+        "local": "local",
+        "baseModel": "Base model",
+        "source": "Source"
+      },
+      "localMetrics": {
+        "title": "Local model metrics",
+        "invalidJson": "Invalid JSON rate",
+        "timeout": "Timeout rate",
+        "fallback": "Fallback frequency"
+      },
+      "detail": {
+        "ariaLabel": "Run detail",
+        "openTrace": "Open pipeline trace",
+        "dataset": "Dataset: {name}",
+        "multilingualAria": "Multilingual quality breakdown",
+        "qualityByLanguage": "Quality by language"
+      },
+      "cases": {
+        "ariaLabel": "Run case results",
+        "title": "Case results",
+        "showing": "Showing {count, plural, one {# case} other {# cases}}",
+        "emptyTitle": "No cases match the selected filters.",
+        "emptyDescription": "Change case filters to inspect failed, low-quality, or completed answers."
+      }
+    },
+    "setsSection": {
+      "ariaLabel": "Evaluation datasets and test cases",
+      "datasetsTitle": "Evaluation datasets",
+      "datasetsDescription": "Select a dataset to inspect test cases and run configurations.",
+      "searchDatasets": "Search datasets",
+      "datasetNamePlaceholder": "Dataset name",
+      "loadingDatasets": "Loading evaluation datasets...",
+      "noDatasets": "No datasets found.",
+      "noDatasetsHint": "Create a set or change search filters.",
+      "noDescription": "No description",
+      "questionsUpdated": "{count, plural, one {# question} other {# questions}} • updated {date}",
+      "testCasesTitle": "Test cases",
+      "testCasesDescription": "Search and sort expected questions/answers for dataset quality checks.",
+      "selectDataset": "Select a dataset to inspect test cases.",
+      "selectDatasetHint": "Once selected, you can search and manage test cases.",
+      "searchTestCases": "Search test cases",
+      "searchTestCasesPlaceholder": "Question, expected answer, or tag",
+      "sort": "Sort",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first",
+      "sortQuestion": "Question A-Z",
+      "addTitle": "Add test case",
+      "question": "Question",
+      "questionPlaceholder": "What is the data retention policy?",
+      "expectedAnswer": "Expected answer",
+      "expectedAnswerPlaceholder": "Optional expected answer",
+      "expectedPage": "Expected page",
+      "optional": "Optional",
+      "tags": "Tags",
+      "tagsPlaceholder": "compliance, retention",
+      "adding": "Adding...",
+      "readOnlyNotice": "Your role can inspect test cases but only owner/admin can add new ones.",
+      "loadingTestCases": "Loading test cases...",
+      "noTestCases": "No test cases match current filters.",
+      "noTestCasesHint": "Add new test cases or adjust the filters.",
+      "tableCaption": "Test cases with expected answers, expected page, and tags.",
+      "columnPage": "Page",
+      "unavailable": "Unavailable"
+    },
+    "dialogs": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "createSet": {
+        "title": "Create evaluation set",
+        "description": "Add a dataset for evaluation questions before starting runs.",
+        "name": "Set name",
+        "namePlaceholder": "Regression suite",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Optional context for this evaluation dataset",
+        "creating": "Creating...",
+        "submit": "Create set"
+      },
+      "startRun": {
+        "title": "Start evaluation run",
+        "queueFor": "Queue a run for <strong>{name}</strong>.",
+        "topK": "Top K",
+        "modelOverride": "Model override",
+        "modelPlaceholder": "Optional backend model",
+        "modelProfile": "Model profile",
+        "modelProfileHint": "Select a saved model profile to benchmark. Leave unset to use the org's default evaluations profile.",
+        "loadingModelProfiles": "Loading model profiles...",
+        "orgDefault": "Org default (evaluations profile)",
+        "experimental": "(experimental)",
+        "enableRerank": "Enable rerank",
+        "rerankHint": "Apply a second-pass ranking stage before generation.",
+        "metricOptions": "Metric options JSON",
+        "scopeDocuments": "Scope to indexed documents",
+        "loadingDocuments": "Loading indexed documents...",
+        "noDocuments": "No indexed documents available.",
+        "chunkingProfiles": "Chunking profiles",
+        "chunkingHint": "Leave all profiles unselected to evaluate the current live index. Select one profile to pin the run. Select multiple profiles to compare strategies on the same dataset.",
+        "loadingChunking": "Loading chunking profiles...",
+        "noChunking": "No saved chunking profiles.",
+        "noChunkingHint": "The run will use the current indexed corpus unless you create profiles first.",
+        "default": "Default",
+        "thresholds": "Regression thresholds",
+        "thresholdsHint": "Optional release gates. Any configured threshold can flag a comparison target as regressed.",
+        "minRetrieval": "Min retrieval hit rate",
+        "minCitation": "Min citation accuracy",
+        "minFaithfulness": "Min faithfulness",
+        "maxNotFound": "Max not-found rate",
+        "queueing": "Queueing...",
+        "queueRun": "Queue run"
+      }
+    },
+    "modelProfiles": {
+      "profiles": {
+        "cloud_baseline": "Cloud Baseline",
+        "local_profile": "Local Profile",
+        "fallback_profile": "Fallback Profile"
+      },
+      "ready": "Ready",
+      "notReady": "Not ready",
+      "runQueued": "Run queued: {id}… ({profile})",
+      "loadingSuites": "Loading benchmark suites…",
+      "runSuite": "Run a benchmark suite",
+      "suiteOption": "{name} ({count, plural, one {# case} other {# cases}})",
+      "triggering": "Triggering…",
+      "runBenchmark": "Run benchmark",
+      "title": "Model profile comparison",
+      "description": "Cloud baseline vs local profile vs fallback — quality metrics and release-gate recommendations.",
+      "refreshing": "Refreshing…",
+      "refresh": "Refresh",
+      "loadingReport": "Loading comparison report…",
+      "empty": "No completed evaluation runs with provider profile labels found. Trigger a benchmark run above to populate this report.",
+      "columns": {
+        "metric": "Metric"
+      },
+      "runs": "({count, plural, one {# run} other {# runs}})",
+      "metrics": {
+        "retrievalHitRate": "Retrieval Hit Rate",
+        "citationAccuracy": "Citation Accuracy",
+        "faithfulness": "Faithfulness",
+        "answerRelevance": "Answer Relevance",
+        "notFoundRate": "Not-Found Rate",
+        "avgLatency": "Avg Latency (ms)",
+        "totalCost": "Total Cost (USD)",
+        "invalidJson": "Invalid JSON Rate",
+        "timeout": "Timeout Rate",
+        "fallbackFrequency": "Fallback Frequency",
+        "computeLatency": "Est. Compute Latency (ms)",
+        "tokensPerSecond": "Tokens / Second"
+      },
+      "releaseGate": "Release gate",
+      "thresholds": "Thresholds: {value}",
+      "generated": "Report generated {date}"
+    },
+    "abTest": {
+      "status": {
+        "completed": "completed",
+        "running": "running",
+        "failed": "failed",
+        "draft": "draft",
+        "pending": "pending",
+        "approved": "approved",
+        "rejected": "rejected",
+        "cancelled": "cancelled"
+      },
+      "noVariantResults": "No variant results yet.",
+      "metrics": {
+        "faithfulness": "Faithfulness",
+        "citationAccuracy": "Citation Accuracy",
+        "answerRelevance": "Answer Relevance",
+        "latencyP95": "Latency p95 (ms)"
+      },
+      "columns": {
+        "metric": "Metric"
+      },
+      "ref": "(ref)",
+      "variant": {
+        "ragProfile": "RAG profile v{version}",
+        "model": "Model: {key}",
+        "promptVersion": "Prompt version: {id}",
+        "approve": "Approve",
+        "reject": "Reject",
+        "remove": "Remove",
+        "confirmRemove": "Remove variant \"{label}\"?"
+      },
+      "create": {
+        "title": "New A/B Experiment",
+        "name": "Name *",
+        "namePlaceholder": "e.g. Prompt v2 vs v3 — faithfulness",
+        "description": "Description",
+        "setId": "Evaluation Set ID *",
+        "setIdPlaceholder": "UUID of evaluation dataset",
+        "creating": "Creating…",
+        "submit": "Create Experiment"
+      },
+      "cancel": "Cancel",
+      "addVariant": {
+        "title": "Add Variant",
+        "label": "Label *",
+        "labelPlaceholder": "e.g. Control / Prompt-v2 / profile-A",
+        "ragProfileId": "RAG Profile ID",
+        "profileVersion": "Profile Version",
+        "modelProfileKey": "Model Profile Key",
+        "modelProfilePlaceholder": "e.g. cloud_baseline",
+        "promptVersionId": "Prompt Version ID",
+        "adding": "Adding…"
+      },
+      "loading": "Loading…",
+      "detail": {
+        "dataset": "Dataset: <code>{id}</code>",
+        "starting": "Starting…",
+        "run": "Run Experiment",
+        "variants": "Variants ({count})",
+        "addVariantToggle": "+ Add variant",
+        "noVariants": "No variants yet — add at least two to compare.",
+        "latestRun": "Latest Run",
+        "finalizing": "Finalizing…",
+        "finalize": "Finalize & compare",
+        "inProgress": "Variant evaluation runs in progress. Finalize when all evaluations complete.",
+        "noComparison": "No comparison data available.",
+        "winners": "<strong>Winners by metric:</strong> {value}"
+      },
+      "panel": {
+        "title": "A/B Experiments",
+        "new": "+ New",
+        "none": "No experiments yet.",
+        "variantCount": "{count, plural, one {# variant} other {# variants}}",
+        "confirmDelete": "Delete this experiment and all its data?",
+        "delete": "Delete experiment",
+        "select": "Select an experiment to view details."
+      }
+    },
+    "runComparison": {
+      "regression": "Regression",
+      "improvement": "Improvement",
+      "unchanged": "Unchanged",
+      "noMetricSummary": "No metric summary available for these runs.",
+      "metricCaption": "Metric comparison between two evaluation runs.",
+      "metric": "Metric",
+      "runA": "{label} (A)",
+      "runB": "{label} (B)",
+      "delta": "Delta (B−A)",
+      "status": "Status",
+      "searchCases": "Search cases",
+      "searchPlaceholder": "Search cases…",
+      "filterStatus": "Filter by case status",
+      "allCases": "All cases",
+      "regressionsOnly": "Regressions only",
+      "improvementsOnly": "Improvements only",
+      "failedAny": "Failed in either run",
+      "filterDifficulty": "Filter by difficulty",
+      "allDifficulties": "All difficulties",
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard",
+      "casesCount": "{visible} of {total} cases",
+      "noCasesMatch": "No cases match the current filters.",
+      "caseCaption": "Per-question comparison between runs.",
+      "question": "Question",
+      "diff": "Diff",
+      "noResult": "No result",
+      "failed": "failed",
+      "ok": "ok",
+      "retShort": "ret {value}%",
+      "faithShort": "faith {value}%",
+      "hideAnswer": "Hide answer",
+      "viewAnswer": "View answer",
+      "answerFrom": "Answer from {label} ({side})",
+      "noAnswer": "No answer generated.",
+      "failure": "<strong>Failure:</strong> {reason}",
+      "panelAria": "Evaluation run comparison",
+      "title": "Run comparison",
+      "vs": " vs ",
+      "exportCsv": "Export CSV",
+      "exportJson": "Export JSON",
+      "close": "Close",
+      "regressionCount": "{count, plural, one {regression} other {regressions}}",
+      "improvementCount": "{count, plural, one {improvement} other {improvements}}",
+      "totalCases": "total cases",
+      "metricSummary": "Metric summary",
+      "baselineLabel": "A (Baseline)",
+      "candidateLabel": "B (Candidate)",
+      "caseComparison": "Case comparison",
+      "started": "Started {date}",
+      "runStatus": {
+        "completed": "completed",
+        "failed": "failed",
+        "running": "running",
+        "queued": "queued",
+        "cancelled": "cancelled"
+      }
+    },
+    "qualityGate": {
+      "verdict": {
+        "passed": "passed",
+        "failed": "failed",
+        "overridden": "overridden"
+      },
+      "checkLine": "{label}: actual {actual} / threshold {threshold}",
+      "failedCount": "{count} failed",
+      "passedCount": "{count} passed",
+      "failingChecks": "Failing checks",
+      "passingChecks": "Passing checks",
+      "override": "Override: {reason}",
+      "downloadReport": "Download CI report JSON",
+      "overrideButton": "Override gate (requires documented reason)",
+      "overridePlaceholder": "Provide a detailed reason for this override (min 10 chars)…",
+      "applying": "Applying…",
+      "applyOverride": "Apply override",
+      "cancel": "Cancel",
+      "configuredThresholds": "Configured thresholds",
+      "triggerRun": "Trigger gate run",
+      "evalRunPlaceholder": "Evaluation run ID (UUID)",
+      "safetyRunPlaceholder": "Safety eval run ID (UUID) — optional",
+      "running": "Running…",
+      "runGate": "Run gate",
+      "runCompleted": "Gate run completed — see results below.",
+      "runHistory": "Run history",
+      "loadingRuns": "Loading runs…",
+      "noRuns": "No runs yet",
+      "noRunsHint": "Trigger the gate above to see results.",
+      "thresholds": {
+        "retrieval_hit_rate_min": "Retrieval hit rate min",
+        "citation_accuracy_score_min": "Citation accuracy min",
+        "faithfulness_score_min": "Faithfulness score min",
+        "answer_relevance_score_min": "Answer relevance min",
+        "not_found_rate_max": "Not-found rate max",
+        "safety_pass_rate_min": "Safety pass rate min",
+        "latency_ms_p95_max": "Latency p95 max (ms)",
+        "cost_usd_per_question_max": "Cost per question max (USD)"
+      },
+      "hint": {
+        "range": "0–1",
+        "ms": "ms",
+        "usd": "$"
+      },
+      "gateNamePlaceholder": "Gate name",
+      "descriptionPlaceholder": "Description (optional)",
+      "blankToSkip": "leave blank to skip",
+      "creating": "Creating…",
+      "createGate": "Create gate",
+      "loadingGates": "Loading quality gates…",
+      "title": "Quality Gates",
+      "newGate": "+ New gate",
+      "noGates": "No quality gates",
+      "noGatesHint": "Create one to enforce release thresholds.",
+      "confirmDelete": "Delete quality gate \"{name}\"? This also deletes all run history.",
+      "delete": "Delete",
+      "select": "Select a quality gate to view details and run history."
+    },
+    "datasetBuilder": {
+      "difficulty": {
+        "easy": "easy",
+        "medium": "medium",
+        "hard": "hard"
+      },
+      "status": {
+        "draft": "draft",
+        "published": "published"
+      },
+      "validating": "Validating dataset…",
+      "valid": "Dataset is valid — no issues found.",
+      "issuesFound": "{count, plural, one {# validation issue} other {# validation issues}} found",
+      "moreIssues": "+{count, plural, one {# more issue} other {# more issues}}",
+      "loadingVersions": "Loading versions…",
+      "noVersions": "No published versions yet. Publish the dataset to create a snapshot.",
+      "versionCases": "{count, plural, one {# case} other {# cases}}",
+      "import": {
+        "title": "Import cases",
+        "skipDuplicates": "Skip duplicate questions",
+        "required": "Import data is required.",
+        "importing": "Importing…",
+        "submit": "Import"
+      },
+      "cancel": "Cancel",
+      "edit": {
+        "title": "Edit case",
+        "question": "Question",
+        "expectedAnswer": "Expected answer",
+        "difficulty": "Difficulty",
+        "none": "— none —",
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard",
+        "tags": "Tags (comma-separated)",
+        "questionRequired": "Question is required.",
+        "saving": "Saving…",
+        "save": "Save"
+      },
+      "row": {
+        "hasExpected": "has expected answer",
+        "edit": "Edit",
+        "delete": "Delete",
+        "sure": "Sure?",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "panel": {
+        "namePlaceholder": "Dataset name",
+        "descriptionPlaceholder": "Description (optional)",
+        "alreadyPublished": "Already published",
+        "duplicating": "Duplicating…",
+        "duplicate": "Duplicate",
+        "publishing": "Publishing…",
+        "publish": "Publish",
+        "deleteDataset": "Delete dataset",
+        "deleteDatasetQuestion": "Delete dataset?",
+        "deleting": "Deleting…",
+        "yesDelete": "Yes, delete",
+        "importedSkipped": "Imported {imported, plural, one {# case} other {# cases}}, skipped {skipped, plural, one {# duplicate} other {# duplicates}}.",
+        "imported": "Imported {imported, plural, one {# case} other {# cases}}.",
+        "validation": "Validation",
+        "versionHistory": "Version history",
+        "cases": "Cases ({count})",
+        "casesPartial": "Cases ({loaded} of {total})",
+        "noCases": "No cases yet",
+        "noCasesHint": "Add cases manually or import from CSV/JSON.",
+        "loadMore": "Load more",
+        "loadingMore": "Loading…",
+        "loadMoreFailed": "Could not load more cases.",
+        "languageCoverage": "Language coverage"
+      }
     }
   },
   "collections": {
@@ -4466,7 +5457,15 @@
     "retryFailed": "Retry failed. Please try again later.",
     "configIncomplete": "Frontend configuration is incomplete",
     "configIncompleteDescription": "Required public environment values are missing or invalid. Update your frontend environment file and restart the app.",
-    "startupCheck": "Rudix startup check"
+    "startupCheck": "Rudix startup check",
+    "routeBoundary": {
+      "title": "Unable to render this page",
+      "description": "A runtime error interrupted rendering. You can retry this view or navigate back to the dashboard.",
+      "retry": "Retry",
+      "backToDashboard": "Back to dashboard",
+      "backHome": "Back to homepage",
+      "reference": "Error reference"
+    }
   },
   "toasts": {
     "saved": "Saved successfully",
@@ -4483,6 +5482,45 @@
     "fr": "French",
     "ar": "Arabic",
     "fa": "Persian"
+  },
+  "states": {
+    "retry": "Retry",
+    "traceId": "Trace ID:",
+    "empty": {
+      "title": "No data available",
+      "aria": "Empty state"
+    },
+    "error": {
+      "aria": "Error state",
+      "conflict": "Request conflict",
+      "invalidSession": "Session is not valid",
+      "unableToLoad": "Unable to load"
+    },
+    "forbidden": {
+      "aria": "Forbidden state",
+      "eyebrow": "Rudix Access Control",
+      "title": "Forbidden",
+      "description": "You do not have permission to complete this action.",
+      "backLabel": "Back to dashboard"
+    },
+    "loading": {
+      "title": "Loading...",
+      "aria": "Loading state"
+    },
+    "network": {
+      "aria": "Network error state",
+      "title": "No connection",
+      "description": "Could not reach the server. Check your network connection and try again."
+    },
+    "rateLimit": {
+      "aria": "Rate limit state",
+      "title": "Rate limit reached",
+      "description": "Too many requests were sent. Wait a moment, then retry."
+    },
+    "skeleton": {
+      "aria": "Loading content",
+      "text": "Loading…"
+    }
   },
   "adminTeam": {
     "title": "Team Management",
@@ -5456,6 +6494,7 @@
       "documentsWrite": "Documents — write",
       "chatWrite": "Chat — write",
       "evaluationsRun": "Evaluations — run",
+      "qualityGatesRun": "Quality gates — run (CI)",
       "webhooksManage": "Webhooks — manage",
       "connectorsManage": "Connectors — manage"
     },
@@ -7658,5 +8697,7 @@
       "restrictedTitle": "Admin access restricted",
       "restrictedDescription": "Only owners and admins can view the vector index status."
     }
-  }
+  },
+  "adminBots": {},
+  "adminEmail": {}
 }

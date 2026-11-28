@@ -1,30 +1,20 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 const BASE = "/admin/troubleshooting-bundle";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type BundleSourceType =
-  | "chat_message"
-  | "document"
-  | "connector_sync"
-  | "evaluation_run"
-  | "failed_job";
+export type BundleSourceType = Served<Schemas["BundleSourceType"]>;
 
-export type BundleRedactionConfig = {
-  redact_prompts: boolean;
-  redact_snippets: boolean;
-  redact_pii: boolean;
-  redact_source_content: boolean;
-  include_redacted_logs: boolean;
-};
+export type BundleRedactionConfig = Served<Schemas["BundleRedactionConfig"]>;
 
-export type TroubleshootingBundleRequest = {
-  source_type: BundleSourceType;
-  source_id: string;
-  include_markdown: boolean;
-  redaction: BundleRedactionConfig;
-};
+export type TroubleshootingBundleRequest =
+  Schemas["TroubleshootingBundleRequest"];
 
 export type BundleIdentifiers = {
   bundle_id: string;

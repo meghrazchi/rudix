@@ -27,10 +27,12 @@ import asyncio
 import time
 from collections import deque
 from collections.abc import AsyncIterator, Callable
-from contextlib import aclosing
+from contextlib import AbstractContextManager, aclosing
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
+
+from opentelemetry.trace import Span
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -39,6 +41,7 @@ from app.core.metrics import (
     LLM_BREAKER_TRANSITIONS_TOTAL,
     LLM_CACHED_PROMPT_TOKENS_TOTAL,
 )
+from app.core.tracing_context import operation_span
 from app.domains.ai.providers.errors import (
     ProviderInternalError,
     ProviderTimeoutError,
@@ -217,12 +220,26 @@ class ResilientChatProvider:
         model = request.model or self._model_name or "default"
         return (self._registry or breaker_registry).get(self.provider_key, model)
 
+    def _span(
+        self, breaker: CircuitBreaker, *, current: bool
+    ) -> AbstractContextManager[Span | None]:
+        """R08-10: provider and model only; never the prompt or the answer."""
+        return operation_span(
+            "rudix.llm.call",
+            current=current,
+            attributes={
+                "rudix.llm.provider": self.provider_key,
+                "rudix.llm.model": breaker.model,
+            },
+        )
+
     async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         breaker = self._breaker(request)
         probe = breaker.before_call()
         try:
-            async with org_call_slot(self.provider_key):
-                response = await self.inner.complete(request)
+            with self._span(breaker, current=True):
+                async with org_call_slot(self.provider_key):
+                    response = await self.inner.complete(request)
         except BaseException as exc:
             breaker.record_error(exc, probe)
             raise
@@ -235,19 +252,25 @@ class ResilientChatProvider:
         probe = breaker.before_call()
         finished = False
         try:
-            async with org_call_slot(self.provider_key):
-                stream_fn = getattr(self.inner, "stream", None)
-                if not callable(stream_fn):
-                    response = await self.inner.complete(request)
-                    _count_cached(self.provider_key, breaker.model, response.cached_prompt_tokens)
+            # Not the current span: the generator yields across the consumer's tasks.
+            with self._span(breaker, current=False):
+                async with org_call_slot(self.provider_key):
+                    stream_fn = getattr(self.inner, "stream", None)
+                    if not callable(stream_fn):
+                        response = await self.inner.complete(request)
+                        _count_cached(
+                            self.provider_key, breaker.model, response.cached_prompt_tokens
+                        )
+                        finished = True
+                        yield _single_chunk(response)
+                        return
+                    async with aclosing(stream_fn(request)) as chunks:
+                        async for chunk in _with_idle_timeout(chunks):
+                            _count_cached(
+                                self.provider_key, breaker.model, chunk.cached_prompt_tokens
+                            )
+                            yield chunk
                     finished = True
-                    yield _single_chunk(response)
-                    return
-                async with aclosing(stream_fn(request)) as chunks:
-                    async for chunk in _with_idle_timeout(chunks):
-                        _count_cached(self.provider_key, breaker.model, chunk.cached_prompt_tokens)
-                        yield chunk
-                finished = True
         except GeneratorExit:
             # The consumer closed the stream early: the call neither failed nor succeeded.
             if finished:

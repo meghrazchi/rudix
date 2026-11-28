@@ -1,5 +1,7 @@
 import type { FormEvent, RefObject } from "react";
 
+import { useTranslations } from "next-intl";
+
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -33,6 +35,7 @@ export function CreateEvaluationSetDialog({
   onClose,
   onSubmit,
 }: CreateSetDialogProps) {
+  const t = useTranslations("evaluations.dialogs");
   if (!isOpen) {
     return null;
   }
@@ -56,10 +59,10 @@ export function CreateEvaluationSetDialog({
               id="create-evaluation-set-title"
               className="text-lg font-semibold text-[#292442]"
             >
-              Create evaluation set
+              {t("createSet.title")}
             </h2>
             <p className="mt-1 text-sm text-[#67627f]">
-              Add a dataset for evaluation questions before starting runs.
+              {t("createSet.description")}
             </p>
           </div>
           <button
@@ -68,7 +71,7 @@ export function CreateEvaluationSetDialog({
             disabled={isSubmitting}
             className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#423d5f] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Close
+            {t("close")}
           </button>
         </div>
 
@@ -81,24 +84,24 @@ export function CreateEvaluationSetDialog({
         >
           <label className="grid gap-1">
             <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-              Set name
+              {t("createSet.name")}
             </span>
             <input
               value={name}
               onChange={(event) => onNameChange(event.target.value)}
-              placeholder="Regression suite"
+              placeholder={t("createSet.namePlaceholder")}
               className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
             />
           </label>
 
           <label className="grid gap-1">
             <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-              Description
+              {t("createSet.descriptionLabel")}
             </span>
             <textarea
               value={description}
               onChange={(event) => onDescriptionChange(event.target.value)}
-              placeholder="Optional context for this evaluation dataset"
+              placeholder={t("createSet.descriptionPlaceholder")}
               rows={3}
               className="rounded-lg border border-[#d1cce4] px-2 py-1.5 text-sm text-[#2a2640]"
             />
@@ -113,14 +116,14 @@ export function CreateEvaluationSetDialog({
               disabled={isSubmitting}
               className="rounded border border-[#cbc6dd] px-3 py-1.5 text-sm font-semibold text-[#423d5f] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="rounded bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2c1ea9] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? "Creating..." : "Create set"}
+              {isSubmitting ? t("createSet.creating") : t("createSet.submit")}
             </button>
           </div>
         </form>
@@ -210,6 +213,7 @@ export function StartEvaluationRunDialog({
   onModelProfileChange,
   onRegressionThresholdChange,
 }: StartRunDialogProps) {
+  const t = useTranslations("evaluations.dialogs");
   if (!isOpen) {
     return null;
   }
@@ -235,11 +239,15 @@ export function StartEvaluationRunDialog({
               id="start-evaluation-run-title"
               className="text-lg font-semibold text-[#292442]"
             >
-              Start evaluation run
+              {t("startRun.title")}
             </h2>
             <p className="mt-1 text-sm text-[#67627f]">
-              Queue a run for{" "}
-              <span className="font-semibold text-[#2a2640]">{setName}</span>.
+              {t.rich("startRun.queueFor", {
+                name: setName,
+                strong: (chunks) => (
+                  <span className="font-semibold text-[#2a2640]">{chunks}</span>
+                ),
+              })}
             </p>
           </div>
           <button
@@ -248,7 +256,7 @@ export function StartEvaluationRunDialog({
             disabled={isSubmitting}
             className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#423d5f] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Close
+            {t("close")}
           </button>
         </div>
 
@@ -262,7 +270,7 @@ export function StartEvaluationRunDialog({
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="grid gap-1">
               <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                Top K
+                {t("startRun.topK")}
               </span>
               <input
                 type="number"
@@ -281,12 +289,12 @@ export function StartEvaluationRunDialog({
 
             <label className="grid gap-1">
               <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                Model override
+                {t("startRun.modelOverride")}
               </span>
               <input
                 value={modelName}
                 onChange={(event) => onModelNameChange(event.target.value)}
-                placeholder="Optional backend model"
+                placeholder={t("startRun.modelPlaceholder")}
                 className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
               />
             </label>
@@ -295,15 +303,17 @@ export function StartEvaluationRunDialog({
           <div className="space-y-2 rounded-lg border border-[#e6e2f2] bg-[#fcfbff] p-3">
             <div>
               <p className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                Model profile
+                {t("startRun.modelProfile")}
               </p>
               <p className="mt-1 text-xs text-[#6d6983]">
-                Select a saved model profile to benchmark. Leave unset to use
-                the org&apos;s default evaluations profile.
+                {t("startRun.modelProfileHint")}
               </p>
             </div>
             {isModelProfilesLoading ? (
-              <LoadingState compact title="Loading model profiles..." />
+              <LoadingState
+                compact
+                title={t("startRun.loadingModelProfiles")}
+              />
             ) : modelProfilesError ? (
               <ErrorState
                 compact
@@ -316,12 +326,14 @@ export function StartEvaluationRunDialog({
                 onChange={(event) => onModelProfileChange(event.target.value)}
                 className="h-9 w-full rounded-lg border border-[#d1cce4] bg-white px-2 text-sm text-[#2a2640]"
               >
-                <option value="">Org default (evaluations profile)</option>
+                <option value="">{t("startRun.orgDefault")}</option>
                 {modelProfiles.map((profile) => (
                   <option key={profile.profile_id} value={profile.profile_id}>
                     {profile.profile_name} — {profile.provider_type}/
                     {profile.base_model}
-                    {profile.is_experimental ? " (experimental)" : ""}
+                    {profile.is_experimental
+                      ? ` ${t("startRun.experimental")}`
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -336,21 +348,22 @@ export function StartEvaluationRunDialog({
               className="mt-0.5"
             />
             <span>
-              Enable rerank
+              {t("startRun.enableRerank")}
               <span className="mt-1 block text-xs text-[#6d6983]">
-                Apply a second-pass ranking stage before generation.
+                {t("startRun.rerankHint")}
               </span>
             </span>
           </label>
 
           <label className="grid gap-1">
             <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-              Metric options JSON
+              {t("startRun.metricOptions")}
             </span>
             <textarea
               value={metricOptions}
               onChange={(event) => onMetricOptionsChange(event.target.value)}
               rows={3}
+              // eslint-disable-next-line no-restricted-syntax -- sample JSON, not UI copy
               placeholder='{"faithfulness":true,"answer_relevance":true}'
               className="rounded-lg border border-[#d1cce4] px-2 py-1.5 text-sm text-[#2a2640]"
             />
@@ -358,10 +371,10 @@ export function StartEvaluationRunDialog({
 
           <div>
             <p className="mb-1 text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-              Scope to indexed documents
+              {t("startRun.scopeDocuments")}
             </p>
             {isDocumentsLoading ? (
-              <LoadingState compact title="Loading indexed documents..." />
+              <LoadingState compact title={t("startRun.loadingDocuments")} />
             ) : documentsError ? (
               <ErrorState
                 compact
@@ -369,7 +382,7 @@ export function StartEvaluationRunDialog({
                 description={getApiErrorMessage(documentsError)}
               />
             ) : indexedDocuments.length === 0 ? (
-              <EmptyState compact title="No indexed documents available." />
+              <EmptyState compact title={t("startRun.noDocuments")} />
             ) : (
               <ul className="max-h-40 space-y-1 overflow-auto rounded-lg border border-[#e6e2f2] bg-[#fcfbff] p-2">
                 {indexedDocuments.map((document) => (
@@ -395,17 +408,15 @@ export function StartEvaluationRunDialog({
           <div className="space-y-2 rounded-lg border border-[#e6e2f2] bg-[#fcfbff] p-3">
             <div>
               <p className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                Chunking profiles
+                {t("startRun.chunkingProfiles")}
               </p>
               <p className="mt-1 text-xs text-[#6d6983]">
-                Leave all profiles unselected to evaluate the current live
-                index. Select one profile to pin the run. Select multiple
-                profiles to compare strategies on the same dataset.
+                {t("startRun.chunkingHint")}
               </p>
             </div>
 
             {isChunkingProfilesLoading ? (
-              <LoadingState compact title="Loading chunking profiles..." />
+              <LoadingState compact title={t("startRun.loadingChunking")} />
             ) : chunkingProfilesError ? (
               <ErrorState
                 compact
@@ -415,8 +426,8 @@ export function StartEvaluationRunDialog({
             ) : chunkingProfiles.length === 0 ? (
               <EmptyState
                 compact
-                title="No saved chunking profiles."
-                description="The run will use the current indexed corpus unless you create profiles first."
+                title={t("startRun.noChunking")}
+                description={t("startRun.noChunkingHint")}
               />
             ) : (
               <ul className="max-h-40 space-y-1 overflow-auto rounded-lg border border-[#e6e2f2] bg-white p-2">
@@ -439,7 +450,7 @@ export function StartEvaluationRunDialog({
                         </span>
                         {profile.is_default ? (
                           <span className="ml-1 rounded-full border border-[#d7d2e8] bg-[#f4f1ff] px-1.5 py-0.5 text-[10px] font-semibold text-[#4d3fd1]">
-                            Default
+                            {t("startRun.default")}
                           </span>
                         ) : null}
                       </span>
@@ -453,18 +464,17 @@ export function StartEvaluationRunDialog({
           <div className="space-y-2 rounded-lg border border-[#e6e2f2] bg-[#fcfbff] p-3">
             <div>
               <p className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                Regression thresholds
+                {t("startRun.thresholds")}
               </p>
               <p className="mt-1 text-xs text-[#6d6983]">
-                Optional release gates. Any configured threshold can flag a
-                comparison target as regressed.
+                {t("startRun.thresholdsHint")}
               </p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="grid gap-1">
                 <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                  Min retrieval hit rate
+                  {t("startRun.minRetrieval")}
                 </span>
                 <input
                   value={regressionThresholds.retrievalHitRateMin}
@@ -482,7 +492,7 @@ export function StartEvaluationRunDialog({
 
               <label className="grid gap-1">
                 <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                  Min citation accuracy
+                  {t("startRun.minCitation")}
                 </span>
                 <input
                   value={regressionThresholds.citationAccuracyScoreMin}
@@ -500,7 +510,7 @@ export function StartEvaluationRunDialog({
 
               <label className="grid gap-1">
                 <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                  Min faithfulness
+                  {t("startRun.minFaithfulness")}
                 </span>
                 <input
                   value={regressionThresholds.faithfulnessScoreMin}
@@ -518,7 +528,7 @@ export function StartEvaluationRunDialog({
 
               <label className="grid gap-1">
                 <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
-                  Max not-found rate
+                  {t("startRun.maxNotFound")}
                 </span>
                 <input
                   value={regressionThresholds.maxNotFoundRate}
@@ -545,14 +555,14 @@ export function StartEvaluationRunDialog({
               disabled={isSubmitting}
               className="rounded border border-[#cbc6dd] px-3 py-1.5 text-sm font-semibold text-[#423d5f] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="rounded bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2c1ea9] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? "Queueing..." : "Queue run"}
+              {isSubmitting ? t("startRun.queueing") : t("startRun.queueRun")}
             </button>
           </div>
         </form>

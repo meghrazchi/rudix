@@ -1,0 +1,13 @@
+# Patterns to ignore when building the chart package.
+.DS_Store
+.git/
+.gitignore
+.idea/
+.vscode/
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+# CI-only values files are not part of the packaged chart.
+ci/

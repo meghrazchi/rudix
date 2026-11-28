@@ -1,8 +1,13 @@
+import type { components } from "@/lib/api/generated/schema";
 import { apiRequest } from "@/lib/api/request";
 
-export type EffectivePermissionsResponse = {
-  permissions: string[];
-  role: string;
+type GeneratedEffectivePermissions =
+  components["schemas"]["AuthEffectivePermissionsResponse"];
+
+export type EffectivePermissionsResponse = Omit<
+  GeneratedEffectivePermissions,
+  "custom_role_id"
+> & {
   custom_role_id: string | null;
 };
 

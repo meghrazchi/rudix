@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import {
   SectionHeader,
   StatRow,
@@ -9,6 +11,7 @@ export function RetrievalMethodSection({
 }: {
   retrievalMethod: RetrievalMethodRecord | null;
 }) {
+  const t = useTranslations("chat.trustPanel");
   if (
     retrievalMethod === null ||
     retrievalMethod.method === "vector" ||
@@ -19,21 +22,24 @@ export function RetrievalMethodSection({
 
   return (
     <div className="space-y-2">
-      <SectionHeader icon="manage_search" label="Search Strategy" />
+      <SectionHeader icon="manage_search" label={t("method.title")} />
       <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
-        <StatRow label="Method" value={retrievalMethod.method_label} />
+        <StatRow
+          label={t("method.method")}
+          value={retrievalMethod.method_label}
+        />
         {retrievalMethod.override_applied ? (
           <StatRow
-            label="Override"
+            label={t("method.override")}
             value={
               retrievalMethod.override_source === "user"
-                ? "User-specified"
-                : "Admin profile"
+                ? t("method.overrideUser")
+                : t("method.overrideAdmin")
             }
           />
         ) : null}
         {!retrievalMethod.override_applied ? (
-          <StatRow label="Selection" value="Auto-selected" />
+          <StatRow label={t("method.selection")} value={t("method.auto")} />
         ) : null}
       </div>
     </div>

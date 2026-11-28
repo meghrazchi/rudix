@@ -1,0 +1,2 @@
+# Imported when EDGE_NOINDEX=false (production default): the edge adds no X-Robots-Tag; the
+# frontend's own robots and metadata rules apply.

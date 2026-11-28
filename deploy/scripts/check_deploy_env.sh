@@ -12,6 +12,9 @@
 #     embeds it in REDIS_URL without escaping.
 #   - QDRANT_IMAGE, MINIO_IMAGE, RABBITMQ_IMAGE are set and pinned (an explicit
 #     tag other than "latest", or a digest).
+#   - CADDY_IMAGE (the edge proxy, 0.8.0) is set and pinned the same way.
+#   - PGBOUNCER_IMAGE is pinned when it is set, and must be set when COMPOSE_PROFILES in the
+#     env file (or the environment) includes `pooler`.
 # Production: failures exit 1; image checks become warnings when
 # DEPLOY_ALLOW_UNPINNED_IMAGES=true. Staging: every finding is a warning.
 set -eu
@@ -91,7 +94,17 @@ elif ! printf '%s' "$redis_password" | grep -Eq '^[A-Za-z0-9._~-]+$'; then
 fi
 unset redis_password
 
-for key in QDRANT_IMAGE MINIO_IMAGE RABBITMQ_IMAGE; do
+# PGBOUNCER_IMAGE runs only with the `pooler` profile: required then, otherwise checked
+# only when set.
+compose_profiles="$(env_value COMPOSE_PROFILES)"
+compose_profiles="${compose_profiles:-${COMPOSE_PROFILES:-}}"
+image_keys="QDRANT_IMAGE MINIO_IMAGE RABBITMQ_IMAGE CADDY_IMAGE"
+if [ -n "$(env_value PGBOUNCER_IMAGE)" ] ||
+  printf '%s' "$compose_profiles" | tr ', ' '\n\n' | grep -qx pooler; then
+  image_keys="$image_keys PGBOUNCER_IMAGE"
+fi
+
+for key in $image_keys; do
   image="$(env_value "$key")"
   # Last path segment, so a registry port (host:5000/repo) is not read as a tag.
   last_segment="${image##*/}"

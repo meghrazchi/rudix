@@ -31,6 +31,7 @@ export function KnowledgeHub({
   showDebugDetails: boolean;
 }) {
   const tc = useTranslations("chat.page");
+  const tt = useTranslations("chat.trustPanel");
   const { setPreviewCitationSet, setIsKnowledgeHubOpen } = panel;
   const selectedCitationPipelineHref = selectedCitationTurn
     ? buildChatPipelineHref(selectedCitationTurn.response)
@@ -125,9 +126,10 @@ export function KnowledgeHub({
               >
                 {agreementLevelLabel(
                   selectedCitationTurn.response.agreement_level,
+                  tt,
                 )}
               </span>
-              <span className="font-semibold">Source comparison</span>
+              <span className="font-semibold">{tt("conflict.comparison")}</span>
             </div>
             {selectedCitationTurn.response.conflict_summary ? (
               <p className="mt-1 text-[11px] leading-snug">
@@ -137,7 +139,7 @@ export function KnowledgeHub({
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div>
                 <p className="mb-2 text-[10px] font-bold tracking-widest text-emerald-800 uppercase">
-                  Preferred sources
+                  {tt("conflict.preferredSources")}
                 </p>
                 <div className="space-y-2">
                   {selectedCitationTurn.response.citations
@@ -174,7 +176,7 @@ export function KnowledgeHub({
                             {getFileTypeLabel(citation.filename)}
                           </span>
                           <span className="text-[9px] font-semibold text-emerald-700 uppercase">
-                            Preferred
+                            {tt("badge.preferred")}
                           </span>
                         </div>
                         <h4
@@ -185,7 +187,9 @@ export function KnowledgeHub({
                         </h4>
                         {citation.page_number ? (
                           <p className="text-[9px] text-[#464555]">
-                            Page {citation.page_number}
+                            {tc("citationPositionPage", {
+                              page: citation.page_number,
+                            })}
                           </p>
                         ) : null}
                       </button>
@@ -194,7 +198,7 @@ export function KnowledgeHub({
               </div>
               <div>
                 <p className="mb-2 text-[10px] font-bold tracking-widest text-rose-800 uppercase">
-                  Conflicting sources
+                  {tt("conflict.conflictingSources")}
                 </p>
                 <div className="space-y-2">
                   {selectedCitationTurn.response.citations
@@ -231,7 +235,7 @@ export function KnowledgeHub({
                             {getFileTypeLabel(citation.filename)}
                           </span>
                           <span className="text-[9px] font-semibold text-rose-700 uppercase">
-                            Conflicting
+                            {tt("badge.conflicting")}
                           </span>
                         </div>
                         <h4
@@ -242,7 +246,9 @@ export function KnowledgeHub({
                         </h4>
                         {citation.page_number ? (
                           <p className="text-[9px] text-[#464555]">
-                            Page {citation.page_number}
+                            {tc("citationPositionPage", {
+                              page: citation.page_number,
+                            })}
                           </p>
                         ) : null}
                       </button>
@@ -296,11 +302,15 @@ export function KnowledgeHub({
                 <div className="flex items-center gap-2">
                   {citation.page_number ? (
                     <span className="rounded bg-[#f0ecf9] px-2 py-0.5 font-mono text-[9px]">
-                      PAGE {citation.page_number}
+                      {tc("citationPageUpper", {
+                        page: citation.page_number,
+                      })}
                     </span>
                   ) : null}
                   <span className="text-[9px] text-[#464555]">
-                    score {formatScore(citation.score)}
+                    {tc("citationScoreLower", {
+                      score: formatScore(citation.score),
+                    })}
                   </span>
                 </div>
               </button>

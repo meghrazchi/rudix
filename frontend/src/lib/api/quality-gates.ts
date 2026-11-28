@@ -1,114 +1,40 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type QualityGateVerdict = "passed" | "failed" | "overridden";
 
-export type QualityGateThresholds = {
-  retrieval_hit_rate_min?: number | null;
-  citation_accuracy_score_min?: number | null;
-  faithfulness_score_min?: number | null;
-  answer_relevance_score_min?: number | null;
-  not_found_rate_max?: number | null;
-  safety_pass_rate_min?: number | null;
-  latency_ms_p95_max?: number | null;
-  cost_usd_per_question_max?: number | null;
-};
+export type QualityGateThresholds = Schemas["QualityGateThresholds"];
 
-export type QualityGateResponse = {
-  quality_gate_id: string;
-  name: string;
-  description: string | null;
-  thresholds: Record<string, number | null>;
-  baseline_evaluation_run_id: string | null;
-  baseline_safety_run_id: string | null;
-  created_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type QualityGateResponse = Served<Schemas["QualityGateResponse"]>;
 
-export type QualityGateListResponse = {
-  items: QualityGateResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type QualityGateListResponse = Served<
+  Schemas["QualityGateListResponse"]
+>;
 
-export type GateCheckResult = {
-  metric: string;
-  label: string;
-  threshold: number;
-  actual: number | null;
-  passed: boolean;
-  detail: string | null;
-};
+export type GateCheckResult = Served<Schemas["GateCheckResult"]>;
 
-export type QualityGateRunResponse = {
-  gate_run_id: string;
-  quality_gate_id: string;
-  evaluation_run_id: string | null;
-  safety_eval_run_id: string | null;
-  verdict: QualityGateVerdict;
-  passed_checks: GateCheckResult[];
-  failed_checks: GateCheckResult[];
-  override_reason: string | null;
-  overridden_by_id: string | null;
-  overridden_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type QualityGateRunResponse = Served<Schemas["QualityGateRunResponse"]>;
 
-export type QualityGateRunListResponse = {
-  items: QualityGateRunResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type QualityGateRunListResponse = Served<
+  Schemas["QualityGateRunListResponse"]
+>;
 
-export type QualityGateReportResponse = {
-  gate_run_id: string;
-  quality_gate_id: string;
-  quality_gate_name: string;
-  verdict: string;
-  generated_at: string;
-  evaluation_run_id: string | null;
-  safety_eval_run_id: string | null;
-  thresholds_applied: Record<string, number | null>;
-  passed_checks: GateCheckResult[];
-  failed_checks: GateCheckResult[];
-  total_checks: number;
-  pass_count: number;
-  fail_count: number;
-  override_reason: string | null;
-  overridden_by_id: string | null;
-  overridden_at: string | null;
-  evaluation_summary: Record<string, unknown> | null;
-  safety_summary: Record<string, unknown> | null;
-  ci_exit_code: number;
-};
+export type QualityGateReportResponse = Served<
+  Schemas["QualityGateReportResponse"]
+>;
 
-export type CreateQualityGateRequest = {
-  name: string;
-  description?: string | null;
-  thresholds?: QualityGateThresholds;
-  baseline_evaluation_run_id?: string | null;
-  baseline_safety_run_id?: string | null;
-};
+export type CreateQualityGateRequest = Schemas["CreateQualityGateRequest"];
 
-export type UpdateQualityGateRequest = {
-  name?: string | null;
-  description?: string | null;
-  thresholds?: QualityGateThresholds | null;
-  baseline_evaluation_run_id?: string | null;
-  baseline_safety_run_id?: string | null;
-};
+export type UpdateQualityGateRequest = Schemas["UpdateQualityGateRequest"];
 
-export type TriggerQualityGateRunRequest = {
-  evaluation_run_id?: string | null;
-  safety_eval_run_id?: string | null;
-};
+export type TriggerQualityGateRunRequest =
+  Schemas["TriggerQualityGateRunRequest"];
 
-export type QualityGateOverrideRequest = {
-  reason: string;
-};
+export type QualityGateOverrideRequest = Schemas["QualityGateOverrideRequest"];
 
 export async function listQualityGates(
   params: { limit?: number; offset?: number } = {},

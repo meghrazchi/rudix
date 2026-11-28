@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { WarningBanner } from "@/components/chat/trust-panel/TrustPrimitives";
 import { trackFeatureEvent } from "@/lib/analytics";
 
@@ -8,6 +10,7 @@ export function TrustWarningsSection({
   warnings: string[];
   messageId: string;
 }) {
+  const t = useTranslations("chat.trustPanel");
   return (
     <>
       {warnings.length > 0 && (
@@ -28,12 +31,7 @@ export function TrustWarningsSection({
           {warnings.map((w, i) => (
             <WarningBanner
               key={i}
-              tone={
-                w ===
-                "Low confidence — validate this answer against cited sources."
-                  ? "neutral"
-                  : "warning"
-              }
+              tone={w === t("warn.lowConfidence") ? "neutral" : "warning"}
             >
               {w}
             </WarningBanner>

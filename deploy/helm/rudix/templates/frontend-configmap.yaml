@@ -1,0 +1,15 @@
+{{- /* Frontend runtime environment (runtimeConfig.env, filled by D1); C1 mounts it with envFrom. */ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rudix.frontendConfigMapName" . }}
+  labels:
+    {{- include "rudix.labels" (dict "root" . "component" "frontend") | nindent 4 }}
+{{- with .Values.runtimeConfig.env }}
+data:
+  {{- range $key, $value := . }}
+  {{ $key }}: {{ include "rudix.envValue" $value }}
+  {{- end }}
+{{- else }}
+data: {}
+{{- end }}

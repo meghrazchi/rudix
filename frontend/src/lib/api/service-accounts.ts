@@ -1,10 +1,16 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export const VALID_SCOPES = [
   "documents:read",
   "documents:write",
   "chat:write",
   "evaluations:run",
+  "quality_gates:run",
   "webhooks:manage",
   "connectors:manage",
 ] as const;
@@ -20,64 +26,38 @@ export const VALID_ENVIRONMENTS = [
 
 export type ServiceAccountEnvironment = (typeof VALID_ENVIRONMENTS)[number];
 
-export type ServiceAccount = {
-  id: string;
-  organization_id: string;
-  name: string;
-  description: string | null;
-  environment: ServiceAccountEnvironment;
-  scopes: string[];
-  is_active: boolean;
-  last_used_at: string | null;
-  created_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type ServiceAccount = Overlay<
+  Served<Schemas["ServiceAccountResponse"]>,
+  { environment: ServiceAccountEnvironment }
+>;
 
-export type ServiceAccountListResponse = {
-  items: ServiceAccount[];
-  total: number;
-};
+export type ServiceAccountListResponse = Overlay<
+  Served<Schemas["ServiceAccountListResponse"]>,
+  { items: ServiceAccount[] }
+>;
 
-export type CreateServiceAccountRequest = {
-  name: string;
-  description?: string | null;
-  environment?: ServiceAccountEnvironment;
-  scopes: string[];
-};
+export type CreateServiceAccountRequest =
+  Schemas["CreateServiceAccountRequest"];
 
-export type UpdateServiceAccountRequest = {
-  name?: string | null;
-  description?: string | null;
-  environment?: ServiceAccountEnvironment | null;
-};
+export type UpdateServiceAccountRequest =
+  Schemas["UpdateServiceAccountRequest"];
 
-export type ServiceAccountToken = {
-  id: string;
-  service_account_id: string;
-  name: string;
-  token_prefix: string;
-  status: "active" | "revoked";
-  expires_at: string | null;
-  last_used_at: string | null;
-  created_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type ServiceAccountToken = Overlay<
+  Served<Schemas["ServiceAccountTokenResponse"]>,
+  { status: "active" | "revoked" }
+>;
 
 export type ServiceAccountTokenCreated = ServiceAccountToken & {
   raw_token: string;
 };
 
-export type ServiceAccountTokenListResponse = {
-  items: ServiceAccountToken[];
-  total: number;
-};
+export type ServiceAccountTokenListResponse = Overlay<
+  Served<Schemas["ServiceAccountTokenListResponse"]>,
+  { items: ServiceAccountToken[] }
+>;
 
-export type CreateServiceAccountTokenRequest = {
-  name: string;
-  expires_at?: string | null;
-};
+export type CreateServiceAccountTokenRequest =
+  Schemas["CreateServiceAccountTokenRequest"];
 
 function normalizeServiceAccount(value: unknown): ServiceAccount {
   const raw =

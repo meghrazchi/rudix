@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
+from app.core.tracing_context import operation_span, tracing_active
 from app.domains.ai.providers.protocols import EmbeddingProvider, EmbeddingRequest
 from app.domains.documents.services.qdrant_filters import build_organization_filter
 from app.domains.vector_index.services.generation_service import (
@@ -109,6 +110,15 @@ class QueryRetrievalService:
         """Load the generation registry (TTL cache) before reading model or collection."""
         if configured_alias() is not None:
             await registry.snapshot()
+
+    def _collection_label(self, query_vector: Sequence[float]) -> str | None:
+        """The search collection as a span attribute; None while tracing is off."""
+        if not tracing_active():
+            return None
+        try:
+            return self.search_collection(query_vector)
+        except Exception:
+            return None
 
     def search_collection(self, query_vector: Sequence[float]) -> str:
         """Collection to search with this vector (R06-08).
@@ -250,27 +260,32 @@ class QueryRetrievalService:
 
         await self.refresh_index_target()
         client = qdrant_client or self._resolve_async_path_client()
-        if not _is_async_client(client):
-            candidates = await asyncio.to_thread(
-                self.retrieve_candidates,
-                query_vector=query_vector,
-                organization_id=organization_id,
-                document_ids=document_ids,
-                initial_top_k=initial_top_k,
-                index_version=index_version,
-                qdrant_client=client,
-                index_versions=index_versions,
-            )
-        else:
-            candidates = await self._search_async(
-                client,
-                query_vector=query_vector,
-                organization_id=organization_id,
-                document_ids=document_ids,
-                initial_top_k=initial_top_k,
-                index_version=index_version,
-                index_versions=index_versions,
-            )
+        # R08-10: one span per vector search; the collection name only, never the vector.
+        with operation_span(
+            "rudix.qdrant.search",
+            attributes={"rudix.qdrant.collection": self._collection_label(query_vector)},
+        ):
+            if not _is_async_client(client):
+                candidates = await asyncio.to_thread(
+                    self.retrieve_candidates,
+                    query_vector=query_vector,
+                    organization_id=organization_id,
+                    document_ids=document_ids,
+                    initial_top_k=initial_top_k,
+                    index_version=index_version,
+                    qdrant_client=client,
+                    index_versions=index_versions,
+                )
+            else:
+                candidates = await self._search_async(
+                    client,
+                    query_vector=query_vector,
+                    organization_id=organization_id,
+                    document_ids=document_ids,
+                    initial_top_k=initial_top_k,
+                    index_version=index_version,
+                    index_versions=index_versions,
+                )
         if settings.qdrant_store_parent_text:
             return candidates
         return await self.resolve_parent_texts(candidates, organization_id=organization_id)

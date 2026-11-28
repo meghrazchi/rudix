@@ -1,4 +1,10 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+import { publicEnv } from "@/lib/public-env";
+
+type Schemas = components["schemas"];
 
 function trimToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -35,20 +41,47 @@ export function isSecurityEndpointUnavailableError(
 
 function getSecurityEndpoints() {
   return {
-    sessionsUrl: trimToNull(process.env.NEXT_PUBLIC_SECURITY_SESSIONS_URL),
+    sessionsUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_SESSIONS_URL",
+        process.env.NEXT_PUBLIC_SECURITY_SESSIONS_URL,
+      ),
+    ),
     revokeSessionUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_REVOKE_SESSION_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_REVOKE_SESSION_URL",
+        process.env.NEXT_PUBLIC_SECURITY_REVOKE_SESSION_URL,
+      ),
     ),
     revokeAllSessionsUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_REVOKE_ALL_SESSIONS_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_REVOKE_ALL_SESSIONS_URL",
+        process.env.NEXT_PUBLIC_SECURITY_REVOKE_ALL_SESSIONS_URL,
+      ),
     ),
     loginPolicyUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL",
+        process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL,
+      ),
     ),
-    postureUrl: trimToNull(process.env.NEXT_PUBLIC_SECURITY_POSTURE_URL),
-    auditUrl: trimToNull(process.env.NEXT_PUBLIC_SECURITY_AUDIT_URL),
+    postureUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_POSTURE_URL",
+        process.env.NEXT_PUBLIC_SECURITY_POSTURE_URL,
+      ),
+    ),
+    auditUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_AUDIT_URL",
+        process.env.NEXT_PUBLIC_SECURITY_AUDIT_URL,
+      ),
+    ),
     auditExportUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL",
+        process.env.NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL,
+      ),
     ),
   };
 }
@@ -68,40 +101,13 @@ export function getSecurityCapabilities(): SecurityCapabilities {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type SecuritySession = {
-  id: string;
-  device: string;
-  ip_address: string | null;
-  location: string | null;
-  created_at: string | null;
-  last_active_at: string | null;
-  is_current: boolean;
-};
+export type SecuritySession = Served<Schemas["SessionItem"]>;
 
-export type LoginPolicy = {
-  domain_allowlist: string[];
-  session_timeout_hours: number | null;
-  sso_required: boolean;
-  invite_only: boolean;
-  mfa_required: boolean;
-};
+export type LoginPolicy = Served<Schemas["LoginPolicy"]>;
 
-export type SecurityPosture = {
-  prompt_injection_protection: boolean | null;
-  citation_validation: boolean | null;
-  tenant_isolation: boolean | null;
-  output_validation: boolean | null;
-  tool_policy_enforced: boolean | null;
-  last_audit_at: string | null;
-};
+export type SecurityPosture = Served<Schemas["SecurityPosture"]>;
 
-export type AuditEvent = {
-  id: string;
-  event_type: string;
-  actor_email: string | null;
-  created_at: string;
-  summary: string;
-};
+export type AuditEvent = Served<Schemas["AuditEventItem"]>;
 
 // ── API functions ─────────────────────────────────────────────────────────────
 

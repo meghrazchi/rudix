@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { getSharedAnswer } from "@/lib/api/answer-shares";
 import type { SharedAnswerCitationResponse } from "@/lib/api/answer-shares";
@@ -39,6 +40,7 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
 
 function freshnessLabel(
   citation: SharedAnswerCitationResponse,
+  t: (key: string) => string,
 ): { label: string; className: string } | null {
   if (!citation.source_freshness_warning) {
     return null;
@@ -46,20 +48,20 @@ function freshnessLabel(
   const reason = (citation.source_freshness_warning_reason ?? "").toLowerCase();
   if (reason.includes("expired")) {
     return {
-      label: "Expired",
+      label: t("trustPanel.badge.expired"),
       className:
         "rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
     };
   }
   if (reason.includes("archived")) {
     return {
-      label: "Archived",
+      label: t("share.page.archived"),
       className:
         "rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 uppercase",
     };
   }
   return {
-    label: "Stale",
+    label: t("trustPanel.badge.stale"),
     className:
       "rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
   };
@@ -72,9 +74,11 @@ function CitationCard({
   citation: SharedAnswerCitationResponse;
   onClick?: () => void;
 }) {
+  const t = useTranslations("chat");
   const providerLabel = citation.source_provider_label ?? null;
-  const sourceTitle = citation.source_title ?? citation.filename ?? "Document";
-  const freshness = freshnessLabel(citation);
+  const sourceTitle =
+    citation.source_title ?? citation.filename ?? t("share.page.document");
+  const freshness = freshnessLabel(citation, t);
   const clickable = typeof onClick === "function";
   return (
     <button
@@ -122,7 +126,7 @@ function CitationCard({
         ) : null}
         {citation.page_number != null && (
           <p className="text-[10px] text-[#6a6780]">
-            Page {citation.page_number}
+            {t("share.page.pageN", { page: citation.page_number })}
           </p>
         )}
         {citation.text_snippet && (
@@ -142,6 +146,7 @@ function PasswordGate({
   token: string;
   onUnlocked: (password: string) => void;
 }) {
+  const t = useTranslations("chat.share.page");
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -172,19 +177,16 @@ function PasswordGate({
             lock
           </span>
           <h1 className="text-base font-semibold text-[#2a2640]">
-            Password required
+            {t("passwordTitle")}
           </h1>
         </div>
-        <p className="mb-4 text-xs text-[#6a6780]">
-          This shared answer is password protected. Enter the password to view
-          it.
-        </p>
+        <p className="mb-4 text-xs text-[#6a6780]">{t("passwordBody")}</p>
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
           <input
             type="password"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Enter password"
+            placeholder={t("passwordPlaceholder")}
             autoFocus
             className="w-full rounded-lg border border-[#d2cee6] px-3 py-2 text-sm text-[#2f2a46] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
           />
@@ -194,7 +196,7 @@ function PasswordGate({
             disabled={loading || !input.trim()}
             className="w-full rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Checking..." : "Unlock"}
+            {loading ? t("checking") : t("unlock")}
           </button>
         </form>
       </div>
@@ -203,6 +205,8 @@ function PasswordGate({
 }
 
 export function SharedAnswerPage({ token }: Props) {
+  const t = useTranslations("chat.share.page");
+  const tp = useTranslations("chat.trustPanel");
   const [previewCitationSet, setPreviewCitationSet] = useState<{
     citations: SharedAnswerCitationResponse[];
     initialIndex: number;
@@ -243,7 +247,7 @@ export function SharedAnswerPage({ token }: Props) {
   if (sharedQuery.isLoading) {
     return (
       <section className="px-4 py-8">
-        <LoadingState title="Loading shared answer..." />
+        <LoadingState title={t("loadingAnswer")} />
       </section>
     );
   }
@@ -253,8 +257,8 @@ export function SharedAnswerPage({ token }: Props) {
       return (
         <section className="px-4 py-8">
           <ForbiddenState
-            title="Access denied"
-            description="This share link is not accessible with your account."
+            title={t("accessDenied")}
+            description={t("answerForbidden")}
             compact={false}
           />
         </section>
@@ -263,7 +267,7 @@ export function SharedAnswerPage({ token }: Props) {
     return (
       <section className="px-4 py-8">
         <ErrorState
-          title="Share link not found"
+          title={t("notFound")}
           error={sharedQuery.error}
           description={getApiErrorMessage(sharedQuery.error)}
         />
@@ -280,13 +284,15 @@ export function SharedAnswerPage({ token }: Props) {
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-              Shared Answer
+              {t("answerHeading")}
             </p>
             <p className="mt-1 text-xs text-[#6a6780]">
-              Shared {formatDate(data.shared_at)}
               {data.expires_at
-                ? ` · Expires ${formatDate(data.expires_at)}`
-                : ""}
+                ? t("sharedExpires", {
+                    date: formatDate(data.shared_at),
+                    expires: formatDate(data.expires_at),
+                  })
+                : t("shared", { date: formatDate(data.shared_at) })}
             </p>
           </div>
         </div>
@@ -301,14 +307,13 @@ export function SharedAnswerPage({ token }: Props) {
             >
               info
             </span>
-            This answer is AI-generated and grounded in cited source excerpts.
-            Verify against original documents before acting on it.
+            {t("aiNoticeAnswer")}
           </div>
           {data.citations.some(
             (citation) => citation.source_freshness_warning,
           ) ? (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Some citations come from stale, expired, or archived sources.
+              {t("staleAnswer")}
             </div>
           ) : null}
 
@@ -317,7 +322,7 @@ export function SharedAnswerPage({ token }: Props) {
             {data.question ? (
               <div className="flex justify-end">
                 <article className="max-w-[80%] rounded-xl rounded-tr-none bg-[#f0ecf9] px-4 py-3 shadow-sm">
-                  <p className="sr-only">Question</p>
+                  <p className="sr-only">{t("question")}</p>
                   <p className="text-sm break-words whitespace-pre-wrap text-[#1b1b24]">
                     {data.question}
                   </p>
@@ -346,11 +351,19 @@ export function SharedAnswerPage({ token }: Props) {
                     >
                       check_circle
                     </span>
-                    AI-generated answer
+                    {t("aiAnswer")}
                   </span>
                   {data.confidence_category ? (
                     <span className="rounded-full bg-[#e4e1ee] px-2 py-0.5 text-[10px] font-semibold text-[#464555] uppercase">
-                      {data.confidence_category} confidence
+                      {t("confidence", {
+                        category: ["low", "medium", "high"].includes(
+                          data.confidence_category,
+                        )
+                          ? tp(
+                              `confidence.category.${data.confidence_category}`,
+                            )
+                          : data.confidence_category,
+                      })}
                     </span>
                   ) : null}
                 </div>

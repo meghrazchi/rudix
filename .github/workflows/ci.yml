@@ -57,6 +57,89 @@ jobs:
           terraform init -backend=false -input=false
           terraform validate
 
+  # Kubernetes chart and Compose files (0.8.0). Nothing is deployed and no cluster is used.
+  deploy-config:
+    name: Deploy config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+
+      - name: Lint and render Helm chart
+        run: RENDER_DIR="$RUNNER_TEMP/helm" deploy/scripts/check_helm_chart.sh
+
+      - name: Validate rendered manifests
+        run: |
+          docker run --rm -v "$RUNNER_TEMP/helm:/m:ro" ghcr.io/yannh/kubeconform:v0.6.7 \
+            -strict -summary -ignore-missing-schemas -kubernetes-version 1.30.0 /m
+
+      # R08-09: rule syntax, promtool unit tests (prometheus/tests/*.yml), and both scrape
+      # configs, on a copy with a placeholder token file at the path the deploy config reads.
+      - name: Check Prometheus rules
+        run: |
+          prom="$RUNNER_TEMP/prometheus"
+          cp -R infra/observability/prometheus "$prom"
+          mkdir -p "$prom/secrets"
+          printf 'placeholder\n' > "$prom/secrets/metrics_token"
+          run_promtool() {
+            docker run --rm --entrypoint promtool -v "$prom:/etc/prometheus:ro" \
+              -w /etc/prometheus prom/prometheus:v2.54.1 "$@"
+          }
+          run_promtool check rules alerts.yml $(cd "$prom" && ls rules/*.yml)
+          run_promtool test rules $(cd "$prom" && ls tests/*.yml)
+          run_promtool check config --syntax-only prometheus.yml prometheus.deploy.yml
+
+      - name: Check Alertmanager config
+        run: |
+          am="$RUNNER_TEMP/alertmanager"
+          mkdir -p "$am/secrets"
+          cp infra/observability/alertmanager/*.yml "$am/"
+          printf 'https://pager.invalid/hook\n' > "$am/secrets/oncall_pager_url"
+          printf 'https://ticket.invalid/hook\n' > "$am/secrets/oncall_ticket_url"
+          docker run --rm --entrypoint amtool -v "$am:/etc/alertmanager:ro" \
+            prom/alertmanager:v0.27.0 check-config \
+            /etc/alertmanager/alertmanager.yml /etc/alertmanager/alertmanager.deploy.yml
+
+      - name: Check observability compose
+        run: deploy/scripts/check_observability_config.sh
+
+      - name: Check compose files
+        run: deploy/scripts/check_compose_config.sh
+
+      # R08-01: every TLS, noindex, and Matomo variant of the edge Caddyfile parses and
+      # provisions. The files variant gets a throwaway self-signed certificate.
+      - name: Validate Caddyfile
+        run: |
+          edge_dir="$RUNNER_TEMP/edge"
+          cp -R deploy/compose/edge "$edge_dir"
+          mkdir -p "$edge_dir/certs"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=app.example.invalid" \
+            -keyout "$edge_dir/certs/key.pem" -out "$edge_dir/certs/cert.pem"
+          chmod 644 "$edge_dir/certs/key.pem"
+          for tls_mode in acme files; do
+            for noindex in true false; do
+              for matomo in off on; do
+                echo "EDGE_TLS_MODE=$tls_mode EDGE_NOINDEX=$noindex EDGE_MATOMO=$matomo"
+                docker run --rm -v "$edge_dir:/etc/caddy:ro" \
+                  -e RUDIX_APP_HOST=app.example.invalid \
+                  -e RUDIX_API_HOST=api.example.invalid \
+                  -e RUDIX_MATOMO_HOST=matomo.example.invalid \
+                  -e EDGE_ACME_EMAIL= \
+                  -e EDGE_TLS_MODE="$tls_mode" \
+                  -e EDGE_NOINDEX="$noindex" \
+                  -e EDGE_MATOMO="$matomo" \
+                  -e EDGE_MAX_REQUEST_BODY=26MiB \
+                  -e MCP_HTTP_PORT=8010 \
+                  caddy:2.10 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+              done
+            done
+          done
+
   backend:
     name: Backend lint and tests
     runs-on: ubuntu-latest
@@ -79,6 +162,16 @@ jobs:
           make -C backend lint
           cd backend
           .venv/bin/ruff format --check app tests
+
+      # The Helm chart tests (tests/test_helm_chart_*.py) skip when helm is missing.
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+
+      # Tests block network access, so fetch the tiktoken encodings first.
+      - name: Warm tiktoken cache
+        run: make -C backend warm-tiktoken
 
       - name: Run backend tests
         run: |
@@ -158,6 +251,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          # The migration safety check reads the pull request base (R08-08).
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -175,6 +271,17 @@ jobs:
           .venv/bin/alembic upgrade head
           .venv/bin/alembic downgrade -1
           .venv/bin/alembic upgrade head
+
+      - name: Check migration safety
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          cd backend
+          .venv/bin/python scripts/check_migration_safety.py --all
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            .venv/bin/python scripts/check_migration_safety.py --base-ref "origin/$BASE_REF"
+          fi
 
   frontend:
     name: Frontend quality checks
@@ -218,6 +325,10 @@ jobs:
         working-directory: frontend
         run: npm run api:check
 
+      - name: Check hand-written API types
+        working-directory: frontend
+        run: npm run api:check-handwritten
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
@@ -225,3 +336,15 @@ jobs:
       - name: Check prerendered public routes
         working-directory: frontend
         run: node scripts/check-prerendered-routes.mjs
+
+      - name: Check bundle budgets
+        working-directory: frontend
+        run: node scripts/check-bundle-budgets.mjs
+
+      - name: Upload bundle report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-report
+          path: frontend/.next/bundle-report.json
+          if-no-files-found: ignore

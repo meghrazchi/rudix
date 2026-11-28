@@ -1,0 +1,3 @@
+{{- if and .Values.pgbouncer.enabled .Values.podDisruptionBudget.enabled (gt (int .Values.pgbouncer.replicas) 1) }}
+{{- include "rudix.c1.pdb" (dict "root" . "component" "pgbouncer") }}
+{{- end }}

@@ -19,6 +19,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+import pytest
+
 from app.core.config import Environment, MCPTransport, settings
 from app.mcp.main import main
 
@@ -47,6 +49,34 @@ def test_mcp_main_runs_streamable_http_transport(
 
     assert exit_code == 0
     assert called["streamable"] is True
+
+
+def test_mcp_main_traces_stdio_and_shuts_tracing_down_on_error(
+    monkeypatch,
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(settings, "feature_enable_mcp", True)
+    monkeypatch.setattr(settings, "environment", Environment.test)
+    monkeypatch.setattr(
+        settings, "mcp_dev_principal_user_id", "00000000-0000-4000-8000-0000000000b3"
+    )
+    monkeypatch.setattr(
+        settings, "mcp_dev_principal_organization_id", "00000000-0000-4000-8000-0000000000b4"
+    )
+    monkeypatch.setattr(settings, "mcp_dev_principal_roles", ["member"])
+    monkeypatch.setattr("app.mcp.main.init_tracing", lambda runtime: calls.append(runtime))
+    monkeypatch.setattr("app.mcp.main.shutdown_tracing", lambda: calls.append("shutdown"))
+
+    def stdio_server() -> None:
+        calls.append("stdio")
+        raise RuntimeError("server stopped")
+
+    monkeypatch.setattr("app.mcp.main.run_stdio_server", stdio_server)
+
+    with pytest.raises(RuntimeError):
+        main(["--transport", "stdio"])
+
+    assert calls == ["mcp", "stdio", "shutdown"]
 
 
 def test_mcp_main_rejects_stdio_transport_in_production(

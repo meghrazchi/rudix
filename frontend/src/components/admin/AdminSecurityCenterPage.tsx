@@ -52,6 +52,7 @@ import { canViewAdminUsage, resolveUsageDateRange } from "@/lib/dashboard";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { publicEnv } from "@/lib/public-env";
 
 type WarningSeverity = "high" | "medium" | "low";
 
@@ -505,15 +506,31 @@ export function AdminSecurityCenterPage() {
   const teamCapabilities = useMemo(() => getTeamCapabilities(), []);
 
   const billingControlsHref =
-    trimToNull(process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL) ??
-    "/settings?tab=billing";
-  const apiKeysHref = trimToNull(process.env.NEXT_PUBLIC_SETTINGS_API_KEYS_URL);
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SETTINGS_BILLING_URL",
+        process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL,
+      ),
+    ) ?? "/settings?tab=billing";
+  const apiKeysHref = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_SETTINGS_API_KEYS_URL",
+      process.env.NEXT_PUBLIC_SETTINGS_API_KEYS_URL,
+    ),
+  );
   const webhooksHref = trimToNull(
-    process.env.NEXT_PUBLIC_SETTINGS_WEBHOOKS_URL,
+    publicEnv(
+      "NEXT_PUBLIC_SETTINGS_WEBHOOKS_URL",
+      process.env.NEXT_PUBLIC_SETTINGS_WEBHOOKS_URL,
+    ),
   );
   const ssoHref =
-    trimToNull(process.env.NEXT_PUBLIC_AUTH_SSO_URL) ??
-    "/settings?tab=security";
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_AUTH_SSO_URL",
+        process.env.NEXT_PUBLIC_AUTH_SSO_URL,
+      ),
+    ) ?? "/settings?tab=security";
 
   const auditRange = useMemo(() => resolveUsageDateRange("30d"), []);
 
@@ -552,9 +569,18 @@ export function AdminSecurityCenterPage() {
     retry: false,
   });
 
+  // Member counts come from `total` of one-row pages (R07-06), so they are
+  // exact for any team size instead of counting the first 200 rows.
   const teamQuery = useQuery({
-    queryKey: ["security-center", "team-members"],
-    queryFn: () => listTeamMembers({ limit: 200, offset: 0 }),
+    queryKey: ["security-center", "team-members", "counts"],
+    queryFn: async () => {
+      const [all, admins, owners] = await Promise.all([
+        listTeamMembers({ limit: 1, offset: 0 }),
+        listTeamMembers({ limit: 1, offset: 0, role: "admin" }),
+        listTeamMembers({ limit: 1, offset: 0, role: "owner" }),
+      ]);
+      return { total: all.total, admins: admins.total, owners: owners.total };
+    },
     enabled: isAdminUser && teamCapabilities.listMembersEnabled,
     retry: false,
   });
@@ -660,7 +686,6 @@ export function AdminSecurityCenterPage() {
   }
   const allowedDomainList = [...allowedDomains];
 
-  const teamMembers = teamQuery.data?.items ?? [];
   const auditItems = auditQuery.data?.items ?? [];
   const auditHealth = summarizeAuditHealth(auditItems);
   const warnings = buildWarnings(
@@ -678,10 +703,10 @@ export function AdminSecurityCenterPage() {
   );
   const recommendations = buildRecommendations(warnings, t);
 
-  const adminCount = teamMembers.filter((m) => m.role === "admin").length;
-  const ownerCount = teamMembers.filter((m) => m.role === "owner").length;
+  const adminCount = teamQuery.data?.admins ?? 0;
+  const ownerCount = teamQuery.data?.owners ?? 0;
   const elevatedCount = adminCount + ownerCount;
-  const totalMembers = teamMembers.length;
+  const totalMembers = teamQuery.data?.total ?? 0;
   const elevatedRatio = totalMembers > 0 ? elevatedCount / totalMembers : 0;
   const isAuditHealthy =
     auditHealth.failedCount === 0 && auditHealth.severeCount === 0;

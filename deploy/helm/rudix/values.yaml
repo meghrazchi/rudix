@@ -1,0 +1,682 @@
+# Default values for the Rudix chart (0.8.0).
+#
+# Every top-level key has an owner (docs/roadmap/V0_8_0_IMPLEMENTATION_PLAN.md, section 5.1).
+# A task edits only the keys it owns. values-staging.yaml and values-production.yaml carry the
+# same keys and differ only in scale, hosts, and secret names (R08-12).
+#
+# Values files never hold secret values: secrets come from an existing Kubernetes Secret
+# (`secrets.existingSecret`) whose keys become environment variables.
+#
+# This chart deploys no data store. PostgreSQL, Redis, RabbitMQ, Qdrant, object storage, and
+# Neo4j are provided by the operator; their URLs and credentials go in that Secret.
+
+# owner: S1
+nameOverride: ""
+
+# owner: S1
+fullnameOverride: ""
+
+# owner: S1
+global:
+  # development | test | staging | production; must equal config.env.ENVIRONMENT.
+  environment: development
+
+# owner: S1
+image:
+  # Placeholder registry; set the real one at deploy time.
+  registry: registry.invalid/rudix
+  # Empty tag uses the chart appVersion. A component digest wins over any tag.
+  tag: ""
+  pullPolicy: IfNotPresent
+  # Names of existing docker-registry Secrets.
+  pullSecrets: []
+  api:
+    repository: api
+    tag: ""
+    digest: ""
+  worker:
+    repository: worker
+    tag: ""
+    digest: ""
+  frontend:
+    repository: frontend
+    tag: ""
+    digest: ""
+
+# owner: S1
+config:
+  # Non-secret environment for every backend pod, rendered into the `<fullname>-config`
+  # ConfigMap. Never put a password, token, or key here.
+  env:
+    ENVIRONMENT: development
+    API_BASE_URL: https://api.rudix.invalid
+    FRONTEND_BASE_URL: https://app.rudix.invalid
+    LOG_FORMAT: json
+    # v080-A1
+    # v080-A2
+    # v080-B1
+    # v080-B2
+    # Metrics switches; must agree with the `metrics` block (rudix.b2.validate).
+    METRICS_ENABLED: "false"
+    METRICS_REQUIRE_AUTH: "true"
+    WORKER_METRICS_ENABLED: "false"
+    WORKER_METRICS_MULTIPROCESS: "true"
+    # v080-B3
+    # Tracing switches; must agree with the `tracing` block (rudix.b3.validate).
+    TRACING_ENABLED: "false"
+    OTEL_EXPORTER_OTLP_ENDPOINT: ""
+    TRACING_SAMPLE_RATIO: "0.05"
+    # false: an inbound traceparent cannot force sampling (docs/11 Tracing).
+    TRACING_TRUST_INBOUND_CONTEXT: "false"
+    # v080-C1
+    # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
+    READINESS_REQUIRED_DEPENDENCIES: postgres,redis
+    # v080-C2
+    # Must equal database.pgbouncerMode: true when DATABASE_URL points at a transaction pooler.
+    DB_PGBOUNCER_MODE: "false"
+    # Reporting routes read from DATABASE_REPLICA_URL only while the sampled lag is at most
+    # this many seconds (R08-04); unset replica URL: everything stays on the primary.
+    DB_REPLICA_MAX_LAG_SECONDS: "30"
+    DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS: "10"
+    DB_REPLICA_LAG_QUERY_TIMEOUT_MS: "500"
+    # v080-D1
+
+# owner: S1
+secrets:
+  # Name of an existing Kubernetes Secret in the release namespace. Each of its keys becomes
+  # an environment variable (envFrom). Empty: no Secret is referenced.
+  existingSecret: ""
+  # The chart never creates a Secret with values; must stay false.
+  create: false
+  # owner: D1
+  # Optional External Secrets Operator `ExternalSecret` that writes the Secret named by
+  # `existingSecret` from a secret manager (R08-11). Off by default; the operator must be
+  # installed and a SecretStore or ClusterSecretStore must exist. Only references live here:
+  # each `data` item maps an environment variable name (`secretKey`) to a remote key.
+  externalSecret:
+    enabled: false
+    refreshInterval: 1h
+    secretStoreRef:
+      # Placeholders: the name and kind of your SecretStore or ClusterSecretStore.
+      name: rudix-secret-store
+      kind: ClusterSecretStore
+    # Example (placeholders only, never values):
+    #   - secretKey: APP_AUTH_SECRET
+    #     remoteRef:
+    #       key: rudix/production/app-auth-secret
+    #   - secretKey: APP_AUTH_SECRET_PREVIOUS
+    #     remoteRef:
+    #       key: rudix/production/app-auth-secret-previous
+    data: []
+
+# owner: S1
+serviceAccount:
+  create: true
+  # Empty: the release fullname.
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+# owner: S1
+podSecurityContext:
+  # Backend images (api, worker, mcp, beat, migrate) run as the `rudix` user.
+  backend:
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+  # The frontend image runs as the `node` user.
+  frontend:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# owner: S1
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# owner: S1
+tmpVolume:
+  # Writable /tmp for every pod (the root filesystem is read-only).
+  sizeLimit: 256Mi
+
+# owner: S1
+metrics:
+  # Shape only in S1; B2 wires scraping.
+  enabled: false
+  requireAuth: true
+  # Key in secrets.existingSecret that holds the bearer token for /metrics.
+  tokenSecretKey: METRICS_BEARER_TOKEN
+  # owner: B2
+  workers:
+    port: 9808
+    # Prefork children export their counters through PROMETHEUS_MULTIPROC_DIR (R08-09);
+    # mirrored by config.env WORKER_METRICS_MULTIPROCESS.
+    multiprocess: true
+  # owner: B2
+  # Prometheus Operator ServiceMonitors for the api `http` and worker `metrics` ports (needs
+  # the monitoring.coreos.com CRDs). Off by default; needs metrics.enabled.
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    # Extra labels, e.g. `release: kube-prometheus-stack` for the operator's selector.
+    labels: {}
+
+# owner: A1
+ingress:
+  # One Ingress each for the app, the API, and (when mcp.enabled) MCP. Needs an
+  # operator-installed controller; written for NGINX ingress (docs/28, "Edge and ingress").
+  enabled: false
+  className: nginx
+  # Upload cap: backend MAX_UPLOAD_SIZE_MB (25) plus multipart headroom; raise both together.
+  maxBodySize: 26m
+  # proxy-read/send timeout on the API and MCP ingresses, for WebSocket and SSE streams.
+  streamTimeoutSeconds: 3600
+  # true: X-Robots-Tag "noindex, nofollow" on every host (staging).
+  noindex: false
+  certManager:
+    # Empty: no cert-manager annotation; the TLS secrets are provided another way.
+    clusterIssuer: ""
+  # Extra annotations added to every Ingress.
+  annotations: {}
+  app:
+    host: app.rudix.invalid
+    tlsSecretName: rudix-app-tls
+  api:
+    host: api.rudix.invalid
+    tlsSecretName: rudix-api-tls
+  mcp:
+    # Empty host: MCP is served on the API host under path, with the API certificate.
+    host: ""
+    path: /mcp
+    tlsSecretName: ""
+
+# owner: A2
+backup:
+  # CronJobs that run scripts/backup_run.py per kind (R08-06): client-side AES-256-GCM
+  # encryption, upload to the backup bucket, marker <prefix>/<kind>/latest.json. Off by
+  # default. Bucket credentials (BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY) and other
+  # BACKUP_S3_* settings come from secrets.existingSecret or config.env; an instance role
+  # works too. docs/runbooks/BACKUP_AND_RESTORE.md.
+  enabled: false
+  # Backup bucket (another account or region than the application data) and key prefix.
+  bucket: ""
+  prefix: rudix
+  # Existing Secret holding the key file (base64 of 32 random bytes), mounted read-only at
+  # /run/secrets/rudix-backup/<key>. Rotate by adding a new Secret; keep old keys for restore.
+  encryptionKeySecret:
+    name: ""
+    key: backup.key
+  # A second run of a kind never starts while one is running (the render fails otherwise).
+  concurrencyPolicy: Forbid
+  # Empty: the controller's time zone (usually UTC).
+  timeZone: ""
+  startingDeadlineSeconds: 3600
+  activeDeadlineSeconds: 21600
+  backoffLimit: 1
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  # emptyDir for the dump, snapshots, and ciphertext of one run.
+  workDirSizeLimit: 50Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  postgres:
+    # Off: managed PostgreSQL with point-in-time recovery is the primary recovery path; this
+    # logical dump is a provider-independent copy (docs/runbooks/DR_DATABASE_CORRUPTION.md).
+    enabled: false
+    schedule: "30 2 * * *"
+    # Dump initContainer image (pg_dump must match the server major version).
+    image:
+      repository: postgres
+      tag: "16"
+      digest: ""
+    # Key in secrets.existingSecret with a libpq connection URL for pg_dump.
+    databaseUrlSecretKey: BACKUP_DATABASE_URL
+  qdrant:
+    enabled: true
+    schedule: "0 3 * * *"
+  objects:
+    # Prefer provider replication plus versioning for managed S3; this is an encrypted
+    # incremental mirror (ETag and size manifest).
+    enabled: true
+    schedule: "30 3 * * *"
+
+# owner: A2
+dataStores:
+  # Documentation only: this chart deploys no data store and renders nothing from this key.
+  # It records what the operator's external stores must provide (docs/28, "Data stores,
+  # backups, and restore").
+  postgres:
+    # Managed PostgreSQL with point-in-time recovery and a read replica (C2).
+    pointInTimeRecovery: true
+  qdrant:
+    # Cluster of at least 2 nodes; set QDRANT_REPLICATION_FACTOR >= 2 before the collection
+    # is created (applies only at creation) and QDRANT_WRITE_CONSISTENCY_FACTOR <= it.
+    replicationFactor: 2
+    writeConsistencyFactor: 1
+  rabbitmq:
+    # Three nodes; CELERY_QUEUE_TYPE=quorum only after the docs/27 quorum cut-over.
+    nodes: 3
+    queueType: classic
+  redis:
+    # REDIS_URL: state (rate limits, tickets, pub/sub, cache version keys): persistence and
+    # a replica, maxmemory-policy noeviction. REDIS_CACHE_URL (optional): cache only,
+    # allkeys-lru, no persistence.
+    state: persistent-with-replica
+    cache: optional-evicting
+  objectStorage:
+    # Versioning on the application bucket (MINIO_BUCKET_VERSIONING on Compose) and on the
+    # backup bucket, with a noncurrent-version expiry.
+    versioning: true
+
+# owner: C1
+frontend:
+  # Fixed replica count; ignored while autoscaling.enabled (the autoscaler owns it).
+  replicas: 2
+  # Container port name `http` (contract 5.2.2).
+  port: 3000
+  # Probe path that answers 200 without auth or a locale redirect (the proxy matcher skips
+  # paths with a file extension; /login redirects to /<locale>/login).
+  probePath: /robots.txt
+  terminationGracePeriodSeconds: 30
+  preStopSleepSeconds: 5
+  # Writable Next.js cache (image optimisation, ISR) on the read-only root filesystem.
+  cacheSizeLimit: 512Mi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+
+# owner: C1
+api:
+  replicas: 2
+  port: 8000
+  # One uvicorn process per pod; replicas, not --workers, give more processes.
+  # Shutdown budget (contract 5.2.5): preStop + graceful + drain + 5 must not exceed
+  # terminationGracePeriodSeconds, or the render fails.
+  terminationGracePeriodSeconds: 60
+  preStopSleepSeconds: 10
+  # UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN
+  gracefulShutdownSeconds: 30
+  # API_SHUTDOWN_DRAIN_SECONDS (B1): wait for dropped runs before closing clients.
+  drainSeconds: 15
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+
+# owner: C1
+mcp:
+  # Off by default, like the Compose `mcp` profile.
+  enabled: false
+  replicas: 2
+  port: 8010
+  path: /mcp
+  terminationGracePeriodSeconds: 30
+  preStopSleepSeconds: 5
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+
+# owner: C1
+workers:
+  # Same as the Compose stop_grace_period: Celery finishes acks_late tasks on SIGTERM.
+  terminationGracePeriodSeconds: 120
+  # Exec probe `celery inspect ping -d <pool>@$HOSTNAME`; it starts a Python process, so it
+  # runs rarely (Compose: every 30 s, timeout 15 s).
+  probe:
+    periodSeconds: 60
+    timeoutSeconds: 20
+    failureThreshold: 5
+    startupPeriodSeconds: 20
+    startupFailureThreshold: 15
+  # Defaults for every pool; a pool's own `resources` replaces them.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  # One Deployment per pool (`python -m app.workers.pools <name>`). `queues` and
+  # `concurrency` are passed as WORKER_POOL_<NAME>_QUEUES / _CONCURRENCY, so the chart is
+  # the one source for what a pool consumes; the queue lists equal the defaults in
+  # app/workers/pools.py (a test checks it) and feed the autoscaling queries.
+  pools:
+    ingest:
+      enabled: true
+      replicas: 1
+      concurrency: 2
+      queues:
+        - documents.processing
+        - documents.deletion
+        - documents.reindex
+      resources: {}
+    graph:
+      enabled: true
+      replicas: 1
+      concurrency: 2
+      queues:
+        - documents.graph
+      resources: {}
+    sync:
+      enabled: true
+      replicas: 1
+      concurrency: 2
+      queues:
+        - connectors.sync
+      resources: {}
+    eval:
+      enabled: true
+      replicas: 1
+      concurrency: 1
+      queues:
+        - evaluations
+      resources: {}
+    default:
+      enabled: true
+      replicas: 1
+      concurrency: 2
+      queues:
+        - default
+        - email
+      resources: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+
+# owner: C1
+beat:
+  # Exactly one: a second beat schedules every task twice. Any other value fails the render.
+  replicas: 1
+  terminationGracePeriodSeconds: 10
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+
+# owner: C1
+migrations:
+  # Helm hook Job (pre-install, pre-upgrade): alembic upgrade head, Qdrant bootstrap, graph
+  # migrations, in that order (as deploy_compose_remote.sh). A failure stops the release.
+  enabled: true
+  # Run as the schema owner: DATABASE_URL comes from this key of secrets.existingSecret.
+  useMigrationUrl: false
+  migrationUrlSecretKey: DATABASE_MIGRATION_URL
+  hookWeight: 0
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# owner: C1
+autoscaling:
+  enabled: false
+  # keda: ScaledObjects with Prometheus triggers (KEDA installed by the operator).
+  # hpa: autoscaling/v2 HorizontalPodAutoscalers on CPU and memory (api, frontend).
+  mode: keda
+  prometheus:
+    # Required in keda mode, for example the in-cluster Prometheus service URL.
+    serverAddress: ""
+    # PromQL label matchers added to every query; empty: namespace="<release namespace>".
+    labelMatchers: ""
+  api:
+    # Never below 2: a cold start never serves alone.
+    minReplicas: 2
+    maxReplicas: 10
+    # Per replica (KEDA AverageValue).
+    targetInFlightRequests: 40
+    # Realtime streams + chat WebSockets per replica, below the 200-per-replica goal.
+    targetStreams: 150
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    scaleDownStabilizationSeconds: 300
+  frontend:
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    scaleDownStabilizationSeconds: 300
+  workers:
+    pollingInterval: 30
+    cooldownPeriod: 300
+    scaleDownStabilizationSeconds: 300
+    # Per pool (keda only). minReplicas 1: a pool is never scaled to zero by default.
+    pools:
+      ingest:
+        minReplicas: 1
+        maxReplicas: 4
+        targetQueueDepth: 20
+        targetQueueWaitSeconds: 60
+      graph:
+        minReplicas: 1
+        maxReplicas: 3
+        targetQueueDepth: 20
+        targetQueueWaitSeconds: 120
+      sync:
+        minReplicas: 1
+        maxReplicas: 3
+        targetQueueDepth: 20
+        targetQueueWaitSeconds: 120
+      eval:
+        minReplicas: 1
+        maxReplicas: 2
+        targetQueueDepth: 10
+        targetQueueWaitSeconds: 300
+      default:
+        minReplicas: 1
+        maxReplicas: 3
+        targetQueueDepth: 50
+        targetQueueWaitSeconds: 30
+
+# owner: C1
+networkPolicy:
+  # Default-deny ingress for every pod of the release, then explicit allows.
+  enabled: true
+  # Namespace of the ingress controller (operator-installed); reaches frontend, api, mcp.
+  ingressControllerNamespaceSelector:
+    kubernetes.io/metadata.name: ingress-nginx
+  # Optional pod labels of the controller inside that namespace; empty: any pod there.
+  ingressControllerPodSelector: {}
+  # Namespace allowed to scrape the metrics ports (api http, workers metrics) when
+  # metrics.enabled.
+  monitoringNamespaceSelector:
+    kubernetes.io/metadata.name: monitoring
+  # Frontend server-side calls to the api Service (only when NEXT_PUBLIC_PROXY_TARGET points
+  # at it at build time); off: the browser calls the API through the ingress.
+  allowFrontendToApi: false
+  # In-cluster data stores the operator runs (empty: the stores are external). Each entry:
+  #   - name: postgres                 # policy name suffix
+  #     namespace: ""                  # empty: the release namespace
+  #     podSelector: {app: postgres}   # labels of the data store pods
+  #     ports: [{port: 5432, protocol: TCP}]
+  # renders a policy that allows ingress to those pods only from Rudix application pods
+  # (api, mcp, workers, beat, migrate, backup-*).
+  dataStores: []
+  egress:
+    # Off by default. On: pods of the release may reach only DNS, each other, and the
+    # rules below (data stores, object storage, LLM providers).
+    enabled: false
+    dnsNamespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    # Raw NetworkPolicy egress rules added for every pod of the release.
+    extraRules: []
+
+# owner: C1
+podDisruptionBudget:
+  # frontend, api, mcp; at most one pod evicted at a time. Beat never gets one.
+  enabled: true
+  maxUnavailable: 1
+
+# owner: C1
+rollout:
+  # frontend, api, mcp: a new pod is ready before an old one stops.
+  web:
+    maxUnavailable: 0
+    maxSurge: 25%
+  workers:
+    maxUnavailable: 0
+    maxSurge: 1
+  minReadySeconds: 10
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  # Soft anti-affinity and topology spread across nodes for frontend and api.
+  spreadAcrossNodes: true
+  topologyKey: kubernetes.io/hostname
+
+# owner: C1
+connectionBudget:
+  # Largest number of PostgreSQL connections the release may open (the server's
+  # max_connections minus reserved and other clients, or the pooler's client limit).
+  # 0: check off. The render fails when the worst case exceeds it (docs/28).
+  maxDatabaseConnections: 0
+  # Per-process pool, used when config.env has no DB_POOL_SIZE / DB_MAX_OVERFLOW.
+  defaultPoolSize: 5
+  defaultMaxOverflow: 10
+  # Engines per process: 2 when DATABASE_MAINTENANCE_URL is set (a second pool).
+  enginesPerProcess: 1
+
+# owner: C2
+database:
+  # Key names in secrets.existingSecret, never values (docs/28, "Database"). The chart reads
+  # the Secret with envFrom, so each key arrives under its own name:
+  #   DATABASE_URL              application role (or the PgBouncer Service when pgbouncer is on)
+  #   DATABASE_REPLICA_URL      optional read replica for reporting routes (read-only role)
+  #   DATABASE_MIGRATION_URL    schema owner for the migrate Job (migrations.useMigrationUrl)
+  #   DATABASE_MAINTENANCE_URL  optional BYPASSRLS role for cross-tenant beat tasks
+  secretKeys:
+    url: DATABASE_URL
+    replicaUrl: DATABASE_REPLICA_URL
+    migrationUrl: DATABASE_MIGRATION_URL
+    maintenanceUrl: DATABASE_MAINTENANCE_URL
+  # true when DATABASE_URL goes through PgBouncer in transaction mode (the chart pooler or the
+  # provider's). Must equal config.env.DB_PGBOUNCER_MODE; the render fails when they differ.
+  pgbouncerMode: false
+
+# owner: C2
+pgbouncer:
+  # PgBouncer in transaction mode between the application pods and PostgreSQL (R08-04). Off:
+  # the pods connect to the database (or the managed provider's pooler) directly.
+  enabled: false
+  # Required when enabled: an image the operator trusts, by digest; no default is guessed.
+  image: ""
+  imagePullPolicy: IfNotPresent
+  replicas: 2
+  # Container and Service port, named `postgres`.
+  port: 6432
+  # Required when enabled: existing Secret with pgbouncer.ini (pool_mode = transaction,
+  # listen_port = port, no logfile or pidfile) and userlist.txt (or auth_query settings).
+  configSecretName: ""
+  configMountPath: /etc/pgbouncer
+  # Default: run pgbouncer on the mounted ini. Images with their own entrypoint may need [].
+  command: ["pgbouncer"]
+  args: ["/etc/pgbouncer/pgbouncer.ini"]
+  # Mirror of pgbouncer.ini for the connection budget: server connections per pod are
+  # default_pool_size + reserve_pool_size (one database and user pair); max_client_conn
+  # bounds the application side.
+  defaultPoolSize: 20
+  reservePoolSize: 5
+  maxClientConnections: 1000
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+
+# owner: B3
+tracing:
+  # OpenTelemetry tracing (R08-10). Off by default: no exporter and no spans. Must agree with
+  # TRACING_ENABLED and OTEL_EXPORTER_OTLP_ENDPOINT under `# v080-B3` in config.env
+  # (rudix.b3.validate). No collector or vendor is assumed; use a private collector.
+  enabled: false
+  # OTLP/HTTP (protobuf) collector base URL, e.g. https://otel-collector.observability:4318
+  # (`/v1/traces` is appended). https:// in staging and production.
+  endpoint: ""
+  # Key in secrets.existingSecret holding OTEL_EXPORTER_OTLP_HEADERS (`name=value,...`, e.g.
+  # the collector's auth header). envFrom exposes a Secret key under its own name, so this
+  # stays OTEL_EXPORTER_OTLP_HEADERS; leave the key out of the Secret when none is needed.
+  headersSecretKey: OTEL_EXPORTER_OTLP_HEADERS
+
+# owner: D1
+runtimeConfig:
+  # Non-secret frontend environment, rendered into the `<fullname>-frontend` ConfigMap.
+  # With NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request (an image built in request mode) the
+  # frontend serves the allowlisted NEXT_PUBLIC_* names below at request time from
+  # /runtime-config.js and builds the CSP from them (R08-11). With `build` (the default) the
+  # image keeps the values it was built with and these only reach server-side code.
+  # Allowlist: frontend/config/public-runtime-keys.mjs. Never put a credential here.
+  # Build-time only, so not settable here: NEXT_PUBLIC_ASSET_PREFIX, NEXT_PUBLIC_PUBLIC_SITE_URL
+  # and the other NEXT_PUBLIC_PUBLIC_* links, PUBLIC_ASSET_CACHE_CONTROL (see `cdn`).
+  env:
+    NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE: build
+    NEXT_PUBLIC_DEPLOYMENT_ENV: development
+    NEXT_PUBLIC_API_URL: https://api.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.rudix.invalid
+    NEXT_PUBLIC_AUTH_PROVIDER: app
+    NEXT_PUBLIC_SENTRY_DSN: ""
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
+    NEXT_PUBLIC_SENTRY_RELEASE: ""
+    NEXT_PUBLIC_MATOMO_URL: ""
+    NEXT_PUBLIC_MATOMO_SITE_ID: ""
+    NEXT_PUBLIC_SUPPORT_URL: ""
+    NEXT_PUBLIC_HELP_DOCS_URL: ""
+
+# owner: D1
+cdn:
+  # Build-time values the frontend image was built with, recorded here for reference
+  # (R08-12). They cannot change at deploy time: NEXT_PUBLIC_ASSET_PREFIX is Next.js
+  # assetPrefix and PUBLIC_ASSET_CACHE_CONTROL is a build-time response header. The chart
+  # checks their shape only and renders nothing from them.
+  # One image for staging and production needs one CDN host for both.
+  assetPrefix: ""
+  publicAssetCacheControl: ""

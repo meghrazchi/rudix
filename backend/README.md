@@ -60,6 +60,8 @@ make seed-dev
 - The API and worker fail at startup if required configuration is missing or malformed.
 - URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth provider URLs when applicable, and service base URLs).
 - App-managed auth is enabled by default (`AUTH_PROVIDER=app`) and uses a signed bearer token.
+- Session-hint cookie (R07-09): `APP_AUTH_SESSION_HINT_COOKIE_ENABLED` (default `false`), `APP_AUTH_SESSION_HINT_COOKIE_NAME` (default `rudix_session_hint`) and `APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` (default host-only) add a non-secret `"1"` cookie (`HttpOnly`, refresh-cookie `Secure`/`SameSite`, `Path=/`) set with the refresh cookie on login, refresh and SSO, and cleared on logout, logout-all and refresh `401`/`403` rejections (invalid, revoked or reused token). It grants nothing; the frontend route gate only checks it exists. Code: `app/interfaces/http/auth_cookies.py`.
+- With `APP_AUTH_COOKIE_SAME_SITE=none`, `POST /auth/token/refresh` and `POST /auth/logout` reject a missing or foreign `Origin` (not in `CORS_ORIGINS`) with `403 csrf_origin_rejected`; metric `rudix_auth_csrf_origin_rejections_total{endpoint,reason}`. With `lax`/`strict` nothing changes.
 - `clerk` auth provider is implemented with JWKS-based JWT verification (signature, issuer, audience, expiry, subject).
 - `supabase` provider wiring exists and uses the same JWKS verifier contract, but requires provider-specific JWT settings and full integration validation.
 - Dependency clients are initialized through centralized factories (`app/clients/factory.py`) for consistent timeout/retry handling.
@@ -69,7 +71,7 @@ make seed-dev
 - Celery uses explicit queues/routes for document processing, deletion, re-indexing, and evaluations.
 - Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
-- Document processing uses an atomic claim (`documents.processing_task_id`), so retries and redeliveries resume instead of skipping; a terminal failure from a task whose claim was taken over does not mark the document `failed`. `documents.process` skips (`status_not_claimable`) documents in `indexed`, `deleted`, `deleting`, `delete_requested`, `quarantined`, `blocked`, or `retained_by_policy` unless `force=True`, and a terminal failure never overwrites a deletion, retention, or DLP-quarantine status with `failed` (it logs `document.processing.failure_status_preserved` and audits `document.task.failure_ignored`). The beat-scheduled `documents.reap_stale` task re-queues documents stuck in `processing` (`DOCUMENT_PROCESSING_STALE_SECONDS`, `DOCUMENT_REAPER_INTERVAL_SECONDS`, `DOCUMENT_REAPER_MAX_ATTEMPTS`, `DOCUMENT_REAPER_BATCH_SIZE`). Its `rudix_documents_reaped_total` counter is emitted in prefork children and is not scraped yet (see the beat-heartbeat note under Scheduled tasks).
+- Document processing uses an atomic claim (`documents.processing_task_id`), so retries and redeliveries resume instead of skipping; a terminal failure from a task whose claim was taken over does not mark the document `failed`. `documents.process` skips (`status_not_claimable`) documents in `indexed`, `deleted`, `deleting`, `delete_requested`, `quarantined`, `blocked`, or `retained_by_policy` unless `force=True`, and a terminal failure never overwrites a deletion, retention, or DLP-quarantine status with `failed` (it logs `document.processing.failure_status_preserved` and audits `document.task.failure_ignored`). The beat-scheduled `documents.reap_stale` task re-queues documents stuck in `processing` (`DOCUMENT_PROCESSING_STALE_SECONDS`, `DOCUMENT_REAPER_INTERVAL_SECONDS`, `DOCUMENT_REAPER_MAX_ATTEMPTS`, `DOCUMENT_REAPER_BATCH_SIZE`). Its `rudix_documents_reaped_total` counter is emitted in prefork children; since 0.8.0 it is scraped when the pool collects in multiprocess mode (see Prometheus & Grafana Observability).
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Connector sync endpoints use connector-specific Redis rate limits (`RATE_LIMIT_CONNECTOR_REQUESTS`) in addition to the shared admin/document scopes.
 - The public contact form uses `POST /api/v1/contact`, persists valid
@@ -88,6 +90,84 @@ make seed-dev
 - Database engine settings (R04-01): `DB_POOL_SIZE` (5), `DB_MAX_OVERFLOW` (10), `DB_POOL_TIMEOUT` (30 s), `DB_STATEMENT_TIMEOUT_MS` and `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` (0 = off), `DB_PGBOUNCER_MODE` (false). The defaults keep the previous behaviour. Alembic uses `DATABASE_MIGRATION_URL` when set; `maintenance_session()` (cross-tenant beat tasks) uses `DATABASE_MAINTENANCE_URL` when set. The engine is disposed on API shutdown. Pool metrics: `rudix_db_pool_wait_seconds`, `rudix_db_pool_timeouts_total`.
 - Handlers that make a slow network call inside a request (`POST /admin/model-providers/test`, `POST /admin/webhooks/{id}/test`, `POST /admin/sso/test-connection`) commit before the call so the pooled connection is returned while it runs.
 - Row-level security (R04-08): `RLS_ENFORCEMENT` is `off`, `soft` (default in staging/production), or `strict` (default in development/test since 0.5.0). `FORCE ROW LEVEL SECURITY` is operator SQL (`deploy/sql/force_rls.sql`, rollback `unforce_rls.sql`, rendered by `scripts/render_force_rls_sql.py`), applied after the role split. Migration `20261127_0004` covers every table with `organization_id` except the user-scoped identity tables (`users`, `organization_members`, `auth_refresh_sessions`); `deploy/sql/provision_roles.sql` creates the `rudix_app` and `rudix_maintenance` roles. PostgreSQL tests prove isolation with a non-owner probe role (`rls_probe_session` fixture, `tests/test_rls_enforcement_pg.py`); set `TEST_MIGRATIONS_DATABASE_URL` to a database that may be downgraded to also run the migration round trip. See `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
+- Realtime events (R07-07): `REALTIME_EVENTS_ENABLED` (default `false`) enables
+  `GET /events/stream`. `REALTIME_BUFFER_TTL_SECONDS` (120), `REALTIME_BUFFER_MAX_EVENTS`
+  (500), `REALTIME_STREAM_KEEPALIVE_SECONDS` (15), `REALTIME_STREAM_MAX_SECONDS` (300),
+  `REALTIME_MAX_CONNECTIONS_PER_USER` (5). Events are recorded on the session by an ORM
+  `after_flush` observer (`app/application/realtime/observers.py`) plus explicit calls at
+  Core `UPDATE` sites, and published to Redis in `after_commit`
+  (`app/application/realtime/publisher.py`); workers use a process-local client. The
+  per-user cap is an atomic lease semaphore (leases expire a minute after the longest
+  stream), and the endpoint commits the request session before streaming so a stream
+  holds no database connection. `documents.changed` is recorded once per organisation and
+  transaction, so a bulk change publishes one hint.
+- Read replica for reports (0.8.0, R08-04): `DATABASE_REPLICA_URL` (unset: everything on the
+  primary), `DB_REPLICA_MAX_LAG_SECONDS` (30), `DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS` (10),
+  `DB_REPLICA_LAG_QUERY_TIMEOUT_MS` (500), `DB_REPLICA_POOL_SIZE` (5),
+  `DB_REPLICA_MAX_OVERFLOW` (10). `get_reporting_db_session` (`app/auth/dependencies.py`)
+  serves `GET /admin/usage/dashboard`, `GET /admin/usage-adoption/{summary,charts,funnel,users,export}`,
+  `GET /reports`, and `GET /reports/answer-quality` from a read-only replica session
+  (`app/db/replica.py`) bound to the request's tenant while the lag sampled on demand is
+  within the limit; otherwise it yields the primary session itself, so tests that override
+  `get_db_session` are unaffected. Metrics `rudix_db_replica_lag_seconds` and
+  `rudix_db_replica_routed_total{target,reason}`; details in docs/28.
+- Migration safety (0.8.0, R08-08): `make check-migration-safety` runs
+  `scripts/check_migration_safety.py --all`; CI also runs `--base-ref origin/<base>`. Rules,
+  the `# migration-safety: allow=<rule> reason="..."` marker, and
+  `scripts/migration_safety_allowlist.json` are described in docs/CONTRIBUTING.md.
+
+- Signing-key rotation (R08-11): `APP_AUTH_SECRET_PREVIOUS` (unset by default) is tried after
+  `APP_AUTH_SECRET` when verifying access and refresh tokens and the Slack OAuth state; signing
+  always uses `APP_AUTH_SECRET`. Startup refuses an empty previous secret or one equal to the
+  current. `rudix_auth_token_verified_by_previous_key_total{kind}` counts verifications that
+  needed it; remove it when the counter stops growing (at least the access-token TTL, the
+  refresh TTL to keep sessions signed in). It is never used for connector credential
+  encryption. The snapshot shows only `infrastructure.app_auth_secret_previous_set`. Runbook:
+  `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md` `### Rotation`.
+
+- Stateless API replicas (0.8.0, R08-03, R08-02, R08-05; details in
+  `docs/28_KUBERNETES_HELM_DEPLOYMENT.md`, "Stateless replicas and shutdown"):
+  - `WS_CHAT_CONNECTION_LIMIT_BACKEND` (`memory`, default; or `redis`): `redis` counts
+    `WS_CHAT_MAX_CONNECTIONS_PER_USER` across replicas with one lease per connection
+    (`app/application/chat/ws_connection_limit.py`), refreshed on each heartbeat and expiring
+    after `WS_CHAT_CONNECTION_LEASE_SECONDS` (90; with `redis`, must exceed two heartbeat
+    intervals). Redis
+    errors follow `RATE_LIMIT_REDIS_FAILURE_MODE` (open: in-process count; closed: `4429`).
+  - `API_SHUTDOWN_DRAIN_SECONDS` (0 = off, at most 120): lifespan shutdown waits that long
+    for chat runs whose socket dropped (uvicorn closes sockets with `1012`) before closing
+    clients, then cancels the rest (`drain_dropped_runs` in
+    `app/application/chat/transports/ws.py`).
+  - `READINESS_REQUIRED_DEPENDENCIES` (comma list, unset = all): only these failures make
+    `/api/v1/ready` answer `503`; the body still reports every dependency.
+  - `REDIS_CACHE_URL` (unset = `REDIS_URL`): cached values only; version keys and every
+    other state key stay on `REDIS_URL`. `CELERY_RESULT_BACKEND_URL` (unset = `REDIS_URL`):
+    Celery results. `/ready` adds `redis_cache` when the cache URL is set.
+- Backups, freshness, and restore verification (0.8.0, R08-06, R08-04, R08-05; details in
+  `docs/10_DEPLOYMENT_DOCKER.md` "Backup strategy" and `docs/runbooks/BACKUP_AND_RESTORE.md`):
+  - `BACKUP_ENABLED` (false): the runner `scripts/backup_run.py --kind postgres|qdrant|objects`
+    refuses to run while false. It encrypts with AES-256-GCM (`app/ops/backup/crypto.py`,
+    format `RUDIXBK1`), uploads to `BACKUP_BUCKET` under `BACKUP_PREFIX` (`rudix`), and
+    writes `<prefix>/<kind>/latest.json`. In staging and production an enabled runner needs
+    `BACKUP_BUCKET` and `BACKUP_ENCRYPTION_KEY_FILE` (base64 of 32 bytes, a mounted file), and
+    `BACKUP_S3_SSE` (`AES256`, `aws:kms`, or `none` only with `BACKUP_S3_SSE_NONE_ALLOWED=true`).
+  - `BACKUP_S3_ENDPOINT` (unset = AWS; set = path-style), `BACKUP_S3_REGION`,
+    `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY` (unset = default credential chain),
+    `BACKUP_S3_KMS_KEY_ID`, `BACKUP_WORK_DIR` (`/tmp/rudix-backup`; the postgres kind reads
+    `postgres.dump` from it, produced by `pg_dump -Fc` in the `postgres:16` image),
+    `BACKUP_QDRANT_TIMEOUT_SECONDS` (1800; the qdrant kind's snapshot calls block until done,
+    so they never use the request-path `QDRANT_TIMEOUT_SECONDS`).
+  - `BACKUP_FRESHNESS_CHECK_ENABLED` (false), `BACKUP_FRESHNESS_INTERVAL_SECONDS` (900),
+    `BACKUP_MAX_AGE_HOURS` (26), `BACKUP_KINDS` (`postgres,qdrant,objects`): beat task
+    `ops.backups.check_freshness` sets `rudix_backup_last_success_timestamp_seconds{kind}` and
+    `rudix_backup_freshness_checks_total{outcome}`; `scripts/check_backup_freshness.py` exits 1
+    when a kind is missing or stale (deploy gate `DEPLOY_BACKUP_GATE=marker`).
+  - `scripts/backup_restore.py --kind ... (--latest | --object-key K) --out PATH
+    [--key-file OLD]` downloads, checks the SHA-256, and decrypts.
+    `scripts/verify_postgres_restore.py --database-url URL [--expect-revision R]
+    [--manifest floors.json]` exits 0 only when the revision, tables, RLS policies, primary
+    keys, key indexes, and row-count floors hold (`--write-manifest` records floors).
+  - `QDRANT_WRITE_CONSISTENCY_FACTOR` (unset = server default): replicas that must
+    acknowledge a write, applied when a collection is created (`app/clients/qdrant_tuning.py`).
 
 ## Settings layout and startup behavior
 
@@ -95,6 +175,7 @@ make seed-dev
 - Redis, RabbitMQ, and Qdrant are optional at boot: if their init fails the API logs `startup.dependency_unavailable` (dependency and error class) and keeps starting; `/api/v1/ready` reports them down and retries the Redis and Qdrant connection on each probe, so the API recovers without a restart.
 - `GRAPH_MIGRATIONS_ON_STARTUP` controls Neo4j graph migrations at API startup. Unset means on in development/test and off in staging/production. In staging/production run `make migrate-graph` (or `python scripts/run_graph_migrations.py`) as part of the migrate step; it is a no-op unless `ENTERPRISE_GRAPH_ENABLED=true` and exits non-zero on failure.
 - API errors use one envelope (`error.code`, `error.message`, `error.request_id`, `error.details`) with the legacy `detail` alias; see `docs/07_API_DESIGN.md`.
+- 0.9.0 adds two settings modules, both registered on `Settings` and validated from its model validator (`validate_account_security`, `validate_billing`): `app/core/settings/account_security.py` (`AccountSecuritySettings`; verification, recovery, MFA, SAML and SCIM fields land there, plus `AUTH_ONE_TIME_TOKEN_RETENTION_HOURS`, default 24, the age after which the daily `auth.tokens.purge_expired` task deletes expired or consumed single-use tokens) and `app/core/settings/billing.py` (`BillingSettings`; `BILLING_PROVIDER=none` by default, which keeps manual plans and usage-derived invoices). The sanitized snapshot has a `product_completeness` section (booleans and sanitized values only).
 
 ## Authentication quick check
 
@@ -511,6 +592,28 @@ gets no `[postgres]` parameters. PostgreSQL full-text search
 CI runs the lane in `.github/workflows/backend-postgres.yml` (check name
 `Backend PostgreSQL tests`) with PostgreSQL and Redis service containers, on every push and
 pull request. The `backend-alembic` job in `ci.yml` keeps only the migration round trip.
+
+- Hermetic tests (0.9.0): `tests/conftest.py` pins the environment before any application
+  import (`tests/hermetic.py`), so the suite behaves as in CI whatever `.env` or the shell
+  holds. It applies the CI job environment as defaults, pins `ENVIRONMENT=test`, the
+  provider selectors (`EMAIL_PROVIDER=console`, `EMAIL_ENABLED=false`, `BILLING_PROVIDER=none`,
+  `TRACING_ENABLED=false`, `LANGFUSE_ENABLED=false`, `OPENAI_API_KEY=test-placeholder-key`),
+  rebuilds the settings singleton without reading `.env`, and clears every provider
+  credential (Resend, Postmark, SMTP, Stripe, Langfuse, Slack, Teams, local model keys,
+  OTLP headers, backup S3 keys, `SENTRY_DSN`). Tests that need other values keep using
+  `monkeypatch` on `settings`.
+- An autouse session guard makes `socket.connect`/`connect_ex` raise
+  `RuntimeError: tests must not open network connections to <host>:<port>; use the fakes`
+  for any IPv4 or IPv6 address that is not loopback and not the host of `TEST_DATABASE_URL`,
+  `TEST_MIGRATIONS_DATABASE_URL`, or `TEST_REDIS_URL`. Unix sockets and name resolution are
+  allowed. Running the suite against live providers on purpose is not supported: use the
+  fakes, or a separate script outside `tests/`.
+- The chunker's `tiktoken` encodings (`cl100k_base`, `o200k_base`) are downloaded on first
+  use, which the guard blocks. Run `make warm-tiktoken` once after a fresh install (CI runs it
+  before pytest); otherwise ingestion tests fail with the guard error for an Azure blob host.
+- `tests/test_migrations_0_9_0_pg.py` runs the 0.9.0 migrations up, down to
+  `20261128_0003`, and up again on `TEST_MIGRATIONS_DATABASE_URL` (a database that is safe to
+  downgrade); it is skipped when the variable is unset.
 
 ## Test speed and coverage
 
@@ -1160,8 +1263,8 @@ recovery, stale connector-sync recovery, and agent run recovery never run.
 Worker platform (0.6.0, R06-03 to R06-05): beat schedules nothing new for it. The queue depth
 gauges come from a sampler in `worker-default`'s main process
 (`WORKER_SAMPLE_QUEUE_DEPTH`, every `WORKER_QUEUE_SAMPLE_INTERVAL_SECONDS`, default 30), not
-from a beat task, because a task in a prefork child cannot export metrics on the worker's
-metrics port. Beat itself stays a single process outside the pools; its tasks run on the
+from a beat task, because before 0.8.0 a task in a prefork child could not export metrics on
+the worker's metrics port (multiprocess mode exports them since R08-09). Beat itself stays a single process outside the pools; its tasks run on the
 `default` queue, so `worker-default` must be running for them. Every task, beat tasks
 included, now has a soft and a hard time limit (defaults 300 s / 360 s unless
 `CELERY_TASK_TIME_LIMITS` names it; `maintenance.retention.purge` 1500 s / 1620 s).
@@ -1208,8 +1311,12 @@ Verify with `docker compose logs beat`. You should see `beat: Starting...` and, 
 interval, `Scheduler: Sending due task connector-sync-schedule-poll`. Interval entries first
 fire one interval after startup.
 
-A beat heartbeat alert is planned for `0.8.0`. It depends on worker task counters being
-exported from prefork child processes, which is not the case yet.
+Beat heartbeat (0.8.0, R08-09): beat schedules `ops-beat-heartbeat` (`ops.beat.heartbeat`,
+default queue) every `BEAT_HEARTBEAT_INTERVAL_SECONDS` (default 60, range 10 to 3600; the
+message expires after one interval). Each run sets `rudix_beat_heartbeat_timestamp_seconds`
+and increments `rudix_beat_heartbeats_total` (with `METRICS_ENABLED=true` on the worker).
+`RudixBeatHeartbeatStale` and `RudixBeatHeartbeatMissing`
+(`infra/observability/prometheus/rules/beat.yml`) alert when it stops.
 
 Credential usage flush (R04-06): beat also schedules `usage-touch-flush`
 (`usage.touch.flush`, default queue) every `USAGE_TOUCH_FLUSH_INTERVAL_SECONDS` seconds
@@ -1259,6 +1366,22 @@ conversion on staging volume first.
 - Optional bearer authentication: set `METRICS_REQUIRE_AUTH=true` and `METRICS_BEARER_TOKEN=<token>`.
 - Celery worker metrics: set `WORKER_METRICS_ENABLED=true` to expose Celery task metrics on `WORKER_METRICS_PORT=9808`.
 - Start Prometheus, Alertmanager, Grafana, and infrastructure exporters with `make up-observability` from repository root.
+- Browser Web Vitals (R07-11): set `WEB_VITALS_INGEST_ENABLED=true` to accept `POST /api/v1/telemetry/web-vitals` (404 otherwise). Samples go to `rudix_web_vitals_value_ms`, `rudix_web_vitals_cls` and `rudix_web_vitals_samples_total` only (nothing stored or logged); `WEB_VITALS_MAX_ROUTES` (200) bounds the `route` label and `WEB_VITALS_RATE_LIMIT_PER_MINUTE` (60) limits each client IP. Dashboard: `infra/observability/grafana/dashboards/web-vitals.json`.
+- Production metrics and alerting (0.8.0, B2, R08-09):
+  - `WORKER_METRICS_MULTIPROCESS` (default `true`, effective with `WORKER_METRICS_ENABLED`): pools started with `python -m app.workers.pools <pool>` prepare `PROMETHEUS_MULTIPROC_DIR` (default `/tmp/rudix-prometheus`, overridable by the environment; stale `*.db` files are removed at start) so counters from every prefork child are exported. The development `celery ... worker` command stays single-process. Metric names and labels are unchanged; every gauge has an explicit `multiprocess_mode`.
+  - The worker metrics server (`app/core/metrics_server.py`) serves `/metrics` on `WORKER_METRICS_PORT` with the same `METRICS_REQUIRE_AUTH` / `METRICS_BEARER_TOKEN` check as the API (401 missing or unconfigured token, 403 wrong token). API and workers log `metrics.auth_disabled` at startup when metrics run without auth in staging or production.
+  - `BEAT_HEARTBEAT_INTERVAL_SECONDS` (default 60): period of the `ops.beat.heartbeat` beat task.
+  - SLO targets, recording rules, burn-rate alerts, Alertmanager routing, and the deploy overlay: docs/12 "SLO rules and burn-rate alerts (0.8.0)"; Kubernetes ServiceMonitors: docs/28 "Metrics and alerting".
+
+## OpenTelemetry tracing (0.8.0, R08-10)
+
+- Off by default: with `TRACING_ENABLED=false`, `init_tracing` (`app/core/tracing.py`) installs no tracer provider, exporter, or instrumentation and no span exists.
+- Enable with `TRACING_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP/HTTP collector base URL; `https://` in staging and production unless `TRACING_ALLOW_INSECURE_ENDPOINT=true`). Collector auth headers go in `OTEL_EXPORTER_OTLP_HEADERS` (`name=value,...`, secret store only). No collector or vendor is assumed.
+- Setup points: `init_tracing("api")` right after Sentry in the lifespan and `shutdown_tracing()` (flush, 5 s limit) last in its `finally`; `instrument_fastapi_app` in `app/main.py`; `init_tracing("worker")` in each worker child (`worker_process_init`) and `shutdown_tracing()` in `worker_process_shutdown`; `init_tracing("mcp")` in `app/mcp/main.py`. `service.name` is `<TRACING_SERVICE_NAME_PREFIX>-<runtime>`.
+- Instrumented: FastAPI server spans (`TRACING_EXCLUDED_PATHS`, default `health,ready,metrics`; requests on those paths run under an unsampled parent, `UnsampledExcludedPaths`, so their dependency calls export no spans either), SQLAlchemy (commenter off; engines created later in `app/db/session.py`, such as the replica and maintenance engines, are instrumented through a creation hook), Redis, httpx, and Celery (publish and run linked through `traceparent`). `TRACING_INSTRUMENT_SQLALCHEMY|REDIS|HTTPX|CELERY=false` turns one off. Manual spans: `rudix.qdrant.search` (`QueryRetrievalService.aretrieve_candidates`), `rudix.qdrant.<operation>` (`QdrantService._request`), and `rudix.llm.call` (`ResilientChatProvider`), with provider, model, collection, and outcome only (`app/core/tracing_context.py`).
+- Redaction: `RedactingSpanExporter` (`app/core/tracing_redaction.py`) keeps allowlisted attributes only and strips exception messages and stack traces (docs/11 "Tracing"). Sampling: `TRACING_SAMPLE_RATIO` (0.05); `TRACING_TRUST_INBOUND_CONTEXT=false` keeps an inbound trace id but ignores its sampled flag (`app/core/tracing_sampling.py`).
+- Correlation: structured log lines get `trace_id` and `span_id`, the server span gets `rudix.request_id` (and `rudix.organization_id` once authenticated), and Langfuse chat traces get `otel_trace_id`.
+- Tests: `tests/test_tracing.py`, `tests/test_tracing_redaction.py`, `tests/test_tracing_celery.py` (in-memory exporter, kombu `memory://` broker), and `tests/test_helm_chart_tracing.py`.
 
 ## Directory overview
 

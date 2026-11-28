@@ -1,4 +1,9 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 const BASE = "/admin/permissions";
 
@@ -15,67 +20,28 @@ export type ConflictStatus =
   | "resolved"
   | "dismissed";
 
-export type ConflictEntry = {
-  id: string;
-  organization_id: string;
-  subject_type: string;
-  subject_value: string;
-  user_id: string | null;
-  role_name: string | null;
-  resource_type: string;
-  resource_id: string | null;
-  action: string;
-  conflict_type: string;
-  severity: ConflictSeverity;
-  status: ConflictStatus;
-  detected_at: string;
-  resolved_at: string | null;
-  conflict_summary: string | null;
-  grant_id: string | null;
-  deny_id: string | null;
-  remediation: string[];
-  context: Record<string, unknown>;
-};
+export type ConflictEntry = Overlay<
+  Served<Schemas["ConflictResponse"]>,
+  { severity: ConflictSeverity; status: ConflictStatus }
+>;
 
-export type ConflictListResponse = {
-  items: ConflictEntry[];
-  total: number;
-  page: number;
-  page_size: number;
-};
+export type ConflictListResponse = Overlay<
+  Served<Schemas["ConflictListResponse"]>,
+  { items: ConflictEntry[] }
+>;
 
-export type UpdateConflictStatusRequest = {
-  status: "investigating" | "resolved" | "dismissed";
-  resolution_note?: string | null;
-};
+export type UpdateConflictStatusRequest =
+  Schemas["UpdateConflictStatusRequest"];
 
-export type ScanResult = {
-  conflicts_detected: number;
-  conflicts_created: number;
-  scan_duration_ms: number;
-  scanned_grants: number;
-  scanned_denies: number;
-  scanned_acl_mappings: number;
-};
+export type ScanResult = Served<Schemas["ScanResult"]>;
 
-export type TraceStep = {
-  rule: string;
-  outcome: "pass" | "allow" | "deny";
-  detail: string | null;
-};
+export type TraceStep = Served<
+  Schemas["app__domains__permissions__schemas__conflicts__TraceStep"]
+>;
 
-export type ExplainDecisionResponse = {
-  decision: "allow" | "deny";
-  matched_rule: string;
-  deny_reason: string | null;
-  subject_user_id: string;
-  resource_type: string;
-  resource_id: string | null;
-  action: string;
-  trace: TraceStep[];
-  remediation: string[];
-  request_id: string;
-};
+export type ExplainDecisionResponse = Served<
+  Schemas["ExplainDecisionResponse"]
+>;
 
 // ── Normalizers ────────────────────────────────────────────────────────────────
 

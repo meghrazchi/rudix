@@ -1,7 +1,10 @@
 import type { ChatDebugResponse } from "@/lib/api/chat";
 import type { AnswerTrustMetadataResponse } from "@/lib/api/trust_metadata";
 
-import type { TrustPanelCitation } from "@/components/chat/trust-panel/trust-types";
+import type {
+  TrustPanelCitation,
+  TrustT,
+} from "@/components/chat/trust-panel/trust-types";
 
 /** Builds the ordered list of warning banners shown at the top of the panel. */
 export function buildTrustWarnings({
@@ -14,6 +17,7 @@ export function buildTrustWarnings({
   trustMetadata,
   trustCitations,
   debug,
+  t,
 }: {
   confidenceCategory: "low" | "medium" | "high";
   citationValidationFailed: boolean;
@@ -24,21 +28,13 @@ export function buildTrustWarnings({
   trustMetadata: AnswerTrustMetadataResponse | null | undefined;
   trustCitations: TrustPanelCitation[];
   debug: ChatDebugResponse | null;
+  t: TrustT;
 }): string[] {
   const groundedVerification = trustMetadata?.grounded_verification ?? null;
   const warnings: string[] = [];
-  if (confidenceCategory === "low")
-    warnings.push(
-      "Low confidence — validate this answer against cited sources.",
-    );
-  if (citationValidationFailed)
-    warnings.push(
-      "Citation validation failed — some citations could not be verified.",
-    );
-  if (verificationFailed)
-    warnings.push(
-      "Answer verification failed — claims may not be fully grounded.",
-    );
+  if (confidenceCategory === "low") warnings.push(t("warn.lowConfidence"));
+  if (citationValidationFailed) warnings.push(t("warn.citationFailed"));
+  if (verificationFailed) warnings.push(t("warn.verificationFailed"));
   if (sourceFreshnessWarning) {
     const freshnessRecord = trustMetadata?.freshness;
     if (
@@ -47,34 +43,27 @@ export function buildTrustWarnings({
     ) {
       freshnessRecord.warning_reasons.forEach((r) => warnings.push(r));
     } else {
-      warnings.push(
-        sourceFreshnessWarningReason ??
-          "One or more sources may be stale or unreviewed.",
-      );
+      warnings.push(sourceFreshnessWarningReason ?? t("warn.sourcesStale"));
     }
     if (freshnessRecord?.all_excluded_fallback)
-      warnings.push(
-        "All trusted sources were excluded. The answer uses deprecated or expired content.",
-      );
+      warnings.push(t("warn.allExcluded"));
   }
   if (trustCitations.some((c) => c.doc_stale_warning || c.doc_expired_warning))
-    warnings.push("One or more cited sources are stale or expired.");
+    warnings.push(t("warn.citedStale"));
   if (
     trustCitations.some(
       (c) => (c as { doc_unreviewed_warning?: boolean }).doc_unreviewed_warning,
     )
   )
-    warnings.push("One or more cited sources are pending review.");
+    warnings.push(t("warn.citedPending"));
   if (
     trustCitations.some(
       (c) => (c as { doc_deprecated_warning?: boolean }).doc_deprecated_warning,
     )
   )
-    warnings.push("One or more cited sources are deprecated or archived.");
+    warnings.push(t("warn.citedDeprecated"));
   if (trustCitations.some((c) => c.doc_ocr_low_confidence_warning))
-    warnings.push(
-      "One or more sources have low OCR confidence — text accuracy may be reduced.",
-    );
+    warnings.push(t("warn.citedOcr"));
   // F315 — evidence quality warnings
   const evidenceQuality = trustMetadata?.evidence_quality ?? null;
   if (evidenceQuality) {
@@ -87,39 +76,35 @@ export function buildTrustWarnings({
             .table_low_confidence_warning,
       )
     )
-      warnings.push(
-        "One or more cited tables have low extraction confidence — table data may be inaccurate.",
-      );
+      warnings.push(t("warn.tableLow"));
     if (
       trustCitations.some(
         (c) =>
           (c as { doc_extraction_warning?: boolean }).doc_extraction_warning,
       )
     )
-      warnings.push(
-        "One or more source documents have poor extraction quality — text coverage may be incomplete.",
-      );
+      warnings.push(t("warn.extractionPoor"));
     if (
       trustCitations.some(
         (c) =>
           (c as { doc_processing_warning?: boolean }).doc_processing_warning,
       )
     )
-      warnings.push(
-        "One or more source documents have incomplete or failed processing — content may be missing.",
-      );
+      warnings.push(t("warn.processingIncomplete"));
   }
   if (policyDisclaimer) warnings.push(policyDisclaimer);
   if ((debug?.grounded_verification_removed_count ?? 0) > 0)
     warnings.push(
-      `${debug!.grounded_verification_removed_count} unsupported claim(s) were removed from the answer.`,
+      t("warn.removedClaims", {
+        count: debug!.grounded_verification_removed_count ?? 0,
+      }),
     );
   if (
     groundedVerification &&
     groundedVerification.claim_count > 0 &&
     groundedVerification.aggregate_support_score < 0.6
   ) {
-    warnings.push("Citation support is weak — review the mapped claims.");
+    warnings.push(t("warn.weakSupport"));
   }
   if (
     groundedVerification &&
@@ -127,20 +112,23 @@ export function buildTrustWarnings({
     groundedVerification.claim_count > 0
   ) {
     warnings.push(
-      `${groundedVerification.unsupported_count}/${groundedVerification.claim_count} claim(s) are not supported by citations.`,
+      t("warn.unsupportedClaims", {
+        unsupported: groundedVerification.unsupported_count,
+        total: groundedVerification.claim_count,
+      }),
     );
   }
   const conflictRecord = trustMetadata?.conflict ?? null;
   if (conflictRecord?.detected) {
     warnings.push(
       conflictRecord.conflict_summary
-        ? `Source conflict: ${conflictRecord.conflict_summary}`
-        : "Sources disagree on one or more claims. Prefer the marked source.",
+        ? t("warn.conflictSummary", {
+            summary: conflictRecord.conflict_summary,
+          })
+        : t("warn.conflictDefault"),
     );
   } else if (conflictRecord?.agreement_level === "partial") {
-    warnings.push(
-      "Sources partially disagree. Verify claims against cited sources.",
-    );
+    warnings.push(t("warn.conflictPartial"));
   }
   return warnings;
 }

@@ -58,6 +58,15 @@ INCLUDE: list[str] = [
     # anchor: C1
     # anchor: C2
     # anchor: D1
+    # anchor: v080-A2
+    "app.workers.backup_tasks",
+    # anchor: v080-B2
+    "app.workers.ops_tasks",
+    # anchor: v090-S1
+    "app.workers.account_tasks",
+    # anchor: v090-A1
+    # anchor: v090-B1
+    # anchor: v090-D1
 ]
 
 # Stage tasks of the staged ingestion chain (R06-01): extract..chunk on the processing
@@ -106,6 +115,15 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     "agents.runs.reap": _route(settings.celery_task_default_queue),
     # anchor: D1
     "connectors.sync.reap": _route(settings.celery_queue_connector_sync),
+    # anchor: v080-A2
+    "ops.backups.check_freshness": _route(settings.celery_task_default_queue),
+    # anchor: v080-B2
+    "ops.beat.heartbeat": _route(settings.celery_task_default_queue),
+    # anchor: v090-S1
+    "auth.tokens.purge_expired": _route(settings.celery_task_default_queue),
+    # anchor: v090-A1
+    # anchor: v090-B1
+    # anchor: v090-D1
 }
 
 BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
@@ -160,6 +178,26 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
         "task": "connectors.sync.reap",
         "schedule": settings.connector_sync_reap_interval_seconds,
     },
+    # anchor: v080-A2
+    "ops-backups-check-freshness": {
+        "task": "ops.backups.check_freshness",
+        "schedule": settings.backup_freshness_interval_seconds,
+    },
+    # anchor: v080-B2
+    # R08-09: beat liveness; a heartbeat not run within one interval expires unexecuted.
+    "ops-beat-heartbeat": {
+        "task": "ops.beat.heartbeat",
+        "schedule": settings.beat_heartbeat_interval_seconds,
+        "options": {"expires": settings.beat_heartbeat_interval_seconds},
+    },
+    # anchor: v090-S1
+    "auth-tokens-purge-expired": {
+        "task": "auth.tokens.purge_expired",
+        "schedule": crontab(hour=3, minute=25),
+    },
+    # anchor: v090-A1
+    # anchor: v090-B1
+    # anchor: v090-D1
 }
 
 
@@ -224,6 +262,7 @@ def _initialize_worker(*_: object, **__: object) -> None:
     import app.models  # noqa: F401 — ensure all SQLAlchemy mappers are registered
 
     init_sentry(runtime="worker")
+    _init_worker_tracing()
     from app.workers.async_runtime import reset_worker_loop_after_fork, run_async
 
     # A child forked after the main process used the database or an event loop (dead-letter
@@ -232,8 +271,26 @@ def _initialize_worker(*_: object, **__: object) -> None:
     from app.db.session import engine
 
     run_async(engine.dispose(close=False))
+    from app.application.realtime.publisher import use_worker_redis
+
+    # R07-07: realtime events from worker transactions use a process-local Redis client.
+    use_worker_redis()
     run_async(init_neo4j())
     _bootstrap_qdrant()
+
+
+def _init_worker_tracing() -> None:
+    """R08-10: per child (after fork), so the span exporter thread lives in the child.
+
+    Installs the Celery consumer side (``traceparent`` from message headers) and the
+    producer side for tasks the child publishes. A no-op while TRACING_ENABLED=false.
+    """
+    from app.core.tracing import init_tracing
+
+    try:
+        init_tracing("worker")
+    except Exception as exc:
+        logging.getLogger(__name__).warning("worker.tracing_init_failed: %s", type(exc).__name__)
 
 
 def _bootstrap_qdrant() -> None:
@@ -276,19 +333,37 @@ def _shutdown_worker(*_: object, **__: object) -> None:
         close_qdrant()
     except Exception as exc:
         logging.getLogger(__name__).warning("worker.qdrant_close_failed: %s", type(exc).__name__)
+    _mark_metrics_process_dead()
+    from app.core.tracing import shutdown_tracing
+
+    shutdown_tracing()
+
+
+def _mark_metrics_process_dead() -> None:
+    """R08-09: drop this child's live gauge files (multiprocess mode only)."""
+    from app.core.metrics_server import mark_current_process_dead
+
+    try:
+        mark_current_process_dead()
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "worker.metrics_mark_dead_failed: %s", type(exc).__name__
+        )
 
 
 @worker_ready.connect
 def _on_worker_ready(*_: object, **__: object) -> None:
-    if settings.worker_metrics_enabled:
-        try:
-            from prometheus_client import start_http_server
+    """R08-09: the main process serves /metrics (authenticated, multiprocess-aware)."""
+    if not settings.worker_metrics_enabled:
+        return
+    from app.core.metrics import registry
+    from app.core.metrics_server import start_metrics_server, warn_if_metrics_auth_disabled
 
-            from app.core.metrics import registry
-
-            start_http_server(settings.worker_metrics_port, registry=registry)
-        except OSError:
-            pass
+    warn_if_metrics_auth_disabled(settings, runtime="worker")
+    try:
+        start_metrics_server(settings.worker_metrics_port, config=settings, app_registry=registry)
+    except OSError as exc:
+        logging.getLogger(__name__).warning("worker.metrics_server_failed: %s", type(exc).__name__)
 
 
 _task_start_times: dict[str, float] = {}

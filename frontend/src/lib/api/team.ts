@@ -1,14 +1,18 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 import type { AppRole } from "@/lib/auth-session";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
+
+type Schemas = components["schemas"];
 
 export type TeamMemberRole = AppRole;
 export type TeamInviteRole = Exclude<AppRole, "owner">;
 
-export type UpdateTeamMemberRolePayload = {
-  role?: TeamInviteRole;
-  custom_role_id?: string | null;
-};
+export type UpdateTeamMemberRolePayload =
+  Schemas["UpdateTeamMemberRoleRequest"];
 
 export type TeamMemberStatus =
   | "active"
@@ -17,24 +21,15 @@ export type TeamMemberStatus =
   | "suspended"
   | "unknown";
 
-export type TeamMember = {
-  member_id: string;
-  user_id: string | null;
-  name: string;
-  email: string;
-  role: TeamMemberRole;
-  custom_role_id: string | null;
-  status: TeamMemberStatus;
-  created_at: string | null;
-  updated_at: string | null;
-};
+export type TeamMember = Overlay<
+  Served<Schemas["TeamMemberResponse"]>,
+  { role: TeamMemberRole; status: TeamMemberStatus }
+>;
 
-export type TeamMemberListResponse = {
-  items: TeamMember[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type TeamMemberListResponse = Overlay<
+  Served<Schemas["TeamMemberListResponse"]>,
+  { items: TeamMember[] }
+>;
 
 export type TeamMemberListParams = {
   limit?: number;
@@ -44,20 +39,14 @@ export type TeamMemberListParams = {
   status?: string;
 };
 
-export type InviteTeamMemberRequest = {
-  email: string;
-  role: TeamInviteRole;
-  name?: string;
-};
+export type InviteTeamMemberRequest = Schemas["InviteTeamMemberRequest"];
 
-export type InviteTeamMemberResponse = {
-  member: TeamMember;
-  invited: boolean;
-};
+export type InviteTeamMemberResponse = Served<
+  Schemas["InviteTeamMemberResponse"]
+>;
 
-export type UpdateTeamMemberRoleRequest = {
-  role: TeamInviteRole;
-};
+export type UpdateTeamMemberRoleRequest =
+  Schemas["UpdateTeamMemberRoleRequest"];
 
 export type TeamCapabilities = {
   listMembersEnabled: boolean;
@@ -111,14 +100,14 @@ const VALID_TEAM_ROLES: ReadonlySet<string> = new Set([
   "billing_admin",
 ]);
 
-function normalizeRole(value: unknown): TeamMemberRole {
+export function normalizeRole(value: unknown): TeamMemberRole {
   if (typeof value === "string" && VALID_TEAM_ROLES.has(value)) {
     return value as TeamMemberRole;
   }
   return "viewer";
 }
 
-function normalizeStatus(value: unknown): TeamMemberStatus {
+export function normalizeStatus(value: unknown): TeamMemberStatus {
   if (
     value === "active" ||
     value === "invited" ||
@@ -219,16 +208,35 @@ function normalizeInviteResponse(payload: unknown): InviteTeamMemberResponse {
 
 function getTeamEndpoints() {
   return {
-    listMembersUrl: trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL),
-    inviteUrl: trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL),
+    listMembersUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL",
+        process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL,
+      ),
+    ),
+    inviteUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL",
+        process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL,
+      ),
+    ),
     updateRoleTemplate: trimToNull(
-      process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE,
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE",
+        process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE,
+      ),
     ),
     removeMemberTemplate: trimToNull(
-      process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE,
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE",
+        process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE,
+      ),
     ),
     setPasswordTemplate: trimToNull(
-      process.env.NEXT_PUBLIC_TEAM_MEMBER_SET_PASSWORD_URL_TEMPLATE,
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBER_SET_PASSWORD_URL_TEMPLATE",
+        process.env.NEXT_PUBLIC_TEAM_MEMBER_SET_PASSWORD_URL_TEMPLATE,
+      ),
     ),
   };
 }

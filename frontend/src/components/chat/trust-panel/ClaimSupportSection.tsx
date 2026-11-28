@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { claimSupportBadge } from "@/components/chat/trust-panel/trust-badges";
 import { pct } from "@/components/chat/trust-panel/trust-format";
 import type { TrustPanelCitation } from "@/components/chat/trust-panel/trust-types";
@@ -19,6 +21,7 @@ export function ClaimSupportSection({
   trustCitations: TrustPanelCitation[];
   onOpenCitation: (citation: TrustPanelCitation) => void;
 }) {
+  const t = useTranslations("chat.trustPanel");
   const claimSupportRecords = groundedVerification?.claims ?? [];
 
   return (
@@ -27,38 +30,41 @@ export function ClaimSupportSection({
         <div className="space-y-2 px-4 pt-4 md:px-6 md:pt-5">
           <SectionHeader
             icon="fact_check"
-            label={`Claim Support (${groundedVerification.supported_count}/${groundedVerification.claim_count})`}
+            label={t("claims.title", {
+              supported: groundedVerification.supported_count,
+              total: groundedVerification.claim_count,
+            })}
           />
           <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
             <StatRow
-              label="Aggregate support"
+              label={t("claims.aggregate")}
               value={pct(groundedVerification.aggregate_support_score)}
             />
             <StatRow
-              label="Verification score"
+              label={t("claims.verificationScore")}
               value={pct(groundedVerification.score)}
             />
             <StatRow
-              label="Supported claims"
+              label={t("claims.supported")}
               value={groundedVerification.supported_count}
             />
             <StatRow
-              label="Partial claims"
+              label={t("claims.partial")}
               value={groundedVerification.partially_supported_count}
             />
             <StatRow
-              label="Unsupported claims"
+              label={t("claims.unsupported")}
               value={groundedVerification.unsupported_count}
             />
             <StatRow
-              label="Unverifiable claims"
+              label={t("claims.unverifiable")}
               value={groundedVerification.unverifiable_count}
             />
           </div>
           <div className="space-y-1.5">
             {claimSupportRecords.length > 0 ? (
               claimSupportRecords.map((claim) => {
-                const badge = claimSupportBadge(claim.support_status);
+                const badge = claimSupportBadge(claim.support_status, t);
                 const mappedCitations = claim.citation_indices
                   .map((index) => ({
                     index,
@@ -85,10 +91,12 @@ export function ClaimSupportSection({
                         <div className="mt-1 flex flex-wrap items-center gap-1">
                           <span className={badge.cls}>{badge.label}</span>
                           <span className="text-[10px] text-[#9d98b5]">
-                            Claim {claim.claim_index}
+                            {t("claims.claimN", { n: claim.claim_index })}
                           </span>
                           <span className="text-[10px] text-[#9d98b5]">
-                            Support {pct(claim.support_score)}
+                            {t("claims.supportPct", {
+                              pct: pct(claim.support_score),
+                            })}
                           </span>
                         </div>
                       </div>
@@ -99,19 +107,22 @@ export function ClaimSupportSection({
                           const title =
                             citation.source_title ??
                             citation.filename ??
-                            "Source";
+                            t("source");
                           return (
                             <button
                               type="button"
                               key={`${claim.claim_index}-${index}-${citation.document_id}-${citation.chunk_id}`}
                               onClick={() => onOpenCitation(citation)}
                               className="rounded-full border border-[#d7d4e8] bg-[#faf9ff] px-2 py-0.5 text-[10px] font-medium text-[#3525cd] transition-colors hover:bg-[#ede9f9]"
-                              aria-label={`Preview source ${index} for claim ${claim.claim_index}`}
+                              aria-label={t("claims.previewAria", {
+                                index,
+                                claim: claim.claim_index,
+                              })}
                               title={title}
                             >
-                              Source {index}
+                              {t("claims.sourceN", { index })}
                               {citation.page_number
-                                ? ` · p. ${citation.page_number}`
+                                ? ` · ${t("pageShort", { page: citation.page_number })}`
                                 : ""}
                             </button>
                           );
@@ -119,7 +130,7 @@ export function ClaimSupportSection({
                       </div>
                     ) : (
                       <p className="mt-2 text-[10px] text-[#9d98b5]">
-                        No validated citations mapped to this claim.
+                        {t("claims.noMapped")}
                       </p>
                     )}
                   </div>
@@ -127,8 +138,7 @@ export function ClaimSupportSection({
               })
             ) : (
               <div className="rounded-lg border border-dashed border-[#d7d4e8] bg-white px-3 py-2 text-[11px] text-[#6a6780]">
-                Claim-level citation mapping is not available for this answer
-                snapshot.
+                {t("claims.noMapping")}
               </div>
             )}
           </div>

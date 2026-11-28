@@ -21,6 +21,7 @@ from app.models.ai_response_policy import (
 )
 from app.models.answer_share import AnswerShare
 from app.models.api_key import ApiKey
+from app.models.auth_one_time_token import AuthOneTimeToken
 from app.models.auth_session import AuthRefreshSession
 from app.models.authorization import (
     AuthorizationConflict,
@@ -30,6 +31,13 @@ from app.models.authorization import (
     ResourceAccessGrant,
     RolePermission,
     SourceAclMapping,
+)
+from app.models.billing import (
+    BillingCustomer,
+    BillingInvoice,
+    BillingPlan,
+    BillingSubscription,
+    BillingWebhookEvent,
 )
 from app.models.bot import BotInstallation, BotUserMapping
 from app.models.chat import ChatMessage, ChatSession
@@ -68,6 +76,7 @@ from app.models.incident import Incident, IncidentNote
 from app.models.mcp_policy import OrgMCPPolicy
 from app.models.message_feedback import MessageFeedback
 from app.models.metadata import DocumentMetadata, MetadataAuditLog, MetadataField
+from app.models.mfa import UserMfaFactor, UserMfaRecoveryCode
 from app.models.model_profile import OrgModelProfile, OrgModelProfileChangeLog
 from app.models.model_provider_settings import (
     OrgModelProviderChangeLog,
@@ -76,6 +85,7 @@ from app.models.model_provider_settings import (
 from app.models.notification import Notification
 from app.models.org_domain_verification import OrgDomainVerification
 from app.models.org_freshness_policy import OrgFreshnessPolicy
+from app.models.org_login_policy import OrgLoginPolicy
 from app.models.org_memory import OrgWorkflow, UserMemoryPreference
 from app.models.org_scim_config import OrgSCIMConfig
 from app.models.org_sso_config import OrgSSOConfig
@@ -115,9 +125,15 @@ __all__ = [
     "AnswerShare",
     "ApiKey",
     "AuditLog",
+    "AuthOneTimeToken",
     "AuthRefreshSession",
     "AuthorizationConflict",
     "AuthorizationDecisionLog",
+    "BillingCustomer",
+    "BillingInvoice",
+    "BillingPlan",
+    "BillingSubscription",
+    "BillingWebhookEvent",
     "BotInstallation",
     "BotUserMapping",
     "ChatMessage",
@@ -169,6 +185,7 @@ __all__ = [
     "OrgDomainVerification",
     "OrgFeatureFlagOverride",
     "OrgFreshnessPolicy",
+    "OrgLoginPolicy",
     "OrgMCPPolicy",
     "OrgModelProfile",
     "OrgModelProfileChangeLog",
@@ -213,6 +230,8 @@ __all__ = [
     "UsageEvent",
     "User",
     "UserMemoryPreference",
+    "UserMfaFactor",
+    "UserMfaRecoveryCode",
     "UserNotificationPreference",
     "VectorIndexGeneration",
     "VectorIndexGenerationDocument",

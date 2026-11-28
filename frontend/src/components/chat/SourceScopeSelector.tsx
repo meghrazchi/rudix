@@ -9,6 +9,8 @@ import {
   type CSSProperties,
 } from "react";
 
+import { LoadMoreFooter } from "@/components/pagination/LoadMoreFooter";
+
 export type SourceScopeMode =
   | "all"
   | "collection"
@@ -68,6 +70,14 @@ type ScopeLabels = {
   apply: string;
 };
 
+/** Count and load-more state of a server-paged scope list. */
+export type ScopeListPaging = {
+  total: number | null;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
+};
+
 type SourceScopeSelectorProps = {
   headingLabel: string;
   triggerLabel: string;
@@ -89,6 +99,10 @@ type SourceScopeSelectorProps = {
   onToggleProviderSource: (providerSourceId: string) => void;
   onToggleDocument: (documentId: string) => void;
   onDocumentSearchQueryChange?: (value: string) => void;
+  /** Sends the collection search to the server (`name_query`). */
+  onCollectionSearchQueryChange?: (value: string) => void;
+  documentsPaging?: ScopeListPaging;
+  collectionsPaging?: ScopeListPaging;
   getDocumentSubtitle?: (document: ScopeDocument) => string;
 };
 
@@ -169,6 +183,9 @@ export function SourceScopeSelector({
   onToggleProviderSource,
   onToggleDocument,
   onDocumentSearchQueryChange,
+  onCollectionSearchQueryChange,
+  documentsPaging,
+  collectionsPaging,
   getDocumentSubtitle,
 }: SourceScopeSelectorProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -230,8 +247,9 @@ export function SourceScopeSelector({
     setActiveScopeSubmenu(null);
     setDocumentSearchQuery("");
     setCollectionSearchQuery("");
+    onCollectionSearchQueryChange?.("");
     setConnectorSearchQuery("");
-  }, []);
+  }, [onCollectionSearchQueryChange]);
 
   const updateMenuStyle = useCallback(() => {
     const triggerRect = triggerRef.current?.getBoundingClientRect();
@@ -560,6 +578,16 @@ export function SourceScopeSelector({
                       })
                     )}
                   </div>
+                  {documentsPaging && !isDocumentsLoading ? (
+                    <LoadMoreFooter
+                      shown={indexedDocuments.length}
+                      total={documentsPaging.total}
+                      hasMore={documentsPaging.hasMore}
+                      isLoadingMore={documentsPaging.isLoadingMore}
+                      onLoadMore={documentsPaging.onLoadMore}
+                      searchHint
+                    />
+                  ) : null}
                 </>
               ) : null}
 
@@ -572,9 +600,10 @@ export function SourceScopeSelector({
                     <input
                       type="text"
                       value={collectionSearchQuery}
-                      onChange={(event) =>
-                        setCollectionSearchQuery(event.target.value)
-                      }
+                      onChange={(event) => {
+                        setCollectionSearchQuery(event.target.value);
+                        onCollectionSearchQueryChange?.(event.target.value);
+                      }}
                       placeholder={labels.selectCollections}
                       className="h-9 w-full rounded-lg border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                     />
@@ -632,6 +661,16 @@ export function SourceScopeSelector({
                       })
                     )}
                   </div>
+                  {collectionsPaging && !isCollectionsLoading ? (
+                    <LoadMoreFooter
+                      shown={collections.length}
+                      total={collectionsPaging.total}
+                      hasMore={collectionsPaging.hasMore}
+                      isLoadingMore={collectionsPaging.isLoadingMore}
+                      onLoadMore={collectionsPaging.onLoadMore}
+                      searchHint
+                    />
+                  ) : null}
                 </>
               ) : null}
 

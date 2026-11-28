@@ -189,6 +189,8 @@ def _after_flush(session: Session, flush_context: UOWTransaction) -> None:
 
 
 async def _bump(client: Any, kind: str, scope_id: str) -> None:
+    # ``client`` is always the state Redis (``redis_client``, REDIS_URL), never the cache
+    # Redis of REDIS_CACHE_URL: an evictable store could drop a version key (R08-05).
     key = cache.version_key(kind, scope_id)
     try:
         # SET NX first so a missing (evicted) key restarts from the clock, never from 1.

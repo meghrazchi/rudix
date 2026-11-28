@@ -12,6 +12,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Observability deploy secrets (metrics token, on-call webhook URLs; R08-09)
+infra/observability/secrets/
 
 # Python
 __pycache__/
@@ -48,3 +50,6 @@ dist/
 # uv bootstrap and audit scratch (backend/Makefile)
 backend/.tools/
 backend/.audit-requirements.txt
+
+# Operator-provided edge TLS files (EDGE_TLS_MODE=files, 0.8.0)
+deploy/compose/edge/certs/

@@ -8,13 +8,21 @@ import { KnowledgeCardList } from "@/components/verified-answers/KnowledgeCardLi
 import { CreateVerifiedAnswerModal } from "@/components/verified-answers/CreateVerifiedAnswerModal";
 import { VerifiedAnswerBadge } from "@/components/verified-answers/VerifiedAnswerBadge";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
-import { listVerifiedAnswers } from "@/lib/api/verified-answers";
+import { LoadMoreFooter } from "@/components/pagination/LoadMoreFooter";
+import {
+  listVerifiedAnswers,
+  type VerifiedAnswerListResponse,
+  type VerifiedAnswerResponse,
+} from "@/lib/api/verified-answers";
+import { useInfiniteList } from "@/lib/pagination/useInfiniteList";
 import { usePermissions } from "@/lib/use-permissions";
 
 const PENDING_KEY = ["verified-answers", { status: "pending_review" }];
 const DEPRECATED_KEY = ["verified-answers", { status: "deprecated" }];
 
 type Tab = "pending" | "all" | "stale" | "deprecated";
+
+const PUBLISHED_PAGE_SIZE = 50;
 
 export function AdminVerifiedAnswersPage() {
   const { hasPermission } = usePermissions();
@@ -121,12 +129,32 @@ export function AdminVerifiedAnswersPage() {
 }
 
 function StaleCardsPanel() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["verified-answers", "published-all"],
-    queryFn: () => listVerifiedAnswers({ status: "published", limit: 200 }),
+  // Published cards in offset pages with `total` and load more (R07-06); the
+  // stale filter runs over the loaded pages and the footer says how many.
+  const published = useInfiniteList<
+    VerifiedAnswerListResponse,
+    VerifiedAnswerResponse
+  >({
+    queryKey: ["verified-answers", "published-all", { paged: true }],
+    pageSize: PUBLISHED_PAGE_SIZE,
+    fetchPage: ({ offset }) =>
+      listVerifiedAnswers({
+        status: "published",
+        limit: PUBLISHED_PAGE_SIZE,
+        offset,
+      }),
   });
-
-  const staleItems = data?.items.filter((a) => a.is_stale) ?? [];
+  const isLoading = published.query.isLoading;
+  const staleItems = published.items.filter((a) => a.is_stale);
+  const publishedFooter = (
+    <LoadMoreFooter
+      shown={published.items.length}
+      total={published.total}
+      hasMore={published.hasMore}
+      isLoadingMore={published.isLoadingMore}
+      onLoadMore={published.loadMore}
+    />
+  );
 
   if (isLoading) {
     return <p className="text-sm text-gray-400">Loading…</p>;
@@ -136,6 +164,7 @@ function StaleCardsPanel() {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 py-16 text-center text-sm text-gray-400">
         No stale or expiring knowledge cards
+        {publishedFooter}
       </div>
     );
   }
@@ -178,6 +207,7 @@ function StaleCardsPanel() {
           </div>
         ))}
       </div>
+      {publishedFooter}
     </div>
   );
 }

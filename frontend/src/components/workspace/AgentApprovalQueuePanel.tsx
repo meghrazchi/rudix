@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/agent";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ const RISK_COLORS: Record<string, string> = {
   low: "bg-emerald-100 text-emerald-800 border-emerald-200",
 };
 
-function RiskBadge({ level }: { level: string | null }) {
+function RiskBadge({ level }: { level?: string | null }) {
   const t = useTranslations("agentWorkspace");
   if (!level) return null;
   const cls =
@@ -59,7 +60,7 @@ function useNow(): number {
   return now;
 }
 
-function ExpiryCountdown({ expiresAt }: { expiresAt: string | null }) {
+function ExpiryCountdown({ expiresAt }: { expiresAt?: string | null }) {
   const t = useTranslations("agentWorkspace");
   const now = useNow();
   if (!expiresAt) return null;
@@ -345,6 +346,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
 
 export function AgentApprovalQueuePanel() {
   const t = useTranslations("agentWorkspace");
+  const queueInterval = useRealtimeAwareInterval(QUEUE_POLL_INTERVAL_MS);
   const queueQuery = useQuery({
     queryKey: queryKeys.agent.approvals({
       status: "pending",
@@ -352,7 +354,8 @@ export function AgentApprovalQueuePanel() {
     }),
     queryFn: () =>
       listAgentApprovals({ status: "pending", limit: QUEUE_LIMIT }),
-    refetchInterval: QUEUE_POLL_INTERVAL_MS,
+    refetchInterval: queueInterval,
+    refetchIntervalInBackground: false,
   });
 
   const items = queueQuery.data?.approvals ?? [];

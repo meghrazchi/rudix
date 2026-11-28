@@ -1,61 +1,26 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type SSOType = "saml" | "oidc";
 
-export type SSOConfig = {
-  id: string;
-  organization_id: string;
-  sso_type: SSOType;
-  domain: string;
-  enabled: boolean;
-  idp_metadata_url: string | null;
-  sp_entity_id: string;
-  sp_acs_url: string;
-  idp_entity_id: string | null;
-  idp_sso_url: string | null;
-  attribute_mapping: Record<string, string>;
-  last_test_at: string | null;
-  last_test_result: "success" | "failure" | null;
-  created_at: string;
-  updated_at: string;
-};
+export type SSOConfig = Overlay<
+  Served<Schemas["SSOConfigResponse"]>,
+  { sso_type: SSOType }
+>;
 
-export type UpsertSSOConfigRequest = {
-  domain: string;
-  sso_type?: SSOType;
-  enabled?: boolean;
-  idp_metadata_url?: string | null;
-  idp_metadata_xml?: string | null;
-  idp_sso_url?: string | null;
-  idp_entity_id?: string | null;
-  idp_certificate?: string | null;
-  attribute_mapping?: Record<string, string>;
-  change_note?: string | null;
-};
+export type UpsertSSOConfigRequest = Schemas["UpsertSSOConfigRequest"];
 
-export type TestConnectionRequest = {
-  idp_metadata_url?: string | null;
-  idp_metadata_xml?: string | null;
-  idp_sso_url?: string | null;
-};
+export type TestConnectionRequest = Schemas["TestConnectionRequest"];
 
-export type TestConnectionResponse = {
-  success: boolean;
-  result: "success" | "failure";
-  detail: string;
-  checked_at: string;
-};
+export type TestConnectionResponse = Served<Schemas["TestConnectionResponse"]>;
 
-export type SSODiscoverRequest = {
-  email: string;
-};
+export type SSODiscoverRequest = Schemas["SSODiscoverRequest"];
 
-export type SSODiscoverResponse = {
-  sso_enabled: boolean;
-  sso_type: SSOType | null;
-  redirect_url: string | null;
-  domain: string | null;
-};
+export type SSODiscoverResponse = Served<Schemas["SSODiscoverResponse"]>;
 
 export async function getSSOConfig(): Promise<SSOConfig | null> {
   return apiRequest<SSOConfig | null>("/admin/sso");

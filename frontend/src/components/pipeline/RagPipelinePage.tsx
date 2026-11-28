@@ -6,21 +6,10 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { ContextualHelpLink } from "@/components/help/ContextualHelpLink";
-import {
-  Background,
-  Controls,
-  Handle,
-  MarkerType,
-  MiniMap,
-  Position,
-  ReactFlow,
-  ReactFlowProvider,
-  type Edge,
-  type Node,
-  type NodeProps,
-  type NodeTypes,
-} from "@xyflow/react";
+import dynamic from "next/dynamic";
+import type { Node } from "@xyflow/react";
 
+import { SkeletonBlock } from "@/components/states/SkeletonBlock";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -43,6 +32,22 @@ import {
   type PipelineNodeStatus,
   type PipelineRunGraphResponse,
 } from "@/lib/pipeline";
+
+// @xyflow/react loads on demand (R07-03).
+const PipelineFlowCanvas = dynamic(
+  () =>
+    import("@/components/pipeline/PipelineFlowCanvas").then(
+      (module) => module.PipelineFlowCanvas,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full w-full p-6">
+        <SkeletonBlock rows={8} className="h-full" />
+      </div>
+    ),
+  },
+);
 
 type RunTypeFilter =
   | "all"
@@ -126,7 +131,7 @@ function normalizePipelineNode(rawNode: unknown, index: number): PipelineNode {
   return {
     id,
     label,
-    description: description ?? undefined,
+    description: description ?? null,
     status,
     section,
     started_at: startedAt,
@@ -219,12 +224,7 @@ function fallbackGraphByFilter(
   return fallbackPipelineGraph;
 }
 
-type StatusMeta = {
-  badgeClass: string;
-  nodeClass: string;
-};
-
-type FlowNodeData = {
+export type FlowNodeData = {
   label: string;
   description: string;
   duration: string;
@@ -232,40 +232,13 @@ type FlowNodeData = {
   section: PipelineNode["section"];
 };
 
-type FlowNode = Node<FlowNodeData, "pipelineNode">;
-
-const statusMeta: Record<PipelineNodeStatus, StatusMeta> = {
-  completed: {
-    badgeClass: "bg-emerald-100 text-emerald-800",
-    nodeClass: "border-emerald-300 bg-white",
-  },
-  running: {
-    badgeClass: "bg-blue-100 text-blue-800",
-    nodeClass: "border-[#3a57d4] bg-white shadow-md",
-  },
-  failed: {
-    badgeClass: "bg-rose-100 text-rose-800",
-    nodeClass: "border-rose-400 bg-rose-50",
-  },
-  skipped: {
-    badgeClass: "bg-amber-100 text-amber-800",
-    nodeClass: "border-amber-300 bg-amber-50",
-  },
-  pending: {
-    badgeClass: "bg-[#eceaf7] text-[#69657f]",
-    nodeClass: "border-[#d4d0e8] bg-white/90",
-  },
-};
+export type FlowNode = Node<FlowNodeData, "pipelineNode">;
 
 const sectionX: Record<PipelineNode["section"], number> = {
   ingestion: 40,
   query: 420,
   evaluation: 800,
 };
-
-const nodeTypes = {
-  pipelineNode: PipelineFlowNode,
-} satisfies NodeTypes;
 
 function stringifyValue(value: unknown): string {
   if (value == null) {
@@ -361,82 +334,6 @@ function buildFlowNodes(
   );
 }
 
-function buildFlowEdges(
-  edges: PipelineRunGraphResponse["edges"],
-  nodes: PipelineNode[],
-): Edge[] {
-  const byId = new Map(nodes.map((node) => [node.id, node]));
-  return edges.map((edge) => {
-    const sourceStatus = byId.get(edge.source)?.status;
-    const isQueued = sourceStatus === "pending";
-    return {
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      type: "smoothstep",
-      animated: sourceStatus === "running",
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: isQueued ? "#bcb8d2" : "#7f79b6",
-      },
-      style: {
-        strokeWidth: 2,
-        stroke: isQueued ? "#bcb8d2" : "#7f79b6",
-        strokeDasharray: isQueued ? "4 4" : undefined,
-      },
-    };
-  });
-}
-
-function PipelineFlowNode({ data, selected }: NodeProps<FlowNode>) {
-  const t = useTranslations("pipeline");
-  const meta = statusMeta[data.status];
-
-  return (
-    <div
-      className={`relative w-[250px] rounded-xl border p-3 transition ${meta.nodeClass} ${
-        selected ? "ring-2 ring-[#3525cd]/40" : ""
-      }`}
-    >
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!h-2 !w-2 !border-0 !bg-[#8f88c7]"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!h-2 !w-2 !border-0 !bg-[#8f88c7]"
-      />
-
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div>
-          <p className="text-base font-bold text-[#222033]">{data.label}</p>
-          <p className="text-[11px] font-bold tracking-wide text-[#7a768f] uppercase">
-            {t(`sections.${data.section}`)}
-          </p>
-        </div>
-        <span
-          className={`rounded px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${meta.badgeClass}`}
-        >
-          {t(`statuses.${data.status}`)}
-        </span>
-      </div>
-
-      <p className="mb-2 text-xs text-[#5f5b72]">{data.description}</p>
-      <p
-        className="text-[11px] text-[#5f5b72]"
-        style={{
-          fontFamily:
-            "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace",
-        }}
-      >
-        {data.duration}
-      </p>
-    </div>
-  );
-}
-
 export function RagPipelinePage() {
   const t = useTranslations("pipeline");
   const searchParams = useSearchParams();
@@ -523,10 +420,6 @@ export function RagPipelinePage() {
         t("node.executionNode"),
       ),
     [effectiveSelectedNodeId, filteredNodes, t],
-  );
-  const flowEdges = useMemo(
-    () => buildFlowEdges(filteredEdges, filteredNodes),
-    [filteredEdges, filteredNodes],
   );
 
   const runLabel = runId.trim() ? runId.trim() : graph.pipeline_run_id;
@@ -908,51 +801,17 @@ export function RagPipelinePage() {
                 <EmptyState title={t("empty.noNodes")} />
               </div>
             ) : (
-              <ReactFlowProvider>
-                <ReactFlow
-                  nodes={flowNodes}
-                  edges={flowEdges}
-                  nodeTypes={nodeTypes}
-                  fitView
-                  fitViewOptions={{ padding: 0.2 }}
-                  minZoom={0.5}
-                  maxZoom={1.6}
-                  nodesDraggable={false}
-                  nodesConnectable={false}
-                  elementsSelectable
-                  onNodeClick={(_, flowNode) => {
-                    const original = nodeLookup.get(flowNode.id);
-                    if (original) {
-                      void selectNode(original);
-                    }
-                  }}
-                  className="h-full w-full bg-transparent"
-                  proOptions={{ hideAttribution: true }}
-                >
-                  <Background color="#dfdbee" gap={24} size={1} />
-                  <MiniMap
-                    pannable
-                    zoomable
-                    nodeColor={(flowNode) => {
-                      const status = (flowNode.data as FlowNodeData).status;
-                      if (status === "completed") {
-                        return "#10b981";
-                      }
-                      if (status === "running") {
-                        return "#3b82f6";
-                      }
-                      if (status === "failed") {
-                        return "#f43f5e";
-                      }
-                      if (status === "skipped") {
-                        return "#f59e0b";
-                      }
-                      return "#9ca3af";
-                    }}
-                  />
-                  <Controls showInteractive={false} />
-                </ReactFlow>
-              </ReactFlowProvider>
+              <PipelineFlowCanvas
+                nodes={flowNodes}
+                graphNodes={filteredNodes}
+                graphEdges={filteredEdges}
+                onNodeSelect={(nodeId) => {
+                  const original = nodeLookup.get(nodeId);
+                  if (original) {
+                    void selectNode(original);
+                  }
+                }}
+              />
             )}
           </div>
         </div>

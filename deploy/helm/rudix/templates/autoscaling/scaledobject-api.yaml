@@ -1,0 +1,44 @@
+{{- /*
+KEDA ScaledObject for the api (R08-07): in-flight requests and open streams per replica, plus
+CPU. KEDA divides an AverageValue query by the replica count. Never below 2 replicas.
+*/ -}}
+{{- if include "rudix.c1.kedaEnabled" . -}}
+{{- $ctx := dict "root" . "component" "api" -}}
+{{- $scaling := .Values.autoscaling -}}
+{{- $api := $scaling.api -}}
+{{- $server := $scaling.prometheus.serverAddress -}}
+{{- $m := include "rudix.c1.promMatchers" . -}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "rudix.componentName" $ctx }}
+  minReplicaCount: {{ int $api.minReplicas }}
+  maxReplicaCount: {{ int $api.maxReplicas }}
+  pollingInterval: 15
+  cooldownPeriod: {{ int $api.scaleDownStabilizationSeconds }}
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- include "rudix.c1.hpaBehavior" $api.scaleDownStabilizationSeconds | nindent 8 }}
+  triggers:
+    - type: prometheus
+      name: in-flight-requests
+      metricType: AverageValue
+      metadata:
+        serverAddress: {{ $server | quote }}
+        query: {{ printf "sum(rudix_http_requests_in_progress{%s}) or vector(0)" $m | quote }}
+        threshold: {{ int $api.targetInFlightRequests | quote }}
+    - type: prometheus
+      name: open-streams
+      metricType: AverageValue
+      metadata:
+        serverAddress: {{ $server | quote }}
+        query: {{ printf "(sum(rudix_realtime_connections{%s}) or vector(0)) + (sum(rudix_chat_ws_connections{%s}) or vector(0))" $m $m | quote }}
+        threshold: {{ int $api.targetStreams | quote }}
+    {{- include "rudix.c1.resourceTriggers" $api | nindent 4 }}
+{{- end }}

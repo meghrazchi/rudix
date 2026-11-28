@@ -102,6 +102,26 @@ Returns the active refresh sessions for the authenticated user.
 
 When the SAML callback is received as a browser form post, the backend issues the refresh cookie and redirects to the frontend callback route with access-token/session metadata in the query string. API clients can still receive JSON when they do not send a browser-form payload.
 
+The frontend callback route moves the access token into memory and replaces the URL so the
+token leaves the address bar and the history entry (R07-09).
+
+#### Session hint cookie
+
+Additive and off by default (`APP_AUTH_SESSION_HINT_COOKIE_ENABLED=false`, R07-09). When
+enabled, every response that sets the refresh cookie (login, refresh, SSO JSON and redirect
+paths) also sets `rudix_session_hint=1` (`APP_AUTH_SESSION_HINT_COOKIE_NAME`) with
+`HttpOnly`, the refresh cookie's `Secure` and `SameSite`, `Path=/`,
+`Domain=APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` and `Max-Age=APP_AUTH_REFRESH_TOKEN_TTL_SECONDS`.
+Logout, logout-all and every `401` or `403` from `/auth/token/refresh` (missing, invalid or
+revoked token `401`; reused token or cross-organisation `403`) clear it; a `429` or the
+Origin-check `403` leaves it. The value carries no secret, claim or role and authorises nothing; the frontend
+route gate (`RUDIX_ROUTE_GATE=enforce`) only checks that it exists. Response bodies and the
+refresh cookie are unchanged.
+
+With `APP_AUTH_COOKIE_SAME_SITE=none`, `POST /auth/token/refresh` and `POST /auth/logout`
+return `403` with `error.code = "csrf_origin_rejected"` when the `Origin` header is missing or
+not in `CORS_ORIGINS`. With `lax` or `strict` nothing changes.
+
 ## Error format
 
 Every error response (HTTP errors, request validation failures, and unhandled exceptions) uses
@@ -726,7 +746,20 @@ Query params:
 limit=20
 offset=0
 include_full_text=false
+chunk_id=<uuid>   # optional (R07-06)
 ```
+
+`chunk_id` (optional UUID, R07-06) returns only that chunk when it belongs to this
+document and the active `index_version`: `items` holds at most one chunk and `total`
+is `1`, or `items` is empty and `total` is `0` when the chunk belongs to another
+document. Access checks are unchanged (another organisation's document is still
+`404`), and a malformed UUID is `422`. Without `chunk_id` the listing is unchanged.
+The chat citation preview uses it instead of loading 200 chunks to find one.
+
+Lists that page with `limit`, `offset` and `total` (collections, collection documents,
+team members, verified answers, and documents sorted by anything but `created_at`) are
+enough for a count and "Load more" in the UI; documents sorted by `created_at` use the
+keyset `cursor` / `next_cursor` pages with `include_total=true` on the first page.
 
 Response:
 
@@ -1896,6 +1929,22 @@ Response:
 
 ## Evaluation
 
+### Machine access for the CI quality gate
+
+Three routes also accept service-account (`svc_`) and API-key (`rudix_`) tokens, checked by
+scope instead of role. Logged-in users keep the role checks listed for each route.
+
+| Route                                     | Users                         | Tokens need                                 |
+| ----------------------------------------- | ----------------------------- | ------------------------------------------- |
+| `GET /evaluations/runs`                   | owner, admin, member, viewer  | `evaluations:run` or `quality_gates:run`    |
+| `POST /quality-gates/{id}/runs`           | owner, admin                  | `quality_gates:run`                         |
+| `GET /quality-gates/runs/{id}/report`     | owner, admin, member, viewer  | `quality_gates:run`                         |
+
+A token missing the scope gets `403` (`Token does not have the required scopes`). Every other
+quality-gate route, including override, stays human-only. A gate run triggered by a service
+account stores `triggered_by_id = null`; the audit entry carries `actor_type`,
+`service_account_id` and `credential_id` instead.
+
 ### POST `/evaluation-sets`
 
 Create an evaluation set.
@@ -2355,6 +2404,49 @@ Response:
   "duration_ms": 1960
 }
 ```
+
+## Realtime events
+
+`GET /api/v1/events/stream` (R07-07) is a per-user Server-Sent Events stream of
+invalidation hints. It is off unless `REALTIME_EVENTS_ENABLED=true`; the frontend reads it
+only with `NEXT_PUBLIC_REALTIME_ENABLED=true` and keeps polling otherwise.
+
+- Auth: bearer token in the `Authorization` header (read with `fetch`, not
+  `EventSource`), any organisation role, an active organisation (`X-Organization-ID` as
+  for every route). A token in the URL is never read.
+- Frames: `id: <n>`, `event: <type>`, `data: {"type","organization_id","occurred_at",
+  "payload"}`, and `: keep-alive` comments after `REALTIME_STREAM_KEEPALIVE_SECONDS` of
+  silence. Ids increase per organisation. Send `Last-Event-ID` to replay buffered events
+  after that id (the buffer keeps `REALTIME_BUFFER_MAX_EVENTS` events for
+  `REALTIME_BUFFER_TTL_SECONDS`; a `Last-Event-ID` above the current sequence replays the
+  whole buffer). The server ends the stream after `REALTIME_STREAM_MAX_SECONDS`; the client
+  reconnects, so role changes and token expiry apply.
+- Events are hints: the client refetches through the normal endpoints. A worker retry may
+  publish the same transition twice, and a Redis failure drops events.
+
+| Type | Payload | Audience |
+|---|---|---|
+| `document.status` | `document_id`, `status` | the uploader, owners, admins |
+| `documents.changed` | none | every member |
+| `notification.created` | `notification_id` | the recipient |
+| `connector.sync` | `connection_id`, `run_id`, `status` | owners, admins, the connection's creator |
+| `agent.run` | `run_id`, `status` | the run's user, owners, admins |
+| `incident` | `incident_id`, `status` | every member |
+
+`document.status` is also sent when `graph_extraction_status` changes (the payload carries
+the document status). Payloads carry ids and statuses only, never filenames, text, or
+error messages. An event is delivered only when its `organization_id` equals the caller's
+organisation and the audience matches the caller's user id or a role held when the stream
+opened.
+
+| Status | Code | When |
+|---|---|---|
+| `200` | | `text/event-stream`, `Cache-Control: no-store`, never gzip-compressed |
+| `401` | `UNAUTHENTICATED` | missing or invalid token |
+| `403` | `NO_ACTIVE_ORGANIZATION_CONTEXT_FOR_PRINCIPAL` | no organisation context |
+| `404` | `feature_not_available` | `REALTIME_EVENTS_ENABLED=false` |
+| `429` | `realtime_connection_limit` | more than `REALTIME_MAX_CONNECTIONS_PER_USER` open streams |
+| `503` | `realtime_unavailable` | Redis missing or unreachable; keep polling |
 
 ## Agent runs
 
@@ -2845,6 +2937,25 @@ commands (`scripts/vector_index.py`); there is no write endpoint.
   and point counts are never returned (cross-tenant progress is the metric
   `rudix_reindex_progress`).
 
+## Response schemas for formerly untyped routes (R07-05)
+
+Four routes the frontend consumes had no `response_model`, so OpenAPI described their 2xx body
+as an open object. They now declare one; the JSON they return is unchanged (same keys, same
+values, same visibility rules), and the generated frontend types follow the schema names:
+
+| Route | Response schema |
+| ----- | --------------- |
+| `GET /agent/runs/{run_id}/trace` | `AgentTraceResponse` (events: `AgentTraceEventResponse`) |
+| `GET /agent/traces/shared/{token}` | `AgentTraceResponse` |
+| `GET /admin/metadata/filter-documents` | `FilterDocumentsResponse` |
+| `POST /security/sessions/revoke-all` | `RevokeAllSessionsResponse` |
+
+The two trace routes use `response_model_exclude_unset`, so optional event keys the trace
+service leaves out stay out. Free-form payloads (`metadata`, event details) are
+`dict[str, Any]`. Other operations still have no typed 2xx schema; where a frontend client
+module calls one, it keeps a hand-written type listed in
+`frontend/config/api-handwritten-allowlist.json`.
+
 ## Rate limits
 
 Recommended:
@@ -2865,6 +2976,46 @@ endpoint), and honours `RATE_LIMIT_REDIS_FAILURE_MODE` through the same limiter 
 `safe_error_code=rate_limiter_unavailable` (the equivalent of HTTP 503) and the pipeline is not
 started; the connection stays open. In `open` mode the command proceeds and the degradation is
 logged. Decisions are counted in `rudix_rate_limit_decisions_total{scope,decision,failure_mode}`.
+
+## Frontend telemetry
+
+### `POST /api/v1/telemetry/web-vitals` (R07-11)
+
+First-party browser Web Vitals ingest. Unauthenticated (like the public contact form), CORS
+as for every route, and **off by default**: with `WEB_VITALS_INGEST_ENABLED=false` it answers
+`404`. Samples are aggregated into Prometheus histograms only; nothing is stored in the
+database and neither IP addresses nor values are logged.
+
+Request body (`extra` fields are rejected):
+
+```json
+{
+  "samples": [
+    {
+      "name": "LCP",
+      "value": 1834.2,
+      "route": "/[locale]/pricing",
+      "rating": "good",
+      "navigation_type": "navigate"
+    }
+  ]
+}
+```
+
+| Field | Rule |
+| --- | --- |
+| `samples` | 1 to 10 items |
+| `name` | `LCP`, `INP`, `CLS`, `FCP` or `TTFB` |
+| `value` | number, 0 or more; at most 60000 (CLS at most 10) |
+| `route` | route pattern matching `^/[A-Za-z0-9\[\]_/-]{0,120}$`, never a concrete URL (the client sends `[locale]` and `[id]` placeholders) |
+| `rating` | `good`, `needs-improvement`, `poor` |
+| `navigation_type` | optional: `navigate`, `reload`, `back-forward`, `back-forward-cache`, `prerender`, `restore` |
+
+Responses: `204` accepted; `404` disabled; `422` invalid body; `429` more than
+`WEB_VITALS_RATE_LIMIT_PER_MINUTE` requests per minute from one client IP (the same limiter
+and `RATE_LIMIT_REDIS_FAILURE_MODE` behaviour as the contact form: `closed` answers `503` when
+Redis is unavailable, `open` lets the request through). Metrics and dashboards:
+`docs/12_EVALUATION_AND_MONITORING.md` "Frontend Web Vitals (R07-11)".
 
 ## Status codes
 

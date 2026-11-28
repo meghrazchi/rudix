@@ -30,6 +30,9 @@ export default async function ForbiddenPage({
           requestId={requestId}
           backHref="/dashboard"
           backLabel="Back to dashboard"
+          eyebrow="Rudix Access Control"
+          ariaLabel="Forbidden state"
+          traceIdLabel="Trace ID:"
         />
       </main>
     </div>

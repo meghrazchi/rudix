@@ -55,6 +55,7 @@ from app.interfaces.http import (
     documents,
     evaluation_sets,
     evaluations,
+    events,
     failed_jobs,
     feature_flags,
     feedback_review,
@@ -86,6 +87,7 @@ from app.interfaces.http import (
     team,
     team_invitations,
     verified_answers,
+    web_vitals,
 )
 
 from . import health
@@ -110,6 +112,16 @@ api_router.include_router(team_invitations.public_router)
 api_router.include_router(agent_runs.public_trace_router)
 api_router.include_router(public_contact.router)
 api_router.include_router(public_status.router)
+api_router.include_router(web_vitals.router)
+# Product completeness (0.9.0): public routers, one anchor per task.
+# anchor: v090-A1
+# anchor: v090-A2
+# anchor: v090-A3
+# anchor: v090-B1
+# anchor: v090-B2
+# anchor: v090-C1
+# anchor: v090-C2
+# anchor: v090-D1
 protected_router.include_router(connector_platform.router)
 protected_router.include_router(connector_discovery.router)
 protected_router.include_router(connectors.router)
@@ -189,5 +201,15 @@ protected_router.include_router(admin_chat_tools.router)
 protected_router.include_router(admin_org_memory.router)
 protected_router.include_router(agent_workflows.router)
 protected_router.include_router(org_memory.router)
+protected_router.include_router(events.router)
+# Product completeness (0.9.0): protected routers, one anchor per task.
+# anchor: v090-A1
+# anchor: v090-A2
+# anchor: v090-A3
+# anchor: v090-B1
+# anchor: v090-B2
+# anchor: v090-C1
+# anchor: v090-C2
+# anchor: v090-D1
 
 api_router.include_router(protected_router)

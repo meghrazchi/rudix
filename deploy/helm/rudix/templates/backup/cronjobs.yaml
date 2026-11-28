@@ -1,0 +1,126 @@
+{{- /*
+One CronJob per enabled backup kind (R08-06). postgres: an initContainer from the postgres
+image runs `pg_dump -Fc` into an emptyDir, then the worker image encrypts and uploads it
+(off by default: managed PostgreSQL point-in-time recovery is the primary path). qdrant and
+objects: the worker image snapshots Qdrant or mirrors the object bucket. concurrencyPolicy
+Forbid, a deadline, and no retries beyond backoffLimit; a failed run leaves the previous
+marker in place and the freshness alert fires (rules/backups.yml).
+*/ -}}
+{{- include "rudix.backup.validate" . -}}
+{{- $backup := .Values.backup -}}
+{{- if $backup.enabled }}
+{{- range $kind := splitList "," (include "rudix.backup.kinds" .) }}
+{{- $job := index $backup $kind -}}
+{{- if $job.enabled }}
+{{- $ctx := dict "root" $ "component" (printf "backup-%s" $kind) }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+spec:
+  schedule: {{ $job.schedule | quote }}
+  {{- with $backup.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  concurrencyPolicy: {{ $backup.concurrencyPolicy }}
+  startingDeadlineSeconds: {{ int $backup.startingDeadlineSeconds }}
+  successfulJobsHistoryLimit: {{ int $backup.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ int $backup.failedJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "rudix.labels" $ctx | nindent 8 }}
+    spec:
+      backoffLimit: {{ int $backup.backoffLimit }}
+      activeDeadlineSeconds: {{ int $backup.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "rudix.labels" $ctx | nindent 12 }}
+          annotations:
+            checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+            {{- with $backup.podAnnotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        spec:
+          restartPolicy: Never
+          {{- include "rudix.c1.podCommon" $ctx | nindent 10 }}
+          {{- with include "rudix.c1.scheduling" (dict "values" $backup) | trim }}{{ . | nindent 10 }}{{ end }}
+          {{- if eq $kind "postgres" }}
+          initContainers:
+            - name: pg-dump
+              image: {{ include "rudix.backup.postgresImage" $ }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              command:
+                - sh
+                - -ec
+                - >-
+                  umask 077
+                  && pg_dump -Fc --file /backup/postgres.dump.partial "$BACKUP_DATABASE_URL"
+                  && mv /backup/postgres.dump.partial /backup/postgres.dump
+              env:
+                # libpq URL (postgresql://) of a read-only or maintenance role.
+                - name: BACKUP_DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.secrets.existingSecret }}
+                      key: {{ $backup.postgres.databaseUrlSecretKey }}
+                - name: HOME
+                  value: /tmp
+              resources:
+                {{- toYaml $backup.resources | nindent 16 }}
+              securityContext:
+                {{- include "rudix.containerSecurityContext" $ | nindent 16 }}
+              volumeMounts:
+                {{- include "rudix.tmpVolumeMount" $ | nindent 16 }}
+                - name: backup-work
+                  mountPath: /backup
+          {{- end }}
+          containers:
+            - name: backup
+              image: {{ include "rudix.image" $ctx }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              command: ["python", "scripts/backup_run.py", "--kind", {{ $kind | quote }}]
+              envFrom:
+                {{- include "rudix.envFrom" $ | nindent 16 }}
+              env:
+                - name: BACKUP_ENABLED
+                  value: "true"
+                - name: BACKUP_BUCKET
+                  value: {{ $backup.bucket | quote }}
+                - name: BACKUP_PREFIX
+                  value: {{ $backup.prefix | quote }}
+                - name: BACKUP_WORK_DIR
+                  value: /backup
+                - name: BACKUP_ENCRYPTION_KEY_FILE
+                  value: {{ include "rudix.backup.keyPath" $ | quote }}
+              resources:
+                {{- toYaml $backup.resources | nindent 16 }}
+              securityContext:
+                {{- include "rudix.containerSecurityContext" $ | nindent 16 }}
+              volumeMounts:
+                {{- include "rudix.tmpVolumeMount" $ | nindent 16 }}
+                - name: backup-work
+                  mountPath: /backup
+                - name: backup-key
+                  mountPath: /run/secrets/rudix-backup
+                  readOnly: true
+          volumes:
+            {{- include "rudix.tmpVolume" $ | nindent 12 }}
+            - name: backup-work
+              emptyDir:
+                sizeLimit: {{ $backup.workDirSizeLimit }}
+            - name: backup-key
+              secret:
+                secretName: {{ $backup.encryptionKeySecret.name }}
+                # Group-readable: the pod fsGroup (10001) owns the projected file.
+                defaultMode: 0440
+                items:
+                  - key: {{ $backup.encryptionKeySecret.key }}
+                    path: {{ $backup.encryptionKeySecret.key }}
+{{- end }}
+{{- end }}
+{{- end }}

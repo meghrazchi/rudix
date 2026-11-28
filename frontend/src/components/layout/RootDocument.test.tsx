@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("RootDocument", () => {
-  it("renders the html document with locale attributes, fonts link and children", () => {
+  it("renders the html document with locale attributes and children, without a third-party font link", () => {
     const html = renderToStaticMarkup(
       <RootDocument locale="de" messages={{}}>
         <p>child content</p>
@@ -27,9 +27,7 @@ describe("RootDocument", () => {
     expect(html).toContain(
       '<html lang="de-DE" dir="ltr" class="h-full antialiased">',
     );
-    expect(html).toContain(
-      'href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"',
-    );
+    expect(html).not.toContain("fonts.googleapis.com");
     expect(html).toContain('<body class="flex min-h-full flex-col">');
     expect(html).toContain("<p>child content</p>");
     expect(html).not.toContain("Frontend configuration is incomplete");

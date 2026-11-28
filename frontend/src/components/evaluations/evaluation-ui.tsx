@@ -526,6 +526,7 @@ export function RecentRunsPanel({
 
                   <span className="mb-2 flex items-center gap-3 text-[10px] text-gray-500">
                     <span>{formatDuration(item.durationMs)}</span>
+                    {/* eslint-disable-next-line no-restricted-syntax -- "id" is a technical identifier label */}
                     <span className="font-mono">id: {item.runId}</span>
                   </span>
 

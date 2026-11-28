@@ -12,6 +12,10 @@ _KEY_PREFIX = "rudix_"
 _KEY_RANDOM_BYTES = 32
 _PREFIX_DISPLAY_LENGTH = 16
 
+# Token-only permission granted by the ``quality_gates:run`` scope. No human role
+# carries it: people keep the owner/admin role check on the quality-gate routes.
+QUALITY_GATES_RUN_PERMISSION = "quality_gates:run"
+
 SCOPE_TO_PERMISSIONS: dict[str, frozenset[str]] = {
     "documents:read": frozenset({PermissionType.documents_view}),
     "documents:write": frozenset(
@@ -34,6 +38,14 @@ SCOPE_TO_PERMISSIONS: dict[str, frozenset[str]] = {
             PermissionType.evaluations_view,
             PermissionType.evaluations_create,
             PermissionType.evaluations_run,
+        }
+    ),
+    # Lets CI find a completed evaluation run, trigger a gate run and read its report.
+    # It does not cover creating, editing, deleting or overriding gates.
+    "quality_gates:run": frozenset(
+        {
+            PermissionType.evaluations_view,
+            QUALITY_GATES_RUN_PERMISSION,
         }
     ),
     "webhooks:manage": frozenset(

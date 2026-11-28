@@ -1,3 +1,4 @@
+import type { Overlay, Served, WithOptional } from "@/lib/api/schema-helpers";
 import { apiRequest } from "@/lib/api/request";
 import type { components } from "@/lib/api/generated/schema";
 import type { ChunkingProfileConfigInput } from "@/lib/schemas/chunking-profiles";
@@ -15,12 +16,10 @@ export type EvaluationSetResponse = Omit<
   owner_id?: string | null;
   scope: Record<string, unknown>;
 };
-export type EvaluationSetListResponse = {
-  items: EvaluationSetResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type EvaluationSetListResponse = Overlay<
+  Served<Schemas["EvaluationSetListResponse"]>,
+  { items: EvaluationSetResponse[] }
+>;
 export type CreateEvaluationSetRequest = Schemas["CreateEvaluationSetRequest"];
 export type EvaluationQuestionResponse = Omit<
   Schemas["EvaluationQuestionResponse"],
@@ -34,13 +33,10 @@ export type EvaluationQuestionResponse = Omit<
   source_language?: string | null;
   translation_notes?: string | null;
 };
-export type EvaluationQuestionListResponse = {
-  evaluation_set_id: string;
-  items: EvaluationQuestionResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type EvaluationQuestionListResponse = Overlay<
+  Served<Schemas["EvaluationQuestionListResponse"]>,
+  { items: EvaluationQuestionResponse[] }
+>;
 export type CreateEvaluationQuestionRequest = Omit<
   Schemas["CreateEvaluationQuestionRequest"],
   | "question_language"
@@ -72,12 +68,8 @@ export type EvaluationChunkingComparisonTarget = {
   chunking_profile_config?: ChunkingProfileConfigInput | null;
 };
 
-export type EvaluationRegressionThresholds = {
-  retrieval_hit_rate_min?: number | null;
-  citation_accuracy_score_min?: number | null;
-  faithfulness_score_min?: number | null;
-  max_not_found_rate?: number | null;
-};
+export type EvaluationRegressionThresholds =
+  Schemas["EvaluationRegressionThresholds"];
 
 export type EvaluationRunConfig = Omit<
   BaseEvaluationRunConfig,
@@ -100,99 +92,41 @@ export type RunEvaluationRequest = Omit<BaseRunEvaluationRequest, "config"> & {
   config?: EvaluationRunConfig;
 };
 
-export type UpdateEvaluationSetRequest = {
-  name?: string | null;
-  description?: string | null;
-  scope?: Record<string, unknown> | null;
-};
+export type UpdateEvaluationSetRequest = Schemas["UpdateEvaluationSetRequest"];
 
-export type UpdateEvaluationQuestionRequest = {
-  question?: string | null;
-  expected_answer?: string | null;
-  expected_document_id?: string | null;
-  expected_page_number?: number | null;
-  difficulty?: "easy" | "medium" | "hard" | null;
-  tags?: string[] | null;
-  metadata?: Record<string, unknown> | null;
-  question_language?: EvalLanguageCode | null;
-  expected_answer_language?: EvalLanguageCode | null;
-  source_language?: EvalLanguageCode | null;
-  translation_notes?: string | null;
-};
+export type UpdateEvaluationQuestionRequest =
+  Schemas["UpdateEvaluationQuestionRequest"];
 
-export type ImportCasesRequest = {
-  format: "json" | "csv";
-  data: string;
-  skip_duplicates?: boolean;
-};
+export type ImportCasesRequest = Schemas["ImportCasesRequest"];
 
-export type ImportCasesResponse = {
-  imported: number;
-  skipped_duplicates: number;
-  validation_errors: string[];
-};
+export type ImportCasesResponse = Served<Schemas["ImportCasesResponse"]>;
 
-export type PublishDatasetResponse = {
-  evaluation_set_id: string;
-  version_number: number;
-  question_count: number;
-  status: "published";
-};
+export type PublishDatasetResponse = Served<Schemas["PublishDatasetResponse"]>;
 
-export type DuplicateDatasetResponse = {
-  evaluation_set_id: string;
-  name: string;
-  question_count: number;
-  status: "draft";
-  created_at: string;
-};
+export type DuplicateDatasetResponse = Served<
+  Schemas["DuplicateDatasetResponse"]
+>;
 
-export type DatasetValidationIssue = {
-  evaluation_question_id: string;
-  question_preview: string;
-  issue_type:
-    | "missing_scope"
-    | "deleted_source"
-    | "inaccessible_document"
-    | "no_expected_answer"
-    | "duplicate";
-  detail: string;
-};
+export type DatasetValidationIssue = Served<Schemas["DatasetValidationIssue"]>;
 
-export type ValidateDatasetResponse = {
-  evaluation_set_id: string;
-  is_valid: boolean;
-  issue_count: number;
-  issues: DatasetValidationIssue[];
-};
+export type ValidateDatasetResponse = Served<
+  Schemas["ValidateDatasetResponse"]
+>;
 
-export type EvaluationDatasetVersionResponse = {
-  version_id: string;
-  evaluation_set_id: string;
-  version_number: number;
-  question_count: number;
-  published_by_id: string | null;
-  published_at: string | null;
-  created_at: string;
-};
+export type EvaluationDatasetVersionResponse = Served<
+  Schemas["EvaluationDatasetVersionResponse"]
+>;
 
-export type EvaluationDatasetVersionListResponse = {
-  evaluation_set_id: string;
-  items: EvaluationDatasetVersionResponse[];
-  total: number;
-};
+export type EvaluationDatasetVersionListResponse = Served<
+  Schemas["EvaluationDatasetVersionListResponse"]
+>;
 
-export type ConvertFeedbackToCasesRequest = {
-  evaluation_set_id: string;
-  feedback_ids: string[];
-  default_difficulty?: "easy" | "medium" | "hard" | null;
-};
+export type ConvertFeedbackToCasesRequest =
+  Schemas["ConvertFeedbackToCasesRequest"];
 
-export type ConvertFeedbackToCasesResponse = {
-  created: number;
-  skipped: number;
-  evaluation_set_id: string;
-};
+export type ConvertFeedbackToCasesResponse = Served<
+  Schemas["ConvertFeedbackToCasesResponse"]
+>;
 
 export async function createEvaluationSet(
   payload: CreateEvaluationSetRequest,
@@ -371,67 +305,21 @@ export async function getEvaluationRun(
   );
 }
 
-export type LocalModelMetrics = {
-  invalid_json_rate: number | null;
-  timeout_rate: number | null;
-  fallback_frequency: number | null;
-  estimated_compute_latency_ms: number | null;
-  tokens_per_second: number | null;
-};
+export type LocalModelMetrics = Served<Schemas["LocalModelMetrics"]>;
 
-export type EvaluationRunSummaryResponse = {
-  evaluation_run_id: string;
-  evaluation_set_id: string;
-  run_name: string | null;
-  status: string;
-  summary: Record<string, unknown> | null;
-  started_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-  model_profile_key: string | null;
-  provider_type: string | null;
-  provider_profile: string | null;
-};
+export type EvaluationRunSummaryResponse = Served<
+  Schemas["EvaluationRunSummaryResponse"]
+>;
 
-export type EvaluationRunListResponse = {
-  items: EvaluationRunSummaryResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type EvaluationRunListResponse = Served<
+  Schemas["EvaluationRunListResponse"]
+>;
 
-export type MetricDelta = {
-  metric: string;
-  label: string;
-  run_a_value: number | null;
-  run_b_value: number | null;
-  delta: number | null;
-  is_regression: boolean;
-  is_improvement: boolean;
-};
+export type MetricDelta = Served<Schemas["MetricDelta"]>;
 
-export type CaseComparisonRow = {
-  evaluation_question_id: string;
-  question: string;
-  difficulty: string | null;
-  tags: string[];
-  run_a: EvaluationRunResultResponse | null;
-  run_b: EvaluationRunResultResponse | null;
-  regression: boolean;
-  improvement: boolean;
-};
+export type CaseComparisonRow = Served<Schemas["CaseComparisonRow"]>;
 
-export type RunComparisonResponse = {
-  run_a: EvaluationRunSummaryResponse;
-  run_b: EvaluationRunSummaryResponse;
-  metric_deltas: MetricDelta[];
-  regression_count: number;
-  improvement_count: number;
-  cases: CaseComparisonRow[];
-  total_cases: number;
-  filters_applied: Record<string, unknown>;
-};
+export type RunComparisonResponse = Served<Schemas["RunComparisonResponse"]>;
 
 export type CompareRunsParams = {
   difficulty?: string | null;
@@ -492,65 +380,30 @@ export function buildComparisonExportUrl(
 // F226 — Benchmark suites and model-profile comparison
 // ---------------------------------------------------------------------------
 
-export type BenchmarkSuite = {
-  suite_id: string;
-  name: string;
-  description: string;
-  quality_dimension: string;
-  case_count: number;
-};
+export type BenchmarkSuite = Served<Schemas["BenchmarkSuiteResponse"]>;
 
-export type BenchmarkSuiteListResponse = {
-  items: BenchmarkSuite[];
-  total: number;
-};
+export type BenchmarkSuiteListResponse = Served<
+  Schemas["BenchmarkSuiteListResponse"]
+>;
 
-export type TriggerBenchmarkRunRequest = {
-  suite_id: string;
-  provider_profile: "cloud_baseline" | "local_profile" | "fallback_profile";
-  evaluation_set_id?: string | null;
-  top_k?: number;
-  rerank?: boolean;
-};
+export type TriggerBenchmarkRunRequest = WithOptional<
+  Schemas["TriggerBenchmarkRunRequest"],
+  "top_k" | "rerank"
+>;
 
-export type TriggerBenchmarkRunResponse = {
-  evaluation_run_id: string;
-  suite_id: string;
-  provider_profile: string;
-  status: "queued";
-};
+export type TriggerBenchmarkRunResponse = Served<
+  Schemas["TriggerBenchmarkRunResponse"]
+>;
 
-export type ProviderProfileSummary = {
-  provider_profile: string;
-  provider_type: string | null;
-  run_count: number;
-  latest_run_id: string | null;
-  retrieval_hit_rate: number | null;
-  citation_accuracy_score: number | null;
-  faithfulness_score: number | null;
-  answer_relevance_score: number | null;
-  not_found_rate: number | null;
-  latency_ms_average: number | null;
-  cost_usd_total: number | null;
-  local_model_metrics: LocalModelMetrics | null;
-};
+export type ProviderProfileSummary = Served<Schemas["ProviderProfileSummary"]>;
 
-export type ReleaseGateRecommendation = {
-  provider_profile: string;
-  is_ready: boolean;
-  failing_checks: string[];
-  passing_checks: string[];
-  recommendation: string;
-};
+export type ReleaseGateRecommendation = Served<
+  Schemas["ReleaseGateRecommendation"]
+>;
 
-export type ModelProfileComparisonReport = {
-  organization_id: string;
-  evaluation_set_id: string | null;
-  profiles: ProviderProfileSummary[];
-  release_gate_recommendations: ReleaseGateRecommendation[];
-  default_thresholds: Record<string, number>;
-  generated_at: string;
-};
+export type ModelProfileComparisonReport = Served<
+  Schemas["ModelProfileComparisonReport"]
+>;
 
 export async function listBenchmarkSuites(): Promise<BenchmarkSuiteListResponse> {
   return apiRequest<BenchmarkSuiteListResponse>(
@@ -585,41 +438,17 @@ export async function getModelProfileComparisonReport(
 // F234 — Multilingual evaluation datasets and regression gates
 // ---------------------------------------------------------------------------
 
-export type LanguageBreakdownItem = {
-  language: string;
-  question_count: number;
-  success_count: number;
-  retrieval_hit_rate: number | null;
-  citation_accuracy_score: number | null;
-  faithfulness_score: number | null;
-  answer_relevance_score: number | null;
-  not_found_rate: number | null;
-  language_adherence_score: number | null;
-  latency_ms_average: number | null;
-  cost_usd_total: number | null;
-  has_insufficient_coverage: boolean;
-};
+export type LanguageBreakdownItem = Served<Schemas["LanguageBreakdownItem"]>;
 
-export type LanguageBreakdownResponse = {
-  evaluation_run_id: string;
-  items: LanguageBreakdownItem[];
-  coverage_warning_languages: string[];
-};
+export type LanguageBreakdownResponse = Served<
+  Schemas["LanguageBreakdownResponse"]
+>;
 
-export type LanguageCoverageItem = {
-  language: string;
-  question_count: number;
-  has_expected_answer_count: number;
-  has_insufficient_coverage: boolean;
-};
+export type LanguageCoverageItem = Served<Schemas["LanguageCoverageItem"]>;
 
-export type LanguageCoverageResponse = {
-  evaluation_set_id: string;
-  items: LanguageCoverageItem[];
-  total_question_count: number;
-  unlabelled_count: number;
-  coverage_warning_languages: string[];
-};
+export type LanguageCoverageResponse = Served<
+  Schemas["LanguageCoverageResponse"]
+>;
 
 export const EVAL_LANGUAGE_OPTIONS: {
   value: EvalLanguageCode;

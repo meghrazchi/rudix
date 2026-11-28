@@ -1,32 +1,21 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 import type { ChatSessionMessageResponse } from "@/lib/api/chat";
 
-export type CreateChatSharePayload = {
-  expires_in_hours?: number | null;
-};
+type Schemas = components["schemas"];
 
-export type ChatShareResponse = {
-  share_id: string;
-  session_id: string;
-  token: string;
-  created_at: string;
-  expires_at: string | null;
-  is_revoked: boolean;
-  shared_by_user_id: string;
-};
+export type CreateChatSharePayload = Schemas["CreateChatShareRequest"];
 
-export type ChatShareListResponse = {
-  items: ChatShareResponse[];
-  total: number;
-};
+export type ChatShareResponse = Served<Schemas["ChatShareResponse"]>;
 
-export type SharedSessionResponse = {
-  session_id: string;
-  title: string | null;
-  shared_at: string;
-  messages: ChatSessionMessageResponse[];
-  total_messages: number;
-};
+export type ChatShareListResponse = Served<Schemas["ChatShareListResponse"]>;
+
+export type SharedSessionResponse = Overlay<
+  Served<Schemas["SharedSessionResponse"]>,
+  { messages: ChatSessionMessageResponse[] }
+>;
 
 export async function createChatShare(
   sessionId: string,

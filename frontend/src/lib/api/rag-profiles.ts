@@ -1,4 +1,9 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type RagCitationStrictness = "strict" | "moderate" | "lenient";
 export type RagSafetyMode = "strict" | "standard" | "permissive";
@@ -7,109 +12,46 @@ export type RagProfileSource =
   | "org_default"
   | "system_default";
 
-export type RagProfileConfig = {
-  top_k?: number;
-  rerank_enabled?: boolean;
-  rerank_provider?: string | null;
-  rerank_model?: string | null;
-  rerank_timeout_seconds?: number | null;
-  rerank_batch_size?: number | null;
-  rerank_input_max_candidates?: number | null;
-  rerank_max_candidate_chars?: number | null;
-  rerank_fallback_behavior?: "original" | "disabled";
-  confidence_threshold?: number;
-  citation_strictness?: RagCitationStrictness;
-  model_provider?: string | null;
-  model_name?: string | null;
-  prompt_template?: string | null;
-  safety_mode?: RagSafetyMode;
-  chunk_filter?: Record<string, unknown> | null;
-  max_context_tokens?: number | null;
-};
+export type RagProfileConfig = Served<Schemas["RagProfileConfig"]>;
 
-export type RagProfileResponse = {
-  profile_id: string;
-  organization_id: string;
-  name: string;
-  description: string | null;
-  config: RagProfileConfig;
-  is_default: boolean;
-  is_archived: boolean;
-  version: number;
-  created_by_id: string | null;
-  updated_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type RagProfileResponse = Overlay<
+  Served<Schemas["RagProfileResponse"]>,
+  { config: RagProfileConfig }
+>;
 
-export type RagProfileListResponse = {
-  items: RagProfileResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type RagProfileListResponse = Overlay<
+  Served<Schemas["RagProfileListResponse"]>,
+  { items: RagProfileResponse[] }
+>;
 
-export type RagProfileVersionResponse = {
-  version_id: string;
-  rag_profile_id: string;
-  version_number: number;
-  config_snapshot: RagProfileConfig;
-  change_note: string | null;
-  changed_by_id: string | null;
-  created_at: string;
-};
+export type RagProfileVersionResponse = Served<
+  Schemas["RagProfileVersionResponse"]
+>;
 
-export type RagProfileVersionListResponse = {
-  items: RagProfileVersionResponse[];
-  total: number;
-};
+export type RagProfileVersionListResponse = Served<
+  Schemas["RagProfileVersionListResponse"]
+>;
 
-export type CollectionOverrideResponse = {
-  override_id: string;
-  organization_id: string;
-  collection_id: string;
-  rag_profile_id: string;
-  created_by_id: string | null;
-  created_at: string;
-};
+export type CollectionOverrideResponse = Served<
+  Schemas["CollectionOverrideResponse"]
+>;
 
-export type CollectionOverrideListResponse = {
-  items: CollectionOverrideResponse[];
-  total: number;
-};
+export type CollectionOverrideListResponse = Served<
+  Schemas["CollectionOverrideListResponse"]
+>;
 
-export type ResolvedRagProfileResponse = {
-  profile_id: string;
-  name: string;
-  version: number;
-  config: RagProfileConfig;
-  source: RagProfileSource;
-};
+export type ResolvedRagProfileResponse = Served<
+  Schemas["ResolvedRagProfileResponse"]
+>;
 
-export type CreateRagProfileRequest = {
-  name: string;
-  description?: string | null;
-  config?: RagProfileConfig;
-  set_as_default?: boolean;
-  change_note?: string | null;
-};
+export type CreateRagProfileRequest = Schemas["CreateRagProfileRequest"];
 
-export type UpdateRagProfileRequest = {
-  name?: string | null;
-  description?: string | null;
-  config?: RagProfileConfig | null;
-  set_as_default?: boolean | null;
-  change_note?: string | null;
-};
+export type UpdateRagProfileRequest = Schemas["UpdateRagProfileRequest"];
 
-export type RollbackRagProfileRequest = {
-  version_number: number;
-  change_note?: string | null;
-};
+export type RollbackRagProfileRequest = Schemas["RollbackRagProfileRequest"];
 
-export type SetCollectionOverrideRequest = {
-  rag_profile_id: string;
-};
+export type SetCollectionOverrideRequest =
+  Schemas["SetCollectionOverrideRequest"];
 
 // ---------------------------------------------------------------------------
 // CRUD

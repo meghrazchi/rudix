@@ -10,6 +10,7 @@ VALID_SCOPES = frozenset(
         "documents:write",
         "chat:write",
         "evaluations:run",
+        "quality_gates:run",
         "webhooks:manage",
         "connectors:manage",
     }

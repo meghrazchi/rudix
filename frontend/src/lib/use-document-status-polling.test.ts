@@ -1,3 +1,4 @@
+import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { queryKeys } from "@/lib/api/query";
@@ -34,11 +35,12 @@ describe("useDocumentStatusPolling", () => {
   });
 
   it("builds query options with polling that stops on terminal status", () => {
-    useDocumentStatusPolling("doc-1", {
-      initialStatus: "processing",
-      pollIntervalMs: 1234,
-      refetchInBackground: true,
-    });
+    renderHook(() =>
+      useDocumentStatusPolling("doc-1", {
+        initialStatus: "processing",
+        pollIntervalMs: 1234,
+      }),
+    );
 
     expect(mockUseQuery).toHaveBeenCalledTimes(1);
     const options = mockUseQuery.mock.calls[0][0] as {
@@ -51,7 +53,8 @@ describe("useDocumentStatusPolling", () => {
     };
     expect(options.enabled).toBe(true);
     expect(options.queryKey).toEqual(queryKeys.documents.status("doc-1"));
-    expect(options.refetchIntervalInBackground).toBe(true);
+    // R07-07: never poll in a hidden tab.
+    expect(options.refetchIntervalInBackground).toBe(false);
     expect(
       options.refetchInterval({ state: { data: { status: "processing" } } }),
     ).toBe(1234);
@@ -61,7 +64,7 @@ describe("useDocumentStatusPolling", () => {
   });
 
   it("disables the status query when document id is missing", () => {
-    useDocumentStatusPolling(null, { enabled: true });
+    renderHook(() => useDocumentStatusPolling(null, { enabled: true }));
 
     const options = mockUseQuery.mock.calls[0][0] as { enabled: boolean };
     expect(options.enabled).toBe(false);

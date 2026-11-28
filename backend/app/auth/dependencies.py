@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -23,6 +23,7 @@ from app.auth.resource_context_builder import (
 from app.auth.usage_touch import UsageTouch, UsageTouchKind, record_touches
 from app.core.config import RlsEnforcement, settings
 from app.core.logging import log_authorization_event
+from app.db.replica import reporting_session
 from app.db.session import get_db_session
 from app.db.tenant_context import apply_tenant_context, bind_session_tenant
 from app.domains.documents.repositories.documents import DocumentRepository
@@ -238,6 +239,20 @@ async def get_current_principal(
     await apply_tenant_context(db_session)
     request.state.auth_principal = principal
     return principal
+
+
+async def get_reporting_db_session(
+    _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AsyncIterator[AsyncSession]:
+    """Session for staleness-tolerant reporting reads (0.8.0, R08-04; contract 5.2.11).
+
+    A read-only replica session bound to the same tenant as the request's primary session
+    when ``DATABASE_REPLICA_URL`` is set and the sampled lag is within the limit; otherwise
+    the primary session object itself. Authorization dependencies keep the primary session.
+    """
+    async with reporting_session(db_session) as session:
+        yield session
 
 
 def require_roles(

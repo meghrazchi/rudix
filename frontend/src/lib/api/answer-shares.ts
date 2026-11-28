@@ -1,57 +1,28 @@
+import type { Served, WithOptional } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type AnswerShareAccessMode = "org_only" | "specific_users";
 
-export type CreateAnswerSharePayload = {
-  access_mode?: AnswerShareAccessMode;
-  allowed_user_ids?: string[];
-  password?: string | null;
-  expires_in_hours?: number | null;
-};
+export type CreateAnswerSharePayload = WithOptional<
+  Schemas["CreateAnswerShareRequest"],
+  "access_mode"
+>;
 
-export type AnswerShareResponse = {
-  share_id: string;
-  message_id: string;
-  token: string;
-  access_mode: AnswerShareAccessMode;
-  allowed_user_ids: string[];
-  has_password: boolean;
-  created_at: string;
-  expires_at: string | null;
-  is_revoked: boolean;
-  shared_by_user_id: string;
-};
+export type AnswerShareResponse = Served<Schemas["AnswerShareResponse"]>;
 
-export type AnswerShareListResponse = {
-  items: AnswerShareResponse[];
-  total: number;
-};
+export type AnswerShareListResponse = Served<
+  Schemas["AnswerShareListResponse"]
+>;
 
-export type SharedAnswerCitationResponse = {
-  document_id: string;
-  chunk_id: string;
-  filename: string | null;
-  page_number: number | null;
-  text_snippet: string | null;
-  source_provider_label: string | null;
-  source_title: string | null;
-  source_section: string | null;
-  source_key: string | null;
-  source_trust_status: string | null;
-  source_freshness_warning: boolean;
-  source_freshness_warning_reason: string | null;
-};
+export type SharedAnswerCitationResponse = Served<
+  Schemas["SharedAnswerCitationResponse"]
+>;
 
-export type SharedAnswerResponse = {
-  question: string;
-  answer: string;
-  citations: SharedAnswerCitationResponse[];
-  confidence_score: number | null;
-  confidence_category: string | null;
-  shared_at: string;
-  expires_at: string | null;
-  access_mode: AnswerShareAccessMode;
-};
+export type SharedAnswerResponse = Served<Schemas["SharedAnswerResponse"]>;
 
 export async function createAnswerShare(
   messageId: string,

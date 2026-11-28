@@ -11,12 +11,13 @@ sees the same index sizes as a fresh database. The rebuild is rolled back with t
 from __future__ import annotations
 
 import re
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.organization import Organization
+from app.models.user import User
 
 _TABLE_NAME = re.compile(r"^[a-z_][a-z0-9_]*$")
 
@@ -52,3 +53,43 @@ async def seed_usage_event_statistics(session: AsyncSession, rows: int = 500) ->
         {"org": organization.id, "rows": rows},
     )
     await session.execute(text("ANALYZE usage_events"))
+
+
+async def seed_document_statistics(
+    session: AsyncSession,
+    rows: int = 500,
+    *,
+    organization_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> None:
+    """Give ``documents`` real statistics inside the rolled-back test transaction (0.9.0).
+
+    Same reason as :func:`seed_usage_event_statistics`: on an analysed, nearly empty table
+    every organisation index is estimated at a handful of rows, and a bitmap scan of any
+    ``(organization_id, ...)`` index plus a sort of five rows costs about as much as the
+    ordered keyset index scan, so the plan flips between runs (it lost on a fresh database).
+    ``rows`` older documents in the queried organisation (``organization_id``; a new
+    organisation when omitted) plus ``ANALYZE`` make the ordered scan under ``LIMIT`` win by
+    a wide margin, as on real data. Everything rolls back with the test.
+    """
+    suffix = uuid4().hex[:10]
+    if organization_id is None or user_id is None:
+        organization = Organization(name=f"plan stats {suffix}", slug=f"plan-stats-{suffix}")
+        session.add(organization)
+        await session.flush()
+        user = User(organization_id=organization.id, email=f"plan-stats-{suffix}@example.com")
+        session.add(user)
+        await session.flush()
+        organization_id, user_id = organization.id, user.id
+    await session.execute(
+        text(
+            "INSERT INTO documents "
+            "(id, organization_id, uploaded_by_user_id, filename, file_type, storage_bucket, "
+            "storage_object_key, status, graph_extraction_status, created_at, updated_at) "
+            "SELECT gen_random_uuid(), :org, :user, 'plan-stats-' || n || '.pdf', 'pdf', "
+            "'documents', 'plan-stats/' || :suffix || '/' || n || '.pdf', 'indexed', 'pending', "
+            "now() - make_interval(hours => n), now() FROM generate_series(1, :rows) AS n"
+        ),
+        {"org": organization_id, "user": user_id, "suffix": suffix, "rows": rows},
+    )
+    await session.execute(text("ANALYZE documents"))

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.evaluations.workflows import trigger_evaluation_workflow
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.role_or_scope import require_roles_or_token_permissions
 from app.core.logging import log_evaluation_event
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
@@ -45,6 +46,7 @@ from app.domains.evaluations.services.evaluation_metrics_service import score_la
 from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.models.enums import EvaluationRunStatus, OrganizationRole
 from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun
+from app.models.permissions import PermissionType
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.dispatch import enqueue
 from app.workers.evaluation_tasks import run_evaluation as run_evaluation_task
@@ -277,11 +279,14 @@ async def list_evaluation_runs(
     principal: Annotated[
         AuthenticatedPrincipal,
         Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-                OrganizationRole.viewer.value,
+            require_roles_or_token_permissions(
+                roles=(
+                    OrganizationRole.owner.value,
+                    OrganizationRole.admin.value,
+                    OrganizationRole.member.value,
+                    OrganizationRole.viewer.value,
+                ),
+                token_permissions=(PermissionType.evaluations_view,),
             )
         ),
     ],

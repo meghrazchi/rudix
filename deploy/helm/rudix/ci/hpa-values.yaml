@@ -1,0 +1,44 @@
+# CI-only values: autoscaling in `hpa` mode (autoscaling/v2 HPAs for api and frontend) and
+# network policies off, so `helm template` and kubeconform cover those branches too
+# (deploy/scripts/check_helm_chart.sh). Placeholders only; never deployed.
+
+# owner: S1
+global:
+  environment: staging
+
+# owner: S1
+config:
+  env:
+    ENVIRONMENT: staging
+    # v080-C1
+    READINESS_REQUIRED_DEPENDENCIES: postgres,redis
+
+# owner: C1
+autoscaling:
+  enabled: true
+  mode: hpa
+
+# owner: C1
+networkPolicy:
+  enabled: false
+
+# owner: C1
+podDisruptionBudget:
+  enabled: false
+
+# owner: A1
+ingress:
+  enabled: true
+  noindex: true
+  certManager:
+    clusterIssuer: ci-issuer
+  app:
+    host: app.ci.rudix.invalid
+    tlsSecretName: rudix-ci-app-tls
+  api:
+    host: api.ci.rudix.invalid
+    tlsSecretName: rudix-ci-api-tls
+  mcp:
+    host: mcp.ci.rudix.invalid
+    path: /mcp
+    tlsSecretName: rudix-ci-mcp-tls

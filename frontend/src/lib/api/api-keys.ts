@@ -1,51 +1,37 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export const VALID_SCOPES = [
   "documents:read",
   "documents:write",
   "chat:write",
   "evaluations:run",
+  "quality_gates:run",
   "webhooks:manage",
   "connectors:manage",
 ] as const;
 
 export type ApiKeyScope = (typeof VALID_SCOPES)[number];
 
-export type ApiKey = {
-  id: string;
-  organization_id: string;
-  name: string;
-  description: string | null;
-  key_prefix: string;
-  scopes: string[];
-  status: "active" | "revoked";
-  expires_at: string | null;
-  last_used_at: string | null;
-  created_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type ApiKey = Overlay<
+  Served<Schemas["ApiKeyResponse"]>,
+  { status: "active" | "revoked" }
+>;
 
-export type ApiKeyCreated = ApiKey & {
-  raw_key: string;
-};
+export type ApiKeyCreated = ApiKey & { raw_key: string };
 
-export type ApiKeyListResponse = {
-  items: ApiKey[];
-  total: number;
-};
+export type ApiKeyListResponse = Overlay<
+  Served<Schemas["ApiKeyListResponse"]>,
+  { items: ApiKey[] }
+>;
 
-export type CreateApiKeyRequest = {
-  name: string;
-  description?: string | null;
-  scopes: string[];
-  expires_at?: string | null;
-};
+export type CreateApiKeyRequest = Schemas["CreateApiKeyRequest"];
 
-export type UpdateApiKeyRequest = {
-  name?: string | null;
-  description?: string | null;
-};
+export type UpdateApiKeyRequest = Schemas["UpdateApiKeyRequest"];
 
 function normalizeApiKey(value: unknown): ApiKey {
   const raw =

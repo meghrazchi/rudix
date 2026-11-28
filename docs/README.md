@@ -32,6 +32,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 26. [25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md](./25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Prometheus and Grafana metrics, dashboards, exporters, and SLO alerts (development overlay implemented; staging and production rollout planned)
 27. [26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md](./26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md) — Planned release train from `0.1.0` to `1.0.0`, product-area version map, flag graduation, performance targets, and open decisions
 28. [27_INGESTION_AND_WORKERS_RUNBOOK.md](./27_INGESTION_AND_WORKERS_RUNBOOK.md) — Staged ingestion chain, queues, resume and reaper, transactional outbox, failed stage retry, worker tenant binding
+29. [28_KUBERNETES_HELM_DEPLOYMENT.md](./28_KUBERNETES_HELM_DEPLOYMENT.md) — Kubernetes Helm chart (`deploy/helm/rudix`): layout and conventions, values ownership, secrets from an existing Secret, rendering and linting; edge and ingress, data stores and backups, stateless replicas and shutdown, metrics and alerting, tracing, workloads and autoscaling, database replica and pooler, and secrets and runtime configuration (`0.8.0`)
 
 ## Roadmap Specs (planned work)
 
@@ -51,12 +52,22 @@ This repository keeps `README.md` at the root and all other documentation under 
 - [roadmap/V0_7_0_FRONTEND_PERFORMANCE.md](./roadmap/V0_7_0_FRONTEND_PERFORMANCE.md)
 - [roadmap/V0_7_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_7_0_IMPLEMENTATION_PLAN.md) — Work packages, chains, shared-file anchors, measured bundle baseline, and cross-chain contracts for `0.7.0`
 - [roadmap/V0_8_0_PRODUCTION_INFRASTRUCTURE.md](./roadmap/V0_8_0_PRODUCTION_INFRASTRUCTURE.md)
+- [roadmap/V0_8_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_8_0_IMPLEMENTATION_PLAN.md) — Decisions taken, work packages, chains, shared-file anchors, contracts, operator steps, and staging-only exit criteria for `0.8.0`
 - [roadmap/V0_9_0_PRODUCT_COMPLETENESS.md](./roadmap/V0_9_0_PRODUCT_COMPLETENESS.md)
+- [roadmap/V0_9_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_9_0_IMPLEMENTATION_PLAN.md) — Decisions taken, nine work packages in five chains, migration chain, shared-file anchors, contracts, operator steps, and staging-only exit criteria for `0.9.0`
 - [roadmap/V1_0_0_GENERAL_AVAILABILITY.md](./roadmap/V1_0_0_GENERAL_AVAILABILITY.md)
 
 ## Setup and Operations
 
 - [INSTALL.md](./INSTALL.md)
+- [runbooks/README.md](./runbooks/README.md): runbook index and format (0.8.0)
+- [runbooks/BACKUP_AND_RESTORE.md](./runbooks/BACKUP_AND_RESTORE.md)
+- [runbooks/RESTORE_DRILL_LOG.md](./runbooks/RESTORE_DRILL_LOG.md)
+- [runbooks/DR_HOST_OR_REGION_LOSS.md](./runbooks/DR_HOST_OR_REGION_LOSS.md)
+- [runbooks/DR_DATABASE_CORRUPTION.md](./runbooks/DR_DATABASE_CORRUPTION.md)
+- [runbooks/DR_VECTOR_INDEX_LOSS.md](./runbooks/DR_VECTOR_INDEX_LOSS.md)
+- [runbooks/DR_BROKER_LOSS.md](./runbooks/DR_BROKER_LOSS.md)
+- [runbooks/DR_CREDENTIAL_COMPROMISE.md](./runbooks/DR_CREDENTIAL_COMPROMISE.md)
 
 ## Collaboration and Governance
 

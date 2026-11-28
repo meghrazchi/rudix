@@ -584,10 +584,13 @@ class DocumentRepository:
         limit: int = 20,
         offset: int = 0,
         index_version: str | None = None,
+        chunk_id: UUID | None = None,
     ) -> list[DocumentChunk]:
         statement = select(DocumentChunk).where(DocumentChunk.document_id == document_id)
         if index_version is not None:
             statement = statement.where(DocumentChunk.index_version == index_version)
+        if chunk_id is not None:
+            statement = statement.where(DocumentChunk.id == chunk_id)
         statement = statement.order_by(DocumentChunk.chunk_index.asc()).offset(offset).limit(limit)
         result = await session.execute(statement)
         return list(result.scalars().all())
@@ -633,12 +636,15 @@ class DocumentRepository:
         *,
         document_id: UUID,
         index_version: str | None = None,
+        chunk_id: UUID | None = None,
     ) -> int:
         statement = select(func.count(DocumentChunk.id)).where(
             DocumentChunk.document_id == document_id
         )
         if index_version is not None:
             statement = statement.where(DocumentChunk.index_version == index_version)
+        if chunk_id is not None:
+            statement = statement.where(DocumentChunk.id == chunk_id)
         result = await session.execute(statement)
         return int(result.scalar_one())
 

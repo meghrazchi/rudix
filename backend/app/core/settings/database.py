@@ -24,3 +24,12 @@ class DatabaseSettings(BaseModel):
     database_maintenance_url: PostgresDsn | None = None
     # off | soft | strict; unset means soft in staging/production and off elsewhere (R04-08).
     rls_enforcement: RlsEnforcement | None = None
+    # Read replica for staleness-tolerant reporting routes (0.8.0, R08-04). Unset: every
+    # route uses the primary. Reporting reads go to the replica only while the sampled lag
+    # is at most db_replica_max_lag_seconds and the sample is fresh.
+    database_replica_url: PostgresDsn | None = None
+    db_replica_max_lag_seconds: float = Field(default=30.0, ge=0)
+    db_replica_lag_check_interval_seconds: float = Field(default=10.0, gt=0)
+    db_replica_pool_size: int = Field(default=5, ge=1)
+    db_replica_max_overflow: int = Field(default=10, ge=0)
+    db_replica_lag_query_timeout_ms: int = Field(default=500, gt=0)

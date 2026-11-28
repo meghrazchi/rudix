@@ -1,17 +1,21 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
+import type { TrustT } from "@/components/chat/trust-panel/trust-types";
 import type { ChatCitationResponse } from "@/lib/api/chat";
 
 export function agreementLevelLabel(
   level: "full" | "partial" | "conflicting",
+  t: TrustT,
 ): string {
   if (level === "partial") {
-    return "Partial agreement";
+    return t("conflict.level.partial");
   }
   if (level === "conflicting") {
-    return "Conflicting sources";
+    return t("conflict.level.conflicting");
   }
-  return "Full agreement";
+  return t("conflict.level.full");
 }
 
 export function agreementLevelClass(
@@ -28,12 +32,13 @@ export function agreementLevelClass(
 
 function conflictStatusLabel(
   status: "preferred" | "conflicting" | "neutral" | null | undefined,
+  t: TrustT,
 ): string | null {
   if (status === "preferred") {
-    return "Preferred";
+    return t("badge.preferred");
   }
   if (status === "conflicting") {
-    return "Conflicting";
+    return t("badge.conflicting");
   }
   return null;
 }
@@ -49,6 +54,7 @@ export function ConflictWarningCard({
   conflictSummary: string | null;
   preferredDocumentIds: string[];
 }) {
+  const t = useTranslations("chat.trustPanel");
   if (!conflictDetected) {
     return null;
   }
@@ -57,16 +63,18 @@ export function ConflictWarningCard({
     <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
       <div className="flex flex-wrap items-center gap-2">
         <span className={agreementLevelClass(agreementLevel)}>
-          {agreementLevelLabel(agreementLevel)}
+          {agreementLevelLabel(agreementLevel, t)}
         </span>
-        <span className="font-semibold">Source conflict detected</span>
+        <span className="font-semibold">{t("conflict.detected")}</span>
       </div>
       {conflictSummary ? (
         <p className="mt-1 text-[11px] leading-snug">{conflictSummary}</p>
       ) : null}
       {preferredDocumentIds.length > 0 ? (
         <p className="mt-1 text-[11px] leading-snug">
-          Preferred source IDs: {preferredDocumentIds.join(", ")}
+          {t("conflict.preferredIds", {
+            ids: preferredDocumentIds.join(", "),
+          })}
         </p>
       ) : null}
     </div>
@@ -86,6 +94,7 @@ export function ConflictSourceComparison({
   preferredDocumentIds: string[];
   citations: ChatCitationResponse[];
 }) {
+  const t = useTranslations("chat.trustPanel");
   if (!conflictDetected) {
     return null;
   }
@@ -94,9 +103,9 @@ export function ConflictSourceComparison({
     <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
       <div className="flex flex-wrap items-center gap-2">
         <span className={agreementLevelClass(agreementLevel)}>
-          {agreementLevelLabel(agreementLevel)}
+          {agreementLevelLabel(agreementLevel, t)}
         </span>
-        <span className="font-semibold">Source comparison</span>
+        <span className="font-semibold">{t("conflict.comparison")}</span>
       </div>
       {conflictSummary ? (
         <p className="mt-1 text-[11px] leading-snug">{conflictSummary}</p>
@@ -104,7 +113,7 @@ export function ConflictSourceComparison({
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         <div>
           <p className="mb-2 text-[10px] font-bold tracking-widest text-emerald-800 uppercase">
-            Preferred sources
+            {t("conflict.preferredSources")}
           </p>
           <div className="space-y-2">
             {citations
@@ -118,14 +127,14 @@ export function ConflictSourceComparison({
                 >
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-[10px] font-bold text-emerald-700 uppercase">
-                      {citation.filename ?? "Document"}
+                      {citation.filename ?? t("conflict.document")}
                     </span>
                     <span className="text-[9px] font-semibold text-emerald-700 uppercase">
-                      Preferred
+                      {t("badge.preferred")}
                     </span>
                   </div>
                   <p className="text-[11px] leading-snug text-rose-900">
-                    {citation.text_snippet ?? "No snippet available."}
+                    {citation.text_snippet ?? t("conflict.noSnippet")}
                   </p>
                 </div>
               ))}
@@ -133,7 +142,7 @@ export function ConflictSourceComparison({
         </div>
         <div>
           <p className="mb-2 text-[10px] font-bold tracking-widest text-rose-800 uppercase">
-            Conflicting sources
+            {t("conflict.conflictingSources")}
           </p>
           <div className="space-y-2">
             {citations
@@ -145,14 +154,14 @@ export function ConflictSourceComparison({
                 >
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-[10px] font-bold text-rose-700 uppercase">
-                      {citation.filename ?? "Document"}
+                      {citation.filename ?? t("conflict.document")}
                     </span>
                     <span className="text-[9px] font-semibold text-rose-700 uppercase">
-                      {conflictStatusLabel(citation.conflict_status)}
+                      {conflictStatusLabel(citation.conflict_status, t)}
                     </span>
                   </div>
                   <p className="text-[11px] leading-snug text-rose-900">
-                    {citation.text_snippet ?? "No snippet available."}
+                    {citation.text_snippet ?? t("conflict.noSnippet")}
                   </p>
                 </div>
               ))}

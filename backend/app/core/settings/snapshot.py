@@ -333,4 +333,47 @@ def sanitized_snapshot(settings: Settings) -> dict[str, Any]:
                 for server in settings.mcp_external_servers
             ],
         },
+        # Production infrastructure (0.8.0): booleans (``*_set``) and sanitized values only,
+        # never URLs with credentials. Each task adds its keys after its anchor.
+        "infrastructure": {
+            # anchor: v080-A2
+            "backup_bucket": settings.backup_bucket,
+            "backup_prefix": settings.backup_prefix,
+            "backup_s3_endpoint_set": settings.backup_s3_endpoint is not None,
+            "backup_s3_credentials_set": settings.backup_s3_access_key is not None
+            and settings.backup_s3_secret_key is not None,
+            "backup_s3_kms_key_id_set": settings.backup_s3_kms_key_id is not None,
+            "backup_encryption_key_file_set": settings.backup_encryption_key_file is not None,
+            # anchor: v080-B1
+            "redis_cache_url_set": settings.redis_cache_url is not None,
+            "celery_result_backend_url_set": settings.celery_result_backend_url is not None,
+            "ws_chat_connection_limit_backend": settings.ws_chat_connection_limit_backend,
+            "api_shutdown_drain_seconds": settings.api_shutdown_drain_seconds,
+            # anchor: v080-B2
+            "worker_metrics_multiprocess": settings.worker_metrics_multiprocess,
+            "beat_heartbeat_interval_seconds": settings.beat_heartbeat_interval_seconds,
+            # anchor: v080-B3
+            "tracing_enabled": settings.tracing_enabled,
+            "tracing_sample_ratio": settings.tracing_sample_ratio,
+            "otel_exporter_otlp_endpoint_set": settings.otel_exporter_otlp_endpoint is not None,
+            # anchor: v080-C2
+            "database_replica_url_set": settings.database_replica_url is not None,
+            "db_replica_max_lag_seconds": settings.db_replica_max_lag_seconds,
+            # anchor: v080-D1
+            "app_auth_secret_previous_set": settings.app_auth_secret_previous is not None,
+        },
+        # Product completeness (0.9.0): booleans (``*_set``) and sanitized values only, never
+        # secrets, keys, or URLs with credentials. Each task adds its keys after its anchor.
+        "product_completeness": {
+            "billing_provider": settings.billing_provider,
+            "auth_one_time_token_retention_hours": settings.auth_one_time_token_retention_hours,
+            # anchor: v090-A1
+            # anchor: v090-A2
+            # anchor: v090-A3
+            # anchor: v090-B1
+            # anchor: v090-B2
+            # anchor: v090-C1
+            # anchor: v090-C2
+            # anchor: v090-D1
+        },
     }

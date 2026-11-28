@@ -26,4 +26,6 @@ regexes = [
   '''^rudix\.consent\.v1$''',   # localStorage key, frontend/e2e/support/consent.ts
   '''^L2-normalised$''',          # docstring word, ci/stubs/llm_stub.py
   '''^s3cret-signup$''',          # test value, frontend/config/build-env-validation.test.ts
+  '''^docs12_api_availability$''', # SLO rule id, backend/tests/test_slo_rules.py
+  '''^latency_ms_p95$''',         # metric key, frontend/src/components/evaluations/ab-test-panel.tsx
 ]

@@ -34,6 +34,7 @@ TUNING = (
     "qdrant_quantization_always_ram",
     "qdrant_shard_number",
     "qdrant_replication_factor",
+    "qdrant_write_consistency_factor",
 )
 
 
@@ -72,6 +73,7 @@ def test_create_collection_kwargs_map_to_client_models(cfg: Settings) -> None:
         qdrant_on_disk_payload=True,
         qdrant_shard_number=2,
         qdrant_replication_factor=2,
+        qdrant_write_consistency_factor=2,
         qdrant_vectors_on_disk=True,
     )
     kwargs = qdrant_tuning.create_collection_kwargs(cfg)
@@ -84,6 +86,7 @@ def test_create_collection_kwargs_map_to_client_models(cfg: Settings) -> None:
     assert quantization.scalar.quantile == 0.99 and quantization.scalar.always_ram is True
     assert kwargs["on_disk_payload"] is True
     assert kwargs["shard_number"] == 2 and kwargs["replication_factor"] == 2
+    assert kwargs["write_consistency_factor"] == 2
     assert qdrant_tuning.vectors_on_disk(cfg) == {"on_disk": True}
 
 
@@ -168,3 +171,19 @@ def test_default_collection_has_no_tuning_arguments(
     (created,) = client.created
     assert set(created) == {"collection_name", "vectors_config"}
     assert created["vectors_config"].on_disk is None
+
+
+def test_write_consistency_factor_drift_is_reported(cfg: Settings) -> None:
+    """R08-05: a configured write consistency factor that differs from the collection."""
+    _configure(cfg, qdrant_write_consistency_factor=2)
+    info = _info()
+    info.config.params.write_consistency_factor = 1
+    assert qdrant_tuning.tuning_differences(cfg, info) == {
+        "qdrant_write_consistency_factor": {"configured": 2, "collection": 1}
+    }
+    assert "write_consistency_factor" not in qdrant_tuning.create_collection_kwargs(_unset(cfg))
+
+
+def _unset(config: Settings) -> Settings:
+    _configure(config)
+    return config

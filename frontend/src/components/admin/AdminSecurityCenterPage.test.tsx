@@ -197,6 +197,7 @@ const AUDIT_FIXTURE: AuditLogListResponse = {
     },
   ],
   total: 1,
+  next_cursor: null,
   limit: 100,
   offset: 0,
   range: { from: "2026-05-01", to: "2026-05-30" },

@@ -1,0 +1,71 @@
+# Staging and production overlay for the observability stack (R08-09, B2).
+#
+#   docker compose -f docker-compose.yml -f infra/observability/docker-compose.yml \
+#     -f infra/observability/docker-compose.deploy.yml up -d
+#
+# - Prometheus, Alertmanager, and the exporters publish no host port (`!reset []`); they are
+#   reached on the Compose network only.
+# - Grafana listens on 127.0.0.1 only (reach it through an SSH tunnel or an authenticated
+#   reverse proxy, never directly from the internet), anonymous access stays off, and
+#   GRAFANA_ADMIN_PASSWORD is required: there is no default.
+# - Prometheus scrapes with the bearer token (prometheus/prometheus.deploy.yml) and
+#   Alertmanager routes to the on-call receivers (alertmanager/alertmanager.deploy.yml).
+#   Both read operator-created files from ./secrets (infra/observability/secrets/, git-ignored):
+#     metrics_token        the METRICS_BEARER_TOKEN value (no trailing newline needed)
+#     oncall_pager_url     webhook URL of the paging integration (critical alerts)
+#     oncall_ticket_url    webhook URL of the ticket or chat integration (warning, info)
+#   Create the directory with mode 0700 and the files with 0600 before `up`.
+# - Exporter credentials come from the environment without defaults. POSTGRES_EXPORTER_SSLMODE
+#   is required too: postgres-exporter (lib/pq) accepts only disable, require, verify-ca, and
+#   verify-full (no `prefer`); use disable only for the Compose Postgres, which has no TLS.
+#
+# deploy/scripts/check_observability_config.sh validates this file with placeholder values.
+
+services:
+  prometheus:
+    command:
+      - "--config.file=/etc/prometheus/prometheus.deploy.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}"
+      - "--storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-10GB}"
+    ports: !reset []
+    # Files mounted one by one so /etc/prometheus stays writable for the secrets mount point.
+    volumes: !override
+      - ./prometheus/prometheus.deploy.yml:/etc/prometheus/prometheus.deploy.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - ./secrets:/etc/prometheus/secrets:ro
+      - prometheus_data:/prometheus
+
+  alertmanager:
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.deploy.yml"
+      - "--storage.path=/alertmanager"
+    ports: !reset []
+    volumes: !override
+      - ./alertmanager/alertmanager.deploy.yml:/etc/alertmanager/alertmanager.deploy.yml:ro
+      - ./secrets:/etc/alertmanager/secrets:ro
+      - alertmanager_data:/alertmanager
+
+  grafana:
+    ports: !override
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required (no default outside development)}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+
+  postgres-exporter:
+    ports: !reset []
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:?POSTGRES_EXPORTER_USER is required}:${POSTGRES_EXPORTER_PASSWORD:?POSTGRES_EXPORTER_PASSWORD is required}@${POSTGRES_EXPORTER_HOST:-postgres}:5432/${POSTGRES_DB:?POSTGRES_DB is required}?sslmode=${POSTGRES_EXPORTER_SSLMODE:?POSTGRES_EXPORTER_SSLMODE is required (disable, require, verify-ca, or verify-full)}"
+
+  redis-exporter:
+    ports: !reset []
+    environment:
+      REDIS_ADDR: "redis://${REDIS_EXPORTER_HOST:-redis}:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}

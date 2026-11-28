@@ -1,0 +1,90 @@
+{{- $workers := .Values.workers -}}
+{{- $keda := include "rudix.c1.kedaEnabled" . -}}
+{{- range $name := splitList "," (include "rudix.c1.poolNames" .) }}
+{{- if $name }}
+{{- $pool := index $workers.pools $name -}}
+{{- $component := printf "worker-%s" $name -}}
+{{- $ctx := dict "root" $ "component" $component -}}
+{{- $upper := upper $name }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+spec:
+  {{- if not $keda }}
+  replicas: {{ int $pool.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rudix.selectorLabels" $ctx | nindent 6 }}
+  {{- include "rudix.c1.rollingStrategy" (dict "root" $ "kind" "workers") | nindent 2 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rudix.labels" $ctx | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+        {{- with $workers.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "rudix.c1.podCommon" $ctx | nindent 6 }}
+      # Celery finishes acknowledged (acks_late) tasks on SIGTERM before exiting.
+      terminationGracePeriodSeconds: {{ int $workers.terminationGracePeriodSeconds }}
+      {{- with include "rudix.c1.scheduling" (dict "values" $workers) | trim }}{{ . | nindent 6 }}{{ end }}
+      containers:
+        - name: worker
+          image: {{ include "rudix.image" $ctx }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["python", "-m", "app.workers.pools", {{ $name | quote }}]
+          {{- if $.Values.metrics.enabled }}
+          ports:
+            - name: metrics
+              containerPort: {{ int $.Values.metrics.workers.port }}
+              protocol: TCP
+          {{- end }}
+          envFrom:
+            {{- include "rudix.envFrom" $ | nindent 12 }}
+          env:
+            - name: WORKER_POOL_{{ $upper }}_QUEUES
+              value: {{ $pool.queues | join "," | quote }}
+            - name: WORKER_POOL_{{ $upper }}_CONCURRENCY
+              value: {{ int $pool.concurrency | quote }}
+            {{- if $.Values.metrics.enabled }}
+            - name: WORKER_METRICS_ENABLED
+              value: "true"
+            - name: WORKER_METRICS_PORT
+              value: {{ int $.Values.metrics.workers.port | quote }}
+            {{- end }}
+          {{- $ping := printf "celery -A app.workers.celery_app:celery_app inspect ping -d %s@$HOSTNAME --timeout 10 >/dev/null" $name }}
+          startupProbe:
+            exec:
+              command: ["sh", "-c", {{ $ping | quote }}]
+            periodSeconds: {{ int $workers.probe.startupPeriodSeconds }}
+            timeoutSeconds: {{ int $workers.probe.timeoutSeconds }}
+            failureThreshold: {{ int $workers.probe.startupFailureThreshold }}
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", {{ $ping | quote }}]
+            periodSeconds: {{ int $workers.probe.periodSeconds }}
+            timeoutSeconds: {{ int $workers.probe.timeoutSeconds }}
+            failureThreshold: {{ int $workers.probe.failureThreshold }}
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", {{ $ping | quote }}]
+            periodSeconds: {{ int $workers.probe.periodSeconds }}
+            timeoutSeconds: {{ int $workers.probe.timeoutSeconds }}
+            failureThreshold: {{ int $workers.probe.failureThreshold }}
+          resources:
+            {{- toYaml ($pool.resources | default $workers.resources) | nindent 12 }}
+          securityContext:
+            {{- include "rudix.containerSecurityContext" $ | nindent 12 }}
+          volumeMounts:
+            {{- include "rudix.tmpVolumeMount" $ | nindent 12 }}
+      volumes:
+        {{- include "rudix.tmpVolume" $ | nindent 8 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,22 @@
+{{- /* KEDA ScaledObject for the frontend on CPU and memory (keda mode). */ -}}
+{{- if include "rudix.c1.kedaEnabled" . -}}
+{{- $ctx := dict "root" . "component" "frontend" -}}
+{{- $frontend := .Values.autoscaling.frontend -}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "rudix.componentName" $ctx }}
+  minReplicaCount: {{ int $frontend.minReplicas }}
+  maxReplicaCount: {{ int $frontend.maxReplicas }}
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- include "rudix.c1.hpaBehavior" $frontend.scaleDownStabilizationSeconds | nindent 8 }}
+  triggers:
+    {{- include "rudix.c1.resourceTriggers" $frontend | nindent 4 }}
+{{- end }}

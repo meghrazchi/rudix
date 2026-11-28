@@ -64,3 +64,17 @@ class ObservabilitySettings(BaseModel):
         if not cleaned:
             return None
         return cleaned
+
+    # First-party browser Web Vitals ingest (POST /telemetry/web-vitals, R07-11).
+    # Off by default: the endpoint answers 404 until enabled.
+    web_vitals_ingest_enabled: bool = False
+    # Distinct route labels kept in Prometheus; further routes become "other".
+    web_vitals_max_routes: int = Field(default=200, ge=1, le=2000)
+    # Per-client-IP request limit per minute for the ingest endpoint.
+    web_vitals_rate_limit_per_minute: int = Field(default=60, ge=1, le=100000)
+    # R08-09 (B2). Prefork workers started by ``python -m app.workers.pools`` export the
+    # counters of every child process from PROMETHEUS_MULTIPROC_DIR; effective only with
+    # WORKER_METRICS_ENABLED. A plain ``celery ... worker`` command stays single-process.
+    worker_metrics_multiprocess: bool = True
+    # Beat task ``ops.beat.heartbeat`` period; the task message expires after one period.
+    beat_heartbeat_interval_seconds: int = Field(default=60, ge=10, le=3600)

@@ -17,6 +17,7 @@ import {
 import type { ChatTurn } from "@/components/chat/chat-types";
 import type { ChatCitationResponse } from "@/lib/api/chat";
 import { downloadDocumentFile, getDocumentChunks } from "@/lib/api/documents";
+import { queryKeys } from "@/lib/api/query";
 
 export function useCitationPanel({
   selectedCitationTurn,
@@ -69,16 +70,18 @@ export function useCitationPanel({
       ? previewCitationSet.citations[previewCitationIndex]
       : null;
   const activePreviewCitationChunkQuery = useQuery({
-    queryKey: [
-      "citation-chunk",
+    queryKey: queryKeys.citationChunk(
       activePreviewCitation?.document_id ?? "none",
       activePreviewCitation?.chunk_id ?? "none",
-    ],
+    ),
+    // The chunk_id filter returns just the cited chunk (R07-06) instead of
+    // scanning the first 200 chunks of the document for it.
     queryFn: () =>
       activePreviewCitation?.chunk_id
         ? getDocumentChunks(activePreviewCitation.document_id, {
-            limit: 200,
+            limit: 1,
             include_full_text: true,
+            chunk_id: activePreviewCitation.chunk_id,
           })
         : Promise.reject(new Error("No citation id")),
     enabled: Boolean(activePreviewCitation?.chunk_id),

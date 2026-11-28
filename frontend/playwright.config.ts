@@ -16,9 +16,48 @@ const WS_FRONTEND_PORT = Number.parseInt(
 );
 const WS_FRONTEND_BASE_URL = `http://127.0.0.1:${WS_FRONTEND_PORT}`;
 const WS_SPECS = /chat-ws-.*\.spec\.ts$/;
+// The server-side route gate (R07-09) reads RUDIX_ROUTE_GATE at request time
+// and restores sessions only through the refresh cookie, so it gets a third
+// dev server: gate enforced, refresh URL configured, no dev session fallback.
+const GATE_FRONTEND_PORT = Number.parseInt(
+  process.env.PLAYWRIGHT_GATE_FRONTEND_PORT ?? "3103",
+  10,
+);
+const GATE_FRONTEND_BASE_URL = `http://127.0.0.1:${GATE_FRONTEND_PORT}`;
+const GATE_SPECS = /route-gate\.spec\.ts$/;
+// R08-11: request-time configuration needs a production build (request mode,
+// API URL A) started with different runtime values (API URL B), so it gets a
+// fourth server with its own build directory (.next-e2e-runtime).
+const RUNTIME_FRONTEND_PORT = Number.parseInt(
+  process.env.PLAYWRIGHT_RUNTIME_FRONTEND_PORT ?? "3104",
+  10,
+);
+const RUNTIME_FRONTEND_BASE_URL = `http://127.0.0.1:${RUNTIME_FRONTEND_PORT}`;
+const RUNTIME_SPECS = /runtime-config\.spec\.ts$/;
 const useBundledBrowser =
   process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true" ||
   process.env.CI === "true";
+
+// R07-06: Firefox and WebKit run only the smoke, public-SEO and responsive
+// specs, and only when PLAYWRIGHT_EXTRA_BROWSERS=true (CI sets it). Local
+// default runs stay on Chromium; install the engines first with
+// `npx playwright install firefox webkit`.
+const EXTRA_BROWSER_SPECS = /(smoke|public-site-seo|responsive)\.spec\.ts$/;
+const extraBrowserProjects =
+  process.env.PLAYWRIGHT_EXTRA_BROWSERS === "true"
+    ? [
+        {
+          name: "firefox",
+          testMatch: EXTRA_BROWSER_SPECS,
+          use: { ...devices["Desktop Firefox"] },
+        },
+        {
+          name: "webkit",
+          testMatch: EXTRA_BROWSER_SPECS,
+          use: { ...devices["Desktop Safari"] },
+        },
+      ]
+    : [];
 
 export default defineConfig({
   testDir: "./e2e",
@@ -39,9 +78,10 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   projects: [
+    ...extraBrowserProjects,
     {
       name: "chromium",
-      testIgnore: WS_SPECS,
+      testIgnore: [WS_SPECS, GATE_SPECS, RUNTIME_SPECS],
       use: {
         ...devices["Desktop Chrome"],
         ...(useBundledBrowser ? {} : { channel: "chrome" }),
@@ -57,6 +97,26 @@ export default defineConfig({
         storageState: consentedStorageState(WS_FRONTEND_BASE_URL),
       },
     },
+    {
+      name: "chromium-route-gate",
+      testMatch: GATE_SPECS,
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(useBundledBrowser ? {} : { channel: "chrome" }),
+        baseURL: GATE_FRONTEND_BASE_URL,
+        storageState: consentedStorageState(GATE_FRONTEND_BASE_URL),
+      },
+    },
+    {
+      name: "chromium-runtime-config",
+      testMatch: RUNTIME_SPECS,
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(useBundledBrowser ? {} : { channel: "chrome" }),
+        baseURL: RUNTIME_FRONTEND_BASE_URL,
+        storageState: consentedStorageState(RUNTIME_FRONTEND_BASE_URL),
+      },
+    },
   ],
   webServer: [
     devServer(FRONTEND_PORT, FRONTEND_BASE_URL, {}),
@@ -64,6 +124,22 @@ export default defineConfig({
       NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED: "true",
       NEXT_DIST_DIR: ".next-e2e-ws",
     }),
+    devServer(GATE_FRONTEND_PORT, GATE_FRONTEND_BASE_URL, {
+      RUDIX_ROUTE_GATE: "enforce",
+      NEXT_DIST_DIR: ".next-e2e-gate",
+      NEXT_PUBLIC_AUTH_REFRESH_URL:
+        "http://localhost:8000/api/v1/auth/token/refresh",
+      NEXT_PUBLIC_AUTH_LOCAL_FALLBACK: "false",
+      NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN: "",
+      NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN: "",
+    }),
+    {
+      // Builds once (several minutes), then starts the standalone server.
+      command: `node e2e/support/runtime-config-server.mjs ${RUNTIME_FRONTEND_PORT}`,
+      url: `${RUNTIME_FRONTEND_BASE_URL}/login`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 900_000,
+    },
   ],
 });
 
@@ -98,6 +174,8 @@ function devServer(
       NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME: "Rudix E2E Org",
       NEXT_PUBLIC_AUTH_DEFAULT_ROLE: "admin",
       NEXT_PUBLIC_CHAT_AGENTIC_ENABLED: "true",
+      // Enables /admin/error-probe for e2e/route-boundaries.spec.ts (R07-08).
+      NEXT_PUBLIC_E2E_ERROR_PROBE: "true",
       NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT: "false",
       NEXT_PUBLIC_PUBLIC_PRODUCT_URL: "/product",
       NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL: "/solutions",

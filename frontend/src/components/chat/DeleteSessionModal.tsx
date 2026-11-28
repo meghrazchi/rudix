@@ -63,8 +63,7 @@ export function DeleteSessionModal({
         </div>
         <div className="px-5 py-4">
           <p className="text-sm leading-relaxed text-[#4f4b63]">
-            This session will be permanently deleted from the workspace. The
-            action cannot be undone.
+            {tc("deleteSessionBody")}
           </p>
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-[#e4e1ee] bg-[#faf9ff] px-5 py-4">

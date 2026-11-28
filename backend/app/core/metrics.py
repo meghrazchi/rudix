@@ -46,6 +46,7 @@ HTTP_REQUESTS_IN_PROGRESS = Gauge(
     "Concurrent in-flight HTTP requests",
     ["method", "route"],
     registry=registry,
+    multiprocess_mode="livesum",
 )
 
 RATE_LIMIT_DECISIONS_TOTAL = Counter(
@@ -337,6 +338,7 @@ LLM_BREAKER_STATE = Gauge(
     "LLM provider circuit breaker state (0 closed, 1 half-open, 2 open)",
     ["provider", "model"],
     registry=registry,
+    multiprocess_mode="livemax",
 )
 
 LLM_BREAKER_TRANSITIONS_TOTAL = Counter(
@@ -393,6 +395,7 @@ DEPENDENCY_READINESS = Gauge(
     "Health and readiness status of backing dependencies (1 = healthy, 0 = degraded)",
     ["dependency"],
     registry=registry,
+    multiprocess_mode="mostrecent",
 )
 
 

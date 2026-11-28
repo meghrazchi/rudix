@@ -28,8 +28,11 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.core.config import settings
+from app.domains.ai.providers.errors import ProviderUnavailableError
+from app.domains.ai.providers.protocols import ChatCompletionRequest, ChatCompletionResponse
 from app.domains.chat.services.llm_service import ParsedCitation
 from app.domains.chat.services.query_retrieval_service import RetrievedCandidate
+from app.domains.chat.services.rerank_service import RerankService
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRole
@@ -123,6 +126,43 @@ class FakeLLMService:
                 "used_fallback_parser": False,
             },
         )()
+
+
+class _UnavailableRerankProvider:
+    """Fake rerank and judge provider (0.9.0, S1): never reaches a network.
+
+    It fails the way the placeholder OpenAI key fails in CI, so these tests keep exercising
+    the similarity rerank fallback and the heuristic judge fallback they were written
+    against.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        del request
+        self.calls += 1
+        raise ProviderUnavailableError("fake rerank provider is unavailable")
+
+
+class _FakeRerankProviderFactory:
+    def __init__(self) -> None:
+        self.provider = _UnavailableRerankProvider()
+
+    def get_chat_provider(self, provider_key: str | None = None) -> _UnavailableRerankProvider:
+        del provider_key
+        return self.provider
+
+
+@pytest.fixture(autouse=True)
+def _fake_rerank_provider(monkeypatch: pytest.MonkeyPatch) -> _FakeRerankProviderFactory:
+    factory = _FakeRerankProviderFactory()
+    monkeypatch.setattr(
+        evaluation_tasks, "_rerank_service", RerankService(provider_factory=factory)
+    )
+    # The LLM judge reads evaluation_tasks.default_provider_factory at call time.
+    monkeypatch.setattr(evaluation_tasks, "default_provider_factory", factory)
+    return factory
 
 
 async def _seed_evaluation_run(

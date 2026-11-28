@@ -1,0 +1,38 @@
+# Backup freshness alerts (0.8.0, R08-06; owner A2).
+#
+# The beat task `ops.backups.check_freshness` (BACKUP_FRESHNESS_CHECK_ENABLED=true) reads the
+# backup markers every BACKUP_FRESHNESS_INTERVAL_SECONDS and sets
+# rudix_backup_last_success_timestamp_seconds{kind} and
+# rudix_backup_freshness_checks_total{outcome}. The 26 h threshold equals the default
+# BACKUP_MAX_AGE_HOURS and DEPLOY_BACKUP_MAX_AGE_HOURS; change all three together.
+# Runbook: docs/runbooks/BACKUP_AND_RESTORE.md.
+groups:
+  - name: rudix-backups
+    rules:
+      - alert: RudixBackupStale
+        expr: time() - max by (kind) (rudix_backup_last_success_timestamp_seconds) > 26 * 3600
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Rudix {{ $labels.kind }} backup is older than 26 hours"
+          description: "The newest {{ $labels.kind }} backup marker is {{ $value | humanizeDuration }} old. See docs/runbooks/BACKUP_AND_RESTORE.md."
+
+      # Checks run but report a missing or unreadable marker or bucket error, or no kind has
+      # a timestamp at all. Absent checks (task disabled) never fire this alert.
+      - alert: RudixBackupFreshnessUnknown
+        expr: |
+          (
+            sum(increase(rudix_backup_freshness_checks_total{outcome=~"missing|error"}[1h])) > 0
+          )
+          or
+          (
+            (sum(increase(rudix_backup_freshness_checks_total[1h])) > 0)
+            unless on () (count(rudix_backup_last_success_timestamp_seconds) > 0)
+          )
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rudix backup freshness is unknown (marker missing or bucket unreadable)"
+          description: "Freshness checks ran in the last hour but at least one backup kind has no readable marker, or the backup bucket could not be read. See docs/runbooks/BACKUP_AND_RESTORE.md."

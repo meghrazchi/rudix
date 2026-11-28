@@ -43,6 +43,14 @@ lint:
 	$(RUFF) check app tests
 	$(MYPY) app
 
+
+# tiktoken downloads its encoding files on first use, and the test network guard
+# (tests/hermetic.py) blocks that download. CI runs this before pytest; run it once locally
+# after a fresh install. TIKTOKEN_CACHE_DIR, when set, chooses where the files are kept.
+.PHONY: warm-tiktoken
+warm-tiktoken:
+	$(PYTHON_VENV) -c "import tiktoken; [tiktoken.get_encoding(n) for n in ('cl100k_base', 'o200k_base')]"
+
 test:
 	$(PYTEST)
 
@@ -113,6 +121,12 @@ check-revisions:
 		echo "$$out"; \
 		exit 1; \
 	fi
+
+.PHONY: check-migration-safety
+# Every migration against the working-tree models and the allowlist (R08-08); CI also runs
+# --base-ref origin/<pull request base>. Rules: docs/CONTRIBUTING.md, Database migrations.
+check-migration-safety:
+	$(VENV_BIN)/python scripts/check_migration_safety.py --all
 
 migrate: check-revisions
 	$(ALEMBIC) upgrade head

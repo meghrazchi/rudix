@@ -155,3 +155,9 @@ variable "infra_services" {
   type        = string
   default     = "postgres rabbitmq redis minio qdrant"
 }
+
+variable "compose_profiles" {
+  description = "Comma-separated COMPOSE_PROFILES written to the host .env (R08-12), e.g. \"graph\" on staging and \"analytics\" on production. Empty writes nothing, so a COMPOSE_PROFILES line in env_file_content still applies."
+  type        = string
+  default     = ""
+}

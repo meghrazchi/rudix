@@ -168,6 +168,18 @@ rag.chat
 | `prompt_template_key` | Template key used for generation |
 | `prompt_template_version` | Template version number |
 | `answer_latency_ms` | End-to-end request latency |
+| `otel_trace_id` | OpenTelemetry trace id (32 hex characters) of the request; present only when `TRACING_ENABLED=true` and a span is active (R08-10) |
+
+### Linking Langfuse traces to OpenTelemetry traces (0.8.0)
+
+Langfuse and OpenTelemetry tracing are independent: each has its own switch and sampling
+(`LANGFUSE_ENABLED`/`LANGFUSE_SAMPLE_RATE`, `TRACING_ENABLED`/`TRACING_SAMPLE_RATIO`), and
+neither needs the other. When both are on, the Langfuse chat trace carries `otel_trace_id`,
+the same id that appears as `trace_id` in the API's JSON log lines and as the trace id in the
+OpenTelemetry backend, so a Langfuse trace leads to the request's spans and logs. The id is
+added even when the OpenTelemetry trace was not sampled (the request then has logs but no
+exported spans). OpenTelemetry spans never carry the question, answer, or document text that
+Langfuse may hold under `LANGFUSE_CAPTURE_INPUT_OUTPUT` (docs/11 "Tracing").
 
 ---
 

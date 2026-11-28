@@ -29,6 +29,7 @@ import {
   type SyncRun,
 } from "@/lib/api/connector-sync";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -838,16 +839,21 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
     queryFn: () => listSyncJobs(connectionId),
   });
 
-  const runsQuery = useQuery({
-    queryKey: queryKeys.connectorSyncRuns(connectionId),
-    queryFn: () => listSyncRuns(connectionId, 20),
-    refetchInterval: (data) => {
-      const items = data?.state?.data?.items;
+  const runsInterval = useRealtimeAwareInterval(
+    (query: { state: { data?: { items?: { status: string }[] } } }) => {
+      const items = query.state.data?.items;
       const hasActive =
         Array.isArray(items) &&
         items.some((r) => r.status === "queued" || r.status === "running");
       return hasActive ? 4000 : false;
     },
+  );
+
+  const runsQuery = useQuery({
+    queryKey: queryKeys.connectorSyncRuns(connectionId),
+    queryFn: () => listSyncRuns(connectionId, 20),
+    refetchInterval: runsInterval,
+    refetchIntervalInBackground: false,
   });
 
   const syncMutation = useMutation({
@@ -976,11 +982,14 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
 
   // Poll the individual run at 2 s when active — gives finer-grained item-count updates
   // than the 4 s list poll, and is the source of truth for the live log.
+  // Item counts change inside a running sync without a realtime event (R07-07).
+  const activeRunInterval = useRealtimeAwareInterval(2000, { covered: false });
   const activeRunDetailQuery = useQuery({
     queryKey: queryKeys.connectorSyncRun(activeRun?.id ?? ""),
     queryFn: () => getSyncRun(activeRun!.id),
     enabled: Boolean(activeRun?.id),
-    refetchInterval: 2000,
+    refetchInterval: activeRunInterval,
+    refetchIntervalInBackground: false,
   });
   const liveRun = activeRunDetailQuery.data ?? activeRun;
 

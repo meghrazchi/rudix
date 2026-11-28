@@ -233,7 +233,7 @@ describe("ChatPage feedback", () => {
         steps_executed: 0,
         tool_calls_executed: 0,
         total_tokens: 0,
-        total_cost_usd: 0,
+        total_cost_usd: "0",
         outcome: {
           answer: "",
           citations: [],
@@ -274,7 +274,7 @@ describe("ChatPage feedback", () => {
       costs: {},
       outcome: {},
       observations: {},
-      total_cost_usd: 0,
+      total_cost_usd: "0",
       trace_request_id: "req-1",
       error_message: null,
       error_details: {},

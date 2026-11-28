@@ -1,66 +1,34 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 const BASE = "/admin/permissions";
 
 // ── Role matrix types ──────────────────────────────────────────────────────────
 
-export type RoleMatrixEntry = {
-  role: string;
-  label: string;
-  description: string;
-  is_builtin: boolean;
-  permissions: string[];
-  overridden_permissions: string[];
-};
+export type RoleMatrixEntry = Served<Schemas["RoleMatrixEntry"]>;
 
-export type RoleMatrixResponse = {
-  roles: RoleMatrixEntry[];
-  all_permissions: string[];
-};
+export type RoleMatrixResponse = Served<Schemas["RoleMatrixResponse"]>;
 
-export type UpdateRolePermissionsResponse = {
-  role: string;
-  permissions: string[];
-  overridden_permissions: string[];
-};
+export type UpdateRolePermissionsResponse = Served<
+  Schemas["UpdateRolePermissionsResponse"]
+>;
 
 // ── Resource access types ──────────────────────────────────────────────────────
 
-export type ResourceAccessEntry = {
-  id: string;
-  organization_id: string;
-  user_id: string | null;
-  role_name: string | null;
-  principal_type: string;
-  principal_value: string;
-  resource_type: string;
-  resource_id: string | null;
-  action: string;
-  status: string;
-  expires_at: string | null;
-  reason: string | null;
-  created_by_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-  kind: "grant" | "deny";
-};
+export type ResourceAccessEntry = Served<
+  Schemas["ResourceAccessEntryResponse"]
+>;
 
-export type ResourceAccessListResponse = {
-  items: ResourceAccessEntry[];
-  total: number;
-  page: number;
-  page_size: number;
-};
+export type ResourceAccessListResponse = Served<
+  Schemas["ResourceAccessListResponse"]
+>;
 
-export type CreateResourceAccessRequest = {
-  principal_type: string;
-  principal_value: string;
-  resource_type: string;
-  resource_id?: string | null;
-  action: string;
-  expires_at?: string | null;
-  reason?: string | null;
-};
+export type CreateResourceAccessRequest =
+  Schemas["CreateResourceAccessRequest"];
 
 // ── Normalizers ────────────────────────────────────────────────────────────────
 

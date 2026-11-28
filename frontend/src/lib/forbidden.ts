@@ -1,4 +1,5 @@
 import { isApiClientError } from "@/lib/api/errors";
+import { publicEnv } from "@/lib/public-env";
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9:/._-]+$/;
 const MAX_REQUEST_ID_LENGTH = 128;
@@ -72,7 +73,9 @@ export type SupportAction = {
 };
 
 export function getSupportAction(): SupportAction | null {
-  const supportUrl = trimToNull(process.env.NEXT_PUBLIC_SUPPORT_URL);
+  const supportUrl = trimToNull(
+    publicEnv("NEXT_PUBLIC_SUPPORT_URL", process.env.NEXT_PUBLIC_SUPPORT_URL),
+  );
   if (supportUrl) {
     return {
       href: supportUrl,
@@ -80,7 +83,12 @@ export function getSupportAction(): SupportAction | null {
     };
   }
 
-  const supportEmail = trimToNull(process.env.NEXT_PUBLIC_SUPPORT_EMAIL);
+  const supportEmail = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_SUPPORT_EMAIL",
+      process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
+    ),
+  );
   if (!supportEmail) {
     return null;
   }

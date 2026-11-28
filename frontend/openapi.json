@@ -1140,9 +1140,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Shared Agent Trace Api V1 Agent Traces Shared  Token  Get"
+                  "$ref": "#/components/schemas/AgentTraceResponse"
                 }
               }
             }
@@ -1211,6 +1209,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicStatusSnapshot"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/telemetry/web-vitals": {
+      "post": {
+        "tags": ["telemetry"],
+        "summary": "Receive browser Web Vitals samples",
+        "operationId": "ingest_web_vitals_api_v1_telemetry_web_vitals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebVitalsBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Ingest is disabled (WEB_VITALS_INGEST_ENABLED=false)."
+          },
+          "429": {
+            "description": "Per-client rate limit exceeded."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1552,6 +1588,25 @@
               "default": false,
               "title": "Include Full Text"
             }
+          },
+          {
+            "name": "chunk_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return only this chunk when it belongs to the document.",
+              "title": "Chunk Id"
+            },
+            "description": "Return only this chunk when it belongs to the document."
           }
         ],
         "responses": {
@@ -5545,9 +5600,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Agent Run Trace Api V1 Agent Runs  Run Id  Trace Get"
+                  "$ref": "#/components/schemas/AgentTraceResponse"
                 }
               }
             }
@@ -21224,9 +21277,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Revoke All Other Sessions Api V1 Security Sessions Revoke All Post"
+                  "$ref": "#/components/schemas/RevokeAllSessionsResponse"
                 }
               }
             }
@@ -22939,9 +22990,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Filter Documents By Metadata Api V1 Admin Metadata Filter Documents Get"
+                  "$ref": "#/components/schemas/FilterDocumentsResponse"
                 }
               }
             }
@@ -25227,6 +25276,30 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/v1/events/stream": {
+      "get": {
+        "tags": ["events"],
+        "summary": "Stream Events",
+        "operationId": "stream_events_api_v1_events_stream_get",
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events for the caller's organisation, filtered to the events the caller may see. Frames: `id: <n>`, `event: <type>`, `data: {type, organization_id, occurred_at, payload}`, plus `: keep-alive` comments. Types: `document.status`, `documents.changed`, `notification.created`, `connector.sync`, `agent.run`, `incident`. Payloads carry ids and statuses only. Send `Last-Event-ID` to replay buffered events after that id. The stream ends after `REALTIME_STREAM_MAX_SECONDS`; reconnect.",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "404": {
+            "description": "Realtime events are not enabled for this deployment."
+          },
+          "429": {
+            "description": "Too many open streams for this user (`realtime_connection_limit`)."
+          },
+          "503": {
+            "description": "Redis is not reachable (`realtime_unavailable`); keep polling."
           }
         }
       }
@@ -28197,6 +28270,237 @@
           "updated_at"
         ],
         "title": "AgentToolCallResponse"
+      },
+      "AgentTraceEventResponse": {
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Call Id"
+          },
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": ["event_type", "run_id", "timestamp", "data"],
+        "title": "AgentTraceEventResponse"
+      },
+      "AgentTraceResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "organization_id": {
+            "type": "string",
+            "title": "Organization Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "objective": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objective"
+          },
+          "surface": {
+            "type": "string",
+            "title": "Surface"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "total_cost_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cost Usd"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "trace_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Request Id"
+          },
+          "redacted": {
+            "type": "boolean",
+            "title": "Redacted"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/AgentTraceEventResponse"
+            },
+            "type": "array",
+            "title": "Timeline"
+          },
+          "total_events": {
+            "type": "integer",
+            "title": "Total Events"
+          },
+          "step_count": {
+            "type": "integer",
+            "title": "Step Count"
+          },
+          "tool_call_count": {
+            "type": "integer",
+            "title": "Tool Call Count"
+          },
+          "approval_count": {
+            "type": "integer",
+            "title": "Approval Count"
+          },
+          "policy_snapshot": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Snapshot"
+          },
+          "shared_via_token": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared Via Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "organization_id",
+          "status",
+          "objective",
+          "surface",
+          "started_at",
+          "completed_at",
+          "cancelled_at",
+          "created_at",
+          "total_cost_usd",
+          "error_message",
+          "trace_request_id",
+          "redacted",
+          "timeline",
+          "total_events",
+          "step_count",
+          "tool_call_count",
+          "approval_count",
+          "policy_snapshot"
+        ],
+        "title": "AgentTraceResponse"
       },
       "AgentTraceRetentionRequest": {
         "properties": {
@@ -44023,7 +44327,9 @@
           "billing_warning",
           "quota_warning",
           "security_alert",
-          "onboarding_reminder"
+          "onboarding_reminder",
+          "email_verification",
+          "password_reset"
         ],
         "title": "EmailEventType"
       },
@@ -47108,6 +47414,20 @@
           "submitted_at"
         ],
         "title": "FeedbackSummaryResponse"
+      },
+      "FilterDocumentsResponse": {
+        "properties": {
+          "document_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Document Ids"
+          }
+        },
+        "type": "object",
+        "required": ["document_ids"],
+        "title": "FilterDocumentsResponse"
       },
       "ForceFullResyncResponse": {
         "properties": {
@@ -60217,6 +60537,17 @@
         "required": ["owner_id", "owner_name", "needs_review_count"],
         "title": "ReviewNeedsByOwner"
       },
+      "RevokeAllSessionsResponse": {
+        "properties": {
+          "revoked_count": {
+            "type": "integer",
+            "title": "Revoked Count"
+          }
+        },
+        "type": "object",
+        "required": ["revoked_count"],
+        "title": "RevokeAllSessionsResponse"
+      },
       "RevokeInvitationResponse": {
         "properties": {
           "invitation_id": {
@@ -69441,6 +69772,70 @@
         "type": "object",
         "title": "WarningBreakdown",
         "description": "Counts of answers that triggered each warning type."
+      },
+      "WebVitalSample": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["LCP", "INP", "CLS", "FCP", "TTFB"],
+            "title": "Name"
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Value"
+          },
+          "route": {
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9\\[\\]_/-]{0,120}$",
+            "title": "Route"
+          },
+          "rating": {
+            "type": "string",
+            "enum": ["good", "needs-improvement", "poor"],
+            "title": "Rating"
+          },
+          "navigation_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "navigate",
+                  "reload",
+                  "back-forward",
+                  "back-forward-cache",
+                  "prerender",
+                  "restore"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Navigation Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["name", "value", "route", "rating"],
+        "title": "WebVitalSample"
+      },
+      "WebVitalsBatchRequest": {
+        "properties": {
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/WebVitalSample"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Samples"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["samples"],
+        "title": "WebVitalsBatchRequest"
       },
       "WebhookCreatedResponse": {
         "properties": {

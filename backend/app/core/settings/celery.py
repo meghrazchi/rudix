@@ -8,6 +8,7 @@ from pydantic import (
     AmqpDsn,
     BaseModel,
     Field,
+    RedisDsn,
     field_validator,
 )
 
@@ -58,6 +59,8 @@ class CelerySettings(BaseModel):
     retention_max_batches_per_run: int = Field(default=200, ge=1, le=100000)
     retention_enabled: bool = True
     evaluation_prevent_duplicate_active_runs: bool = True
+    # R08-05: optional Redis for Celery task results. Unset: results use REDIS_URL.
+    celery_result_backend_url: RedisDsn | None = None
 
     @field_validator(
         "celery_task_default_queue",

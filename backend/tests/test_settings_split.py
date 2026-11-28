@@ -41,6 +41,8 @@ ENV_EXAMPLE_NON_SETTINGS_KEYS = {
     "RABBITMQ_IMAGE",
     "REDIS_IMAGE",
     "REDIS_PASSWORD",
+    # Frontend server env read by src/proxy.ts (R07-09), not a backend setting.
+    "RUDIX_ROUTE_GATE",
 }
 
 SNAPSHOT_ENV = {

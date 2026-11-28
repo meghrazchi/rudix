@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { getSupportAction, sanitizeRequestId } from "@/lib/forbidden";
 
@@ -8,17 +9,25 @@ type ForbiddenStateProps = {
   requestId?: string | null;
   backHref?: string;
   backLabel?: string;
+  /** Overrides for the translated eyebrow, region label and trace label. */
+  eyebrow?: string;
+  ariaLabel?: string;
+  traceIdLabel?: string;
   compact?: boolean;
 };
 
 export function ForbiddenState({
-  title = "Forbidden",
-  description = "You do not have permission to complete this action.",
+  title,
+  description,
   requestId,
   backHref = "/dashboard",
-  backLabel = "Back to dashboard",
+  backLabel,
+  eyebrow,
+  ariaLabel,
+  traceIdLabel,
   compact = false,
 }: ForbiddenStateProps) {
+  const t = useTranslations("states");
   const supportAction = getSupportAction();
   const safeRequestId = sanitizeRequestId(requestId ?? null);
 
@@ -27,21 +36,24 @@ export function ForbiddenState({
       className={`rounded-2xl border border-[#d7d4e8] bg-white ${
         compact ? "p-4" : "p-8"
       } shadow-sm`}
-      aria-label="Forbidden state"
+      aria-label={ariaLabel ?? t("forbidden.aria")}
     >
       <p className="mb-2 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-        Rudix Access Control
+        {eyebrow ?? t("forbidden.eyebrow")}
       </p>
       <h1
         className={`${compact ? "text-2xl" : "text-3xl"} mb-2 font-extrabold text-[#2a2640]`}
       >
-        {title}
+        {title ?? t("forbidden.title")}
       </h1>
-      <p className="mb-5 text-sm text-[#68647b]">{description}</p>
+      <p className="mb-5 text-sm text-[#68647b]">
+        {description ?? t("forbidden.description")}
+      </p>
 
       {safeRequestId ? (
         <p className="mb-5 rounded-lg bg-[#f5f3ff] px-3 py-2 text-sm text-[#4d4880]">
-          Trace ID: <span className="font-semibold">{safeRequestId}</span>
+          {traceIdLabel ?? t("traceId")}{" "}
+          <span className="font-semibold">{safeRequestId}</span>
         </p>
       ) : null}
 
@@ -50,7 +62,7 @@ export function ForbiddenState({
           href={backHref}
           className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
         >
-          {backLabel}
+          {backLabel ?? t("forbidden.backLabel")}
         </Link>
 
         {supportAction ? (

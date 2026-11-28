@@ -9,7 +9,6 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Tailwind CSS v4
 - React Flow (`@xyflow/react`)
 - TanStack Query
-- Zustand
 - React Hook Form + Zod
 - Vitest + Testing Library
 - Playwright
@@ -305,6 +304,388 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   `robots.txt`, `llms.txt` and `icon.svg` are byte-identical; `sitemap.xml` is identical
   except `<lastmod>` (the build time).
 
+### Token storage and route gate (R07-09)
+
+- The access token is kept only in memory (`src/lib/auth/session-store.ts`, read through
+  `useAuthSession`, which uses `useSyncExternalStore`). Nothing token-bearing is written to
+  `localStorage`. A reload or a new tab calls the refresh endpoint with the HttpOnly refresh
+  cookie (`credentials: "include"`) and is signed out on `401`, so set
+  `NEXT_PUBLIC_AUTH_REFRESH_URL` in every deployment; without it a reload signs the user out.
+- `src/lib/auth-session.ts` keeps its exported names: `readSessionFromStorage()` returns the
+  in-memory session, `writeSessionToStorage()` writes memory, `clearSessionStorage()` clears
+  memory and the legacy keys.
+- Compatibility: a session stored by 0.6.x in `localStorage["rudix.session.v1"]` is loaded
+  once into memory (`NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ`, default on) and removed after the
+  first successful refresh or authenticated response, so signed-in users stay signed in across
+  the deploy. Its removal was planned for 0.8.0 and is deferred (V0_8_0 plan, section 10), so
+  the read stays on. Playwright specs still seed that key.
+- The dev-only local fallback (`NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true` or
+  `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN`) has no refresh cookie and keeps a tab-scoped copy
+  in `sessionStorage["rudix.session.dev.v1"]`.
+- Refreshes across tabs are serial: the token-free lease `rudix.auth.refresh.lock.v1` is held
+  during each refresh, and a waiting tab runs its own refresh after the holder releases
+  (never reusing a rotated refresh token). Sign-out still reaches other tabs through the
+  auth-boundary storage event.
+- The SSO callback page moves the token from the query into memory and replaces the URL.
+- Route gate: with `RUDIX_ROUTE_GATE=enforce` (server env, default `off`), `src/proxy.ts`
+  redirects an app-route request without the `RUDIX_SESSION_HINT_COOKIE_NAME` cookie
+  (default `rudix_session_hint`, set by the backend when
+  `APP_AUTH_SESSION_HINT_COOKIE_ENABLED=true`) with `307` to
+  `/{locale}/login?next=...` before the shell renders. It never reads roles or claims; role
+  checks stay in `ProtectedAppLayout` and the backend. Enable the backend hint for one
+  refresh-token lifetime before enforcing the gate (docs/11 `## Authentication`).
+- `AUTHENTICATED_APP_ROUTE_SEGMENTS` now includes `knowledge`; a test derives the segment list
+  from `src/app/(app)` so new app routes cannot be missed. `robots.txt` now disallows
+  `/knowledge`.
+- E2E: the `chromium-route-gate` project runs `e2e/route-gate.spec.ts` against a third dev
+  server (`PLAYWRIGHT_GATE_FRONTEND_PORT`, default 3103, dist dir `.next-e2e-gate`).
+
+### Generated API client (R07-05)
+
+`npm run api:check-handwritten` (`scripts/check-api-handwritten-types.mjs`, run in CI directly after `api:check`) scans `src/lib/api/*.ts` and fails on an exported type or interface whose name ends in `Response`, `Item`, `Record`, `Summary`, `Detail`, `Entry`, `Result`, `Payload` or `Request` unless its declaration references `Schemas[`, `components[` or `operations[` (directly or through a local alias of the schema).
+
+The check is name-based. A response type with another name (for example `SecuritySession`, an alias of `SessionItem`) must still be derived from the schema; otherwise a backend rename does not fail `npm run typecheck`.
+
+If an endpoint has no typed 2xx schema in the OpenAPI export, or the type is a client-only view model, add its name to `config/api-handwritten-allowlist.json` with a one-line reason. Keep the list as short as possible: give the backend route a Pydantic `response_model` instead whenever the frontend consumes the body. The agent trace, metadata filter-documents and revoke-all routes were typed this way in R07-05 (see `docs/07_API_DESIGN.md`).
+
+See `## API type generation` for the regeneration workflow and the type helpers.
+
+### Component size (R07-10 part 2)
+
+Large components are split behaviour-preservingly: the original module path keeps
+its exports, and the extracted pieces live in sibling folders (each file under 500
+lines). Query keys moved into `queryKeys` in `src/lib/api/query.ts` (after
+`// anchor: D`) and return the same arrays as the former literals.
+
+Split in this part (every resulting file is under 500 lines; the original module
+path keeps its exports):
+
+- `components/connectors/ConnectorSetupPage.tsx` -> `components/connectors/setup/`
+  (config helpers, wizard steps, scope-risk analysis, permission review step, and
+  one setup guide per provider).
+- `components/admin/AdminPermissionsPage.tsx` -> `components/admin/permissions/`
+  (role matrix, resource access, conflicts, conflict drawer, access debugger tabs).
+- `components/settings/OrganizationSettingsTab.tsx` -> `components/settings/organization/`
+  (profile, workspace defaults, ingestion defaults and danger-zone sections plus
+  shared helpers).
+- `components/settings/SecuritySettingsTab.tsx` -> `components/settings/security/`
+  (one component per card plus shared helpers).
+- `components/settings/BillingSettingsTab.tsx` -> `components/settings/billing/`
+  (plan card, usage, quotas, invoices, contact and portal sections).
+- `components/user/UserProfilePage.tsx` -> `components/user/profile/`
+  (`useUserProfileController` hook plus identity, preferences, RAG defaults,
+  dialogs, action bar, account actions and toast views).
+- `components/admin/AdminFeedbackReviewPage.tsx` -> `components/admin/feedback-review/`
+  (controller hook, summary, filters, results, overlays, detail panel, convert modal).
+- `components/admin/AdminTeamPage.tsx` -> `components/admin/team/`
+  (controller hook, members and invitations sections, dialogs, role editor).
+- `components/admin/AdminMCPPage.tsx` -> `components/admin/mcp/`
+  (status card, capability and tag editors, trust controls, policy form, panels).
+- `components/admin/AdminAuditLogsPage.tsx` -> `components/admin/audit-logs/`
+  (controller hook, summary, filters, results table, event drawer).
+- `components/admin/AdminServiceAccountsPage.tsx` -> `components/admin/service-accounts/`
+  (account form, token form, tokens panel, cards, created-token banner).
+- `components/admin/AdminAIResponsePolicyPage.tsx` -> `components/admin/ai-response-policy/`
+  (policy form, preview panel, shared labels and helpers).
+
+Where a page held one large component, the state and mutations moved into a
+`useXxxController` hook and the JSX into view components that receive the
+controller, so behaviour, markup, classes and message keys are unchanged.
+
+Still over 500 lines in `src` after this part (62 files, excluding tests; owned by
+other packages or not in scope for `0.7.0`):
+
+- `components/admin/`: `AdminSecurityCenterPage`, `AdminSourceHealthPage`,
+  `AdminQueryAnalyticsPage`, `AdminWebhooksPage`, `AdminStatusPage`,
+  `AdminGovernancePage`, `AdminLandingPage`, `AdminMonitoringPage`, `AdminQuotasPage`,
+  `AdminAccessDebuggerPage`, `AdminUsagePage`, `AdminPermissionsAccessPage`,
+  `AdminFailedJobsPage`, `AdminSSOPage`, `AdminRolesPage`, `AdminPage`, `AdminSCIMPage`,
+  `AdminSafetyEvalPage`, `AdminApiKeysPage`, `AdminUsageAdoptionPage`,
+  `AdminModelProfilesPage`, `AdminModelProviderPage`, `AdminGraphObservabilityPage`,
+  `AdminTaxonomyPage`, `AdminObservabilityPage`.
+- `components/settings/`: `RagProfilesSection`, `ChunkingProfilesSection`,
+  `PromptTemplatesSection`.
+- `components/connectors/`: `ConnectorConnectionDetailPage`, `ConnectorsPage`.
+- `components/documents/`: `DocumentDetailPage`, `DocumentsPage`,
+  `DocumentsUploadModal`, `DocumentMetadataPanel`.
+- `components/evaluations/`: `EvaluationsPage`, `evaluation-ui`, `dataset-builder`,
+  `ab-test-panel`, `evaluation-view-model`, `run-comparison`, `evaluation-run-detail`,
+  `quality-gate-panel`, `evaluation-dialogs`, `model-profile-comparison`.
+- Other components: `collections/CollectionsPage`, `workspace/AgentWorkspacePage`,
+  `workspace/AgentTraceReplayPage`, `dashboard/DashboardPage`, `layout/AppShell`,
+  `chat/DocumentPreviewModal`, `chat/SourceScopeSelector`, `pipeline/RagPipelinePage`,
+  `graph/GraphExplorerPage`, `graph/GraphEntityDetailPage`,
+  `reports/ReportReferenceDashboards`.
+- Non-component modules: `lib/api/request.ts`, `lib/api/documents.ts`,
+  `lib/api/query.ts`, `lib/api/evaluations.ts`, `lib/public-site/solutions.ts`,
+  `test/msw/fixtures.ts`, `app/[locale]/(public)/organization-onboarding/page.tsx`.
+
+### Bundle budgets (R07-03)
+
+CI fails when a route's first-load JavaScript grows past its budget.
+
+- Measured: `node scripts/check-bundle-budgets.mjs` after `npm run build` sums the chunks
+  listed per route in `.next/diagnostics/route-bundle-stats.json`, compressed with
+  `gzip -9` (one chunk at a time, then summed). It prints route, raw KB, gzip KB, budget
+  and group, writes `.next/bundle-report.json`, and exits 1 on an over-budget route, a
+  route without a budget, or a missing stats file (so a Next.js upgrade cannot disable it
+  silently). Unit tests: `scripts/bundle-budgets-lib.test.mjs`.
+- Budgets: `config/bundle-budgets.json` (groups for auth pages, marketing and the app
+  default, plus per-route entries for app routes above the default). Every figure is
+  `ceil(measured x 1.05)` KB from a build on this commit. Update them only from a fresh
+  build's output; never lower the headroom or raise a figure to make a failing check pass.
+- Spec targets are goals, not gates: 150 KB marketing and 300 KB app routes. The measured
+  gap after this change: marketing 228.1 KB at most (78 KB above), app routes 308.7 KB
+  for the ordinary ones (9 KB above) and 344.1 KB for `/chat` (the largest).
+- Lazy modules (same module path and export name; the module is a `next/dynamic`
+  wrapper over a `*Content.tsx` or `*Charts.tsx` sibling): `DocumentPreviewModal`,
+  `TrustPanelModal`, the recharts blocks of the seven report and admin dashboards, the
+  `@xyflow/react` canvas of the pipeline explorer (`PipelineFlowCanvas.tsx`), and the
+  Organization, Security and Billing settings tabs.
+- `React.lazy` modules (no `next/dynamic` loader on these routes): the Web Vitals collector
+  (`WebVitalsReporter`, mounted only with the flag and analytics consent), and on
+  `/documents` (`list/DocumentsPageDialogs.tsx`, `list/DocumentsVirtualRowsLazy.tsx`) the
+  upload, delete and assign-collections dialogs (loaded on first open, then kept mounted, with
+  a skeleton card while loading) and the virtualised table body (above the row threshold;
+  until it loads, the first 20 rows render with a spacer row of the estimated remaining
+  height, so the scroll height does not jump). Tests that open these import the modules in
+  `beforeAll` and wait with `findBy*`. `/documents`: 339.9 to 315.2 KB gzip.
+- First-load JS (gzip KB) on this commit before and after, routes that changed by more than
+  0.8 KB (the other 93 routes moved by 0.4 KB or less; marketing pages stay at 223-227):
+
+  | Route                         | Before | After | Change |
+  | ----------------------------- | ------ | ----- | ------ |
+  | `/reports`, `/reports/[...]`  | 419.5  | 305.8 | -113.7 |
+  | `/admin/source-health`        | 398.7  | 296.8 | -101.9 |
+  | `/admin/permissions-access`   | 397.5  | 295.4 | -102.1 |
+  | `/admin/usage-adoption`       | 396.5  | 294.3 | -102.2 |
+  | `/rag-pipeline`               | 349.1  | 295.1 | -54.0  |
+  | `/settings`                   | 339.8  | 311.7 | -28.1  |
+  | `/admin/verified-answers`     | 299.3  | 294.6 | -4.7   |
+  | `/knowledge`                  | 297.7  | 293.6 | -4.1   |
+  | `/documents/[documentId]`     | 314.7  | 311.1 | -3.6   |
+  | `/chat/answer-shared/[token]` | 295.9  | 292.7 | -3.2   |
+  | `/chat/shared/[token]`        | 295.7  | 293.1 | -2.6   |
+  | `/chat`                       | 342.9  | 344.1 | +1.2   |
+
+  `/chat` grew by the `next/dynamic` loader: its trust panel and citation preview now load
+  on first open, but the answer panel inside the old modal was already a lazy import.
+
+- `experimental.optimizePackageImports`: nothing added. `lucide-react` and `recharts` are
+  already optimised by default; a build with `zod`, `@tanstack/react-query`,
+  `react-hook-form`, `@xyflow/react`, `next-intl`, `clsx` and `tailwind-merge` added
+  produced identical sizes on every route.
+- Removed unused dependencies `zustand`, `motion`, `@tanstack/react-table` and
+  `class-variance-authority` (no imports in `src`) and five unreferenced default SVGs from
+  `public/`. `eslint-config-next` already equals `next` (16.4.6).
+
+### Pagination and large lists (R07-06, R07-10)
+
+No list silently stops at one page: each shows a count ("Showing 20 of 45") or a
+"Load more" button, and pickers search on the server.
+
+- `src/lib/pagination/useInfiniteList.ts` wraps `useInfiniteQuery` for list endpoints.
+  The next page comes from `next_cursor` when the response has one (once a list is
+  cursor-paged, a missing cursor ends it); otherwise from `offset + limit < total`.
+  It returns the flattened `items`, the first reported `total`, `hasMore`,
+  `isLoadingMore` and `loadMore`. `useDebouncedValue` (300 ms) debounces search input.
+- `src/components/pagination/LoadMoreFooter.tsx` renders the count, the button and a
+  polite live region ("Loading more…"); `PickerSearchInput.tsx` is the search box of
+  server-searched pickers. Strings live in `common.pagination` in all six catalogues.
+- Documents table: `sort_by=created_at` (the default) loads keyset cursor pages with
+  `include_total=true` on the first page and appends them with "Load more"; other sorts
+  keep offset pages with page navigation. Above `NEXT_PUBLIC_TABLE_VIRTUALIZE_MIN_ROWS`
+  rows (default 200) the body is virtualised with `@tanstack/react-virtual`, keeping
+  real `<tr>` rows in document order with `aria-rowcount`/`aria-rowindex` and a sticky
+  header. The list keeps its 4 s polling while documents are processing.
+- Collection selectors (upload modal, assign dialog, chat scope menu and context modal,
+  agent workspace) use `useCollectionSearchList` (server `name_query`, pages of 50).
+  The collection policy member picker sends `search` to `GET /team/members`. Selections
+  outside the loaded rows are kept.
+- Collections page: offset pages of 20 with a count and "Load more"; collection
+  documents in pages of 10. Membership diffs (document picker, chat collection scope)
+  read every page through `fetchAllCollectionDocuments` instead of one 200-row request.
+- Counts that used to scan 200 rows now read `total` of one-row pages: onboarding
+  (documents and indexed documents) and the security center (members, admins, owners).
+  The dashboard keeps its `NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS` cap for summing chunk
+  counts and says "Based on the first N of M documents" when it applies.
+- Chat citation preview loads the cited chunk with the `chunk_id` filter of
+  `GET /documents/{document_id}/chunks`.
+- R07-10 part 1: `DocumentDetailPage.tsx`, `DocumentsPage.tsx` and `CollectionsPage.tsx`
+  are route shells over `components/documents/detail/`, `components/documents/list/`
+  and sibling modules in `components/collections/` (state hooks, tables, panels,
+  dialogs), every file under 500 lines, with the original exports kept
+  (`AssignCollectionsDialog` is still exported from `CollectionsPage`). Their ad-hoc
+  query keys moved into `queryKeys` after `// anchor: C` and return the same arrays.
+- Remaining `limit: 200` in `src`: `components/evaluations/dataset-builder.tsx` (owned by
+  another package) and the `collectionViews.allDocuments` cache key. The chat
+  `NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS` request is a validation cache with its `total`, not
+  a displayed list.
+
+### Translation coverage (R07-12)
+
+User-facing text in `src/components/chat`, `src/components/evaluations` and
+`src/components/states` comes from `next-intl` messages in all six locales
+(en, de, es, fr, ar, fa). ESLint enforces it: in those directories the
+`no-restricted-syntax` rule is an error for literal JSX text and for literal
+`aria-label`, `title`, `placeholder` and `alt` attributes (tests, `tests/`
+folders and the files owned by other work packages are excluded: the
+scope selector files, `DocumentPreviewModal*`, `TrustPanelModal*`). Icon-font
+glyph names such as `open_in_new` (lowercase snake case) are not flagged. That
+exemption also lets a lone lowercase word through (for example `run` or `of`),
+so check those by hand in review; any other non-UI literal needs an
+`eslint-disable-next-line` with a reason. Case-list cache: the dataset builder
+and the evaluations page share `queryKeys.evaluations.setQuestions(setId)`;
+invalidate it without params so every page size of the set refreshes.
+
+- Keys live in the existing namespaces: `chat.trustPanel.*`, `chat.feedback.*`,
+  `chat.share.*`, `chat.activity.*`, `evaluations.<panel>.*` and the new
+  top-level `states` namespace (also in `PUBLIC_NAMESPACES`, because
+  `ForbiddenState` renders on the public `/forbidden` page).
+- English values equal the previous literals, so existing tests assert the same
+  text. Plurals use ICU (`{count, plural, one {...} other {...}}`); rich text
+  uses tags (`<strong>`, `<code>`). `src/i18n/message-keys.test.ts` checks key
+  parity; `src/i18n/message-placeholders.test.ts` checks that every translation
+  keeps the English placeholders and tags.
+- Pure helpers (`trust-badges.ts`, `trust-format.ts`, `trust-warnings.ts`,
+  `agreementLevelLabel`) take a translator argument instead of returning
+  English strings.
+- Dataset builder: the case list pages by offset (`DATASET_CASES_PAGE_SIZE`, 50) with a count and a "Load more" button.
+- Browsers: set `PLAYWRIGHT_EXTRA_BROWSERS=true` (CI does) to add Firefox and
+  WebKit projects that run the smoke, public SEO and responsive specs. Install
+  them once with `npx playwright install firefox webkit`.
+  Some sandboxed macOS environments cannot launch Firefox or WebKit; CI is the
+  reference for those two projects.
+
+What remains untranslated: admin, connectors, settings and verified-answers
+screens (deferred), public marketing and legal pages (owner decision), the scope
+selector and document preview files (other packages), server-supplied text
+(comparison messages from `evaluation-view-model.ts`, release-gate
+recommendations, backend error messages), the percentage placeholder `N/A` in
+`trust-format.ts` (`pct`, `score`), and language names from
+`EVAL_LANGUAGE_OPTIONS`. In the trust panel, preselecting a category in the
+report dialog matches warning text against English keywords, so it only works
+for English warnings.
+
+Automated accessibility checks (`@axe-core/playwright`) are deferred: the
+package is not approved as a dependency.
+
+### Assets, error boundaries and Web Vitals (R07-04, R07-08, R07-11)
+
+- **Icons and fonts are self-hosted.** Material Symbols Outlined is a subset served from
+  `public/fonts/material-symbols/material-symbols-outlined.woff2` (21,436 bytes for 234
+  names; the former stylesheet loaded the whole static font, 324,816 bytes, from Google).
+  `@font-face` and `.material-symbols-outlined` live in `src/app/globals.css`; the page
+  makes no request to `fonts.googleapis.com` or `fonts.gstatic.com` and the CSP allows
+  neither.
+  - `config/material-symbols.json` lists the names. `npm run icons:check` fails when `src`
+    uses a name not listed. Names are found in `name=`/`icon=`/`icon:` props, in the text of
+    elements with class `material-symbols-outlined`, and in `return "x"` inside helpers
+    whose name contains `Icon` (such as `getFileIcon`); names that only appear in other maps
+    are added to the list by hand (the script keeps existing entries).
+  - To regenerate after adding a name: run `node scripts/material-symbols-subset.mjs`, then
+    request `https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&icon_names=<comma list>&display=block`
+    with a browser User-Agent and save the `.woff2` it points to over the file above. Request
+    **no axes**: the former stylesheet served the static default instance (FILL 0, weight
+    400, grade 0, optical size 24), so `font-variation-settings: 'FILL' 1` has no visible
+    effect and must keep having none; a variable subset would fill those icons and change
+    shapes through optical sizing.
+- **Brand mark.** `public/brand/rudix-mark.svg` is 303,577 bytes before and 16,093 after
+  (embedded PNG resampled from 441x589 to 78x104; the largest rendered size is 32 px high on
+  the SSO callback page, so 104 px covers it at 3x);
+  `src/app/icon.svg` and `favicon.svg` went from 303,577 to 11,541 bytes (64x85). Paths,
+  `width`, `height` and `viewBox` are unchanged. `next.config.ts` sets
+  `images.formats` to AVIF and WebP.
+- **Route error boundaries.** `src/components/errors/RouteErrorFallback.tsx` (translated,
+  `errors.routeBoundary.*`) has a `page` variant (full screen, public routes) and a `segment`
+  variant (inline card inside the app shell). `error.tsx` and `loading.tsx` exist for
+  `chat`, `documents`, `collections`, `admin`, `settings` and `reports`, so an error in one
+  page leaves the sidebar and header usable; `app/(app)/error.tsx` uses the segment variant
+  too (it renders inside the shell), and `app/[locale]/error.tsx` the page variant.
+  `src/app/global-error.tsx` replaces the root
+  layout when that itself fails and uses `src/i18n/global-error-messages.ts` (all six
+  locales, chosen from `<html lang>` or the `NEXT_LOCALE` cookie). `/admin/error-probe`
+  throws on purpose when `NEXT_PUBLIC_E2E_ERROR_PROBE=true` (Playwright only; staging and
+  production builds refuse the variable) and is a 404 otherwise.
+- **Web Vitals (first-party, off by default).** With `NEXT_PUBLIC_WEB_VITALS_ENABLED=true`
+  **and** analytics consent, `WebVitalsReporter` batches LCP, INP, CLS, FCP and TTFB (route
+  patterns only) and posts them to `${NEXT_PUBLIC_API_URL}/telemetry/web-vitals`, which also
+  needs `WEB_VITALS_INGEST_ENABLED=true` on the API. Nothing is sent otherwise.
+- **Sentry** uses the envelope endpoint (`/api/<project>/envelope/`) instead of the legacy
+  store endpoint; same DSN, sampling and redaction, no SDK.
+- Environment variables: `NEXT_PUBLIC_WEB_VITALS_ENABLED` (default `false`),
+  `NEXT_PUBLIC_E2E_ERROR_PROBE` (test only; never set in staging or production).
+
+### Realtime updates (R07-07)
+
+- `RealtimeProvider` (`src/lib/realtime/`, mounted once by `AppShell`) reads
+  `GET /events/stream` with `fetch` and the bearer header when
+  `NEXT_PUBLIC_REALTIME_ENABLED=true` (default `false`). Events invalidate TanStack Query
+  keys (`invalidation.ts`, merged within 250 ms); the page then refetches through the
+  normal API. `useRealtime()` returns `disabled`, `connecting`, `connected` or
+  `unavailable` from a module store, so it works outside the provider too. The stream
+  client and invalidation map load on demand, so with the flag off no stream code is
+  downloaded (first-load cost of the store and polling helper: about 1 KB gzip on
+  `/documents`, measured against `develop`).
+- Reconnects use full-jitter backoff (500 ms base, 30 s cap) with `Last-Event-ID`; a `401`
+  refreshes the token once; `404`/`503` mark the stream unavailable and retry after five
+  minutes; `429` backs off. A tab hidden for 60 s closes the stream and refetches every
+  mapped key once when visible again.
+- `useRealtimeAwareInterval(base, { covered })` (`polling.ts`) replaces every network
+  polling interval: `false` in a hidden tab, `false` while connected, at least
+  `NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS` (default 15000) while enabled but disconnected,
+  and `base` with realtime off. Data no event describes (health checks, evaluation and
+  safety-eval progress, vector index, portability jobs, sync item counts, agent step
+  progress) passes `covered: false` and keeps `base` while visible. Every polling query
+  sets `refetchIntervalInBackground: false`; `refetchOnWindowFocus` refreshes on return.
+- The chat agent run timeline follows `GET /agent/runs/{run_id}/stream` while the run is
+  not terminal (realtime flag on) and polls only when the stream is unavailable or ends.
+- Tests: `src/lib/realtime/*.test.ts(x)` (parser, backoff, provider with an MSW streaming
+  body: no list or status requests over 30 s while connected, a status event refetches
+  within 2 s), `useAgentRunTimeline.sse.test.tsx`, and `e2e/realtime-fallback.spec.ts`
+  (hidden tab stops polling).
+
+### Request-time configuration and CDN (R08-11, R08-12)
+
+- `NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE` is `build` (default) or `request`. Build mode is
+  unchanged: every `NEXT_PUBLIC_*` value is inlined at `next build`, and the prerendered HTML
+  and headers are what they were before.
+- Request mode: the proxy (`src/proxy.ts`) serves `/runtime-config.js`, which sets
+  `window.__RUDIX_RUNTIME_CONFIG__` (frozen) to the allowlisted names of the server's runtime
+  environment, with `Cache-Control: no-store` and `nosniff`; the root document loads it with
+  `next/script` `beforeInteractive`, so it runs before any app module and pages stay
+  prerendered. In build mode the path answers 404. It is served by the proxy and not by an app
+  route because a new top-level route segment would change the RSC payload of every
+  prerendered page.
+- Allowlist: `config/public-runtime-keys.mjs` (`PUBLIC_RUNTIME_KEYS`: URLs, deployment
+  environment, feature flags, limits, Sentry, Matomo/GA ids, support and help links). Every
+  other `NEXT_PUBLIC_*` name read in `src/` is listed in `BUILD_ONLY_PUBLIC_KEYS` with a reason:
+  development-only flags and secrets (never allowlisted), the public-page links and
+  `NEXT_PUBLIC_PUBLIC_SITE_URL` (prerendered), the `NEXT_PUBLIC_CONTACT_*` contact-form
+  settings (the prerendered contact page renders them, so a served value would break
+  hydration), `NEXT_PUBLIC_ASSET_PREFIX`, CSP inputs.
+  `src/lib/public-env.test.ts` fails on a name in neither list.
+- Code reads allowlisted names with
+  `publicEnv("NEXT_PUBLIC_X", process.env.NEXT_PUBLIC_X)` (`src/lib/public-env.ts`). The
+  second argument is the literal read Next inlines; it keeps each bundle as small as before
+  (a shared map of all names would ship to every route and exceed the marketing budget). In
+  request mode the served value wins in the browser and the runtime env on the server.
+  `src/lib/runtime-config.ts` parses `publicEnvSource()`, which is `process.env` in build mode.
+- CSP in request mode: `next.config.ts` leaves the CSP out of its build-time headers and the
+  proxy sets it per response with the same `buildSecurityHeaders`, from the runtime env.
+- CDN: `NEXT_PUBLIC_ASSET_PREFIX` (unset = same origin) sets `assetPrefix` and adds the origin
+  to `script-src`, `style-src`, `font-src`, `img-src`. `PUBLIC_ASSET_CACHE_CONTROL` (unset =
+  Next default) sets `Cache-Control` for `/brand`, `/fonts`, `/images`; `immutable` is refused
+  because those files are not content-hashed (`/_next/static` already is immutable). Both are
+  build-time, so one image across environments needs one CDN host.
+- Tests: `src/lib/public-env*.test.ts`, `src/lib/runtime-config-script.test.ts`,
+  `src/proxy-runtime-config.test.ts`, `config/next-config.test.ts`, and the Playwright project
+  `chromium-runtime-config` (`e2e/runtime-config.spec.ts`): it builds into `.next-e2e-runtime`
+  in request mode with one API URL, starts the standalone server with another, and checks that
+  the login page, `/runtime-config.js`, and the CSP use the runtime one and that
+  `node scripts/check-prerendered-routes.mjs --dist-dir .next-e2e-runtime` passes. That build
+  takes a few minutes the first time the suite starts.
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)
@@ -496,6 +877,9 @@ NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS=1000
 NEXT_PUBLIC_DASHBOARD_MAX_CHAT_SESSION_ROWS=1000
 NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE=false
 NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS=200
+NEXT_PUBLIC_REALTIME_ENABLED=false
+NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS=15000
+NEXT_PUBLIC_TABLE_VIRTUALIZE_MIN_ROWS=200
 NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT=10
 NEXT_PUBLIC_CHAT_TOP_K_MIN=1
 NEXT_PUBLIC_CHAT_TOP_K_MAX=20
@@ -520,6 +904,11 @@ NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
+# Read a 0.6.x localStorage session once (removal deferred past 0.8.0)
+NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ=true
+# Server env, read per request by src/proxy.ts: off | enforce
+RUDIX_ROUTE_GATE=off
+RUDIX_SESSION_HINT_COOKIE_NAME=rudix_session_hint
 # Development-only: NEXT_PUBLIC_AUTH_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,
 # NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD,
 # NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN and NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN
@@ -634,7 +1023,7 @@ Open `http://localhost:3000`.
 
 ### Security headers
 
-`next.config.ts` applies security headers to every route from `config/security-headers.mjs`: `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, HSTS in staging/production, and a `Content-Security-Policy-Report-Only` header by default. Set `NEXT_PUBLIC_CSP_ENFORCE=true` (default `false`) to send the same policy as an enforced `Content-Security-Policy` header instead; flip it after a clean report-only period. Analytics, Sentry, API, and contact-submit (`NEXT_PUBLIC_CONTACT_SUBMIT_API_URL`, a `fetch` target) origins are added to the policy only when their `NEXT_PUBLIC_*` variables are set. The external submit and scheduler URLs are navigations and are not listed. When `NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER` is `turnstile`, `hcaptcha`, or `recaptcha` (case-insensitive), that provider's script, frame, and connect hosts are allowed (and styles for hCaptcha); `frame-src` is `'none'` otherwise. Unknown providers add nothing. Set `NEXT_PUBLIC_CSP_REPORT_URI` to send violation reports to a collector. The `config/` directory is copied into the runtime image because `next.config.ts` imports it at `next start`. See `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`.
+`next.config.ts` applies security headers to every route from `config/security-headers.mjs`: `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, HSTS in staging/production, and a `Content-Security-Policy-Report-Only` header by default. Set `NEXT_PUBLIC_CSP_ENFORCE=true` (default `false`) to send the same policy as an enforced `Content-Security-Policy` header instead; flip it after a clean report-only period. Analytics, Sentry, API, and contact-submit (`NEXT_PUBLIC_CONTACT_SUBMIT_API_URL`, a `fetch` target) origins are added to the policy only when their `NEXT_PUBLIC_*` variables are set. The external submit and scheduler URLs are navigations and are not listed. When `NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER` is `turnstile`, `hcaptcha`, or `recaptcha` (case-insensitive), that provider's script, frame, and connect hosts are allowed (and styles for hCaptcha); `frame-src` is `'none'` otherwise. Unknown providers add nothing. Fonts and icons are self-hosted, so the policy allows no Google Fonts hosts (R07-04). Set `NEXT_PUBLIC_CSP_REPORT_URI` to send violation reports to a collector. The `config/` directory is copied into the runtime image because `next.config.ts` imports it at `next start`. See `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`.
 
 ## Scripts
 
@@ -676,18 +1065,27 @@ This exports the full schema with `backend/.venv/bin/python scripts/export_opena
 npm run api:check
 ```
 
-API modules such as `src/lib/api/documents.ts` and `src/lib/api/chat.ts` import and re-export types directly from the generated schema:
+Every client module in `src/lib/api` derives its response, item and request types from the generated schema (R07-05); the only exceptions are the infrastructure modules (`request.ts`, `session.ts`, `auth.ts`, `errors.ts`, `query.ts`, `index.ts`) and the few allowlisted view models described in `### Generated API client (R07-05)`:
 
 ```ts
 import type { components } from "@/lib/api/generated/schema";
+import type { Served } from "@/lib/api/schema-helpers";
 type Schemas = components["schemas"];
 
 export type DocumentListResponse = Schemas["DocumentListResponse"];
+export type ApiKey = Served<Schemas["ApiKeyResponse"]>;
 ```
 
-When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`.
+When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`. A renamed or removed response field then fails `npm run typecheck` in every component that reads it.
 
-`openapi-typescript` marks response fields that have a server default as required. Where the frontend declares a field itself (or keeps a server-defaulted field optional for fixtures and partial objects), the API modules use small type-only helpers: `Overlay<Generated, FrontendFields>` (frontend declarations replace the generated ones) and `WithOptional<Generated, Keys>`. `src/lib/api/generated/schema.test.ts` checks that every other field still matches the generated schema.
+The type-only helpers live in `src/lib/api/schema-helpers.ts`:
+
+- `Served<T>` marks every field of a response type as present (FastAPI serialises defaults), recursively. Use it for response types only. Do not use it for routes that set `response_model_exclude_unset` (the agent trace routes), where optional keys can be absent.
+- `Overlay<Generated, FrontendFields>` replaces fields with the frontend's own declaration, for example a status the schema types as `string` but the UI narrows to a union.
+- `WithOptional<Generated, Keys>` keeps server-defaulted fields optional in request bodies and in fixtures.
+- `WithRequired<Generated, Keys>` keeps list fields the server always sends required.
+
+`src/lib/api/generated/schema.test.ts` checks that every other field still matches the generated schema.
 
 ## Testing
 

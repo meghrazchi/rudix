@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   MAX_INDEXED_DOCS,
@@ -11,13 +11,16 @@ import {
   buildConnectorRootChips,
   getConnectorProviderLabel,
 } from "@/components/chat/chat-connectors";
-import {
-  listCollectionDocuments,
-  listCollections,
-} from "@/lib/api/collections";
+import { fetchAllCollectionDocuments } from "@/components/collections/collection-documents";
+import { useCollectionSearchList } from "@/components/collections/useCollectionSearchList";
 import { listAvailableConnectorConnections } from "@/lib/api/connectors";
-import { listDocuments } from "@/lib/api/documents";
+import {
+  listDocuments,
+  type DocumentListItemResponse,
+  type DocumentListResponse,
+} from "@/lib/api/documents";
 import { queryKeys } from "@/lib/api/query";
+import { useInfiniteList } from "@/lib/pagination/useInfiniteList";
 
 export function useChatSourceQueries({
   scopeMode,
@@ -54,40 +57,50 @@ export function useChatSourceQueries({
     [indexedDocumentsQuery.data?.items],
   );
 
-  const documentPickerQuery = useQuery({
+  // Server-side filename search, offset pages with `total`, and load more.
+  const documentPicker = useInfiniteList<
+    DocumentListResponse,
+    DocumentListItemResponse
+  >({
     queryKey: queryKeys.documents.list({
       status: "indexed",
       limit: SCOPE_DOCUMENT_PICKER_LIMIT,
-      offset: 0,
       filename_query: documentSearchQuery.trim() || undefined,
       sort_by: "updated_at",
       sort_order: "desc",
+      pagination: "offset",
     }),
-    queryFn: () =>
+    pageSize: SCOPE_DOCUMENT_PICKER_LIMIT,
+    keepPreviousPages: true,
+    fetchPage: ({ offset }) =>
       listDocuments({
         status: "indexed",
         limit: SCOPE_DOCUMENT_PICKER_LIMIT,
-        offset: 0,
+        offset,
         filename_query: documentSearchQuery.trim() || undefined,
         sort_by: "updated_at",
         sort_order: "desc",
       }),
-    placeholderData: keepPreviousData,
   });
+  const documentPickerQuery = documentPicker.query;
+  const pickerDocuments = documentPicker.items;
 
-  const indexedDocumentIdSet = useMemo(
-    () => new Set(indexedDocuments.map((doc) => doc.document_id)),
-    [indexedDocuments],
-  );
+  // Documents picked from any loaded picker page stay valid even when they
+  // fall outside the first NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS indexed rows.
+  const indexedDocumentIdSet = useMemo(() => {
+    const ids = new Set(indexedDocuments.map((doc) => doc.document_id));
+    for (const doc of pickerDocuments) {
+      if (doc.status === "indexed") {
+        ids.add(doc.document_id);
+      }
+    }
+    return ids;
+  }, [indexedDocuments, pickerDocuments]);
 
-  const collectionsListQuery = useQuery({
-    queryKey: [...queryKeys.collections.all, "chat-picker"],
-    queryFn: () => listCollections({ limit: 200 }),
-  });
-  const collections = useMemo(
-    () => collectionsListQuery.data?.items ?? [],
-    [collectionsListQuery.data?.items],
-  );
+  // Server-side name search with load more instead of one 200-row page.
+  const collectionsSearch = useCollectionSearchList({ scope: "chat-picker" });
+  const collectionsListQuery = collectionsSearch.query;
+  const collections = collectionsSearch.items;
 
   const connectorConnectionsQuery = useQuery({
     queryKey: [...queryKeys.connectorConnections, "chat-picker"],
@@ -130,13 +143,13 @@ export function useChatSourceQueries({
 
   const composerIndexedDocuments = useMemo(
     () =>
-      (documentPickerQuery.data?.items ?? []).map((document) => ({
+      pickerDocuments.map((document) => ({
         document_id: document.document_id,
         filename: document.filename,
         chunk_count: document.chunk_count,
         updated_at: document.updated_at ?? null,
       })),
-    [documentPickerQuery.data?.items],
+    [pickerDocuments],
   );
 
   const selectedCollectionDocsQuery = useQuery({
@@ -145,10 +158,11 @@ export function useChatSourceQueries({
       "chat-picker-documents",
       ...selectedCollectionIds.slice().sort(),
     ],
+    // Every page of each selected collection, so the scope is never cut at 200.
     queryFn: async () => {
       const results = await Promise.all(
         selectedCollectionIds.map((collectionId) =>
-          listCollectionDocuments(collectionId, { limit: 200 }),
+          fetchAllCollectionDocuments(collectionId),
         ),
       );
       return results;
@@ -183,7 +197,20 @@ export function useChatSourceQueries({
     indexedDocuments,
     indexedDocumentIdSet,
     documentPickerQuery,
+    documentsPaging: {
+      total: documentPicker.total,
+      hasMore: documentPicker.hasMore,
+      isLoadingMore: documentPicker.isLoadingMore,
+      onLoadMore: documentPicker.loadMore,
+    },
     collectionsListQuery,
+    collectionsSearch,
+    collectionsPaging: {
+      total: collectionsSearch.total,
+      hasMore: collectionsSearch.hasMore,
+      isLoadingMore: collectionsSearch.isLoadingMore,
+      onLoadMore: collectionsSearch.loadMore,
+    },
     collections,
     connectorConnectionsQuery,
     connectorConnections,

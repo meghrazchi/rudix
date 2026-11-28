@@ -1,0 +1,37 @@
+{{- /*
+Optional egress restriction (networkPolicy.egress.enabled, off by default). Pods of the
+release may reach DNS, each other, and networkPolicy.egress.extraRules (data stores, object
+storage, model providers); everything else is denied by default-deny.yaml.
+*/ -}}
+{{- if and .Values.networkPolicy.enabled .Values.networkPolicy.egress.enabled -}}
+{{- $egress := .Values.networkPolicy.egress -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rudix.c1.policyName" (dict "root" . "name" "allow-egress") }}
+  labels:
+    {{- include "rudix.c1.policyLabels" (dict "root" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rudix.c1.releaseSelector" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $egress.dnsNamespaceSelector | nindent 14 }}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "rudix.c1.releaseSelector" . | nindent 14 }}
+    {{- with $egress.extraRules }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

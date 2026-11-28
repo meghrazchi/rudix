@@ -207,6 +207,15 @@ describe("frontend env usage", () => {
           // (next.config.ts only; never read by app code or sent to the browser).
           (key === "NEXT_DIST_DIR" &&
             filePath === path.join(repoRoot, "next.config.ts")) ||
+          // Cache-Control for public/ assets (R08-12), a build-time response
+          // header in next.config.ts only; never sent to the browser bundle.
+          (key === "PUBLIC_ASSET_CACHE_CONTROL" &&
+            filePath === path.join(repoRoot, "next.config.ts")) ||
+          // Server-only route gate settings (R07-09), read by the proxy at
+          // request time; the proxy never runs in the browser.
+          ((key === "RUDIX_ROUTE_GATE" ||
+            key === "RUDIX_SESSION_HINT_COOKIE_NAME") &&
+            filePath === path.join(sourceRoot, "proxy.ts")) ||
           key.startsWith("NEXT_PUBLIC_")
         ) {
           continue;

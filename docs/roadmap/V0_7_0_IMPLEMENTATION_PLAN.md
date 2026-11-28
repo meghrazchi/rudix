@@ -3,8 +3,8 @@
 ## Metadata
 
 - `Owner`: Rudix maintainers
-- `Status`: Planned
-- `Last Updated`: 2026-11-27
+- `Status`: Implemented on `develop` (all nine packages merged; see section 9)
+- `Last Updated`: 2026-11-28
 - `Related Docs`: [V0_7_0_FRONTEND_PERFORMANCE.md](./V0_7_0_FRONTEND_PERFORMANCE.md),
   [V0_6_0_IMPLEMENTATION_PLAN.md](./V0_6_0_IMPLEMENTATION_PLAN.md),
   [V0_5_0_IMPLEMENTATION_PLAN.md](./V0_5_0_IMPLEMENTATION_PLAN.md),
@@ -304,9 +304,81 @@ at least 233 plus the new tests. The prerender check lists every path of
    cacheable static responses, unchanged canonical and hreflang, no `noindex`.
 5. Run the Firefox and WebKit projects in CI once the workflow installs those browsers.
 
-## 9. Change Notes
+## 9. Status (2026-11-28)
+
+All nine packages are merged into `develop`, in this order: S1 (static public pages, message
+picking), A1 (code splitting, bundle budgets), D1 (remaining large components), C1 (generated
+API types), B1 (token in memory, session hint, route gate), A2 (icons, route boundaries, Web
+Vitals), D2 (translations, lint rule, extra browsers), C2 (documents and collections split,
+pagination), C3 (realtime event stream). No migration was added; `alembic heads` reports
+`20261128_0003`.
+
+Checked on `develop` plus the integration changes (frontend build with the CI staging values,
+no secrets):
+
+- Backend: `make lint` passes (ruff; mypy on 942 files); `ruff format --check` passes;
+  `make test` 6,213 passed, 395 skipped; `make test-cov` 82.59% with a local `.env` and 82.46%
+  without one, as in CI (ratchet raised from 82.2 to 82.4); `make test-postgres` 355 passed,
+  5 skipped (4 need `TEST_REDIS_URL`; `tests/test_rls_enforcement_pg.py`, which needs
+  `TEST_MIGRATIONS_DATABASE_URL`, passed 21 of 21 when run with it). The OpenAPI contract check
+  passes with and without `.env`.
+- Frontend: format, typecheck and lint pass (0 errors, 2 older warnings); Vitest 2,805 passed
+  in 273 files, twice, with coverage 68.66-68.67% statements, 60.88-60.9% branches, 62.19%
+  functions, 69.57-69.58% lines (ratchets raised from 65.1, 58.5, 59.1, 66.0 to 68.6, 60.8,
+  62.1, 69.5, the lower run rounded down); `api:check`, `api:check-handwritten` (72 modules)
+  and `icons:check` (204 names used, 234 listed) pass; `npm run build` passes and
+  `check-prerendered-routes.mjs` finds all 144 static public routes (24 paths, six locales);
+  Playwright 410 passed (Chromium projects, including the 162 public parity tests on the
+  default port 3101 and the route-gate project).
+- Files over 500 lines (section 7 command, excluding tests and generated files): 58, of which
+  11 are over 1,000 (74 and 27 at `b72e4a70`). Every file named in R07-10 part 1 and part 2 is
+  under 500 lines.
+- No setting, alias, or metric name is defined twice; every package has one
+  `docs/CHANGELOG.md` entry (a stray blank line between two of them is removed); docs/README.md
+  lists this plan once; the anchors of section 4.1 in docs/07, docs/11, docs/12, the frontend
+  README and `.env.example` are all present.
+
+Not met or not verified:
+
+- Bundle budgets: `check-bundle-budgets.mjs` failed on `/documents`, 339.9 KB gzip against
+  334. Measured at each merge point: 317.6 after A1, 318.2 after B1, 327.3 after A2 (A2 added
+  about 8 to 10.6 KB to every route, marketing pages included: `/[locale]/product` 228.8 to
+  239.3), 338.9 after C2 (+11.6), 339.9 after C3. C2 was branched before A2 was merged, so the
+  two increases met only on `develop`. Fixed afterwards without changing a budget: the Web
+  Vitals collector loads with `React.lazy` instead of `next/dynamic` (the root layout no
+  longer ships the `next/dynamic` loader; 1.1 to 1.3 KB off every route that does not use it
+  elsewhere), and the documents page loads its virtual rows, upload, delete and
+  assign-collections dialogs on demand (the assign dialog was imported through the
+  `CollectionsPage` module). `/documents` is now 315.2 KB against 334 and `/[locale]/product`
+  238.4 against 240; every route is within its budget.
+- Spec targets stay goals (section 6): marketing 238.4 KB against 150; ordinary app routes up
+  to 318.1 KB (`/user/profile`) against 300; `/chat` 355.4 KB.
+- R07-10 "no component over 500 lines" holds only for the files this release split; the other
+  58 are listed in the frontend README.
+- R07-06 is partly met: for non-admin roles `GET /documents` returns `total` equal to the
+  length of the policy-filtered page, so offset-paged pickers never offer "Load more" to
+  members (cursor mode, the default documents table, is unaffected); this needs a backend
+  contract decision. `EvaluationsPage` still loads 200 questions per set without a count.
+- `make audit` fails on the dev-only `virtualenv` 21.14.5 (13 advisories, allowlisted in the
+  CI security gate until langfuse is upgraded); `virtualenv` is unchanged in this release.
+- Firefox and WebKit projects were not run here (only Chromium is installed); CI is their
+  first run. The 4 live-Redis tests did not run (no Redis test instance).
+- `adminPermissions.outcomes.pass` is missing from the message catalogues, so the access
+  debugger logs `MISSING_MESSAGE` during e2e (older than this release).
+
+Still to verify on staging: the items of section 8, and the open items the package reviews
+reported (not re-checked here), among them the login, accept-invite and SSO callback pages
+whose prerendered HTML holds the loading fallback (S1), the route-gate login loop when the hint
+cookie Domain misses the frontend host (B1), the synchronous Redis publish inside `commit()`
+with a slow Redis and proxy buffering of the event stream (C3), a browser-to-API Web Vitals run
+and the Grafana dashboard render (A2), and per-tab serial refresh against the refresh rate limit
+with many tabs (B1).
+
+## 10. Change Notes
 
 - 2026-11-27: Initial version, written after checking the `0.7.0` spec against the code at
   `b72e4a70`.
 - 2026-11-27: Anchor fixes: chat scope files and lazy modules owned by one package each,
   `icons:check` placement, icon metadata unchanged, no parity re-record, CSRF note for B1.
+- 2026-11-28: Status after all nine packages merged; integration check results, ratchets
+  raised, bundle budget overrun on `/documents` recorded.

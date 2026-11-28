@@ -368,6 +368,9 @@ class EmailEventType(StrEnum):
     quota_warning = "quota_warning"
     security_alert = "security_alert"
     onboarding_reminder = "onboarding_reminder"
+    # 0.9.0 (R09-01, migration 20261129_0001 extends the CHECK constraints).
+    email_verification = "email_verification"
+    password_reset = "password_reset"
 
 
 class EmailDeliveryStatus(StrEnum):

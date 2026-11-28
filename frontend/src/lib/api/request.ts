@@ -1,5 +1,6 @@
 import {
   clearSessionStorage,
+  discardLegacySessionStorage,
   emitAuthBoundaryEvent,
   readSessionFromStorage,
   writeSessionToStorage,
@@ -23,6 +24,7 @@ import {
   captureFrontendException,
 } from "@/lib/observability";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 const DEFAULT_RETRYABLE_STATUS_CODES = new Set([429, 503]);
 const DEFAULT_RETRY_DELAY_MS = 250;
@@ -182,18 +184,33 @@ function parseIntegerEnv(value: string | undefined, fallback: number): number {
 
 function getRefreshLeadTimeMs(): number {
   const seconds = parseIntegerEnv(
-    process.env.NEXT_PUBLIC_AUTH_REFRESH_SKEW_SECONDS,
+    publicEnv(
+      "NEXT_PUBLIC_AUTH_REFRESH_SKEW_SECONDS",
+      process.env.NEXT_PUBLIC_AUTH_REFRESH_SKEW_SECONDS,
+    ),
     60,
   );
   return Math.max(0, seconds * 1_000);
 }
 
 function isBackendRefreshConfigured(): boolean {
-  return trimToNull(process.env.NEXT_PUBLIC_AUTH_REFRESH_URL) !== null;
+  return (
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_AUTH_REFRESH_URL",
+        process.env.NEXT_PUBLIC_AUTH_REFRESH_URL,
+      ),
+    ) !== null
+  );
 }
 
 function resolveRefreshUrl(apiBaseUrl?: string): string {
-  const configured = trimToNull(process.env.NEXT_PUBLIC_AUTH_REFRESH_URL);
+  const configured = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_AUTH_REFRESH_URL",
+      process.env.NEXT_PUBLIC_AUTH_REFRESH_URL,
+    ),
+  );
   if (configured) {
     return toAbsoluteUrl(configured, apiBaseUrl);
   }
@@ -202,7 +219,12 @@ function resolveRefreshUrl(apiBaseUrl?: string): string {
 }
 
 function resolveLogoutUrl(apiBaseUrl?: string): string | null {
-  const configured = trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGOUT_URL);
+  const configured = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_AUTH_LOGOUT_URL",
+      process.env.NEXT_PUBLIC_AUTH_LOGOUT_URL,
+    ),
+  );
   if (configured) {
     return toAbsoluteUrl(configured, apiBaseUrl);
   }
@@ -553,7 +575,13 @@ function resolveRetryPolicy(
   const maxRetries =
     retry?.maxRetries ??
     (isSafeMethod(method)
-      ? Number.parseInt(process.env.NEXT_PUBLIC_API_SAFE_RETRIES ?? "1", 10)
+      ? Number.parseInt(
+          publicEnv(
+            "NEXT_PUBLIC_API_SAFE_RETRIES",
+            process.env.NEXT_PUBLIC_API_SAFE_RETRIES,
+          ) ?? "1",
+          10,
+        )
       : 0);
 
   const baseDelayMs = retry?.baseDelayMs ?? DEFAULT_RETRY_DELAY_MS;
@@ -765,7 +793,31 @@ async function executeRefreshRequest(params: {
     params.currentSession,
   );
   persistSessionWithRefreshState(refreshedSession);
+  discardLegacySessionStorage();
   return refreshedSession;
+}
+
+/**
+ * A new tab starts with an empty in-memory session (R07-09) and restores it
+ * from the HttpOnly refresh cookie. No cookie (401/403) means signed out: it
+ * resolves `null` without an auth-boundary event.
+ */
+async function restoreSessionFromRefreshCookie(
+  apiBaseUrl?: string,
+): Promise<AuthenticatedSession | null> {
+  try {
+    return await refreshWithCrossTabLease(null, () =>
+      executeRefreshRequest({ currentSession: null, apiBaseUrl }),
+    );
+  } catch (error) {
+    if (
+      isApiClientError(error) &&
+      (error.status === 401 || error.status === 403)
+    ) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function refreshAccessToken(params?: {
@@ -777,13 +829,23 @@ export async function refreshAccessToken(params?: {
   if (!isBackendRefreshConfigured()) {
     return currentSession;
   }
+  if (trigger === "startup" && !currentSession) {
+    if (!refreshInFlight) {
+      refreshInFlight = restoreSessionFromRefreshCookie(
+        params?.apiBaseUrl,
+      ).finally(() => {
+        refreshInFlight = null;
+      });
+    }
+    return refreshInFlight;
+  }
   if (
     trigger === "startup" &&
     !getJwtExpirationTimeMs(currentSession?.accessToken ?? null)
   ) {
     return currentSession;
   }
-  if (!currentSession && trigger !== "startup") {
+  if (!currentSession) {
     return null;
   }
 
@@ -1026,6 +1088,11 @@ export async function apiRequest<T>(
             pathname,
           });
           throw error;
+        }
+
+        if (headers.has("Authorization")) {
+          // The token was accepted, so the 0.6.x localStorage copy can go.
+          discardLegacySessionStorage();
         }
 
         if (options.responseType === "blob") {

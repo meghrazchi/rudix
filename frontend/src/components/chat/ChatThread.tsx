@@ -213,7 +213,7 @@ export function ChatThread({
             </span>
             <div>
               <p className="text-sm font-semibold text-[#2f2a46]">
-                Rudix is here.
+                {tc("emptyGreeting")}
               </p>
               <p className="mt-1 text-sm leading-relaxed text-[#4f4b63]">
                 {tc("noMessages")}

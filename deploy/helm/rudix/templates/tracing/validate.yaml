@@ -1,0 +1,2 @@
+{{- /* B3 (R08-10): renders nothing; fails the render when the tracing values disagree. */ -}}
+{{- include "rudix.b3.validate" . -}}

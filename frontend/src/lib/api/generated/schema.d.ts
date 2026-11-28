@@ -459,6 +459,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/telemetry/web-vitals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive browser Web Vitals samples */
+        post: operations["ingest_web_vitals_api_v1_telemetry_web_vitals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/upload": {
         parameters: {
             query?: never;
@@ -7577,6 +7594,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream Events */
+        get: operations["stream_events_api_v1_events_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8602,6 +8636,70 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** AgentTraceEventResponse */
+        AgentTraceEventResponse: {
+            /** Event Type */
+            event_type: string;
+            /** Run Id */
+            run_id: string;
+            /** Step Id */
+            step_id?: string | null;
+            /** Tool Call Id */
+            tool_call_id?: string | null;
+            /** Approval Id */
+            approval_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+        };
+        /** AgentTraceResponse */
+        AgentTraceResponse: {
+            /** Run Id */
+            run_id: string;
+            /** Organization Id */
+            organization_id: string;
+            /** Status */
+            status: string;
+            /** Objective */
+            objective: string | null;
+            /** Surface */
+            surface: string;
+            /** Started At */
+            started_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /** Created At */
+            created_at: string;
+            /** Total Cost Usd */
+            total_cost_usd: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Trace Request Id */
+            trace_request_id: string | null;
+            /** Redacted */
+            redacted: boolean;
+            /** Timeline */
+            timeline: components["schemas"]["AgentTraceEventResponse"][];
+            /** Total Events */
+            total_events: number;
+            /** Step Count */
+            step_count: number;
+            /** Tool Call Count */
+            tool_call_count: number;
+            /** Approval Count */
+            approval_count: number;
+            /** Policy Snapshot */
+            policy_snapshot: {
+                [key: string]: unknown;
+            } | null;
+            /** Shared Via Token */
+            shared_via_token?: boolean | null;
         };
         /** AgentTraceRetentionRequest */
         AgentTraceRetentionRequest: {
@@ -13883,7 +13981,7 @@ export interface components {
          * EmailEventType
          * @enum {string}
          */
-        EmailEventType: "invite_received" | "upload_failed" | "upload_indexed" | "connector_sync_failed" | "billing_warning" | "quota_warning" | "security_alert" | "onboarding_reminder";
+        EmailEventType: "invite_received" | "upload_failed" | "upload_indexed" | "connector_sync_failed" | "billing_warning" | "quota_warning" | "security_alert" | "onboarding_reminder" | "email_verification" | "password_reset";
         /** EmailPreviewRequest */
         EmailPreviewRequest: {
             /** Template Name */
@@ -14855,6 +14953,11 @@ export interface components {
              * Format: date-time
              */
             submitted_at: string;
+        };
+        /** FilterDocumentsResponse */
+        FilterDocumentsResponse: {
+            /** Document Ids */
+            document_ids: string[];
         };
         /** ForceFullResyncResponse */
         ForceFullResyncResponse: {
@@ -19517,6 +19620,11 @@ export interface components {
             /** Needs Review Count */
             needs_review_count: number;
         };
+        /** RevokeAllSessionsResponse */
+        RevokeAllSessionsResponse: {
+            /** Revoked Count */
+            revoked_count: number;
+        };
         /** RevokeInvitationResponse */
         RevokeInvitationResponse: {
             /** Invitation Id */
@@ -22677,6 +22785,30 @@ export interface components {
              */
             citation_validation_failed_count: number;
         };
+        /** WebVitalSample */
+        WebVitalSample: {
+            /**
+             * Name
+             * @enum {string}
+             */
+            name: "LCP" | "INP" | "CLS" | "FCP" | "TTFB";
+            /** Value */
+            value: number;
+            /** Route */
+            route: string;
+            /**
+             * Rating
+             * @enum {string}
+             */
+            rating: "good" | "needs-improvement" | "poor";
+            /** Navigation Type */
+            navigation_type?: ("navigate" | "reload" | "back-forward" | "back-forward-cache" | "prerender" | "restore") | null;
+        };
+        /** WebVitalsBatchRequest */
+        WebVitalsBatchRequest: {
+            /** Samples */
+            samples: components["schemas"]["WebVitalSample"][];
+        };
         /**
          * WebhookCreatedResponse
          * @description Returned only at creation / secret rotation — raw secret shown exactly once.
@@ -23815,9 +23947,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentTraceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23881,6 +24011,51 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PublicStatusSnapshot"];
                 };
+            };
+        };
+    };
+    ingest_web_vitals_api_v1_telemetry_web_vitals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebVitalsBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ingest is disabled (WEB_VITALS_INGEST_ENABLED=false). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Per-client rate limit exceeded. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -23998,6 +24173,8 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 include_full_text?: boolean;
+                /** @description Return only this chunk when it belongs to the document. */
+                chunk_id?: string | null;
             };
             header?: never;
             path: {
@@ -26716,9 +26893,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentTraceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -36475,9 +36650,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RevokeAllSessionsResponse"];
                 };
             };
         };
@@ -37779,9 +37952,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FilterDocumentsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -39082,6 +39253,47 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    stream_events_api_v1_events_stream_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server-Sent Events for the caller's organisation, filtered to the events the caller may see. Frames: `id: <n>`, `event: <type>`, `data: {type, organization_id, occurred_at, payload}`, plus `: keep-alive` comments. Types: `document.status`, `documents.changed`, `notification.created`, `connector.sync`, `agent.run`, `incident`. Payloads carry ids and statuses only. Send `Last-Event-ID` to replay buffered events after that id. The stream ends after `REALTIME_STREAM_MAX_SECONDS`; reconnect. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Realtime events are not enabled for this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many open streams for this user (`realtime_connection_limit`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Redis is not reachable (`realtime_unavailable`); keep polling. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

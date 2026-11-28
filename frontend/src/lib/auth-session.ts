@@ -1,3 +1,13 @@
+import {
+  claimRestoreAttempt,
+  clearSession as clearStoredSession,
+  getSession as getStoredSession,
+  primeSession,
+  SESSION_STORE_EVENT_NAME,
+  setSession as setStoredSession,
+} from "@/lib/auth/session-store";
+import { publicEnv } from "@/lib/public-env";
+
 export type AppRole =
   | "owner"
   | "admin"
@@ -42,7 +52,7 @@ export type AuthBoundaryEventDetail = {
 export const SESSION_STORAGE_KEY = "rudix.session.v1";
 export const AUTH_BOUNDARY_STORAGE_KEY = "rudix.auth.boundary.v1";
 export const AUTH_BOUNDARY_EVENT_NAME = "rudix:auth-boundary";
-export const SESSION_STORAGE_EVENT_NAME = "rudix:session-storage";
+export const SESSION_STORAGE_EVENT_NAME = SESSION_STORE_EVENT_NAME;
 
 const VALID_ROLES: ReadonlySet<string> = new Set([
   "owner",
@@ -90,28 +100,137 @@ export function defaultSessionState(): SessionState {
   };
 }
 
+/** Legacy `localStorage` key, read once as a fallback until 0.8.0 (R07-09). */
+export const LEGACY_SESSION_STORAGE_KEY = SESSION_STORAGE_KEY;
+/** Dev-only `sessionStorage` key for the local sign-in fallback. */
+export const DEV_SESSION_STORAGE_KEY = "rudix.session.dev.v1";
+
+function isLegacySessionReadEnabled(): boolean {
+  return (
+    publicEnv(
+      "NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ",
+      process.env.NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ,
+    ) !== "false"
+  );
+}
+
+/**
+ * The local sign-in fallback has no refresh cookie, so a reload could not
+ * restore its session. It keeps a tab-scoped copy in `sessionStorage`. The
+ * build refuses these variables in staging and production
+ * (`config/build-env-validation.mjs`).
+ */
+export function isDevSessionPersistenceEnabled(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK?.trim() === "true" ||
+    (process.env.NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN?.trim() ?? "") !== ""
+  );
+}
+
+function parseStoredSession(raw: string | null): AuthenticatedSession | null {
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isValidSession(parsed)) {
+      return null;
+    }
+    const { refreshToken: _refreshToken, ...session } = parsed;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function readDevSession(): AuthenticatedSession | null {
+  if (!isDevSessionPersistenceEnabled()) {
+    return null;
+  }
+  try {
+    return parseStoredSession(
+      window.sessionStorage.getItem(DEV_SESSION_STORAGE_KEY),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function readLegacySession(): AuthenticatedSession | null {
+  if (!isLegacySessionReadEnabled()) {
+    return null;
+  }
+  try {
+    return parseStoredSession(
+      window.localStorage.getItem(LEGACY_SESSION_STORAGE_KEY),
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns the in-memory session. When memory is empty, the first read after
+ * page load (or after `clearSessionStorage`) restores the dev
+ * `sessionStorage` copy or a session written to `localStorage` by 0.6.x, so
+ * users signed in before the deploy stay signed in. Later reads do not look
+ * at storage again, as 0.6.x read it once at startup.
+ */
 export function readSessionFromStorage(): AuthenticatedSession | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  try {
-    const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
+  const current = getStoredSession();
+  if (current) {
+    return current;
+  }
 
-    const parsed: unknown = JSON.parse(raw);
-    if (!isValidSession(parsed)) {
-      return null;
-    }
-    const session = parsed as AuthenticatedSession;
-    if ("refreshToken" in (parsed as Record<string, unknown>)) {
-      writeSessionToStorage(session);
-    }
-    return session;
-  } catch {
+  if (!claimRestoreAttempt()) {
     return null;
+  }
+  const devSession = readDevSession();
+  if (devSession) {
+    primeSession(devSession);
+    return devSession;
+  }
+  const legacySession = readLegacySession();
+  if (legacySession) {
+    // The dev fallback has no refresh cookie: keep the migrated session
+    // reloadable through its tab-scoped copy once the legacy key is gone.
+    writeDevSession(legacySession);
+    primeSession(legacySession);
+  }
+  return legacySession;
+}
+
+/**
+ * Removes the 0.6.x `localStorage` session after the first successful
+ * refresh or authenticated response; memory holds the session from then on.
+ */
+export function discardLegacySessionStorage(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+  } catch {
+    // Storage can be unavailable (private mode, blocked site data).
+  }
+}
+
+function writeDevSession(session: AuthenticatedSession): void {
+  if (!isDevSessionPersistenceEnabled()) {
+    return;
+  }
+  try {
+    const { refreshToken: _refreshToken, ...sanitizedSession } = session;
+    window.sessionStorage.setItem(
+      DEV_SESSION_STORAGE_KEY,
+      JSON.stringify(sanitizedSession),
+    );
+  } catch {
+    // Storage can be unavailable (private mode, blocked site data).
   }
 }
 
@@ -119,28 +238,21 @@ export function writeSessionToStorage(session: AuthenticatedSession): void {
   if (typeof window === "undefined") {
     return;
   }
-  const { refreshToken: _refreshToken, ...sanitizedSession } = session;
-  window.localStorage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify(sanitizedSession),
-  );
-  window.dispatchEvent(
-    new CustomEvent(SESSION_STORAGE_EVENT_NAME, {
-      detail: { type: "updated", occurredAt: Date.now() },
-    }),
-  );
+  writeDevSession(session);
+  setStoredSession(session);
 }
 
 export function clearSessionStorage(): void {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
-  window.dispatchEvent(
-    new CustomEvent(SESSION_STORAGE_EVENT_NAME, {
-      detail: { type: "cleared", occurredAt: Date.now() },
-    }),
-  );
+  try {
+    window.localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+    window.sessionStorage.removeItem(DEV_SESSION_STORAGE_KEY);
+  } catch {
+    // Storage can be unavailable (private mode, blocked site data).
+  }
+  clearStoredSession();
 }
 
 function normalizeNextPath(path: string | null | undefined): string | null {

@@ -1,4 +1,9 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type MetadataFieldType =
   | "text"
@@ -8,104 +13,43 @@ export type MetadataFieldType =
   | "boolean"
   | "number";
 
-export type MetadataFieldResponse = {
-  field_id: string;
-  organization_id: string;
-  name: string;
-  display_name: string;
-  field_type: MetadataFieldType;
-  allowed_values: string[] | null;
-  is_required: boolean;
-  is_filterable: boolean;
-  description: string | null;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-};
+export type MetadataFieldResponse = Served<Schemas["MetadataFieldResponse"]>;
 
-export type MetadataFieldListResponse = {
-  items: MetadataFieldResponse[];
-  total: number;
-};
+export type MetadataFieldListResponse = Served<
+  Schemas["MetadataFieldListResponse"]
+>;
 
-export type CreateMetadataFieldRequest = {
-  name: string;
-  display_name: string;
-  field_type: MetadataFieldType;
-  allowed_values?: string[] | null;
-  is_required?: boolean;
-  is_filterable?: boolean;
-  description?: string | null;
-  sort_order?: number;
-};
+export type CreateMetadataFieldRequest = Schemas["CreateMetadataFieldRequest"];
 
-export type UpdateMetadataFieldRequest = {
-  display_name?: string;
-  allowed_values?: string[] | null;
-  is_required?: boolean;
-  is_filterable?: boolean;
-  description?: string | null;
-  sort_order?: number;
-  is_active?: boolean;
-};
+export type UpdateMetadataFieldRequest = Schemas["UpdateMetadataFieldRequest"];
 
-export type DocumentMetadataValueResponse = {
-  field_id: string;
-  field_name: string;
-  display_name: string;
-  field_type: MetadataFieldType;
-  value: string | string[] | boolean | number | null;
-  updated_at: string;
-};
+export type DocumentMetadataValueResponse = Served<
+  Schemas["DocumentMetadataValueResponse"]
+>;
 
-export type DocumentMetadataResponse = {
-  document_id: string;
-  values: DocumentMetadataValueResponse[];
-};
+export type DocumentMetadataResponse = Served<
+  Schemas["DocumentMetadataResponse"]
+>;
 
-export type MetadataValueIn = {
-  field_id: string;
-  value: string | string[] | boolean | number | null;
-};
+export type MetadataValueIn = Served<Schemas["MetadataValueIn"]>;
 
-export type SetDocumentMetadataRequest = {
-  values: MetadataValueIn[];
-};
+export type SetDocumentMetadataRequest = Schemas["SetDocumentMetadataRequest"];
 
-export type BulkSetMetadataRequest = {
-  document_ids: string[];
-  values: MetadataValueIn[];
-};
+export type BulkSetMetadataRequest = Schemas["BulkSetMetadataRequest"];
 
-export type BulkSetMetadataResponse = {
-  updated: number;
-  skipped: number;
-  errors: string[];
-};
+export type BulkSetMetadataResponse = Served<
+  Schemas["BulkSetMetadataResponse"]
+>;
 
-export type TagSuggestionResponse = {
-  field_id: string;
-  prefix: string;
-  suggestions: string[];
-};
+export type TagSuggestionResponse = Served<Schemas["TagSuggestionResponse"]>;
 
-export type MetadataAuditEntryResponse = {
-  audit_id: string;
-  document_id: string;
-  field_id: string;
-  field_name: string;
-  changed_by_id: string | null;
-  old_value: string | null;
-  new_value: string | null;
-  action: "set" | "delete" | "bulk_set";
-  created_at: string;
-};
+export type MetadataAuditEntryResponse = Served<
+  Schemas["MetadataAuditEntryResponse"]
+>;
 
-export type MetadataAuditListResponse = {
-  items: MetadataAuditEntryResponse[];
-  total: number;
-};
+export type MetadataAuditListResponse = Served<
+  Schemas["MetadataAuditListResponse"]
+>;
 
 // ── Admin: taxonomy field CRUD ─────────────────────────────────────────────────
 
@@ -190,9 +134,9 @@ export async function bulkSetMetadata(
   });
 }
 
-export type FilterDocumentsResponse = {
-  document_ids: string[];
-};
+export type FilterDocumentsResponse = Served<
+  Schemas["FilterDocumentsResponse"]
+>;
 
 export async function filterDocumentsByMetadata(
   filters: Array<{ fieldId: string; value: string }>,

@@ -66,7 +66,9 @@ _SETTING_MODE = "COALESCE(current_setting('app.rls_mode', true), '')"
 # Tables read before a tenant is known (credential, token and share lookups, SSO and SCIM
 # discovery, OAuth state, bot inbound events, the public status page). Their policy keeps
 # the legacy condition: an unset tenant sees all rows, a bound tenant sees only its own.
-RLS_LOOKUP_TABLES: tuple[str, ...] = (
+# The 0.4.0 list is frozen (migration 20261127_0004 copies it); later tables go into the
+# per-release tuple their migration created, and ``RLS_LOOKUP_TABLES`` combines them.
+RLS_LOOKUP_TABLES_0_4_0: tuple[str, ...] = (
     "api_keys",
     "service_accounts",
     "service_account_tokens",
@@ -83,6 +85,18 @@ RLS_LOOKUP_TABLES: tuple[str, ...] = (
     "incidents",
     "incident_notes",
 )
+
+# 0.9.0: read before a tenant is bound (token lookups, login policy, billing webhooks).
+# Migration 20261129_0001 created the first, 20261129_0002 the second, 20261129_0003 the rest.
+RLS_LOOKUP_TABLES_0_9_0: tuple[str, ...] = (
+    "auth_one_time_tokens",
+    "org_login_policies",
+    "billing_customers",
+    "billing_subscriptions",
+    "billing_webhook_events",
+)
+
+RLS_LOOKUP_TABLES: tuple[str, ...] = RLS_LOOKUP_TABLES_0_4_0 + RLS_LOOKUP_TABLES_0_9_0
 
 # User-scoped identity tables. One user spans several organizations (home organization on
 # ``users``, one ``organization_members`` row and refresh sessions per organization), and a
@@ -183,7 +197,12 @@ RLS_STRICT_TABLES_0_6_0: tuple[str, ...] = (
     "vector_index_generation_documents",
 )
 
-RLS_STRICT_TABLES: tuple[str, ...] = RLS_STRICT_TABLES_0_4_0 + RLS_STRICT_TABLES_0_6_0
+# 0.9.0: migration 20261129_0003 created it.
+RLS_STRICT_TABLES_0_9_0: tuple[str, ...] = ("billing_invoices",)
+
+RLS_STRICT_TABLES: tuple[str, ...] = (
+    RLS_STRICT_TABLES_0_4_0 + RLS_STRICT_TABLES_0_6_0 + RLS_STRICT_TABLES_0_9_0
+)
 
 # Tables that carry a tenant column but no policy yet (0.6.0, R06-09). Existing rows are
 # NULL until the backfill (``documents.chunks.backfill_tenant``) finishes; a policy before

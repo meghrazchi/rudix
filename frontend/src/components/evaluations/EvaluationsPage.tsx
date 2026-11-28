@@ -68,6 +68,7 @@ import { listDocuments } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { listModelProfiles } from "@/lib/api/model-profiles";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import { useAuthSession } from "@/lib/use-auth-session";
@@ -545,6 +546,19 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     enabled: canRun,
   });
 
+  // Evaluation progress has no realtime event (R07-07): keep polling while visible.
+  const runDetailInterval = useRealtimeAwareInterval(
+    (query: { state: { data?: { status?: string } } }) => {
+      const run = query.state.data;
+      if (!run) {
+        return RUN_POLL_INTERVAL_MS;
+      }
+      return run.status === "queued" || run.status === "running"
+        ? RUN_POLL_INTERVAL_MS
+        : false;
+    },
+    { covered: false },
+  );
   const runDetailQuery = useQuery({
     queryKey: queryKeys.evaluations.run(activeRunId ?? "", {
       limit: EVALUATION_RESULTS_PAGE_SIZE,
@@ -560,15 +574,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       });
     },
     enabled: Boolean(activeRunId),
-    refetchInterval: (query) => {
-      const run = query.state.data;
-      if (!run) {
-        return RUN_POLL_INTERVAL_MS;
-      }
-      return run.status === "queued" || run.status === "running"
-        ? RUN_POLL_INTERVAL_MS
-        : false;
-    },
+    refetchInterval: runDetailInterval,
+    refetchIntervalInBackground: false,
   });
 
   const createSetMutation = useMutation({
@@ -610,11 +617,10 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       setAddQuestionDraft(questionDraftDefaults());
       setAddQuestionError(null);
       if (selectedSetId) {
+        // No params: refreshes every list of the set, including the dataset
+        // builder's paged case list (R07-06).
         await queryClient.invalidateQueries({
-          queryKey: queryKeys.evaluations.setQuestions(selectedSetId, {
-            limit: EVALUATION_QUESTION_LIMIT,
-            offset: 0,
-          }),
+          queryKey: queryKeys.evaluations.setQuestions(selectedSetId),
         });
       }
       await queryClient.invalidateQueries({
@@ -1390,7 +1396,6 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
             void queryClient.invalidateQueries({
               queryKey: queryKeys.evaluations.setQuestions(
                 selectedSet.evaluation_set_id,
-                { limit: EVALUATION_QUESTION_LIMIT, offset: 0 },
               ),
             })
           }

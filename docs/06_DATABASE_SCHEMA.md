@@ -624,6 +624,55 @@ CREATE TABLE audit_logs (
 );
 ```
 
+## 0.9.0 tables
+
+Migrations `20261129_0001` to `20261129_0003` (0.9.0, S1) add the schema the account,
+MFA, and billing work packages build on. Everything is additive: new, empty tables, nullable
+columns, and one `NOT NULL` column with a constant default. Nothing in the 0.9.0 foundation
+reads or writes them on a request path yet; A1, A2, A3, B1, and B2 do.
+
+| Table | Purpose | RLS class |
+|---|---|---|
+| `auth_one_time_tokens` | Single-use tokens: email verification, password reset, MFA challenge and enrolment, step-up, SAML request and assertion ids. Only `token_hash` (SHA-256 hex, unique) is stored; `purpose` CHECK; `user_id`, `organization_id` (both nullable, CASCADE), `session_id`, `expires_at`, `consumed_at`, `attempt_count`/`max_attempts`, `created_ip`, `metadata` (never secrets or email text). Purged daily by `auth.tokens.purge_expired` once unusable for `AUTH_ONE_TIME_TOKEN_RETENTION_HOURS` (24). | lookup (read before a tenant is bound) |
+| `user_mfa_factors` | One row per MFA enrolment (`factor_type` `totp`, `status` `pending` or `active`); the secret is encrypted (`encrypted_secret`, `secret_key_id`, `secret_algorithm`); `last_used_step` blocks code reuse. Partial unique index: one `active` factor per user and type. | none (no `organization_id`; a factor protects the user everywhere) |
+| `user_mfa_recovery_codes` | Keyed hashes (`code_hash`, unique) of single-use recovery codes (`used_at`), per factor. | none (no `organization_id`) |
+| `org_login_policies` | One row per organisation: `mfa_required` (false), `mfa_grace_period_days` (7, CHECK 0 to 90), `mfa_required_since`, `updated_by_id`. No row keeps today's behaviour. | lookup (read at login) |
+| `billing_plans` | Global plan catalogue: `plan_key` (unique), display name and order, `quota_limits` and `stage_limits` (same shapes as `org_quota_policy`), `provider_prices` (`{"stripe": {"month": "price_x"}}`), `display_prices` (`{"month": {"amount_minor": 2900, "currency": "usd"}}`). | none (no `organization_id`) |
+| `billing_customers` | Provider customer per organisation (unique `organization_id`; unique `(provider, provider_customer_id)`). | lookup (webhooks) |
+| `billing_subscriptions` | Provider subscription per organisation: `plan_key`, `status` CHECK (Stripe's eight states), interval and period, `cancel_at_period_end`, `grace_until`, `last_event_created_at` (older events are ignored), `last_synced_at`. Unique `(provider, provider_subscription_id)`. | lookup (webhooks) |
+| `billing_invoices` | Invoices copied from provider events: number, status, currency, `amount_due_minor`/`amount_paid_minor`, hosted and PDF URLs, period, `issued_at`. Unique `(provider, provider_invoice_id)`; index `(organization_id, issued_at)`. | strict |
+| `billing_webhook_events` | One row per provider event (unique `(provider, event_id)`, the deduplication key): type, `event_created_at`, `organization_id` (SET NULL), `status` CHECK (`received`, `processed`, `ignored`, `failed`), `error_code`, `payload_sha256` (never the payload). | lookup (webhooks) |
+
+Columns on existing tables:
+
+| Table | Column | Notes |
+|---|---|---|
+| `users` | `email_verified_at timestamptz` | NULL: mailbox not proven. Nothing enforces it by default. |
+| `auth_refresh_sessions` | `auth_method varchar(16) NOT NULL DEFAULT 'password'` (CHECK `password`, `sso`), `mfa_verified_at timestamptz` | Constant default: metadata only on PostgreSQL 11+; the CHECK is added `NOT VALID` (enforced on every write, not validated in the migration: see below). |
+| `org_quota_policy` | `stage_limits json` | NULL means every optional pipeline stage is allowed (the behaviour before 0.9.0). |
+| `email_delivery_logs`, `user_notification_preferences` | `event_type` CHECK | Now the full `EmailEventType` list: adds `email_verification`, `password_reset`, and `onboarding_reminder` (in the model since F353, never migrated). Added `NOT VALID` (enforced on every write, not validated in the migration: see below). |
+
+The RLS lists are `RLS_LOOKUP_TABLES_0_9_0` and `RLS_STRICT_TABLES_0_9_0` in
+`backend/app/db/rls.py`; the migrations copy them as literals and
+`tests/test_rls_coverage.py` checks both. `deploy/sql/force_rls.sql` includes the new policy
+tables. Every new foreign key has an index (`tests/test_fk_index_guard.py`).
+
+The two CHECK constraints on large existing tables (`auth_refresh_sessions.auth_method`,
+`email_delivery_logs.event_type`, and the `user_notification_preferences` list with it) stay
+`NOT VALID` (`pg_constraint.convalidated = false`). Alembic runs the upgrade in one
+transaction, so a `VALIDATE CONSTRAINT` there would scan the table while the `ACCESS
+EXCLUSIVE` lock of the `ADD COLUMN` or `ADD CONSTRAINT` is still held. No existing row can
+violate them (a new column with a constant default; a widened list), and PostgreSQL enforces
+a `NOT VALID` CHECK on every insert and update. A later migration may validate them inside
+an autocommit block (docs/CONTRIBUTING.md, "Database migrations").
+
+Rollback: `alembic downgrade 20261128_0003` drops the nine tables, the four columns, and the
+policies, and puts back the previous `event_type` lists (`NOT VALID`, so rows with the new
+event types do not block it). It loses every outstanding token, every MFA enrolment and
+recovery code, every organisation login policy, all billing state (the provider keeps the
+subscriptions), and every plan stage limit. Run it only before any production use of these
+features. `tests/test_migrations_0_9_0_pg.py` runs upgrade, downgrade, and upgrade again.
+
 ## Recommended indexes
 
 ```sql

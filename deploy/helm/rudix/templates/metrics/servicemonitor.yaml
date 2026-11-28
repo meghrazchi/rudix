@@ -1,0 +1,62 @@
+{{- /*
+Prometheus Operator ServiceMonitors (R08-09, B2; off by default). The api Service port `http`
+serves /metrics and every worker pool Service port `metrics` (contract 5.2.2). With
+metrics.requireAuth the operator reads the bearer token from secrets.existingSecret key
+metrics.tokenSecretKey. Needs the monitoring.coreos.com CRDs (kube-prometheus-stack); load
+the rule files as described in docs/28 "Metrics and alerting".
+*/ -}}
+{{- include "rudix.b2.validate" . -}}
+{{- $sm := .Values.metrics.serviceMonitor | default dict -}}
+{{- if and .Values.metrics.enabled $sm.enabled }}
+{{- $workers := list -}}
+{{- range $name := splitList "," (include "rudix.c1.poolNames" .) -}}
+{{- if $name -}}
+{{- $workers = append $workers (printf "worker-%s" $name) -}}
+{{- end -}}
+{{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ printf "%s-api-metrics" (include "rudix.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "rudix.b2.labels" . | nindent 4 }}
+    {{- with $sm.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "rudix.selectorLabels" (dict "root" . "component" "api") | nindent 6 }}
+  endpoints:
+    {{- include "rudix.b2.endpoint" (dict "root" . "port" "http" "job" "rudix-api") | nindent 4 }}
+{{- if $workers }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ printf "%s-worker-metrics" (include "rudix.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "rudix.b2.labels" . | nindent 4 }}
+    {{- with $sm.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "rudix.c1.releaseSelector" . | nindent 6 }}
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          {{- toYaml $workers | nindent 10 }}
+  endpoints:
+    {{- include "rudix.b2.endpoint" (dict "root" . "port" "metrics" "job" "rudix-worker") | nindent 4 }}
+{{- end }}
+{{- end }}

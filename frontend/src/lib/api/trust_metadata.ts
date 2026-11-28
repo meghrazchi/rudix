@@ -1,3 +1,10 @@
+import type {
+  Overlay,
+  WithOptional,
+  WithRequired,
+} from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 /**
  * Versioned answer trust metadata contract (F307).
  *
@@ -11,6 +18,8 @@
 
 import { apiRequest } from "@/lib/api/request";
 
+type Schemas = components["schemas"];
+
 /** Normalized freshness state for UI display (F311). */
 export type FreshnessState =
   | "current"
@@ -21,354 +30,113 @@ export type FreshnessState =
   | "unreviewed"
   | "unknown";
 
-export type CitationTrustRecord = {
-  document_id: string;
-  chunk_id: string;
-  filename?: string | null;
-  page_number?: number | null;
-  score?: number | null;
-  similarity_score?: number | null;
-  rerank_score?: number | null;
-  original_rank?: number | null;
-  final_rank?: number | null;
-  text_snippet?: string | null;
-  source_provider?: string | null;
-  source_provider_label?: string | null;
-  source_title?: string | null;
-  source_key?: string | null;
-  source_section?: string | null;
-  source_deep_link?: string | null;
-  source_last_synced_at?: string | null;
-  source_trust_status?:
-    | "trusted"
-    | "stale"
-    | "revoked"
-    | "deleted"
-    | "unknown"
-    | "uploaded"
-    | null;
-  conflict_status?: "preferred" | "conflicting" | "neutral" | null;
-  doc_trust_status?: string | null;
-  doc_review_status?: string | null;
-  doc_version_label?: string | null;
-  doc_review_due_date?: string | null;
-  doc_expiry_date?: string | null;
-  doc_stale_warning: boolean;
-  doc_expired_warning: boolean;
-  doc_is_excluded_status: boolean;
-  is_table_chunk: boolean;
-  table_caption?: string | null;
-  table_row_count?: number | null;
-  table_col_count?: number | null;
-  table_headers: string[];
-  doc_ocr_quality_status?:
-    | "high"
-    | "medium"
-    | "low"
-    | "failed"
-    | "not_required"
-    | null;
-  doc_ocr_low_confidence_warning: boolean;
-  /** F311 — normalized freshness state for the trust panel badge. */
-  freshness_state?: FreshnessState | null;
-  /** F311 — ISO timestamp of when the source document was last modified. */
-  doc_last_updated_at?: string | null;
-  /** F311 — user ID of the review owner for this document. */
-  doc_review_owner_id?: string | null;
-  /** F311 — true when the source is pending review (needs_review status). */
-  doc_unreviewed_warning: boolean;
-  /** F311 — true when the source is deprecated, archived, or superseded. */
-  doc_deprecated_warning: boolean;
-  /** F315 — raw confidence from the table extraction engine (0.0–1.0). */
-  table_extraction_confidence?: number | null;
-  /** F315 — true when table extraction confidence is below 0.4. */
-  table_low_confidence_warning: boolean;
-  /** F315 — document profile from extraction_snapshot (e.g. "corrupted", "scanned"). */
-  doc_extraction_quality?: string | null;
-  /** F315 — true when extraction profile is problematic or extraction confidence is low. */
-  doc_extraction_warning: boolean;
-  /** F315 — true when the source document has incomplete or failed processing. */
-  doc_processing_warning: boolean;
-};
+// Snapshots saved before a field was introduced do not carry it, so these fields stay optional.
+export type CitationTrustRecord = WithOptional<
+  Schemas["CitationTrustRecord"],
+  "doc_draft_warning"
+>;
 
 /** Single explainable signal that contributed to the confidence score (F310). */
-export type ConfidenceReasonRecord = {
-  code: string;
-  label: string;
-  impact: "positive" | "negative" | "neutral";
-  magnitude: number;
-};
+export type ConfidenceReasonRecord = Schemas["ConfidenceReasonRecord"];
 
-export type ConfidenceTrustRecord = {
-  score: number;
-  category: "low" | "medium" | "high";
-  /** Calibrated trust level including quality-signal degradation (F310). */
-  trust_level: "high" | "medium" | "low" | "warning" | "not_found";
-  citation_support_score: number;
-  citation_validation_score: number;
-  citation_coverage_score: number;
-  retrieval_agreement_score: number;
-  top_similarity: number;
-  average_similarity: number;
-  top_rerank_score: number;
-  raw_score: number;
-  citation_validation_multiplier: number;
-  not_found_penalty_multiplier: number;
-  freshness_multiplier: number;
-  ocr_quality_multiplier: number;
-  conflict_multiplier: number;
-  /** F315 — table extraction quality penalty across table citations. */
-  table_quality_multiplier: number;
-  /** F315 — document extraction quality penalty across citations. */
-  extraction_quality_multiplier: number;
-  graph_evidence_boost: number;
-  verification_support_score?: number | null;
-  not_found_signal: boolean;
-  no_context: boolean;
-  reasons: ConfidenceReasonRecord[];
-};
+export type ConfidenceTrustRecord = Schemas["ConfidenceTrustRecord"];
 
-export type ClaimSupportRecord = {
-  claim_index: number;
-  claim_text: string;
-  support_status:
-    | "supported"
-    | "partially_supported"
-    | "unsupported"
-    | "unverifiable";
-  support_score: number;
-  evidence_match_score: number;
-  source_quality_score: number;
-  rerank_score: number;
-  chunk_coverage_score: number;
-  citation_indices: number[];
-};
+export type ClaimSupportRecord = WithRequired<
+  Schemas["ClaimSupportRecord"],
+  "citation_indices"
+>;
 
-export type RetrievalDiagnosticsRecord = {
-  retrieval_candidate_count?: number;
-  retrieval_count: number;
-  selected_count: number;
-  top_k?: number;
-  search_mode?: string | null;
-  source_scope_mode?: string | null;
-  source_scope_label?: string | null;
-  retrieval_profile_name?: string | null;
-  retrieval_profile_scope?: string | null;
-  retrieval_profile_source?: string | null;
-  retrieval_filters?: string[];
-  rerank_applied: boolean;
-  rerank_provider?: string | null;
-  rerank_model?: string | null;
-  rerank_score_min?: number | null;
-  rerank_score_max?: number | null;
-  rerank_fallback_used?: boolean;
-  rerank_fallback_reason?: string | null;
-  request_id?: string | null;
-  trace_request_id?: string | null;
-  hybrid_retrieval_enabled: boolean;
-  hybrid_vector_hit_count: number;
-  hybrid_keyword_hit_count: number;
-  query_rewriting_applied: boolean;
-  query_decomposed: boolean;
-  sub_query_count: number;
-  parent_context_expanded_count: number;
-  graph_context_used: boolean;
-  graph_context_unavailable: boolean;
-  graph_chunk_count: number;
-  freshness_excluded_count: number;
-  freshness_boosted_count: number;
-};
+export type RetrievalDiagnosticsRecord = WithOptional<
+  Schemas["RetrievalDiagnosticsRecord"],
+  | "retrieval_candidate_count"
+  | "top_k"
+  | "rerank_fallback_used"
+  | "parallel_branch_count"
+  | "parallel_branch_failure_count"
+  | "parallel_branch_timeout_count"
+>;
 
-export type QueryInterpretationRecord = {
-  answer_mode: "grounded" | "guidance";
-  intent:
-    | "lookup"
-    | "summary"
-    | "comparison"
-    | "policy"
-    | "troubleshooting"
-    | "compliance"
-    | "connector_search"
-    | "graph_entity_search"
-    | "product_guidance";
-  intent_label: string;
-  complexity: "simple" | "complex" | "multi_part";
-  retrieval_strategy: "original" | "rewrite" | "decompose";
-  rewrite_preview_enabled: boolean;
-  rewritten_query_preview?: string | null;
-  sub_queries: string[];
-  guidance_topic?:
-    | "onboarding"
-    | "ui_help"
-    | "empty_state"
-    | "source_scope"
-    | "how_to_use"
-    | null;
-};
+export type QueryInterpretationRecord = WithRequired<
+  Schemas["QueryInterpretationRecord"],
+  "sub_queries"
+>;
 
-export type GroundedVerificationRecord = {
-  applied: boolean;
-  verdict?: string | null;
-  score?: number | null;
-  aggregate_support_score: number;
-  claim_count: number;
-  supported_count: number;
-  partially_supported_count: number;
-  unsupported_count: number;
-  unverifiable_count: number;
-  removed_count: number;
-  reason_codes: string[];
-  claims: ClaimSupportRecord[];
-};
+export type GroundedVerificationRecord = Overlay<
+  WithOptional<
+    Schemas["GroundedVerificationRecord"],
+    "conflicting_count" | "not_enough_evidence_count"
+  >,
+  { claims: ClaimSupportRecord[] }
+>;
 
-export type ModelMetadataRecord = {
-  llm_model?: string | null;
-  llm_provider?: string | null;
-  embedding_model?: string | null;
-  fallback_used: boolean;
-  fallback_from?: string | null;
-  fallback_to?: string | null;
-  fallback_reason?: string | null;
-  prompt_template_key?: string | null;
-  prompt_template_version?: number | null;
-};
+export type ModelMetadataRecord = Schemas["ModelMetadataRecord"];
 
-export type ConflictStatusRecord = {
-  detected: boolean;
-  agreement_level: "full" | "partial" | "conflicting";
-  conflict_count: number;
-  conflicting_document_ids: string[];
-  preferred_document_ids: string[];
-  conflict_summary?: string | null;
-};
+export type ConflictStatusRecord = WithRequired<
+  Schemas["ConflictStatusRecord"],
+  "conflicting_document_ids" | "preferred_document_ids"
+>;
 
-export type PolicyEnforcementRecord = {
-  applied: boolean;
-  outcome?: string | null;
-  violated_rules: string[];
-  warning_flags: string[];
-  has_disclaimer: boolean;
-};
+export type PolicyEnforcementRecord = Schemas["PolicyEnforcementRecord"];
 
-export type SourceFreshnessRecord = {
-  warning: boolean;
-  warning_reason?: string | null;
-  /** F311 — structured list of specific freshness warning messages. */
-  warning_reasons: string[];
-  stale_count: number;
-  excluded_count: number;
-  boosted_count: number;
-  /** F311 — number of cited sources pending review. */
-  unreviewed_count: number;
-  /** F311 — number of cited sources that are deprecated, archived, or superseded. */
-  deprecated_count: number;
-  /** F311 — true when all sources were excluded and the fallback re-included them. */
-  all_excluded_fallback: boolean;
-};
+export type SourceFreshnessRecord = WithOptional<
+  Schemas["SourceFreshnessRecord"],
+  "draft_count"
+>;
 
 /** Aggregated evidence quality signals across all cited sources (F315). */
-export type EvidenceQualityRecord = {
-  table_low_confidence_count: number;
-  extraction_warning_count: number;
-  processing_warning_count: number;
-  any_incomplete_documents: boolean;
-  warning_reasons: string[];
-};
+export type EvidenceQualityRecord = WithRequired<
+  Schemas["EvidenceQualityRecord"],
+  "warning_reasons"
+>;
 
 /** A single quality warning produced by the answer critic (F339). */
-export type CriticWarningRecord = {
-  code: string;
-  detail: string;
-  severity: "low" | "medium" | "high";
-};
+export type CriticWarningRecord = Schemas["CriticWarningRecord"];
 
 /**
  * Planner strategy classification, critic warnings, and refiner outcome (F339).
  * Present on all responses; fields are empty/default when the pipeline is disabled
  * or the question was not flagged as high-risk.
  */
-export type PlannerCriticRecord = {
-  strategy: string;
-  high_risk: boolean;
-  critic_warnings: CriticWarningRecord[];
-  critic_severity: "none" | "low" | "medium" | "high";
-  refiner_applied: boolean;
-  draft_changed: boolean;
-  unsupported_claims_removed: number;
-  planner_latency_ms: number;
-  critic_latency_ms: number;
-  refiner_latency_ms: number;
-};
+export type PlannerCriticRecord = WithRequired<
+  Schemas["PlannerCriticRecord"],
+  "critic_warnings"
+>;
 
 /**
  * Dynamically selected retrieval method for this query (F341).
  * Populated when dynamic retrieval routing is enabled.
  * Only safe public fields — internal routing reason is excluded.
  */
-export type RetrievalMethodRecord = {
-  method: string;
-  method_label: string;
-  override_applied: boolean;
-  override_source: "user" | "rag_profile" | null;
-  routing_latency_ms: number;
-};
+export type RetrievalMethodRecord = Schemas["RetrievalMethodRecord"];
 
 /** Authorization and execution outcome for one tool capability (F342). */
-export type ChatToolCallRecord = {
-  tool_name: string;
-  tool_purpose: string;
-  authorized: boolean;
-  executed: boolean;
-  succeeded: boolean;
-  fallback_used: boolean;
-  latency_ms: number;
-  denial_reason?: string | null;
-  error_code?: string | null;
-};
+export type ChatToolCallRecord = Schemas["ChatToolCallRecord"];
 
 /**
  * Aggregated result of the permission-aware adaptive tool orchestration step (F342).
  * Populated when feature_enable_chat_tool_orchestration is active.
  * Shows which tools were selected, authorized, executed, and whether fallbacks fired.
  */
-export type ToolOrchestrationRecord = {
-  enabled: boolean;
-  tool_count: number;
-  authorized_count: number;
-  executed_count: number;
-  succeeded_count: number;
-  fallback_count: number;
-  denied_count: number;
-  orchestration_latency_ms: number;
-  tool_calls: ChatToolCallRecord[];
-};
+export type ToolOrchestrationRecord = WithRequired<
+  Schemas["ToolOrchestrationRecord"],
+  "tool_calls"
+>;
 
 /** Versioned, organization-scoped answer trust metadata. schema_version "1" is current. */
-export type AnswerTrustMetadataResponse = {
-  schema_version: "1";
-  organization_id: string;
-  message_id: string;
-  not_found: boolean;
-  citation_validation_failed: boolean;
-  verification_failed: boolean;
-  confidence: ConfidenceTrustRecord;
-  citations: CitationTrustRecord[];
-  retrieval: RetrievalDiagnosticsRecord;
-  query_interpretation?: QueryInterpretationRecord | null;
-  grounded_verification: GroundedVerificationRecord;
-  model: ModelMetadataRecord;
-  conflict: ConflictStatusRecord;
-  policy: PolicyEnforcementRecord;
-  freshness: SourceFreshnessRecord;
-  evidence_quality: EvidenceQualityRecord;
-  /** F339 — planner strategy, critic warnings, and refiner outcome. */
-  planner_critic: PlannerCriticRecord;
-  /** F341 — dynamically selected retrieval method. */
-  retrieval_method: RetrievalMethodRecord;
-  /** F342 — permission-aware adaptive tool orchestration result. */
-  tool_orchestration: ToolOrchestrationRecord;
-  generated_at: string;
-};
+export type AnswerTrustMetadataResponse = Overlay<
+  Schemas["AnswerTrustMetadataResponse"],
+  {
+    citations: CitationTrustRecord[];
+    retrieval: RetrievalDiagnosticsRecord;
+    query_interpretation?: QueryInterpretationRecord | null;
+    grounded_verification: GroundedVerificationRecord;
+    conflict: ConflictStatusRecord;
+    freshness: SourceFreshnessRecord;
+    evidence_quality: EvidenceQualityRecord;
+    planner_critic?: PlannerCriticRecord;
+    tool_orchestration?: ToolOrchestrationRecord;
+  }
+>;
 
 /**
  * Fetch the versioned trust metadata snapshot for a saved assistant message.

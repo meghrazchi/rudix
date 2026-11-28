@@ -1,0 +1,255 @@
+# CI-only values: turns every optional feature on so `helm template` renders each template
+# (deploy/scripts/check_helm_chart.sh). Placeholders only; never deployed. Each task switches
+# its own feature on under its key.
+
+# owner: S1
+nameOverride: ""
+
+# owner: S1
+fullnameOverride: ""
+
+# owner: S1
+global:
+  environment: staging
+
+# owner: S1
+image:
+  pullSecrets:
+    - rudix-registry-placeholder
+  api:
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000001
+  worker:
+    tag: ci-check
+  frontend:
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000002
+
+# owner: S1
+config:
+  env:
+    ENVIRONMENT: staging
+    API_BASE_URL: https://api.ci.rudix.invalid
+    FRONTEND_BASE_URL: https://app.ci.rudix.invalid
+    LOG_FORMAT: json
+    # v080-A1
+    # v080-A2
+    BACKUP_FRESHNESS_CHECK_ENABLED: "true"
+    BACKUP_BUCKET: rudix-ci-backups
+    BACKUP_PREFIX: rudix-ci
+    BACKUP_S3_REGION: eu-central-1
+    # v080-B1
+    # v080-B2
+    METRICS_ENABLED: "true"
+    METRICS_REQUIRE_AUTH: "true"
+    WORKER_METRICS_ENABLED: "true"
+    WORKER_METRICS_MULTIPROCESS: "true"
+    # v080-B3
+    # v080-C1
+    # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
+    READINESS_REQUIRED_DEPENDENCIES: postgres,redis
+    # v080-C2
+    DB_PGBOUNCER_MODE: "true"
+    DB_REPLICA_MAX_LAG_SECONDS: "30"
+    DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS: "10"
+    DB_REPLICA_LAG_QUERY_TIMEOUT_MS: "500"
+    # v080-D1
+
+# owner: S1
+secrets:
+  existingSecret: rudix-ci-app-env
+  create: false
+  # owner: D1
+  externalSecret:
+    enabled: true
+    refreshInterval: 30m
+    secretStoreRef:
+      name: rudix-ci-secret-store
+      kind: SecretStore
+    data:
+      - secretKey: APP_AUTH_SECRET
+        remoteRef:
+          key: rudix/ci/app-auth-secret
+      - secretKey: APP_AUTH_SECRET_PREVIOUS
+        remoteRef:
+          key: rudix/ci/app-auth
+          property: previous
+      - secretKey: DATABASE_URL
+        remoteRef:
+          key: rudix/ci/database-url
+
+# owner: S1
+serviceAccount:
+  annotations:
+    example.invalid/role: placeholder
+
+# owner: S1
+podSecurityContext: {}
+
+# owner: S1
+containerSecurityContext: {}
+
+# owner: S1
+tmpVolume: {}
+
+# owner: S1
+metrics:
+  enabled: true
+  # owner: B2
+  workers:
+    multiprocess: true
+  # owner: B2
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+
+# owner: A1
+ingress:
+  enabled: true
+  noindex: true
+  certManager:
+    clusterIssuer: ci-issuer
+  annotations:
+    example.invalid/ci: "true"
+  app:
+    host: app.ci.rudix.invalid
+    tlsSecretName: rudix-ci-app-tls
+  api:
+    host: api.ci.rudix.invalid
+    tlsSecretName: rudix-ci-api-tls
+  mcp:
+    host: mcp.ci.rudix.invalid
+    path: /mcp
+    tlsSecretName: rudix-ci-mcp-tls
+
+# owner: A2
+backup:
+  enabled: true
+  bucket: rudix-ci-backups
+  prefix: rudix-ci
+  timeZone: Etc/UTC
+  encryptionKeySecret:
+    name: rudix-ci-backup-key
+  podAnnotations:
+    example.invalid/ci: "true"
+  postgres:
+    enabled: true
+    image:
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000003
+
+# owner: A2
+dataStores: {}
+
+# owner: C1
+frontend:
+  podAnnotations:
+    example.invalid/note: placeholder
+  nodeSelector:
+    example.invalid/pool: web
+  tolerations:
+    - key: example.invalid/dedicated
+      operator: Equal
+      value: web
+      effect: NoSchedule
+
+# owner: C1
+api:
+  podAnnotations:
+    example.invalid/note: placeholder
+
+# owner: C1
+mcp:
+  enabled: true
+
+# owner: C1
+workers:
+  pools:
+    ingest:
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+
+# owner: C1
+beat: {}
+
+# owner: C1
+migrations:
+  useMigrationUrl: true
+
+# owner: C1
+autoscaling:
+  enabled: true
+  mode: keda
+  prometheus:
+    serverAddress: http://prometheus.monitoring.svc.invalid:9090
+
+# owner: C1
+networkPolicy:
+  allowFrontendToApi: true
+  dataStores:
+    - name: postgres
+      podSelector:
+        example.invalid/app: postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    - name: redis
+      namespace: data
+      podSelector:
+        example.invalid/app: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+  egress:
+    enabled: true
+    extraRules:
+      - to:
+          - ipBlock:
+              cidr: 192.0.2.0/24
+        ports:
+          - port: 443
+            protocol: TCP
+
+# owner: C1
+podDisruptionBudget: {}
+
+# owner: C1
+rollout: {}
+
+# owner: C1
+connectionBudget:
+  maxDatabaseConnections: 2000
+
+# owner: C2
+database:
+  pgbouncerMode: true
+
+# owner: C2
+pgbouncer:
+  enabled: true
+  image: registry.invalid/pgbouncer@sha256:0000000000000000000000000000000000000000000000000000000000000000
+  configSecretName: rudix-ci-pgbouncer
+
+# owner: B3
+tracing:
+  # Off; see values.yaml. Set an https:// private collector to enable (docs/28 Tracing).
+  enabled: false
+  endpoint: ""
+  headersSecretKey: OTEL_EXPORTER_OTLP_HEADERS
+
+# owner: D1
+runtimeConfig:
+  env:
+    NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE: request
+    NEXT_PUBLIC_DEPLOYMENT_ENV: staging
+    NEXT_PUBLIC_API_URL: https://api.ci.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.ci.rudix.invalid
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: staging
+
+# owner: D1
+cdn:
+  assetPrefix: https://cdn.ci.rudix.invalid
+  publicAssetCacheControl: public, max-age=3600

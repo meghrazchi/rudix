@@ -1,0 +1,233 @@
+# Rudix SLO targets mapped to Prometheus series (R08-09, B2).
+#
+# Every target of docs/26 section 4.6 ("Performance and scale targets", master plan) and of the
+# docs/12 "Production SLOs" table, plus the 0.8.0 operational targets the alerts already use.
+# These are TARGETS, not measurements: nothing in this file is a measured figure.
+#
+# Each entry is one of:
+#   kind: latency   share of observations above `bucket_le` of a histogram; objective is the
+#                   share that must be at or below it (0.95 for a p95 target).
+#   kind: ratio     share of bad events (errors, failures) of all events.
+#   kind: gauge     a level read directly (connections, age, lag) against `threshold`.
+#   measured_outside_prometheus: true, with `reason` (evaluation runs, restore drills).
+#
+# latency/ratio entries get recording rules `<record_prefix>_rate<window>` for the windows
+# 5m, 30m, 1h, 6h, 3d in prometheus/rules/slo-recording.yml. Entries with `burn_rate` get
+# multi-window burn-rate alerts in prometheus/rules/slo-burn-rate.yml: page (critical) when
+# the 1h and 5m ratios exceed 14.4x the error budget, ticket (warning) when the 6h and 30m
+# ratios exceed 6x. `bucket_le` is always an existing bucket boundary of the histogram (read
+# from its `buckets` in backend/app); when the target falls between two boundaries the next
+# one up is used and `bucket_note` says so. Dashboard 08-rudix-slo-targets.json has one panel
+# per entry titled with its id. backend/tests/test_slo_rules.py checks all of this.
+version: 1
+windows: [5m, 30m, 1h, 6h, 3d]
+burn_rate:
+  page: {long: 1h, short: 5m, factor: 14.4, severity: critical}
+  ticket: {long: 6h, short: 30m, factor: 6, severity: warning}
+
+targets:
+  # --- docs/26 section 4.6 (target at 1.0.0) -----------------------------------------------
+  - id: chat_ttft_p95
+    source: docs/26 4.6
+    target: Chat time to first token, default profile, p95 2.5 s or less
+    kind: latency
+    metric: rudix_chat_ttft_seconds
+    selector: ""
+    threshold_seconds: 2.5
+    bucket_le: 2.5
+    objective: 0.95
+    record_prefix: "slo:rudix_chat_ttft_seconds:slow_ratio_le2_5"
+    burn_rate: {alert: RudixSloChatTtftBurnRate, service: api}
+
+  - id: chat_full_answer_p95
+    source: docs/26 4.6
+    target: Chat full answer, default profile, p95 12 s or less
+    kind: latency
+    metric: rudix_rag_query_duration_seconds
+    selector: ""
+    threshold_seconds: 12
+    bucket_le: 15
+    bucket_note: No 12 s bucket (8 and 15 exist); 15 s is the next boundary up, so the rule is
+      looser than the target until a 12 s bucket is added.
+    objective: 0.95
+    record_prefix: "slo:rudix_rag_query_duration_seconds:slow_ratio_le15"
+    burn_rate: {alert: RudixSloChatAnswerLatencyBurnRate, service: api}
+
+  - id: api_read_p95
+    source: docs/26 4.6
+    target: Non-LLM API read endpoints, p95 300 ms or less
+    kind: latency
+    metric: rudix_http_request_duration_seconds
+    # GET routes without health, metrics, and long-lived stream/event/WebSocket routes.
+    selector: 'method="GET", route!~"unmatched|/metrics|/api/v1/(health|ready)|.*(stream|events|ws).*"'
+    threshold_seconds: 0.3
+    bucket_le: 0.5
+    bucket_note: No 300 ms bucket (0.25 and 0.5 exist); 0.5 s is the next boundary up.
+    objective: 0.95
+    record_prefix: "slo:rudix_http_request_duration_seconds:read_slow_ratio_le0_5"
+
+  - id: ingestion_50_page_pdf_p95
+    source: docs/26 4.6
+    target: Ingestion of a 50-page text PDF to indexed, p95 90 s or less
+    kind: latency
+    metric: rudix_document_indexing_duration_seconds
+    selector: ""
+    threshold_seconds: 90
+    bucket_le: 120
+    bucket_note: No 90 s bucket (60 and 120 exist); 120 s is the next boundary up. The
+      histogram has no page-count label, so the rule covers every document type and size.
+      In 0.8.0 no code path calls record_document_indexing_job, so this series has no samples
+      until the staged ingestion pipeline observes it; the rule then needs no change.
+    objective: 0.95
+    record_prefix: "slo:rudix_document_indexing_duration_seconds:slow_ratio_le120"
+    burn_rate: {alert: RudixSloIngestionLatencyBurnRate, service: worker}
+
+  - id: chat_streams_per_replica
+    source: docs/26 4.6
+    target: Concurrent chat streams per API replica 200, with no pool exhaustion
+    kind: gauge
+    metric: rudix_chat_ws_connections
+    threshold: 200
+    records: ["slo:rudix_chat_ws_connections:max_per_instance"]
+    note: Pool exhaustion is alerted by RudixDbPoolTimeouts (alerts.yml).
+
+  - id: db_queries_per_chat_request
+    source: docs/26 4.6
+    target: Database queries per chat request 12 or fewer
+    kind: latency
+    metric: rudix_db_queries_per_request
+    selector: 'method="POST", route=~"/api/v1/chat(/query/stream)?"'
+    threshold: 12
+    bucket_le: 20
+    bucket_note: No 12 bucket (10 and 20 exist); 20 is the next boundary up. Counts HTTP chat
+      requests only; WebSocket chat statements are not counted per request (R03-09).
+    objective: 0.95
+    record_prefix: "slo:rudix_db_queries_per_request:chat_over_ratio_le20"
+
+  - id: api_availability_monthly
+    source: docs/26 4.6
+    target: API availability 99.9% monthly
+    kind: ratio
+    metric: rudix_http_requests_total
+    bad_selector: 'status_code=~"5.."'
+    selector: ""
+    objective: 0.999
+    record_prefix: "slo:rudix_http_requests:error_ratio"
+    burn_rate: {alert: RudixSloAvailabilityBurnRate, service: api}
+
+  - id: rpo_15m
+    source: docs/26 4.6
+    target: Recovery point 15 min
+    kind: gauge
+    metric: rudix_backup_last_success_timestamp_seconds
+    threshold: 900
+    records: ["slo:rudix_backup_last_success_timestamp_seconds:age_max"]
+    note: Age of the newest successful backup per kind. Backup freshness alerts belong to A2
+      (rules/backups.yml); a point-in-time RPO below the backup interval needs WAL archiving.
+
+  - id: rto_4h
+    source: docs/26 4.6
+    target: Recovery time 4 h
+    measured_outside_prometheus: true
+    reason: Recovery time is drill-based. It is measured by the restore drill (A2,
+      deploy/scripts/restore_drill.sh and docs/runbooks), not by a live series; the drill
+      report records the duration.
+
+  # --- docs/12 "Production SLOs" -------------------------------------------------------------
+  - id: docs12_api_availability
+    source: docs/12 Production SLOs
+    target: API availability 99.5%+
+    kind: ratio
+    metric: rudix_http_requests_total
+    bad_selector: 'status_code=~"5.."'
+    selector: ""
+    objective: 0.995
+    record_prefix: "slo:rudix_http_requests:error_ratio"
+    note: Same series as api_availability_monthly; its 99.9% burn-rate alerts fire first.
+
+  - id: docs12_chat_p95_latency
+    source: docs/12 Production SLOs
+    target: Chat p95 latency under 5 seconds
+    kind: latency
+    metric: rudix_rag_query_duration_seconds
+    selector: ""
+    threshold_seconds: 5
+    bucket_le: 5
+    objective: 0.95
+    record_prefix: "slo:rudix_rag_query_duration_seconds:slow_ratio_le5"
+    note: RudixChatP95LatencyHigh (alerts.yml) alerts on the same target.
+
+  - id: docs12_document_indexing_success
+    source: docs/12 Production SLOs
+    target: Document indexing success above 98%
+    kind: ratio
+    metric: rudix_document_indexing_jobs_total
+    bad_selector: 'status="failed"'
+    selector: ""
+    objective: 0.98
+    record_prefix: "slo:rudix_document_indexing_jobs:failure_ratio"
+    note: RudixDocumentIndexingFailureRateHigh (alerts.yml) alerts on the same target. Like
+      the ingestion histogram, this counter has no caller in 0.8.0.
+
+  - id: docs12_retrieval_hit_rate
+    source: docs/12 Production SLOs
+    target: Retrieval hit rate above 85% on the eval set
+    measured_outside_prometheus: true
+    reason: Computed by evaluation runs over a labelled dataset (docs/12 "Continuous
+      evaluation", quality gates), not from production traffic.
+
+  - id: docs12_citation_accuracy
+    source: docs/12 Production SLOs
+    target: Citation accuracy above 80%
+    measured_outside_prometheus: true
+    reason: Scored by evaluation runs against expected citations; production answers have no
+      ground truth.
+
+  - id: docs12_failed_task_rate
+    source: docs/12 Production SLOs
+    target: Failed task rate below 2%
+    kind: ratio
+    metric: rudix_celery_tasks_total
+    bad_selector: 'status="failed"'
+    total_selector: 'status="started"'
+    selector: ""
+    objective: 0.98
+    record_prefix: "slo:rudix_celery_tasks:failure_ratio"
+
+  - id: docs12_not_found_correctness
+    source: docs/12 Production SLOs
+    target: Not-found correctness above 90%
+    measured_outside_prometheus: true
+    reason: Needs questions with a known answer or known absence; scored by evaluation runs.
+
+  # --- 0.8.0 operational targets (existing alert thresholds) ---------------------------------
+  - id: celery_queue_wait_p95
+    source: alerts.yml RudixCeleryQueueWaitHigh (R06-05)
+    target: Celery queue wait p95 5 minutes or less per queue
+    kind: latency
+    metric: rudix_celery_queue_wait_seconds
+    selector: ""
+    by: [queue]
+    threshold_seconds: 300
+    bucket_le: 300
+    objective: 0.95
+    record_prefix: "slo:rudix_celery_queue_wait_seconds:slow_ratio_le300"
+    burn_rate: {alert: RudixSloQueueWaitBurnRate, service: worker}
+
+  - id: beat_heartbeat_age
+    source: rules/beat.yml RudixBeatHeartbeatStale (R08-09)
+    target: Beat heartbeat 5 minutes old or newer
+    kind: gauge
+    metric: rudix_beat_heartbeat_timestamp_seconds
+    threshold: 300
+    records: ["slo:rudix_beat_heartbeat_timestamp_seconds:age_max"]
+
+  - id: db_replica_lag
+    source: C2 read replica routing (R08-04)
+    target: Reporting replica lag below the routing limit (C2 setting)
+    kind: gauge
+    metric: rudix_db_replica_lag_seconds
+    threshold: null
+    records: ["slo:rudix_db_replica_lag_seconds:max"]
+    note: The limit is C2's replica lag setting and its alert lives in rules/database.yml; this
+      entry only records and charts the sampled lag.

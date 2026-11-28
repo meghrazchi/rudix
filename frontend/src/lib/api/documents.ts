@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/request";
 import type { components } from "@/lib/api/generated/schema";
+import type { Overlay, WithOptional } from "@/lib/api/schema-helpers";
 import type { ChunkingProfileConfigInput } from "@/lib/schemas/chunking-profiles";
 
 type Schemas = components["schemas"];
@@ -7,8 +8,6 @@ type Schemas = components["schemas"];
 // The full OpenAPI export (R03-10) includes fields the old curated schema left
 // out, and openapi-typescript marks fields with server defaults as required.
 // The frontend's own declarations override the generated ones. Type-only.
-type Overlay<Base, Extra> = Omit<Base, keyof Extra> & Extra;
-
 export type DocumentFileType = Schemas["DocumentDetailResponse"]["file_type"];
 export type DocumentStatus = Schemas["DocumentStatus"];
 export type DocumentQualityState =
@@ -28,53 +27,17 @@ export type UploadDocumentResponse = Schemas["UploadDocumentResponse"] & {
   duplicate_document_id?: string | null;
 };
 export type DeleteDocumentResponse = Schemas["DeleteDocumentResponse"];
-export type BulkDeleteDocumentResult = {
-  document_id: string;
-  status:
-    | "delete_requested"
-    | "deleting"
-    | "deleted"
-    | "retained_by_policy"
-    | "not_found"
-    | "error";
-  hold_reason?: string | null;
-  error?: string | null;
-};
-export type BulkDeleteDocumentsResponse = {
-  accepted: number;
-  retained: number;
-  errors: number;
-  results: BulkDeleteDocumentResult[];
-};
-export type AdminDocumentDeletionItem = {
-  document_id: string;
-  filename: string;
-  file_type: string;
-  status: DocumentStatus;
-  organization_id: string;
-  deletion_requested_at?: string | null;
-  deletion_hold_reason?: string | null;
-  error_message?: string | null;
-  created_at: string;
-  updated_at: string;
-};
-export type AdminDocumentDeletionListResponse = {
-  items: AdminDocumentDeletionItem[];
-  total: number;
-  limit: number;
-  offset: number;
-};
-export type RetryDeleteDocumentResponse = {
-  document_id: string;
-  status: "delete_requested" | "deleting";
-  queue_status: "queued";
-};
+export type BulkDeleteDocumentResult = Schemas["BulkDeleteDocumentResult"];
+export type BulkDeleteDocumentsResponse =
+  Schemas["BulkDeleteDocumentsResponse"];
+export type AdminDocumentDeletionItem = Schemas["AdminDocumentDeletionItem"];
+export type AdminDocumentDeletionListResponse =
+  Schemas["AdminDocumentDeletionListResponse"];
+export type RetryDeleteDocumentResponse =
+  Schemas["RetryDeleteDocumentResponse"];
 export type ReindexDocumentResponse = Schemas["ReindexDocumentResponse"];
-export type ReindexDocumentGraphResponse = {
-  document_id: string;
-  status: "pending" | "extracting" | "completed" | "failed" | "skipped";
-  queue_status: "queued";
-};
+export type ReindexDocumentGraphResponse =
+  Schemas["ReindexDocumentGraphResponse"];
 export type DocumentStatusResponse = Schemas["DocumentStatusResponse"] & {
   graph_extraction_status?:
     | "pending"
@@ -84,119 +47,14 @@ export type DocumentStatusResponse = Schemas["DocumentStatusResponse"] & {
     | "skipped"
     | null;
 };
-export type DocumentChunkTokenDistributionResponse = {
-  min_tokens: number;
-  max_tokens: number;
-  avg_tokens: number;
-  total_tokens: number;
-};
-export type DocumentChunkingAdaptiveSignalsResponse = {
-  file_type: string;
-  page_count: number;
-  total_token_count: number;
-  ocr_applied: boolean;
-  heading_density?: number | null;
-  avg_chars_per_page?: number | null;
-  avg_paragraph_tokens?: number | null;
-};
-export type DocumentChunkingDiagnosticsResponse = {
-  strategy?: string | null;
-  selected_strategy?: string | null;
-  profile_version?: string | null;
-  profile_source?: string | null;
-  chunk_size_tokens?: number | null;
-  chunk_overlap_tokens?: number | null;
-  embedding_model?: string | null;
-  index_version?: string | null;
-  embedding_provider_type?: string | null;
-  embedding_vector_dimension?: number | null;
-  ocr_applied?: boolean | null;
-  hierarchical_mode?: boolean;
-  parent_chunk_count?: number | null;
-  child_chunk_count?: number | null;
-  reason_codes: string[];
-  adaptive_signals?: DocumentChunkingAdaptiveSignalsResponse | null;
-  token_distribution?: DocumentChunkTokenDistributionResponse | null;
-};
-export type CitationPreviewResponse = {
-  citation_id: string;
-  document_id: string;
-  chunk_id: string;
-  filename: string;
-  document_title?: string | null;
-  document_type?: string | null;
-  document_owner_id?: string | null;
-  document_owner_email?: string | null;
-  document_owner_display_name?: string | null;
-  document_version_label?: string | null;
-  document_last_updated_at?: string | null;
-  document_last_indexed_at?: string | null;
-  page_number?: number | null;
-  chunk_index?: number | null;
-  section_path?: string | null;
-  source_section?: string | null;
-  source_provider?: string | null;
-  source_provider_label?: string | null;
-  source_title?: string | null;
-  source_key?: string | null;
-  source_url?: string | null;
-  source_link_allowed?: boolean;
-  document_url: string;
-  snippet: string;
-  highlight_start_offset?: number | null;
-  highlight_end_offset?: number | null;
-  source_start_offset?: number | null;
-  source_end_offset?: number | null;
-  source_last_synced_at?: string | null;
-  source_content_hash?: string | null;
-  source_sync_version?: number | null;
-  source_visibility?: string | null;
-  source_trust_status?:
-    | "trusted"
-    | "stale"
-    | "revoked"
-    | "deleted"
-    | "unknown"
-    | "uploaded"
-    | null;
-  freshness_state?:
-    | "current"
-    | "stale"
-    | "expired"
-    | "deprecated"
-    | "draft"
-    | "unreviewed"
-    | "unknown"
-    | null;
-  doc_trust_status?: string | null;
-  doc_quality_state?: DocumentQualityState | null;
-  doc_review_status?: string | null;
-  doc_review_owner_id?: string | null;
-  doc_review_due_date?: string | null;
-  doc_expiry_date?: string | null;
-  doc_version_label?: string | null;
-  doc_review_date?: string | null;
-  doc_effective_date?: string | null;
-  doc_stale_warning?: boolean;
-  doc_expired_warning?: boolean;
-  doc_is_excluded_status?: boolean;
-  doc_unreviewed_warning?: boolean;
-  doc_deprecated_warning?: boolean;
-  doc_draft_warning?: boolean;
-  doc_ocr_quality_status?:
-    | "high"
-    | "medium"
-    | "low"
-    | "failed"
-    | "not_required"
-    | null;
-  doc_ocr_low_confidence_warning?: boolean;
-  request_id?: string | null;
-};
-export type DocumentCollectionSummary = {
-  collection_id: string;
-  name: string;
-};
+export type DocumentChunkTokenDistributionResponse =
+  Schemas["DocumentChunkTokenDistributionResponse"];
+export type DocumentChunkingAdaptiveSignalsResponse =
+  Schemas["DocumentChunkingAdaptiveSignalsResponse"];
+export type DocumentChunkingDiagnosticsResponse =
+  Schemas["DocumentChunkingDiagnosticsResponse"];
+export type CitationPreviewResponse = Schemas["CitationPreviewResponse"];
+export type DocumentCollectionSummary = Schemas["DocumentCollectionSummary"];
 
 export type DocumentListItemResponse = Overlay<
   Schemas["DocumentListItemResponse"],
@@ -388,85 +246,23 @@ export type ExtractionSnapshot = {
   pages: ExtractionPageSummary[];
 };
 
-export type AdminLanguageOverrideRequest = {
-  language: string | null;
-};
+export type AdminLanguageOverrideRequest =
+  Schemas["AdminLanguageOverrideRequest"];
 
-export type AdminLanguageOverrideResponse = {
-  document_id: string;
-  language: string | null;
-  language_source: string | null;
-  language_confidence: number | null;
-  updated_at: string;
-};
+export type AdminLanguageOverrideResponse =
+  Schemas["AdminLanguageOverrideResponse"];
 
-export type AdminOcrConfigRequest = {
-  ocr_languages: string[] | null;
-};
+export type AdminOcrConfigRequest = Schemas["AdminOcrConfigRequest"];
 
-export type AdminOcrConfigResponse = {
-  document_id: string;
-  ocr_languages_override: string | null;
-  ocr_quality_snapshot: OcrQualitySnapshot | null;
-  updated_at: string;
-};
-export type AdminOcrRetryResponse = {
-  document_id: string;
-  ocr_quality_status: string | null;
-  ocr_avg_confidence: number | null;
-  queue_status: "queued";
-};
-export type AdminTrustStatusRequest = {
-  trust_status: string;
-  quality_state?: DocumentQualityState | null;
-  quality_notes?: string | null;
-  quality_owner_id?: string | null;
-  quality_reviewer_id?: string | null;
-  review_status?: string | null;
-  review_owner_id?: string | null;
-  review_due_date?: string | null;
-  expiry_date?: string | null;
-  trust_level?: string | null;
-  version_label?: string | null;
-  review_date?: string | null;
-  effective_date?: string | null;
-  stale_after_days?: number | null;
-  superseded_by_document_id?: string | null;
-};
-export type AdminTrustStatusResponse = {
-  document_id: string;
-  trust_status: string;
-  quality_state?: DocumentQualityState | null;
-  quality_notes?: string | null;
-  quality_owner_id?: string | null;
-  quality_reviewer_id?: string | null;
-  review_status: string;
-  review_owner_id?: string | null;
-  review_due_date?: string | null;
-  expiry_date?: string | null;
-  trust_level?: string | null;
-  version_label?: string | null;
-  review_date?: string | null;
-  effective_date?: string | null;
-  stale_after_days?: number | null;
-  superseded_by_document_id?: string | null;
-  trusted_at?: string | null;
-  updated_at: string;
-};
-export type BulkAdminTrustStatusRequest = AdminTrustStatusRequest & {
-  document_ids: string[];
-};
-export type BulkAdminTrustStatusResult = {
-  document_id: string;
-  status: "updated" | "skipped" | "error";
-  error?: string | null;
-};
-export type BulkAdminTrustStatusResponse = {
-  updated: number;
-  skipped: number;
-  errors: string[];
-  results: BulkAdminTrustStatusResult[];
-};
+export type AdminOcrConfigResponse = Schemas["AdminOcrConfigResponse"];
+export type AdminOcrRetryResponse = Schemas["AdminOcrRetryResponse"];
+export type AdminTrustStatusRequest = Schemas["AdminTrustStatusRequest"];
+export type AdminTrustStatusResponse = Schemas["AdminTrustStatusResponse"];
+export type BulkAdminTrustStatusRequest =
+  Schemas["BulkAdminTrustStatusRequest"];
+export type BulkAdminTrustStatusResult = Schemas["BulkAdminTrustStatusResult"];
+export type BulkAdminTrustStatusResponse =
+  Schemas["BulkAdminTrustStatusResponse"];
 export type DocumentChunkPreviewResponse =
   Schemas["DocumentChunkPreviewResponse"] & {
     section_path?: string | null;
@@ -551,19 +347,24 @@ export type ListDocumentsOptions = {
   sort_by?: DocumentSortBy;
   sort_order?: SortOrder;
   filename_query?: string;
+  /** Opaque keyset cursor from `next_cursor`; requires `sort_by=created_at`. */
+  cursor?: string;
+  /** Ask for `total` on a cursor page (the server omits it by default there). */
+  include_total?: boolean;
 };
 
 export type DocumentChunksOptions = {
   limit?: number;
   offset?: number;
   include_full_text?: boolean;
+  /** Return only this chunk (empty page when it is not in the document). */
+  chunk_id?: string;
 };
 
-export type ReindexDocumentRequest = {
-  chunking_profile_id?: string | null;
-  chunking_profile_config?: ChunkingProfileConfigInput | null;
-  force?: boolean;
-};
+export type ReindexDocumentRequest = Overlay<
+  WithOptional<Schemas["ReindexWithProfileRequest"], "force">,
+  { chunking_profile_config?: ChunkingProfileConfigInput | null }
+>;
 
 export async function uploadDocument(
   file: File,
@@ -621,6 +422,8 @@ export async function listDocuments(
       sort_by: options.sort_by,
       sort_order: options.sort_order,
       filename_query: options.filename_query || undefined,
+      cursor: options.cursor || undefined,
+      include_total: options.include_total,
     },
   });
 }
@@ -656,6 +459,7 @@ export async function getDocumentChunks(
         limit: options.limit,
         offset: options.offset,
         include_full_text: options.include_full_text,
+        chunk_id: options.chunk_id || undefined,
       },
     },
   );
@@ -825,39 +629,10 @@ export async function bulkUpdateDocumentTrustStatus(
 // Document versioning (F253)
 // ---------------------------------------------------------------------------
 
-export type DocumentVersionResponse = {
-  version_id: string;
-  document_id: string;
-  version_number: number;
-  change_reason:
-    | "initial_upload"
-    | "content_update"
-    | "metadata_update"
-    | "connector_sync"
-    | "reindex"
-    | "tombstone";
-  content_hash?: string | null;
-  extraction_hash?: string | null;
-  chunking_profile_snapshot?: Record<string, unknown> | null;
-  embedding_model?: string | null;
-  embedding_vector_dimension?: number | null;
-  index_version?: string | null;
-  filename: string;
-  page_count?: number | null;
-  chunk_count?: number | null;
-  status: string;
-  indexed_at?: string | null;
-  is_current: boolean;
-  source_updated_at?: string | null;
-  created_by_user_id?: string | null;
-  created_at: string;
-};
+export type DocumentVersionResponse = Schemas["DocumentVersionResponse"];
 
-export type DocumentVersionListResponse = {
-  document_id: string;
-  items: DocumentVersionResponse[];
-  total: number;
-};
+export type DocumentVersionListResponse =
+  Schemas["DocumentVersionListResponse"];
 
 export async function getDocumentVersions(
   documentId: string,

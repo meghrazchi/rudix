@@ -4,6 +4,7 @@ import de from "./messages/de.json";
 import en from "./messages/en.json";
 import { pickMessages } from "./messages";
 import {
+  ACCOUNT_NAMESPACES,
   ALL_NAMESPACES,
   APP_NAMESPACES,
   PUBLIC_NAMESPACES,
@@ -15,7 +16,11 @@ describe("message namespaces", () => {
   });
 
   it("lists only namespaces that exist, without duplicates", () => {
-    for (const list of [PUBLIC_NAMESPACES, APP_NAMESPACES]) {
+    for (const list of [
+      PUBLIC_NAMESPACES,
+      ACCOUNT_NAMESPACES,
+      APP_NAMESPACES,
+    ]) {
       expect(new Set(list).size).toBe(list.length);
       for (const namespace of list) {
         expect(ALL_NAMESPACES).toContain(namespace);
@@ -32,6 +37,29 @@ describe("message namespaces", () => {
     expect(PUBLIC_NAMESPACES).not.toContain("adminPermissions");
     expect(PUBLIC_NAMESPACES).not.toContain("chat");
     expect(PUBLIC_NAMESPACES).not.toContain("settings");
+  });
+
+  it("ships the 0.9.0 account namespaces apart from the marketing pages", () => {
+    expect(ACCOUNT_NAMESPACES).toEqual(["authAccount", "authMfa"]);
+    for (const namespace of ACCOUNT_NAMESPACES) {
+      expect(PUBLIC_NAMESPACES).not.toContain(namespace);
+      expect(APP_NAMESPACES).toContain(namespace);
+    }
+  });
+
+  it("places the 0.9.0 namespaces after auth and adminVectorIndex", () => {
+    const auth = ALL_NAMESPACES.indexOf("auth");
+    expect(ALL_NAMESPACES.slice(auth + 1, auth + 3)).toEqual([
+      "authAccount",
+      "authMfa",
+    ]);
+    const vectorIndex = ALL_NAMESPACES.indexOf("adminVectorIndex");
+    expect(ALL_NAMESPACES.slice(vectorIndex + 1, vectorIndex + 3)).toEqual([
+      "adminBots",
+      "adminEmail",
+    ]);
+    expect(APP_NAMESPACES).toContain("adminBots");
+    expect(APP_NAMESPACES).toContain("adminEmail");
   });
 });
 

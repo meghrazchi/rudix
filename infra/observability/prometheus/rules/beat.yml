@@ -1,0 +1,30 @@
+# Celery beat heartbeat (R08-09, B2; deferred from R02-03).
+#
+# Beat enqueues `ops.beat.heartbeat` every BEAT_HEARTBEAT_INTERVAL_SECONDS (default 60 s) on
+# the default queue; a default-pool worker sets rudix_beat_heartbeat_timestamp_seconds
+# (multiprocess mode `max`) to the time it ran. A stale value means beat stopped scheduling
+# or no worker consumes the default queue. Runbook: docs/17 "Scheduled syncs never start".
+groups:
+  - name: rudix-beat
+    rules:
+      - alert: RudixBeatHeartbeatStale
+        expr: time() - max(rudix_beat_heartbeat_timestamp_seconds) > 300
+        for: 5m
+        labels:
+          severity: critical
+          service: beat
+        annotations:
+          summary: "Celery beat heartbeat is {{ $value | humanizeDuration }} old"
+          description: "No ops.beat.heartbeat ran for more than 5 minutes. Scheduled work (connector polls, usage flush, outbox relay, reapers, retention) is not being enqueued or not executed. Check that exactly one beat runs (logs: 'Scheduler: Sending due task ops-beat-heartbeat') and that worker-default consumes the default queue."
+          runbook: "docs/17_CONNECTOR_OPERATIONS_RUNBOOK.md#scheduled-syncs-never-start"
+
+      - alert: RudixBeatHeartbeatMissing
+        expr: absent(rudix_beat_heartbeat_timestamp_seconds) and on() (count(up{job="rudix-worker"} == 1) > 0)
+        for: 15m
+        labels:
+          severity: warning
+          service: beat
+        annotations:
+          summary: "Workers are scraped but no beat heartbeat has ever been exported"
+          description: "Worker targets are up, yet rudix_beat_heartbeat_timestamp_seconds does not exist. Beat is not running, the default pool is not scraped, or METRICS_ENABLED is false on the workers (the heartbeat task records nothing then)."
+          runbook: "docs/17_CONNECTOR_OPERATIONS_RUNBOOK.md#scheduled-syncs-never-start"

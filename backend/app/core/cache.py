@@ -10,6 +10,9 @@ stale rows can only write an orphaned key.
 Every organisation-scoped namespace carries the organisation id in the key, so a value is
 never shared across organisations. Any Redis failure, a missing client, or the
 ``CACHE_ENABLED`` kill switch falls back to the loader (the database).
+
+Redis roles (R08-05): version keys always live on ``REDIS_URL`` (``redis_client``); values
+go to ``REDIS_CACHE_URL`` (``cache_redis_client``) when it is set, else to ``REDIS_URL``.
 """
 
 from __future__ import annotations
@@ -108,6 +111,19 @@ def value_key(scope: CacheScope, version: int, namespace: str, key_id: str) -> s
     return f"{_prefix()}:{scope.kind}:{scope.scope_id}:v{version}:{namespace}:{key_id}"
 
 
+def value_redis_client() -> Any:
+    """The client for cached values: ``REDIS_CACHE_URL``'s when set, else ``REDIS_URL``'s.
+
+    Version keys never use it (``_current_version`` and ``cache_invalidation._bump`` read
+    ``redis_client``), so evicting cached values cannot reset a version. ``None`` when
+    ``REDIS_CACHE_URL`` is set but its client is not connected (degraded boot): values then
+    miss instead of landing on the state Redis.
+    """
+    if settings.redis_cache_url is not None:
+        return redis_module.cache_redis_client
+    return redis_module.redis_client
+
+
 def _timeout_seconds() -> float:
     return settings.cache_operation_timeout_ms / 1000
 
@@ -193,6 +209,8 @@ async def get_or_load[T](
     if not settings.cache_enabled:
         record_error(namespace, "disabled")
         return await loader()
+    # R08-05: versions live with the state (REDIS_URL) so a cache eviction can never reset
+    # one; values go to REDIS_CACHE_URL when it is configured.
     client = redis_module.redis_client
     if client is None:
         record_error(namespace, "unavailable")
@@ -201,6 +219,10 @@ async def get_or_load[T](
         version = await _current_version(client, scope.kind, scope.scope_id)
     except Exception as exc:
         record_error(namespace, "version", exc)
+        return await loader()
+    value_client = value_redis_client()
+    if value_client is None:
+        record_error(namespace, "unavailable")
         return await loader()
 
     key = value_key(scope, version, namespace, key_id)
@@ -216,7 +238,7 @@ async def get_or_load[T](
     _inflight[key] = future
     try:
         value = await _load_and_store(
-            client=client,
+            client=value_client,
             key=key,
             namespace=namespace,
             ttl=ttl,

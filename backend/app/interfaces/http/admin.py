@@ -24,7 +24,7 @@ from app.application.admin.exports import (
     stream_json,
     stream_scalar_batches,
 )
-from app.auth.dependencies import require_roles
+from app.auth.dependencies import get_reporting_db_session, require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
 from app.domains.admin.repositories.usage import AUDIT_LOG_SORT_NAME, UsageRepository
@@ -592,7 +592,7 @@ async def get_admin_usage_dashboard(
         Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
     ],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
-    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    db_session: Annotated[AsyncSession, Depends(get_reporting_db_session)],
     from_date: Annotated[date | None, Query(alias="from")] = None,
     to_date: Annotated[date | None, Query(alias="to")] = None,
     granularity: UsageGranularity = "day",

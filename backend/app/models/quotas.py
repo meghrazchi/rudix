@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     CheckConstraint,
     DateTime,
@@ -37,6 +38,9 @@ class OrgQuotaPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     # {"uploads": {"soft_limit": 100, "hard_limit": 200, "reset_window": "per_day"}, ...}
     limits: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # 0.9.0 (R09-09, migration 20261129_0003): optional pipeline stages the plan allows.
+    # NULL means every optional stage is allowed (the behaviour before 0.9.0).
+    stage_limits: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     updated_by_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),

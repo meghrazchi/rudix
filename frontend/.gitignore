@@ -23,6 +23,10 @@
 /.next-e2e-ws/
 # Separate dist dir for e2e runs while a local `next dev` holds /.next
 /.next-e2e-main/
+# Playwright route-gate dev server (RUDIX_ROUTE_GATE=enforce, R07-09)
+/.next-e2e-gate/
+# Playwright request-mode production build (R08-11)
+/.next-e2e-runtime/
 /out/
 
 # production

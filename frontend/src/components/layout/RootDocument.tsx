@@ -1,10 +1,13 @@
 import { NextIntlClientProvider } from "next-intl";
+import Script from "next/script";
 import type { ReactNode } from "react";
 
 import { AppQueryProvider } from "@/components/providers/AppQueryProvider";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { CookieConsentBanner } from "@/components/consent/CookieConsentBanner";
+import { WebVitalsReporter } from "@/components/observability/WebVitalsReporter";
 import { getFrontendRuntimeConfigErrors } from "@/lib/runtime-config";
+import { runtimeConfigSource } from "@/lib/public-env";
 import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
 import { getLocaleDirection } from "@/i18n/direction";
@@ -38,15 +41,23 @@ export function RootDocument({
       className="h-full antialiased"
     >
       {/* Rendered by the root layouts, where <head> is the App Router way. */}
-      {/* eslint-disable-next-line @next/next/no-head-element */}
-      <head>
-        {/* anchor: A2 head */}
-        {/* eslint-disable-next-line @next/next/google-font-display, @next/next/no-page-custom-font */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
-        />
-      </head>
+      {/* Request mode only (R08-11): load the request-time public values
+          before any app module runs. The tag is static, so pages stay
+          prerendered. Build mode keeps the empty head, so its HTML and RSC
+          payload stay exactly as before. */}
+      {runtimeConfigSource() === "request" ? (
+        // eslint-disable-next-line @next/next/no-head-element
+        <head>
+          {/* anchor: A2 head */}
+          {/* The App Router allows beforeInteractive in a root layout (this
+              document is rendered by both); the lint rule predates it. */}
+          {/* eslint-disable-next-line @next/next/no-before-interactive-script-outside-document */}
+          <Script src="/runtime-config.js" strategy="beforeInteractive" />
+        </head>
+      ) : (
+        // eslint-disable-next-line @next/next/no-head-element
+        <head>{/* anchor: A2 head */}</head>
+      )}
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider locale={locale} messages={messages}>
           {runtimeConfigErrors.length > 0 ? (
@@ -57,6 +68,7 @@ export function RootDocument({
                 {children}
                 <CookieConsentBanner />
                 {/* anchor: A2 body */}
+                <WebVitalsReporter />
               </ConsentProvider>
             </AppQueryProvider>
           )}

@@ -23,6 +23,20 @@ export const PUBLIC_NAMESPACES = [
   "errors",
   "languageSwitcher",
   "public",
+  "states",
+] as const satisfies readonly MessageNamespace[];
+
+/**
+ * Namespaces of the signed-out account pages (0.9.0): email verification,
+ * password reset (`authAccount`, A1), and the MFA challenge step (`authMfa`,
+ * A2). They are shipped by A1's account layout next to PUBLIC_NAMESPACES,
+ * never by the marketing pages, so the public payload does not grow. The
+ * signed-in app ships them too (APP_NAMESPACES), for MFA enrolment in
+ * settings.
+ */
+export const ACCOUNT_NAMESPACES = [
+  "authAccount",
+  "authMfa",
 ] as const satisfies readonly MessageNamespace[];
 
 /**
@@ -35,6 +49,8 @@ export const APP_NAMESPACES = [
   "common",
   "navigation",
   "auth",
+  "authAccount",
+  "authMfa",
   "validation",
   "public",
   "dashboard",
@@ -51,6 +67,7 @@ export const APP_NAMESPACES = [
   "errors",
   "toasts",
   "languageSwitcher",
+  "states",
   "adminTeam",
   "help",
   "cookieConsent",
@@ -84,4 +101,6 @@ export const APP_NAMESPACES = [
   "adminPortability",
   "reports",
   "adminVectorIndex",
+  "adminBots",
+  "adminEmail",
 ] as const satisfies readonly MessageNamespace[];

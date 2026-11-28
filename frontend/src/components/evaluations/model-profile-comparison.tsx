@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -16,11 +17,17 @@ import {
 } from "@/lib/api/evaluations";
 import { getApiErrorMessage } from "@/lib/api/errors";
 
-const PROFILE_LABELS: Record<string, string> = {
-  cloud_baseline: "Cloud Baseline",
-  local_profile: "Local Profile",
-  fallback_profile: "Fallback Profile",
-};
+const KNOWN_PROFILES = new Set([
+  "cloud_baseline",
+  "local_profile",
+  "fallback_profile",
+]);
+
+function useProfileLabel(): (profile: string) => string {
+  const t = useTranslations("evaluations.modelProfiles");
+  return (profile) =>
+    KNOWN_PROFILES.has(profile) ? t(`profiles.${profile}`) : profile;
+}
 
 const PROFILE_COLORS: Record<
   string,
@@ -153,9 +160,9 @@ function GateBadge({
 }: {
   recommendation: ReleaseGateRecommendation;
 }) {
-  const label =
-    PROFILE_LABELS[recommendation.provider_profile] ??
-    recommendation.provider_profile;
+  const t = useTranslations("evaluations.modelProfiles");
+  const profileLabel = useProfileLabel();
+  const label = profileLabel(recommendation.provider_profile);
   return (
     <div
       className={`rounded-lg border p-3 ${
@@ -180,7 +187,7 @@ function GateBadge({
               : "bg-red-100 text-red-600"
           }`}
         >
-          {recommendation.is_ready ? "Ready" : "Not ready"}
+          {recommendation.is_ready ? t("ready") : t("notReady")}
         </span>
       </div>
       <p className="mt-1.5 text-xs text-gray-600">
@@ -214,6 +221,8 @@ function BenchmarkTriggerSection({
   suitesError: Error | null;
   onTriggered: () => void;
 }) {
+  const t = useTranslations("evaluations.modelProfiles");
+  const profileLabel = useProfileLabel();
   const [selectedSuite, setSelectedSuite] = useState("");
   const [selectedProfile, setSelectedProfile] = useState<
     "cloud_baseline" | "local_profile" | "fallback_profile"
@@ -230,7 +239,10 @@ function BenchmarkTriggerSection({
     onSuccess: (result) => {
       setTriggerError(null);
       setTriggerSuccess(
-        `Run queued: ${result.evaluation_run_id.slice(0, 8)}… (${result.provider_profile})`,
+        t("runQueued", {
+          id: result.evaluation_run_id.slice(0, 8),
+          profile: result.provider_profile,
+        }),
       );
       onTriggered();
     },
@@ -238,7 +250,7 @@ function BenchmarkTriggerSection({
   });
 
   if (isSuitesLoading) {
-    return <p className="text-sm text-gray-400">Loading benchmark suites…</p>;
+    return <p className="text-sm text-gray-400">{t("loadingSuites")}</p>;
   }
   if (suitesError) {
     return (
@@ -251,9 +263,7 @@ function BenchmarkTriggerSection({
 
   return (
     <div className="rounded-lg border border-[#ddd8ec] bg-[#f9f8fd] p-3">
-      <p className="mb-2 text-sm font-medium text-[#292442]">
-        Run a benchmark suite
-      </p>
+      <p className="mb-2 text-sm font-medium text-[#292442]">{t("runSuite")}</p>
       <div className="flex flex-wrap gap-2">
         <select
           value={selectedSuite}
@@ -262,7 +272,7 @@ function BenchmarkTriggerSection({
         >
           {suites.map((s) => (
             <option key={s.suite_id} value={s.suite_id}>
-              {s.name} ({s.case_count} cases)
+              {t("suiteOption", { name: s.name, count: s.case_count })}
             </option>
           ))}
         </select>
@@ -278,9 +288,13 @@ function BenchmarkTriggerSection({
           }
           className="rounded border border-[#cbc6dd] px-2 py-1 text-sm text-[#403b5f] focus:ring-1 focus:ring-[#8b5cf6] focus:outline-none"
         >
-          <option value="cloud_baseline">Cloud Baseline</option>
-          <option value="local_profile">Local Profile</option>
-          <option value="fallback_profile">Fallback Profile</option>
+          <option value="cloud_baseline">
+            {profileLabel("cloud_baseline")}
+          </option>
+          <option value="local_profile">{profileLabel("local_profile")}</option>
+          <option value="fallback_profile">
+            {profileLabel("fallback_profile")}
+          </option>
         </select>
         <button
           type="button"
@@ -292,7 +306,7 @@ function BenchmarkTriggerSection({
           }}
           className="rounded bg-[#8b5cf6] px-3 py-1 text-sm font-semibold text-white hover:bg-[#7c3aed] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {triggerMutation.isPending ? "Triggering…" : "Run benchmark"}
+          {triggerMutation.isPending ? t("triggering") : t("runBenchmark")}
         </button>
       </div>
       {triggerError && (
@@ -314,6 +328,8 @@ export function ModelProfileComparisonPanel({
   evaluationSetId = null,
   canAdmin = false,
 }: ModelProfileComparisonPanelProps) {
+  const t = useTranslations("evaluations.modelProfiles");
+  const profileLabel = useProfileLabel();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const reportQuery = useQuery({
@@ -340,12 +356,9 @@ export function ModelProfileComparisonPanel({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold text-[#292442]">
-            Model profile comparison
+            {t("title")}
           </h2>
-          <p className="mt-0.5 text-xs text-[#67627f]">
-            Cloud baseline vs local profile vs fallback — quality metrics and
-            release-gate recommendations.
-          </p>
+          <p className="mt-0.5 text-xs text-[#67627f]">{t("description")}</p>
         </div>
         <button
           type="button"
@@ -353,7 +366,7 @@ export function ModelProfileComparisonPanel({
           disabled={reportQuery.isFetching}
           className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] hover:bg-gray-50 disabled:opacity-60"
         >
-          {reportQuery.isFetching ? "Refreshing…" : "Refresh"}
+          {reportQuery.isFetching ? t("refreshing") : t("refresh")}
         </button>
       </div>
 
@@ -369,7 +382,7 @@ export function ModelProfileComparisonPanel({
       )}
 
       {reportQuery.isLoading ? (
-        <LoadingState title="Loading comparison report…" />
+        <LoadingState title={t("loadingReport")} />
       ) : reportQuery.isError ? (
         <ErrorState
           compact
@@ -379,8 +392,7 @@ export function ModelProfileComparisonPanel({
         />
       ) : report == null || report.profiles.length === 0 ? (
         <p className="rounded-lg border border-[#ddd8ec] bg-[#f9f8fd] p-4 text-sm text-[#67627f]">
-          No completed evaluation runs with provider profile labels found.
-          Trigger a benchmark run above to populate this report.
+          {t("empty")}
         </p>
       ) : (
         <div className="space-y-4">
@@ -390,7 +402,7 @@ export function ModelProfileComparisonPanel({
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="pr-4 pb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                    Metric
+                    {t("columns.metric")}
                   </th>
                   {report.profiles.map((p) => {
                     const colors = PROFILE_COLORS[p.provider_profile] ?? {
@@ -406,12 +418,11 @@ export function ModelProfileComparisonPanel({
                         <span
                           className={`inline-block rounded px-2 py-0.5 ${colors.bg} ${colors.text} border ${colors.border}`}
                         >
-                          {PROFILE_LABELS[p.provider_profile] ??
-                            p.provider_profile}
+                          {profileLabel(p.provider_profile)}
                         </span>
                         {p.run_count > 0 && (
                           <span className="ml-1 text-xs font-normal text-gray-400">
-                            ({p.run_count} run{p.run_count !== 1 ? "s" : ""})
+                            {t("runs", { count: p.run_count })}
                           </span>
                         )}
                       </th>
@@ -421,76 +432,76 @@ export function ModelProfileComparisonPanel({
               </thead>
               <tbody>
                 <MetricRow
-                  label="Retrieval Hit Rate"
+                  label={t("metrics.retrievalHitRate")}
                   profiles={report.profiles}
                   metricKey="retrieval_hit_rate"
                   asPercent
                 />
                 <MetricRow
-                  label="Citation Accuracy"
+                  label={t("metrics.citationAccuracy")}
                   profiles={report.profiles}
                   metricKey="citation_accuracy_score"
                   asPercent
                 />
                 <MetricRow
-                  label="Faithfulness"
+                  label={t("metrics.faithfulness")}
                   profiles={report.profiles}
                   metricKey="faithfulness_score"
                   asPercent
                 />
                 <MetricRow
-                  label="Answer Relevance"
+                  label={t("metrics.answerRelevance")}
                   profiles={report.profiles}
                   metricKey="answer_relevance_score"
                   asPercent
                 />
                 <MetricRow
-                  label="Not-Found Rate"
+                  label={t("metrics.notFoundRate")}
                   profiles={report.profiles}
                   metricKey="not_found_rate"
                   asPercent
                   higherIsBetter={false}
                 />
                 <MetricRow
-                  label="Avg Latency (ms)"
+                  label={t("metrics.avgLatency")}
                   profiles={report.profiles}
                   metricKey="latency_ms_average"
                   higherIsBetter={false}
                 />
                 <MetricRow
-                  label="Total Cost (USD)"
+                  label={t("metrics.totalCost")}
                   profiles={report.profiles}
                   metricKey="cost_usd_total"
                   higherIsBetter={false}
                 />
                 {/* Local-specific metrics */}
                 <LocalMetricsRow
-                  label="Invalid JSON Rate"
+                  label={t("metrics.invalidJson")}
                   profiles={report.profiles}
                   localKey="invalid_json_rate"
                   higherIsBetter={false}
                 />
                 <LocalMetricsRow
-                  label="Timeout Rate"
+                  label={t("metrics.timeout")}
                   profiles={report.profiles}
                   localKey="timeout_rate"
                   higherIsBetter={false}
                 />
                 <LocalMetricsRow
-                  label="Fallback Frequency"
+                  label={t("metrics.fallbackFrequency")}
                   profiles={report.profiles}
                   localKey="fallback_frequency"
                   higherIsBetter={false}
                 />
                 <LocalMetricsRow
-                  label="Est. Compute Latency (ms)"
+                  label={t("metrics.computeLatency")}
                   profiles={report.profiles}
                   localKey="estimated_compute_latency_ms"
                   asPercent={false}
                   higherIsBetter={false}
                 />
                 <LocalMetricsRow
-                  label="Tokens / Second"
+                  label={t("metrics.tokensPerSecond")}
                   profiles={report.profiles}
                   localKey="tokens_per_second"
                   asPercent={false}
@@ -508,7 +519,7 @@ export function ModelProfileComparisonPanel({
                 className="rounded border border-[#ddd8ec] bg-[#f9f8fd] px-3 py-1.5 text-xs text-gray-600"
               >
                 <span className="font-medium">
-                  {PROFILE_LABELS[p.provider_profile] ?? p.provider_profile}
+                  {profileLabel(p.provider_profile)}
                 </span>
                 {p.provider_type && (
                   <span className="ml-1 text-gray-400">
@@ -523,7 +534,7 @@ export function ModelProfileComparisonPanel({
           {report.release_gate_recommendations.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-[#292442]">
-                Release gate
+                {t("releaseGate")}
               </h3>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {report.release_gate_recommendations.map((rec) => (
@@ -531,22 +542,24 @@ export function ModelProfileComparisonPanel({
                 ))}
               </div>
               <p className="text-xs text-gray-400">
-                Thresholds:{" "}
-                {Object.entries(report.default_thresholds)
-                  .map(
-                    ([k, v]) =>
-                      `${k}=${typeof v === "number" && v < 1 ? `${(v * 100).toFixed(0)}%` : v}`,
-                  )
-                  .join(" · ")}
+                {t("thresholds", {
+                  value: Object.entries(report.default_thresholds)
+                    .map(
+                      ([k, v]) =>
+                        `${k}=${typeof v === "number" && v < 1 ? `${(v * 100).toFixed(0)}%` : v}`,
+                    )
+                    .join(" · "),
+                })}
               </p>
             </div>
           )}
 
           <p className="text-right text-xs text-gray-400">
-            Report generated{" "}
-            {new Date(report.generated_at).toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
+            {t("generated", {
+              date: new Date(report.generated_at).toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }),
             })}
           </p>
         </div>
