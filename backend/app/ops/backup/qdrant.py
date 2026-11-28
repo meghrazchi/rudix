@@ -6,8 +6,9 @@ client factory, downloads it over HTTP (``api-key`` header, streamed to disk), e
 uploads it, and deletes the snapshot from the server. An encrypted run manifest lists the
 collections, their objects, and the aliases; the ``qdrant`` marker points at it.
 
-Qdrant is rebuildable from PostgreSQL chunks and the embedding cache
-(docs/runbooks/DR_VECTOR_INDEX_LOSS.md); a snapshot restore is the faster path.
+Qdrant is rebuildable from PostgreSQL chunks (docs/runbooks/DR_VECTOR_INDEX_LOSS.md); a
+snapshot restore is the faster path. On a Qdrant cluster a collection snapshot holds only the
+shards of the node that answered (docs/runbooks/BACKUP_AND_RESTORE.md, "Backup kinds").
 """
 
 from __future__ import annotations

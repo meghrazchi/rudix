@@ -429,3 +429,20 @@ def test_object_paths_and_manifest_checks() -> None:
         objects_backup.parse_manifest(b'{"kind": "qdrant"}')
     with pytest.raises(objects_backup.ObjectMirrorError):
         objects_backup.parse_manifest(b'{"kind": "objects", "objects": []}')
+
+
+def test_small_helpers() -> None:
+    from app.ops.backup.store import is_missing
+
+    assert is_missing(ValueError("x")) is False
+    with pytest.raises(ValidationError):
+        BackupSettings(backup_prefix=5)
+
+
+def test_listing_stops_without_a_continuation_token() -> None:
+    class Truncated:
+        def list_objects_v2(self, **_: Any) -> dict[str, Any]:
+            return {"Contents": [{"Key": "a", "ETag": '"e"', "Size": 1}], "IsTruncated": True}
+
+    items = list(objects_backup.list_source_objects(Truncated(), "documents"))
+    assert [item.key for item in items] == ["a"]

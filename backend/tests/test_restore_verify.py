@@ -185,3 +185,11 @@ def test_cli_without_a_server(tmp_path: Path) -> None:
     argv = ["--database-url", URL, "--write-manifest", str(manifest)]
     assert module.main(argv, out=io.StringIO(), err=err, connect=boom) == 1
     assert err.getvalue().strip() == "verify failed: PostgresError"
+
+
+def test_expected_head_requires_a_single_head(monkeypatch: pytest.MonkeyPatch) -> None:
+    from alembic.script import ScriptDirectory
+
+    monkeypatch.setattr(ScriptDirectory, "get_heads", lambda self: ["a", "b"])
+    with pytest.raises(ValueError, match="one alembic head, found 2"):
+        restore_verify.expected_head()

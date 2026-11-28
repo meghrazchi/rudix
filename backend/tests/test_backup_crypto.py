@@ -256,3 +256,29 @@ def test_key_absent_from_logs_and_markers(tmp_path: Path) -> None:
         assert value not in dumped_logs
     assert json.loads(marker_text)["object_key"] == marker.object_key
     assert crypto.MAGIC not in client.objects[("rudix-backups", "rudix/postgres/latest.json")]
+
+
+class _EofThenData(io.RawIOBase):
+    """Signals end of stream once, then has more bytes (a pipe that was appended to)."""
+
+    def __init__(self, data: bytes, extra: bytes) -> None:
+        self._data, self._extra, self._eof_sent = io.BytesIO(data), extra, False
+
+    def readable(self) -> bool:
+        return True
+
+    def read(self, size: int = -1) -> bytes:
+        chunk = self._data.read(size)
+        if chunk:
+            return chunk
+        if not self._eof_sent:
+            self._eof_sent = True
+            return b""
+        extra, self._extra = self._extra, b""
+        return extra
+
+
+def test_data_after_a_signalled_end_of_stream_fails() -> None:
+    stream = _EofThenData(_encrypt(b"abc"), b"\x00")
+    with pytest.raises(BackupIntegrityError, match="after the final chunk"):
+        decrypt_stream(stream, io.BytesIO(), [make_key()])  # type: ignore[arg-type]

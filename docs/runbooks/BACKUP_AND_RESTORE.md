@@ -21,6 +21,12 @@
 | `objects` | `scripts/backup_run.py --kind objects` (incremental mirror of `MINIO_BUCKET`) | `<prefix>/objects/data/<sha256 of key>.rbk` and `<run>/manifest.json.rbk` | `backup_restore.py --kind objects`, then copy back |
 | `neo4j` | not built (Community edition has no online dump); an operator backup may write a marker | operator-defined | rebuild the graph from documents |
 
+Qdrant cluster caveat: a collection snapshot is taken by the node that answers
+`QDRANT_URL`. In distributed mode Qdrant snapshots only the shards that node holds, so the
+snapshot is complete only when that node has a replica of every shard (replication factor
+equal to the node count). Otherwise rely on the rebuild path or snapshot each node; check the
+Qdrant documentation for the deployed server version.
+
 Each successful run writes `<prefix>/<kind>/latest.json`: `completed_at`, `object_key`,
 `size_bytes`, `sha256` (of the ciphertext), `format_version`. A failed run leaves the previous
 marker, so a stuck job shows up as a stale marker.
