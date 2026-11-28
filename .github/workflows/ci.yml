@@ -78,6 +78,36 @@ jobs:
           docker run --rm -v "$RUNNER_TEMP/helm:/m:ro" ghcr.io/yannh/kubeconform:v0.6.7 \
             -strict -summary -ignore-missing-schemas -kubernetes-version 1.30.0 /m
 
+      # R08-09: rule syntax, promtool unit tests (prometheus/tests/*.yml), and both scrape
+      # configs, on a copy with a placeholder token file at the path the deploy config reads.
+      - name: Check Prometheus rules
+        run: |
+          prom="$RUNNER_TEMP/prometheus"
+          cp -R infra/observability/prometheus "$prom"
+          mkdir -p "$prom/secrets"
+          printf 'placeholder\n' > "$prom/secrets/metrics_token"
+          run_promtool() {
+            docker run --rm --entrypoint promtool -v "$prom:/etc/prometheus:ro" \
+              -w /etc/prometheus prom/prometheus:v2.54.1 "$@"
+          }
+          run_promtool check rules alerts.yml $(cd "$prom" && ls rules/*.yml)
+          run_promtool test rules $(cd "$prom" && ls tests/*.yml)
+          run_promtool check config --syntax-only prometheus.yml prometheus.deploy.yml
+
+      - name: Check Alertmanager config
+        run: |
+          am="$RUNNER_TEMP/alertmanager"
+          mkdir -p "$am/secrets"
+          cp infra/observability/alertmanager/*.yml "$am/"
+          printf 'https://pager.invalid/hook\n' > "$am/secrets/oncall_pager_url"
+          printf 'https://ticket.invalid/hook\n' > "$am/secrets/oncall_ticket_url"
+          docker run --rm --entrypoint amtool -v "$am:/etc/alertmanager:ro" \
+            prom/alertmanager:v0.27.0 check-config \
+            /etc/alertmanager/alertmanager.yml /etc/alertmanager/alertmanager.deploy.yml
+
+      - name: Check observability compose
+        run: deploy/scripts/check_observability_config.sh
+
       - name: Check compose files
         run: deploy/scripts/check_compose_config.sh
 
