@@ -190,6 +190,8 @@
     "inviteCodeRequired": "برای پیوستن به فضای کاری، کد دعوت الزامی است",
     "termsRequired": "برای ایجاد حساب باید شرایط را بپذیرید"
   },
+  "authAccount": {},
+  "authMfa": {},
   "validation": {
     "emailRequired": "وارد کردن ایمیل الزامی است",
     "emailInvalid": "یک نشانی ایمیل معتبر وارد کنید",
@@ -8819,5 +8821,7 @@
       "restrictedTitle": "دسترسی مدیر محدود است",
       "restrictedDescription": "فقط مالکان و مدیران می‌توانند وضعیت نمایه برداری را ببینند."
     }
-  }
+  },
+  "adminBots": {},
+  "adminEmail": {}
 }

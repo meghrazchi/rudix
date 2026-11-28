@@ -190,6 +190,8 @@
     "inviteCodeRequired": "Zum Beitritt ist ein Einladungscode erforderlich",
     "termsRequired": "Sie müssen den Bedingungen zustimmen, um ein Konto zu erstellen"
   },
+  "authAccount": {},
+  "authMfa": {},
   "validation": {
     "emailRequired": "E-Mail ist erforderlich",
     "emailInvalid": "Geben Sie eine gültige E-Mail-Adresse ein",
@@ -8821,5 +8823,7 @@
       "restrictedTitle": "Admin-Zugriff eingeschränkt",
       "restrictedDescription": "Nur Inhaber und Admins können den Status des Vektorindex sehen."
     }
-  }
+  },
+  "adminBots": {},
+  "adminEmail": {}
 }

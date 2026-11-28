@@ -190,6 +190,8 @@
     "inviteCodeRequired": "Invite code is required to join a workspace",
     "termsRequired": "You must accept the terms to create an account"
   },
+  "authAccount": {},
+  "authMfa": {},
   "validation": {
     "emailRequired": "Email is required",
     "emailInvalid": "Enter a valid email address",
@@ -8694,5 +8696,7 @@
       "restrictedTitle": "Admin access restricted",
       "restrictedDescription": "Only owners and admins can view the vector index status."
     }
-  }
+  },
+  "adminBots": {},
+  "adminEmail": {}
 }

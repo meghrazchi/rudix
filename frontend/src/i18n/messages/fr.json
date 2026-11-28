@@ -190,6 +190,8 @@
     "inviteCodeRequired": "Un code d’invitation est requis pour rejoindre un espace de travail",
     "termsRequired": "Vous devez accepter les conditions pour créer un compte"
   },
+  "authAccount": {},
+  "authMfa": {},
   "validation": {
     "emailRequired": "L’e-mail est requis",
     "emailInvalid": "Saisissez une adresse e-mail valide",
@@ -8821,5 +8823,7 @@
       "restrictedTitle": "Accès administrateur restreint",
       "restrictedDescription": "Seuls les propriétaires et les administrateurs peuvent voir l'état de l'index vectoriel."
     }
-  }
+  },
+  "adminBots": {},
+  "adminEmail": {}
 }

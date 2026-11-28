@@ -190,6 +190,8 @@
     "inviteCodeRequired": "رمز الدعوة مطلوب للانضمام إلى مساحة عمل",
     "termsRequired": "يجب قبول الشروط لإنشاء حساب"
   },
+  "authAccount": {},
+  "authMfa": {},
   "validation": {
     "emailRequired": "البريد الإلكتروني مطلوب",
     "emailInvalid": "أدخل عنوان بريد إلكتروني صالحًا",
@@ -8815,5 +8817,7 @@
       "restrictedTitle": "وصول المسؤول مقيّد",
       "restrictedDescription": "يمكن للمالكين والمسؤولين فقط عرض حالة الفهرس المتجهي."
     }
-  }
+  },
+  "adminBots": {},
+  "adminEmail": {}
 }
