@@ -14,8 +14,6 @@ import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuthSession } from "@/lib/use-auth-session";
-import { RealtimeInvalidator } from "@/lib/realtime/invalidation";
-import { RealtimeStreamClient } from "@/lib/realtime/stream-client";
 import type { RealtimeStatus } from "@/lib/realtime/types";
 
 export function isRealtimeEnabled(): boolean {
@@ -103,21 +101,36 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     if (!isRealtimeEnabled() || !userId) {
       return;
     }
-    const invalidator = new RealtimeInvalidator(queryClient);
-    const client = new RealtimeStreamClient({
-      onEvent: (event) => invalidator.handle(event),
-      onStatus: setRealtimeStatus,
-      onResync: () => invalidator.resync(),
-    });
-    const syncVisibility = () => client.setVisible(!documentHidden());
+    let disposed = false;
+    let teardown: (() => void) | null = null;
     setRealtimeStatus("connecting");
-    client.start();
-    syncVisibility();
-    document.addEventListener("visibilitychange", syncVisibility);
+    // Loaded on demand: with the flag off (the default) no stream code is downloaded.
+    void Promise.all([
+      import("@/lib/realtime/invalidation"),
+      import("@/lib/realtime/stream-client"),
+    ]).then(([{ RealtimeInvalidator }, { RealtimeStreamClient }]) => {
+      if (disposed) {
+        return;
+      }
+      const invalidator = new RealtimeInvalidator(queryClient);
+      const client = new RealtimeStreamClient({
+        onEvent: (event) => invalidator.handle(event),
+        onStatus: setRealtimeStatus,
+        onResync: () => invalidator.resync(),
+      });
+      const syncVisibility = () => client.setVisible(!documentHidden());
+      client.start();
+      syncVisibility();
+      document.addEventListener("visibilitychange", syncVisibility);
+      teardown = () => {
+        document.removeEventListener("visibilitychange", syncVisibility);
+        client.stop();
+        invalidator.dispose();
+      };
+    });
     return () => {
-      document.removeEventListener("visibilitychange", syncVisibility);
-      client.stop();
-      invalidator.dispose();
+      disposed = true;
+      teardown?.();
       setRealtimeStatus("disabled");
     };
   }, [queryClient, userId, organizationId]);

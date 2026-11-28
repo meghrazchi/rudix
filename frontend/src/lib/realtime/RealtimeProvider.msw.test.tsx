@@ -209,6 +209,13 @@ describe("RealtimeProvider with the documents page (MSW)", () => {
     view.unmount();
   });
 
+  it("opens nothing when unmounted before the stream code loads", async () => {
+    const view = renderPage();
+    view.unmount();
+    await advance(1_000);
+    expect(streamRequests).toHaveLength(0);
+  });
+
   it("polls at the fallback interval while the stream is unavailable", async () => {
     streamStatus = 503;
     const view = renderPage();
