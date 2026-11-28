@@ -2828,7 +2828,15 @@
       "closeKnowledgeHub": "Knowledge Hub schließen",
       "answerExplanation": "Antworterklärung",
       "saveKnowledgeCard": "Als Wissenskarte speichern",
-      "closeAnswerExplanation": "Antworterklärung schließen"
+      "closeAnswerExplanation": "Antworterklärung schließen",
+      "assistantName": "Rudix AI",
+      "emptyGreeting": "Rudix ist für Sie da.",
+      "explainAnswerShort": "Antwort erklären",
+      "staleCitationsNotice": "Einige Zitate stammen aus veralteten, abgelaufenen oder archivierten Quellen.",
+      "deleteSessionBody": "Diese Sitzung wird endgültig aus dem Arbeitsbereich gelöscht. Dies kann nicht rückgängig gemacht werden.",
+      "loadingChunkText": "Abschnittstext wird geladen ...",
+      "citationPageUpper": "SEITE {page}",
+      "citationScoreLower": "Wert {score}"
     },
     "composer": {
       "scopeCollection": "Sammlung",
@@ -2975,6 +2983,449 @@
         "extraction": "Table extraction",
         "dimensions": "({rows} rows × {columns} columns)",
         "headers": "Headers: {headers}"
+      }
+    },
+    "trustPanel": {
+      "na": "k. A.",
+      "yes": "Ja",
+      "unknownDocument": "Unbekanntes Dokument",
+      "source": "Quelle",
+      "pageShort": "S. {page}",
+      "level": {
+        "high": "Hoch",
+        "medium": "Mittel",
+        "warning": "Warnung",
+        "notFound": "Nicht gefunden",
+        "low": "Niedrig"
+      },
+      "badge": {
+        "trusted": "Vertrauenswürdig",
+        "stale": "Veraltet",
+        "revoked": "Widerrufen",
+        "deleted": "Gelöscht",
+        "expired": "Abgelaufen",
+        "deprecated": "Veraltet (abgelöst)",
+        "draft": "Entwurf",
+        "unreviewed": "Ungeprüft",
+        "preferred": "Bevorzugt",
+        "conflicting": "Widersprüchlich",
+        "supported": "Belegt",
+        "partial": "Teilweise",
+        "unverifiable": "Nicht prüfbar",
+        "unsupported": "Nicht belegt",
+        "ocrLow": "OCR: geringe Sicherheit",
+        "ocrMedium": "OCR: mittel",
+        "tableLow": "Tabelle: geringe Sicherheit",
+        "corrupted": "Beschädigt",
+        "unsupportedFormat": "Nicht unterstütztes Format",
+        "encrypted": "Verschlüsselt",
+        "extractionIssue": "Extraktionsproblem",
+        "processingIncomplete": "Verarbeitung unvollständig",
+        "guidance": "Allgemeine Produkthinweise"
+      },
+      "range": {
+        "from": "ab {value}",
+        "upTo": "bis {value}"
+      },
+      "complexity": {
+        "simple": "einfach",
+        "complex": "komplex",
+        "multiPart": "mehrteilig"
+      },
+      "summary": {
+        "scope": "Bereich: {scope}",
+        "scopeAll": "Bereich: alle Dokumente",
+        "profile": "Profil: {profile}",
+        "candidates": "{count, plural, one {# Kandidat} other {# Kandidaten}} geprüft",
+        "chunks": "{count, plural, one {# Abschnitt} other {# Abschnitte}} ausgewählt",
+        "topK": "Top-k {value}",
+        "mode": "Modus: {mode}",
+        "rerankFellBack": "Neubewertung auf Rückfall umgestellt",
+        "rerankFellBackReason": "Neubewertung auf Rückfall umgestellt ({reason})",
+        "rerankApplied": "Neubewertung wurde angewendet",
+        "rerankOff": "Neubewertung war aus"
+      },
+      "warn": {
+        "lowConfidence": "Geringe Sicherheit — prüfen Sie diese Antwort anhand der zitierten Quellen.",
+        "citationFailed": "Zitatprüfung fehlgeschlagen — einige Zitate konnten nicht verifiziert werden.",
+        "verificationFailed": "Antwortprüfung fehlgeschlagen — Aussagen sind möglicherweise nicht vollständig belegt.",
+        "sourcesStale": "Mindestens eine Quelle ist möglicherweise veraltet oder ungeprüft.",
+        "allExcluded": "Alle vertrauenswürdigen Quellen wurden ausgeschlossen. Die Antwort nutzt veraltete oder abgelaufene Inhalte.",
+        "citedStale": "Mindestens eine zitierte Quelle ist veraltet oder abgelaufen.",
+        "citedPending": "Mindestens eine zitierte Quelle wartet auf Prüfung.",
+        "citedDeprecated": "Mindestens eine zitierte Quelle ist veraltet oder archiviert.",
+        "citedOcr": "Bei mindestens einer Quelle ist die OCR-Sicherheit gering — die Textgenauigkeit kann eingeschränkt sein.",
+        "tableLow": "Mindestens eine zitierte Tabelle hat geringe Extraktionssicherheit — Tabellendaten sind möglicherweise ungenau.",
+        "extractionPoor": "Bei mindestens einem Quelldokument ist die Extraktionsqualität schlecht — die Textabdeckung ist möglicherweise unvollständig.",
+        "processingIncomplete": "Bei mindestens einem Quelldokument ist die Verarbeitung unvollständig oder fehlgeschlagen — Inhalte fehlen möglicherweise.",
+        "removedClaims": "{count} nicht belegte Aussage(n) wurden aus der Antwort entfernt.",
+        "weakSupport": "Die Belegung durch Zitate ist schwach — prüfen Sie die zugeordneten Aussagen.",
+        "unsupportedClaims": "{unsupported}/{total} Aussage(n) sind nicht durch Zitate belegt.",
+        "conflictSummary": "Quellenkonflikt: {summary}",
+        "conflictDefault": "Die Quellen widersprechen sich bei mindestens einer Aussage. Bevorzugen Sie die markierte Quelle.",
+        "conflictPartial": "Die Quellen widersprechen sich teilweise. Prüfen Sie die Aussagen anhand der zitierten Quellen."
+      },
+      "header": {
+        "modeAria": "Modus der Abrufdiagnose",
+        "basic": "Einfach",
+        "expert": "Experte",
+        "answerExplanation": "Antworterklärung",
+        "modelView": "Modellansicht",
+        "description": "Sicherheit, Quellenauswahl und Zitatbelege sind in einem Prüfbereich zusammengefasst.",
+        "saveAria": "Als Wissenskarte speichern",
+        "saveAsCard": "Als Karte speichern",
+        "reportAria": "Ein Problem mit dieser Antwort melden",
+        "reportIssue": "Problem melden"
+      },
+      "sources": {
+        "title": "Quellen ({count})",
+        "updated": "Aktualisiert {date}",
+        "synced": "Synchronisiert {date}",
+        "score": "Wert {score}",
+        "rerank": "Neubewertung {score}",
+        "table": "Tabelle",
+        "previewAria": "{title} ansehen"
+      },
+      "claims": {
+        "title": "Belege für Aussagen ({supported}/{total})",
+        "aggregate": "Gesamtbeleg",
+        "verificationScore": "Prüfwert",
+        "supported": "Belegte Aussagen",
+        "partial": "Teilweise belegte Aussagen",
+        "unsupported": "Nicht belegte Aussagen",
+        "unverifiable": "Nicht prüfbare Aussagen",
+        "claimN": "Aussage {n}",
+        "supportPct": "Beleg {pct}",
+        "previewAria": "Quelle {index} für Aussage {claim} ansehen",
+        "sourceN": "Quelle {index}",
+        "noMapped": "Dieser Aussage sind keine geprüften Zitate zugeordnet.",
+        "noMapping": "Die Zuordnung von Zitaten zu Aussagen ist für diesen Antwortstand nicht verfügbar."
+      },
+      "confidence": {
+        "title": "Vertrauenswert",
+        "scoreAria": "Sicherheitswert",
+        "signals": "Sicherheitssignale",
+        "category": {
+          "low": "niedrig",
+          "medium": "mittel",
+          "high": "hoch"
+        },
+        "topSimilarity": "Höchste Ähnlichkeit",
+        "avgSimilarity": "Mittlere Ähnlichkeit",
+        "rerankScore": "Neubewertungswert",
+        "citationCoverage": "Zitatabdeckung",
+        "citationSupport": "Zitatbeleg",
+        "sourceAgreement": "Quellenübereinstimmung",
+        "freshnessFactor": "Aktualitätsfaktor",
+        "ocrFactor": "OCR-Qualitätsfaktor",
+        "conflictFactor": "Konfliktfaktor",
+        "tableFactor": "Tabellenqualitätsfaktor",
+        "extractionFactor": "Extraktionsqualitätsfaktor",
+        "graphBoost": "Graph-Bonus"
+      },
+      "conflict": {
+        "title": "Quellenkonflikt",
+        "pairs": "{count, plural, one {# Konfliktpaar} other {# Konfliktpaare}}",
+        "sourcesInConflict": "Widersprüchliche Quellen",
+        "preferredCount": "Anzahl bevorzugter Quellen",
+        "noPreferred": "Es konnte keine bevorzugte Quelle bestimmt werden — behandeln Sie alle Quellen mit gleicher Vorsicht.",
+        "level": {
+          "full": "Volle Übereinstimmung",
+          "partial": "Teilweise Übereinstimmung",
+          "conflicting": "Widersprüchliche Quellen"
+        },
+        "detected": "Quellenkonflikt erkannt",
+        "comparison": "Quellenvergleich",
+        "preferredIds": "IDs der bevorzugten Quellen: {ids}",
+        "preferredSources": "Bevorzugte Quellen",
+        "conflictingSources": "Widersprüchliche Quellen",
+        "document": "Dokument",
+        "noSnippet": "Kein Auszug verfügbar."
+      },
+      "graph": {
+        "title": "Wissensgraph",
+        "unavailable": "Graph-Kontext nicht verfügbar.",
+        "seedEntities": "Startentitäten",
+        "relatedEntities": "Verwandte Entitäten",
+        "chunks": "Graph-Abschnitte",
+        "maxHops": "Max. Sprünge",
+        "relationTypes": "Beziehungstypen"
+      },
+      "model": {
+        "title": "Modell",
+        "provider": "Anbieter",
+        "llmModel": "LLM-Modell",
+        "embeddings": "Embeddings",
+        "promptTemplate": "Prompt-Vorlage",
+        "fallbackFrom": "Rückfall von",
+        "fallbackPrimary": "primär",
+        "fallbackTo": "Rückfall auf",
+        "fallbackReason": "Rückfallgrund",
+        "detectedLanguage": "Erkannte Sprache",
+        "answerLanguage": "Antwortsprache"
+      },
+      "policy": {
+        "title": "Richtlinie",
+        "outcome": "Ergebnis",
+        "violated": "Verletzte Regeln",
+        "warnings": "Warnungen"
+      },
+      "pipeline": {
+        "title": "Antwort-Pipeline",
+        "strategy": "Strategie",
+        "highRisk": "Prüfung bei hohem Risiko",
+        "criticSeverity": "Schweregrad der Kritik",
+        "refiner": "Überarbeitung",
+        "refinerRevised": "Angewendet — Antwort überarbeitet",
+        "refinerNoChange": "Angewendet — keine Änderungen",
+        "claimsRemoved": "Entfernte Aussagen",
+        "criticWarnings": "Warnungen der Kritik",
+        "strategies": {
+          "policy_lookup": "Richtliniensuche",
+          "comparison": "Vergleich",
+          "legal_compliance": "Recht / Compliance",
+          "table_heavy": "Tabellenlastig",
+          "graph_assisted": "Graph-gestützt",
+          "connector_search": "Konnektorsuche",
+          "standard": "Standard"
+        },
+        "severity": {
+          "none": "keine",
+          "low": "niedrig",
+          "medium": "mittel",
+          "high": "hoch"
+        }
+      },
+      "query": {
+        "title": "Anfrageinterpretation",
+        "intent": "Absicht",
+        "strategy": "Strategie",
+        "complexity": "Komplexität",
+        "rewritePreview": "Vorschau der Umformulierung",
+        "subQueries": "Teilanfragen",
+        "rewriteDisabled": "Die Vorschau der Umformulierung ist durch die Organisationsrichtlinie deaktiviert."
+      },
+      "diag": {
+        "title": "Abrufdiagnose",
+        "candidates": "Kandidaten",
+        "selectedChunks": "Ausgewählte Abschnitte",
+        "topK": "Top-k",
+        "searchMode": "Suchmodus",
+        "scopeMode": "Bereichsmodus",
+        "scopeLabel": "Bereichsbezeichnung",
+        "profile": "Profil",
+        "profileScope": "Profilbereich",
+        "profileSource": "Profilquelle",
+        "requestId": "Anfrage-ID",
+        "traceId": "Trace-ID",
+        "rerankRange": "Bereich der Neubewertung",
+        "vectorHits": "Vektortreffer",
+        "keywordHits": "Stichworttreffer",
+        "reranker": "Neubewerter",
+        "enabled": "Aktiviert",
+        "rerankFallback": "Neubewertungs-Rückfall",
+        "parentExpansion": "Eltern-Erweiterung",
+        "parentChunks": "{count} Abschnitte",
+        "parentTokens": "Eltern-Token",
+        "freshnessBoosted": "Aktualität angehoben",
+        "excluded": "Ausgeschlossen (veraltet/abgelaufen)",
+        "staleSources": "Veraltete Quellen",
+        "unreviewedSources": "Ungeprüfte Quellen",
+        "deprecatedSources": "Veraltete (abgelöste) Quellen",
+        "allExcludedFallback": "Rückfall bei vollständigem Ausschluss",
+        "ocrLowChunks": "OCR-Abschnitte mit geringer Sicherheit"
+      },
+      "method": {
+        "title": "Suchstrategie",
+        "method": "Methode",
+        "override": "Überschreibung",
+        "overrideUser": "Vom Benutzer festgelegt",
+        "overrideAdmin": "Admin-Profil",
+        "selection": "Auswahl",
+        "auto": "Automatisch gewählt"
+      },
+      "selection": {
+        "title": "Quellenauswahl",
+        "request": "Anfrage {id}",
+        "trace": "Trace {id}",
+        "mode": "Modus {mode}",
+        "rerankFallback": "Neubewertungs-Rückfall",
+        "rerankOn": "Neubewertung an",
+        "rerankOff": "Neubewertung aus"
+      },
+      "tools": {
+        "title": "Werkzeug-Orchestrierung",
+        "evaluated": "Geprüfte Werkzeuge",
+        "authorized": "Autorisiert",
+        "denied": "Abgelehnt",
+        "deniedDefault": "Abgelehnt",
+        "reason": {
+          "org_policy_disabled": "Durch Richtlinie deaktiviert",
+          "feature_unavailable": "Funktion nicht verfügbar",
+          "insufficient_role": "Unzureichende Rolle",
+          "insufficient_permission": "Unzureichende Berechtigung",
+          "source_scope_mismatch": "Bereich passt nicht"
+        }
+      },
+      "verification": {
+        "title": "Überprüfung",
+        "verdict": "Urteil",
+        "score": "Wert",
+        "claimsChecked": "Geprüfte Aussagen",
+        "supported": "Belegt",
+        "unsupported": "Nicht belegt",
+        "removed": "Entfernt",
+        "verifierModel": "Prüfmodell"
+      },
+      "excerpt": {
+        "cited": "Zitierter Auszug",
+        "chunk": "Text des zitierten Abschnitts"
+      }
+    },
+    "activity": {
+      "timelineAria": "Zeitleiste der Antworterstellung",
+      "stepsAria": "Aktivitätsschritte",
+      "milliseconds": "{value} ms",
+      "seconds": "{value} s"
+    },
+    "feedback": {
+      "title": {
+        "edit": "Feedback bearbeiten",
+        "new": "Problem melden"
+      },
+      "closeAria": "Feedback-Dialog schließen",
+      "issueType": "Art des Problems (optional)",
+      "categoryLegend": "Feedback-Kategorie",
+      "noneOfAbove": "Keine der genannten",
+      "additionalClassification": "Zusätzliche Einordnung (optional)",
+      "legacyLegend": "Frühere Begründung",
+      "noneSkip": "Keine / möchte ich nicht angeben",
+      "details": "Weitere Details (optional)",
+      "placeholder": "Beschreiben Sie das Problem …",
+      "removing": "Wird entfernt …",
+      "remove": "Feedback entfernen",
+      "cancel": "Abbrechen",
+      "submitting": "Wird gesendet …",
+      "submit": "Senden",
+      "reasons": {
+        "wrong_citation": "Falsches oder fehlendes Zitat",
+        "hallucination": "Nicht belegte oder erfundene Aussage",
+        "outdated_source": "Veraltete Quelle",
+        "missing_document": "Relevantes Dokument nicht verwendet",
+        "unsafe_content": "Unsichere oder sensible Inhalte",
+        "other": "Sonstiges"
+      },
+      "categoryLabels": {
+        "wrong_answer": "Falsche Antwort",
+        "bad_citation": "Fehlerhaftes Zitat",
+        "missing_citation": "Fehlendes Zitat",
+        "missing_source": "Fehlende Quelle",
+        "outdated_source": "Veraltete Quelle",
+        "hallucination_risk": "Risiko von Halluzination",
+        "conflict_not_detected": "Konflikt nicht erkannt",
+        "unclear_answer": "Unklare Antwort",
+        "should_have_said_not_found": "Hätte „nicht gefunden“ melden sollen"
+      },
+      "categoryDescriptions": {
+        "wrong_answer": "Die Antwort ist sachlich falsch",
+        "bad_citation": "Zitat ist falsch, fehlt oder ist irrelevant",
+        "missing_citation": "Ein erwartetes Zitat fehlt",
+        "missing_source": "Eine relevante Quelle wurde nicht verwendet oder angezeigt",
+        "outdated_source": "Das Quellmaterial ist nicht mehr aktuell",
+        "hallucination_risk": "Die Antwort ist möglicherweise nicht belegt oder erfunden",
+        "conflict_not_detected": "Widersprüchliche Quellen wurden nicht markiert",
+        "unclear_answer": "Die Antwort ist zu vage oder unvollständig",
+        "should_have_said_not_found": "Das System hätte ablehnen oder „nicht gefunden“ melden sollen"
+      },
+      "trustCategoryDescriptions": {
+        "bad_citation": "Ein Zitat ist falsch, irrelevant oder verweist auf die falsche Stelle",
+        "missing_source": "Die Antwort hätte eine fehlende Quelle verwenden sollen",
+        "outdated_source": "Die zitierte Quelle ist veraltet oder nicht mehr korrekt",
+        "conflict_not_detected": "Das Modell hat einen Konflikt zwischen Quellen übersehen",
+        "should_have_said_not_found": "Es gibt keine relevanten Informationen – das Modell hätte das sagen sollen"
+      },
+      "trust": {
+        "title": "Antwortproblem melden",
+        "closeAria": "Meldungsdialog schließen",
+        "question": "Was ist an dieser Antwort falsch?",
+        "categoryLegend": "Problemkategorie",
+        "otherNotListed": "Sonstiges / nicht aufgeführt",
+        "flagSources": "Bestimmte Quellen markieren (optional)",
+        "placeholder": "Beschreiben Sie, was falsch war …",
+        "traceId": "Trace-ID: <mono>{id}</mono>",
+        "reporting": "Wird gemeldet …",
+        "report": "Problem melden"
+      },
+      "unknownSource": "Unbekannte Quelle"
+    },
+    "share": {
+      "expiry": {
+        "never": "Nie",
+        "24h": "24 Stunden",
+        "7d": "7 Tage",
+        "30d": "30 Tage"
+      },
+      "close": "Schließen",
+      "copyLink": "Link kopieren",
+      "revokeLink": "Link widerrufen",
+      "createLink": "Link erstellen",
+      "expiresLabel": "Läuft ab:",
+      "generate": "Link generieren",
+      "creating": "Wird erstellt ...",
+      "loadingLinks": "Freigabelinks werden geladen ...",
+      "activeLinks": "Aktive Links",
+      "expiresValue": "Läuft ab: {value}",
+      "accessOrg": "Organisation",
+      "accessSpecific": "Bestimmte Benutzer",
+      "passwordProtected": "Passwortgeschützt",
+      "answerModal": {
+        "title": "Antwort teilen",
+        "description": "Erstellen Sie einen berechtigungsgesteuerten Link zu diesem Frage-Antwort-Austausch.",
+        "notice": "Betrachter müssen angemeldete Mitglieder Ihrer Organisation sein. Zitate zeigen nur Auszugstext — zugrunde liegende Dokument-IDs werden nicht offengelegt.",
+        "access": "Zugriff",
+        "userIds": "Benutzer-IDs (durch Komma oder Leerzeichen getrennt)",
+        "userIdsPlaceholder": "uuid-1, uuid-2, ...",
+        "requirePassword": "Passwort verlangen",
+        "passwordPlaceholder": "Link-Passwort eingeben (mind. 4 Zeichen)",
+        "noActive": "Keine aktiven Freigabelinks für diese Antwort."
+      },
+      "sessionModal": {
+        "title": "Sitzung teilen",
+        "untitled": "Unbenannte Sitzung",
+        "notice": "Freigabelinks sind nur für angemeldete Mitglieder Ihrer Organisation zugänglich.",
+        "noActive": "Keine aktiven Freigabelinks für diese Sitzung."
+      },
+      "page": {
+        "passwordTitle": "Passwort erforderlich",
+        "passwordBody": "Diese geteilte Antwort ist passwortgeschützt. Geben Sie das Passwort ein, um sie anzuzeigen.",
+        "passwordPlaceholder": "Passwort eingeben",
+        "checking": "Wird geprüft ...",
+        "unlock": "Entsperren",
+        "loadingAnswer": "Geteilte Antwort wird geladen ...",
+        "loadingSession": "Geteilte Sitzung wird geladen ...",
+        "accessDenied": "Zugriff verweigert",
+        "answerForbidden": "Dieser Freigabelink ist mit Ihrem Konto nicht zugänglich.",
+        "sessionForbidden": "Dieser Freigabelink ist mit Ihrem Konto nicht zugänglich. Sie müssen Mitglied der Organisation sein, die ihn erstellt hat.",
+        "notFound": "Freigabelink nicht gefunden",
+        "answerHeading": "Geteilte Antwort",
+        "sessionHeading": "Geteilte Sitzung",
+        "sessionFallbackTitle": "Geteilte Sitzung",
+        "shared": "Geteilt am {date}",
+        "sharedExpires": "Geteilt am {date} · Läuft ab am {expires}",
+        "sharedMessages": "Geteilt am {date} • {count, plural, one {# Nachricht} other {# Nachrichten}}",
+        "copyAll": "Alles kopieren",
+        "downloadMd": ".md herunterladen",
+        "aiNoticeAnswer": "Diese Antwort wurde von KI erstellt und stützt sich auf zitierte Quellenauszüge. Prüfen Sie sie anhand der Originaldokumente, bevor Sie danach handeln.",
+        "aiNoticeSession": "Antworten werden von KI erstellt und stützen sich auf zitierte Quellenbelege. Prüfen Sie sie anhand der Quelldokumente, bevor Sie danach handeln.",
+        "staleAnswer": "Einige Zitate stammen aus veralteten, abgelaufenen oder archivierten Quellen.",
+        "staleSession": "Einige Zitate in dieser geteilten Sitzung stammen aus veralteten, widerrufenen oder gelöschten Quellen.",
+        "question": "Frage",
+        "aiAnswer": "KI-generierte Antwort",
+        "confidence": "Sicherheit: {category}",
+        "noMessages": "Keine Nachrichten in dieser geteilten Sitzung.",
+        "document": "Dokument",
+        "pageN": "Seite {page}",
+        "archived": "Archiviert"
       }
     }
   },
@@ -4610,6 +5061,45 @@
     "fr": "Französisch",
     "ar": "Arabisch",
     "fa": "Persisch"
+  },
+  "states": {
+    "retry": "Erneut versuchen",
+    "traceId": "Trace-ID:",
+    "empty": {
+      "title": "Keine Daten verfügbar",
+      "aria": "Leerer Zustand"
+    },
+    "error": {
+      "aria": "Fehlerzustand",
+      "conflict": "Anfragekonflikt",
+      "invalidSession": "Sitzung ist ungültig",
+      "unableToLoad": "Laden nicht möglich"
+    },
+    "forbidden": {
+      "aria": "Zustand „Verboten“",
+      "eyebrow": "Rudix-Zugriffskontrolle",
+      "title": "Verboten",
+      "description": "Sie haben keine Berechtigung, diese Aktion auszuführen.",
+      "backLabel": "Zurück zum Dashboard"
+    },
+    "loading": {
+      "title": "Wird geladen ...",
+      "aria": "Ladezustand"
+    },
+    "network": {
+      "aria": "Netzwerkfehlerzustand",
+      "title": "Keine Verbindung",
+      "description": "Der Server ist nicht erreichbar. Prüfen Sie Ihre Netzwerkverbindung und versuchen Sie es erneut."
+    },
+    "rateLimit": {
+      "aria": "Zustand „Ratenlimit“",
+      "title": "Ratenlimit erreicht",
+      "description": "Es wurden zu viele Anfragen gesendet. Warten Sie einen Moment und versuchen Sie es erneut."
+    },
+    "skeleton": {
+      "aria": "Inhalt wird geladen",
+      "text": "Wird geladen …"
+    }
   },
   "adminTeam": {
     "title": "Teamverwaltung",

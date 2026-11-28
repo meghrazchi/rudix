@@ -23,6 +23,7 @@ export const PUBLIC_NAMESPACES = [
   "errors",
   "languageSwitcher",
   "public",
+  "states",
 ] as const satisfies readonly MessageNamespace[];
 
 /**
@@ -51,6 +52,7 @@ export const APP_NAMESPACES = [
   "errors",
   "toasts",
   "languageSwitcher",
+  "states",
   "adminTeam",
   "help",
   "cookieConsent",

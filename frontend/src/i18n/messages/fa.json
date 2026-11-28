@@ -2826,7 +2826,15 @@
       "closeKnowledgeHub": "بستن مرکز دانش",
       "answerExplanation": "توضیح پاسخ",
       "saveKnowledgeCard": "ذخیره به‌عنوان کارت دانش",
-      "closeAnswerExplanation": "بستن توضیح پاسخ"
+      "closeAnswerExplanation": "بستن توضیح پاسخ",
+      "assistantName": "Rudix AI",
+      "emptyGreeting": "Rudix اینجاست.",
+      "explainAnswerShort": "توضیح پاسخ",
+      "staleCitationsNotice": "برخی ارجاع‌ها از منابع قدیمی، منقضی یا بایگانی‌شده آمده‌اند.",
+      "deleteSessionBody": "این جلسه برای همیشه از فضای کاری حذف می‌شود. این کار قابل بازگشت نیست.",
+      "loadingChunkText": "در حال بارگذاری متن قطعه...",
+      "citationPageUpper": "صفحه {page}",
+      "citationScoreLower": "امتیاز {score}"
     },
     "composer": {
       "selectScope": "انتخاب محدوده",
@@ -2973,6 +2981,449 @@
         "extraction": "Table extraction",
         "dimensions": "({rows} rows × {columns} columns)",
         "headers": "Headers: {headers}"
+      }
+    },
+    "trustPanel": {
+      "na": "نامشخص",
+      "yes": "بله",
+      "unknownDocument": "سند ناشناس",
+      "source": "منبع",
+      "pageShort": "ص {page}",
+      "level": {
+        "high": "بالا",
+        "medium": "متوسط",
+        "warning": "هشدار",
+        "notFound": "یافت نشد",
+        "low": "پایین"
+      },
+      "badge": {
+        "trusted": "معتبر",
+        "stale": "قدیمی",
+        "revoked": "لغوشده",
+        "deleted": "حذف‌شده",
+        "expired": "منقضی",
+        "deprecated": "منسوخ",
+        "draft": "پیش‌نویس",
+        "unreviewed": "بازبینی‌نشده",
+        "preferred": "ترجیحی",
+        "conflicting": "متناقض",
+        "supported": "پشتیبانی‌شده",
+        "partial": "جزئی",
+        "unverifiable": "غیرقابل تأیید",
+        "unsupported": "بدون پشتوانه",
+        "ocrLow": "اطمینان پایین OCR",
+        "ocrMedium": "OCR متوسط",
+        "tableLow": "اطمینان پایین جدول",
+        "corrupted": "خراب",
+        "unsupportedFormat": "قالب پشتیبانی‌نشده",
+        "encrypted": "رمزگذاری‌شده",
+        "extractionIssue": "مشکل استخراج",
+        "processingIncomplete": "پردازش ناقص",
+        "guidance": "راهنمایی کلی درباره محصول"
+      },
+      "range": {
+        "from": "از {value}",
+        "upTo": "تا {value}"
+      },
+      "complexity": {
+        "simple": "ساده",
+        "complex": "پیچیده",
+        "multiPart": "چندبخشی"
+      },
+      "summary": {
+        "scope": "دامنه: {scope}",
+        "scopeAll": "دامنه: همه سندها",
+        "profile": "پروفایل: {profile}",
+        "candidates": "{count, plural, one {# نامزد بررسی شد} other {# نامزد بررسی شد}}",
+        "chunks": "{count, plural, one {# قطعه انتخاب شد} other {# قطعه انتخاب شد}}",
+        "topK": "top-k {value}",
+        "mode": "حالت: {mode}",
+        "rerankFellBack": "بازرتبه‌بندی به حالت جایگزین رفت",
+        "rerankFellBackReason": "بازرتبه‌بندی به حالت جایگزین رفت ({reason})",
+        "rerankApplied": "بازرتبه‌بندی اعمال شد",
+        "rerankOff": "بازرتبه‌بندی خاموش بود"
+      },
+      "warn": {
+        "lowConfidence": "اطمینان پایین — این پاسخ را با منابع ذکرشده بررسی کنید.",
+        "citationFailed": "اعتبارسنجی ارجاع‌ها ناموفق بود — برخی ارجاع‌ها تأیید نشدند.",
+        "verificationFailed": "تأیید پاسخ ناموفق بود — ممکن است ادعاها کاملاً مستند نباشند.",
+        "sourcesStale": "ممکن است یک یا چند منبع قدیمی یا بازبینی‌نشده باشند.",
+        "allExcluded": "همه منابع معتبر کنار گذاشته شدند. پاسخ از محتوای منسوخ یا منقضی استفاده می‌کند.",
+        "citedStale": "یک یا چند منبع ذکرشده قدیمی یا منقضی است.",
+        "citedPending": "یک یا چند منبع ذکرشده در انتظار بازبینی است.",
+        "citedDeprecated": "یک یا چند منبع ذکرشده منسوخ یا بایگانی شده است.",
+        "citedOcr": "یک یا چند منبع اطمینان پایین OCR دارند — ممکن است دقت متن کاهش یابد.",
+        "tableLow": "یک یا چند جدول ذکرشده اطمینان استخراج پایینی دارند — ممکن است داده‌های جدول نادرست باشد.",
+        "extractionPoor": "یک یا چند سند منبع کیفیت استخراج ضعیفی دارند — ممکن است پوشش متن ناقص باشد.",
+        "processingIncomplete": "پردازش یک یا چند سند منبع ناقص یا ناموفق بوده است — ممکن است محتوا ناقص باشد.",
+        "removedClaims": "{count} ادعای بدون پشتوانه از پاسخ حذف شد.",
+        "weakSupport": "پشتوانه ارجاع‌ها ضعیف است — ادعاهای نگاشت‌شده را بررسی کنید.",
+        "unsupportedClaims": "{unsupported}/{total} ادعا با ارجاع‌ها پشتیبانی نمی‌شود.",
+        "conflictSummary": "تعارض منابع: {summary}",
+        "conflictDefault": "منابع در یک یا چند ادعا اختلاف دارند. منبع علامت‌گذاری‌شده را ترجیح دهید.",
+        "conflictPartial": "منابع تا حدی اختلاف دارند. ادعاها را با منابع ذکرشده بررسی کنید."
+      },
+      "header": {
+        "modeAria": "حالت عیب‌یابی بازیابی",
+        "basic": "ساده",
+        "expert": "پیشرفته",
+        "answerExplanation": "توضیح پاسخ",
+        "modelView": "نمای مدل",
+        "description": "اطمینان، انتخاب منابع و پشتوانه ارجاع‌ها در یک پنل بازبینی گرد آمده‌اند.",
+        "saveAria": "ذخیره به‌عنوان کارت دانش",
+        "saveAsCard": "ذخیره به‌عنوان کارت",
+        "reportAria": "گزارش مشکل در این پاسخ",
+        "reportIssue": "گزارش مشکل"
+      },
+      "sources": {
+        "title": "منابع ({count})",
+        "updated": "به‌روزرسانی {date}",
+        "synced": "همگام‌سازی {date}",
+        "score": "امتیاز {score}",
+        "rerank": "بازرتبه‌بندی {score}",
+        "table": "جدول",
+        "previewAria": "پیش‌نمایش {title}"
+      },
+      "claims": {
+        "title": "پشتوانه ادعاها ({supported}/{total})",
+        "aggregate": "پشتوانه کلی",
+        "verificationScore": "امتیاز تأیید",
+        "supported": "ادعاهای پشتیبانی‌شده",
+        "partial": "ادعاهای جزئی",
+        "unsupported": "ادعاهای بدون پشتوانه",
+        "unverifiable": "ادعاهای غیرقابل تأیید",
+        "claimN": "ادعا {n}",
+        "supportPct": "پشتوانه {pct}",
+        "previewAria": "پیش‌نمایش منبع {index} برای ادعای {claim}",
+        "sourceN": "منبع {index}",
+        "noMapped": "هیچ ارجاع تأییدشده‌ای به این ادعا نگاشت نشده است.",
+        "noMapping": "نگاشت ارجاع‌ها به ادعاها برای این نسخه از پاسخ در دسترس نیست."
+      },
+      "confidence": {
+        "title": "امتیاز اعتماد",
+        "scoreAria": "امتیاز اطمینان",
+        "signals": "نشانه‌های اطمینان",
+        "category": {
+          "low": "پایین",
+          "medium": "متوسط",
+          "high": "بالا"
+        },
+        "topSimilarity": "بیشترین شباهت",
+        "avgSimilarity": "میانگین شباهت",
+        "rerankScore": "امتیاز بازرتبه‌بندی",
+        "citationCoverage": "پوشش ارجاع‌ها",
+        "citationSupport": "پشتوانه ارجاع‌ها",
+        "sourceAgreement": "توافق منابع",
+        "freshnessFactor": "عامل تازگی",
+        "ocrFactor": "عامل کیفیت OCR",
+        "conflictFactor": "عامل تعارض",
+        "tableFactor": "عامل کیفیت جدول",
+        "extractionFactor": "عامل کیفیت استخراج",
+        "graphBoost": "تقویت گراف"
+      },
+      "conflict": {
+        "title": "تعارض منابع",
+        "pairs": "{count, plural, one {# جفت متعارض} other {# جفت متعارض}}",
+        "sourcesInConflict": "منابع متعارض",
+        "preferredCount": "تعداد منابع ترجیحی",
+        "noPreferred": "منبع ترجیحی مشخص نشد — با همه منابع با احتیاط یکسان رفتار کنید.",
+        "level": {
+          "full": "توافق کامل",
+          "partial": "توافق جزئی",
+          "conflicting": "منابع متناقض"
+        },
+        "detected": "تعارض منابع شناسایی شد",
+        "comparison": "مقایسه منابع",
+        "preferredIds": "شناسه منابع ترجیحی: {ids}",
+        "preferredSources": "منابع ترجیحی",
+        "conflictingSources": "منابع متناقض",
+        "document": "سند",
+        "noSnippet": "گزیده‌ای در دسترس نیست."
+      },
+      "graph": {
+        "title": "گراف دانش",
+        "unavailable": "زمینه گراف در دسترس نیست.",
+        "seedEntities": "موجودیت‌های آغازین",
+        "relatedEntities": "موجودیت‌های مرتبط",
+        "chunks": "قطعه‌های گراف",
+        "maxHops": "بیشینه گام‌ها",
+        "relationTypes": "انواع رابطه"
+      },
+      "model": {
+        "title": "مدل",
+        "provider": "ارائه‌دهنده",
+        "llmModel": "مدل LLM",
+        "embeddings": "بردارسازی",
+        "promptTemplate": "الگوی پرامپت",
+        "fallbackFrom": "جایگزین از",
+        "fallbackPrimary": "اصلی",
+        "fallbackTo": "جایگزین به",
+        "fallbackReason": "دلیل جایگزینی",
+        "detectedLanguage": "زبان تشخیص‌داده‌شده",
+        "answerLanguage": "زبان پاسخ"
+      },
+      "policy": {
+        "title": "سیاست",
+        "outcome": "نتیجه",
+        "violated": "قوانین نقض‌شده",
+        "warnings": "هشدارها"
+      },
+      "pipeline": {
+        "title": "خط پردازش پاسخ",
+        "strategy": "راهبرد",
+        "highRisk": "بازبینی پرخطر",
+        "criticSeverity": "شدت نقد",
+        "refiner": "پالایشگر",
+        "refinerRevised": "اعمال شد — پاسخ بازنویسی شد",
+        "refinerNoChange": "اعمال شد — بدون تغییر",
+        "claimsRemoved": "ادعاهای حذف‌شده",
+        "criticWarnings": "هشدارهای نقد",
+        "strategies": {
+          "policy_lookup": "جست‌وجوی سیاست",
+          "comparison": "مقایسه",
+          "legal_compliance": "حقوقی / انطباق",
+          "table_heavy": "جدول‌محور",
+          "graph_assisted": "با کمک گراف",
+          "connector_search": "جست‌وجوی اتصال‌دهنده",
+          "standard": "استاندارد"
+        },
+        "severity": {
+          "none": "هیچ",
+          "low": "کم",
+          "medium": "متوسط",
+          "high": "زیاد"
+        }
+      },
+      "query": {
+        "title": "تفسیر پرسش",
+        "intent": "قصد",
+        "strategy": "راهبرد",
+        "complexity": "پیچیدگی",
+        "rewritePreview": "پیش‌نمایش بازنویسی",
+        "subQueries": "پرسش‌های فرعی",
+        "rewriteDisabled": "پیش‌نمایش بازنویسی طبق سیاست سازمان غیرفعال است."
+      },
+      "diag": {
+        "title": "عیب‌یابی بازیابی",
+        "candidates": "نامزدها",
+        "selectedChunks": "قطعه‌های انتخاب‌شده",
+        "topK": "Top-k",
+        "searchMode": "حالت جست‌وجو",
+        "scopeMode": "حالت دامنه",
+        "scopeLabel": "برچسب دامنه",
+        "profile": "پروفایل",
+        "profileScope": "دامنه پروفایل",
+        "profileSource": "منبع پروفایل",
+        "requestId": "شناسه درخواست",
+        "traceId": "شناسه ردگیری",
+        "rerankRange": "بازه امتیاز بازرتبه‌بندی",
+        "vectorHits": "نتایج برداری",
+        "keywordHits": "نتایج کلیدواژه‌ای",
+        "reranker": "بازرتبه‌بند",
+        "enabled": "فعال",
+        "rerankFallback": "جایگزین بازرتبه‌بندی",
+        "parentExpansion": "گسترش والد",
+        "parentChunks": "{count} قطعه",
+        "parentTokens": "توکن‌های والد",
+        "freshnessBoosted": "ارتقا با تازگی",
+        "excluded": "کنار گذاشته (منسوخ/منقضی)",
+        "staleSources": "منابع قدیمی",
+        "unreviewedSources": "منابع بازبینی‌نشده",
+        "deprecatedSources": "منابع منسوخ",
+        "allExcludedFallback": "جایگزین در صورت کنار گذاشتن همه",
+        "ocrLowChunks": "قطعه‌های OCR با اطمینان پایین"
+      },
+      "method": {
+        "title": "راهبرد جست‌وجو",
+        "method": "روش",
+        "override": "بازنویسی",
+        "overrideUser": "تعیین‌شده توسط کاربر",
+        "overrideAdmin": "پروفایل مدیر",
+        "selection": "انتخاب",
+        "auto": "انتخاب خودکار"
+      },
+      "selection": {
+        "title": "انتخاب منابع",
+        "request": "درخواست {id}",
+        "trace": "ردگیری {id}",
+        "mode": "حالت {mode}",
+        "rerankFallback": "جایگزین بازرتبه‌بندی",
+        "rerankOn": "بازرتبه‌بندی روشن",
+        "rerankOff": "بازرتبه‌بندی خاموش"
+      },
+      "tools": {
+        "title": "هماهنگی ابزارها",
+        "evaluated": "ابزارهای ارزیابی‌شده",
+        "authorized": "مجاز",
+        "denied": "ردشده",
+        "deniedDefault": "ردشده",
+        "reason": {
+          "org_policy_disabled": "غیرفعال طبق سیاست",
+          "feature_unavailable": "قابلیت در دسترس نیست",
+          "insufficient_role": "نقش ناکافی",
+          "insufficient_permission": "مجوز ناکافی",
+          "source_scope_mismatch": "ناهمخوانی دامنه"
+        }
+      },
+      "verification": {
+        "title": "تأیید",
+        "verdict": "نتیجه‌گیری",
+        "score": "امتیاز",
+        "claimsChecked": "ادعاهای بررسی‌شده",
+        "supported": "پشتیبانی‌شده",
+        "unsupported": "بدون پشتوانه",
+        "removed": "حذف‌شده",
+        "verifierModel": "مدل تأییدکننده"
+      },
+      "excerpt": {
+        "cited": "گزیده ارجاع‌شده",
+        "chunk": "متن قطعه ارجاع‌شده"
+      }
+    },
+    "activity": {
+      "timelineAria": "خط زمانی تولید پاسخ",
+      "stepsAria": "مراحل فعالیت",
+      "milliseconds": "{value} میلی‌ثانیه",
+      "seconds": "{value} ثانیه"
+    },
+    "feedback": {
+      "title": {
+        "edit": "ویرایش بازخورد",
+        "new": "گزارش مشکل"
+      },
+      "closeAria": "بستن پنجره بازخورد",
+      "issueType": "نوع مشکل (اختیاری)",
+      "categoryLegend": "دسته‌بندی بازخورد",
+      "noneOfAbove": "هیچ‌کدام از موارد بالا",
+      "additionalClassification": "طبقه‌بندی تکمیلی (اختیاری)",
+      "legacyLegend": "دلیل قدیمی",
+      "noneSkip": "هیچ‌کدام / ترجیح می‌دهم نگویم",
+      "details": "جزئیات بیشتر (اختیاری)",
+      "placeholder": "مشکل را شرح دهید…",
+      "removing": "در حال حذف…",
+      "remove": "حذف بازخورد",
+      "cancel": "انصراف",
+      "submitting": "در حال ارسال…",
+      "submit": "ارسال",
+      "reasons": {
+        "wrong_citation": "ارجاع نادرست یا ناموجود",
+        "hallucination": "ادعای بدون پشتوانه یا ساختگی",
+        "outdated_source": "منبع قدیمی",
+        "missing_document": "سند مرتبط استفاده نشد",
+        "unsafe_content": "محتوای ناامن یا حساس",
+        "other": "سایر"
+      },
+      "categoryLabels": {
+        "wrong_answer": "پاسخ نادرست",
+        "bad_citation": "ارجاع نامناسب",
+        "missing_citation": "ارجاع ناموجود",
+        "missing_source": "منبع ناموجود",
+        "outdated_source": "منبع قدیمی",
+        "hallucination_risk": "خطر توهم",
+        "conflict_not_detected": "تعارض شناسایی نشد",
+        "unclear_answer": "پاسخ نامشخص",
+        "should_have_said_not_found": "باید می‌گفت یافت نشد"
+      },
+      "categoryDescriptions": {
+        "wrong_answer": "پاسخ از نظر واقعی نادرست است",
+        "bad_citation": "ارجاع نادرست، ناموجود یا نامرتبط است",
+        "missing_citation": "ارجاعی که باید باشد وجود ندارد",
+        "missing_source": "منبع مرتبطی استفاده یا نمایش داده نشد",
+        "outdated_source": "محتوای منبع دیگر به‌روز نیست",
+        "hallucination_risk": "ممکن است پاسخ بدون پشتوانه یا ساختگی باشد",
+        "conflict_not_detected": "منابع متناقض علامت‌گذاری نشدند",
+        "unclear_answer": "پاسخ بسیار مبهم یا ناقص است",
+        "should_have_said_not_found": "سامانه باید رد می‌کرد یا می‌گفت یافت نشد"
+      },
+      "trustCategoryDescriptions": {
+        "bad_citation": "یک ارجاع نادرست، نامرتبط یا اشاره‌کننده به جای اشتباه است",
+        "missing_source": "پاسخ باید از منبعی که وجود ندارد استفاده می‌کرد",
+        "outdated_source": "منبع ارجاع‌شده قدیمی یا دیگر دقیق نیست",
+        "conflict_not_detected": "مدل تعارض میان منابع را تشخیص نداد",
+        "should_have_said_not_found": "اطلاعات مرتبطی وجود ندارد — مدل باید این را می‌گفت"
+      },
+      "trust": {
+        "title": "گزارش مشکل پاسخ",
+        "closeAria": "بستن پنجره گزارش",
+        "question": "این پاسخ چه ایرادی دارد؟",
+        "categoryLegend": "دسته مشکل",
+        "otherNotListed": "سایر / فهرست‌نشده",
+        "flagSources": "علامت‌گذاری منابع مشخص (اختیاری)",
+        "placeholder": "توضیح دهید چه چیزی نادرست بود…",
+        "traceId": "شناسه ردگیری: <mono>{id}</mono>",
+        "reporting": "در حال گزارش…",
+        "report": "گزارش مشکل"
+      },
+      "unknownSource": "منبع ناشناس"
+    },
+    "share": {
+      "expiry": {
+        "never": "هرگز",
+        "24h": "۲۴ ساعت",
+        "7d": "۷ روز",
+        "30d": "۳۰ روز"
+      },
+      "close": "بستن",
+      "copyLink": "کپی پیوند",
+      "revokeLink": "لغو پیوند",
+      "createLink": "ایجاد پیوند",
+      "expiresLabel": "انقضا:",
+      "generate": "تولید پیوند",
+      "creating": "در حال ایجاد...",
+      "loadingLinks": "در حال بارگذاری پیوندهای اشتراک‌گذاری...",
+      "activeLinks": "پیوندهای فعال",
+      "expiresValue": "انقضا: {value}",
+      "accessOrg": "سازمان",
+      "accessSpecific": "کاربران مشخص",
+      "passwordProtected": "محافظت‌شده با گذرواژه",
+      "answerModal": {
+        "title": "اشتراک‌گذاری پاسخ",
+        "description": "یک پیوند با کنترل دسترسی برای این پرسش و پاسخ بسازید.",
+        "notice": "بینندگان باید اعضای واردشده سازمان شما باشند. ارجاع‌ها فقط متن گزیده را نشان می‌دهند — شناسه سندهای اصلی فاش نمی‌شود.",
+        "access": "دسترسی",
+        "userIds": "شناسه کاربران (جداشده با ویرگول یا فاصله)",
+        "userIdsPlaceholder": "uuid-1, uuid-2, ...",
+        "requirePassword": "نیاز به گذرواژه",
+        "passwordPlaceholder": "گذرواژه پیوند را وارد کنید (حداقل ۴ نویسه)",
+        "noActive": "پیوند اشتراک‌گذاری فعالی برای این پاسخ وجود ندارد."
+      },
+      "sessionModal": {
+        "title": "اشتراک‌گذاری نشست",
+        "untitled": "نشست بدون عنوان",
+        "notice": "پیوندهای اشتراک‌گذاری فقط برای اعضای واردشده سازمان شما قابل دسترسی هستند.",
+        "noActive": "پیوند اشتراک‌گذاری فعالی برای این نشست وجود ندارد."
+      },
+      "page": {
+        "passwordTitle": "گذرواژه لازم است",
+        "passwordBody": "این پاسخ اشتراک‌گذاری‌شده با گذرواژه محافظت شده است. برای مشاهده، گذرواژه را وارد کنید.",
+        "passwordPlaceholder": "گذرواژه را وارد کنید",
+        "checking": "در حال بررسی...",
+        "unlock": "بازکردن قفل",
+        "loadingAnswer": "در حال بارگذاری پاسخ اشتراک‌گذاری‌شده...",
+        "loadingSession": "در حال بارگذاری نشست اشتراک‌گذاری‌شده...",
+        "accessDenied": "دسترسی رد شد",
+        "answerForbidden": "این پیوند اشتراک‌گذاری با حساب شما قابل دسترسی نیست.",
+        "sessionForbidden": "این پیوند اشتراک‌گذاری با حساب شما قابل دسترسی نیست. باید عضو سازمانی باشید که آن را ایجاد کرده است.",
+        "notFound": "پیوند اشتراک‌گذاری یافت نشد",
+        "answerHeading": "پاسخ اشتراک‌گذاری‌شده",
+        "sessionHeading": "نشست اشتراک‌گذاری‌شده",
+        "sessionFallbackTitle": "نشست اشتراک‌گذاری‌شده",
+        "shared": "اشتراک‌گذاری {date}",
+        "sharedExpires": "اشتراک‌گذاری {date} · انقضا {expires}",
+        "sharedMessages": "اشتراک‌گذاری {date} • {count, plural, one {# پیام} other {# پیام}}",
+        "copyAll": "کپی همه",
+        "downloadMd": "دانلود .md",
+        "aiNoticeAnswer": "این پاسخ توسط هوش مصنوعی تولید شده و بر گزیده‌های منابع ارجاع‌شده استوار است. پیش از اقدام، آن را با سندهای اصلی بررسی کنید.",
+        "aiNoticeSession": "پاسخ‌ها توسط هوش مصنوعی تولید شده و بر شواهد منابع ارجاع‌شده استوارند. پیش از اقدام، آن‌ها را با سندهای منبع بررسی کنید.",
+        "staleAnswer": "برخی ارجاع‌ها از منابع قدیمی، منقضی یا بایگانی‌شده آمده‌اند.",
+        "staleSession": "برخی ارجاع‌ها در این نشست اشتراک‌گذاری‌شده از منابع قدیمی، لغوشده یا حذف‌شده آمده‌اند.",
+        "question": "پرسش",
+        "aiAnswer": "پاسخ تولیدشده با هوش مصنوعی",
+        "confidence": "اطمینان {category}",
+        "noMessages": "هیچ پیامی در این نشست اشتراک‌گذاری‌شده نیست.",
+        "document": "سند",
+        "pageN": "صفحه {page}",
+        "archived": "بایگانی‌شده"
       }
     }
   },
@@ -4608,6 +5059,45 @@
     "fr": "فرانسوی",
     "ar": "عربی",
     "fa": "فارسی"
+  },
+  "states": {
+    "retry": "تلاش دوباره",
+    "traceId": "شناسه ردگیری:",
+    "empty": {
+      "title": "داده‌ای در دسترس نیست",
+      "aria": "حالت خالی"
+    },
+    "error": {
+      "aria": "حالت خطا",
+      "conflict": "تعارض درخواست",
+      "invalidSession": "نشست معتبر نیست",
+      "unableToLoad": "بارگذاری ممکن نیست"
+    },
+    "forbidden": {
+      "aria": "حالت ممنوع",
+      "eyebrow": "کنترل دسترسی Rudix",
+      "title": "ممنوع",
+      "description": "شما مجوز انجام این کار را ندارید.",
+      "backLabel": "بازگشت به داشبورد"
+    },
+    "loading": {
+      "title": "در حال بارگذاری...",
+      "aria": "حالت بارگذاری"
+    },
+    "network": {
+      "aria": "حالت خطای شبکه",
+      "title": "بدون اتصال",
+      "description": "دسترسی به سرور ممکن نشد. اتصال شبکه را بررسی کنید و دوباره تلاش کنید."
+    },
+    "rateLimit": {
+      "aria": "حالت محدودیت نرخ",
+      "title": "به محدودیت نرخ رسیدید",
+      "description": "درخواست‌های زیادی ارسال شد. کمی صبر کنید و دوباره تلاش کنید."
+    },
+    "skeleton": {
+      "aria": "در حال بارگذاری محتوا",
+      "text": "در حال بارگذاری…"
+    }
   },
   "adminTeam": {
     "title": "مدیریت تیم",

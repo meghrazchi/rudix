@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import {
   TrustPanelFeedbackModal,
   type TrustPanelCitationRef,
@@ -13,6 +15,7 @@ export function ChatFeedbackModals({
   feedback: ChatFeedbackController;
   thread: ChatTurn[];
 }) {
+  const t = useTranslations("chat.feedback");
   const {
     chatFeedbackEnabled,
     feedbackModalMessageId,
@@ -63,14 +66,15 @@ export function ChatFeedbackModals({
       trustPanelFeedbackContext
         ? (() => {
             const activeTurn = thread.find(
-              (t) => t.response?.message_id === trustPanelFeedbackMessageId,
+              (turn) =>
+                turn.response?.message_id === trustPanelFeedbackMessageId,
             );
             const panelCitations: TrustPanelCitationRef[] = (
               activeTurn?.response?.citations ?? []
             ).map((c) => ({
               document_id: c.document_id,
               chunk_id: c.chunk_id,
-              title: c.source_title ?? c.filename ?? "Unknown source",
+              title: c.source_title ?? c.filename ?? t("unknownSource"),
             }));
             return (
               <TrustPanelFeedbackModal

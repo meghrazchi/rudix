@@ -2828,7 +2828,15 @@
       "closeKnowledgeHub": "Cerrar Centro de conocimiento",
       "answerExplanation": "Explicación de la respuesta",
       "saveKnowledgeCard": "Guardar como tarjeta de conocimiento",
-      "closeAnswerExplanation": "Cerrar explicación"
+      "closeAnswerExplanation": "Cerrar explicación",
+      "assistantName": "Rudix AI",
+      "emptyGreeting": "Rudix está aquí.",
+      "explainAnswerShort": "Explicar respuesta",
+      "staleCitationsNotice": "Algunas citas proceden de fuentes obsoletas, caducadas o archivadas.",
+      "deleteSessionBody": "Esta sesión se eliminará de forma permanente del espacio de trabajo. La acción no se puede deshacer.",
+      "loadingChunkText": "Cargando el texto del fragmento...",
+      "citationPageUpper": "PÁGINA {page}",
+      "citationScoreLower": "puntuación {score}"
     },
     "composer": {
       "selectScope": "seleccionar alcance",
@@ -2975,6 +2983,449 @@
         "extraction": "Table extraction",
         "dimensions": "({rows} rows × {columns} columns)",
         "headers": "Headers: {headers}"
+      }
+    },
+    "trustPanel": {
+      "na": "N/D",
+      "yes": "Sí",
+      "unknownDocument": "Documento desconocido",
+      "source": "Fuente",
+      "pageShort": "p. {page}",
+      "level": {
+        "high": "Alta",
+        "medium": "Media",
+        "warning": "Advertencia",
+        "notFound": "No encontrado",
+        "low": "Baja"
+      },
+      "badge": {
+        "trusted": "De confianza",
+        "stale": "Obsoleto",
+        "revoked": "Revocado",
+        "deleted": "Eliminado",
+        "expired": "Caducado",
+        "deprecated": "Obsoleto (descontinuado)",
+        "draft": "Borrador",
+        "unreviewed": "Sin revisar",
+        "preferred": "Preferida",
+        "conflicting": "En conflicto",
+        "supported": "Respaldada",
+        "partial": "Parcial",
+        "unverifiable": "No verificable",
+        "unsupported": "Sin respaldo",
+        "ocrLow": "OCR de baja confianza",
+        "ocrMedium": "OCR media",
+        "tableLow": "Tabla de baja confianza",
+        "corrupted": "Dañado",
+        "unsupportedFormat": "Formato no compatible",
+        "encrypted": "Cifrado",
+        "extractionIssue": "Problema de extracción",
+        "processingIncomplete": "Procesamiento incompleto",
+        "guidance": "Orientación general del producto"
+      },
+      "range": {
+        "from": "desde {value}",
+        "upTo": "hasta {value}"
+      },
+      "complexity": {
+        "simple": "simple",
+        "complex": "complejo",
+        "multiPart": "de varias partes"
+      },
+      "summary": {
+        "scope": "Alcance: {scope}",
+        "scopeAll": "Alcance: todos los documentos",
+        "profile": "Perfil: {profile}",
+        "candidates": "{count, plural, one {# candidato revisado} other {# candidatos revisados}}",
+        "chunks": "{count, plural, one {# fragmento seleccionado} other {# fragmentos seleccionados}}",
+        "topK": "top-k {value}",
+        "mode": "Modo: {mode}",
+        "rerankFellBack": "el reordenamiento usó una alternativa",
+        "rerankFellBackReason": "el reordenamiento usó una alternativa ({reason})",
+        "rerankApplied": "se aplicó el reordenamiento",
+        "rerankOff": "el reordenamiento estaba desactivado"
+      },
+      "warn": {
+        "lowConfidence": "Confianza baja: valide esta respuesta con las fuentes citadas.",
+        "citationFailed": "Falló la validación de citas: algunas citas no se pudieron verificar.",
+        "verificationFailed": "Falló la verificación de la respuesta: puede que las afirmaciones no estén totalmente fundamentadas.",
+        "sourcesStale": "Una o más fuentes pueden estar obsoletas o sin revisar.",
+        "allExcluded": "Se excluyeron todas las fuentes de confianza. La respuesta usa contenido obsoleto o caducado.",
+        "citedStale": "Una o más fuentes citadas están obsoletas o caducadas.",
+        "citedPending": "Una o más fuentes citadas están pendientes de revisión.",
+        "citedDeprecated": "Una o más fuentes citadas están obsoletas o archivadas.",
+        "citedOcr": "Una o más fuentes tienen baja confianza de OCR: la precisión del texto puede ser menor.",
+        "tableLow": "Una o más tablas citadas tienen baja confianza de extracción: los datos pueden ser inexactos.",
+        "extractionPoor": "Uno o más documentos fuente tienen mala calidad de extracción: la cobertura del texto puede ser incompleta.",
+        "processingIncomplete": "Uno o más documentos fuente tienen un procesamiento incompleto o fallido: puede faltar contenido.",
+        "removedClaims": "Se eliminaron {count} afirmación(es) sin respaldo de la respuesta.",
+        "weakSupport": "El respaldo de las citas es débil: revise las afirmaciones asociadas.",
+        "unsupportedClaims": "{unsupported}/{total} afirmación(es) no están respaldadas por citas.",
+        "conflictSummary": "Conflicto entre fuentes: {summary}",
+        "conflictDefault": "Las fuentes discrepan en una o más afirmaciones. Prefiera la fuente marcada.",
+        "conflictPartial": "Las fuentes discrepan parcialmente. Verifique las afirmaciones con las fuentes citadas."
+      },
+      "header": {
+        "modeAria": "Modo de diagnóstico de recuperación",
+        "basic": "Básico",
+        "expert": "Experto",
+        "answerExplanation": "Explicación de la respuesta",
+        "modelView": "Vista del modelo",
+        "description": "La confianza, la selección de fuentes y el respaldo de citas se agrupan en un único panel de revisión.",
+        "saveAria": "Guardar como tarjeta de conocimiento",
+        "saveAsCard": "Guardar como tarjeta",
+        "reportAria": "Informar de un problema con esta respuesta",
+        "reportIssue": "Informar de un problema"
+      },
+      "sources": {
+        "title": "Fuentes ({count})",
+        "updated": "Actualizado {date}",
+        "synced": "Sincronizado {date}",
+        "score": "Puntuación {score}",
+        "rerank": "Reordenamiento {score}",
+        "table": "Tabla",
+        "previewAria": "Ver vista previa de {title}"
+      },
+      "claims": {
+        "title": "Respaldo de afirmaciones ({supported}/{total})",
+        "aggregate": "Respaldo agregado",
+        "verificationScore": "Puntuación de verificación",
+        "supported": "Afirmaciones respaldadas",
+        "partial": "Afirmaciones parciales",
+        "unsupported": "Afirmaciones sin respaldo",
+        "unverifiable": "Afirmaciones no verificables",
+        "claimN": "Afirmación {n}",
+        "supportPct": "Respaldo {pct}",
+        "previewAria": "Ver la fuente {index} de la afirmación {claim}",
+        "sourceN": "Fuente {index}",
+        "noMapped": "No hay citas validadas asociadas a esta afirmación.",
+        "noMapping": "La asignación de citas por afirmación no está disponible para esta instantánea de la respuesta."
+      },
+      "confidence": {
+        "title": "Puntuación de confianza",
+        "scoreAria": "Puntuación de confianza",
+        "signals": "Señales de confianza",
+        "category": {
+          "low": "baja",
+          "medium": "media",
+          "high": "alta"
+        },
+        "topSimilarity": "Similitud máxima",
+        "avgSimilarity": "Similitud media",
+        "rerankScore": "Puntuación de reordenamiento",
+        "citationCoverage": "Cobertura de citas",
+        "citationSupport": "Respaldo de citas",
+        "sourceAgreement": "Acuerdo entre fuentes",
+        "freshnessFactor": "Factor de actualidad",
+        "ocrFactor": "Factor de calidad de OCR",
+        "conflictFactor": "Factor de conflicto",
+        "tableFactor": "Factor de calidad de tablas",
+        "extractionFactor": "Factor de calidad de extracción",
+        "graphBoost": "Impulso del grafo"
+      },
+      "conflict": {
+        "title": "Conflicto entre fuentes",
+        "pairs": "{count, plural, one {# par en conflicto} other {# pares en conflicto}}",
+        "sourcesInConflict": "Fuentes en conflicto",
+        "preferredCount": "Número de fuentes preferidas",
+        "noPreferred": "No se pudo determinar una fuente preferida: trate todas las fuentes con la misma cautela.",
+        "level": {
+          "full": "Acuerdo total",
+          "partial": "Acuerdo parcial",
+          "conflicting": "Fuentes en conflicto"
+        },
+        "detected": "Conflicto entre fuentes detectado",
+        "comparison": "Comparación de fuentes",
+        "preferredIds": "ID de las fuentes preferidas: {ids}",
+        "preferredSources": "Fuentes preferidas",
+        "conflictingSources": "Fuentes en conflicto",
+        "document": "Documento",
+        "noSnippet": "No hay fragmento disponible."
+      },
+      "graph": {
+        "title": "Grafo de conocimiento",
+        "unavailable": "Contexto del grafo no disponible.",
+        "seedEntities": "Entidades iniciales",
+        "relatedEntities": "Entidades relacionadas",
+        "chunks": "Fragmentos del grafo",
+        "maxHops": "Saltos máximos",
+        "relationTypes": "Tipos de relación"
+      },
+      "model": {
+        "title": "Modelo",
+        "provider": "Proveedor",
+        "llmModel": "Modelo LLM",
+        "embeddings": "Embeddings",
+        "promptTemplate": "Plantilla de prompt",
+        "fallbackFrom": "Alternativa desde",
+        "fallbackPrimary": "principal",
+        "fallbackTo": "Alternativa hacia",
+        "fallbackReason": "Motivo de la alternativa",
+        "detectedLanguage": "Idioma detectado",
+        "answerLanguage": "Idioma de la respuesta"
+      },
+      "policy": {
+        "title": "Política",
+        "outcome": "Resultado",
+        "violated": "Reglas infringidas",
+        "warnings": "Advertencias"
+      },
+      "pipeline": {
+        "title": "Canal de respuesta",
+        "strategy": "Estrategia",
+        "highRisk": "Revisión de alto riesgo",
+        "criticSeverity": "Gravedad de la crítica",
+        "refiner": "Refinador",
+        "refinerRevised": "Aplicado: respuesta revisada",
+        "refinerNoChange": "Aplicado: sin cambios",
+        "claimsRemoved": "Afirmaciones eliminadas",
+        "criticWarnings": "Advertencias de la crítica",
+        "strategies": {
+          "policy_lookup": "Consulta de políticas",
+          "comparison": "Comparación",
+          "legal_compliance": "Legal / cumplimiento",
+          "table_heavy": "Con muchas tablas",
+          "graph_assisted": "Asistido por grafo",
+          "connector_search": "Búsqueda en conectores",
+          "standard": "Estándar"
+        },
+        "severity": {
+          "none": "ninguna",
+          "low": "baja",
+          "medium": "media",
+          "high": "alta"
+        }
+      },
+      "query": {
+        "title": "Interpretación de la consulta",
+        "intent": "Intención",
+        "strategy": "Estrategia",
+        "complexity": "Complejidad",
+        "rewritePreview": "Vista previa de la reescritura",
+        "subQueries": "Subconsultas",
+        "rewriteDisabled": "La vista previa de la reescritura está desactivada por la política de la organización."
+      },
+      "diag": {
+        "title": "Diagnóstico de recuperación",
+        "candidates": "Candidatos",
+        "selectedChunks": "Fragmentos seleccionados",
+        "topK": "Top-k",
+        "searchMode": "Modo de búsqueda",
+        "scopeMode": "Modo de alcance",
+        "scopeLabel": "Etiqueta de alcance",
+        "profile": "Perfil",
+        "profileScope": "Alcance del perfil",
+        "profileSource": "Origen del perfil",
+        "requestId": "ID de solicitud",
+        "traceId": "ID de traza",
+        "rerankRange": "Rango de reordenamiento",
+        "vectorHits": "Resultados vectoriales",
+        "keywordHits": "Resultados por palabras clave",
+        "reranker": "Reordenador",
+        "enabled": "Activado",
+        "rerankFallback": "Alternativa de reordenamiento",
+        "parentExpansion": "Expansión del contexto padre",
+        "parentChunks": "{count} fragmentos",
+        "parentTokens": "Tokens del contexto padre",
+        "freshnessBoosted": "Impulsadas por actualidad",
+        "excluded": "Excluidas (obsoletas/caducadas)",
+        "staleSources": "Fuentes obsoletas",
+        "unreviewedSources": "Fuentes sin revisar",
+        "deprecatedSources": "Fuentes obsoletas (descontinuadas)",
+        "allExcludedFallback": "Alternativa por exclusión total",
+        "ocrLowChunks": "Fragmentos de OCR con baja confianza"
+      },
+      "method": {
+        "title": "Estrategia de búsqueda",
+        "method": "Método",
+        "override": "Anulación",
+        "overrideUser": "Especificado por el usuario",
+        "overrideAdmin": "Perfil de administrador",
+        "selection": "Selección",
+        "auto": "Selección automática"
+      },
+      "selection": {
+        "title": "Selección de fuentes",
+        "request": "Solicitud {id}",
+        "trace": "Traza {id}",
+        "mode": "Modo {mode}",
+        "rerankFallback": "Alternativa de reordenamiento",
+        "rerankOn": "Reordenamiento activado",
+        "rerankOff": "Reordenamiento desactivado"
+      },
+      "tools": {
+        "title": "Orquestación de herramientas",
+        "evaluated": "Herramientas evaluadas",
+        "authorized": "Autorizadas",
+        "denied": "Denegadas",
+        "deniedDefault": "Denegado",
+        "reason": {
+          "org_policy_disabled": "Desactivado por la política",
+          "feature_unavailable": "Función no disponible",
+          "insufficient_role": "Rol insuficiente",
+          "insufficient_permission": "Permiso insuficiente",
+          "source_scope_mismatch": "Alcance no coincide"
+        }
+      },
+      "verification": {
+        "title": "Verificación",
+        "verdict": "Veredicto",
+        "score": "Puntuación",
+        "claimsChecked": "Afirmaciones comprobadas",
+        "supported": "Respaldadas",
+        "unsupported": "Sin respaldo",
+        "removed": "Eliminadas",
+        "verifierModel": "Modelo verificador"
+      },
+      "excerpt": {
+        "cited": "Extracto citado",
+        "chunk": "Texto del fragmento citado"
+      }
+    },
+    "activity": {
+      "timelineAria": "Cronología de la generación de la respuesta",
+      "stepsAria": "Pasos de actividad",
+      "milliseconds": "{value} ms",
+      "seconds": "{value} s"
+    },
+    "feedback": {
+      "title": {
+        "edit": "Editar comentarios",
+        "new": "Informar de un problema"
+      },
+      "closeAria": "Cerrar el cuadro de comentarios",
+      "issueType": "Tipo de problema (opcional)",
+      "categoryLegend": "Categoría de comentarios",
+      "noneOfAbove": "Ninguna de las anteriores",
+      "additionalClassification": "Clasificación adicional (opcional)",
+      "legacyLegend": "Motivo heredado",
+      "noneSkip": "Ninguno / prefiero no decirlo",
+      "details": "Detalles adicionales (opcional)",
+      "placeholder": "Describa el problema…",
+      "removing": "Eliminando…",
+      "remove": "Eliminar comentarios",
+      "cancel": "Cancelar",
+      "submitting": "Enviando…",
+      "submit": "Enviar",
+      "reasons": {
+        "wrong_citation": "Cita incorrecta o ausente",
+        "hallucination": "Afirmación sin respaldo o inventada",
+        "outdated_source": "Fuente obsoleta",
+        "missing_document": "Documento relevante no utilizado",
+        "unsafe_content": "Contenido inseguro o sensible",
+        "other": "Otro"
+      },
+      "categoryLabels": {
+        "wrong_answer": "Respuesta incorrecta",
+        "bad_citation": "Cita incorrecta",
+        "missing_citation": "Cita ausente",
+        "missing_source": "Fuente ausente",
+        "outdated_source": "Fuente obsoleta",
+        "hallucination_risk": "Riesgo de alucinación",
+        "conflict_not_detected": "Conflicto no detectado",
+        "unclear_answer": "Respuesta poco clara",
+        "should_have_said_not_found": "Debió indicar que no se encontró"
+      },
+      "categoryDescriptions": {
+        "wrong_answer": "La respuesta es factualmente incorrecta",
+        "bad_citation": "La cita es incorrecta, falta o es irrelevante",
+        "missing_citation": "Falta una cita que debería estar",
+        "missing_source": "No se usó ni se mostró una fuente relevante",
+        "outdated_source": "El material de origen ya no está vigente",
+        "hallucination_risk": "La respuesta puede carecer de respaldo o ser inventada",
+        "conflict_not_detected": "No se marcaron fuentes en conflicto",
+        "unclear_answer": "La respuesta es demasiado vaga o incompleta",
+        "should_have_said_not_found": "El sistema debió negarse o indicar que no se encontró"
+      },
+      "trustCategoryDescriptions": {
+        "bad_citation": "Una cita es incorrecta, irrelevante o apunta al lugar equivocado",
+        "missing_source": "La respuesta debió usar una fuente que no está",
+        "outdated_source": "La fuente citada está obsoleta o ya no es precisa",
+        "conflict_not_detected": "El modelo no detectó un conflicto entre fuentes",
+        "should_have_said_not_found": "No existe información relevante: el modelo debió decirlo"
+      },
+      "trust": {
+        "title": "Informar de un problema con la respuesta",
+        "closeAria": "Cerrar el cuadro del informe",
+        "question": "¿Qué problema tiene esta respuesta?",
+        "categoryLegend": "Categoría del problema",
+        "otherNotListed": "Otro / no incluido",
+        "flagSources": "Marcar fuentes concretas (opcional)",
+        "placeholder": "Describa qué estaba mal…",
+        "traceId": "ID de traza: <mono>{id}</mono>",
+        "reporting": "Informando…",
+        "report": "Informar de un problema"
+      },
+      "unknownSource": "Fuente desconocida"
+    },
+    "share": {
+      "expiry": {
+        "never": "Nunca",
+        "24h": "24 horas",
+        "7d": "7 días",
+        "30d": "30 días"
+      },
+      "close": "Cerrar",
+      "copyLink": "Copiar enlace",
+      "revokeLink": "Revocar enlace",
+      "createLink": "Crear enlace",
+      "expiresLabel": "Caduca:",
+      "generate": "Generar enlace",
+      "creating": "Creando...",
+      "loadingLinks": "Cargando enlaces para compartir...",
+      "activeLinks": "Enlaces activos",
+      "expiresValue": "Caduca: {value}",
+      "accessOrg": "Organización",
+      "accessSpecific": "Usuarios concretos",
+      "passwordProtected": "Protegido con contraseña",
+      "answerModal": {
+        "title": "Compartir respuesta",
+        "description": "Cree un enlace con permisos controlados a este turno de preguntas y respuestas.",
+        "notice": "Quienes lo vean deben ser miembros de su organización con sesión iniciada. Las citas solo muestran el texto del extracto; los ID de los documentos no se exponen.",
+        "access": "Acceso",
+        "userIds": "ID de usuario (separados por comas o espacios)",
+        "userIdsPlaceholder": "uuid-1, uuid-2, ...",
+        "requirePassword": "Exigir contraseña",
+        "passwordPlaceholder": "Introduzca la contraseña del enlace (mín. 4 caracteres)",
+        "noActive": "No hay enlaces para compartir activos para esta respuesta."
+      },
+      "sessionModal": {
+        "title": "Compartir sesión",
+        "untitled": "Sesión sin título",
+        "notice": "Los enlaces para compartir solo son accesibles para miembros de su organización con sesión iniciada.",
+        "noActive": "No hay enlaces para compartir activos para esta sesión."
+      },
+      "page": {
+        "passwordTitle": "Contraseña obligatoria",
+        "passwordBody": "Esta respuesta compartida está protegida con contraseña. Introduzca la contraseña para verla.",
+        "passwordPlaceholder": "Introduzca la contraseña",
+        "checking": "Comprobando...",
+        "unlock": "Desbloquear",
+        "loadingAnswer": "Cargando la respuesta compartida...",
+        "loadingSession": "Cargando la sesión compartida...",
+        "accessDenied": "Acceso denegado",
+        "answerForbidden": "Este enlace para compartir no es accesible con su cuenta.",
+        "sessionForbidden": "Este enlace para compartir no es accesible con su cuenta. Debe ser miembro de la organización que lo creó.",
+        "notFound": "Enlace para compartir no encontrado",
+        "answerHeading": "Respuesta compartida",
+        "sessionHeading": "Sesión compartida",
+        "sessionFallbackTitle": "Sesión compartida",
+        "shared": "Compartido el {date}",
+        "sharedExpires": "Compartido el {date} · Caduca el {expires}",
+        "sharedMessages": "Compartido el {date} • {count, plural, one {# mensaje} other {# mensajes}}",
+        "copyAll": "Copiar todo",
+        "downloadMd": "Descargar .md",
+        "aiNoticeAnswer": "Esta respuesta la genera la IA y se basa en extractos de fuentes citadas. Verifíquela con los documentos originales antes de actuar.",
+        "aiNoticeSession": "Las respuestas las genera la IA y se basan en evidencia de fuentes citadas. Verifíquelas con los documentos de origen antes de actuar.",
+        "staleAnswer": "Algunas citas proceden de fuentes obsoletas, caducadas o archivadas.",
+        "staleSession": "Algunas citas de esta sesión compartida proceden de fuentes obsoletas, revocadas o eliminadas.",
+        "question": "Pregunta",
+        "aiAnswer": "Respuesta generada por IA",
+        "confidence": "Confianza {category}",
+        "noMessages": "No hay mensajes en esta sesión compartida.",
+        "document": "Documento",
+        "pageN": "Página {page}",
+        "archived": "Archivado"
       }
     }
   },
@@ -4610,6 +5061,45 @@
     "fr": "Francés",
     "ar": "Árabe",
     "fa": "Persa"
+  },
+  "states": {
+    "retry": "Reintentar",
+    "traceId": "ID de traza:",
+    "empty": {
+      "title": "No hay datos disponibles",
+      "aria": "Estado vacío"
+    },
+    "error": {
+      "aria": "Estado de error",
+      "conflict": "Conflicto de solicitud",
+      "invalidSession": "La sesión no es válida",
+      "unableToLoad": "No se puede cargar"
+    },
+    "forbidden": {
+      "aria": "Estado de acceso prohibido",
+      "eyebrow": "Control de acceso de Rudix",
+      "title": "Prohibido",
+      "description": "No tiene permiso para completar esta acción.",
+      "backLabel": "Volver al panel"
+    },
+    "loading": {
+      "title": "Cargando...",
+      "aria": "Estado de carga"
+    },
+    "network": {
+      "aria": "Estado de error de red",
+      "title": "Sin conexión",
+      "description": "No se pudo conectar con el servidor. Compruebe su conexión de red e inténtelo de nuevo."
+    },
+    "rateLimit": {
+      "aria": "Estado de límite de solicitudes",
+      "title": "Se alcanzó el límite de solicitudes",
+      "description": "Se enviaron demasiadas solicitudes. Espere un momento y vuelva a intentarlo."
+    },
+    "skeleton": {
+      "aria": "Cargando contenido",
+      "text": "Cargando…"
+    }
   },
   "adminTeam": {
     "title": "Gestión del equipo",

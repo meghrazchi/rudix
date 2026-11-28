@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+
+import { useTranslations } from "next-intl";
 import type { FeedbackCategory, FeedbackReason } from "@/lib/api/feedback";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 
@@ -19,65 +21,25 @@ type Props = {
   onClose: () => void;
 };
 
-const REASONS: { value: FeedbackReason; label: string }[] = [
-  { value: "wrong_citation", label: "Wrong or missing citation" },
-  { value: "hallucination", label: "Unsupported or fabricated claim" },
-  { value: "outdated_source", label: "Outdated source" },
-  { value: "missing_document", label: "Relevant document not used" },
-  { value: "unsafe_content", label: "Unsafe or sensitive content" },
-  { value: "other", label: "Other" },
+const REASONS: FeedbackReason[] = [
+  "wrong_citation",
+  "hallucination",
+  "outdated_source",
+  "missing_document",
+  "unsafe_content",
+  "other",
 ];
 
-const CATEGORIES: {
-  value: FeedbackCategory;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: "wrong_answer",
-    label: "Wrong answer",
-    description: "The answer is factually incorrect",
-  },
-  {
-    value: "bad_citation",
-    label: "Bad citation",
-    description: "Citation is wrong, missing, or irrelevant",
-  },
-  {
-    value: "missing_citation",
-    label: "Missing citation",
-    description: "A citation that should be there is absent",
-  },
-  {
-    value: "missing_source",
-    label: "Missing source",
-    description: "A relevant source was not used or surfaced",
-  },
-  {
-    value: "outdated_source",
-    label: "Outdated source",
-    description: "The source material is no longer current",
-  },
-  {
-    value: "hallucination_risk",
-    label: "Hallucination risk",
-    description: "The answer may be unsupported or fabricated",
-  },
-  {
-    value: "conflict_not_detected",
-    label: "Conflict not detected",
-    description: "Conflicting sources were not flagged",
-  },
-  {
-    value: "unclear_answer",
-    label: "Unclear answer",
-    description: "The answer is too vague or incomplete",
-  },
-  {
-    value: "should_have_said_not_found",
-    label: "Should have said not found",
-    description: "The system should have refused or said not found",
-  },
+const CATEGORIES: FeedbackCategory[] = [
+  "wrong_answer",
+  "bad_citation",
+  "missing_citation",
+  "missing_source",
+  "outdated_source",
+  "hallucination_risk",
+  "conflict_not_detected",
+  "unclear_answer",
+  "should_have_said_not_found",
 ];
 
 export function FeedbackModal({
@@ -90,6 +52,7 @@ export function FeedbackModal({
   onDelete,
   onClose,
 }: Props) {
+  const t = useTranslations("chat.feedback");
   const dialogRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [reason, setReason] = useState<FeedbackReason | null>(
@@ -139,13 +102,13 @@ export function FeedbackModal({
             id="feedback-modal-title"
             className="text-base font-semibold text-[#2a2640]"
           >
-            {isEditing ? "Edit feedback" : "Report an issue"}
+            {isEditing ? t("title.edit") : t("title.new")}
           </h2>
           <button
             type="button"
             data-overlay-autofocus="true"
             onClick={onClose}
-            aria-label="Close feedback dialog"
+            aria-label={t("closeAria")}
             className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
           >
             <span
@@ -165,14 +128,14 @@ export function FeedbackModal({
               id="feedback-category-label"
               className="mb-2 text-xs font-medium text-[#464555]"
             >
-              Issue type (optional)
+              {t("issueType")}
             </p>
             <fieldset
               aria-labelledby="feedback-category-label"
               className="space-y-1"
             >
-              <legend className="sr-only">Feedback category</legend>
-              {CATEGORIES.map(({ value, label, description }) => (
+              <legend className="sr-only">{t("categoryLegend")}</legend>
+              {CATEGORIES.map((value) => (
                 <label
                   key={value}
                   className="flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2 text-sm text-[#2a2640] hover:bg-[#f5f2ff]"
@@ -186,8 +149,12 @@ export function FeedbackModal({
                     className="mt-0.5 accent-[#3525cd]"
                   />
                   <span>
-                    <span className="font-medium">{label}</span>
-                    <span className="ml-1 text-[#777587]">— {description}</span>
+                    <span className="font-medium">
+                      {t(`categoryLabels.${value}`)}
+                    </span>
+                    <span className="ml-1 text-[#777587]">
+                      — {t(`categoryDescriptions.${value}`)}
+                    </span>
                   </span>
                 </label>
               ))}
@@ -200,7 +167,7 @@ export function FeedbackModal({
                   onChange={() => setCategory(null)}
                   className="accent-[#3525cd]"
                 />
-                None of the above
+                {t("noneOfAbove")}
               </label>
             </fieldset>
           </div>
@@ -208,12 +175,12 @@ export function FeedbackModal({
           {/* Legacy reason — kept for backward compatibility */}
           <details className="rounded-lg border border-[#e2dff1]">
             <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-[#777587] hover:text-[#464555]">
-              Additional classification (optional)
+              {t("additionalClassification")}
             </summary>
             <div className="px-3 pb-3">
               <fieldset className="space-y-1.5">
-                <legend className="sr-only">Legacy reason</legend>
-                {REASONS.map(({ value, label }) => (
+                <legend className="sr-only">{t("legacyLegend")}</legend>
+                {REASONS.map((value) => (
                   <label
                     key={value}
                     className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-[#2a2640] hover:bg-[#f5f2ff]"
@@ -226,7 +193,7 @@ export function FeedbackModal({
                       onChange={() => setReason(value)}
                       className="accent-[#3525cd]"
                     />
-                    {label}
+                    {t(`reasons.${value}`)}
                   </label>
                 ))}
                 <label className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-[#6a6780] hover:bg-[#f5f2ff]">
@@ -238,7 +205,7 @@ export function FeedbackModal({
                     onChange={() => setReason(null)}
                     className="accent-[#3525cd]"
                   />
-                  None / prefer not to say
+                  {t("noneSkip")}
                 </label>
               </fieldset>
             </div>
@@ -249,7 +216,7 @@ export function FeedbackModal({
               htmlFor="feedback-comment"
               className="mb-1 block text-xs font-medium text-[#464555]"
             >
-              Additional details (optional)
+              {t("details")}
             </label>
             <textarea
               id="feedback-comment"
@@ -257,7 +224,7 @@ export function FeedbackModal({
               onChange={(e) => setComment(e.target.value)}
               maxLength={1000}
               rows={3}
-              placeholder="Describe the issue…"
+              placeholder={t("placeholder")}
               aria-describedby="feedback-comment-count"
               className="w-full resize-none rounded-lg border border-[#d7d4e8] bg-[#faf9ff] px-3 py-2 text-sm text-[#2a2640] placeholder-[#9d98b5] outline-none focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
             />
@@ -281,7 +248,7 @@ export function FeedbackModal({
                   disabled={isBusy}
                   className="text-xs text-rose-500 hover:underline focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none disabled:opacity-50"
                 >
-                  {isDeleting ? "Removing…" : "Remove feedback"}
+                  {isDeleting ? t("removing") : t("remove")}
                 </button>
               ) : null}
             </div>
@@ -292,14 +259,14 @@ export function FeedbackModal({
                 disabled={isBusy}
                 className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-xs text-[#6a6780] hover:bg-[#f5f2ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:opacity-50"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 type="submit"
                 disabled={isBusy}
                 className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a1eb5] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
               >
-                {isSubmitting ? "Submitting…" : "Submit"}
+                {isSubmitting ? t("submitting") : t("submit")}
               </button>
             </div>
           </div>

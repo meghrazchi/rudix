@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { RetryAction } from "@/components/states/RetryAction";
 import { sanitizeRequestId } from "@/lib/forbidden";
 
@@ -11,20 +13,21 @@ type RateLimitStateProps = {
 };
 
 export function RateLimitState({
-  title = "Rate limit reached",
-  description = "Too many requests were sent. Wait a moment, then retry.",
+  title,
+  description,
   requestId,
   onRetry,
   compact = false,
-  retryLabel = "Retry",
+  retryLabel,
 }: RateLimitStateProps) {
+  const t = useTranslations("states");
   const safeRequestId = sanitizeRequestId(requestId ?? null);
 
   return (
     <section
       role="alert"
       aria-live="assertive"
-      aria-label="Rate limit state"
+      aria-label={t("rateLimit.aria")}
       className={`rounded-lg border border-amber-200 bg-amber-50 ${
         compact ? "px-3 py-2" : "px-4 py-4"
       } text-amber-900`}
@@ -34,14 +37,14 @@ export function RateLimitState({
           compact ? "text-sm font-semibold" : "text-base font-semibold"
         }
       >
-        {title}
+        {title ?? t("rateLimit.title")}
       </p>
       <p className={`${compact ? "mt-1 text-xs" : "mt-1 text-sm"}`}>
-        {description}
+        {description ?? t("rateLimit.description")}
       </p>
       {safeRequestId ? (
         <p className="mt-2 text-xs">
-          Trace ID: <span className="font-semibold">{safeRequestId}</span>
+          {t("traceId")} <span className="font-semibold">{safeRequestId}</span>
         </p>
       ) : null}
       <div className="mt-2">

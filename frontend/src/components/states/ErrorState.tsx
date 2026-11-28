@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { NetworkErrorState } from "@/components/states/NetworkErrorState";
 import { RateLimitState } from "@/components/states/RateLimitState";
 import { RetryAction } from "@/components/states/RetryAction";
@@ -14,21 +16,25 @@ type ErrorStateProps = {
   compact?: boolean;
 };
 
-function resolveTitle(params: { title?: string; error?: unknown }): string {
+function resolveTitle(params: {
+  title?: string;
+  error?: unknown;
+  t: (key: string) => string;
+}): string {
   if (params.title) {
     return params.title;
   }
 
   if (isApiClientError(params.error)) {
     if (params.error.status === 409) {
-      return "Request conflict";
+      return params.t("error.conflict");
     }
     if (params.error.status === 401) {
-      return "Session is not valid";
+      return params.t("error.invalidSession");
     }
   }
 
-  return "Unable to load";
+  return params.t("error.unableToLoad");
 }
 
 function resolveDescription(params: {
@@ -47,9 +53,10 @@ export function ErrorState({
   error,
   requestId,
   onRetry,
-  retryLabel = "Retry",
+  retryLabel,
   compact = false,
 }: ErrorStateProps) {
+  const t = useTranslations("states");
   if (isApiClientError(error) && error.status === 0) {
     return (
       <NetworkErrorState
@@ -73,7 +80,7 @@ export function ErrorState({
     );
   }
 
-  const resolvedTitle = resolveTitle({ title, error });
+  const resolvedTitle = resolveTitle({ title, error, t });
   const resolvedDescription = resolveDescription({ description, error });
   const safeRequestId = sanitizeRequestId(
     requestId ?? extractRequestIdFromError(error),
@@ -83,7 +90,7 @@ export function ErrorState({
     <section
       role="alert"
       aria-live="assertive"
-      aria-label="Error state"
+      aria-label={t("error.aria")}
       className={`rounded-lg border border-rose-200 bg-rose-50 ${
         compact ? "px-3 py-2" : "px-4 py-4"
       } text-rose-900`}
@@ -100,7 +107,7 @@ export function ErrorState({
       </p>
       {safeRequestId ? (
         <p className="mt-2 text-xs">
-          Trace ID: <span className="font-semibold">{safeRequestId}</span>
+          {t("traceId")} <span className="font-semibold">{safeRequestId}</span>
         </p>
       ) : null}
       <div className="mt-2">

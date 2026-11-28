@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 type RetryActionProps = {
   onRetry?: (() => void) | null;
   label?: string;
@@ -5,14 +7,13 @@ type RetryActionProps = {
   className?: string;
 };
 
-const DEFAULT_RETRY_LABEL = "Retry";
-
 export function RetryAction({
   onRetry,
-  label = DEFAULT_RETRY_LABEL,
+  label,
   disabled = false,
   className,
 }: RetryActionProps) {
+  const t = useTranslations("states");
   if (!onRetry) {
     return null;
   }
@@ -27,7 +28,7 @@ export function RetryAction({
         "rounded border border-[#cbc5e6] bg-white px-3 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
       }
     >
-      {label}
+      {label ?? t("retry")}
     </button>
   );
 }

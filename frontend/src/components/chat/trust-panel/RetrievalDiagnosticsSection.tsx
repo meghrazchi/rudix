@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { formatRange } from "@/components/chat/trust-panel/trust-format";
 import type { RetrievalDiagnostics } from "@/components/chat/trust-panel/SourceSelectionSection";
 import {
@@ -13,62 +15,67 @@ export function RetrievalDiagnosticsSection({
   retrievalDiagnostics: NonNullable<RetrievalDiagnostics>;
   debug: ChatDebugResponse | null;
 }) {
+  const t = useTranslations("chat.trustPanel");
   return (
     <div className="space-y-2 px-4 pt-4 pb-4 md:px-6 md:pt-5 md:pb-5">
-      <SectionHeader icon="manage_search" label="Retrieval Diagnostics" />
+      <SectionHeader icon="manage_search" label={t("diag.title")} />
       <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
         <StatRow
-          label="Candidates"
+          label={t("diag.candidates")}
           value={
             retrievalDiagnostics.retrieval_candidate_count ??
             retrievalDiagnostics.retrieval_count
           }
         />
         <StatRow
-          label="Selected chunks"
+          label={t("diag.selectedChunks")}
           value={retrievalDiagnostics.selected_count ?? 0}
         />
-        <StatRow label="Top-k" value={retrievalDiagnostics.top_k ?? null} />
         <StatRow
-          label="Search mode"
+          label={t("diag.topK")}
+          value={retrievalDiagnostics.top_k ?? null}
+        />
+        <StatRow
+          label={t("diag.searchMode")}
           value={
             retrievalDiagnostics.search_mode ??
             retrievalDiagnostics.source_scope_mode
           }
         />
         <StatRow
-          label="Scope mode"
+          label={t("diag.scopeMode")}
           value={retrievalDiagnostics.source_scope_mode ?? null}
         />
         <StatRow
-          label="Scope label"
+          label={t("diag.scopeLabel")}
           value={retrievalDiagnostics.source_scope_label ?? null}
         />
         <StatRow
-          label="Profile"
+          label={t("diag.profile")}
           value={retrievalDiagnostics.retrieval_profile_name ?? null}
         />
         <StatRow
-          label="Profile scope"
+          label={t("diag.profileScope")}
           value={retrievalDiagnostics.retrieval_profile_scope ?? null}
         />
         <StatRow
-          label="Profile source"
+          label={t("diag.profileSource")}
           value={retrievalDiagnostics.retrieval_profile_source ?? null}
         />
         <StatRow
-          label="Request ID"
+          label={t("diag.requestId")}
           value={retrievalDiagnostics.request_id ?? null}
         />
         <StatRow
-          label="Trace ID"
+          label={t("diag.traceId")}
           value={retrievalDiagnostics.trace_request_id ?? null}
         />
         <StatRow
-          label="Rerank score range"
+          label={t("diag.rerankRange")}
           value={formatRange(
             retrievalDiagnostics.rerank_score_min,
             retrievalDiagnostics.rerank_score_max,
+            t,
           )}
         />
       </div>
@@ -88,11 +95,11 @@ export function RetrievalDiagnosticsSection({
         {retrievalDiagnostics.hybrid_retrieval_enabled ? (
           <>
             <StatRow
-              label="Vector hits"
+              label={t("diag.vectorHits")}
               value={retrievalDiagnostics.hybrid_vector_hit_count ?? 0}
             />
             <StatRow
-              label="Keyword hits"
+              label={t("diag.keywordHits")}
               value={retrievalDiagnostics.hybrid_keyword_hit_count ?? 0}
             />
           </>
@@ -100,17 +107,17 @@ export function RetrievalDiagnosticsSection({
         {retrievalDiagnostics.rerank_applied ? (
           <>
             <StatRow
-              label="Reranker"
+              label={t("diag.reranker")}
               value={
                 retrievalDiagnostics.rerank_model ??
                 retrievalDiagnostics.rerank_provider ??
-                "Enabled"
+                t("diag.enabled")
               }
             />
             {retrievalDiagnostics.rerank_fallback_used ? (
               <StatRow
-                label="Rerank fallback"
-                value={retrievalDiagnostics.rerank_fallback_reason ?? "Yes"}
+                label={t("diag.rerankFallback")}
+                value={retrievalDiagnostics.rerank_fallback_reason ?? t("yes")}
               />
             ) : null}
           </>
@@ -118,12 +125,14 @@ export function RetrievalDiagnosticsSection({
         {debug?.parent_context_expansion_enabled ? (
           <>
             <StatRow
-              label="Parent expansion"
-              value={`${debug.parent_context_expanded_count ?? 0} chunks`}
+              label={t("diag.parentExpansion")}
+              value={t("diag.parentChunks", {
+                count: debug.parent_context_expanded_count ?? 0,
+              })}
             />
             {(debug.parent_context_tokens_used ?? 0) > 0 ? (
               <StatRow
-                label="Parent tokens"
+                label={t("diag.parentTokens")}
                 value={debug.parent_context_tokens_used}
               />
             ) : null}
@@ -133,26 +142,26 @@ export function RetrievalDiagnosticsSection({
           <>
             {(debug.freshness_boosted_count ?? 0) > 0 ? (
               <StatRow
-                label="Freshness boosted"
+                label={t("diag.freshnessBoosted")}
                 value={debug.freshness_boosted_count}
               />
             ) : null}
             {(debug.freshness_excluded_count ?? 0) > 0 ? (
               <StatRow
-                label="Excluded (deprecated/expired)"
+                label={t("diag.excluded")}
                 value={debug.freshness_excluded_count}
               />
             ) : null}
             {(debug.freshness_stale_count ?? 0) > 0 ? (
               <StatRow
-                label="Stale sources"
+                label={t("diag.staleSources")}
                 value={debug.freshness_stale_count}
               />
             ) : null}
             {((debug as { freshness_unreviewed_count?: number })
               .freshness_unreviewed_count ?? 0) > 0 ? (
               <StatRow
-                label="Unreviewed sources"
+                label={t("diag.unreviewedSources")}
                 value={
                   (debug as { freshness_unreviewed_count?: number })
                     .freshness_unreviewed_count
@@ -162,7 +171,7 @@ export function RetrievalDiagnosticsSection({
             {((debug as { freshness_deprecated_count?: number })
               .freshness_deprecated_count ?? 0) > 0 ? (
               <StatRow
-                label="Deprecated sources"
+                label={t("diag.deprecatedSources")}
                 value={
                   (debug as { freshness_deprecated_count?: number })
                     .freshness_deprecated_count
@@ -171,14 +180,14 @@ export function RetrievalDiagnosticsSection({
             ) : null}
             {(debug as { freshness_all_excluded_fallback?: boolean })
               .freshness_all_excluded_fallback ? (
-              <StatRow label="All-excluded fallback" value="Yes" />
+              <StatRow label={t("diag.allExcludedFallback")} value={t("yes")} />
             ) : null}
           </>
         ) : null}
         {debug?.ocr_quality_downranking_enabled &&
         (debug.ocr_low_confidence_chunk_count ?? 0) > 0 ? (
           <StatRow
-            label="OCR low-conf chunks"
+            label={t("diag.ocrLowChunks")}
             value={debug.ocr_low_confidence_chunk_count}
           />
         ) : null}

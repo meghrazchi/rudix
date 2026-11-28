@@ -2822,7 +2822,15 @@
       "closeKnowledgeHub": "إغلاق مركز المعرفة",
       "answerExplanation": "شرح الإجابة",
       "saveKnowledgeCard": "حفظ كبطاقة معرفة",
-      "closeAnswerExplanation": "إغلاق شرح الإجابة"
+      "closeAnswerExplanation": "إغلاق شرح الإجابة",
+      "assistantName": "Rudix AI",
+      "emptyGreeting": "Rudix هنا.",
+      "explainAnswerShort": "اشرح الإجابة",
+      "staleCitationsNotice": "تأتي بعض الاستشهادات من مصادر قديمة أو منتهية الصلاحية أو مؤرشفة.",
+      "deleteSessionBody": "سيتم حذف هذه الجلسة نهائيًا من مساحة العمل. لا يمكن التراجع عن هذا الإجراء.",
+      "loadingChunkText": "جارٍ تحميل نص المقطع...",
+      "citationPageUpper": "الصفحة {page}",
+      "citationScoreLower": "الدرجة {score}"
     },
     "composer": {
       "selectScope": "تحديد النطاق",
@@ -2969,6 +2977,449 @@
         "extraction": "Table extraction",
         "dimensions": "({rows} rows × {columns} columns)",
         "headers": "Headers: {headers}"
+      }
+    },
+    "trustPanel": {
+      "na": "غير متاح",
+      "yes": "نعم",
+      "unknownDocument": "مستند غير معروف",
+      "source": "المصدر",
+      "pageShort": "ص {page}",
+      "level": {
+        "high": "مرتفعة",
+        "medium": "متوسطة",
+        "warning": "تحذير",
+        "notFound": "غير موجود",
+        "low": "منخفضة"
+      },
+      "badge": {
+        "trusted": "موثوق",
+        "stale": "قديم",
+        "revoked": "ملغى",
+        "deleted": "محذوف",
+        "expired": "منتهي الصلاحية",
+        "deprecated": "متوقف",
+        "draft": "مسودة",
+        "unreviewed": "غير مراجع",
+        "preferred": "مفضّل",
+        "conflicting": "متعارض",
+        "supported": "مدعومة",
+        "partial": "جزئية",
+        "unverifiable": "غير قابلة للتحقق",
+        "unsupported": "غير مدعومة",
+        "ocrLow": "ثقة منخفضة في OCR",
+        "ocrMedium": "OCR متوسطة",
+        "tableLow": "ثقة منخفضة في الجدول",
+        "corrupted": "تالف",
+        "unsupportedFormat": "تنسيق غير مدعوم",
+        "encrypted": "مشفّر",
+        "extractionIssue": "مشكلة في الاستخراج",
+        "processingIncomplete": "المعالجة غير مكتملة",
+        "guidance": "إرشادات عامة حول المنتج"
+      },
+      "range": {
+        "from": "من {value}",
+        "upTo": "حتى {value}"
+      },
+      "complexity": {
+        "simple": "بسيط",
+        "complex": "معقد",
+        "multiPart": "متعدد الأجزاء"
+      },
+      "summary": {
+        "scope": "النطاق: {scope}",
+        "scopeAll": "النطاق: جميع المستندات",
+        "profile": "الملف: {profile}",
+        "candidates": "{count, plural, one {تمت مراجعة # مرشح} other {تمت مراجعة # مرشحين}}",
+        "chunks": "{count, plural, one {تم اختيار # مقطع} other {تم اختيار # مقاطع}}",
+        "topK": "أعلى {value}",
+        "mode": "الوضع: {mode}",
+        "rerankFellBack": "تم التراجع عن إعادة الترتيب",
+        "rerankFellBackReason": "تم التراجع عن إعادة الترتيب ({reason})",
+        "rerankApplied": "تم تطبيق إعادة الترتيب",
+        "rerankOff": "كانت إعادة الترتيب متوقفة"
+      },
+      "warn": {
+        "lowConfidence": "ثقة منخفضة — تحقق من هذه الإجابة مقابل المصادر المذكورة.",
+        "citationFailed": "فشل التحقق من الاستشهادات — تعذر التحقق من بعضها.",
+        "verificationFailed": "فشل التحقق من الإجابة — قد لا تكون الادعاءات مستندة بالكامل.",
+        "sourcesStale": "قد يكون مصدر واحد أو أكثر قديمًا أو غير مراجع.",
+        "allExcluded": "تم استبعاد جميع المصادر الموثوقة. تستخدم الإجابة محتوى متوقفًا أو منتهي الصلاحية.",
+        "citedStale": "مصدر واحد أو أكثر من المصادر المذكورة قديم أو منتهي الصلاحية.",
+        "citedPending": "مصدر واحد أو أكثر من المصادر المذكورة قيد المراجعة.",
+        "citedDeprecated": "مصدر واحد أو أكثر من المصادر المذكورة متوقف أو مؤرشف.",
+        "citedOcr": "مصدر واحد أو أكثر لديه ثقة منخفضة في OCR — قد تقل دقة النص.",
+        "tableLow": "جدول واحد أو أكثر لديه ثقة استخراج منخفضة — قد تكون بيانات الجدول غير دقيقة.",
+        "extractionPoor": "مستند مصدر واحد أو أكثر لديه جودة استخراج ضعيفة — قد تكون تغطية النص غير مكتملة.",
+        "processingIncomplete": "مستند مصدر واحد أو أكثر لديه معالجة غير مكتملة أو فاشلة — قد يكون المحتوى ناقصًا.",
+        "removedClaims": "تمت إزالة {count} ادعاء(ات) غير مدعومة من الإجابة.",
+        "weakSupport": "دعم الاستشهادات ضعيف — راجع الادعاءات المرتبطة.",
+        "unsupportedClaims": "{unsupported}/{total} ادعاء(ات) غير مدعومة بالاستشهادات.",
+        "conflictSummary": "تعارض بين المصادر: {summary}",
+        "conflictDefault": "تختلف المصادر في ادعاء واحد أو أكثر. فضّل المصدر المحدد.",
+        "conflictPartial": "تختلف المصادر جزئيًا. تحقق من الادعاءات مقابل المصادر المذكورة."
+      },
+      "header": {
+        "modeAria": "وضع تشخيص الاسترجاع",
+        "basic": "أساسي",
+        "expert": "خبير",
+        "answerExplanation": "شرح الإجابة",
+        "modelView": "عرض النموذج",
+        "description": "يتم تجميع الثقة واختيار المصادر ودعم الاستشهادات في لوحة مراجعة واحدة.",
+        "saveAria": "حفظ كبطاقة معرفة",
+        "saveAsCard": "حفظ كبطاقة",
+        "reportAria": "الإبلاغ عن مشكلة في هذه الإجابة",
+        "reportIssue": "الإبلاغ عن مشكلة"
+      },
+      "sources": {
+        "title": "المصادر ({count})",
+        "updated": "تم التحديث {date}",
+        "synced": "تمت المزامنة {date}",
+        "score": "الدرجة {score}",
+        "rerank": "إعادة الترتيب {score}",
+        "table": "جدول",
+        "previewAria": "معاينة {title}"
+      },
+      "claims": {
+        "title": "دعم الادعاءات ({supported}/{total})",
+        "aggregate": "الدعم الإجمالي",
+        "verificationScore": "درجة التحقق",
+        "supported": "الادعاءات المدعومة",
+        "partial": "الادعاءات الجزئية",
+        "unsupported": "الادعاءات غير المدعومة",
+        "unverifiable": "الادعاءات غير القابلة للتحقق",
+        "claimN": "الادعاء {n}",
+        "supportPct": "الدعم {pct}",
+        "previewAria": "معاينة المصدر {index} للادعاء {claim}",
+        "sourceN": "المصدر {index}",
+        "noMapped": "لا توجد استشهادات موثقة مرتبطة بهذا الادعاء.",
+        "noMapping": "ربط الاستشهادات بالادعاءات غير متاح لهذه النسخة من الإجابة."
+      },
+      "confidence": {
+        "title": "درجة الثقة",
+        "scoreAria": "درجة الثقة",
+        "signals": "مؤشرات الثقة",
+        "category": {
+          "low": "منخفضة",
+          "medium": "متوسطة",
+          "high": "مرتفعة"
+        },
+        "topSimilarity": "أعلى تشابه",
+        "avgSimilarity": "متوسط التشابه",
+        "rerankScore": "درجة إعادة الترتيب",
+        "citationCoverage": "تغطية الاستشهادات",
+        "citationSupport": "دعم الاستشهادات",
+        "sourceAgreement": "اتفاق المصادر",
+        "freshnessFactor": "عامل الحداثة",
+        "ocrFactor": "عامل جودة OCR",
+        "conflictFactor": "عامل التعارض",
+        "tableFactor": "عامل جودة الجداول",
+        "extractionFactor": "عامل جودة الاستخراج",
+        "graphBoost": "تعزيز الرسم البياني"
+      },
+      "conflict": {
+        "title": "تعارض المصادر",
+        "pairs": "{count, plural, one {زوج متعارض #} other {# أزواج متعارضة}}",
+        "sourcesInConflict": "المصادر المتعارضة",
+        "preferredCount": "عدد المصادر المفضلة",
+        "noPreferred": "تعذر تحديد مصدر مفضل — تعامل مع جميع المصادر بالحذر نفسه.",
+        "level": {
+          "full": "اتفاق كامل",
+          "partial": "اتفاق جزئي",
+          "conflicting": "مصادر متعارضة"
+        },
+        "detected": "تم اكتشاف تعارض بين المصادر",
+        "comparison": "مقارنة المصادر",
+        "preferredIds": "معرّفات المصادر المفضلة: {ids}",
+        "preferredSources": "المصادر المفضلة",
+        "conflictingSources": "مصادر متعارضة",
+        "document": "مستند",
+        "noSnippet": "لا يوجد مقتطف متاح."
+      },
+      "graph": {
+        "title": "الرسم البياني المعرفي",
+        "unavailable": "سياق الرسم البياني غير متاح.",
+        "seedEntities": "الكيانات الأولية",
+        "relatedEntities": "الكيانات ذات الصلة",
+        "chunks": "مقاطع الرسم البياني",
+        "maxHops": "الحد الأقصى للقفزات",
+        "relationTypes": "أنواع العلاقات"
+      },
+      "model": {
+        "title": "النموذج",
+        "provider": "المزوّد",
+        "llmModel": "نموذج LLM",
+        "embeddings": "التضمينات",
+        "promptTemplate": "قالب الموجّه",
+        "fallbackFrom": "التراجع من",
+        "fallbackPrimary": "الأساسي",
+        "fallbackTo": "التراجع إلى",
+        "fallbackReason": "سبب التراجع",
+        "detectedLanguage": "اللغة المكتشفة",
+        "answerLanguage": "لغة الإجابة"
+      },
+      "policy": {
+        "title": "السياسة",
+        "outcome": "النتيجة",
+        "violated": "القواعد المخالفة",
+        "warnings": "التحذيرات"
+      },
+      "pipeline": {
+        "title": "مسار الإجابة",
+        "strategy": "الاستراتيجية",
+        "highRisk": "مراجعة عالية المخاطر",
+        "criticSeverity": "شدة النقد",
+        "refiner": "المحسّن",
+        "refinerRevised": "تم التطبيق — تمت مراجعة الإجابة",
+        "refinerNoChange": "تم التطبيق — بلا تغييرات",
+        "claimsRemoved": "الادعاءات المحذوفة",
+        "criticWarnings": "تحذيرات النقد",
+        "strategies": {
+          "policy_lookup": "البحث في السياسات",
+          "comparison": "مقارنة",
+          "legal_compliance": "قانوني / امتثال",
+          "table_heavy": "كثيف الجداول",
+          "graph_assisted": "بمساعدة الرسم البياني",
+          "connector_search": "البحث في الموصلات",
+          "standard": "قياسي"
+        },
+        "severity": {
+          "none": "لا شيء",
+          "low": "منخفضة",
+          "medium": "متوسطة",
+          "high": "مرتفعة"
+        }
+      },
+      "query": {
+        "title": "تفسير الاستعلام",
+        "intent": "القصد",
+        "strategy": "الاستراتيجية",
+        "complexity": "التعقيد",
+        "rewritePreview": "معاينة إعادة الصياغة",
+        "subQueries": "الاستعلامات الفرعية",
+        "rewriteDisabled": "معاينة إعادة الصياغة معطلة بموجب سياسة المؤسسة."
+      },
+      "diag": {
+        "title": "تشخيص الاسترجاع",
+        "candidates": "المرشحون",
+        "selectedChunks": "المقاطع المختارة",
+        "topK": "Top-k",
+        "searchMode": "وضع البحث",
+        "scopeMode": "وضع النطاق",
+        "scopeLabel": "تسمية النطاق",
+        "profile": "الملف",
+        "profileScope": "نطاق الملف",
+        "profileSource": "مصدر الملف",
+        "requestId": "معرّف الطلب",
+        "traceId": "معرّف التتبع",
+        "rerankRange": "نطاق درجة إعادة الترتيب",
+        "vectorHits": "نتائج المتجهات",
+        "keywordHits": "نتائج الكلمات المفتاحية",
+        "reranker": "معيد الترتيب",
+        "enabled": "مفعّل",
+        "rerankFallback": "تراجع إعادة الترتيب",
+        "parentExpansion": "توسيع السياق الأصل",
+        "parentChunks": "{count} مقاطع",
+        "parentTokens": "رموز السياق الأصل",
+        "freshnessBoosted": "المعززة بالحداثة",
+        "excluded": "مستبعدة (متوقفة/منتهية)",
+        "staleSources": "مصادر قديمة",
+        "unreviewedSources": "مصادر غير مراجعة",
+        "deprecatedSources": "مصادر متوقفة",
+        "allExcludedFallback": "التراجع عند استبعاد الكل",
+        "ocrLowChunks": "مقاطع OCR منخفضة الثقة"
+      },
+      "method": {
+        "title": "استراتيجية البحث",
+        "method": "الطريقة",
+        "override": "تجاوز",
+        "overrideUser": "حدده المستخدم",
+        "overrideAdmin": "ملف المسؤول",
+        "selection": "الاختيار",
+        "auto": "اختيار تلقائي"
+      },
+      "selection": {
+        "title": "اختيار المصادر",
+        "request": "الطلب {id}",
+        "trace": "التتبع {id}",
+        "mode": "الوضع {mode}",
+        "rerankFallback": "تراجع إعادة الترتيب",
+        "rerankOn": "إعادة الترتيب مفعّلة",
+        "rerankOff": "إعادة الترتيب متوقفة"
+      },
+      "tools": {
+        "title": "تنسيق الأدوات",
+        "evaluated": "الأدوات المقيّمة",
+        "authorized": "المصرح بها",
+        "denied": "المرفوضة",
+        "deniedDefault": "مرفوض",
+        "reason": {
+          "org_policy_disabled": "معطل بموجب السياسة",
+          "feature_unavailable": "الميزة غير متاحة",
+          "insufficient_role": "دور غير كافٍ",
+          "insufficient_permission": "صلاحية غير كافية",
+          "source_scope_mismatch": "عدم تطابق النطاق"
+        }
+      },
+      "verification": {
+        "title": "التحقق",
+        "verdict": "الحكم",
+        "score": "الدرجة",
+        "claimsChecked": "الادعاءات التي تم فحصها",
+        "supported": "المدعومة",
+        "unsupported": "غير المدعومة",
+        "removed": "المحذوفة",
+        "verifierModel": "نموذج المدقق"
+      },
+      "excerpt": {
+        "cited": "المقتطف المذكور",
+        "chunk": "نص المقطع المذكور"
+      }
+    },
+    "activity": {
+      "timelineAria": "الجدول الزمني لإنشاء الإجابة",
+      "stepsAria": "خطوات النشاط",
+      "milliseconds": "{value} مللي ثانية",
+      "seconds": "{value} ث"
+    },
+    "feedback": {
+      "title": {
+        "edit": "تعديل الملاحظات",
+        "new": "الإبلاغ عن مشكلة"
+      },
+      "closeAria": "إغلاق مربع حوار الملاحظات",
+      "issueType": "نوع المشكلة (اختياري)",
+      "categoryLegend": "فئة الملاحظات",
+      "noneOfAbove": "لا شيء مما سبق",
+      "additionalClassification": "تصنيف إضافي (اختياري)",
+      "legacyLegend": "السبب القديم",
+      "noneSkip": "لا شيء / أفضّل عدم الذكر",
+      "details": "تفاصيل إضافية (اختياري)",
+      "placeholder": "صف المشكلة…",
+      "removing": "جارٍ الإزالة…",
+      "remove": "إزالة الملاحظات",
+      "cancel": "إلغاء",
+      "submitting": "جارٍ الإرسال…",
+      "submit": "إرسال",
+      "reasons": {
+        "wrong_citation": "استشهاد خاطئ أو مفقود",
+        "hallucination": "ادعاء غير مدعوم أو ملفق",
+        "outdated_source": "مصدر قديم",
+        "missing_document": "لم يُستخدم مستند ذو صلة",
+        "unsafe_content": "محتوى غير آمن أو حساس",
+        "other": "أخرى"
+      },
+      "categoryLabels": {
+        "wrong_answer": "إجابة خاطئة",
+        "bad_citation": "استشهاد سيئ",
+        "missing_citation": "استشهاد مفقود",
+        "missing_source": "مصدر مفقود",
+        "outdated_source": "مصدر قديم",
+        "hallucination_risk": "خطر الهلوسة",
+        "conflict_not_detected": "لم يُكتشف التعارض",
+        "unclear_answer": "إجابة غير واضحة",
+        "should_have_said_not_found": "كان ينبغي أن يذكر عدم العثور"
+      },
+      "categoryDescriptions": {
+        "wrong_answer": "الإجابة غير صحيحة من حيث الوقائع",
+        "bad_citation": "الاستشهاد خاطئ أو مفقود أو غير ذي صلة",
+        "missing_citation": "استشهاد كان ينبغي وجوده غير موجود",
+        "missing_source": "لم يتم استخدام مصدر ذي صلة أو عرضه",
+        "outdated_source": "مادة المصدر لم تعد حديثة",
+        "hallucination_risk": "قد تكون الإجابة غير مدعومة أو ملفقة",
+        "conflict_not_detected": "لم يتم تنبيه المصادر المتعارضة",
+        "unclear_answer": "الإجابة غامضة أو ناقصة جدًا",
+        "should_have_said_not_found": "كان على النظام أن يرفض أو يذكر عدم العثور"
+      },
+      "trustCategoryDescriptions": {
+        "bad_citation": "استشهاد خاطئ أو غير ذي صلة أو يشير إلى موضع خاطئ",
+        "missing_source": "كان ينبغي أن تستخدم الإجابة مصدرًا غير موجود",
+        "outdated_source": "المصدر المذكور قديم أو لم يعد دقيقًا",
+        "conflict_not_detected": "فات النموذج تعارض بين المصادر",
+        "should_have_said_not_found": "لا توجد معلومات ذات صلة - كان على النموذج أن يذكر ذلك"
+      },
+      "trust": {
+        "title": "الإبلاغ عن مشكلة في الإجابة",
+        "closeAria": "إغلاق مربع حوار البلاغ",
+        "question": "ما الخطأ في هذه الإجابة؟",
+        "categoryLegend": "فئة المشكلة",
+        "otherNotListed": "أخرى / غير مدرجة",
+        "flagSources": "تمييز مصادر محددة (اختياري)",
+        "placeholder": "صف ما كان خاطئًا…",
+        "traceId": "معرّف التتبع: <mono>{id}</mono>",
+        "reporting": "جارٍ الإبلاغ…",
+        "report": "الإبلاغ عن مشكلة"
+      },
+      "unknownSource": "مصدر غير معروف"
+    },
+    "share": {
+      "expiry": {
+        "never": "أبدًا",
+        "24h": "24 ساعة",
+        "7d": "7 أيام",
+        "30d": "30 يومًا"
+      },
+      "close": "إغلاق",
+      "copyLink": "نسخ الرابط",
+      "revokeLink": "إلغاء الرابط",
+      "createLink": "إنشاء رابط",
+      "expiresLabel": "ينتهي:",
+      "generate": "إنشاء الرابط",
+      "creating": "جارٍ الإنشاء...",
+      "loadingLinks": "جارٍ تحميل روابط المشاركة...",
+      "activeLinks": "الروابط النشطة",
+      "expiresValue": "ينتهي: {value}",
+      "accessOrg": "المؤسسة",
+      "accessSpecific": "مستخدمون محددون",
+      "passwordProtected": "محمي بكلمة مرور",
+      "answerModal": {
+        "title": "مشاركة الإجابة",
+        "description": "أنشئ رابطًا خاضعًا للأذونات لهذه الجولة من الأسئلة والأجوبة.",
+        "notice": "يجب أن يكون المشاهدون أعضاءً مسجّلي الدخول في مؤسستك. تعرض الاستشهادات نص المقتطف فقط — لا يتم الكشف عن معرّفات المستندات.",
+        "access": "الوصول",
+        "userIds": "معرّفات المستخدمين (مفصولة بفواصل أو مسافات)",
+        "userIdsPlaceholder": "uuid-1, uuid-2, ...",
+        "requirePassword": "اشتراط كلمة مرور",
+        "passwordPlaceholder": "أدخل كلمة مرور الرابط (4 أحرف على الأقل)",
+        "noActive": "لا توجد روابط مشاركة نشطة لهذه الإجابة."
+      },
+      "sessionModal": {
+        "title": "مشاركة الجلسة",
+        "untitled": "جلسة بلا عنوان",
+        "notice": "روابط المشاركة متاحة فقط للأعضاء المسجّلين في مؤسستك.",
+        "noActive": "لا توجد روابط مشاركة نشطة لهذه الجلسة."
+      },
+      "page": {
+        "passwordTitle": "كلمة المرور مطلوبة",
+        "passwordBody": "هذه الإجابة المشتركة محمية بكلمة مرور. أدخل كلمة المرور لعرضها.",
+        "passwordPlaceholder": "أدخل كلمة المرور",
+        "checking": "جارٍ التحقق...",
+        "unlock": "فتح",
+        "loadingAnswer": "جارٍ تحميل الإجابة المشتركة...",
+        "loadingSession": "جارٍ تحميل الجلسة المشتركة...",
+        "accessDenied": "تم رفض الوصول",
+        "answerForbidden": "لا يمكن الوصول إلى رابط المشاركة هذا بحسابك.",
+        "sessionForbidden": "لا يمكن الوصول إلى رابط المشاركة هذا بحسابك. يجب أن تكون عضوًا في المؤسسة التي أنشأته.",
+        "notFound": "رابط المشاركة غير موجود",
+        "answerHeading": "إجابة مشتركة",
+        "sessionHeading": "جلسة مشتركة",
+        "sessionFallbackTitle": "جلسة مشتركة",
+        "shared": "تمت المشاركة {date}",
+        "sharedExpires": "تمت المشاركة {date} · ينتهي {expires}",
+        "sharedMessages": "تمت المشاركة {date} • {count, plural, one {رسالة #} other {# رسائل}}",
+        "copyAll": "نسخ الكل",
+        "downloadMd": "تنزيل .md",
+        "aiNoticeAnswer": "هذه الإجابة مُولَّدة بالذكاء الاصطناعي ومستندة إلى مقتطفات من مصادر مذكورة. تحقق منها مقابل المستندات الأصلية قبل اتخاذ أي إجراء.",
+        "aiNoticeSession": "الإجابات مُولَّدة بالذكاء الاصطناعي ومستندة إلى أدلة من مصادر مذكورة. تحقق منها مقابل مستندات المصدر قبل اتخاذ أي إجراء.",
+        "staleAnswer": "تأتي بعض الاستشهادات من مصادر قديمة أو منتهية الصلاحية أو مؤرشفة.",
+        "staleSession": "تأتي بعض الاستشهادات في هذه الجلسة المشتركة من مصادر قديمة أو ملغاة أو محذوفة.",
+        "question": "السؤال",
+        "aiAnswer": "إجابة مُولَّدة بالذكاء الاصطناعي",
+        "confidence": "الثقة {category}",
+        "noMessages": "لا توجد رسائل في هذه الجلسة المشتركة.",
+        "document": "مستند",
+        "pageN": "الصفحة {page}",
+        "archived": "مؤرشف"
       }
     }
   },
@@ -4604,6 +5055,45 @@
     "fr": "الفرنسية",
     "ar": "العربية",
     "fa": "الفارسية"
+  },
+  "states": {
+    "retry": "إعادة المحاولة",
+    "traceId": "معرّف التتبع:",
+    "empty": {
+      "title": "لا توجد بيانات متاحة",
+      "aria": "حالة فارغة"
+    },
+    "error": {
+      "aria": "حالة خطأ",
+      "conflict": "تعارض في الطلب",
+      "invalidSession": "الجلسة غير صالحة",
+      "unableToLoad": "تعذّر التحميل"
+    },
+    "forbidden": {
+      "aria": "حالة الوصول الممنوع",
+      "eyebrow": "التحكم في الوصول في Rudix",
+      "title": "ممنوع",
+      "description": "ليس لديك إذن لإكمال هذا الإجراء.",
+      "backLabel": "العودة إلى لوحة التحكم"
+    },
+    "loading": {
+      "title": "جارٍ التحميل...",
+      "aria": "حالة التحميل"
+    },
+    "network": {
+      "aria": "حالة خطأ الشبكة",
+      "title": "لا يوجد اتصال",
+      "description": "تعذّر الوصول إلى الخادم. تحقق من اتصال الشبكة وحاول مرة أخرى."
+    },
+    "rateLimit": {
+      "aria": "حالة حد المعدل",
+      "title": "تم بلوغ حد المعدل",
+      "description": "تم إرسال طلبات كثيرة جدًا. انتظر قليلًا ثم أعد المحاولة."
+    },
+    "skeleton": {
+      "aria": "جارٍ تحميل المحتوى",
+      "text": "جارٍ التحميل…"
+    }
   },
   "adminTeam": {
     "title": "إدارة الفريق",

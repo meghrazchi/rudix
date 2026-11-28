@@ -5,7 +5,7 @@ import type { DocumentChunkPreviewResponse } from "@/lib/api/documents";
 
 export function renderCitationExcerpt(
   value: string | null | undefined,
-  options: { compact?: boolean } = {},
+  options: { compact?: boolean; label: string },
 ): ReactElement | null {
   if (!value) {
     return null;
@@ -24,7 +24,7 @@ export function renderCitationExcerpt(
     <div className={containerClassName}>
       <div className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-gradient-to-b from-[#3525cd] via-[#7b61ff] to-[#14b8a6]" />
       <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#5d58a8] uppercase">
-        Cited excerpt
+        {options.label}
       </p>
       <p className={`${textClassName} whitespace-pre-wrap`}>
         {excerptParts.before ? (
@@ -54,6 +54,7 @@ export function renderCitationExcerpt(
 export function renderChunkCitationExcerpt(
   chunk: DocumentChunkPreviewResponse | null | undefined,
   citationSnippet: string | null | undefined,
+  label: string,
 ): ReactElement | null {
   if (!chunk?.text) {
     return null;
@@ -104,7 +105,7 @@ export function renderChunkCitationExcerpt(
     <div className="relative overflow-hidden rounded-2xl border border-[#e6e0fb] bg-gradient-to-br from-[#fcfbff] via-white to-[#f7f3ff] p-5 pl-5">
       <div className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-gradient-to-b from-[#3525cd] via-[#7b61ff] to-[#14b8a6]" />
       <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#5d58a8] uppercase">
-        Cited chunk text
+        {label}
       </p>
       <p className="text-sm leading-relaxed whitespace-pre-wrap text-[#2f2a46]">
         <span className="text-[#5f5a73]">&ldquo;...</span>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { ActivityTimelineStep } from "@/lib/chat-websocket";
 
 type ActivityTimelineProps = {
@@ -34,6 +36,7 @@ const ICON_FILL: Record<ActivityTimelineStep["state"], boolean> = {
 };
 
 export function ActivityTimeline({ steps }: ActivityTimelineProps) {
+  const t = useTranslations("chat.activity");
   if (steps.length === 0) return null;
 
   const visibleSteps = steps.filter((s) => s.state !== "skipped");
@@ -43,11 +46,11 @@ export function ActivityTimeline({ steps }: ActivityTimelineProps) {
   return (
     <div
       className="mb-3 rounded-lg border border-[#e2dff1] bg-[#f9f8ff] px-3 py-2"
-      aria-label="Answer generation timeline"
+      aria-label={t("timelineAria")}
       role="status"
       aria-live="polite"
     >
-      <ul className="space-y-1" aria-label="Activity steps">
+      <ul className="space-y-1" aria-label={t("stepsAria")}>
         {visibleSteps.map((step) => (
           <ActivityStep key={step.stepKey} step={step} />
         ))}
@@ -57,6 +60,7 @@ export function ActivityTimeline({ steps }: ActivityTimelineProps) {
 }
 
 function ActivityStep({ step }: { step: ActivityTimelineStep }) {
+  const t = useTranslations("chat.activity");
   const iconName = STATE_ICON[step.state];
   const colorClass = STATE_COLOR[step.state];
   const fill = ICON_FILL[step.state];
@@ -82,8 +86,8 @@ function ActivityStep({ step }: { step: ActivityTimelineStep }) {
       {step.durationMs != null && step.state === "success" && (
         <span className="ml-auto shrink-0 text-xs text-[#9896a8]">
           {step.durationMs < 1000
-            ? `${step.durationMs}ms`
-            : `${(step.durationMs / 1000).toFixed(1)}s`}
+            ? t("milliseconds", { value: step.durationMs })
+            : t("seconds", { value: (step.durationMs / 1000).toFixed(1) })}
         </span>
       )}
     </li>

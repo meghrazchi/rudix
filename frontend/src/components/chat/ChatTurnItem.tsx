@@ -39,6 +39,7 @@ export const ChatTurnItem = memo(function ChatTurnItem({
   ...view
 }: ChatTurnItemProps) {
   const tc = useTranslations("chat.page");
+  const tt = useTranslations("chat.trustPanel");
 
   return (
     <li
@@ -76,7 +77,7 @@ export const ChatTurnItem = memo(function ChatTurnItem({
                 R
               </span>
               <span className="text-[10px] font-bold tracking-widest text-[#3525cd] uppercase">
-                Rudix AI
+                {tc("assistantName")}
               </span>
             </div>
 
@@ -94,7 +95,7 @@ export const ChatTurnItem = memo(function ChatTurnItem({
                     >
                       tips_and_updates
                     </span>
-                    General product guidance
+                    {tt("badge.guidance")}
                   </span>
                 ) : null}
                 {turn.response.scope_label ? (
@@ -143,7 +144,7 @@ export const ChatTurnItem = memo(function ChatTurnItem({
                 citation.doc_is_excluded_status,
             ) ? (
               <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Some citations come from stale, expired, or archived sources.
+                {tc("staleCitationsNotice")}
               </p>
             ) : null}
 

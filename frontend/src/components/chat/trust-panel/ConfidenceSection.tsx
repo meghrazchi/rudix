@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import {
   confidenceBadgeClass,
   confidenceBarClass,
@@ -30,11 +32,12 @@ export function ConfidenceSection({
   confidenceExplanation: ChatConfidenceExplanationResponse | null;
   trustMetadata: AnswerTrustMetadataResponse | null | undefined;
 }) {
+  const t = useTranslations("chat.trustPanel");
   const barWidth = `${Math.round(confidenceScore * 100)}%`;
 
   return (
     <div className="space-y-3 px-4 pt-4 md:px-6 md:pt-5">
-      <SectionHeader icon="check_circle" label="Trust Score" />
+      <SectionHeader icon="check_circle" label={t("confidence.title")} />
       <div className="flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8e5f5]">
           <div
@@ -44,7 +47,7 @@ export function ConfidenceSection({
             aria-valuenow={Math.round(confidenceScore * 100)}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Confidence score"
+            aria-label={t("confidence.scoreAria")}
           />
         </div>
         <span className="w-12 text-right text-sm font-bold text-[#2f2a46] tabular-nums">
@@ -54,6 +57,7 @@ export function ConfidenceSection({
           (() => {
             const badge = trustLevelBadge(
               trustMetadata.confidence.trust_level as TrustLevel,
+              t,
             );
             return (
               <span className={badge.cls} data-testid="trust-level-badge">
@@ -69,7 +73,7 @@ export function ConfidenceSection({
           })()
         ) : (
           <span className={confidenceBadgeClass(confidenceCategory)}>
-            {confidenceCategory}
+            {t(`confidence.category.${confidenceCategory}`)}
           </span>
         )}
       </div>
@@ -78,7 +82,7 @@ export function ConfidenceSection({
           <div
             className="space-y-1"
             data-testid="confidence-reasons"
-            aria-label="Confidence signals"
+            aria-label={t("confidence.signals")}
           >
             {trustMetadata.confidence.reasons.map(
               (reason: ConfidenceReasonRecord) => {
@@ -103,61 +107,61 @@ export function ConfidenceSection({
       {confidenceExplanation && (
         <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
           <StatRow
-            label="Top similarity"
+            label={t("confidence.topSimilarity")}
             value={score(confidenceExplanation.top_similarity)}
           />
           <StatRow
-            label="Avg similarity"
+            label={t("confidence.avgSimilarity")}
             value={score(confidenceExplanation.average_similarity)}
           />
           <StatRow
-            label="Rerank score"
+            label={t("confidence.rerankScore")}
             value={score(confidenceExplanation.top_rerank_score)}
           />
           <StatRow
-            label="Citation coverage"
+            label={t("confidence.citationCoverage")}
             value={pct(confidenceExplanation.citation_coverage_score)}
           />
           <StatRow
-            label="Citation support"
+            label={t("confidence.citationSupport")}
             value={score(confidenceExplanation.citation_support_score)}
           />
           <StatRow
-            label="Source agreement"
+            label={t("confidence.sourceAgreement")}
             value={score(confidenceExplanation.retrieval_agreement_score)}
           />
           {trustMetadata?.confidence.freshness_multiplier != null &&
             trustMetadata.confidence.freshness_multiplier < 1.0 && (
               <StatRow
-                label="Freshness factor"
+                label={t("confidence.freshnessFactor")}
                 value={pct(trustMetadata.confidence.freshness_multiplier)}
               />
             )}
           {trustMetadata?.confidence.ocr_quality_multiplier != null &&
             trustMetadata.confidence.ocr_quality_multiplier < 1.0 && (
               <StatRow
-                label="OCR quality factor"
+                label={t("confidence.ocrFactor")}
                 value={pct(trustMetadata.confidence.ocr_quality_multiplier)}
               />
             )}
           {trustMetadata?.confidence.conflict_multiplier != null &&
             trustMetadata.confidence.conflict_multiplier < 1.0 && (
               <StatRow
-                label="Conflict factor"
+                label={t("confidence.conflictFactor")}
                 value={pct(trustMetadata.confidence.conflict_multiplier)}
               />
             )}
           {trustMetadata?.confidence.table_quality_multiplier != null &&
             trustMetadata.confidence.table_quality_multiplier < 1.0 && (
               <StatRow
-                label="Table quality factor"
+                label={t("confidence.tableFactor")}
                 value={pct(trustMetadata.confidence.table_quality_multiplier)}
               />
             )}
           {trustMetadata?.confidence.extraction_quality_multiplier != null &&
             trustMetadata.confidence.extraction_quality_multiplier < 1.0 && (
               <StatRow
-                label="Extraction quality factor"
+                label={t("confidence.extractionFactor")}
                 value={pct(
                   trustMetadata.confidence.extraction_quality_multiplier,
                 )}
@@ -166,7 +170,7 @@ export function ConfidenceSection({
           {trustMetadata?.confidence.graph_evidence_boost != null &&
             trustMetadata.confidence.graph_evidence_boost > 0 && (
               <StatRow
-                label="Graph boost"
+                label={t("confidence.graphBoost")}
                 value={`+${pct(trustMetadata.confidence.graph_evidence_boost)}`}
               />
             )}
