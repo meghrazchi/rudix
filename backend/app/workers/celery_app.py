@@ -62,6 +62,11 @@ INCLUDE: list[str] = [
     "app.workers.backup_tasks",
     # anchor: v080-B2
     "app.workers.ops_tasks",
+    # anchor: v090-S1
+    "app.workers.account_tasks",
+    # anchor: v090-A1
+    # anchor: v090-B1
+    # anchor: v090-D1
 ]
 
 # Stage tasks of the staged ingestion chain (R06-01): extract..chunk on the processing
@@ -114,6 +119,11 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     "ops.backups.check_freshness": _route(settings.celery_task_default_queue),
     # anchor: v080-B2
     "ops.beat.heartbeat": _route(settings.celery_task_default_queue),
+    # anchor: v090-S1
+    "auth.tokens.purge_expired": _route(settings.celery_task_default_queue),
+    # anchor: v090-A1
+    # anchor: v090-B1
+    # anchor: v090-D1
 }
 
 BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
@@ -180,6 +190,14 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
         "schedule": settings.beat_heartbeat_interval_seconds,
         "options": {"expires": settings.beat_heartbeat_interval_seconds},
     },
+    # anchor: v090-S1
+    "auth-tokens-purge-expired": {
+        "task": "auth.tokens.purge_expired",
+        "schedule": crontab(hour=3, minute=25),
+    },
+    # anchor: v090-A1
+    # anchor: v090-B1
+    # anchor: v090-D1
 }
 
 

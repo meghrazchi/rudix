@@ -12,6 +12,10 @@ from urllib.parse import urlsplit, urlunsplit
 from pydantic import AnyHttpUrl, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.settings.account_security import (
+    AccountSecuritySettings,
+    validate_account_security,
+)
 from app.core.settings.ai_providers import (
     AiProvidersSettings,
     validate_ai_providers,
@@ -27,6 +31,7 @@ from app.core.settings.auth import (
     validate_auth_provider,
 )
 from app.core.settings.backup import BackupSettings
+from app.core.settings.billing import BillingSettings, validate_billing
 from app.core.settings.celery import CelerySettings
 from app.core.settings.connectors import (
     ConnectorsSettings,
@@ -131,6 +136,9 @@ class Settings(
     DeploymentSettings,
     TracingSettings,
     BackupSettings,
+    # Product completeness (0.9.0): A1-A3 and B1-B2 fill these.
+    AccountSecuritySettings,
+    BillingSettings,
     BaseSettings,
 ):
     model_config = SettingsConfigDict(
@@ -188,6 +196,8 @@ class Settings(
         validate_timeouts(self)
         validate_auth_provider(self)
         validate_ai_providers(self)
+        validate_account_security(self)
+        validate_billing(self)
         validate_environment_rules(self)
         return self
 

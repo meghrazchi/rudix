@@ -293,6 +293,10 @@
   "openai_llm_input_cost_per_million_tokens_usd": 0.0,
   "openai_llm_model": "gpt-5.4-mini",
   "openai_llm_output_cost_per_million_tokens_usd": 0.0,
+  "product_completeness": {
+    "auth_one_time_token_retention_hours": 24,
+    "billing_provider": "none"
+  },
   "qdrant_api_key_set": false,
   "qdrant_bootstrap_collection": true,
   "qdrant_collection": "snapshot_chunks",

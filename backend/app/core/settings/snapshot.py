@@ -362,4 +362,18 @@ def sanitized_snapshot(settings: Settings) -> dict[str, Any]:
             # anchor: v080-D1
             "app_auth_secret_previous_set": settings.app_auth_secret_previous is not None,
         },
+        # Product completeness (0.9.0): booleans (``*_set``) and sanitized values only, never
+        # secrets, keys, or URLs with credentials. Each task adds its keys after its anchor.
+        "product_completeness": {
+            "billing_provider": settings.billing_provider,
+            "auth_one_time_token_retention_hours": settings.auth_one_time_token_retention_hours,
+            # anchor: v090-A1
+            # anchor: v090-A2
+            # anchor: v090-A3
+            # anchor: v090-B1
+            # anchor: v090-B2
+            # anchor: v090-C1
+            # anchor: v090-C2
+            # anchor: v090-D1
+        },
     }
