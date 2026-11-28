@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DocumentsPage } from "@/components/documents/DocumentsPage";
 import type { DocumentListResponse } from "@/lib/api/documents";
@@ -113,6 +113,13 @@ function renderPage() {
 describe("DocumentsPage", () => {
   const createObjectUrlMock = vi.fn(() => "blob:mock-url");
   const revokeObjectUrlMock = vi.fn();
+
+  beforeAll(async () => {
+    // Warm the on-demand dialog modules so lazy imports resolve promptly.
+    await import("@/components/documents/DocumentsUploadModal");
+    await import("@/components/documents/DeleteConfirmModal");
+    await import("@/components/collections/AssignCollectionsDialog");
+  });
 
   beforeEach(() => {
     mockNavigation.searchParams = new URLSearchParams();
@@ -372,9 +379,9 @@ describe("DocumentsPage", () => {
       screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
-    const uploadInput = screen
-      .getByRole("dialog")
-      .querySelector('input[type="file"]');
+    const uploadInput = (await screen.findByRole("dialog")).querySelector(
+      'input[type="file"]',
+    );
     expect(uploadInput).toBeTruthy();
 
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
@@ -427,9 +434,9 @@ describe("DocumentsPage", () => {
       screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
-    const uploadInput = screen
-      .getByRole("dialog")
-      .querySelector('input[type="file"]');
+    const uploadInput = (await screen.findByRole("dialog")).querySelector(
+      'input[type="file"]',
+    );
     expect(uploadInput).toBeTruthy();
 
     const firstFile = new File(["alpha"], "guide-a.pdf", {
@@ -485,9 +492,9 @@ describe("DocumentsPage", () => {
       screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
-    const uploadInput = screen
-      .getByRole("dialog")
-      .querySelector('input[type="file"]');
+    const uploadInput = (await screen.findByRole("dialog")).querySelector(
+      'input[type="file"]',
+    );
     expect(uploadInput).toBeTruthy();
 
     const file = new File(["hello"], "guide.pdf", { type: "application/json" });
@@ -519,9 +526,9 @@ describe("DocumentsPage", () => {
       screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
-    const uploadInput = screen
-      .getByRole("dialog")
-      .querySelector('input[type="file"]');
+    const uploadInput = (await screen.findByRole("dialog")).querySelector(
+      'input[type="file"]',
+    );
     expect(uploadInput).toBeTruthy();
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
 
@@ -598,9 +605,9 @@ describe("DocumentsPage", () => {
       screen.getByRole("button", { name: /Upload document(s)?/i }),
     );
 
-    const uploadInput = screen
-      .getByRole("dialog")
-      .querySelector('input[type="file"]');
+    const uploadInput = (await screen.findByRole("dialog")).querySelector(
+      'input[type="file"]',
+    );
     expect(uploadInput).toBeTruthy();
 
     const firstFile = new File(["alpha"], "guide-a.pdf", {

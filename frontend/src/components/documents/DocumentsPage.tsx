@@ -1,9 +1,11 @@
 "use client";
 
-import { DocumentsUploadModal } from "@/components/documents/DocumentsUploadModal";
-import { DeleteConfirmModal } from "@/components/documents/DeleteConfirmModal";
 import { ACCEPTED_UPLOAD_TYPES_LABEL } from "@/components/documents/upload-validation";
-import { AssignCollectionsDialog } from "@/components/collections/CollectionsPage";
+import {
+  AssignCollectionsDialog,
+  DeleteConfirmModal,
+  DocumentsUploadModal,
+} from "@/components/documents/list/DocumentsPageDialogs";
 import { DocumentsActivityCards } from "@/components/documents/list/DocumentsActivityCards";
 import { DocumentsListSection } from "@/components/documents/list/DocumentsListSection";
 import { DocumentsUploadOverview } from "@/components/documents/list/DocumentsUploadOverview";
