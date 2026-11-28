@@ -150,7 +150,8 @@ def test_every_import_has_both_variants_on_disk(caddyfile: str) -> None:
 
 
 def test_snippet_contents() -> None:
-    assert _code(_EDGE / "tls_acme") == "tls {$EDGE_ACME_EMAIL}"
+    # A block keeps `tls` valid when EDGE_ACME_EMAIL is empty; a bare `tls` fails to parse.
+    assert _code(_EDGE / "tls_acme") == ("tls {$EDGE_ACME_EMAIL} {\n\tprotocols tls1.2 tls1.3\n}")
     assert _code(_EDGE / "tls_files") == "tls /etc/caddy/certs/cert.pem /etc/caddy/certs/key.pem"
     assert _code(_EDGE / "noindex_true") == 'header X-Robots-Tag "noindex, nofollow"'
     gitignore = (_REPO / ".gitignore").read_text(encoding="utf-8")

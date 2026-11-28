@@ -1,4 +1,7 @@
 # Imported into each site when EDGE_TLS_MODE=acme (the default): automatic certificates from
 # the default ACME issuers, stored in the edge_data volume. EDGE_ACME_EMAIL is the ACME
 # account contact; when it is empty the token disappears and Caddy registers without one.
-tls {$EDGE_ACME_EMAIL}
+# The block keeps the directive valid without an email: a bare `tls` line is a parse error.
+tls {$EDGE_ACME_EMAIL} {
+	protocols tls1.2 tls1.3
+}
