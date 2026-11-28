@@ -59,6 +59,7 @@ INCLUDE: list[str] = [
     # anchor: C2
     # anchor: D1
     # anchor: v080-A2
+    "app.workers.backup_tasks",
     # anchor: v080-B2
 ]
 
@@ -109,6 +110,7 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     # anchor: D1
     "connectors.sync.reap": _route(settings.celery_queue_connector_sync),
     # anchor: v080-A2
+    "ops.backups.check_freshness": _route(settings.celery_task_default_queue),
     # anchor: v080-B2
 }
 
@@ -165,6 +167,10 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
         "schedule": settings.connector_sync_reap_interval_seconds,
     },
     # anchor: v080-A2
+    "ops-backups-check-freshness": {
+        "task": "ops.backups.check_freshness",
+        "schedule": settings.backup_freshness_interval_seconds,
+    },
     # anchor: v080-B2
 }
 

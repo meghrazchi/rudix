@@ -35,6 +35,7 @@ METRIC_MODULES = (
     "app.db.tenant_context",
     "app.auth.usage_touch",
     "app.rate_limit.sliding_window",
+    "app.ops.backup.freshness",
 )
 
 # Series an existing rule references although no module exports them, with the reason.
