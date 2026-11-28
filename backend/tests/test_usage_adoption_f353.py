@@ -58,6 +58,9 @@ from app.domains.admin.services.usage_adoption_service import (
     UsageAdoptionFilters,
     UsageAdoptionService,
 )
+from app.domains.email.providers.console import ConsoleEmailProvider
+from app.domains.email.services.email_service import EmailService
+from app.interfaces.http import admin_usage_adoption as admin_usage_adoption_routes
 from app.main import app
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
@@ -86,6 +89,13 @@ async def usage_adoption_client(
     monkeypatch.setattr(settings, "app_auth_audience", "rudix-test-audience")
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
     monkeypatch.setattr(settings, "email_enabled", True)
+    # 0.9.0 (S1): the route's EmailService was built at import from EMAIL_PROVIDER; send
+    # through the console provider so a configured live provider is never called.
+    monkeypatch.setattr(
+        admin_usage_adoption_routes,
+        "_email_service",
+        EmailService(provider=ConsoleEmailProvider()),
+    )
     get_auth_provider.cache_clear()
 
     async def _override_db() -> AsyncSession:

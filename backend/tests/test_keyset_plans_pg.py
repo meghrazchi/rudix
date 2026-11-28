@@ -22,7 +22,7 @@ from app.models.chat import ChatMessage
 from app.models.document import Document
 from app.shared.pagination import apply_keyset
 from tests.list_endpoint_seed import seed_chat_session, seed_document, seed_tenant, seed_turns
-from tests.pg_plans import compact_indexes
+from tests.pg_plans import compact_indexes, seed_document_statistics
 
 pytestmark = [pytest.mark.requires_postgres, pytest.mark.asyncio]
 
@@ -72,6 +72,10 @@ async def test_documents_cursor_page_uses_index(pg_session: AsyncSession) -> Non
     tenant = await seed_tenant(pg_session)
     documents = [(await seed_document(pg_session, tenant, chunks=0))[0] for _ in range(5)]
     await pg_session.flush()
+    # 0.9.0 (S1): real statistics so the planner's index choice is deterministic.
+    await seed_document_statistics(
+        pg_session, organization_id=tenant.org_id, user_id=tenant.user.id
+    )
     await compact_indexes(pg_session, "documents")
     last = documents[2]
     statement = apply_keyset(
