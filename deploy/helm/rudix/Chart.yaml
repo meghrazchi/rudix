@@ -1,0 +1,15 @@
+apiVersion: v2
+name: rudix
+description: >-
+  Rudix document Q&A assistant: frontend, API, MCP server, Celery workers and beat.
+  Data stores (PostgreSQL, Redis, RabbitMQ, Qdrant, object storage, Neo4j) are not part of
+  this chart; it connects to stores the operator provides.
+type: application
+version: 0.8.0
+appVersion: "0.8.0"
+kubeVersion: ">=1.27.0-0"
+keywords:
+  - rag
+  - document-qa
+maintainers:
+  - name: Rudix maintainers

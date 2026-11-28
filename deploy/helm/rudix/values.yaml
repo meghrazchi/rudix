@@ -1,0 +1,188 @@
+# Default values for the Rudix chart (0.8.0).
+#
+# Every top-level key has an owner (docs/roadmap/V0_8_0_IMPLEMENTATION_PLAN.md, section 5.1).
+# A task edits only the keys it owns. values-staging.yaml and values-production.yaml carry the
+# same keys and differ only in scale, hosts, and secret names (R08-12).
+#
+# Values files never hold secret values: secrets come from an existing Kubernetes Secret
+# (`secrets.existingSecret`) whose keys become environment variables.
+#
+# This chart deploys no data store. PostgreSQL, Redis, RabbitMQ, Qdrant, object storage, and
+# Neo4j are provided by the operator; their URLs and credentials go in that Secret.
+
+# owner: S1
+nameOverride: ""
+
+# owner: S1
+fullnameOverride: ""
+
+# owner: S1
+global:
+  # development | test | staging | production; must equal config.env.ENVIRONMENT.
+  environment: development
+
+# owner: S1
+image:
+  # Placeholder registry; set the real one at deploy time.
+  registry: registry.invalid/rudix
+  # Empty tag uses the chart appVersion. A component digest wins over any tag.
+  tag: ""
+  pullPolicy: IfNotPresent
+  # Names of existing docker-registry Secrets.
+  pullSecrets: []
+  api:
+    repository: api
+    tag: ""
+    digest: ""
+  worker:
+    repository: worker
+    tag: ""
+    digest: ""
+  frontend:
+    repository: frontend
+    tag: ""
+    digest: ""
+
+# owner: S1
+config:
+  # Non-secret environment for every backend pod, rendered into the `<fullname>-config`
+  # ConfigMap. Never put a password, token, or key here.
+  env:
+    ENVIRONMENT: development
+    API_BASE_URL: https://api.rudix.invalid
+    FRONTEND_BASE_URL: https://app.rudix.invalid
+    LOG_FORMAT: json
+    # v080-A1
+    # v080-A2
+    # v080-B1
+    # v080-B2
+    # v080-B3
+    # v080-C1
+    # v080-C2
+    # v080-D1
+
+# owner: S1
+secrets:
+  # Name of an existing Kubernetes Secret in the release namespace. Each of its keys becomes
+  # an environment variable (envFrom). Empty: no Secret is referenced.
+  existingSecret: ""
+  # The chart never creates a Secret with values; must stay false.
+  create: false
+  # owner: D1
+  externalSecret:
+    enabled: false
+
+# owner: S1
+serviceAccount:
+  create: true
+  # Empty: the release fullname.
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+# owner: S1
+podSecurityContext:
+  # Backend images (api, worker, mcp, beat, migrate) run as the `rudix` user.
+  backend:
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+  # The frontend image runs as the `node` user.
+  frontend:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# owner: S1
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# owner: S1
+tmpVolume:
+  # Writable /tmp for every pod (the root filesystem is read-only).
+  sizeLimit: 256Mi
+
+# owner: S1
+metrics:
+  # Shape only in S1; B2 wires scraping.
+  enabled: false
+  requireAuth: true
+  # Key in secrets.existingSecret that holds the bearer token for /metrics.
+  tokenSecretKey: METRICS_BEARER_TOKEN
+  # owner: B2
+  workers:
+    port: 9808
+  # owner: B2
+  serviceMonitor: {}
+
+# owner: A1
+ingress:
+  enabled: false
+
+# owner: A2
+backup:
+  enabled: false
+
+# owner: A2
+dataStores: {}
+
+# owner: C1
+frontend: {}
+
+# owner: C1
+api: {}
+
+# owner: C1
+mcp: {}
+
+# owner: C1
+workers: {}
+
+# owner: C1
+beat: {}
+
+# owner: C1
+migrations: {}
+
+# owner: C1
+autoscaling:
+  enabled: false
+
+# owner: C1
+networkPolicy:
+  enabled: false
+
+# owner: C1
+podDisruptionBudget:
+  enabled: false
+
+# owner: C1
+rollout: {}
+
+# owner: C1
+connectionBudget: {}
+
+# owner: C2
+database: {}
+
+# owner: C2
+pgbouncer:
+  enabled: false
+
+# owner: B3
+tracing:
+  enabled: false
+
+# owner: D1
+runtimeConfig:
+  # Non-secret frontend environment, rendered into the `<fullname>-frontend` ConfigMap.
+  env: {}
+
+# owner: D1
+cdn: {}

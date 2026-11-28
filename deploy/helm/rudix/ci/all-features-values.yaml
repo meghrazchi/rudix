@@ -1,0 +1,125 @@
+# CI-only values: turns every optional feature on so `helm template` renders each template
+# (deploy/scripts/check_helm_chart.sh). Placeholders only; never deployed. Each task switches
+# its own feature on under its key.
+
+# owner: S1
+nameOverride: ""
+
+# owner: S1
+fullnameOverride: ""
+
+# owner: S1
+global:
+  environment: staging
+
+# owner: S1
+image:
+  pullSecrets:
+    - rudix-registry-placeholder
+  api:
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000001
+  worker:
+    tag: ci-check
+  frontend:
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000002
+
+# owner: S1
+config:
+  env:
+    ENVIRONMENT: staging
+    API_BASE_URL: https://api.ci.rudix.invalid
+    FRONTEND_BASE_URL: https://app.ci.rudix.invalid
+    LOG_FORMAT: json
+    # v080-A1
+    # v080-A2
+    # v080-B1
+    # v080-B2
+    # v080-B3
+    # v080-C1
+    # v080-C2
+    # v080-D1
+
+# owner: S1
+secrets:
+  existingSecret: rudix-ci-app-env
+  create: false
+  # owner: D1
+  externalSecret:
+    enabled: false
+
+# owner: S1
+serviceAccount:
+  annotations:
+    example.invalid/role: placeholder
+
+# owner: S1
+podSecurityContext: {}
+
+# owner: S1
+containerSecurityContext: {}
+
+# owner: S1
+tmpVolume: {}
+
+# owner: S1
+metrics:
+  enabled: true
+
+# owner: A1
+ingress: {}
+
+# owner: A2
+backup: {}
+
+# owner: A2
+dataStores: {}
+
+# owner: C1
+frontend: {}
+
+# owner: C1
+api: {}
+
+# owner: C1
+mcp: {}
+
+# owner: C1
+workers: {}
+
+# owner: C1
+beat: {}
+
+# owner: C1
+migrations: {}
+
+# owner: C1
+autoscaling: {}
+
+# owner: C1
+networkPolicy: {}
+
+# owner: C1
+podDisruptionBudget: {}
+
+# owner: C1
+rollout: {}
+
+# owner: C1
+connectionBudget: {}
+
+# owner: C2
+database: {}
+
+# owner: C2
+pgbouncer: {}
+
+# owner: B3
+tracing: {}
+
+# owner: D1
+runtimeConfig:
+  env:
+    NEXT_PUBLIC_CI_PLACEHOLDER: "true"
+
+# owner: D1
+cdn: {}

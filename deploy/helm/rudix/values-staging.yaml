@@ -1,0 +1,116 @@
+# Staging overrides for the Rudix chart (0.8.0).
+#
+# Same keys as values-production.yaml (R08-12): the two files differ only in scale, hosts,
+# and secret names. Hosts use the reserved `.invalid` TLD and secret names are placeholders;
+# the operator replaces them (docs/28_KUBERNETES_HELM_DEPLOYMENT.md, "Operator steps").
+# Image tags or digests are set at deploy time, never here.
+
+# owner: S1
+nameOverride: ""
+
+# owner: S1
+fullnameOverride: ""
+
+# owner: S1
+global:
+  environment: staging
+
+# owner: S1
+image: {}
+
+# owner: S1
+config:
+  env:
+    ENVIRONMENT: staging
+    API_BASE_URL: https://api.staging.rudix.invalid
+    FRONTEND_BASE_URL: https://app.staging.rudix.invalid
+    LOG_FORMAT: json
+    # v080-A1
+    # v080-A2
+    # v080-B1
+    # v080-B2
+    # v080-B3
+    # v080-C1
+    # v080-C2
+    # v080-D1
+
+# owner: S1
+secrets:
+  existingSecret: rudix-staging-app-env
+  create: false
+  # owner: D1
+  externalSecret:
+    enabled: false
+
+# owner: S1
+serviceAccount: {}
+
+# owner: S1
+podSecurityContext: {}
+
+# owner: S1
+containerSecurityContext: {}
+
+# owner: S1
+tmpVolume: {}
+
+# owner: S1
+metrics: {}
+
+# owner: A1
+ingress: {}
+
+# owner: A2
+backup: {}
+
+# owner: A2
+dataStores: {}
+
+# owner: C1
+frontend: {}
+
+# owner: C1
+api: {}
+
+# owner: C1
+mcp: {}
+
+# owner: C1
+workers: {}
+
+# owner: C1
+beat: {}
+
+# owner: C1
+migrations: {}
+
+# owner: C1
+autoscaling: {}
+
+# owner: C1
+networkPolicy: {}
+
+# owner: C1
+podDisruptionBudget: {}
+
+# owner: C1
+rollout: {}
+
+# owner: C1
+connectionBudget: {}
+
+# owner: C2
+database: {}
+
+# owner: C2
+pgbouncer: {}
+
+# owner: B3
+tracing: {}
+
+# owner: D1
+runtimeConfig:
+  env: {}
+
+# owner: D1
+cdn: {}

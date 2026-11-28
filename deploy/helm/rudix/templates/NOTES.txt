@@ -1,0 +1,21 @@
+Rudix {{ .Chart.AppVersion }} ({{ .Values.global.environment }}) was rendered as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+This chart deploys no data store. PostgreSQL, Redis, RabbitMQ, Qdrant, object storage, and
+(if used) Neo4j must already exist; their URLs and credentials go in the existing Secret.
+
+Provide before installing:
+  1. secrets.existingSecret: a Kubernetes Secret in namespace "{{ .Release.Namespace }}" whose keys
+     become environment variables (DATABASE_URL, REDIS_URL, RABBITMQ_URL, APP_AUTH_SECRET, ...).
+     {{- if .Values.secrets.existingSecret }}
+     Configured: {{ .Values.secrets.existingSecret }}
+     {{- else }}
+     Not set: pods would start without secrets.
+     {{- end }}
+  2. Hosts: config.env.API_BASE_URL ({{ index .Values.config.env "API_BASE_URL" }}) and
+     config.env.FRONTEND_BASE_URL ({{ index .Values.config.env "FRONTEND_BASE_URL" }}).
+     Replace every `.invalid` placeholder with a real host.
+  3. Images: image.registry ({{ .Values.image.registry }}) and a tag or digest per component.
+
+Non-secret settings: ConfigMap {{ include "rudix.configMapName" . }}.
+Frontend runtime settings: ConfigMap {{ include "rudix.frontendConfigMapName" . }}.
+See docs/28_KUBERNETES_HELM_DEPLOYMENT.md for the full operator steps.

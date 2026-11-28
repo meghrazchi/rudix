@@ -1,0 +1,11 @@
+{{- include "rudix.validate" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rudix.configMapName" . }}
+  labels:
+    {{- include "rudix.labels" (dict "root" . "component" "config") | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.config.env }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}
