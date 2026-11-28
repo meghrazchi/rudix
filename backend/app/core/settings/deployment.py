@@ -71,6 +71,10 @@ class DeploymentSettings(BaseModel):
 
     @model_validator(mode="after")
     def _lease_outlives_two_heartbeats(self) -> DeploymentSettings:
+        # Only the ``redis`` backend uses the lease: with ``memory`` (the default) a heartbeat
+        # interval that was valid before 0.8.0 (up to 120 s) must keep starting the app.
+        if self.ws_chat_connection_limit_backend != "redis":
+            return self
         heartbeat = getattr(self, "ws_chat_heartbeat_interval_seconds", None)
         if heartbeat is None:
             return self

@@ -106,7 +106,8 @@ make seed-dev
   - `WS_CHAT_CONNECTION_LIMIT_BACKEND` (`memory`, default; or `redis`): `redis` counts
     `WS_CHAT_MAX_CONNECTIONS_PER_USER` across replicas with one lease per connection
     (`app/application/chat/ws_connection_limit.py`), refreshed on each heartbeat and expiring
-    after `WS_CHAT_CONNECTION_LEASE_SECONDS` (90; must exceed two heartbeat intervals). Redis
+    after `WS_CHAT_CONNECTION_LEASE_SECONDS` (90; with `redis`, must exceed two heartbeat
+    intervals). Redis
     errors follow `RATE_LIMIT_REDIS_FAILURE_MODE` (open: in-process count; closed: `4429`).
   - `API_SHUTDOWN_DRAIN_SECONDS` (0 = off, at most 120): lifespan shutdown waits that long
     for chat runs whose socket dropped (uvicorn closes sockets with `1012`) before closing

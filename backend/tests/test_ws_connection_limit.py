@@ -271,8 +271,30 @@ class _HeartbeatProbe(FeaturesSettings, DeploymentSettings):
 def test_lease_must_exceed_two_heartbeats() -> None:
     assert _HeartbeatProbe().ws_chat_connection_lease_seconds == 90
     with pytest.raises(ValidationError, match="greater than twice"):
-        _HeartbeatProbe(ws_chat_heartbeat_interval_seconds=45, ws_chat_connection_lease_seconds=90)
+        _HeartbeatProbe(
+            ws_chat_connection_limit_backend="redis",
+            ws_chat_heartbeat_interval_seconds=45,
+            ws_chat_connection_lease_seconds=90,
+        )
+    redis_probe = _HeartbeatProbe(ws_chat_connection_limit_backend="redis")
+    assert redis_probe.ws_chat_connection_lease_seconds == 90
     assert DeploymentSettings(ws_chat_connection_lease_seconds=10).api_shutdown_drain_seconds == 0
+    without_heartbeat = DeploymentSettings(ws_chat_connection_limit_backend="redis")
+    assert without_heartbeat.ws_chat_connection_lease_seconds == 90
+
+
+def test_memory_backend_keeps_long_heartbeats_valid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A heartbeat interval valid before 0.8.0 (up to 120 s) still starts the app with the
+    default ``memory`` backend: the lease rule applies to the ``redis`` backend only."""
+    probe = _HeartbeatProbe(ws_chat_heartbeat_interval_seconds=120)
+    assert probe.ws_chat_connection_limit_backend == "memory"
+    monkeypatch.setenv("WS_CHAT_HEARTBEAT_INTERVAL_SECONDS", "60")
+    monkeypatch.delenv("WS_CHAT_CONNECTION_LIMIT_BACKEND", raising=False)
+    loaded = type(settings)()
+    assert loaded.ws_chat_heartbeat_interval_seconds == 60
+    monkeypatch.setenv("WS_CHAT_CONNECTION_LIMIT_BACKEND", "redis")
+    with pytest.raises(ValidationError, match="greater than twice"):
+        type(settings)()
 
 
 def test_settings_defaults_keep_the_memory_backend() -> None:
