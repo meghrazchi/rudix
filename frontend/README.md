@@ -614,7 +614,10 @@ package is not approved as a dependency.
   `NEXT_PUBLIC_REALTIME_ENABLED=true` (default `false`). Events invalidate TanStack Query
   keys (`invalidation.ts`, merged within 250 ms); the page then refetches through the
   normal API. `useRealtime()` returns `disabled`, `connecting`, `connected` or
-  `unavailable` from a module store, so it works outside the provider too.
+  `unavailable` from a module store, so it works outside the provider too. The stream
+  client and invalidation map load on demand, so with the flag off no stream code is
+  downloaded (first-load cost of the store and polling helper: about 1 KB gzip on
+  `/documents`, measured against `develop`).
 - Reconnects use full-jitter backoff (500 ms base, 30 s cap) with `Last-Event-ID`; a `401`
   refreshes the token once; `404`/`503` mark the stream unavailable and retry after five
   minutes; `429` backs off. A tab hidden for 60 s closes the stream and refetches every
