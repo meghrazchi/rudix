@@ -90,6 +90,13 @@ make seed-dev
 - Database engine settings (R04-01): `DB_POOL_SIZE` (5), `DB_MAX_OVERFLOW` (10), `DB_POOL_TIMEOUT` (30 s), `DB_STATEMENT_TIMEOUT_MS` and `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` (0 = off), `DB_PGBOUNCER_MODE` (false). The defaults keep the previous behaviour. Alembic uses `DATABASE_MIGRATION_URL` when set; `maintenance_session()` (cross-tenant beat tasks) uses `DATABASE_MAINTENANCE_URL` when set. The engine is disposed on API shutdown. Pool metrics: `rudix_db_pool_wait_seconds`, `rudix_db_pool_timeouts_total`.
 - Handlers that make a slow network call inside a request (`POST /admin/model-providers/test`, `POST /admin/webhooks/{id}/test`, `POST /admin/sso/test-connection`) commit before the call so the pooled connection is returned while it runs.
 - Row-level security (R04-08): `RLS_ENFORCEMENT` is `off`, `soft` (default in staging/production), or `strict` (default in development/test since 0.5.0). `FORCE ROW LEVEL SECURITY` is operator SQL (`deploy/sql/force_rls.sql`, rollback `unforce_rls.sql`, rendered by `scripts/render_force_rls_sql.py`), applied after the role split. Migration `20261127_0004` covers every table with `organization_id` except the user-scoped identity tables (`users`, `organization_members`, `auth_refresh_sessions`); `deploy/sql/provision_roles.sql` creates the `rudix_app` and `rudix_maintenance` roles. PostgreSQL tests prove isolation with a non-owner probe role (`rls_probe_session` fixture, `tests/test_rls_enforcement_pg.py`); set `TEST_MIGRATIONS_DATABASE_URL` to a database that may be downgraded to also run the migration round trip. See `docs/22_AUTHORIZATION_SYSTEM.md` section 11.
+- Realtime events (R07-07): `REALTIME_EVENTS_ENABLED` (default `false`) enables
+  `GET /events/stream`. `REALTIME_BUFFER_TTL_SECONDS` (120), `REALTIME_BUFFER_MAX_EVENTS`
+  (500), `REALTIME_STREAM_KEEPALIVE_SECONDS` (15), `REALTIME_STREAM_MAX_SECONDS` (300),
+  `REALTIME_MAX_CONNECTIONS_PER_USER` (5). Events are recorded on the session by an ORM
+  `after_flush` observer (`app/application/realtime/observers.py`) plus explicit calls at
+  Core `UPDATE` sites, and published to Redis in `after_commit`
+  (`app/application/realtime/publisher.py`); workers use a process-local client.
 
 ## Settings layout and startup behavior
 

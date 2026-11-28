@@ -2389,6 +2389,49 @@ Response:
 }
 ```
 
+## Realtime events
+
+`GET /api/v1/events/stream` (R07-07) is a per-user Server-Sent Events stream of
+invalidation hints. It is off unless `REALTIME_EVENTS_ENABLED=true`; the frontend reads it
+only with `NEXT_PUBLIC_REALTIME_ENABLED=true` and keeps polling otherwise.
+
+- Auth: bearer token in the `Authorization` header (read with `fetch`, not
+  `EventSource`), any organisation role, an active organisation (`X-Organization-ID` as
+  for every route). A token in the URL is never read.
+- Frames: `id: <n>`, `event: <type>`, `data: {"type","organization_id","occurred_at",
+  "payload"}`, and `: keep-alive` comments after `REALTIME_STREAM_KEEPALIVE_SECONDS` of
+  silence. Ids increase per organisation. Send `Last-Event-ID` to replay buffered events
+  after that id (the buffer keeps `REALTIME_BUFFER_MAX_EVENTS` events for
+  `REALTIME_BUFFER_TTL_SECONDS`; a `Last-Event-ID` above the current sequence replays the
+  whole buffer). The server ends the stream after `REALTIME_STREAM_MAX_SECONDS`; the client
+  reconnects, so role changes and token expiry apply.
+- Events are hints: the client refetches through the normal endpoints. A worker retry may
+  publish the same transition twice, and a Redis failure drops events.
+
+| Type | Payload | Audience |
+|---|---|---|
+| `document.status` | `document_id`, `status` | the uploader, owners, admins |
+| `documents.changed` | none | every member |
+| `notification.created` | `notification_id` | the recipient |
+| `connector.sync` | `connection_id`, `run_id`, `status` | owners, admins, the connection's creator |
+| `agent.run` | `run_id`, `status` | the run's user, owners, admins |
+| `incident` | `incident_id`, `status` | every member |
+
+`document.status` is also sent when `graph_extraction_status` changes (the payload carries
+the document status). Payloads carry ids and statuses only, never filenames, text, or
+error messages. An event is delivered only when its `organization_id` equals the caller's
+organisation and the audience matches the caller's user id or a role held when the stream
+opened.
+
+| Status | Code | When |
+|---|---|---|
+| `200` | | `text/event-stream`, `Cache-Control: no-store`, never gzip-compressed |
+| `401` | `UNAUTHENTICATED` | missing or invalid token |
+| `403` | `NO_ACTIVE_ORGANIZATION_CONTEXT_FOR_PRINCIPAL` | no organisation context |
+| `404` | `feature_not_available` | `REALTIME_EVENTS_ENABLED=false` |
+| `429` | `realtime_connection_limit` | more than `REALTIME_MAX_CONNECTIONS_PER_USER` open streams |
+| `503` | `realtime_unavailable` | Redis missing or unreachable; keep polling |
+
 ## Agent runs
 
 ### POST `/agent/runs`

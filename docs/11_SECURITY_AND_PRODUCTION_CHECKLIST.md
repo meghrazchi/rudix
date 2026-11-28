@@ -291,6 +291,29 @@ If user selects documents, add:
 }
 ```
 
+## Realtime events
+
+`GET /events/stream` (R07-07, off by default):
+
+- [ ] Authentication: the bearer token travels in the `Authorization` header only; the
+  frontend reads the stream with `fetch` and retries a `401` once after a token refresh.
+  Never put a token in a URL (logs, proxies, `Referer`).
+- [ ] Organisation scope: Redis keys and the channel include the organisation, and every
+  entry's `organization_id` is compared with the caller's organisation before delivery
+  (the channel name alone is never trusted).
+- [ ] Audience: per-event user ids and roles, matched against the caller's user id and
+  roles at connect time. A member never receives another user's `document.status` or
+  notification; streams end after `REALTIME_STREAM_MAX_SECONDS`, so a removed role or
+  membership stops on reconnect.
+- [ ] No document text: payloads are whitelisted ids and statuses (`PAYLOAD_KEYS` in
+  `app/domains/realtime/events.py`); filenames, titles, messages, and error text are
+  stripped. The client refetches data through endpoints with their own access checks.
+- [ ] Connection cap: `REALTIME_MAX_CONNECTIONS_PER_USER` (default 5) per user, counted in
+  Redis (`429 realtime_connection_limit`); the counter expires a minute after the longest
+  stream.
+- [ ] Publishing happens after commit only (a rolled-back transaction publishes nothing)
+  and never fails the write; failures log the event type and organisation id only.
+
 ## File upload security
 
 Implement:

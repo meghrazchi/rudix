@@ -607,6 +607,32 @@ package is not approved as a dependency.
 - Environment variables: `NEXT_PUBLIC_WEB_VITALS_ENABLED` (default `false`),
   `NEXT_PUBLIC_E2E_ERROR_PROBE` (test only; never set in staging or production).
 
+### Realtime updates (R07-07)
+
+- `RealtimeProvider` (`src/lib/realtime/`, mounted once by `AppShell`) reads
+  `GET /events/stream` with `fetch` and the bearer header when
+  `NEXT_PUBLIC_REALTIME_ENABLED=true` (default `false`). Events invalidate TanStack Query
+  keys (`invalidation.ts`, merged within 250 ms); the page then refetches through the
+  normal API. `useRealtime()` returns `disabled`, `connecting`, `connected` or
+  `unavailable` from a module store, so it works outside the provider too.
+- Reconnects use full-jitter backoff (500 ms base, 30 s cap) with `Last-Event-ID`; a `401`
+  refreshes the token once; `404`/`503` mark the stream unavailable and retry after five
+  minutes; `429` backs off. A tab hidden for 60 s closes the stream and refetches every
+  mapped key once when visible again.
+- `useRealtimeAwareInterval(base, { covered })` (`polling.ts`) replaces every network
+  polling interval: `false` in a hidden tab, `false` while connected, at least
+  `NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS` (default 15000) while enabled but disconnected,
+  and `base` with realtime off. Data no event describes (health checks, evaluation and
+  safety-eval progress, vector index, portability jobs, sync item counts, agent step
+  progress) passes `covered: false` and keeps `base` while visible. Every polling query
+  sets `refetchIntervalInBackground: false`; `refetchOnWindowFocus` refreshes on return.
+- The chat agent run timeline follows `GET /agent/runs/{run_id}/stream` while the run is
+  not terminal (realtime flag on) and polls only when the stream is unavailable or ends.
+- Tests: `src/lib/realtime/*.test.ts(x)` (parser, backoff, provider with an MSW streaming
+  body: no list or status requests over 30 s while connected, a status event refetches
+  within 2 s), `useAgentRunTimeline.sse.test.tsx`, and `e2e/realtime-fallback.spec.ts`
+  (hidden tab stops polling).
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)
@@ -798,6 +824,8 @@ NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS=1000
 NEXT_PUBLIC_DASHBOARD_MAX_CHAT_SESSION_ROWS=1000
 NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE=false
 NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS=200
+NEXT_PUBLIC_REALTIME_ENABLED=false
+NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS=15000
 NEXT_PUBLIC_TABLE_VIRTUALIZE_MIN_ROWS=200
 NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT=10
 NEXT_PUBLIC_CHAT_TOP_K_MIN=1

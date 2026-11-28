@@ -954,6 +954,27 @@ outbound request: the browser posts to our own API.
 - No field data has been collected yet; targets (LCP 2500 ms, INP 200 ms, CLS 0.1, FCP
   1800 ms, TTFB 800 ms at p75) are the Core Web Vitals "good" thresholds, not measurements.
 
+### Realtime event stream (R07-07)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_realtime_connections` | | Open `GET /events/stream` connections in this API process. |
+| `rudix_realtime_events_published_total` | `type`, `outcome` | Events written to Redis: `published`, `failed` (Redis error), `unavailable` (no client), `skipped` (no async context at commit). |
+| `rudix_realtime_events_delivered_total` | `type` | Events written to a client stream after the organisation and audience checks. |
+| `rudix_realtime_reconnects_total` | | Streams opened with a `Last-Event-ID` header. |
+
+- Logs: `realtime.stream.opened` / `realtime.stream.closed` (organisation, user, delivered
+  count), `realtime.stream.unavailable`, `realtime.stream.redis_failed`,
+  `realtime.publish_failed` (event type, organisation, outcome, error class). No payload or
+  document data is logged.
+- Watch: `failed` or `unavailable` publish outcomes mean clients miss hints and rely on
+  the fallback polling interval (`NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS`). A reconnect rate
+  much above one per `REALTIME_STREAM_MAX_SECONDS` per connection means a proxy closes
+  streams early (check buffering and idle timeouts).
+- Publisher metrics in Celery prefork children are not scraped (same limitation as the
+  worker counters above).
+- No measured baseline exists yet; the end-to-end check with Redis is a staging step.
+
 ## Continuous evaluation
 
 Run evaluations:
