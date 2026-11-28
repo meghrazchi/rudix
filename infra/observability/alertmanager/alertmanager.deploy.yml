@@ -13,7 +13,8 @@
 # /etc/alertmanager/secrets by docker-compose.deploy.yml. Point them at the paging tool's
 # Alertmanager webhook integration (or a relay to it). Escalation beyond the first responder
 # (secondary on-call, incident lead) is configured in the paging tool, not here; see
-# docs/12_EVALUATION_AND_MONITORING.md "Alert routing and escalation (0.8.0)".
+# docs/12_EVALUATION_AND_MONITORING.md "SLO rules and burn-rate alerts (0.8.0)", paragraph
+# "Alert routing and escalation".
 global:
   resolve_timeout: 5m
 

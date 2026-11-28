@@ -235,6 +235,56 @@ state Redis needs persistence and `noeviction` (see "Data stores, backups, and r
 
 <!-- v080-B2 -->
 
+B2 (R08-09; contract 5.2.8). Details of the rules and routing: docs/12 "SLO rules and
+burn-rate alerts (0.8.0)".
+
+**Switches.** `metrics.enabled` turns on the worker `metrics` port and Services (C1) and the
+ServiceMonitors below. The backend reads the matching switches from `config.env` (anchor
+`# v080-B2`): `METRICS_ENABLED`, `METRICS_REQUIRE_AUTH` (`"true"` in every values file),
+`WORKER_METRICS_ENABLED`, and `WORKER_METRICS_MULTIPROCESS` (mirrors
+`metrics.workers.multiprocess`, default true). While `metrics.enabled` is true, a switch a
+values file sets must agree with the `metrics` block, and staging and production must keep
+`metrics.requireAuth: true`; otherwise the render fails (`rudix.b2.validate` in
+`templates/_b2.tpl`). The bearer token is the `metrics.tokenSecretKey` key
+(`METRICS_BEARER_TOKEN`) of `secrets.existingSecret`; it never appears in values or
+ConfigMaps. Staging and production ship with `metrics.enabled: false`: set it to `true`
+together with `METRICS_ENABLED` and `WORKER_METRICS_ENABLED` in `config.env` once the token is
+in the Secret.
+
+**Multiprocess workers.** Worker pods start `python -m app.workers.pools <pool>`, which
+prepares `PROMETHEUS_MULTIPROC_DIR=/tmp/rudix-prometheus` on the pod's `/tmp` emptyDir, so
+counters from every prefork child are exported on port `metrics` (9808).
+
+**ServiceMonitors** (`templates/metrics/servicemonitor.yaml`, off by default). With
+`metrics.enabled` and `metrics.serviceMonitor.enabled`, the chart renders two
+`monitoring.coreos.com/v1` ServiceMonitors: `<release>-api-metrics` (api Service, port
+`http`, path `/metrics`) and `<release>-worker-metrics` (every enabled pool's Service, port
+`metrics`). Both send `bearerTokenSecret` from `secrets.existingSecret` /
+`metrics.tokenSecretKey` when `metrics.requireAuth` is true, and relabel `job` to
+`rudix-api` / `rudix-worker`, the job names of the Compose configuration, so the rule files
+work unchanged. `metrics.serviceMonitor.interval`, `scrapeTimeout`, and `labels` (for
+example `release: kube-prometheus-stack`, the label the operator selects on) are
+configurable. The CRDs come from the Prometheus Operator; without them leave the
+ServiceMonitors off. The monitoring namespace still needs the C1 NetworkPolicy allow
+(`networkPolicy.monitoringNamespaceSelector`).
+
+**Rule files in kube-prometheus-stack.** The chart does not render PrometheusRule objects.
+Load `infra/observability/prometheus/alerts.yml` and every `rules/*.yml` file into the
+Prometheus the operator runs, for example by wrapping each file's `groups` in a
+`PrometheusRule` (`apiVersion: monitoring.coreos.com/v1`, `spec.groups` = the file's
+`groups`, labelled with the rule selector of the stack, often `release:
+kube-prometheus-stack`), or through the stack's `additionalPrometheusRulesMap` value. Route
+the alerts with the receivers of `infra/observability/alertmanager/alertmanager.deploy.yml`
+(as an `AlertmanagerConfig` or the stack's `alertmanager.config`), with the webhook URLs in a
+Kubernetes Secret mounted where `url_file` points. Import
+`infra/observability/grafana/dashboards/*.json` into Grafana (the stack's dashboard sidecar
+reads ConfigMaps labelled `grafana_dashboard: "1"`). Keep Grafana behind the cluster's
+authenticated ingress, never anonymous.
+
+**Not run locally.** The rendered ServiceMonitors are checked by
+`backend/tests/test_helm_chart_metrics.py` and kubeconform (CRDs skipped with
+`-ignore-missing-schemas`); scraping through the operator is a staging step.
+
 ## Tracing
 
 <!-- v080-B3 -->

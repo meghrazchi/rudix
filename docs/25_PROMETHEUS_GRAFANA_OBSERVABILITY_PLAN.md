@@ -3,12 +3,12 @@
 ## Metadata
 
 - `Owner`: `Rudix Platform & Observability Team`
-- `Status`: `Implemented (development overlay); staging and production rollout planned`
-- `Last Updated`: `2026-11-26`
+- `Status`: `Implemented (development overlay and 0.8.0 deploy configuration); staging rollout checks pending`
+- `Last Updated`: `2026-11-28`
 - `Related Docs`: [01_ARCHITECTURE_OVERVIEW.md](./01_ARCHITECTURE_OVERVIEW.md), [10_DEPLOYMENT_DOCKER.md](./10_DEPLOYMENT_DOCKER.md), [11_SECURITY_AND_PRODUCTION_CHECKLIST.md](./11_SECURITY_AND_PRODUCTION_CHECKLIST.md), [12_EVALUATION_AND_MONITORING.md](./12_EVALUATION_AND_MONITORING.md), [18_LANGFUSE_OBSERVABILITY.md](./18_LANGFUSE_OBSERVABILITY.md)
 
 > [!NOTE]
-> **Implementation Status:** Implemented for the development overlay (`make up-observability`): Prometheus, Alertmanager, Grafana (5 pre-provisioned dashboards), the Postgres and Redis exporters, the `/metrics` endpoint, Celery worker metrics hooks, the `METRICS_*` settings in `.env.example` and `app/core/config.py`, CI dashboard JSON validation, and the release `/metrics` smoke check. **Planned:** Prometheus and Grafana services in the staging and production Compose files and deployment, and scrape authentication over untrusted networks.
+> **Implementation Status:** Implemented for the development overlay (`make up-observability`): Prometheus, Alertmanager, Grafana (5 pre-provisioned dashboards), the Postgres and Redis exporters, the `/metrics` endpoint, Celery worker metrics hooks, the `METRICS_*` settings in `.env.example` and `app/core/config.py`, CI dashboard JSON validation, and the release `/metrics` smoke check. **0.8.0 (R08-09):** multiprocess worker metrics (counters from prefork children are exported), bearer-token scrapes of the API and port 9808 (`prometheus/prometheus.deploy.yml`, token from a file), a deploy overlay `infra/observability/docker-compose.deploy.yml` (no host ports except Grafana on `127.0.0.1`, Grafana password required), Alertmanager routes to on-call webhook receivers read from files (`alertmanager/alertmanager.deploy.yml`), the beat heartbeat and its alerts, SLO recording and burn-rate rules from `infra/observability/slo_targets.yml`, dashboard `08-rudix-slo-targets.json`, Helm ServiceMonitors (off by default), and promtool/amtool checks in CI. **Still staging-only:** a synthetic failure paging the on-call receiver, and scraping through the Prometheus Operator.
 
 ---
 
@@ -281,6 +281,10 @@ Phases 1-4 are completed and verified for the development overlay:
 | `RudixLlmProviderErrorSpike` | `sum(rate(rudix_llm_requests_total{status="error"}[5m])) by (provider) / sum(rate(rudix_llm_requests_total[5m])) by (provider) > 0.05` | `5m` | `warning` |
 | `RudixDependencyUnhealthy` | `rudix_dependency_readiness == 0` | `2m` | `critical` |
 
+Since 0.8.0 the rule files under `infra/observability/prometheus/rules/` add the beat heartbeat
+alerts (`beat.yml`), the SLO recording rules (`slo-recording.yml`), and the multi-window
+burn-rate alerts (`slo-burn-rate.yml`); see docs/12 "SLO rules and burn-rate alerts (0.8.0)".
+
 ---
 
 ## 8. Open Questions
@@ -289,6 +293,7 @@ Phases 1-4 are completed and verified for the development overlay:
    - *Recommendation*: Use `infra/observability/docker-compose.yml` with root `Makefile` helpers (`make up-observability`) so exporters and dashboards remain modular and do not bloat the root `docker-compose.yml`.
 2. **Celery Worker Metrics Strategy**: Should worker metrics use an in-process HTTP server per worker container (`WORKER_METRICS_PORT=9808`) or a standalone `danihodovic/celery-exporter` container listening to Celery events?
    - *Recommendation*: Support both — an in-process Prometheus registry for custom RAG ingestion stage histograms (`rudix_document_indexing_duration_seconds`) plus RabbitMQ native queue metrics.
+   - *Decision (0.8.0, R08-09)*: the in-process server per worker container, in multiprocess mode (`PROMETHEUS_MULTIPROC_DIR` prepared by `app/workers/pools.py`), with the same bearer-token check as the API; no separate Celery exporter.
 
 ---
 
@@ -296,3 +301,4 @@ Phases 1-4 are completed and verified for the development overlay:
 
 - `2026-11-08`: Initial architecture and implementation plan created for Prometheus and Grafana observability integration.
 - `2026-11-26`: Aligned status wording: implemented as a development overlay; staging and production rollout planned (R02-14).
+- `2026-11-28`: 0.8.0 (R08-09): multiprocess worker metrics, authenticated scrapes, deploy overlay, Alertmanager routing, beat heartbeat, SLO and burn-rate rules, dashboard 08, ServiceMonitors.

@@ -910,6 +910,9 @@ never document text.
 - [ ] Connector rollout stage documented and included in deployment runbooks.
 - [ ] Prometheus `/metrics` endpoints (when enabled) use normalized route templates and low-cardinality labels only (never `user_id`, `document_id`, `chunk_id`, `request_id`, prompts, or secrets).
 - [ ] Prometheus, exporter ports, and `/metrics` are restricted to internal networks or bearer token authentication (`METRICS_REQUIRE_AUTH=true`), and Grafana disables anonymous access (`GF_AUTH_ANONYMOUS_ENABLED=false`).
+- [ ] Worker metrics on port 9808 and the API `/metrics` both run with `METRICS_REQUIRE_AUTH=true` and a `METRICS_BEARER_TOKEN` from the secret store; Prometheus reads the same token from `infra/observability/secrets/metrics_token` (Compose, `prometheus.deploy.yml`) or the chart Secret (ServiceMonitor), and no `metrics.auth_disabled` warning appears in the API or worker startup logs (operator, 0.8.0).
+- [ ] Alertmanager uses `alertmanager.deploy.yml`, whose on-call webhook URLs are read from operator-created files (`oncall_pager_url`, `oncall_ticket_url`, mode 0600, git-ignored `infra/observability/secrets/`); no receiver URL or credential is committed, and a synthetic critical alert reaches the pager (operator, 0.8.0).
+- [ ] Grafana is not public: with `docker-compose.deploy.yml` it listens on `127.0.0.1` only behind an SSH tunnel or an authenticated proxy, `GRAFANA_ADMIN_PASSWORD` is set (no default), anonymous access and sign-up stay off, and Prometheus, Alertmanager, and the exporters publish no host port (operator, 0.8.0).
 
 ### Agent tools
 

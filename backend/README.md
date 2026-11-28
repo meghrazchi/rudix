@@ -71,7 +71,7 @@ make seed-dev
 - Celery uses explicit queues/routes for document processing, deletion, re-indexing, and evaluations.
 - Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
-- Document processing uses an atomic claim (`documents.processing_task_id`), so retries and redeliveries resume instead of skipping; a terminal failure from a task whose claim was taken over does not mark the document `failed`. `documents.process` skips (`status_not_claimable`) documents in `indexed`, `deleted`, `deleting`, `delete_requested`, `quarantined`, `blocked`, or `retained_by_policy` unless `force=True`, and a terminal failure never overwrites a deletion, retention, or DLP-quarantine status with `failed` (it logs `document.processing.failure_status_preserved` and audits `document.task.failure_ignored`). The beat-scheduled `documents.reap_stale` task re-queues documents stuck in `processing` (`DOCUMENT_PROCESSING_STALE_SECONDS`, `DOCUMENT_REAPER_INTERVAL_SECONDS`, `DOCUMENT_REAPER_MAX_ATTEMPTS`, `DOCUMENT_REAPER_BATCH_SIZE`). Its `rudix_documents_reaped_total` counter is emitted in prefork children and is not scraped yet (see the beat-heartbeat note under Scheduled tasks).
+- Document processing uses an atomic claim (`documents.processing_task_id`), so retries and redeliveries resume instead of skipping; a terminal failure from a task whose claim was taken over does not mark the document `failed`. `documents.process` skips (`status_not_claimable`) documents in `indexed`, `deleted`, `deleting`, `delete_requested`, `quarantined`, `blocked`, or `retained_by_policy` unless `force=True`, and a terminal failure never overwrites a deletion, retention, or DLP-quarantine status with `failed` (it logs `document.processing.failure_status_preserved` and audits `document.task.failure_ignored`). The beat-scheduled `documents.reap_stale` task re-queues documents stuck in `processing` (`DOCUMENT_PROCESSING_STALE_SECONDS`, `DOCUMENT_REAPER_INTERVAL_SECONDS`, `DOCUMENT_REAPER_MAX_ATTEMPTS`, `DOCUMENT_REAPER_BATCH_SIZE`). Its `rudix_documents_reaped_total` counter is emitted in prefork children; since 0.8.0 it is scraped when the pool collects in multiprocess mode (see Prometheus & Grafana Observability).
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Connector sync endpoints use connector-specific Redis rate limits (`RATE_LIMIT_CONNECTOR_REQUESTS`) in addition to the shared admin/document scopes.
 - The public contact form uses `POST /api/v1/contact`, persists valid
@@ -1190,8 +1190,8 @@ recovery, stale connector-sync recovery, and agent run recovery never run.
 Worker platform (0.6.0, R06-03 to R06-05): beat schedules nothing new for it. The queue depth
 gauges come from a sampler in `worker-default`'s main process
 (`WORKER_SAMPLE_QUEUE_DEPTH`, every `WORKER_QUEUE_SAMPLE_INTERVAL_SECONDS`, default 30), not
-from a beat task, because a task in a prefork child cannot export metrics on the worker's
-metrics port. Beat itself stays a single process outside the pools; its tasks run on the
+from a beat task, because before 0.8.0 a task in a prefork child could not export metrics on
+the worker's metrics port (multiprocess mode exports them since R08-09). Beat itself stays a single process outside the pools; its tasks run on the
 `default` queue, so `worker-default` must be running for them. Every task, beat tasks
 included, now has a soft and a hard time limit (defaults 300 s / 360 s unless
 `CELERY_TASK_TIME_LIMITS` names it; `maintenance.retention.purge` 1500 s / 1620 s).
@@ -1238,8 +1238,12 @@ Verify with `docker compose logs beat`. You should see `beat: Starting...` and, 
 interval, `Scheduler: Sending due task connector-sync-schedule-poll`. Interval entries first
 fire one interval after startup.
 
-A beat heartbeat alert is planned for `0.8.0`. It depends on worker task counters being
-exported from prefork child processes, which is not the case yet.
+Beat heartbeat (0.8.0, R08-09): beat schedules `ops-beat-heartbeat` (`ops.beat.heartbeat`,
+default queue) every `BEAT_HEARTBEAT_INTERVAL_SECONDS` (default 60, range 10 to 3600; the
+message expires after one interval). Each run sets `rudix_beat_heartbeat_timestamp_seconds`
+and increments `rudix_beat_heartbeats_total` (with `METRICS_ENABLED=true` on the worker).
+`RudixBeatHeartbeatStale` and `RudixBeatHeartbeatMissing`
+(`infra/observability/prometheus/rules/beat.yml`) alert when it stops.
 
 Credential usage flush (R04-06): beat also schedules `usage-touch-flush`
 (`usage.touch.flush`, default queue) every `USAGE_TOUCH_FLUSH_INTERVAL_SECONDS` seconds
@@ -1290,6 +1294,11 @@ conversion on staging volume first.
 - Celery worker metrics: set `WORKER_METRICS_ENABLED=true` to expose Celery task metrics on `WORKER_METRICS_PORT=9808`.
 - Start Prometheus, Alertmanager, Grafana, and infrastructure exporters with `make up-observability` from repository root.
 - Browser Web Vitals (R07-11): set `WEB_VITALS_INGEST_ENABLED=true` to accept `POST /api/v1/telemetry/web-vitals` (404 otherwise). Samples go to `rudix_web_vitals_value_ms`, `rudix_web_vitals_cls` and `rudix_web_vitals_samples_total` only (nothing stored or logged); `WEB_VITALS_MAX_ROUTES` (200) bounds the `route` label and `WEB_VITALS_RATE_LIMIT_PER_MINUTE` (60) limits each client IP. Dashboard: `infra/observability/grafana/dashboards/web-vitals.json`.
+- Production metrics and alerting (0.8.0, B2, R08-09):
+  - `WORKER_METRICS_MULTIPROCESS` (default `true`, effective with `WORKER_METRICS_ENABLED`): pools started with `python -m app.workers.pools <pool>` prepare `PROMETHEUS_MULTIPROC_DIR` (default `/tmp/rudix-prometheus`, overridable by the environment; stale `*.db` files are removed at start) so counters from every prefork child are exported. The development `celery ... worker` command stays single-process. Metric names and labels are unchanged; every gauge has an explicit `multiprocess_mode`.
+  - The worker metrics server (`app/core/metrics_server.py`) serves `/metrics` on `WORKER_METRICS_PORT` with the same `METRICS_REQUIRE_AUTH` / `METRICS_BEARER_TOKEN` check as the API (401 missing or unconfigured token, 403 wrong token). API and workers log `metrics.auth_disabled` at startup when metrics run without auth in staging or production.
+  - `BEAT_HEARTBEAT_INTERVAL_SECONDS` (default 60): period of the `ops.beat.heartbeat` beat task.
+  - SLO targets, recording rules, burn-rate alerts, Alertmanager routing, and the deploy overlay: docs/12 "SLO rules and burn-rate alerts (0.8.0)"; Kubernetes ServiceMonitors: docs/28 "Metrics and alerting".
 
 ## Directory overview
 

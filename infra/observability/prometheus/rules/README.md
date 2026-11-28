@@ -22,5 +22,7 @@ Every file must pass `backend/tests/test_prometheus_rules.py`:
 - each alert has `labels.severity` and `annotations.summary`;
 - no alert or record name repeats across files.
 
-`promtool check rules` runs in CI once B2 adds the "Check Prometheus rules" step; it is not run
-on a development machine.
+`promtool check rules` and the unit tests in `../tests/*.yml` (`promtool test rules`) run in
+CI (job `deploy-config`, step "Check Prometheus rules"); they are not run on a development
+machine. The B2 files are derived from `../../slo_targets.yml`;
+`backend/tests/test_slo_rules.py` checks that they agree.

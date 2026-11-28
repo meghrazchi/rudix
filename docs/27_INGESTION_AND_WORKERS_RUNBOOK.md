@@ -371,7 +371,8 @@ What a limit leaves behind:
   resumes the run at that stage; the embed stage resumes from its last completed batch.
 - `rudix_celery_task_time_limit_total{task,kind}`. Hard limits are counted in the worker's
   main process, which serves the metrics port; soft limits run `on_failure` in the prefork
-  child, so use the `FailedJob` rows for those.
+  child, so use the `FailedJob` rows for those (since 0.8.0 the child's count is exported
+  too when the pool collects in multiprocess mode, R08-09).
 
 Recycling: `CELERY_WORKER_MAX_TASKS_PER_CHILD` (200) and
 `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` (0 = off) replace a child after its current task. A
