@@ -46,8 +46,51 @@ x-worker: &worker
       condition: service_completed_successfully
     clamav:
       condition: service_started
+    neo4j:
+      condition: service_healthy
+      required: false
 
 services:
+  # R08-01: the only service with published ports. Caddy terminates TLS and proxies the app,
+  # API (with /mcp*), and optional Matomo hosts to the internal network (docs/10, "Edge
+  # proxy, scaling, and environment parity"). deploy_compose_remote.sh and Terraform copy
+  # deploy/compose/edge/ to ./edge next to this file.
+  edge:
+    image: ${CADDY_IMAGE:-caddy:2}
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+    environment:
+      RUDIX_APP_HOST: ${RUDIX_APP_HOST:-getrudix.com}
+      RUDIX_API_HOST: ${RUDIX_API_HOST:-api.getrudix.com}
+      EDGE_ACME_EMAIL: ${EDGE_ACME_EMAIL:-}
+      EDGE_TLS_MODE: ${EDGE_TLS_MODE:-acme}
+      EDGE_NOINDEX: ${EDGE_NOINDEX:-false}
+      EDGE_MATOMO: ${EDGE_MATOMO:-off}
+      RUDIX_MATOMO_HOST: ${RUDIX_MATOMO_HOST:-}
+      # Backend MAX_UPLOAD_SIZE_MB (25) plus multipart headroom; raise both together.
+      EDGE_MAX_REQUEST_BODY: ${EDGE_MAX_REQUEST_BODY:-26MB}
+      MCP_HTTP_PORT: ${MCP_HTTP_PORT:-8010}
+    ports:
+      - "80:80"
+      - "443:443"
+      # HTTP/3 (QUIC); harmless when the host firewall blocks UDP.
+      - "443:443/udp"
+    volumes:
+      - ./edge:/etc/caddy:ro
+      - edge_data:/data
+      - edge_config:/config
+    depends_on:
+      frontend:
+        condition: service_started
+      api:
+        condition: service_started
+
   frontend:
     image: ${RUDIX_FRONTEND_IMAGE}
     restart: unless-stopped
@@ -72,8 +115,6 @@ services:
       NEXT_PUBLIC_DEPLOYMENT_ENV: production
       NEXT_PUBLIC_APP_URL: https://getrudix.com
       NEXT_PUBLIC_API_URL: https://api.getrudix.com/api/v1
-    ports:
-      - "3000:3000"
     depends_on:
       api:
         condition: service_healthy
@@ -81,7 +122,9 @@ services:
   api:
     image: ${RUDIX_API_IMAGE}
     restart: unless-stopped
-    stop_grace_period: 30s
+    # Above UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN + API_SHUTDOWN_DRAIN_SECONDS + margin
+    # (contract 5.2.5); raise it together with either setting.
+    stop_grace_period: 45s
     logging: *default-logging
     deploy:
       resources:
@@ -102,8 +145,11 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
       MALWARE_SCAN_CLAMAV_HOST: clamav
       CORS_ORIGINS: https://getrudix.com
-    ports:
-      - "8000:8000"
+      # Only containers on the compose network reach the API once its port is closed;
+      # narrow to the edge's address range when the network is shared.
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
+      UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN: ${UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN:-20}
+      API_SHUTDOWN_DRAIN_SECONDS: ${API_SHUTDOWN_DRAIN_SECONDS:-0}
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,6 +165,9 @@ services:
         condition: service_completed_successfully
       clamav:
         condition: service_started
+      neo4j:
+        condition: service_healthy
+        required: false
     healthcheck:
       test:
         [
@@ -267,14 +316,13 @@ services:
       MCP_HTTP_HOST: 0.0.0.0
       MCP_HTTP_PORT: ${MCP_HTTP_PORT:-8010}
       MCP_HTTP_PATH: ${MCP_HTTP_PATH:-/mcp}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: http://minio:9000
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
       REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
       MALWARE_SCAN_CLAMAV_HOST: clamav
-    ports:
-      - "${MCP_HTTP_PORT:-8010}:${MCP_HTTP_PORT:-8010}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -313,6 +361,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # R08-05: opt-in pooler (profile `pooler`), transaction mode. The application uses it only
+  # when the operator points DATABASE_URL at pgbouncer:5432 and sets DB_PGBOUNCER_MODE=true;
+  # DATABASE_MIGRATION_URL must keep pointing at postgres:5432 (migrations bypass the pooler).
+  # Environment names follow the edoburu/pgbouncer image; pin PGBOUNCER_IMAGE.
+  pgbouncer:
+    profiles: ["pooler"]
+    image: ${PGBOUNCER_IMAGE:-edoburu/pgbouncer:latest}
+    restart: unless-stopped
+    logging: *default-logging
+    # No host ports: reached by api/worker on the internal network only.
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      LISTEN_PORT: 5432
+      POOL_MODE: transaction
+      AUTH_TYPE: ${PGBOUNCER_AUTH_TYPE:-scram-sha-256}
+      MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-500}
+      DEFAULT_POOL_SIZE: ${PGBOUNCER_DEFAULT_POOL_SIZE:-20}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   qdrant:
     image: ${QDRANT_IMAGE:-qdrant/qdrant:latest}
@@ -353,11 +426,17 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
+      # R08-05: object versioning on the bucket (opt-in; needs erasure-coded storage
+      # on a real deployment, see docs/10).
+      MINIO_BUCKET_VERSIONING: ${MINIO_BUCKET_VERSIONING:-false}
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
       mc mb --ignore-existing local/$${MINIO_BUCKET};
       mc anonymous set none local/$${MINIO_BUCKET};
+      if [ "$${MINIO_BUCKET_VERSIONING}" = "true" ]; then
+      mc version enable local/$${MINIO_BUCKET};
+      fi;
       "
 
   clamav:
@@ -405,7 +484,7 @@ services:
     logging: *default-logging
     # requirepass is added only when REDIS_PASSWORD is set, so env files
     # without it keep working (unauthenticated, as before).
-    command: ["sh", "-c", "exec redis-server --appendonly yes $${REDIS_PASSWORD:+--requirepass \"$$REDIS_PASSWORD\"}"]
+    command: ["sh", "-c", "exec redis-server --appendonly yes --maxmemory-policy noeviction $${REDIS_PASSWORD:+--requirepass \"$$REDIS_PASSWORD\"}"]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     volumes:
@@ -417,28 +496,76 @@ services:
       timeout: 5s
       retries: 10
 
+  # R08-05: opt-in cache Redis (profile `redis-split`): evicts least-recently-used keys and
+  # keeps nothing on disk. Only cached values belong here (REDIS_CACHE_URL); rate limits,
+  # tickets, pub/sub, and cache version keys stay on the noeviction `redis` (REDIS_URL).
+  redis-cache:
+    profiles: ["redis-split"]
+    image: ${REDIS_IMAGE:-redis:7}
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["sh", "-c", "exec redis-server --save '' --appendonly no --maxmemory \"$$REDIS_CACHE_MAXMEMORY\" --maxmemory-policy allkeys-lru $${REDIS_PASSWORD:+--requirepass \"$$REDIS_PASSWORD\"}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_CACHE_MAXMEMORY: ${REDIS_CACHE_MAXMEMORY:-256mb}
+    healthcheck:
+      # redis-cli ping exits 0 on NOAUTH, so require an actual PONG.
+      test: ["CMD-SHELL", "[ -z \"$$REDIS_PASSWORD\" ] || export REDISCLI_AUTH=\"$$REDIS_PASSWORD\"; redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  neo4j:
+    # R08-12: defined in staging and production; enabled with COMPOSE_PROFILES=graph.
+    profiles: ["graph"]
+    image: ${NEO4J_IMAGE:-neo4j:5-community}
+    restart: unless-stopped
+    logging: *default-logging
+    # Bolt (7687) and HTTP browser (7474) are NOT published to the host —
+    # internal Docker network only, reached by api/worker via NEO4J_URI.
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP_INITIAL:-256m}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX:-1G}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-256m}
+    volumes:
+      - neo4j_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: ${NEO4J_MEMORY_LIMIT:-2g}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -O /dev/null -q http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   matomo-db:
+    # R08-12: defined in staging and production; enabled with COMPOSE_PROFILES=analytics.
+    profiles: ["analytics"]
     image: mariadb:11
     restart: unless-stopped
     logging: *default-logging
     environment:
-      MARIADB_DATABASE: ${MATOMO_DATABASE_DBNAME}
-      MARIADB_USER: ${MATOMO_DATABASE_USERNAME}
-      MARIADB_PASSWORD: ${MATOMO_DATABASE_PASSWORD}
-      MARIADB_ROOT_PASSWORD: ${MATOMO_DATABASE_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MATOMO_DATABASE_DBNAME:-}
+      MARIADB_USER: ${MATOMO_DATABASE_USERNAME:-}
+      MARIADB_PASSWORD: ${MATOMO_DATABASE_PASSWORD:-}
+      MARIADB_ROOT_PASSWORD: ${MATOMO_DATABASE_ROOT_PASSWORD:-}
     volumes:
       - matomo_db_data:/var/lib/mysql
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "mariadb-admin ping -h 127.0.0.1 -u ${MATOMO_DATABASE_USERNAME} -p${MATOMO_DATABASE_PASSWORD}",
+          "mariadb-admin ping -h 127.0.0.1 -u ${MATOMO_DATABASE_USERNAME:-} -p${MATOMO_DATABASE_PASSWORD:-}",
         ]
       interval: 10s
       timeout: 5s
       retries: 10
 
   matomo:
+    profiles: ["analytics"]
     image: matomo:5-apache
     restart: unless-stopped
     logging: *default-logging
@@ -449,15 +576,15 @@ services:
       MATOMO_DATABASE_HOST: matomo-db
       MATOMO_DATABASE_ADAPTER: mysqli
       MATOMO_DATABASE_TABLES_PREFIX: matomo_
-      MATOMO_DATABASE_USERNAME: ${MATOMO_DATABASE_USERNAME}
-      MATOMO_DATABASE_PASSWORD: ${MATOMO_DATABASE_PASSWORD}
-      MATOMO_DATABASE_DBNAME: ${MATOMO_DATABASE_DBNAME}
-      MATOMO_FIRST_SUPERUSER_USERNAME: ${MATOMO_FIRST_SUPERUSER_USERNAME}
-      MATOMO_FIRST_SUPERUSER_PASSWORD: ${MATOMO_FIRST_SUPERUSER_PASSWORD}
-      MATOMO_FIRST_SUPERUSER_EMAIL: ${MATOMO_FIRST_SUPERUSER_EMAIL}
+      MATOMO_DATABASE_USERNAME: ${MATOMO_DATABASE_USERNAME:-}
+      MATOMO_DATABASE_PASSWORD: ${MATOMO_DATABASE_PASSWORD:-}
+      MATOMO_DATABASE_DBNAME: ${MATOMO_DATABASE_DBNAME:-}
+      MATOMO_FIRST_SUPERUSER_USERNAME: ${MATOMO_FIRST_SUPERUSER_USERNAME:-}
+      MATOMO_FIRST_SUPERUSER_PASSWORD: ${MATOMO_FIRST_SUPERUSER_PASSWORD:-}
+      MATOMO_FIRST_SUPERUSER_EMAIL: ${MATOMO_FIRST_SUPERUSER_EMAIL:-}
       MATOMO_INSTALL_FORCE: "1"
-    ports:
-      - "8081:80"
+    # No host ports: browsers reach Matomo through the edge (EDGE_MATOMO=on,
+    # RUDIX_MATOMO_HOST); the 0.7.0 public port 8081 is closed.
     volumes:
       - matomo_data:/var/www/html
 
@@ -468,5 +595,8 @@ volumes:
   redis_data:
   rabbitmq_data:
   clamav_data:
+  neo4j_data:
   matomo_db_data:
   matomo_data:
+  edge_data:
+  edge_config:

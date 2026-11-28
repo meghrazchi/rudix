@@ -81,6 +81,35 @@ jobs:
       - name: Check compose files
         run: deploy/scripts/check_compose_config.sh
 
+      # R08-01: every TLS, noindex, and Matomo variant of the edge Caddyfile parses and
+      # provisions. The files variant gets a throwaway self-signed certificate.
+      - name: Validate Caddyfile
+        run: |
+          edge_dir="$RUNNER_TEMP/edge"
+          cp -R deploy/compose/edge "$edge_dir"
+          mkdir -p "$edge_dir/certs"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=app.example.invalid" \
+            -keyout "$edge_dir/certs/key.pem" -out "$edge_dir/certs/cert.pem"
+          chmod 644 "$edge_dir/certs/key.pem"
+          for tls_mode in acme files; do
+            for noindex in true false; do
+              for matomo in off on; do
+                echo "EDGE_TLS_MODE=$tls_mode EDGE_NOINDEX=$noindex EDGE_MATOMO=$matomo"
+                docker run --rm -v "$edge_dir:/etc/caddy:ro" \
+                  -e RUDIX_APP_HOST=app.example.invalid \
+                  -e RUDIX_API_HOST=api.example.invalid \
+                  -e RUDIX_MATOMO_HOST=matomo.example.invalid \
+                  -e EDGE_ACME_EMAIL= \
+                  -e EDGE_TLS_MODE="$tls_mode" \
+                  -e EDGE_NOINDEX="$noindex" \
+                  -e EDGE_MATOMO="$matomo" \
+                  -e EDGE_MAX_REQUEST_BODY=26MB \
+                  -e MCP_HTTP_PORT=8010 \
+                  caddy:2.10 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+              done
+            done
+          done
+
   backend:
     name: Backend lint and tests
     runs-on: ubuntu-latest
