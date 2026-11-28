@@ -20,7 +20,7 @@ x-worker: &worker
         memory: 4g
   env_file:
     - .env
-  environment:
+  environment: &worker-env
     ENTERPRISE_GRAPH_ENABLED: "true"
     ENVIRONMENT: staging
     API_BASE_URL: https://api-staging.getrudix.com
@@ -508,6 +508,60 @@ services:
       timeout: 5s
       retries: 10
 
+  # R08-06: encrypted backups (profile `backup`). One-shot jobs started by a host timer
+  # through deploy/scripts/run_compose_backup.sh, never by `up` (restart "no"). The dump
+  # service writes `pg_dump -Fc` into the backup_work volume; backup-runner (worker image)
+  # encrypts it, snapshots Qdrant, or mirrors the object bucket, uploads to the off-host
+  # backup bucket (BACKUP_BUCKET, BACKUP_S3_*), and writes the marker. The key file is
+  # mounted read-only from BACKUP_ENCRYPTION_KEY_HOST_FILE (docs/runbooks/BACKUP_AND_RESTORE.md).
+  backup-postgres-dump:
+    profiles: ["backup"]
+    image: ${BACKUP_POSTGRES_IMAGE:-postgres:16}
+    restart: "no"
+    logging: *default-logging
+    environment:
+      # libpq URL (postgresql://, no +asyncpg); a read-only or maintenance role is enough.
+      BACKUP_DATABASE_URL: ${BACKUP_DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}}
+    entrypoint: ["sh", "-ec"]
+    # The dump is written to a partial file and renamed, then handed to the runner's user
+    # (10001); the runner deletes it after the encrypted upload.
+    command:
+      - >-
+        umask 077
+        && pg_dump -Fc --file /backup/postgres.dump.partial "$$BACKUP_DATABASE_URL"
+        && mv /backup/postgres.dump.partial /backup/postgres.dump
+        && chown -R 10001:10001 /backup
+    volumes:
+      - backup_work:/backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backup-runner:
+    profiles: ["backup"]
+    image: ${RUDIX_WORKER_IMAGE}
+    restart: "no"
+    logging: *default-logging
+    entrypoint: ["python", "scripts/backup_run.py"]
+    # run_compose_backup.sh passes --kind postgres|qdrant|objects.
+    command: ["--kind", "postgres"]
+    healthcheck:
+      disable: true
+    env_file:
+      - .env
+    environment:
+      <<: *worker-env
+      BACKUP_WORK_DIR: /backup
+      BACKUP_ENCRYPTION_KEY_FILE: /run/secrets/rudix-backup.key
+    volumes:
+      - backup_work:/backup
+      - type: bind
+        source: ${BACKUP_ENCRYPTION_KEY_HOST_FILE:-./backup/backup.key}
+        target: /run/secrets/rudix-backup.key
+        read_only: true
+        bind:
+          create_host_path: false
+
   # R08-05: opt-in cache Redis (profile `redis-split`): evicts least-recently-used keys and
   # keeps nothing on disk. Only cached values belong here (REDIS_CACHE_URL); rate limits,
   # tickets, pub/sub, and cache version keys stay on the noeviction `redis` (REDIS_URL).
@@ -612,3 +666,4 @@ volumes:
   matomo_data:
   edge_data:
   edge_config:
+  backup_work:
