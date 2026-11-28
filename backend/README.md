@@ -101,6 +101,14 @@ make seed-dev
   stream), and the endpoint commits the request session before streaming so a stream
   holds no database connection. `documents.changed` is recorded once per organisation and
   transaction, so a bulk change publishes one hint.
+- Signing-key rotation (R08-11): `APP_AUTH_SECRET_PREVIOUS` (unset by default) is tried after
+  `APP_AUTH_SECRET` when verifying access and refresh tokens and the Slack OAuth state; signing
+  always uses `APP_AUTH_SECRET`. Startup refuses an empty previous secret or one equal to the
+  current. `rudix_auth_token_verified_by_previous_key_total{kind}` counts verifications that
+  needed it; remove it when the counter stops growing (at least the access-token TTL, the
+  refresh TTL to keep sessions signed in). It is never used for connector credential
+  encryption. The snapshot shows only `infrastructure.app_auth_secret_previous_set`. Runbook:
+  `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md` `### Rotation`.
 
 ## Settings layout and startup behavior
 

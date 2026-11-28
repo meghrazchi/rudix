@@ -424,6 +424,21 @@ build's chunk hashes, so a CDN or caching proxy placed in front of the frontend 
 the public HTML on every deploy. Without one, nothing extra is needed: each image carries its
 own prerendered pages.
 
+CDN and request-time configuration (0.8.0, R08-11, R08-12): `NEXT_PUBLIC_ASSET_PREFIX` (unset by
+default) sets Next.js `assetPrefix`, so `/_next/static` is loaded from that CDN origin, which
+is then added to the CSP `script-src`, `style-src`, `font-src`, and `img-src`. Upload the
+image's `.next/static` to the CDN as `_next/static` (or point the CDN origin at the frontend);
+those files are content-hashed and already `Cache-Control: public, max-age=31536000,
+immutable`. `PUBLIC_ASSET_CACHE_CONTROL` (unset = the Next.js default `public, max-age=0`)
+sets `Cache-Control` for `/brand`, `/fonts`, and `/images`, which are not content-hashed, so
+the build refuses `immutable` there; a value such as `public, max-age=3600` is safe. Both are
+fixed at `next build`: one image for several environments needs one CDN host for all of them.
+`NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request` (default `build`) makes the browser read the
+allowlisted `NEXT_PUBLIC_*` values from `/runtime-config.js` at request time and moves the CSP
+to the proxy, so the container's runtime environment wins over the build values; canonical
+URLs, `metadataBase`, and the public links stay build-time (`NEXT_PUBLIC_PUBLIC_SITE_URL`).
+See `frontend/README.md` "Request-time configuration and CDN".
+
 ## Backend deployment options
 
 ### Option A: Single VM with Docker Compose

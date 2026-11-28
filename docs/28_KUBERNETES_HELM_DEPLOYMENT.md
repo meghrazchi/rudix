@@ -145,6 +145,40 @@ schemas); that step is first exercised in CI, not on a development machine.
 
 <!-- v080-D1 -->
 
+Secrets (R08-11). Pods read one existing Kubernetes Secret, named by `secrets.existingSecret`,
+with `envFrom`; values files hold only its name and the chart never renders a `Secret` with
+values (`secrets.create` must stay `false`). Optionally set `secrets.externalSecret.enabled:
+true` to render an External Secrets Operator `ExternalSecret`
+(`templates/externalsecret.yaml`, `external-secrets.io/v1`) that writes that Secret from a
+secret manager: `secretStoreRef` (`name`, `kind` `SecretStore` or `ClusterSecretStore`),
+`refreshInterval` (default `1h`), and `data` items mapping an environment variable name
+(`secretKey`) to a `remoteRef` (`key`, optional `property` and `version`). The operator and the
+store are not part of the chart. Rendering fails when the ExternalSecret is enabled without
+`secrets.existingSecret`, a store name and kind, or at least one complete `data` item. To
+rotate `APP_AUTH_SECRET`, add `APP_AUTH_SECRET_PREVIOUS` to the Secret or the `data` list; see
+`docs/11` `### Rotation`.
+
+Runtime configuration (R08-11). `runtimeConfig.env` renders into the `<fullname>-frontend`
+ConfigMap, which the frontend Deployment reads with `envFrom`. It holds
+`NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE` (default `build`) and allowlisted public names
+(`frontend/config/public-runtime-keys.mjs`) with placeholder values. The values reach the
+browser only when the image was built with `NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request`;
+`backend/tests/test_helm_chart_secrets.py` fails when a values file lists a name outside the
+allowlist. Build-time names (`NEXT_PUBLIC_ASSET_PREFIX`, `PUBLIC_ASSET_CACHE_CONTROL`,
+`NEXT_PUBLIC_PUBLIC_SITE_URL`) are refused in `runtimeConfig.env`.
+
+CDN (R08-12). `cdn.assetPrefix` and `cdn.publicAssetCacheControl` record the build-time values
+the frontend image was built with; the chart checks their shape (`https://` prefix, no
+`immutable`) and renders nothing from them, because they cannot change after `next build`.
+
+Canonical URL decision for one image (plan section 6). Prerendered public pages bake
+`metadataBase`, canonical and hreflang URLs from `NEXT_PUBLIC_PUBLIC_SITE_URL` at build. One
+frontend image for staging and production therefore needs the owner to accept the production
+canonical URL on staging, served with `X-Robots-Tag: noindex` (`EDGE_NOINDEX=true` on the
+staging edge, A1), and one CDN host for both. Until that decision, the release workflow builds
+one image per environment (the default); `RUDIX_FRONTEND_IMAGE_MODE=single` is the switch
+(docs/14).
+
 ## Operator steps
 
 Not done in the repository (plan section 8):
