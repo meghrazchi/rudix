@@ -144,10 +144,7 @@ function createMailtoBody(values: ContactFormValues): string {
 
 function inferExternalSubmitUrl(links: PublicSiteLinks): string | null {
   const configured = trimToNull(
-    publicEnv(
-      "NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL",
-      process.env.NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL,
-    ),
+    process.env.NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL,
   );
   if (configured) {
     return configured;
@@ -167,12 +164,7 @@ function inferDefaultApiEndpoint(): string | null {
 
 function inferMailtoAddress(links: PublicSiteLinks): string | null {
   const configured =
-    trimToNull(
-      publicEnv(
-        "NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO",
-        process.env.NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO,
-      ),
-    ) ??
+    trimToNull(process.env.NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO) ??
     trimToNull(
       publicEnv(
         "NEXT_PUBLIC_SUPPORT_EMAIL",
@@ -241,10 +233,7 @@ export function resolveContactSubmissionConfig(
   links: PublicSiteLinks,
 ): ContactSubmissionConfig {
   const configuredApiEndpoint = trimToNull(
-    publicEnv(
-      "NEXT_PUBLIC_CONTACT_SUBMIT_API_URL",
-      process.env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL,
-    ),
+    process.env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL,
   );
   const externalSubmitUrl = inferExternalSubmitUrl(links);
   const mailtoAddress = inferMailtoAddress(links);
@@ -252,23 +241,13 @@ export function resolveContactSubmissionConfig(
     configuredApiEndpoint ??
     (mailtoAddress || externalSubmitUrl ? null : inferDefaultApiEndpoint());
   const schedulerUrl =
-    trimToNull(
-      publicEnv(
-        "NEXT_PUBLIC_CONTACT_SCHEDULER_URL",
-        process.env.NEXT_PUBLIC_CONTACT_SCHEDULER_URL,
-      ),
-    ) ?? externalSubmitUrl;
+    trimToNull(process.env.NEXT_PUBLIC_CONTACT_SCHEDULER_URL) ??
+    externalSubmitUrl;
   const captchaProvider = trimToNull(
-    publicEnv(
-      "NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER",
-      process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER,
-    ),
+    process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER,
   );
   const captchaSiteKey = trimToNull(
-    publicEnv(
-      "NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY",
-      process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY,
-    ),
+    process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY,
   );
 
   const configWithoutMode = {

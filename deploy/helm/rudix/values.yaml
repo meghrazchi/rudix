@@ -225,7 +225,7 @@ cdn:
   # Build-time values the frontend image was built with, recorded here for reference
   # (R08-12). They cannot change at deploy time: NEXT_PUBLIC_ASSET_PREFIX is Next.js
   # assetPrefix and PUBLIC_ASSET_CACHE_CONTROL is a build-time response header. The chart
-  # renders them as annotations on the frontend ConfigMap and checks their shape only.
+  # checks their shape only and renders nothing from them.
   # One image for staging and production needs one CDN host for both.
   assetPrefix: ""
   publicAssetCacheControl: ""

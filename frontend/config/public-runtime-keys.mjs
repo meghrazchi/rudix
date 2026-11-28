@@ -85,13 +85,6 @@ export const PUBLIC_RUNTIME_KEYS = Object.freeze([
   "NEXT_PUBLIC_HELP_README_URL",
   "NEXT_PUBLIC_HELP_SUPPORT_URL",
   "NEXT_PUBLIC_TOPBAR_NOTIFICATIONS_URL",
-  // Contact form (public site, client side)
-  "NEXT_PUBLIC_CONTACT_SUBMIT_API_URL",
-  "NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL",
-  "NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO",
-  "NEXT_PUBLIC_CONTACT_SCHEDULER_URL",
-  "NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER",
-  "NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY",
   // App endpoint overrides
   "NEXT_PUBLIC_AUDIT_PAGE_URL",
   "NEXT_PUBLIC_BILLING_PLAN_URL",
@@ -140,6 +133,11 @@ export const PUBLIC_RUNTIME_KEYS = Object.freeze([
 
 const PRERENDERED =
   "rendered into prerendered public pages (links, canonical URLs, metadataBase) at build";
+// The contact form is a client component on a prerendered page: a served value
+// that differs from the build value would not match the prerendered HTML
+// (captcha field, scheduler link) and break hydration.
+const PRERENDERED_CONTACT =
+  "read while the prerendered contact page renders; a served value would not match its HTML";
 const DEV_ONLY = "development only; rejected in staging and production builds";
 const DEV_SEED = "development session seed; never served";
 
@@ -173,6 +171,12 @@ export const BUILD_ONLY_PUBLIC_KEYS = Object.freeze({
   NEXT_PUBLIC_PUBLIC_SUBPROCESSORS_URL: PRERENDERED,
   NEXT_PUBLIC_PUBLIC_ACCEPTABLE_USE_URL: PRERENDERED,
   NEXT_PUBLIC_PUBLIC_SECURITY_DISCLOSURE_URL: PRERENDERED,
+  NEXT_PUBLIC_CONTACT_SUBMIT_API_URL: PRERENDERED_CONTACT,
+  NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL: PRERENDERED_CONTACT,
+  NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO: PRERENDERED_CONTACT,
+  NEXT_PUBLIC_CONTACT_SCHEDULER_URL: PRERENDERED_CONTACT,
+  NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER: PRERENDERED_CONTACT,
+  NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY: PRERENDERED_CONTACT,
   ...Object.fromEntries(DEV_ONLY_FLAGS.map((name) => [name, DEV_ONLY])),
   ...Object.fromEntries(DEV_ONLY_SECRETS.map((name) => [name, DEV_ONLY])),
   NEXT_PUBLIC_AUTH_DEFAULT_USER_ID: DEV_SEED,

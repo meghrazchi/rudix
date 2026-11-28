@@ -660,7 +660,9 @@ package is not approved as a dependency.
   environment, feature flags, limits, Sentry, Matomo/GA ids, support and help links). Every
   other `NEXT_PUBLIC_*` name read in `src/` is listed in `BUILD_ONLY_PUBLIC_KEYS` with a reason:
   development-only flags and secrets (never allowlisted), the public-page links and
-  `NEXT_PUBLIC_PUBLIC_SITE_URL` (prerendered), `NEXT_PUBLIC_ASSET_PREFIX`, CSP inputs.
+  `NEXT_PUBLIC_PUBLIC_SITE_URL` (prerendered), the `NEXT_PUBLIC_CONTACT_*` contact-form
+  settings (the prerendered contact page renders them, so a served value would break
+  hydration), `NEXT_PUBLIC_ASSET_PREFIX`, CSP inputs.
   `src/lib/public-env.test.ts` fails on a name in neither list.
 - Code reads allowlisted names with
   `publicEnv("NEXT_PUBLIC_X", process.env.NEXT_PUBLIC_X)` (`src/lib/public-env.ts`). The
