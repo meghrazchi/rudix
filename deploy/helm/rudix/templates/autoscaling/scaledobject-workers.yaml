@@ -1,0 +1,52 @@
+{{- /*
+KEDA ScaledObject per worker pool (R08-07): ready messages on the pool's queues per replica,
+and the p95 publish-to-start wait (stand-in for the oldest message age, plan section 3).
+minReplicaCount 1 by default: a pool is never scaled to zero unless set.
+*/ -}}
+{{- if include "rudix.c1.kedaEnabled" . }}
+{{- $scaling := .Values.autoscaling -}}
+{{- $server := $scaling.prometheus.serverAddress -}}
+{{- $m := include "rudix.c1.promMatchers" . -}}
+{{- range $name := splitList "," (include "rudix.c1.poolNames" .) }}
+{{- if $name }}
+{{- $pool := index $.Values.workers.pools $name -}}
+{{- $target := index $scaling.workers.pools $name | default dict -}}
+{{- $ctx := dict "root" $ "component" (printf "worker-%s" $name) -}}
+{{- $queues := include "rudix.c1.queueRegex" $pool.queues -}}
+{{- $selector := printf "queue=~\"%s\",%s" $queues $m }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "rudix.componentName" $ctx }}
+  minReplicaCount: {{ int (ternary $target.minReplicas 1 (hasKey $target "minReplicas")) }}
+  maxReplicaCount: {{ int (default $pool.replicas $target.maxReplicas) }}
+  pollingInterval: {{ int $scaling.workers.pollingInterval }}
+  cooldownPeriod: {{ int $scaling.workers.cooldownPeriod }}
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- include "rudix.c1.hpaBehavior" $scaling.workers.scaleDownStabilizationSeconds | nindent 8 }}
+  triggers:
+    - type: prometheus
+      name: queue-depth
+      metricType: AverageValue
+      metadata:
+        serverAddress: {{ $server | quote }}
+        query: {{ printf "max(rudix_celery_queue_depth{%s}) or vector(0)" $selector | quote }}
+        threshold: {{ int $target.targetQueueDepth | quote }}
+    - type: prometheus
+      name: queue-wait-p95
+      metricType: Value
+      metadata:
+        serverAddress: {{ $server | quote }}
+        query: {{ printf "(histogram_quantile(0.95, sum by (le) (rate(rudix_celery_queue_wait_seconds_bucket{%s}[5m]))) > 0) or vector(0)" $selector | quote }}
+        threshold: {{ int $target.targetQueueWaitSeconds | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
