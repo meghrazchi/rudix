@@ -74,6 +74,13 @@ describe("resolveNextPageParam", () => {
     ).toBeUndefined();
   });
 
+  it("tolerates a missing page from a malformed response", () => {
+    expect(
+      resolveNextPageParam<Row>(undefined, [undefined], { offset: 0 }, 1),
+    ).toBeUndefined();
+    expect(resolveListTotal<Row>([undefined])).toBeNull();
+  });
+
   it("reads the total from the first page that has one", () => {
     expect(resolveListTotal([page([]), page([], { total: 7 })])).toBe(7);
     expect(resolveListTotal([page([])])).toBeNull();

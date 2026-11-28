@@ -23,10 +23,10 @@ export const FIRST_PAGE: PageParam = { offset: 0 };
 
 /** The first `total` any page reported (cursor pages after the first omit it). */
 export function resolveListTotal<TItem>(
-  pages: ReadonlyArray<PageLike<TItem>>,
+  pages: ReadonlyArray<PageLike<TItem> | null | undefined>,
 ): number | null {
   for (const page of pages) {
-    if (typeof page.total === "number") {
+    if (typeof page?.total === "number") {
       return page.total;
     }
   }
@@ -39,18 +39,21 @@ export function resolveListTotal<TItem>(
  * cursor; after that a missing cursor means the end, never an offset fallback.
  */
 export function resolveNextPageParam<TItem>(
-  lastPage: PageLike<TItem>,
-  allPages: ReadonlyArray<PageLike<TItem>>,
+  lastPage: PageLike<TItem> | null | undefined,
+  allPages: ReadonlyArray<PageLike<TItem> | null | undefined>,
   lastPageParam: PageParam,
   pageSize: number,
 ): PageParam | undefined {
+  if (!lastPage) {
+    return undefined;
+  }
   const nextCursor = lastPage.next_cursor?.trim();
   if (nextCursor) {
     return { cursor: nextCursor, offset: 0 };
   }
   const cursorPaged =
     Boolean(lastPageParam.cursor) ||
-    allPages.some((page) => Boolean(page.next_cursor?.trim()));
+    allPages.some((page) => Boolean(page?.next_cursor?.trim()));
   if (cursorPaged) {
     return undefined;
   }
@@ -110,7 +113,7 @@ export function useInfiniteList<TPage extends PageLike<TItem>, TItem>(
 
   const pages = query.data?.pages;
   const items = useMemo(
-    () => (pages ?? []).flatMap((page) => page.items),
+    () => (pages ?? []).flatMap((page) => page?.items ?? []),
     [pages],
   );
   const total = useMemo(() => resolveListTotal(pages ?? []), [pages]);
