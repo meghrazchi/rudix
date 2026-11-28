@@ -30,12 +30,16 @@ _UNKNOWN_METRIC = "all"
 
 
 class _WebVitalsRoute(APIRoute):
-    """Counts bodies rejected by validation before the handler runs."""
+    """Answers 404 while disabled, before the body is read or parsed, and counts bodies
+    rejected by validation before the handler runs."""
 
     def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
         original = super().get_route_handler()
 
         async def handler(request: Request) -> Response:
+            # FastAPI parses the JSON body before dependencies run, so a malformed body
+            # would otherwise answer 422 (and be counted) while the endpoint is off.
+            _require_ingest_enabled()
             try:
                 return await original(request)
             except RequestValidationError:

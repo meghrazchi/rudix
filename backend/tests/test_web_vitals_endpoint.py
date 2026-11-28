@@ -72,8 +72,18 @@ async def test_disabled_returns_404_even_for_invalid_bodies(
 ) -> None:
     monkeypatch.setattr(settings, "web_vitals_ingest_enabled", False)
 
+    rejected_before = _count("rudix_web_vitals_samples_total", metric="all", outcome="rejected")
+
     assert (await client.post(URL, json=_body())).status_code == 404
     assert (await client.post(URL, json={"nope": 1})).status_code == 404
+    malformed = await client.post(
+        URL, content=b"{not json", headers={"content-type": "application/json"}
+    )
+    assert malformed.status_code == 404
+    assert (
+        _count("rudix_web_vitals_samples_total", metric="all", outcome="rejected")
+        == rejected_before
+    )
 
 
 @pytest.mark.asyncio
