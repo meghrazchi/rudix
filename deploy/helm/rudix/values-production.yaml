@@ -140,7 +140,11 @@ database: {}
 pgbouncer: {}
 
 # owner: B3
-tracing: {}
+tracing:
+  # Off; see values.yaml. Set an https:// private collector to enable (docs/28 Tracing).
+  enabled: false
+  endpoint: ""
+  headersSecretKey: OTEL_EXPORTER_OTLP_HEADERS
 
 # owner: D1
 runtimeConfig:

@@ -62,6 +62,12 @@ config:
     WORKER_METRICS_ENABLED: "false"
     WORKER_METRICS_MULTIPROCESS: "true"
     # v080-B3
+    # Tracing switches; must agree with the `tracing` block (rudix.b3.validate).
+    TRACING_ENABLED: "false"
+    OTEL_EXPORTER_OTLP_ENDPOINT: ""
+    TRACING_SAMPLE_RATIO: "0.05"
+    # false: an inbound traceparent cannot force sampling (docs/11 Tracing).
+    TRACING_TRUST_INBOUND_CONTEXT: "false"
     # v080-C1
     # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
     READINESS_REQUIRED_DEPENDENCIES: postgres,redis
@@ -550,7 +556,17 @@ pgbouncer:
 
 # owner: B3
 tracing:
+  # OpenTelemetry tracing (R08-10). Off by default: no exporter and no spans. Must agree with
+  # TRACING_ENABLED and OTEL_EXPORTER_OTLP_ENDPOINT under `# v080-B3` in config.env
+  # (rudix.b3.validate). No collector or vendor is assumed; use a private collector.
   enabled: false
+  # OTLP/HTTP (protobuf) collector base URL, e.g. https://otel-collector.observability:4318
+  # (`/v1/traces` is appended). https:// in staging and production.
+  endpoint: ""
+  # Key in secrets.existingSecret holding OTEL_EXPORTER_OTLP_HEADERS (`name=value,...`, e.g.
+  # the collector's auth header). envFrom exposes a Secret key under its own name, so this
+  # stays OTEL_EXPORTER_OTLP_HEADERS; leave the key out of the Secret when none is needed.
+  headersSecretKey: OTEL_EXPORTER_OTLP_HEADERS
 
 # owner: D1
 runtimeConfig:
