@@ -67,6 +67,7 @@ The stack automatically provisions five dashboards in the `Rudix` folder:
 4. **`04 — Rudix Data Stores & Infrastructure`**: PostgreSQL active connection pool, Qdrant vectors, Redis memory, and MinIO storage usage.
 5. **`05 — Rudix Security, Governance & Tool Guardrails`**: Rate-limit rejections, auth verification failures, cross-tenant boundary denials, and agent tool execution.
 6. **`07 — Rudix Worker Pools & Queues`** (0.6.0, R06-03..05): queue depth and consumers per queue, queue wait p50/p95, dead-letter queue depth and consumer outcomes, and task time-limit kills. Alert group `rudix-workers` in `prometheus/alerts.yml`.
+7. **`08 — Rudix SLO Targets`** (0.8.0, R08-09): one panel per entry of `slo_targets.yml` (titled with its id): bad-event ratios over 1h, 6h, and 3d from `prometheus/rules/slo-recording.yml`, connections per replica, backup age, beat heartbeat age, and replica lag; text panels for targets measured outside Prometheus. Targets, not measurements.
 
 ---
 
@@ -120,7 +121,14 @@ When deploying to Staging or Production:
   METRICS_REQUIRE_AUTH=true
   METRICS_BEARER_TOKEN=<generate-strong-32-char-token>
   ```
-- Configure Alertmanager notifications in `infra/observability/alertmanager/alertmanager.yml` (e.g. Slack webhook or PagerDuty key).
+- Run the stack with the deploy overlay (0.8.0, R08-09), which hides every port except Grafana on `127.0.0.1`, requires `GRAFANA_ADMIN_PASSWORD`, scrapes with the bearer token, and routes alerts to the on-call receivers:
+  ```bash
+  install -d -m 0700 infra/observability/secrets   # git-ignored
+  # metrics_token (METRICS_BEARER_TOKEN), oncall_pager_url, oncall_ticket_url; mode 0600
+  docker compose -f docker-compose.yml -f infra/observability/docker-compose.yml \
+    -f infra/observability/docker-compose.deploy.yml up -d
+  ```
+  `alertmanager/alertmanager.yml` stays the development config (no receiver integration); `alertmanager/alertmanager.deploy.yml` holds the routes and reads the webhook URLs from the secret files. `deploy/scripts/check_observability_config.sh` validates both stacks.
 
 ---
 
@@ -128,6 +136,7 @@ When deploying to Staging or Production:
 
 Observability configs are verified in GitHub Actions:
 - **`ci.yml`**: Validates Grafana dashboard JSON schema integrity and ensures `.env.example` contains required metrics flags.
+- **`ci.yml`** job `deploy-config` (0.8.0): `promtool check rules` and `promtool test rules` (`prometheus/tests/`), `amtool check-config` on both Alertmanager files, and `deploy/scripts/check_observability_config.sh`.
 - **`release.yml`**: Spins up the integration stack with `METRICS_ENABLED=true` and verifies the `/metrics` endpoint returns expected Prometheus series (`rudix_http_requests_total`).
 
 For full architectural details and metrics reference, see [`docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md`](../../docs/25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md).

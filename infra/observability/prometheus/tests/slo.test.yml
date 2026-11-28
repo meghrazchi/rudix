@@ -1,0 +1,110 @@
+# promtool unit tests (R08-09, B2). CI runs them in the deploy-config job:
+#   promtool test rules infra/observability/prometheus/tests/*.yml
+# They are not run on a development machine.
+rule_files:
+- ../rules/slo-recording.yml
+- ../rules/slo-burn-rate.yml
+evaluation_interval: 1m
+tests:
+- name: healthy traffic records zero ratios and raises no burn-rate alert
+  interval: 1m
+  input_series:
+  - series: rudix_http_requests_total{method="GET", route="/api/v1/documents", status_code="200"}
+    values: 0+100x90
+  - series: rudix_http_requests_total{method="GET", route="/api/v1/documents", status_code="500"}
+    values: '0x90'
+  - series: rudix_chat_ttft_seconds_bucket{transport="ws", le="2.5"}
+    values: 0+10x90
+  - series: rudix_chat_ttft_seconds_count{transport="ws"}
+    values: 0+10x90
+  promql_expr_test:
+  - expr: slo:rudix_http_requests:error_ratio_rate5m
+    eval_time: 60m
+    exp_samples:
+    - labels: slo:rudix_http_requests:error_ratio_rate5m
+      value: 0
+  - expr: slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate1h
+    eval_time: 60m
+    exp_samples:
+    - labels: slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate1h
+      value: 0
+  alert_rule_test:
+  - eval_time: 60m
+    alertname: RudixSloAvailabilityBurnRatePage
+    exp_alerts: []
+  - eval_time: 60m
+    alertname: RudixSloChatTtftBurnRatePage
+    exp_alerts: []
+- name: all requests failing pages and tickets on availability
+  interval: 1m
+  input_series:
+  - series: rudix_http_requests_total{method="GET", route="/api/v1/documents", status_code="500"}
+    values: 0+100x90
+  promql_expr_test:
+  - expr: slo:rudix_http_requests:error_ratio_rate1h
+    eval_time: 60m
+    exp_samples:
+    - labels: slo:rudix_http_requests:error_ratio_rate1h
+      value: 1
+  alert_rule_test:
+  - eval_time: 60m
+    alertname: RudixSloAvailabilityBurnRatePage
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        service: api
+        slo: api_availability_monthly
+      exp_annotations:
+        summary: 'SLO api_availability_monthly: error budget burning at 14.4x (1h and 5m windows)'
+        description: 'Target: API availability 99.9% monthly. The bad-event ratio over 1h and 5m is above 14.4 x 0.001 (budget = 1 - 0.999). At this rate the 30-day budget is gone in 50.0 hours. Current 1h ratio: 100%.'
+        runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+  - eval_time: 60m
+    alertname: RudixSloAvailabilityBurnRateTicket
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        service: api
+        slo: api_availability_monthly
+      exp_annotations:
+        summary: 'SLO api_availability_monthly: error budget burning at 6x (6h and 30m windows)'
+        description: 'Target: API availability 99.9% monthly. The bad-event ratio over 6h and 30m is above 6 x 0.001 (budget = 1 - 0.999). At this rate the 30-day budget is gone in 120.0 hours. Current 6h ratio: 100%.'
+        runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+- name: slow chat first tokens page on the TTFT SLO
+  interval: 1m
+  input_series:
+  - series: rudix_chat_ttft_seconds_bucket{transport="ws", le="2.5"}
+    values: '0x90'
+  - series: rudix_chat_ttft_seconds_count{transport="ws"}
+    values: 0+10x90
+  alert_rule_test:
+  - eval_time: 60m
+    alertname: RudixSloChatTtftBurnRatePage
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        service: api
+        slo: chat_ttft_p95
+      exp_annotations:
+        summary: 'SLO chat_ttft_p95: error budget burning at 14.4x (1h and 5m windows)'
+        description: 'Target: Chat time to first token, default profile, p95 2.5 s or less. The bad-event ratio over 1h and 5m is above 14.4 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 50.0 hours. Current 1h ratio: 100%.'
+        runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+- name: queue wait burn rate is per queue
+  interval: 1m
+  input_series:
+  - series: rudix_celery_queue_wait_seconds_bucket{queue="documents.processing", le="300.0"}
+    values: '0x90'
+  - series: rudix_celery_queue_wait_seconds_count{queue="documents.processing"}
+    values: 0+5x90
+  alert_rule_test:
+  - eval_time: 60m
+    alertname: RudixSloQueueWaitBurnRatePage
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        service: worker
+        slo: celery_queue_wait_p95
+        queue: documents.processing
+      exp_annotations:
+        summary: 'SLO celery_queue_wait_p95 on documents.processing: error budget burning at 14.4x (1h and 5m windows)'
+        description: 'Target: Celery queue wait p95 5 minutes or less per queue. The bad-event ratio over 1h and 5m is above 14.4 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 50.0 hours. Current 1h ratio: 100%.'
+        runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080

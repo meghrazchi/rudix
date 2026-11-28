@@ -61,6 +61,7 @@ INCLUDE: list[str] = [
     # anchor: v080-A2
     "app.workers.backup_tasks",
     # anchor: v080-B2
+    "app.workers.ops_tasks",
 ]
 
 # Stage tasks of the staged ingestion chain (R06-01): extract..chunk on the processing
@@ -112,6 +113,7 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     # anchor: v080-A2
     "ops.backups.check_freshness": _route(settings.celery_task_default_queue),
     # anchor: v080-B2
+    "ops.beat.heartbeat": _route(settings.celery_task_default_queue),
 }
 
 BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
@@ -172,6 +174,12 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
         "schedule": settings.backup_freshness_interval_seconds,
     },
     # anchor: v080-B2
+    # R08-09: beat liveness; a heartbeat not run within one interval expires unexecuted.
+    "ops-beat-heartbeat": {
+        "task": "ops.beat.heartbeat",
+        "schedule": settings.beat_heartbeat_interval_seconds,
+        "options": {"expires": settings.beat_heartbeat_interval_seconds},
+    },
 }
 
 
@@ -292,19 +300,34 @@ def _shutdown_worker(*_: object, **__: object) -> None:
         close_qdrant()
     except Exception as exc:
         logging.getLogger(__name__).warning("worker.qdrant_close_failed: %s", type(exc).__name__)
+    _mark_metrics_process_dead()
+
+
+def _mark_metrics_process_dead() -> None:
+    """R08-09: drop this child's live gauge files (multiprocess mode only)."""
+    from app.core.metrics_server import mark_current_process_dead
+
+    try:
+        mark_current_process_dead()
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "worker.metrics_mark_dead_failed: %s", type(exc).__name__
+        )
 
 
 @worker_ready.connect
 def _on_worker_ready(*_: object, **__: object) -> None:
-    if settings.worker_metrics_enabled:
-        try:
-            from prometheus_client import start_http_server
+    """R08-09: the main process serves /metrics (authenticated, multiprocess-aware)."""
+    if not settings.worker_metrics_enabled:
+        return
+    from app.core.metrics import registry
+    from app.core.metrics_server import start_metrics_server, warn_if_metrics_auth_disabled
 
-            from app.core.metrics import registry
-
-            start_http_server(settings.worker_metrics_port, registry=registry)
-        except OSError:
-            pass
+    warn_if_metrics_auth_disabled(settings, runtime="worker")
+    try:
+        start_metrics_server(settings.worker_metrics_port, config=settings, app_registry=registry)
+    except OSError as exc:
+        logging.getLogger(__name__).warning("worker.metrics_server_failed: %s", type(exc).__name__)
 
 
 _task_start_times: dict[str, float] = {}

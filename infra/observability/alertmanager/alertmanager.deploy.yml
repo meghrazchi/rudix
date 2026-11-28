@@ -1,0 +1,61 @@
+# Alertmanager for staging and production (R08-09, B2). Development keeps alertmanager.yml
+# (one receiver with no integration: alerts are visible in the UI and go nowhere).
+#
+# Routing by the `severity` label every Rudix alert carries:
+#   critical -> oncall-pager   (pages the on-call engineer; repeats every hour)
+#   warning  -> oncall-ticket  (opens a ticket or posts to the team channel; every 12 hours)
+#   info     -> oncall-ticket  (daily reminder)
+# A critical alert inhibits the warning of the same alertname and service, and a burn-rate
+# page inhibits the ticket of the same SLO.
+#
+# Receivers are webhooks whose URLs are read from files the operator creates (never
+# committed): infra/observability/secrets/oncall_pager_url and oncall_ticket_url, mounted at
+# /etc/alertmanager/secrets by docker-compose.deploy.yml. Point them at the paging tool's
+# Alertmanager webhook integration (or a relay to it). Escalation beyond the first responder
+# (secondary on-call, incident lead) is configured in the paging tool, not here; see
+# docs/12_EVALUATION_AND_MONITORING.md "SLO rules and burn-rate alerts (0.8.0)", paragraph
+# "Alert routing and escalation".
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: oncall-ticket
+  group_by: ["alertname", "service", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    - receiver: oncall-pager
+      matchers: ['severity="critical"']
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+    - receiver: oncall-ticket
+      matchers: ['severity="warning"']
+      repeat_interval: 12h
+    - receiver: oncall-ticket
+      matchers: ['severity="info"']
+      repeat_interval: 24h
+
+inhibit_rules:
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="warning"']
+    equal: ["alertname", "service"]
+  # RudixSlo*BurnRatePage (critical) and RudixSlo*BurnRateTicket (warning) share `slo`.
+  # `queue` keeps the per-queue SLO apart: a page on one queue never hides another queue's
+  # ticket (a label missing on both sides counts as equal, so other SLOs are unaffected).
+  - source_matchers: ['severity="critical"', 'slo=~".+"']
+    target_matchers: ['severity="warning"', 'slo=~".+"']
+    equal: ["slo", "queue"]
+
+receivers:
+  - name: oncall-pager
+    webhook_configs:
+      - url_file: /etc/alertmanager/secrets/oncall_pager_url
+        send_resolved: true
+        max_alerts: 20
+  - name: oncall-ticket
+    webhook_configs:
+      - url_file: /etc/alertmanager/secrets/oncall_ticket_url
+        send_resolved: true
+        max_alerts: 50

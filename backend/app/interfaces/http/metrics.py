@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import hmac
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException, Response, status
 
 from app.core.config import settings
 from app.core.metrics import generate_prometheus_metrics
+from app.core.metrics_server import check_metrics_authorization
 
 router = APIRouter(tags=["metrics"])
 
@@ -18,7 +18,8 @@ async def metrics_endpoint(
     """Prometheus metrics scrape endpoint.
 
     When METRICS_ENABLED=false, returns 404.
-    When METRICS_REQUIRE_AUTH=true, requires a valid Bearer token matching METRICS_BEARER_TOKEN.
+    When METRICS_REQUIRE_AUTH=true, requires a valid Bearer token matching METRICS_BEARER_TOKEN
+    (the worker metrics server applies the same check, ``app/core/metrics_server.py``).
     """
     if not settings.metrics_enabled:
         raise HTTPException(
@@ -26,27 +27,16 @@ async def metrics_endpoint(
             detail="Metrics collection is disabled",
         )
 
-    if settings.metrics_require_auth:
-        expected_token = (
+    failure = check_metrics_authorization(
+        authorization,
+        require_auth=settings.metrics_require_auth,
+        expected_token=(
             settings.metrics_bearer_token.get_secret_value()
             if settings.metrics_bearer_token
             else None
-        )
-        if not expected_token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Metrics authentication required but no token is configured",
-            )
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing or invalid Authorization header",
-            )
-        token = authorization[7:].strip()
-        if not hmac.compare_digest(token, expected_token):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid metrics token",
-            )
+        ),
+    )
+    if failure is not None:
+        raise HTTPException(status_code=failure.status_code, detail=failure.detail)
 
     return generate_prometheus_metrics()

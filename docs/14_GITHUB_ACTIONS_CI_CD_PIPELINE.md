@@ -54,6 +54,9 @@ Jobs:
    - starts ephemeral PostgreSQL and Redis services
    - runs `alembic upgrade head`
    - runs a downgrade/upgrade round trip to catch migration regressions
+   - "Check migration safety" (0.8.0, R08-08): `scripts/check_migration_safety.py --all`, and
+     on pull requests `--base-ref origin/<base>` (the checkout uses `fetch-depth: 0`); rules in
+     `docs/CONTRIBUTING.md`, "Database migrations"
    - job name `Backend Alembic validation`; the PostgreSQL test lane moved to
      `backend-postgres.yml` (R03-01)
 4. `frontend`
@@ -534,6 +537,31 @@ NEXT_PUBLIC_DEPLOYMENT_ENV=production
 NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1
 NEXT_PUBLIC_APP_URL=https://getrudix.com
 ```
+
+### Single frontend image (optional, R08-11)
+
+By default `build-images` builds two frontend images, `frontend-staging` and
+`frontend-production`, each with its environment's public URLs baked in. Set the repository
+variable `RUDIX_FRONTEND_IMAGE_MODE=single` to build one image instead, in request mode
+(`NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request`), with `NEXT_PUBLIC_PUBLIC_SITE_URL` from the
+variable `RUDIX_PUBLIC_SITE_URL` (required, `https://`). The image is pushed under both
+repositories, so `frontend_staging_image` and `frontend_production_image` are the same digest
+and the rest of the workflow (scan, sign, staging deploy, promotion) is unchanged. Each
+environment then sets its public values at runtime (container env or the chart's
+`runtimeConfig.env`). Canonical URLs stay build-time, so staging serves the production
+canonical URL and must send `X-Robots-Tag: noindex` (`EDGE_NOINDEX=true`); a CDN asset prefix
+must be one host for both. This path is first exercised in GitHub Actions; leave the variable
+unset until the owner has accepted those two decisions.
+
+### Per-secret environment secrets (recommended, R08-11)
+
+`STAGING_ENV_FILE` and `PRODUCTION_ENV_FILE` carry every backend secret in one GitHub secret.
+Rotating one value means rewriting and re-pasting the whole file, and every reader of the
+secret sees all values. Move to one GitHub environment secret per value (for example
+`APP_AUTH_SECRET`, `APP_AUTH_SECRET_PREVIOUS`, `DATABASE_URL`, `METRICS_BEARER_TOKEN`) that
+the deploy step writes into the env file, or to a secret manager read by the chart's
+`secrets.externalSecret` (External Secrets Operator). Until then, keep the whole-file secrets;
+the rotation order for each value is in `docs/11` `### Rotation`.
 
 ### Evaluation and quality gates
 

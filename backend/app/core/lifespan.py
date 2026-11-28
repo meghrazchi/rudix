@@ -19,6 +19,7 @@ from app.clients.redis_client import (
 )
 from app.core.langfuse_tracer import init_langfuse, shutdown_langfuse
 from app.core.loop_lag import start_loop_lag_monitor, stop_loop_lag_monitor
+from app.core.metrics_server import warn_if_metrics_auth_disabled
 from app.core.sentry import init_sentry
 from app.db.session import dispose_engine
 from app.domains.graph.migration_runner import run_graph_migrations
@@ -150,6 +151,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
     try:
         warn_deprecated_settings()
+        warn_if_metrics_auth_disabled(settings, runtime="api")
         init_sentry(runtime="api")
         init_langfuse(runtime="api")
         await _init_optional_dependency("redis", init_redis)

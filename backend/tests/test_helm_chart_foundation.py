@@ -137,7 +137,8 @@ def test_config_map_holds_non_secret_env_and_defaults_render() -> None:
     assert config["data"]["LOG_FORMAT"] == "json"
     assert config["data"]["API_BASE_URL"].endswith(".invalid")
     frontend = _config_map(objects, "rudix-frontend")
-    assert frontend["data"] in ({}, None)
+    # D1 (R08-11) fills runtimeConfig.env with build mode and placeholder public values.
+    assert frontend["data"]["NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE"] == "build"
     account = next(obj for obj in objects if obj["kind"] == "ServiceAccount")
     assert account["automountServiceAccountToken"] is False
 
@@ -145,7 +146,7 @@ def test_config_map_holds_non_secret_env_and_defaults_render() -> None:
 def test_runtime_config_renders_into_frontend_config_map() -> None:
     objects = render_chart(set_values={"runtimeConfig.env.NEXT_PUBLIC_SAMPLE": "on"})
     frontend = _config_map(objects, "rudix-frontend")
-    assert frontend["data"] == {"NEXT_PUBLIC_SAMPLE": "on"}
+    assert frontend["data"]["NEXT_PUBLIC_SAMPLE"] == "on"
 
 
 def test_helpers_render_contract_shapes(probe_chart: Path) -> None:

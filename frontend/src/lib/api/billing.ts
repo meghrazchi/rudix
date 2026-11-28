@@ -3,6 +3,7 @@ import type { components } from "@/lib/api/generated/schema";
 
 import { apiRequest } from "@/lib/api/request";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 type Schemas = components["schemas"];
 
@@ -25,16 +26,47 @@ export type BillingCapabilities = {
 
 function getBillingEndpoints() {
   return {
-    planUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_PLAN_URL),
-    usageUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_USAGE_URL),
-    quotasUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_QUOTAS_URL),
-    invoicesUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_INVOICES_URL),
-    billingContactUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_CONTACT_URL),
+    planUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_BILLING_PLAN_URL",
+        process.env.NEXT_PUBLIC_BILLING_PLAN_URL,
+      ),
+    ),
+    usageUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_BILLING_USAGE_URL",
+        process.env.NEXT_PUBLIC_BILLING_USAGE_URL,
+      ),
+    ),
+    quotasUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_BILLING_QUOTAS_URL",
+        process.env.NEXT_PUBLIC_BILLING_QUOTAS_URL,
+      ),
+    ),
+    invoicesUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_BILLING_INVOICES_URL",
+        process.env.NEXT_PUBLIC_BILLING_INVOICES_URL,
+      ),
+    ),
+    billingContactUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_BILLING_CONTACT_URL",
+        process.env.NEXT_PUBLIC_BILLING_CONTACT_URL,
+      ),
+    ),
     updateBillingContactUrl: trimToNull(
-      process.env.NEXT_PUBLIC_BILLING_CONTACT_UPDATE_URL,
+      publicEnv(
+        "NEXT_PUBLIC_BILLING_CONTACT_UPDATE_URL",
+        process.env.NEXT_PUBLIC_BILLING_CONTACT_UPDATE_URL,
+      ),
     ),
     portalSessionUrl: trimToNull(
-      process.env.NEXT_PUBLIC_BILLING_PORTAL_SESSION_URL,
+      publicEnv(
+        "NEXT_PUBLIC_BILLING_PORTAL_SESSION_URL",
+        process.env.NEXT_PUBLIC_BILLING_PORTAL_SESSION_URL,
+      ),
     ),
   };
 }

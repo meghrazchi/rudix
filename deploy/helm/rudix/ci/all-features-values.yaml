@@ -38,11 +38,19 @@ config:
     BACKUP_S3_REGION: eu-central-1
     # v080-B1
     # v080-B2
+    METRICS_ENABLED: "true"
+    METRICS_REQUIRE_AUTH: "true"
+    WORKER_METRICS_ENABLED: "true"
+    WORKER_METRICS_MULTIPROCESS: "true"
     # v080-B3
     # v080-C1
     # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
     READINESS_REQUIRED_DEPENDENCIES: postgres,redis
     # v080-C2
+    DB_PGBOUNCER_MODE: "true"
+    DB_REPLICA_MAX_LAG_SECONDS: "30"
+    DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS: "10"
+    DB_REPLICA_LAG_QUERY_TIMEOUT_MS: "500"
     # v080-D1
 
 # owner: S1
@@ -51,7 +59,22 @@ secrets:
   create: false
   # owner: D1
   externalSecret:
-    enabled: false
+    enabled: true
+    refreshInterval: 30m
+    secretStoreRef:
+      name: rudix-ci-secret-store
+      kind: SecretStore
+    data:
+      - secretKey: APP_AUTH_SECRET
+        remoteRef:
+          key: rudix/ci/app-auth-secret
+      - secretKey: APP_AUTH_SECRET_PREVIOUS
+        remoteRef:
+          key: rudix/ci/app-auth
+          property: previous
+      - secretKey: DATABASE_URL
+        remoteRef:
+          key: rudix/ci/database-url
 
 # owner: S1
 serviceAccount:
@@ -70,6 +93,14 @@ tmpVolume: {}
 # owner: S1
 metrics:
   enabled: true
+  # owner: B2
+  workers:
+    multiprocess: true
+  # owner: B2
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
 
 # owner: A1
 ingress:
@@ -193,10 +224,14 @@ connectionBudget:
   maxDatabaseConnections: 2000
 
 # owner: C2
-database: {}
+database:
+  pgbouncerMode: true
 
 # owner: C2
-pgbouncer: {}
+pgbouncer:
+  enabled: true
+  image: registry.invalid/pgbouncer@sha256:0000000000000000000000000000000000000000000000000000000000000000
+  configSecretName: rudix-ci-pgbouncer
 
 # owner: B3
 tracing: {}
@@ -204,7 +239,13 @@ tracing: {}
 # owner: D1
 runtimeConfig:
   env:
-    NEXT_PUBLIC_CI_PLACEHOLDER: "true"
+    NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE: request
+    NEXT_PUBLIC_DEPLOYMENT_ENV: staging
+    NEXT_PUBLIC_API_URL: https://api.ci.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.ci.rudix.invalid
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: staging
 
 # owner: D1
-cdn: {}
+cdn:
+  assetPrefix: https://cdn.ci.rudix.invalid
+  publicAssetCacheControl: public, max-age=3600

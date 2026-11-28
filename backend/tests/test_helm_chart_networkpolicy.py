@@ -116,7 +116,8 @@ def test_data_stores_accept_only_application_pods() -> None:
     clients = _in_values(source["podSelector"])
     assert DATA_CLIENTS <= clients
     assert {"frontend", "networkpolicy"}.isdisjoint(clients)
-    assert all(c in DATA_CLIENTS or c.startswith("backup-") for c in clients)
+    # all-features turns on PgBouncer (C2), which connects to PostgreSQL for the app pods.
+    assert all(c in DATA_CLIENTS or c.startswith("backup-") or c == "pgbouncer" for c in clients)
     assert "namespaceSelector" not in source
 
     redis = policies["rudix-datastore-redis"]

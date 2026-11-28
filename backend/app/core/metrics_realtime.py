@@ -18,6 +18,7 @@ REALTIME_CONNECTIONS = Gauge(
     "rudix_realtime_connections",
     "Open realtime event streams in this process",
     registry=registry,
+    multiprocess_mode="livesum",
 )
 # outcome: published, failed (Redis error), unavailable (no Redis client), skipped (no async
 # context to publish from).

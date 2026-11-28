@@ -822,10 +822,12 @@ after `finalize` on its own queue.
   delayed delivery adds to routing keys is stripped. No task arguments or ids are labels.
 - Worker metrics are served by the worker main process on `WORKER_METRICS_PORT` (9808) when
   `WORKER_METRICS_ENABLED=true`; Prometheus scrapes `worker:9808` and each `worker-<pool>:9808`.
-  The queue metrics above and hard time limits are recorded in that process. Metrics recorded
-  inside a prefork child (task counters and durations from `task_prerun` / `task_postrun`,
-  soft time limits) are not visible to it: that limitation predates 0.6.0. Use `FailedJob`
-  rows (`error_code` `task_soft_time_limit`) for soft limits.
+  The queue metrics above and hard time limits are recorded in that process. Before 0.8.0,
+  metrics recorded inside a prefork child (task counters and durations from `task_prerun` /
+  `task_postrun`, soft time limits) were not visible to it. Since 0.8.0 (R08-09) pools
+  started by `python -m app.workers.pools` collect in multiprocess mode and export them (see
+  "SLO rules and burn-rate alerts (0.8.0)"); a plain `celery ... worker` command still does
+  not. `FailedJob` rows (`error_code` `task_soft_time_limit`) remain the record of soft limits.
 - Alerts (group `rudix-workers` in `infra/observability/prometheus/alerts.yml`):
   `RudixDeadLetterQueueNotEmpty` (dead-letter depth above 0 for 10 minutes),
   `RudixCeleryQueueWaitHigh` (p95 wait above 300 s for 15 minutes),
@@ -881,9 +883,9 @@ after `finalize` on its own queue.
   mid-run (time limits, OOM, deploys without a grace period); any `failed` means a run
   exhausted its resumes. A high `lease_held` rate means duplicate deliveries.
   `publish_failed` means streams fall back to database polling.
-- These metrics are recorded inside the task, so the prefork-child limitation of the
-  section above applies to the task counters: use the run rows (`status`, `resume_count`,
-  `error_details.code`) as the source of truth.
+- These metrics are recorded inside the task, so before 0.8.0 the prefork-child limitation
+  of the section above applied to them; pools in multiprocess mode (R08-09) export them. The
+  run rows (`status`, `resume_count`, `error_details.code`) stay the source of truth.
 - No measured baseline exists yet; a live worker restart and Redis pub/sub are staging
   checks (plan section 8).
 
@@ -971,9 +973,34 @@ outbound request: the browser posts to our own API.
   the fallback polling interval (`NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS`). A reconnect rate
   much above one per `REALTIME_STREAM_MAX_SECONDS` per connection means a proxy closes
   streams early (check buffering and idle timeouts).
-- Publisher metrics in Celery prefork children are not scraped (same limitation as the
-  worker counters above).
+- Publisher metrics in Celery prefork children are scraped only when the pool collects in
+  multiprocess mode (0.8.0, R08-09; same rule as the worker counters above).
 - No measured baseline exists yet; the end-to-end check with Redis is a staging step.
+
+### Read replica routing and migration safety (R08-04, R08-08)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_db_replica_lag_seconds` | | Last successful lag sample of `DATABASE_REPLICA_URL` (0 when caught up or on a primary). |
+| `rudix_db_replica_routed_total` | `target` (`replica`, `primary`), `reason` (`ok`, `replica_unset`, `lag_exceeded`, `sample_failed`) | Reporting sessions by where they went and why. |
+
+- Alerts (`infra/observability/prometheus/rules/database.yml`): `RudixDbReplicaLagHigh`
+  (`max(rudix_db_replica_lag_seconds) > 30` for 5 m, warning) and `RudixDbReplicaFallbacks`
+  (any `lag_exceeded` or `sample_failed` routing for 15 m, warning). A fallback is safe (the
+  report reads the primary) but moves reporting load back to it.
+- Logs: `db.replica.lag_sample_failed` (warning, error class only, or `unknown_lag` when the
+  standby has not replayed a transaction yet), `db.replica.connect_failed` (warning, error
+  class only: the replica refused or timed out after a good sample; the request used the
+  primary), and `db.replica.fallback` (debug, reason and lag).
+  No URL, query text, or row data is logged.
+- Lag is sampled on demand by API processes that serve reports, at most once per
+  `DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS`; a process that serves no report never samples, so
+  the gauge can be stale or absent between reports. Read `routed_total` together with it.
+- Migration safety is a CI gate, not a metric: the "Check migration safety" step in
+  `backend-alembic` fails a pull request whose migrations drop or rename what the base
+  branch's models use, or take long locks on a large table without a reviewed marker.
+- No measured baseline exists yet; replica lag under load and a failover drill are staging
+  steps (plan section 9).
 
 ### Chat WebSocket connections and shutdown drain (R08-03, R08-02)
 
@@ -1021,6 +1048,95 @@ outbound request: the browser posts to our own API.
   (B2) is enabled, prefork child values are not exported by the worker metrics server.
 - No baseline exists yet; the first restore drill and its RPO and RTO are staging steps
   ([runbooks/RESTORE_DRILL_LOG.md](./runbooks/RESTORE_DRILL_LOG.md)).
+
+### SLO rules and burn-rate alerts (0.8.0)
+
+R08-09 (B2): multiprocess worker metrics, authenticated scrapes, a beat heartbeat, SLO
+recording rules, multi-window burn-rate alerts, and on-call routing.
+
+**Multiprocess worker metrics.** `python -m app.workers.pools <pool>` sets
+`PROMETHEUS_MULTIPROC_DIR` (default `/tmp/rudix-prometheus`; a value already in the
+environment wins, but set it only in a pool's own environment, never in the shared `.env` or
+`config.env`: the API and beat fail at import when the directory does not exist, and worker
+probes would leave files in it), removes stale `*.db` files from an earlier start, and creates the
+directory before it execs Celery, when `WORKER_METRICS_ENABLED=true` and
+`WORKER_METRICS_MULTIPROCESS=true` (default). Every prefork child then writes its samples to
+that directory, and the main process serves the aggregate on `WORKER_METRICS_PORT`. Metric
+names and labels do not change: counters and histograms are summed, and every gauge
+declares a mode that adds no `pid` label (`livesum` for in-flight counts, `livemax` for
+worst current lag or breaker state, `max` for timestamps, `mostrecent` for sampled
+values). A child that exits calls `mark_process_dead`, which drops its `live*` gauges. The
+development command `celery -A app.workers.celery_app:celery_app worker` does not go
+through `pools.py` and stays single-process. Custom collectors (database pool gauges) are
+still read from the main process only.
+
+**Authenticated scrape (contract 5.2.8).** With `METRICS_REQUIRE_AUTH=true`, `GET /metrics`
+on the API and on port 9808 need `Authorization: Bearer <METRICS_BEARER_TOKEN>`: 401 without
+the header or without a configured token, 403 with a wrong token. Both use the same check
+(`app/core/metrics_server.py`, compared with `hmac.compare_digest`). The API and the workers
+log `metrics.auth_disabled` at startup when metrics are served in staging or production
+without auth (a warning, not a refusal). Prometheus reads the token from a file
+(`prometheus/prometheus.deploy.yml`, `authorization.credentials_file`); the chart's
+ServiceMonitors read it from the existing Secret.
+
+**Beat heartbeat.** Beat enqueues `ops.beat.heartbeat` on the default queue every
+`BEAT_HEARTBEAT_INTERVAL_SECONDS` (default 60; the message expires after one interval).
+Each run sets `rudix_beat_heartbeat_timestamp_seconds` and increments
+`rudix_beat_heartbeats_total`. `rules/beat.yml`: `RudixBeatHeartbeatStale` (critical, newest
+heartbeat older than 300 s for 5 minutes) and `RudixBeatHeartbeatMissing` (warning, worker
+targets up but no heartbeat series for 15 minutes).
+
+**SLO targets and recording rules.** `infra/observability/slo_targets.yml` lists every target
+of docs/26 section 4.6 and of the table above (Production SLOs), plus the queue-wait,
+heartbeat, and replica-lag targets the alerts use. Each entry names its series and recording
+rules, or is marked `measured_outside_prometheus` with the reason (recovery time is
+drill-based; retrieval hit rate, citation accuracy, and not-found correctness come from
+evaluation runs). `rules/slo-recording.yml` records the bad-event ratio of each target over
+5m, 30m, 1h, 6h, and 3d. Latency targets count observations above a histogram bucket
+boundary, so the threshold is always an existing bucket: where the target falls between two
+boundaries the next one up is used and the entry says so (full answer 12 s -> 15 s, read
+endpoints 300 ms -> 500 ms, ingestion 90 s -> 120 s, queries per chat request 12 -> 20).
+All values are targets; nothing here is a measured baseline. Two series the targets use
+have no caller yet: `rudix_document_indexing_duration_seconds` and
+`rudix_document_indexing_jobs_total` are declared but the staged ingestion pipeline does not
+observe them, so those rules return no data until it does.
+
+**Burn-rate alerts.** `rules/slo-burn-rate.yml`, for availability (5xx share of
+`rudix_http_requests_total`, 99.9%), chat time to first token (2.5 s), chat full answer
+(15 s bucket), ingestion latency (120 s bucket), and queue wait (300 s, per queue):
+
+| Alert | Windows | Threshold | Severity | `for` |
+|---|---|---|---|---|
+| `RudixSlo<Name>BurnRatePage` | 1h and 5m | 14.4 x error budget | critical | 2m |
+| `RudixSlo<Name>BurnRateTicket` | 6h and 30m | 6 x error budget | warning | 15m |
+
+The error budget is `1 - objective` (0.001 for availability, 0.05 for a p95 target). A page
+means 2% of a 30-day budget burns per hour; a ticket, 5% in 6 hours. `alerts.yml` keeps its
+fixed-threshold alerts unchanged. promtool unit tests for the new rule files live in
+`prometheus/tests/` and run only in CI (job `deploy-config`, "Check Prometheus rules").
+Dashboard `08-rudix-slo-targets.json` has one panel per `slo_targets.yml` entry, titled with
+its id.
+
+**Alert routing and escalation.** Development keeps `alertmanager/alertmanager.yml` (one
+receiver with no integration). Staging and production use `alertmanager.deploy.yml`:
+`critical` goes to `oncall-pager` (repeat every hour), `warning` and `info` to
+`oncall-ticket` (every 12 and 24 hours); a critical alert inhibits the warning with the same
+`alertname` and `service`, and a burn-rate page inhibits the ticket of the same `slo` (and the same `queue` for the
+per-queue wait SLO). Both
+receivers are webhooks whose URLs are read from operator-created files
+(`infra/observability/secrets/oncall_pager_url`, `oncall_ticket_url`; never committed).
+Escalation: the paging tool behind `oncall-pager` pages the primary on-call; an unacknowledged
+page escalates to the secondary on-call and then to the incident lead, according to the
+paging tool's escalation policy (configured there, not in Alertmanager). Tickets are worked
+during business hours. A synthetic failure that pages the on-call receiver is a staging step.
+
+**Log shipping.** The API and workers write JSON logs to stdout (`LOG_FORMAT=json`); every
+API line carries `request_id` (from `X-Request-ID` or generated, returned in the response
+header), plus `user_id` and `organization_id` when known (`app/core/logging.py`). Ship
+container stdout to the aggregator the operator runs (Loki, Elasticsearch/OpenSearch, or a
+managed service) with the node or Docker logging driver, and index `request_id`,
+`organization_id`, `level`, and `event`. Rudix runs no log shipper container. B3 adds
+`trace_id` to the same lines.
 
 ## Continuous evaluation
 

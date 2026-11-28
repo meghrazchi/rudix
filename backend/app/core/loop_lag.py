@@ -22,6 +22,7 @@ EVENT_LOOP_LAG_SECONDS = Gauge(
     "rudix_event_loop_lag_seconds",
     "Worst event-loop scheduling lag in the current rolling window (seconds)",
     registry=registry,
+    multiprocess_mode="livemax",
 )
 EVENT_LOOP_LAG_SECONDS_HIST = Histogram(
     "rudix_event_loop_lag_seconds_hist",

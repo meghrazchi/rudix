@@ -30,6 +30,7 @@ METRIC_MODULES = (
     "app.core.metrics_frontend",
     "app.core.metrics_auth_session",
     "app.core.metrics_infra",
+    "app.core.metrics_db_replica",
     "app.core.loop_lag",
     "app.core.cache",
     "app.db.tenant_context",

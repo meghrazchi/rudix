@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isApiClientError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/request";
 import type { AppRole } from "@/lib/auth-session";
+import { publicEnv } from "@/lib/public-env";
 
 const DOMAIN_PATTERN = /^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
 const INVITE_ROLES = ["admin", "member", "viewer"] as const;
@@ -224,13 +225,22 @@ function fromDraftPayload(
 function getOnboardingConfig(): OrganizationOnboardingConfig {
   return {
     resumeUrl: trimToNull(
-      process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL,
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL,
+      ),
     ),
     saveUrl: trimToNull(
-      process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL,
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL,
+      ),
     ),
     completeUrl: trimToNull(
-      process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL,
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL,
+      ),
     ),
     localFallbackEnabled:
       trimToNull(

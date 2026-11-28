@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from app.auth.errors import AuthenticationError
 from app.core.config import settings
+from app.core.metrics_auth_rotation import TokenKind, record_verified_by_previous_key
 
 TOKEN_USE_ACCESS = "access"
 TOKEN_USE_REFRESH = "refresh"
@@ -34,6 +35,29 @@ def _secret_value(secret: Any | None = None) -> str:
     if hasattr(secret, "get_secret_value"):
         return secret.get_secret_value()
     return str(secret)
+
+
+def _previous_secret_value() -> str | None:
+    previous = settings.app_auth_secret_previous
+    if previous is None:
+        return None
+    value = previous.get_secret_value()
+    return value if value.strip() else None
+
+
+def verify_signature_with_rotation(message: str, signature: str) -> bool | None:
+    """Check an HMAC-SHA256 signature against the current, then the previous secret.
+
+    Returns ``False`` when the current secret matched, ``True`` when only the previous
+    secret (``APP_AUTH_SECRET_PREVIOUS``) matched, and ``None`` when neither did. Signing
+    never uses the previous secret.
+    """
+    if hmac.compare_digest(_sign(message, _secret_value()), signature):
+        return False
+    previous = _previous_secret_value()
+    if previous is not None and hmac.compare_digest(_sign(message, previous), signature):
+        return True
+    return None
 
 
 def create_app_access_token(
@@ -187,8 +211,8 @@ def _decode_signed_token(
         raise AuthenticationError("Invalid token format") from exc
 
     signing_input = f"{encoded_header}.{encoded_payload}"
-    expected_signature = _sign(signing_input, _secret_value())
-    if not hmac.compare_digest(expected_signature, encoded_signature):
+    verified_by_previous = verify_signature_with_rotation(signing_input, encoded_signature)
+    if verified_by_previous is None:
         raise AuthenticationError("Invalid token signature")
 
     try:
@@ -224,6 +248,7 @@ def _decode_signed_token(
 
     token_use = payload.get("token_use")
     if token_use is None and allow_missing_token_use:
+        _record_previous_key_use(verified_by_previous, expected_token_use)
         return dict(payload)
     if token_use != expected_token_use:
         raise AuthenticationError("Invalid token type")
@@ -236,4 +261,12 @@ def _decode_signed_token(
     if not isinstance(jti, str) or not jti.strip():
         raise AuthenticationError("Token identifier is missing")
 
+    _record_previous_key_use(verified_by_previous, expected_token_use)
     return dict(payload)
+
+
+def _record_previous_key_use(verified_by_previous: bool, token_use: str) -> None:
+    if not verified_by_previous:
+        return
+    kind: TokenKind = "refresh" if token_use == TOKEN_USE_REFRESH else "access"
+    record_verified_by_previous_key(kind)

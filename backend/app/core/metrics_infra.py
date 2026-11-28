@@ -11,7 +11,7 @@ once multiprocess collection is enabled (B2): ``livesum`` for counts held by liv
 
 from __future__ import annotations
 
-from prometheus_client import Gauge
+from prometheus_client import Counter, Gauge
 
 from app.core.metrics import is_metrics_enabled, registry
 
@@ -67,6 +67,23 @@ def set_beat_heartbeat_timestamp(timestamp_seconds: float) -> None:
     if not is_metrics_enabled():
         return
     BEAT_HEARTBEAT_TIMESTAMP_SECONDS.set(timestamp_seconds)
+
+
+# B2 (R08-09): runs of ``ops.beat.heartbeat``; with the timestamp above it shows that beat
+# schedules and a default-pool worker executes.
+BEAT_HEARTBEATS_TOTAL = Counter(
+    "rudix_beat_heartbeats_total",
+    "Celery beat heartbeat task runs",
+    registry=registry,
+)
+
+
+def record_beat_heartbeat(timestamp_seconds: float) -> None:
+    """B2: one ``ops.beat.heartbeat`` run at ``timestamp_seconds`` (Unix time)."""
+    if not is_metrics_enabled():
+        return
+    BEAT_HEARTBEAT_TIMESTAMP_SECONDS.set(timestamp_seconds)
+    BEAT_HEARTBEATS_TOTAL.inc()
 
 
 def set_backup_last_success_timestamp(kind: str, timestamp_seconds: float) -> None:

@@ -12,6 +12,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Observability deploy secrets (metrics token, on-call webhook URLs; R08-09)
+infra/observability/secrets/
 
 # Python
 __pycache__/

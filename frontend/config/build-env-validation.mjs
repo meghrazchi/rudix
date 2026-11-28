@@ -14,14 +14,14 @@ function isLoopbackPublicHost(host) {
   );
 }
 
-const DEV_ONLY_FLAGS = [
+export const DEV_ONLY_FLAGS = [
   "NEXT_PUBLIC_AUTH_LOCAL_FALLBACK",
   "NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK",
   // Makes /admin/error-probe throw on purpose (route boundary e2e, R07-08).
   "NEXT_PUBLIC_E2E_ERROR_PROBE",
 ];
 
-const DEV_ONLY_SECRETS = [
+export const DEV_ONLY_SECRETS = [
   "NEXT_PUBLIC_AUTH_LOCAL_PASSWORD",
   "NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD",
   "NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN",
@@ -63,6 +63,8 @@ export function validateBuildEnvironment(env) {
     }
   }
 
+  errors.push(...validateDeliveryEnvironment(env, isProductionLike));
+
   if (isProductionLike) {
     for (const key of DEV_ONLY_FLAGS) {
       if ((env[key] ?? "").trim().toLowerCase() === "true") {
@@ -77,6 +79,55 @@ export function validateBuildEnvironment(env) {
           `${key} is development-only and must be empty in staging or production builds.`,
         );
       }
+    }
+  }
+  return errors;
+}
+
+/**
+ * Request-time configuration and CDN inputs (R08-11, R08-12). Never echoes values.
+ * @param {Record<string, string | undefined>} env
+ * @param {boolean} isProductionLike
+ * @returns {string[]}
+ */
+function validateDeliveryEnvironment(env, isProductionLike) {
+  const errors = [];
+  const source = (env.NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE ?? "").trim();
+  if (source && !["build", "request"].includes(source.toLowerCase())) {
+    errors.push("NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE must be build or request.");
+  }
+
+  const assetPrefix = (env.NEXT_PUBLIC_ASSET_PREFIX ?? "").trim();
+  if (assetPrefix) {
+    try {
+      const { protocol, search, hash } = new URL(assetPrefix);
+      if (protocol !== "http:" && protocol !== "https:") {
+        errors.push("NEXT_PUBLIC_ASSET_PREFIX must use http:// or https://.");
+      } else if (isProductionLike && protocol !== "https:") {
+        errors.push(
+          "NEXT_PUBLIC_ASSET_PREFIX must use https:// when NEXT_PUBLIC_DEPLOYMENT_ENV is staging or production.",
+        );
+      }
+      if (search || hash) {
+        errors.push(
+          "NEXT_PUBLIC_ASSET_PREFIX must not have a query string or fragment.",
+        );
+      }
+    } catch {
+      errors.push("NEXT_PUBLIC_ASSET_PREFIX must be a valid absolute URL.");
+    }
+  }
+
+  const cacheControl = (env.PUBLIC_ASSET_CACHE_CONTROL ?? "").trim();
+  if (cacheControl) {
+    if (!/^[A-Za-z0-9=,\- ]+$/.test(cacheControl)) {
+      errors.push(
+        "PUBLIC_ASSET_CACHE_CONTROL may hold only Cache-Control directives (letters, digits, =, -, commas).",
+      );
+    } else if (/\bimmutable\b/i.test(cacheControl)) {
+      errors.push(
+        "PUBLIC_ASSET_CACHE_CONTROL must not be immutable: /brand, /fonts and /images are not content-hashed.",
+      );
     }
   }
   return errors;

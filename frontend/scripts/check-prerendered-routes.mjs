@@ -3,6 +3,8 @@
 // Run after `next build`: reads .next/prerender-manifest.json and expects
 // `/${locale}${path}` for every path in config/static-public-routes.json and
 // every locale in SUPPORTED_LOCALES (src/i18n/routing.ts).
+//
+//   node scripts/check-prerendered-routes.mjs [--dist-dir <dir>]
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +13,20 @@ const frontendRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const distDir = process.env.NEXT_DIST_DIR || ".next";
+// `--dist-dir <dir>` (or `--dist-dir=<dir>`) wins over NEXT_DIST_DIR, so a
+// second build (e.g. the request-mode e2e build, R08-11) can be checked too.
+function distDirArgument(argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--dist-dir") return argv[index + 1] || null;
+    if (arg.startsWith("--dist-dir=")) return arg.slice("--dist-dir=".length);
+  }
+  return null;
+}
+const distDir =
+  distDirArgument(process.argv.slice(2)) ||
+  process.env.NEXT_DIST_DIR ||
+  ".next";
 
 function readJson(relativePath) {
   // path.resolve keeps an absolute NEXT_DIST_DIR as is.

@@ -21,10 +21,20 @@ The ``threads`` pool is accepted only with concurrency 1: ``run_async`` drives o
 loop per process (``app/workers/async_runtime.py``), which two threads cannot share, and
 Celery enforces time limits only in the prefork pool. Size I/O-bound pools with more prefork
 processes instead (docs/10).
+
+Metrics (R08-09): with ``WORKER_METRICS_ENABLED`` and ``WORKER_METRICS_MULTIPROCESS`` (default
+true) the pool exports the counters of every prefork child. Before ``execvpe`` (so before the
+worker imports ``prometheus_client``) this module points ``PROMETHEUS_MULTIPROC_DIR`` at a
+directory (default ``/tmp/rudix-prometheus``; a value already in the environment wins),
+removes stale ``*.db`` files left by an earlier run, and creates it. The worker metrics server
+(``app/core/metrics_server.py``) aggregates the files. The development command
+``celery -A app.workers.celery_app:celery_app worker`` does not go through this module and
+stays single-process: only the main process's metrics are exported there.
 """
 
 from __future__ import annotations
 
+import glob
 import os
 import sys
 from collections.abc import Mapping, Sequence
@@ -41,6 +51,9 @@ POOL_NAMES = ("ingest", "graph", "sync", "eval", "default")
 # Main-process bootsteps that run only in the default pool.
 _DEFAULT_POOL_ENV = {"WORKER_CONSUME_DEAD_LETTER": "true", "WORKER_SAMPLE_QUEUE_DEPTH": "true"}
 _OTHER_POOL_ENV = {"WORKER_CONSUME_DEAD_LETTER": "false", "WORKER_SAMPLE_QUEUE_DEPTH": "false"}
+MULTIPROC_DIR_ENV = "PROMETHEUS_MULTIPROC_DIR"
+# Per container: the chart mounts an emptyDir at /tmp, Compose containers have their own /tmp.
+DEFAULT_MULTIPROC_DIR = "/tmp/rudix-prometheus"
 
 
 class PoolConfigError(ValueError):
@@ -121,13 +134,41 @@ def build_worker_argv(spec: PoolSpec, loglevel: str = "INFO") -> list[str]:
     return argv
 
 
-def build_worker_env(name: str, environ: Mapping[str, str]) -> dict[str, str]:
+def build_worker_env(
+    name: str, environ: Mapping[str, str], multiproc_dir: str | None = None
+) -> dict[str, str]:
     """Environment for the pool: only the default pool runs the dead-letter consumer and the
-    queue depth sampler, unless the environment sets the flags explicitly."""
+    queue depth sampler, unless the environment sets the flags explicitly.
+
+    With ``multiproc_dir`` the worker collects metrics in multiprocess mode from that
+    directory; without it the variable is removed so the worker stays single-process.
+    """
     env = dict(environ)
     for key, value in (_DEFAULT_POOL_ENV if name == "default" else _OTHER_POOL_ENV).items():
         env.setdefault(key, value)
+    if multiproc_dir:
+        env[MULTIPROC_DIR_ENV] = multiproc_dir
+    else:
+        env.pop(MULTIPROC_DIR_ENV, None)
     return env
+
+
+def multiprocess_metrics_enabled(config: Settings) -> bool:
+    """Multiprocess collection applies only when the worker metrics server runs."""
+    return bool(config.worker_metrics_enabled and config.worker_metrics_multiprocess)
+
+
+def prepare_multiprocess_dir(environ: Mapping[str, str]) -> str:
+    """Create the metrics directory and remove stale ``*.db`` files of an earlier run.
+
+    Files from a previous start belong to dead processes; left in place they would add old
+    counter values to the new worker's export.
+    """
+    path = environ.get(MULTIPROC_DIR_ENV) or DEFAULT_MULTIPROC_DIR
+    os.makedirs(path, exist_ok=True)
+    for stale in glob.glob(os.path.join(path, "*.db")):
+        os.remove(stale)
+    return path
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -144,8 +185,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     command = build_worker_argv(spec, loglevel=os.environ.get("WORKER_LOG_LEVEL", "INFO"))
     # ``python -m celery`` from this interpreter: works without the venv on PATH.
+    multiproc_dir = (
+        prepare_multiprocess_dir(os.environ) if multiprocess_metrics_enabled(settings) else None
+    )
+    env = build_worker_env(spec.name, os.environ, multiproc_dir)
     executable = sys.executable
-    os.execvpe(executable, [executable, "-m", *command], build_worker_env(spec.name, os.environ))
+    os.execvpe(executable, [executable, "-m", *command], env)
     return 0  # pragma: no cover - execvpe does not return
 
 

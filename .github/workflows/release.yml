@@ -159,6 +159,9 @@ jobs:
           done
 
       - name: Build and push frontend staging image
+        # Default: one frontend image per environment. RUDIX_FRONTEND_IMAGE_MODE=single
+        # (R08-11) builds one request-mode image instead (next step).
+        if: vars.RUDIX_FRONTEND_IMAGE_MODE != 'single'
         run: |
           # Strip deploy-owned URL keys from the secret before writing the known
           # staging values, so stale localhost values cannot be baked into Next.
@@ -185,6 +188,7 @@ jobs:
             frontend
 
       - name: Build and push frontend production image
+        if: vars.RUDIX_FRONTEND_IMAGE_MODE != 'single'
         run: |
           # Strip deploy-owned URL keys from the secret before writing the known
           # production values, so stale localhost values cannot be baked into Next.
@@ -209,6 +213,54 @@ jobs:
             "${prod_tags[@]}" \
             -f frontend/Dockerfile \
             frontend
+
+      - name: Build and push single frontend image (request mode)
+        # Optional (R08-11): one image for staging and production. Public values come from
+        # /runtime-config.js at request time (NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request) and
+        # the CSP from the proxy; canonical URLs and assetPrefix stay build-time, so both
+        # environments share RUDIX_PUBLIC_SITE_URL (staging serves it with EDGE_NOINDEX=true)
+        # and one CDN host. The image is pushed under both frontend repositories, so both
+        # digests are the same and the rest of the workflow is unchanged.
+        if: vars.RUDIX_FRONTEND_IMAGE_MODE == 'single'
+        env:
+          RUDIX_PUBLIC_SITE_URL: ${{ vars.RUDIX_PUBLIC_SITE_URL }}
+        run: |
+          case "${RUDIX_PUBLIC_SITE_URL}" in
+            https://*) ;;
+            *)
+              echo "RUDIX_FRONTEND_IMAGE_MODE=single needs vars.RUDIX_PUBLIC_SITE_URL (https://...)"
+              exit 1
+              ;;
+          esac
+          {
+            printf 'NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request\n'
+            printf 'NEXT_PUBLIC_PUBLIC_SITE_URL=%s\n' "${RUDIX_PUBLIC_SITE_URL}"
+            printf 'NEXT_PUBLIC_DEPLOYMENT_ENV=production\n'
+            printf 'NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1\n'
+            printf 'NEXT_PUBLIC_APP_URL=https://getrudix.com\n'
+            printf '%s\n' "${{ secrets.FRONTEND_ENV_PRODUCTION }}" | awk '!/^(NEXT_PUBLIC_DEPLOYMENT_ENV|NEXT_PUBLIC_ENVIRONMENT|NEXT_PUBLIC_API_URL|NEXT_PUBLIC_APP_URL|NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE|NEXT_PUBLIC_PUBLIC_SITE_URL)=/'
+          } > frontend/.env.production
+          single_tags=(
+            --tag "${IMAGE_BASE}/frontend-staging:${GITHUB_SHA}"
+            --tag "${IMAGE_BASE}/frontend-production:${GITHUB_SHA}"
+          )
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            single_tags+=(
+              --tag "${IMAGE_BASE}/frontend-staging:latest"
+              --tag "${IMAGE_BASE}/frontend-production:latest"
+            )
+          fi
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --push \
+            --sbom=true \
+            --provenance=mode=max \
+            --metadata-file artifacts/build-metadata/frontend-staging.json \
+            "${single_tags[@]}" \
+            -f frontend/Dockerfile \
+            frontend
+          # One build, one digest: both outputs resolve to it.
+          cp artifacts/build-metadata/frontend-staging.json artifacts/build-metadata/frontend-production.json
 
       - name: Resolve pushed image digests
         # From the buildx metadata file: no pull, and the digest is the pushed index.
