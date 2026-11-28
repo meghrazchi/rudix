@@ -139,7 +139,12 @@ function setVisibility(state: "visible" | "hidden") {
   document.dispatchEvent(new Event("visibilitychange"));
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(async () => {
+  // Warm the on-demand modules so the provider's dynamic import resolves under fake timers.
+  await import("@/lib/realtime/invalidation");
+  await import("@/lib/realtime/stream-client");
+  server.listen({ onUnhandledRequest: "error" });
+});
 afterAll(() => server.close());
 
 beforeEach(() => {
