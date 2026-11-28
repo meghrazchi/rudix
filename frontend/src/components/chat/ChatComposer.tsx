@@ -7,6 +7,7 @@ import { ChatComposerCommands } from "@/components/chat/ChatComposerCommands";
 import { getLocaleDirection } from "@/i18n/direction";
 import {
   SourceScopeSelector,
+  type ScopeListPaging,
   type SourceScopeMode,
 } from "@/components/chat/SourceScopeSelector";
 
@@ -77,6 +78,10 @@ type ChatComposerProps = {
   onToggleConnectorConnection: (connectionId: string) => void;
   onToggleDocument: (documentId: string) => void;
   onToggleProviderSource: (providerSourceId: string) => void;
+  /** Server-side collection search and load-more state for the scope menu. */
+  onCollectionSearchQueryChange?: (value: string) => void;
+  documentsPaging?: ScopeListPaging;
+  collectionsPaging?: ScopeListPaging;
   setAgenticMode: (value: boolean) => void;
   setAnswerLanguage: (value: AnswerLanguageMode) => void;
   setDocumentSearchQuery: (value: string) => void;
@@ -144,6 +149,9 @@ export function ChatComposer({
   onToggleConnectorConnection,
   onToggleDocument,
   onToggleProviderSource,
+  onCollectionSearchQueryChange,
+  documentsPaging,
+  collectionsPaging,
   topK,
   isGenerating = false,
   onStop,
@@ -286,6 +294,9 @@ export function ChatComposer({
                 onToggleProviderSource={onToggleProviderSource}
                 onToggleDocument={onToggleDocument}
                 onDocumentSearchQueryChange={_setDocumentSearchQuery}
+                onCollectionSearchQueryChange={onCollectionSearchQueryChange}
+                documentsPaging={documentsPaging}
+                collectionsPaging={collectionsPaging}
                 getDocumentSubtitle={(document) =>
                   document.updated_at
                     ? tPage("documentChunks", {

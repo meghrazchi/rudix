@@ -18,33 +18,8 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { useInfiniteList } from "@/lib/pagination/useInfiniteList";
 
+import { fetchAllCollectionDocuments } from "@/components/collections/collection-documents";
 import { COLLECTION_DOCS_INITIAL_LIMIT } from "@/components/collections/collection-format";
-
-/** Largest page the collection documents endpoint serves (`limit` le=200). */
-const COLLECTION_DOCS_MAX_PAGE = 200;
-
-/**
- * Every document id in a collection, read page by page so membership diffs are
- * never cut off at one page.
- */
-export async function fetchAllCollectionDocuments(
-  collectionId: string,
-): Promise<CollectionDocumentsResponse> {
-  const items: CollectionDocumentItem[] = [];
-  let total = 0;
-  for (let offset = 0; ; offset += COLLECTION_DOCS_MAX_PAGE) {
-    const page = await listCollectionDocuments(collectionId, {
-      limit: COLLECTION_DOCS_MAX_PAGE,
-      offset,
-    });
-    items.push(...page.items);
-    total = page.total ?? items.length;
-    if (page.items.length === 0 || items.length >= total) {
-      break;
-    }
-  }
-  return { items, total } as CollectionDocumentsResponse;
-}
 
 /** Queries, mutations, and local state of the collection detail drawer. */
 export function useCollectionDetailDrawer(collectionId: string) {

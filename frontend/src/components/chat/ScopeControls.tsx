@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { LoadMoreFooter } from "@/components/pagination/LoadMoreFooter";
+import { PickerSearchInput } from "@/components/pagination/PickerSearchInput";
 import type { DocumentListItemResponse } from "@/lib/api/documents";
 
 /** Context scope picker modal: collections, connector sources, documents. */
@@ -21,8 +23,10 @@ export function ScopeControls({
   contextModal: ContextModalController;
 }) {
   const tc = useTranslations("chat.page");
+  const tCommon = useTranslations("common");
   const {
     collectionsListQuery,
+    collectionsSearch,
     collections,
     selectedCollectionIds,
     toggleCollection,
@@ -119,6 +123,13 @@ export function ScopeControls({
                 {tc("numSelected", { n: selectedCollectionIds.length })}
               </span>
             </div>
+            <PickerSearchInput
+              className="mb-2"
+              value={collectionsSearch.search}
+              onChange={collectionsSearch.setSearch}
+              placeholder={tCommon("search")}
+              ariaLabel={`${tCommon("search")}: ${tc("collectionsTitle")}`}
+            />
             {collectionsListQuery.isLoading ? (
               <LoadingState compact title={tc("loadingCollections")} />
             ) : collectionsListQuery.isError ? (
@@ -173,6 +184,17 @@ export function ScopeControls({
                 })}
               </div>
             )}
+            {!collectionsListQuery.isLoading &&
+            !collectionsListQuery.isError ? (
+              <LoadMoreFooter
+                shown={collections.length}
+                total={collectionsSearch.total}
+                hasMore={collectionsSearch.hasMore}
+                isLoadingMore={collectionsSearch.isLoadingMore}
+                onLoadMore={collectionsSearch.loadMore}
+                searchHint
+              />
+            ) : null}
           </div>
 
           <ScopeConnectorSection scope={scope} />

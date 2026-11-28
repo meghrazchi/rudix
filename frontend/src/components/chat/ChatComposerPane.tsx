@@ -52,6 +52,9 @@ export function ChatComposerPane({
     collectionsListQuery,
     connectorConnectionsQuery,
     documentPickerQuery,
+    documentsPaging,
+    collectionsSearch,
+    collectionsPaging,
     composerConnectorConnections,
     composerIndexedDocuments,
     totalIndexedDocuments,
@@ -120,6 +123,9 @@ export function ChatComposerPane({
         isCollectionsLoading={collectionsListQuery.isLoading}
         isConnectorsLoading={connectorConnectionsQuery.isLoading}
         isDocumentsLoading={documentPickerQuery.isLoading}
+        documentsPaging={documentsPaging}
+        collectionsPaging={collectionsPaging}
+        onCollectionSearchQueryChange={collectionsSearch.setSearch}
         connectorConnections={composerConnectorConnections}
         indexedDocuments={composerIndexedDocuments}
         totalIndexedDocuments={totalIndexedDocuments}
