@@ -5,7 +5,7 @@ import { useState } from "react";
 import { tableVirtualizeMinRows } from "@/lib/pagination/virtualize";
 
 import { DocumentsTableRow } from "@/components/documents/list/DocumentsTableRow";
-import { DocumentsVirtualRows } from "@/components/documents/list/DocumentsVirtualRows";
+import { DocumentsVirtualRows } from "@/components/documents/list/DocumentsVirtualRowsLazy";
 import type { DocumentsPageController } from "@/components/documents/list/useDocumentsPage";
 
 /** Documents table header and rows. */

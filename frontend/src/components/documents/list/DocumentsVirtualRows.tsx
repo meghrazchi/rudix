@@ -6,9 +6,12 @@ import type { DocumentListItemResponse } from "@/lib/api/documents";
 
 import { DocumentsTableRow } from "@/components/documents/list/DocumentsTableRow";
 import type { DocumentsPageController } from "@/components/documents/list/useDocumentsPage";
+import {
+  DOCUMENT_ROW_OVERSCAN,
+  ESTIMATED_DOCUMENT_ROW_HEIGHT_PX,
+} from "@/components/documents/list/virtual-rows";
 
-export const ESTIMATED_DOCUMENT_ROW_HEIGHT_PX = 64;
-const DOCUMENT_ROW_OVERSCAN = 8;
+export { ESTIMATED_DOCUMENT_ROW_HEIGHT_PX };
 
 /**
  * Virtualised documents table body (R07-10), used above

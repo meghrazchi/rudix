@@ -81,7 +81,12 @@ function renderPage() {
   );
 }
 
-beforeAll(() => {
+beforeAll(async () => {
+  // Warm the on-demand dialog and virtual-row modules so lazy imports resolve promptly.
+  await import("@/components/documents/DocumentsUploadModal");
+  await import("@/components/documents/DeleteConfirmModal");
+  await import("@/components/collections/AssignCollectionsDialog");
+  await import("@/components/documents/list/DocumentsVirtualRows");
   server.listen({ onUnhandledRequest: "error" });
 });
 
@@ -186,10 +191,13 @@ describe("DocumentsPage cursor pagination (MSW)", () => {
     const header = within(table).getAllByRole("row")[0];
     expect(header).toHaveAttribute("aria-rowindex", "1");
 
-    const bodyRows = within(table)
-      .getAllByRole("row")
-      .filter((row) => row.hasAttribute("data-index"));
-    expect(bodyRows.length).toBeGreaterThan(0);
+    // The virtualiser loads on demand: wait for its measured rows.
+    const virtualRows = () =>
+      within(table)
+        .getAllByRole("row")
+        .filter((row) => row.hasAttribute("data-index"));
+    await waitFor(() => expect(virtualRows().length).toBeGreaterThan(0));
+    const bodyRows = virtualRows();
     expect(bodyRows.length).toBeLessThan(20);
     expect(bodyRows[0]).toHaveAttribute("aria-rowindex", "2");
   });
@@ -205,7 +213,7 @@ describe("DocumentsPage cursor pagination (MSW)", () => {
       within(row as HTMLElement).getByRole("button", { name: "Delete" }),
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Delete permanently" }),
+      await screen.findByRole("button", { name: "Delete permanently" }),
     );
 
     await waitFor(() => expect(deleted).toEqual(["paged-doc-1"]));

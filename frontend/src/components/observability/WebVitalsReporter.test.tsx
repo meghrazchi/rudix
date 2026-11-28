@@ -1,5 +1,13 @@
 import { act, render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const { consent, reportHook, postWebVitals } = vi.hoisted(() => ({
   consent: {
@@ -40,6 +48,16 @@ async function reportFunction(): Promise<Callback> {
   return lastCallback();
 }
 
+// The collector is a lazy module: render inside an async act so the import
+// resolves and its effects (the visibility listener) commit before asserting.
+async function renderReporter(): Promise<ReturnType<typeof render>> {
+  let result: ReturnType<typeof render> | undefined;
+  await act(async () => {
+    result = render(<WebVitalsReporter />);
+  });
+  return result as ReturnType<typeof render>;
+}
+
 function setVisibility(state: "visible" | "hidden") {
   Object.defineProperty(document, "visibilityState", {
     configurable: true,
@@ -47,6 +65,11 @@ function setVisibility(state: "visible" | "hidden") {
   });
   document.dispatchEvent(new Event("visibilitychange"));
 }
+
+beforeAll(async () => {
+  // Warm the on-demand collector module so the lazy import resolves promptly.
+  await import("@/components/observability/WebVitalsCollector");
+});
 
 beforeEach(() => {
   consent.current = {
@@ -64,41 +87,41 @@ afterEach(() => {
 });
 
 describe("WebVitalsReporter", () => {
-  it("does nothing when the build flag is off", () => {
+  it("does nothing when the build flag is off", async () => {
     vi.stubEnv("NEXT_PUBLIC_WEB_VITALS_ENABLED", "false");
-    render(<WebVitalsReporter />);
+    await renderReporter();
     expect(reportHook).not.toHaveBeenCalled();
     setVisibility("hidden");
     expect(postWebVitals).not.toHaveBeenCalled();
   });
 
-  it("does nothing by default", () => {
+  it("does nothing by default", async () => {
     vi.stubEnv("NEXT_PUBLIC_WEB_VITALS_ENABLED", "");
-    render(<WebVitalsReporter />);
+    await renderReporter();
     expect(reportHook).not.toHaveBeenCalled();
   });
 
-  it("does nothing without analytics consent", () => {
+  it("does nothing without analytics consent", async () => {
     consent.current = {
       isLoaded: true,
       decisions: { functional: true, analytics: false },
     };
-    render(<WebVitalsReporter />);
+    await renderReporter();
     expect(reportHook).not.toHaveBeenCalled();
     expect(postWebVitals).not.toHaveBeenCalled();
   });
 
-  it("does nothing before the consent state has loaded", () => {
+  it("does nothing before the consent state has loaded", async () => {
     consent.current = {
       isLoaded: false,
       decisions: { functional: true, analytics: true },
     };
-    render(<WebVitalsReporter />);
+    await renderReporter();
     expect(reportHook).not.toHaveBeenCalled();
   });
 
   it("batches samples and flushes when the page becomes hidden", async () => {
-    render(<WebVitalsReporter />);
+    await renderReporter();
     const report = await reportFunction();
 
     act(() => {
@@ -115,7 +138,7 @@ describe("WebVitalsReporter", () => {
   });
 
   it("sends a full batch of 10 immediately", async () => {
-    render(<WebVitalsReporter />);
+    await renderReporter();
     const report = await reportFunction();
     act(() => {
       for (let i = 0; i < 10; i += 1) {
@@ -127,7 +150,7 @@ describe("WebVitalsReporter", () => {
   });
 
   it("drops pending samples when consent is withdrawn", async () => {
-    const { rerender } = render(<WebVitalsReporter />);
+    const { rerender } = await renderReporter();
     const report = await reportFunction();
     act(() => report({ name: "LCP", value: 10, rating: "good" }));
 

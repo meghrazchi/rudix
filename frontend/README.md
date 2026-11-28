@@ -441,6 +441,14 @@ CI fails when a route's first-load JavaScript grows past its budget.
   `TrustPanelModal`, the recharts blocks of the seven report and admin dashboards, the
   `@xyflow/react` canvas of the pipeline explorer (`PipelineFlowCanvas.tsx`), and the
   Organization, Security and Billing settings tabs.
+- `React.lazy` modules (no `next/dynamic` loader on these routes): the Web Vitals collector
+  (`WebVitalsReporter`, mounted only with the flag and analytics consent), and on
+  `/documents` (`list/DocumentsPageDialogs.tsx`, `list/DocumentsVirtualRowsLazy.tsx`) the
+  upload, delete and assign-collections dialogs (loaded on first open, then kept mounted, with
+  a skeleton card while loading) and the virtualised table body (above the row threshold;
+  until it loads, the first 20 rows render with a spacer row of the estimated remaining
+  height, so the scroll height does not jump). Tests that open these import the modules in
+  `beforeAll` and wait with `findBy*`. `/documents`: 339.9 to 315.2 KB gzip.
 - First-load JS (gzip KB) on this commit before and after, routes that changed by more than
   0.8 KB (the other 93 routes moved by 0.4 KB or less; marketing pages stay at 223-227):
 

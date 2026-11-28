@@ -131,7 +131,12 @@ function renderPage() {
   );
 }
 
-beforeAll(() => {
+beforeAll(async () => {
+  // Warm the on-demand dialog and virtual-row modules so lazy imports resolve promptly.
+  await import("@/components/documents/DocumentsUploadModal");
+  await import("@/components/documents/DeleteConfirmModal");
+  await import("@/components/collections/AssignCollectionsDialog");
+  await import("@/components/documents/list/DocumentsVirtualRows");
   server.listen({ onUnhandledRequest: "error" });
 });
 
@@ -170,9 +175,9 @@ describe("DocumentsPage upload states (MSW)", () => {
       }),
     );
 
-    const uploadInput = screen
-      .getByRole("dialog")
-      .querySelector('input[type="file"]');
+    const uploadInput = (await screen.findByRole("dialog")).querySelector(
+      'input[type="file"]',
+    );
     expect(uploadInput).toBeTruthy();
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
     await userEvent.upload(uploadInput as HTMLInputElement, file);
@@ -201,9 +206,9 @@ describe("DocumentsPage upload states (MSW)", () => {
       }),
     );
 
-    const uploadInput = screen
-      .getByRole("dialog")
-      .querySelector('input[type="file"]');
+    const uploadInput = (await screen.findByRole("dialog")).querySelector(
+      'input[type="file"]',
+    );
     expect(uploadInput).toBeTruthy();
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
     await userEvent.upload(uploadInput as HTMLInputElement, file);
@@ -233,9 +238,9 @@ describe("DocumentsPage upload states (MSW)", () => {
       }),
     );
 
-    const uploadInput = screen
-      .getByRole("dialog")
-      .querySelector('input[type="file"]');
+    const uploadInput = (await screen.findByRole("dialog")).querySelector(
+      'input[type="file"]',
+    );
     expect(uploadInput).toBeTruthy();
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
     await userEvent.upload(uploadInput as HTMLInputElement, file);
