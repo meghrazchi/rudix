@@ -35,7 +35,11 @@ def _external_secrets(objects: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _frontend_config(objects: list[dict[str, Any]]) -> dict[str, str]:
-    config_map = next(obj for obj in objects if obj["metadata"]["name"] == "rudix-frontend")
+    config_map = next(
+        obj
+        for obj in objects
+        if obj["kind"] == "ConfigMap" and obj["metadata"]["name"] == "rudix-frontend"
+    )
     return dict(config_map.get("data") or {})
 
 
