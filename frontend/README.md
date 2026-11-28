@@ -434,8 +434,12 @@ User-facing text in `src/components/chat`, `src/components/evaluations` and
 `aria-label`, `title`, `placeholder` and `alt` attributes (tests, `tests/`
 folders and the files owned by other work packages are excluded: the
 scope selector files, `DocumentPreviewModal*`, `TrustPanelModal*`). Icon-font
-glyph names such as `open_in_new` (lowercase snake case) are not flagged; any
-other non-UI literal needs an `eslint-disable-next-line` with a reason.
+glyph names such as `open_in_new` (lowercase snake case) are not flagged. That
+exemption also lets a lone lowercase word through (for example `run` or `of`),
+so check those by hand in review; any other non-UI literal needs an
+`eslint-disable-next-line` with a reason. Case-list cache: the dataset builder
+and the evaluations page share `queryKeys.evaluations.setQuestions(setId)`;
+invalidate it without params so every page size of the set refreshes.
 
 - Keys live in the existing namespaces: `chat.trustPanel.*`, `chat.feedback.*`,
   `chat.share.*`, `chat.activity.*`, `evaluations.<panel>.*` and the new

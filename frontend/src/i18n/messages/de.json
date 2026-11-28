@@ -2710,6 +2710,7 @@
       "sourceDocsNone": "Keine Zitate für diese Antwort.",
       "viewPipelineRun": "Pipeline-Lauf anzeigen",
       "agentTimeline": "Agent-Zeitachse",
+      "agentRunShortId": "Lauf {id}…",
       "loadingTimeline": "Zeitachse wird geladen...",
       "approvalsTitle": "Genehmigungen",
       "approvalNeeded": "Genehmigung erforderlich",

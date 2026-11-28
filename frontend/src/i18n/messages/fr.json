@@ -2710,6 +2710,7 @@
       "sourceDocsNone": "Aucune citation pour cette réponse.",
       "viewPipelineRun": "Voir l’exécution du pipeline",
       "agentTimeline": "Chronologie de l’agent",
+      "agentRunShortId": "exécution {id}…",
       "loadingTimeline": "Chargement timeline...",
       "approvalsTitle": "Approbations",
       "approvalNeeded": "Approbation requise",

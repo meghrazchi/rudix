@@ -2583,6 +2583,7 @@
       "sourceDocsNone": "No citations for this response.",
       "viewPipelineRun": "View pipeline run",
       "agentTimeline": "Agent timeline",
+      "agentRunShortId": "run {id}…",
       "loadingTimeline": "Loading timeline...",
       "approvalsTitle": "Approvals",
       "approvalNeeded": "Approval needed",

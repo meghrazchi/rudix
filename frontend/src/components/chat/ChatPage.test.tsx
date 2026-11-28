@@ -1790,6 +1790,7 @@ describe("ChatPage", () => {
     expect(
       await screen.findByText("1. discover_documents"),
     ).toBeInTheDocument();
+    expect(screen.getByText("run run-agen…")).toBeInTheDocument();
   });
 
   it("shows safe agentic error state with trace id and no secret leakage", async () => {

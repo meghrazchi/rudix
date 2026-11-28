@@ -2704,6 +2704,7 @@
       "sourceDocsNone": "لا توجد استشهادات لهذه الإجابة.",
       "viewPipelineRun": "عرض تشغيل مسار المعالجة",
       "agentTimeline": "الخط الزمني للوكيل",
+      "agentRunShortId": "تشغيل {id}…",
       "loadingTimeline": "جارٍ تحميل الخط الزمني...",
       "approvalsTitle": "الموافقات",
       "approvalNeeded": "الموافقة مطلوبة",

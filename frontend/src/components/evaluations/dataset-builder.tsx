@@ -41,9 +41,13 @@ const KNOWN_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 /** Page size of the case list; "Load more" fetches this many more cases. */
 export const DATASET_CASES_PAGE_SIZE = 50;
 
-/** Prefix of every cached question list of one evaluation set. */
-function setQuestionsKeyPrefix(evaluationSetId: string) {
-  return ["evaluations", "set-questions", evaluationSetId] as const;
+/**
+ * Matches every cached question list of one evaluation set: the empty params
+ * object partially matches any page size, so the builder's paged list and the
+ * page's own list are refreshed together.
+ */
+function allSetQuestionsKey(evaluationSetId: string) {
+  return queryKeys.evaluations.setQuestions(evaluationSetId);
 }
 
 function DifficultyBadge({ difficulty }: { difficulty: string | null }) {
@@ -649,10 +653,10 @@ export function DatasetBuilderPanel({
   // the next DATASET_CASES_PAGE_SIZE cases via offset paging. The `questions`
   // prop (first page loaded by the parent) is shown until this query resolves.
   const casesQuery = useInfiniteQuery({
-    queryKey: [
-      ...setQuestionsKeyPrefix(setId),
-      { view: "builder", limit: DATASET_CASES_PAGE_SIZE },
-    ],
+    queryKey: queryKeys.evaluations.setQuestions(setId, {
+      view: "builder",
+      limit: DATASET_CASES_PAGE_SIZE,
+    }),
     queryFn: ({ pageParam }) =>
       listEvaluationQuestions(setId, {
         limit: DATASET_CASES_PAGE_SIZE,
@@ -979,7 +983,7 @@ export function DatasetBuilderPanel({
                 canManage={canManage}
                 onDeleted={() => {
                   void queryClient.invalidateQueries({
-                    queryKey: setQuestionsKeyPrefix(
+                    queryKey: allSetQuestionsKey(
                       evaluationSet.evaluation_set_id,
                     ),
                   });
@@ -995,7 +999,7 @@ export function DatasetBuilderPanel({
                 }}
                 onUpdated={() => {
                   void queryClient.invalidateQueries({
-                    queryKey: setQuestionsKeyPrefix(
+                    queryKey: allSetQuestionsKey(
                       evaluationSet.evaluation_set_id,
                     ),
                   });
@@ -1052,7 +1056,7 @@ export function DatasetBuilderPanel({
               : t("panel.imported", { imported }),
           );
           void queryClient.invalidateQueries({
-            queryKey: setQuestionsKeyPrefix(evaluationSet.evaluation_set_id),
+            queryKey: allSetQuestionsKey(evaluationSet.evaluation_set_id),
           });
           void queryClient.invalidateQueries({
             queryKey: queryKeys.evaluations.sets,

@@ -2708,6 +2708,7 @@
       "sourceDocsNone": "این پاسخ ارجاعی ندارد.",
       "viewPipelineRun": "مشاهده اجرای خط لوله",
       "agentTimeline": "خط زمانی عامل",
+      "agentRunShortId": "اجرا {id}…",
       "loadingTimeline": "در حال بارگذاری خط زمانی...",
       "approvalsTitle": "تأییدها",
       "approvalNeeded": "نیازمند تأیید",

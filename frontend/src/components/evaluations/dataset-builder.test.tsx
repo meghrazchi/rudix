@@ -12,6 +12,7 @@ import type {
 import { renderWithProviders } from "@/test/render";
 
 const listEvaluationQuestions = vi.fn();
+const deleteEvaluationQuestion = vi.fn();
 
 vi.mock("@/lib/api/evaluations", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/evaluations")>();
@@ -19,6 +20,8 @@ vi.mock("@/lib/api/evaluations", async (importOriginal) => {
     ...actual,
     listEvaluationQuestions: (...args: unknown[]) =>
       listEvaluationQuestions(...args),
+    deleteEvaluationQuestion: (...args: unknown[]) =>
+      deleteEvaluationQuestion(...args),
     validateEvaluationDataset: vi.fn().mockResolvedValue({
       is_valid: true,
       issue_count: 0,
@@ -65,12 +68,12 @@ function page(offset: number, count: number, total: number) {
   };
 }
 
-function renderPanel() {
+function renderPanel(canManage = false) {
   return renderWithProviders(
     <DatasetBuilderPanel
       evaluationSet={EVALUATION_SET}
       questions={[]}
-      canManage={false}
+      canManage={canManage}
       canAdmin={false}
       onRefreshSet={vi.fn()}
       onRefreshQuestions={vi.fn()}
@@ -83,6 +86,7 @@ function renderPanel() {
 describe("DatasetBuilderPanel case paging (R07-06)", () => {
   beforeEach(() => {
     listEvaluationQuestions.mockReset();
+    deleteEvaluationQuestion.mockReset();
   });
 
   it("shows the loaded count and loads the next page by offset", async () => {
@@ -152,5 +156,24 @@ describe("DatasetBuilderPanel case paging (R07-06)", () => {
         screen.getByText("Could not load more cases."),
       ).toBeInTheDocument(),
     );
+  });
+
+  it("reloads the paged list after a case is deleted", async () => {
+    let total = 2;
+    listEvaluationQuestions.mockImplementation(async () =>
+      page(0, total, total),
+    );
+    deleteEvaluationQuestion.mockImplementation(async () => {
+      total = 1;
+    });
+
+    renderPanel(true);
+
+    expect(await screen.findByText("Cases (2)")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+
+    expect(await screen.findByText("Cases (1)")).toBeInTheDocument();
+    expect(deleteEvaluationQuestion).toHaveBeenCalledWith("set-1", "q-0");
   });
 });

@@ -2710,6 +2710,7 @@
       "sourceDocsNone": "No hay citas para esta respuesta.",
       "viewPipelineRun": "Ver ejecución de canalización",
       "agentTimeline": "Cronología del agente",
+      "agentRunShortId": "ejecución {id}…",
       "loadingTimeline": "Cargando cronología...",
       "approvalsTitle": "Aprobaciones",
       "approvalNeeded": "Se necesita aprobación",
