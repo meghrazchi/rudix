@@ -13981,7 +13981,7 @@ export interface components {
          * EmailEventType
          * @enum {string}
          */
-        EmailEventType: "invite_received" | "upload_failed" | "upload_indexed" | "connector_sync_failed" | "billing_warning" | "quota_warning" | "security_alert" | "onboarding_reminder";
+        EmailEventType: "invite_received" | "upload_failed" | "upload_indexed" | "connector_sync_failed" | "billing_warning" | "quota_warning" | "security_alert" | "onboarding_reminder" | "email_verification" | "password_reset";
         /** EmailPreviewRequest */
         EmailPreviewRequest: {
             /** Template Name */

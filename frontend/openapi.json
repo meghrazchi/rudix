@@ -44327,7 +44327,9 @@
           "billing_warning",
           "quota_warning",
           "security_alert",
-          "onboarding_reminder"
+          "onboarding_reminder",
+          "email_verification",
+          "password_reset"
         ],
         "title": "EmailEventType"
       },
