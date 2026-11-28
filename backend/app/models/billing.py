@@ -161,6 +161,7 @@ class BillingWebhookEvent(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "billing_webhook_events"
     __table_args__ = (
         UniqueConstraint("provider", "event_id", name="uq_billing_webhook_events_provider_event"),
+        Index("idx_billing_webhook_events_org", "organization_id"),
         CheckConstraint(_in_list("status", BILLING_WEBHOOK_EVENT_STATUSES), name="status_allowed"),
     )
 

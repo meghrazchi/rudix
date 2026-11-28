@@ -14,6 +14,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Uuid,
     false,
@@ -31,6 +32,7 @@ class OrgLoginPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "mfa_grace_period_days >= 0 AND mfa_grace_period_days <= 90",
             name="mfa_grace_period_days_range",
         ),
+        Index("idx_org_login_policies_updated_by", "updated_by_id"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(

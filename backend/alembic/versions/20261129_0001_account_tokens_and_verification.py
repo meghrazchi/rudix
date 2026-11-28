@@ -155,6 +155,7 @@ def upgrade() -> None:
         "auth_one_time_tokens",
         ["purpose", "consumed_at"],
     )
+    op.create_index("idx_auth_one_time_tokens_org", "auth_one_time_tokens", ["organization_id"])
     op.add_column(
         "users", sa.Column("email_verified_at", sa.DateTime(timezone=True), nullable=True)
     )
@@ -172,6 +173,7 @@ def downgrade() -> None:
             op.execute(f"DROP POLICY IF EXISTS {TENANT_RLS_POLICY_NAME} ON {table}")
         _replace_event_type_checks(OLD_EVENT_TYPES, validate=False)
     op.drop_column("users", "email_verified_at")
+    op.drop_index("idx_auth_one_time_tokens_org", table_name="auth_one_time_tokens")
     op.drop_index("idx_auth_one_time_tokens_purpose_consumed", table_name="auth_one_time_tokens")
     op.drop_index("idx_auth_one_time_tokens_expires", table_name="auth_one_time_tokens")
     op.drop_index("idx_auth_one_time_tokens_user_purpose", table_name="auth_one_time_tokens")

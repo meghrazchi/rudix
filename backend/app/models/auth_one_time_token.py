@@ -48,6 +48,7 @@ class AuthOneTimeToken(UUIDPrimaryKeyMixin, Base):
         Index("idx_auth_one_time_tokens_user_purpose", "user_id", "purpose"),
         Index("idx_auth_one_time_tokens_expires", "expires_at"),
         Index("idx_auth_one_time_tokens_purpose_consumed", "purpose", "consumed_at"),
+        Index("idx_auth_one_time_tokens_org", "organization_id"),
     )
 
     purpose: Mapped[str] = mapped_column(String(32), nullable=False)

@@ -36,6 +36,7 @@ class UserMfaFactor(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("factor_type IN ('totp')", name="factor_type_allowed"),
         CheckConstraint("status IN ('pending', 'active')", name="status_allowed"),
+        Index("idx_user_mfa_factors_user", "user_id"),
         # At most one active factor per type and user; pending enrolments may coexist.
         Index(
             "uq_user_mfa_factors_user_type_active",
@@ -65,7 +66,10 @@ class UserMfaFactor(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class UserMfaRecoveryCode(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "user_mfa_recovery_codes"
-    __table_args__ = (Index("idx_user_mfa_recovery_codes_user", "user_id"),)
+    __table_args__ = (
+        Index("idx_user_mfa_recovery_codes_user", "user_id"),
+        Index("idx_user_mfa_recovery_codes_factor", "factor_id"),
+    )
 
     user_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),

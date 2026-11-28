@@ -92,6 +92,7 @@ def _create_mfa_tables() -> None:
             "status IN ('pending', 'active')", name=op.f("ck_user_mfa_factors_status_allowed")
         ),
     )
+    op.create_index("idx_user_mfa_factors_user", "user_mfa_factors", ["user_id"])
     op.create_index(
         "uq_user_mfa_factors_user_type_active",
         "user_mfa_factors",
@@ -118,6 +119,7 @@ def _create_mfa_tables() -> None:
         sa.UniqueConstraint("code_hash", name="uq_user_mfa_recovery_codes_code_hash"),
     )
     op.create_index("idx_user_mfa_recovery_codes_user", "user_mfa_recovery_codes", ["user_id"])
+    op.create_index("idx_user_mfa_recovery_codes_factor", "user_mfa_recovery_codes", ["factor_id"])
 
 
 def _create_login_policies() -> None:
@@ -146,6 +148,7 @@ def _create_login_policies() -> None:
             name=op.f("ck_org_login_policies_mfa_grace_period_days_range"),
         ),
     )
+    op.create_index("idx_org_login_policies_updated_by", "org_login_policies", ["updated_by_id"])
 
 
 def upgrade() -> None:
@@ -182,8 +185,11 @@ def downgrade() -> None:
         )
     op.drop_column("auth_refresh_sessions", "mfa_verified_at")
     op.drop_column("auth_refresh_sessions", "auth_method")
+    op.drop_index("idx_org_login_policies_updated_by", table_name="org_login_policies")
     op.drop_table("org_login_policies")
+    op.drop_index("idx_user_mfa_recovery_codes_factor", table_name="user_mfa_recovery_codes")
     op.drop_index("idx_user_mfa_recovery_codes_user", table_name="user_mfa_recovery_codes")
     op.drop_table("user_mfa_recovery_codes")
     op.drop_index("uq_user_mfa_factors_user_type_active", table_name="user_mfa_factors")
+    op.drop_index("idx_user_mfa_factors_user", table_name="user_mfa_factors")
     op.drop_table("user_mfa_factors")

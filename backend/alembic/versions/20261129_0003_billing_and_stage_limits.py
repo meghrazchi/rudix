@@ -206,6 +206,7 @@ def _create_webhook_events() -> None:
             name=op.f("ck_billing_webhook_events_status_allowed"),
         ),
     )
+    op.create_index("idx_billing_webhook_events_org", "billing_webhook_events", ["organization_id"])
 
 
 def upgrade() -> None:
@@ -230,6 +231,7 @@ def downgrade() -> None:
         for table in (*LOOKUP_TABLES, *STRICT_TABLES):
             op.execute(f"DROP POLICY IF EXISTS {TENANT_RLS_POLICY_NAME} ON {table}")
     op.drop_column("org_quota_policy", "stage_limits")
+    op.drop_index("idx_billing_webhook_events_org", table_name="billing_webhook_events")
     op.drop_table("billing_webhook_events")
     op.drop_index("idx_billing_invoices_org_issued", table_name="billing_invoices")
     op.drop_table("billing_invoices")
