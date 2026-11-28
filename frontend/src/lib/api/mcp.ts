@@ -1,99 +1,27 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 
-export type OrgMCPPolicy = {
-  organization_id: string;
-  enabled: boolean;
-  read_only: boolean;
-  allowed_tools: string[] | null;
-  capabilities_owner: string[] | null;
-  capabilities_admin: string[] | null;
-  capabilities_member: string[] | null;
-  capabilities_viewer: string[] | null;
-  rate_limit_enabled: boolean;
-  rate_limit_requests: number;
-  rate_limit_window_seconds: number;
-  // F176 trust and exposure controls
-  allowed_resources: string[] | null;
-  allowed_prompts: string[] | null;
-  allowed_collections: string[] | null;
-  allowed_roles: string[] | null;
-  redact_document_text: boolean;
-  max_chunk_chars: number | null;
-  max_request_bytes: number | null;
-  max_response_bytes: number | null;
-  updated_by_user_id: string | null;
-  updated_at: string;
-};
+type Schemas = components["schemas"];
 
-export type UpdateMCPPolicyRequest = {
-  enabled?: boolean | null;
-  read_only?: boolean | null;
-  allowed_tools?: string[] | null;
-  capabilities_owner?: string[] | null;
-  capabilities_admin?: string[] | null;
-  capabilities_member?: string[] | null;
-  capabilities_viewer?: string[] | null;
-  rate_limit_enabled?: boolean | null;
-  rate_limit_requests?: number | null;
-  rate_limit_window_seconds?: number | null;
-  // F176 trust and exposure controls
-  allowed_resources?: string[] | null;
-  allowed_prompts?: string[] | null;
-  allowed_collections?: string[] | null;
-  allowed_roles?: string[] | null;
-  redact_document_text?: boolean | null;
-  max_chunk_chars?: number | null;
-  max_request_bytes?: number | null;
-  max_response_bytes?: number | null;
-};
+export type OrgMCPPolicy = Served<Schemas["OrgMCPPolicyResponse"]>;
 
-export type MCPDependencyStatus = {
-  ok: boolean;
-  detail: string | null;
-};
+export type UpdateMCPPolicyRequest = Schemas["UpdateMCPPolicyRequest"];
 
-export type MCPStatusResponse = {
-  feature_enabled: boolean;
-  auth_required: boolean;
-  transport: string;
-  server_name: string;
-  rate_limit_enabled: boolean;
-  rate_limit_requests: number;
-  rate_limit_window_seconds: number;
-  http_host: string;
-  http_port: number;
-  http_path: string;
-  dependencies: Record<string, MCPDependencyStatus>;
-  failed_dependencies: string[];
-};
+export type MCPDependencyStatus = Served<Schemas["MCPDependencyStatus"]>;
 
-export type MCPToolInfo = {
-  name: string;
-  public_name: string;
-  description: string;
-  capability: string;
-  deprecated_alias: boolean;
-};
+export type MCPStatusResponse = Served<Schemas["MCPStatusResponse"]>;
 
-export type MCPToolListResponse = {
-  items: MCPToolInfo[];
-  total: number;
-};
+export type MCPToolInfo = Served<Schemas["MCPToolInfo"]>;
 
-export type MCPAuditEvent = {
-  id: string;
-  action: string;
-  user_id: string | null;
-  resource_type: string | null;
-  resource_id: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-};
+export type MCPToolListResponse = Served<Schemas["MCPToolListResponse"]>;
 
-export type MCPAuditEventListResponse = {
-  items: MCPAuditEvent[];
-  total: number;
-};
+export type MCPAuditEvent = Served<Schemas["MCPAuditEvent"]>;
+
+export type MCPAuditEventListResponse = Served<
+  Schemas["MCPAuditEventListResponse"]
+>;
 
 function normalizePolicy(value: unknown): OrgMCPPolicy {
   const raw =

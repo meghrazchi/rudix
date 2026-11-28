@@ -5574,7 +5574,15 @@
     "retryFailed": "El reintento falló. Inténtalo de nuevo más tarde.",
     "configIncomplete": "La configuración del frontend está incompleta",
     "configIncompleteDescription": "Faltan valores públicos de entorno requeridos o no son válidos. Actualiza el archivo de entorno del frontend y reinicia la app.",
-    "startupCheck": "Comprobación de inicio de Rudix"
+    "startupCheck": "Comprobación de inicio de Rudix",
+    "routeBoundary": {
+      "title": "No se puede mostrar esta página",
+      "description": "Un error en tiempo de ejecución interrumpió la carga. Puedes reintentar o volver al panel.",
+      "retry": "Reintentar",
+      "backToDashboard": "Volver al panel",
+      "backHome": "Volver al inicio",
+      "reference": "Referencia del error"
+    }
   },
   "toasts": {
     "saved": "Guardado correctamente",

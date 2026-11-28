@@ -60,6 +60,8 @@ make seed-dev
 - The API and worker fail at startup if required configuration is missing or malformed.
 - URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth provider URLs when applicable, and service base URLs).
 - App-managed auth is enabled by default (`AUTH_PROVIDER=app`) and uses a signed bearer token.
+- Session-hint cookie (R07-09): `APP_AUTH_SESSION_HINT_COOKIE_ENABLED` (default `false`), `APP_AUTH_SESSION_HINT_COOKIE_NAME` (default `rudix_session_hint`) and `APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` (default host-only) add a non-secret `"1"` cookie (`HttpOnly`, refresh-cookie `Secure`/`SameSite`, `Path=/`) set with the refresh cookie on login, refresh and SSO, and cleared on logout, logout-all and refresh `401`/`403` rejections (invalid, revoked or reused token). It grants nothing; the frontend route gate only checks it exists. Code: `app/interfaces/http/auth_cookies.py`.
+- With `APP_AUTH_COOKIE_SAME_SITE=none`, `POST /auth/token/refresh` and `POST /auth/logout` reject a missing or foreign `Origin` (not in `CORS_ORIGINS`) with `403 csrf_origin_rejected`; metric `rudix_auth_csrf_origin_rejections_total{endpoint,reason}`. With `lax`/`strict` nothing changes.
 - `clerk` auth provider is implemented with JWKS-based JWT verification (signature, issuer, audience, expiry, subject).
 - `supabase` provider wiring exists and uses the same JWKS verifier contract, but requires provider-specific JWT settings and full integration validation.
 - Dependency clients are initialized through centralized factories (`app/clients/factory.py`) for consistent timeout/retry handling.
@@ -1259,6 +1261,7 @@ conversion on staging volume first.
 - Optional bearer authentication: set `METRICS_REQUIRE_AUTH=true` and `METRICS_BEARER_TOKEN=<token>`.
 - Celery worker metrics: set `WORKER_METRICS_ENABLED=true` to expose Celery task metrics on `WORKER_METRICS_PORT=9808`.
 - Start Prometheus, Alertmanager, Grafana, and infrastructure exporters with `make up-observability` from repository root.
+- Browser Web Vitals (R07-11): set `WEB_VITALS_INGEST_ENABLED=true` to accept `POST /api/v1/telemetry/web-vitals` (404 otherwise). Samples go to `rudix_web_vitals_value_ms`, `rudix_web_vitals_cls` and `rudix_web_vitals_samples_total` only (nothing stored or logged); `WEB_VITALS_MAX_ROUTES` (200) bounds the `route` label and `WEB_VITALS_RATE_LIMIT_PER_MINUTE` (60) limits each client IP. Dashboard: `infra/observability/grafana/dashboards/web-vitals.json`.
 
 ## Directory overview
 

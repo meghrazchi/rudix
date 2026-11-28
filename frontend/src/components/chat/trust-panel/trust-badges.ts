@@ -209,7 +209,13 @@ export function conflictBadge(
 }
 
 export function claimSupportBadge(
-  status: "supported" | "partially_supported" | "unsupported" | "unverifiable",
+  status:
+    | "supported"
+    | "partially_supported"
+    | "unsupported"
+    | "unverifiable"
+    | "conflicting"
+    | "not_enough_evidence",
   t: TrustT,
 ): { label: string; cls: string } {
   if (status === "supported")

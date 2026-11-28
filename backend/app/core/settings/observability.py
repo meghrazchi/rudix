@@ -64,3 +64,11 @@ class ObservabilitySettings(BaseModel):
         if not cleaned:
             return None
         return cleaned
+
+    # First-party browser Web Vitals ingest (POST /telemetry/web-vitals, R07-11).
+    # Off by default: the endpoint answers 404 until enabled.
+    web_vitals_ingest_enabled: bool = False
+    # Distinct route labels kept in Prometheus; further routes become "other".
+    web_vitals_max_routes: int = Field(default=200, ge=1, le=2000)
+    # Per-client-IP request limit per minute for the ingest endpoint.
+    web_vitals_rate_limit_per_minute: int = Field(default=60, ge=1, le=100000)

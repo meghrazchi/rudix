@@ -176,6 +176,7 @@ describe("DashboardPage", () => {
     const usage: UsageSummaryResponse = {
       organization_id: "org-1",
       range: { from: "2026-05-01", to: "2026-05-14" },
+      granularity: "day",
       totals: {
         input_tokens: 1500,
         output_tokens: 300,

@@ -1,57 +1,26 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest, apiRequestVoid } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 // ── Domain verification ───────────────────────────────────────────────────────
 
 export type DomainVerificationStatus = "pending" | "verified" | "failed";
 
-export type DomainVerification = {
-  id: string;
-  organization_id: string;
-  domain: string;
-  status: DomainVerificationStatus;
-  verification_token: string;
-  txt_record_name: string;
-  txt_record_value: string;
-  verified_at: string | null;
-  last_checked_at: string | null;
-  failure_reason: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type DomainVerification = Served<Schemas["DomainVerificationResponse"]>;
 
-export type DomainCheckResult = {
-  id: string;
-  domain: string;
-  status: DomainVerificationStatus;
-  verified_at: string | null;
-  last_checked_at: string | null;
-  failure_reason: string | null;
-};
+export type DomainCheckResult = Served<Schemas["DomainCheckResponse"]>;
 
-export type InitiateDomainVerificationRequest = {
-  domain: string;
-};
+export type InitiateDomainVerificationRequest =
+  Schemas["InitiateDomainVerificationRequest"];
 
 // ── SCIM config ───────────────────────────────────────────────────────────────
 
-export type SCIMConfig = {
-  id: string;
-  organization_id: string;
-  enabled: boolean;
-  token_hint: string;
-  scim_base_url: string;
-  last_sync_at: string | null;
-  last_sync_error: string | null;
-  provisioned_count: number;
-  deprovisioned_count: number;
-  created_at: string;
-  updated_at: string;
-};
+export type SCIMConfig = Served<Schemas["SCIMConfigResponse"]>;
 
-export type SCIMEnableResponse = {
-  config: SCIMConfig;
-  bearer_token: string;
-};
+export type SCIMEnableResponse = Served<Schemas["SCIMEnableResponse"]>;
 
 // ── API functions ─────────────────────────────────────────────────────────────
 

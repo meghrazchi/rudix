@@ -13,6 +13,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
+# Structured lower-snake codes raised as ``detail={"code": ..., "message": ...}``.
+# R07-09: refresh/logout with ``SameSite=None`` cookies from a missing or foreign Origin.
+CSRF_ORIGIN_REJECTED = "csrf_origin_rejected"
+CSRF_ORIGIN_REJECTED_MESSAGE = "Request origin is not allowed"
+
 DETAIL_ERROR_CODES: dict[str, str] = {
     "AI response policy not found": "AI_RESPONSE_POLICY_NOT_FOUND",
     "API key not found": "API_KEY_NOT_FOUND",

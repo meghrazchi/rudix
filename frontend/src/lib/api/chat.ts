@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/request";
 import type { components } from "@/lib/api/generated/schema";
+import type { Overlay, WithOptional } from "@/lib/api/schema-helpers";
 import type { AnswerTrustMetadataResponse } from "@/lib/api/trust_metadata";
 
 type Schemas = components["schemas"];
@@ -8,8 +9,6 @@ type Schemas = components["schemas"];
 // out. openapi-typescript marks every field with a server default as required,
 // so the helpers below keep those fields optional and let the frontend's own
 // declarations override the generated ones. Type-only: no runtime effect.
-type WithOptional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-type Overlay<Base, Extra> = Omit<Base, keyof Extra> & Extra;
 
 type GeneratedCitation = WithOptional<
   Schemas["ChatCitationResponse"],
@@ -34,24 +33,7 @@ type GeneratedDebug = WithOptional<
   >
 >;
 
-export type ChatSourceScopeRequest = {
-  mode?:
-    | "all"
-    | "uploaded"
-    | "collections"
-    | "connector_sources"
-    | "connector_items";
-  provider_keys?: string[];
-  connection_ids?: string[];
-  provider_source_ids?: string[];
-  external_source_ids?: string[];
-  external_item_ids?: string[];
-  collection_ids?: string[];
-  document_types?: string[];
-  sync_statuses?: Array<
-    "uploaded" | "active" | "stale" | "revoked" | "deleted" | "unknown"
-  >;
-};
+export type ChatSourceScopeRequest = Schemas["SourceScopeRequest"];
 
 export type CreateChatSessionRequest = Schemas["CreateChatSessionRequest"];
 export type ChatSessionResponse = Schemas["ChatSessionResponse"];
@@ -263,14 +245,9 @@ export type ChatQueryRequest = Omit<
 };
 export type ChatMessageRequest = Schemas["ChatMessageRequest"];
 
-export type UpdateChatSessionRequest = {
-  title: string | null;
-};
+export type UpdateChatSessionRequest = Schemas["UpdateChatSessionRequest"];
 
-export type ChatStatsResponse = {
-  questions_asked: number;
-  total_sessions: number;
-};
+export type ChatStatsResponse = Schemas["ChatStatsResponse"];
 
 export async function getChatStats(): Promise<ChatStatsResponse> {
   return apiRequest<ChatStatsResponse>("/chat/stats");
@@ -370,7 +347,7 @@ export async function createChatMessage(
   );
 }
 
-export type ChatWsTicketResponse = { ticket: string; expires_in: number };
+export type ChatWsTicketResponse = Schemas["ChatWsTicketResponse"];
 
 /**
  * Request a single-use, short-lived ticket for the chat WebSocket handshake

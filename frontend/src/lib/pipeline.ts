@@ -1,3 +1,4 @@
+import type { WithOptional } from "@/lib/api/schema-helpers";
 import {
   fetchPipelineNodeDetail as fetchPipelineNodeDetailRequest,
   resolvePipelineRun as resolvePipelineRunRequest,
@@ -18,6 +19,29 @@ export type {
   PipelineRunResolveResponse,
   PipelineRunGraphResponse,
 };
+
+// Sample graphs below only state the fields they show; the server always sends the rest.
+type SeedNode = WithOptional<
+  PipelineNode,
+  "description" | "started_at" | "completed_at" | "duration_ms" | "metrics"
+>;
+type SeedGraph = Omit<PipelineRunGraphResponse, "nodes"> & {
+  nodes: SeedNode[];
+};
+
+function seedGraph(seed: SeedGraph): PipelineRunGraphResponse {
+  return {
+    ...seed,
+    nodes: seed.nodes.map((node) => ({
+      description: null,
+      started_at: null,
+      completed_at: null,
+      duration_ms: null,
+      metrics: {},
+      ...node,
+    })),
+  };
+}
 
 export type PipelineApiOptions = {
   apiBaseUrl?: string;
@@ -52,7 +76,7 @@ export async function resolvePipelineRun(
   return resolvePipelineRunRequest(params, options);
 }
 
-export const fallbackPipelineGraph: PipelineRunGraphResponse = {
+export const fallbackPipelineGraph: PipelineRunGraphResponse = seedGraph({
   pipeline_run_id: "sample-run",
   pipeline_type: "document.process",
   status: "running",
@@ -119,9 +143,9 @@ export const fallbackPipelineGraph: PipelineRunGraphResponse = {
     { id: "e-retrieve-rerank", source: "retrieve", target: "rerank" },
     { id: "e-rerank-llm", source: "rerank", target: "llm" },
   ],
-};
+});
 
-export const fallbackChatPipelineGraph: PipelineRunGraphResponse = {
+export const fallbackChatPipelineGraph: PipelineRunGraphResponse = seedGraph({
   pipeline_run_id: "sample-chat-run",
   pipeline_type: "chat.answer",
   status: "completed",
@@ -191,62 +215,67 @@ export const fallbackChatPipelineGraph: PipelineRunGraphResponse = {
       target: "persist-response",
     },
   ],
-};
+});
 
-export const fallbackEvaluationPipelineGraph: PipelineRunGraphResponse = {
-  pipeline_run_id: "sample-eval-run",
-  pipeline_type: "evaluation.run",
-  status: "running",
-  nodes: [
-    {
-      id: "load-set",
-      label: "Load set",
-      section: "evaluation",
-      status: "completed",
-      duration_ms: 65,
-    },
-    {
-      id: "run-question",
-      label: "Run question",
-      section: "evaluation",
-      status: "running",
-      duration_ms: 830,
-      metrics: { processed_questions: 12, total_questions: 40 },
-    },
-    {
-      id: "score-metrics",
-      label: "Score metrics",
-      section: "evaluation",
-      status: "pending",
-    },
-    {
-      id: "aggregate-summary",
-      label: "Aggregate summary",
-      section: "evaluation",
-      status: "pending",
-    },
-    {
-      id: "persist-results",
-      label: "Persist results",
-      section: "evaluation",
-      status: "pending",
-    },
-  ],
-  edges: [
-    { id: "e-eval-load-run", source: "load-set", target: "run-question" },
-    { id: "e-eval-run-score", source: "run-question", target: "score-metrics" },
-    {
-      id: "e-eval-score-aggregate",
-      source: "score-metrics",
-      target: "aggregate-summary",
-    },
-    {
-      id: "e-eval-aggregate-persist",
-      source: "aggregate-summary",
-      target: "persist-results",
-    },
-  ],
-};
+export const fallbackEvaluationPipelineGraph: PipelineRunGraphResponse =
+  seedGraph({
+    pipeline_run_id: "sample-eval-run",
+    pipeline_type: "evaluation.run",
+    status: "running",
+    nodes: [
+      {
+        id: "load-set",
+        label: "Load set",
+        section: "evaluation",
+        status: "completed",
+        duration_ms: 65,
+      },
+      {
+        id: "run-question",
+        label: "Run question",
+        section: "evaluation",
+        status: "running",
+        duration_ms: 830,
+        metrics: { processed_questions: 12, total_questions: 40 },
+      },
+      {
+        id: "score-metrics",
+        label: "Score metrics",
+        section: "evaluation",
+        status: "pending",
+      },
+      {
+        id: "aggregate-summary",
+        label: "Aggregate summary",
+        section: "evaluation",
+        status: "pending",
+      },
+      {
+        id: "persist-results",
+        label: "Persist results",
+        section: "evaluation",
+        status: "pending",
+      },
+    ],
+    edges: [
+      { id: "e-eval-load-run", source: "load-set", target: "run-question" },
+      {
+        id: "e-eval-run-score",
+        source: "run-question",
+        target: "score-metrics",
+      },
+      {
+        id: "e-eval-score-aggregate",
+        source: "score-metrics",
+        target: "aggregate-summary",
+      },
+      {
+        id: "e-eval-aggregate-persist",
+        source: "aggregate-summary",
+        target: "persist-results",
+      },
+    ],
+  });
 
 export const fallbackNodeDetail: PipelineNodeDetailResponse = {
   node_id: "upload",

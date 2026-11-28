@@ -410,7 +410,7 @@ describe("apiRequest observability integration", () => {
     fetchMock.mockImplementation(async (input) => {
       const url = String(input);
 
-      if (url.includes("/api/77/store/")) {
+      if (url.includes("/api/77/envelope/")) {
         return new Response(null, { status: 200 });
       }
 
@@ -446,12 +446,13 @@ describe("apiRequest observability integration", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     const sentryCall = fetchMock.mock.calls.find(([input]) =>
-      String(input).includes("/api/77/store/"),
+      String(input).includes("/api/77/envelope/"),
     );
 
     expect(sentryCall).toBeTruthy();
+    // Envelope: header line, item header line, then the event.
     const sentryPayload = JSON.parse(
-      String((sentryCall?.[1] as RequestInit).body),
+      String((sentryCall?.[1] as RequestInit).body).split("\n")[2],
     ) as Record<string, unknown>;
     const tags = sentryPayload.tags as Record<string, unknown>;
 

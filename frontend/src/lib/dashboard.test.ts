@@ -21,12 +21,16 @@ function usageFixture(
   return {
     organization_id: "org-1",
     range: { from: "2026-05-01", to: "2026-05-31" },
+    granularity: "day",
     totals: {
       input_tokens: 100,
       output_tokens: 25,
       cost_usd: 1.2,
       event_count: 10,
       questions_asked: 4,
+      avg_confidence: null,
+      avg_latency_ms: null,
+      latency_score: null,
     },
     series: [],
     ...overrides,
@@ -106,6 +110,9 @@ describe("dashboard helpers", () => {
         cost_usd: 1.2,
         event_count: 10,
         questions_asked: 4,
+        avg_confidence: null,
+        avg_latency_ms: null,
+        latency_score: null,
       },
       series: [
         {
@@ -117,6 +124,9 @@ describe("dashboard helpers", () => {
           event_count: 1,
           average_confidence: 0.6,
           average_latency_ms: 400,
+          avg_confidence: null,
+          avg_latency_ms: null,
+          latency_score: null,
         } as UsageSummaryResponse["series"][number],
         {
           period_start: "2026-05-02",
@@ -127,6 +137,9 @@ describe("dashboard helpers", () => {
           event_count: 1,
           average_confidence: 0.8,
           average_latency_ms: 500,
+          avg_confidence: null,
+          avg_latency_ms: null,
+          latency_score: null,
         } as UsageSummaryResponse["series"][number],
       ],
     });
@@ -144,6 +157,8 @@ describe("dashboard helpers", () => {
         cost_usd: 1.2,
         event_count: 10,
         questions_asked: 4,
+        avg_confidence: null,
+        avg_latency_ms: null,
         latency_score: 72,
       } as UsageSummaryResponse["totals"],
     });

@@ -5574,7 +5574,15 @@
     "retryFailed": "Wiederholung fehlgeschlagen. Bitte versuchen Sie es später erneut.",
     "configIncomplete": "Frontend-Konfiguration unvollständig",
     "configIncompleteDescription": "Erforderliche öffentliche Umgebungswerte fehlen oder sind ungültig. Aktualisieren Sie Ihre Frontend-Umgebungsdatei und starten Sie die App neu.",
-    "startupCheck": "Rudix-Startprüfung"
+    "startupCheck": "Rudix-Startprüfung",
+    "routeBoundary": {
+      "title": "Seite kann nicht angezeigt werden",
+      "description": "Ein Laufzeitfehler hat die Darstellung unterbrochen. Sie können es erneut versuchen oder zum Dashboard zurückkehren.",
+      "retry": "Erneut versuchen",
+      "backToDashboard": "Zurück zum Dashboard",
+      "backHome": "Zur Startseite",
+      "reference": "Fehlerreferenz"
+    }
   },
   "toasts": {
     "saved": "Erfolgreich gespeichert",

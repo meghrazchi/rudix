@@ -1,0 +1,7 @@
+{
+  "AgentTraceExportResponse": "GET /agent/runs/{run_id}/trace/export has no typed 2xx schema (open JSON object) in the OpenAPI export",
+  "ExtractionPageSummary": "Page rows of the extraction snapshot, which the document schema types as an open JSON object",
+  "SentryTestResponse": "POST /sentry-test is a debug route that is not part of the OpenAPI export",
+  "TopBarNotificationsResponse": "Client view model; the endpoint is chosen by the caller and is not a fixed API route",
+  "TroubleshootingBundleResponse": "The export route streams a JSON download and has no typed 2xx schema in the OpenAPI export"
+}

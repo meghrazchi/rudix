@@ -5574,7 +5574,15 @@
     "retryFailed": "La nouvelle tentative a échoué. Veuillez réessayer plus tard.",
     "configIncomplete": "La configuration du frontend est incomplète",
     "configIncompleteDescription": "Des valeurs d’environnement publiques requises sont manquantes ou non valides. Mettez à jour votre fichier d’environnement frontend et redémarrez l’application.",
-    "startupCheck": "Vérification du démarrage de Rudix"
+    "startupCheck": "Vérification du démarrage de Rudix",
+    "routeBoundary": {
+      "title": "Impossible d’afficher cette page",
+      "description": "Une erreur d’exécution a interrompu l’affichage. Vous pouvez réessayer ou revenir au tableau de bord.",
+      "retry": "Réessayer",
+      "backToDashboard": "Retour au tableau de bord",
+      "backHome": "Retour à l’accueil",
+      "reference": "Référence de l’erreur"
+    }
   },
   "toasts": {
     "saved": "Enregistré avec succès",

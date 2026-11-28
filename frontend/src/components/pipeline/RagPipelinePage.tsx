@@ -131,7 +131,7 @@ function normalizePipelineNode(rawNode: unknown, index: number): PipelineNode {
   return {
     id,
     label,
-    description: description ?? undefined,
+    description: description ?? null,
     status,
     section,
     started_at: startedAt,

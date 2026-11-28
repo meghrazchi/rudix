@@ -1,5 +1,6 @@
 import {
   clearSessionStorage,
+  discardLegacySessionStorage,
   emitAuthBoundaryEvent,
   readSessionFromStorage,
   writeSessionToStorage,
@@ -765,7 +766,31 @@ async function executeRefreshRequest(params: {
     params.currentSession,
   );
   persistSessionWithRefreshState(refreshedSession);
+  discardLegacySessionStorage();
   return refreshedSession;
+}
+
+/**
+ * A new tab starts with an empty in-memory session (R07-09) and restores it
+ * from the HttpOnly refresh cookie. No cookie (401/403) means signed out: it
+ * resolves `null` without an auth-boundary event.
+ */
+async function restoreSessionFromRefreshCookie(
+  apiBaseUrl?: string,
+): Promise<AuthenticatedSession | null> {
+  try {
+    return await refreshWithCrossTabLease(null, () =>
+      executeRefreshRequest({ currentSession: null, apiBaseUrl }),
+    );
+  } catch (error) {
+    if (
+      isApiClientError(error) &&
+      (error.status === 401 || error.status === 403)
+    ) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function refreshAccessToken(params?: {
@@ -777,13 +802,23 @@ export async function refreshAccessToken(params?: {
   if (!isBackendRefreshConfigured()) {
     return currentSession;
   }
+  if (trigger === "startup" && !currentSession) {
+    if (!refreshInFlight) {
+      refreshInFlight = restoreSessionFromRefreshCookie(
+        params?.apiBaseUrl,
+      ).finally(() => {
+        refreshInFlight = null;
+      });
+    }
+    return refreshInFlight;
+  }
   if (
     trigger === "startup" &&
     !getJwtExpirationTimeMs(currentSession?.accessToken ?? null)
   ) {
     return currentSession;
   }
-  if (!currentSession && trigger !== "startup") {
+  if (!currentSession) {
     return null;
   }
 
@@ -1026,6 +1061,11 @@ export async function apiRequest<T>(
             pathname,
           });
           throw error;
+        }
+
+        if (headers.has("Authorization")) {
+          // The token was accepted, so the 0.6.x localStorage copy can go.
+          discardLegacySessionStorage();
         }
 
         if (options.responseType === "blob") {

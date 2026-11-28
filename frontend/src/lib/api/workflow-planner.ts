@@ -1,5 +1,9 @@
 import { apiRequest } from "@/lib/api/request";
-import type { AgentRuntimeMode, AgentRuntimeRequest } from "@/lib/api/agent";
+import type { AgentRuntimeRequest } from "@/lib/api/agent";
+import type { Overlay } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
+type Schemas = components["schemas"];
 
 export type WorkflowType =
   | "audit_evidence_pack"
@@ -16,30 +20,17 @@ export type WorkflowAction =
   | "public_link"
   | "permission_change";
 
-export type WorkflowPlanStep = {
-  step_name: string;
-  tool_name: string;
-  rationale: string | null;
-  arguments: Record<string, unknown>;
-};
+export type WorkflowPlanStep = Schemas["PlannedToolSelection"];
 
-export type WorkflowPlanPreviewRequest = {
-  workflow_type: WorkflowType;
-  request?: AgentRuntimeRequest | null;
-  requested_actions?: WorkflowAction[];
-};
+export type WorkflowPlanPreviewRequest = Overlay<
+  Schemas["WorkflowPlanRequest"],
+  { request: AgentRuntimeRequest }
+>;
 
-export type WorkflowPlanPreviewResponse = {
-  objective: string;
-  mode: AgentRuntimeMode;
-  plan: WorkflowPlanStep[];
-  workflow_type: WorkflowType | null;
-  planner_strategy: string;
-  planner_high_risk: boolean;
-  requires_approval: boolean;
-  requested_actions: WorkflowAction[];
-  request: AgentRuntimeRequest;
-};
+export type WorkflowPlanPreviewResponse = Overlay<
+  Schemas["AgentPlanPreviewResponse"],
+  { request: AgentRuntimeRequest }
+>;
 
 export async function previewWorkflowPlan(
   payload: WorkflowPlanPreviewRequest,

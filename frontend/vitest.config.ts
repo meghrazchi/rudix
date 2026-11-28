@@ -22,6 +22,7 @@ export default defineConfig({
       "test-results/**",
       ".next/**",
       ".next-e2e-ws/**",
+      ".next-e2e-gate/**",
       "node_modules/**",
     ],
     // Coverage ratchet (R03-02): thresholds are the measured figures rounded down to one

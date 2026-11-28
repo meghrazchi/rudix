@@ -5447,7 +5447,15 @@
     "retryFailed": "Retry failed. Please try again later.",
     "configIncomplete": "Frontend configuration is incomplete",
     "configIncompleteDescription": "Required public environment values are missing or invalid. Update your frontend environment file and restart the app.",
-    "startupCheck": "Rudix startup check"
+    "startupCheck": "Rudix startup check",
+    "routeBoundary": {
+      "title": "Unable to render this page",
+      "description": "A runtime error interrupted rendering. You can retry this view or navigate back to the dashboard.",
+      "retry": "Retry",
+      "backToDashboard": "Back to dashboard",
+      "backHome": "Back to homepage",
+      "reference": "Error reference"
+    }
   },
   "toasts": {
     "saved": "Saved successfully",

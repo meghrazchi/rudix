@@ -1,63 +1,28 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 
-export type ModelProviderSettingsResponse = {
-  organization_id: string;
-  provider: string | null;
-  llm_model: string | null;
-  embedding_model: string | null;
-  max_tokens: number | null;
-  timeout_seconds: number | null;
-  max_retries: number | null;
-  fallback_model: string | null;
-  disabled_models: string[];
-  /** True when an LLM API key is configured in the environment — never the key itself */
-  llm_key_configured: boolean;
-  version: number;
-  updated_by_id: string | null;
-  updated_at: string;
-};
+type Schemas = components["schemas"];
 
-export type EffectiveModelProviderPolicyResponse = {
-  organization_id: string;
-  provider: string;
-  llm_model: string;
-  embedding_model: string;
-  max_tokens: number | null;
-  timeout_seconds: number;
-  max_retries: number;
-  fallback_model: string | null;
-  disabled_models: string[];
-  llm_key_configured: boolean;
-  source: "org_override" | "system_default";
-  version: number;
-};
+export type ModelProviderSettingsResponse = Served<
+  Schemas["ModelProviderSettingsResponse"]
+>;
 
-export type ModelProviderChangeLogEntry = {
-  entry_id: string;
-  organization_id: string;
-  version_number: number;
-  settings_snapshot: Record<string, unknown>;
-  change_note: string | null;
-  changed_by_id: string | null;
-  created_at: string;
-};
+export type EffectiveModelProviderPolicyResponse = Served<
+  Schemas["EffectiveModelProviderPolicyResponse"]
+>;
 
-export type ModelProviderChangeLogResponse = {
-  items: ModelProviderChangeLogEntry[];
-  total: number;
-};
+export type ModelProviderChangeLogEntry = Served<
+  Schemas["ModelProviderChangeLogEntryResponse"]
+>;
 
-export type UpdateModelProviderSettingsRequest = {
-  provider?: string | null;
-  llm_model?: string | null;
-  embedding_model?: string | null;
-  max_tokens?: number | null;
-  timeout_seconds?: number | null;
-  max_retries?: number | null;
-  fallback_model?: string | null;
-  disabled_models?: string[] | null;
-  change_note?: string | null;
-};
+export type ModelProviderChangeLogResponse = Served<
+  Schemas["ModelProviderChangeLogResponse"]
+>;
+
+export type UpdateModelProviderSettingsRequest =
+  Schemas["UpdateModelProviderSettingsRequest"];
 
 // ---------------------------------------------------------------------------
 // Settings

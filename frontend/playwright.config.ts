@@ -16,6 +16,15 @@ const WS_FRONTEND_PORT = Number.parseInt(
 );
 const WS_FRONTEND_BASE_URL = `http://127.0.0.1:${WS_FRONTEND_PORT}`;
 const WS_SPECS = /chat-ws-.*\.spec\.ts$/;
+// The server-side route gate (R07-09) reads RUDIX_ROUTE_GATE at request time
+// and restores sessions only through the refresh cookie, so it gets a third
+// dev server: gate enforced, refresh URL configured, no dev session fallback.
+const GATE_FRONTEND_PORT = Number.parseInt(
+  process.env.PLAYWRIGHT_GATE_FRONTEND_PORT ?? "3103",
+  10,
+);
+const GATE_FRONTEND_BASE_URL = `http://127.0.0.1:${GATE_FRONTEND_PORT}`;
+const GATE_SPECS = /route-gate\.spec\.ts$/;
 const useBundledBrowser =
   process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true" ||
   process.env.CI === "true";
@@ -63,7 +72,7 @@ export default defineConfig({
     ...extraBrowserProjects,
     {
       name: "chromium",
-      testIgnore: WS_SPECS,
+      testIgnore: [WS_SPECS, GATE_SPECS],
       use: {
         ...devices["Desktop Chrome"],
         ...(useBundledBrowser ? {} : { channel: "chrome" }),
@@ -79,12 +88,31 @@ export default defineConfig({
         storageState: consentedStorageState(WS_FRONTEND_BASE_URL),
       },
     },
+    {
+      name: "chromium-route-gate",
+      testMatch: GATE_SPECS,
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(useBundledBrowser ? {} : { channel: "chrome" }),
+        baseURL: GATE_FRONTEND_BASE_URL,
+        storageState: consentedStorageState(GATE_FRONTEND_BASE_URL),
+      },
+    },
   ],
   webServer: [
     devServer(FRONTEND_PORT, FRONTEND_BASE_URL, {}),
     devServer(WS_FRONTEND_PORT, WS_FRONTEND_BASE_URL, {
       NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED: "true",
       NEXT_DIST_DIR: ".next-e2e-ws",
+    }),
+    devServer(GATE_FRONTEND_PORT, GATE_FRONTEND_BASE_URL, {
+      RUDIX_ROUTE_GATE: "enforce",
+      NEXT_DIST_DIR: ".next-e2e-gate",
+      NEXT_PUBLIC_AUTH_REFRESH_URL:
+        "http://localhost:8000/api/v1/auth/token/refresh",
+      NEXT_PUBLIC_AUTH_LOCAL_FALLBACK: "false",
+      NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN: "",
+      NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN: "",
     }),
   ],
 });
@@ -120,6 +148,8 @@ function devServer(
       NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME: "Rudix E2E Org",
       NEXT_PUBLIC_AUTH_DEFAULT_ROLE: "admin",
       NEXT_PUBLIC_CHAT_AGENTIC_ENABLED: "true",
+      // Enables /admin/error-probe for e2e/route-boundaries.spec.ts (R07-08).
+      NEXT_PUBLIC_E2E_ERROR_PROBE: "true",
       NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT: "false",
       NEXT_PUBLIC_PUBLIC_PRODUCT_URL: "/product",
       NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL: "/solutions",
