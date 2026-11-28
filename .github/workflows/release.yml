@@ -1056,7 +1056,12 @@ jobs:
       - name: Check remote backup artifacts
         # Each path may be a file or a directory; it must hold a file modified
         # within DEPLOY_BACKUP_MAX_AGE_HOURS (default 26).
+        # R08-06: DEPLOY_BACKUP_GATE=marker checks the backup markers in the backup bucket
+        # instead (deploy/scripts/check_backup_markers.sh, inside the api container); the
+        # default `ssh` keeps the file-age check above.
         env:
+          DEPLOY_BACKUP_GATE: ${{ vars.DEPLOY_BACKUP_GATE || 'ssh' }}
+          DEPLOY_APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
           DEPLOY_ENVIRONMENT: production
           DEPLOY_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           DEPLOY_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || '22' }}
@@ -1067,7 +1072,15 @@ jobs:
           DEPLOY_MINIO_BACKUP_PATH: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
           DEPLOY_QDRANT_BACKUP_PATH: ${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}
           DEPLOY_BACKUP_MAX_AGE_HOURS: ${{ vars.DEPLOY_BACKUP_MAX_AGE_HOURS || secrets.DEPLOY_BACKUP_MAX_AGE_HOURS || '26' }}
-        run: deploy/scripts/check_remote_backups.sh
+        run: |
+          case "${DEPLOY_BACKUP_GATE}" in
+            ssh) deploy/scripts/check_remote_backups.sh ;;
+            marker) deploy/scripts/check_backup_markers.sh ;;
+            *)
+              echo "DEPLOY_BACKUP_GATE must be ssh or marker" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Deploy production with Terraform
         working-directory: deploy/terraform

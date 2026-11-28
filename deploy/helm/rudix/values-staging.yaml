@@ -87,7 +87,12 @@ ingress:
     tlsSecretName: rudix-staging-api-tls
 
 # owner: A2
-backup: {}
+backup:
+  # Off until the operator creates the bucket, the credentials, and the key Secret
+  # (docs/runbooks/BACKUP_AND_RESTORE.md).
+  enabled: false
+  encryptionKeySecret:
+    name: rudix-staging-backup-key
 
 # owner: A2
 dataStores: {}

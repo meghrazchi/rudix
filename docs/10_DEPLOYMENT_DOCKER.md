@@ -690,20 +690,62 @@ service other than `edge` publishes a port, or `edge` publishes one other than 8
 
 ## Backup strategy
 
-Back up:
+Backups are encrypted on the host before they leave it and are stored in a separate backup
+bucket, in another account or region than the application data (0.8.0, R08-06). They are
+off by default (`BACKUP_ENABLED=false`). Runbook: [runbooks/BACKUP_AND_RESTORE.md](./runbooks/BACKUP_AND_RESTORE.md).
 
-- PostgreSQL database.
-- MinIO object storage.
-- Qdrant snapshots.
-- Environment secret store.
+| Kind | What runs | Schedule (suggested) | Primary recovery path |
+|---|---|---|---|
+| `postgres` | `pg_dump -Fc` in the `postgres:16` image, then `scripts/backup_run.py --kind postgres` encrypts and uploads it | daily | Managed PostgreSQL point-in-time recovery; the dump is the provider-independent copy |
+| `qdrant` | one snapshot per deployment collection (`QDRANT_COLLECTION` and its generations), downloaded, encrypted, uploaded, deleted from the server | daily | Snapshot restore; or rebuild from PostgreSQL chunks ([runbooks/DR_VECTOR_INDEX_LOSS.md](./runbooks/DR_VECTOR_INDEX_LOSS.md)) |
+| `objects` | incremental encrypted mirror of `MINIO_BUCKET` keyed by ETag and size | daily | Provider replication plus bucket versioning when the storage is managed S3 |
+| `neo4j` | not built: Neo4j Community cannot dump online; an operator backup may write its own marker | operator | Rebuild the graph from documents |
+| secrets | the env file or secret manager | on change | The secret manager's own versioning |
 
-Minimum schedule:
+How it works:
 
-```text
-PostgreSQL: daily backup
-MinIO: daily bucket replication or backup
-Qdrant: daily snapshot
+- Format: `RUDIXBK1`, streaming AES-256-GCM in 4 MiB chunks. Each chunk is bound to the
+  header, its position, and whether it is the last one, so tampering, reordering, and
+  truncation are detected on restore. The key file (`BACKUP_ENCRYPTION_KEY_FILE`) holds the
+  base64 of 32 random bytes (`openssl rand -base64 32`); it is never logged or uploaded.
+- Every upload also requests server-side encryption (`BACKUP_S3_SSE`, default `AES256`).
+- After each successful run the runner writes `<BACKUP_PREFIX>/<kind>/latest.json` (completion
+  time, object key, size, SHA-256 of the ciphertext). No hostname, path, or secret goes in it.
+- `scripts/backup_restore.py` downloads, checks the SHA-256, and decrypts; for PostgreSQL it
+  prints the `pg_restore` command. `scripts/verify_postgres_restore.py` checks a restored
+  database (revision, tables, RLS policies, indexes, row-count floors).
+
+Compose (staging and production): profile `backup` defines two one-shot services,
+`backup-postgres-dump` (`postgres:16`, writes the dump to the `backup_work` volume) and
+`backup-runner` (worker image). They never start with `up`. Copy
+`deploy/scripts/run_compose_backup.sh` to the application directory and run it from a host
+systemd timer or cron entry (examples in the script):
+
+```bash
+./run_compose_backup.sh production all        # or postgres | qdrant | objects
 ```
+
+Set in the env file: `BACKUP_ENABLED=true`, `BACKUP_BUCKET`, `BACKUP_S3_*` (or an instance
+role), `BACKUP_ENCRYPTION_KEY_HOST_FILE` (the key file on the host, mode `0400`, owned by uid
+`10001`), and optionally `BACKUP_DATABASE_URL` (a libpq URL; default: the Compose `postgres`
+service). Kubernetes: the chart's `backup` CronJobs ([28_KUBERNETES_HELM_DEPLOYMENT.md](./28_KUBERNETES_HELM_DEPLOYMENT.md)).
+
+Freshness and the deploy gate:
+
+- With `BACKUP_FRESHNESS_CHECK_ENABLED=true`, the beat task `ops.backups.check_freshness`
+  exports the marker age (`rudix_backup_last_success_timestamp_seconds{kind}`); alerts
+  `RudixBackupStale` and `RudixBackupFreshnessUnknown` fire on stale or missing markers.
+- The release workflow's backup gate keeps its SSH file-age check by default
+  (`DEPLOY_BACKUP_GATE=ssh`). Set the repository variable `DEPLOY_BACKUP_GATE=marker` once
+  a release with `scripts/check_backup_freshness.py` runs on the host and the markers are
+  fresh: the gate then runs that check inside the api container
+  (`deploy/scripts/check_backup_markers.sh`). The `PRODUCTION_*_BACKUP_PATH` secrets stay
+  required by the secret check until the SSH gate is removed.
+
+Restore drills: `deploy/scripts/restore_drill.sh` restores the latest backups into scratch
+stores, verifies them, and prints a record template for
+[runbooks/RESTORE_DRILL_LOG.md](./runbooks/RESTORE_DRILL_LOG.md). No drill has been recorded
+yet; RPO and RTO are measured on staging, not here.
 
 ## Scaling strategy
 

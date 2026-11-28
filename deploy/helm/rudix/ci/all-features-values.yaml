@@ -32,6 +32,10 @@ config:
     LOG_FORMAT: json
     # v080-A1
     # v080-A2
+    BACKUP_FRESHNESS_CHECK_ENABLED: "true"
+    BACKUP_BUCKET: rudix-ci-backups
+    BACKUP_PREFIX: rudix-ci
+    BACKUP_S3_REGION: eu-central-1
     # v080-B1
     # v080-B2
     METRICS_ENABLED: "true"
@@ -118,7 +122,19 @@ ingress:
     tlsSecretName: rudix-ci-mcp-tls
 
 # owner: A2
-backup: {}
+backup:
+  enabled: true
+  bucket: rudix-ci-backups
+  prefix: rudix-ci
+  timeZone: Etc/UTC
+  encryptionKeySecret:
+    name: rudix-ci-backup-key
+  podAnnotations:
+    example.invalid/ci: "true"
+  postgres:
+    enabled: true
+    image:
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000003
 
 # owner: A2
 dataStores: {}

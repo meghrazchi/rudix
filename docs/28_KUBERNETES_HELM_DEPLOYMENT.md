@@ -177,6 +177,60 @@ and checks hosts, backends, TLS, annotations, and the noindex ConfigMap.
 
 <!-- v080-A2 -->
 
+The chart deploys no data store. The values key `dataStores` is documentation only (nothing
+renders from it); it records what the operator's external stores must provide (R08-05):
+
+| Store | Requirement | Application setting |
+|---|---|---|
+| PostgreSQL | Managed, with point-in-time recovery and a read replica (C2) | `DATABASE_URL`, `DATABASE_MIGRATION_URL`, `DATABASE_MAINTENANCE_URL` |
+| Qdrant | Cluster of at least 2 nodes, replication factor 2 or more | `QDRANT_REPLICATION_FACTOR` (applies only when a collection is created; set it before the first build or create a new generation with `scripts/vector_index.py build` and swap), `QDRANT_WRITE_CONSISTENCY_FACTOR` (replicas that acknowledge a write, at most the replication factor; unset = server default 1) |
+| RabbitMQ | Three nodes; quorum queues only after the cut-over of docs/27 "Dead-letter queue and quorum cut-over" | `CELERY_QUEUE_TYPE=quorum` after the cut-over (default `classic`) |
+| Redis (state) | Persistence (AOF) and a replica, `maxmemory-policy noeviction`: rate limits, tickets, pub/sub, resume buffer, cache version keys | `REDIS_URL` |
+| Redis (cache) | Optional second instance, `allkeys-lru`, no persistence | `REDIS_CACHE_URL` (B1); results: `CELERY_RESULT_BACKEND_URL` |
+| Object storage | S3-compatible with versioning on; provider replication to another region preferred | `MINIO_*` |
+
+Losing one node of any store under load must not lose acknowledged work; that is a staging
+exit criterion, not measured here.
+
+Backups (R08-06). `backup.enabled` renders one CronJob per kind, `<fullname>-backup-<kind>`,
+each running `python scripts/backup_run.py --kind <kind>` in the worker image with
+`concurrencyPolicy: Forbid`, `activeDeadlineSeconds`, `restartPolicy: Never`, the common pod
+and container security contexts, a `/backup` emptyDir (`workDirSizeLimit`), and
+`envFrom` the config ConfigMap and `secrets.existingSecret`:
+
+| CronJob | Default | What it does |
+|---|---|---|
+| `backup-postgres` | `backup.postgres.enabled: false` | initContainer from `backup.postgres.image` (`postgres:16`) runs `pg_dump -Fc` with `BACKUP_DATABASE_URL` (a libpq URL from `secrets.existingSecret`, key `backup.postgres.databaseUrlSecretKey`); the main container encrypts and uploads it. Off by default because managed PITR is the primary recovery path. |
+| `backup-qdrant` | on when `backup.enabled` | Snapshot per deployment collection, download, encrypt, upload, delete the server snapshot. |
+| `backup-objects` | on when `backup.enabled` | Incremental encrypted mirror of `MINIO_BUCKET`. Prefer provider replication plus versioning for managed S3 and turn this off. |
+
+- `backup.bucket` and `backup.prefix` become `BACKUP_BUCKET` and `BACKUP_PREFIX` on the
+  CronJob pods only. Bucket credentials (`BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`) go in
+  `secrets.existingSecret`, or use the pod's cloud identity; region, endpoint, and SSE
+  settings may go in `config.env` (`# v080-A2`).
+- The encryption key is mounted from the Secret `backup.encryptionKeySecret.name` (key
+  `backup.encryptionKeySecret.key`) at `/run/secrets/rudix-backup/`, read-only, mode `0440`
+  for the pod group; `BACKUP_ENCRYPTION_KEY_FILE` points at it. Create the Secret outside
+  the chart, for example
+  `kubectl create secret generic rudix-production-backup-key --from-file=backup.key=<file>`.
+- The render fails when `backup.enabled` lacks the key Secret name or the bucket, when
+  `concurrencyPolicy` is not `Forbid`, or when `backup.postgres.enabled` has no
+  `secrets.existingSecret`.
+- NetworkPolicies already treat `backup-*` pods as data-store clients (C1).
+- Freshness: set `BACKUP_FRESHNESS_CHECK_ENABLED=true` in `config.env` so the beat task
+  exports `rudix_backup_last_success_timestamp_seconds`. The task runs in the worker pods,
+  which do not get the CronJob-only `BACKUP_BUCKET` and `BACKUP_PREFIX`, so set both in
+  `config.env` too (bucket read credentials come from `secrets.existingSecret`); the render
+  fails when the check is on without `config.env.BACKUP_BUCKET`, or when they differ from
+  `backup.bucket` and `backup.prefix`. Alerts are in
+  `infra/observability/prometheus/rules/backups.yml` (docs/12, "Backup freshness").
+
+Restore and verification: `deploy/scripts/restore_drill.sh` (scratch database and Qdrant
+only; it refuses the live URLs) and `backend/scripts/verify_postgres_restore.py
+--database-url ...` (exit 0 only when the revision, tables, RLS policies, primary keys, key
+indexes, and optional row-count floors hold). Runbooks: [runbooks/README.md](./runbooks/README.md).
+`backend/tests/test_helm_chart_backup.py` renders the CronJobs with every values file.
+
 ## Stateless replicas and shutdown
 
 <!-- v080-B1 -->

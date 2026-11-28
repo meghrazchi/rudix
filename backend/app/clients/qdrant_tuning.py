@@ -66,6 +66,7 @@ def create_collection_kwargs(config: Settings) -> dict[str, Any]:
         ("on_disk_payload", _value(config, "qdrant_on_disk_payload")),
         ("shard_number", _value(config, "qdrant_shard_number")),
         ("replication_factor", _value(config, "qdrant_replication_factor")),
+        ("write_consistency_factor", _value(config, "qdrant_write_consistency_factor")),
     ):
         if value is not None:
             kwargs[name] = value
@@ -98,6 +99,7 @@ def _existing_values(info: Any) -> dict[str, Any]:
         "qdrant_quantization_always_ram": getattr(scalar, "always_ram", None),
         "qdrant_shard_number": getattr(params, "shard_number", None),
         "qdrant_replication_factor": getattr(params, "replication_factor", None),
+        "qdrant_write_consistency_factor": getattr(params, "write_consistency_factor", None),
     }
 
 

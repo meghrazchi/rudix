@@ -179,6 +179,12 @@
   "infrastructure": {
     "api_shutdown_drain_seconds": 0.0,
     "app_auth_secret_previous_set": false,
+    "backup_bucket": null,
+    "backup_encryption_key_file_set": false,
+    "backup_prefix": "rudix",
+    "backup_s3_credentials_set": false,
+    "backup_s3_endpoint_set": false,
+    "backup_s3_kms_key_id_set": false,
     "beat_heartbeat_interval_seconds": 60,
     "celery_result_backend_url_set": false,
     "database_replica_url_set": false,

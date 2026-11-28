@@ -1023,6 +1023,32 @@ outbound request: the browser posts to our own API.
 - No baseline exists yet; killing a replica during the staging load test (no failed chat)
   is a staging exit criterion.
 
+### Backup freshness (R08-06)
+
+- Source: the backup markers `<BACKUP_PREFIX>/<kind>/latest.json` in the backup bucket,
+  written by `scripts/backup_run.py` after each successful run. The beat task
+  `ops.backups.check_freshness` (default queue, every `BACKUP_FRESHNESS_INTERVAL_SECONDS`,
+  900) reads them for every kind in `BACKUP_KINDS` when `BACKUP_FRESHNESS_CHECK_ENABLED=true`;
+  otherwise it does nothing.
+- `rudix_backup_last_success_timestamp_seconds{kind}` (gauge, `max`): completion time of the
+  newest backup of each kind (`postgres`, `qdrant`, `objects`, `neo4j`).
+- `rudix_backup_freshness_checks_total{outcome}` (counter): one per check; `fresh` (every
+  kind within `BACKUP_MAX_AGE_HOURS`), `stale`, `missing` (a marker absent or unreadable), or
+  `error` (the bucket could not be read).
+- Alerts (`infra/observability/prometheus/rules/backups.yml`): `RudixBackupStale` (critical)
+  when `time() - max by (kind) (rudix_backup_last_success_timestamp_seconds) > 26 * 3600` for
+  15 minutes; `RudixBackupFreshnessUnknown` (warning) when checks ran in the last hour but
+  reported `missing` or `error`, or no kind has a timestamp. With the task disabled neither
+  fires, so enable the check wherever backups run.
+- Logs: `backup.freshness.checked` (outcome, status per kind), `backup.freshness.check_failed`
+  (error class only), `backup.marker.written`, `backup.postgres.completed`,
+  `backup.qdrant.completed`, `backup.objects.completed` (sizes, counts, durations). No key,
+  URL, bucket credential, or object name is logged.
+- The gauge is set in the worker process that ran the task; until multiprocess collection
+  (B2) is enabled, prefork child values are not exported by the worker metrics server.
+- No baseline exists yet; the first restore drill and its RPO and RTO are staging steps
+  ([runbooks/RESTORE_DRILL_LOG.md](./runbooks/RESTORE_DRILL_LOG.md)).
+
 ### SLO rules and burn-rate alerts (0.8.0)
 
 R08-09 (B2): multiprocess worker metrics, authenticated scrapes, a beat heartbeat, SLO

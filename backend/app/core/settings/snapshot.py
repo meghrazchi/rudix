@@ -337,6 +337,13 @@ def sanitized_snapshot(settings: Settings) -> dict[str, Any]:
         # never URLs with credentials. Each task adds its keys after its anchor.
         "infrastructure": {
             # anchor: v080-A2
+            "backup_bucket": settings.backup_bucket,
+            "backup_prefix": settings.backup_prefix,
+            "backup_s3_endpoint_set": settings.backup_s3_endpoint is not None,
+            "backup_s3_credentials_set": settings.backup_s3_access_key is not None
+            and settings.backup_s3_secret_key is not None,
+            "backup_s3_kms_key_id_set": settings.backup_s3_kms_key_id is not None,
+            "backup_encryption_key_file_set": settings.backup_encryption_key_file is not None,
             # anchor: v080-B1
             "redis_cache_url_set": settings.redis_cache_url is not None,
             "celery_result_backend_url_set": settings.celery_result_backend_url is not None,

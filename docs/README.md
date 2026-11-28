@@ -59,6 +59,14 @@ This repository keeps `README.md` at the root and all other documentation under 
 ## Setup and Operations
 
 - [INSTALL.md](./INSTALL.md)
+- [runbooks/README.md](./runbooks/README.md): runbook index and format (0.8.0)
+- [runbooks/BACKUP_AND_RESTORE.md](./runbooks/BACKUP_AND_RESTORE.md)
+- [runbooks/RESTORE_DRILL_LOG.md](./runbooks/RESTORE_DRILL_LOG.md)
+- [runbooks/DR_HOST_OR_REGION_LOSS.md](./runbooks/DR_HOST_OR_REGION_LOSS.md)
+- [runbooks/DR_DATABASE_CORRUPTION.md](./runbooks/DR_DATABASE_CORRUPTION.md)
+- [runbooks/DR_VECTOR_INDEX_LOSS.md](./runbooks/DR_VECTOR_INDEX_LOSS.md)
+- [runbooks/DR_BROKER_LOSS.md](./runbooks/DR_BROKER_LOSS.md)
+- [runbooks/DR_CREDENTIAL_COMPROMISE.md](./runbooks/DR_CREDENTIAL_COMPROMISE.md)
 
 ## Collaboration and Governance
 
