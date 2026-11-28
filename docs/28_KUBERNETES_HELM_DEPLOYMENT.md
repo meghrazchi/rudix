@@ -125,6 +125,109 @@ schemas); that step is first exercised in CI, not on a development machine.
 
 <!-- v080-B1 -->
 
+An API replica holds no per-user or per-tenant state that another replica needs, so any pod
+can serve any request and a pod can be removed at any time. The settings below default to
+the single-instance behaviour of `0.7.0`; the chart and production Compose set them.
+
+### Shared WebSocket connection limit (R08-03)
+
+`WS_CHAT_MAX_CONNECTIONS_PER_USER` (default 3) is enforced per process with
+`WS_CHAT_CONNECTION_LIMIT_BACKEND=memory` (default) and across every replica with `redis`:
+
+- Each accepted `/chat/ws` connection holds one lease in the sorted set
+  `rudix:{env}:chat:ws:conn:v1:{organization_id}:{user_id}` (the semaphore script of
+  `app/rate_limit/concurrency.py`, scored by Redis `TIME` plus the lease). Code:
+  `app/application/chat/ws_connection_limit.py`.
+- The lease lasts `WS_CHAT_CONNECTION_LEASE_SECONDS` (default 90; it must be more than twice
+  `WS_CHAT_HEARTBEAT_INTERVAL_SECONDS`, 30) and every heartbeat tick refreshes it
+  (`REFRESH_SCRIPT`). A replica that crashes without releasing frees its slots once the
+  lease runs out, so no per-replica heartbeat key is needed.
+- A closed connection removes its lease at once (`ZREM`). A refresh that finds the lease gone
+  (for example after a long event-loop stall) takes it again when a slot is free and never
+  closes the open socket (log `ws_chat.connection.lease_lost`).
+- Redis errors follow `RATE_LIMIT_REDIS_FAILURE_MODE`: `open` (default) counts the connection
+  in the in-process counter instead (outcome `fallback`), `closed` closes it with `4429`.
+- Metrics: `rudix_chat_ws_connections` (open sockets, `livesum` per process) and
+  `rudix_chat_ws_connection_limit_total{backend,outcome}`; see
+  `docs/12_EVALUATION_AND_MONITORING.md`.
+
+### Process-local state audit (R08-03)
+
+Module-level dictionaries, sets, and caches in `backend/app` that hold per-user, per-tenant,
+or per-run data, and why each is safe with several replicas:
+
+| State | Code | Scope | With several replicas |
+|---|---|---|---|
+| WebSocket connection counter | `app/application/chat/ws_connection_limit.py` (`MEMORY_COUNTS`, re-exported as `chat._ws_connection_counts`) | user | `memory` backend only, and the open-mode fallback; use `redis` for a shared limit |
+| Realtime stream slots | `app/application/realtime/stream_http.py` | user | Already in Redis (lease semaphore) |
+| Chat resume buffer, cancel and attached flags | `app/application/chat/transports/resume_buffer.py` | run | Already in Redis; `chat.resume` works on any replica |
+| Realtime pub/sub and replay buffer | `app/domains/realtime/events.py` | organisation | Already in Redis |
+| Rate limits, LLM concurrency semaphore, WebSocket tickets, usage touch | `app/rate_limit/*`, `app/domains/chat/services/ws_ticket_service.py`, `app/auth/usage_touch.py` | user, organisation | Already in Redis |
+| Grace watchers of dropped runs | `app/application/chat/transports/ws.py` (`_GRACE_WATCHERS`, `_DROPPED_RUNS`) | run | Owned by the process that runs the pipeline; drained at shutdown (below) |
+| SSE run tasks | `app/application/chat/transports/sse.py` (`_active_runs`) | run | Task references of this process only |
+| Cache single-flight futures | `app/core/cache.py` (`_inflight`) | value key | Deduplicates loads per process; correctness comes from the Redis version keys |
+| JWKS keys | `app/auth/providers/jwt_jwks_provider.py` | auth provider | Per process by design (public keys, `AUTH_JWKS_CACHE_TTL_SECONDS`) |
+| Provider circuit breakers | `app/domains/ai/providers/resilience.py` (`breaker_registry`) | provider and model | Each replica trips on its own failures; not tenant data |
+| Vector index generation snapshot | `app/domains/vector_index/services/generation_service.py` (`registry`) | deployment | Reloaded from PostgreSQL after `VECTOR_INDEX_REGISTRY_CACHE_SECONDS` |
+| RLS soft-denial log throttle | `app/db/tenant_context.py` | table | Log throttling only |
+
+Clients and one-time init markers (`qdrant_client._async_clients`, Sentry and Langfuse init
+sets, `lru_cache` on settings, the auth provider, and MCP server objects, the frontend
+route allow-list in `metrics_frontend.py`) hold no tenant data.
+
+### Graceful shutdown and drain (R08-02, contract 5.2.5)
+
+When Kubernetes (or `docker compose`) stops an API pod:
+
+1. **preStop sleep** (chart, C1): the pod keeps serving while endpoints and the ingress
+   remove it, so no new connection arrives after uvicorn stops listening.
+2. **SIGTERM, uvicorn graceful shutdown**: uvicorn stops accepting connections, closes every
+   open WebSocket with close code `1012` (service restart; all three WebSocket
+   implementations of uvicorn `0.54` do, `tests/test_shutdown_drain.py`), and waits for
+   in-flight HTTP requests and SSE streams up to `UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN` seconds
+   (uvicorn's `--timeout-graceful-shutdown` read from the environment; unset by default,
+   which means no limit).
+3. **Dropped runs**: the frontend (`src/lib/chat/ws-reconnect.ts`) treats `1012` as
+   retryable and reconnects to another replica with `chat.resume`; the run that lost its
+   socket keeps going on this replica in its grace window (`CHAT_WS_RESUME_GRACE_SECONDS`),
+   writing to the Redis resume buffer the new replica reads.
+4. **Drain**: lifespan shutdown first waits up to `API_SHUTDOWN_DRAIN_SECONDS` (default `0`
+   = no wait, as before 0.8.0; at most 120) for those runs to finish, then cancels the rest
+   (a cancelled run records its partial usage). Log `api.shutdown.drain` with
+   `finished` and `cancelled` counts only.
+5. **Close clients**: the cache Redis, Redis, RabbitMQ, Qdrant, MinIO, ClamAV, Neo4j, the
+   loop-lag monitor, and the database engine close.
+
+Budget rule: `preStop sleep + UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN + API_SHUTDOWN_DRAIN_SECONDS`
+must stay below `terminationGracePeriodSeconds` (Kubernetes) or `stop_grace_period`
+(Compose), with a few seconds of margin; otherwise the kubelet or Docker sends `SIGKILL`
+during the drain and the remaining runs stop without their partial usage. A run longer than
+the drain is cancelled.
+
+### Readiness scope (R08-02, contract 5.2.6)
+
+`GET /api/v1/ready` reports every dependency (`postgres`, `redis`, `redis_cache` when
+`REDIS_CACHE_URL` is set, `rabbitmq`, `qdrant`, `minio`, `neo4j` with the enterprise graph,
+`openai_config`) in its body and in `rudix_dependency_readiness`.
+`READINESS_REQUIRED_DEPENDENCIES` (comma list; unknown names fail settings validation) picks
+which failures answer `503`; the body still says `degraded` and lists every failure. Unset
+means every dependency, as before 0.8.0. The chart's readiness probe (C1) uses
+`READINESS_REQUIRED_DEPENDENCIES=postgres,redis`, so a Qdrant or RabbitMQ blip does not take
+every pod out of the Service at once; liveness uses `GET /api/v1/health`.
+
+### Redis roles (R08-05, contract 5.2.7)
+
+| Variable | Holds | Unset |
+|---|---|---|
+| `REDIS_URL` | State: rate limits, semaphores and connection leases, WebSocket tickets, the resume buffer, realtime pub/sub, usage touch, cache version keys | Required |
+| `REDIS_CACHE_URL` | Cached values only (`app/core/cache.py`); may use an evicting policy such as `allkeys-lru` | Values share `REDIS_URL` |
+| `CELERY_RESULT_BACKEND_URL` | Celery task results (`redis_result_backend_url()`) | Results share `REDIS_URL` |
+
+Version keys stay on `REDIS_URL` so evicting cached values can never reset a version and
+resurrect stale values. When the cache Redis is down, cached reads fall back to PostgreSQL
+(`rudix_cache_errors_total{operation="get"}`), and `/ready` reports `redis_cache` down. The
+state Redis needs persistence and `noeviction` (see "Data stores, backups, and restore").
+
 ## Metrics and alerting
 
 <!-- v080-B2 -->

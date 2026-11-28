@@ -101,6 +101,22 @@ make seed-dev
   stream), and the endpoint commits the request session before streaming so a stream
   holds no database connection. `documents.changed` is recorded once per organisation and
   transaction, so a bulk change publishes one hint.
+- Stateless API replicas (0.8.0, R08-03, R08-02, R08-05; details in
+  `docs/28_KUBERNETES_HELM_DEPLOYMENT.md`, "Stateless replicas and shutdown"):
+  - `WS_CHAT_CONNECTION_LIMIT_BACKEND` (`memory`, default; or `redis`): `redis` counts
+    `WS_CHAT_MAX_CONNECTIONS_PER_USER` across replicas with one lease per connection
+    (`app/application/chat/ws_connection_limit.py`), refreshed on each heartbeat and expiring
+    after `WS_CHAT_CONNECTION_LEASE_SECONDS` (90; must exceed two heartbeat intervals). Redis
+    errors follow `RATE_LIMIT_REDIS_FAILURE_MODE` (open: in-process count; closed: `4429`).
+  - `API_SHUTDOWN_DRAIN_SECONDS` (0 = off, at most 120): lifespan shutdown waits that long
+    for chat runs whose socket dropped (uvicorn closes sockets with `1012`) before closing
+    clients, then cancels the rest (`drain_dropped_runs` in
+    `app/application/chat/transports/ws.py`).
+  - `READINESS_REQUIRED_DEPENDENCIES` (comma list, unset = all): only these failures make
+    `/api/v1/ready` answer `503`; the body still reports every dependency.
+  - `REDIS_CACHE_URL` (unset = `REDIS_URL`): cached values only; version keys and every
+    other state key stay on `REDIS_URL`. `CELERY_RESULT_BACKEND_URL` (unset = `REDIS_URL`):
+    Celery results. `/ready` adds `redis_cache` when the cache URL is set.
 
 ## Settings layout and startup behavior
 
