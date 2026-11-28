@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -112,7 +113,8 @@ def test_build_client_uses_path_style_only_with_an_endpoint(tmp_path: Path) -> N
     assert client.meta.endpoint_url.rstrip("/") == "http://minio-backup:9000"
     assert client.meta.config.s3 == {"addressing_style": "path"}
     aws = build_backup_s3_client(backup_config(tmp_path))
-    assert "amazonaws.com" in aws.meta.endpoint_url
+    aws_host = urlsplit(aws.meta.endpoint_url).hostname or ""
+    assert aws_host.endswith(".amazonaws.com")
     assert not aws.meta.config.s3
 
 

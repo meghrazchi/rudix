@@ -57,11 +57,15 @@ function pick(root: Tree, path: string[]): Tree | string {
 }
 
 function placeholders(rawMessage: string): string[] {
-  // Drop plural/select branch bodies ("one {# case}") so only arguments remain.
-  const message = rawMessage.replace(
-    /\b(?:zero|one|two|few|many|other|=\d+)\s*\{[^{}]*\}/g,
-    "",
-  );
+  // Drop plural/select branch bodies ("one {# case}") so only arguments remain. Repeat
+  // until nothing changes, so a removal cannot leave a new branch body behind.
+  const branchBody = /\b(?:zero|one|two|few|many|other|=\d+)\s*\{[^{}]*\}/g;
+  let message = rawMessage;
+  let previous: string;
+  do {
+    previous = message;
+    message = message.replace(branchBody, "");
+  } while (message !== previous);
   const args = [...message.matchAll(/\{\s*([A-Za-z_]\w*)\s*[,}]/g)].map(
     (m) => m[1],
   );
