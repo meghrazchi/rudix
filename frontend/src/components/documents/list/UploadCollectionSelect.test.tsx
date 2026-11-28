@@ -46,6 +46,39 @@ describe("UploadCollectionSelect (R07-06)", () => {
     expect(onChange).toHaveBeenCalledWith("c1");
   });
 
+  it("keeps the picked collection as an option after a search hides it", async () => {
+    const collectionSearch = search();
+    const onChange = vi.fn();
+    const { rerender } = renderWithProviders(
+      <UploadCollectionSelect
+        collections={collections}
+        collectionSearch={collectionSearch}
+        value=""
+        onChange={onChange}
+        disabled={false}
+      />,
+    );
+    await userEvent.selectOptions(screen.getByRole("combobox"), "c1");
+    expect(onChange).toHaveBeenCalledWith("c1");
+
+    const other = [
+      { collection_id: "c2", name: "Legal" },
+    ] as CollectionListItemResponse[];
+    rerender(
+      <UploadCollectionSelect
+        collections={other}
+        collectionSearch={search({ search: "Leg" })}
+        value="c1"
+        onChange={onChange}
+        disabled={false}
+      />,
+    );
+
+    expect(screen.getByRole("combobox")).toHaveValue("c1");
+    expect(screen.getByRole("option", { name: "Finance" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Legal" })).toBeInTheDocument();
+  });
+
   it("keeps the search box while a search has no matches", () => {
     renderWithProviders(
       <UploadCollectionSelect

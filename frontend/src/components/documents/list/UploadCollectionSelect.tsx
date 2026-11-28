@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useTranslations } from "next-intl";
 
 import type { CollectionListItemResponse } from "@/lib/api/collections";
@@ -27,7 +29,17 @@ export function UploadCollectionSelect({
   const t = useTranslations("documents.uploadModal");
   const tc = useTranslations("collections.page");
   const tCommon = useTranslations("common");
+  // The picked collection stays an option when a later search or page no
+  // longer returns it, so the select never shows "None" while the upload
+  // would still go into the hidden collection.
+  const [picked, setPicked] = useState<CollectionListItemResponse | null>(null);
   const searching = Boolean(collectionSearch?.search.trim());
+  const options =
+    value &&
+    picked?.collection_id === value &&
+    !collections.some((c) => c.collection_id === value)
+      ? [picked, ...collections]
+      : collections;
 
   if (collections.length === 0 && !searching) {
     return null;
@@ -50,12 +62,16 @@ export function UploadCollectionSelect({
       ) : null}
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const nextId = e.target.value;
+          setPicked(options.find((c) => c.collection_id === nextId) ?? null);
+          onChange(nextId);
+        }}
         className="w-full rounded-lg border border-[#d2cee6] bg-white px-3 py-2 text-sm text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
         disabled={disabled}
       >
         <option value="">{t("collectionNone")}</option>
-        {collections.map((c) => (
+        {options.map((c) => (
           <option key={c.collection_id} value={c.collection_id}>
             {c.name}
           </option>
