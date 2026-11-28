@@ -64,6 +64,19 @@ Jobs:
    - verifies generated API types against the committed OpenAPI schema
    - runs the production frontend build
 
+The `deploy-config` job (name `Deploy config`, added in `0.8.0`) checks deployment files
+without deploying anything: "Set up Helm" installs Helm `v3.19.0` (`azure/setup-helm@v4`),
+"Lint and render Helm chart" runs `deploy/scripts/check_helm_chart.sh` (`helm lint --strict`
+and `helm template` of `deploy/helm/rudix` with the defaults, `values-staging.yaml`,
+`values-production.yaml`, and every `ci/*-values.yaml`) and writes the manifests to
+`$RUNNER_TEMP/helm`, "Validate rendered manifests" runs `kubeconform` `v0.6.7` (strict,
+Kubernetes `1.30.0` schemas, unknown kinds such as CRDs skipped) on them, and "Check compose
+files" runs `deploy/scripts/check_compose_config.sh` (`docker compose config` of every Compose
+file with placeholder env). The `backend` job also installs Helm before "Run backend tests" so
+the chart tests (`tests/test_helm_chart_*.py`) run instead of skipping. `kubeconform` and this
+job are first exercised in CI; they were not run on a development machine when the job was
+added, so add `Deploy config` to the required checks only after it has passed on `develop`.
+
 Coverage thresholds are ratchets: raise them when coverage rises and never lower them without
 a reason in the pull request.
 

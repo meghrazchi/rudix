@@ -32,6 +32,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 26. [25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md](./25_PROMETHEUS_GRAFANA_OBSERVABILITY_PLAN.md) — Prometheus and Grafana metrics, dashboards, exporters, and SLO alerts (development overlay implemented; staging and production rollout planned)
 27. [26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md](./26_VERSIONED_ROADMAP_AND_RELEASE_PLAN.md) — Planned release train from `0.1.0` to `1.0.0`, product-area version map, flag graduation, performance targets, and open decisions
 28. [27_INGESTION_AND_WORKERS_RUNBOOK.md](./27_INGESTION_AND_WORKERS_RUNBOOK.md) — Staged ingestion chain, queues, resume and reaper, transactional outbox, failed stage retry, worker tenant binding
+29. [28_KUBERNETES_HELM_DEPLOYMENT.md](./28_KUBERNETES_HELM_DEPLOYMENT.md) — Kubernetes Helm chart (`deploy/helm/rudix`): layout and conventions, values ownership, secrets from an existing Secret, rendering and linting; sections for edge, data stores, shutdown, metrics, tracing, workloads, database, and runtime configuration are filled during `0.8.0`
 
 ## Roadmap Specs (planned work)
 
