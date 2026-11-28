@@ -243,6 +243,225 @@ state Redis needs persistence and `noeviction` (see "Data stores, backups, and r
 
 <!-- v080-C1 -->
 
+Added in `0.8.0` C1 (`R08-02`, `R08-07`, `R08-08`). Templates live under
+`templates/{frontend,api,mcp,workers,beat,migrations,autoscaling,networkpolicy}/` with helpers
+in `templates/_c1.tpl`. Every Service is `ClusterIP`; no pod uses a host port, host network,
+or the API server token (`automountServiceAccountToken: false`). Ingress objects (A1) point at
+the `<fullname>-frontend`, `<fullname>-api`, and `<fullname>-mcp` Services by port name `http`.
+
+**Workloads.**
+
+| Component | Kind | Command | Port | Default replicas | Grace |
+|---|---|---|---|---|---|
+| frontend | Deployment, Service, PDB | `node server.js` (`HOSTNAME=0.0.0.0`) | `http` 3000 | 2 | 30 s, preStop `sleep 5` |
+| api | Deployment, Service, PDB | `uvicorn app.main:app --host 0.0.0.0 --port 8000` (one process per pod) | `http` 8000 | 2 | 60 s, preStop `sleep 10` |
+| mcp (`mcp.enabled`, off) | Deployment, Service, PDB | `python -m app.mcp.main --transport streamable_http` | `http` 8010 | 2 | 30 s, preStop `sleep 5` |
+| worker-`<pool>` | Deployment (+ Service `metrics` when `metrics.enabled`) | `python -m app.workers.pools <pool>` | `metrics` 9808 | 1 per pool | 120 s (acks_late) |
+| beat | Deployment, `Recreate` | `celery ... beat --schedule /tmp/celerybeat-schedule` | none | exactly 1 | 10 s |
+| migrate | Job (Helm hook) | see "Migrations before traffic" | none | one run | `activeDeadlineSeconds` 3600 |
+
+The frontend gets `envFrom` the config ConfigMap, `secrets.existingSecret`, and the frontend
+ConfigMap (`runtimeConfig.env`), plus a writable `emptyDir` at `/app/.next/cache` because the
+root filesystem is read-only. Worker pools come from `workers.pools` (`ingest`, `graph`, `sync`,
+`eval`, `default`, as `app/workers/pools.py`); the chart passes each pool's `queues` and
+`concurrency` as `WORKER_POOL_<NAME>_QUEUES` and `WORKER_POOL_<NAME>_CONCURRENCY`, so the
+chart is the one place that says what a pool consumes. The queue lists equal the pool
+defaults; when you rename a `CELERY_QUEUE_*` queue, change the pool's `queues` too (a test
+fails otherwise). Every container has requests and limits (from the Compose limits: api
+2 CPU / 2Gi, workers 2 / 4Gi, frontend 1 / 1Gi, mcp 1 / 1Gi, beat 0.5 / 512Mi, with lower
+requests); a pool's own `resources` replaces `workers.resources`.
+
+**Probes.**
+
+| Component | startup | readiness | liveness |
+|---|---|---|---|
+| api | `GET /api/v1/health` every 5 s, 24 failures | `GET /api/v1/ready` every 10 s | `GET /api/v1/health` every 15 s |
+| frontend | `GET /robots.txt` | `GET /robots.txt` | `GET /robots.txt` |
+| mcp | `GET /health` | `GET /health` | `GET /health` |
+| worker-`<pool>` | exec `celery -A app.workers.celery_app:celery_app inspect ping -d <pool>@$HOSTNAME --timeout 10`, every 20 s, 15 failures | same, every 60 s, timeout 20 s | same, every 60 s, timeout 20 s |
+| beat | none (B2 alerts on the heartbeat) | none | none |
+
+The api readiness probe gates only on the stores every request needs:
+`config.env.READINESS_REQUIRED_DEPENDENCIES=postgres,redis` (contract 5.2.6, setting from B1;
+unset keeps today's "every dependency"). A Qdrant, object storage, RabbitMQ, or Neo4j blip
+therefore never takes every API pod out of the Service at once. The frontend probes
+`/robots.txt` because `/login` answers with a locale redirect and the proxy skips paths with a
+file extension. The worker ping starts a Python process, so it runs rarely, as in Compose.
+
+**Graceful shutdown (contract 5.2.5).** The api pod gets `UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN`
+(`api.gracefulShutdownSeconds`, 30) and `API_SHUTDOWN_DRAIN_SECONDS` (`api.drainSeconds`, 15).
+On termination the preStop `sleep` (10) lets endpoints and the ingress stop routing to the pod,
+uvicorn then closes WebSockets with `1012` and finishes requests, and `lifespan` waits for
+dropped runs before closing clients. The render fails when
+`preStopSleepSeconds + gracefulShutdownSeconds + drainSeconds + 5 > terminationGracePeriodSeconds`
+(defaults: 10 + 30 + 15 + 5 = 60), and when a frontend or mcp preStop is not below its grace
+period.
+
+**Zero-downtime rules (`R08-08`).**
+
+- frontend, api, mcp: `RollingUpdate` with `maxUnavailable: 0` and `maxSurge: 25%`; worker
+  pools `maxUnavailable: 0`, `maxSurge: 1`; `minReadySeconds` 10, `revisionHistoryLimit` 5,
+  `progressDeadlineSeconds` 600 (`rollout.*`). A new pod must pass readiness before an old
+  one stops.
+- frontend and api spread across nodes: preferred pod anti-affinity plus a
+  `topologySpreadConstraints` entry (`ScheduleAnyway`) on `rollout.topologyKey`.
+- PodDisruptionBudgets (`podDisruptionBudget.enabled`, on) with `maxUnavailable: 1` for
+  frontend, api, and mcp, so a node drain evicts one pod at a time.
+- beat: `replicas: 1` always (any other value fails the render), `strategy: Recreate` so an
+  old and a new beat never run together, no PDB, never autoscaled.
+- Schema changes are expand-contract (C2, docs/CONTRIBUTING): the release being replaced must
+  work on the migrated schema, because old pods serve until the new ones are ready.
+
+**Migrations before traffic.** `templates/migrations/job.yaml` is a Helm hook
+(`helm.sh/hook: pre-install,pre-upgrade`, `hook-delete-policy: before-hook-creation`,
+`backoffLimit: 0`, `activeDeadlineSeconds: 3600`) that runs, in the order of
+`deploy_compose_remote.sh`:
+
+```sh
+alembic upgrade head && python -m app.clients.qdrant_bootstrap && python scripts/run_graph_migrations.py
+```
+
+Helm waits for it and stops the release when it fails, so no new pod starts on an unmigrated
+schema. Hooks run before the release's own objects exist, so the Job has its own hook
+ConfigMap (`<fullname>-migrate`, the same data as `<fullname>-config`) and ServiceAccount,
+created first (lower `helm.sh/hook-weight`). With `migrations.useMigrationUrl` (on in staging
+and production) the Job's `DATABASE_URL` comes from the `DATABASE_MIGRATION_URL` key
+(`migrations.migrationUrlSecretKey`) of `secrets.existingSecret`: the schema owner, not the
+application role. The render fails when `useMigrationUrl` is set without `existingSecret`.
+
+**Install and upgrade with image digests.** Deploy by digest, never by a moving tag. Resolve
+the digests that passed staging (docs/14, `release.yml`), then:
+
+```bash
+api=$(docker buildx imagetools inspect "<registry>/api:vX.Y.Z" --format '{{json .Manifest.Digest}}' | tr -d '"')
+worker=$(docker buildx imagetools inspect "<registry>/worker:vX.Y.Z" --format '{{json .Manifest.Digest}}' | tr -d '"')
+frontend=$(docker buildx imagetools inspect "<registry>/frontend-production:<sha>" --format '{{json .Manifest.Digest}}' | tr -d '"')
+
+helm template rudix deploy/helm/rudix --namespace rudix \
+  -f deploy/helm/rudix/values-production.yaml \
+  --set image.registry=<registry> \
+  --set image.api.digest="$api" --set image.worker.digest="$worker" \
+  --set image.frontend.repository=frontend-production --set image.frontend.digest="$frontend" > /tmp/rudix-production.yaml   # review first
+
+helm upgrade --install rudix deploy/helm/rudix --namespace rudix --create-namespace \
+  -f deploy/helm/rudix/values-production.yaml \
+  --set image.registry=<registry> \
+  --set image.api.digest="$api" --set image.worker.digest="$worker" \
+  --set image.frontend.repository=frontend-production --set image.frontend.digest="$frontend" \
+  --wait --timeout 20m
+```
+
+`<registry>` is the operator's registry; the chart's `registry.invalid/rudix` is a
+placeholder. `--wait` makes Helm wait for the migrate hook and for every Deployment to become
+ready; a failed hook or readiness timeout leaves the previous pods serving. Keep `--timeout`
+above the migration's expected run time: a Helm timeout marks the release failed but does not
+stop the Job (it runs until `migrations.activeDeadlineSeconds`, 3600 s), and re-running the
+upgrade while it still runs deletes it (`before-hook-creation`) in the middle of a migration.
+Check `kubectl get job <fullname>-migrate` before retrying.
+
+**Rollback.** `helm history rudix -n rudix`, then `helm rollback rudix <revision> -n rudix
+--wait`. A rollback runs no `pre-upgrade` hook, so it never runs migrations and never
+downgrades the database; the earlier images run on the current schema, which expand-contract
+keeps compatible. A schema downgrade is a manual, reviewed `alembic downgrade` step, never part
+of a rollback. Compose deployments keep `deploy/scripts/rollback.sh`.
+
+**Connection budget.** The chart computes the worst-case number of PostgreSQL connections the
+release can open, during a rolling update, and writes it to the api Deployment annotation
+`rudix.io/database-connections-worst-case`. With `connectionBudget.maxDatabaseConnections`
+above 0 the render fails when the worst case exceeds it.
+
+```text
+per process = (DB_POOL_SIZE + DB_MAX_OVERFLOW) x enginesPerProcess        defaults (5 + 10) x 1
+api         = (max replicas + surge) x per process
+mcp         = (replicas + surge) x per process                            when mcp.enabled
+workers     = sum over pools of (max replicas + 1 surge) x (concurrency + 1) x per process
+beat        = 1 x per process
+migrate     = 1                                                           alembic uses NullPool
+```
+
+- max replicas is `autoscaling.api.maxReplicas` (and each pool's `autoscaling.workers.pools.<pool>.maxReplicas`
+  in keda mode) when autoscaling is on, otherwise the fixed replicas; surge is `maxSurge`
+  rounded up (`25%` of 2 is 1).
+- Each prefork child calls `engine.dispose(close=False)` after fork (`worker_process_init`)
+  and builds its own `QueuePool`; the worker main process (dead-letter consumer, queue
+  sampler) holds one too, hence `concurrency + 1`. Workers do not use `NullPool`.
+- `enginesPerProcess` is 2 when `DATABASE_MAINTENANCE_URL` is set: the maintenance engine is
+  a second pool in the same process.
+- `DB_POOL_SIZE` and `DB_MAX_OVERFLOW` are read from `config.env` (else
+  `connectionBudget.defaultPoolSize` / `defaultMaxOverflow`).
+- Surge counts the pods a rollout adds, not pods still terminating: a Deployment starts the
+  next new pod as soon as an old one is told to stop, and that old pod keeps its pool for up
+  to its grace period (api 60 s, workers 120 s). A rollout with several replicas per tier can
+  briefly exceed the computed number; leave headroom below `max_connections` for it.
+
+The defaults give 481 (api 45, workers 420, beat 15, migrate 1). Set
+`maxDatabaseConnections` to the server's `max_connections` minus `superuser_reserved_connections`
+and every other client (replication, backups, admin sessions). With a pooler (C2's PgBouncer in
+transaction mode, or the provider's pooler) the application connects to the pooler: set the
+budget to the pooler's client limit (`max_client_conn`); the server side is then bounded by the
+pooler's `default_pool_size` per database and user, which you size against `max_connections`
+separately. Lowering `DB_MAX_OVERFLOW` is the cheapest way to cut the worst case, because every
+process holds its own pool.
+
+**Autoscaling (`R08-07`).** `autoscaling.enabled` is off: fixed replicas. When on, the
+Deployments it scales leave `replicas` unset so `helm upgrade` never resets the autoscaler.
+The first upgrade that turns autoscaling on removes the field, so those Deployments drop to 1
+replica until the autoscaler applies its minimum (seconds); do it outside peak traffic.
+
+- `mode: keda` (KEDA installed by the operator; `autoscaling.prometheus.serverAddress` and
+  `metrics.enabled` are required, or the render fails): ScaledObject for the api with Prometheus triggers on in-flight requests per
+  replica (`sum(rudix_http_requests_in_progress{...})`, target 40) and open streams per
+  replica (`sum(rudix_realtime_connections) + sum(rudix_chat_ws_connections)`, target 150,
+  below the 200-streams-per-replica goal), plus CPU and memory; `minReplicaCount` 2 (a cold
+  start never serves alone). A ScaledObject per worker pool on
+  `max(rudix_celery_queue_depth{queue=~"<pool queues>"})` per replica and the p95 of
+  `rudix_celery_queue_wait_seconds` (publish-to-start wait, the stand-in for the oldest message
+  age; plan section 3); `minReplicaCount` 1 (a pool is never scaled to zero unless set). The
+  frontend scales on CPU and memory. HPA behavior: scale up at most 100% per minute, scale down
+  one pod per minute after a 300 s stabilization window.
+- `mode: hpa`: `autoscaling/v2` HorizontalPodAutoscalers on CPU and memory for the api and the
+  frontend; worker pools keep fixed replicas.
+- Queries add `namespace="<release namespace>"`; set `autoscaling.prometheus.labelMatchers`
+  when your scrape config labels the series differently. The queue metrics come from the
+  default pool's sampler (`WORKER_SAMPLE_QUEUE_DEPTH`), so scrape the worker metrics port.
+  Beat is never autoscaled.
+
+**Network policy.** `networkPolicy.enabled` is on by default:
+
+- `<fullname>-default-deny` selects every pod of the release and denies all ingress (and, with
+  `networkPolicy.egress.enabled`, all egress).
+- `<component>-from-ingress`: frontend, api, and mcp accept their `http` port only from the
+  ingress controller namespace (`networkPolicy.ingressControllerNamespaceSelector`, default
+  `kubernetes.io/metadata.name: ingress-nginx`; optional `ingressControllerPodSelector`). Set it
+  to your controller's namespace before installing, or the site is unreachable.
+- `api-from-frontend` (`networkPolicy.allowFrontendToApi`, off): only when the frontend proxies
+  `/api/v1` to the in-cluster api Service (`NEXT_PUBLIC_PROXY_TARGET` at build time). Otherwise
+  the browser reaches the API through the ingress.
+- With `metrics.enabled`, the monitoring namespace (`networkPolicy.monitoringNamespaceSelector`,
+  default `monitoring`) may reach the api `http` port and each worker's `metrics` port. The mcp
+  server serves no `/metrics`, so its port stays closed to that namespace.
+- `networkPolicy.dataStores` (empty by default: managed stores are outside the cluster): each
+  entry (`name`, `podSelector`, `ports`, optional `namespace`) renders `datastore-<name>`, which
+  allows ingress to those pods only from api, mcp, worker pools, beat, migrate, and `backup-*`
+  pods of the release. The frontend never reaches a data store. A store in another namespace
+  gets the policy in its namespace, with the release namespace required on the source.
+- Egress restriction (`networkPolicy.egress.enabled`, off): pods may reach DNS
+  (`dnsNamespaceSelector`, `kube-system`), each other, and `networkPolicy.egress.extraRules`
+  (raw egress rules for the data stores, object storage, and model provider endpoints). Turn it
+  on only after listing every external endpoint; a missing rule breaks that integration.
+- A new component that needs ingress (C2's pooler, A2's backups if they serve anything) adds its
+  own allow policy; the default deny covers it automatically.
+
+**Checked here and staging-only.** `deploy/scripts/check_helm_chart.sh` renders every values
+file (`ci/all-features-values.yaml` turns on mcp, keda, migration URL, data-store and egress
+policies; `ci/hpa-values.yaml` covers hpa mode). `tests/test_helm_chart_workloads.py`,
+`test_helm_chart_autoscaling.py`, and `test_helm_chart_networkpolicy.py` check kinds, probes,
+resources, PDBs, the single beat, the hook Job, rolling updates without unavailability, the
+grace and connection budgets (including the render failures), autoscaling objects, and the
+policies. Not measurable here and left to staging (plan section 9): killing an api replica
+during the load test, a burst scaling out and back, and a deploy under load with zero failed
+requests.
+
 ## Database: managed Postgres, replica, pooler
 
 <!-- v080-C2 -->
@@ -286,3 +505,5 @@ Not done in the repository (plan section 8):
 
 - 2026-11-28: Initial version (`0.8.0` S1): chart layout, conventions, helpers, render and lint
   checks; empty sections for A1, A2, B1, B2, B3, C1, C2, and D1.
+- 2026-11-28: `0.8.0` C1: workloads, probes, shutdown and connection budgets, migrate hook Job,
+  rollout rules, KEDA and HPA autoscaling, network policies.

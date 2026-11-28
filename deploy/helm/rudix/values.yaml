@@ -58,6 +58,8 @@ config:
     # v080-B2
     # v080-B3
     # v080-C1
+    # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
+    READINESS_REQUIRED_DEPENDENCIES: postgres,redis
     # v080-C2
     # v080-D1
 
@@ -133,40 +135,301 @@ backup:
 dataStores: {}
 
 # owner: C1
-frontend: {}
+frontend:
+  # Fixed replica count; ignored while autoscaling.enabled (the autoscaler owns it).
+  replicas: 2
+  # Container port name `http` (contract 5.2.2).
+  port: 3000
+  # Probe path that answers 200 without auth or a locale redirect (the proxy matcher skips
+  # paths with a file extension; /login redirects to /<locale>/login).
+  probePath: /robots.txt
+  terminationGracePeriodSeconds: 30
+  preStopSleepSeconds: 5
+  # Writable Next.js cache (image optimisation, ISR) on the read-only root filesystem.
+  cacheSizeLimit: 512Mi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
 
 # owner: C1
-api: {}
+api:
+  replicas: 2
+  port: 8000
+  # One uvicorn process per pod; replicas, not --workers, give more processes.
+  # Shutdown budget (contract 5.2.5): preStop + graceful + drain + 5 must not exceed
+  # terminationGracePeriodSeconds, or the render fails.
+  terminationGracePeriodSeconds: 60
+  preStopSleepSeconds: 10
+  # UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN
+  gracefulShutdownSeconds: 30
+  # API_SHUTDOWN_DRAIN_SECONDS (B1): wait for dropped runs before closing clients.
+  drainSeconds: 15
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
 
 # owner: C1
-mcp: {}
+mcp:
+  # Off by default, like the Compose `mcp` profile.
+  enabled: false
+  replicas: 2
+  port: 8010
+  path: /mcp
+  terminationGracePeriodSeconds: 30
+  preStopSleepSeconds: 5
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
 
 # owner: C1
-workers: {}
+workers:
+  # Same as the Compose stop_grace_period: Celery finishes acks_late tasks on SIGTERM.
+  terminationGracePeriodSeconds: 120
+  # Exec probe `celery inspect ping -d <pool>@$HOSTNAME`; it starts a Python process, so it
+  # runs rarely (Compose: every 30 s, timeout 15 s).
+  probe:
+    periodSeconds: 60
+    timeoutSeconds: 20
+    failureThreshold: 5
+    startupPeriodSeconds: 20
+    startupFailureThreshold: 15
+  # Defaults for every pool; a pool's own `resources` replaces them.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  # One Deployment per pool (`python -m app.workers.pools <name>`). `queues` and
+  # `concurrency` are passed as WORKER_POOL_<NAME>_QUEUES / _CONCURRENCY, so the chart is
+  # the one source for what a pool consumes; the queue lists equal the defaults in
+  # app/workers/pools.py (a test checks it) and feed the autoscaling queries.
+  pools:
+    ingest:
+      enabled: true
+      replicas: 1
+      concurrency: 2
+      queues:
+        - documents.processing
+        - documents.deletion
+        - documents.reindex
+      resources: {}
+    graph:
+      enabled: true
+      replicas: 1
+      concurrency: 2
+      queues:
+        - documents.graph
+      resources: {}
+    sync:
+      enabled: true
+      replicas: 1
+      concurrency: 2
+      queues:
+        - connectors.sync
+      resources: {}
+    eval:
+      enabled: true
+      replicas: 1
+      concurrency: 1
+      queues:
+        - evaluations
+      resources: {}
+    default:
+      enabled: true
+      replicas: 1
+      concurrency: 2
+      queues:
+        - default
+        - email
+      resources: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
 
 # owner: C1
-beat: {}
+beat:
+  # Exactly one: a second beat schedules every task twice. Any other value fails the render.
+  replicas: 1
+  terminationGracePeriodSeconds: 10
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
 
 # owner: C1
-migrations: {}
+migrations:
+  # Helm hook Job (pre-install, pre-upgrade): alembic upgrade head, Qdrant bootstrap, graph
+  # migrations, in that order (as deploy_compose_remote.sh). A failure stops the release.
+  enabled: true
+  # Run as the schema owner: DATABASE_URL comes from this key of secrets.existingSecret.
+  useMigrationUrl: false
+  migrationUrlSecretKey: DATABASE_MIGRATION_URL
+  hookWeight: 0
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
 
 # owner: C1
 autoscaling:
   enabled: false
+  # keda: ScaledObjects with Prometheus triggers (KEDA installed by the operator).
+  # hpa: autoscaling/v2 HorizontalPodAutoscalers on CPU and memory (api, frontend).
+  mode: keda
+  prometheus:
+    # Required in keda mode, for example the in-cluster Prometheus service URL.
+    serverAddress: ""
+    # PromQL label matchers added to every query; empty: namespace="<release namespace>".
+    labelMatchers: ""
+  api:
+    # Never below 2: a cold start never serves alone.
+    minReplicas: 2
+    maxReplicas: 10
+    # Per replica (KEDA AverageValue).
+    targetInFlightRequests: 40
+    # Realtime streams + chat WebSockets per replica, below the 200-per-replica goal.
+    targetStreams: 150
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    scaleDownStabilizationSeconds: 300
+  frontend:
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    scaleDownStabilizationSeconds: 300
+  workers:
+    pollingInterval: 30
+    cooldownPeriod: 300
+    scaleDownStabilizationSeconds: 300
+    # Per pool (keda only). minReplicas 1: a pool is never scaled to zero by default.
+    pools:
+      ingest:
+        minReplicas: 1
+        maxReplicas: 4
+        targetQueueDepth: 20
+        targetQueueWaitSeconds: 60
+      graph:
+        minReplicas: 1
+        maxReplicas: 3
+        targetQueueDepth: 20
+        targetQueueWaitSeconds: 120
+      sync:
+        minReplicas: 1
+        maxReplicas: 3
+        targetQueueDepth: 20
+        targetQueueWaitSeconds: 120
+      eval:
+        minReplicas: 1
+        maxReplicas: 2
+        targetQueueDepth: 10
+        targetQueueWaitSeconds: 300
+      default:
+        minReplicas: 1
+        maxReplicas: 3
+        targetQueueDepth: 50
+        targetQueueWaitSeconds: 30
 
 # owner: C1
 networkPolicy:
-  enabled: false
+  # Default-deny ingress for every pod of the release, then explicit allows.
+  enabled: true
+  # Namespace of the ingress controller (operator-installed); reaches frontend, api, mcp.
+  ingressControllerNamespaceSelector:
+    kubernetes.io/metadata.name: ingress-nginx
+  # Optional pod labels of the controller inside that namespace; empty: any pod there.
+  ingressControllerPodSelector: {}
+  # Namespace allowed to scrape the metrics ports (api http, workers metrics) when
+  # metrics.enabled.
+  monitoringNamespaceSelector:
+    kubernetes.io/metadata.name: monitoring
+  # Frontend server-side calls to the api Service (only when NEXT_PUBLIC_PROXY_TARGET points
+  # at it at build time); off: the browser calls the API through the ingress.
+  allowFrontendToApi: false
+  # In-cluster data stores the operator runs (empty: the stores are external). Each entry:
+  #   - name: postgres                 # policy name suffix
+  #     namespace: ""                  # empty: the release namespace
+  #     podSelector: {app: postgres}   # labels of the data store pods
+  #     ports: [{port: 5432, protocol: TCP}]
+  # renders a policy that allows ingress to those pods only from Rudix application pods
+  # (api, mcp, workers, beat, migrate, backup-*).
+  dataStores: []
+  egress:
+    # Off by default. On: pods of the release may reach only DNS, each other, and the
+    # rules below (data stores, object storage, LLM providers).
+    enabled: false
+    dnsNamespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    # Raw NetworkPolicy egress rules added for every pod of the release.
+    extraRules: []
 
 # owner: C1
 podDisruptionBudget:
-  enabled: false
+  # frontend, api, mcp; at most one pod evicted at a time. Beat never gets one.
+  enabled: true
+  maxUnavailable: 1
 
 # owner: C1
-rollout: {}
+rollout:
+  # frontend, api, mcp: a new pod is ready before an old one stops.
+  web:
+    maxUnavailable: 0
+    maxSurge: 25%
+  workers:
+    maxUnavailable: 0
+    maxSurge: 1
+  minReadySeconds: 10
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  # Soft anti-affinity and topology spread across nodes for frontend and api.
+  spreadAcrossNodes: true
+  topologyKey: kubernetes.io/hostname
 
 # owner: C1
-connectionBudget: {}
+connectionBudget:
+  # Largest number of PostgreSQL connections the release may open (the server's
+  # max_connections minus reserved and other clients, or the pooler's client limit).
+  # 0: check off. The render fails when the worst case exceeds it (docs/28).
+  maxDatabaseConnections: 0
+  # Per-process pool, used when config.env has no DB_POOL_SIZE / DB_MAX_OVERFLOW.
+  defaultPoolSize: 5
+  defaultMaxOverflow: 10
+  # Engines per process: 2 when DATABASE_MAINTENANCE_URL is set (a second pool).
+  enginesPerProcess: 1
 
 # owner: C2
 database: {}

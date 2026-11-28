@@ -1,0 +1,56 @@
+{{- /*
+Exactly one beat: replicas fixed at 1 (any other value fails in rudix.c1.validate), Recreate
+so an old and a new beat never run together, no PodDisruptionBudget, never autoscaled, no
+probe (B2 adds a heartbeat alert).
+*/ -}}
+{{- $ctx := dict "root" . "component" "beat" -}}
+{{- $beat := .Values.beat -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: {{ .Values.rollout.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "rudix.selectorLabels" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rudix.labels" $ctx | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with $beat.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "rudix.c1.podCommon" $ctx | nindent 6 }}
+      terminationGracePeriodSeconds: {{ int $beat.terminationGracePeriodSeconds }}
+      {{- with include "rudix.c1.scheduling" (dict "values" $beat) | trim }}{{ . | nindent 6 }}{{ end }}
+      containers:
+        - name: beat
+          image: {{ include "rudix.image" $ctx }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - celery
+            - -A
+            - app.workers.celery_app:celery_app
+            - beat
+            - --loglevel=INFO
+            - --schedule
+            - /tmp/celerybeat-schedule
+          envFrom:
+            {{- include "rudix.envFrom" . | nindent 12 }}
+          resources:
+            {{- toYaml $beat.resources | nindent 12 }}
+          securityContext:
+            {{- include "rudix.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            {{- include "rudix.tmpVolumeMount" . | nindent 12 }}
+      volumes:
+        {{- include "rudix.tmpVolume" . | nindent 8 }}

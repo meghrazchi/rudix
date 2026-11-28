@@ -1,0 +1,91 @@
+{{- $ctx := dict "root" . "component" "frontend" -}}
+{{- $frontend := .Values.frontend -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ int $frontend.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rudix.selectorLabels" $ctx | nindent 6 }}
+  {{- include "rudix.c1.rollingStrategy" (dict "root" . "kind" "web") | nindent 2 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rudix.labels" $ctx | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/frontend-config: {{ include (print $.Template.BasePath "/frontend-configmap.yaml") . | sha256sum }}
+        {{- with $frontend.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "rudix.c1.podCommon" $ctx | nindent 6 }}
+      terminationGracePeriodSeconds: {{ int $frontend.terminationGracePeriodSeconds }}
+      {{- with include "rudix.c1.spread" $ctx | trim }}{{ . | nindent 6 }}{{ end }}
+      {{- with include "rudix.c1.scheduling" (dict "values" $frontend) | trim }}{{ . | nindent 6 }}{{ end }}
+      containers:
+        - name: frontend
+          image: {{ include "rudix.image" $ctx }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "server.js"]
+          ports:
+            - name: http
+              containerPort: {{ int $frontend.port }}
+              protocol: TCP
+          envFrom:
+            {{- include "rudix.envFrom" . | nindent 12 }}
+            - configMapRef:
+                name: {{ include "rudix.frontendConfigMapName" . }}
+          env:
+            # Kubernetes sets HOSTNAME to the pod name; the standalone server must bind to
+            # every interface, not the pod hostname.
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: PORT
+              value: {{ int $frontend.port | quote }}
+            - name: NODE_ENV
+              value: production
+          startupProbe:
+            httpGet:
+              path: {{ $frontend.probePath }}
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: {{ $frontend.probePath }}
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: {{ $frontend.probePath }}
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", {{ int $frontend.preStopSleepSeconds | quote }}]
+          resources:
+            {{- toYaml $frontend.resources | nindent 12 }}
+          securityContext:
+            {{- include "rudix.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            {{- include "rudix.tmpVolumeMount" . | nindent 12 }}
+            - name: next-cache
+              mountPath: /app/.next/cache
+      volumes:
+        {{- include "rudix.tmpVolume" . | nindent 8 }}
+        - name: next-cache
+          emptyDir:
+            sizeLimit: {{ $frontend.cacheSizeLimit }}

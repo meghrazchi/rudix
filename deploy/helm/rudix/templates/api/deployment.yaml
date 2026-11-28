@@ -1,0 +1,92 @@
+{{- include "rudix.c1.validate" . -}}
+{{- $ctx := dict "root" . "component" "api" -}}
+{{- $api := .Values.api -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+  annotations:
+    # Worst-case PostgreSQL connections of the whole release (docs/28, connection budget).
+    rudix.io/database-connections-worst-case: {{ include "rudix.c1.connectionWorstCase" . | quote }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ int $api.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rudix.selectorLabels" $ctx | nindent 6 }}
+  {{- include "rudix.c1.rollingStrategy" (dict "root" . "kind" "web") | nindent 2 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rudix.labels" $ctx | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with $api.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "rudix.c1.podCommon" $ctx | nindent 6 }}
+      terminationGracePeriodSeconds: {{ int $api.terminationGracePeriodSeconds }}
+      {{- with include "rudix.c1.spread" $ctx | trim }}{{ . | nindent 6 }}{{ end }}
+      {{- with include "rudix.c1.scheduling" (dict "values" $api) | trim }}{{ . | nindent 6 }}{{ end }}
+      containers:
+        - name: api
+          image: {{ include "rudix.image" $ctx }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # One uvicorn process per pod (no --workers): replicas give more processes.
+          command:
+            - uvicorn
+            - app.main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - {{ int $api.port | quote }}
+          ports:
+            - name: http
+              containerPort: {{ int $api.port }}
+              protocol: TCP
+          envFrom:
+            {{- include "rudix.envFrom" . | nindent 12 }}
+          env:
+            - name: UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN
+              value: {{ int $api.gracefulShutdownSeconds | quote }}
+            - name: API_SHUTDOWN_DRAIN_SECONDS
+              value: {{ int $api.drainSeconds | quote }}
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24
+          readinessProbe:
+            # Gates on READINESS_REQUIRED_DEPENDENCIES only (contract 5.2.6).
+            httpGet:
+              path: /api/v1/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          lifecycle:
+            preStop:
+              # Lets endpoints and the ingress stop routing here before uvicorn shuts down.
+              exec:
+                command: ["sleep", {{ int $api.preStopSleepSeconds | quote }}]
+          resources:
+            {{- toYaml $api.resources | nindent 12 }}
+          securityContext:
+            {{- include "rudix.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            {{- include "rudix.tmpVolumeMount" . | nindent 12 }}
+      volumes:
+        {{- include "rudix.tmpVolume" . | nindent 8 }}

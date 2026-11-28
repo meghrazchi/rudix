@@ -1,0 +1,74 @@
+{{- /*
+Migrations before traffic (R08-08): a pre-install and pre-upgrade hook. Helm waits for the Job
+and stops the release when it fails, so no new pod starts on an unmigrated schema. Hooks run
+before the release's own objects exist, so the Job uses its own hook ConfigMap (same data as
+<fullname>-config) and its own ServiceAccount, both created first (lower hook weight).
+*/ -}}
+{{- if .Values.migrations.enabled -}}
+{{- $ctx := dict "root" . "component" "migrate" -}}
+{{- $migrations := .Values.migrations -}}
+{{- $name := include "rudix.componentName" $ctx -}}
+{{- $weight := int $migrations.hookWeight -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: {{ $weight | quote }}
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: {{ int $migrations.backoffLimit }}
+  activeDeadlineSeconds: {{ int $migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "rudix.labels" $ctx | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ $name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        {{- include "rudix.podSecurityContext" $ctx | nindent 8 }}
+      {{- with include "rudix.imagePullSecrets" . | trim }}{{ . | nindent 6 }}{{ end }}
+      containers:
+        - name: migrate
+          image: {{ include "rudix.image" $ctx }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Same order as deploy_compose_remote.sh; graph migrations exit 0 when the
+          # enterprise graph is disabled.
+          command:
+            - sh
+            - -ec
+            - >-
+              alembic upgrade head
+              && python -m app.clients.qdrant_bootstrap
+              && python scripts/run_graph_migrations.py
+          envFrom:
+            - configMapRef:
+                name: {{ $name }}
+            {{- with .Values.secrets.existingSecret }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+          {{- if $migrations.useMigrationUrl }}
+          env:
+            # Schema-owner connection for this Job only.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: {{ $migrations.migrationUrlSecretKey }}
+          {{- end }}
+          resources:
+            {{- toYaml $migrations.resources | nindent 12 }}
+          securityContext:
+            {{- include "rudix.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            {{- include "rudix.tmpVolumeMount" . | nindent 12 }}
+      volumes:
+        {{- include "rudix.tmpVolume" . | nindent 8 }}
+{{- end }}

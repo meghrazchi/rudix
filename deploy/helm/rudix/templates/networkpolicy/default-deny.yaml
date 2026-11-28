@@ -1,0 +1,21 @@
+{{- /*
+Default deny for every pod of the release: no ingress (and no egress when
+networkPolicy.egress.enabled) unless another policy here allows it.
+*/ -}}
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rudix.c1.policyName" (dict "root" . "name" "default-deny") }}
+  labels:
+    {{- include "rudix.c1.policyLabels" (dict "root" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rudix.c1.releaseSelector" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    {{- if .Values.networkPolicy.egress.enabled }}
+    - Egress
+    {{- end }}
+{{- end }}
