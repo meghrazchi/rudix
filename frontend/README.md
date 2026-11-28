@@ -435,6 +435,49 @@ CI fails when a route's first-load JavaScript grows past its budget.
   `class-variance-authority` (no imports in `src`) and five unreferenced default SVGs from
   `public/`. `eslint-config-next` already equals `next` (16.4.6).
 
+### Pagination and large lists (R07-06, R07-10)
+
+No list silently stops at one page: each shows a count ("Showing 20 of 45") or a
+"Load more" button, and pickers search on the server.
+
+- `src/lib/pagination/useInfiniteList.ts` wraps `useInfiniteQuery` for list endpoints.
+  The next page comes from `next_cursor` when the response has one (once a list is
+  cursor-paged, a missing cursor ends it); otherwise from `offset + limit < total`.
+  It returns the flattened `items`, the first reported `total`, `hasMore`,
+  `isLoadingMore` and `loadMore`. `useDebouncedValue` (300 ms) debounces search input.
+- `src/components/pagination/LoadMoreFooter.tsx` renders the count, the button and a
+  polite live region ("Loading more…"); `PickerSearchInput.tsx` is the search box of
+  server-searched pickers. Strings live in `common.pagination` in all six catalogues.
+- Documents table: `sort_by=created_at` (the default) loads keyset cursor pages with
+  `include_total=true` on the first page and appends them with "Load more"; other sorts
+  keep offset pages with page navigation. Above `NEXT_PUBLIC_TABLE_VIRTUALIZE_MIN_ROWS`
+  rows (default 200) the body is virtualised with `@tanstack/react-virtual`, keeping
+  real `<tr>` rows in document order with `aria-rowcount`/`aria-rowindex` and a sticky
+  header. The list keeps its 4 s polling while documents are processing.
+- Collection selectors (upload modal, assign dialog, chat scope menu and context modal,
+  agent workspace) use `useCollectionSearchList` (server `name_query`, pages of 50).
+  The collection policy member picker sends `search` to `GET /team/members`. Selections
+  outside the loaded rows are kept.
+- Collections page: offset pages of 20 with a count and "Load more"; collection
+  documents in pages of 10. Membership diffs (document picker, chat collection scope)
+  read every page through `fetchAllCollectionDocuments` instead of one 200-row request.
+- Counts that used to scan 200 rows now read `total` of one-row pages: onboarding
+  (documents and indexed documents) and the security center (members, admins, owners).
+  The dashboard keeps its `NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS` cap for summing chunk
+  counts and says "Based on the first N of M documents" when it applies.
+- Chat citation preview loads the cited chunk with the `chunk_id` filter of
+  `GET /documents/{document_id}/chunks`.
+- R07-10 part 1: `DocumentDetailPage.tsx`, `DocumentsPage.tsx` and `CollectionsPage.tsx`
+  are route shells over `components/documents/detail/`, `components/documents/list/`
+  and sibling modules in `components/collections/` (state hooks, tables, panels,
+  dialogs), every file under 500 lines, with the original exports kept
+  (`AssignCollectionsDialog` is still exported from `CollectionsPage`). Their ad-hoc
+  query keys moved into `queryKeys` after `// anchor: C` and return the same arrays.
+- Remaining `limit: 200` in `src`: `components/evaluations/dataset-builder.tsx` (owned by
+  another package) and the `collectionViews.allDocuments` cache key. The chat
+  `NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS` request is a validation cache with its `total`, not
+  a displayed list.
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)
@@ -626,6 +669,7 @@ NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS=1000
 NEXT_PUBLIC_DASHBOARD_MAX_CHAT_SESSION_ROWS=1000
 NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE=false
 NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS=200
+NEXT_PUBLIC_TABLE_VIRTUALIZE_MIN_ROWS=200
 NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT=10
 NEXT_PUBLIC_CHAT_TOP_K_MIN=1
 NEXT_PUBLIC_CHAT_TOP_K_MAX=20

@@ -726,7 +726,20 @@ Query params:
 limit=20
 offset=0
 include_full_text=false
+chunk_id=<uuid>   # optional (R07-06)
 ```
+
+`chunk_id` (optional UUID, R07-06) returns only that chunk when it belongs to this
+document and the active `index_version`: `items` holds at most one chunk and `total`
+is `1`, or `items` is empty and `total` is `0` when the chunk belongs to another
+document. Access checks are unchanged (another organisation's document is still
+`404`), and a malformed UUID is `422`. Without `chunk_id` the listing is unchanged.
+The chat citation preview uses it instead of loading 200 chunks to find one.
+
+Lists that page with `limit`, `offset` and `total` (collections, collection documents,
+team members, verified answers, and documents sorted by anything but `created_at`) are
+enough for a count and "Load more" in the UI; documents sorted by `created_at` use the
+keyset `cursor` / `next_cursor` pages with `include_total=true` on the first page.
 
 Response:
 
