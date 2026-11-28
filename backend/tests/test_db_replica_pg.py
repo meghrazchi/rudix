@@ -31,7 +31,7 @@ from app.core import metrics_db_replica
 from app.core.config import AuthProvider, RlsEnforcement, settings
 from app.db import replica
 from app.db import session as db_session_module
-from app.db.replica import ReplicaLagSampler, query_replica_lag
+from app.db.replica import LagSample, ReplicaLagSampler, query_replica_lag
 from app.db.tenant_context import bind_session_tenant
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
@@ -356,3 +356,33 @@ async def test_report_endpoints_match_on_replica_and_primary(
     dashboard = via_primary[paths[0]]
     assert isinstance(dashboard, dict)
     assert dashboard["totals"]["input_tokens"] == 350
+
+
+@pytest.mark.usefixtures("fresh_reporting_engine")
+async def test_report_endpoint_falls_back_when_the_replica_stops_answering(
+    monkeypatch: pytest.MonkeyPatch,
+    report_client: AsyncClient,
+    seeded: TwoOrgs,
+) -> None:
+    """A fresh good sample, then the replica refuses connections: the report uses the primary."""
+    headers = {"Authorization": f"Bearer {_token(seeded)}"}
+    path = _report_paths()[0]
+    monkeypatch.setattr(settings, "database_replica_url", None)
+    via_primary = await report_client.get(path, headers=headers)
+    assert via_primary.status_code == 200, via_primary.text
+
+    # Port 1 on loopback refuses connections at once.
+    monkeypatch.setattr(
+        settings, "database_replica_url", "postgresql+asyncpg://rudix:rudix@127.0.0.1:1/rudix"
+    )
+    sampler = replica.lag_sampler
+    sampler._sample = LagSample(lag_seconds=0.0, sampled_at=sampler.now())
+    failed = metrics_db_replica.DB_REPLICA_ROUTED_TOTAL.labels(
+        target="primary", reason="sample_failed"
+    )
+    before = float(failed._value.get())
+    response = await report_client.get(path, headers=headers)
+    assert response.status_code == 200, response.text
+    assert _comparable(response.content) == _comparable(via_primary.content)
+    assert float(failed._value.get()) == before + 1
+    assert sampler.last_sample is not None and sampler.last_sample.lag_seconds is None

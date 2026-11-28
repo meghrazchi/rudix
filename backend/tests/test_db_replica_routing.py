@@ -310,6 +310,71 @@ async def test_fresh_replica_session_binds_the_primary_tenant(
         await fake_replica.dispose()
 
 
+async def test_replica_that_fails_to_connect_falls_back_to_primary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    # A fresh sample said the replica was fine, then the replica went away.
+    unreachable = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/missing/dir/replica.db")
+    factory = async_sessionmaker(bind=unreachable, class_=AsyncSession)
+    monkeypatch.setattr(replica, "get_reporting_engine", lambda: unreachable)
+    monkeypatch.setattr(replica, "ReportingSessionLocal", factory)
+    samples: list[int] = []
+
+    async def zero(_engine: Any, _timeout_ms: int) -> float | None:
+        samples.append(1)
+        return 0.0
+
+    monkeypatch.setattr(replica, "query_replica_lag", zero)
+    ok_before = _routed("replica", "ok")
+    failed_before = _routed("primary", "sample_failed")
+    primary = AsyncSession()
+    try:
+        async with replica.reporting_session(primary) as session:
+            assert session is primary
+        assert _routed("primary", "sample_failed") == failed_before + 1
+        assert _routed("replica", "ok") == ok_before
+        last = replica.lag_sampler.last_sample
+        assert last is not None and last.lag_seconds is None
+        # The rest of the interval skips the replica without sampling or connecting again.
+        async with replica.reporting_session(primary) as session:
+            assert session is primary
+        assert samples == [1]
+        assert _routed("primary", "sample_failed") == failed_before + 2
+    finally:
+        await unreachable.dispose()
+
+
+async def test_replica_connect_is_bounded_by_the_lag_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "db_replica_lag_query_timeout_ms", 20)
+
+    class HangingSession:
+        def __init__(self) -> None:
+            self.info: dict[str, Any] = {}
+
+        async def __aenter__(self) -> HangingSession:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def connection(self) -> None:
+            await asyncio.sleep(5)
+
+    monkeypatch.setattr(replica, "get_reporting_engine", lambda: object())
+    monkeypatch.setattr(replica, "ReportingSessionLocal", HangingSession)
+
+    async def zero(_engine: Any, _timeout_ms: int) -> float | None:
+        return 0.0
+
+    monkeypatch.setattr(replica, "query_replica_lag", zero)
+    primary = AsyncSession()
+    async with asyncio.timeout(2):
+        async with replica.reporting_session(primary) as session:
+            assert session is primary
+
+
 async def test_metrics_disabled_skips_the_counter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "metrics_enabled", False)
     before = _routed("primary", "replica_unset")

@@ -425,7 +425,10 @@ request that reads its own writes never sees a stale replica.
   points at the new primary: samples fail (fallback to the primary, alert after 15 m) or read 0
   (`pg_is_in_recovery()` false). Point `DATABASE_URL` at the new primary through the
   provider's endpoint, and `DATABASE_REPLICA_URL` at the new replica when one exists, then roll
-  the api. A replica outage never fails a report request.
+  the api. The replica connection is checked out before the handler runs, within
+  `DB_REPLICA_LAG_QUERY_TIMEOUT_MS`: a replica that stops answering between two samples sends
+  the request to the primary (`sample_failed`) and marks the sample failed for the rest of
+  the interval. Only a replica that fails in the middle of a report query fails that request.
 
 **Pooler (`pgbouncer.enabled`, off).** PgBouncer in transaction mode between the application
 pods and PostgreSQL, or the managed provider's pooler instead (then leave `pgbouncer.enabled`

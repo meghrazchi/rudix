@@ -15,7 +15,10 @@ next interval. Each sample sets ``rudix_db_replica_lag_seconds``; each decision 
 
 The replica session is read-only (``default_transaction_read_only`` on the connection, or
 ``SET TRANSACTION READ ONLY`` per transaction in PgBouncer mode) and is bound to the same
-tenant as the primary session, so the RLS session-context statement runs on it too.
+tenant as the primary session, so the RLS session-context statement runs on it too. Its
+connection is checked out before the handler runs, within the lag query timeout; a replica
+that fails between two samples sends the request to the primary (``sample_failed``) and marks
+the sample failed for the rest of the interval.
 """
 
 from __future__ import annotations
@@ -42,7 +45,7 @@ from app.db.session import (
     ReportingSessionLocal,
     get_reporting_engine,
 )
-from app.db.tenant_context import apply_tenant_context, bind_session_tenant
+from app.db.tenant_context import bind_session_tenant
 
 LAG_QUERY = (
     "SELECT CASE WHEN pg_is_in_recovery() THEN "
@@ -125,6 +128,10 @@ class ReplicaLagSampler:
         self._sample = None
         self._locks.clear()
 
+    def mark_failed(self) -> None:
+        """Record a failed sample now, so requests use the primary until the next interval."""
+        self._sample = LagSample(lag_seconds=None, sampled_at=self._clock())
+
     def _is_stale(self, now: float) -> bool:
         if self._sample is None:
             return True
@@ -176,42 +183,76 @@ async def query_replica_lag(engine: AsyncEngine, timeout_ms: int) -> float | Non
 lag_sampler = ReplicaLagSampler()
 
 
-async def choose_reporting_target() -> RouteDecision:
-    """Sample lag when needed, decide, and count the decision."""
+async def _decide_reporting_target() -> RouteDecision:
+    """Sample lag when needed and decide; the caller counts the final decision."""
     engine = get_reporting_engine()
     sample = await lag_sampler.current(engine) if engine is not None else None
-    decision = decide_route(
+    return decide_route(
         replica_configured=engine is not None,
         sample=sample,
         now=lag_sampler.now(),
         max_lag_seconds=settings.db_replica_max_lag_seconds,
         check_interval_seconds=settings.db_replica_lag_check_interval_seconds,
     )
+
+
+def _count(decision: RouteDecision) -> None:
     record_replica_route(decision.target, decision.reason)
     if decision.target == "primary" and decision.reason != "replica_unset":
+        sample = lag_sampler.last_sample
         _logger.debug(
             "db.replica.fallback",
             reason=decision.reason,
             lag_seconds=sample.lag_seconds if sample is not None else None,
         )
+
+
+async def choose_reporting_target() -> RouteDecision:
+    """Sample lag when needed, decide, and count the decision."""
+    decision = await _decide_reporting_target()
+    _count(decision)
     return decision
+
+
+async def _connect_replica(session: AsyncSession) -> bool:
+    """Open the replica session's transaction within the lag query timeout.
+
+    The replica can fail between two samples (restart, failover). Checking out the
+    connection before the handler runs lets the request fall back to the primary instead of
+    failing; the failure also marks the sample failed, so the next requests of the interval
+    skip the replica without waiting for the timeout.
+    """
+    try:
+        async with asyncio.timeout(settings.db_replica_lag_query_timeout_ms / 1000):
+            await session.connection()
+    except Exception as exc:
+        _logger.warning("db.replica.connect_failed", error_type=type(exc).__name__)
+        lag_sampler.mark_failed()
+        return False
+    return True
 
 
 @asynccontextmanager
 async def reporting_session(primary: AsyncSession) -> AsyncIterator[AsyncSession]:
     """A read-only replica session bound to ``primary``'s tenant, or ``primary`` itself."""
-    decision = await choose_reporting_target()
-    if decision.target == "primary":
-        yield primary
-        return
-    async with ReportingSessionLocal() as replica:
-        bind_session_tenant(
-            replica,
-            primary.info.get("organization_id"),
-            enforce_guard=bool(primary.info.get("enforce_tenant_guard", False)),
-        )
-        await apply_tenant_context(replica)
-        yield replica
+    decision = await _decide_reporting_target()
+    if decision.target == "replica":
+        async with ReportingSessionLocal() as replica:
+            bind_session_tenant(
+                replica,
+                primary.info.get("organization_id"),
+                enforce_guard=bool(primary.info.get("enforce_tenant_guard", False)),
+            )
+            if await _connect_replica(replica):
+                _count(decision)
+                # Opening the transaction ran the after_begin listeners: the tenant's
+                # session-context statement (tenant_context) and, in PgBouncer mode,
+                # SET TRANSACTION READ ONLY. Later transactions get them the same way.
+                yield replica
+                return
+        decision = RouteDecision("primary", "sample_failed")
+    _count(decision)
+    yield primary
 
 
 def _on_after_begin_read_only(

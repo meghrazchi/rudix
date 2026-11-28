@@ -987,7 +987,9 @@ outbound request: the browser posts to our own API.
   (any `lag_exceeded` or `sample_failed` routing for 15 m, warning). A fallback is safe (the
   report reads the primary) but moves reporting load back to it.
 - Logs: `db.replica.lag_sample_failed` (warning, error class only, or `unknown_lag` when the
-  standby has not replayed a transaction yet) and `db.replica.fallback` (debug, reason and lag).
+  standby has not replayed a transaction yet), `db.replica.connect_failed` (warning, error
+  class only: the replica refused or timed out after a good sample; the request used the
+  primary), and `db.replica.fallback` (debug, reason and lag).
   No URL, query text, or row data is logged.
 - Lag is sampled on demand by API processes that serve reports, at most once per
   `DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS`; a process that serves no report never samples, so
